@@ -53,7 +53,7 @@ describe('MusicXML package surface', () => {
       </score-partwise>`;
 
     const score = new MusicXMLParser(xml).parse();
-    const note = score.measures[0].staves[0].voices[0].notes[0];
+    const note = score.measures[0].staves[0].voices[0].events[0];
 
     expect(note.meta?.id).toBe('note-stable-1');
   });
@@ -91,11 +91,49 @@ describe('MusicXML package surface', () => {
       </score-partwise>`;
 
     const score = new MusicXMLParser(xml).parse();
-    const chord = score.measures[0].staves[0].voices[0].notes[0];
+    const chord = score.measures[0].staves[0].voices[0].events[0];
 
     expect(chord.type).toBe('chord');
     expect(chord.meta?.id).toBe('chord-main');
     expect(chord.meta?.sourceIds).toEqual(['chord-main', 'chord-member-2']);
+  });
+
+  it('does not convert a note into a chord when the chord member has no pitch', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+      <score-partwise version="4.0" xmlns:xml="http://www.w3.org/XML/1998/namespace">
+        <part-list>
+          <score-part id="P1"><part-name>Piano</part-name></score-part>
+        </part-list>
+        <part id="P1">
+          <measure number="1">
+            <attributes>
+              <divisions>1</divisions>
+              <time><beats>4</beats><beat-type>4</beat-type></time>
+              <clef><sign>G</sign><line>2</line></clef>
+            </attributes>
+            <note id="chord-main">
+              <pitch><step>C</step><octave>4</octave></pitch>
+              <duration>1</duration>
+              <voice>1</voice>
+              <type>quarter</type>
+              <staff>1</staff>
+            </note>
+            <note id="malformed-chord-member">
+              <chord/>
+              <duration>1</duration>
+              <voice>1</voice>
+              <type>quarter</type>
+              <staff>1</staff>
+            </note>
+          </measure>
+        </part>
+      </score-partwise>`;
+
+    const score = new MusicXMLParser(xml).parse();
+    const event = score.measures[0].staves[0].voices[0].events[0];
+
+    expect(event.type).toBe('note');
+    expect(event.meta?.sourceIds).toEqual(['chord-main']);
   });
 
   it('normalizes circled fingering glyphs to editable numeric values', () => {
@@ -124,10 +162,54 @@ describe('MusicXML package surface', () => {
       </score-partwise>`;
 
     const score = new MusicXMLParser(xml).parse();
-    const note = score.measures[0].staves[0].voices[0].notes[0];
+    const note = score.measures[0].staves[0].voices[0].events[0];
 
     expect(note.type).toBe('note');
     if (note.type !== 'note') return;
     expect(note.fingering).toBe('5');
+  });
+
+  it('treats MusicXML forward as cursor movement instead of a parsed editor entity', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+      <score-partwise version="4.0">
+        <part-list>
+          <score-part id="P1"><part-name>Piano</part-name></score-part>
+        </part-list>
+        <part id="P1">
+          <measure number="1">
+            <attributes>
+              <divisions>4</divisions>
+              <time><beats>4</beats><beat-type>4</beat-type></time>
+              <clef><sign>G</sign><line>2</line></clef>
+            </attributes>
+            <forward id="forward-gap-1">
+              <duration>4</duration>
+              <voice>1</voice>
+              <staff>1</staff>
+            </forward>
+            <note id="note-after-gap">
+              <pitch><step>D</step><octave>4</octave></pitch>
+              <duration>4</duration>
+              <voice>1</voice>
+              <type>quarter</type>
+              <staff>1</staff>
+            </note>
+          </measure>
+        </part>
+      </score-partwise>`;
+
+    const score = new MusicXMLParser(xml).parse();
+    const entities = score.measures[0].staves[0].voices[0].events;
+
+    expect(entities).toHaveLength(1);
+    expect(entities[0]).toMatchObject({
+      type: 'note',
+      pitch: 'D4',
+      meta: {
+        id: 'note-after-gap',
+        entityIndex: 0,
+        startTick: 4,
+      },
+    });
   });
 });

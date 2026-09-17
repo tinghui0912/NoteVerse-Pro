@@ -13,7 +13,7 @@ from collections.abc import Iterator
 
 from app.core.config import settings
 from app.core.settings.service_identity import CUSTOMER_API_PREFIX
-from app.storage.base import StoredFile
+from app.storage.base import DirectUploadTarget, StoredFile, StoredObjectMetadata
 
 
 class LocalFileStorage:
@@ -56,6 +56,18 @@ class LocalFileStorage:
 
     def size_bytes(self, key: str) -> int:
         return os.path.getsize(self.local_path(key))
+
+    def object_metadata(self, key: str) -> StoredObjectMetadata:
+        return StoredObjectMetadata(size_bytes=self.size_bytes(key))
+
+    def upload_url(
+        self,
+        key: str,
+        *,
+        content_type: str,
+        checksum_sha256: str,
+    ) -> DirectUploadTarget | None:
+        return None
 
     def iter_bytes(
         self,
@@ -110,7 +122,7 @@ class LocalFileStorage:
         filename: str | None = None,
         content_type: str | None = None,
     ) -> str | None:
-        return None
+        return self.public_url(key)
 
     def materialize_to_local(self, key: str, target_path: str) -> str:
         source_path = self.local_path(key)

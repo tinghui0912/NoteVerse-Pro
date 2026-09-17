@@ -1,5 +1,6 @@
 import type { ScoreData } from '@/types/score-types';
 import { getEditorTrackId, parseVoiceNumber } from '@/lib/editor/tracks';
+import type { NoteAtom, ScoreDocument } from '@/lib/editor-domain';
 
 export type ConnectionEndpointPair = {
   startId: string;
@@ -20,7 +21,7 @@ export function getHiddenSourceIds(
         const trackId = getEditorTrackId(staveIndex, xmlVoice);
         if (visibleTrackIdSet.has(trackId)) return;
 
-        voice.notes.forEach((entity) => {
+        voice.events.forEach((entity) => {
           const sourceIds = entity.meta?.sourceIds || (entity.meta?.id ? [entity.meta.id] : []);
           sourceIds.forEach((id) => ids.add(id));
         });
@@ -32,35 +33,51 @@ export function getHiddenSourceIds(
 }
 
 export function getHiddenConnectionPairs(
-  scoreData: ScoreData | null,
+  hiddenSourceIds: Set<string>,
+  domainDocument: ScoreDocument | null
+): ConnectionEndpointPair[] {
+  const pairs: ConnectionEndpointPair[] = [];
+  if (hiddenSourceIds.size === 0) return pairs;
+  if (!domainDocument) return pairs;
+
+  return getHiddenDomainConnectionPairs(domainDocument, hiddenSourceIds);
+}
+
+function getHiddenDomainConnectionPairs(
+  document: ScoreDocument,
   hiddenSourceIds: Set<string>
 ): ConnectionEndpointPair[] {
   const pairs: ConnectionEndpointPair[] = [];
-  const noteConnections = scoreData?.connections?.noteConnections;
-  if (!noteConnections || hiddenSourceIds.size === 0) return pairs;
+  const notesById = getDocumentNoteAtomMap(document);
 
-  noteConnections.forEach((connections, entityId) => {
-    connections.ties.forEach((tie) => {
-      const startId = tie.sourceId ?? entityId;
-      const endId = tie.partnerSourceId ?? tie.partnerId;
-      if (hiddenSourceIds.has(startId) || hiddenSourceIds.has(endId)) {
-        pairs.push({ startId, endId });
-      }
-    });
+  document.tieRelationships.forEach((relationship) => {
+    const startId = notesById.get(relationship.startNoteAtomId)?.source?.musicXmlElementId;
+    const endId = notesById.get(relationship.stopNoteAtomId)?.source?.musicXmlElementId;
+    if (!startId || !endId) return;
+    if (hiddenSourceIds.has(startId) || hiddenSourceIds.has(endId)) {
+      pairs.push({ startId, endId });
+    }
+  });
 
-    connections.slurs.forEach((slur) => {
-      const startId = slur.sourceId ?? entityId;
-      const partnerSourceIds = slur.partnerSourceIds?.length ? slur.partnerSourceIds : slur.partnerIds;
-      partnerSourceIds.forEach((partnerId) => {
-        if (partnerId === startId) return;
-        if (hiddenSourceIds.has(startId) || hiddenSourceIds.has(partnerId)) {
-          pairs.push({ startId, endId: partnerId });
-        }
-      });
-    });
+  document.slurRelationships.forEach((relationship) => {
+    const startId = notesById.get(relationship.startNoteAtomId)?.source?.musicXmlElementId;
+    const endId = notesById.get(relationship.stopNoteAtomId)?.source?.musicXmlElementId;
+    if (!startId || !endId) return;
+    if (hiddenSourceIds.has(startId) || hiddenSourceIds.has(endId)) {
+      pairs.push({ startId, endId });
+    }
   });
 
   return pairs;
+}
+
+function getDocumentNoteAtomMap(document: ScoreDocument): Map<NoteAtom['id'], NoteAtom> {
+  const notes = new Map<NoteAtom['id'], NoteAtom>();
+  document.events.forEach((event) => {
+    if (event.kind !== 'pitched') return;
+    event.notes.forEach((note) => notes.set(note.id, note));
+  });
+  return notes;
 }
 
 export function getHiddenStaffKeys(
@@ -72,7 +89,7 @@ export function getHiddenStaffKeys(
 
   scoreData.measures.forEach((measure, measureIndex) => {
     measure.staves.forEach((stave, staveIndex) => {
-      const voicesWithEntities = stave.voices.filter((voice) => voice.notes.length > 0);
+      const voicesWithEntities = stave.voices.filter((voice) => voice.events.length > 0);
       if (voicesWithEntities.length === 0) return;
 
       const allEntityVoicesHidden = voicesWithEntities.every((voice) => {

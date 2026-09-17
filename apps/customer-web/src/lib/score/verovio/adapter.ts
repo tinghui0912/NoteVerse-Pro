@@ -1,6 +1,6 @@
 import { sanitizeMusicXmlForVerovio } from './sanitize';
 import { createVerovioToolkit } from './toolkit';
-import { prepareMusicXmlIdsForVerovio } from '@/lib/musicxml/stable-ids';
+import { prepareMusicXmlIdsForGenericVerovioRender } from '@/lib/musicxml/generic-render-ids';
 import type {
   VerovioLoadOptions,
   VerovioRenderedPage,
@@ -40,7 +40,11 @@ export class VerovioScoreAdapter {
       ...options.toolkitOptions,
     });
 
-    if (!toolkit.loadData(sanitizeMusicXmlForVerovio(prepareMusicXmlIdsForVerovio(xml)))) {
+    const scoreXml = options.prepareGenericRenderIds === false
+      ? xml
+      : prepareMusicXmlIdsForGenericVerovioRender(xml);
+
+    if (!toolkit.loadData(sanitizeMusicXmlForVerovio(scoreXml))) {
       throw new Error('Verovio failed to load the score.');
     }
 

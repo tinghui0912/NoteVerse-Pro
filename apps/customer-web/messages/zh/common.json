@@ -44,8 +44,6 @@
   "operationFailed": "操作失败",
   "rest": "休止符",
   "blank": "空白",
-  "minimize": "最小化",
-  "maximize": "最大化",
   "loopPlay": "循环播放",
   "cancelLoop": "取消循环",
   "returnToPlaybackPosition": "返回播放位置",

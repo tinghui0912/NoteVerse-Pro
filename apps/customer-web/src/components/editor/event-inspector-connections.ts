@@ -1,10 +1,8 @@
-import { findEntityById, findEntityMetaById } from '@/lib/editor/score-lookup';
-import {
-  getSlurConnectionDirectionFromXML,
-  getTieConnectionDirectionFromXML,
-  type ConnectionDirection,
-} from '@/lib/musicxml/connections';
-import type { EntityInfo, ScoreData, SlurConnection, TieConnection } from '@/types/score-types';
+import { findEntityById, findEntityBySourceIds } from '@/lib/editor/score-lookup';
+import type { NoteAtom, PitchedEvent, ScoreDocument } from '@/lib/editor-domain';
+import type { EntityInfo, ScoreData } from '@/types/score-types';
+
+export type ConnectionDirection = 'auto' | 'above' | 'below';
 
 export type ConnectionDetail = {
   id: string;
@@ -33,70 +31,118 @@ export function getEntitySourcePitch(
   }
   if (entity?.type === 'note') return entity.pitch;
   if (entity?.type === 'rest') return fallback;
-  if (entity?.type === 'chord') return entity.pitches.join('+');
+  if (entity?.type === 'chord') return entity.pitches.length > 0 ? entity.pitches.join('+') : fallback;
   if (!info) return fallback;
   return info.pitch;
 }
 
-export function buildTieDetails(
-  entityId: string | undefined,
-  ties: TieConnection[],
-  entityInfoMap: Map<string, EntityInfo> | undefined,
-  scoreData: ScoreData | null,
-  xmlDoc: XMLDocument | null
-): ConnectionDetail[] {
-  if (!entityId) return [];
-  return ties.map((tie, index) => ({
-    id: `tie-${entityId}-${tie.partnerId}-${tie.type}-${index}`,
-    type: 'tie',
-    currentId: entityId,
-    current: entityInfoMap?.get(entityId) ?? null,
-    partner: entityInfoMap?.get(tie.partnerId) ?? null,
-    partnerId: tie.partnerId,
-    sourceId: tie.sourceId,
-    partnerSourceId: tie.partnerSourceId,
-    direction: (() => {
-      const entityMeta = findEntityMetaById(scoreData, entityId);
-      const partnerMeta = findEntityMetaById(scoreData, tie.partnerId);
-      return xmlDoc && entityMeta && partnerMeta
-        ? getTieConnectionDirectionFromXML(xmlDoc, entityMeta, partnerMeta, {
-          startSourceId: tie.sourceId,
-          endSourceId: tie.partnerSourceId,
-        })
-        : 'auto';
-    })(),
-  }));
+export function buildDomainTieDetails(params: {
+  document: ScoreDocument | null;
+  event: PitchedEvent | null;
+  scoreData: ScoreData | null;
+}): ConnectionDetail[] {
+  const { document, event } = params;
+  if (!document || !event) return [];
+
+  const notesById = getDocumentNoteAtomMap(document);
+  const currentNoteIds = new Set(event.notes.map((note) => note.id));
+
+  return document.tieRelationships
+    .filter((relationship) => (
+      currentNoteIds.has(relationship.startNoteAtomId) || currentNoteIds.has(relationship.stopNoteAtomId)
+    ))
+    .map((relationship, index) => {
+      const currentNoteId = currentNoteIds.has(relationship.startNoteAtomId)
+        ? relationship.startNoteAtomId
+        : relationship.stopNoteAtomId;
+      const partnerNoteId = currentNoteId === relationship.startNoteAtomId
+        ? relationship.stopNoteAtomId
+        : relationship.startNoteAtomId;
+      const currentNote = notesById.get(currentNoteId);
+      const partnerNote = notesById.get(partnerNoteId);
+      const currentSourceId = currentNote?.source?.musicXmlElementId;
+      const partnerSourceId = partnerNote?.source?.musicXmlElementId;
+      const currentEntity = findEntityForSource(params.scoreData, currentSourceId);
+      const partnerEntity = findEntityForSource(params.scoreData, partnerSourceId);
+
+      return {
+        id: `domain-tie-${relationship.id}-${index}`,
+        type: 'tie' as const,
+        currentId: currentEntity?.meta.id ?? currentSourceId ?? String(currentNoteId),
+        current: null,
+        partner: null,
+        partnerId: partnerEntity?.meta.id ?? partnerSourceId ?? String(partnerNoteId),
+        sourceId: currentSourceId,
+        partnerSourceId,
+        direction: getTieDirection(document, relationship.id),
+      };
+    });
 }
 
-export function buildSlurDetails(
-  entityId: string | undefined,
-  slurs: SlurConnection[],
-  entityInfoMap: Map<string, EntityInfo> | undefined,
-  scoreData: ScoreData | null,
-  xmlDoc: XMLDocument | null
-): ConnectionDetail[] {
-  if (!entityId) return [];
-  return slurs.map((slur, index) => {
-    const partnerId = slur.partnerIds.find((id) => id !== entityId) ?? slur.partnerIds[0] ?? '';
-    const entityMeta = findEntityMetaById(scoreData, entityId);
-    const partnerMeta = findEntityMetaById(scoreData, partnerId);
-    const partnerSourceId = slur.partnerSourceIds?.find((id) => id !== slur.sourceId)
-      ?? slur.partnerSourceIds?.[0];
-    return {
-      id: `${slur.slurId}-${entityId}-${partnerId}-${index}`,
-      type: 'slur' as const,
-      currentId: entityId,
-      current: entityInfoMap?.get(entityId) ?? null,
-      partner: entityInfoMap?.get(partnerId) ?? null,
-      partnerId,
-      sourceId: slur.sourceId,
-      partnerSourceId,
-      direction: xmlDoc && entityMeta && partnerMeta
-        ? getSlurConnectionDirectionFromXML(xmlDoc, entityMeta, partnerMeta, {
-          startSourceId: slur.sourceId,
-          endSourceId: partnerSourceId,
-        })
-        : 'auto',
-    };
-  }).filter((detail) => detail.partnerId);
+export function buildDomainSlurDetails(params: {
+  document: ScoreDocument | null;
+  event: PitchedEvent | null;
+  scoreData: ScoreData | null;
+}): ConnectionDetail[] {
+  const { document, event } = params;
+  if (!document || !event) return [];
+
+  const notesById = getDocumentNoteAtomMap(document);
+  const currentNoteIds = new Set(event.notes.map((note) => note.id));
+
+  return document.slurRelationships
+    .filter((relationship) => (
+      currentNoteIds.has(relationship.startNoteAtomId) || currentNoteIds.has(relationship.stopNoteAtomId)
+    ))
+    .map((relationship, index) => {
+      const currentNoteId = currentNoteIds.has(relationship.startNoteAtomId)
+        ? relationship.startNoteAtomId
+        : relationship.stopNoteAtomId;
+      const partnerNoteId = currentNoteId === relationship.startNoteAtomId
+        ? relationship.stopNoteAtomId
+        : relationship.startNoteAtomId;
+      const currentNote = notesById.get(currentNoteId);
+      const partnerNote = notesById.get(partnerNoteId);
+      const currentSourceId = currentNote?.source?.musicXmlElementId;
+      const partnerSourceId = partnerNote?.source?.musicXmlElementId;
+      const currentEntity = findEntityForSource(params.scoreData, currentSourceId);
+      const partnerEntity = findEntityForSource(params.scoreData, partnerSourceId);
+
+      return {
+        id: `domain-slur-${relationship.id}-${index}`,
+        type: 'slur' as const,
+        currentId: currentEntity?.meta.id ?? currentSourceId ?? String(currentNoteId),
+        current: null,
+        partner: null,
+        partnerId: partnerEntity?.meta.id ?? partnerSourceId ?? String(partnerNoteId),
+        sourceId: currentSourceId,
+        partnerSourceId,
+        direction: getSlurDirection(document, relationship.id),
+      };
+    });
+}
+
+function findEntityForSource(scoreData: ScoreData | null, sourceId: string | undefined) {
+  return sourceId ? findEntityBySourceIds(scoreData, [sourceId]) : null;
+}
+
+function getDocumentNoteAtomMap(document: ScoreDocument): Map<NoteAtom['id'], NoteAtom> {
+  const notes = new Map<NoteAtom['id'], NoteAtom>();
+  document.events.forEach((event) => {
+    if (event.kind !== 'pitched') return;
+    event.notes.forEach((note) => notes.set(note.id, note));
+  });
+  return notes;
+}
+
+function getTieDirection(document: ScoreDocument, tieId: ScoreDocument['tieRelationships'][number]['id']): ConnectionDirection {
+  return document.notationControls.find((control): control is Extract<ScoreDocument['notationControls'][number], { kind: 'tieNotation' }> => (
+    control.kind === 'tieNotation' && control.tieId === tieId
+  ))?.placement ?? 'auto';
+}
+
+function getSlurDirection(document: ScoreDocument, notationId: ScoreDocument['slurRelationships'][number]['id']): ConnectionDirection {
+  return document.notationControls.find((control): control is Extract<ScoreDocument['notationControls'][number], { kind: 'slurNotation' }> => (
+    control.kind === 'slurNotation' && control.notationId === notationId
+  ))?.placement ?? 'auto';
 }

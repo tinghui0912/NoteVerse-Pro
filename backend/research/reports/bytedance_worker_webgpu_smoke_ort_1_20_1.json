@@ -1,0 +1,516 @@
+{
+  "testedGitSha": "90a2ec3d086cde2efde9c4f6696c7d87cfe437cd",
+  "smokeCommand": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\scripts\\bytedance-worker-webgpu-smoke.mjs --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx --fixture-dir backend/data/work/bytedance_browser_runtime_feasibility/golden_fixtures --browser-channel chrome --headed --warm-runs 20 --output backend/research/reports/bytedance_worker_webgpu_smoke_ort_1_20_1.json",
+  "harnessPath": "apps/customer-web/scripts/bytedance-worker-webgpu-smoke.mjs",
+  "model": {
+    "filename": "bytedance_note_model_fixed_anchor.onnx",
+    "byteSize": 98691493,
+    "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5"
+  },
+  "runtime": {
+    "browserChannel": "chrome",
+    "headed": true,
+    "browserVersion": "152.0.7977.75",
+    "os": {
+      "platform": "win32",
+      "release": "10.0.26200",
+      "arch": "x64"
+    }
+  },
+  "productionWorkerFactoryUsed": true,
+  "workerSmoke": {
+    "productionWorkerFactoryUsed": true,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+    "webgpu": {
+      "available": true,
+      "adapterAcquired": true,
+      "adapter": {
+        "isFallbackAdapter": null,
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "bgra8unorm-storage",
+          "texture-formats-tier1",
+          "chromium-experimental-multi-draw-indirect",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "chromium-experimental-sampling-resource-table",
+          "core-features-and-limits",
+          "chromium-experimental-timestamp-query-inside-passes",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "texture-compression-unaligned",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier2",
+          "timestamp-query",
+          "clip-distances",
+          "shader-f16",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "limits": {
+          "maxBufferSize": 2147483648,
+          "maxStorageBufferBindingSize": 2147483644,
+          "maxComputeWorkgroupStorageSize": 32768
+        },
+        "info": {}
+      }
+    },
+    "load": {
+      "clientEndToEndMs": 1561,
+      "diagnostics": {
+        "modelFetchAndVerifyMs": 618.7999999523163,
+        "sessionCreateMs": 870.2999999523163,
+        "totalLoadMs": 1489.0999999046326,
+        "modelByteSize": 98691493,
+        "modelSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5"
+      }
+    },
+    "input": {
+      "tensorName": "audio",
+      "dtype": "float32",
+      "shape": [
+        1,
+        29120
+      ],
+      "fixtureId": "s01_correct_strike_001_g01",
+      "inputTensorNpy": "s01_correct_strike_001_g01_input.npy",
+      "expectedPitches": [
+        "F4"
+      ]
+    },
+    "firstInference": {
+      "clientEndToEndMs": 1341.8999998569489,
+      "diagnostics": {
+        "inputTensor": {
+          "name": "audio",
+          "dtype": "float32",
+          "shape": [
+            1,
+            29120
+          ]
+        },
+        "outputTensors": {
+          "regOnset": {
+            "name": "reg_onset_output",
+            "dtype": "float32",
+            "shape": [
+              1,
+              183,
+              88
+            ]
+          },
+          "frame": {
+            "name": "frame_output",
+            "dtype": "float32",
+            "shape": [
+              1,
+              183,
+              88
+            ]
+          }
+        },
+        "timingMs": {
+          "onnxInference": 1338.7999999523163,
+          "decode": 1.1000001430511475,
+          "workerTotal": 1339.9000000953674
+        }
+      },
+      "eventCount": 3,
+      "firstEvents": [
+        {
+          "pitch": "C4",
+          "midiPitch": 60,
+          "onsetTime": {
+            "domainId": "worker-smoke",
+            "ms": 1440,
+            "sampleIndex": 23040
+          },
+          "confidence": 0.9256011247634888,
+          "onsetScore": 0.9256011247634888,
+          "frameScore": 0.9559081792831421,
+          "source": "ACOUSTIC",
+          "inferenceCompletedAtMs": 2885
+        },
+        {
+          "pitch": "F4",
+          "midiPitch": 65,
+          "onsetTime": {
+            "domainId": "worker-smoke",
+            "ms": 1600,
+            "sampleIndex": 25600
+          },
+          "confidence": 0.9192554950714111,
+          "onsetScore": 0.9192554950714111,
+          "frameScore": 0.9213742017745972,
+          "source": "ACOUSTIC",
+          "inferenceCompletedAtMs": 2885
+        },
+        {
+          "pitch": "F4",
+          "midiPitch": 65,
+          "onsetTime": {
+            "domainId": "worker-smoke",
+            "ms": 1750,
+            "sampleIndex": 28000
+          },
+          "confidence": 0.8938344717025757,
+          "onsetScore": 0.915048360824585,
+          "frameScore": 0.8938344717025757,
+          "source": "ACOUSTIC",
+          "inferenceCompletedAtMs": 2885
+        }
+      ]
+    },
+    "correctness": [
+      {
+        "fixtureId": "s01_correct_strike_001_g01",
+        "expectedPitches": [
+          "F4"
+        ],
+        "inputTensor": {
+          "name": "audio",
+          "dtype": "float32",
+          "shape": [
+            1,
+            29120
+          ]
+        },
+        "outputShapes": {
+          "regOnset": [
+            1,
+            183,
+            88
+          ],
+          "frame": [
+            1,
+            183,
+            88
+          ]
+        },
+        "outputShapeAgreement": true,
+        "outputNames": {
+          "regOnset": "reg_onset_output",
+          "frame": "frame_output"
+        },
+        "referenceDecision": true,
+        "workerDecision": true,
+        "verifierDecisionAgree": true,
+        "eventCount": 3
+      },
+      {
+        "fixtureId": "s01_correct_chord_001_g01",
+        "expectedPitches": [
+          "C5",
+          "E4"
+        ],
+        "inputTensor": {
+          "name": "audio",
+          "dtype": "float32",
+          "shape": [
+            1,
+            29120
+          ]
+        },
+        "outputShapes": {
+          "regOnset": [
+            1,
+            183,
+            88
+          ],
+          "frame": [
+            1,
+            183,
+            88
+          ]
+        },
+        "outputShapeAgreement": true,
+        "outputNames": {
+          "regOnset": "reg_onset_output",
+          "frame": "frame_output"
+        },
+        "referenceDecision": true,
+        "workerDecision": true,
+        "verifierDecisionAgree": true,
+        "eventCount": 11
+      },
+      {
+        "fixtureId": "s01_same_note_retrigger_001_g02",
+        "expectedPitches": [
+          "C5",
+          "E4"
+        ],
+        "inputTensor": {
+          "name": "audio",
+          "dtype": "float32",
+          "shape": [
+            1,
+            29120
+          ]
+        },
+        "outputShapes": {
+          "regOnset": [
+            1,
+            183,
+            88
+          ],
+          "frame": [
+            1,
+            183,
+            88
+          ]
+        },
+        "outputShapeAgreement": true,
+        "outputNames": {
+          "regOnset": "reg_onset_output",
+          "frame": "frame_output"
+        },
+        "referenceDecision": true,
+        "workerDecision": true,
+        "verifierDecisionAgree": true,
+        "eventCount": 11
+      }
+    ],
+    "warmInference": {
+      "runs": 20,
+      "samples": [
+        {
+          "index": 0,
+          "endToEndMs": 397.5,
+          "workerTimingMs": {
+            "onnxInference": 397.2999999523163,
+            "decode": 0,
+            "workerTotal": 397.2999999523163
+          },
+          "messageAndClientOverheadMs": 0.20000004768371582,
+          "eventCount": 3
+        },
+        {
+          "index": 1,
+          "endToEndMs": 396.7999999523163,
+          "workerTimingMs": {
+            "onnxInference": 396.40000009536743,
+            "decode": 0.09999990463256836,
+            "workerTotal": 396.5
+          },
+          "messageAndClientOverheadMs": 0.2999999523162842,
+          "eventCount": 3
+        },
+        {
+          "index": 2,
+          "endToEndMs": 398.59999990463257,
+          "workerTimingMs": {
+            "onnxInference": 398.2000000476837,
+            "decode": 0.20000004768371582,
+            "workerTotal": 398.40000009536743
+          },
+          "messageAndClientOverheadMs": 0.19999980926513672,
+          "eventCount": 3
+        },
+        {
+          "index": 3,
+          "endToEndMs": 395.40000009536743,
+          "workerTimingMs": {
+            "onnxInference": 394.90000009536743,
+            "decode": 0.09999990463256836,
+            "workerTotal": 395
+          },
+          "messageAndClientOverheadMs": 0.40000009536743164,
+          "eventCount": 3
+        },
+        {
+          "index": 4,
+          "endToEndMs": 389.59999990463257,
+          "workerTimingMs": {
+            "onnxInference": 389.2999999523163,
+            "decode": 0.10000014305114746,
+            "workerTotal": 389.40000009536743
+          },
+          "messageAndClientOverheadMs": 0.19999980926513672,
+          "eventCount": 3
+        },
+        {
+          "index": 5,
+          "endToEndMs": 395.90000009536743,
+          "workerTimingMs": {
+            "onnxInference": 395.5,
+            "decode": 0,
+            "workerTotal": 395.5
+          },
+          "messageAndClientOverheadMs": 0.40000009536743164,
+          "eventCount": 3
+        },
+        {
+          "index": 6,
+          "endToEndMs": 440,
+          "workerTimingMs": {
+            "onnxInference": 439.5,
+            "decode": 0,
+            "workerTotal": 439.5
+          },
+          "messageAndClientOverheadMs": 0.5,
+          "eventCount": 3
+        },
+        {
+          "index": 7,
+          "endToEndMs": 449.7999999523163,
+          "workerTimingMs": {
+            "onnxInference": 449.39999985694885,
+            "decode": 0,
+            "workerTotal": 449.39999985694885
+          },
+          "messageAndClientOverheadMs": 0.40000009536743164,
+          "eventCount": 3
+        },
+        {
+          "index": 8,
+          "endToEndMs": 436.59999990463257,
+          "workerTimingMs": {
+            "onnxInference": 436.2000000476837,
+            "decode": 0,
+            "workerTotal": 436.2000000476837
+          },
+          "messageAndClientOverheadMs": 0.39999985694885254,
+          "eventCount": 3
+        },
+        {
+          "index": 9,
+          "endToEndMs": 396.30000019073486,
+          "workerTimingMs": {
+            "onnxInference": 395.59999990463257,
+            "decode": 0.10000014305114746,
+            "workerTotal": 395.7000000476837
+          },
+          "messageAndClientOverheadMs": 0.6000001430511475,
+          "eventCount": 3
+        },
+        {
+          "index": 10,
+          "endToEndMs": 388.69999980926514,
+          "workerTimingMs": {
+            "onnxInference": 388.2999999523163,
+            "decode": 0,
+            "workerTotal": 388.2999999523163
+          },
+          "messageAndClientOverheadMs": 0.39999985694885254,
+          "eventCount": 3
+        },
+        {
+          "index": 11,
+          "endToEndMs": 386.2000000476837,
+          "workerTimingMs": {
+            "onnxInference": 385.69999980926514,
+            "decode": 0,
+            "workerTotal": 385.69999980926514
+          },
+          "messageAndClientOverheadMs": 0.5000002384185791,
+          "eventCount": 3
+        },
+        {
+          "index": 12,
+          "endToEndMs": 380.10000014305115,
+          "workerTimingMs": {
+            "onnxInference": 379.7999999523163,
+            "decode": 0,
+            "workerTotal": 379.7999999523163
+          },
+          "messageAndClientOverheadMs": 0.3000001907348633,
+          "eventCount": 3
+        },
+        {
+          "index": 13,
+          "endToEndMs": 332.5,
+          "workerTimingMs": {
+            "onnxInference": 332.2000000476837,
+            "decode": 0,
+            "workerTotal": 332.2000000476837
+          },
+          "messageAndClientOverheadMs": 0.2999999523162842,
+          "eventCount": 3
+        },
+        {
+          "index": 14,
+          "endToEndMs": 331.19999980926514,
+          "workerTimingMs": {
+            "onnxInference": 330.90000009536743,
+            "decode": 0,
+            "workerTotal": 330.90000009536743
+          },
+          "messageAndClientOverheadMs": 0.2999997138977051,
+          "eventCount": 3
+        },
+        {
+          "index": 15,
+          "endToEndMs": 327.40000009536743,
+          "workerTimingMs": {
+            "onnxInference": 327.2000000476837,
+            "decode": 0,
+            "workerTotal": 327.2000000476837
+          },
+          "messageAndClientOverheadMs": 0.20000004768371582,
+          "eventCount": 3
+        },
+        {
+          "index": 16,
+          "endToEndMs": 335.7000000476837,
+          "workerTimingMs": {
+            "onnxInference": 335.2999999523163,
+            "decode": 0,
+            "workerTotal": 335.2999999523163
+          },
+          "messageAndClientOverheadMs": 0.40000009536743164,
+          "eventCount": 3
+        },
+        {
+          "index": 17,
+          "endToEndMs": 352.7000000476837,
+          "workerTimingMs": {
+            "onnxInference": 352.40000009536743,
+            "decode": 0,
+            "workerTotal": 352.40000009536743
+          },
+          "messageAndClientOverheadMs": 0.2999999523162842,
+          "eventCount": 3
+        },
+        {
+          "index": 18,
+          "endToEndMs": 332.69999980926514,
+          "workerTimingMs": {
+            "onnxInference": 332.40000009536743,
+            "decode": 0,
+            "workerTotal": 332.40000009536743
+          },
+          "messageAndClientOverheadMs": 0.2999997138977051,
+          "eventCount": 3
+        },
+        {
+          "index": 19,
+          "endToEndMs": 336.10000014305115,
+          "workerTimingMs": {
+            "onnxInference": 335.69999980926514,
+            "decode": 0,
+            "workerTotal": 335.69999980926514
+          },
+          "messageAndClientOverheadMs": 0.40000033378601074,
+          "eventCount": 3
+        }
+      ],
+      "medianEndToEndMs": 388.69999980926514,
+      "p95EndToEndMs": 440,
+      "medianWorkerOnnxMs": 388.2999999523163
+    }
+  },
+  "directFeasibilityReport": null,
+  "browserConsole": {
+    "errors": [
+      "error: \u001b[0;93m2026-09-16 10:03:09.961099 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+      "error: \u001b[0;93m2026-09-16 10:03:09.965500 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+    ],
+    "warnings": []
+  },
+  "error": null
+}

@@ -17,9 +17,13 @@ from app.worker.execution.maintenance_dispatch import (
     execute_import_dispatch_maintenance,
     execute_mail_outbox_maintenance,
     execute_playback_outbox_maintenance,
+    execute_practice_replay_object_deletion_maintenance,
     execute_render_outbox_maintenance,
 )
 from app.worker.execution.playback_outbox import execute_playback_outbox_task
+from app.worker.execution.practice_replay_object_deletion import (
+    execute_practice_replay_object_deletion_task,
+)
 from app.worker.execution.render_outbox import execute_render_outbox_task
 
 
@@ -53,6 +57,19 @@ def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str 
 def playback_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str]:
     """Generate one durable score playback asset."""
     return execute_playback_outbox_task(self, outbox_uuid)
+
+
+@celery_app.task(
+    name="app.worker.tasks.practice_replay_object_deletion_task",
+    bind=True,
+    ignore_result=True,
+)
+def practice_replay_object_deletion_task(
+    self: CeleryTaskLike,
+    outbox_uuid: str,
+) -> dict[str, str]:
+    """Delete one saved practice replay object from storage."""
+    return execute_practice_replay_object_deletion_task(self, outbox_uuid)
 
 
 @celery_app.task(name="app.worker.tasks.run_job_maintenance")
@@ -101,6 +118,12 @@ def run_render_outbox_maintenance() -> dict[str, int]:
 def run_playback_outbox_maintenance() -> dict[str, int]:
     """Recover stale playback deliveries and dispatch all due outbox records."""
     return execute_playback_outbox_maintenance()
+
+
+@celery_app.task(name="app.worker.tasks.run_practice_replay_object_deletion_maintenance")
+def run_practice_replay_object_deletion_maintenance() -> dict[str, int]:
+    """Recover, dispatch, and retry saved practice replay object deletions."""
+    return execute_practice_replay_object_deletion_maintenance()
 
 
 @celery_app.task(name="app.worker.tasks.run_mail_outbox_maintenance")

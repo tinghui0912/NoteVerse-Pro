@@ -1,0 +1,111 @@
+{
+  "artifact": "step_microphone_bytedance_frozen_policy",
+  "status": "frozen_before_evaluation",
+  "copied_after_frozen_evaluation_for_reproducibility": true,
+  "not_pre_evaluation_git_registration": true,
+  "frozen_evaluation_used_before_tracked_copy": true,
+  "frozen_at": "2026-09-12",
+  "benchmark_commit_sha": "ddcb712b78ad387d90c2fcb8be2f39cbfbec7a3c",
+  "policy_identity": {
+    "provider_id": "bytedance_high_resolution_piano_transcription",
+    "model_id": "CRNN_note_F1_0.9677_pedal_F1_0.9186",
+    "checkpoint_sha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+    "frame_key": "frame_activation",
+    "target_onset_min": 0.2,
+    "target_frame_min": 0.2,
+    "local_pre_seconds": 0.05,
+    "local_post_seconds": 0.12,
+    "decision_horizon_seconds": 0.35
+  },
+  "frontend": {
+    "provider": "ByteDance/Kong high-resolution piano transcription",
+    "provider_id": "bytedance_high_resolution_piano_transcription",
+    "python_package": "piano_transcription_inference",
+    "model_id": "CRNN_note_F1_0.9677_pedal_F1_0.9186",
+    "checkpoint_sha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+    "raw_outputs_used": [
+      "reg_onset_output",
+      "frame_output"
+    ],
+    "raw_outputs_not_used_for_match": [
+      "velocity_output",
+      "offset_output",
+      "pedal_output"
+    ],
+    "runtime_caveat": "Research bounded causal-prefix benchmark only; this model is piano-specific and non-streaming."
+  },
+  "policy": {
+    "frame_key": "frame_activation",
+    "target_onset_min": 0.2,
+    "target_frame_min": 0.2,
+    "semitone_onset_margin_min": null,
+    "octave_onset_margin_min": null,
+    "chord_onset_time_spread_max_ms": null,
+    "competitor_margins_enabled": false,
+    "chord_timing_spread_enabled": false
+  },
+  "benchmark_window": {
+    "local_pre_seconds": 0.05,
+    "local_post_seconds": 0.12,
+    "decision_horizon_seconds": 0.35,
+    "startup_mode": "warm",
+    "evidence_semantics": "strike_local",
+    "contamination_policy": "counterfactual_pitch_only"
+  },
+  "tie_break": {
+    "source": "existing_non_frozen_audit_json_only",
+    "audit_path": "backend/data/work/datasets/maestro-v3.0.0/production_step_calibration_set/bytedance_policy_robustness_audit.json",
+    "audit_sha256": "64b00807193125dd6f48b26e427f51c641c36fdc68b78588d29fd6b23e8742c5",
+    "exact_same_score_members": 30,
+    "exact_same_score_frame_activation_members": 10,
+    "selected_policy_reason": "Among onset/frame-only policies tied with the canonical candidate at single=20/24, chord=19/24, retrigger=18/24, and clean_negative_false=0/61, this policy uses frame_activation and is closest to the existing grid midpoint without adding new threshold values.",
+    "tied_score": {
+      "correct_single": {
+        "accepted": 20,
+        "total": 24
+      },
+      "correct_chord": {
+        "accepted": 19,
+        "total": 24
+      },
+      "retrigger": {
+        "accepted": 18,
+        "total": 24
+      },
+      "clean_negative_false": {
+        "accepted": 0,
+        "total": 61
+      },
+      "clean_semitone_false": {
+        "accepted": 0,
+        "total": 18
+      },
+      "clean_octave_false": {
+        "accepted": 0,
+        "total": 23
+      },
+      "clean_missing_false": {
+        "accepted": 0,
+        "total": 20
+      }
+    }
+  },
+  "input_manifests": {
+    "development_set": {
+      "path": "backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json",
+      "role": "development_set",
+      "sha256": "b99af963d4b944e09f9666e55c4d66f893d4841f377f3865cbb371e9a9a5d9ca"
+    },
+    "calibration_set": {
+      "path": "backend/data/work/datasets/maestro-v3.0.0/production_step_calibration_set/public_step_causal_cases_manifest.json",
+      "role": "calibration_set",
+      "sha256": "839004c986dcb84b49fbbe5754eb3f55210a4453712fe073b7ad622ef17cfa8e"
+    },
+    "frozen_evaluation_set": {
+      "path": "backend/data/work/datasets/maestro-v3.0.0/production_step_frozen_evaluation_set/public_step_causal_cases_manifest.json",
+      "role": "frozen_evaluation_set",
+      "sha256": "45589d04d8fd108c8c8059e09793fffa61fc8f1d881896669df4e07a595760a9"
+    }
+  },
+  "freeze_rule": "Do not change this policy based on frozen_evaluation_set results. Frozen evaluation was already run once before this tracked reproducibility copy was added."
+}

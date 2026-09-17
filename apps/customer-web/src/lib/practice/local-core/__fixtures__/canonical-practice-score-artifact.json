@@ -1,0 +1,831 @@
+{
+  "artifactId": "practice-score-artifact-v1:0529eb0f2b5dfe1a",
+  "expectedPracticeGroups": [
+    {
+      "canonicalEndBeat": 1.0,
+      "eventIds": [
+        "event-0.0-1.0-1-1-p1-m1-e1"
+      ],
+      "expectedNotes": [
+        {
+          "eventId": "event-0.0-1.0-1-1-p1-m1-e1",
+          "expectedNoteId": "event-0.0-1.0-1-1-p1-m1-e1:n1",
+          "measureNumbers": [
+            "1"
+          ],
+          "pitch": "C4",
+          "renderNoteId": "n1"
+        }
+      ],
+      "groupId": "entry-0.0-05162c611506",
+      "measureNumbers": [
+        "1"
+      ],
+      "onsetBeat": 0.0,
+      "pitches": [
+        "C4"
+      ],
+      "renderNoteIds": [
+        "n1"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "strikeTargets": [
+        {
+          "eventIds": [
+            "event-0.0-1.0-1-1-p1-m1-e1"
+          ],
+          "expectedNotes": [
+            {
+              "eventId": "event-0.0-1.0-1-1-p1-m1-e1",
+              "expectedNoteId": "event-0.0-1.0-1-1-p1-m1-e1:n1",
+              "measureNumbers": [
+                "1"
+              ],
+              "pitch": "C4",
+              "renderNoteId": "n1"
+            }
+          ],
+          "measureNumbers": [
+            "1"
+          ],
+          "pitch": "C4",
+          "renderNoteIds": [
+            "n1"
+          ],
+          "strikeId": "entry-0.0-05162c611506:strike:C4"
+        }
+      ],
+      "voiceIds": [
+        "1"
+      ]
+    },
+    {
+      "canonicalEndBeat": 2.0,
+      "eventIds": [
+        "event-1.0-1.0-1-1-p1-m1-e2"
+      ],
+      "expectedNotes": [
+        {
+          "eventId": "event-1.0-1.0-1-1-p1-m1-e2",
+          "expectedNoteId": "event-1.0-1.0-1-1-p1-m1-e2:n2",
+          "measureNumbers": [
+            "1"
+          ],
+          "pitch": "C4",
+          "renderNoteId": "n2"
+        }
+      ],
+      "groupId": "entry-1.0-57d82a629c08",
+      "measureNumbers": [
+        "1"
+      ],
+      "onsetBeat": 1.0,
+      "pitches": [
+        "C4"
+      ],
+      "renderNoteIds": [
+        "n2"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "strikeTargets": [
+        {
+          "eventIds": [
+            "event-1.0-1.0-1-1-p1-m1-e2"
+          ],
+          "expectedNotes": [
+            {
+              "eventId": "event-1.0-1.0-1-1-p1-m1-e2",
+              "expectedNoteId": "event-1.0-1.0-1-1-p1-m1-e2:n2",
+              "measureNumbers": [
+                "1"
+              ],
+              "pitch": "C4",
+              "renderNoteId": "n2"
+            }
+          ],
+          "measureNumbers": [
+            "1"
+          ],
+          "pitch": "C4",
+          "renderNoteIds": [
+            "n2"
+          ],
+          "strikeId": "entry-1.0-57d82a629c08:strike:C4"
+        }
+      ],
+      "voiceIds": [
+        "1"
+      ]
+    },
+    {
+      "canonicalEndBeat": 4.5,
+      "eventIds": [
+        "event-2.0-1.0-1-1-p1-m1-e3"
+      ],
+      "expectedNotes": [
+        {
+          "eventId": "event-2.0-1.0-1-1-p1-m1-e3",
+          "expectedNoteId": "event-2.0-1.0-1-1-p1-m1-e3:n3",
+          "measureNumbers": [
+            "1"
+          ],
+          "pitch": "G4",
+          "renderNoteId": "n3"
+        }
+      ],
+      "groupId": "entry-2.0-1aede64d62ef",
+      "measureNumbers": [
+        "1"
+      ],
+      "onsetBeat": 2.0,
+      "pitches": [
+        "G4"
+      ],
+      "renderNoteIds": [
+        "n3"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "strikeTargets": [
+        {
+          "eventIds": [
+            "event-2.0-1.0-1-1-p1-m1-e3"
+          ],
+          "expectedNotes": [
+            {
+              "eventId": "event-2.0-1.0-1-1-p1-m1-e3",
+              "expectedNoteId": "event-2.0-1.0-1-1-p1-m1-e3:n3",
+              "measureNumbers": [
+                "1"
+              ],
+              "pitch": "G4",
+              "renderNoteId": "n3"
+            }
+          ],
+          "measureNumbers": [
+            "1"
+          ],
+          "pitch": "G4",
+          "renderNoteIds": [
+            "n3"
+          ],
+          "strikeId": "entry-2.0-1aede64d62ef:strike:G4"
+        }
+      ],
+      "voiceIds": [
+        "1"
+      ]
+    },
+    {
+      "canonicalEndBeat": 4.5,
+      "eventIds": [
+        "event-3.0-1.5-1-2-p1-m2-e2"
+      ],
+      "expectedNotes": [
+        {
+          "eventId": "event-3.0-1.5-1-2-p1-m2-e2",
+          "expectedNoteId": "event-3.0-1.5-1-2-p1-m2-e2:n5",
+          "measureNumbers": [
+            "2"
+          ],
+          "pitch": "A4",
+          "renderNoteId": "n5"
+        },
+        {
+          "eventId": "event-3.0-1.5-1-2-p1-m2-e2",
+          "expectedNoteId": "event-3.0-1.5-1-2-p1-m2-e2:n6",
+          "measureNumbers": [
+            "2"
+          ],
+          "pitch": "C5",
+          "renderNoteId": "n6"
+        }
+      ],
+      "groupId": "entry-3.0-c2c1674e1bf7",
+      "measureNumbers": [
+        "2"
+      ],
+      "onsetBeat": 3.0,
+      "pitches": [
+        "A4",
+        "C5"
+      ],
+      "renderNoteIds": [
+        "n5",
+        "n6"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "strikeTargets": [
+        {
+          "eventIds": [
+            "event-3.0-1.5-1-2-p1-m2-e2"
+          ],
+          "expectedNotes": [
+            {
+              "eventId": "event-3.0-1.5-1-2-p1-m2-e2",
+              "expectedNoteId": "event-3.0-1.5-1-2-p1-m2-e2:n5",
+              "measureNumbers": [
+                "2"
+              ],
+              "pitch": "A4",
+              "renderNoteId": "n5"
+            }
+          ],
+          "measureNumbers": [
+            "2"
+          ],
+          "pitch": "A4",
+          "renderNoteIds": [
+            "n5"
+          ],
+          "strikeId": "entry-3.0-c2c1674e1bf7:strike:A4"
+        },
+        {
+          "eventIds": [
+            "event-3.0-1.5-1-2-p1-m2-e2"
+          ],
+          "expectedNotes": [
+            {
+              "eventId": "event-3.0-1.5-1-2-p1-m2-e2",
+              "expectedNoteId": "event-3.0-1.5-1-2-p1-m2-e2:n6",
+              "measureNumbers": [
+                "2"
+              ],
+              "pitch": "C5",
+              "renderNoteId": "n6"
+            }
+          ],
+          "measureNumbers": [
+            "2"
+          ],
+          "pitch": "C5",
+          "renderNoteIds": [
+            "n6"
+          ],
+          "strikeId": "entry-3.0-c2c1674e1bf7:strike:C5"
+        }
+      ],
+      "voiceIds": [
+        "2"
+      ]
+    },
+    {
+      "canonicalEndBeat": 6.0,
+      "eventIds": [
+        "event-4.5-1.5-1-1-p1-m2-e4"
+      ],
+      "expectedNotes": [
+        {
+          "eventId": "event-4.5-1.5-1-1-p1-m2-e4",
+          "expectedNoteId": "event-4.5-1.5-1-1-p1-m2-e4:n7",
+          "measureNumbers": [
+            "2"
+          ],
+          "pitch": "D5",
+          "renderNoteId": "n7"
+        }
+      ],
+      "groupId": "entry-4.5-547c4de8e393",
+      "measureNumbers": [
+        "2"
+      ],
+      "onsetBeat": 4.5,
+      "pitches": [
+        "D5"
+      ],
+      "renderNoteIds": [
+        "n7"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "strikeTargets": [
+        {
+          "eventIds": [
+            "event-4.5-1.5-1-1-p1-m2-e4"
+          ],
+          "expectedNotes": [
+            {
+              "eventId": "event-4.5-1.5-1-1-p1-m2-e4",
+              "expectedNoteId": "event-4.5-1.5-1-1-p1-m2-e4:n7",
+              "measureNumbers": [
+                "2"
+              ],
+              "pitch": "D5",
+              "renderNoteId": "n7"
+            }
+          ],
+          "measureNumbers": [
+            "2"
+          ],
+          "pitch": "D5",
+          "renderNoteIds": [
+            "n7"
+          ],
+          "strikeId": "entry-4.5-547c4de8e393:strike:D5"
+        }
+      ],
+      "voiceIds": [
+        "1"
+      ]
+    }
+  ],
+  "firstPlayableBeat": 0.0,
+  "meterSegments": [
+    {
+      "countInPulses": 3,
+      "denominator": 4,
+      "measureDurationBeats": 3.0,
+      "numerator": 3,
+      "source": "MUSICXML",
+      "startBeat": 0.0
+    },
+    {
+      "countInPulses": 6,
+      "denominator": 8,
+      "measureDurationBeats": 3.0,
+      "numerator": 6,
+      "source": "MUSICXML",
+      "startBeat": 3.0
+    }
+  ],
+  "playableEvents": [
+    {
+      "durationBeats": 1.0,
+      "entryCandidate": true,
+      "eventId": "event-0.0-1.0-1-1-p1-m1-e1",
+      "measureNumbers": [
+        "1"
+      ],
+      "onsetBeat": 0.0,
+      "pitches": [
+        "C4"
+      ],
+      "playable": true,
+      "renderNoteIds": [
+        "n1"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "tieTypes": [],
+      "voiceIds": [
+        "1"
+      ]
+    },
+    {
+      "durationBeats": 1.0,
+      "entryCandidate": true,
+      "eventId": "event-1.0-1.0-1-1-p1-m1-e2",
+      "measureNumbers": [
+        "1"
+      ],
+      "onsetBeat": 1.0,
+      "pitches": [
+        "C4"
+      ],
+      "playable": true,
+      "renderNoteIds": [
+        "n2"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "tieTypes": [],
+      "voiceIds": [
+        "1"
+      ]
+    },
+    {
+      "durationBeats": 1.0,
+      "entryCandidate": true,
+      "eventId": "event-2.0-1.0-1-1-p1-m1-e3",
+      "measureNumbers": [
+        "1"
+      ],
+      "onsetBeat": 2.0,
+      "pitches": [
+        "G4"
+      ],
+      "playable": true,
+      "renderNoteIds": [
+        "n3"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "tieTypes": [
+        "start"
+      ],
+      "voiceIds": [
+        "1"
+      ]
+    },
+    {
+      "durationBeats": 1.5,
+      "entryCandidate": false,
+      "eventId": "event-3.0-1.5-1-1-p1-m2-e1",
+      "measureNumbers": [
+        "2"
+      ],
+      "onsetBeat": 3.0,
+      "pitches": [
+        "G4"
+      ],
+      "playable": true,
+      "renderNoteIds": [
+        "n4"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "tieTypes": [
+        "stop"
+      ],
+      "voiceIds": [
+        "1"
+      ]
+    },
+    {
+      "durationBeats": 1.5,
+      "entryCandidate": true,
+      "eventId": "event-3.0-1.5-1-2-p1-m2-e2",
+      "measureNumbers": [
+        "2"
+      ],
+      "onsetBeat": 3.0,
+      "pitches": [
+        "A4",
+        "C5"
+      ],
+      "playable": true,
+      "renderNoteIds": [
+        "n5",
+        "n6"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "tieTypes": [],
+      "voiceIds": [
+        "2"
+      ]
+    },
+    {
+      "durationBeats": 1.5,
+      "entryCandidate": true,
+      "eventId": "event-4.5-1.5-1-1-p1-m2-e4",
+      "measureNumbers": [
+        "2"
+      ],
+      "onsetBeat": 4.5,
+      "pitches": [
+        "D5"
+      ],
+      "playable": true,
+      "renderNoteIds": [
+        "n7"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "tieTypes": [],
+      "voiceIds": [
+        "1"
+      ]
+    }
+  ],
+  "practiceAttackSteps": [
+    {
+      "attackTargets": [
+        {
+          "attackId": "attack-0.0-05162c611506:target:C4:f41d35b19cfd",
+          "eventIds": [
+            "event-0.0-1.0-1-1-p1-m1-e1"
+          ],
+          "measureNumbers": [
+            "1"
+          ],
+          "notes": [
+            {
+              "eventId": "event-0.0-1.0-1-1-p1-m1-e1",
+              "measureNumbers": [
+                "1"
+              ],
+              "pitch": "C4",
+              "renderNoteId": "n1",
+              "staffIds": [
+                "1"
+              ],
+              "stepNoteId": "event-0.0-1.0-1-1-p1-m1-e1:n1",
+              "voiceIds": [
+                "1"
+              ]
+            }
+          ],
+          "pitch": "C4",
+          "renderNoteIds": [
+            "n1"
+          ]
+        }
+      ],
+      "continuation": [],
+      "eventIds": [
+        "event-0.0-1.0-1-1-p1-m1-e1"
+      ],
+      "measureNumbers": [
+        "1"
+      ],
+      "onsetBeat": 0.0,
+      "renderNoteIds": [
+        "n1"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "stepId": "attack-0.0-05162c611506",
+      "voiceIds": [
+        "1"
+      ]
+    },
+    {
+      "attackTargets": [
+        {
+          "attackId": "attack-1.0-57d82a629c08:target:C4:f51a37df0817",
+          "eventIds": [
+            "event-1.0-1.0-1-1-p1-m1-e2"
+          ],
+          "measureNumbers": [
+            "1"
+          ],
+          "notes": [
+            {
+              "eventId": "event-1.0-1.0-1-1-p1-m1-e2",
+              "measureNumbers": [
+                "1"
+              ],
+              "pitch": "C4",
+              "renderNoteId": "n2",
+              "staffIds": [
+                "1"
+              ],
+              "stepNoteId": "event-1.0-1.0-1-1-p1-m1-e2:n2",
+              "voiceIds": [
+                "1"
+              ]
+            }
+          ],
+          "pitch": "C4",
+          "renderNoteIds": [
+            "n2"
+          ]
+        }
+      ],
+      "continuation": [],
+      "eventIds": [
+        "event-1.0-1.0-1-1-p1-m1-e2"
+      ],
+      "measureNumbers": [
+        "1"
+      ],
+      "onsetBeat": 1.0,
+      "renderNoteIds": [
+        "n2"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "stepId": "attack-1.0-57d82a629c08",
+      "voiceIds": [
+        "1"
+      ]
+    },
+    {
+      "attackTargets": [
+        {
+          "attackId": "attack-2.0-1aede64d62ef:target:G4:abce10cd5e13",
+          "eventIds": [
+            "event-2.0-1.0-1-1-p1-m1-e3"
+          ],
+          "measureNumbers": [
+            "1"
+          ],
+          "notes": [
+            {
+              "eventId": "event-2.0-1.0-1-1-p1-m1-e3",
+              "measureNumbers": [
+                "1"
+              ],
+              "pitch": "G4",
+              "renderNoteId": "n3",
+              "staffIds": [
+                "1"
+              ],
+              "stepNoteId": "event-2.0-1.0-1-1-p1-m1-e3:n3",
+              "voiceIds": [
+                "1"
+              ]
+            }
+          ],
+          "pitch": "G4",
+          "renderNoteIds": [
+            "n3"
+          ]
+        }
+      ],
+      "continuation": [],
+      "eventIds": [
+        "event-2.0-1.0-1-1-p1-m1-e3"
+      ],
+      "measureNumbers": [
+        "1"
+      ],
+      "onsetBeat": 2.0,
+      "renderNoteIds": [
+        "n3"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "stepId": "attack-2.0-1aede64d62ef",
+      "voiceIds": [
+        "1"
+      ]
+    },
+    {
+      "attackTargets": [
+        {
+          "attackId": "attack-3.0-f5eb8414c490:target:A4:cb6fe267eb4d",
+          "eventIds": [
+            "event-3.0-1.5-1-2-p1-m2-e2"
+          ],
+          "measureNumbers": [
+            "2"
+          ],
+          "notes": [
+            {
+              "eventId": "event-3.0-1.5-1-2-p1-m2-e2",
+              "measureNumbers": [
+                "2"
+              ],
+              "pitch": "A4",
+              "renderNoteId": "n5",
+              "staffIds": [
+                "1"
+              ],
+              "stepNoteId": "event-3.0-1.5-1-2-p1-m2-e2:n5",
+              "voiceIds": [
+                "2"
+              ]
+            }
+          ],
+          "pitch": "A4",
+          "renderNoteIds": [
+            "n5"
+          ]
+        },
+        {
+          "attackId": "attack-3.0-f5eb8414c490:target:C5:84ee62cc51f1",
+          "eventIds": [
+            "event-3.0-1.5-1-2-p1-m2-e2"
+          ],
+          "measureNumbers": [
+            "2"
+          ],
+          "notes": [
+            {
+              "eventId": "event-3.0-1.5-1-2-p1-m2-e2",
+              "measureNumbers": [
+                "2"
+              ],
+              "pitch": "C5",
+              "renderNoteId": "n6",
+              "staffIds": [
+                "1"
+              ],
+              "stepNoteId": "event-3.0-1.5-1-2-p1-m2-e2:n6",
+              "voiceIds": [
+                "2"
+              ]
+            }
+          ],
+          "pitch": "C5",
+          "renderNoteIds": [
+            "n6"
+          ]
+        }
+      ],
+      "continuation": [
+        {
+          "eventId": "event-3.0-1.5-1-1-p1-m2-e1",
+          "measureNumbers": [
+            "2"
+          ],
+          "pitch": "G4",
+          "renderNoteId": "n4",
+          "staffIds": [
+            "1"
+          ],
+          "stepNoteId": "event-3.0-1.5-1-1-p1-m2-e1:n4",
+          "voiceIds": [
+            "1"
+          ]
+        }
+      ],
+      "eventIds": [
+        "event-3.0-1.5-1-1-p1-m2-e1",
+        "event-3.0-1.5-1-2-p1-m2-e2"
+      ],
+      "measureNumbers": [
+        "2"
+      ],
+      "onsetBeat": 3.0,
+      "renderNoteIds": [
+        "n5",
+        "n6",
+        "n4"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "stepId": "attack-3.0-f5eb8414c490",
+      "voiceIds": [
+        "2",
+        "1"
+      ]
+    },
+    {
+      "attackTargets": [
+        {
+          "attackId": "attack-4.5-547c4de8e393:target:D5:fdcdea355720",
+          "eventIds": [
+            "event-4.5-1.5-1-1-p1-m2-e4"
+          ],
+          "measureNumbers": [
+            "2"
+          ],
+          "notes": [
+            {
+              "eventId": "event-4.5-1.5-1-1-p1-m2-e4",
+              "measureNumbers": [
+                "2"
+              ],
+              "pitch": "D5",
+              "renderNoteId": "n7",
+              "staffIds": [
+                "1"
+              ],
+              "stepNoteId": "event-4.5-1.5-1-1-p1-m2-e4:n7",
+              "voiceIds": [
+                "1"
+              ]
+            }
+          ],
+          "pitch": "D5",
+          "renderNoteIds": [
+            "n7"
+          ]
+        }
+      ],
+      "continuation": [],
+      "eventIds": [
+        "event-4.5-1.5-1-1-p1-m2-e4"
+      ],
+      "measureNumbers": [
+        "2"
+      ],
+      "onsetBeat": 4.5,
+      "renderNoteIds": [
+        "n7"
+      ],
+      "staffIds": [
+        "1"
+      ],
+      "stepId": "attack-4.5-547c4de8e393",
+      "voiceIds": [
+        "1"
+      ]
+    }
+  ],
+  "revisionId": "canonical-local-core-revision",
+  "schemaVersion": 1,
+  "scoreEndBeat": 6.0,
+  "scoreId": "canonical-local-core-score",
+  "tempoSegments": [
+    {
+      "bpm": 120.0,
+      "startBeat": 0.0
+    },
+    {
+      "bpm": 90.0,
+      "startBeat": 3.0
+    }
+  ]
+}

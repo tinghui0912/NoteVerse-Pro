@@ -315,6 +315,41 @@ async function upload<T>(url: string, file: File, fieldName = 'file'): Promise<T
   return handleResponse<T>(response);
 }
 
+async function putBlobToUrl(
+  url: string,
+  blob: Blob,
+  headers: Record<string, string>
+): Promise<void> {
+  const uploadUrl = url.startsWith('http://') || url.startsWith('https://')
+    ? url
+    : `${API_BASE_URL}${url}`;
+  const requestHeaders = new Headers(headers);
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    addCsrfHeader(requestHeaders);
+  }
+  let response: Response;
+  try {
+    response = await fetchWithAuthRetry(uploadUrl, {
+      method: 'PUT',
+      headers: requestHeaders,
+      body: blob,
+      credentials: url.startsWith('http://') || url.startsWith('https://') ? 'omit' : 'include',
+    });
+  } catch (error) {
+    throw new ApiError(
+      0,
+      'direct_upload_failed',
+      error instanceof Error ? error.message : 'direct_upload_failed'
+    );
+  }
+  if (!response.ok) {
+    const data = response.headers.get('content-type')?.includes('application/json')
+      ? await readJsonSafely(response)
+      : {};
+    throw createApiError(response, data, 'direct_upload_failed', 'direct_upload_failed');
+  }
+}
+
 async function download(url: string, options?: RequestOptions): Promise<Blob> {
   const response = await fetchWithAuthRetry(`${API_BASE_URL}${url}`, {
     method: 'GET',
@@ -420,6 +455,7 @@ export const apiClient = {
   patch,
   delete: del,
   upload,
+  putBlobToUrl,
   download,
   postForm,
 };

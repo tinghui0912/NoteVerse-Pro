@@ -14,7 +14,7 @@ const scoreData: ScoreData = {
           voices: [
             {
               name: 'voiceLabel 1',
-              notes: [
+              events: [
                 { type: 'note', pitch: 'C4', duration: 'durationQuarter', meta: { id: 'n1', measureIndex: 0, staveIndex: 0, xmlVoice: 1, entityIndex: 0, startTick: 0 } },
                 { type: 'note', pitch: 'D4', duration: 'durationQuarter', meta: { id: 'n2', measureIndex: 0, staveIndex: 0, xmlVoice: 1, entityIndex: 1, startTick: 1 } },
               ],
@@ -32,14 +32,14 @@ const scoreData: ScoreData = {
           voices: [
             {
               name: 'voiceLabel 1',
-              notes: [
+              events: [
                 { type: 'note', pitch: 'C4', duration: 'durationWhole', meta: { id: 'n3', measureIndex: 1, staveIndex: 0, xmlVoice: 1, entityIndex: 0, startTick: 0 } },
                 { type: 'note', pitch: 'D4', duration: 'durationQuarter', meta: { id: 'n4', measureIndex: 1, staveIndex: 0, xmlVoice: 1, entityIndex: 1, startTick: 4 } },
               ],
             },
             {
               name: 'voiceLabel 2',
-              notes: [],
+              events: [],
             },
           ],
         },

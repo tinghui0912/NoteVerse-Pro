@@ -18,6 +18,24 @@ class StoredFile:
     public_url: str | None = None
 
 
+@dataclass(frozen=True)
+class DirectUploadTarget:
+    """A short-lived object upload target issued by the storage adapter."""
+
+    upload_url: str
+    upload_method: str
+    upload_headers: dict[str, str]
+
+
+@dataclass(frozen=True)
+class StoredObjectMetadata:
+    """Metadata read from an existing storage object."""
+
+    size_bytes: int
+    content_type: str | None = None
+    checksum_sha256: str | None = None
+
+
 class FileStorage(Protocol):
     """Operations required by feature services and workers."""
 
@@ -39,6 +57,18 @@ class FileStorage(Protocol):
         ...
 
     def size_bytes(self, key: str) -> int:
+        ...
+
+    def object_metadata(self, key: str) -> StoredObjectMetadata:
+        ...
+
+    def upload_url(
+        self,
+        key: str,
+        *,
+        content_type: str,
+        checksum_sha256: str,
+    ) -> DirectUploadTarget | None:
         ...
 
     def iter_bytes(

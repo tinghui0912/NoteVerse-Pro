@@ -1,7 +1,7 @@
 {
   "components": {
     "schemas": {
-      "APIResponse_PracticeReportRead_": {
+      "APIResponse_PracticeReadyScoreContentRead_": {
         "examples": [
           {
             "data": {
@@ -28,7 +28,7 @@
           "data": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PracticeReportRead"
+                "$ref": "#/components/schemas/PracticeReadyScoreContentRead"
               },
               {
                 "type": "null"
@@ -57,7 +57,66 @@
         "required": [
           "success"
         ],
-        "title": "APIResponse[PracticeReportRead]",
+        "title": "APIResponse[PracticeReadyScoreContentRead]",
+        "type": "object"
+      },
+      "APIResponse_PracticeReplayUploadAuthorizationRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeReplayUploadAuthorizationRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[PracticeReplayUploadAuthorizationRead]",
         "type": "object"
       },
       "APIResponse_PracticeSessionDetailRead_": {
@@ -119,7 +178,7 @@
         "title": "APIResponse[PracticeSessionDetailRead]",
         "type": "object"
       },
-      "APIResponse_PracticeSessionSummaryRead_": {
+      "APIResponse_PracticeSessionResultSummaryRead_": {
         "examples": [
           {
             "data": {
@@ -146,7 +205,7 @@
           "data": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PracticeSessionSummaryRead"
+                "$ref": "#/components/schemas/PracticeSessionResultSummaryRead"
               },
               {
                 "type": "null"
@@ -175,7 +234,369 @@
         "required": [
           "success"
         ],
-        "title": "APIResponse[PracticeSessionSummaryRead]",
+        "title": "APIResponse[PracticeSessionResultSummaryRead]",
+        "type": "object"
+      },
+      "APIResponse_PracticeSessionStartRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeSessionStartRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[PracticeSessionStartRead]",
+        "type": "object"
+      },
+      "APIResponse_PracticeTargetCatalogRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeTargetCatalogRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[PracticeTargetCatalogRead]",
+        "type": "object"
+      },
+      "APIResponse_SavedPracticeReplayArtifactRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SavedPracticeReplayArtifactRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[SavedPracticeReplayArtifactRead]",
+        "type": "object"
+      },
+      "APIResponse_SavedPracticeReplayPlaybackRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SavedPracticeReplayPlaybackRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[SavedPracticeReplayPlaybackRead]",
+        "type": "object"
+      },
+      "APIResponse_list_SavedPracticePerformanceRead__": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SavedPracticePerformanceRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload",
+            "title": "Data"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[list[SavedPracticePerformanceRead]]",
+        "type": "object"
+      },
+      "APIResponse_list_SavedPracticeReplayArtifactRead__": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SavedPracticeReplayArtifactRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload",
+            "title": "Data"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[list[SavedPracticeReplayArtifactRead]]",
         "type": "object"
       },
       "AccessOrigin": {
@@ -201,6 +622,24 @@
             "minLength": 1,
             "title": "Frame Format",
             "type": "string"
+          },
+          "input_source": {
+            "$ref": "#/components/schemas/PracticeInputSource",
+            "default": "MICROPHONE"
+          },
+          "practice_scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeSessionScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preset": {
+            "$ref": "#/components/schemas/PracticeSessionPreset",
+            "default": "STEP_BY_STEP"
           },
           "revision_id": {
             "anyOf": [
@@ -244,84 +683,353 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
-      "PracticeReportPayloadRead": {
+      "PracticeEvaluationProfile": {
+        "enum": [
+          "LEARNING",
+          "PERFORMANCE"
+        ],
+        "title": "PracticeEvaluationProfile",
+        "type": "string"
+      },
+      "PracticeInputSource": {
+        "enum": [
+          "MICROPHONE",
+          "MIDI"
+        ],
+        "title": "PracticeInputSource",
+        "type": "string"
+      },
+      "PracticePerformanceReportAvailabilityRead": {
         "properties": {
-          "metrics": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "title": "Metrics",
-            "type": "object"
+          "evaluation_available": {
+            "title": "Evaluation Available",
+            "type": "boolean"
           },
-          "recommendations": {
+          "saved_replay_available": {
+            "title": "Saved Replay Available",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "saved_replay_available",
+          "evaluation_available"
+        ],
+        "title": "PracticePerformanceReportAvailabilityRead",
+        "type": "object"
+      },
+      "PracticePerformanceTimelineRead": {
+        "properties": {
+          "scope_start_beat": {
+            "title": "Scope Start Beat",
+            "type": "number"
+          },
+          "scope_terminal_beat": {
+            "title": "Scope Terminal Beat",
+            "type": "number"
+          },
+          "segments": {
             "items": {
+              "$ref": "#/components/schemas/PracticePerformanceTimelineSegmentRead"
+            },
+            "title": "Segments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scope_start_beat",
+          "scope_terminal_beat"
+        ],
+        "title": "PracticePerformanceTimelineRead",
+        "type": "object"
+      },
+      "PracticePerformanceTimelineSegmentRead": {
+        "properties": {
+          "end_beat": {
+            "title": "End Beat",
+            "type": "number"
+          },
+          "end_performance_time_ms": {
+            "minimum": 0.0,
+            "title": "End Performance Time Ms",
+            "type": "number"
+          },
+          "start_beat": {
+            "title": "Start Beat",
+            "type": "number"
+          },
+          "start_performance_time_ms": {
+            "minimum": 0.0,
+            "title": "Start Performance Time Ms",
+            "type": "number"
+          }
+        },
+        "required": [
+          "start_performance_time_ms",
+          "end_performance_time_ms",
+          "start_beat",
+          "end_beat"
+        ],
+        "title": "PracticePerformanceTimelineSegmentRead",
+        "type": "object"
+      },
+      "PracticeProgressionMode": {
+        "enum": [
+          "WAIT_FOR_NOTE",
+          "CONTINUOUS"
+        ],
+        "title": "PracticeProgressionMode",
+        "type": "string"
+      },
+      "PracticeReadyScoreContentRead": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "mime_type": {
+            "default": "application/vnd.recordare.musicxml+xml",
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "score_id": {
+            "title": "Score Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "score_id",
+          "revision_id",
+          "content"
+        ],
+        "title": "PracticeReadyScoreContentRead",
+        "type": "object"
+      },
+      "PracticeRealtimeGuidance": {
+        "enum": [
+          "STATUS_ONLY",
+          "GUIDED"
+        ],
+        "title": "PracticeRealtimeGuidance",
+        "type": "string"
+      },
+      "PracticeReplayArtifactKind": {
+        "enum": [
+          "AUDIO_RECORDING",
+          "MIDI_EVENTS"
+        ],
+        "title": "PracticeReplayArtifactKind",
+        "type": "string"
+      },
+      "PracticeReplayFinalizeRequest": {
+        "properties": {
+          "artifact_id": {
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "byte_size": {
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "checksum_sha256": {
+            "title": "Checksum Sha256",
+            "type": "string"
+          },
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "format_version": {
+            "title": "Format Version",
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PracticeReplayArtifactKind"
+          },
+          "timebase_version": {
+            "title": "Timebase Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artifact_id",
+          "kind",
+          "content_type",
+          "byte_size",
+          "checksum_sha256",
+          "duration_ms",
+          "timebase_version",
+          "format_version"
+        ],
+        "title": "PracticeReplayFinalizeRequest",
+        "type": "object"
+      },
+      "PracticeReplayUploadAuthorizationRead": {
+        "properties": {
+          "artifact_id": {
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "byte_size": {
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "checksum_sha256": {
+            "title": "Checksum Sha256",
+            "type": "string"
+          },
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "format_version": {
+            "title": "Format Version",
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PracticeReplayArtifactKind"
+          },
+          "timebase_version": {
+            "title": "Timebase Version",
+            "type": "integer"
+          },
+          "upload_headers": {
+            "additionalProperties": {
               "type": "string"
             },
-            "title": "Recommendations",
-            "type": "array"
+            "title": "Upload Headers",
+            "type": "object"
           },
-          "summary": {
-            "title": "Summary",
+          "upload_method": {
+            "title": "Upload Method",
+            "type": "string"
+          },
+          "upload_url": {
+            "title": "Upload Url",
             "type": "string"
           }
         },
         "required": [
-          "summary",
-          "metrics",
-          "recommendations"
+          "artifact_id",
+          "upload_url",
+          "upload_method",
+          "upload_headers",
+          "kind",
+          "content_type",
+          "byte_size",
+          "checksum_sha256",
+          "duration_ms",
+          "timebase_version",
+          "format_version"
         ],
-        "title": "PracticeReportPayloadRead",
+        "title": "PracticeReplayUploadAuthorizationRead",
         "type": "object"
       },
-      "PracticeReportRead": {
+      "PracticeReplayUploadAuthorizationRequest": {
         "properties": {
-          "report_payload": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PracticeReportPayloadRead"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "byte_size": {
+            "title": "Byte Size",
+            "type": "integer"
           },
-          "report_status": {
-            "$ref": "#/components/schemas/PracticeReportStatus"
+          "checksum_sha256": {
+            "title": "Checksum Sha256",
+            "type": "string"
           },
-          "session_id": {
-            "title": "Session Id",
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "format_version": {
+            "title": "Format Version",
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PracticeReplayArtifactKind"
+          },
+          "timebase_version": {
+            "title": "Timebase Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "content_type",
+          "byte_size",
+          "checksum_sha256",
+          "duration_ms",
+          "timebase_version",
+          "format_version"
+        ],
+        "title": "PracticeReplayUploadAuthorizationRequest",
+        "type": "object"
+      },
+      "PracticeSessionCompletionOutcomeRead": {
+        "properties": {
+          "completion_reason": {
+            "$ref": "#/components/schemas/PracticeSessionCompletionReason"
+          },
+          "kind": {
+            "enum": [
+              "FULL_PIECE_LEARNING",
+              "FULL_PIECE_PERFORMANCE",
+              "SELECTED_SECTION"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "playback_expected": {
+            "title": "Playback Expected",
+            "type": "boolean"
+          },
+          "scope_kind": {
+            "enum": [
+              "FULL_PIECE",
+              "SELECTED_RANGE"
+            ],
+            "title": "Scope Kind",
+            "type": "string"
+          },
+          "summary_artifact_kind": {
+            "enum": [
+              "LEARNING_SUMMARY",
+              "PERFORMANCE_SUMMARY",
+              "SECTION_SUMMARY"
+            ],
+            "title": "Summary Artifact Kind",
             "type": "string"
           }
         },
         "required": [
-          "session_id",
-          "report_status",
-          "report_payload"
+          "kind",
+          "scope_kind",
+          "summary_artifact_kind",
+          "completion_reason",
+          "playback_expected"
         ],
-        "title": "PracticeReportRead",
+        "title": "PracticeSessionCompletionOutcomeRead",
         "type": "object"
       },
-      "PracticeReportStatus": {
+      "PracticeSessionCompletionReason": {
         "enum": [
-          "NOT_REQUESTED",
-          "PENDING",
-          "READY",
-          "FAILED"
+          "SCOPE_COMPLETED",
+          "STOPPED_BY_USER"
         ],
-        "title": "PracticeReportStatus",
+        "title": "PracticeSessionCompletionReason",
         "type": "string"
       },
       "PracticeSessionDetailRead": {
@@ -332,6 +1040,19 @@
           "channels": {
             "title": "Channels",
             "type": "integer"
+          },
+          "completion_outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeSessionCompletionOutcomeRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evaluation_profile": {
+            "$ref": "#/components/schemas/PracticeEvaluationProfile"
           },
           "finished_at": {
             "anyOf": [
@@ -347,6 +1068,9 @@
           "frame_format": {
             "title": "Frame Format",
             "type": "string"
+          },
+          "input_source": {
+            "$ref": "#/components/schemas/PracticeInputSource"
           },
           "last_beat_position": {
             "anyOf": [
@@ -370,8 +1094,34 @@
             ],
             "title": "Last Confidence"
           },
-          "report_status": {
-            "$ref": "#/components/schemas/PracticeReportStatus"
+          "performance_report_availability": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticePerformanceReportAvailabilityRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "practice_scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeSessionScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preset": {
+            "$ref": "#/components/schemas/PracticeSessionPreset"
+          },
+          "progression_mode": {
+            "$ref": "#/components/schemas/PracticeProgressionMode"
+          },
+          "realtime_guidance": {
+            "$ref": "#/components/schemas/PracticeRealtimeGuidance"
           },
           "revision_id": {
             "title": "Revision Id",
@@ -402,6 +1152,9 @@
           },
           "state": {
             "$ref": "#/components/schemas/PracticeSessionState"
+          },
+          "summary_status": {
+            "$ref": "#/components/schemas/PracticeSessionSummaryStatus"
           }
         },
         "required": [
@@ -410,6 +1163,11 @@
           "revision_id",
           "access_origin",
           "state",
+          "preset",
+          "progression_mode",
+          "realtime_guidance",
+          "evaluation_profile",
+          "input_source",
           "sample_rate",
           "channels",
           "frame_format",
@@ -417,23 +1175,105 @@
           "finished_at",
           "last_beat_position",
           "last_confidence",
-          "report_status"
+          "summary_status",
+          "completion_outcome"
         ],
         "title": "PracticeSessionDetailRead",
         "type": "object"
       },
-      "PracticeSessionState": {
+      "PracticeSessionPreset": {
         "enum": [
-          "CREATED",
-          "STREAMING",
-          "PAUSED",
-          "FINISHED",
-          "FAILED"
+          "STEP_BY_STEP",
+          "CONTINUOUS_PLAY"
         ],
-        "title": "PracticeSessionState",
+        "title": "PracticeSessionPreset",
         "type": "string"
       },
-      "PracticeSessionSummaryRead": {
+      "PracticeSessionResultSummaryRead": {
+        "properties": {
+          "performance_timeline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticePerformanceTimelineRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "summary_payload": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeSessionSummaryPayloadRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "summary_status": {
+            "$ref": "#/components/schemas/PracticeSessionSummaryStatus"
+          }
+        },
+        "required": [
+          "session_id",
+          "summary_status",
+          "summary_payload"
+        ],
+        "title": "PracticeSessionResultSummaryRead",
+        "type": "object"
+      },
+      "PracticeSessionScope": {
+        "properties": {
+          "end_expected_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Expected Group Id"
+          },
+          "end_measure_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Measure Number"
+          },
+          "start_expected_group_id": {
+            "title": "Start Expected Group Id",
+            "type": "string"
+          },
+          "start_measure_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Measure Number"
+          }
+        },
+        "required": [
+          "start_expected_group_id"
+        ],
+        "title": "PracticeSessionScope",
+        "type": "object"
+      },
+      "PracticeSessionStartRead": {
         "properties": {
           "session_id": {
             "title": "Session Id",
@@ -452,7 +1292,510 @@
           "state",
           "ws_url"
         ],
-        "title": "PracticeSessionSummaryRead",
+        "title": "PracticeSessionStartRead",
+        "type": "object"
+      },
+      "PracticeSessionState": {
+        "enum": [
+          "CREATED",
+          "STREAMING",
+          "PAUSED",
+          "FINISHED",
+          "FAILED"
+        ],
+        "title": "PracticeSessionState",
+        "type": "string"
+      },
+      "PracticeSessionSummaryProblemMeasureRead": {
+        "properties": {
+          "attempt_count": {
+            "title": "Attempt Count",
+            "type": "integer"
+          },
+          "average_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Confidence"
+          },
+          "completed_target_count": {
+            "title": "Completed Target Count",
+            "type": "integer"
+          },
+          "incomplete_target_count": {
+            "title": "Incomplete Target Count",
+            "type": "integer"
+          },
+          "interrupted_attempt_count": {
+            "title": "Interrupted Attempt Count",
+            "type": "integer"
+          },
+          "measure_number": {
+            "title": "Measure Number",
+            "type": "string"
+          },
+          "mismatch_attempt_count": {
+            "title": "Mismatch Attempt Count",
+            "type": "integer"
+          },
+          "partial_attempt_count": {
+            "title": "Partial Attempt Count",
+            "type": "integer"
+          },
+          "scorable_attempt_count": {
+            "title": "Scorable Attempt Count",
+            "type": "integer"
+          },
+          "skipped_attempt_count": {
+            "title": "Skipped Attempt Count",
+            "type": "integer"
+          },
+          "target_count": {
+            "title": "Target Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "measure_number",
+          "target_count",
+          "completed_target_count",
+          "incomplete_target_count",
+          "attempt_count",
+          "scorable_attempt_count",
+          "interrupted_attempt_count",
+          "skipped_attempt_count",
+          "partial_attempt_count",
+          "mismatch_attempt_count"
+        ],
+        "title": "PracticeSessionSummaryProblemMeasureRead",
+        "type": "object"
+      },
+      "PracticeSessionSummaryPayloadRead": {
+        "properties": {
+          "problem_measures": {
+            "items": {
+              "$ref": "#/components/schemas/PracticeSessionSummaryProblemMeasureRead"
+            },
+            "title": "Problem Measures",
+            "type": "array"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Metrics",
+            "type": "object"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/PracticeSessionSummaryTargetRead"
+            },
+            "title": "Targets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "metrics"
+        ],
+        "title": "PracticeSessionSummaryPayloadRead",
+        "type": "object"
+      },
+      "PracticeSessionSummaryStatus": {
+        "enum": [
+          "NOT_REQUESTED",
+          "PENDING",
+          "READY",
+          "FAILED"
+        ],
+        "title": "PracticeSessionSummaryStatus",
+        "type": "string"
+      },
+      "PracticeSessionSummaryTargetRead": {
+        "properties": {
+          "attempt_count": {
+            "title": "Attempt Count",
+            "type": "integer"
+          },
+          "completed": {
+            "title": "Completed",
+            "type": "boolean"
+          },
+          "completion_status": {
+            "title": "Completion Status",
+            "type": "string"
+          },
+          "confirmed_correct_render_note_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Confirmed Correct Render Note Ids",
+            "type": "array"
+          },
+          "confirmed_error_render_note_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Confirmed Error Render Note Ids",
+            "type": "array"
+          },
+          "expected_group_id": {
+            "title": "Expected Group Id",
+            "type": "string"
+          },
+          "interrupted_attempt_count": {
+            "title": "Interrupted Attempt Count",
+            "type": "integer"
+          },
+          "last_confidence": {
+            "title": "Last Confidence",
+            "type": "number"
+          },
+          "last_result": {
+            "title": "Last Result",
+            "type": "string"
+          },
+          "matched_attempt_count": {
+            "title": "Matched Attempt Count",
+            "type": "integer"
+          },
+          "measure_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Measure Numbers",
+            "type": "array"
+          },
+          "mismatch_attempt_count": {
+            "title": "Mismatch Attempt Count",
+            "type": "integer"
+          },
+          "missing_pitches": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Pitches",
+            "type": "array"
+          },
+          "partial_attempt_count": {
+            "title": "Partial Attempt Count",
+            "type": "integer"
+          },
+          "render_note_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Render Note Ids",
+            "type": "array"
+          },
+          "scorable_attempt_count": {
+            "title": "Scorable Attempt Count",
+            "type": "integer"
+          },
+          "skipped_attempt_count": {
+            "title": "Skipped Attempt Count",
+            "type": "integer"
+          },
+          "unexpected_pitches": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unexpected Pitches",
+            "type": "array"
+          }
+        },
+        "required": [
+          "expected_group_id",
+          "attempt_count",
+          "scorable_attempt_count",
+          "interrupted_attempt_count",
+          "skipped_attempt_count",
+          "matched_attempt_count",
+          "partial_attempt_count",
+          "mismatch_attempt_count",
+          "completed",
+          "completion_status",
+          "last_result",
+          "last_confidence"
+        ],
+        "title": "PracticeSessionSummaryTargetRead",
+        "type": "object"
+      },
+      "PracticeTargetCatalogRead": {
+        "properties": {
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "score_id": {
+            "title": "Score Id",
+            "type": "string"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/PracticeTargetRead"
+            },
+            "title": "Targets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "score_id",
+          "revision_id"
+        ],
+        "title": "PracticeTargetCatalogRead",
+        "type": "object"
+      },
+      "PracticeTargetRead": {
+        "properties": {
+          "event_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Event Ids",
+            "type": "array"
+          },
+          "group_id": {
+            "title": "Group Id",
+            "type": "string"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "measure_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Measure Numbers",
+            "type": "array"
+          },
+          "onset_beat": {
+            "title": "Onset Beat",
+            "type": "number"
+          },
+          "pitches": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Pitches",
+            "type": "array"
+          },
+          "render_note_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Render Note Ids",
+            "type": "array"
+          },
+          "staff_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Staff Ids",
+            "type": "array"
+          },
+          "voice_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Voice Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "index",
+          "group_id",
+          "onset_beat"
+        ],
+        "title": "PracticeTargetRead",
+        "type": "object"
+      },
+      "SavedPracticePerformanceRead": {
+        "properties": {
+          "artifact_id": {
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "completion_reason": {
+            "$ref": "#/components/schemas/PracticeSessionCompletionReason"
+          },
+          "evaluation_available": {
+            "title": "Evaluation Available",
+            "type": "boolean"
+          },
+          "finished_at": {
+            "title": "Finished At",
+            "type": "string"
+          },
+          "input_source": {
+            "$ref": "#/components/schemas/PracticeInputSource"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PracticeReplayArtifactKind"
+          },
+          "practice_scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeSessionScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "replay_duration_ms": {
+            "title": "Replay Duration Ms",
+            "type": "integer"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "saved_at": {
+            "title": "Saved At",
+            "type": "string"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          }
+        },
+        "required": [
+          "session_id",
+          "revision_id",
+          "artifact_id",
+          "kind",
+          "input_source",
+          "started_at",
+          "finished_at",
+          "completion_reason",
+          "replay_duration_ms",
+          "saved_at",
+          "evaluation_available"
+        ],
+        "title": "SavedPracticePerformanceRead",
+        "type": "object"
+      },
+      "SavedPracticeReplayArtifactRead": {
+        "properties": {
+          "artifact_id": {
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "byte_size": {
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "checksum_sha256": {
+            "title": "Checksum Sha256",
+            "type": "string"
+          },
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "format_version": {
+            "title": "Format Version",
+            "type": "integer"
+          },
+          "input_source": {
+            "$ref": "#/components/schemas/PracticeInputSource"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PracticeReplayArtifactKind"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "timebase_version": {
+            "title": "Timebase Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "artifact_id",
+          "session_id",
+          "kind",
+          "input_source",
+          "content_type",
+          "byte_size",
+          "checksum_sha256",
+          "duration_ms",
+          "timebase_version",
+          "format_version",
+          "created_at"
+        ],
+        "title": "SavedPracticeReplayArtifactRead",
+        "type": "object"
+      },
+      "SavedPracticeReplayPlaybackRead": {
+        "properties": {
+          "artifact_id": {
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PracticeReplayArtifactKind"
+          },
+          "playback_url": {
+            "title": "Playback Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact_id",
+          "playback_url",
+          "kind",
+          "content_type",
+          "duration_ms"
+        ],
+        "title": "SavedPracticeReplayPlaybackRead",
         "type": "object"
       },
       "ValidationError": {
@@ -526,6 +1869,210 @@
         "summary": "Root"
       }
     },
+    "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/content": {
+      "get": {
+        "operationId": "get_practice_ready_score_content_api_v1_practice_scores__score_id__revisions__revision_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "score_id",
+            "required": true,
+            "schema": {
+              "title": "Score Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PracticeReadyScoreContentRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Practice Ready Score Content",
+        "tags": [
+          "Practice"
+        ]
+      }
+    },
+    "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/targets": {
+      "get": {
+        "operationId": "list_practice_targets_api_v1_practice_scores__score_id__revisions__revision_id__targets_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "score_id",
+            "required": true,
+            "schema": {
+              "title": "Score Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PracticeTargetCatalogRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Practice Targets",
+        "tags": [
+          "Practice"
+        ]
+      }
+    },
+    "/api/v1/practice/scores/{score_id}/saved-performances": {
+      "get": {
+        "operationId": "list_saved_practice_performances_api_v1_practice_scores__score_id__saved_performances_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "score_id",
+            "required": true,
+            "schema": {
+              "title": "Score Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_list_SavedPracticePerformanceRead__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Saved Practice Performances",
+        "tags": [
+          "Practice"
+        ]
+      }
+    },
     "/api/v1/practice/sessions": {
       "post": {
         "operationId": "create_practice_session_api_v1_practice_sessions_post",
@@ -562,7 +2109,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PracticeSessionSummaryRead_"
+                  "$ref": "#/components/schemas/APIResponse_PracticeSessionStartRead_"
                 }
               }
             },
@@ -759,9 +2306,9 @@
         ]
       }
     },
-    "/api/v1/practice/sessions/{session_id}/report": {
+    "/api/v1/practice/sessions/{session_id}/replay-artifacts": {
       "get": {
-        "operationId": "get_practice_report_api_v1_practice_sessions__session_id__report_get",
+        "operationId": "list_practice_replay_artifacts_api_v1_practice_sessions__session_id__replay_artifacts_get",
         "parameters": [
           {
             "in": "path",
@@ -794,7 +2341,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PracticeReportRead_"
+                  "$ref": "#/components/schemas/APIResponse_list_SavedPracticeReplayArtifactRead__"
                 }
               }
             },
@@ -811,13 +2358,13 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get Practice Report",
+        "summary": "List Practice Replay Artifacts",
         "tags": [
           "Practice"
         ]
       },
       "post": {
-        "operationId": "request_practice_report_api_v1_practice_sessions__session_id__report_post",
+        "operationId": "finalize_practice_replay_artifact_api_v1_practice_sessions__session_id__replay_artifacts_post",
         "parameters": [
           {
             "in": "path",
@@ -845,12 +2392,22 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PracticeReplayFinalizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PracticeReportRead_"
+                  "$ref": "#/components/schemas/APIResponse_SavedPracticeReplayArtifactRead_"
                 }
               }
             },
@@ -867,7 +2424,283 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Request Practice Report",
+        "summary": "Finalize Practice Replay Artifact",
+        "tags": [
+          "Practice"
+        ]
+      }
+    },
+    "/api/v1/practice/sessions/{session_id}/replay-artifacts/{artifact_id}": {
+      "delete": {
+        "operationId": "delete_practice_replay_artifact_api_v1_practice_sessions__session_id__replay_artifacts__artifact_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_SavedPracticeReplayArtifactRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Practice Replay Artifact",
+        "tags": [
+          "Practice"
+        ]
+      }
+    },
+    "/api/v1/practice/sessions/{session_id}/replay-artifacts/{artifact_id}/playback-url": {
+      "get": {
+        "operationId": "get_practice_replay_artifact_playback_url_api_v1_practice_sessions__session_id__replay_artifacts__artifact_id__playback_url_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_SavedPracticeReplayPlaybackRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Practice Replay Artifact Playback Url",
+        "tags": [
+          "Practice"
+        ]
+      }
+    },
+    "/api/v1/practice/sessions/{session_id}/replay-upload-authorizations": {
+      "post": {
+        "operationId": "authorize_practice_replay_upload_api_v1_practice_sessions__session_id__replay_upload_authorizations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PracticeReplayUploadAuthorizationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PracticeReplayUploadAuthorizationRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Authorize Practice Replay Upload",
+        "tags": [
+          "Practice"
+        ]
+      }
+    },
+    "/api/v1/practice/sessions/{session_id}/replay-uploads/{artifact_id}": {
+      "put": {
+        "operationId": "upload_practice_replay_object_for_local_storage_api_v1_practice_sessions__session_id__replay_uploads__artifact_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-noteverse-content-sha256",
+            "required": true,
+            "schema": {
+              "title": "X-Noteverse-Content-Sha256",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Practice Replay Object For Local Storage",
         "tags": [
           "Practice"
         ]
@@ -926,6 +2759,64 @@
           }
         },
         "summary": "Resume Practice Session",
+        "tags": [
+          "Practice"
+        ]
+      }
+    },
+    "/api/v1/practice/sessions/{session_id}/summary": {
+      "get": {
+        "operationId": "get_practice_session_summary_api_v1_practice_sessions__session_id__summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PracticeSessionResultSummaryRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Practice Session Summary",
         "tags": [
           "Practice"
         ]

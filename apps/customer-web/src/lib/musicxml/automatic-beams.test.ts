@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest';
-import { getManualBeamDirectionAtEntity, rebuildAutomaticBeamsForMeasure, repairAutomaticBeamsForVoice, updateManualBeamAtEntity, updateManualBeamDirectionAtEntity } from './automatic-beams';
+import { getManualBeamDirectionAtEntity, getManualBeamRunSourceIdsAtEntity, rebuildAutomaticBeamsForMeasure, repairAutomaticBeamsForVoice, updateManualBeamDirectionAtEntity } from './automatic-beams';
 
 function note(duration: number, type: string, extra = '') {
   return `<note><pitch><step>C</step><octave>4</octave></pitch><duration>${duration}</duration><voice>1</voice><type>${type}</type><staff>1</staff>${extra}</note>`;
@@ -147,51 +147,6 @@ describe('Automatic Beam v2 foundation', () => {
     ]);
   });
 
-  it('joins a selected event to the next event without changing unrelated notes', () => {
-    const xmlDoc = documentFor(
-      '4',
-      4,
-      note(2, 'eighth').replace('<note>', '<note id="n1">')
-        + note(2, 'eighth').replace('<note>', '<note id="n2">')
-        + note(4, 'quarter').replace('<note>', '<note id="n3">'),
-    );
-
-    expect(updateManualBeamAtEntity(xmlDoc, 'n1', 'next')).toBe(true);
-    expect(beams(xmlDoc)).toEqual([['1:begin'], ['1:end'], []]);
-  });
-
-  it('breaks an existing beam after the selected event', () => {
-    const xmlDoc = documentFor(
-      '4',
-      4,
-      note(1, '16th', '<beam>begin</beam>').replace('<note>', '<note id="n1">')
-        + note(1, '16th', '<beam>continue</beam>').replace('<note>', '<note id="n2">')
-        + note(1, '16th', '<beam>continue</beam>').replace('<note>', '<note id="n3">')
-        + note(1, '16th', '<beam>end</beam>').replace('<note>', '<note id="n4">'),
-    );
-
-    expect(updateManualBeamAtEntity(xmlDoc, 'n2', 'break-right')).toBe(true);
-    expect(beams(xmlDoc).map((items) => items[0])).toEqual([
-      '1:begin', '1:end', '1:begin', '1:end',
-    ]);
-  });
-
-  it('breaks an existing beam on the left of the selected event', () => {
-    const xmlDoc = documentFor(
-      '4',
-      4,
-      note(1, '16th', '<beam>begin</beam>').replace('<note>', '<note id="n1">')
-        + note(1, '16th', '<beam>continue</beam>').replace('<note>', '<note id="n2">')
-        + note(1, '16th', '<beam>continue</beam>').replace('<note>', '<note id="n3">')
-        + note(1, '16th', '<beam>end</beam>').replace('<note>', '<note id="n4">'),
-    );
-
-    expect(updateManualBeamAtEntity(xmlDoc, 'n3', 'break-left')).toBe(true);
-    expect(beams(xmlDoc).map((items) => items[0])).toEqual([
-      '1:begin', '1:end', '1:begin', '1:end',
-    ]);
-  });
-
   it('sets and clears the stem direction for an entire beam group', () => {
     const xmlDoc = documentFor(
       '4',
@@ -207,5 +162,18 @@ describe('Automatic Beam v2 foundation', () => {
     expect(updateManualBeamDirectionAtEntity(xmlDoc, 'n2', 'auto')).toBe(true);
     expect(xmlDoc.querySelectorAll('stem')).toHaveLength(0);
     expect(getManualBeamDirectionAtEntity(xmlDoc, 'n1')).toBe('auto');
+  });
+
+  it('returns the root note source ids for the selected beam group', () => {
+    const xmlDoc = documentFor(
+      '4',
+      4,
+      note(2, 'eighth', '<beam>begin</beam>').replace('<note>', '<note id="n1">')
+        + note(2, 'eighth', '<beam>end</beam>').replace('<note>', '<note id="n2">')
+        + note(4, 'quarter').replace('<note>', '<note id="n3">'),
+    );
+
+    expect(getManualBeamRunSourceIdsAtEntity(xmlDoc, 'n2')).toEqual(['n1', 'n2']);
+    expect(getManualBeamRunSourceIdsAtEntity(xmlDoc, 'n3')).toEqual([]);
   });
 });

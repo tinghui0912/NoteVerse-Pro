@@ -1,7 +1,19 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
-import type { ScoreEntity, EntityLocation } from '@/types/score-types';
+import type { DomainSelectionCompanion } from '@/lib/editor/domain-selection-companion';
+import type { DomainAnchor } from '@/lib/editor-domain';
+import {
+    createRhythmicGridResolution,
+    type InsertionAnchor,
+    type InputDuration,
+    type RhythmicGridResolution,
+} from '@/lib/editor-domain';
+import {
+    createDefaultAddModeInputDuration,
+    createDefaultAddModeInputState,
+    type AddModeInputState,
+} from '@/hooks/editor/entity-editor/add-mode-command';
 
 /**
  * Editor tool mode.
@@ -15,6 +27,21 @@ export type EditorMode =
     | 'addSlur'
     | 'deleteSlur';
 
+export type EditingSelectionState = {
+    /** Canonical selection identity for rendering and future domain commands. */
+    domainAnchor: DomainAnchor | null;
+    domainCompanion: DomainSelectionCompanion | null;
+};
+
+export type EditingSelectionInput = Omit<EditingSelectionState, 'domainAnchor'> & {
+    domainAnchor?: DomainAnchor | null;
+};
+
+export type InsertionPreviewState = {
+    anchor: InsertionAnchor;
+    inputDuration: InputDuration;
+};
+
 /**
  * Editor UI state context.
  */
@@ -22,12 +49,19 @@ interface EditorStateContextType {
     // Active editor tool.
     editorMode: EditorMode;
     selectTool: (mode: EditorMode) => void;
+    addModeInputDuration: InputDuration;
+    setAddModeInputDuration: React.Dispatch<React.SetStateAction<InputDuration>>;
+    addModeInput: AddModeInputState;
+    setAddModeInput: React.Dispatch<React.SetStateAction<AddModeInputState>>;
+    addModeGridResolution: RhythmicGridResolution;
+    setAddModeGridResolution: React.Dispatch<React.SetStateAction<RhythmicGridResolution>>;
+    insertionPreview: InsertionPreviewState | null;
+    setInsertionPreview: React.Dispatch<React.SetStateAction<InsertionPreviewState | null>>;
 
     // Current entity editing state.
-    editingEntity: ScoreEntity | null;
-    setEditingEntity: React.Dispatch<React.SetStateAction<ScoreEntity | null>>;
-    editingEntityLocation: EntityLocation | null;
-    setEditingEntityLocation: React.Dispatch<React.SetStateAction<EntityLocation | null>>;
+    editingSelection: EditingSelectionState | null;
+    openEditingSelection: (selection: EditingSelectionInput) => void;
+    clearEditingSelection: () => void;
 
     // Original image viewer state.
     isImageViewerOpen: boolean;
@@ -68,8 +102,14 @@ interface EditorStateProviderProps {
  */
 export function EditorStateProvider({ children }: EditorStateProviderProps) {
     const [editorMode, setEditorMode] = useState<EditorMode>('select');
-    const [editingEntity, setEditingEntity] = useState<ScoreEntity | null>(null);
-    const [editingEntityLocation, setEditingEntityLocation] = useState<EntityLocation | null>(null);
+    const [addModeInputDuration, setAddModeInputDuration] = useState(() => createDefaultAddModeInputDuration());
+    const [addModeInput, setAddModeInput] = useState(() => createDefaultAddModeInputState());
+    const [addModeGridResolution, setAddModeGridResolution] = useState(() => createRhythmicGridResolution({
+        numerator: 1,
+        denominator: 1,
+    }));
+    const [insertionPreview, setInsertionPreview] = useState<InsertionPreviewState | null>(null);
+    const [editingSelection, setEditingSelection] = useState<EditingSelectionState | null>(null);
     const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
     const [onToolChange, setOnToolChangeState] = useState<((mode: EditorMode) => void) | null>(null);
     const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
@@ -92,13 +132,31 @@ export function EditorStateProvider({ children }: EditorStateProviderProps) {
         setOnToolChangeState(() => callback);
     }, []);
 
+    const openEditingSelection = useCallback((selection: EditingSelectionInput) => {
+        setEditingSelection({
+            ...selection,
+            domainAnchor: selection.domainAnchor ?? selection.domainCompanion?.domainAnchor ?? null,
+        });
+    }, []);
+
+    const clearEditingSelection = useCallback(() => {
+        setEditingSelection(null);
+    }, []);
+
     const value = useMemo<EditorStateContextType>(() => ({
         editorMode,
         selectTool,
-        editingEntity,
-        setEditingEntity,
-        editingEntityLocation,
-        setEditingEntityLocation,
+        addModeInputDuration,
+        setAddModeInputDuration,
+        addModeInput,
+        setAddModeInput,
+        addModeGridResolution,
+        setAddModeGridResolution,
+        insertionPreview,
+        setInsertionPreview,
+        editingSelection,
+        openEditingSelection,
+        clearEditingSelection,
         isImageViewerOpen,
         setIsImageViewerOpen,
         onToolChange,
@@ -110,7 +168,8 @@ export function EditorStateProvider({ children }: EditorStateProviderProps) {
         inspectorOpen,
         setInspectorOpen,
     }), [
-        editorMode, selectTool, editingEntity, editingEntityLocation,
+        editorMode, selectTool, addModeInputDuration, addModeInput, addModeGridResolution, insertionPreview, editingSelection,
+        openEditingSelection, clearEditingSelection,
         isImageViewerOpen, onToolChange, setOnToolChange,
         activeTrackId, visibleTrackIds, inspectorOpen
     ]);

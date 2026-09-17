@@ -3,19 +3,17 @@
 import { useTranslations } from 'next-intl';
 
 import { useState, useCallback } from 'react';
-import type { ScoreData, ScoreEntity, EntityLocation, EntityMeta } from '@/types/score-types';
+import type { ConnectionTarget } from '@/lib/editor/connection-target';
 import {
-    removeTieElementsFromXML,
-    removeSlurElementsFromXML,
-    removeTieConnectionFromXML,
-    removeSlurConnectionFromXML,
-    setTieConnectionDirectionInXML,
-    setSlurConnectionDirectionInXML,
-    addTieElementsToXML,
-    addSlurElementsToXML,
-    type ConnectionDirection,
-} from '@/lib/musicxml/connections';
-import { findEntityMetaById } from '@/lib/editor/score-lookup';
+    findNoteAtomByMusicXmlElementId,
+    type NoteAtom,
+    type NoteAtomId,
+    type PitchedEvent,
+    type Rational,
+    type ScoreDocument,
+} from '@/lib/editor-domain';
+import { useEditorDomainDocument } from './use-editor-domain-document';
+import { useEditorDomainEdit } from './use-editor-domain-edit';
 
 // Operation result type.
 type OperationResult = {
@@ -24,373 +22,350 @@ type OperationResult = {
     count?: number;
 };
 
-// Selected note target.
-type SelectedNote = {
-    entity: ScoreEntity;
-    location: EntityLocation;
-    sourceId?: string;
+type SelectedConnectionTarget = ConnectionTarget & {
+    key: string;
 };
 
 // Hook parameter type.
 type UseConnectionOperationsParams = {
-    scoreData: ScoreData | null;
     currentXml: string | null;
-    updateMusicXML: (updater: (doc: XMLDocument) => void, actionName?: string) => void;
 };
 
 /**
  * Connection operation hook for adding, deleting, and updating tie/slur links.
  */
 export function useConnectionOperations({
-    scoreData,
     currentXml,
-    updateMusicXML
 }: UseConnectionOperationsParams) {
     const t = useTranslations('editor');
-  const tCommon = useTranslations('common');
+    const tCommon = useTranslations('common');
+    const domainDocument = useEditorDomainDocument();
+    const {
+        addDomainSlurRelationshipsBySourceIds,
+        addDomainTieRelationshipsBySourceIds,
+        deleteDomainSlurRelationshipsForSourceIds,
+        deleteDomainTieRelationshipsForSourceIds,
+    } = useEditorDomainEdit();
 
     // Selection state.
-    const [selectedNotesForTie, setSelectedNotesForTie] = useState<SelectedNote[]>([]);
-    const [selectedNotesForSlur, setSelectedNotesForSlur] = useState<SelectedNote[]>([]);
+    const [selectedTieTargets, setSelectedTieTargets] = useState<SelectedConnectionTarget[]>([]);
+    const [selectedSlurTargets, setSelectedSlurTargets] = useState<SelectedConnectionTarget[]>([]);
 
     // Selection clearers used when the active editor tool changes.
-    const clearTieSelection = useCallback(() => setSelectedNotesForTie([]), []);
-    const clearSlurSelection = useCallback(() => setSelectedNotesForSlur([]), []);
+    const clearTieSelection = useCallback(() => setSelectedTieTargets([]), []);
+    const clearSlurSelection = useCallback(() => setSelectedSlurTargets([]), []);
 
-    // Delete all tie connections for an entity.
-    const handleDeleteTie = (entity: ScoreEntity): OperationResult => {
-        if (!scoreData?.connections?.noteConnections || !entity.meta?.id || !currentXml) {
+    // Delete all tie connections for a selected source-id target.
+    const handleDeleteTie = (selectedTarget: ConnectionTarget): OperationResult => {
+        if (!currentXml || !domainDocument.document) {
             return { success: false, message: t('noConnectionData') };
         }
 
-        const entityId = entity.meta.id;
-        const entityConns = scoreData.connections.noteConnections.get(entityId);
+        const target = createConnectionSelectionTarget(selectedTarget);
+        if (!target) {
+            return { success: false, message: t('noConnectionData') };
+        }
 
-        // Check whether the entity has tie connections.
-        if (!entityConns || entityConns.ties.length === 0) {
+        const summary = getDomainConnectionDeletionSummary(domainDocument.document, target.sourceIds, 'tie');
+        if (summary.relationshipCount === 0) {
             return { success: false, message: t('noteHasNoTie') };
         }
 
-        const allNoteIds = new Set<string>([entityId]);
-        const entityMetas: EntityMeta[] = [];
-
-        if (entity.meta) {
-            entityMetas.push(entity.meta);
+        const deleteResult = deleteDomainTieRelationshipsForSourceIds({
+            sourceIds: target.sourceIds,
+            actionName: t('deleteTie'),
+        });
+        if (!deleteResult.success) {
+            return { success: false, message: deleteResult.error };
         }
 
-        entityConns.ties.forEach(tie => {
-            if (!allNoteIds.has(tie.partnerId)) {
-                allNoteIds.add(tie.partnerId);
-                const meta = findEntityMetaById(scoreData, tie.partnerId);
-                if (meta) entityMetas.push(meta);
-            }
-        });
-
-        const count = allNoteIds.size;
-
-        updateMusicXML((xmlDoc) => {
-            removeTieElementsFromXML(xmlDoc, entityMetas);
-        }, t('deleteTie'));
-
+        const count = summary.endpointSourceIds.length;
         return { success: true, message: t('tieDeleted', { count }), count };
     };
 
-    // Delete all slur connections for an entity.
-    const handleDeleteSlur = (entity: ScoreEntity): OperationResult => {
-        if (!scoreData?.connections?.noteConnections || !entity.meta?.id || !currentXml) {
+    // Delete all slur connections for a selected source-id target.
+    const handleDeleteSlur = (selectedTarget: ConnectionTarget): OperationResult => {
+        if (!currentXml || !domainDocument.document) {
             return { success: false, message: t('noConnectionData') };
         }
 
-        const entityId = entity.meta.id;
-        const entityConns = scoreData.connections.noteConnections.get(entityId);
+        const target = createConnectionSelectionTarget(selectedTarget);
+        if (!target) {
+            return { success: false, message: t('noConnectionData') };
+        }
 
-        if (!entityConns || entityConns.slurs.length === 0) {
+        const summary = getDomainConnectionDeletionSummary(domainDocument.document, target.sourceIds, 'slur');
+        if (summary.relationshipCount === 0) {
             return { success: false, message: t('noteHasNoSlur') };
         }
 
-        const allNoteIds = new Set<string>();
-        const entityMetas: EntityMeta[] = [];
-
-        entityConns.slurs.forEach(slur => {
-            slur.partnerIds.forEach(id => {
-                if (!allNoteIds.has(id)) {
-                    allNoteIds.add(id);
-                    const meta = findEntityMetaById(scoreData, id);
-                    if (meta) entityMetas.push(meta);
-                }
-            });
+        const deleteResult = deleteDomainSlurRelationshipsForSourceIds({
+            sourceIds: target.sourceIds,
+            actionName: t('deleteSlur'),
         });
+        if (!deleteResult.success) {
+            return { success: false, message: deleteResult.error };
+        }
 
-        const count = allNoteIds.size;
-
-        updateMusicXML((xmlDoc) => {
-            removeSlurElementsFromXML(xmlDoc, entityMetas);
-        }, t('deleteSlur'));
-
+        const count = summary.endpointSourceIds.length;
         return { success: true, message: t('slurDeleted', { count }), count };
     };
 
-    const handleDeleteTieConnection = (
-        entity: ScoreEntity,
-        partnerId: string,
-        sourceId?: string,
-        partnerSourceId?: string
-    ): OperationResult => {
-        if (!scoreData?.connections?.noteConnections || !entity.meta?.id || !currentXml) {
-            return { success: false, message: t('noConnectionData') };
-        }
-
-        const partnerMeta = findEntityMetaById(scoreData, partnerId);
-        if (!partnerMeta) {
-            return { success: false, message: t('noNoteData') };
-        }
-
-        updateMusicXML((xmlDoc) => {
-            removeTieConnectionFromXML(xmlDoc, entity.meta!, partnerMeta, {
-                startSourceId: sourceId,
-                endSourceId: partnerSourceId,
-            });
-        }, t('deleteTie'));
-
-        return { success: true, message: t('tieDeleted', { count: 2 }), count: 2 };
-    };
-
-    const handleDeleteSlurConnection = (
-        entity: ScoreEntity,
-        partnerId: string,
-        sourceId?: string,
-        partnerSourceId?: string
-    ): OperationResult => {
-        if (!scoreData?.connections?.noteConnections || !entity.meta?.id || !currentXml) {
-            return { success: false, message: t('noConnectionData') };
-        }
-
-        const partnerMeta = findEntityMetaById(scoreData, partnerId);
-        if (!partnerMeta) {
-            return { success: false, message: t('noNoteData') };
-        }
-
-        updateMusicXML((xmlDoc) => {
-            removeSlurConnectionFromXML(xmlDoc, entity.meta!, partnerMeta, {
-                startSourceId: sourceId,
-                endSourceId: partnerSourceId,
-            });
-        }, t('deleteSlur'));
-
-        return { success: true, message: t('slurDeleted', { count: 2 }), count: 2 };
-    };
-
-    const handleUpdateTieConnectionDirection = (
-        entity: ScoreEntity,
-        partnerId: string,
-        direction: ConnectionDirection,
-        sourceId?: string,
-        partnerSourceId?: string
-    ): OperationResult => {
-        if (!scoreData?.connections?.noteConnections || !entity.meta?.id || !currentXml) {
-            return { success: false, message: t('noConnectionData') };
-        }
-
-        const partnerMeta = findEntityMetaById(scoreData, partnerId);
-        if (!partnerMeta) {
-            return { success: false, message: t('noNoteData') };
-        }
-
-        updateMusicXML((xmlDoc) => {
-            setTieConnectionDirectionInXML(xmlDoc, entity.meta!, partnerMeta, direction, {
-                startSourceId: sourceId,
-                endSourceId: partnerSourceId,
-            });
-        }, t('actions.updateConnectionDirection'));
-
-        return { success: true, message: t('connectionDirectionUpdated') };
-    };
-
-    const handleUpdateSlurConnectionDirection = (
-        entity: ScoreEntity,
-        partnerId: string,
-        direction: ConnectionDirection,
-        sourceId?: string,
-        partnerSourceId?: string
-    ): OperationResult => {
-        if (!scoreData?.connections?.noteConnections || !entity.meta?.id || !currentXml) {
-            return { success: false, message: t('noConnectionData') };
-        }
-
-        const partnerMeta = findEntityMetaById(scoreData, partnerId);
-        if (!partnerMeta) {
-            return { success: false, message: t('noNoteData') };
-        }
-
-        updateMusicXML((xmlDoc) => {
-            setSlurConnectionDirectionInXML(xmlDoc, entity.meta!, partnerMeta, direction, {
-                startSourceId: sourceId,
-                endSourceId: partnerSourceId,
-            });
-        }, t('actions.updateConnectionDirection'));
-
-        return { success: true, message: t('connectionDirectionUpdated') };
-    };
-
     // Add a tie by selecting two note/chord targets.
-    const handleAddTieSelection = (location: EntityLocation, entity: ScoreEntity, sourceId?: string): OperationResult => {
-        if (!currentXml || !entity.meta) {
+    const handleAddTieSelection = (selectedTarget: ConnectionTarget): OperationResult => {
+        if (!currentXml || !domainDocument.document) {
             return { success: false, message: t('noNoteData') };
         }
 
-        if (entity.type !== 'note' && entity.type !== 'chord') {
-            return { success: false, message: t('onlyNoteOrChord', { type: tCommon('tie') }) };
+        const target = createConnectionSelectionTarget(selectedTarget);
+        if (!target) {
+            return { success: false, message: t('noNoteData') };
         }
 
-        if (selectedNotesForTie.some(n => n.entity.meta?.id === entity.meta?.id && n.sourceId === sourceId)) {
+        if (selectedTieTargets.some((candidate) => candidate.key === target.key)) {
             return { success: false, message: t('noteAlreadySelected') };
         }
 
-        if (selectedNotesForTie.length === 0) {
-            setSelectedNotesForTie([{ entity, location, sourceId }]);
+        if (selectedTieTargets.length === 0) {
+            setSelectedTieTargets([target]);
             return { success: true, message: t('firstNoteSelected') };
         }
 
-        const firstNote = selectedNotesForTie[0];
+        const firstTarget = selectedTieTargets[0];
 
-        // Ties must stay within the same staff, but may cross voices for piano or complex scores.
-        if (firstNote.location.staveIndex !== location.staveIndex) {
-            return { success: false, message: t('mustSameStave', { type: tCommon('tie') }) };
-        }
-
-        const getEntityPitches = (e: ScoreEntity, selectedSourceId?: string): string[] => {
-            if (e.type === 'note') return [e.pitch];
-            if (e.type === 'chord') {
-                const sourceIndex = selectedSourceId && e.meta?.sourceIds
-                    ? e.meta.sourceIds.indexOf(selectedSourceId)
-                    : -1;
-                if (sourceIndex >= 0 && e.pitches[sourceIndex]) {
-                    return [e.pitches[sourceIndex]];
-                }
-                return [...e.pitches].sort();
+        const validation = validateDomainTieCreation({
+            document: domainDocument.document,
+            startSourceIds: firstTarget.sourceIds,
+            endSourceIds: target.sourceIds,
+        });
+        if (validation !== 'valid') {
+            if (validation === 'different-staff') {
+                return { success: false, message: t('mustSameStave', { type: tCommon('tie') }) };
             }
-            return [];
-        };
-
-        const firstPitches = getEntityPitches(firstNote.entity, firstNote.sourceId);
-        const secondPitches = getEntityPitches(entity, sourceId);
-
-        if (JSON.stringify(firstPitches) !== JSON.stringify(secondPitches)) {
-            return { success: false, message: t('mustSamePitch') };
-        }
-
-        // Check adjacency by startTick.
-        // Ties normally connect adjacent notes; reject if another note sits between them.
-        const firstMeta = firstNote.entity.meta!;
-        const secondMeta = entity.meta!;
-        const getGlobalTick = (meta: { measureIndex: number; startTick?: number }) =>
-            meta.measureIndex * 1000000 + (meta.startTick ?? 0);
-
-        const firstTick = getGlobalTick(firstMeta);
-        const secondTick = getGlobalTick(secondMeta);
-        const [earlierTick, laterTick] = firstTick < secondTick
-            ? [firstTick, secondTick]
-            : [secondTick, firstTick];
-
-        // Check for intermediate notes on the same staff.
-        if (scoreData) {
-            let hasIntermediateNotes = false;
-            for (const measure of scoreData.measures) {
-                for (const stave of measure.staves) {
-                    // Only inspect the same staff.
-                    if (stave.name !== scoreData.measures[firstMeta.measureIndex]?.staves[firstMeta.staveIndex]?.name) {
-                        continue;
-                    }
-                    for (const voice of stave.voices) {
-                        for (const note of voice.notes) {
-                            if (note.meta && note.type !== 'rest' && note.type !== 'blank') {
-                                const noteTick = getGlobalTick(note.meta);
-                                if (noteTick > earlierTick && noteTick < laterTick) {
-                                    hasIntermediateNotes = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (hasIntermediateNotes) break;
-                    }
-                    if (hasIntermediateNotes) break;
-                }
-                if (hasIntermediateNotes) break;
+            if (validation === 'different-pitch') {
+                return { success: false, message: t('mustSamePitch') };
             }
-
-            if (hasIntermediateNotes) {
-                // Reject creation because ties must connect adjacent notes.
-                setSelectedNotesForTie([]);
+            if (validation === 'not-adjacent') {
+                setSelectedTieTargets([]);
                 return { success: false, message: t('mustAdjacentNotes') };
             }
+            setSelectedTieTargets([]);
+            return { success: false, message: t('noNoteData') };
         }
 
-        // addTieElementsToXML orders start/stop from startTick, so no manual swap is needed.
+        const addResult = addDomainTieRelationshipsBySourceIds({
+            startSourceIds: firstTarget.sourceIds,
+            endSourceIds: target.sourceIds,
+            actionName: t('addTie'),
+        });
+        if (!addResult.success) {
+            setSelectedTieTargets([]);
+            return { success: false, message: addResult.error };
+        }
 
-        updateMusicXML((xmlDoc) => {
-            addTieElementsToXML(xmlDoc, firstNote.entity.meta!, entity.meta!, {
-                startSourceId: firstNote.sourceId,
-                endSourceId: sourceId,
-            });
-        }, t('addTie'));
-
-        setSelectedNotesForTie([]);
+        setSelectedTieTargets([]);
         return { success: true, message: t('tieCreated') };
     };
 
     // Add a slur by selecting two note/chord targets.
-    const handleAddSlurSelection = (location: EntityLocation, entity: ScoreEntity, sourceId?: string): OperationResult => {
-        if (!currentXml || !entity.meta) {
+    const handleAddSlurSelection = (selectedTarget: ConnectionTarget): OperationResult => {
+        if (!currentXml || !domainDocument.document) {
             return { success: false, message: t('noNoteData') };
         }
 
-        if (entity.type !== 'note' && entity.type !== 'chord') {
-            return { success: false, message: t('onlyNoteOrChord', { type: tCommon('slur') }) };
+        const target = createConnectionSelectionTarget(selectedTarget);
+        if (!target) {
+            return { success: false, message: t('noNoteData') };
         }
 
-        if (selectedNotesForSlur.some(n => n.entity.meta?.id === entity.meta?.id && n.sourceId === sourceId)) {
+        if (selectedSlurTargets.some((candidate) => candidate.key === target.key)) {
             return { success: false, message: t('noteAlreadySelected') };
         }
 
-        if (selectedNotesForSlur.length === 0) {
-            setSelectedNotesForSlur([{ entity, location, sourceId }]);
+        if (selectedSlurTargets.length === 0) {
+            setSelectedSlurTargets([target]);
             return { success: true, message: t('firstNoteSelected') };
         }
 
-        const firstNote = selectedNotesForSlur[0];
+        const firstTarget = selectedSlurTargets[0];
 
-        // Slurs may cross staves and voices in piano-score scenarios.
-        // addSlurElementsToXML orders start/stop from startTick.
+        // Slurs may cross staves and voices in piano-score scenarios. The domain
+        // hook orders start/stop by score position before exporting MusicXML.
+        const addResult = addDomainSlurRelationshipsBySourceIds({
+            startSourceIds: firstTarget.sourceIds,
+            endSourceIds: target.sourceIds,
+            actionName: t('addSlur'),
+        });
+        if (!addResult.success) {
+            setSelectedSlurTargets([]);
+            return { success: false, message: addResult.error };
+        }
 
-        updateMusicXML((xmlDoc) => {
-            // addSlurElementsToXML derives start/stop order from XML document position.
-            // No manual comparison or swap is needed here.
-            addSlurElementsToXML(xmlDoc, firstNote.entity.meta!, entity.meta!, {
-                startSourceId: firstNote.sourceId,
-                endSourceId: sourceId,
-            });
-        }, t('addSlur'));
-
-        setSelectedNotesForSlur([]);
+        setSelectedSlurTargets([]);
         return { success: true, message: t('slurCreated') };
     };
 
     return {
-        // Selection state.
-        selectedNotesForTie,
-        selectedNotesForSlur,
         // Clear functions.
         clearTieSelection,
         clearSlurSelection,
         // Delete operations.
         handleDeleteTie,
         handleDeleteSlur,
-        handleDeleteTieConnection,
-        handleDeleteSlurConnection,
-        handleUpdateTieConnectionDirection,
-        handleUpdateSlurConnectionDirection,
         // Add operations.
         handleAddTieSelection,
         handleAddSlurSelection,
     };
+}
+
+function createConnectionSelectionTarget(
+    target: ConnectionTarget
+): SelectedConnectionTarget | null {
+    const sourceIds = [...new Set(target.sourceIds.filter(Boolean))];
+    if (sourceIds.length === 0) return null;
+    return {
+        key: sourceIds.join('|'),
+        sourceIds,
+    };
+}
+
+export type DomainTieCreationValidationResult =
+    | 'valid'
+    | 'missing-note'
+    | 'different-staff'
+    | 'different-pitch'
+    | 'not-adjacent';
+
+export function validateDomainTieCreation(params: {
+    document: ScoreDocument;
+    startSourceIds: string[];
+    endSourceIds: string[];
+}): DomainTieCreationValidationResult {
+    const startTargets = findTieCreationTargets(params.document, params.startSourceIds);
+    const endTargets = findTieCreationTargets(params.document, params.endSourceIds);
+    if (startTargets.length === 0 || endTargets.length === 0) return 'missing-note';
+
+    const startEvent = startTargets[0]?.event;
+    const endEvent = endTargets[0]?.event;
+    if (!startEvent || !endEvent) return 'missing-note';
+    if (startEvent.staffId !== endEvent.staffId) return 'different-staff';
+
+    const startPitchKeys = startTargets.map(({ note }) => getPitchKey(note)).sort();
+    const endPitchKeys = endTargets.map(({ note }) => getPitchKey(note)).sort();
+    if (!areStringArraysEqual(startPitchKeys, endPitchKeys)) return 'different-pitch';
+
+    const earlier = compareEventPosition(params.document, startEvent, endEvent) <= 0
+        ? startEvent
+        : endEvent;
+    const later = earlier === startEvent ? endEvent : startEvent;
+    if (hasIntermediatePitchedEventOnStaff(params.document, earlier, later)) {
+        return 'not-adjacent';
+    }
+
+    return 'valid';
+}
+
+export function getDomainConnectionDeletionSummary(
+    document: ScoreDocument,
+    sourceIds: string[],
+    type: 'tie' | 'slur'
+): {
+    relationshipCount: number;
+    endpointSourceIds: string[];
+} {
+    const selectedNoteAtomIds = new Set(sourceIds
+        .map((sourceId) => findNoteAtomByMusicXmlElementId(document, sourceId)?.note.id)
+        .filter((noteAtomId): noteAtomId is NoteAtomId => Boolean(noteAtomId)));
+    if (selectedNoteAtomIds.size === 0) {
+        return { relationshipCount: 0, endpointSourceIds: [] };
+    }
+
+    const endpointNoteAtomIds = new Set<NoteAtomId>();
+    const relationships = type === 'tie'
+        ? document.tieRelationships
+        : document.slurRelationships;
+
+    relationships.forEach((relationship) => {
+        if (
+            !selectedNoteAtomIds.has(relationship.startNoteAtomId)
+            && !selectedNoteAtomIds.has(relationship.stopNoteAtomId)
+        ) {
+            return;
+        }
+        endpointNoteAtomIds.add(relationship.startNoteAtomId);
+        endpointNoteAtomIds.add(relationship.stopNoteAtomId);
+    });
+
+    return {
+        relationshipCount: endpointNoteAtomIds.size === 0 ? 0 : relationships.filter((relationship) => (
+            selectedNoteAtomIds.has(relationship.startNoteAtomId)
+            || selectedNoteAtomIds.has(relationship.stopNoteAtomId)
+        )).length,
+        endpointSourceIds: getSourceIdsForNoteAtomIds(document, endpointNoteAtomIds),
+    };
+}
+
+function getSourceIdsForNoteAtomIds(document: ScoreDocument, noteAtomIds: Set<NoteAtomId>): string[] {
+    const sourceIds: string[] = [];
+    document.events.forEach((event) => {
+        if (event.kind !== 'pitched') return;
+        event.notes.forEach((note) => {
+            if (!noteAtomIds.has(note.id)) return;
+            sourceIds.push(note.source?.musicXmlElementId ?? String(note.id));
+        });
+    });
+    return [...new Set(sourceIds)];
+}
+
+function findTieCreationTargets(
+    document: ScoreDocument,
+    sourceIds: string[]
+): Array<{ event: PitchedEvent; note: NoteAtom }> {
+    const targets: Array<{ event: PitchedEvent; note: NoteAtom }> = [];
+    const seen = new Set<NoteAtomId>();
+    sourceIds.forEach((sourceId) => {
+        const found = findNoteAtomByMusicXmlElementId(document, sourceId);
+        if (!found || seen.has(found.note.id)) return;
+        targets.push({ event: found.event, note: found.note });
+        seen.add(found.note.id);
+    });
+    return targets;
+}
+
+function getPitchKey(note: NoteAtom): string {
+    return `${note.pitch.step}:${note.pitch.octave}:${note.pitch.alter ?? 0}`;
+}
+
+function areStringArraysEqual(left: string[], right: string[]): boolean {
+    return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function hasIntermediatePitchedEventOnStaff(
+    document: ScoreDocument,
+    earlier: PitchedEvent,
+    later: PitchedEvent
+): boolean {
+    return document.events.some((event) => (
+        event.kind === 'pitched'
+        && event.staffId === earlier.staffId
+        && event.id !== earlier.id
+        && event.id !== later.id
+        && compareEventPosition(document, event, earlier) > 0
+        && compareEventPosition(document, event, later) < 0
+    ));
+}
+
+function compareEventPosition(document: ScoreDocument, left: PitchedEvent, right: PitchedEvent): number {
+    const measureOrder = getMeasureOrder(document, left.position.measureId) - getMeasureOrder(document, right.position.measureId);
+    if (measureOrder !== 0) return measureOrder;
+    return compareRational(left.position.offset, right.position.offset);
+}
+
+function getMeasureOrder(document: ScoreDocument, measureId: string): number {
+    const index = document.measures.findIndex((measure) => measure.id === measureId);
+    return index >= 0 ? index : Number.MAX_SAFE_INTEGER;
+}
+
+function compareRational(left: Rational, right: Rational): number {
+    return left.numerator * right.denominator - right.numerator * left.denominator;
 }

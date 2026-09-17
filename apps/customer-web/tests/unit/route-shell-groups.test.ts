@@ -243,7 +243,7 @@ describe('route shell groups', () => {
     const libraryPage = readSource('src/app/[locale]/(app)/library/page.tsx');
     const librarySidebar = readSource('src/components/library/library-sidebar.tsx');
     const uploadPage = readSource('src/app/[locale]/(app)/upload/page.tsx');
-    const performancePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/performance/page.tsx');
+    const summaryPage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/summary/page.tsx');
     const loginPage = readSource('src/app/[locale]/(auth)/auth/login/page.tsx');
     const securityPanel = readSource('src/components/settings/security-settings-panel.tsx');
     const scorePreviewViewport = readSource('src/components/score-preview/score-preview-viewport.tsx');
@@ -264,7 +264,7 @@ describe('route shell groups', () => {
     expect(libraryPage).toContain("t('loadingEntries')");
     expect(librarySidebar).toContain("t('loadingFolders')");
     expect(uploadPage).toContain('<PageLoading');
-    expect(performancePage).toContain("t('loadingReport')");
+    expect(summaryPage).toContain("t('loadingSummary')");
     expect(loginPage).toContain('InlineLoading');
     expect(securityPanel).toContain('InlineLoading');
     expect(scorePreviewViewport).toContain('PreviewLoading');
@@ -279,7 +279,7 @@ describe('route shell groups', () => {
       expect(source).toContain('SectionLoading');
     }
 
-    expect(performancePage).toContain('ResourceLoading');
+    expect(summaryPage).toContain('ResourceLoading');
   });
 
   it('keeps retired score preview wrappers out of the shared score components', () => {

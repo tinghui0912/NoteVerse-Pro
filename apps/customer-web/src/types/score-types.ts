@@ -2,7 +2,7 @@
 export type Articulation = 'beam' | 'tie' | 'slur';
 export type AccidentalValue = 'flat-flat' | 'flat' | 'natural' | 'sharp';
 
-export type ScoreEntityType = 'note' | 'chord' | 'rest' | 'blank';
+export type ParsedScoreEventType = 'note' | 'chord' | 'rest';
 
 export type Duration =
   | 'durationWhole'
@@ -45,6 +45,7 @@ export type Chord = {
   stemDirection?: 'up' | 'down' | 'none';
   /** Fingering values aligned by index with `pitches`. */
   fingerings?: string[];
+  /** Accidental values aligned by index with `pitches`; null clears an existing explicit accidental. */
   accidentals?: Array<AccidentalValue | null | undefined>;
   articulation?: Articulation[];
   meta?: EntityMeta;
@@ -57,19 +58,11 @@ export type Rest = {
   meta?: EntityMeta;
 };
 
-export type Blank = {
-  type: 'blank';
-  duration: Duration;
-  dotted?: boolean;
-  meta?: EntityMeta;
-};
-
-
-export type ScoreEntity = Note | Chord | Rest | Blank;
+export type ParsedScoreEvent = Note | Chord | Rest;
 
 export type Voice = {
   name: string;
-  notes: ScoreEntity[];
+  events: ParsedScoreEvent[];
 };
 
 export type Stave = {

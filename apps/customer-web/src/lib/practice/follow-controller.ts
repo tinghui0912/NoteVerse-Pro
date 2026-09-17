@@ -12,14 +12,7 @@ type FollowControllerState = {
   lastResolvedNoteIds: string[];
   lastStablePage: number | null;
   lastUpdateMs: number;
-  lastAcceptedBeat: number | null;
-  lastAcceptedTimelineIndex: number | null;
-  pendingTimelineIndex: number | null;
-  pendingBeat: number | null;
-  pendingCount: number;
-  mode: 'following' | 'desynced' | 'seeking';
-  lowConfidenceSinceMs: number | null;
-  recoveryStreak: number;
+  lastDisplayBeat: number | null;
 };
 
 function escapeCssId(id: string) {
@@ -47,24 +40,13 @@ function findElementByVerovioId(container: HTMLElement, verovioId: string) {
   );
 }
 
-function getVisualConfidence(alignment: PracticeAlignmentUpdateMessage['payload']) {
-  return alignment.visual_confidence;
+function applyActiveNoteDecoration(node: HTMLElement) {
+  node.classList.add('practice-note-active');
+  node.closest<HTMLElement>('[data-class="chord"], .chord')?.classList.add('practice-note-active');
 }
 
 export class PracticeFollowController {
   private readonly noteGraceWindowMs = 450;
-  private readonly lowConfidenceThreshold = 0.55;
-  private readonly policyConfidenceThreshold = 0.55;
-  private readonly validationConfidenceThreshold = 0.55;
-  private readonly recoveryConfidenceThreshold = 0.75;
-  private readonly desyncWindowMs = 1200;
-  private readonly recoveryFrames = 3;
-  private readonly backwardBeatTolerance = 0.25;
-  private readonly maxFollowingJumpBeats = 4;
-  private readonly maxFollowingJumpEvents = 1;
-  private readonly minSequentialPromptAdvanceMs = 220;
-  private readonly commitFrames = 3;
-  private readonly commitBeatTolerance = 0.35;
 
   private state: FollowControllerState = {
     activeNoteIds: [],
@@ -72,14 +54,7 @@ export class PracticeFollowController {
     lastResolvedNoteIds: [],
     lastStablePage: null,
     lastUpdateMs: 0,
-    lastAcceptedBeat: null,
-    lastAcceptedTimelineIndex: null,
-    pendingTimelineIndex: null,
-    pendingBeat: null,
-    pendingCount: 0,
-    mode: 'seeking',
-    lowConfidenceSinceMs: null,
-    recoveryStreak: 0,
+    lastDisplayBeat: null,
   };
 
   clear(container: HTMLElement) {
@@ -91,21 +66,14 @@ export class PracticeFollowController {
       lastResolvedNoteIds: [],
       lastStablePage: null,
       lastUpdateMs: 0,
-      lastAcceptedBeat: null,
-      lastAcceptedTimelineIndex: null,
-      pendingTimelineIndex: null,
-      pendingBeat: null,
-      pendingCount: 0,
-      mode: 'seeking',
-      lowConfidenceSinceMs: null,
-      recoveryStreak: 0,
+      lastDisplayBeat: null,
     };
   }
 
   private clearDecorations(container: HTMLElement) {
-    for (const noteId of this.state.activeNoteIds) {
-      findElementByVerovioId(container, noteId)?.classList.remove('practice-note-active');
-    }
+    container
+      .querySelectorAll('.practice-note-active')
+      .forEach((node) => node.classList.remove('practice-note-active'));
     this.state.activeNoteIds = [];
     this.state.activePage = null;
   }
@@ -116,7 +84,7 @@ export class PracticeFollowController {
       if (!node) {
         continue;
       }
-      node.classList.add('practice-note-active');
+      applyActiveNoteDecoration(node);
     }
   }
 
@@ -132,26 +100,19 @@ export class PracticeFollowController {
     const previousUpdateMs = this.state.lastUpdateMs;
     this.clearDecorations(container);
 
-    const rawCandidate =
-      alignment.match_state === 'lost'
-        ? null
-        : adapter.getNextTimelineEntryAfterBeat(alignment.beat_position) ??
-          adapter.getTimelineEntryForBeat(alignment.beat_position);
-    const candidate = this.clampToSequentialPrompt(rawCandidate, adapter, now);
-    const acceptedCandidate = this.resolveCandidate(candidate, alignment, now);
-    if (!acceptedCandidate) {
-      this.debug('rejected', alignment, candidate);
+    const displayCandidate = this.resolveStepByStepCandidate(
+      this.resolveDisplayAnchor(adapter, alignment),
+      alignment
+    );
+    if (!displayCandidate) {
       this.restorePreviousState(previousResolvedNoteIds, previousStablePage, previousUpdateMs);
       this.refreshDecorations(container);
       return;
     }
 
-    this.debug('accepted', alignment, acceptedCandidate);
-    this.state.lastAcceptedBeat = acceptedCandidate.beat;
-    this.state.lastAcceptedTimelineIndex = acceptedCandidate.index;
-    this.clearPendingCandidate();
+    this.state.lastDisplayBeat = displayCandidate.beat;
 
-    const eventNoteIds = acceptedCandidate.noteIds;
+    const eventNoteIds = displayCandidate.noteIds;
     const canReusePreviousNotes =
       eventNoteIds.length === 0 &&
       previousResolvedNoteIds.length > 0 &&
@@ -169,7 +130,7 @@ export class PracticeFollowController {
       if (!node) {
         continue;
       }
-      node.classList.add('practice-note-active');
+      applyActiveNoteDecoration(node);
       noteElements.push(node);
       this.state.activeNoteIds.push(noteId);
     }
@@ -201,150 +162,45 @@ export class PracticeFollowController {
     this.state.lastUpdateMs = now;
   }
 
-  private resolveCandidate(
+  private resolveStepByStepCandidate(
     candidate: PracticeVisualTimelineEntry | null,
-    alignment: PracticeAlignmentUpdateMessage['payload'],
-    now: number
+    alignment: PracticeAlignmentUpdateMessage['payload']
   ) {
     if (!candidate) {
       return null;
     }
 
-    const visualConfidence = getVisualConfidence(alignment);
-    const inputPolicyConfidence = alignment.input_policy_confidence ?? 1;
-    const validationConfidence = alignment.validation_confidence ?? 1;
-    const shouldHoldLastPosition =
-      visualConfidence < this.lowConfidenceThreshold ||
-      inputPolicyConfidence < this.policyConfidenceThreshold ||
-      validationConfidence < this.validationConfidenceThreshold;
-    if (shouldHoldLastPosition) {
-      if (this.state.lowConfidenceSinceMs === null) {
-        this.state.lowConfidenceSinceMs = now;
-      }
-      this.state.recoveryStreak = 0;
-      this.clearPendingCandidate();
-      if (now - this.state.lowConfidenceSinceMs >= this.desyncWindowMs) {
-        this.state.mode = 'desynced';
-      }
-      return null;
-    }
-
-    this.state.lowConfidenceSinceMs = null;
-
-    if (this.state.mode === 'desynced') {
-      if (visualConfidence < this.recoveryConfidenceThreshold) {
-        this.state.recoveryStreak = 0;
-        this.clearPendingCandidate();
-        return null;
-      }
-      this.state.recoveryStreak += 1;
-      if (this.state.recoveryStreak < this.recoveryFrames) {
-        return null;
-      }
-      this.state.mode = 'seeking';
-    }
-
-    if (this.state.mode === 'seeking') {
-      this.state.mode = 'following';
-      this.state.recoveryStreak = 0;
-      if (!this.isPromptAlignment(alignment) && !this.hasStableCommit(candidate)) {
-        return null;
-      }
-      return candidate;
-    }
-
-    const lastBeat = this.state.lastAcceptedBeat;
-    const lastIndex = this.state.lastAcceptedTimelineIndex;
-    if (lastBeat === null || lastIndex === null) {
-      if (!this.isPromptAlignment(alignment) && !this.hasStableCommit(candidate)) {
-        return null;
-      }
-      return candidate;
-    }
-
-    if (candidate.index === lastIndex) {
-      this.clearPendingCandidate();
-      return candidate;
-    }
-
-    const isBackward =
-      candidate.index < lastIndex && candidate.beat < lastBeat - this.backwardBeatTolerance;
-    if (isBackward) {
-      this.state.mode = 'desynced';
-      this.state.recoveryStreak = 0;
-      this.clearPendingCandidate();
-      return null;
-    }
-
-    const isLargeJump = candidate.beat > lastBeat + this.maxFollowingJumpBeats;
-    const isLargeEventJump = candidate.index > lastIndex + this.maxFollowingJumpEvents;
     if (
-      isLargeEventJump ||
-      (isLargeJump && visualConfidence < this.recoveryConfidenceThreshold)
+      alignment.decision.action === 'hold' ||
+      alignment.decision.action === 'wait'
     ) {
-      this.state.mode = 'desynced';
-      this.state.recoveryStreak = 0;
-      this.clearPendingCandidate();
-      return null;
-    }
-
-    if (!this.hasStableCommit(candidate)) {
-      return null;
+      return this.state.lastDisplayBeat === null ? candidate : null;
     }
 
     return candidate;
   }
 
-  private hasStableCommit(candidate: PracticeVisualTimelineEntry) {
-    const samePendingCandidate =
-      this.state.pendingTimelineIndex === candidate.index &&
-      this.state.pendingBeat !== null &&
-      Math.abs(this.state.pendingBeat - candidate.beat) <= this.commitBeatTolerance;
-
-    if (samePendingCandidate) {
-      this.state.pendingCount += 1;
-    } else {
-      this.state.pendingTimelineIndex = candidate.index;
-      this.state.pendingBeat = candidate.beat;
-      this.state.pendingCount = 1;
-    }
-
-    return this.state.pendingCount >= this.commitFrames;
-  }
-
-  private clearPendingCandidate() {
-    this.state.pendingTimelineIndex = null;
-    this.state.pendingBeat = null;
-    this.state.pendingCount = 0;
-  }
-
-  private isPromptAlignment(alignment: PracticeAlignmentUpdateMessage['payload']) {
-    return (
-      alignment.gate_reason === 'first_note_prompt' ||
-      alignment.gate_reason === 'start_confirmed' ||
-      alignment.timestamp_ms === 0
-    );
-  }
-
-  private clampToSequentialPrompt(
-    candidate: PracticeVisualTimelineEntry | null,
+  private resolveDisplayAnchor(
     adapter: PracticeVerovioAdapter,
-    now: number
+    alignment: PracticeAlignmentUpdateMessage['payload']
   ) {
-    if (!candidate) {
+    const displayAnchor = alignment.decision.display_anchor;
+    if (displayAnchor) {
+      return adapter.getTimelineEntryForDisplayAnchor(displayAnchor);
+    }
+
+    if (
+      alignment.decision.action === 'hold' ||
+      alignment.decision.action === 'wait'
+    ) {
       return null;
     }
 
-    const lastIndex = this.state.lastAcceptedTimelineIndex;
-    if (lastIndex === null || candidate.index <= lastIndex + this.maxFollowingJumpEvents) {
-      return candidate;
-    }
-
-    if (now - this.state.lastUpdateMs < this.minSequentialPromptAdvanceMs) {
-      return null;
-    }
-
-    return adapter.getTimelineEntryByIndex(lastIndex + 1) ?? candidate;
+    const anchorBeat = alignment.beat_position;
+    return (
+      adapter.getTimelineEntryForBeat(anchorBeat) ??
+      adapter.getNextTimelineEntryAfterBeat(anchorBeat)
+    );
   }
 
   private restorePreviousState(
@@ -357,15 +213,5 @@ export class PracticeFollowController {
     this.state.lastUpdateMs = previousUpdateMs;
     this.state.activeNoteIds = [...previousResolvedNoteIds];
     this.state.activePage = previousStablePage;
-  }
-
-  private debug(
-    decision: 'accepted' | 'rejected',
-    alignment: PracticeAlignmentUpdateMessage['payload'],
-    candidate: PracticeVisualTimelineEntry | null
-  ) {
-    void decision;
-    void alignment;
-    void candidate;
   }
 }

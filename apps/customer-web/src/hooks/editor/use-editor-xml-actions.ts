@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useHistory, useScoreData } from '@/contexts/editor-provider';
 import { normalizeMeasureVoices } from '@/lib/musicxml/flatten';
-import { ensureStableMusicXmlIdsString } from '@/lib/musicxml/stable-ids';
+import { ensureGenericRenderMusicXmlIdsString } from '@/lib/musicxml/generic-render-ids';
 
 export function useEditorXmlActions() {
   const t = useTranslations('editor');
@@ -19,7 +19,7 @@ export function useEditorXmlActions() {
       updateRawXml?: boolean;
     } = {}
   ) => {
-    const normalizedXml = ensureStableMusicXmlIdsString(xml);
+    const normalizedXml = ensureGenericRenderMusicXmlIdsString(xml);
     currentXmlRef.current = normalizedXml;
     setCurrentXml(normalizedXml);
     if (options.updateRawXml) setRawXml(normalizedXml);

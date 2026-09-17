@@ -8,7 +8,7 @@ from pathlib import Path
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.core.settings.practice_diagnostics import PracticeDiagnosticsSettings
+from .practice_diagnostics import PracticeDiagnosticsSettings
 
 
 class PracticeRuntimeSettings(PracticeDiagnosticsSettings, BaseSettings):

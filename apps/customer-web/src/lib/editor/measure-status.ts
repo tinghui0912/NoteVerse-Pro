@@ -1,4 +1,4 @@
-import type { ScoreData, ScoreEntity } from '@/types/score-types';
+import type { ScoreData, ParsedScoreEvent } from '@/types/score-types';
 import { getEntityDurationTicks, getMeasureDurationTicks } from './measure-timeline';
 import { parseVoiceNumber } from './tracks';
 
@@ -25,8 +25,8 @@ export type DirtyMeasureStatus = {
   voices: DirtyMeasureVoiceStatus[];
 };
 
-function getVoiceDurationTicks(notes: ScoreEntity[], divisions: number): number {
-  return notes.reduce((totalTicks, entity) => totalTicks + getEntityDurationTicks(entity, divisions), 0);
+function getVoiceDurationTicks(events: ParsedScoreEvent[], divisions: number): number {
+  return events.reduce((totalTicks, entity) => totalTicks + getEntityDurationTicks(entity, divisions), 0);
 }
 
 export function buildDirtyMeasureStatuses(scoreData: ScoreData | null, divisions: number): DirtyMeasureStatus[] {
@@ -40,9 +40,9 @@ export function buildDirtyMeasureStatuses(scoreData: ScoreData | null, divisions
 
     measure.staves.forEach((stave, staveIndex) => {
       stave.voices.forEach((voice) => {
-        if (voice.notes.length === 0) return;
+        if (voice.events.length === 0) return;
 
-        const actualTicks = getVoiceDurationTicks(voice.notes, divisions);
+        const actualTicks = getVoiceDurationTicks(voice.events, divisions);
         if (actualTicks === expectedTicks) return;
 
         const deltaTicks = actualTicks - expectedTicks;

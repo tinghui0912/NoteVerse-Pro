@@ -11,7 +11,7 @@ import { useEditorValidationGate } from '@/hooks/editor/use-editor-validation-ga
 import { useEditorXmlActions } from '@/hooks/editor/use-editor-xml-actions';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { importJobsApi } from '@/lib/api';
-import { ensureStableMusicXmlIdsString, stripAppOwnedMusicXmlIdsString } from '@/lib/musicxml/stable-ids';
+import { ensureGenericRenderMusicXmlIdsString, stripAppOwnedGenericRenderMusicXmlIdsString } from '@/lib/musicxml/generic-render-ids';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
 import { reportUnexpectedClientError } from '@/lib/observability';
 import { useImportJobReview, useUpdateImportJobReview } from '@/hooks/queries/use-review-queries';
@@ -72,8 +72,8 @@ export function useReviewEditorDocument({
       try {
         const draft = await loadDraft(draftResourceId, draftBaseRevisionId);
         if (cancelled) return;
-        const serverWorkingXml = ensureStableMusicXmlIdsString(xmlContent);
-        if (draft && stripAppOwnedMusicXmlIdsString(draft.xml) !== stripAppOwnedMusicXmlIdsString(serverWorkingXml)) {
+        const serverWorkingXml = ensureGenericRenderMusicXmlIdsString(xmlContent);
+        if (draft && stripAppOwnedGenericRenderMusicXmlIdsString(draft.xml) !== stripAppOwnedGenericRenderMusicXmlIdsString(serverWorkingXml)) {
           setPendingDraft(draft);
           setDraftDialogOpen(true);
         } else if (draft) {
@@ -103,7 +103,7 @@ export function useReviewEditorDocument({
   const performSave = () => {
     if (!currentXml) return;
     updateReview.mutate(
-      { jobId, content: stripAppOwnedMusicXmlIdsString(currentXml) },
+      { jobId, content: stripAppOwnedGenericRenderMusicXmlIdsString(currentXml) },
       {
         onSuccess: async (response) => {
           const updatedXml = response.data?.musicxml?.content ?? currentXml;

@@ -22,45 +22,31 @@ from app.db.models import (
     StorageUsageCategory,
 )
 from app.db.models.score import RevisionSourceFormat
-from app.db.models.score_access import PublicationStatus
 from app.modules.playback.asset_records import (
     build_playback_asset_record,
     playback_asset_usage,
     playback_storage_key,
 )
-from app.modules.playback.delivery import PlaybackDelivery, PlaybackDeliveryReadModel
 from app.modules.playback.execution_manifest import build_playback_execution_manifest
 from app.processing.engines.playback import FluidSynthAudioRenderer
-from app.modules.publications.repository import PublicationRepository
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
 from app.modules.score_assets.repository import ScoreAssetRepository
-from app.modules.score_sharing.repository import ScoreSharingRepository
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.constants import ErrorCode
 from app.storage import FileStorage, file_storage
 
 
-class PlaybackService:
+class PlaybackGenerationService:
+    """Generate durable playback audio assets in Worker-owned execution paths."""
+
     def __init__(
         self,
         storage: FileStorage | None = None,
-        access_policy: ScoreAccessPolicy | None = None,
         renderer: FluidSynthAudioRenderer | None = None,
         asset_repository: ScoreAssetRepository | None = None,
-        sharing_repository: ScoreSharingRepository | None = None,
-        publication_repository: PublicationRepository | None = None,
-        delivery_read_model: PlaybackDeliveryReadModel | None = None,
     ) -> None:
         self.storage = storage or file_storage
-        self.access_policy = access_policy or ScoreAccessPolicy()
         self.renderer = renderer or FluidSynthAudioRenderer()
         self.asset_repository = asset_repository or ScoreAssetRepository()
-        self.sharing_repository = sharing_repository or ScoreSharingRepository()
-        self.publication_repository = publication_repository or PublicationRepository()
-        self.delivery_read_model = delivery_read_model or PlaybackDeliveryReadModel(
-            storage=self.storage,
-            access_policy=self.access_policy,
-        )
 
     async def render(
         self,
@@ -175,70 +161,6 @@ class PlaybackService:
         if old_key and old_key != stored.storage_key:
             self._delete_storage_key_best_effort(old_key)
         return asset
-
-    async def score_revision_delivery(
-        self,
-        db: AsyncSession,
-        score_uuid: str,
-        revision_uuid: str,
-        user_id: int,
-    ) -> PlaybackDelivery:
-        return await self.delivery_read_model.score_revision_delivery(
-            db,
-            score_uuid,
-            revision_uuid,
-            user_id,
-        )
-
-    async def grant_delivery(
-        self,
-        db: AsyncSession,
-        token: str,
-        user_id: int | None,
-    ) -> PlaybackDelivery:
-        grant = await self.sharing_repository.grant_by_token_hash(db, hash_share_token(token))
-        if grant is None:
-            raise ResourceNotFoundException("share_grant", code=ErrorCode.SHARE_NOT_FOUND)
-        score = await db.get(Score, grant.score_id)
-        if score is None or score.deletion_status != ScoreDeletionStatus.ACTIVE:
-            raise ResourceNotFoundException("score", token, ErrorCode.SCORE_NOT_FOUND)
-        access = await self.access_policy.authorize(
-            db,
-            score.score_uuid,
-            ScoreAction.PRACTICE,
-            user_id=user_id,
-            share_token=token,
-        )
-        return await self.delivery_read_model.delivery_for_revision(
-            db,
-            require_persisted_id(access.revision.id, entity="score revision"),
-            score_id=require_persisted_id(score.id, entity="score"),
-        )
-
-    async def public_delivery(
-        self,
-        db: AsyncSession,
-        slug: str,
-        user_id: int | None,
-    ) -> PlaybackDelivery:
-        publication = await self.publication_repository.by_slug(db, slug)
-        if publication is None or publication.status != PublicationStatus.PUBLISHED:
-            raise ResourceNotFoundException("publication", slug, ErrorCode.RESOURCE_NOT_FOUND)
-        score = await db.get(Score, publication.score_id)
-        if score is None or score.deletion_status != ScoreDeletionStatus.ACTIVE:
-            raise ResourceNotFoundException("score", slug, ErrorCode.SCORE_NOT_FOUND)
-        access = await self.access_policy.authorize(
-            db,
-            score.score_uuid,
-            ScoreAction.PRACTICE,
-            user_id=user_id,
-            public_slug=slug,
-        )
-        return await self.delivery_read_model.delivery_for_revision(
-            db,
-            require_persisted_id(access.revision.id, entity="score revision"),
-            score_id=require_persisted_id(score.id, entity="score"),
-        )
 
     def render_sync(
         self,
@@ -386,6 +308,3 @@ class PlaybackService:
             self.storage.delete(storage_key)
         except Exception:
             pass
-
-
-playback_service = PlaybackService()

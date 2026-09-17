@@ -76,6 +76,7 @@ historical finding is not an indication that the item is still open.
 | REC-004 | P2 | Introduce a shared JavaScript package only for stable cross-application contracts. | Identify at least two versioned, jointly-owned consumers with a stable API. | Package has explicit owner, semver/versioning policy, tests, and no app-specific coupling. |
 | REC-005 | P2 | Split `my_scores` into an explicit read-model/BFF query boundary if it continues to grow. | Document its write ownership and callers. | It either remains a small projection module or is renamed/restructured to make its query-only role explicit. |
 | REC-006 | P2 | Remove Chinese code comments, emoji-style symbols, and mojibake/unreadable glyphs from production code. | Separate user-facing localized strings from source comments/constants; inventory where Chinese text is actual product copy such as email templates or locale files. | Production source comments are English or removed; decorative symbols are either ASCII labels or explicit design assets; no `?` placeholders or mojibake glyphs remain in hand-maintained code. |
+| REC-007 | P1 | Move the Customer Web score editor away from `blank = MusicXML <forward>` as a domain entity. | Use the current code inventory and the dedicated plan in `docs/engineering/plans/editor-domain-model-refactoring-plan.md` to confirm the migration scope before deleting types. | `Blank` is removed from the editor domain model; MusicXML `<forward>`/`<backup>` are adapter cursor operations; empty-space editing is represented by caret/gap selections; note/chord share one pitched-event model; no compatibility aliases or legacy dual model remain. |
 
 ## Target enterprise repository model
 
@@ -2267,6 +2268,9 @@ selector text untouched.
 
 Entity model clarification from the same pass:
 
+> Historical note: this was the state observed on 2026-08-12 before REC-007
+> was accepted and implemented. It is not the current target architecture.
+
 - `ScoreEntityType` currently has four parsed/editor entities: `note`, `chord`,
   `rest`, and `blank`.
 - `blank` is the Customer Web representation of a MusicXML `<forward>` element:
@@ -2281,6 +2285,10 @@ source comments, but treat localized UI copy and valid musical glyphs as product
 content rather than cleanup targets.
 
 ### 2026-08-12: Verovio blank/space editing boundary corrected
+
+> Historical note: this fix was valid for the pre-REC-007 model. The later
+> REC-007 decision superseded it: MusicXML `<forward>` is now adapter cursor
+> state, not an ordinary editable `blank` entity.
 
 - Rechecked the editor entity model after a product-semantics question about
   `blank`/MusicXML `<forward>` entities.
@@ -2320,6 +2328,3689 @@ REC-006 is complete for `apps/customer-web/src` source comments under the
 current policy: remove Chinese/mojibake comments, preserve intentional localized
 UI text and valid musical glyphs. Continue with a broader repository scan only
 if the next pass expands REC-006 beyond Customer Web source files.
+
+### 2026-08-12: Editor domain model refactoring plan added for REC-007
+
+- Added `docs/engineering/plans/editor-domain-model-refactoring-plan.md` after
+  reviewing the current Customer Web editor code paths that expose
+  `blank = MusicXML <forward>` across parsed score types, MusicXML grouping,
+  insert/update helpers, Inspector conversion, and Verovio hit mapping.
+- Recorded the target architecture: NoteVerse editor domain events should model
+  voices, rhythmic positions, pitched events, explicit rests, derived gaps, and
+  selections; MusicXML `<forward>`, `<backup>`, `divisions`, and chord encoding
+  belong to import/export and render adapter layers.
+- The plan intentionally avoids fallback aliases and long-lived compatibility
+  logic because the project is still in development.
+
+REC-007 is now the recommended next major Customer Web refactor. Start with
+the ADR and domain type skeleton before deleting `Blank` or changing Inspector
+behavior.
+
+### 2026-08-12: Editor domain ADR and invariant tests added for REC-007
+
+- Added ADR 0007 to record the accepted boundary: editor domain events model
+  musical concepts, while MusicXML cursor instructions stay in adapter layers.
+- Added the initial `apps/customer-web/src/lib/editor-domain/` type skeleton
+  and focused invariant tests for pitched events, explicit rests, timeline gaps,
+  delete semantics, and MusicXML cursor movement.
+- Kept current editor UI behavior and legacy `ScoreEntity` code untouched in
+  this phase; these new types are the target model, not compatibility aliases.
+
+REC-007 should continue with a dedicated MusicXML-to-domain importer that
+parses `<forward>` and `<backup>` as cursor movement only.
+
+### 2026-08-12: MusicXML-to-editor-domain importer started for REC-007
+
+- Added a dedicated Customer Web editor-domain MusicXML importer separate from
+  the legacy UI parser.
+- The importer creates NoteVerse domain `PitchedEvent` and `ExplicitRestEvent`
+  records, derives timeline gaps, and treats MusicXML `<forward>`/`<backup>` as
+  cursor movement rather than persisted editor events.
+- Added importer tests for pitched notes, explicit rests, forward gaps, backup
+  voice placement, and MusicXML chord encoding into one pitched event.
+- Current UI behavior remains untouched; this is the new-model migration path,
+  not a compatibility facade over `ScoreEntity`.
+
+REC-007 should continue by expanding importer fixtures for cross-staff voice
+ownership, dotted duration, accidentals/fingering, and stable domain/render
+anchors before replacing existing editor selection code.
+
+### 2026-08-12: Editor-domain importer source metadata and notation fields expanded
+
+- Extended the new editor-domain model with source metadata that records
+  imported MusicXML element ids separately from domain ids.
+- Expanded the MusicXML-to-domain importer to preserve note-level accidentals,
+  normalized fingering values, dotted notation, and chord member source ids.
+- Added importer tests for cross-staff voice ownership: one MusicXML voice can
+  keep a stable `voiceId` while individual events use different `staffId`
+  values.
+- Current UI behavior remains untouched; these fields prepare the importer for
+  future Inspector and render-anchor migration.
+
+REC-007 should continue with a render/domain anchor model and then a
+domain-to-MusicXML exporter projection.
+
+### 2026-08-12: Render/domain anchor boundary added for REC-007
+
+- Added a pure editor-domain render-anchor model that maps disposable Verovio
+  render ids to stable domain anchors.
+- The new model explicitly separates render ids, imported MusicXML source ids,
+  and domain anchors. Resolving by render id does not treat MusicXML ids as
+  domain identity.
+- Added tests for render-id resolution, source-id fan-out, and selecting all
+  render ids for the same domain anchor.
+- Current legacy `verovio-entity-map.ts` remains unchanged; this is the target
+  replacement boundary for the future selection migration.
+
+REC-007 should continue with a domain-to-MusicXML exporter projection, including
+generation of `<forward>`, `<backup>`, explicit rests, and MusicXML chord
+serialization from `PitchedEvent.notes`.
+
+### 2026-08-12: Editor-domain MusicXML exporter projection started
+
+- Added a dedicated editor-domain-to-MusicXML exporter separate from the legacy
+  XML mutation helpers.
+- The exporter serializes `PitchedEvent` as MusicXML notes, serializes
+  multi-note pitched events with MusicXML `<chord/>` members, serializes
+  `ExplicitRestEvent` as `<note><rest/></note>`, emits `<forward>` for gaps, and
+  emits `<backup>` before writing a second voice.
+- Added focused exporter tests for single notes, chords, explicit rests, gaps,
+  and multi-voice output.
+- Current save/render UI remains untouched. The importer/exporter pair now
+  proves the target adapter boundary in both directions.
+
+REC-007 should continue by adding round-trip domain invariant tests and then
+using the importer/exporter pair to design the replacement editor selection and
+Inspector command path.
+
+### 2026-08-12: Editor-domain MusicXML round-trip invariants added
+
+- Added round-trip tests for the new editor-domain adapter boundary:
+  `MusicXML -> editor domain -> MusicXML -> editor domain`.
+- The tests prove event semantics, chord grouping, explicit rests, derived gaps,
+  multiple voices, and current notation fields remain stable through the
+  importer/exporter pair.
+- The tests also prove MusicXML `<forward>` and `<backup>` remain serialization
+  details rather than becoming domain events after re-import.
+
+REC-007 can now move from adapter-boundary proof toward selection and command
+model design. The next safe implementation target is a domain selection adapter
+that converts domain anchors into editor selections without touching the legacy
+`ScoreEntity` Inspector yet.
+
+### 2026-08-12: Editor-domain selection adapter added
+
+- Added a pure selection adapter for converting domain anchors into editor
+  selections and back.
+- The adapter supports event, note atom, timeline gap, derived rest, caret, and
+  notation selections without depending on legacy `ScoreEntity`.
+- Measure and staff anchors intentionally do not become fake Inspector
+  selections; they return `null` until a concrete UI behavior exists.
+- Added tests for selectable anchor conversion, non-selectable structural
+  anchors, and classification of Inspector versus insertion-capable selections.
+
+REC-007 should continue with the command model skeleton: insert pitched event,
+insert explicit rest, delete event to gap, add note atom, and remove note atom
+without silently converting the event to a rest.
+
+### 2026-08-12: Editor-domain command model skeleton added
+
+- Added pure editor-domain commands for inserting pitched events, inserting
+  explicit rests, deleting voice events, adding note atoms, and removing note
+  atoms.
+- The command tests enforce the target semantics: deleting an event derives
+  gaps instead of creating a rest; adding a note atom turns a note-shaped
+  `PitchedEvent` into a chord-shaped `PitchedEvent`; removing the final note
+  atom is rejected instead of silently converting the event to a rest.
+- Commands return explicit success/error results and do not depend on legacy
+  `ScoreEntity`, `entityIndex`, or MusicXML `<forward>` entities.
+
+REC-007 should continue by adding a minimal domain Inspector view-model adapter
+for `PitchedEvent`, `ExplicitRestEvent`, `TimelineGap`, and `DerivedRest`
+without wiring it into the legacy React Inspector yet.
+
+### 2026-08-12: Editor-domain Inspector view-model adapter added
+
+- Added a pure editor-domain Inspector view-model adapter that maps domain
+  selections to Inspector-ready semantic models.
+- The adapter exposes `PitchedEvent` with `displayKind: note | chord`, selected
+  `NoteAtom`, `ExplicitRestEvent`, `TimelineGap`, and `DerivedRest` as distinct
+  Inspector concepts.
+- The adapter intentionally returns `null` for caret, range, and notation
+  selections until concrete Inspector behavior exists; it does not manufacture
+  fake editable entities.
+- Added tests proving that chords remain one pitched event with multiple note
+  atoms, explicit rests remain first-class rest events, and timeline gaps /
+  derived rests are not represented as legacy `blank` or zero-pitch rests.
+
+REC-007 should continue with a domain Inspector edit-draft / command adapter
+before touching React UI. The next step should define editable drafts for
+pitched events, note atoms, explicit rests, timeline gaps, and derived rests,
+then apply those drafts through the pure command model instead of through the
+legacy `ScoreEntity` mutation path.
+
+### 2026-08-12: Editor-domain Inspector draft command adapter added
+
+- Added pure command support for updating pitched events, updating selected
+  note atoms, updating explicit rests, and materializing timeline gaps /
+  derived rests as explicit rests.
+- Added an Inspector draft adapter that converts Inspector view models into
+  edit drafts and applies explicit draft actions through the domain command
+  model.
+- Gap and derived-rest drafts default to `inspectOnly`; they do not invent
+  event ids, default notation, or mutate the score unless the caller provides
+  an explicit `materializeExplicitRest` action.
+- Added tests proving omitted note-atom fields are preserved, explicit clears
+  are intentional, rest edits go through the command model, and gap-derived
+  rests are not edited as legacy `blank` entities.
+
+REC-007 should continue by adding a legacy editor dependency inventory /
+boundary test that identifies all remaining Customer Web code still importing
+or relying on `ScoreEntity`, `Blank`, and Verovio `[data-class="space"]`.
+After that inventory is executable, begin replacing one narrow UI integration
+path at a time.
+
+### 2026-08-12: Customer Web editor legacy dependency inventory added
+
+- Added `npm run inventory:editor-legacy` and
+  `npm run check:editor-legacy-inventory` for Customer Web.
+- Generated
+  `docs/engineering/reviews/2026-08-12-customer-web-editor-legacy-inventory.md`
+  as the executable REC-007 migration inventory.
+- Current inventory baseline: 89 matching lines across 23 files.
+  - `ScoreEntity`: 52 matching lines.
+  - `Blank`: 6 matching lines.
+  - lowercase `blank`: 29 matching lines.
+  - Verovio `data-class="space"`: 2 matching lines.
+- Added an `editor-domain` architecture boundary test proving the new domain
+  package does not import legacy score editor types, legacy editor helpers,
+  MusicXML UI parser helpers, or React editor components.
+
+REC-007 should continue by replacing one narrow legacy integration seam. The
+recommended next target is the non-React legacy editable-event conversion path
+(`src/lib/editor/editable-event.ts` and
+`src/components/editor/event-inspector-event-model.ts`) because it currently
+bridges Inspector UI and `ScoreEntity` mutation semantics while being smaller
+and safer than `editor-preview-panel.tsx`.
+
+### 2026-08-12: First legacy Inspector and Verovio hit seams narrowed
+
+- Removed the `Blank` preservation branch from the legacy Inspector save
+  adapter. Saving an empty-pitch edit now goes through the normal rest path
+  instead of deliberately keeping the old `blank` entity.
+- Preserved original entity metadata in the Inspector save adapter so converting a
+  legacy blank selection into a rest does not lose the source entity id or
+  location metadata.
+- Updated the legacy summary icon behavior so blank selections do not fall
+  through to the note icon.
+- Removed Verovio `[data-class="space"]` from ordinary editable event hit
+  detection and added an explicit guard so fallback id lookup cannot reselect
+  it as a normal event.
+- Updated the executable inventory wording from "space hit target" to
+  "space handling" because the remaining `data-class="space"` references now
+  document the adapter exclusion behavior rather than editable blank hits.
+
+REC-007 should continue by moving the remaining Inspector edit view-model
+helpers out of `src/lib/editor/editable-event.ts` and into the new
+`editor-domain` model, then replacing `event-inspector.tsx` state updates with
+domain Inspector drafts.
+
+### 2026-08-12: Legacy editable-event helper moved out of core editor lib
+
+- Moved the old Inspector editable-event view model from
+  `src/lib/editor/editable-event.ts` to
+  `src/components/editor/event-inspector-editable-event.ts`.
+- Removed the old `src/lib/editor/editable-event.ts` file, its test, and its
+  barrel export from `src/lib/editor/index.ts`.
+- Updated `event-inspector.tsx`, `event-inspector-event-model.ts`, and the
+  relevant unit tests to import the helper from the Inspector component
+  boundary.
+- Simplified `use-entity-editor.ts` add mode so it constructs the default
+  quarter rest directly instead of depending on the Inspector editable-event
+  helper.
+- This does not finish the Inspector migration, but it narrows ownership:
+  the helper is now explicitly legacy Inspector UI glue rather than a core
+  editor-domain model.
+
+REC-007 should continue by replacing `event-inspector.tsx` local editable-event
+state with the new `editor-domain` Inspector view-model and draft adapter.
+After that, the legacy helper can be deleted rather than merely localized.
+
+### 2026-08-13: Inspector save path now emits domain draft intent
+
+- Added `event-inspector-domain-adapter.ts` as an explicit temporary bridge
+  from legacy `ScoreEntity` selections and Inspector edit state to
+  `editor-domain` Inspector drafts.
+- The Inspector save projection now creates a domain Inspector draft first, then projects
+  that draft back to the current XML updater's legacy writable entity shape.
+- The bridge maps empty-pitch legacy blank edits to `ExplicitRest` draft
+  intent; it does not preserve `blank` as a save target.
+- Removed `updateExistingEntity` support for writing an updated `blank` entity
+  back to MusicXML `<forward>`. A forward target can still be replaced, but the
+  replacement must be a note, chord, or explicit rest.
+- Removed `insertEntity` support for inserting `blank` entities. MusicXML
+  `<forward>` remains available inside the adapter only for cursor movement
+  when inserting into an empty voice at a non-zero tick.
+- Added `WritableEntity = Note | Chord | Rest` to the legacy score types to
+  distinguish writable/editable XML mutation targets from parser-output score
+  events during the transition.
+
+REC-007 should continue by migrating the MusicXML parser away from emitting
+`Blank` for `<forward>`. The parser should instead expose timeline gaps through
+the new `editor-domain` importer/render-anchor path or omit forward cursor
+instructions from legacy `ScoreData` entirely once the UI no longer depends on
+them.
+
+### 2026-08-13: Legacy `Blank` entity removed from Customer Web score types
+
+- Removed `Blank` from the parsed score event type union.
+- The legacy MusicXML parser no longer emits `Blank` entities for
+  MusicXML `<forward>`; forward elements now advance the voice cursor only.
+- `getEntityGroupsFromMeasure` no longer returns forward groups by default, so
+  editable `entityIndex` values align with parser output that contains only
+  notes, chords, and explicit rests.
+- Automatic beam repair can still request `includeForwardGroups: true` because
+  beam timing needs cursor gaps; this keeps MusicXML `<forward>` as an adapter
+  timing detail, not as an editable entity.
+- Removed update/insert paths that wrote `blank` entities back to MusicXML.
+- Added tests proving parser output omits forward-as-blank entities while
+  preserving note `startTick`, and proving entity groups exclude forward by
+  default but can include it for timing adapters.
+- Inventory after this step: `Blank` type references are down to 0 and
+  lowercase `blank` references are down to explanatory/test wording only.
+
+REC-007 continued by reducing the remaining old score-entity naming surface.
+The next high-value target is splitting parser output types from editor UI
+types so `ScoreData` no longer presents itself as the long-term editor domain
+model.
+
+### 2026-08-13: Legacy `ScoreEntity` name removed from Customer Web source
+
+- Replaced the old parser/UI DTO name `ScoreEntity` with `ParsedScoreEvent`.
+- Replaced `ScoreEntityType` with `ParsedScoreEventType`.
+- Kept `WritableEntity = Note | Chord | Rest` as the explicit temporary XML
+  updater boundary. This avoids suggesting that parser output is the long-term
+  editor domain model.
+- Renamed the Inspector bridge projection from the old score-entity vocabulary
+  to the temporary writable-entity boundary.
+- Renamed the legacy Inspector helper `toScoreEntity` to `toWritableEntity`.
+- Renamed the Verovio lookup helper `findScoreEntityById` to
+  `findParsedScoreEventByRenderId`.
+- Removed Verovio `[data-class="space"]` from the preview panel's ordinary
+  editable-event container selector. The remaining `VEROVIO_SPACE_SELECTOR`
+  reference is an intentional adapter guard, not an editable blank hit target.
+- Refreshed the executable legacy inventory:
+  - legacy `ScoreEntity` model references: 0;
+  - legacy `Blank` type references: 0;
+  - lowercase `blank` discriminator matches: 1 non-editor metadata comment;
+  - Verovio space handling references: 1 intentional guard.
+
+REC-007 should continue by replacing `ParsedScoreEvent` / `ScoreData` consumer
+paths with editor-domain projections and commands. Avoid adding compatibility
+aliases; the project is still in development and should not preserve the old
+model as a second vocabulary.
+
+### 2026-08-13: Transitional `Voice.notes` renamed to `Voice.events`
+
+- Renamed the transitional Customer Web `ScoreData` voice collection from
+  `Voice.notes` to `Voice.events`.
+- Updated the legacy MusicXML parser, editor preview, track derivation,
+  connection lookup, measure status, entity lookup, entity editor helpers, and
+  related unit fixtures to use `events`.
+- Left `PitchedEvent.notes` unchanged in `editor-domain` because there it
+  correctly means the note atoms inside one pitched event/chord.
+- Left playback timeline `notes` unchanged because it correctly means rendered
+  playback notes.
+- This is a semantic cleanup only; runtime editor behavior is intended to stay
+  unchanged.
+
+REC-007 continued by shrinking `ParsedScoreEvent` / `ScoreData` consumer paths
+toward editor-domain projections. The next target became selection and lookup
+naming around the transitional Verovio parsed-event hit boundary, because that
+helper still sits in a render-adapter layer that should eventually resolve
+domain anchors.
+
+### 2026-08-13: Verovio parsed-event hit boundary renamed around render ids
+
+- Replaced the transitional `VerovioEntityHit` name with
+  `VerovioParsedEventHit`.
+- Renamed `getVerovioElementIdFromTarget` to
+  `getVerovioRenderElementIdFromTarget` so callers do not confuse disposable
+  Verovio render ids with domain identity.
+- Renamed `findParsedScoreEventById` to `findParsedScoreEventByRenderId`.
+- Changed hit payloads from `{ entity, location }` to
+  `{ event, location, renderElementId }`.
+- Updated editor preview connection/edit/delete click flows and tests to use
+  the new names.
+- This is still a transitional parsed-event lookup, not the final target. The
+  final boundary should resolve render ids to editor-domain anchors.
+
+REC-007 should continue by introducing a small adapter that converts the
+current parsed-event hit into a domain-anchor-shaped selection object. Do this
+only where it improves readability; avoid abstracting every preview click
+branch prematurely.
+
+### 2026-08-13: Thin parsed-event selection adapter introduced
+
+- Added `apps/customer-web/src/lib/editor/parsed-event-selection.ts`.
+- The adapter converts a transitional `VerovioParsedEventHit` into
+  `ParsedEventSelection`.
+- Moved connection source-id extraction for parsed event selections out of the
+  React preview component.
+- Updated `editor-preview-panel.tsx` so click and add-preview flows consume
+  `selection.event` / `selection.location` instead of raw Verovio hit payloads.
+- Added focused unit coverage for missing hits, selection wrapping, and chord
+  member connection source-id resolution.
+- This adapter is deliberately thin. It does not invent domain ids and does not
+  belong in `editor-domain`; it is a temporary bridge until render ids resolve
+  to real domain anchors.
+
+REC-007 should continue by reducing the remaining direct `ScoreData` dependency
+inside `editor-preview-panel.tsx`. The next small step should extract visual
+insert placement helpers into a non-React helper only if doing so makes the
+preview component easier to read without hiding editor behavior behind a vague
+service object.
+
+### 2026-08-13: Visual insert placement extracted from editor preview
+
+- Added `apps/customer-web/src/lib/editor/visual-insert-placement.ts`.
+- Moved pure visual insertion placement logic out of
+  `editor-preview-panel.tsx`, including:
+  - direct staff horizontal bounds;
+  - target staff event detection;
+  - borrowed visible voice anchors;
+  - rendered event bounds;
+  - nearest insertion slot selection.
+- Kept React event handling, caret style calculation, mobile confirmation, and
+  editor tool dispatch inside `editor-preview-panel.tsx`.
+- Added focused tests for staff bounds, staff event detection, and nearest
+  visual insertion slot selection.
+- This is intentionally not a generic editor service. It is a small pure helper
+  around the current transitional `ScoreData` + Verovio render surface.
+
+REC-007 should continue by reducing another narrow preview responsibility only
+when the extraction has a crisp name and tests. A good next target is the
+measure/staff hit geometry helpers if they remain tightly coupled to insertion
+placement; otherwise move toward replacing parsed-event selections with real
+render-domain anchors.
+
+### 2026-08-13: Verovio measure/staff geometry extracted
+
+- Added `apps/customer-web/src/lib/editor/verovio-geometry.ts`.
+- Moved direct measure/staff DOM queries, measure horizontal bounds,
+  point-to-measure lookup, measure index lookup, and nearest-staff lookup out of
+  `editor-preview-panel.tsx`.
+- Updated `visual-insert-placement.ts` to reuse `getMeasureHorizontalBounds`
+  from the geometry helper instead of owning that concern.
+- Added focused tests for direct measure/staff filtering, staff-based measure
+  bounds, point-to-measure lookup, measure index lookup, and staff hit geometry.
+- Fixed the direct-measure filtering semantics while extracting: nested
+  measure-like elements are no longer returned as top-level rendered measures.
+
+REC-007 should continue by avoiding further mechanical preview extraction until
+there is a clear domain or adapter boundary. The next meaningful step is to
+inspect whether `editor-preview-panel.tsx` still has independent concerns that
+deserve named helpers, or whether effort should move to replacing
+`ParsedEventSelection` with real render-domain anchors.
+
+### 2026-08-13: Delete entity XML mutation extracted from `use-entity-editor`
+
+- Added `apps/customer-web/src/hooks/editor/entity-editor/delete-entity.ts`.
+- Added focused delete tests in
+  `apps/customer-web/src/hooks/editor/entity-editor/delete-entity.test.ts`.
+- Updated the `entity-editor` barrel export to expose delete params/results.
+- Moved delete MusicXML DOM mutation, backup recalculation, automatic beam
+  repair, serialization, and reparsing out of `use-entity-editor.ts`.
+- `use-entity-editor.ts` now orchestrates add/update/delete through the
+  `entity-editor` helper boundary and keeps responsibility for React state,
+  history, current XML refs, and Inspector visibility.
+- This is still the legacy XML mutation pipeline. It is now better isolated,
+  which makes the later replacement with editor-domain commands/exporter less
+  risky.
+
+REC-007 should continue by reviewing whether `insert-entity.ts`,
+`update-existing-entity.ts`, and `delete-entity.ts` share enough XML mutation
+plumbing to justify a small shared helper. Do not extract a broad service unless
+the duplicated code has a precise name and tests.
+
+### 2026-08-13: Shared XML mutation context added for entity editor helpers
+
+- Added
+  `apps/customer-web/src/hooks/editor/entity-editor/musicxml-mutation-context.ts`.
+- Added focused tests for opening a mutation target, missing measure handling,
+  and serialize/reparse behavior.
+- Centralized the repeated parse/current-location/measure lookup logic in
+  `openEntityMutationTarget`.
+- Centralized serialize + reparse result creation in
+  `serializeEntityMutationResult`.
+- Updated `insert-entity.ts`, `update-existing-entity.ts`, and
+  `delete-entity.ts` to use the shared context helpers.
+- Kept the helper deliberately narrow. It does not own entity semantics,
+  command behavior, or React orchestration; those remain in the existing
+  mutation helpers and hook boundaries.
+
+REC-007 should continue by checking whether the remaining XML mutation helpers
+still have confusing names or responsibilities. If the remaining duplication is
+only low-level MusicXML element construction, leave it local until the
+editor-domain exporter replaces the legacy mutation pipeline.
+
+### 2026-08-13: Unused Inspector `toWritableEntity` helper removed
+
+- Removed `toWritableEntity` from
+  `apps/customer-web/src/components/editor/event-inspector-editable-event.ts`.
+- Removed the tests that only exercised that unused conversion helper.
+- Kept one Inspector save conversion path, backed by
+  `event-inspector-domain-adapter.ts`.
+- This prevents future maintainers from seeing two similar editable-event to
+  writable-entity conversion paths and guessing which one is authoritative.
+
+REC-007 should continue by reviewing the remaining Inspector boundary and
+removing misleading legacy vocabulary where it represents current behavior
+rather than historical evidence.
+
+### 2026-08-13: Inspector save projection public names clarified
+
+- Renamed `toEntityForSave` to `toWritableEntityFromInspectorEvent`.
+- Renamed the public Inspector draft bridge helpers to
+  `toInspectorDomainDraft` and `toWritableEntityFromInspectorDraft`.
+- Updated Inspector usage and tests without keeping compatibility aliases.
+- Left narrow private helpers such as `toLegacyDuration` local to the adapter
+  because they explicitly map domain draft values back to the transitional
+  MusicXML/score-types representation and are not public vocabulary.
+
+REC-007 should continue by checking whether `event-inspector-event-model.ts`
+still mixes too many unrelated concerns. Only split it if there is a crisp
+boundary, for example separating Inspector option constants from save
+projection helpers; avoid extracting a generic service that hides readable UI
+logic.
+
+### 2026-08-13: Last-pitch deletion no longer becomes an implicit rest conversion
+
+- Updated the Inspector editable-event helper so `removePitch` is a no-op when
+  a pitched event has only one pitch left.
+- Disabled the per-pitch delete button for the final remaining pitch.
+- Updated the empty-pitch Inspector copy to describe an explicit rest instead
+  of implying that pitch deletion is a normal way to save a rest.
+- Refreshed tests so pitch add/delete covers rest-to-pitched and chord-to-note
+  transitions, while the final pitch cannot silently become a rest.
+
+REC-007 should continue by keeping explicit rest creation as a named command
+or selected-rest edit path. Do not reintroduce pitch-count-only conversion as a
+generic editor command; it may remain inside the temporary Inspector view model
+only until the domain Inspector path owns pitched events and explicit rests
+directly.
+
+### 2026-08-13: Inspector editable-event kind checks centralized
+
+- Replaced direct `event.pitches.length` kind checks in `event-inspector.tsx`
+  and the Inspector domain adapter with named helpers:
+  `isExplicitRestEditableEvent`, `isPitchedEditableEvent`, and
+  `getEditableEventDisplayKind`.
+- Renamed the transitional display kind vocabulary from `rest` / `note` /
+  `chord` to `explicitRest` / `singleNote` / `chord`.
+- Kept the pitch-count implementation local to the temporary Inspector
+  editable-event view model. This makes the remaining transitional rule visible
+  and prevents it from spreading across React UI and save projection code.
+
+### 2026-08-13: Add-mode rest insertion wording clarified
+
+- Rechecked `use-entity-editor.ts` add mode. It writes an explicit
+  `WritableEntity` rest (`type: 'rest'`), not a `blank` or a separate
+  empty-pitch domain entity.
+- Updated the add-mode comment to say it inserts an explicit quarter rest and
+  keeps it selected for Inspector editing.
+- Updated insert and Inspector test names that still described explicit rest
+  behavior as "empty-pitch" editing.
+- Did not extract a one-use factory. The inline `WritableEntity` rest literal
+  is readable and scoped; over-extracting it would not improve the current
+  boundary.
+
+REC-007 should continue by moving from this transitional `EditableEvent`
+display shape toward domain Inspector drafts as the React state shape. The next
+safe target is to inspect whether the writable XML mutation helpers still
+permit impossible transitional states, such as an empty chord, and enforce those
+as explicit guard clauses or tests at the helper boundary.
+
+### 2026-08-13: Empty chord mutation states guarded
+
+- Added an explicit `updateExistingEntity` guard that rejects
+  `{ type: 'chord', pitches: [] }` before mutating the target MusicXML group.
+- Added update coverage proving empty chord updates return `{ success: false }`
+  instead of deleting the existing XML notes.
+- Added insert coverage for the existing empty chord insert rejection path.
+- This keeps the helper boundary aligned with the target domain invariant that
+  a pitched event/chord must contain at least one note atom.
+
+REC-007 should continue by reviewing other mutation-helper invalid states that
+can be rejected cheaply, especially mismatched chord metadata arrays
+(`fingerings` / `accidentals`) and parsed-event summaries that assume empty
+chords are displayable.
+
+### 2026-08-13: Chord per-note metadata shape validated
+
+- Added a narrow writable-entity shape validator for the entity-editor mutation
+  boundary.
+- Chords are now rejected before XML mutation if:
+  - `pitches` is empty;
+  - `fingerings` is provided as a non-empty array whose length differs from
+    `pitches.length`;
+  - `accidentals` is provided as a non-empty array whose length differs from
+    `pitches.length`.
+- Missing or empty optional metadata arrays remain valid because they mean "no
+  per-note metadata", not partial metadata.
+- This is an internal DTO integrity rule, not a music-theory rule. A real chord
+  may show fingering or explicit accidentals on only some notes; when the DTO
+  carries any such per-note metadata, the array must remain index-aligned with
+  `pitches` and use empty values for notes without visible metadata.
+- `insertEntity` and `updateExistingEntity` now share this validation, with
+  focused tests for empty chords, partial metadata rejection, and metadata-free
+  chord updates.
+
+REC-007 should continue by reviewing display/read paths for empty or malformed
+chords. Mutation helpers now reject impossible chord writes, but parser,
+summary, and connection code should still fail clearly or normalize input if a
+malformed imported score is encountered.
+
+### 2026-08-13: Malformed MusicXML chord member no longer creates a single-note chord
+
+- Tightened the legacy MusicXML parser's chord-member branch.
+- A `<note><chord/></note>` member without a pitch no longer converts the
+  previous note into a chord.
+- Added parser coverage proving the original note remains a note and keeps its
+  original source id when the chord member is malformed.
+- This reduces the chance that downstream summary, connection, or Inspector
+  read paths see impossible chord shapes.
+
+REC-007 should continue by reviewing parsed-event display helpers for whether
+they need explicit malformed-input assertions. The current write and import
+paths now prevent empty chords and single-note chords from normal flows, so
+avoid adding broad defensive abstractions unless a real imported-score fixture
+shows the need.
+
+### 2026-08-13: Connection pitch summary handles malformed empty chords
+
+- Reviewed parsed-event display and connection read paths after tightening
+  chord writes/imports.
+- Added a narrow fallback in `getEntitySourcePitch` so a malformed empty chord
+  cannot render as an empty connection endpoint label.
+- Did not add broad display fallbacks to `getEntitySummaryPitch`; normal write
+  and import paths now prevent empty chords, and pretending a malformed chord is
+  a rest would be misleading.
+
+REC-007 should continue by moving up one level from guard clauses to the
+remaining transitional model boundary: inspect whether `ParsedScoreEvent`
+summary helpers and Inspector state should now be split into option constants,
+pitch-edit helpers, and save projection, or whether that would be over-
+extraction at this stage.
+
+### 2026-08-13: Editor domain refactoring plan status rechecked
+
+- Re-read the editor domain refactoring plan against current Customer Web
+  source.
+- Updated the plan status from "proposed" to "in progress".
+- Added a completion assessment: Phase 1 through Phase 3 are mostly in place,
+  while Phase 4 through Phase 7 remain incomplete because React editor state,
+  preview selection, Inspector save, XML mutation, and downstream projections
+  still consume transitional `ParsedScoreEvent` / `ScoreData` paths.
+- Split Inspector option constants into
+  `event-inspector-options.ts`, leaving `event-inspector-event-model.ts` focused
+  on pitch parsing, summaries, and save projection.
+
+REC-007 should continue with one of the remaining high-value transitions:
+either replace `ParsedEventSelection` with real render/domain anchors, or move
+Inspector React state from the transitional `EditableEvent` shape to domain
+Inspector drafts. The render/domain anchor path is broader; the Inspector draft
+path is likely the safer next slice.
+
+### 2026-08-13: Inspector React state moved to domain draft bridge
+
+- Introduced `InspectorEditState` for the React Inspector panel.
+- The panel now stores a domain `InspectorDraft` as the primary edit intent and
+  derives the temporary `EditableEvent` UI shape from that state for rendering.
+- Kept `stemDirection` in an explicit `notation` supplement because the current
+  domain `InspectorDraft` does not model stem direction yet. This avoids
+  silently losing an existing Inspector feature while still making the
+  non-domain remainder visible.
+- Removed the old direct `toWritableEntityFromInspectorEvent` save entry point;
+  saves now project through `InspectorEditState`.
+- Added tests for draft-backed save projection and notation state preservation.
+
+REC-007 should continue by deciding whether stem direction belongs in the
+editor-domain notation model or remains a MusicXML/rendering adapter concern.
+Until that decision is made, keep it explicit as supplemental notation state
+rather than hiding it inside generic editable-event conversion.
+
+### 2026-08-13: Notation control layer introduced for stem/beam/tie/slur concerns
+
+- Reviewed stem, beam, tie, and slur usage across Customer Web.
+- Confirmed that stem direction, beam direction, tie orientation, and slur
+  placement are notation controls anchored to musical objects or relationships,
+  not core `PitchedEvent` identity.
+- Added a small editor-domain notation model with:
+  - event notation controls for stem direction;
+  - tie notation controls for tie placement;
+  - slur notation controls for slur placement;
+  - beam notation controls for beam membership and direction.
+- Updated the Inspector's transitional `notation.stemDirection` supplement to
+  use the domain `StemDirection` type instead of deriving the type from the UI
+  editable-event shape.
+- Updated ADR 0007 and the editor-domain refactoring plan with the notation
+  layer decision.
+
+REC-007 should continue by wiring notation controls only where behavior is
+already covered. The next safe step is to keep `stemDirection` in the Inspector
+supplement while adding import/export tests or adapters for notation controls,
+rather than moving all beam/tie/slur XML mutation into domain commands in one
+large change.
+
+### 2026-08-13: Notation override semantics clarified
+
+- Tightened the notation model terminology from generic stem direction to
+  `StemDirectionOverride`.
+- `StemDirectionOverride` now matches MusicXML's explicit stem values:
+  `up`, `down`, `none`, and `double`.
+- Missing notation control state now means automatic engraving; `auto` is not a
+  persisted override value.
+- Updated the Inspector draft bridge so the current UI's "automatic" stem
+  choice maps to a missing notation override, while the legacy writable XML DTO
+  still receives `stemDirection: 'none'` to remove the current `<stem>`
+  override.
+- Updated ADR 0007 and the refactoring plan to distinguish:
+  - musical facts and relationships;
+  - explicit notation intent/overrides;
+  - renderer-computed engraving results.
+- Documented that tie/slur/beam existence must remain separate from their
+  visual placement or geometry controls.
+
+REC-007 should continue with a narrow stem-direction import/export slice:
+prove that missing `<stem>` imports as no override, explicit `up/down/none/double`
+imports as notation intent, and exporting without an override does not create a
+new `<stem>` element.
+
+### 2026-08-13: Stem direction notation control import/export slice added
+
+- Added `notationControls` to `ScoreDocument`.
+- The editor-domain MusicXML importer now converts explicit MusicXML
+  `<stem>up</stem>`, `<stem>down</stem>`, `<stem>none</stem>`, and
+  `<stem>double</stem>` values into event-level notation controls.
+- Missing `<stem>` imports as no notation override.
+- The editor-domain MusicXML exporter now writes `<stem>` only when an
+  event-level stem notation override exists.
+- Chord stem override export is anchored to the root note only.
+- Deleting a voice event now removes event-level notation controls anchored to
+  that deleted event, preventing dangling notation state.
+- Added importer, exporter, notation-model, and command tests for the above
+  behavior.
+
+REC-007 should continue by keeping the stem notation slice narrow until the
+React editor uses the domain importer/exporter path. The next safe step is to
+add a helper for reading/updating event-level notation controls in
+`editor-domain` commands, instead of manually editing `notationControls` arrays
+from future UI code.
+
+### 2026-08-13: Event stem notation command helper added
+
+- Added `setEventStemDirectionOverride` to the editor-domain command layer.
+- The helper:
+  - validates that the target event exists;
+  - sets a new event-level stem override;
+  - replaces an existing event-level stem override for the same event;
+  - clears the override when called without `stemDirection`.
+- Added command tests for set, replace, clear, and missing-event rejection.
+- This keeps future UI or adapter code from hand-mutating the
+  `notationControls` array and preserves the rule that missing override means
+  automatic engraving.
+
+REC-007 should continue by adding the read-side companion helper for
+event-level notation controls, then deciding when the transitional Inspector
+stem supplement should call the command helper instead of projecting through
+legacy `WritableEntity`.
+
+### 2026-08-13: Event notation read helpers added
+
+- Added `getEventNotationControl` and `getEventStemDirectionOverride` to the
+  editor-domain notation model.
+- Updated the editor-domain MusicXML exporter to read event-level stem
+  overrides through the shared notation helper instead of scanning
+  `notationControls` locally.
+- Added notation-model tests for event notation and stem override reads.
+- Kept the command write helper implementation simple and local; replacing its
+  clear/set filter with another abstraction would not improve readability yet.
+
+REC-007 should continue by deciding whether the transitional Inspector stem
+supplement should remain a bridge-only concern or start using the domain
+notation command helper in a test-only domain command path before React is
+rewired to the domain exporter.
+
+### 2026-08-13: Stem notation command-to-export contract locked
+
+- Added a domain exporter contract test that applies
+  `setEventStemDirectionOverride`, exports the resulting document to MusicXML,
+  and verifies that `<stem>` is emitted.
+- The same test clears the override through the command helper and verifies
+  that exporting no longer emits `<stem>`.
+- This proves the first notation-control vertical slice now has a domain command
+  write path and an exporter read path without React or legacy XML mutation
+  involvement.
+
+REC-007 should continue by adding a matching import-to-command/export
+round-trip for stem overrides only if it reveals useful behavior. Otherwise,
+the next higher-value slice is to prepare the transitional Inspector stem
+supplement to map to the domain notation command once the React editor can work
+against `ScoreDocument`.
+
+### 2026-08-13: Editor-domain test fixture builder added
+
+- Added a small editor-domain test fixture helper for constructing the standard
+  single-part, single-staff, single-voice `ScoreDocument` used by command and
+  inspector draft tests.
+- Migrated `commands.test.ts` and `inspector-drafts.test.ts` away from local
+  repeated document builders.
+- The fixture intentionally stays test-focused and is not exported as part of
+  the production editor-domain public API.
+
+REC-007 should continue by using this helper only where it removes obvious
+`ScoreDocument` boilerplate. Do not turn it into a broad test factory layer
+unless future tests repeatedly need richer score topologies.
+
+### 2026-08-13: Inspector stem notation transition boundary narrowed
+
+- Rechecked the current React Inspector boundary against the new
+  `editor-domain` notation command layer.
+- Confirmed the Inspector still edits through transitional parsed-event /
+  MusicXML mutation state, not a full `ScoreDocument`, so directly calling
+  `setEventStemDirectionOverride` here would create a fake domain update path.
+- Renamed the Inspector state supplement from generic `notation` to
+  `notationOverrides`.
+- Narrowed the current Inspector-writable stem override type to `up | down`;
+  missing override means automatic engraving. MusicXML `none` / `double` remain
+  import/export notation values until the UI can represent them deliberately.
+- Renamed the save adapter's stem-only argument to
+  `notationOverrides`, avoiding the misleading implication that a full editor
+  event is being passed.
+- Added coverage that the Inspector's automatic stem choice is stored as a
+  missing notation override while still projecting `stemDirection: 'none'` to
+  the legacy XML updater so old `<stem>` overrides are removed.
+
+REC-007 should continue by moving the React editor toward a real `ScoreDocument`
+state source before wiring Inspector notation changes to
+`setEventStemDirectionOverride`. Until then, keep this bridge explicit and do
+not add compatibility aliases or fake domain documents.
+
+### 2026-08-13: Read-only editor-domain document hook added
+
+- Added `useEditorDomainDocument` as a read-only React hook that derives a real
+  editor-domain `ScoreDocument` from the current MusicXML string.
+- Added `deriveEditorDomainDocument` as a pure helper so the transition can be
+  tested without React context.
+- The hook exposes `{ document, gaps, error }` and does not fall back to legacy
+  `ScoreData` when domain import fails.
+- Re-exported the hook from the editor provider boundary for future editor
+  integrations.
+- Added coverage for successful XML import, parser error exposure, and hook
+  refresh when `currentXml` changes.
+
+REC-007 should continue by using this read-only domain source in one narrow
+React integration point. The safest next candidate is an Inspector lookup helper
+that resolves the currently edited legacy entity id to its matching domain
+`VoiceEvent`, without changing save behavior yet.
+
+### 2026-08-13: Editing legacy entity can resolve to domain voice event
+
+- Added editor-domain source lookup helpers that find a `VoiceEvent` by the
+  MusicXML element ids represented by that event.
+- The source lookup stays inside `editor-domain` and does not import legacy
+  `ParsedScoreEvent` or UI types.
+- Added `useEditingDomainEvent`, a read-only React hook that maps the current
+  legacy `editingEntity.meta.sourceIds` / `meta.id` to the matching domain
+  `VoiceEvent` from `useEditorDomainDocument`.
+- Re-exported the hook from the editor provider boundary for future Inspector
+  integrations.
+- Added coverage for pitched/chord source-id lookup, missing document behavior,
+  and resolving the currently edited legacy chord to a real domain pitched
+  event.
+- Save behavior is unchanged; this is a read-side migration seam only.
+
+REC-007 should continue by consuming `useEditingDomainEvent` in the Inspector as
+diagnostic/read-side state first, for example deriving the domain Inspector view
+model next to the existing legacy editable UI state. Do not replace save
+behavior until the UI can edit against domain drafts directly.
+
+### 2026-08-13: Inspector consumes domain view model read-side
+
+- Added `useEditingDomainInspectorViewModel`, which derives the editor-domain
+  Inspector view model for the currently edited legacy entity.
+- The hook builds on the read-only `useEditingDomainEvent` bridge and keeps
+  save behavior unchanged.
+- The React Inspector now consumes this domain view model as invisible
+  diagnostic state via `data-domain-inspector-*` attributes.
+- Added hook coverage for deriving an explicit-rest domain Inspector view model
+  from the currently edited legacy entity.
+- This proves the Inspector can read the real domain model next to its legacy
+  UI state without introducing fake `ScoreDocument` writes or compatibility
+  aliases.
+
+REC-007 should continue by comparing the legacy editable Inspector state with
+the domain Inspector view model in a pure adapter test. Once the two views are
+provably equivalent for note/chord/rest basics, the UI can start rendering from
+the domain view model instead of `EditableEvent`.
+
+### 2026-08-13: Domain Inspector view model equivalence adapter added
+
+- Added a component-boundary adapter that projects a domain
+  `InspectorViewModel` into the current legacy `EditableEvent` UI shape for
+  note, chord, and explicit-rest basics.
+- Kept this adapter outside `editor-domain` because it intentionally depends on
+  the transitional Inspector UI shape.
+- Added an equivalence status helper returning `matched`, `mismatched`, or
+  `unavailable`.
+- Updated the React Inspector diagnostic attributes to report whether the
+  current legacy editable state matches the read-only domain projection.
+- Added tests for single-note, chord, rest, and mismatch detection.
+- Save behavior remains unchanged.
+
+REC-007 should continue by using the domain projection to replace one narrow
+Inspector render input at a time, starting with read-only summary fields rather
+than editable controls. Editable controls should move later, after save writes
+can target the domain command/export path.
+
+### 2026-08-13: Inspector read-only summary fields moved to domain projection
+
+- Added editable-event summary helpers for pitch text and summary icon.
+- Removed the old parsed-event summary helpers from the Inspector event model.
+- The Inspector summary now reads event type, pitch summary, icon, and duration
+  summary from the domain Inspector projection when it is available.
+- Editable controls and save behavior still use the existing Inspector edit
+  state; this step only moves read-only summary inputs.
+- Kept the domain projection adapter at the component boundary because it
+  intentionally maps domain view models to the transitional `EditableEvent`
+  shape.
+- Added coverage for the new summary helpers and preserved the domain/legacy
+  projection equivalence tests.
+
+REC-007 should continue by moving another read-only Inspector section to domain
+input only if it has a crisp boundary. The next safe candidate is the selection
+metadata display, using domain `position`, `voiceId`, and `staffId` for read
+side only while leaving connection and beam editing on the legacy XML path.
+
+### 2026-08-13: Inspector selection metadata reads from domain summary
+
+- Added a domain selection summary adapter that derives display metadata from
+  domain Inspector view models:
+  - measure number from `position.measureId` / `start.measureId`;
+  - voice number from `voiceId`;
+  - staff index from `staffId`.
+- The Inspector now uses this domain-derived measure and voice summary when the
+  domain view model is available.
+- Legacy `editingEntity.meta` remains a read-only display fallback when the
+  domain view model is unavailable.
+- Added diagnostic `data-domain-inspector-staff-index` so staff migration can be
+  inspected without adding new UI copy yet.
+- Editable controls, connection editing, beam editing, and save behavior remain
+  on the existing legacy XML path.
+- Added tests for normal domain ids and fallback parsing defaults.
+
+REC-007 should continue by identifying the next read-only Inspector section
+with a clean domain source. Avoid migrating connection or beam controls until
+their domain models and write commands exist; those are notation/relationship
+concerns, not simple event summary fields.
+
+### 2026-08-13: Inspector remaining legacy areas classified
+
+- Rechecked `event-inspector.tsx` after the read-side domain projection work.
+- Updated the editor-domain refactoring plan with an Inspector migration
+  checkpoint table.
+- Confirmed the following areas are now read-side migrated when a domain view
+  model is available:
+  - event type label;
+  - pitch summary;
+  - summary icon;
+  - duration summary;
+  - measure / voice display metadata.
+- Confirmed the following areas should not be migrated yet because they still
+  require domain command/exporter or relationship/notation-control write models:
+  - pitch, accidental, fingering, duration, dotted, and stem editable controls;
+  - beam controls;
+  - tie/slur lists and placement controls;
+  - connection endpoint navigation;
+  - save/delete/add XML mutation paths.
+- This checkpoint prevents premature migration of direct MusicXML mutation
+  behavior into fake domain state.
+
+REC-007 should continue outside Inspector controls unless a domain write path is
+available. The next higher-value target is render-id-to-domain-anchor selection:
+replace another small piece of `ParsedEventSelection`/Verovio lookup with
+domain anchors, then use that anchor path to feed Inspector and preview
+selection consistently.
+
+### 2026-08-13: Source-id render anchor bridge added
+
+- Added `createSourceRenderAnchorsFromDocument` to build domain render anchors
+  from `ScoreDocument` source ids.
+- Added `resolveDomainAnchorFromRenderOrSourceId` so a Verovio/source id can be
+  resolved to a domain anchor without legacy `ScoreData`.
+- Pitched note source ids resolve precisely to `noteAtom` anchors while still
+  allowing the same source id to be queried for its event anchor.
+- Explicit rest source ids resolve to event anchors.
+- Event-level fallback anchors are created only for source ids not already
+  owned by note atoms, avoiding duplicate anchor entries.
+- Updated the editor-domain refactoring plan with a selection migration
+  checkpoint.
+- The preview click path still uses `ParsedEventSelection`; this step only adds
+  the domain read-side bridge and tests.
+
+REC-007 should continue by adding a React hook that builds source render anchors
+from `useEditorDomainDocument`, then consuming that hook diagnostically in
+`editor-preview-panel.tsx` before replacing any click behavior.
+
+### 2026-08-13: Preview consumes domain render anchors diagnostically
+
+- Added `useEditorDomainRenderAnchors`, which derives source render anchors
+  from the current editor-domain `ScoreDocument`.
+- The hook exposes the anchor list, domain import error, and a resolver for
+  render/source ids.
+- Re-exported the hook from the editor provider boundary.
+- `editor-preview-panel.tsx` now consumes the hook diagnostically:
+  - exposes `data-domain-anchor-count`;
+  - exposes `data-domain-anchor-error`;
+  - records the last resolved `data-domain-anchor-kind` on click / hover.
+- Existing preview behavior still uses `ParsedEventSelection` and legacy
+  `findParsedScoreEventByRenderId`; no click/add/delete/tie/slur behavior was
+  replaced in this step.
+- Added hook tests for successful anchor derivation and XML import error
+  exposure.
+
+REC-007 should continue by replacing one low-risk preview branch with the
+domain anchor path. The safest candidate is select-mode diagnostics or
+event-level edit selection resolution; avoid add-mode placement and
+tie/slur/beam actions until gap/caret and relationship anchors are ready.
+
+### 2026-08-13: Parsed event selection carries domain anchor companion
+
+- Extended the transitional `ParsedEventSelection` with `domainAnchor`.
+- `toParsedEventSelection` now accepts an optional domain anchor companion while
+  still returning `null` for missing legacy hits.
+- `editor-preview-panel.tsx` resolves the domain anchor from the same render id
+  used by the legacy parsed-event lookup and attaches it to the selection.
+- Existing preview behavior remains legacy-driven:
+  - edit still calls `handleEditEntity(selection.event, selection.location)`;
+  - delete/add/tie/slur branches still use legacy event/location data.
+- Updated tests to prove the domain anchor is attached without replacing the
+  legacy selection payload.
+
+REC-007 should continue by replacing the select/edit branch only after a small
+adapter can turn `DomainAnchor(event | noteAtom)` back into the currently needed
+Inspector input. Do not migrate add placement or tie/slur operations yet.
+
+### 2026-08-13: Domain anchor to Inspector companion adapter added
+
+- Added `createDomainSelectionCompanion` under the legacy editor adapter layer.
+- The adapter takes a `ScoreDocument` and a `DomainAnchor`, then derives the
+  matching domain Inspector view model through the existing domain selection and
+  Inspector view-model helpers.
+- Event anchors produce event Inspector companions.
+- Note-atom anchors produce note-atom Inspector companions.
+- Structural anchors such as measure/staff do not manufacture fake Inspector
+  inputs.
+- The adapter intentionally lives outside `editor-domain` because it is a
+  transition bridge for current preview/Inspector integration.
+- Preview behavior remains unchanged; `handleEditEntity(selection.event,
+  selection.location)` is still the active select/edit path.
+
+REC-007 should continue by consuming this companion diagnostically in
+`editor-preview-panel.tsx` for select/edit clicks. After that diagnostic is
+stable, the edit branch can be changed to prefer domain selection/view-model
+input.
+
+### 2026-08-13: Preview select/edit path consumes domain companion diagnostically
+
+- Extended `useEditorDomainRenderAnchors` to expose the current derived
+  `ScoreDocument`, avoiding duplicate MusicXML domain imports in preview.
+- `editor-preview-panel.tsx` now creates a `DomainSelectionCompanion` during
+  score click handling from the same `ParsedEventSelection.domainAnchor`.
+- Added diagnostic `data-domain-companion-kind` to the preview wrapper.
+- Existing behavior still calls `handleEditEntity(selection.event,
+  selection.location)` and keeps add/delete/tie/slur branches on the legacy
+  selection payload.
+- Updated surface migration coverage to lock this dual-read selection path.
+
+REC-007 should continue by validating domain companion parity for selected
+events. The next safe step is a pure adapter that can compare the legacy
+selection's event/location with the companion's domain Inspector view model,
+then report whether select/edit is ready to switch.
+
+### 2026-08-13: Legacy/domain selection parity adapter added
+
+- Added `getDomainSelectionParityStatus` to compare a legacy
+  `ParsedEventSelection` with a `DomainSelectionCompanion`.
+- The parity check reports `matched`, `mismatched`, or `unavailable`.
+- Covered parity for:
+  - legacy rest selection vs explicit-rest domain view model;
+  - legacy chord selection vs pitched-event domain view model;
+  - clicked chord member vs note-atom domain view model;
+  - mismatched pitch/location;
+  - missing selection or companion.
+- `editor-preview-panel.tsx` now exposes diagnostic
+  `data-domain-selection-parity` on click.
+- Preview behavior still uses the legacy selection payload for all actions.
+
+REC-007 should continue by observing or testing that select/edit clicks produce
+`matched` parity in normal fixtures. After that, the select/edit branch can
+start preferring domain companion input while retaining legacy payload only for
+the still-legacy Inspector save path.
+
+### 2026-08-13: Preview select/edit transition adapter added
+
+- Added `createSelectEditSelection` under `apps/customer-web/src/lib/editor/`.
+- The adapter combines the transitional `ParsedEventSelection` and
+  `DomainSelectionCompanion` into one select/edit input.
+- It preserves the current legacy `event` and `location` payload required by
+  `handleEditEntity`, while carrying the domain companion and
+  legacy/domain parity beside it.
+- `editor-preview-panel.tsx` now uses this adapter for the ordinary select/edit
+  branch and reports companion kind/parity through the adapter result.
+- Add, delete, tie, and slur branches intentionally remain on the existing
+  legacy selection payload.
+- Added focused adapter tests and updated surface migration coverage.
+
+REC-007 should continue by moving the editor open/selection state one step
+closer to domain input: either store the select/edit domain companion alongside
+the current `editingEntity`, or introduce a narrow Inspector-open adapter that
+can read the domain companion first while the save path still projects through
+the legacy XML mutation helpers. Do not migrate add placement or connection
+commands until gap/caret and note-atom command semantics are explicit.
+
+### 2026-08-13: Editor state carries select/edit domain companion
+
+- Added `editingDomainCompanion` to the Customer Web editor state context.
+- Added `handleSelectEditSelection` to `useEntityEditor` so the ordinary
+  preview select/edit branch can open the Inspector with both:
+  - the legacy event/location still required by `handleEditEntity`-era XML
+    mutation; and
+  - the domain Inspector companion derived from the clicked domain anchor.
+- `useEditingDomainInspectorViewModel` now prefers the stored selection
+  companion when available and reports its source as `selectionCompanion`.
+- Legacy edit opens, insertions, saves, closes, and history refreshes clear the
+  stored companion. After those operations the Inspector returns to the existing
+  document lookup source instead of reusing stale click-time domain state.
+- Added Inspector hook coverage for both `documentLookup` and
+  `selectionCompanion` sources.
+- Preview add/delete/tie/slur behavior remains unchanged.
+
+REC-007 should continue by using the companion-backed Inspector view model for
+one more narrow read-side surface or by introducing a typed Inspector-open input
+that groups legacy payload plus domain companion. Do not move save/update/delete
+to domain writes until the command/exporter path can replace the current XML
+mutation helpers end-to-end.
+
+### 2026-08-13: Inspector editing state grouped behind `editingSelection`
+
+- Replaced three independent React state cells for the current Inspector-open
+  event with one grouped `editingSelection` state object in
+  `editor-state-context.tsx`.
+- `editingSelection` groups:
+  - the legacy event still needed by existing Inspector and XML mutation code;
+  - the legacy location still needed by existing mutation helpers; and
+  - the optional domain companion created by the select/edit domain anchor
+    bridge.
+- Existing context fields `editingEntity`, `editingEntityLocation`, and
+  `editingDomainCompanion` are now derived from the grouped state while callers
+  are migrated incrementally.
+- A domain companion can no longer exist as detached editor state without a
+  selected legacy event.
+- Updated the companion-source hook test to reflect that invariant.
+
+REC-007 should continue by migrating internal callers to the grouped
+`editingSelection` shape where it improves clarity. Avoid a broad mechanical
+rename; the next useful cut is a small helper around opening/clearing Inspector
+state so callers stop setting entity, location, and companion separately.
+
+### 2026-08-13: Inspector editing-state write API narrowed
+
+- Added explicit `openEditingSelection` and `clearEditingSelection` entrypoints
+  to the editor state context.
+- Migrated `useEntityEditor` and `useHistoryEditor` to those grouped write
+  entrypoints.
+- Updated related hook tests to use `openEditingSelection` instead of setting
+  individual editing fields.
+- Removed the old public context setters:
+  - `setEditingEntity`;
+  - `setEditingEntityLocation`;
+  - `setEditingDomainCompanion`.
+- Existing `editingEntity`, `editingEntityLocation`, and
+  `editingDomainCompanion` remain derived read fields for legacy consumers, but
+  state writes now have one explicit boundary.
+
+REC-007 should continue by moving read consumers that naturally need all three
+values from separate derived fields to `editingSelection`. Do this only where it
+improves readability; avoid a repository-wide mechanical rename that obscures
+the still-legacy XML mutation path.
+
+### 2026-08-13: Inspector read paths consume grouped editing selection
+
+- Migrated the top-level `EventInspector` open/read boundary to read
+  `editingSelection` and derive its panel legacy event from
+  `editingSelection.legacyEvent`.
+- Migrated `useEditingDomainEvent` and
+  `useEditingDomainInspectorViewModel` to read from `editingSelection`:
+  - document lookup uses `editingSelection.legacyEvent`;
+  - companion-backed Inspector projection uses
+    `editingSelection.domainCompanion`.
+- Removed the now-unused `editingDomainCompanion` derived context field; domain
+  companion state is available only through the grouped editing selection.
+- Left `editingEntity` and `editingEntityLocation` derived fields in place
+  because preview highlighting, history refresh, and legacy XML mutation still
+  use those legacy read paths.
+
+REC-007 should continue by reviewing whether `useEntityEditor` should consume
+`editingSelection` directly for update operations, or whether it is clearer to
+leave `editingEntityLocation` as a legacy mutation-boundary read until the XML
+mutation path is replaced. Do not migrate connection or add placement branches
+yet.
+
+### 2026-08-13: Entity editor update path reads grouped legacy mutation location
+
+- Updated `useEntityEditor` so `updateEntity` reads the current update target
+  from `editingSelection.legacyLocation`.
+- Named the local value `legacyMutationLocation` to make the remaining XML
+  mutation boundary explicit.
+- Removed the now-unused `editingEntityLocation` derived context field and the
+  matching `useEntityEditor` return value.
+- Remaining `editingEntityLocation` identifiers are scoped to lower-level
+  mutation helper parameter names and tests, where they still accurately
+  describe the legacy XML group lookup input.
+
+REC-007 should continue by reviewing the last derived legacy state read,
+`editingEntity`, in preview highlighting and history refresh. Keep it if it is
+clearer as a legacy read alias; migrate it only if the target consumer benefits
+from the grouped `editingSelection` semantics.
+
+### 2026-08-13: History refresh reads grouped editing selection
+
+- Updated `useHistoryEditor` so undo/redo refresh uses
+  `editingSelection.legacyEvent` instead of the derived `editingEntity` context
+  field.
+- Left preview highlighting on `editingEntity` because it only needs legacy
+  event metadata for selected SVG highlighting.
+- Removed the unused `editingEntity` return from `useEntityEditor`, making that
+  hook an action-only editor mutation/opening hook rather than a duplicate
+  state source.
+
+REC-007 should continue by deciding whether preview highlighting should read
+`editingSelection` directly. If it remains purely a legacy render/highlight
+adapter, keeping the derived `editingEntity` read alias is acceptable until the
+preview selection path is fully domain-backed.
+
+### 2026-08-13: Final derived editor-state legacy alias removed
+
+- Updated `editor-preview-panel.tsx` so selected SVG highlighting reads
+  `editingSelection.legacyEvent` directly and names the local value
+  `selectedLegacyEvent`.
+- Removed the final derived `editingEntity` field from the editor state context.
+- Updated surface migration coverage to assert the explicit
+  `selectedLegacyEvent` highlight path.
+- Editor state now exposes one grouped current editing state:
+  `editingSelection`, plus explicit grouped write entrypoints.
+
+REC-007 should continue by moving beyond state-shape cleanup. The next useful
+target is either:
+
+- a preview/domain selection test fixture that proves normal select/edit clicks
+  produce `matched` parity; or
+- a narrow Inspector read-side migration that consumes the domain view model
+  directly for one editable control display without changing save behavior.
+
+### 2026-08-13: Select/edit parity fixture added
+
+- Added `select-edit-selection-flow.test.ts`.
+- The fixture runs a real MusicXML snippet through:
+  - the legacy `MusicXMLParser`;
+  - the editor-domain MusicXML importer;
+  - source-id render anchor creation;
+  - legacy parsed-event hit lookup;
+  - domain selection companion creation; and
+  - `createSelectEditSelection`.
+- Covered a normal single note and a clicked chord member.
+- Both fixtures produce `domainParity: matched`, proving the current
+  select/edit bridge can align legacy parsed events with domain companions for
+  representative real XML inputs.
+
+REC-007 should continue with the second suggested path: a narrow Inspector
+read-side migration that consumes the domain view model directly for one
+editable-control display, while keeping save behavior on the existing legacy XML
+mutation path. Avoid migrating add placement or tie/slur commands until their
+domain semantics are explicit.
+
+### 2026-08-13: Inspector editable-control display reads matched domain projection
+
+- Updated `event-inspector.tsx` so pitch, accidental, fingering, duration,
+  dotted, and stem-direction control values read from the editor-domain
+  Inspector projection when it matches the current transitional edit state.
+- Kept a strict fallback to the legacy `EditableEvent` edit state when the
+  domain projection is unavailable, mismatched, or errored.
+- Added `data-domain-inspector-controls-source` as a diagnostic marker for
+  whether the controls are displaying `domainViewModel` or `legacyEditState`.
+- Preserved the existing save behavior: all control changes still commit
+  through the transitional Inspector edit state and existing XML mutation path.
+  This avoids mixing a read-side migration with the larger command/exporter
+  rewrite.
+
+REC-007 should continue by avoiding additional Inspector control migration until
+the domain command/exporter write path is ready. The next useful target is to
+start a small domain command/save slice, or to move another preview/selection
+read path to domain anchors only if it removes a real legacy dependency.
+
+### 2026-08-13: Inspector domain edit command slice added
+
+- Added `applyInspectorEdit` to the editor-domain Inspector draft module.
+- The helper applies the semantic Inspector draft first, then applies an
+  explicitly provided stem-direction notation override through the domain
+  notation command.
+- It distinguishes omitted notation overrides from an explicit
+  `stemDirection: undefined`, so future Inspector saves can preserve or clear
+  stem overrides intentionally.
+- Tightened `setEventStemDirectionOverride` so stem overrides are valid only for
+  pitched events; explicit rests cannot receive fake stem notation state.
+- Added tests for:
+  - applying rhythm edits and stem notation together;
+  - clearing existing stem notation explicitly; and
+  - rejecting stem notation on explicit rests.
+- React Inspector save behavior is still intentionally not wired to this helper;
+  the current UI continues to use the legacy XML mutation path until a mutable
+  `ScoreDocument -> export MusicXML -> update current XML` path is introduced.
+
+REC-007 should continue by preparing that React write-path boundary: identify
+where a mutable editor-domain `ScoreDocument` can be owned, updated through
+`applyInspectorEdit`, exported back to MusicXML, and reconciled with existing
+history/preview refresh behavior. Do not wire only stem direction in isolation.
+
+### 2026-08-13: Import-edit-export-reimport Inspector write fixture added
+
+- Added a MusicXML round-trip integration test for the future Inspector domain
+  write path:
+  `importMusicXmlToEditorDomain -> applyInspectorEdit ->
+  exportEditorDomainToMusicXml -> importMusicXmlToEditorDomain`.
+- The fixture edits a real imported pitched event's rhythm and stem notation,
+  exports MusicXML, then re-imports it to assert that event identity, pitched
+  event semantics, rhythm, and stem notation remain stable.
+- The new fixture exposed a command-layer bug: partial `updatePitchedEvent`
+  patches were spreading `undefined` optional fields over the existing event,
+  clearing `voiceId`, `staffId`, and `position`. That made the exporter drop the
+  event from the serialized voice.
+- Fixed `updatePitchedEvent` and `updateExplicitRest` so omitted patch fields
+  preserve the existing domain event state.
+- Added direct command coverage for preserving omitted pitched-event identity
+  and placement fields while changing rhythm.
+
+REC-007 should continue by preparing the React-side owner for mutable
+`ScoreDocument` state. The next safe step is a design/implementation slice that
+derives the editable domain document once in provider state, exposes a tested
+domain edit callback, and only then considers replacing Inspector save calls.
+
+### 2026-08-13: React domain edit callback boundary prepared
+
+- Added `use-editor-domain-edit.ts`.
+- Added the pure `applyEditorDomainEditToXml` boundary:
+  - imports current MusicXML into the editor-domain document;
+  - applies an Inspector domain edit through `applyInspectorEdit`;
+  - exports the edited domain document back to MusicXML;
+  - returns a typed success/error result instead of mutating React state.
+- Added `useEditorDomainEdit`, which wraps that pure boundary and updates the
+  existing editor state mechanisms when called:
+  - pushes a history snapshot when XML changes;
+  - updates `currentXml` / `currentXmlRef`;
+  - reparses XML into legacy `ScoreData` for the still-legacy preview and
+    Inspector surfaces.
+- Re-exported `useEditorDomainEdit` from the editor provider boundary.
+- Added focused coverage for successful edit/export, domain command failure, and
+  invalid MusicXML import failure.
+- The hook is intentionally not consumed by `event-inspector.tsx` yet. Inspector
+  save still uses the legacy XML mutation path until UI-level history, preview
+  refresh, and selection reconciliation are covered.
+
+REC-007 should continue with UI-level coverage before switching Inspector
+`commitEvent`: mount the editor providers, apply a domain edit through
+`useEditorDomainEdit`, and assert current XML, history, and legacy `ScoreData`
+refresh together. After that, switch one Inspector save path.
+
+### 2026-08-13: Domain edit callback provider behavior covered
+
+- Expanded `use-editor-domain-edit` coverage from pure XML transformation to a
+  provider-level hook test.
+- The test mounts the real editor state dependencies used by the hook:
+  `ScoreDataProvider`, `HistoryProvider`, and the minimal `next-intl` provider.
+- It verifies that applying a domain Inspector edit through
+  `useEditorDomainEdit`:
+  - updates `currentXml`;
+  - updates `currentXmlRef`;
+  - pushes the edited XML into history;
+  - reparses legacy `ScoreData` so existing preview / Inspector surfaces can
+    still render after a domain write.
+- It also verifies the no-current-XML error path at the hook boundary.
+- The test file was renamed to `.tsx` because it now renders React providers.
+- Inspector save is still intentionally not switched to `useEditorDomainEdit`.
+
+REC-007 should continue by designing the selection reconciliation step after a
+domain edit. Before replacing `event-inspector.tsx` `commitEvent`, the editor
+must know how to reopen / refresh the selected event after domain export and
+legacy `ScoreData` reparse without relying on stale legacy entity indexes.
+
+### 2026-08-13: Domain edit selection reconciliation helper added
+
+- Added `findEntityBySourceIds` to `score-lookup.ts`.
+- The helper finds a reparsed legacy `ParsedScoreEvent` by MusicXML source ids,
+  checking `meta.sourceIds` before falling back to legacy `meta.id`.
+- This gives the domain edit path a safer reselection mechanism than stale
+  `EntityLocation.entityIndex`, especially after MusicXML export/reparse.
+- Extended `useEditorDomainEdit` so callers can pass `reselectSourceIds`.
+- On successful edit, the hook now returns `refreshedSelection`, found from the
+  reparsed legacy `ScoreData`.
+- The pure `applyEditorDomainEditToXml` function still returns
+  `refreshedSelection: null` because it intentionally has no legacy `ScoreData`
+  context.
+- Added tests for:
+  - source-id lookup, including chord-member source ids;
+  - source-id precedence over legacy ids;
+  - hook-level reselection after a domain Inspector edit.
+
+REC-007 can now move to a narrowly scoped Inspector save-path switch. Start with
+pitched event rhythm/stem edits only, pass the current entity source ids into
+`useEditorDomainEdit`, and reopen the Inspector from `refreshedSelection`.
+Keep add/delete/tie/slur/beam paths on legacy mutation for now.
+
+### 2026-08-13: First Inspector save path switched to domain edit
+
+- Updated `event-inspector.tsx` so matched pitched-event rhythm, dotted, and
+  stem-direction edits use `useEditorDomainEdit`.
+- The migrated path:
+  - retargets the Inspector draft to the current domain Inspector view model's
+    `eventId` instead of using the legacy MusicXML source id from
+    `editingEntity.meta.id`;
+  - passes the legacy entity's source ids as `reselectSourceIds`;
+  - reopens the Inspector from `refreshedSelection` after domain export and
+    legacy `ScoreData` reparse.
+- Domain save is intentionally guarded by:
+  - `domainInspectorStatus === 'matched'`;
+  - a pitched domain Inspector view model;
+  - available legacy source ids; and
+  - `isRhythmOrStemOnlyPitchedEdit`.
+- Added `isRhythmOrStemOnlyPitchedEdit` to the Inspector event-model helper
+  layer with tests. Pitch, accidental, fingering, add-pitch, remove-pitch, rest,
+  add/delete/tie/slur/beam paths do not enter this migrated domain save path.
+- If the domain save fails, the Inspector now reports the domain error instead
+  of silently hiding it behind the old XML mutation path.
+
+REC-007 should continue by observing this first migrated save slice under a
+browser/editor interaction test before migrating pitch/note-atom edits. The next
+safe implementation target is not add/delete or connections; it is one note-atom
+field edit, after the domain write helper can preserve the selected note atom
+and refreshed legacy selection.
+
+### 2026-08-13: Inspector domain save slice covered by component interaction
+
+- Added `event-inspector-domain-save.test.tsx`.
+- The test mounts the real `EventInspector` under the editor providers and
+  `next-intl`, opens a parsed note selection, clicks the stem-down control, and
+  asserts that:
+  - MusicXML contains the exported `<stem>down</stem>`;
+  - history points at the edited XML;
+  - Inspector remains open;
+  - the selected legacy event is refreshed by source id;
+  - legacy `ScoreData` is reparsed with the updated stem direction.
+- The test exposed an important transition bug: the first implementation
+  retargeted only the draft `eventId` but still carried legacy
+  voice/staff/position metadata into the domain command. That moved the domain
+  event to non-existent legacy ids and produced an empty exported measure.
+- Fixed the component save bridge so this first migrated domain save slice
+  sends only the safe rhythm patch plus notation override to the domain event.
+  Voice, staff, position, and note atoms stay owned by the imported domain event
+  until their UI edit semantics are migrated explicitly.
+
+REC-007 should continue by keeping this first save slice stable. The next safe
+target is a note-atom field edit such as fingering, but only after adding a
+domain write bridge that retargets both the domain event id and the selected
+note-atom id from source ids. Do not reuse legacy placement metadata.
+
+### 2026-08-13: Note-atom source retargeting prepared for fingering migration
+
+- Extended editor-domain source lookup with `findNoteAtomByMusicXmlElementId`.
+- The helper returns the exact domain pitched event and note atom represented by
+  a MusicXML source id.
+- Added coverage for chord-member note lookup, rest-source rejection, missing
+  ids, and empty ids.
+- Extended `applyEditorDomainEditToXml` and `useEditorDomainEdit` with
+  `retargetNoteAtomSourceId`.
+- When a note-atom Inspector draft is passed with this source id, the domain edit
+  boundary retargets both:
+  - `eventId` to the imported domain pitched event; and
+  - `noteAtomId` to the matching imported note atom.
+- Added pure XML and provider-level tests proving a chord-member fingering edit
+  updates only the selected note atom and refreshes the legacy chord selection by
+  source ids.
+- `event-inspector.tsx` does not consume this path yet; current Inspector
+  fingering edits still use legacy XML mutation.
+
+REC-007 can now migrate a narrow Inspector fingering save path. Keep it limited
+to existing pitched note atoms with source ids; do not combine it with pitch,
+accidental, add-pitch, or remove-pitch migration.
+
+### 2026-08-13: Inspector fingering save path switched to domain edit
+
+- Added `getFingeringOnlyPitchedEdit` to the Inspector event-model helper layer.
+- The helper only matches a single fingering change on an existing pitched
+  event; pitch, accidental, rhythm, stem, add-pitch, remove-pitch, and multi-note
+  fingering changes do not enter this path.
+- Updated `event-inspector.tsx` so matched fingering-only edits use
+  `useEditorDomainEdit` with:
+  - a retargetable note-atom draft;
+  - `retargetNoteAtomSourceId` from the edited legacy source id; and
+  - `reselectSourceIds` for refreshing the legacy chord/note selection.
+- Preserved legacy XML mutation fallback for fingering edits without source ids
+  or without a matched domain Inspector projection.
+- Added component interaction coverage for chord-member fingering:
+  - open a real parsed chord in the Inspector;
+  - change the second note's fingering through the UI;
+  - assert exported MusicXML contains the fingering;
+  - assert history, Inspector-open state, refreshed legacy selection, and
+    reparsed legacy `ScoreData` all reflect the change.
+- Kept pitch, accidental, add-pitch, remove-pitch, add/delete, tie/slur, and beam
+  paths on legacy mutation.
+
+REC-007 should continue with accidental only if its clear/set semantics are
+covered at the domain boundary first. Do not migrate pitch or add/remove pitch
+before note-atom identity and chord shape behavior have stronger interaction
+coverage.
+
+### 2026-08-13: Accidental domain boundary semantics covered
+
+- Added command-level coverage for note-atom accidental patches:
+  - omitted `accidental` preserves the current accidental;
+  - `accidental: null` explicitly clears it;
+  - a concrete accidental value sets the displayed accidental.
+- Added retargeted domain-edit coverage for setting and clearing accidentals by
+  legacy MusicXML source id.
+- Confirmed an important boundary distinction: a domain accidental patch changes
+  the displayed accidental field only. It does not automatically rewrite
+  `pitch.alter`.
+- This differs from the current Inspector UI accidental button behavior, which
+  changes both the legacy pitch spelling and the explicit accidental value.
+
+REC-007 should not switch the accidental UI directly to accidental-only domain
+patches. The next safe step is a pure adapter that converts the current
+Inspector accidental button semantics into a domain note-atom patch containing
+both `pitch` and `accidental`, then tests set and clear behavior before touching
+`event-inspector.tsx`.
+
+### 2026-08-13: Accidental UI-to-domain patch adapter added
+
+- Added `getAccidentalOnlyPitchedEdit` to the Inspector event-model helper
+  layer.
+- The helper converts the current Inspector accidental-button semantics into a
+  domain note-atom patch containing both:
+  - `pitch`, including the correct `alter`; and
+  - displayed `accidental`, including explicit `natural` or `null` clear.
+- Added coverage for:
+  - setting sharp;
+  - setting flat;
+  - setting natural as explicit natural with unaltered pitch;
+  - clicking the active accidental again to clear both displayed accidental and
+    pitch alter;
+  - rejecting migration when fingering, rhythm, or chord shape also changes.
+- Added domain edit boundary coverage proving combined `pitch + accidental`
+  patches retargeted by source id export and re-import correctly.
+- `event-inspector.tsx` still does not consume this accidental path; the current
+  UI accidental buttons remain on legacy XML mutation until the component save
+  path is switched under interaction coverage.
+
+REC-007 can now migrate the accidental Inspector save path in one narrow slice:
+matched pitched event, one existing note atom with source id, accidental-only UI
+delta, combined `pitch + accidental` domain patch, source-id reselection. Keep
+pitch name/octave edits and add/remove pitch on legacy mutation.
+
+### 2026-08-13: Accidental Inspector UI save path migrated
+
+- Updated `event-inspector.tsx` so matched accidental-only edits on an existing
+  pitched note atom use `useEditorDomainEdit` instead of the legacy XML mutation
+  path.
+- The migrated path uses:
+  - `getAccidentalOnlyPitchedEdit` to detect the narrow UI delta;
+  - the edited legacy MusicXML source id as `retargetNoteAtomSourceId`;
+  - a combined domain note-atom patch containing both `pitch` and `accidental`;
+  - `reselectSourceIds` to refresh the open Inspector selection after export and
+    reparse.
+- Added component interaction coverage for a chord member:
+  - setting sharp writes both `<alter>1</alter>` and
+    `<accidental>sharp</accidental>`;
+  - clicking the active sharp button again clears both pitch alter and displayed
+    accidental;
+  - history, Inspector-open state, refreshed legacy selection, and reparsed
+    `ScoreData` stay synchronized.
+- Pitch name/octave edits, add/remove pitch, add/delete entity, tie/slur, and
+  beam paths remain on legacy mutation.
+
+REC-007 should continue with behavior-backed, narrow slices only. The next
+candidate is either duration/dotted component interaction coverage for the
+already-migrated rhythm path, or a small readability cleanup inside
+`event-inspector.tsx` if the repeated domain-save result handling starts hiding
+intent. Avoid migrating pitch shape changes until chord identity and note-atom
+add/remove semantics are explicit.
+
+### 2026-08-13: Rhythm Inspector UI domain-save coverage completed
+
+- Expanded `event-inspector-domain-save.test.tsx` so the already-migrated
+  pitched rhythm save path is covered by real UI interaction, not only the stem
+  direction button.
+- The new fixture changes a selected note from quarter to half, toggles dotted,
+  and asserts:
+  - exported MusicXML contains `<type>half</type>` and `<dot/>`;
+  - history points at the edited XML;
+  - Inspector remains open;
+  - the refreshed selected legacy event and reparsed `ScoreData` both report
+    `durationHalf` and `dotted: true`.
+- This closes the current interaction coverage gap for the rhythm/dotted/stem
+  domain save slice.
+
+REC-007 can now either keep migrating another narrow, behavior-backed save path
+or do a local readability pass over `event-inspector.tsx`. The highest-risk
+remaining save paths are still pitch name/octave and add/remove pitch; keep them
+legacy until note-atom identity, chord shape, and final-pitch deletion semantics
+are explicit.
+
+### 2026-08-13: Inspector domain-save result handling deduplicated locally
+
+- Extracted the repeated domain-save result handling inside `event-inspector.tsx`
+  into one local `handleDomainInspectorEditResult` helper.
+- The helper only owns the common UI aftermath of a domain save:
+  - show the existing destructive toast on failure;
+  - reopen the Inspector with `refreshedSelection` on success; or
+  - close the Inspector if reselection is unavailable.
+- No save-path guard, domain draft shape, retargeting rule, or legacy fallback
+  behavior was changed.
+- The helper intentionally stays local to `EventInspectorPanel`; it is not a
+  shared abstraction because the current duplication is component-specific and
+  tightly coupled to Inspector UI state.
+
+REC-007 should continue with one of two useful next slices: either migrate a
+small, well-specified domain save path with interaction coverage, or first
+document the remaining pitch/chord mutation semantics before touching
+pitch-name, octave, add-pitch, or remove-pitch behavior.
+
+### 2026-08-13: Remaining pitch/chord mutation semantics documented
+
+- Added a dedicated "Remaining pitch and chord mutation semantics" section to
+  `docs/engineering/plans/editor-domain-model-refactoring-plan.md`.
+- Documented the current source facts that matter before further migration:
+  - `EditableEvent` still uses parallel `pitches`, `fingerings`, and
+    `accidentals` arrays;
+  - `addPitch` and `removePitch` are transitional UI DTO operations;
+  - final-pitch removal is already blocked in the transitional Inspector;
+  - non-empty chord fingering/accidental arrays must remain index-aligned; and
+  - the editor-domain command layer already exposes `updateNoteAtom`,
+    `addNoteAtom`, and `removeNoteAtom`.
+- Set the target semantics for remaining controls:
+  - pitch name/octave changes are `updateNoteAtom` pitch patches;
+  - add-pitch on an existing pitched event is `addNoteAtom`;
+  - remove-pitch from a multi-note pitched event is `removeNoteAtom`;
+  - final-pitch removal remains invalid from the pitch-row control;
+  - pitched-to-rest conversion must be an explicit command, never a zero-pitch
+    side effect.
+- Recorded the recommended migration order: existing note-atom pitch patch
+  first, then add note-atom id-generation policy, then add-pitch, then
+  remove-pitch, with final-pitch delete/replace reserved for a separate product
+  decision.
+
+REC-007 should continue by migrating pitch name/octave for an existing note atom
+only. Keep add-pitch and remove-pitch untouched until stable new-note-atom id and
+source-id generation semantics are implemented and covered.
+
+### 2026-08-13: Rhythmic input model and write-path invariants added
+
+- Updated ADR 0007 with additional invariants:
+  - MusicXML import uses a document-order serialization cursor; voice identity
+    and XML cursor state are separate dimensions.
+  - Every editing behavior has exactly one authoritative write path during
+    migration: legacy XML mutation or domain command/export, never both with a
+    merge.
+  - Empty musical time remains caret/gap/derived-rest selection, not a persisted
+    `TimelineGapEntity` or renamed `Blank`.
+  - Rhythmic input placement is first-class editor state, separate from
+    MusicXML `<forward>` and Verovio space DOM elements.
+- Updated the editor-domain plan with Phase 4B: rhythmic input and empty-space
+  placement.
+- Phase 4B defines:
+  - `ActiveVoice`;
+  - `Caret`;
+  - `RhythmicGridResolution`;
+  - `InputDuration`;
+  - `InsertionAnchor`;
+  - `RhythmicLayoutMap`.
+- Added invariants that empty voice insertion must work without an existing
+  rendered note/rest/space element, and that `InputDuration` is independent from
+  grid resolution.
+- Tightened MusicXML exporter wording so forward/backup generation is owned by a
+  measure-level serialization plan, not by the domain model.
+- Adjusted notation wording from narrow "beam direction" language to broader
+  beam notation/grouping override language.
+- Updated acceptance criteria and the recommended next implementation task so
+  Phase 4B pure types/tests come before deeper empty-space insertion migration.
+
+REC-007 should continue by implementing the Phase 4B pure model first:
+`ActiveVoice`, `Caret`, `RhythmicGridResolution`, `InputDuration`, and
+`InsertionAnchor`, with tests. Do not wire preview UI or pitch/add/remove
+behavior until those placement primitives are explicit.
+
+### 2026-08-13: Add mode mature target added to REC-007 plan
+
+- Added an "Add mode target migration" subsection under Phase 4B in
+  `docs/engineering/plans/editor-domain-model-refactoring-plan.md`.
+- Documented the current add-mode implementation:
+  - preview click resolves staff/voice from active track plus pointer location;
+  - `getVisualInsertPlacement` derives slots from already-rendered event
+    anchors;
+  - beat-level `snapMeasureXToGridTick` is only a fallback;
+  - fully empty staff/voice insertion falls back to measure-left tick `0`;
+  - `handleAddEntity` inserts a hard-coded quarter explicit rest and then opens
+    the Inspector.
+- Recorded the mature target:
+  - explicit `activeVoice`, `inputDuration`, `rhythmicGridResolution`, `caret`,
+    and hovered `InsertionAnchor` state;
+  - pointer/caret snapping through `RhythmicLayoutMap`;
+  - independent input duration and grid resolution;
+  - empty voice insertion from meter/grid/active voice rather than existing
+    Verovio note/space DOM elements;
+  - explicit domain add commands instead of editing MusicXML `<forward>` or
+    inserting a temporary quarter rest as the only add behavior.
+- Added an eight-step migration sequence from pure types/tests through UI state,
+  add command replacement, domain command/export write path, and deletion of the
+  transitional visual-placement fallback.
+
+REC-007 should continue by implementing the Phase 4B pure types/tests first.
+The add-mode UI should not be rewired until the caret/grid/insertion-anchor
+model is executable.
+
+### 2026-08-13: Phase 4B rhythmic input pure model added
+
+- Added `apps/customer-web/src/lib/editor-domain/rhythmic-input.ts`.
+- Exported the module through the `editor-domain` barrel.
+- Added pure, UI-free types and helpers for:
+  - `ActiveVoice`;
+  - `Caret`;
+  - `RhythmicGridResolution`;
+  - `InputDuration`;
+  - `InsertionAnchor`;
+  - legal grid-position enumeration;
+  - caret movement by grid steps.
+- Added `rhythmic-input.test.ts` coverage proving:
+  - active voice is user/editing context, not MusicXML cursor state;
+  - `InputDuration` remains independent from `RhythmicGridResolution`;
+  - caret movement follows grid steps and clamps to measure bounds;
+  - legal positions can be enumerated for an empty voice without event DOM
+    anchors;
+  - insertion anchors can be created from caret and timeline-gap positions;
+  - invalid grid, duration, caret, and gap positions are rejected.
+- The add-mode UI and legacy insert write path were intentionally not changed.
+
+REC-007 should continue with the next Phase 4B slice: pure snapping helpers and
+then `RhythmicLayoutMap` tests with synthetic non-linear spacing. Do not wire
+preview UI until those pure boundaries are covered.
+
+### 2026-08-13: Phase 4B rhythmic-grid snapping helpers added
+
+- Extended `apps/customer-web/src/lib/editor-domain/rhythmic-input.ts` with
+  pure snapping helpers:
+  - `snapOffsetToGrid`;
+  - `createCaretAtNearestGridPosition`.
+- Tightened `InsertionAnchor.eventEdge.eventId` from plain `string` to domain
+  `EventId`.
+- Kept snapping independent from Verovio event DOM, `[data-class="space"]`, and
+  legacy `ScoreData` visual-placement helpers.
+- Preserved the measure end as a legal caret boundary even when the selected
+  grid step does not exactly divide the measure duration.
+- Added `rhythmic-input.test.ts` coverage for:
+  - nearest-grid snapping;
+  - deterministic forward tie handling;
+  - snapped caret creation without rendered event/space anchors;
+  - boundary clamping;
+  - non-divisible measure end enumeration.
+- Updated
+  `docs/engineering/plans/editor-domain-model-refactoring-plan.md` to mark the
+  pure snapping step complete.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- rhythmic-input architecture-boundaries`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should continue with `RhythmicLayoutMap`: add a pure adapter-side model
+and tests that map legal rhythmic grid positions to rendered x coordinates using
+synthetic non-linear measure geometry. Keep preview UI and legacy add writes
+unchanged until that layout projection is covered.
+
+### 2026-08-13: Phase 4B RhythmicLayoutMap pure projection added
+
+- Added
+  `apps/customer-web/src/lib/editor-domain/rhythmic-layout-map.ts`.
+- Exported it through the `editor-domain` barrel.
+- Added a pure adapter-side `RhythmicLayoutMap` model that:
+  - owns rendered measure x bounds for one measure/staff/voice;
+  - accepts rendered rhythmic anchors as data rather than reading DOM;
+  - enumerates legal rhythmic grid positions from `RhythmicGridResolution`;
+  - interpolates missing grid positions between anchors;
+  - resolves pointer x to the nearest legal rhythmic layout point;
+  - clamps pointer x to rendered measure boundaries.
+- Added `rhythmic-layout-map.test.ts` coverage using synthetic non-linear
+  geometry. This proves the future add-mode caret does not have to use the old
+  linear beat-only fallback and does not need a rendered note/rest/space element
+  at the target position.
+- Updated
+  `docs/engineering/plans/editor-domain-model-refactoring-plan.md` to mark the
+  layout-map projection test step complete.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- rhythmic-layout-map rhythmic-input architecture-boundaries`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should continue by replacing only the preview-side insertion target
+construction in `editor-preview-panel.tsx` with a caret/layout-map result while
+leaving the final legacy `handleAddEntity` write path unchanged. This should be
+covered by focused tests before deleting `getVisualInsertPlacement` or
+`snapMeasureXToGridTick`.
+
+### 2026-08-13: Add-mode preview target construction migrated to rhythmic placement adapter
+
+- Added `apps/customer-web/src/lib/editor/rhythmic-insert-placement.ts` as the
+  temporary adapter between Verovio/rendered geometry, legacy `ScoreData`, and
+  the new editor-domain rhythmic input model.
+- The adapter:
+  - resolves domain measure/staff/voice ids from the current `ScoreDocument`;
+  - builds a `RhythmicLayoutMap` from rendered onset anchors and measure bounds;
+  - supports empty staff/voice placement from measure geometry plus rhythmic
+    grid;
+  - returns a domain `Caret` and `MusicalPosition`;
+  - projects the resolved domain position back to legacy `AddLocation.tick` only
+    at the current write boundary.
+- Updated `editor-preview-panel.tsx` so add-mode click and mousemove placement
+  use `resolveRhythmicInsertPlacement` instead of directly importing
+  `getVisualInsertPlacement`, `getTargetStaffHasEvents`, or
+  `snapMeasureXToGridTick`.
+- Final add writes remain on `handleAddEntity(location)` intentionally; this
+  step migrates preview target semantics, not the XML write path.
+- Added `rhythmic-insert-placement.test.ts` coverage for:
+  - empty-staff insertion at a non-zero rhythmic position;
+  - non-linear rendered onset-anchor projection;
+  - unresolved domain document/staff/voice returning no placement.
+- Updated `verovio-surface-migration.test.ts` so the executable surface test now
+  asserts that `editor-preview-panel.tsx` uses the rhythmic placement adapter and
+  no longer imports the old visual/tick fallback helpers directly.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- rhythmic-insert-placement rhythmic-layout-map rhythmic-input verovio-surface-migration architecture-boundaries`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`;
+  - `npm.cmd run test`.
+
+REC-007 should continue with focused add-mode interaction coverage around the
+new preview placement behavior before deleting the old
+`visual-insert-placement.ts` and beat-only `snapMeasureXToGridTick` helpers.
+After that coverage is stable, migrate `handleAddEntity` away from hard-coded
+quarter-rest insertion toward explicit domain add commands with independent
+`InputDuration`.
+
+### 2026-08-13: Add-mode rhythmic preview placement covered by component interaction test
+
+- Added
+  `apps/customer-web/src/components/editor/editor-preview-panel-add-mode.test.tsx`.
+- The test mounts `EditorPreviewPanel` with mocked editor providers and a
+  synthetic Verovio-like measure/staff surface.
+- Covered the migrated add-mode path through real React events:
+  - clicking an empty staff resolves a rhythmic caret from measure geometry and
+    calls `handleAddEntity` with projected legacy `AddLocation.tick`;
+  - mouse movement over the empty staff renders the insertion caret at the
+    `RhythmicLayoutMap` x coordinate.
+- This provides behavior coverage for the previous source-level migration:
+  `editor-preview-panel.tsx` now exercises `resolveRhythmicInsertPlacement`
+  through the component boundary, not just through pure adapter tests.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- editor-preview-panel-add-mode rhythmic-insert-placement`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`;
+  - `npm.cmd run test`.
+
+REC-007 should continue by extending add-mode placement coverage to eighth and
+sixteenth grid positions or by deleting now-unused legacy placement helpers only
+after confirming no production imports remain. The final add write path still
+uses `handleAddEntity` and hard-coded quarter-rest insertion, so do not remove
+the legacy XML insertion path yet.
+
+### 2026-08-13: Legacy add-mode visual placement helpers deleted
+
+- Deleted `apps/customer-web/src/lib/editor/visual-insert-placement.ts`.
+- Deleted its now-obsolete test file
+  `apps/customer-web/src/lib/editor/visual-insert-placement.test.ts`.
+- Removed `visual-insert-placement` from the `src/lib/editor` barrel export.
+- Removed the beat-only `snapMeasureXToGridTick` fallback from
+  `apps/customer-web/src/lib/editor/measure-timeline.ts`.
+- Updated `measure-timeline.test.ts` so it only covers the duration and
+  time-signature helpers that remain used by production code.
+- Confirmed with `rg` that production code no longer references:
+  - `visual-insert-placement`;
+  - `getVisualInsertPlacement`;
+  - `getTargetStaffHasEvents`;
+  - `snapMeasureXToGridTick`.
+- Updated
+  `docs/engineering/plans/editor-domain-model-refactoring-plan.md` so it no
+  longer describes the deleted helpers as active transitional code.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- measure-timeline rhythmic-insert-placement editor-preview-panel-add-mode verovio-surface-migration architecture-boundaries`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`;
+  - `npm.cmd run test`.
+
+REC-007 should continue by moving beyond preview placement cleanup. The next
+high-value target is the add write path: replace `handleAddEntity`'s hard-coded
+quarter explicit-rest insertion with an explicit add-mode command model that
+uses independent `InputDuration` and `RhythmicGridResolution`. Keep this as a
+small, tested slice; do not migrate pitch input, note-atom creation, and final
+domain export all at once.
+
+### 2026-08-13: Add write path starts using explicit add-mode command adapter
+
+- Added
+  `apps/customer-web/src/hooks/editor/entity-editor/add-mode-command.ts`.
+- Added tests in
+  `apps/customer-web/src/hooks/editor/entity-editor/add-mode-command.test.ts`.
+- Introduced:
+  - `AddModeInsertCommand`;
+  - `createDefaultAddModeInsertCommand`;
+  - `createAddModeInputDuration`;
+  - `toWritableEntityFromAddModeCommand`.
+- Updated `useEntityEditor.handleAddEntity` so it accepts an explicit
+  `AddModeInsertCommand` and no longer constructs a hard-coded
+  `WritableEntity` inside the hook.
+- The current default command still inserts an explicit quarter rest, but that
+  default now lives behind the add-mode command adapter and uses
+  `InputDuration`.
+- This is intentionally still a transitional write boundary:
+  - the add command is projected to legacy `WritableEntity`;
+  - `insertEntity` still performs the MusicXML mutation;
+  - pitch input, note-atom creation, caret-only movement, and domain
+    command/export writes are not migrated in this slice.
+- Noted a follow-up risk while implementing this: some older transitional
+  Inspector adapters appear to use a different `RhythmicValue.timelineDuration`
+  convention than the importer/rhythmic-placement path. Do not mix those units
+  casually; schedule a focused rhythm-unit consistency pass before broadening
+  add-mode duration UI.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- add-mode-command insert-entity editor-preview-panel-add-mode rhythmic-insert-placement`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`;
+  - `npm.cmd run test`.
+
+REC-007 should continue by either:
+
+- extending the add-mode command adapter to support selected rest durations from
+  UI state; or
+- first performing a focused rhythm-unit consistency audit across
+  `editor-domain`, `event-inspector-domain-adapter.ts`, and add-mode
+  `InputDuration`.
+
+Prefer the rhythm-unit audit before adding more duration UI, because inconsistent
+duration units would make later add-mode behavior difficult for humans and AI
+assistants to reason about.
+
+### 2026-08-13: RhythmicValue unit consistency audit completed
+
+- Standardized the documented editor-domain rhythm convention:
+  `RhythmicValue.timelineDuration` uses quarter-note units, where quarter = `1`,
+  half = `2`, and whole = `4`.
+- Added this convention directly to
+  `apps/customer-web/src/lib/editor-domain/model.ts` beside the
+  `RhythmicValue.timelineDuration` field.
+- Fixed `event-inspector-domain-adapter.ts` so
+  `toDomainRhythm(...)` now emits quarter-note units instead of whole-note
+  fractions:
+  - whole -> `4`;
+  - half -> `2`;
+  - quarter -> `1`;
+  - eighth -> `1/2`;
+  - sixteenth -> `1/4`;
+  - thirty-second -> `1/8`.
+- Added rational normalization for dotted durations so dotted half is emitted as
+  `3/1`, not `6/2`.
+- Updated transitional Inspector, selection, source-render-anchor, and
+  hook-level test fixtures that were still using whole-note fractions such as
+  `1/4` for a quarter note.
+- Updated
+  `docs/engineering/plans/editor-domain-model-refactoring-plan.md` to state the
+  quarter-note-unit convention and mark the consistency pass under the add-mode
+  migration sequence.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- event-inspector-domain-adapter event-inspector-domain-view-model domain-selection-parity domain-selection-companion select-edit-selection source-render-anchors use-editing-domain-event inspector-view-model inspector-drafts musicxml-exporter musicxml-importer musicxml-roundtrip use-editor-domain-edit add-mode-command`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`;
+  - `npm.cmd run test`.
+
+REC-007 can now safely continue with add-mode duration plumbing. The next
+recommended slice is to introduce explicit add-mode input state for
+`InputDuration` in the preview/editor state boundary and cover one non-quarter
+rest insertion path, while still writing through the temporary legacy
+`insertEntity` boundary.
+
+### 2026-08-13: Add-mode InputDuration state plumbed into preview insert command
+
+- Updated `EditorStateContext` with explicit add-mode input-duration state:
+  - `addModeInputDuration`;
+  - `setAddModeInputDuration`.
+- Added `createDefaultAddModeInputDuration` to the add-mode command adapter and
+  used it as the editor-state default.
+- Updated `editor-preview-panel.tsx` so add-mode click and mobile confirmation
+  pass an explicit `AddModeInsertCommand` containing the current
+  `addModeInputDuration` to `handleAddEntity`.
+- Extended `InsertPreview` so mobile tap-to-position preserves the command that
+  was active when the preview was created.
+- Updated `editor-preview-panel-add-mode.test.tsx` so the component-level add
+  path now proves a non-quarter selected rest duration (`half`) flows through
+  preview placement into `handleAddEntity`.
+- The final MusicXML mutation still goes through legacy `insertEntity`; this
+  slice only wires state and command intent, not the final domain exporter write.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- editor-preview-panel-add-mode add-mode-command`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`;
+  - `npm.cmd run test`.
+
+REC-007 should continue by adding a small UI control or toolbar/palette state
+entrypoint for selecting add-mode rest duration, then verifying a real
+non-quarter rest insertion reaches MusicXML through the current legacy write
+boundary. Keep pitched add input separate.
+
+### 2026-08-13: Add-mode rest duration selector added to editor sidebar
+
+- Added an add-mode-only rest-duration selector to
+  `apps/customer-web/src/components/editor/editor-sidebar.tsx`.
+- Reused the existing editor duration list and translations instead of creating
+  a second duration vocabulary.
+- Added
+  `createAddModeInputDurationFromDuration(...)` in
+  `apps/customer-web/src/hooks/editor/entity-editor/add-mode-command.ts` so UI
+  `Duration` selections are converted to domain `InputDuration` using
+  quarter-note timeline units:
+  - whole -> `4`;
+  - half -> `2`;
+  - quarter -> `1`;
+  - eighth -> `1/2`;
+  - sixteenth -> `1/4`;
+  - thirty-second -> `1/8`.
+- Added `addModeRestDuration` i18n copy in English and Chinese.
+- Added
+  `apps/customer-web/src/components/editor/editor-sidebar-add-mode.test.tsx`
+  to prove:
+  - the rest-duration control is visible only in add mode;
+  - selecting half note updates the editor-state `addModeInputDuration`.
+- Extended `add-mode-command.test.ts` to cover UI duration -> domain duration
+  conversion.
+- Updated
+  `docs/engineering/plans/editor-domain-model-refactoring-plan.md` so the plan
+  no longer describes add-mode rest-duration UI as missing.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- editor-sidebar-add-mode add-mode-command`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`;
+  - `npm.cmd run test`.
+
+REC-007 should continue by adding one real write-path test that uses the
+selected non-quarter add-mode rest duration and asserts the resulting MusicXML
+contains the expected `<duration>` and `<type>` values through the current
+legacy `insertEntity` boundary. Keep this slice focused on explicit rests; do
+not add pitched input until rest insertion is fully covered.
+
+### 2026-08-13: Add-mode selected rest duration verified through MusicXML write path
+
+- Added
+  `apps/customer-web/src/hooks/editor/use-entity-editor-add-mode.test.tsx`.
+- The test mounts the real editor providers and calls
+  `useEntityEditor().handleAddEntity(...)` with an explicit half-rest
+  `AddModeInsertCommand`.
+- Verified the selected non-quarter rest duration reaches the current legacy XML
+  mutation boundary:
+  - MusicXML `<duration>` is `8` when `<divisions>` is `4`;
+  - MusicXML `<type>` is `half`;
+  - the inserted event remains selected as a `durationHalf` rest;
+  - history receives the new XML snapshot.
+- Updated
+  `docs/engineering/plans/editor-domain-model-refactoring-plan.md` to mark this
+  write-path coverage as complete for explicit rests.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- use-entity-editor-add-mode editor-sidebar-add-mode add-mode-command`.
+
+REC-007 should continue with independent add-mode grid-resolution state and UI
+only after deciding the first supported placement grid. Keep `inputDuration`
+and `rhythmicGridResolution` separate: changing the duration of the inserted
+rest must not change the legal caret positions, and changing the grid must not
+change the inserted rest duration.
+
+### 2026-08-13: Add-mode placement grid state and UI added
+
+- Added `addModeGridResolution` and `setAddModeGridResolution` to
+  `apps/customer-web/src/contexts/editor-state-context.tsx`.
+- Default add-mode grid is quarter-note resolution. The first user-facing
+  choices are quarter, eighth, and sixteenth grids; triplets/tuplets remain out
+  of scope until tuplets/time-modification semantics are modeled end-to-end.
+- Updated `apps/customer-web/src/components/editor/editor-sidebar.tsx` with an
+  add-mode-only placement-grid selector, kept separate from the rest-duration
+  selector.
+- Updated `apps/customer-web/src/lib/editor/rhythmic-insert-placement.ts` so
+  callers may pass a `RhythmicGridResolution`; if omitted, the adapter still
+  uses beat-duration placement based on the current time signature.
+- Updated `apps/customer-web/src/components/editor/editor-preview-panel.tsx` so
+  add-mode click and hover placement use the selected grid resolution.
+- Added/updated tests proving:
+  - sidebar grid selection changes grid state without changing rest duration;
+  - `resolveRhythmicInsertPlacement(...)` uses the supplied grid;
+  - preview add-mode placement uses the selected grid for empty-staff clicks.
+- Updated
+  `docs/engineering/plans/editor-domain-model-refactoring-plan.md` so the plan
+  records that both add-mode `InputDuration` and `RhythmicGridResolution`
+  state/UI are now wired.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- editor-sidebar-add-mode rhythmic-insert-placement editor-preview-panel-add-mode`;
+  - `npm.cmd run typecheck`.
+
+REC-007 should continue by deciding whether explicit rest add mode now has
+enough coverage to start replacing the temporary legacy `insertEntity` write
+boundary with a domain command/export path. Before migrating the write itself,
+add a narrowly scoped parity test comparing current legacy rest insertion output
+with the planned domain-export output for simple empty-staff insertion.
+
+### 2026-08-13: Add-mode explicit-rest legacy/domain parity safety net added
+
+- Added
+  `apps/customer-web/src/hooks/editor/entity-editor/add-mode-rest-domain-parity.test.ts`.
+- The test compares current legacy `insertEntity(...)` output with the planned
+  domain command/export path for a simple empty-staff explicit half-rest insert
+  at quarter offset.
+- The comparison intentionally checks a semantic insertion signature instead of
+  full XML text, because the domain exporter owns canonical MusicXML generation
+  and is not expected to preserve every source formatting/detail from the legacy
+  mutation path.
+- Added `applyAddModeInsertCommandToDomain(...)` in
+  `apps/customer-web/src/hooks/editor/entity-editor/add-mode-command.ts` as a
+  small pure bridge from `AddModeInsertCommand` to the editor-domain
+  `insertExplicitRest(...)` command.
+- Exported the helper from
+  `apps/customer-web/src/hooks/editor/entity-editor/index.ts`.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- add-mode-command add-mode-rest-domain-parity`;
+  - `npm.cmd run typecheck`.
+
+REC-007 can now attempt the smallest real write migration for explicit rest add
+mode: have `handleAddEntity` build/apply the domain command and export MusicXML
+for the simple rest path, while preserving existing history and selection-refresh
+behavior. Keep the legacy `insertEntity` path only until equivalent tests pass;
+do not add compatibility aliases.
+
+### 2026-08-13: Add-mode explicit-rest writes migrated to domain command/export path
+
+- Added
+  `apps/customer-web/src/hooks/editor/entity-editor/add-mode-domain-insert.ts`.
+- Updated `apps/customer-web/src/hooks/editor/use-entity-editor.ts` so
+  `handleAddEntity(...)` now calls `applyAddModeDomainInsert(...)` instead of
+  projecting the command to legacy `WritableEntity` and calling
+  `insertEntity(...)`.
+- The new add-mode write path:
+  - imports the current MusicXML into the editor-domain document;
+  - ensures the target staff/voice exists for empty-staff insertion;
+  - applies `AddModeInsertCommand` through
+    `applyAddModeInsertCommandToDomain(...)`;
+  - exports the updated domain document to MusicXML;
+  - reparses the exported XML into legacy `ScoreData` while preserving expected
+    voice structure;
+  - pushes the new XML into history and refreshes the inserted selection from
+    the reparse result.
+- Removed the obsolete `toWritableEntityFromAddModeCommand(...)` projection and
+  its `AddModeWritableEntityResult` type from production exports.
+- Added a migration-boundary assertion in
+  `apps/customer-web/tests/unit/verovio-surface-migration.test.ts` to prevent
+  `use-entity-editor.ts` from reintroducing the old add-mode
+  `insertEntity(...)`/`WritableEntity` path.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- use-entity-editor-add-mode add-mode-rest-domain-parity add-mode-command verovio-surface-migration`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should continue by expanding explicit-rest domain add coverage beyond
+the current simple empty-staff case: at minimum, cover insertion after an
+existing event and insertion into a second voice/staff. If those pass, remove
+or narrow legacy `insertEntity` responsibilities that are no longer used by
+active production flows.
+
+### 2026-08-13: Add-mode domain insert coverage expanded and legacy insert helper removed
+
+- Added
+  `apps/customer-web/src/hooks/editor/entity-editor/add-mode-domain-insert.test.ts`.
+- Covered explicit-rest domain add writes for:
+  - insertion after an existing note in the same staff/voice;
+  - insertion into the selected second staff and second voice;
+  - reparse/selection metadata for the inserted rest event.
+- Deleted legacy add-write implementation files that no longer have production
+  callers:
+  - `apps/customer-web/src/hooks/editor/entity-editor/insert-entity.ts`;
+  - `apps/customer-web/src/hooks/editor/entity-editor/insert-entity.test.ts`;
+  - `apps/customer-web/src/hooks/editor/entity-editor/add-mode-rest-domain-parity.test.ts`.
+- Removed `insertEntity` from the entity-editor barrel export.
+- Updated
+  `docs/engineering/plans/editor-domain-model-refactoring-plan.md` so it no
+  longer says add-mode explicit-rest writes still use legacy `insertEntity`.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- add-mode-domain-insert use-entity-editor-add-mode add-mode-command verovio-surface-migration`;
+  - `npm.cmd run typecheck`.
+
+REC-007 should continue by auditing the remaining `WritableEntity` and legacy
+mutation surfaces. The likely next target is to separate transitional Inspector
+update/delete paths from the add-mode command path, then decide whether
+`WritableEntity` can be renamed/narrowed to an Inspector-only draft.
+
+### 2026-08-13: WritableEntity renamed and scoped to Inspector update path
+
+- Renamed the generic `WritableEntity` type in
+  `apps/customer-web/src/types/score-types.ts` to `InspectorWritableEntity`.
+- Renamed Inspector conversion helpers so their role is explicit:
+  - `toInspectorWritableEntityFromInspectorDraft(...)`;
+  - `toInspectorWritableEntityFromInspectorEditState(...)`.
+- Renamed
+  `apps/customer-web/src/hooks/editor/entity-editor/writable-entity-validation.ts`
+  to
+  `apps/customer-web/src/hooks/editor/entity-editor/inspector-writable-entity-validation.ts`.
+- Renamed its validator to `hasValidInspectorWritableEntityShape(...)`.
+- Updated `useEntityEditor.updateEntity(...)` and
+  `updateExistingEntity(...)` to use `InspectorWritableEntity`, making it clear
+  this legacy DTO is currently scoped to Inspector update mutations only.
+- Added a migration-boundary assertion in
+  `apps/customer-web/tests/unit/verovio-surface-migration.test.ts` to keep
+  add-mode commands independent from `InspectorWritableEntity`.
+- Cleaned one historical mojibake arrow in
+  `apps/customer-web/src/components/editor/event-inspector.tsx` while touching
+  the Inspector surface.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- event-inspector-event-model event-inspector-domain-adapter update-existing-entity verovio-surface-migration add-mode-domain-insert`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`;
+  - `npm.cmd run test`.
+
+REC-007 should continue by examining whether `updateExistingEntity(...)` can be
+split into explicit Inspector update operations by target kind: pitched event,
+explicit rest, and chord note-atom metadata. Avoid extracting too much; start
+with one narrow domain-backed Inspector edit that already has parity coverage.
+
+### 2026-08-13: Inspector explicit-rest rhythm saves moved to domain command/export
+
+- Updated
+  `apps/customer-web/src/components/editor/event-inspector.tsx` so matched
+  explicit-rest duration/dotted edits use `useEditorDomainEdit(...)` instead of
+  the legacy `InspectorWritableEntity -> updateExistingEntity(...)` XML
+  mutation path.
+- Added a narrow explicit-rest domain save helper that carries only the target
+  domain event id and rhythm. Staff, voice, and position edits remain out of
+  scope until the UI has explicit semantics for those changes.
+- Added lower-level domain export coverage in
+  `apps/customer-web/src/hooks/editor/use-editor-domain-edit.test.tsx`.
+- Added component interaction coverage in
+  `apps/customer-web/src/components/editor/event-inspector-domain-save.test.tsx`
+  proving Inspector rest duration edits update MusicXML, history, reparsed
+  `ScoreData`, and the refreshed selected event.
+- Added a migration-boundary assertion in
+  `apps/customer-web/tests/unit/verovio-surface-migration.test.ts` so this path
+  stays domain-backed.
+- Updated
+  `docs/engineering/plans/editor-domain-model-refactoring-plan.md` to reflect
+  the current state of add-mode explicit rest, Inspector explicit-rest rhythm,
+  and remaining `InspectorWritableEntity` surfaces.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- event-inspector-domain-save use-editor-domain-edit verovio-surface-migration`.
+
+REC-007 should continue with the next behavior-backed Inspector domain save
+slice: migrate pitch name/octave edits for an existing note atom through
+`updateNoteAtom(...)`, using the same source-id retargeting bridge already used
+by accidental and fingering edits. Do not migrate add-pitch/remove-pitch until
+note-atom id generation and chord-shape semantics are explicit.
+
+### 2026-08-13: Inspector pitch name/octave saves moved to domain note-atom patch
+
+- Updated
+  `apps/customer-web/src/components/editor/event-inspector-event-model.ts` with
+  a narrow `getPitchOnlyPitchedEdit(...)` classifier. It only accepts one
+  existing pitch name/octave change while duration, dotted, stem direction,
+  fingerings, accidentals, and pitch count remain unchanged.
+- Updated
+  `apps/customer-web/src/components/editor/event-inspector.tsx` so matched
+  pitch name/octave edits use `useEditorDomainEdit(...)` with a retargetable
+  `noteAtom` draft containing only a `pitch` patch.
+- Kept accidental edits on their existing combined `pitch + accidental` domain
+  path, so clicking accidental buttons is not misclassified as a pitch-only
+  edit.
+- Added pure helper coverage in
+  `apps/customer-web/tests/unit/event-inspector-event-model.test.ts`.
+- Added component interaction coverage in
+  `apps/customer-web/src/components/editor/event-inspector-domain-save.test.tsx`
+  proving:
+  - single-note pitch edits refresh MusicXML, history, selected legacy event,
+    and reparsed `ScoreData`;
+  - chord-member pitch edits retarget by the edited source id and preserve the
+    remaining chord member/source ids.
+- Updated
+  `docs/engineering/plans/editor-domain-model-refactoring-plan.md` so existing
+  note-atom pitch name/octave edits are no longer listed as legacy
+  `InspectorWritableEntity` save paths.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- event-inspector-event-model event-inspector-domain-save use-editor-domain-edit`.
+
+REC-007 should continue by defining the identity policy for appended note atoms
+before migrating add-pitch. The policy must cover the domain `NoteAtomId`, the
+exported MusicXML source id, and collision behavior after reimport. Do not move
+add-pitch or remove-pitch until this identity rule has focused tests.
+
+### 2026-08-18: Appended note-atom identity policy completed
+
+- Added `createUniqueMusicXmlId(...)` to the MusicXML identity utility. It
+  sanitizes a proposed XML id and resolves collisions deterministically with
+  numeric suffixes.
+- Added `createAppendedNoteAtomIdentity(...)` in the editor domain. For an
+  appended chord member it derives `<root>-chord-<member-number>` from the
+  first note's stable source id (or its domain id), reserves every event,
+  note-atom, and source id in the current document, and resolves collisions.
+- The new value is assigned both as `NoteAtomId` and as the note's MusicXML
+  source id. The exporter writes `NoteAtomId` as `<note id>`, and the importer
+  restores it into both fields; no fallback lookup or compatibility alias is
+  introduced.
+- Added focused identity/collision tests and a MusicXML round-trip test proving
+  that an appended `editable-note-chord-2` member remains addressable after
+  export and re-import.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- note-atom-identity stable-ids`.
+
+REC-007 can now migrate add-pitch for existing pitched events as one narrow
+Inspector command slice using `addNoteAtom(...)`. Explicit-rest conversion and
+remove-pitch remain separate behaviors and must not enter that slice.
+
+### 2026-08-20: Inspector add-pitch moved to the domain append-note command
+
+- Added `appendNoteAtom` as an explicit editor-domain Inspector command. It
+  accepts only an existing pitched event, generates the new note atom's stable
+  identity from the imported document, and delegates the mutation to
+  `addNoteAtom(...)`.
+- Updated the Inspector Add pitch control: when its selected entity matches the
+  domain projection, it now uses this command and reselects through the
+  existing source ids. Explicit-rest conversion remains outside this slice.
+- Added domain-command coverage for source-backed appended note atoms and an
+  Inspector interaction test proving the exported MusicXML, history, reparsed
+  score, and reopened selection all become a two-member chord with stable
+  source ids.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- inspector-drafts event-inspector-domain-save note-atom-identity musicxml-roundtrip`.
+
+REC-007 should next migrate remove-pitch for an existing multi-note pitched
+event through `removeNoteAtom(...)`. The final pitch must remain disabled in
+the UI; explicit delete and pitch-to-rest conversion are separate commands.
+
+### 2026-08-20: Inspector remove-pitch moved to the domain remove-note command
+
+- Added `removeNoteAtom` as an explicit editor-domain Inspector command, backed
+  directly by the command-layer guard that rejects removal of the final note
+  atom.
+- Updated Inspector pitch-row deletion. A matched multi-note event now resolves
+  the target `NoteAtomId` from the domain view model and removes that member
+  through the domain command. The UI keeps the final member's delete control
+  disabled, and it never converts a note to a rest as a side effect.
+- Added command tests for successful multi-note removal and final-note
+  rejection. Extended the real Inspector interaction test to append a member,
+  remove it, and verify MusicXML, history, selection, and parsed score return
+  to the remaining single note.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- inspector-drafts event-inspector-domain-save note-atom-identity musicxml-roundtrip`.
+
+REC-007 has completed the current pitch/chord shape command slice. The next
+high-value migration is domain-native render-id-to-anchor selection, which will
+remove the remaining `ParsedEventSelection` bridge before relationship controls
+such as tie and slur are migrated.
+
+### 2026-08-20: Select/edit domain anchor decoupled from ParsedEventSelection
+
+- `EditorPreviewPanel` now resolves the domain anchor directly from the clicked
+  Verovio render id and passes it straight to
+  `createDomainSelectionCompanion(...)`.
+- `createSelectEditSelection(...)` and parity evaluation now receive the
+  low-level legacy Verovio hit only for the transitional parsed
+  event/location payload. They no longer depend on `ParsedEventSelection`,
+  which previously mixed domain-anchor transport with legacy editor state.
+- `ParsedEventSelection` remains only for current delete and tie/slur
+  operations, whose command interfaces still require legacy locations and
+  parsed connection metadata. No new compatibility alias was added.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- select-edit-selection domain-selection-parity select-edit-selection-flow verovio-surface-migration`.
+
+REC-007 should next move selection highlighting and Inspector-open state to
+domain anchors, leaving legacy event/location lookup only at the remaining
+legacy mutation boundaries. After that, tie/slur command migration can use
+note-atom anchors rather than parsed source-id bookkeeping.
+
+### 2026-08-20: Domain-anchor state made canonical for preview selection
+
+- Added `domainAnchor` to `EditingSelectionState`. The state provider derives
+  it from a supplied domain companion when a caller does not explicitly pass
+  it, so the stored editor state has one canonical identity for new
+  render-id-backed selections.
+- Updated preview selection highlighting to resolve render ids from that domain
+  anchor through `getRenderIdsForDomainAnchor(...)`. Legacy source-id
+  highlighting is now limited to older selection origins that do not yet create
+  a domain anchor.
+- Added provider coverage proving domain companion selection is normalized to
+  its canonical anchor.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- editor-state-context editor-preview-selection-highlight select-edit-selection domain-selection-parity select-edit-selection-flow event-inspector-domain-save`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+### Delivery-policy adjustment: accelerate domain-first migration during development
+
+- The product has no production users or persisted user-authored editor data,
+  so new editor work should prefer direct replacement over compatibility
+  shims, aliases, or preserving obsolete runtime shapes.
+- Incremental test-backed slices remain appropriate for MusicXML semantics,
+  rhythmic timing, multi-voice behavior, and export/re-import invariants. They
+  are not needed merely to preserve legacy UI-state APIs.
+- For remaining selection/Inspector work, make domain anchors authoritative and
+  retain legacy parsed event/location data only at an active, unported mutation
+  boundary. Delete that boundary and its adapter once its command migration is
+  complete.
+
+### 2026-08-20: Inspector domain view rebuilt from canonical selection anchor
+
+- `useEditingDomainInspectorViewModel(...)` now resolves its view model from
+  the current imported domain document and `editingSelection.domainAnchor`.
+  It no longer treats an earlier `DomainSelectionCompanion` snapshot as
+  authoritative, preventing stale Inspector data after export/re-import.
+- Domain saves preserve the current anchor when the addressed object remains
+  valid. Add/remove pitch deliberately promote the selection to the containing
+  event anchor, because a removed note-atom anchor can no longer be valid.
+- Added coverage for stale companion rejection and structural pitch edits
+  retaining an event-level canonical anchor.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- use-editing-domain-event event-inspector-domain-save editor-state-context select-edit-selection-flow`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should next remove `legacyEvent` from the Inspector's display/read
+model entirely. Keep it only in the legacy tie/slur/delete adapters until those
+commands are replaced by domain relation commands.
+
+### 2026-08-20: Inspector controls now read domain projection unconditionally
+
+- Removed the legacy/domain parity gate from Inspector control display. When a
+  current domain projection exists, pitch rows, duration, dotted state, stem,
+  accidental, and fingering controls read it directly.
+- The parity status remains a mutation-routing diagnostic: it protects the
+  remaining legacy write boundary from consuming data that has not been mapped
+  to a domain command, but it no longer decides what score data the user sees.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- event-inspector-domain-view-model event-inspector-domain-save use-editing-domain-event`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should next move the remaining Inspector initial edit state and open
+guard from `legacyEvent` to the domain projection. This is a larger direct
+replacement: retain a small optional legacy command context only for tie/slur,
+beam, and delete until those commands move to domain anchors.
+
+### 2026-08-20: Inspector domain commands no longer read legacy source metadata
+
+- Replaced legacy `ParsedScoreEvent.meta.sourceIds` as the primary reselection
+  input for all migrated Inspector commands. Those commands now use source ids
+  from the current domain `VoiceEvent`; legacy metadata is only the temporary
+  fallback when a domain event cannot be resolved.
+- This applies to rhythm/stem, fingering, accidental, pitch name/octave, and
+  append/remove note-atom operations. Connection, beam, and delete operations
+  remain intentionally outside this change because their legacy command
+  boundaries have not yet been replaced.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- event-inspector-domain-save use-editing-domain-event event-inspector-domain-view-model`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should now replace the Inspector's initial mutable DTO with a
+domain-derived edit session. That replacement removes the remaining legacy
+event dependency for the migrated core controls, rather than adding further
+legacy/domain classifiers.
+
+### 2026-08-20: Inspector core controls read from domain projection
+
+- Removed `EventInspectorPanel`'s initial mutable legacy `InspectorEditState`.
+  The panel now derives its core editable display from the current domain
+  Inspector projection when available, and only projects the legacy parsed event
+  when no domain projection exists.
+- Legacy `InspectorEditState` is now created only at the remaining unported XML
+  mutation boundary, keeping the legacy DTO out of the migrated core control
+  read path.
+- When a `noteAtom` domain anchor is selected, `useEditingDomainInspectorViewModel`
+  now returns the owning pitched-event view model for Inspector display. This
+  preserves full chord editing while keeping note-atom identity available for
+  command targeting.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- use-editing-domain-event event-inspector-domain-save event-inspector-domain-view-model event-inspector-event-model`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+### 2026-08-20: Inspector opening no longer requires legacy parsed event context
+
+- Made `EditingSelectionState.legacyEvent` optional and normalized omitted
+  legacy events to `null` in `openEditingSelection(...)`.
+- Updated `EventInspector` to open when the current selection has a resolvable
+  domain Inspector projection, even if no legacy parsed event is attached.
+- Kept legacy parsed events as an explicit temporary command context for
+  unported XML mutation paths. Tie/slur, beam, delete, and fallback legacy
+  mutation operations guard against missing legacy context instead of assuming
+  it exists.
+- Added coverage for:
+  - domain-only `openEditingSelection(...)`;
+  - domain-only Inspector render from current MusicXML/domain anchor.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- event-inspector-domain-save editor-state-context use-editing-domain-event`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+### 2026-08-20: Delete event migrated to domain anchor command path
+
+- Added an explicit `deleteEvent` Inspector draft backed by
+  `deleteVoiceEvent(...)`.
+- Relaxed `deleteVoiceEvent(...)` so `measureDuration` is optional. Deleting an
+  event no longer requires a caller to request derived-gap diagnostics; callers
+  that pass `measureDuration` still receive gaps.
+- Updated preview delete mode to pass the resolved domain anchor into
+  `handleDeleteEntity(...)`. When the anchor identifies an event or note atom,
+  deletion now goes through domain import/edit/export; legacy location deletion
+  remains only for selections without a domain event anchor.
+- Added coverage for:
+  - command-level `deleteEvent`;
+  - hook-level domain-anchor delete writing MusicXML, pushing history, and
+    clearing the open selection.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- commands inspector-drafts use-entity-editor-add-mode event-inspector-domain-save editor-state-context use-editing-domain-event`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+### 2026-08-20: Beam direction migrated to domain notation controls
+
+- Added `getManualBeamRunSourceIdsAtEntity(...)` to the MusicXML beam helper.
+  It is a temporary read bridge for resolving the selected rendered beam run to
+  root MusicXML note ids; it does not perform mutation.
+- Added `applyDomainStemDirectionToSourceIds(...)` to the domain edit hook. It
+  imports the current MusicXML into the editor domain, maps source ids to
+  domain events, applies event stem notation controls, exports MusicXML, pushes
+  history, and refreshes legacy `ScoreData`.
+- Updated Event Inspector beam direction controls (`Auto` / `Above` / `Below`)
+  to use the domain notation-control path. Structural beam join/break was
+  migrated in the later "Inspector beam join/break moved to domain relationship
+  commands" slice below.
+- Updated domain MusicXML export to rebuild automatic beam elements before
+  serialization, so domain-exported beam direction edits do not strip beam XML.
+- Added coverage for:
+  - beam-run source id lookup;
+  - automatic beam export;
+  - hook-level beam direction set/clear with beam preservation;
+  - Event Inspector beam direction interaction.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- automatic-beams musicxml-exporter use-editor-domain-edit event-inspector-domain-save commands inspector-drafts use-entity-editor-add-mode editor-state-context use-editing-domain-event`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+### 2026-08-20: Beam relationships modeled in editor domain
+
+- Added `BeamId` and `BeamRelationship` to the editor-domain model, plus the
+  required `ScoreDocument.beamRelationships` collection.
+- Added `createBeamRelationship(...)` invariant validation: beam relationships
+  require at least two events.
+- Updated MusicXML import to read level-one `<beam>` begin/continue/end runs as
+  domain beam relationships.
+- Updated MusicXML export to write explicit domain beam relationships back to
+  `<beam number="1">begin|continue|end</beam>` after automatic beam rebuilding.
+- Added `updateBeamRelationshipAtEvent(...)` domain command covering the current
+  structural actions: join previous, join next, break left, and break right.
+- Deleting an event now also drops beam relationships that include that event.
+- Added coverage for:
+  - model invariant;
+  - import/export beam relationship round trip surface;
+  - domain join and split commands;
+  - delete-event cleanup of beam relationships.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- commands model musicxml-importer musicxml-exporter automatic-beams use-editor-domain-edit event-inspector-domain-save`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+The follow-up slice below wires these commands into the Inspector. After that
+point, tie/slur relationships remain the next large legacy command context.
+
+### 2026-08-20: Inspector beam join/break moved to domain relationship commands
+
+- Added `applyDomainBeamRelationshipEditBySourceId(...)` to the editor-domain
+  edit hook. It imports the current MusicXML, resolves the selected MusicXML
+  source id to a domain voice event, applies `updateBeamRelationshipAtEvent(...)`,
+  exports MusicXML, pushes history, and refreshes legacy `ScoreData`.
+- Updated Event Inspector beam join/break buttons to use the domain command
+  path instead of `updateManualBeamAtEntity(...)`. The Inspector no longer
+  performs direct MusicXML beam-structure mutation for these controls.
+- Deleted the now-unused `updateManualBeamAtEntity(...)` helper and its
+  direct-XML structure mutation tests. Beam structure edits now have a single
+  production path: editor-domain beam relationships plus MusicXML export.
+- Kept `getManualBeamRunSourceIdsAtEntity(...)` as a narrow read adapter for
+  resolving beam-run direction edits.
+- Added coverage for:
+  - hook-level beam relationship edits by MusicXML source id;
+  - real Event Inspector break-right interaction writing exported MusicXML and
+    history.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- use-editor-domain-edit event-inspector-domain-save automatic-beams musicxml-importer musicxml-exporter commands`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should next focus on tie/slur relationship modeling and command
+migration. Those controls still depend on legacy connection maps and direct
+MusicXML update helpers, while beam direction and beam structure are now
+domain-backed.
+
+### 2026-08-20: Tie relationship foundation added to editor domain
+
+- Added `TieRelationship` to the editor-domain model and made
+  `ScoreDocument.tieRelationships` an explicit required collection. A tie now
+  has its own identity and connects `startNoteAtomId -> stopNoteAtomId`; visual
+  placement remains separate in `tieNotation` controls.
+- Added `createTieRelationship(...)` invariant validation so a tie cannot point
+  to the same note atom as both endpoints.
+- Updated MusicXML import to pair `<tie type="start">` and
+  `<tie type="stop">` by voice/staff/pitch and create domain tie relationships.
+  Imported `NoteAtom` values now also receive `tieOut` / `tieIn` anchors for
+  local note-atom inspection.
+- Updated MusicXML export to write domain tie relationships back as both
+  sounding `<tie type="start|stop">` elements and visual
+  `<notations><tied type="start|stop">` elements.
+- Removed the editor-domain exporter's direct dependency on the legacy
+  `@/lib/musicxml/automatic-beams` helper. Domain export now writes explicit
+  `beamRelationships`; automatic beam synthesis remains outside the canonical
+  editor-domain boundary.
+- Updated delete/remove-note domain commands to drop tie relationships and
+  `tieNotation` controls that reference removed note atoms.
+- Added coverage for:
+  - tie relationship invariant;
+  - MusicXML import of tie relationships;
+  - MusicXML export of tie relationships;
+  - existing command/model/import/export coverage under the new required
+    `ScoreDocument.tieRelationships` field.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- editor-domain`;
+  - `npm.cmd run test -- model musicxml-importer musicxml-exporter commands notation-model`;
+  - `npm.cmd run test -- use-editor-domain-edit event-inspector-domain-save automatic-beams musicxml-importer musicxml-exporter commands`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should next migrate the Inspector tie controls one slice at a time:
+first tie delete through domain relationships, then tie placement through
+`tieNotation` controls. Slur should follow only after the tie path proves the
+relationship/notation split in UI code.
+
+### 2026-08-20: Inspector tie delete moved to domain relationship command
+
+- Added `deleteTieRelationship(...)` to the editor-domain command layer. It
+  removes a tie relationship, clears matching `tieIn` / `tieOut` anchors on
+  note atoms, and drops related `tieNotation` controls.
+- Added `deleteDomainTieRelationshipBySourceIds(...)` to the editor-domain edit
+  hook. It imports the current MusicXML, resolves the two selected MusicXML note
+  ids to domain note atoms, finds the matching tie relationship regardless of
+  endpoint order, applies the domain command, exports MusicXML, pushes history,
+  and refreshes legacy `ScoreData`.
+- Updated Event Inspector single-tie delete to use the domain command/export
+  path instead of `handleDeleteTieConnection(...)`.
+- Deleted the now-unused legacy single-tie XML deletion path:
+  `handleDeleteTieConnection(...)`, `removeTieConnectionFromXML(...)`, and the
+  internal `removeTypedTieFromNote(...)` helper.
+- Added an accessible `deleteConnection` label for connection delete buttons.
+- Added coverage for:
+  - command-level tie relationship deletion;
+  - hook-level tie deletion by MusicXML source ids;
+  - real Event Inspector delete-button interaction removing `<tie>` and
+    `<tied>` XML and updating history.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- commands use-editor-domain-edit event-inspector-domain-save musicxml-importer musicxml-exporter musicxml-core event-inspector-connections`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should next migrate tie placement/direction (`auto` / `above` /
+`below`) to `tieNotation` controls. After tie placement is domain-backed, the
+remaining tie XML direction helpers can be deleted and the same relationship
+pattern can be applied to slur.
+
+### 2026-08-20: Inspector tie placement moved to domain notation controls
+
+- Added `setTieRelationshipPlacement(...)` to the editor-domain command layer.
+  It sets or clears a `tieNotation` control for an existing tie relationship;
+  missing placement remains the automatic engraving state.
+- Updated MusicXML import to read start-side
+  `<tied orientation="over|under">` into `tieNotation.placement` as
+  `above|below`.
+- Updated MusicXML export to write `tieNotation.placement` back to start-side
+  `<tied orientation="over|under">`.
+- Added `setDomainTiePlacementBySourceIds(...)` to the editor-domain edit hook.
+  It resolves both MusicXML note ids to domain note atoms, finds the tie
+  relationship independent of endpoint order, applies the domain command,
+  exports MusicXML, pushes history, and refreshes legacy `ScoreData`.
+- Updated Event Inspector tie direction controls (`auto` / `above` / `below`)
+  to use the domain command/export path.
+- Deleted the now-unused legacy single-tie direction write path:
+  `handleUpdateTieConnectionDirection(...)`, `setTieConnectionDirectionInXML(...)`,
+  and the private `getTieOrientation(...)` helper. The legacy tie direction
+  read helper remains only for displaying parsed connection details until the
+  Inspector connection read model is domain-native.
+- Added coverage for:
+  - command-level set/clear of tie placement;
+  - MusicXML import/export of tie placement;
+  - hook-level set/clear by MusicXML source ids;
+  - real Event Inspector direction interaction writing `orientation="over"`.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- commands use-editor-domain-edit event-inspector-domain-save musicxml-importer musicxml-exporter musicxml-core event-inspector-connections notation-model`;
+  - `npm.cmd run test -- editor-domain`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should now move to slur relationship modeling. Tie relation existence,
+delete, and placement are domain-backed; slur still depends on legacy
+connection maps and direct MusicXML mutation helpers.
+
+### 2026-08-20: Slur relationship foundation added to editor domain
+
+- Added `SlurRelationship` to the editor-domain model and made
+  `ScoreDocument.slurRelationships` an explicit required collection. Slur ids
+  reuse the existing `NotationId` type, matching `slurNotation.notationId`.
+- Added `createSlurRelationship(...)` invariant validation so a slur cannot
+  point to the same note atom as both endpoints.
+- Updated MusicXML import to pair `<slur type="start|stop" number="...">` by
+  staff and MusicXML slur number, creating domain slur relationships between
+  note atoms.
+- Updated MusicXML import/export to round-trip slur placement through
+  `slurNotation.placement`, mapping MusicXML `placement="above|below"` to the
+  domain notation control.
+- Updated MusicXML export to write domain slur relationships back as
+  `<notations><slur type="start|stop" number="...">` elements.
+- Updated delete/remove-note domain commands to drop slur relationships and
+  `slurNotation` controls that reference removed note atoms.
+- Added coverage for:
+  - slur relationship invariant;
+  - MusicXML import of slur relationships and placement;
+  - MusicXML export of slur relationships and placement;
+  - command cleanup of slur relationships when deleting an event.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- model musicxml-importer musicxml-exporter commands notation-model editor-domain`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should next migrate Inspector slur delete to the domain relationship
+path. After slur delete is domain-backed, migrate slur placement/direction and
+then remove the corresponding legacy direct MusicXML slur mutation helpers.
+
+### 2026-08-20: Inspector slur delete moved to domain relationship command
+
+- Added `deleteSlurRelationship(...)` to the editor-domain command layer. It
+  removes a slur relationship and drops related `slurNotation` controls.
+- Added `deleteDomainSlurRelationshipBySourceIds(...)` to the editor-domain edit
+  hook. It imports the current MusicXML, resolves both MusicXML note ids to
+  domain note atoms, finds the matching slur relationship independent of
+  endpoint order, applies the domain command, exports MusicXML, pushes history,
+  and refreshes legacy `ScoreData`.
+- Updated Event Inspector single-slur delete to use the domain command/export
+  path instead of `handleDeleteSlurConnection(...)`.
+- Deleted the now-unused legacy single-slur XML deletion path:
+  `handleDeleteSlurConnection(...)`, `removeSlurConnectionFromXML(...)`, and
+  the internal `removeTypedSlurFromNote(...)` helper.
+- Added coverage for:
+  - command-level slur relationship deletion;
+  - hook-level slur deletion by MusicXML source ids;
+  - real Event Inspector delete-button interaction removing `<slur>` XML and
+    updating history.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- commands use-editor-domain-edit event-inspector-domain-save musicxml-importer musicxml-exporter musicxml-core event-inspector-connections`;
+  - `npm.cmd run test -- editor-domain`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should next migrate slur placement/direction (`auto` / `above` /
+`below`) to `slurNotation` controls. That will remove the last direct
+single-connection slur XML mutation helper from the Inspector path.
+
+### 2026-08-20: Inspector slur placement moved to domain notation controls
+
+- Added `setSlurRelationshipPlacement(...)` to the editor-domain command layer.
+  It sets or clears a `slurNotation` placement control for an existing slur
+  relationship and rejects missing relationship ids.
+- Added `setDomainSlurPlacementBySourceIds(...)` to the editor-domain edit hook.
+  It resolves both MusicXML note ids to domain note atoms, finds the matching
+  slur relationship independent of endpoint order, applies the domain command,
+  exports MusicXML, pushes history, and refreshes legacy `ScoreData`.
+- Updated Event Inspector slur `auto` / `above` / `below` controls to call the
+  domain hook instead of the legacy direct XML mutation path.
+- Deleted the now-unused legacy single-slur direction write path:
+  `handleUpdateSlurConnectionDirection(...)`,
+  `setSlurConnectionDirectionInXML(...)`, and the private
+  `findStartSlurNumber(...)` helper. The slur direction read helper remains
+  only for displaying parsed connection details until the Inspector connection
+  read model is domain-native.
+- Added coverage for:
+  - command-level set/clear of slur placement;
+  - hook-level set/clear by MusicXML source ids;
+  - real Event Inspector direction interaction writing `placement="above"`;
+  - MusicXML core reading of existing tie/slur direction hints without depending
+    on a legacy slur setter.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- commands use-editor-domain-edit event-inspector-domain-save musicxml-importer musicxml-exporter musicxml-core event-inspector-connections notation-model`;
+  - `npm.cmd run test -- editor-domain`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should next migrate connection creation and bulk-delete tools. The
+single-connection Inspector delete/placement controls for ties and slurs are now
+domain-backed, but Add Tie / Add Slur and bulk Delete Tie / Delete Slur still use
+legacy MusicXML mutation helpers.
+
+### 2026-08-20: Add Tie / Add Slur moved to domain relationship commands
+
+- Added `addTieRelationship(...)` and `addSlurRelationship(...)` to the
+  editor-domain command layer.
+  - Tie creation writes a deterministic tie id, adds a `TieRelationship`, and
+    updates the start/stop note atoms' `tieOut` / `tieIn` anchors.
+  - Slur creation writes a deterministic notation id and adds a
+    `SlurRelationship`.
+  - Duplicate relationships and missing endpoint note atoms are rejected instead
+    of silently generating duplicate MusicXML.
+- Added `addDomainTieRelationshipsBySourceIds(...)` and
+  `addDomainSlurRelationshipsBySourceIds(...)` to the editor-domain edit hook.
+  They import the current MusicXML, resolve selected MusicXML note ids to one or
+  more domain note-atom pairs, order endpoints by score position, apply domain
+  relationship commands, export MusicXML once, push history, and refresh legacy
+  `ScoreData`.
+- Updated `useConnectionOperations(...)` so Add Tie / Add Slur keep their
+  existing selection-state and product validation rules, but write through the
+  domain command/export path instead of `addTieElementsToXML(...)` /
+  `addSlurElementsToXML(...)`.
+- Deleted the now-unused legacy direct connection creation helpers:
+  `addTieElementsToXML(...)`, `addSlurElementsToXML(...)`, and their private
+  MusicXML element insertion helpers.
+- Updated MusicXML core tests to use explicit standard MusicXML fixtures for
+  parser/read coverage instead of relying on removed legacy writer helpers.
+- Added coverage for:
+  - command-level tie and slur relationship creation;
+  - duplicate tie/slur creation rejection;
+  - hook-level tie and slur creation by MusicXML source ids, including endpoint
+    ordering independent of click order;
+  - parser read coverage for standard tie/slur XML and chord-member endpoints.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- commands use-editor-domain-edit musicxml-core`;
+  - `npm.cmd run test -- editor-domain`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should next migrate bulk Delete Tie / Delete Slur tools. The remaining
+legacy connection write helpers are now the bulk deletion helpers:
+`removeTieElementsFromXML(...)` and `removeSlurElementsFromXML(...)`.
+
+### 2026-08-20: Bulk Delete Tie / Delete Slur moved to domain relationship commands
+
+- Added `deleteDomainTieRelationshipsForSourceIds(...)` and
+  `deleteDomainSlurRelationshipsForSourceIds(...)` to the editor-domain edit
+  hook. They import the current MusicXML, resolve the selected MusicXML note ids
+  to domain note atoms, delete every tie/slur relationship touching those note
+  atoms, export MusicXML once, push history, and refresh legacy `ScoreData`.
+- Updated `useConnectionOperations(...)` so the preview toolbar's bulk Delete
+  Tie / Delete Slur tools keep their existing connection availability checks and
+  toast count calculation, but write through the domain command/export path.
+- Removed `useConnectionOperations(...)`'s dependency on `useXmlUpdater(...)`.
+  `editor-preview-panel.tsx` no longer wires direct XML mutation into connection
+  operations.
+- Deleted the now-unused legacy direct bulk deletion helpers:
+  `removeTieElementsFromXML(...)`, `removeSlurElementsFromXML(...)`, and their
+  private MusicXML element removal helpers.
+- Narrowed `musicxml/connections.ts` to connection direction readers only. This
+  bridge was later removed when the Inspector connection detail read path moved
+  to domain relationships and notation controls.
+- Added coverage for:
+  - deleting all tie relationships touching a selected middle note;
+  - deleting all slur relationships touching a selected middle note;
+  - exported MusicXML/history updates after bulk deletion.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- use-editor-domain-edit musicxml-core commands`;
+  - `npm.cmd run test -- editor-domain`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 connection write paths are now domain-backed. The next migration should
+make the connection read model domain-native so Inspector connection lists and
+preview connection visibility no longer depend on legacy `ScoreData.connections`
+plus MusicXML direction reader bridges.
+
+### 2026-08-20: Inspector tie/slur connection details moved to domain read model
+
+- Added domain-native connection detail builders:
+  `buildDomainTieDetails(...)` and `buildDomainSlurDetails(...)`.
+  They read from `ScoreDocument.tieRelationships`,
+  `ScoreDocument.slurRelationships`, and domain notation controls instead of
+  parsing direction from MusicXML.
+- Updated Event Inspector to prefer domain connection details whenever the
+  current selection resolves to a pitched domain event. The existing legacy
+  `ScoreData.connections` detail builders remain only as fallback for
+  unresolved domain selections.
+- Preserved the current UI contract by mapping domain note-atom MusicXML source
+  ids back to parsed `ScoreData` entity ids for endpoint display and the
+  existing endpoint navigation callback.
+- Moved `ConnectionDirection` to the Inspector connection helper and deleted the
+  obsolete `musicxml/connections.ts` module entirely.
+- Removed the stale MusicXML core test that exercised the deleted direction
+  reader bridge. Direction display is now covered by domain connection helper
+  tests and domain notation-control import/export tests.
+- Added coverage for:
+  - tie detail direction from `tieNotation.placement`;
+  - slur detail direction from `slurNotation.placement`;
+  - chord-member source id mapping from domain note atoms back to parsed
+    endpoint ids.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- event-inspector-connections musicxml-core event-inspector-domain-save`;
+  - `npm.cmd run test -- editor-domain`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should next migrate preview connection visibility. The Inspector
+connection list is now domain-first, but hidden-track connection filtering still
+uses legacy `ScoreData.connections` to derive tie/slur endpoint pairs.
+
+### 2026-08-20: Preview hidden-track connection pairs moved to domain relationships
+
+- Updated `getHiddenConnectionPairs(...)` to require a domain
+  `ScoreDocument`. It derives hidden tie and slur endpoint pairs from
+  `tieRelationships` and `slurRelationships` plus note-atom MusicXML source ids.
+- Updated `editor-preview-panel.tsx` to pass the current domain document into
+  hidden connection pair projection.
+- Removed the legacy `ScoreData.connections` fallback from hidden connection
+  pair projection and deleted the unused test fixture connection map.
+- Added coverage proving hidden connection pairs are derived from domain
+  relationships.
+- Updated Verovio surface migration sentinels to assert the current domain
+  connection deletion/editing boundaries instead of obsolete legacy handler
+  names.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- editor-preview-track-visibility verovio-surface-migration`;
+  - `npm.cmd run test -- event-inspector-connections event-inspector-domain-save editor-domain`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 tie/slur connection interaction is now domain-first for writes,
+Inspector details, and preview hidden-track connection visibility. Remaining
+legacy connection dependencies are fallback/diagnostic surfaces such as
+`ScoreData.connections` in parser/validator flows and endpoint navigation that
+still maps domain source ids back to parsed entity ids.
+
+### 2026-08-20: Preview Delete Tie / Delete Slur availability moved to domain relationships
+
+- Updated `useConnectionOperations(...)` to read the current
+  `ScoreDocument` via `useEditorDomainDocument()`.
+- Added `getDomainConnectionDeletionSummary(...)`, a pure helper that resolves
+  selected MusicXML source ids to domain note atoms and summarizes the tie/slur
+  relationships touching those atoms.
+- Updated preview Delete Tie / Delete Slur tools so their "has connection?"
+  checks and toast counts use domain relationships instead of
+  `ScoreData.connections`.
+- `useConnectionOperations(...)` no longer directly reads
+  `ScoreData.connections`. `ScoreData` remains in this hook for Add Tie product
+  validation such as same-pitch and adjacent-note checks.
+- Added coverage for:
+  - tie deletion summaries for a selected middle note touching two ties;
+  - slur deletion summaries for a selected middle note touching two slurs;
+  - empty summaries for unresolved MusicXML source ids.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- use-connection-operations editor-preview-track-visibility verovio-surface-migration`;
+  - `npm.cmd run test -- event-inspector-connections event-inspector-domain-save editor-domain`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 editor connection interaction no longer needs `ScoreData.connections`
+for preview tool availability/counts. The remaining editor-facing legacy
+connection bridge is Event Inspector fallback/endpoint navigation; parser and
+validator connection maps are now diagnostic/compatibility surfaces rather than
+the primary editor command model.
+
+### 2026-08-20: Event Inspector connection fallback removed and endpoint navigation uses domain anchors
+
+- Removed the legacy `buildTieDetails(...)` and `buildSlurDetails(...)`
+  builders that projected Inspector connection details from
+  `ScoreData.connections`.
+- Event Inspector now builds tie/slur connection details only from domain
+  relationships and notation controls.
+- Updated connection endpoint clicks to resolve the endpoint MusicXML source id
+  to a domain note-atom anchor via `findNoteAtomByMusicXmlElementId(...)` and
+  open that anchor through `openEditingSelection(...)`.
+- Parsed `ScoreData` entity context is still attached when it can be found by
+  source id, so existing display/edit fallback paths remain available while the
+  selection identity is domain-native.
+- Event Inspector no longer directly reads `ScoreData.connections`.
+- Updated tests to remove legacy connection-detail builder expectations and keep
+  domain relationship / notation-control coverage.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- event-inspector-connections event-inspector-domain-save use-connection-operations`;
+  - `npm.cmd run test -- editor-domain verovio-surface-migration`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 editor-facing tie/slur connection interaction is now domain-backed for
+creation, deletion, placement, Inspector details, endpoint navigation, preview
+visibility, and preview tool availability/counts. Remaining
+`ScoreData.connections` usage is in parser/validator diagnostics and generic
+parsed-score compatibility tests, not in the primary editor connection command
+path.
+
+### 2026-08-20: Preview hidden-track connection fallback deleted
+
+- Narrowed `getHiddenConnectionPairs(...)` so it no longer accepts `ScoreData`
+  and cannot read `ScoreData.connections`.
+- Updated `editor-preview-panel.tsx` to derive hidden tie/slur endpoint pairs
+  only from the current domain document.
+- Deleted the obsolete `noteConnections` fixture data from
+  `editor-preview-track-visibility.test.ts`; tests now document domain-only
+  hidden connection projection.
+- Verified no editor component/hook/test residual reads of:
+  `scoreData.connections`, `connections?.noteConnections`, `noteConnections`,
+  `buildTieDetails`, `buildSlurDetails`, or `entityConnections`.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- editor-preview-track-visibility event-inspector-connections use-connection-operations editor-domain verovio-surface-migration`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 editor-facing tie/slur connection interaction no longer depends on
+legacy parsed connection maps. Remaining `ScoreData.connections` references
+should be treated as parser/validator diagnostics or removed separately if the
+domain validator fully replaces them.
+
+### 2026-08-20: Add Tie product validation moved from parsed score meta to domain document
+
+- Added `validateDomainTieCreation(...)` in
+  `apps/customer-web/src/hooks/editor/use-connection-operations.ts`.
+- The Add Tie two-click flow now validates:
+  - both endpoints resolve to domain note atoms by MusicXML source id;
+  - both endpoints are on the same domain staff;
+  - selected note atoms have the same pitch including alter;
+  - no pitched domain event on the same staff sits between the two endpoint
+    events.
+- Removed `useConnectionOperations(...)`'s `scoreData` parameter. The hook no
+  longer uses parsed `ScoreData` meta ticks or the previous
+  `measureIndex * 1000000` ordering approximation for Add Tie validation.
+- Updated `editor-preview-panel.tsx` to call
+  `useConnectionOperations({ currentXml })`.
+- Added pure helper coverage for valid tie creation, non-adjacent endpoints,
+  different pitches, and different staves.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- use-connection-operations`;
+  - `npm.cmd run test -- editor-preview-track-visibility event-inspector-connections use-connection-operations editor-domain verovio-surface-migration editor-preview-panel-add-mode`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 editor connection creation now uses domain relationships for writes and
+domain note atoms/events for Add Tie product validation. Parser
+`ScoreData.connections` should remain only if parser/validator diagnostics still
+need it.
+
+### 2026-08-20: Connection add-mode selection state narrowed to source-id targets
+
+- Updated `useConnectionOperations(...)` so the first click in Add Tie / Add Slur
+  stores a `SelectedConnectionTarget` containing only a stable source-id key and
+  source ids.
+- Removed `EntityLocation` and parsed-event objects from the connection
+  selection state. Parsed events are still accepted at the preview boundary only
+  to validate note/chord clicks and extract MusicXML source ids.
+- Removed unused `selectedNotesForTie` / `selectedNotesForSlur` return values
+  from the hook API; no UI consumer used them.
+- Updated `editor-preview-panel.tsx` to call
+  `handleAddTieSelection(selection.event, sourceId)` and
+  `handleAddSlurSelection(selection.event, sourceId)`.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- use-connection-operations editor-preview-panel-add-mode verovio-surface-migration`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 connection add-mode state is now source-id-first. The remaining parsed
+event boundary in connection tools is the preview click adapter, which still
+passes a parsed event to distinguish note/chord/rest clicks and source-id
+membership.
+
+### 2026-08-20: Add Tie / Add Slur hook inputs narrowed to connection source-id targets
+
+- Added `ParsedEventConnectionTarget` and `getParsedEventConnectionTarget(...)`
+  to `parsed-event-selection.ts`.
+- Preview connection add-mode now resolves source ids from domain note-atom
+  render anchors first; parsed event source ids are used only as the click-hit
+  adapter fallback.
+- Updated `useConnectionOperations(...)` so `handleAddTieSelection(...)` and
+  `handleAddSlurSelection(...)` accept only `{ sourceIds }`.
+- Moved note/chord/rest click validation to the preview boundary, where the
+  parsed event hit still exists. The connection hook no longer receives parsed
+  events for Add Tie / Add Slur.
+- Added tests proving:
+  - domain note-atom anchor source ids win over legacy render ids;
+  - connection targets are created from domain source ids;
+  - non-pitched parsed events do not create connection targets.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- parsed-event-selection use-connection-operations editor-preview-panel-add-mode verovio-surface-migration`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 Add Tie / Add Slur creation is now source-id-target based at the hook
+boundary. Remaining parsed event usage in connection operations is limited to
+delete tie/slur toolbar actions and the preview click adapter's temporary
+note/chord/rest discrimination.
+
+### 2026-08-20: Delete Tie / Delete Slur hook inputs narrowed to connection source-id targets
+
+- Updated `useConnectionOperations(...)` so `handleDeleteTie(...)` and
+  `handleDeleteSlur(...)` accept the same `{ sourceIds }` connection target used
+  by Add Tie / Add Slur.
+- Removed `ParsedScoreEvent` from the connection hook entirely. The hook now
+  treats all connection toolbar operations as source-id-target operations.
+- Updated `editor-preview-panel.tsx` so Delete Tie / Delete Slur resolve a
+  pitched connection target at the preview boundary. Non-note/chord clicks are
+  rejected there with the existing note/chord-only toast.
+- Kept domain note-atom source ids as the preferred target source; parsed event
+  source ids remain only as the preview click adapter fallback.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- parsed-event-selection use-connection-operations editor-preview-panel-add-mode verovio-surface-migration event-inspector-connections`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 connection toolbar operations are now source-id-target based at the hook
+boundary. Remaining parsed event usage is localized to the preview click
+adapter and non-connection entity edit/delete flows.
+
+### 2026-08-20: Editor connection target adapter extracted from parsed-event selection
+
+- Added `apps/customer-web/src/lib/editor/connection-target.ts`.
+  - It owns conversion from a transitional parsed preview selection to a
+    `{ sourceIds }` connection target.
+  - It prefers domain note-atom render-anchor source ids and uses parsed event
+    source ids only as the preview click fallback.
+- Narrowed `parsed-event-selection.ts` back to its original responsibility:
+  wrapping a Verovio parsed-event hit with its optional domain anchor companion.
+- Updated `editor-preview-panel.tsx` and `use-connection-operations.ts` to
+  import `ConnectionTarget` from the new editor module.
+- Added `connection-target.test.ts` and moved connection-target source-id tests
+  out of `parsed-event-selection.test.ts`.
+- Module boundary note: `lib/editor/connection-target.ts` is the editor click
+  target adapter; `lib/musicxml/connection-targets.ts` remains MusicXML endpoint
+  ordering/parsing infrastructure and should not take preview UI dependencies.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- connection-target parsed-event-selection use-connection-operations editor-preview-panel-add-mode verovio-surface-migration`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 connection target adaptation is now isolated without adding compatibility
+aliases. The next cleanup should inspect whether `editor-preview-panel.tsx` still
+has small connection-tool branching that can be made declarative without hiding
+behavior behind a broad abstraction.
+
+### 2026-08-20: Preview connection tool branching deduplicated locally
+
+- Updated `editor-preview-panel.tsx` to use a local `runConnectionTool(...)`
+  helper inside the click handler for Add Tie, Add Slur, Delete Tie, and Delete
+  Slur.
+- Kept the helper local instead of extracting a new module because it only
+  coordinates preview click target resolution, operation execution, and toast
+  rendering in one React handler.
+- No behavior or compatibility path was added; this is a readability cleanup
+  after the connection operations were narrowed to `ConnectionTarget`.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- connection-target parsed-event-selection editor-preview-track-visibility event-inspector-connections use-connection-operations editor-domain verovio-surface-migration editor-preview-panel-add-mode`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should next leave connection toolbar cleanup alone unless behavior
+changes require it. The higher-value remaining work is ordinary entity
+edit/delete and Inspector legacy DTO boundaries.
+
+### 2026-08-20: Legacy parsed-location entity delete fallback removed
+
+- Updated `useEntityEditor().handleDeleteEntity(...)` so deletion requires a
+  domain anchor and always routes through the editor-domain `deleteEvent` draft
+  plus MusicXML export.
+- Updated `editor-preview-panel.tsx` to pass only `selection.domainAnchor` for
+  delete-mode clicks.
+- Removed the legacy parsed-location XML delete helper:
+  - `apps/customer-web/src/hooks/editor/entity-editor/delete-entity.ts`;
+  - `apps/customer-web/src/hooks/editor/entity-editor/delete-entity.test.ts`;
+  - the `deleteEntity` barrel export from `entity-editor/index.ts`.
+- Updated the domain delete integration test to call the narrowed
+  `handleDeleteEntity(domainAnchor)` API.
+- Added a Verovio migration sentinel that prevents re-exporting
+  `./delete-entity` or reintroducing `deleteEntity(...)` in `use-entity-editor`.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- use-entity-editor-add-mode entity-editor verovio-surface-migration editor-preview-panel-add-mode`;
+  - `npm.cmd run test -- use-entity-editor-add-mode entity-editor verovio-surface-migration editor-preview-panel-add-mode commands musicxml-exporter musicxml-importer`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 ordinary entity delete is now domain-only. The remaining high-value
+legacy mutation boundary is `update-existing-entity.ts`, which still edits
+MusicXML by parsed `EntityLocation`.
+
+### 2026-08-20: Legacy parsed-location entity update fallback removed
+
+- Removed the Event Inspector fallback that converted an edit state into an
+  `InspectorWritableEntity` and called `useEntityEditor().updateEntity(...)`.
+- Updated unsupported Inspector edits to fail explicitly with a domain-command
+  missing message instead of silently using a legacy XML mutation path.
+- Removed `useEntityEditor().updateEntity(...)` and its dependencies on parsed
+  `EntityLocation` mutation.
+- Deleted the legacy parsed-location update/mutation infrastructure:
+  - `apps/customer-web/src/hooks/editor/entity-editor/update-existing-entity.ts`;
+  - `apps/customer-web/src/hooks/editor/entity-editor/update-existing-entity.test.ts`;
+  - `apps/customer-web/src/hooks/editor/entity-editor/inspector-writable-entity-validation.ts`;
+  - `apps/customer-web/src/hooks/editor/entity-editor/musicxml-mutation-context.ts`;
+  - `apps/customer-web/src/hooks/editor/entity-editor/musicxml-mutation-context.test.ts`.
+- Removed `InspectorWritableEntity` from `score-types.ts` and deleted the
+  domain-draft-to-legacy-writable conversion helpers from Event Inspector
+  adapters.
+- Updated migration sentinels so they now prevent reintroducing
+  `InspectorWritableEntity`, `updateExistingEntity`, `deleteEntity`, or the
+  parsed-location mutation files.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- event-inspector-event-model event-inspector-domain-adapter event-inspector-domain-save use-entity-editor-add-mode entity-editor verovio-surface-migration`;
+  - `npm.cmd run test -- event-inspector-event-model event-inspector-domain-adapter event-inspector-domain-save use-entity-editor-add-mode entity-editor verovio-surface-migration commands musicxml-exporter musicxml-importer editor-preview-panel-add-mode`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 no longer has ordinary entity parsed-location XML mutation helpers.
+Remaining editor migration work should focus on reducing transitional
+`ParsedScoreEvent` / `EntityLocation` read-selection DTOs and deciding whether
+parser `ScoreData.connections` remains diagnostic-only infrastructure.
+
+### 2026-08-20: Event Inspector event display narrowed to domain view model
+
+- Added event-level stem notation to the editor-domain Inspector view model:
+  - `PitchedEventInspectorViewModel.stemDirection`;
+  - `NoteAtomInspectorViewModel.stemDirection`;
+  - `getInspectorViewModelForSelection(...)` and
+    `getInspectorViewModelForEvent(...)` now read
+    `ScoreDocument.notationControls` through `getEventStemDirectionOverride(...)`.
+- Updated `useEditingDomainInspectorViewModel(...)` so both anchor-based and
+  document-lookup view models carry notation controls from the current domain
+  document.
+- Updated the Event Inspector domain adapter so editable Inspector state derives
+  stem direction from the domain view model instead of being passed a parsed
+  legacy event stem value.
+- Updated `event-inspector.tsx` so the event panel opens only when the current
+  selection has a supported domain Inspector view model. A plain
+  `editingSelection.legacyEvent` no longer makes the Inspector render an event
+  panel.
+- Removed legacy parsed-event fallback for Inspector reselect source ids,
+  selected MusicXML source id, summary measure/voice values, and connection
+  endpoint fallback navigation. Endpoint navigation now requires a resolvable
+  domain note-atom anchor; parsed `ScoreData` lookup is retained only to attach
+  the temporary legacy companion context when the source id can also be found
+  there.
+- Kept `EditingSelectionState.legacyEvent` as temporary companion state because
+  preview selection still writes it in several paths. It is no longer the source
+  of truth for Inspector event display or event edit source ids.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- event-inspector-domain-view-model inspector-view-model event-inspector-domain-save event-inspector-event-model verovio-surface-migration`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 should next remove the remaining preview/select-edit legacy companion
+dependency: make preview hit resolution open domain anchors directly, then
+delete `useEditingDomainEvent` document-lookup fallback from
+`editingSelection.legacyEvent`.
+
+### 2026-08-20: Select/edit domain lookup fallback removed
+
+- Narrowed `SelectEditSelection` so `domainCompanion` is required. The
+  `createSelectEditSelection(...)` adapter now returns `null` when a parsed
+  Verovio hit cannot be paired with a domain companion, so ordinary select/edit
+  no longer opens an Inspector event panel from legacy parsed data alone.
+- Removed the `useEditingDomainEvent(...)` fallback that resolved the current
+  domain event from `editingSelection.legacyEvent.meta.sourceIds`.
+  - Deleted `getParsedScoreEventMusicXmlSourceIds(...)`.
+  - Deleted `findDomainVoiceEventForParsedScoreEvent(...)`.
+  - Removed the transitional `documentLookup` `viewModelSource`.
+- Updated Event Inspector domain-save fixtures to explicitly provide domain
+  anchors. Tests now derive anchors from XML source ids through the domain
+  importer instead of relying on legacy-only selection state.
+- Updated add-mode insertion so the inserted event is selected with a domain
+  event anchor found from the new XML and inserted source ids.
+- Updated undo/redo selection refresh so it preserves an existing domain anchor
+  when that anchor still exists in the imported domain document, and attaches
+  refreshed legacy parsed context only when available.
+- Removed the unused legacy-only `useEntityEditor().handleEditEntity(...)`
+  entrypoint so new code cannot open the Event Inspector without a domain
+  selection.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- use-editing-domain-event select-edit-selection select-edit-selection-flow use-entity-editor-add-mode entity-editor event-inspector-domain-save event-inspector-domain-view-model inspector-view-model`;
+  - `npm.cmd run test -- use-editing-domain-event select-edit-selection select-edit-selection-flow use-entity-editor-add-mode entity-editor event-inspector-domain-save event-inspector-domain-view-model inspector-view-model verovio-surface-migration`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 select/edit Inspector display now requires domain identity. The next
+cleanup should remove or narrow APIs that can still open legacy-only selections,
+starting with `EditingSelectionState.legacyEvent` consumers that only support
+parsed-score highlight/history companion behavior.
+
+### 2026-08-20: Global editing selection state made domain-only
+
+- Removed parsed-score companion fields from `EditingSelectionState`:
+  - `legacyEvent`;
+  - `legacyLocation`.
+- Narrowed `openEditingSelection(...)` so global editor selection stores only
+  the canonical `domainAnchor` and optional domain companion.
+- Narrowed `SelectEditSelection` so the preview select/edit adapter carries only
+  `domainCompanion` and parity diagnostics. Parsed Verovio hits remain local to
+  the preview click adapter for hit validation and parity comparison; they are
+  no longer persisted in editor state.
+- Updated Event Inspector save, connection endpoint navigation, add-mode insert,
+  and undo/redo refresh so they keep a domain selection active without writing a
+  parsed event/location back into global state.
+- Updated preview highlighting so selected source ids and selection color derive
+  from `editingSelection.domainAnchor` plus the current domain document, not
+  parsed event metadata.
+- Updated migration sentinels to forbid `selectedLegacyEvent` in preview
+  highlighting.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- editor-state-context use-editing-domain-event select-edit-selection select-edit-selection-flow use-entity-editor-add-mode event-inspector-domain-save editor-preview-track-visibility editor-preview-panel-add-mode verovio-surface-migration`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 global editor selection is now domain-native. The next cleanup should
+focus on parsed-hit adapter naming and scope: `ParsedEventSelection`,
+`findParsedScoreEventByRenderId`, and `domain-selection-parity` are still useful
+as temporary preview/parser parity infrastructure, but they should not be
+described as edit state or command context.
+
+### 2026-08-20: Preview parsed-hit adapter naming clarified
+
+- Renamed the preview parsed-hit wrapper away from selection-state language:
+  - `parsed-event-selection.ts` -> `preview-parsed-hit.ts`;
+  - `ParsedEventSelection` -> `PreviewParsedHit`;
+  - `toParsedEventSelection(...)` -> `toPreviewParsedHit(...)`.
+- Renamed the Inspector-open adapter away from parsed selection language:
+  - `select-edit-selection.ts` -> `domain-edit-context.ts`;
+  - `SelectEditSelection` -> `DomainEditContext`;
+  - `createSelectEditSelection(...)` -> `createDomainEditContext(...)`;
+  - `useEntityEditor().handleSelectEditSelection(...)` ->
+    `handleDomainEditContext(...)`.
+- Updated `editor-preview-panel.tsx`, connection target helpers, tests, and
+  migration sentinels to use the new names.
+- Cleaned `domain-selection-parity.ts` internal naming from `legacyNotes` /
+  `legacyNote` to `parsedNotes` / `parsedNote`, preserving the module's role as
+  parsed-hit versus domain-companion diagnostics.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- preview-parsed-hit connection-target domain-edit-context domain-edit-context-flow domain-selection-parity editor-preview-panel-add-mode verovio-surface-migration`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 naming now reflects the architecture: global selection is domain state;
+parsed hits are preview-local adapter context. The next cleanup should inspect
+whether `findParsedScoreEventByRenderId(...)` is still needed for add-mode
+placement and connection target validation, or whether those preview branches
+can use domain render anchors directly.
+
+### 2026-08-20: Preview add-mode and connection targets reduced parsed-hit dependency
+
+- Refactored preview connection target resolution so tie/slur add/delete tools
+  consume domain anchors and current `ScoreDocument` relationships instead of
+  `PreviewParsedHit` DTOs.
+  - `apps/customer-web/src/lib/editor/connection-target.ts` now resolves
+    source ids from domain note-atom render anchors first, then from
+    domain pitched events through `getVoiceEventMusicXmlElementIds(...)`.
+  - `apps/customer-web/src/lib/editor/connection-target.test.ts` now uses
+    editor-domain fixtures instead of parsed preview event fixtures.
+- Refactored preview add-mode click and hover placement so insertion no longer
+  depends on an existing parsed note/rest/space hit. It resolves measure/staff
+  geometry, active track, rhythmic grid, visible tracks, and domain document
+  placement through `resolveRhythmicInsertPlacement(...)`.
+- Kept `findParsedScoreEventByRenderId(...)` only on the select/edit branch,
+  where it still supplies temporary parser-hit parity diagnostics for
+  `createDomainEditContext(...)`.
+- Updated migration sentinels so `editor-preview-panel.tsx` is not allowed to
+  reintroduce `toPreviewParsedHit(...)`.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- editor-preview-panel-add-mode rhythmic-insert-placement connection-target use-connection-operations verovio-surface-migration`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 preview tools are now closer to the intended architecture: add-mode
+placement and connection operations are domain/geometry based, not
+parsed-event based. The next cleanup should decide whether select/edit still
+needs parser-hit parity diagnostics; if not, `PreviewParsedHit`,
+`findParsedScoreEventByRenderId(...)` usage in `editor-preview-panel.tsx`, and
+`domain-selection-parity.ts` can be narrowed or deleted.
+
+### 2026-08-20: Preview parsed-hit parity bridge deleted
+
+- Removed the remaining select/edit dependency on parsed preview hits:
+  - `editor-preview-panel.tsx` no longer imports or calls
+    `findParsedScoreEventByRenderId(...)`;
+  - select/edit now creates a `DomainSelectionCompanion` from the resolved
+    domain anchor and passes it directly to
+    `useEntityEditor().handleDomainSelectionCompanion(...)`.
+- Deleted the now-empty transition modules and tests:
+  - `apps/customer-web/src/lib/editor/preview-parsed-hit.ts`;
+  - `apps/customer-web/src/lib/editor/preview-parsed-hit.test.ts`;
+  - `apps/customer-web/src/lib/editor/domain-edit-context.ts`;
+  - `apps/customer-web/src/lib/editor/domain-edit-context.test.ts`;
+  - `apps/customer-web/src/lib/editor/domain-edit-context-flow.test.ts`;
+  - `apps/customer-web/src/lib/editor/domain-selection-parity.ts`;
+  - `apps/customer-web/src/lib/editor/domain-selection-parity.test.ts`.
+- Removed `findParsedScoreEventByRenderId(...)` and `VerovioParsedEventHit`
+  from `apps/customer-web/src/lib/editor/verovio-entity-map.ts`, along with
+  tests that only validated that deleted reverse-lookup bridge.
+- Updated migration sentinels so `editor-preview-panel.tsx` must not reintroduce
+  `findParsedScoreEventByRenderId(...)`, `createDomainEditContext(...)`,
+  `toPreviewParsedHit(...)`, or `data-domain-selection-parity`.
+- Updated `docs/engineering/plans/editor-domain-model-refactoring-plan.md` so
+  the current next step no longer says parser-hit parity still needs a decision.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- editor-preview-panel-add-mode connection-target use-connection-operations verovio-surface-migration use-entity-editor-add-mode use-editing-domain-event editor-state-context verovio-entity-map`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 no longer has parsed-hit edit context or parser/domain parity adapter
+in production code. The next high-value task is first-class caret/gap anchors:
+empty measures and empty spans should be selected as domain editor concepts,
+not through Verovio spaces or parsed event DTOs.
+
+### 2026-08-20: Add-mode placement now returns domain insertion anchors
+
+- Extended `resolveRhythmicInsertPlacement(...)` so every resolved placement
+  carries a domain `InsertionAnchor`.
+  - When the snapped position falls inside a derived `TimelineGap`, placement
+    returns a `timelineGap` insertion anchor.
+  - Otherwise placement returns a caret insertion anchor.
+- Kept derived gaps outside `ScoreDocument`. `useEditorDomainRenderAnchors()`
+  now exposes `gaps` from `useEditorDomainDocument()`, and preview passes those
+  gaps explicitly to the placement adapter as `timelineGaps`.
+- Added focused test coverage for both empty-staff caret insertion and
+  timeline-gap insertion-anchor resolution.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- rhythmic-insert-placement editor-preview-panel-add-mode use-editor-domain-render-anchors verovio-surface-migration`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 now has a domain-native insertion-anchor value at the preview placement
+boundary. The next step is to thread `InsertionAnchor` into add commands instead
+of continuing to use only legacy `AddLocation.tick` at the command boundary.
+
+### 2026-08-20: Add-mode command boundary now consumes InsertionAnchor
+
+- Updated preview add-mode execution so `handleAddEntity(...)` receives the
+  domain `InsertionAnchor` produced by `resolveRhythmicInsertPlacement(...)`.
+- Updated `useEntityEditor().handleAddEntity(...)` and
+  `applyAddModeDomainInsert(...)` to consume `InsertionAnchor` instead of
+  `AddLocation`.
+- Reworked add-mode domain insertion to resolve `voiceId`, `staffId`, and
+  `MusicalPosition` from the insertion anchor. Event ids are now generated from
+  domain ids and rhythmic offset rather than from UI measure/staff/tick indexes.
+- Narrowed inserted-source lookup after add-mode writes so it finds the newly
+  inserted parsed event by the generated source id instead of by legacy
+  `AddLocation` fields.
+- Kept `AddLocation` only in preview placement state for UI caret/mobile
+  comparison while the visual layer still needs pixel/tick display metadata.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- add-mode-domain-insert use-entity-editor-add-mode editor-preview-panel-add-mode rhythmic-insert-placement verovio-surface-migration`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 add-mode explicit-rest write commands are now domain-anchor based. The
+next step is visible caret/gap selection state: preview can already compute
+caret/gap insertion anchors, but the editor still treats them as transient add
+mode placement rather than selectable editor state.
+
+### 2026-08-20: Active insertion anchor stored in editor state
+
+- Added `activeInsertionAnchor` and `setActiveInsertionAnchor(...)` to
+  `EditorStateContext`.
+- Updated preview add-mode so hover/click placement writes the current domain
+  `InsertionAnchor` into editor state and clears it on:
+  - tool change;
+  - Escape;
+  - non-mobile mouse leave;
+  - confirmed insertion.
+- Exposed `data-active-insertion-anchor-kind` on `editor-preview-panel.tsx` as
+  a lightweight visible/testable state bridge for future caret/gap UI.
+- Corrected `DomainAnchor.kind === 'caret'` so it carries a full
+  `MusicalPosition` rather than only `measureId`; `domainAnchorToEditorSelection`
+  no longer fabricates caret offset `0`.
+- Added `insertionAnchorToDomainAnchor(...)` so caret and timeline-gap insertion
+  anchors can become domain anchors without losing rhythmic position.
+- Verified from `apps/customer-web`:
+  - `npm.cmd run test -- editor-state-context selection-adapter render-anchors editor-preview-panel-add-mode rhythmic-insert-placement verovio-surface-migration`;
+  - `npm.cmd run typecheck`;
+  - `npm.cmd run lint`.
+
+REC-007 now has global editor state for the active add-mode insertion target.
+The next decision is product/UX semantics: timeline-gap anchors can now be
+selected technically, but the UI should decide whether clicking an empty span
+opens a gap Inspector, materializes a rest, or remains command-only until
+explicit gap tools exist.
+
+### 2026-08-20: Active insertion anchor narrowed to note-entry insertion preview
+
+- Renamed the editor state surface from selection-like
+  `activeInsertionAnchor` to note-entry `insertionPreview`.
+- `EditorStateContext` now stores a nullable insertion preview object with
+  `anchor` and `inputDuration`, making the state explicitly tied to Add / Note
+  Entry preview instead of ordinary selection.
+- Renamed the preview-panel local caret overlay state from `insertPreview` to
+  `addModePreview` so the local pixel/mobile preview is not confused with the
+  global note-entry insertion preview.
+- Replaced `data-active-insertion-anchor-kind` with
+  `data-insertion-preview-kind`.
+- This corrects the product semantics after the Dorico-style interaction review:
+  ordinary selection remains event-based, while empty-space hover/click targets
+  belong to Note Entry / Add mode as insertion previews and commands.
+
+REC-007 should continue from this clarified boundary: build pitched note-entry
+commands and richer insertion preview visuals, not a generic empty-space
+Inspector selection model.
+
+### 2026-08-20: First pitched note-entry command added
+
+- Extended `AddModeInsertCommand` from explicit-rest-only to a union supporting:
+  - `insertExplicitRest`;
+  - `insertPitchedEvent`.
+- Added `createDefaultAddModePitchedEventCommand()` as the first minimal note
+  input command. It inserts a quarter-note `C4` by default and reuses the same
+  `InputDuration` model as rest input.
+- Updated add-mode domain insertion id generation so explicit rests use
+  `add-rest-*` ids and pitched insertion uses `add-note-*` event ids plus a
+  deterministic `*-note-1` note-atom/source id.
+- Added tests proving pitched add-mode commands create domain `PitchedEvent`
+  values and export back to MusicXML as real pitched `<note>` elements.
+
+REC-007 now has the command-layer foundation for Note Entry. The next step is
+UI state and interaction: expose a note input tool/pitch state, make the
+insertion preview show a ghost pitched note for note input and a rest/caret for
+rest input, then route clicks to `insertPitchedEvent` when note input is active.
+
+### 2026-08-20: Add-mode duration selection converted to Note Entry toolbar
+
+- Replaced the Add-mode duration dropdown with a left-sidebar Note Entry
+  duration toolbar.
+- Exposed six explicit duration tools:
+  - whole;
+  - half;
+  - quarter;
+  - eighth;
+  - 16th;
+  - 32nd.
+- Renamed the UI copy from rest-specific `Rest Duration` to `Note Entry
+  Duration`, because the selected `InputDuration` is shared by future note and
+  rest input.
+- Kept placement grid separate from duration selection. The duration tool
+  controls inserted event length; the placement grid controls legal caret /
+  insertion positions.
+- Added sidebar interaction coverage proving users can switch from quarter to
+  half and 32nd durations without changing placement grid state.
+
+REC-007's next UI step is input-kind selection: Add / Note Entry should let the
+user choose rest input or pitched note input explicitly. Pitched input should not
+ship as a hidden hard-coded `C4` behavior; `C4` can remain a command/test
+default until a visible pitch-entry control exists.
+
+### 2026-08-20: Add-mode input type made explicit
+
+- Added `AddModeInputState` with explicit `kind: "rest" | "pitched"` and a
+  visible current pitch value.
+- Added `addModeInput` / `setAddModeInput(...)` to `EditorStateContext`.
+- Added a left-sidebar Add / Note Entry input-type toolbar:
+  - Rest Input;
+  - Note Input (C4).
+- Replaced fixed explicit-rest command construction in
+  `editor-preview-panel.tsx` with `createAddModeInsertCommand(...)`, so click
+  and hover/mobile preview commands come from the visible add-mode input state.
+- Added tests proving:
+  - the sidebar exposes and updates the input type;
+  - preview click dispatches `insertPitchedEvent` when Note Input is active;
+  - command construction cannot silently regress to rest-only insertion.
+
+REC-007 now has visible rest-vs-note input selection. The remaining interaction
+gap is pitch resolution: `C4` is visible but still static. The next mature step
+is a pitch-entry resolver that maps pointer Y / staff / clef to pitch for ghost
+note preview and insertion, then updates `addModeInput.pitch` before command
+execution.
+
+### 2026-08-20: First staff-position pitch resolver wired into Note Input
+
+- Added `staff-pitch-resolver.ts` as a pure editor adapter for mapping staff
+  vertical pointer position to a diatonic pitch.
+- The first resolver supports treble and bass clefs using bottom-line anchors:
+  - treble bottom line: E4;
+  - bass bottom line: G2.
+- Updated Add / Note Entry preview so Note Input no longer inserts a fixed
+  hidden C4. Pointer hover/click resolves the active staff, clef, and `clientY`
+  into `addModeInput.pitch`, then builds `insertPitchedEvent` from that visible
+  state.
+- Updated the Note Input sidebar button so it displays the current pitch label
+  instead of hard-coding `C4` into copy.
+- Added focused tests for treble/bass pitch mapping, visible pitch labels, and
+  preview pitched insertion with the resolved pointer pitch.
+
+Current limitations are intentional and documented: this first resolver is
+diatonic only. Accidentals, key signatures, ledger-line range policy, clef
+changes inside a measure, and proper ghost notehead vertical rendering are still
+future work.
+
+### 2026-08-20: Note Input ghost notehead preview added
+
+- Extended the staff pitch resolver to return both the snapped `Pitch` and the
+  snapped staff `centerY` used by the preview layer.
+- Updated Add / Note Entry preview state so Note Input carries a `pitchStyle`
+  for the current ghost notehead.
+- Added a lightweight ghost notehead overlay:
+  - only appears for Note Input;
+  - shares the insertion caret's rhythmic x position;
+  - uses the pitch resolver's snapped y position;
+  - inherits the active track color with low opacity.
+- Rest Input keeps the vertical insertion caret only.
+- Added component coverage proving Rest Input does not show the ghost notehead
+  and Note Input does.
+
+This is intentionally a visual MVP. It does not yet draw stems, ledger lines,
+accidentals, duration-specific notehead shapes, or true Verovio-native preview
+glyphs.
+
+### 2026-08-20: Ghost notehead ledger lines added
+
+- Extended `StaffPitchPosition` with:
+  - `diatonicOffsetFromBottomLine`;
+  - `lineSpacing`.
+- Added `getLedgerLineOffsets(...)` to derive ledger line positions from the
+  snapped diatonic staff offset.
+- Updated Note Input ghost preview so notes outside the five staff lines render
+  short ledger lines behind the translucent notehead.
+- Added resolver and preview tests for above-staff ledger lines and in-staff
+  notes without ledger lines.
+
+Remaining ghost preview limitations: stems, accidentals, key-signature-aware
+pitch spelling, duration-specific notehead shapes, lower/upper range policy, and
+Verovio-native glyph rendering are still not implemented.
+
+### 2026-08-20: Add-mode rhythmic grid overlay added
+
+- Clarified the Add / Note Entry interaction gap: before this change the
+  placement grid affected snapping only; the UI still rendered only the vertical
+  insertion caret.
+- Extended `resolveRhythmicInsertPlacement(...)` to expose every rhythmic layout
+  grid x position as `gridLines`.
+- Updated `editor-preview-panel.tsx` so Add mode hover renders subtle vertical
+  grid lines across the active staff/measure area.
+- The caret remains the active insertion target; the grid overlay is a visual
+  guide derived from the same `RhythmicLayoutMap`.
+- Added tests proving:
+  - placement returns the grid line x positions;
+  - preview hover renders the expected number of grid lines for a 16th grid in
+    4/4.
+
+REC-007 now has the missing Dorico-style visual grid foundation. Next work can
+continue with duration-specific ghost notehead shapes or finer visual polish for
+grid density/opacity.
+
+### 2026-08-20: Rhythmic grid overlay moved above the staff
+
+- Adjusted the Add / Note Entry rhythmic grid overlay after product review
+  against Dorico.
+- Replaced full-height staff-crossing grid lines with short orange markers
+  positioned above the active staff.
+- Kept the same `RhythmicLayoutMap` / `gridLines` source of truth; only the
+  visual projection changed.
+- The insertion caret and ghost notehead remain on the staff, while the grid
+  markers now act as a non-overlapping timing guide.
+- Updated component coverage so the preview asserts short grid markers rather
+  than staff-crossing grid lines.
+
+This better matches the desired professional editor behavior: the rhythmic grid
+is visible, but it does not visually collide with notes, staff lines, ledger
+lines, or the ghost notehead.
+
+### 2026-08-20: Add-mode grid markers filtered by selected input duration
+
+- Corrected a semantic mismatch in Add / Note Entry grid rendering:
+  - the previous grid overlay showed every caret boundary;
+  - in 4/4 with a quarter grid that produced five markers: offsets `0, 1, 2,
+    3, 4`;
+  - the final offset `4` is the measure-end caret boundary, not a legal start
+    for inserting a quarter note/rest inside that measure.
+- Added optional `inputDuration` to `resolveRhythmicInsertPlacement(...)`.
+- When `inputDuration` is present, placement now filters grid markers and
+  snapping candidates to positions where `offset + inputDuration <=
+  measureDuration`.
+- Add / Note Entry preview passes the selected input duration into placement, so
+  visual grid markers and pointer snapping now represent legal starts for the
+  selected duration.
+- Example: in 4/4 with quarter input, users now see four legal starts instead
+  of five caret boundaries.
+
+This keeps a clean distinction between future caret-only navigation boundaries
+and current add-command insertion starts.
+
+### 2026-08-20: Duration-specific ghost notehead shape added
+
+- Added duration-aware ghost notehead rendering for Add / Note Entry preview.
+- Whole and half input durations now render an open notehead:
+  - track-colored border;
+  - transparent fill.
+- Quarter and shorter input durations continue to render a filled notehead.
+- Kept this deliberately limited to notehead shape. Stems, flags, beams, dots,
+  and rest glyph previews are not implemented in this step.
+- Added component coverage for:
+  - open ghost notehead when half duration is selected;
+  - filled ghost notehead when quarter duration is selected.
+
+REC-007 Note Entry preview now reflects pitch, ledger lines, rhythmic grid, and
+basic duration class. The next visual step should be either dotted-duration
+preview or rest glyph preview, depending on which input mode needs polish first.
 
 ## Reusable completion checklist for every refactor
 

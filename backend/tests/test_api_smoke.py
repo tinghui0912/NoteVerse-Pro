@@ -8,7 +8,7 @@ from app.api.deps import get_db
 from app.core.config import settings
 from app.main import app
 from app.core.middleware import normalize_origin
-from app.modules.playback.router import get_playback_service
+from app.modules.playback.router import get_playback_delivery_service
 from app.modules.playback.delivery import PlaybackDelivery
 
 
@@ -131,7 +131,7 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
         yield object()
 
     app.dependency_overrides[get_db] = fake_get_db
-    app.dependency_overrides[get_playback_service] = lambda: FakePlaybackService()
+    app.dependency_overrides[get_playback_delivery_service] = lambda: FakePlaybackService()
     try:
         grant_response = client.get("/api/v1/score-grants/share-token/playback")
         grant_range_response = client.get(
@@ -140,7 +140,7 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
         )
         public_response = client.get("/api/v1/publications/public-score/playback")
     finally:
-        app.dependency_overrides.pop(get_playback_service, None)
+        app.dependency_overrides.pop(get_playback_delivery_service, None)
         app.dependency_overrides.pop(get_db, None)
 
     assert grant_response.status_code == 200

@@ -36,7 +36,6 @@ export function ScoreHeroActions({
 }: ScoreHeroActionsProps) {
   const t = useTranslations('score');
   const common = useTranslations('common');
-  const practice = useTranslations('practice');
   const { capabilities } = useScoreCapabilities();
   const { handleDownload } = useDownload({ mode: 'score', id: scoreId, assets: revisionAssets });
   const publication = useScorePublication(scoreId);
@@ -88,7 +87,7 @@ export function ScoreHeroActions({
         <Button asChild>
           <Link href={`/score/${scoreId}/practice`}>
             <Gamepad2 className="mr-2 h-4 w-4" />
-            {practice('start')}
+            {t('practiceScore')}
           </Link>
         </Button>
       ) : null}

@@ -65,7 +65,7 @@ export function useEditorTracks() {
 
             return {
               ...stave,
-              voices: [...stave.voices, { name: `voiceLabel ${xmlVoice}`, notes: [] }]
+              voices: [...stave.voices, { name: `voiceLabel ${xmlVoice}`, events: [] }]
                 .sort((left, right) => {
                   const leftVoice = Number.parseInt(left.name.match(/\d+/)?.[0] ?? '0', 10);
                   const rightVoice = Number.parseInt(right.name.match(/\d+/)?.[0] ?? '0', 10);

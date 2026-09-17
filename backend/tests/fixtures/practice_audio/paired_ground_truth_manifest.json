@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "description": "Paired microphone + physical MIDI ground-truth fixtures for STEP microphone recognition. Planned scenarios define the required capture matrix before real files are recorded.",
+  "canonical_audio": {
+    "sample_rate_hz": 16000,
+    "channels": 1,
+    "sample_format": "float32_mono",
+    "byte_order": "little_endian",
+    "layout": "contiguous_pcm"
+  },
+  "ground_truth_contract": {
+    "ground_truth_source": "paired_midi",
+    "meaning": "Synchronized physical-strike truth captured from the same acoustic performance as the microphone audio. MusicXML-derived MIDI and MIDI from another take are not valid paired ground truth."
+  },
+  "scenarios": [
+    {
+      "id": "triad_c_e_g_actual_c",
+      "status": "planned",
+      "description": "Expected C-E-G, performer strikes only C.",
+      "expected_strikes": ["C4", "E4", "G4"],
+      "actual_strikes": ["C4"],
+      "expected_product_outcome": "NOT_MATCH"
+    },
+    {
+      "id": "triad_c_e_g_actual_e",
+      "status": "planned",
+      "description": "Expected C-E-G, performer strikes only E.",
+      "expected_strikes": ["C4", "E4", "G4"],
+      "actual_strikes": ["E4"],
+      "expected_product_outcome": "NOT_MATCH"
+    },
+    {
+      "id": "triad_c_e_g_actual_g",
+      "status": "planned",
+      "description": "Expected C-E-G, performer strikes only G.",
+      "expected_strikes": ["C4", "E4", "G4"],
+      "actual_strikes": ["G4"],
+      "expected_product_outcome": "NOT_MATCH"
+    },
+    {
+      "id": "triad_c_e_g_actual_c_e",
+      "status": "planned",
+      "description": "Expected C-E-G, performer omits G.",
+      "expected_strikes": ["C4", "E4", "G4"],
+      "actual_strikes": ["C4", "E4"],
+      "expected_product_outcome": "NOT_MATCH"
+    },
+    {
+      "id": "triad_c_e_g_actual_c_g",
+      "status": "planned",
+      "description": "Expected C-E-G, performer omits E.",
+      "expected_strikes": ["C4", "E4", "G4"],
+      "actual_strikes": ["C4", "G4"],
+      "expected_product_outcome": "NOT_MATCH"
+    },
+    {
+      "id": "triad_c_e_g_actual_e_g",
+      "status": "planned",
+      "description": "Expected C-E-G, performer omits C.",
+      "expected_strikes": ["C4", "E4", "G4"],
+      "actual_strikes": ["E4", "G4"],
+      "expected_product_outcome": "NOT_MATCH"
+    },
+    {
+      "id": "triad_c_e_g_actual_c_e_g",
+      "status": "planned",
+      "description": "Expected C-E-G, performer strikes the full chord.",
+      "expected_strikes": ["C4", "E4", "G4"],
+      "actual_strikes": ["C4", "E4", "G4"],
+      "expected_product_outcome": "MATCH"
+    }
+  ]
+}

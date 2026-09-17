@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Hand, Mic, Pause, Play, Repeat2, Square, Timer } from 'lucide-react';
+import { Hand, Mic, Pause, Play, Repeat2, Settings, Square, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -20,9 +20,13 @@ interface PracticeControlsProps {
   isPreparingSession: boolean;
   canPrepareSession: boolean;
   audioWorkletSupported: boolean;
+  rangeSelectionActive: boolean;
+  canSelectRange: boolean;
   onStart: () => void;
   onPause: () => void;
   onFinish: () => void;
+  onOpenSettings: () => void;
+  onToggleRangeSelection: () => void;
 }
 
 export function PracticeControls({
@@ -32,9 +36,13 @@ export function PracticeControls({
   isPreparingSession,
   canPrepareSession,
   audioWorkletSupported,
+  rangeSelectionActive,
+  canSelectRange,
   onStart,
   onPause,
   onFinish,
+  onOpenSettings,
+  onToggleRangeSelection,
 }: PracticeControlsProps) {
   const t = useTranslations('practice');
   const pointerHandledRef = useRef<string | null>(null);
@@ -44,7 +52,7 @@ export function PracticeControls({
     canPrepareSession &&
     !isLoading &&
     !isPreparingSession &&
-    connectionStatus === 'ready' &&
+    (connectionStatus === 'ready' || connectionStatus === 'disconnected' || connectionStatus === 'error') &&
     audioWorkletSupported;
   const actionButtonClass = 'h-11 w-32';
 
@@ -111,8 +119,36 @@ export function PracticeControls({
       <TooltipProvider>
         <div className="flex flex-wrap items-center gap-2">
           <PracticeToolPlaceholder icon={Timer} label={t('toolMetronome')} unavailableLabel={t('toolUnavailable')} />
-          <PracticeToolPlaceholder icon={Repeat2} label={t('toolLoop')} unavailableLabel={t('toolUnavailable')} />
+          <Button
+            type="button"
+            variant={rangeSelectionActive ? 'default' : 'outline'}
+            disabled={!canSelectRange || isActive}
+            onClick={onToggleRangeSelection}
+            className={cn(
+              'h-11 gap-2',
+              rangeSelectionActive
+                ? 'border-slate-400 bg-slate-200 text-slate-950 hover:bg-slate-300'
+                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+            )}
+          >
+            <Repeat2 className="h-4 w-4" aria-hidden="true" />
+            {t('rangeSelectionStart')}
+          </Button>
           <PracticeToolPlaceholder icon={Hand} label={t('toolHands')} unavailableLabel={t('toolUnavailable')} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 gap-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-950"
+                onClick={onOpenSettings}
+              >
+                <Settings className="h-4 w-4" aria-hidden="true" />
+                {t('settingsButton')}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('settingsTitle')}</TooltipContent>
+          </Tooltip>
         </div>
       </TooltipProvider>
     </div>

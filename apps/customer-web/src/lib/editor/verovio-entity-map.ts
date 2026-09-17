@@ -1,10 +1,3 @@
-import type { EntityLocation, ScoreData, ScoreEntity } from '@/types/score-types';
-
-export type VerovioEntityHit = {
-  entity: ScoreEntity;
-  location: EntityLocation;
-};
-
 function getCandidateId(element: Element): string | null {
   return (
     element.getAttribute('data-id') ||
@@ -17,12 +10,12 @@ const VEROVIO_EVENT_SELECTOR = [
   '[data-class="note"]',
   '[data-class="rest"]',
   '[data-class="mRest"]',
-  '[data-class="space"]',
 ].join(', ');
 const VEROVIO_MEASURE_SELECTOR = '[data-class="measure"], .measure';
 const VEROVIO_STAFF_SELECTOR = '[data-class="staff"], .staff';
+const VEROVIO_SPACE_SELECTOR = '[data-class="space"]';
 
-export function getVerovioElementIdFromTarget(target: EventTarget | null): string | null {
+export function getVerovioRenderElementIdFromTarget(target: EventTarget | null): string | null {
   const candidate = getVerovioElementFromTarget(target);
   return candidate ? getCandidateId(candidate) : null;
 }
@@ -30,7 +23,11 @@ export function getVerovioElementIdFromTarget(target: EventTarget | null): strin
 export function getVerovioElementFromTarget(target: EventTarget | null): Element | null {
   if (!(target instanceof Element)) return null;
 
-  return target.closest(VEROVIO_EVENT_SELECTOR) ?? target.closest('[data-id], [id]');
+  const event = target.closest(VEROVIO_EVENT_SELECTOR);
+  if (event) return event;
+
+  const fallback = target.closest('[data-id], [id]');
+  return fallback?.matches(VEROVIO_SPACE_SELECTOR) ? null : fallback;
 }
 
 export function getVerovioMeasureElementFromTarget(target: EventTarget | null): Element | null {
@@ -55,34 +52,4 @@ export function getVerovioStaffElementForIndex(measureElement: Element | null, s
     .filter((staff) => staff.closest(VEROVIO_MEASURE_SELECTOR) === measureElement);
 
   return staves[staveIndex] ?? null;
-}
-
-export function findScoreEntityById(scoreData: ScoreData | null, entityId: string | null): VerovioEntityHit | null {
-  if (!scoreData || !entityId) return null;
-
-  for (const [measureIndex, measure] of scoreData.measures.entries()) {
-    for (const [staveIndex, stave] of measure.staves.entries()) {
-      for (const voice of stave.voices) {
-        for (const [entityIndex, entity] of voice.notes.entries()) {
-          const meta = entity.meta;
-          if (!meta) continue;
-
-          const sourceIds = meta.sourceIds || [];
-          if (meta.id !== entityId && !sourceIds.includes(entityId)) continue;
-
-          return {
-            entity,
-            location: {
-              measureIndex,
-              staveIndex,
-              xmlVoice: meta.xmlVoice,
-              entityIndex,
-            },
-          };
-        }
-      }
-    }
-  }
-
-  return null;
 }

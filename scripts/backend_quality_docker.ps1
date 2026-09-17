@@ -41,6 +41,7 @@ function Invoke-PracticeQuality {
 $practiceTestFiles = @(
     "tests/test_practice_api_smoke.py",
     "tests/test_practice_audio_replay_evaluation.py",
+    "tests/test_practice_render_identity_contract.py",
     "tests/test_practice_runtime_regressions.py",
     "tests/test_practice_websocket_flow.py"
 )

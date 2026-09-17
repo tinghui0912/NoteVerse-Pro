@@ -86,12 +86,13 @@ export function usePracticeSocket({ onMessage, onClose }: PracticeSocketOptions)
         }
       };
       socket.onclose = () => {
+        const isCurrentSocket = socketRef.current === socket;
         const intentional = intentionalSocketsRef.current.has(socket);
-        if (socketRef.current === socket) {
+        if (isCurrentSocket) {
           socketRef.current = null;
+          stopHeartbeat();
+          onCloseRef.current(intentional);
         }
-        stopHeartbeat();
-        onCloseRef.current(intentional);
       };
 
       await new Promise<void>((resolve, reject) => {

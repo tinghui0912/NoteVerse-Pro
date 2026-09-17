@@ -44,8 +44,6 @@
   "operationFailed": "Operation Failed",
   "rest": "Rest",
   "blank": "Blank",
-  "minimize": "Minimize",
-  "maximize": "Maximize",
   "loopPlay": "Loop Play",
   "cancelLoop": "Cancel Loop",
   "returnToPlaybackPosition": "Return to playback position",

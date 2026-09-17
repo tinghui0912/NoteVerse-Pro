@@ -18,7 +18,8 @@ from app.db.models import (
     ImportArtifact,
     ImportJob,
     ImportJobUpload,
-    PracticeReportStatus,
+    PracticeInputSource,
+    PracticeSessionSummaryStatus,
     PracticeSession,
     PracticeSessionState,
     Score,
@@ -632,11 +633,12 @@ async def test_score_delete_removes_practice_sessions(
             access_origin=AccessOrigin.OWNER,
             user_id=1,
             state=PracticeSessionState.FINISHED,
+            input_source=PracticeInputSource.MICROPHONE,
             sample_rate=44100,
             channels=1,
             frame_format="float32",
-            report_status=PracticeReportStatus.READY,
-            report_payload='{"summary":"done"}',
+            summary_status=PracticeSessionSummaryStatus.READY,
+            summary_payload='{"summary":"done"}',
         )
     )
     session.commit()

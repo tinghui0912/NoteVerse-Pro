@@ -1,1 +1,1 @@
-"""Report helpers for post-session practice analysis."""
+"""Post-session practice analysis helpers."""

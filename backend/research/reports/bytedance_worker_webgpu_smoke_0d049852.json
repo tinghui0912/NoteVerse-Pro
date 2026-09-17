@@ -1,0 +1,335 @@
+{
+  "testedGitSha": "0d049852230ddbb471d82e006fcb67a9f4c9523e",
+  "smokeCommand": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\scripts\\bytedance-worker-webgpu-smoke.mjs --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx --fixture-dir backend/data/work/bytedance_browser_runtime_feasibility/golden_fixtures --browser-channel chrome --headed --warm-runs 5 --direct-report backend/data/work/bytedance_browser_runtime_feasibility/codex_direct_webgpu_smoke_current.json --output backend/research/reports/bytedance_worker_webgpu_smoke_0d049852.json",
+  "harnessPath": "apps/customer-web/scripts/bytedance-worker-webgpu-smoke.mjs",
+  "model": {
+    "filename": "bytedance_note_model_fixed_anchor.onnx",
+    "byteSize": 98691493,
+    "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5"
+  },
+  "runtime": {
+    "browserChannel": "chrome",
+    "headed": true,
+    "browserVersion": "152.0.7977.75",
+    "os": {
+      "platform": "win32",
+      "release": "10.0.26200",
+      "arch": "x64"
+    }
+  },
+  "productionWorkerFactoryUsed": true,
+  "workerSmoke": {
+    "productionWorkerFactoryUsed": true,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+    "webgpu": {
+      "available": true,
+      "adapterAcquired": true,
+      "adapter": {
+        "isFallbackAdapter": null,
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "chromium-experimental-multi-draw-indirect",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "chromium-experimental-sampling-resource-table",
+          "core-features-and-limits",
+          "chromium-experimental-timestamp-query-inside-passes",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "texture-compression-unaligned",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "timestamp-query",
+          "texture-formats-tier2",
+          "shader-f16",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "limits": {
+          "maxBufferSize": 2147483648,
+          "maxStorageBufferBindingSize": 2147483644,
+          "maxComputeWorkgroupStorageSize": 32768
+        },
+        "info": {}
+      }
+    },
+    "load": {
+      "clientEndToEndMs": 1839.5999999046326,
+      "diagnostics": {
+        "modelFetchAndVerifyMs": 639,
+        "sessionCreateMs": 1143.6999998092651,
+        "totalLoadMs": 1782.6999998092651,
+        "modelByteSize": 98691493,
+        "modelSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5"
+      }
+    },
+    "input": {
+      "tensorName": "audio",
+      "dtype": "float32",
+      "shape": [
+        1,
+        29120
+      ],
+      "fixtureId": "s01_correct_strike_001_g01",
+      "inputTensorNpy": "s01_correct_strike_001_g01_input.npy",
+      "expectedPitches": [
+        "F4"
+      ]
+    },
+    "firstInference": {
+      "clientEndToEndMs": 5141.900000095367,
+      "diagnostics": {
+        "inputTensor": {
+          "name": "audio",
+          "dtype": "float32",
+          "shape": [
+            1,
+            29120
+          ]
+        },
+        "outputTensors": {
+          "regOnset": {
+            "name": "reg_onset_output",
+            "dtype": "float32",
+            "shape": [
+              1,
+              183,
+              88
+            ]
+          },
+          "frame": {
+            "name": "frame_output",
+            "dtype": "float32",
+            "shape": [
+              1,
+              183,
+              88
+            ]
+          }
+        },
+        "timingMs": {
+          "onnxInference": 5140.200000047684,
+          "decode": 1,
+          "workerTotal": 5141.200000047684
+        }
+      },
+      "eventCount": 3,
+      "firstEvents": [
+        {
+          "pitch": "C4",
+          "midiPitch": 60,
+          "onsetTime": {
+            "domainId": "worker-smoke",
+            "ms": 1440,
+            "sampleIndex": 23040
+          },
+          "confidence": 0.9256011247634888,
+          "onsetScore": 0.9256011247634888,
+          "frameScore": 0.9559082984924316,
+          "source": "ACOUSTIC",
+          "inferenceCompletedAtMs": 6963.700000047684
+        },
+        {
+          "pitch": "F4",
+          "midiPitch": 65,
+          "onsetTime": {
+            "domainId": "worker-smoke",
+            "ms": 1600,
+            "sampleIndex": 25600
+          },
+          "confidence": 0.9192554950714111,
+          "onsetScore": 0.9192554950714111,
+          "frameScore": 0.9213742017745972,
+          "source": "ACOUSTIC",
+          "inferenceCompletedAtMs": 6963.700000047684
+        },
+        {
+          "pitch": "F4",
+          "midiPitch": 65,
+          "onsetTime": {
+            "domainId": "worker-smoke",
+            "ms": 1750,
+            "sampleIndex": 28000
+          },
+          "confidence": 0.8938344717025757,
+          "onsetScore": 0.9150484800338745,
+          "frameScore": 0.8938344717025757,
+          "source": "ACOUSTIC",
+          "inferenceCompletedAtMs": 6963.700000047684
+        }
+      ]
+    },
+    "warmInference": {
+      "runs": 5,
+      "samples": [
+        {
+          "index": 0,
+          "endToEndMs": 3857,
+          "workerTimingMs": {
+            "onnxInference": 3856.0999999046326,
+            "decode": 0.5,
+            "workerTotal": 3856.5999999046326
+          },
+          "messageAndClientOverheadMs": 0.40000009536743164,
+          "eventCount": 3
+        },
+        {
+          "index": 1,
+          "endToEndMs": 4021.7999999523163,
+          "workerTimingMs": {
+            "onnxInference": 4021,
+            "decode": 0.19999980926513672,
+            "workerTotal": 4021.199999809265
+          },
+          "messageAndClientOverheadMs": 0.6000001430511475,
+          "eventCount": 3
+        },
+        {
+          "index": 2,
+          "endToEndMs": 4049.5,
+          "workerTimingMs": {
+            "onnxInference": 4049,
+            "decode": 0.10000014305114746,
+            "workerTotal": 4049.100000143051
+          },
+          "messageAndClientOverheadMs": 0.39999985694885254,
+          "eventCount": 3
+        },
+        {
+          "index": 3,
+          "endToEndMs": 3939.600000143051,
+          "workerTimingMs": {
+            "onnxInference": 3939.100000143051,
+            "decode": 0.09999990463256836,
+            "workerTotal": 3939.2000000476837
+          },
+          "messageAndClientOverheadMs": 0.40000009536743164,
+          "eventCount": 3
+        },
+        {
+          "index": 4,
+          "endToEndMs": 4444.399999856949,
+          "workerTimingMs": {
+            "onnxInference": 4443.899999856949,
+            "decode": 0.20000004768371582,
+            "workerTotal": 4444.099999904633
+          },
+          "messageAndClientOverheadMs": 0.2999999523162842,
+          "eventCount": 3
+        }
+      ],
+      "medianEndToEndMs": 4021.7999999523163,
+      "p95EndToEndMs": 4444.399999856949,
+      "medianWorkerOnnxMs": 4021
+    }
+  },
+  "directFeasibilityReport": {
+    "sourcePath": "backend/data/work/bytedance_browser_runtime_feasibility/codex_direct_webgpu_smoke_current.json",
+    "backend": "webgpu",
+    "browserVersion": "152.0.7977.75",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+    "webgpuAdapter": {
+      "acquired": true,
+      "isFallbackAdapter": null,
+      "features": [
+        "depth32float-stencil8",
+        "rg11b10ufloat-renderable",
+        "texture-formats-tier1",
+        "bgra8unorm-storage",
+        "chromium-experimental-multi-draw-indirect",
+        "texture-compression-bc",
+        "dual-source-blending",
+        "chromium-experimental-sampling-resource-table",
+        "core-features-and-limits",
+        "chromium-experimental-timestamp-query-inside-passes",
+        "float32-filterable",
+        "indirect-first-instance",
+        "float32-blendable",
+        "subgroup-size-control",
+        "texture-compression-unaligned",
+        "depth-clip-control",
+        "texture-compression-bc-sliced-3d",
+        "texture-formats-tier2",
+        "clip-distances",
+        "shader-f16",
+        "timestamp-query",
+        "primitive-index",
+        "texture-component-swizzle",
+        "subgroups"
+      ],
+      "limits": {
+        "maxBufferSize": 2147483648,
+        "maxStorageBufferBindingSize": 2147483644,
+        "maxComputeWorkgroupStorageSize": 32768
+      },
+      "info": {}
+    },
+    "modelLoadMs": 1922.5999999046326,
+    "firstInferenceMs": 6211,
+    "warmInferenceMs": {
+      "runs": 20,
+      "median": 4241.100000143051,
+      "p95": 4694.200000047684
+    },
+    "comparisons": [
+      {
+        "fixture_id": "s01_correct_strike_001_g01",
+        "onset_shape_equal": true,
+        "frame_shape_equal": true,
+        "onset": {
+          "mean_abs_delta": 0.0000010245224019773106,
+          "max_abs_delta": 0.0015820562839508057
+        },
+        "frame": {
+          "mean_abs_delta": 0.0000011267245227584623,
+          "max_abs_delta": 0.0021398961544036865
+        },
+        "verifier_decision_agree": true
+      },
+      {
+        "fixture_id": "s01_correct_chord_001_g01",
+        "onset_shape_equal": true,
+        "frame_shape_equal": true,
+        "onset": {
+          "mean_abs_delta": 0.0000103676688854825,
+          "max_abs_delta": 0.005937144160270691
+        },
+        "frame": {
+          "mean_abs_delta": 0.00001348773500571521,
+          "max_abs_delta": 0.011327967047691345
+        },
+        "verifier_decision_agree": true
+      },
+      {
+        "fixture_id": "s01_same_note_retrigger_001_g02",
+        "onset_shape_equal": true,
+        "frame_shape_equal": true,
+        "onset": {
+          "mean_abs_delta": 0.0000095975518172259,
+          "max_abs_delta": 0.01001228392124176
+        },
+        "frame": {
+          "mean_abs_delta": 0.0000140715484076364,
+          "max_abs_delta": 0.018088221549987793
+        },
+        "verifier_decision_agree": true
+      }
+    ],
+    "error": null
+  },
+  "browserConsole": {
+    "errors": [
+      "error: \u001b[0;93m2026-09-16 08:56:42.298698 [W:onnxruntime:, session_state.cc:1397 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+      "error: \u001b[0;93m2026-09-16 08:56:42.304098 [W:onnxruntime:, session_state.cc:1399 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+    ],
+    "warnings": []
+  },
+  "error": null
+}

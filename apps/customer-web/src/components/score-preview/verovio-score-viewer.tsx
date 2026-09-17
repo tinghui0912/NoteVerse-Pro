@@ -32,6 +32,7 @@ type VerovioScoreViewerProps = {
     container: HTMLDivElement,
     pages: VerovioRenderedPage[]
   ) => void;
+  onRenderNoteClick?: (renderNoteId: string) => void;
 };
 
 export function VerovioScoreViewer({
@@ -48,6 +49,7 @@ export function VerovioScoreViewer({
   errorMessage = 'Unable to render score.',
   renderError,
   onRendered,
+  onRenderNoteClick,
 }: VerovioScoreViewerProps) {
   const adapter = useMemo(
     () => (adapterFactory ? adapterFactory() : new VerovioScoreAdapter()),
@@ -149,8 +151,19 @@ export function VerovioScoreViewer({
   const showLoading = isLoading || Boolean(xmlContent && !visibleResult);
   const showEmpty = !showLoading && !xmlContent;
 
+  const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!onRenderNoteClick || !(event.target instanceof Element)) {
+      return;
+    }
+    const eventElement = event.target.closest<HTMLElement>('[data-id]');
+    const renderNoteId = eventElement?.getAttribute('data-id');
+    if (renderNoteId) {
+      onRenderNoteClick(renderNoteId);
+    }
+  };
+
   return (
-    <div ref={containerRef} className={className}>
+    <div ref={containerRef} className={className} onClick={handleClick}>
       {showLoading ? loadingContent : null}
       {!showLoading && visibleResult?.error ? renderError(visibleResult.error) : null}
       {showEmpty ? emptyContent : null}

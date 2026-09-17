@@ -94,7 +94,7 @@ from app.modules.notifications.service import NotificationService, NotificationT
 from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
 from app.modules.publications.schemas import PublicationUpsertRequest
 from app.modules.publications.service import PublicationService
-from app.modules.playback.service import PlaybackService
+from app.modules.playback.delivery import PlaybackDeliveryService
 from app.shared.constants import ErrorCode
 from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
 from app.storage import LocalFileStorage
@@ -2230,7 +2230,7 @@ async def test_share_detail_exposes_display_assets_without_musicxml_when_downloa
     assert detail.derived_assets.audio.asset_id == "share-old-audio"
     assert detail.derived_assets.audio.is_fallback is True
 
-    playback = await PlaybackService(storage=storage).grant_delivery(
+    playback = await PlaybackDeliveryService(storage=storage).grant_delivery(
         db, created.token, None  # type: ignore[arg-type]
     )
     assert playback.storage_key == old_audio.storage_key

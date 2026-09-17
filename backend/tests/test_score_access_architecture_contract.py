@@ -15,7 +15,7 @@ PROTECTED_SERVICE_MODULES = (
     "app/modules/fingering/service.py",
     "app/modules/library/service.py",
     "app/modules/metadata/service.py",
-    "app/modules/playback/service.py",
+    "app/modules/playback/delivery.py",
     "app/modules/practice/service.py",
     "app/modules/publications/service.py",
     "app/modules/revisions/service.py",

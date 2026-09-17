@@ -36,7 +36,7 @@ src/app/[locale]/
   (public)/      marketing, pricing, and help pages
   (auth)/        login, register, password recovery, email verification
   (app)/         authenticated product pages
-  (workspace)/   immersive editor, practice, and review-edit surfaces
+  (workspace)/   focused editor, practice, and review-edit surfaces
   (external)/    share, public score, and invite entry points
 ```
 

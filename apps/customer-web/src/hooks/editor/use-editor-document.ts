@@ -9,7 +9,7 @@ import { useEditorSaveErrorToast } from '@/hooks/editor/use-editor-save-error-to
 import { useEditorSaveCompletion } from '@/hooks/editor/use-editor-save-completion';
 import { useEditorValidationGate } from '@/hooks/editor/use-editor-validation-gate';
 import { useEditorXmlActions } from '@/hooks/editor/use-editor-xml-actions';
-import { ensureStableMusicXmlIdsString, stripAppOwnedMusicXmlIdsString } from '@/lib/musicxml/stable-ids';
+import { ensureGenericRenderMusicXmlIdsString, stripAppOwnedGenericRenderMusicXmlIdsString } from '@/lib/musicxml/generic-render-ids';
 import {
   useCreateRevision,
   useGenerateScoreFingering,
@@ -79,8 +79,8 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
       try {
         const draft = await loadDraft(scoreId, revisionId);
         if (cancelled) return;
-        const serverWorkingXml = ensureStableMusicXmlIdsString(xmlContent);
-        if (draft && stripAppOwnedMusicXmlIdsString(draft.xml) !== stripAppOwnedMusicXmlIdsString(serverWorkingXml)) {
+        const serverWorkingXml = ensureGenericRenderMusicXmlIdsString(xmlContent);
+        if (draft && stripAppOwnedGenericRenderMusicXmlIdsString(draft.xml) !== stripAppOwnedGenericRenderMusicXmlIdsString(serverWorkingXml)) {
           setPendingDraft(draft);
           setDraftDialogOpen(true);
         } else if (draft) {
@@ -110,7 +110,7 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
 
   const performSave = () => {
     if (!currentXml || !revisionId) return;
-    const sanitizedContent = stripAppOwnedMusicXmlIdsString(currentXml);
+    const sanitizedContent = stripAppOwnedGenericRenderMusicXmlIdsString(currentXml);
     createRevision.mutate(
       {
         scoreId,
