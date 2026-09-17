@@ -127,6 +127,69 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+type FakeBrowserAudioEnvironment = {
+  trackStop: ReturnType<typeof vi.fn>;
+  sourceDisconnect: ReturnType<typeof vi.fn>;
+  workletDisconnect: ReturnType<typeof vi.fn>;
+  portClose: ReturnType<typeof vi.fn>;
+  sinkDisconnect: ReturnType<typeof vi.fn>;
+  audioClose: ReturnType<typeof vi.fn>;
+  workletModuleLoad: ReturnType<typeof vi.fn>;
+  worklet?: { port: { onmessage?: (event: { data: unknown }) => void } };
+};
+
+function installFakeBrowserAudioEnvironment(): FakeBrowserAudioEnvironment {
+  const env: FakeBrowserAudioEnvironment = {
+    trackStop: vi.fn(),
+    sourceDisconnect: vi.fn(),
+    workletDisconnect: vi.fn(),
+    portClose: vi.fn(),
+    sinkDisconnect: vi.fn(),
+    audioClose: vi.fn().mockResolvedValue(undefined),
+    workletModuleLoad: vi.fn().mockResolvedValue(undefined),
+  };
+  vi.stubGlobal('navigator', {
+    mediaDevices: {
+      getUserMedia: vi.fn().mockResolvedValue({
+        getTracks: () => [{ stop: env.trackStop }],
+      }),
+    },
+  });
+  class FakeAudioContext {
+    sampleRate = 48_000;
+    destination = {};
+    audioWorklet = {
+      addModule: env.workletModuleLoad,
+    };
+    createMediaStreamSource = vi.fn().mockReturnValue({
+      connect: vi.fn(),
+      disconnect: env.sourceDisconnect,
+    });
+    createGain = vi.fn().mockReturnValue({
+      gain: { value: 1 },
+      connect: vi.fn(),
+      disconnect: env.sinkDisconnect,
+    });
+    close = env.audioClose;
+  }
+  class FakeAudioWorkletNode {
+    port = {
+      close: env.portClose,
+      onmessage: undefined as ((event: { data: unknown }) => void) | undefined,
+    };
+    connect = vi.fn();
+    disconnect = env.workletDisconnect;
+    addEventListener = vi.fn();
+
+    constructor() {
+      env.worklet = this;
+    }
+  }
+  vi.stubGlobal('AudioContext', FakeAudioContext);
+  vi.stubGlobal('AudioWorkletNode', FakeAudioWorkletNode);
+  return env;
+}
+
 describe('live ByteDance capture primitives', () => {
   it('converts multi-channel chunks to deterministic mono', () => {
     expect(Array.from(monoFromChannels([
@@ -473,6 +536,16 @@ describe('live ByteDance rolling pipeline', () => {
     expect(pipeline.snapshot().state).toBe('running');
   });
 
+  it('makes fixed workerClient one-lifecycle only so restartable paths use a factory', async () => {
+    const worker = new FakeWorker();
+    const pipeline = new LiveByteDanceRollingPipeline(pipelineOptions({
+      workerClient: workerCast(worker),
+    }));
+    await pipeline.start();
+    await pipeline.stop();
+    await expect(pipeline.start()).rejects.toThrow(/workerClient can only be used for one capture lifecycle/);
+  });
+
   it('does not submit a pending coalesced anchor after inference failure', async () => {
     const worker = new FakeWorker();
     const pending: { reject?: (error: Error) => void } = {};
@@ -635,5 +708,90 @@ describe('live ByteDance rolling pipeline', () => {
       state: 'error',
       lastError: 'worklet failed',
     });
+  });
+
+  it('propagates pipeline runtime failure to controller resource cleanup and preserves error state', async () => {
+    const env = installFakeBrowserAudioEnvironment();
+    const worker = new FakeWorker();
+    const workers = [worker, new FakeWorker()];
+    let workerIndex = 0;
+    worker.inferImpl = async () => {
+      throw new Error('runtime inference failed');
+    };
+    const controller = new BrowserMicrophoneCaptureController(pipelineOptions({
+      workerClientFactory: () => workerCast(workers[workerIndex++]),
+    }));
+    await controller.start();
+    env.worklet?.port.onmessage?.({
+      data: {
+        type: 'pcm-chunk',
+        sourceSampleRateHz: 48_000,
+        sourceStartSampleIndex: 0,
+        sourceEndSampleIndex: 10_560,
+        samples: fill(10_560),
+      },
+    });
+    await settleAsyncWork();
+
+    expect(controller.snapshot()).toMatchObject({
+      state: 'error',
+      lastError: 'runtime inference failed',
+    });
+    expect(env.trackStop).toHaveBeenCalledTimes(1);
+    expect(env.portClose).toHaveBeenCalledTimes(1);
+    expect(env.workletDisconnect).toHaveBeenCalledTimes(1);
+    expect(env.sinkDisconnect).toHaveBeenCalledTimes(1);
+    expect(env.sourceDisconnect).toHaveBeenCalledTimes(1);
+    expect(env.audioClose).toHaveBeenCalledTimes(1);
+
+    await controller.start();
+    expect(workers[1].loadCount).toBe(1);
+    expect(controller.snapshot().state).toBe('running');
+  });
+
+  it('turns synchronous Worklet message processing failures into one fatal cleanup', async () => {
+    const env = installFakeBrowserAudioEnvironment();
+    const worker = new FakeWorker();
+    const controller = new BrowserMicrophoneCaptureController(pipelineOptions({
+      workerClient: workerCast(worker),
+    }));
+    await controller.start();
+    env.worklet?.port.onmessage?.({
+      data: {
+        type: 'pcm-chunk',
+        sourceSampleRateHz: 48_000,
+        sourceStartSampleIndex: 0,
+        sourceEndSampleIndex: 128,
+        samples: fill(128),
+      },
+    });
+    env.worklet?.port.onmessage?.({
+      data: {
+        type: 'pcm-chunk',
+        sourceSampleRateHz: 48_000,
+        sourceStartSampleIndex: 129,
+        sourceEndSampleIndex: 257,
+        samples: fill(128),
+      },
+    });
+    await settleAsyncWork();
+    env.worklet?.port.onmessage?.({
+      data: {
+        type: 'pcm-chunk',
+        sourceSampleRateHz: 48_000,
+        sourceStartSampleIndex: 257,
+        sourceEndSampleIndex: 385,
+        samples: fill(128),
+      },
+    });
+    await settleAsyncWork();
+
+    expect(controller.snapshot()).toMatchObject({
+      state: 'error',
+      lastError: expect.stringContaining('contiguous source samples'),
+    });
+    expect(env.trackStop).toHaveBeenCalledTimes(1);
+    expect(env.portClose).toHaveBeenCalledTimes(1);
+    expect(worker.requests).toHaveLength(0);
   });
 });

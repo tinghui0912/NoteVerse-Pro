@@ -81,6 +81,7 @@ export type LiveByteDanceControllerOptions = {
   ringCapacitySamples?: number;
   nowMs?: () => number;
   captureSessionAnchor?: () => SessionTime;
+  onFatalError?: (error: Error) => void;
 };
 
 export class StreamingLinearResampler {
@@ -364,6 +365,8 @@ export class LiveByteDanceRollingPipeline {
   private lifecycleTimebase: PracticeTimebase;
   private lifecycleStartSampleIndex = 0;
   private generation = 0;
+  private fixedWorkerConsumed = false;
+  private fatalErrorNotified = false;
   private state: LiveCaptureState = {
     state: 'idle',
     normalizedEndSampleIndex: 0,
@@ -383,6 +386,7 @@ export class LiveByteDanceRollingPipeline {
 
   async start(): Promise<void> {
     this.generation += 1;
+    this.fatalErrorNotified = false;
     const worker = this.createWorker();
     const anchor = this.captureAnchorSessionTime();
     const startSampleIndex = sampleIndexForSessionTime(anchor);
@@ -541,7 +545,14 @@ export class LiveByteDanceRollingPipeline {
   }
 
   private createWorker(): ByteDanceBrowserWorkerClient {
-    return this.options.workerClient ?? this.options.workerClientFactory?.() ?? createByteDanceBrowserWorkerClient();
+    if (this.options.workerClient) {
+      if (this.fixedWorkerConsumed) {
+        throw new Error('A fixed ByteDance workerClient can only be used for one capture lifecycle; use workerClientFactory for restartable capture.');
+      }
+      this.fixedWorkerConsumed = true;
+      return this.options.workerClient;
+    }
+    return this.options.workerClientFactory?.() ?? createByteDanceBrowserWorkerClient();
   }
 
   private requireWorker(): ByteDanceBrowserWorkerClient {
@@ -562,13 +573,14 @@ export class LiveByteDanceRollingPipeline {
 
   private async failLifecycle(error: unknown): Promise<void> {
     this.generation += 1;
-    const message = error instanceof Error ? error.message : String(error);
+    const fatalError = error instanceof Error ? error : new Error(String(error));
     await this.cleanupResources('Live capture failed; ByteDance Worker was terminated.');
     this.state = {
       ...this.state,
       state: 'error',
-      lastError: message,
+      lastError: fatalError.message,
     };
+    this.notifyFatalError(fatalError);
   }
 
   private async cleanupResources(activeInferenceReason: string): Promise<void> {
@@ -590,6 +602,14 @@ export class LiveByteDanceRollingPipeline {
       }
     }
   }
+
+  private notifyFatalError(error: Error): void {
+    if (this.fatalErrorNotified) {
+      return;
+    }
+    this.fatalErrorNotified = true;
+    this.options.onFatalError?.(error);
+  }
 }
 
 export class BrowserMicrophoneCaptureController {
@@ -603,6 +623,7 @@ export class BrowserMicrophoneCaptureController {
   private workletChunkCount = 0;
   private sourceContinuityOk = true;
   private expectedSourceSampleIndex = 0;
+  private fatalCleanupInProgress = false;
   private state: LiveCaptureState = {
     state: 'idle',
     normalizedEndSampleIndex: 0,
@@ -623,6 +644,7 @@ export class BrowserMicrophoneCaptureController {
   }
 
   async start(): Promise<void> {
+    this.fatalCleanupInProgress = false;
     this.state = { ...this.state, state: 'requesting-permission' };
     try {
       const mediaDevices = globalThis.navigator?.mediaDevices;
@@ -644,6 +666,9 @@ export class BrowserMicrophoneCaptureController {
       this.pipeline = new LiveByteDanceRollingPipeline({
         ...this.options,
         sourceSampleRateHz: this.audioContext.sampleRate,
+        onFatalError: (error) => {
+          void this.handleFatalError(error);
+        },
       });
       await this.pipeline.start();
       this.resampler = new StreamingLinearResampler(
@@ -656,19 +681,23 @@ export class BrowserMicrophoneCaptureController {
         void this.handleProcessorError(event);
       });
       this.workletNode.port.onmessage = (event: MessageEvent<WorkletPcmChunkMessage>) => {
-        if (event.data.type !== 'pcm-chunk' || !this.resampler || !this.pipeline) {
-          return;
+        try {
+          if (event.data.type !== 'pcm-chunk' || !this.resampler || !this.pipeline) {
+            return;
+          }
+          this.workletChunkCount += 1;
+          if (event.data.sourceStartSampleIndex !== this.expectedSourceSampleIndex) {
+            this.sourceContinuityOk = false;
+          }
+          this.expectedSourceSampleIndex = event.data.sourceEndSampleIndex;
+          const chunk = this.resampler.append({
+            samples: event.data.samples,
+            sourceStartSampleIndex: event.data.sourceStartSampleIndex,
+          });
+          this.pipeline.appendNormalizedPcm(chunk.samples, chunk.startSampleIndex);
+        } catch (error) {
+          void this.handleFatalError(error);
         }
-        this.workletChunkCount += 1;
-        if (event.data.sourceStartSampleIndex !== this.expectedSourceSampleIndex) {
-          this.sourceContinuityOk = false;
-        }
-        this.expectedSourceSampleIndex = event.data.sourceEndSampleIndex;
-        const chunk = this.resampler.append({
-          samples: event.data.samples,
-          sourceStartSampleIndex: event.data.sourceStartSampleIndex,
-        });
-        this.pipeline.appendNormalizedPcm(chunk.samples, chunk.startSampleIndex);
       };
       this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
       this.sinkNode = this.audioContext.createGain();
@@ -703,15 +732,37 @@ export class BrowserMicrophoneCaptureController {
   }
 
   private async handleProcessorError(event: Event): Promise<void> {
+    await this.handleFatalError(new Error(`AudioWorklet processor failed: ${event.type}`));
+  }
+
+  private async handleFatalError(error: unknown): Promise<void> {
+    if (this.fatalCleanupInProgress) {
+      return;
+    }
+    this.fatalCleanupInProgress = true;
+    const fatalError = error instanceof Error ? error : new Error(String(error));
     this.state = {
       ...this.state,
       state: 'error',
-      lastError: `AudioWorklet processor failed: ${event.type}`,
+      lastError: fatalError.message,
     };
     await this.cleanupResources();
+    this.state = {
+      ...this.state,
+      state: 'error',
+      lastError: fatalError.message,
+    };
+    this.fatalCleanupInProgress = false;
   }
 
   private async cleanupResources(): Promise<void> {
+    const pipeline = this.pipeline;
+    await this.cleanupBrowserResources();
+    await pipeline?.stop().catch(() => undefined);
+    this.pipeline = null;
+  }
+
+  private async cleanupBrowserResources(): Promise<void> {
     this.workletNode?.port.close();
     this.workletNode?.disconnect();
     this.sinkNode?.disconnect();
@@ -729,8 +780,6 @@ export class BrowserMicrophoneCaptureController {
     this.workletChunkCount = 0;
     this.sourceContinuityOk = true;
     this.expectedSourceSampleIndex = 0;
-    await this.pipeline?.stop().catch(() => undefined);
-    this.pipeline = null;
   }
 }
 
