@@ -120,6 +120,11 @@ export type ByteDanceLoadDiagnostics = {
   totalLoadMs: number;
   modelByteSize: number;
   modelSha256: string;
+  source?: 'opfs-cache' | 'network';
+  downloadMs?: number;
+  cacheReadMs?: number;
+  verificationMs?: number;
+  persistentStorageGranted?: boolean | null;
 };
 
 export function defaultByteDanceModelManifest(input: {

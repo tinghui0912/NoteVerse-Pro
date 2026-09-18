@@ -9,6 +9,7 @@ import {
   type ByteDanceRawOutputs,
   validateByteDanceModelManifest,
 } from './bytedance-contract';
+import { createOpfsByteDanceModelLoader } from '../../model-assets/bytedance-model-loader';
 import { prepareByteDanceInput } from './bytedance-preprocess';
 
 type OrtTensorLike = {
@@ -61,22 +62,40 @@ export async function loadOnnxRuntimeWeb(): Promise<ByteDanceOnnxRuntime> {
   };
 }
 
+export type ByteDanceModelLoaderResult = {
+  bytes: Uint8Array;
+  source?: 'opfs-cache' | 'network';
+  downloadMs?: number;
+  cacheReadMs?: number;
+  verificationMs?: number;
+  persistentStorageGranted?: boolean | null;
+};
+
+export type ByteDanceModelLoader = (
+  manifest: ByteDanceModelManifest
+) => Promise<Uint8Array | ByteDanceModelLoaderResult>;
+
 export class ByteDanceOnnxInferenceCore {
   private session: ByteDanceOnnxSession | null = null;
   private manifest: ByteDanceModelManifest | null = null;
+  private readonly modelLoader: ByteDanceModelLoader;
 
   constructor(
     private readonly runtime: ByteDanceOnnxRuntime,
-    private readonly modelLoader: ByteDanceModelLoader = fetchAndVerifyByteDanceModel
-  ) {}
+    modelLoader?: ByteDanceModelLoader
+  ) {
+    this.modelLoader = modelLoader ?? createOpfsByteDanceModelLoader();
+  }
 
   async load(manifest: ByteDanceModelManifest): Promise<ByteDanceLoadDiagnostics> {
     validateByteDanceModelManifest(manifest);
     const loadStartedAt = nowMs();
     await this.dispose();
     const modelLoadStartedAt = nowMs();
-    const modelBytes = await this.modelLoader(manifest);
+    const loaded = await this.modelLoader(manifest);
     const modelLoadedAt = nowMs();
+    const modelBytes = loaded instanceof Uint8Array ? loaded : loaded.bytes;
+    const loaderDiag = loaded instanceof Uint8Array ? undefined : loaded;
     this.session = await this.runtime.createSession(manifest, modelBytes);
     const sessionCreatedAt = nowMs();
     this.manifest = manifest;
@@ -86,6 +105,11 @@ export class ByteDanceOnnxInferenceCore {
       totalLoadMs: sessionCreatedAt - loadStartedAt,
       modelByteSize: modelBytes.byteLength,
       modelSha256: manifest.sha256,
+      source: loaderDiag?.source,
+      downloadMs: loaderDiag?.downloadMs,
+      cacheReadMs: loaderDiag?.cacheReadMs,
+      verificationMs: loaderDiag?.verificationMs,
+      persistentStorageGranted: loaderDiag?.persistentStorageGranted,
     };
   }
 
@@ -122,8 +146,6 @@ export class ByteDanceOnnxInferenceCore {
 function nowMs(): number {
   return globalThis.performance?.now?.() ?? Date.now();
 }
-
-export type ByteDanceModelLoader = (manifest: ByteDanceModelManifest) => Promise<Uint8Array>;
 
 export async function fetchAndVerifyByteDanceModel(manifest: ByteDanceModelManifest): Promise<Uint8Array> {
   validateByteDanceModelManifest(manifest);
