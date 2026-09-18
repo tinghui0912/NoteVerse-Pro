@@ -66,6 +66,9 @@ export function hasScoreTempoChanges(input: ScoreTempoInput): boolean {
 
 export interface EffectiveScoreTempoInfo {
   readonly bpm: number;
+  readonly source: 'MUSICXML' | 'PRODUCT_DEFAULT';
+  readonly hasSubsequentScoreTempoChanges: boolean;
+  readonly nextScoreTempoBeat?: number;
   readonly isDefault: boolean;
   readonly hasSubsequentChanges: boolean;
   readonly explicitStartBeat?: number;
@@ -79,6 +82,8 @@ export function effectiveScoreTempoAtBeat(
   if (!segments || segments.length === 0) {
     return {
       bpm: DEFAULT_PRACTICE_TEMPO_BPM,
+      source: 'PRODUCT_DEFAULT',
+      hasSubsequentScoreTempoChanges: false,
       isDefault: true,
       hasSubsequentChanges: false,
     };
@@ -94,6 +99,9 @@ export function effectiveScoreTempoAtBeat(
     // Explicit tempo markings exist, but the first one starts after scopeStartBeat
     return {
       bpm: DEFAULT_PRACTICE_TEMPO_BPM,
+      source: 'PRODUCT_DEFAULT',
+      hasSubsequentScoreTempoChanges: true,
+      nextScoreTempoBeat: sorted[0].startBeat,
       isDefault: true,
       hasSubsequentChanges: true,
       explicitStartBeat: sorted[0].startBeat,
@@ -103,6 +111,9 @@ export function effectiveScoreTempoAtBeat(
   const activeSegment = atOrBefore[atOrBefore.length - 1];
   return {
     bpm: activeSegment.bpm,
+    source: 'MUSICXML',
+    hasSubsequentScoreTempoChanges: subsequent.length > 0,
+    nextScoreTempoBeat: subsequent[0]?.startBeat,
     isDefault: false,
     hasSubsequentChanges: subsequent.length > 0,
     explicitStartBeat: activeSegment.startBeat,

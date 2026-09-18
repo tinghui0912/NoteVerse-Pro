@@ -143,6 +143,7 @@
   "tempoOriginal": "原速：♩ = {bpm} BPM",
   "tempoOriginalWithChanges": "原速：含速度变化，起始 ♩ = {bpm} BPM",
   "tempoOriginalDefault": "原谱未指定速度，默认：♩ = 80 BPM",
+  "tempoOriginalDefaultWithLaterChanges": "起始：♩ = {bpm} BPM（默认），原谱稍后包含速度变化",
   "restoreOriginalTempo": "恢复原速",
   "restoreDefaultTempo": "恢复默认 80 BPM",
   "metronome": "节拍器",

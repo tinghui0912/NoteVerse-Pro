@@ -95,8 +95,13 @@ export function PracticeSettingsPanel({
 
   const effectiveTempo = effectiveScoreTempoAtBeat(scoreTempoSegments, scopeStartBeat);
   const initialBpm = effectiveTempo.bpm;
-  const hasExplicit = !effectiveTempo.isDefault;
-  const hasChanges = effectiveTempo.hasSubsequentChanges;
+  const isDefaultWithLaterChanges =
+    effectiveTempo.source === 'PRODUCT_DEFAULT' && effectiveTempo.hasSubsequentScoreTempoChanges;
+  const isMusicXmlWithChanges =
+    effectiveTempo.source === 'MUSICXML' && effectiveTempo.hasSubsequentScoreTempoChanges;
+  const isMusicXmlSingle =
+    effectiveTempo.source === 'MUSICXML' && !effectiveTempo.hasSubsequentScoreTempoChanges;
+  const hasExplicit = effectiveTempo.source === 'MUSICXML';
 
   return (
     <aside className={cn('overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm', className)}>
@@ -166,11 +171,13 @@ export function PracticeSettingsPanel({
           </div>
 
           <p className="mt-1 text-xs text-slate-500">
-            {hasExplicit
-              ? hasChanges
+            {isDefaultWithLaterChanges
+              ? t('tempoOriginalDefaultWithLaterChanges', { bpm: initialBpm })
+              : isMusicXmlWithChanges
                 ? t('tempoOriginalWithChanges', { bpm: initialBpm })
-                : t('tempoOriginal', { bpm: initialBpm })
-              : t('tempoOriginalDefault')}
+                : isMusicXmlSingle
+                  ? t('tempoOriginal', { bpm: initialBpm })
+                  : t('tempoOriginalDefault')}
           </p>
 
           {tempoLocked ? (

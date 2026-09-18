@@ -11,6 +11,8 @@ import {
   countInContractAt,
   entryGroupEndBeat,
   resolvePracticeTempoPlan,
+  resolvePracticeScope,
+  effectiveScoreTempoAtBeat,
   type PracticeScoreArtifact,
   type SessionTime,
   type StepVerifierObservation,
@@ -923,5 +925,140 @@ describe('local session foundation', () => {
 
     perfRuntime.setMetronomeEnabled(true);
     expect(perfRuntime.snapshotSession().metronomeEnabled).toBe(true);
+  });
+
+  it('handles full-piece with leading rest starting practice at first expected note onset with resolved tempo', () => {
+    // Piece has leading rest: beat 0.0 to 2.0 is rest. First playable note is at beat 2.0.
+    // Meter is 4/4.
+    // Score tempo segments: 0.0 -> 80 BPM (score tempo), 2.0 -> 100 BPM (score tempo at first note).
+    const firstGroup = {
+      ...artifact.expectedPracticeGroups[0],
+      groupId: 'g-rest-1',
+      onsetBeat: 2.0,
+      canonicalEndBeat: 3.0,
+    };
+    const firstStep = {
+      ...artifact.practiceAttackSteps[0],
+      stepId: 's-rest-1',
+      groupId: 'g-rest-1',
+      onsetBeat: 2.0,
+    };
+    const leadingRestArtifact = cloneArtifact({
+      meterSegments: [
+        {
+          startBeat: 0.0,
+          numerator: 4,
+          denominator: 4,
+          measureDurationBeats: 4.0,
+          countInPulses: 4,
+          source: 'MUSICXML',
+        },
+      ],
+      scoreTempoSegments: [
+        { startBeat: 0.0, bpm: 80 },
+        { startBeat: 2.0, bpm: 100 },
+      ],
+      expectedPracticeGroups: [firstGroup],
+      practiceAttackSteps: [firstStep],
+    });
+
+    // Unconditional resolvePracticeScope:
+    const resolvedScope = resolvePracticeScope(leadingRestArtifact, {});
+    expect(resolvedScope.startBeat).toBe(2.0);
+    expect(resolvedScope.startIndex).toBe(0);
+    expect(leadingRestArtifact.expectedPracticeGroups[resolvedScope.startIndex].groupId).toBe('g-rest-1');
+
+    // Effective tempo at start of practice (beat 2.0)
+    const tempoInfo = effectiveScoreTempoAtBeat(leadingRestArtifact, resolvedScope.startBeat);
+    expect(tempoInfo.bpm).toBe(100);
+    expect(tempoInfo.source).toBe('MUSICXML');
+
+    // StepPracticeRuntime initialized without explicit scope (full piece):
+    const clock = new ManualClock(0);
+    const stepRuntime = new StepPracticeRuntime({
+      artifact: leadingRestArtifact,
+      clock,
+    });
+    expect(stepRuntime.currentOnsetBeat).toBe(2.0);
+    expect(stepRuntime.currentTarget()?.stepId).toBe('s-rest-1');
+
+    // PerformancePracticeRuntime initialized with resolved scope:
+    const tempoPlan = resolvePracticeTempoPlan(leadingRestArtifact, { mode: 'SCORE' });
+    const perfRuntime = new PerformancePracticeRuntime({
+      artifact: leadingRestArtifact,
+      tempoPlan,
+      clock,
+      countInBeats: 4,
+    });
+    perfRuntime.start();
+    const snap = perfRuntime.snapshot();
+    expect(snap.state).toBe('COUNT_IN');
+    expect(snap.scopeStartBeat).toBe(2.0);
+    // At beat 2.0, tempo is 100 BPM. 4 beats at 100 BPM = 2400ms.
+    expect(snap.countInTotalMs).toBe(2400);
+
+    // Complete count-in:
+    clock.advance(2401);
+    expect(perfRuntime.snapshot().state).toBe('RUNNING');
+    expect(perfRuntime.snapshot().musicalBeat).toBeCloseTo(2.0, 1);
+  });
+
+  it('persists setMetronomeEnabled across session state changes and final snapshot', () => {
+    const art = cloneArtifact();
+    const clock = new ManualClock(0);
+
+    // Test A: start OFF -> ACTIVE -> toggle ON -> finish -> snapshot.metronomeEnabled === true
+    const stepA = new StepPracticeRuntime({
+      artifact: art,
+      clock,
+      metronomeEnabled: false,
+    });
+    expect(stepA.snapshot().metronomeEnabled).toBe(false);
+    stepA.setMetronomeEnabled(true);
+    expect(stepA.snapshot().metronomeEnabled).toBe(true);
+    stepA.end('STOPPED_BY_USER');
+    const finalStepA = stepA.snapshot();
+    expect(finalStepA.lifecycleState).toBe('ENDED');
+    expect(finalStepA.metronomeEnabled).toBe(true);
+
+    const perfA = new PerformancePracticeRuntime({
+      artifact: art,
+      clock,
+      metronomeEnabled: false,
+    });
+    perfA.start();
+    expect(perfA.snapshotSession().metronomeEnabled).toBe(false);
+    perfA.setMetronomeEnabled(true);
+    expect(perfA.snapshotSession().metronomeEnabled).toBe(true);
+    perfA.end('STOPPED_BY_USER');
+    const finalPerfA = perfA.snapshotSession();
+    expect(finalPerfA.lifecycleState).toBe('ENDED');
+    expect(finalPerfA.metronomeEnabled).toBe(true);
+
+    // Test B: start ON -> ACTIVE -> toggle OFF -> finish -> snapshot.metronomeEnabled === false
+    const stepB = new StepPracticeRuntime({
+      artifact: art,
+      clock,
+      metronomeEnabled: true,
+    });
+    expect(stepB.snapshot().metronomeEnabled).toBe(true);
+    stepB.setMetronomeEnabled(false);
+    stepB.end('SCOPE_COMPLETED');
+    const finalStepB = stepB.snapshot();
+    expect(finalStepB.lifecycleState).toBe('ENDED');
+    expect(finalStepB.metronomeEnabled).toBe(false);
+
+    const perfB = new PerformancePracticeRuntime({
+      artifact: art,
+      clock,
+      metronomeEnabled: true,
+    });
+    perfB.start();
+    expect(perfB.snapshotSession().metronomeEnabled).toBe(true);
+    perfB.setMetronomeEnabled(false);
+    perfB.end('STOPPED_BY_USER');
+    const finalPerfB = perfB.snapshotSession();
+    expect(finalPerfB.lifecycleState).toBe('ENDED');
+    expect(finalPerfB.metronomeEnabled).toBe(false);
   });
 });

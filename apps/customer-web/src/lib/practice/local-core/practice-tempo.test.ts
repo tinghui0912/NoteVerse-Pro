@@ -133,23 +133,42 @@ describe('practice-tempo', () => {
   });
 
   describe('effectiveScoreTempoAtBeat', () => {
-    it('returns default 80 if artifact has no tempo segments', () => {
+    it('returns default 80 with PRODUCT_DEFAULT source if artifact has no tempo segments', () => {
       const artifact = createMockArtifact([]);
       const eff = effectiveScoreTempoAtBeat(artifact, 0);
       expect(eff).toEqual({
         bpm: 80,
+        source: 'PRODUCT_DEFAULT',
+        hasSubsequentScoreTempoChanges: false,
         isDefault: true,
         hasSubsequentChanges: false,
       });
     });
 
-    it('returns default 80 with hasSubsequentChanges if first explicit tempo is at beat > 0', () => {
+    it('returns default 80 with PRODUCT_DEFAULT source and hasSubsequentScoreTempoChanges if first explicit tempo is at beat > 0', () => {
       const artifact = createMockArtifact([{ startBeat: 4, bpm: 120 }]);
       const eff = effectiveScoreTempoAtBeat(artifact, 0);
       expect(eff).toEqual({
         bpm: 80,
+        source: 'PRODUCT_DEFAULT',
+        hasSubsequentScoreTempoChanges: true,
+        nextScoreTempoBeat: 4,
         isDefault: true,
         hasSubsequentChanges: true,
+        explicitStartBeat: 4,
+      });
+    });
+
+    it('returns active tempo with MUSICXML source when scopeStartBeat reaches explicit tempo', () => {
+      const artifact = createMockArtifact([{ startBeat: 4, bpm: 120 }]);
+      const eff = effectiveScoreTempoAtBeat(artifact, 4);
+      expect(eff).toEqual({
+        bpm: 120,
+        source: 'MUSICXML',
+        hasSubsequentScoreTempoChanges: false,
+        nextScoreTempoBeat: undefined,
+        isDefault: false,
+        hasSubsequentChanges: false,
         explicitStartBeat: 4,
       });
     });
@@ -162,18 +181,21 @@ describe('practice-tempo', () => {
       ]);
       const effAt0 = effectiveScoreTempoAtBeat(artifact, 0);
       expect(effAt0.bpm).toBe(100);
-      expect(effAt0.isDefault).toBe(false);
-      expect(effAt0.hasSubsequentChanges).toBe(true);
+      expect(effAt0.source).toBe('MUSICXML');
+      expect(effAt0.hasSubsequentScoreTempoChanges).toBe(true);
+      expect(effAt0.nextScoreTempoBeat).toBe(8);
 
       const effAt10 = effectiveScoreTempoAtBeat(artifact, 10);
       expect(effAt10.bpm).toBe(120);
-      expect(effAt10.isDefault).toBe(false);
-      expect(effAt10.hasSubsequentChanges).toBe(true);
+      expect(effAt10.source).toBe('MUSICXML');
+      expect(effAt10.hasSubsequentScoreTempoChanges).toBe(true);
+      expect(effAt10.nextScoreTempoBeat).toBe(16);
 
       const effAt20 = effectiveScoreTempoAtBeat(artifact, 20);
       expect(effAt20.bpm).toBe(90);
-      expect(effAt20.isDefault).toBe(false);
-      expect(effAt20.hasSubsequentChanges).toBe(false);
+      expect(effAt20.source).toBe('MUSICXML');
+      expect(effAt20.hasSubsequentScoreTempoChanges).toBe(false);
+      expect(effAt20.nextScoreTempoBeat).toBeUndefined();
     });
   });
 

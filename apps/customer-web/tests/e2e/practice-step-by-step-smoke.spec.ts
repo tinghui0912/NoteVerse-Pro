@@ -129,7 +129,7 @@ function apiResponse(data: unknown) {
   return JSON.stringify({ success: true, data });
 }
 
-async function setupPracticeMocks(page: Page) {
+async function setupPracticeMocks(page: Page, artifactOverride?: unknown) {
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
 
@@ -247,7 +247,7 @@ async function setupPracticeMocks(page: Page) {
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: apiResponse(smokeArtifact),
+      body: apiResponse(artifactOverride ?? smokeArtifact),
     })
   );
 }
@@ -477,6 +477,195 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await finishButton.click();
 
     await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+    expect(disallowedRequests).toEqual([]);
+  });
+
+  test('CONTINUOUS: pauses during count-in and resumes remaining pre-roll before running', async ({
+    page,
+  }) => {
+    const disallowedRequests: string[] = [];
+    page.on('request', (request) => {
+      const url = request.url();
+      if (
+        url.includes('/practice/sessions') ||
+        url.includes('/targets') ||
+        request.resourceType() === 'websocket'
+      ) {
+        disallowedRequests.push(`${request.method()} ${url}`);
+      }
+    });
+
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    // Switch to Continuous mode and MIDI
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    if (await settingsButton.isVisible()) {
+      await settingsButton.click();
+    }
+    const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
+    await expect(continuousOption).toBeEnabled();
+    await continuousOption.click();
+
+    const midiInputOption = page.getByRole('button', { name: /MIDI/i });
+    await expect(midiInputOption).toBeEnabled();
+    await midiInputOption.click();
+
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    if (await sheetClose.isVisible()) {
+      await sheetClose.click();
+    }
+
+    // Start practice
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+
+    // In count-in: pause immediately while in pre-roll
+    await expect(page.getByRole('status')).toContainText(/预备拍/);
+    const pauseButton = page.getByRole('button', { name: '暂停', exact: true });
+    await expect(pauseButton).toBeEnabled();
+    await pauseButton.click();
+    await expect(page.getByRole('status')).toContainText('练习已暂停');
+
+    // Resume from paused count-in: should display remaining count-in and smoothly enter running
+    const resumeButton = page.getByRole('button', { name: '继续', exact: true });
+    await expect(resumeButton).toBeEnabled();
+    await resumeButton.click();
+
+    // Eventually completes count-in and enters running
+    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+
+    // Finish session cleanly
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+
+    await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
+    expect(disallowedRequests).toEqual([]);
+  });
+
+  test('TEMPO & SCOPE: positive-first tempo provenance and leading-rest scope display correctly', async ({
+    page,
+  }) => {
+    const disallowedRequests: string[] = [];
+    page.on('request', (request) => {
+      const url = request.url();
+      if (
+        url.includes('/practice/sessions') ||
+        url.includes('/targets') ||
+        request.resourceType() === 'websocket'
+      ) {
+        disallowedRequests.push(`${request.method()} ${url}`);
+      }
+    });
+
+    // Artifact where explicit tempo only appears at beat 2.0 (positive-first: beat 0 has no explicit tempo)
+    const leadingRestArtifact = {
+      ...smokeArtifact,
+      scoreTempoSegments: [{ startBeat: 2.0, bpm: 90.0 }],
+      expectedPracticeGroups: [
+        {
+          ...smokeArtifact.expectedPracticeGroups[0],
+          onsetBeat: 2.0,
+          canonicalEndBeat: 3.0,
+        },
+      ],
+      practiceAttackSteps: [
+        {
+          ...smokeArtifact.practiceAttackSteps[0],
+          onsetBeat: 2.0,
+        },
+      ],
+    };
+
+    await setupPracticeMocks(page, leadingRestArtifact);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    // Open settings
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    if (await settingsButton.isVisible()) {
+      await settingsButton.click();
+    }
+
+    // Since startBeat of full-piece is 2.0 (where MusicXML tempo 90 exists):
+    // effectiveScoreTempoAtBeat(leadingRestArtifact, 2.0) resolves to MUSICXML at 90 BPM
+    await expect(page.getByText(/90 BPM/).first()).toBeVisible();
+
+    expect(disallowedRequests).toEqual([]);
+  });
+
+  test('METRONOME LIVE TOGGLE: toggles metronome ON and OFF during active practice', async ({
+    page,
+  }) => {
+    const disallowedRequests: string[] = [];
+    page.on('request', (request) => {
+      const url = request.url();
+      if (
+        url.includes('/practice/sessions') ||
+        url.includes('/targets') ||
+        request.resourceType() === 'websocket'
+      ) {
+        disallowedRequests.push(`${request.method()} ${url}`);
+      }
+    });
+
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    // Select MIDI input
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    if (await settingsButton.isVisible()) {
+      await settingsButton.click();
+    }
+    const midiInputOption = page.getByRole('button', { name: /MIDI/i }).first();
+    await expect(midiInputOption).toBeEnabled();
+    await midiInputOption.click();
+
+    // Start practice (starts with Metronome OFF by default)
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    if (await sheetClose.isVisible()) {
+      await sheetClose.click();
+    }
+
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+    await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
+
+    // Open settings while practice is ACTIVE
+    const activeSettingsButton = page.getByRole('button', { name: '设置' });
+    if (await activeSettingsButton.isVisible()) {
+      await activeSettingsButton.click();
+    }
+
+    // Toggle metronome ON while ACTIVE
+    const metronomeToggleOff = page.getByRole('button', { name: '关' }).first();
+    await expect(metronomeToggleOff).toBeEnabled();
+    await metronomeToggleOff.click();
+    await expect(page.getByRole('button', { name: '开' }).first()).toBeVisible();
+
+    // Toggle metronome OFF while ACTIVE
+    const metronomeToggleOn = page.getByRole('button', { name: '开' }).first();
+    await expect(metronomeToggleOn).toBeEnabled();
+    await metronomeToggleOn.click();
+    await expect(page.getByRole('button', { name: '关' }).first()).toBeVisible();
+
+    // Close settings
+    const activeSheetClose = page.getByRole('button', { name: /close/i });
+    if (await activeSheetClose.isVisible()) {
+      await activeSheetClose.click();
+    }
+
+    // Practice remains ACTIVE and playable
+    await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
+
+    // Finish session cleanly
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+    await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+
     expect(disallowedRequests).toEqual([]);
   });
 });

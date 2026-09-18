@@ -108,10 +108,25 @@ export function useLocalPractice({
     : null;
 
   useEffect(() => {
+    if (mode === 'STEP_BY_STEP') {
+      const runtime = stepRuntimeRef.current;
+      if (runtime) {
+        runtime.setMetronomeEnabled(metronomeEnabled);
+        if (metronomeEnabled) {
+          metronomeRef.current?.setStepContext(runtime.currentOnsetBeat);
+        }
+      }
+    } else {
+      const runtime = performanceRuntimeRef.current;
+      if (runtime) {
+        runtime.setMetronomeEnabled(metronomeEnabled);
+        if (metronomeEnabled) {
+          metronomeRef.current?.syncContinuous(runtime.snapshot());
+        }
+      }
+    }
     metronomeRef.current?.setEnabled(metronomeEnabled);
-    stepRuntimeRef.current?.setMetronomeEnabled(metronomeEnabled);
-    performanceRuntimeRef.current?.setMetronomeEnabled(metronomeEnabled);
-  }, [metronomeEnabled]);
+  }, [metronomeEnabled, mode]);
 
   useEffect(() => {
     if (resolvedTempoPlan) {
@@ -278,11 +293,11 @@ export function useLocalPractice({
     const timebase = new PracticeTimebase({ domainId: localSessionId });
     timebaseRef.current = timebase;
 
-    const resolvedScope = scope ? resolvePracticeScope(artifact, scope) : null;
-    const scopeStartBeat = resolvedScope ? resolvedScope.startBeat : 0;
-    const scopeEndBeat = scope
-      ? (scope.endGroupId ? entryGroupEndBeat(artifact, scope.endGroupId) : resolvedScope?.terminalBeat ?? artifact.scoreEndBeat)
-      : artifact.scoreEndBeat;
+    const resolvedScope = artifact ? resolvePracticeScope(artifact, scope ?? {}) : null;
+    const scopeStartBeat = resolvedScope?.startBeat ?? 0;
+    const scopeEndBeat = scope?.endGroupId
+      ? entryGroupEndBeat(artifact, scope.endGroupId)
+      : (resolvedScope?.terminalBeat ?? artifact.scoreEndBeat);
 
     const metronome = new MetronomeController({
       artifact,
@@ -358,11 +373,7 @@ export function useLocalPractice({
         performanceRuntimeRef.current = runtime;
         const initialClock = runtime.start();
         setPerformanceClock(initialClock);
-        metronome.start(initialClock.musicalBeat, {
-          countIn: initialClock.state === 'COUNT_IN',
-          countInPulses: initialClock.countInPulses,
-          countInBeats: initialClock.countInBeats,
-        });
+        metronome.start(initialClock);
         runPerformanceLoop();
       }
 
@@ -499,7 +510,7 @@ export function useLocalPractice({
         const clock = performanceRuntimeRef.current?.resume();
         if (clock) {
           setPerformanceClock(clock);
-          metronomeRef.current?.resume(clock.musicalBeat);
+          metronomeRef.current?.resume(clock);
         } else {
           metronomeRef.current?.resume(0);
         }
@@ -606,10 +617,25 @@ export function useLocalPractice({
   }, [stopAnimationLoop, stopTimer, teardownInputs]);
 
   const setMetronomeEnabled = useCallback((enabled: boolean) => {
+    if (mode === 'STEP_BY_STEP') {
+      const runtime = stepRuntimeRef.current;
+      if (runtime) {
+        runtime.setMetronomeEnabled(enabled);
+        if (enabled) {
+          metronomeRef.current?.setStepContext(runtime.currentOnsetBeat);
+        }
+      }
+    } else {
+      const runtime = performanceRuntimeRef.current;
+      if (runtime) {
+        runtime.setMetronomeEnabled(enabled);
+        if (enabled) {
+          metronomeRef.current?.syncContinuous(runtime.snapshot());
+        }
+      }
+    }
     metronomeRef.current?.setEnabled(enabled);
-    stepRuntimeRef.current?.setMetronomeEnabled(enabled);
-    performanceRuntimeRef.current?.setMetronomeEnabled(enabled);
-  }, []);
+  }, [mode]);
 
   return {
     lifecycle,

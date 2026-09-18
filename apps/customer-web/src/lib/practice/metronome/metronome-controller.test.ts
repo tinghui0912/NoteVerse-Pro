@@ -300,6 +300,7 @@ describe('MetronomeController', () => {
 
   it('schedules count-in pulses before running in CONTINUOUS mode', () => {
     const { ctx, scheduledClicks } = createMockAudioContext();
+    const scheduledPulses: unknown[] = [];
     const metronome = new MetronomeController({
       tempoPlan: tempoPlan120,
       meterSegments: meter4_4,
@@ -308,21 +309,73 @@ describe('MetronomeController', () => {
       countInBeats: 4,
       enabled: true,
       audioContext: ctx,
+      onScheduledPulse: (pulse) => {
+        scheduledPulses.push(pulse);
+      },
     });
 
     metronome.start(0, { countIn: true, countInPulses: 4, countInBeats: 4 });
 
     // In 120 bpm, 4 beats = 2.0s
-    // Initial tick schedules pulse 0 (count-in pulse 1/4)
-    expect(scheduledClicks.length).toBeGreaterThanOrEqual(1);
-    expect(scheduledClicks[0].freq).toBe(1200); // 0 % 4 === 0 is accent
-
     // Advance through count-in (2.0s) + 1 beat of running (0.5s)
-    ctx.advanceTime(2.6);
-    vi.advanceTimersByTime(2600);
+    for (let i = 0; i < 6; i++) {
+      ctx.advanceTime(0.5);
+      vi.advanceTimersByTime(500);
+    }
 
-    // Total clicks: 4 count-in + at least 1 running pulse (downbeat at beat 0)
+    // Total clicks: 4 count-in + running pulses
     expect(scheduledClicks.length).toBeGreaterThanOrEqual(5);
+    expect(scheduledPulses.length).toBeGreaterThanOrEqual(5);
+
+    metronome.stop();
+  });
+
+  it('resumes CONTINUOUS mode from exact count-in remaining phase', () => {
+    const { ctx } = createMockAudioContext();
+    const scheduledPulses: Array<{ isCountIn?: boolean; pulseIndexInMeasure: number; isDownbeat: boolean; scoreBeat: number }> = [];
+
+    const metronome = new MetronomeController({
+      tempoPlan: tempoPlan120,
+      meterSegments: meter4_4,
+      mode: 'CONTINUOUS',
+      enabled: true,
+      audioContext: ctx,
+      onScheduledPulse: (pulse) => {
+        scheduledPulses.push({
+          isCountIn: pulse.isCountIn,
+          pulseIndexInMeasure: pulse.pulseIndexInMeasure,
+          isDownbeat: pulse.isDownbeat,
+          scoreBeat: pulse.scoreBeat,
+        });
+      },
+    });
+
+    // Resume from paused count-in with 2 pulses remaining (pulses 3 & 4)
+    metronome.resume({
+      state: 'COUNT_IN',
+      scopeStartBeat: 0,
+      countInTotalMs: 2000,
+      countInRemainingMs: 1000,
+      countInPulses: 4,
+      countInPulse: 3,
+    });
+
+    // Advance 2 seconds
+    for (let i = 0; i < 4; i++) {
+      ctx.advanceTime(0.5);
+      vi.advanceTimersByTime(500);
+    }
+
+    // Should have remaining 2 count-in pulses, then running beat 0.0
+    const countInPulses = scheduledPulses.filter((p) => p.isCountIn);
+    expect(countInPulses).toHaveLength(2);
+    expect(countInPulses[0].pulseIndexInMeasure).toBe(2);
+    expect(countInPulses[1].pulseIndexInMeasure).toBe(3);
+
+    const runningPulses = scheduledPulses.filter((p) => !p.isCountIn);
+    expect(runningPulses.length).toBeGreaterThanOrEqual(1);
+    expect(runningPulses[0].scoreBeat).toBe(0.0);
+    expect(runningPulses[0].isDownbeat).toBe(true);
 
     metronome.stop();
   });

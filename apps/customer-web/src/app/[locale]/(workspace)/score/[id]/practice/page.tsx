@@ -93,10 +93,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     [expectedGroups, rangeSelection]
   );
 
-  const scopeStartBeat = useMemo(() => {
-    if (!artifact || !selectedRangeScope) return 0;
-    return resolvePracticeScope(artifact, selectedRangeScope).startBeat;
-  }, [artifact, selectedRangeScope]);
+  const resolvedScope = useMemo(() => {
+    if (!artifact || expectedGroups.length === 0) return null;
+    return resolvePracticeScope(artifact, selectedRangeScope ?? {});
+  }, [artifact, expectedGroups.length, selectedRangeScope]);
+
+  const scopeStartBeat = resolvedScope?.startBeat ?? 0;
 
   const selectedRangeGroups = useMemo(
     () => practiceGroupsInRangeSelection(rangeSelection, expectedGroups),

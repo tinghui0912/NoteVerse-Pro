@@ -249,5 +249,51 @@ describe('PracticeSettingsPanel', () => {
       bpm: 90,
     });
   });
+
+  it('renders positive-first tempo correctly at beat 0 and when scope reaches explicit tempo', () => {
+    const { rerender } = render(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <PracticeSettingsPanel
+          audioWorkletSupported
+          midiSupported
+          practiceMode="CONTINUOUS_PLAY"
+          practiceModeLocked={false}
+          inputSource="MICROPHONE"
+          microphoneInputLocked={false}
+          midiInputLocked={false}
+          onPracticeModeChange={vi.fn()}
+          onInputSourceChange={vi.fn()}
+          scoreTempoSegments={[{ startBeat: 4, bpm: 100 }]}
+          scopeStartBeat={0}
+          tempoSelection={{ mode: 'SCORE' }}
+        />
+      </NextIntlClientProvider>
+    );
+
+    expect(
+      screen.getByText(/Starts at ♩ = 80 BPM \(default\), score includes tempo changes later/i)
+    ).toBeInTheDocument();
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <PracticeSettingsPanel
+          audioWorkletSupported
+          midiSupported
+          practiceMode="CONTINUOUS_PLAY"
+          practiceModeLocked={false}
+          inputSource="MICROPHONE"
+          microphoneInputLocked={false}
+          midiInputLocked={false}
+          onPracticeModeChange={vi.fn()}
+          onInputSourceChange={vi.fn()}
+          scoreTempoSegments={[{ startBeat: 4, bpm: 100 }]}
+          scopeStartBeat={4}
+          tempoSelection={{ mode: 'SCORE' }}
+        />
+      </NextIntlClientProvider>
+    );
+
+    expect(screen.getByText(/Score: ♩ = 100 BPM/i)).toBeInTheDocument();
+  });
 });
 

@@ -1,15 +1,19 @@
 import type { MeterSegment, PracticeScoreArtifact } from '../local-core/artifact';
-import { roundBeat } from '../local-core/artifact';
+import type { PerformanceClockSnapshot } from '../local-core/performance-runtime';
 import type { ResolvedPracticeTempoPlan } from '../local-core/practice-tempo';
 import { beatsToMs, PracticeTempoTimeline } from '../local-core/practice-tempo';
+import type {
+  ContinuousMetronomeSyncPoint,
+  MetronomePlanningCursor,
+  MetronomePulse,
+} from './metronome-pulse-planner';
 import {
   isDownbeat,
   meterAtBeat,
-  pulseStepBeats,
+  MetronomePulsePlanner,
 } from './metronome-pulse-planner';
 
 export type MetronomeMode = 'CONTINUOUS' | 'STEP';
-export type ContinuousMetronomePhase = 'COUNT_IN' | 'RUNNING';
 
 export interface MetronomeControllerOptions {
   artifact?: PracticeScoreArtifact;
@@ -22,6 +26,7 @@ export interface MetronomeControllerOptions {
   countInBeats?: number;
   enabled?: boolean;
   audioContext?: AudioContext | null;
+  onScheduledPulse?: (pulse: MetronomePulse, audioTime: number) => void;
 }
 
 export class MetronomeController {
@@ -30,7 +35,6 @@ export class MetronomeController {
   private timeline: PracticeTempoTimeline;
   private meterSegments: readonly MeterSegment[];
   private metronomeMode: MetronomeMode;
-  private continuousPhase: ContinuousMetronomePhase = 'RUNNING';
   private scopeStartBeat: number;
   private scopeEndBeat: number;
   private countInPulses: number;
@@ -40,17 +44,11 @@ export class MetronomeController {
   private audioContext: AudioContext | null = null;
   private timerId: ReturnType<typeof setInterval> | null = null;
   private audioAvailable = true;
+  private onScheduledPulse?: (pulse: MetronomePulse, audioTime: number) => void;
 
-  // CONTINUOUS mode state
-  private currentBeat = 0;
-  private currentCountInIndex = 0;
-
-  // STEP mode state
-  private stepTargetOnsetBeat = 0;
-  private stepPulseCounter = 0;
-
-  // Scheduling clock
-  private nextPulseTime = 0;
+  // Single musical timing authority cursor
+  private cursor: MetronomePlanningCursor | null = null;
+  private lastTickAudioTime = 0;
 
   private static readonly LOOKAHEAD_MS = 25;
   private static readonly SCHEDULE_AHEAD_SEC = 0.1;
@@ -68,6 +66,7 @@ export class MetronomeController {
     this.scopeStartBeat = Math.max(0, options.scopeStartBeat ?? 0);
     this.countInPulses = Math.max(0, options.countInPulses ?? 0);
     this.countInBeats = Math.max(0, options.countInBeats ?? 0);
+    this.onScheduledPulse = options.onScheduledPulse;
 
     if (options.artifact) {
       this.artifact = options.artifact;
@@ -119,10 +118,16 @@ export class MetronomeController {
     return this.metronomeMode;
   }
 
+  get planningCursor(): MetronomePlanningCursor | null {
+    return this.cursor;
+  }
+
   setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
     if (enabled && this.isRunning) {
       this.ensureAudioContext();
+      this.lastTickAudioTime = this.audioContext?.currentTime ?? 0;
+      this.tick();
     }
   }
 
@@ -130,16 +135,26 @@ export class MetronomeController {
     this.metronomeMode = mode;
   }
 
-  setContinuousPhase(phase: ContinuousMetronomePhase): void {
-    this.continuousPhase = phase;
+  setStepContext(targetOnsetBeat: number): void {
+    const nowMs = (this.audioContext?.currentTime ?? 0) * 1000;
+    this.cursor = MetronomePulsePlanner.createStepCursor(
+      targetOnsetBeat,
+      this.artifact,
+      this.timeline,
+      nowMs + 50
+    );
+    this.lastTickAudioTime = this.audioContext?.currentTime ?? 0;
   }
 
-  setStepContext(targetOnsetBeat: number): void {
-    const boundedBeat = Math.max(0, targetOnsetBeat);
-    if (this.stepTargetOnsetBeat !== boundedBeat) {
-      this.stepTargetOnsetBeat = boundedBeat;
-      this.stepPulseCounter = 0;
-    }
+  syncContinuous(syncPoint: ContinuousMetronomeSyncPoint | PerformanceClockSnapshot): void {
+    const nowMs = (this.audioContext?.currentTime ?? 0) * 1000;
+    this.cursor = MetronomePulsePlanner.createContinuousCursor(
+      syncPoint,
+      this.artifact,
+      this.timeline,
+      nowMs
+    );
+    this.lastTickAudioTime = this.audioContext?.currentTime ?? 0;
   }
 
   setTempoPlan(tempoPlan: ResolvedPracticeTempoPlan): void {
@@ -148,6 +163,24 @@ export class MetronomeController {
     }
     this.tempoPlan = tempoPlan;
     this.timeline = new PracticeTempoTimeline(tempoPlan, this.artifact.scoreEndBeat);
+    const nowMs = (this.audioContext?.currentTime ?? 0) * 1000;
+    if (this.cursor) {
+      if (this.cursor.phase === 'STEP') {
+        this.cursor = MetronomePulsePlanner.createStepCursor(
+          this.cursor.targetOnsetBeat,
+          this.artifact,
+          this.timeline,
+          nowMs
+        );
+      } else if (this.cursor.phase === 'RUNNING') {
+        this.cursor = MetronomePulsePlanner.createContinuousCursor(
+          { state: 'RUNNING', musicalBeat: this.cursor.currentBeat },
+          this.artifact,
+          this.timeline,
+          nowMs
+        );
+      }
+    }
   }
 
   setMeterSegments(meterSegments: readonly MeterSegment[]): void {
@@ -163,7 +196,7 @@ export class MetronomeController {
   }
 
   start(
-    initialBeat = 0,
+    initialContext: ContinuousMetronomeSyncPoint | PerformanceClockSnapshot | number = 0,
     options?: {
       countIn?: boolean;
       countInPulses?: number;
@@ -175,6 +208,10 @@ export class MetronomeController {
     }
     this.ensureAudioContext();
     this.isRunning = true;
+    const nowSec = this.audioContext?.currentTime ?? 0;
+    this.lastTickAudioTime = nowSec;
+    const nowMs = nowSec * 1000;
+    const baseTimeMs = nowMs + 50;
 
     if (options?.countInPulses !== undefined) {
       this.countInPulses = options.countInPulses;
@@ -183,20 +220,46 @@ export class MetronomeController {
       this.countInBeats = options.countInBeats;
     }
 
-    const ctx = this.audioContext;
-    const now = ctx ? ctx.currentTime : 0;
-    this.nextPulseTime = now + 0.05;
-
     if (this.metronomeMode === 'STEP') {
-      this.stepTargetOnsetBeat = Math.max(0, initialBeat);
-      this.stepPulseCounter = 0;
+      const onsetBeat = typeof initialContext === 'number' ? initialContext : this.scopeStartBeat;
+      this.cursor = MetronomePulsePlanner.createStepCursor(onsetBeat, this.artifact, this.timeline, baseTimeMs);
     } else {
-      if (options?.countIn && this.countInPulses > 0 && this.countInBeats > 0) {
-        this.continuousPhase = 'COUNT_IN';
-        this.currentCountInIndex = 0;
+      if (typeof initialContext === 'object' && initialContext !== null && 'state' in initialContext) {
+        this.cursor = MetronomePulsePlanner.createContinuousCursor(
+          initialContext,
+          this.artifact,
+          this.timeline,
+          nowMs
+        );
       } else {
-        this.continuousPhase = 'RUNNING';
-        this.currentBeat = Math.max(0, initialBeat);
+        const initialBeat = typeof initialContext === 'number' ? initialContext : this.scopeStartBeat;
+        if (options?.countIn && this.countInPulses > 0 && this.countInBeats > 0) {
+          const bpmAtStart = this.timeline.bpmAtBeat(this.scopeStartBeat);
+          const countInTotalMs = beatsToMs(this.countInBeats, bpmAtStart);
+          this.cursor = MetronomePulsePlanner.createContinuousCursor(
+            {
+              state: 'COUNT_IN',
+              scopeStartBeat: this.scopeStartBeat,
+              countInTotalMs,
+              countInRemainingMs: countInTotalMs,
+              countInPulses: this.countInPulses,
+              countInPulse: 1,
+            },
+            this.artifact,
+            this.timeline,
+            baseTimeMs
+          );
+        } else {
+          this.cursor = MetronomePulsePlanner.createContinuousCursor(
+            {
+              state: 'RUNNING',
+              musicalBeat: initialBeat,
+            },
+            this.artifact,
+            this.timeline,
+            baseTimeMs
+          );
+        }
       }
     }
 
@@ -215,32 +278,41 @@ export class MetronomeController {
     }
   }
 
-  resume(currentBeat?: number): void {
+  resume(syncPoint?: ContinuousMetronomeSyncPoint | PerformanceClockSnapshot | number): void {
     if (this.isRunning) {
       return;
     }
     this.ensureAudioContext();
     this.isRunning = true;
-
-    const ctx = this.audioContext;
-    const now = ctx ? ctx.currentTime : 0;
+    const nowSec = this.audioContext?.currentTime ?? 0;
+    this.lastTickAudioTime = nowSec;
+    const nowMs = nowSec * 1000;
+    const baseTimeMs = nowMs + 50;
 
     if (this.metronomeMode === 'STEP') {
-      this.stepTargetOnsetBeat = Math.max(0, currentBeat ?? this.stepTargetOnsetBeat);
-      this.stepPulseCounter = 0;
-      this.nextPulseTime = now + 0.05;
+      const onsetBeat = typeof syncPoint === 'number'
+        ? syncPoint
+        : (this.cursor?.phase === 'STEP' ? this.cursor.targetOnsetBeat : this.scopeStartBeat);
+      this.cursor = MetronomePulsePlanner.createStepCursor(onsetBeat, this.artifact, this.timeline, baseTimeMs);
     } else {
-      this.continuousPhase = 'RUNNING';
-      const bounded = Math.max(0, currentBeat ?? this.currentBeat);
-      const meter = meterAtBeat(this.artifact, bounded);
-      const step = pulseStepBeats(meter);
-      const k = Math.ceil(roundBeat((bounded - meter.startBeat) / step));
-      const nextBeat = roundBeat(meter.startBeat + k * step);
-      const fractionUntilNext = Math.abs(nextBeat - bounded) < 1e-4 ? step : nextBeat - bounded;
-      this.currentBeat = Math.abs(nextBeat - bounded) < 1e-4 ? roundBeat(bounded + step) : nextBeat;
-      const bpm = this.timeline.bpmAtBeat(bounded);
-      const secondsUntilNext = beatsToMs(fractionUntilNext, bpm) / 1000;
-      this.nextPulseTime = now + Math.max(0.01, secondsUntilNext);
+      if (typeof syncPoint === 'object' && syncPoint !== null && 'state' in syncPoint) {
+        this.cursor = MetronomePulsePlanner.createContinuousCursor(
+          syncPoint,
+          this.artifact,
+          this.timeline,
+          nowMs
+        );
+      } else {
+        const beat = typeof syncPoint === 'number'
+          ? syncPoint
+          : (this.cursor?.phase === 'RUNNING' ? this.cursor.currentBeat : this.scopeStartBeat);
+        this.cursor = MetronomePulsePlanner.createContinuousCursor(
+          { state: 'RUNNING', musicalBeat: beat },
+          this.artifact,
+          this.timeline,
+          baseTimeMs
+        );
+      }
     }
 
     this.timerId = setInterval(() => this.tick(), MetronomeController.LOOKAHEAD_MS);
@@ -253,10 +325,8 @@ export class MetronomeController {
       clearInterval(this.timerId);
       this.timerId = null;
     }
-    this.nextPulseTime = 0;
-    this.currentBeat = 0;
-    this.currentCountInIndex = 0;
-    this.stepPulseCounter = 0;
+    this.cursor = null;
+    this.lastTickAudioTime = 0;
   }
 
   destroy(): void {
@@ -281,7 +351,7 @@ export class MetronomeController {
   }
 
   private tick(): void {
-    if (!this.isRunning || !this.audioAvailable) {
+    if (!this.isRunning || !this.audioAvailable || !this.cursor) {
       return;
     }
     const ctx = this.audioContext;
@@ -289,65 +359,31 @@ export class MetronomeController {
       return;
     }
 
-    const horizon = ctx.currentTime + MetronomeController.SCHEDULE_AHEAD_SEC;
+    const now = ctx.currentTime;
+    this.lastTickAudioTime = now;
 
-    if (this.metronomeMode === 'STEP') {
-      const meter = meterAtBeat(this.artifact, this.stepTargetOnsetBeat);
-      const step = pulseStepBeats(meter);
-      const bpm = this.timeline.bpmAtBeat(this.stepTargetOnsetBeat);
-      const secondsPerPulse = beatsToMs(step, bpm) / 1000;
-
-      while (this.nextPulseTime < horizon) {
-        if (this.isEnabled) {
-          const virtualBeat = roundBeat(this.stepTargetOnsetBeat + this.stepPulseCounter * step);
-          const isAccent = isDownbeat(meter, virtualBeat);
-          this.scheduleClick(isAccent, this.nextPulseTime);
-        }
-        this.nextPulseTime += secondsPerPulse;
-        this.stepPulseCounter += 1;
+    const horizonMs = (now + MetronomeController.SCHEDULE_AHEAD_SEC) * 1000;
+    const { pulses, nextCursor } = MetronomePulsePlanner.planNextPulses(
+      this.cursor,
+      horizonMs,
+      {
+        artifact: this.artifact,
+        timeline: this.timeline,
+        scopeEndBeat: this.scopeEndBeat,
       }
-      return;
-    }
+    );
 
-    // CONTINUOUS mode
-    if (this.continuousPhase === 'COUNT_IN') {
-      const meterAtStart = meterAtBeat(this.artifact, this.scopeStartBeat);
-      const bpmAtStart = this.timeline.bpmAtBeat(this.scopeStartBeat);
-      const countInTotalMs = beatsToMs(this.countInBeats, bpmAtStart);
-      const secondsPerPulse = (countInTotalMs / this.countInPulses) / 1000;
-
-      while (this.continuousPhase === 'COUNT_IN' && this.nextPulseTime < horizon) {
-        if (this.isEnabled) {
-          const isAccent = (this.currentCountInIndex % meterAtStart.numerator) === 0;
-          this.scheduleClick(isAccent, this.nextPulseTime);
-        }
-        this.nextPulseTime += secondsPerPulse;
-        this.currentCountInIndex += 1;
-
-        if (this.currentCountInIndex >= this.countInPulses) {
-          this.continuousPhase = 'RUNNING';
-          this.currentBeat = this.scopeStartBeat;
-          break;
-        }
+    for (const pulse of pulses) {
+      const audioTime = pulse.timeMs / 1000;
+      if (this.isEnabled) {
+        this.scheduleClick(pulse.isDownbeat, audioTime);
+      }
+      if (this.onScheduledPulse) {
+        this.onScheduledPulse(pulse, audioTime);
       }
     }
 
-    if (this.continuousPhase === 'RUNNING') {
-      while (this.nextPulseTime < horizon && this.currentBeat <= this.scopeEndBeat + 1e-4) {
-        const meter = meterAtBeat(this.artifact, this.currentBeat);
-        const step = pulseStepBeats(meter);
-        const isAccent = isDownbeat(meter, this.currentBeat);
-
-        if (this.isEnabled) {
-          this.scheduleClick(isAccent, this.nextPulseTime);
-        }
-
-        const bpm = this.timeline.bpmAtBeat(this.currentBeat);
-        const secondsPerPulse = beatsToMs(step, bpm) / 1000;
-        this.nextPulseTime += secondsPerPulse;
-        this.currentBeat = roundBeat(this.currentBeat + step);
-      }
-    }
+    this.cursor = nextCursor;
   }
 
   private scheduleClick(isAccent: boolean, time: number): void {

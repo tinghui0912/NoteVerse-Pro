@@ -1,6 +1,7 @@
 import type { MeterSegment, PracticeScoreArtifact } from '../local-core/artifact';
 import { roundBeat } from '../local-core/artifact';
 import { beatsToMs, PracticeTempoTimeline } from '../local-core/practice-tempo';
+import type { PerformanceClockSnapshot } from '../local-core/performance-runtime';
 
 export interface MetronomePulse {
   readonly scoreBeat: number;
@@ -13,24 +14,53 @@ export interface MetronomePulse {
   readonly isCountIn?: boolean;
 }
 
-export type ContinuousMetronomePhase =
+export type ContinuousMetronomeSyncPoint =
   | {
-      kind: 'COUNT_IN';
+      state: 'COUNT_IN';
       scopeStartBeat: number;
-      countInTotalBeats: number;
+      countInTotalMs: number;
+      countInRemainingMs: number;
       countInPulses: number;
-      countInElapsedMs: number;
+      countInPulse: number;
     }
   | {
-      kind: 'RUNNING';
+      state: 'RUNNING';
       musicalBeat: number;
-      runningElapsedMs: number;
-    };
+    }
+  | PerformanceClockSnapshot;
 
-export interface StepMetronomeContext {
-  targetOnsetBeat: number;
-  stepElapsedMs: number;
+export interface ContinuousCountInState {
+  readonly phase: 'COUNT_IN';
+  readonly scopeStartBeat: number;
+  readonly countInTotalMs: number;
+  readonly countInPulses: number;
+  readonly pulseIntervalMs: number;
+  readonly pulseIndex: number;
+  readonly nextPulseTimeMs: number;
+  readonly timeUntilPulseMs: number;
 }
+
+export interface ContinuousRunningState {
+  readonly phase: 'RUNNING';
+  readonly currentBeat: number;
+  readonly nextPulseTimeMs: number;
+  readonly timeUntilPulseMs: number;
+}
+
+export interface StepRunningState {
+  readonly phase: 'STEP';
+  readonly targetOnsetBeat: number;
+  readonly currentBeat: number;
+  readonly fixedBpm: number;
+  readonly stepPulseCounter: number;
+  readonly nextPulseTimeMs: number;
+  readonly timeUntilPulseMs: number;
+}
+
+export type MetronomePlanningCursor =
+  | ContinuousCountInState
+  | ContinuousRunningState
+  | StepRunningState;
 
 /**
  * Calculates the duration of a metronome pulse in quarter beats based on meter denominator.
@@ -101,8 +131,239 @@ export function pulseIndexInMeasure(meter: MeterSegment, beat: number): number {
 
 export class MetronomePulsePlanner {
   /**
-   * Plans pulses for CONTINUOUS performance mode within a time window [windowStartMs, windowEndMs].
-   * All time values are in performance timeline ms (count-in times are negative: [-countInDurationMs, 0]).
+   * Creates a cursor for CONTINUOUS mode starting from an explicit sync point.
+   */
+  static createContinuousCursor(
+    syncPoint: ContinuousMetronomeSyncPoint,
+    artifact: PracticeScoreArtifact,
+    timeline: PracticeTempoTimeline,
+    baseTimeMs = 0
+  ): ContinuousCountInState | ContinuousRunningState {
+    if (syncPoint.state === 'COUNT_IN') {
+      const countInTotalMs = syncPoint.countInTotalMs;
+      const countInPulses = syncPoint.countInPulses;
+      const scopeStartBeat = syncPoint.scopeStartBeat;
+      if (countInPulses <= 0 || countInTotalMs <= 0) {
+        return {
+          phase: 'RUNNING',
+          currentBeat: scopeStartBeat,
+          nextPulseTimeMs: baseTimeMs,
+          timeUntilPulseMs: 0,
+        };
+      }
+      const pulseIntervalMs = countInTotalMs / countInPulses;
+      const countInElapsedMs = Math.max(0, countInTotalMs - syncPoint.countInRemainingMs);
+
+      // Find first pulse index whose scheduled time >= countInElapsedMs - 1e-4
+      let pulseIndex = Math.ceil(roundBeat((countInElapsedMs - 1e-4) / pulseIntervalMs));
+      if (pulseIndex < 0) pulseIndex = 0;
+
+      if (pulseIndex < countInPulses) {
+        const scheduledPulseMs = pulseIndex * pulseIntervalMs;
+        const timeUntilPulseMs = Math.max(0, scheduledPulseMs - countInElapsedMs);
+        return {
+          phase: 'COUNT_IN',
+          scopeStartBeat,
+          countInTotalMs,
+          countInPulses,
+          pulseIntervalMs,
+          pulseIndex,
+          nextPulseTimeMs: baseTimeMs + timeUntilPulseMs,
+          timeUntilPulseMs,
+        };
+      }
+
+      // All count-in pulses have occurred; transition to RUNNING at scopeStartBeat
+      const timeUntilRunningMs = Math.max(0, countInTotalMs - countInElapsedMs);
+      return {
+        phase: 'RUNNING',
+        currentBeat: scopeStartBeat,
+        nextPulseTimeMs: baseTimeMs + timeUntilRunningMs,
+        timeUntilPulseMs: timeUntilRunningMs,
+      };
+    }
+
+    // RUNNING
+    const beat = Math.max(0, syncPoint.musicalBeat);
+    const meter = meterAtBeat(artifact, beat);
+    const step = pulseStepBeats(meter);
+    const k = Math.ceil(roundBeat((beat - meter.startBeat - 1e-4) / step));
+    const nextBeat = roundBeat(meter.startBeat + Math.max(0, k) * step);
+    const deltaBeats = Math.max(0, roundBeat(nextBeat - beat));
+    const bpm = timeline.bpmAtBeat(beat);
+    const timeUntilPulseMs = beatsToMs(deltaBeats, bpm);
+
+    return {
+      phase: 'RUNNING',
+      currentBeat: nextBeat,
+      nextPulseTimeMs: baseTimeMs + timeUntilPulseMs,
+      timeUntilPulseMs,
+    };
+  }
+
+  /**
+   * Creates a cursor for STEP mode anchored to the given target onset beat.
+   * Target onset beat determines meter and tempo context, but pulses strictly follow the legal score meter grid!
+   */
+  static createStepCursor(
+    targetOnsetBeat: number,
+    artifact: PracticeScoreArtifact,
+    timeline: PracticeTempoTimeline,
+    baseTimeMs = 0
+  ): StepRunningState {
+    const boundedTarget = Math.max(0, targetOnsetBeat);
+    const fixedBpm = timeline.bpmAtBeat(boundedTarget);
+    const meter = meterAtBeat(artifact, boundedTarget);
+    const step = pulseStepBeats(meter);
+
+    const diff = (boundedTarget - meter.startBeat) / step;
+    const diffRounded = Math.round(diff);
+    let firstBeat: number;
+    let timeUntilPulseMs: number;
+
+    if (Math.abs(diff - diffRounded) < 1e-4) {
+      firstBeat = roundBeat(meter.startBeat + diffRounded * step);
+      timeUntilPulseMs = 0;
+    } else {
+      const k = Math.ceil(roundBeat(diff));
+      firstBeat = roundBeat(meter.startBeat + k * step);
+      const deltaBeats = roundBeat(firstBeat - boundedTarget);
+      timeUntilPulseMs = beatsToMs(deltaBeats, fixedBpm);
+    }
+
+    return {
+      phase: 'STEP',
+      targetOnsetBeat: boundedTarget,
+      currentBeat: firstBeat,
+      fixedBpm,
+      stepPulseCounter: 0,
+      nextPulseTimeMs: baseTimeMs + timeUntilPulseMs,
+      timeUntilPulseMs,
+    };
+  }
+
+  /**
+   * Advances cursor time by elapsed milliseconds.
+   */
+  static advanceCursorTime(
+    cursor: MetronomePlanningCursor,
+    elapsedMs: number
+  ): MetronomePlanningCursor {
+    return {
+      ...cursor,
+      timeUntilPulseMs: Math.max(0, cursor.timeUntilPulseMs - elapsedMs),
+    };
+  }
+
+  /**
+   * Plans the next pulses within a lookahead window, returning the pulses and the advanced cursor.
+   */
+  static planNextPulses(
+    cursor: MetronomePlanningCursor,
+    horizonMs: number,
+    context: {
+      artifact: PracticeScoreArtifact;
+      timeline: PracticeTempoTimeline;
+      scopeEndBeat: number;
+    }
+  ): { pulses: MetronomePulse[]; nextCursor: MetronomePlanningCursor } {
+    let current: MetronomePlanningCursor = { ...cursor };
+    const pulses: MetronomePulse[] = [];
+
+    while (current.nextPulseTimeMs <= horizonMs + 1e-4) {
+      if (current.phase === 'COUNT_IN') {
+        const meter = meterAtBeat(context.artifact, current.scopeStartBeat);
+        const bpm = context.timeline.bpmAtBeat(current.scopeStartBeat);
+        const p = current.pulseIndex;
+
+        pulses.push({
+          scoreBeat: current.scopeStartBeat,
+          pulseIndexInMeasure: p % meter.numerator,
+          isDownbeat: (p % meter.numerator) === 0,
+          bpm,
+          denominator: meter.denominator,
+          numerator: meter.numerator,
+          timeMs: Math.max(0, current.nextPulseTimeMs),
+          isCountIn: true,
+        });
+
+        if (p + 1 < current.countInPulses) {
+          current = {
+            ...current,
+            pulseIndex: p + 1,
+            nextPulseTimeMs: current.nextPulseTimeMs + current.pulseIntervalMs,
+            timeUntilPulseMs: current.timeUntilPulseMs + current.pulseIntervalMs,
+          };
+        } else {
+          // Last count-in pulse has been scheduled.
+          // The next pulse is the first running beat at scopeStartBeat, occurring pulseIntervalMs later.
+          current = {
+            phase: 'RUNNING',
+            currentBeat: current.scopeStartBeat,
+            nextPulseTimeMs: current.nextPulseTimeMs + current.pulseIntervalMs,
+            timeUntilPulseMs: current.timeUntilPulseMs + current.pulseIntervalMs,
+          };
+        }
+      } else if (current.phase === 'RUNNING') {
+        if (current.currentBeat > context.scopeEndBeat + 1e-4) {
+          break;
+        }
+        const meter = meterAtBeat(context.artifact, current.currentBeat);
+        const bpm = context.timeline.bpmAtBeat(current.currentBeat);
+        const step = pulseStepBeats(meter);
+
+        pulses.push({
+          scoreBeat: current.currentBeat,
+          pulseIndexInMeasure: pulseIndexInMeasure(meter, current.currentBeat),
+          isDownbeat: isDownbeat(meter, current.currentBeat),
+          bpm,
+          denominator: meter.denominator,
+          numerator: meter.numerator,
+          timeMs: Math.max(0, current.nextPulseTimeMs),
+          isCountIn: false,
+        });
+
+        const intervalMs = beatsToMs(step, bpm);
+        const nextBeat = roundBeat(current.currentBeat + step);
+        current = {
+          phase: 'RUNNING',
+          currentBeat: nextBeat,
+          nextPulseTimeMs: current.nextPulseTimeMs + intervalMs,
+          timeUntilPulseMs: current.timeUntilPulseMs + intervalMs,
+        };
+      } else if (current.phase === 'STEP') {
+        const meter = meterAtBeat(context.artifact, current.currentBeat);
+        const step = pulseStepBeats(meter);
+        const bpm = current.fixedBpm; // Fixed to target onset! Never future score tempo!
+
+        pulses.push({
+          scoreBeat: current.currentBeat,
+          pulseIndexInMeasure: pulseIndexInMeasure(meter, current.currentBeat),
+          isDownbeat: isDownbeat(meter, current.currentBeat),
+          bpm,
+          denominator: meter.denominator,
+          numerator: meter.numerator,
+          timeMs: Math.max(0, current.nextPulseTimeMs),
+          isCountIn: false,
+        });
+
+        const intervalMs = beatsToMs(step, bpm);
+        const nextBeat = roundBeat(current.currentBeat + step);
+        current = {
+          ...current,
+          currentBeat: nextBeat,
+          stepPulseCounter: current.stepPulseCounter + 1,
+          nextPulseTimeMs: current.nextPulseTimeMs + intervalMs,
+          timeUntilPulseMs: current.timeUntilPulseMs + intervalMs,
+        };
+      }
+    }
+
+    return { pulses, nextCursor: current };
+  }
+
+  /**
+   * Batch planner for CONTINUOUS performance mode within [windowStartMs, windowEndMs].
    */
   static planContinuousPulses(options: {
     timeline: PracticeTempoTimeline;
@@ -209,9 +470,8 @@ export class MetronomePulsePlanner {
   }
 
   /**
-   * Plans pulses for STEP-BY-STEP mode within a time window [windowStartMs, windowEndMs].
-   * The tempo and meter context are completely anchored to current target onsetBeat!
-   * Metronome ticks here NEVER advance target onsetBeat or cross into future score tempos.
+   * Batch planner for STEP-BY-STEP mode within [windowStartMs, windowEndMs].
+   * Fixed tempo anchored to target onset beat. Legal pulses on score meter grid.
    */
   static planStepPulses(options: {
     timeline: PracticeTempoTimeline;
@@ -221,36 +481,47 @@ export class MetronomePulsePlanner {
     windowEndMs: number;
   }): MetronomePulse[] {
     const { timeline, artifact, targetOnsetBeat, windowStartMs, windowEndMs } = options;
-    const bpm = timeline.bpmAtBeat(targetOnsetBeat);
-    const meter = meterAtBeat(artifact, targetOnsetBeat);
-    const step = pulseStepBeats(meter);
-    const pulseIntervalMs = beatsToMs(step, bpm);
+    if (windowEndMs < 0) return [];
 
-    if (pulseIntervalMs <= 0 || windowEndMs < 0) {
-      return [];
+    const boundedTarget = Math.max(0, targetOnsetBeat);
+    const fixedBpm = timeline.bpmAtBeat(boundedTarget);
+    const meter = meterAtBeat(artifact, boundedTarget);
+    const step = pulseStepBeats(meter);
+    const pulseIntervalMs = beatsToMs(step, fixedBpm);
+    if (pulseIntervalMs <= 0) return [];
+
+    const diff = (boundedTarget - meter.startBeat) / step;
+    const diffRounded = Math.round(diff);
+    let firstBeat: number;
+    let initialDelayMs: number;
+
+    if (Math.abs(diff - diffRounded) < 1e-4) {
+      firstBeat = roundBeat(meter.startBeat + diffRounded * step);
+      initialDelayMs = 0;
+    } else {
+      const k = Math.ceil(roundBeat(diff));
+      firstBeat = roundBeat(meter.startBeat + k * step);
+      initialDelayMs = beatsToMs(roundBeat(firstBeat - boundedTarget), fixedBpm);
     }
 
     const pulses: MetronomePulse[] = [];
-    const basePulseIndex = pulseIndexInMeasure(meter, targetOnsetBeat);
-
-    const kStart = Math.max(0, Math.ceil(roundBeat(windowStartMs / pulseIntervalMs)));
-    const kEnd = Math.floor(roundBeat(windowEndMs / pulseIntervalMs));
-
-    for (let k = kStart; k <= kEnd; k += 1) {
-      const timeMs = k * pulseIntervalMs;
-      const pulseIdx = (basePulseIndex + k) % meter.numerator;
-      pulses.push({
-        scoreBeat: targetOnsetBeat,
-        pulseIndexInMeasure: pulseIdx,
-        isDownbeat: pulseIdx === 0,
-        bpm,
-        denominator: meter.denominator,
-        numerator: meter.numerator,
-        timeMs,
-        isCountIn: false,
-      });
+    for (let k = 0; ; k += 1) {
+      const timeMs = initialDelayMs + k * pulseIntervalMs;
+      if (timeMs > windowEndMs + 1e-4) break;
+      if (timeMs >= windowStartMs - 1e-4) {
+        const beat = roundBeat(firstBeat + k * step);
+        pulses.push({
+          scoreBeat: beat,
+          pulseIndexInMeasure: pulseIndexInMeasure(meter, beat),
+          isDownbeat: isDownbeat(meter, beat),
+          bpm: fixedBpm,
+          denominator: meter.denominator,
+          numerator: meter.numerator,
+          timeMs,
+          isCountIn: false,
+        });
+      }
     }
-
     return pulses;
   }
 }

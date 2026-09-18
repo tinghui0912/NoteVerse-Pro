@@ -283,38 +283,242 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
     });
   });
 
-  describe('STEP mode planning', () => {
-    it('maintains steady tempo and target scoreBeat even if stalled at step for 30 seconds', () => {
+  describe('Incremental Cursor & Phase Unification', () => {
+    it('CONTINUOUS: pauses during 4/4 count-in and resumes remaining pre-roll pulses before running', () => {
       const artifact = makeTestArtifact();
       const plan: ResolvedPracticeTempoPlan = {
         selection: { mode: 'SCORE' },
-        segments: [
-          { startBeat: 0, bpm: 100, source: 'MUSICXML' },
-          { startBeat: 8, bpm: 80, source: 'MUSICXML' },
-        ],
+        segments: [{ startBeat: 0, bpm: 120, source: 'MUSICXML' }],
       };
       const timeline = new PracticeTempoTimeline(plan, 32);
+      // 4/4, 120 BPM: 500ms per beat. 4 pulses count-in = 2000ms total.
+      // Pulse 0: 0ms, Pulse 1: 500ms, Pulse 2: 1000ms, Pulse 3: 1500ms, Running 0.0: 2000ms.
 
-      // Target is at onsetBeat = 0
-      // Window is from 20,000 ms to 22,000 ms (user stalled at step 0 for over 20 seconds!)
-      const pulses = MetronomePulsePlanner.planStepPulses({
-        timeline,
+      // Simulate pause after pulse 1 (elapsed 700ms, remaining 1300ms)
+      const syncPoint = {
+        state: 'COUNT_IN' as const,
+        scopeStartBeat: 0.0,
+        countInTotalMs: 2000,
+        countInRemainingMs: 1300,
+        countInPulses: 4,
+        countInPulse: 2,
+      };
+
+      const cursor = MetronomePulsePlanner.createContinuousCursor(syncPoint, artifact, timeline);
+      expect(cursor.phase).toBe('COUNT_IN');
+      if (cursor.phase !== 'COUNT_IN') return;
+
+      // Pulse index 2 (3rd pulse) scheduled at 1000ms. Time until pulse = 1000 - 700 = 300ms.
+      expect(cursor.pulseIndex).toBe(2);
+      expect(cursor.timeUntilPulseMs).toBe(300);
+
+      // Plan across 2000ms window
+      const { pulses, nextCursor } = MetronomePulsePlanner.planNextPulses(cursor, 2000, {
         artifact,
-        targetOnsetBeat: 0.0,
-        windowStartMs: 20000,
-        windowEndMs: 22000,
+        timeline,
+        scopeEndBeat: 32,
       });
 
-      expect(pulses.length).toBeGreaterThan(0);
-      pulses.forEach((p) => {
-        // Must remain anchored to target onsetBeat = 0 and tempo = 100 BPM!
-        // Never autonomously advance into future beat 8 (80 BPM)!
-        expect(p.scoreBeat).toBe(0.0);
-        expect(p.bpm).toBe(100);
-      });
+      // Must have:
+      // Pulse 2 (count-in pulse 3) at 300ms
+      // Pulse 3 (count-in pulse 4) at 800ms
+      // Running beat 0.0 at 1300ms
+      // Running beat 1.0 at 1800ms
+      expect(pulses).toHaveLength(4);
+
+      expect(pulses[0].isCountIn).toBe(true);
+      expect(pulses[0].pulseIndexInMeasure).toBe(2);
+      expect(pulses[0].timeMs).toBe(300);
+
+      expect(pulses[1].isCountIn).toBe(true);
+      expect(pulses[1].pulseIndexInMeasure).toBe(3);
+      expect(pulses[1].timeMs).toBe(800);
+
+      expect(pulses[2].isCountIn).toBe(false);
+      expect(pulses[2].scoreBeat).toBe(0.0);
+      expect(pulses[2].isDownbeat).toBe(true);
+      expect(pulses[2].timeMs).toBe(1300);
+
+      expect(pulses[3].isCountIn).toBe(false);
+      expect(pulses[3].scoreBeat).toBe(1.0);
+      expect(pulses[3].isDownbeat).toBe(false);
+      expect(pulses[3].timeMs).toBe(1800);
+
+      expect(nextCursor.phase).toBe('RUNNING');
     });
 
-    it('switches tempo context when target advances across tempo boundary (e.g. onsetBeat 8)', () => {
+    it('CONTINUOUS: 6/8 count-in pause after pulse 3 and resumes pulses 4, 5, 6 before running', () => {
+      const artifact = makeTestArtifact({
+        meterSegments: [
+          {
+            startBeat: 0.0,
+            numerator: 6,
+            denominator: 8,
+            measureDurationBeats: 3.0,
+            countInPulses: 6,
+          },
+        ],
+      });
+      const plan: ResolvedPracticeTempoPlan = {
+        selection: { mode: 'SCORE' },
+        segments: [{ startBeat: 0, bpm: 120, source: 'MUSICXML' }],
+      };
+      const timeline = new PracticeTempoTimeline(plan, 32);
+      // 6/8 at 120 BPM: quarter beat = 500ms, eighth beat = 250ms.
+      // countInBeats = 3.0 quarter beats = 1500ms total. 6 pulses of 250ms each.
+      // Pulse 0: 0ms, Pulse 1: 250ms, Pulse 2: 500ms, Pulse 3: 750ms, Pulse 4: 1000ms, Pulse 5: 1250ms.
+
+      // Pause after pulse 3 (index 2) at elapsed 600ms (remaining 900ms)
+      const syncPoint = {
+        state: 'COUNT_IN' as const,
+        scopeStartBeat: 0.0,
+        countInTotalMs: 1500,
+        countInRemainingMs: 900,
+        countInPulses: 6,
+        countInPulse: 3,
+      };
+
+      const cursor = MetronomePulsePlanner.createContinuousCursor(syncPoint, artifact, timeline);
+      expect(cursor.phase).toBe('COUNT_IN');
+      if (cursor.phase !== 'COUNT_IN') return;
+
+      // Next pulse is index 3 (4th pulse, at 750ms). Time until pulse = 750 - 600 = 150ms.
+      expect(cursor.pulseIndex).toBe(3);
+      expect(cursor.timeUntilPulseMs).toBe(150);
+
+      const { pulses } = MetronomePulsePlanner.planNextPulses(cursor, 1500, {
+        artifact,
+        timeline,
+        scopeEndBeat: 32,
+      });
+
+      // Pulses expected:
+      // index 3 at 150ms
+      // index 4 at 400ms
+      // index 5 at 650ms
+      // Running beat 0.0 at 900ms (eighth-note interval 250ms)
+      // Running beat 0.5 at 1150ms
+      // Running beat 1.0 at 1400ms
+      const countInPulses = pulses.filter((p) => p.isCountIn);
+      expect(countInPulses).toHaveLength(3);
+      expect(countInPulses[0].pulseIndexInMeasure).toBe(3);
+      expect(countInPulses[0].timeMs).toBe(150);
+      expect(countInPulses[1].pulseIndexInMeasure).toBe(4);
+      expect(countInPulses[1].timeMs).toBe(400);
+      expect(countInPulses[2].pulseIndexInMeasure).toBe(5);
+      expect(countInPulses[2].timeMs).toBe(650);
+
+      const runningPulses = pulses.filter((p) => !p.isCountIn);
+      expect(runningPulses[0].scoreBeat).toBe(0.0);
+      expect(runningPulses[0].isDownbeat).toBe(true);
+      expect(runningPulses[0].timeMs).toBe(900);
+      expect(runningPulses[1].scoreBeat).toBe(0.5);
+      expect(runningPulses[1].timeMs).toBe(1150);
+      expect(runningPulses[2].scoreBeat).toBe(1.0);
+      expect(runningPulses[2].timeMs).toBe(1400);
+    });
+
+    it('CONTINUOUS: toggle ON during RUNNING at fractional beat syncs to next legal pulse', () => {
+      const artifact = makeTestArtifact();
+      const plan: ResolvedPracticeTempoPlan = {
+        selection: { mode: 'SCORE' },
+        segments: [{ startBeat: 0, bpm: 120, source: 'MUSICXML' }],
+      };
+      const timeline = new PracticeTempoTimeline(plan, 32);
+
+      // Runtime is currently at musicalBeat 2.25 in 4/4
+      const syncPoint = {
+        state: 'RUNNING' as const,
+        musicalBeat: 2.25,
+      };
+
+      const cursor = MetronomePulsePlanner.createContinuousCursor(syncPoint, artifact, timeline);
+      expect(cursor.phase).toBe('RUNNING');
+      if (cursor.phase !== 'RUNNING') return;
+
+      // Next legal pulse beat on 4/4 grid >= 2.25 is 3.0!
+      expect(cursor.currentBeat).toBe(3.0);
+      // Delta = 0.75 beats at 120 BPM (500ms/beat) = 375ms
+      expect(cursor.timeUntilPulseMs).toBe(375);
+    });
+  });
+
+  describe('STEP mode planning', () => {
+    it('schedules only legal meter pulses for syncopated target (e.g. 2.25 in 4/4)', () => {
+      const artifact = makeTestArtifact();
+      const plan: ResolvedPracticeTempoPlan = {
+        selection: { mode: 'SCORE' },
+        segments: [{ startBeat: 0, bpm: 100, source: 'MUSICXML' }],
+      };
+      const timeline = new PracticeTempoTimeline(plan, 32);
+
+      const cursor = MetronomePulsePlanner.createStepCursor(2.25, artifact, timeline);
+      expect(cursor.phase).toBe('STEP');
+      expect(cursor.targetOnsetBeat).toBe(2.25);
+      expect(cursor.fixedBpm).toBe(100);
+      // First legal beat on 4/4 grid >= 2.25 is 3.0!
+      expect(cursor.currentBeat).toBe(3.0);
+      // Delta = 0.75 beats at 100 BPM (600ms/beat) = 450ms
+      expect(cursor.timeUntilPulseMs).toBe(450);
+
+      const { pulses } = MetronomePulsePlanner.planNextPulses(cursor, 3000, {
+        artifact,
+        timeline,
+        scopeEndBeat: 32,
+      });
+
+      // Pulses must follow 3.0, 4.0, 5.0...
+      expect(pulses[0].scoreBeat).toBe(3.0);
+      expect(pulses[0].isDownbeat).toBe(false);
+      expect(pulses[0].timeMs).toBe(450);
+
+      expect(pulses[1].scoreBeat).toBe(4.0);
+      expect(pulses[1].isDownbeat).toBe(true); // Downbeat on measure 2 (beat 4.0)
+      expect(pulses[1].timeMs).toBe(1050);
+
+      expect(pulses[2].scoreBeat).toBe(5.0);
+      expect(pulses[2].isDownbeat).toBe(false);
+      expect(pulses[2].timeMs).toBe(1650);
+    });
+
+    it('starts at target onset when target is a pulse-grid point (e.g. 2.5 in 6/8)', () => {
+      const artifact = makeTestArtifact({
+        meterSegments: [
+          {
+            startBeat: 0.0,
+            numerator: 6,
+            denominator: 8,
+            measureDurationBeats: 3.0,
+            countInPulses: 6,
+          },
+        ],
+      });
+      const plan: ResolvedPracticeTempoPlan = {
+        selection: { mode: 'SCORE' },
+        segments: [{ startBeat: 0, bpm: 120, source: 'MUSICXML' }],
+      };
+      const timeline = new PracticeTempoTimeline(plan, 32);
+
+      const cursor = MetronomePulsePlanner.createStepCursor(2.5, artifact, timeline);
+      expect(cursor.currentBeat).toBe(2.5);
+      expect(cursor.timeUntilPulseMs).toBe(0); // 2.5 is on grid, fires immediately
+
+      const { pulses } = MetronomePulsePlanner.planNextPulses(cursor, 600, {
+        artifact,
+        timeline,
+        scopeEndBeat: 32,
+      });
+
+      expect(pulses[0].scoreBeat).toBe(2.5);
+      expect(pulses[0].timeMs).toBe(0);
+      expect(pulses[1].scoreBeat).toBe(3.0);
+      expect(pulses[1].isDownbeat).toBe(true); // Beat 3.0 is downbeat of measure 2 in 6/8!
+      expect(pulses[1].timeMs).toBe(250);
+      expect(pulses[2].scoreBeat).toBe(3.5);
+      expect(pulses[2].timeMs).toBe(500);
+    });
+
+    it('target onset 7.5 stays on target tempo context (100 BPM) across future score tempo boundary (8.0 -> 80 BPM)', () => {
       const artifact = makeTestArtifact();
       const plan: ResolvedPracticeTempoPlan = {
         selection: { mode: 'SCORE' },
@@ -325,28 +529,54 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
       };
       const timeline = new PracticeTempoTimeline(plan, 32);
 
-      // Step 1: onsetBeat = 1 -> still 100 BPM
-      const pulsesStep1 = MetronomePulsePlanner.planStepPulses({
-        timeline,
-        artifact,
-        targetOnsetBeat: 1.0,
-        windowStartMs: 0,
-        windowEndMs: 2000,
-      });
-      expect(pulsesStep1[0].bpm).toBe(100);
-      expect(pulsesStep1[0].scoreBeat).toBe(1.0);
+      // Target is at 7.5 (tempo context is 100 BPM). First pulse >= 7.5 is 8.0.
+      const cursor = MetronomePulsePlanner.createStepCursor(7.5, artifact, timeline);
+      expect(cursor.fixedBpm).toBe(100);
+      expect(cursor.currentBeat).toBe(8.0);
 
-      // Step 2: advances to onsetBeat = 8 -> switches to 80 BPM
-      const pulsesStep2 = MetronomePulsePlanner.planStepPulses({
-        timeline,
+      // Plan 5 pulses: 8.0, 9.0, 10.0, 11.0, 12.0
+      const { pulses } = MetronomePulsePlanner.planNextPulses(cursor, 4000, {
         artifact,
-        targetOnsetBeat: 8.0,
-        windowStartMs: 0,
-        windowEndMs: 2000,
+        timeline,
+        scopeEndBeat: 32,
       });
-      expect(pulsesStep2[0].bpm).toBe(80);
-      expect(pulsesStep2[0].scoreBeat).toBe(8.0);
-      expect(pulsesStep2[0].isDownbeat).toBe(true); // Beat 8 in 4/4 is a downbeat
+
+      expect(pulses.length).toBeGreaterThanOrEqual(4);
+      pulses.forEach((p) => {
+        // BPM must remain strictly 100 BPM! Never consume future score tempo of 80 BPM!
+        expect(p.bpm).toBe(100);
+      });
+      expect(pulses[0].scoreBeat).toBe(8.0);
+      expect(pulses[0].isDownbeat).toBe(true);
+      expect(pulses[1].scoreBeat).toBe(9.0);
+      expect(pulses[1].isDownbeat).toBe(false);
+    });
+
+    it('advancing target to >= 8.0 activates new 80 BPM tempo context', () => {
+      const artifact = makeTestArtifact();
+      const plan: ResolvedPracticeTempoPlan = {
+        selection: { mode: 'SCORE' },
+        segments: [
+          { startBeat: 0, bpm: 100, source: 'MUSICXML' },
+          { startBeat: 8, bpm: 80, source: 'MUSICXML' },
+        ],
+      };
+      const timeline = new PracticeTempoTimeline(plan, 32);
+
+      // New target is at beat 8.0
+      const cursor = MetronomePulsePlanner.createStepCursor(8.0, artifact, timeline);
+      expect(cursor.fixedBpm).toBe(80);
+      expect(cursor.currentBeat).toBe(8.0);
+
+      const { pulses } = MetronomePulsePlanner.planNextPulses(cursor, 1000, {
+        artifact,
+        timeline,
+        scopeEndBeat: 32,
+      });
+
+      expect(pulses[0].bpm).toBe(80);
+      expect(pulses[0].scoreBeat).toBe(8.0);
+      expect(pulses[0].isDownbeat).toBe(true);
     });
   });
 });

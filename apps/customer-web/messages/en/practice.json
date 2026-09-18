@@ -143,6 +143,7 @@
   "tempoOriginal": "Score: ♩ = {bpm} BPM",
   "tempoOriginalWithChanges": "Score: Variable tempo, starts at ♩ = {bpm} BPM",
   "tempoOriginalDefault": "No tempo specified in score, default: ♩ = 80 BPM",
+  "tempoOriginalDefaultWithLaterChanges": "Starts at ♩ = {bpm} BPM (default), score includes tempo changes later",
   "restoreOriginalTempo": "Restore Score Tempo",
   "restoreDefaultTempo": "Restore Default 80 BPM",
   "metronome": "Metronome",
