@@ -129,6 +129,27 @@ class FakePracticeService:
             }
         ]
 
+    async def get_practice_score_artifact(
+        self,
+        db,
+        score_uuid: str,
+        user_id: int,
+        revision_uuid: str | None,
+    ) -> dict[str, object]:
+        return {
+            "schemaVersion": 1,
+            "scoreId": score_uuid,
+            "revisionId": revision_uuid or "rev-1",
+            "artifactId": f"practice-score-artifact-v1:{score_uuid}:{revision_uuid}",
+            "playableEvents": [],
+            "expectedPracticeGroups": [],
+            "practiceAttackSteps": [],
+            "meterSegments": [],
+            "tempoSegments": [],
+            "firstPlayableBeat": None,
+            "scoreEndBeat": 0.0,
+        }
+
 
 @pytest.fixture(autouse=True)
 def clear_dependency_overrides():
@@ -153,6 +174,7 @@ def test_practice_feature_routes_require_authentication(client: TestClient) -> N
         ("get", "/api/v1/practice/sessions/session-1/summary", None),
         ("get", "/api/v1/practice/scores/score-1/saved-performances", None),
         ("get", "/api/v1/practice/scores/score-1/revisions/revision-1/content", None),
+        ("get", "/api/v1/practice/scores/score-1/revisions/revision-1/artifact", None),
     ]
 
     for method, path, payload in protected_requests:
@@ -309,3 +331,19 @@ def test_practice_openapi_keeps_session_response_contracts_explicit() -> None:
     detail_properties = components["PracticeSessionDetailRead"]["properties"]
     assert "step_microphone_verification_provider" in start_properties
     assert "step_microphone_verification_provider" in detail_properties
+
+
+def test_get_practice_score_artifact_endpoint(client: TestClient) -> None:
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1, is_active=True)
+    app.dependency_overrides[get_practice_service] = lambda: FakePracticeService()
+
+    response = client.get("/api/v1/practice/scores/score-1/revisions/revision-1/artifact")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["schemaVersion"] == 1
+    assert data["scoreId"] == "score-1"
+    assert data["revisionId"] == "revision-1"
+    assert "artifactId" in data
+    assert "expectedPracticeGroups" in data
+    assert "practiceAttackSteps" in data
+

@@ -24,6 +24,7 @@ from app.modules.practice.schemas import (
     PracticeSessionDetailRead,
     PracticeSessionStartRead,
     PracticeTargetCatalogRead,
+    PracticeScoreArtifactRead,
     SavedPracticeReplayPlaybackRead,
     SavedPracticeReplayArtifactRead,
     SavedPracticePerformanceRead,
@@ -185,6 +186,27 @@ async def list_practice_targets(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await practice_service.list_practice_targets(db, score_id, user_id, revision_id)
+    return success_response(data=result)
+
+
+@router.get(
+    "/scores/{score_id}/revisions/{revision_id}/artifact",
+    response_model=APIResponse[PracticeScoreArtifactRead],
+)
+async def get_practice_score_artifact(
+    score_id: str,
+    revision_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    practice_service: PracticeService = Depends(get_practice_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await practice_service.get_practice_score_artifact(
+        db,
+        score_id,
+        user_id,
+        revision_id,
+    )
     return success_response(data=result)
 
 

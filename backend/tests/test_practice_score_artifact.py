@@ -83,6 +83,33 @@ def test_empty_practice_score_artifact_uses_null_first_playable() -> None:
     assert artifact["expectedPracticeGroups"] == []
 
 
+def test_practice_score_artifact_deterministic_identity(tmp_path) -> None:
+    musicxml_path = tmp_path / "canonical-local-core.musicxml"
+    musicxml_path.write_text(_canonical_musicxml(), encoding="utf-8")
+    timeline = PracticeScoreTimeline.from_note_array(
+        _canonical_note_array(),
+        musicxml_path=musicxml_path,
+    )
+
+    artifact1 = practice_score_artifact_from_timeline(
+        timeline,
+        score_id="score-123",
+        revision_id="rev-456",
+        tempo_segments=(TempoSegment(0.0, 120.0),),
+    )
+    artifact2 = practice_score_artifact_from_timeline(
+        timeline,
+        score_id="score-123",
+        revision_id="rev-456",
+        tempo_segments=(TempoSegment(0.0, 120.0),),
+    )
+
+    assert artifact1 == artifact2
+    assert artifact1["artifactId"] == artifact2["artifactId"]
+    assert artifact1["artifactId"].startswith("practice-score-artifact-v1:")
+
+
+
 def _canonical_note_array() -> _NoteArray:
     return _NoteArray(
         [

@@ -92,6 +92,13 @@ from app.modules.practice.schemas import (
     PracticeTargetCatalogRead,
     PracticeTargetRead,
     PracticeStepNoteRead,
+    PracticeScoreArtifactRead,
+)
+from app.processing.practice_score.practice_score_artifact import (
+    practice_score_artifact_from_timeline,
+)
+from app.processing.practice_score.score_loader import (
+    practice_score_timeline_from_musicxml,
 )
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_access.policy import ScoreAccessContext, ScoreAccessPolicy, ScoreAction
@@ -312,6 +319,43 @@ class PracticeService:
             access.revision.revision_uuid,
             catalog,
         )
+
+    async def get_practice_score_artifact(
+        self,
+        db: AsyncSession,
+        score_uuid: str,
+        user_id: int,
+        revision_uuid: str | None,
+    ) -> PracticeScoreArtifactRead:
+        access, score_file_path = await self._practice_musicxml_path(
+            db,
+            score_uuid=score_uuid,
+            user_id=user_id,
+            revision_uuid=revision_uuid,
+        )
+        try:
+            timeline = await asyncio.to_thread(
+                practice_score_timeline_from_musicxml,
+                score_file_path,
+            )
+            artifact = await asyncio.to_thread(
+                practice_score_artifact_from_timeline,
+                timeline,
+                score_id=access.score.score_uuid,
+                revision_id=access.revision.revision_uuid,
+            )
+        except Exception as exc:
+            logger.bind(
+                event="practice.score_artifact.failed",
+                score_id=access.score.score_uuid,
+                revision_id=access.revision.revision_uuid,
+            ).opt(exception=exc).warning("Practice score artifact generation failed")
+            raise ExternalServiceException(
+                service="practice_score_artifact",
+                code=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
+            ) from exc
+
+        return PracticeScoreArtifactRead(**artifact)
 
     async def get_practice_ready_score_content(
         self,

@@ -1,5 +1,5 @@
 import enum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -278,3 +278,18 @@ class SavedPracticeReplayPlaybackRead(BaseModel):
     kind: PracticeReplayArtifactKind
     content_type: str
     duration_ms: int
+
+
+class PracticeScoreArtifactRead(BaseModel):
+    schemaVersion: int = 1
+    scoreId: str
+    revisionId: str
+    artifactId: str
+    playableEvents: list[dict[str, Any]] = Field(default_factory=list)
+    expectedPracticeGroups: list[dict[str, Any]] = Field(default_factory=list)
+    practiceAttackSteps: list[dict[str, Any]] = Field(default_factory=list)
+    meterSegments: list[dict[str, Any]] = Field(default_factory=list)
+    tempoSegments: list[dict[str, Any]] = Field(default_factory=list)
+    firstPlayableBeat: float | None = None
+    scoreEndBeat: float
+
