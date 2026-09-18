@@ -263,89 +263,135 @@ export class ModelAssetStore {
     loadStartedAt: number,
     persistentStorageGranted: boolean | null
   ): Promise<ModelAssetLoadResult | null> {
-    let markerHandle: FileSystemFileHandle | null = null;
+    let markerHandle: FileSystemFileHandle;
     try {
       markerHandle = await entryDir.getFileHandle('verified.json');
-    } catch {
-      return null;
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        return null;
+      }
+      throw new ModelAssetStorageError(
+        `Failed to access verified.json from OPFS: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    let markerFile: File;
+    try {
+      markerFile = await markerHandle.getFile();
+    } catch (error) {
+      throw new ModelAssetStorageError(
+        `Failed to get File for verified.json from OPFS: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    let markerText: string;
+    try {
+      markerText = await markerFile.text();
+    } catch (error) {
+      throw new ModelAssetStorageError(
+        `Failed to read verified.json text from OPFS: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
 
     let marker: ModelAssetVerificationMarker;
     try {
-      const markerFile = await markerHandle.getFile();
-      const markerText = await markerFile.text();
       marker = JSON.parse(markerText) as ModelAssetVerificationMarker;
-      if (
-        marker.schemaVersion !== 1 ||
-        marker.assetId !== descriptor.assetId ||
-        marker.expectedByteSize !== descriptor.expectedByteSize ||
-        marker.sha256.toLowerCase() !== descriptor.sha256.toLowerCase()
-      ) {
-        return null;
-      }
     } catch {
+      // Corrupt marker file JSON -> cache invalid/corrupt, caller should clean up and redownload
       return null;
     }
 
-    let binHandle: FileSystemFileHandle | null = null;
+    if (
+      !marker ||
+      typeof marker !== 'object' ||
+      marker.schemaVersion !== 1 ||
+      marker.assetId !== descriptor.assetId ||
+      marker.expectedByteSize !== descriptor.expectedByteSize ||
+      marker.sha256?.toLowerCase() !== descriptor.sha256.toLowerCase()
+    ) {
+      // Corrupt or mismatched marker metadata -> cache invalid, caller should clean up and redownload
+      return null;
+    }
+
+    let binHandle: FileSystemFileHandle;
     try {
       binHandle = await entryDir.getFileHandle('model.bin');
-    } catch {
-      return null;
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        return null;
+      }
+      throw new ModelAssetStorageError(
+        `Failed to access model.bin from OPFS: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
 
+    const readStartedAt = this.now();
+    let file: File;
     try {
-      const readStartedAt = this.now();
-      const file = await binHandle.getFile();
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const cacheReadMs = this.now() - readStartedAt;
+      file = await binHandle.getFile();
+    } catch (error) {
+      throw new ModelAssetStorageError(
+        `Failed to get File for model.bin from OPFS: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
 
-      if (bytes.byteLength !== descriptor.expectedByteSize) {
-        return null;
-      }
+    let arrayBuffer: ArrayBuffer;
+    try {
+      arrayBuffer = await file.arrayBuffer();
+    } catch (error) {
+      throw new ModelAssetStorageError(
+        `Failed to read model.bin arrayBuffer from OPFS: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
 
-      const verifyStartedAt = this.now();
-      const digest = await computeSha256Hex(bytes);
-      const verificationMs = this.now() - verifyStartedAt;
+    const bytes = new Uint8Array(arrayBuffer);
+    const cacheReadMs = this.now() - readStartedAt;
 
-      if (digest.toLowerCase() !== descriptor.sha256.toLowerCase()) {
-        return null;
-      }
-
-      // If descriptor assetVersion changed, update marker metadata without redownloading binary
-      if (marker.assetVersion !== descriptor.assetVersion) {
-        try {
-          const markerWritable = await markerHandle.createWritable();
-          const updatedMarker: ModelAssetVerificationMarker = {
-            ...marker,
-            assetVersion: descriptor.assetVersion,
-            verifiedAt: new Date().toISOString(),
-          };
-          await markerWritable.write(JSON.stringify(updatedMarker, null, 2));
-          await markerWritable.close();
-        } catch {
-          // Best-effort metadata update; failure does not block returning verified bytes
-        }
-      }
-
-      // Housekeeping: clean up stale/incomplete sibling versions under this assetId
-      await this.pruneOtherVersionsForAsset(assetDir, descriptor.sha256.toLowerCase());
-
-      return {
-        bytes,
-        diagnostics: {
-          source: 'opfs-cache',
-          cacheReadMs,
-          verificationMs,
-          totalLoadMs: this.now() - loadStartedAt,
-          byteSize: bytes.byteLength,
-          sha256: descriptor.sha256,
-          persistentStorageGranted,
-        },
-      };
-    } catch {
+    if (bytes.byteLength !== descriptor.expectedByteSize) {
+      // Corrupt model binary on disk (size mismatch) -> caller will clean up and redownload
       return null;
     }
+
+    const verifyStartedAt = this.now();
+    const digest = await computeSha256Hex(bytes);
+    const verificationMs = this.now() - verifyStartedAt;
+
+    if (digest.toLowerCase() !== descriptor.sha256.toLowerCase()) {
+      // Corrupt model binary on disk (digest mismatch) -> caller will clean up and redownload
+      return null;
+    }
+
+    // If descriptor assetVersion changed, update marker metadata without redownloading binary
+    if (marker.assetVersion !== descriptor.assetVersion) {
+      try {
+        const markerWritable = await markerHandle.createWritable();
+        const updatedMarker: ModelAssetVerificationMarker = {
+          ...marker,
+          assetVersion: descriptor.assetVersion,
+          verifiedAt: new Date().toISOString(),
+        };
+        await markerWritable.write(JSON.stringify(updatedMarker, null, 2));
+        await markerWritable.close();
+      } catch {
+        // Best-effort metadata update: SHA is the binary identity and metadata tag failure must not block returning verified cached bytes
+      }
+    }
+
+    // Housekeeping: clean up stale/incomplete sibling versions under this assetId
+    await this.pruneOtherVersionsForAsset(assetDir, descriptor.sha256.toLowerCase());
+
+    return {
+      bytes,
+      diagnostics: {
+        source: 'opfs-cache',
+        cacheReadMs,
+        verificationMs,
+        totalLoadMs: this.now() - loadStartedAt,
+        byteSize: bytes.byteLength,
+        sha256: descriptor.sha256,
+        persistentStorageGranted,
+      },
+    };
   }
 
   private async pruneOtherVersionsForAsset(
@@ -433,3 +479,12 @@ export async function computeSha256Hex(bytes: Uint8Array): Promise<string> {
     .map((value) => value.toString(16).padStart(2, '0'))
     .join('');
 }
+
+export function isNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { name?: string }).name === 'NotFoundError'
+  );
+}
+

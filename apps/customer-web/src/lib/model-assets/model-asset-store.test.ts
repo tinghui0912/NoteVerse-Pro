@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   computeSha256Hex,
   createModelAssetStore,
+  isNotFoundError,
   ModelAssetStore,
   validateModelAssetDescriptor,
 } from './model-asset-store';
@@ -76,6 +77,7 @@ class MemoryFileHandle {
   beforeWrite?: (data: unknown) => void | Promise<void>;
   beforeClose?: () => void | Promise<void>;
   onCreateWritable?: () => Promise<FileSystemWritableFileStream> | FileSystemWritableFileStream;
+  onGetFile?: () => Promise<File> | File;
 
   constructor(
     readonly name: string,
@@ -93,6 +95,9 @@ class MemoryFileHandle {
   }
 
   async getFile(): Promise<File> {
+    if (this.onGetFile) {
+      return this.onGetFile();
+    }
     return new File([this.data as BlobPart], this.name);
   }
 
@@ -117,13 +122,17 @@ class MemoryFileHandle {
 class MemoryDirectoryHandle {
   readonly kind = 'directory' as const;
   private readonly entriesMap = new Map<string, MemoryFileHandle | MemoryDirectoryHandle>();
-  onGetFileHandle?: (name: string, options?: { create?: boolean }) => MemoryFileHandle | undefined;
+  readonly removeEntryCalls: Array<{ name: string; options?: { recursive?: boolean } }> = [];
+  onGetFileHandle?: (
+    name: string,
+    options?: { create?: boolean }
+  ) => MemoryFileHandle | undefined | Promise<MemoryFileHandle | undefined>;
 
   constructor(readonly name: string) {}
 
   async getFileHandle(name: string, options?: { create?: boolean }): Promise<MemoryFileHandle> {
     if (this.onGetFileHandle) {
-      const intercepted = this.onGetFileHandle(name, options);
+      const intercepted = await this.onGetFileHandle(name, options);
       if (intercepted) return intercepted;
     }
     const existing = this.entriesMap.get(name);
@@ -138,7 +147,9 @@ class MemoryDirectoryHandle {
       this.entriesMap.set(name, created);
       return created;
     }
-    throw new Error(`File not found: ${name}`);
+    const notFound = new Error(`File not found: ${name}`);
+    notFound.name = 'NotFoundError';
+    throw notFound;
   }
 
   async getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<MemoryDirectoryHandle> {
@@ -147,7 +158,7 @@ class MemoryDirectoryHandle {
       if (existing.kind !== 'directory') {
         throw new Error(`Entry ${name} is a file, not a directory.`);
       }
-      existing.onGetFileHandle = this.onGetFileHandle;
+      existing.onGetFileHandle = existing.onGetFileHandle ?? this.onGetFileHandle;
       return existing;
     }
     if (options?.create) {
@@ -156,13 +167,18 @@ class MemoryDirectoryHandle {
       this.entriesMap.set(name, created);
       return created;
     }
-    throw new Error(`Directory not found: ${name}`);
+    const notFound = new Error(`Directory not found: ${name}`);
+    notFound.name = 'NotFoundError';
+    throw notFound;
   }
 
   async removeEntry(name: string, options?: { recursive?: boolean }): Promise<void> {
+    this.removeEntryCalls.push({ name, options });
     const existing = this.entriesMap.get(name);
     if (!existing) {
-      throw new Error(`Entry not found: ${name}`);
+      const notFound = new Error(`Entry not found: ${name}`);
+      notFound.name = 'NotFoundError';
+      throw notFound;
     }
     if (existing.kind === 'directory' && !options?.recursive) {
       throw new Error(`Cannot remove directory without recursive option`);
@@ -907,3 +923,493 @@ describe('ByteDance model loader integration with ModelAssetStore', () => {
     });
   });
 });
+
+describe('ModelAssetStore OPFS read error semantics (cache miss vs storage failure)', () => {
+  it('isNotFoundError helper strictly verifies error.name === "NotFoundError"', () => {
+    expect(isNotFoundError({ name: 'NotFoundError' })).toBe(true);
+    const domException = new DOMException('File missing', 'NotFoundError');
+    expect(isNotFoundError(domException)).toBe(true);
+
+    const namedError = new Error('Missing file');
+    namedError.name = 'NotFoundError';
+    expect(isNotFoundError(namedError)).toBe(true);
+
+    // Rejects non-NotFoundError even if message mentions "not found"
+    expect(isNotFoundError(new Error('File not found'))).toBe(false);
+    expect(isNotFoundError(new Error('entry not found: verified.json'))).toBe(false);
+    expect(isNotFoundError({ name: 'SecurityError', message: 'not found' })).toBe(false);
+    expect(isNotFoundError({ name: 'InvalidStateError' })).toBe(false);
+    expect(isNotFoundError(null)).toBe(false);
+    expect(isNotFoundError(undefined)).toBe(false);
+    expect(isNotFoundError('NotFoundError')).toBe(false);
+    expect(isNotFoundError(123)).toBe(false);
+  });
+
+  it('Test A: marker missing -> NotFoundError -> cache miss -> network recovery', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { bytes, descriptor } = await makeTestAsset('test-a-marker-missing');
+
+    let fetchCount = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      fetchCount += 1;
+      return new Response(bytes, { status: 200 });
+    });
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    const result = await store.ensureAsset(descriptor);
+    expect(result.diagnostics.source).toBe('network');
+    expect(result.bytes).toEqual(bytes);
+    expect(fetchCount).toBe(1);
+
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+
+    expect(await entryDir.getFileHandle('verified.json')).toBeDefined();
+    expect(await entryDir.getFileHandle('model.bin')).toBeDefined();
+  });
+
+  it('Test B: marker handle storage failure (non-NotFoundError) -> ModelAssetStorageError -> fetch count 0 -> existing model untouched', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { bytes, descriptor } = await makeTestAsset('test-b-marker-handle-failure');
+
+    // Pre-populate valid cache
+    const mockFetchInitial = vi.fn().mockResolvedValue(new Response(bytes, { status: 200 }));
+    const initialStore = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetchInitial,
+    });
+    await initialStore.ensureAsset(descriptor);
+
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+
+    // Intercept entryDir getFileHandle to simulate storage/permission failure for verified.json
+    entryDir.onGetFileHandle = (name) => {
+      if (name === 'verified.json') {
+        const err = new Error('OPFS permission denied / disk I/O failure');
+        err.name = 'SecurityError';
+        throw err;
+      }
+      return undefined;
+    };
+
+    let fetchCount = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      fetchCount += 1;
+      return new Response(bytes, { status: 200 });
+    });
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    entryDir.removeEntryCalls.length = 0;
+
+    await expect(store.ensureAsset(descriptor)).rejects.toThrow(ModelAssetStorageError);
+    expect(fetchCount).toBe(0); // Invariant: 0 network requests
+    expect(entryDir.removeEntryCalls.length).toBe(0); // Invariant: no destructive cleanup
+
+    // Existing model.bin remains completely intact on disk
+    entryDir.onGetFileHandle = undefined;
+    const binHandle = (await entryDir.getFileHandle('model.bin')) as unknown as MemoryFileHandle;
+    expect(binHandle.getData()).toEqual(bytes);
+  });
+
+  it('Test C1: marker handle getFile failure -> ModelAssetStorageError -> fetch count 0 -> no cleanup', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { bytes, descriptor } = await makeTestAsset('test-c1-marker-getfile-failure');
+
+    const mockFetchInitial = vi.fn().mockResolvedValue(new Response(bytes, { status: 200 }));
+    const initialStore = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetchInitial,
+    });
+    await initialStore.ensureAsset(descriptor);
+
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+
+    const markerHandle = (await entryDir.getFileHandle('verified.json')) as unknown as MemoryFileHandle;
+    markerHandle.onGetFile = () => {
+      throw new Error('OPFS I/O error during marker getFile()');
+    };
+
+    let fetchCount = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      fetchCount += 1;
+      return new Response(bytes, { status: 200 });
+    });
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    entryDir.removeEntryCalls.length = 0;
+
+    await expect(store.ensureAsset(descriptor)).rejects.toThrow(ModelAssetStorageError);
+    expect(fetchCount).toBe(0);
+    expect(entryDir.removeEntryCalls.length).toBe(0);
+
+    // Existing model.bin remains intact on disk
+    const binHandle = (await entryDir.getFileHandle('model.bin')) as unknown as MemoryFileHandle;
+    expect(binHandle.getData()).toEqual(bytes);
+  });
+
+  it('Test C2: marker file text() read failure -> ModelAssetStorageError -> fetch count 0 -> no cleanup', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { bytes, descriptor } = await makeTestAsset('test-c2-marker-text-failure');
+
+    const mockFetchInitial = vi.fn().mockResolvedValue(new Response(bytes, { status: 200 }));
+    const initialStore = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetchInitial,
+    });
+    await initialStore.ensureAsset(descriptor);
+
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+
+    const markerHandle = (await entryDir.getFileHandle('verified.json')) as unknown as MemoryFileHandle;
+    markerHandle.onGetFile = () => {
+      const file = new File([], 'verified.json');
+      file.text = () => Promise.reject(new Error('Disk read fault while reading marker text'));
+      return file;
+    };
+
+    let fetchCount = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      fetchCount += 1;
+      return new Response(bytes, { status: 200 });
+    });
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    entryDir.removeEntryCalls.length = 0;
+
+    await expect(store.ensureAsset(descriptor)).rejects.toThrow(ModelAssetStorageError);
+    expect(fetchCount).toBe(0);
+    expect(entryDir.removeEntryCalls.length).toBe(0);
+
+    const binHandle = (await entryDir.getFileHandle('model.bin')) as unknown as MemoryFileHandle;
+    expect(binHandle.getData()).toEqual(bytes);
+  });
+
+  it('Test D: model.bin missing -> NotFoundError -> incomplete cache -> network recovery', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { bytes, descriptor } = await makeTestAsset('test-d-bin-missing');
+
+    // Pre-populate verified.json only
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets', { create: true })) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1', { create: true })) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId, { create: true })) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase(), { create: true })) as unknown as MemoryDirectoryHandle;
+
+    const markerHandle = (await entryDir.getFileHandle('verified.json', { create: true })) as unknown as MemoryFileHandle;
+    markerHandle.setData(new TextEncoder().encode(JSON.stringify({
+      schemaVersion: 1,
+      assetId: descriptor.assetId,
+      assetVersion: descriptor.assetVersion,
+      expectedByteSize: descriptor.expectedByteSize,
+      sha256: descriptor.sha256.toLowerCase(),
+      verifiedAt: new Date().toISOString(),
+    })));
+
+    let fetchCount = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      fetchCount += 1;
+      return new Response(bytes, { status: 200 });
+    });
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    const result = await store.ensureAsset(descriptor);
+    expect(result.diagnostics.source).toBe('network');
+    expect(result.bytes).toEqual(bytes);
+    expect(fetchCount).toBe(1);
+
+    const binHandle = (await entryDir.getFileHandle('model.bin')) as unknown as MemoryFileHandle;
+    expect(binHandle.getData()).toEqual(bytes);
+  });
+
+  it('Test E: model.bin handle storage failure (non-NotFoundError) -> ModelAssetStorageError -> fetch count 0 -> marker/model entry untouched', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { bytes, descriptor } = await makeTestAsset('test-e-bin-handle-failure');
+
+    const mockFetchInitial = vi.fn().mockResolvedValue(new Response(bytes, { status: 200 }));
+    const initialStore = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetchInitial,
+    });
+    await initialStore.ensureAsset(descriptor);
+
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+
+    entryDir.onGetFileHandle = (name) => {
+      if (name === 'model.bin') {
+        const err = new Error('Disk unreadable: I/O device error');
+        err.name = 'InvalidStateError';
+        throw err;
+      }
+      return undefined;
+    };
+
+    let fetchCount = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      fetchCount += 1;
+      return new Response(bytes, { status: 200 });
+    });
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    entryDir.removeEntryCalls.length = 0;
+
+    await expect(store.ensureAsset(descriptor)).rejects.toThrow(ModelAssetStorageError);
+    expect(fetchCount).toBe(0);
+    expect(entryDir.removeEntryCalls.length).toBe(0);
+
+    entryDir.onGetFileHandle = undefined;
+    const binHandle = (await entryDir.getFileHandle('model.bin')) as unknown as MemoryFileHandle;
+    expect(binHandle.getData()).toEqual(bytes);
+  });
+
+  it('Test E2: model.bin getFile failure -> ModelAssetStorageError -> fetch count 0 -> marker/model entry untouched', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { bytes, descriptor } = await makeTestAsset('test-e2-bin-getfile-failure');
+
+    const mockFetchInitial = vi.fn().mockResolvedValue(new Response(bytes, { status: 200 }));
+    const initialStore = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetchInitial,
+    });
+    await initialStore.ensureAsset(descriptor);
+
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+
+    const binHandle = (await entryDir.getFileHandle('model.bin')) as unknown as MemoryFileHandle;
+    binHandle.onGetFile = () => {
+      throw new Error('OPFS error accessing file blob');
+    };
+
+    let fetchCount = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      fetchCount += 1;
+      return new Response(bytes, { status: 200 });
+    });
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    entryDir.removeEntryCalls.length = 0;
+
+    await expect(store.ensureAsset(descriptor)).rejects.toThrow(ModelAssetStorageError);
+    expect(fetchCount).toBe(0);
+    expect(entryDir.removeEntryCalls.length).toBe(0);
+
+    binHandle.onGetFile = undefined;
+    expect(binHandle.getData()).toEqual(bytes);
+  });
+
+  it('Test F: model.bin arrayBuffer failure -> ModelAssetStorageError -> fetch count 0 -> no destructive cleanup', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { bytes, descriptor } = await makeTestAsset('test-f-bin-arraybuffer-failure');
+
+    const mockFetchInitial = vi.fn().mockResolvedValue(new Response(bytes, { status: 200 }));
+    const initialStore = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetchInitial,
+    });
+    await initialStore.ensureAsset(descriptor);
+
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+
+    const binHandle = (await entryDir.getFileHandle('model.bin')) as unknown as MemoryFileHandle;
+    binHandle.onGetFile = () => {
+      const file = new File([], 'model.bin');
+      file.arrayBuffer = () => Promise.reject(new Error('Out of memory or disk fault during arrayBuffer()'));
+      return file;
+    };
+
+    let fetchCount = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      fetchCount += 1;
+      return new Response(bytes, { status: 200 });
+    });
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    entryDir.removeEntryCalls.length = 0;
+
+    await expect(store.ensureAsset(descriptor)).rejects.toThrow(ModelAssetStorageError);
+    expect(fetchCount).toBe(0);
+    expect(entryDir.removeEntryCalls.length).toBe(0);
+
+    binHandle.onGetFile = undefined;
+    expect(binHandle.getData()).toEqual(bytes);
+  });
+
+  it('Test G1: corrupt model byte size -> invalid cache -> redownload from network', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { bytes, descriptor } = await makeTestAsset('test-g1-corrupt-size-content');
+
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets', { create: true })) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1', { create: true })) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId, { create: true })) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase(), { create: true })) as unknown as MemoryDirectoryHandle;
+
+    // Write marker
+    const markerHandle = (await entryDir.getFileHandle('verified.json', { create: true })) as unknown as MemoryFileHandle;
+    markerHandle.setData(new TextEncoder().encode(JSON.stringify({
+      schemaVersion: 1,
+      assetId: descriptor.assetId,
+      assetVersion: descriptor.assetVersion,
+      expectedByteSize: descriptor.expectedByteSize,
+      sha256: descriptor.sha256.toLowerCase(),
+      verifiedAt: new Date().toISOString(),
+    })));
+
+    // Write truncated model.bin
+    const binHandle = (await entryDir.getFileHandle('model.bin', { create: true })) as unknown as MemoryFileHandle;
+    binHandle.setData(bytes.slice(0, 5)); // Truncated size!
+
+    let fetchCount = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      fetchCount += 1;
+      return new Response(bytes, { status: 200 });
+    });
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    const result = await store.ensureAsset(descriptor);
+    expect(result.diagnostics.source).toBe('network');
+    expect(result.bytes).toEqual(bytes);
+    expect(fetchCount).toBe(1);
+    const freshBinHandle = (await entryDir.getFileHandle('model.bin')) as unknown as MemoryFileHandle;
+    expect(freshBinHandle.getData()).toEqual(bytes);
+  });
+
+  it('Test G2: corrupt model SHA256 -> invalid cache -> redownload if online, throw if offline', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { bytes, descriptor } = await makeTestAsset('test-g2-expected-content-weights');
+
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets', { create: true })) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1', { create: true })) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId, { create: true })) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase(), { create: true })) as unknown as MemoryDirectoryHandle;
+
+    const markerHandle = (await entryDir.getFileHandle('verified.json', { create: true })) as unknown as MemoryFileHandle;
+    markerHandle.setData(new TextEncoder().encode(JSON.stringify({
+      schemaVersion: 1,
+      assetId: descriptor.assetId,
+      assetVersion: descriptor.assetVersion,
+      expectedByteSize: descriptor.expectedByteSize,
+      sha256: descriptor.sha256.toLowerCase(),
+      verifiedAt: new Date().toISOString(),
+    })));
+
+    // Same length, wrong bytes (flipped byte)
+    const corruptBytes = new Uint8Array(bytes);
+    corruptBytes[0] = corruptBytes[0] ^ 0xff;
+    const binHandle = (await entryDir.getFileHandle('model.bin', { create: true })) as unknown as MemoryFileHandle;
+    binHandle.setData(corruptBytes);
+
+    // If offline: throws ModelAssetDownloadError
+    const offlineFetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    const offlineStore = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: offlineFetch,
+    });
+
+    await expect(offlineStore.ensureAsset(descriptor)).rejects.toThrow(ModelAssetDownloadError);
+
+    // If online: redownloads from network
+    const onlineFetch = vi.fn().mockResolvedValue(new Response(bytes, { status: 200 }));
+    const onlineStore = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: onlineFetch,
+    });
+
+    const result = await onlineStore.ensureAsset(descriptor);
+    expect(result.diagnostics.source).toBe('network');
+    expect(result.bytes).toEqual(bytes);
+    const freshBinHandle = (await entryDir.getFileHandle('model.bin')) as unknown as MemoryFileHandle;
+    expect(freshBinHandle.getData()).toEqual(bytes);
+  });
+
+  it('Test G3: corrupt marker JSON -> SyntaxError -> invalid cache -> redownload from network', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { bytes, descriptor } = await makeTestAsset('test-g3-corrupt-marker-json');
+
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets', { create: true })) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1', { create: true })) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId, { create: true })) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase(), { create: true })) as unknown as MemoryDirectoryHandle;
+
+    const markerHandle = (await entryDir.getFileHandle('verified.json', { create: true })) as unknown as MemoryFileHandle;
+    markerHandle.setData(new TextEncoder().encode('{ malformed json truncated...'));
+
+    const binHandle = (await entryDir.getFileHandle('model.bin', { create: true })) as unknown as MemoryFileHandle;
+    binHandle.setData(bytes);
+
+    let fetchCount = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      fetchCount += 1;
+      return new Response(bytes, { status: 200 });
+    });
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    const result = await store.ensureAsset(descriptor);
+    expect(result.diagnostics.source).toBe('network');
+    expect(result.bytes).toEqual(bytes);
+    expect(fetchCount).toBe(1);
+
+    // Verified marker must now be valid JSON
+    const freshMarkerHandle = (await entryDir.getFileHandle('verified.json')) as unknown as MemoryFileHandle;
+    const newMarker = JSON.parse(new TextDecoder().decode(freshMarkerHandle.getData()));
+    expect(newMarker.sha256).toBe(descriptor.sha256.toLowerCase());
+  });
+});
+
