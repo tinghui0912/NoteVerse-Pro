@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-18T06:42:59.484Z",
-  "gitHead": "45e87ee2d3cd3cbf8a54dcdf65403eff0c07d166",
+  "generatedAt": "2026-09-18T06:58:10.708Z",
+  "gitHead": "89a53c92c9d6b7da0dfe638ad40af07efe84aa0b",
   "command": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\scripts\\bytedance-model-opfs-smoke.mjs --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx --browser-channel chrome --headed --timeout 60000 --output backend/research/reports/bytedance_model_opfs_smoke_latest.json",
   "harness": "apps/customer-web/scripts/bytedance-model-opfs-smoke.mjs",
   "browser": {
@@ -57,7 +57,7 @@
           "onsetScore": 0.40352505445480347,
           "frameScore": 0.9820781350135803,
           "source": "ACOUSTIC",
-          "inferenceCompletedAtMs": 4401.5
+          "inferenceCompletedAtMs": 4022.300000190735
         }
       ]
     }
@@ -100,17 +100,17 @@
           "onsetScore": 0.40352505445480347,
           "frameScore": 0.9820781350135803,
           "source": "ACOUSTIC",
-          "inferenceCompletedAtMs": 2559.699999809265
+          "inferenceCompletedAtMs": 2392.2999999523163
         }
       ]
     }
   },
   "verifierDecisionAgreement": true,
   "browserErrors": [
-    "error: \u001b[0;93m2026-09-18 14:42:54.971500 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
-    "error: \u001b[0;93m2026-09-18 14:42:54.975000 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
-    "error: \u001b[0;93m2026-09-18 14:42:57.623500 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
-    "error: \u001b[0;93m2026-09-18 14:42:57.627600 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+    "error: \u001b[0;93m2026-09-18 14:58:06.574199 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "error: \u001b[0;93m2026-09-18 14:58:06.576699 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+    "error: \u001b[0;93m2026-09-18 14:58:08.966500 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "error: \u001b[0;93m2026-09-18 14:58:08.970200 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
   ],
   "browserWarnings": []
 }
