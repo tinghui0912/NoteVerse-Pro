@@ -16,7 +16,7 @@ import {
 
 function createMockArtifact(scoreTempoSegments: { startBeat: number; bpm: number }[]): PracticeScoreArtifact {
   return {
-    schemaVersion: 2,
+    schemaVersion: 1,
     scoreId: 'test-score',
     revisionId: 'test-revision',
     artifactId: 'test-artifact',

@@ -256,8 +256,8 @@ import { createLocalSessionId } from '${config.session}';
 const CONFIG = ${JSON.stringify(config)};
 
 const smokeArtifact = {
-  schemaVersion: 2,
-  artifactId: 'practice-score-artifact-v2:browser-smoke',
+  schemaVersion: 1,
+  artifactId: 'practice-score-artifact:browser-smoke',
   scoreId: 'smoke-score',
   revisionId: 'smoke-rev',
   scoreTempoSegments: [{ startBeat: 0.0, bpm: 80.0 }],

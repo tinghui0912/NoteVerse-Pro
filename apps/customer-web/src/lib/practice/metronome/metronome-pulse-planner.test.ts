@@ -13,10 +13,10 @@ import {
 
 function makeTestArtifact(overrides: Partial<PracticeScoreArtifact> = {}): PracticeScoreArtifact {
   return {
-    schemaVersion: 2,
+    schemaVersion: 1,
     scoreId: 'test-score',
     revisionId: 'test-rev',
-    artifactId: 'practice-score-artifact-v2:test',
+    artifactId: 'practice-score-artifact:test',
     firstPlayableBeat: 0.0,
     scoreEndBeat: 32.0,
     playableEvents: [],

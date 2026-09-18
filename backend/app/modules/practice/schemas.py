@@ -281,7 +281,7 @@ class SavedPracticeReplayPlaybackRead(BaseModel):
 
 
 class PracticeScoreArtifactRead(BaseModel):
-    schemaVersion: Literal[2] = 2
+    schemaVersion: Literal[1] = 1
     scoreId: str
     revisionId: str
     artifactId: str

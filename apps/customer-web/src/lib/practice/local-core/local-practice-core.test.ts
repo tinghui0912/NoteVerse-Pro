@@ -76,8 +76,8 @@ function performanceEvidence(
 
 describe('canonical PracticeScoreArtifact parity foundation', () => {
   it('uses the backend-produced artifact for STEP and CONTINUOUS from the same score domain', () => {
-    expect(artifact.schemaVersion).toBe(2);
-    expect(artifact.artifactId).toBe('practice-score-artifact-v2:a6e6c1b2d2e277e3');
+    expect(artifact.schemaVersion).toBe(1);
+    expect(artifact.artifactId).toBe('practice-score-artifact:ec2262af8d689ffb');
     expect(artifact.expectedPracticeGroups.map((group) => group.pitches)).toEqual([
       ['C4'],
       ['C4'],

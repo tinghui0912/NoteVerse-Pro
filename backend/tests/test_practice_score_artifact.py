@@ -34,8 +34,8 @@ def test_practice_score_artifact_matches_browser_fixture(tmp_path) -> None:
         score_tempo_segments=(PracticeTempoSegment(0.0, 120.0), PracticeTempoSegment(3.0, 90.0)),
     )
 
-    assert artifact["schemaVersion"] == 2
-    assert artifact["artifactId"] == "practice-score-artifact-v2:a6e6c1b2d2e277e3"
+    assert artifact["schemaVersion"] == 1
+    assert artifact["artifactId"] == "practice-score-artifact:ec2262af8d689ffb"
     assert artifact["scoreTempoSegments"] == [
         {"startBeat": 0.0, "bpm": 120.0},
         {"startBeat": 3.0, "bpm": 90.0},
@@ -84,7 +84,7 @@ def test_empty_practice_score_artifact_uses_null_first_playable() -> None:
         score_tempo_segments=(),
     )
 
-    assert artifact["schemaVersion"] == 2
+    assert artifact["schemaVersion"] == 1
     assert artifact["scoreTempoSegments"] == []
     assert artifact["firstPlayableBeat"] is None
     assert artifact["expectedPracticeGroups"] == []
@@ -113,7 +113,7 @@ def test_practice_score_artifact_deterministic_identity(tmp_path) -> None:
 
     assert artifact1 == artifact2
     assert artifact1["artifactId"] == artifact2["artifactId"]
-    assert artifact1["artifactId"].startswith("practice-score-artifact-v2:")
+    assert artifact1["artifactId"].startswith("practice-score-artifact:")
 
 
 
@@ -317,7 +317,7 @@ def test_practice_score_artifact_requires_explicit_score_tempo_segments() -> Non
         )
 
 
-def test_practice_score_artifact_read_schema_version_locked_to_2() -> None:
+def test_practice_score_artifact_read_schema_version_locked_to_1() -> None:
     import pytest
     from pydantic import ValidationError
     from app.modules.practice.schemas import PracticeScoreArtifactRead
@@ -325,7 +325,7 @@ def test_practice_score_artifact_read_schema_version_locked_to_2() -> None:
     base_payload = {
         "scoreId": "s-1",
         "revisionId": "r-1",
-        "artifactId": "practice-score-artifact-v2:abc",
+        "artifactId": "practice-score-artifact:abc",
         "scoreEndBeat": 10.0,
         "scoreTempoSegments": [],
         "meterSegments": [],
@@ -334,13 +334,13 @@ def test_practice_score_artifact_read_schema_version_locked_to_2() -> None:
         "practiceAttackSteps": [],
     }
 
-    # schemaVersion 2 must succeed
-    valid = PracticeScoreArtifactRead.model_validate({**base_payload, "schemaVersion": 2})
-    assert valid.schemaVersion == 2
+    # schemaVersion 1 must succeed
+    valid = PracticeScoreArtifactRead.model_validate({**base_payload, "schemaVersion": 1})
+    assert valid.schemaVersion == 1
 
-    # schemaVersion 1 must be rejected
+    # schemaVersion 2 must be rejected
     with pytest.raises(ValidationError):
-        PracticeScoreArtifactRead.model_validate({**base_payload, "schemaVersion": 1})
+        PracticeScoreArtifactRead.model_validate({**base_payload, "schemaVersion": 2})
 
     # schemaVersion 3 must be rejected
     with pytest.raises(ValidationError):

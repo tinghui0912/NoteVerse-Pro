@@ -85,7 +85,7 @@ export class MetronomeController {
       this.meterSegments = meterSegments;
       this.scopeEndBeat = options.scopeEndBeat ?? 1000;
       this.artifact = {
-        schemaVersion: 2,
+        schemaVersion: 1,
         scoreId: 'inline',
         revisionId: 'inline',
         artifactId: 'inline',

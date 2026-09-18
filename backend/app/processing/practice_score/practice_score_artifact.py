@@ -11,7 +11,7 @@ from app.processing.engines.practice_alignment.score_timeline import (
 from app.processing.practice_score.tempo import PracticeTempoSegment
 
 
-PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 2
+PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1
 
 
 def practice_score_artifact_from_timeline(
@@ -70,7 +70,7 @@ def _artifact_id(payload: dict[str, Any]) -> str:
     digest = hashlib.sha256(
         json.dumps(identity_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()[:16]
-    return f"practice-score-artifact-v2:{digest}"
+    return f"practice-score-artifact:{digest}"
 
 
 def _camel_dataclass(item: Any) -> Any:

@@ -38,8 +38,8 @@ const selectableMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 </score-partwise>`;
 
 const smokeArtifact = {
-  schemaVersion: 2,
-  artifactId: 'practice-score-artifact-v2:smoke-test',
+  schemaVersion: 1,
+  artifactId: 'practice-score-artifact:smoke-test',
   scoreId,
   revisionId,
   firstPlayableBeat: 0.0,

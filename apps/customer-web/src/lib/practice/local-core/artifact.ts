@@ -1,4 +1,4 @@
-export const PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 2 as const;
+export const PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1 as const;
 
 export type PracticeMode = 'STEP_BY_STEP' | 'CONTINUOUS_PLAY';
 export type PracticeInputSource = 'MICROPHONE' | 'MIDI';

@@ -128,11 +128,12 @@ describe('Architecture Guard: No Legacy Practice Realtime Files, Imports, or Pro
     expect(violations).toEqual([]);
   });
 
-  it('ensures PracticeScoreArtifact uses schemaVersion 2 and scoreTempoSegments', () => {
+  it('ensures PracticeScoreArtifact uses schemaVersion 1 and scoreTempoSegments', () => {
     const artifactFile = join(srcDir, 'lib/practice/local-core/artifact.ts');
     const content = readFileSync(artifactFile, 'utf-8');
 
-    expect(content).toContain('PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 2');
+    expect(content).toContain('PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1');
+    expect(content).not.toContain('PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 2');
     expect(content).toContain('scoreTempoSegments: TempoSegment[]');
     expect(content).not.toMatch(/\btempoSegments\s*:\s*TempoSegment\[\]/);
   });
