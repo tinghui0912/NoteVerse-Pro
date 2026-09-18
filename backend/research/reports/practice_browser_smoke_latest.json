@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-18T12:44:58.223Z",
-  "gitHead": "49781ae9b329e55665532badb6d4d6844fed4406",
+  "generatedAt": "2026-09-18T13:18:40.301Z",
+  "gitHead": "d6d0b8e8f3f81b749303e8f719975422b2b5b5ac",
   "command": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\scripts\\practice-browser-smoke.mjs --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx --browser-channel chrome --headed",
   "harness": "apps/customer-web/scripts/practice-browser-smoke.mjs",
   "model": {
@@ -54,12 +54,12 @@
         "maxComputeWorkgroupStorageSize": 32768
       }
     },
-    "localSessionId": "local-practice:5885970f-b995-4946-98b1-e2aea0a57218",
+    "localSessionId": "local-practice:194d29b4-c050-4a34-b744-1c57d4c05454",
     "initialTarget": {
       "stepId": "s-0",
       "activationGeneration": 1,
       "activationBoundary": {
-        "domainId": "local-practice:5885970f-b995-4946-98b1-e2aea0a57218",
+        "domainId": "local-practice:194d29b4-c050-4a34-b744-1c57d4c05454",
         "ms": -1
       },
       "attackPitches": [
@@ -73,19 +73,19 @@
         "stepId": "s-0",
         "activationGeneration": 1,
         "attackOnsetTime": {
-          "domainId": "local-practice:5885970f-b995-4946-98b1-e2aea0a57218",
-          "ms": 570,
-          "sampleIndex": 9120
+          "domainId": "local-practice:194d29b4-c050-4a34-b744-1c57d4c05454",
+          "ms": 460.0125000476837,
+          "sampleIndex": 7360
         },
         "captureTime": {
-          "domainId": "local-practice:5885970f-b995-4946-98b1-e2aea0a57218",
-          "ms": 570,
-          "sampleIndex": 9120
+          "domainId": "local-practice:194d29b4-c050-4a34-b744-1c57d4c05454",
+          "ms": 460.0125000476837,
+          "sampleIndex": 7360
         },
         "observedAttackPitches": [
           "A4"
         ],
-        "confidence": 0.43661993741989136,
+        "confidence": 0.4282436966896057,
         "source": "ACOUSTIC"
       }
     ],
@@ -98,8 +98,8 @@
             "stepId": "s-1",
             "activationGeneration": 2,
             "activationBoundary": {
-              "domainId": "local-practice:5885970f-b995-4946-98b1-e2aea0a57218",
-              "ms": 5190.900000095367
+              "domainId": "local-practice:194d29b4-c050-4a34-b744-1c57d4c05454",
+              "ms": 4904.100000143051
             },
             "attackPitches": [
               "B4"
@@ -111,8 +111,8 @@
           "stepId": "s-1",
           "activationGeneration": 2,
           "activationBoundary": {
-            "domainId": "local-practice:5885970f-b995-4946-98b1-e2aea0a57218",
-            "ms": 5190.900000095367
+            "domainId": "local-practice:194d29b4-c050-4a34-b744-1c57d4c05454",
+            "ms": 4904.100000143051
           },
           "attackPitches": [
             "B4"
@@ -125,8 +125,8 @@
       "stepId": "s-1",
       "activationGeneration": 2,
       "activationBoundary": {
-        "domainId": "local-practice:5885970f-b995-4946-98b1-e2aea0a57218",
-        "ms": 5190.900000095367
+        "domainId": "local-practice:194d29b4-c050-4a34-b744-1c57d4c05454",
+        "ms": 4904.100000143051
       },
       "attackPitches": [
         "B4"
@@ -134,22 +134,22 @@
       "continuationPitches": []
     },
     "loadDiagnostic": {
-      "modelFetchAndVerifyMs": 1839.8999998569489,
-      "sessionCreateMs": 870.5,
-      "totalLoadMs": 2710.399999856949,
+      "modelFetchAndVerifyMs": 1872.2999999523163,
+      "sessionCreateMs": 810.2999999523163,
+      "totalLoadMs": 2682.7000000476837,
       "modelByteSize": 98691493,
       "modelSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
       "source": "network",
-      "downloadMs": 1526,
-      "cacheReadMs": 147.70000004768372,
-      "verificationMs": 133.69999980926514,
+      "downloadMs": 1561.7999999523163,
+      "cacheReadMs": 145.79999995231628,
+      "verificationMs": 131.79999995231628,
       "persistentStorageGranted": null
     },
     "offlineExecutionPassed": true
   },
   "browserErrors": [
-    "\u001b[0;93m2026-09-18 20:44:55.883000 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
-    "\u001b[0;93m2026-09-18 20:44:55.885400 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+    "\u001b[0;93m2026-09-18 21:18:38.150699 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "\u001b[0;93m2026-09-18 21:18:38.153699 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
   ],
   "browserWarnings": []
 }
