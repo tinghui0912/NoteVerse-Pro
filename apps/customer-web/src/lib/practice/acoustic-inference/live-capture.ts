@@ -611,29 +611,69 @@ export class LiveByteDanceRollingPipeline {
     this.options.onFatalError?.(error);
   }
 }
+/**
+ * Lifecycle contract:
+ *
+ * start()
+ *   - only valid when idle/error
+ *   - creates one BrowserCaptureLifecycle
+ *   - stale/cancelled startup can never publish running
+ *
+ * stop()
+ *   - invalidates current startup/runtime immediately
+ *   - eventually releases all lifecycle-owned resources
+ *   - resolves with state idle
+ *
+ * fatal
+ *   - invalidates its own lifecycle
+ *   - releases only its own resources
+ *   - final state error unless superseded by explicit stop/newer lifecycle
+ *
+ * retry start()
+ *   - only begins after old resource ownership is safely detached
+ */
+type BrowserCaptureLifecycle = {
+  readonly generation: number;
+  cancelled: boolean;
+  stoppedByStop: boolean;
 
-type OwnedBrowserResources = {
-  audioContext: AudioContext | null;
   mediaStream: MediaStream | null;
+  audioContext: AudioContext | null;
   sourceNode: MediaStreamAudioSourceNode | null;
   workletNode: AudioWorkletNode | null;
   sinkNode: GainNode | null;
+
+  resampler: StreamingLinearResampler | null;
   pipeline: LiveByteDanceRollingPipeline | null;
+
+  workletChunkCount: number;
+  sourceContinuityOk: boolean;
+  expectedSourceSampleIndex: number;
 };
 
+function releaseLifecycleResources(lc: BrowserCaptureLifecycle): Promise<void> {
+  lc.workletNode?.port.close();
+  lc.workletNode?.disconnect();
+  lc.sinkNode?.disconnect();
+  lc.sourceNode?.disconnect();
+  for (const track of lc.mediaStream?.getTracks() ?? []) {
+    track.stop();
+  }
+  const audioClosePromise = lc.audioContext?.close().catch(() => undefined) ?? Promise.resolve();
+  const pipelineStopPromise = lc.pipeline?.stop().catch(() => undefined) ?? Promise.resolve();
+  lc.mediaStream = null;
+  lc.audioContext = null;
+  lc.sourceNode = null;
+  lc.workletNode = null;
+  lc.sinkNode = null;
+  lc.resampler = null;
+  lc.pipeline = null;
+  return Promise.all([audioClosePromise, pipelineStopPromise]).then(() => undefined);
+}
+
 export class BrowserMicrophoneCaptureController {
-  private audioContext: AudioContext | null = null;
-  private mediaStream: MediaStream | null = null;
-  private sourceNode: MediaStreamAudioSourceNode | null = null;
-  private workletNode: AudioWorkletNode | null = null;
-  private sinkNode: GainNode | null = null;
-  private resampler: StreamingLinearResampler | null = null;
-  private pipeline: LiveByteDanceRollingPipeline | null = null;
-  private workletChunkCount = 0;
-  private sourceContinuityOk = true;
-  private expectedSourceSampleIndex = 0;
   private generation = 0;
-  private pendingOperation: Promise<void> = Promise.resolve();
+  private currentLifecycle: BrowserCaptureLifecycle | null = null;
   private state: LiveCaptureState = {
     state: 'idle',
     normalizedEndSampleIndex: 0,
@@ -644,126 +684,174 @@ export class BrowserMicrophoneCaptureController {
   }
 
   snapshot(): LiveCaptureState {
+    const lc = this.currentLifecycle;
     return {
       ...this.state,
-      ...(this.pipeline?.snapshot() ?? {}),
-      workletChunkCount: this.workletChunkCount,
-      sourceContinuityOk: this.sourceContinuityOk,
-      lastSourceSampleIndex: this.expectedSourceSampleIndex,
+      ...(lc?.pipeline?.snapshot() ?? {}),
+      workletChunkCount: lc?.workletChunkCount ?? 0,
+      sourceContinuityOk: lc?.sourceContinuityOk ?? true,
+      lastSourceSampleIndex: lc?.expectedSourceSampleIndex ?? 0,
     };
   }
 
   async start(): Promise<void> {
-    await this.pendingOperation;
     const currentState = this.state.state;
     if (
       currentState === 'running' ||
       currentState === 'requesting-permission' ||
       currentState === 'initializing-audio' ||
-      currentState === 'initializing-model'
+      currentState === 'initializing-model' ||
+      currentState === 'stopping'
     ) {
       throw new Error(
         `Cannot start capture: controller is already in '${currentState}' state.`
       );
     }
     this.generation += 1;
-    const gen = this.generation;
+    const lc: BrowserCaptureLifecycle = {
+      generation: this.generation,
+      cancelled: false,
+      stoppedByStop: false,
+      mediaStream: null,
+      audioContext: null,
+      sourceNode: null,
+      workletNode: null,
+      sinkNode: null,
+      resampler: null,
+      pipeline: null,
+      workletChunkCount: 0,
+      sourceContinuityOk: true,
+      expectedSourceSampleIndex: 0,
+    };
+    this.currentLifecycle = lc;
     this.state = { ...this.state, state: 'requesting-permission' };
     try {
       const mediaDevices = globalThis.navigator?.mediaDevices;
       if (!mediaDevices?.getUserMedia) {
         throw new Error('Browser microphone capture requires getUserMedia.');
       }
-      this.mediaStream = await mediaDevices.getUserMedia({
+      lc.mediaStream = await mediaDevices.getUserMedia({
         audio: {
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
         },
       });
+      if (lc.cancelled) {
+        void releaseLifecycleResources(lc);
+        return;
+      }
+
       this.state = { ...this.state, state: 'initializing-audio' };
-      this.audioContext = new AudioContext();
-      await this.audioContext.audioWorklet.addModule(
+      lc.audioContext = new AudioContext();
+      await lc.audioContext.audioWorklet.addModule(
         new URL('./bytedance-capture.worklet.js', import.meta.url)
       );
-      this.pipeline = new LiveByteDanceRollingPipeline({
+      if (lc.cancelled) {
+        void releaseLifecycleResources(lc);
+        return;
+      }
+
+      this.state = { ...this.state, state: 'initializing-model' };
+      lc.pipeline = new LiveByteDanceRollingPipeline({
         ...this.options,
-        sourceSampleRateHz: this.audioContext.sampleRate,
+        sourceSampleRateHz: lc.audioContext.sampleRate,
         onFatalError: (error) => {
-          if (this.generation !== gen) {
+          if (this.currentLifecycle !== lc || lc.cancelled) {
             return;
           }
-          void this.enqueueFatalCleanup(error, gen);
+          this.handleFatalError(error, lc);
         },
       });
-      await this.pipeline.start();
-      this.resampler = new StreamingLinearResampler(
-        this.audioContext.sampleRate,
+      await lc.pipeline.start();
+      if (lc.cancelled) {
+        void releaseLifecycleResources(lc);
+        return;
+      }
+
+      lc.resampler = new StreamingLinearResampler(
+        lc.audioContext.sampleRate,
         MODEL_SAMPLE_RATE_HZ,
-        this.pipeline.currentLifecycleStartSampleIndex
+        lc.pipeline.currentLifecycleStartSampleIndex
       );
-      this.workletNode = new AudioWorkletNode(this.audioContext, 'noteverse-bytedance-capture');
-      this.workletNode.addEventListener('processorerror', (event) => {
-        if (this.generation !== gen) {
+      lc.workletNode = new AudioWorkletNode(lc.audioContext, 'noteverse-bytedance-capture');
+      lc.workletNode.addEventListener('processorerror', (event) => {
+        if (this.currentLifecycle !== lc || lc.cancelled) {
           return;
         }
-        void this.enqueueFatalCleanup(
+        this.handleFatalError(
           new Error(`AudioWorklet processor failed: ${event.type}`),
-          gen
+          lc
         );
       });
-      this.workletNode.port.onmessage = (event: MessageEvent<WorkletPcmChunkMessage>) => {
-        if (this.generation !== gen) {
+      lc.workletNode.port.onmessage = (event: MessageEvent<WorkletPcmChunkMessage>) => {
+        if (this.currentLifecycle !== lc || lc.cancelled) {
           return;
         }
         try {
-          if (event.data.type !== 'pcm-chunk' || !this.resampler || !this.pipeline) {
+          if (event.data.type !== 'pcm-chunk' || !lc.resampler || !lc.pipeline) {
             return;
           }
-          this.workletChunkCount += 1;
-          if (event.data.sourceStartSampleIndex !== this.expectedSourceSampleIndex) {
-            this.sourceContinuityOk = false;
+          lc.workletChunkCount += 1;
+          if (event.data.sourceStartSampleIndex !== lc.expectedSourceSampleIndex) {
+            lc.sourceContinuityOk = false;
           }
-          this.expectedSourceSampleIndex = event.data.sourceEndSampleIndex;
-          const chunk = this.resampler.append({
+          lc.expectedSourceSampleIndex = event.data.sourceEndSampleIndex;
+          const chunk = lc.resampler.append({
             samples: event.data.samples,
             sourceStartSampleIndex: event.data.sourceStartSampleIndex,
           });
-          this.pipeline.appendNormalizedPcm(chunk.samples, chunk.startSampleIndex);
+          lc.pipeline.appendNormalizedPcm(chunk.samples, chunk.startSampleIndex);
         } catch (error) {
-          void this.enqueueFatalCleanup(error, gen);
+          this.handleFatalError(error, lc);
         }
       };
-      this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
-      this.sinkNode = this.audioContext.createGain();
-      this.sinkNode.gain.value = 0;
-      this.sourceNode.connect(this.workletNode);
-      this.workletNode.connect(this.sinkNode);
-      this.sinkNode.connect(this.audioContext.destination);
+      lc.sourceNode = lc.audioContext.createMediaStreamSource(lc.mediaStream);
+      lc.sinkNode = lc.audioContext.createGain();
+      lc.sinkNode.gain.value = 0;
+      lc.sourceNode.connect(lc.workletNode);
+      lc.workletNode.connect(lc.sinkNode);
+      lc.sinkNode.connect(lc.audioContext.destination);
       this.state = {
-        ...this.pipeline.snapshot(),
+        ...lc.pipeline.snapshot(),
         state: 'running',
-        sourceSampleRateHz: this.audioContext.sampleRate,
+        sourceSampleRateHz: lc.audioContext.sampleRate,
       };
     } catch (error) {
-      this.state = {
-        ...this.state,
-        state: 'error',
-        lastError: error instanceof Error ? error.message : String(error),
-      };
-      await this.releaseOwnedResources(this.captureOwnedResources());
-      throw error;
+      if (!lc.stoppedByStop) {
+        this.state = {
+          ...this.state,
+          state: 'error',
+          lastError: error instanceof Error ? error.message : String(error),
+        };
+        if (this.currentLifecycle === lc) {
+          this.currentLifecycle = null;
+        }
+      }
+      await releaseLifecycleResources(lc);
+      if (!lc.stoppedByStop) {
+        throw error;
+      }
     }
   }
 
   async stop(): Promise<void> {
-    await this.pendingOperation;
-    if (this.state.state === 'idle' || this.state.state === 'error') {
+    const currentState = this.state.state;
+    if (currentState === 'idle') {
       return;
     }
     this.generation += 1;
-    this.state = { ...this.state, state: 'stopping' };
-    await this.releaseOwnedResources(this.captureOwnedResources());
+    const lc = this.currentLifecycle;
+    this.currentLifecycle = null;
+    this.state = {
+      ...this.state,
+      state: 'stopping',
+    };
+    if (lc) {
+      lc.cancelled = true;
+      lc.stoppedByStop = true;
+      await releaseLifecycleResources(lc);
+    }
     this.state = {
       state: 'idle',
       normalizedEndSampleIndex: 0,
@@ -771,61 +859,20 @@ export class BrowserMicrophoneCaptureController {
     };
   }
 
-  private enqueueFatalCleanup(error: unknown, triggerGeneration: number): void {
-    const op = (async () => {
-      await this.pendingOperation;
-      if (this.generation !== triggerGeneration) {
-        return;
-      }
-      const fatalError = error instanceof Error ? error : new Error(String(error));
-      this.generation += 1;
-      this.state = {
-        ...this.state,
-        state: 'error',
-        lastError: fatalError.message,
-      };
-      await this.releaseOwnedResources(this.captureOwnedResources());
-      this.state = {
-        ...this.state,
-        state: 'error',
-        lastError: fatalError.message,
-      };
-    })();
-    this.pendingOperation = op.catch(() => undefined);
-  }
-
-  private captureOwnedResources(): OwnedBrowserResources {
-    const owned: OwnedBrowserResources = {
-      audioContext: this.audioContext,
-      mediaStream: this.mediaStream,
-      sourceNode: this.sourceNode,
-      workletNode: this.workletNode,
-      sinkNode: this.sinkNode,
-      pipeline: this.pipeline,
-    };
-    this.audioContext = null;
-    this.mediaStream = null;
-    this.sourceNode = null;
-    this.workletNode = null;
-    this.sinkNode = null;
-    this.pipeline = null;
-    this.resampler = null;
-    this.workletChunkCount = 0;
-    this.sourceContinuityOk = true;
-    this.expectedSourceSampleIndex = 0;
-    return owned;
-  }
-
-  private async releaseOwnedResources(owned: OwnedBrowserResources): Promise<void> {
-    owned.workletNode?.port.close();
-    owned.workletNode?.disconnect();
-    owned.sinkNode?.disconnect();
-    owned.sourceNode?.disconnect();
-    for (const track of owned.mediaStream?.getTracks() ?? []) {
-      track.stop();
+  private handleFatalError(error: unknown, lc: BrowserCaptureLifecycle): void {
+    if (this.currentLifecycle !== lc || lc.cancelled) {
+      return;
     }
-    await owned.audioContext?.close().catch(() => undefined);
-    await owned.pipeline?.stop().catch(() => undefined);
+    const fatalError = error instanceof Error ? error : new Error(String(error));
+    this.generation += 1;
+    lc.cancelled = true;
+    this.currentLifecycle = null;
+    this.state = {
+      ...this.state,
+      state: 'error',
+      lastError: fatalError.message,
+    };
+    void releaseLifecycleResources(lc);
   }
 }
 

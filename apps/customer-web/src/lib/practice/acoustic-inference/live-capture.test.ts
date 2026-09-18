@@ -135,7 +135,10 @@ type FakeBrowserAudioEnvironment = {
   sinkDisconnect: ReturnType<typeof vi.fn>;
   audioClose: ReturnType<typeof vi.fn>;
   workletModuleLoad: ReturnType<typeof vi.fn>;
-  worklet?: { port: { onmessage?: (event: { data: unknown }) => void } };
+  worklet?: {
+    port: { onmessage?: (event: { data: unknown }) => void };
+    listeners?: Record<string, ((event: Event) => void)[]>;
+  };
 };
 
 function installFakeBrowserAudioEnvironment(): FakeBrowserAudioEnvironment {
@@ -179,7 +182,10 @@ function installFakeBrowserAudioEnvironment(): FakeBrowserAudioEnvironment {
     };
     connect = vi.fn();
     disconnect = env.workletDisconnect;
-    addEventListener = vi.fn();
+    listeners: Record<string, ((event: Event) => void)[]> = {};
+    addEventListener = vi.fn((type: string, listener: (event: Event) => void) => {
+      (this.listeners[type] ??= []).push(listener);
+    });
 
     constructor() {
       env.worklet = this;
@@ -832,11 +838,10 @@ describe('live ByteDance rolling pipeline', () => {
     expect(freshWorker.loadCount).toBe(1);
   });
 
-  it('serializes retry start after fatal cleanup completes even when AudioContext.close is delayed', async () => {
-    let resolveClose: (() => void) | undefined;
+  it('retries start immediately after fatal error even when old lifecycle cleanup is still pending', async () => {
     const env = installFakeBrowserAudioEnvironment();
-    env.audioClose.mockImplementation(() => new Promise<void>((resolve) => {
-      resolveClose = resolve;
+    env.audioClose.mockImplementation(() => new Promise<void>(() => {
+      // Never resolves — old lifecycle AudioContext.close hangs forever
     }));
     const failingWorker = new FakeWorker();
     failingWorker.inferImpl = async () => {
@@ -860,23 +865,16 @@ describe('live ByteDance rolling pipeline', () => {
       },
     });
     await settleAsyncWork();
-
     expect(controller.snapshot().state).toBe('error');
 
-    const retryPromise = controller.start();
-    await tick();
-
-    expect(freshWorker.loadCount).toBe(0);
-
-    resolveClose?.();
-    await retryPromise;
-
+    // New start proceeds immediately because it creates its own lifecycle
+    // Old lifecycle's AudioContext.close can hang without blocking retry
+    await controller.start();
     expect(controller.snapshot().state).toBe('running');
     expect(freshWorker.loadCount).toBe(1);
-    expect(env.audioClose).toHaveBeenCalled();
   });
 
-  it('does not let stop racing with fatal cleanup double-close resources', async () => {
+  it('explicit stop racing fatal cleanup always results in idle', async () => {
     const env = installFakeBrowserAudioEnvironment();
     const worker = new FakeWorker();
     worker.inferImpl = async () => {
@@ -900,78 +898,40 @@ describe('live ByteDance rolling pipeline', () => {
     await controller.stop();
     await settleAsyncWork();
 
+    expect(controller.snapshot().state).toBe('idle');
     expect(env.trackStop).toHaveBeenCalledTimes(1);
     expect(env.audioClose).toHaveBeenCalledTimes(1);
     expect(env.portClose).toHaveBeenCalledTimes(1);
-    const finalState = controller.snapshot().state;
-    expect(finalState === 'idle' || finalState === 'error').toBe(true);
   });
 
-  it('ignores late old-lifecycle fatal callback after a new lifecycle has started', async () => {
-    installFakeBrowserAudioEnvironment();
-    let capturedOnFatalError: ((error: Error) => void) | undefined;
-    const firstWorker = new FakeWorker();
-    const secondWorker = new FakeWorker();
-    const workers = [firstWorker, secondWorker];
+  it('old Worklet onmessage from previous lifecycle cannot affect new lifecycle', async () => {
+    const env = installFakeBrowserAudioEnvironment();
+    const workers = [new FakeWorker(), new FakeWorker()];
     let workerIndex = 0;
     const controller = new BrowserMicrophoneCaptureController(pipelineOptions({
       workerClientFactory: () => workerCast(workers[workerIndex++]),
-      onFatalError: (error) => {
-        capturedOnFatalError?.(error);
-      },
     }));
 
     await controller.start();
+    const oldOnmessage = env.worklet?.port.onmessage;
+    expect(oldOnmessage).toBeDefined();
+
     await controller.stop();
     await controller.start();
-
     expect(controller.snapshot().state).toBe('running');
 
-    capturedOnFatalError?.(new Error('stale old lifecycle error'));
-    await settleAsyncWork();
-
-    expect(controller.snapshot().state).toBe('running');
-  });
-
-  it('completes inference fatal → full cleanup → retry with fresh resources end-to-end', async () => {
-    const env = installFakeBrowserAudioEnvironment();
-    const failWorker = new FakeWorker();
-    failWorker.inferImpl = async () => {
-      throw new Error('tensor allocation failed');
-    };
-    const freshWorker = new FakeWorker();
-    const workers = [failWorker, freshWorker];
-    let workerIndex = 0;
-    const controller = new BrowserMicrophoneCaptureController(pipelineOptions({
-      workerClientFactory: () => workerCast(workers[workerIndex++]),
-    }));
-
-    await controller.start();
-    expect(controller.snapshot().state).toBe('running');
-
-    env.worklet?.port.onmessage?.({
+    oldOnmessage?.({
       data: {
         type: 'pcm-chunk',
         sourceSampleRateHz: 48_000,
         sourceStartSampleIndex: 0,
-        sourceEndSampleIndex: 10_560,
-        samples: fill(10_560),
+        sourceEndSampleIndex: 128,
+        samples: fill(128),
       },
-    });
+    } as MessageEvent);
     await settleAsyncWork();
 
-    expect(controller.snapshot()).toMatchObject({
-      state: 'error',
-      lastError: 'tensor allocation failed',
-    });
-    expect(env.trackStop).toHaveBeenCalledTimes(1);
-    expect(env.portClose).toHaveBeenCalledTimes(1);
-    expect(env.audioClose).toHaveBeenCalledTimes(1);
-
-    await controller.start();
     expect(controller.snapshot().state).toBe('running');
-    expect(freshWorker.loadCount).toBe(1);
-    expect(workerIndex).toBe(2);
   });
 
   it('preserves fixed workerClient as single-lifecycle at pipeline level and factory as restartable at controller level', async () => {
@@ -999,7 +959,164 @@ describe('live ByteDance rolling pipeline', () => {
     await expect(fixedPipeline.start()).rejects.toThrow(/single-lifecycle|workerClientFactory/i);
   });
 
-  it('Worklet synchronous failure triggers exactly one fatal cleanup with serialized lifecycle', async () => {
+  it('stop during pending getUserMedia cancels startup and results in idle', async () => {
+    let resolveGetUserMedia: ((stream: unknown) => void) | undefined;
+    const trackStop = vi.fn();
+    vi.stubGlobal('navigator', {
+      mediaDevices: {
+        getUserMedia: vi.fn().mockImplementation(() => new Promise((resolve) => {
+          resolveGetUserMedia = resolve;
+        })),
+      },
+    });
+    vi.stubGlobal('AudioContext', class { sampleRate = 48_000; });
+    vi.stubGlobal('AudioWorkletNode', class { port = { close: vi.fn() }; connect = vi.fn(); disconnect = vi.fn(); addEventListener = vi.fn(); });
+
+    const worker = new FakeWorker();
+    const controller = new BrowserMicrophoneCaptureController(pipelineOptions({
+      workerClient: workerCast(worker),
+    }));
+
+    const startPromise = controller.start();
+    await tick();
+    expect(controller.snapshot().state).toBe('requesting-permission');
+
+    const stopPromise = controller.stop();
+    await tick();
+
+    resolveGetUserMedia?.({ getTracks: () => [{ stop: trackStop }] });
+    await startPromise;
+    await stopPromise;
+
+    expect(controller.snapshot().state).toBe('idle');
+    expect(trackStop).toHaveBeenCalledTimes(1);
+    expect(worker.loadCount).toBe(0);
+  });
+
+  it('stop during pending audioWorklet.addModule cancels startup and results in idle', async () => {
+    let resolveAddModule: (() => void) | undefined;
+    const env = installFakeBrowserAudioEnvironment();
+    env.workletModuleLoad.mockImplementation(() => new Promise<void>((resolve) => {
+      resolveAddModule = resolve;
+    }));
+
+    const worker = new FakeWorker();
+    const controller = new BrowserMicrophoneCaptureController(pipelineOptions({
+      workerClient: workerCast(worker),
+    }));
+
+    const startPromise = controller.start();
+    await tick();
+    expect(controller.snapshot().state).toBe('initializing-audio');
+
+    const stopPromise = controller.stop();
+    await tick();
+
+    resolveAddModule?.();
+    await startPromise;
+    await stopPromise;
+
+    expect(controller.snapshot().state).toBe('idle');
+    expect(env.trackStop).toHaveBeenCalledTimes(1);
+    expect(env.audioClose).toHaveBeenCalledTimes(1);
+    expect(worker.loadCount).toBe(0);
+  });
+
+  it('stop during pending Worker model load cancels startup and results in idle', async () => {
+    let resolveLoad: (() => void) | undefined;
+    const env = installFakeBrowserAudioEnvironment();
+    const worker = new FakeWorker();
+    worker.loadImpl = () => new Promise<undefined>((resolve) => {
+      resolveLoad = () => resolve(undefined);
+    });
+
+    const controller = new BrowserMicrophoneCaptureController(pipelineOptions({
+      workerClientFactory: () => workerCast(worker),
+    }));
+
+    const startPromise = controller.start();
+    await tick();
+    expect(controller.snapshot().state).toBe('initializing-model');
+
+    const stopPromise = controller.stop();
+    await tick();
+
+    resolveLoad?.();
+    await startPromise;
+    await stopPromise;
+
+    expect(controller.snapshot().state).toBe('idle');
+    expect(env.trackStop).toHaveBeenCalledTimes(1);
+    expect(env.audioClose).toHaveBeenCalledTimes(1);
+    expect(worker.loadCount).toBe(1);
+    expect(worker.disposeCount).toBe(1);
+  });
+
+  it('old processorerror listener from previous lifecycle cannot affect new lifecycle', async () => {
+    const env = installFakeBrowserAudioEnvironment();
+    const workers = [new FakeWorker(), new FakeWorker()];
+    let workerIndex = 0;
+    const controller = new BrowserMicrophoneCaptureController(pipelineOptions({
+      workerClientFactory: () => workerCast(workers[workerIndex++]),
+    }));
+
+    await controller.start();
+    const oldWorklet = env.worklet;
+    const oldProcessorErrorListener = oldWorklet?.listeners?.['processorerror']?.[0];
+    expect(oldProcessorErrorListener).toBeDefined();
+
+    await controller.stop();
+    await controller.start();
+    expect(controller.snapshot().state).toBe('running');
+
+    oldProcessorErrorListener?.(new Event('processorerror'));
+    await settleAsyncWork();
+
+    expect(controller.snapshot().state).toBe('running');
+  });
+
+  it('old pipeline fatal callback after restart cannot affect new lifecycle or close new resources', async () => {
+    const env = installFakeBrowserAudioEnvironment();
+    let rejectFirstInference: ((err: Error) => void) | undefined;
+    const worker1 = new FakeWorker();
+    worker1.inferImpl = () => new Promise((_, reject) => {
+      rejectFirstInference = reject;
+    });
+    const worker2 = new FakeWorker();
+    const workers = [worker1, worker2];
+    let workerIndex = 0;
+    const controller = new BrowserMicrophoneCaptureController(pipelineOptions({
+      workerClientFactory: () => workerCast(workers[workerIndex++]),
+    }));
+
+    await controller.start();
+    env.worklet?.port.onmessage?.({
+      data: {
+        type: 'pcm-chunk',
+        sourceSampleRateHz: 48_000,
+        sourceStartSampleIndex: 0,
+        sourceEndSampleIndex: 10_560,
+        samples: fill(10_560),
+      },
+    });
+    await tick();
+
+    // Now restart before first inference completes
+    await controller.stop();
+    await controller.start();
+    expect(controller.snapshot().state).toBe('running');
+    expect(worker2.loadCount).toBe(1);
+
+    // Old lifecycle inference finally rejects with fatal error
+    rejectFirstInference?.(new Error('delayed fatal error from old worker'));
+    await settleAsyncWork();
+
+    // New lifecycle must remain running and untouched
+    expect(controller.snapshot().state).toBe('running');
+    expect(worker2.disposeCount).toBe(0);
+  });
+
+  it('Worklet synchronous failure triggers exactly one fatal cleanup with lifecycle resources', async () => {
     const env = installFakeBrowserAudioEnvironment();
     const worker = new FakeWorker();
     const controller = new BrowserMicrophoneCaptureController(pipelineOptions({
@@ -1027,17 +1144,6 @@ describe('live ByteDance rolling pipeline', () => {
     });
     await settleAsyncWork();
 
-    env.worklet?.port.onmessage?.({
-      data: {
-        type: 'pcm-chunk',
-        sourceSampleRateHz: 48_000,
-        sourceStartSampleIndex: 257,
-        sourceEndSampleIndex: 385,
-        samples: fill(128),
-      },
-    });
-    await settleAsyncWork();
-
     expect(controller.snapshot()).toMatchObject({
       state: 'error',
       lastError: expect.stringContaining('contiguous source samples'),
@@ -1045,5 +1151,33 @@ describe('live ByteDance rolling pipeline', () => {
     expect(env.trackStop).toHaveBeenCalledTimes(1);
     expect(env.portClose).toHaveBeenCalledTimes(1);
     expect(env.audioClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('fatal error without explicit stop results in error state', async () => {
+    const env = installFakeBrowserAudioEnvironment();
+    const worker = new FakeWorker();
+    worker.inferImpl = async () => {
+      throw new Error('gpu error');
+    };
+    const controller = new BrowserMicrophoneCaptureController(pipelineOptions({
+      workerClient: workerCast(worker),
+    }));
+    await controller.start();
+
+    env.worklet?.port.onmessage?.({
+      data: {
+        type: 'pcm-chunk',
+        sourceSampleRateHz: 48_000,
+        sourceStartSampleIndex: 0,
+        sourceEndSampleIndex: 10_560,
+        samples: fill(10_560),
+      },
+    });
+    await settleAsyncWork();
+
+    expect(controller.snapshot()).toMatchObject({
+      state: 'error',
+      lastError: 'gpu error',
+    });
   });
 });
