@@ -147,6 +147,18 @@ export async function getPracticeReadyScoreContent(
     );
 }
 
+export async function getPracticeScoreArtifact(
+    scoreId: string,
+    revisionId: string,
+    signal?: AbortSignal
+): Promise<ApiResponse<import('../practice/local-core/artifact').PracticeScoreArtifact>> {
+    return apiClient.get<ApiResponse<import('../practice/local-core/artifact').PracticeScoreArtifact>>(
+        `/practice/scores/${scoreId}/revisions/${revisionId}/artifact`,
+        undefined,
+        { signal }
+    );
+}
+
 export const practiceApi = {
     createPracticeSession,
     getPracticeSession,
@@ -163,4 +175,5 @@ export const practiceApi = {
     deletePracticeReplayArtifact,
     getPracticeTargets,
     getPracticeReadyScoreContent,
+    getPracticeScoreArtifact,
 };

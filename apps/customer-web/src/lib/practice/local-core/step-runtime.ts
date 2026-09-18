@@ -13,7 +13,9 @@ import type { DurableClock } from './timebase';
 import {
   createLocalSessionId,
   type LocalPracticeAttempt,
+  type LocalPracticeCompletionReason,
   type LocalStepSessionSnapshot,
+  type PracticeLifecycleState,
 } from './session';
 
 export type StepRuntimeDecision =
@@ -55,6 +57,8 @@ export class StepPracticeRuntime {
   private activationBoundary: SessionTime;
   private attempts: LocalPracticeAttempt[];
   private completed: boolean;
+  private lifecycleState: PracticeLifecycleState;
+  private completionReason: LocalPracticeCompletionReason | null;
   private readonly version: RuntimeVersionIdentity;
   private readonly inputSource: 'MICROPHONE' | 'MIDI';
   private readonly createdAtMs: number;
@@ -85,11 +89,36 @@ export class StepPracticeRuntime {
       : this.timebase.atSessionMs(-1);
     this.attempts = [...(options.snapshot?.step.attempts ?? [])];
     this.completed = options.snapshot?.step.completed ?? false;
+    this.lifecycleState = options.snapshot?.lifecycleState ?? (this.completed ? 'ENDED' : 'ACTIVE');
+    this.completionReason = options.snapshot?.completionReason ?? (this.completed ? 'SCOPE_COMPLETED' : null);
+  }
+
+  pause(): void {
+    if (this.lifecycleState === 'ENDED') {
+      return;
+    }
+    this.lifecycleState = 'PAUSED';
+    this.activationGeneration += 1;
+  }
+
+  resume(): void {
+    if (this.lifecycleState === 'ENDED') {
+      return;
+    }
+    this.lifecycleState = 'ACTIVE';
+    this.activationGeneration += 1;
+    this.activationBoundary = this.timebase.runtimeToSessionTime(this.clock.nowMs());
+  }
+
+  end(reason: LocalPracticeCompletionReason = 'STOPPED_BY_USER'): void {
+    this.lifecycleState = 'ENDED';
+    this.completionReason = reason;
+    this.activationGeneration += 1;
   }
 
   currentTarget(): StepVerifierTarget | null {
     const step = this.currentStep();
-    if (!step || this.completed) {
+    if (!step || this.completed || this.lifecycleState !== 'ACTIVE') {
       return null;
     }
     return {
@@ -104,6 +133,9 @@ export class StepPracticeRuntime {
   observe(observation?: StepVerifierObservation | null): StepRuntimeDecision {
     const target = this.currentTarget();
     if (!target) {
+      if (this.lifecycleState === 'PAUSED') {
+        return { kind: 'WAIT', reason: 'stale_activation', currentTarget: null };
+      }
       return { kind: 'WAIT', reason: 'scope_completed', currentTarget: null };
     }
     if (!observation) {
@@ -144,6 +176,9 @@ export class StepPracticeRuntime {
   skip(): StepRuntimeDecision {
     const target = this.currentTarget();
     if (!target) {
+      if (this.lifecycleState === 'PAUSED') {
+        return { kind: 'WAIT', reason: 'stale_activation', currentTarget: null };
+      }
       return { kind: 'WAIT', reason: 'scope_completed', currentTarget: null };
     }
     this.recordAttempt({
@@ -159,6 +194,8 @@ export class StepPracticeRuntime {
   reset(): void {
     this.currentIndex = this.resolvedScope.startIndex;
     this.completed = false;
+    this.lifecycleState = 'ACTIVE';
+    this.completionReason = null;
     this.activationGeneration += 1;
     this.activationBoundary = this.timebase.runtimeToSessionTime(this.clock.nowMs());
   }
@@ -176,7 +213,8 @@ export class StepPracticeRuntime {
         startGroupId: this.resolvedScope.startGroupId,
         endGroupId: this.resolvedScope.endGroupId,
       },
-      lifecycleState: this.completed ? 'ENDED' : 'ACTIVE',
+      lifecycleState: this.lifecycleState,
+      completionReason: this.completionReason,
       version: this.version,
       createdAtMs: this.createdAtMs,
       updatedAtMs: nowMs,
@@ -197,6 +235,14 @@ export class StepPracticeRuntime {
     return this.completed;
   }
 
+  get state(): PracticeLifecycleState {
+    return this.lifecycleState;
+  }
+
+  get sessionCompletionReason(): LocalPracticeCompletionReason | null {
+    return this.completionReason;
+  }
+
   get attemptHistory(): LocalPracticeAttempt[] {
     return [...this.attempts];
   }
@@ -214,6 +260,8 @@ export class StepPracticeRuntime {
     this.activationBoundary = this.timebase.runtimeToSessionTime(this.clock.nowMs());
     if (this.currentIndex > this.resolvedScope.endIndex) {
       this.completed = true;
+      this.lifecycleState = 'ENDED';
+      this.completionReason = 'SCOPE_COMPLETED';
     }
   }
 

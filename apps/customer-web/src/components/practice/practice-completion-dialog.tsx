@@ -12,12 +12,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
-import type { PracticeSessionMode } from '@/lib/practice/session-policy';
+import type { PracticeMode } from '@/lib/practice/local-core/artifact';
 
 interface PracticeCompletionDialogProps {
   open: boolean;
   outcome: PracticeCompletionOutcome;
-  sessionMode: PracticeSessionMode;
+  sessionMode: PracticeMode;
   isLoading: boolean;
   onOpenChange: (open: boolean) => void;
   onRestart: () => void;

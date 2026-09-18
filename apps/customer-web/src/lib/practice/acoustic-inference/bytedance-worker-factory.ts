@@ -1,4 +1,4 @@
-import { ByteDanceBrowserWorkerClient } from './bytedance-worker-protocol';
+import { ByteDanceBrowserWorkerClient } from './bytedance-worker-client';
 
 export function createByteDanceBrowserWorkerClient(): ByteDanceBrowserWorkerClient {
   return new ByteDanceBrowserWorkerClient(

@@ -2,15 +2,12 @@
 
 import { LoaderCircle, Mic } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import { cn } from '@/lib/utils';
-import type { PracticeSessionMode } from '@/lib/practice/session-policy';
-import type { PracticeConnectionStatus, PracticeStatus } from '@/lib/practice/practice-types';
-import type {
-  PracticeAlignmentUpdateMessage,
-  PracticePerformanceClockPayload,
-} from '@/lib/practice/protocol';
+import type { PracticeMode } from '@/lib/practice/local-core/artifact';
+import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/performance-runtime';
+import type { LocalPracticeStatus } from '@/hooks/practice/use-local-practice';
 
 type PracticeStatusMessageKey =
   | 'preparingPractice'
@@ -21,43 +18,21 @@ type PracticeStatusMessageKey =
   | 'waitingForFirstNote'
   | 'settingStatusFollowing'
   | 'settingStatusPaused'
-  | 'settingStatusReady'
-  | 'practiceStateHeardUncertain'
-  | 'practiceStatePartiallyMatched'
-  | 'practiceStateWaitingCorrectNote'
-  | 'practiceStateFindingPlace';
-
-type PracticeInputHintKey =
-  | 'practiceInputCheckMic'
-  | 'practiceInputClipping'
-  | 'practiceInputNoiseElevated'
-  | 'practiceInputNoiseHigh'
-  | null;
+  | 'settingStatusReady';
 
 type PracticeSessionStatusView = {
   messageKey: PracticeStatusMessageKey;
-  inputHintKey: PracticeInputHintKey;
   pending: boolean;
-  uncertain: boolean;
+  countInPulse: number | null;
 };
-
-const UNCERTAIN_STATUS_DELAY_MS = 350;
-const COUNT_IN_STATUS_TICK_MS = 100;
 
 type PracticeSessionStatusProps = {
   className?: string;
-  status: PracticeStatus;
-  connectionStatus: PracticeConnectionStatus;
-  isLoading: boolean;
-  isPreparingSession: boolean;
-  canPrepareSession: boolean;
-  audioWorkletSupported: boolean;
-  sessionMode: PracticeSessionMode;
-  practiceClockStarted: boolean;
+  status: LocalPracticeStatus;
+  isLoading?: boolean;
+  sessionMode: PracticeMode;
   practiceTime: number;
-  alignment?: PracticeAlignmentUpdateMessage['payload'] | null;
-  performanceClockSync?: PracticePerformanceClockPayload | null;
-  performanceClockSyncReceivedAtMs?: number | null;
+  performanceClock?: PerformanceClockSnapshot | null;
 };
 
 function formatTime(seconds: number) {
@@ -68,303 +43,97 @@ function formatTime(seconds: number) {
 
 export function resolvePracticeSessionStatusView({
   status,
-  connectionStatus,
-  isLoading,
-  isPreparingSession,
-  canPrepareSession,
-  audioWorkletSupported,
   sessionMode,
-  alignment,
-  performanceClockSync,
-}: Pick<
-  PracticeSessionStatusProps,
-  | 'status'
-  | 'connectionStatus'
-  | 'isLoading'
-  | 'isPreparingSession'
-  | 'canPrepareSession'
-  | 'audioWorkletSupported'
-  | 'sessionMode'
-  | 'alignment'
-  | 'performanceClockSync'
->): PracticeSessionStatusView {
-  const isConnecting = status === 'connecting';
-  const isPreparingConnection =
-    (status === 'idle' || status === 'finished') &&
-    canPrepareSession &&
-    audioWorkletSupported &&
-    !isLoading &&
-    (isPreparingSession || connectionStatus === 'connecting');
-
-  if (isPreparingConnection) {
+  performanceClock,
+}: {
+  status: LocalPracticeStatus;
+  sessionMode: PracticeMode;
+  performanceClock?: PerformanceClockSnapshot | null;
+}): PracticeSessionStatusView {
+  if (status === 'connecting') {
     return {
       messageKey: 'preparingPractice',
-      inputHintKey: null,
       pending: true,
-      uncertain: false,
-    };
-  }
-
-  if (isConnecting) {
-    return {
-      messageKey: 'preparingPractice',
-      inputHintKey: null,
-      pending: true,
-      uncertain: false,
+      countInPulse: null,
     };
   }
 
   if (status === 'finishing') {
     return {
       messageKey: 'finishingPractice',
-      inputHintKey: null,
       pending: true,
-      uncertain: false,
+      countInPulse: null,
     };
   }
 
   if (status === 'paused') {
     return {
       messageKey: 'settingStatusPaused',
-      inputHintKey: null,
       pending: false,
-      uncertain: false,
+      countInPulse: null,
     };
   }
 
   if (status !== 'listening' && status !== 'practicing') {
     return {
       messageKey: 'settingStatusReady',
-      inputHintKey: null,
       pending: false,
-      uncertain: false,
+      countInPulse: null,
     };
   }
 
-  if (sessionMode === 'CONTINUOUS_PLAY' && performanceClockSync?.state === 'COUNT_IN') {
+  if (sessionMode === 'CONTINUOUS_PLAY' && performanceClock?.state === 'COUNT_IN') {
+    const pulse =
+      performanceClock.countInPulses > 0 && performanceClock.countInRemainingMs > 0
+        ? Math.max(1, Math.ceil(performanceClock.countInPulses * (performanceClock.countInRemainingMs / (performanceClock.countInRemainingMs + 10))))
+        : 1;
     return {
       messageKey: 'performanceCountIn',
-      inputHintKey: null,
       pending: false,
-      uncertain: false,
+      countInPulse: pulse,
     };
   }
 
   if (sessionMode === 'CONTINUOUS_PLAY' && status === 'practicing') {
     return {
       messageKey: 'performanceRunning',
-      inputHintKey: null,
       pending: false,
-      uncertain: false,
-    };
-  }
-
-  const experienceState = alignment?.decision.experience_state;
-  const inputHintKey = inputHintForAlignment(alignment);
-
-  if (experienceState === 'following') {
-    return {
-      messageKey: 'settingStatusFollowing',
-      inputHintKey,
-      pending: false,
-      uncertain: false,
-    };
-  }
-
-  if (experienceState === 'heard_but_uncertain') {
-    return {
-      messageKey: 'practiceStateHeardUncertain',
-      inputHintKey,
-      pending: false,
-      uncertain: true,
-    };
-  }
-
-  if (experienceState === 'partially_matched') {
-    return {
-      messageKey: 'practiceStatePartiallyMatched',
-      inputHintKey,
-      pending: false,
-      uncertain: false,
-    };
-  }
-
-  if (experienceState === 'possible_wrong_note') {
-    return {
-      messageKey: 'practiceStateWaitingCorrectNote',
-      inputHintKey,
-      pending: false,
-      uncertain: true,
-    };
-  }
-
-  if (experienceState === 'recovering' || experienceState === 'lost') {
-    return {
-      messageKey: 'practiceStateFindingPlace',
-      inputHintKey,
-      pending: false,
-      uncertain: true,
+      countInPulse: null,
     };
   }
 
   return {
     messageKey: 'waitingForFirstNote',
-    inputHintKey,
     pending: false,
-    uncertain: false,
+    countInPulse: null,
   };
-}
-
-function inputHintForAlignment(
-  alignment: PracticeAlignmentUpdateMessage['payload'] | null | undefined
-): PracticeInputHintKey {
-  if (!alignment) {
-    return null;
-  }
-  if (!alignment.input_health.available || alignment.input_health.level === 'too_quiet') {
-    return 'practiceInputCheckMic';
-  }
-  if (alignment.input_health.level === 'clipping') {
-    return 'practiceInputClipping';
-  }
-  if (alignment.input_health.noise === 'high') {
-    return 'practiceInputNoiseHigh';
-  }
-  if (alignment.input_health.noise === 'elevated') {
-    return 'practiceInputNoiseElevated';
-  }
-  return null;
-}
-
-function fallbackViewBeforeUncertainState(status: PracticeStatus): PracticeSessionStatusView {
-  return {
-    messageKey: status === 'listening' ? 'waitingForFirstNote' : 'settingStatusFollowing',
-    inputHintKey: null,
-    pending: false,
-    uncertain: false,
-  };
-}
-
-function isSameStatusView(
-  left: PracticeSessionStatusView | null,
-  right: PracticeSessionStatusView
-): left is PracticeSessionStatusView {
-  return (
-    left?.messageKey === right.messageKey &&
-    left.inputHintKey === right.inputHintKey &&
-    left.pending === right.pending &&
-    left.uncertain === right.uncertain
-  );
 }
 
 export function PracticeSessionStatus({
   className,
   status,
-  connectionStatus,
-  isLoading,
-  isPreparingSession,
-  canPrepareSession,
-  audioWorkletSupported,
   sessionMode,
-  practiceClockStarted,
   practiceTime,
-  alignment,
-  performanceClockSync,
-  performanceClockSyncReceivedAtMs = null,
+  performanceClock,
 }: PracticeSessionStatusProps) {
   const t = useTranslations('practice');
   const resolvedView = useMemo(
     () =>
       resolvePracticeSessionStatusView({
         status,
-        connectionStatus,
-        isLoading,
-        isPreparingSession,
-        canPrepareSession,
-        audioWorkletSupported,
         sessionMode,
-        alignment,
-        performanceClockSync,
+        performanceClock,
       }),
-    [
-      alignment,
-      audioWorkletSupported,
-      canPrepareSession,
-      connectionStatus,
-      isLoading,
-      isPreparingSession,
-      performanceClockSync,
-      sessionMode,
-      status,
-    ]
+    [performanceClock, sessionMode, status]
   );
-  const [delayedUncertainView, setDelayedUncertainView] =
-    useState<PracticeSessionStatusView | null>(null);
-  const [countInNowMs, setCountInNowMs] = useState(0);
+
   const isRecording =
-    practiceClockStarted &&
-    (status === 'listening' || status === 'practicing' || status === 'paused');
+    status === 'listening' || status === 'practicing' || status === 'paused';
 
-  useEffect(() => {
-    if (!resolvedView.uncertain) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setDelayedUncertainView(resolvedView);
-    }, UNCERTAIN_STATUS_DELAY_MS);
-    return () => window.clearTimeout(timeoutId);
-  }, [
-    resolvedView,
-  ]);
-
-  useEffect(() => {
-    if (performanceClockSync?.state !== 'COUNT_IN') {
-      return undefined;
-    }
-
-    const intervalId = window.setInterval(() => {
-      setCountInNowMs(performance.now());
-    }, COUNT_IN_STATUS_TICK_MS);
-    return () => window.clearInterval(intervalId);
-  }, [performanceClockSync]);
-
-  const displayView =
-    resolvedView.uncertain && isSameStatusView(delayedUncertainView, resolvedView)
-      ? delayedUncertainView
-      : resolvedView.uncertain
-        ? fallbackViewBeforeUncertainState(status)
-        : resolvedView;
-  const projectedCountInRemainingMs =
-    displayView.messageKey === 'performanceCountIn' &&
-    performanceClockSync?.state === 'COUNT_IN' &&
-    performanceClockSyncReceivedAtMs !== null
-      ? Math.max(
-          0,
-          performanceClockSync.count_in_remaining_ms -
-            Math.max(0, countInNowMs - performanceClockSyncReceivedAtMs)
-        )
-      : null;
-  const projectedCountInRemainingPulses =
-    projectedCountInRemainingMs !== null &&
-    performanceClockSync?.state === 'COUNT_IN' &&
-    performanceClockSync.count_in_remaining_ms > 0
-      ? Math.max(
-          0,
-          performanceClockSync.count_in_remaining_pulses *
-            (projectedCountInRemainingMs / performanceClockSync.count_in_remaining_ms)
-        )
-      : null;
-  const countInPulse =
-    projectedCountInRemainingPulses !== null && projectedCountInRemainingPulses > 0
-      ? Math.max(1, Math.ceil(projectedCountInRemainingPulses))
-      : null;
   const message =
-    displayView.messageKey === 'performanceCountIn' && countInPulse === null
-      ? t('performanceStarting')
-      : countInPulse === null
-      ? t(displayView.messageKey)
-      : t(displayView.messageKey, { pulse: countInPulse });
+    resolvedView.countInPulse !== null
+      ? t('performanceCountIn', { pulse: resolvedView.countInPulse })
+      : t(resolvedView.messageKey);
 
   return (
     <div
@@ -375,15 +144,13 @@ export function PracticeSessionStatus({
         className
       )}
     >
-      {displayView.pending ? (
+      {resolvedView.pending ? (
         <LoaderCircle className="h-4 w-4 shrink-0 animate-spin text-orange-500" aria-hidden="true" />
       ) : (
         <span
           className={cn(
-            'h-2 w-2 shrink-0 rounded-full bg-slate-300',
-            displayView.uncertain
-              ? 'bg-amber-400 shadow-[0_0_0_3px_rgba(251,191,36,0.14)]'
-              : status === 'listening' || status === 'practicing'
+            'h-2 w-2 shrink-0 rounded-full',
+            status === 'listening' || status === 'practicing'
               ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]'
               : status === 'paused'
                 ? 'bg-amber-400 shadow-[0_0_0_3px_rgba(251,191,36,0.14)]'
@@ -393,11 +160,6 @@ export function PracticeSessionStatus({
         />
       )}
       <span className="min-w-0 max-w-52 truncate font-medium text-slate-700">{message}</span>
-      {displayView.inputHintKey ? (
-        <span className="hidden min-w-0 max-w-44 truncate border-l border-slate-200 pl-2 text-xs text-slate-500 sm:inline">
-          {t(displayView.inputHintKey)}
-        </span>
-      ) : null}
       {isRecording ? (
         <span className="flex shrink-0 items-center gap-1.5 border-l border-slate-200 pl-2.5 font-semibold tabular-nums text-rose-600">
           <Mic className="h-3.5 w-3.5" aria-hidden="true" />

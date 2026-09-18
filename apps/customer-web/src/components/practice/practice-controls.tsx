@@ -15,7 +15,7 @@ import type { PracticeConnectionStatus, PracticeStatus } from '@/lib/practice/pr
 
 interface PracticeControlsProps {
   status: PracticeStatus;
-  connectionStatus: PracticeConnectionStatus;
+  connectionStatus?: PracticeConnectionStatus;
   isLoading: boolean;
   isPreparingSession: boolean;
   canPrepareSession: boolean;
@@ -31,7 +31,7 @@ interface PracticeControlsProps {
 
 export function PracticeControls({
   status,
-  connectionStatus,
+  connectionStatus: _connectionStatus = 'ready',
   isLoading,
   isPreparingSession,
   canPrepareSession,
@@ -52,7 +52,6 @@ export function PracticeControls({
     canPrepareSession &&
     !isLoading &&
     !isPreparingSession &&
-    (connectionStatus === 'ready' || connectionStatus === 'disconnected' || connectionStatus === 'error') &&
     audioWorkletSupported;
   const actionButtonClass = 'h-11 w-32';
 

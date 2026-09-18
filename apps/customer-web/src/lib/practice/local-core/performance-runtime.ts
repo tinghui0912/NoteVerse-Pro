@@ -18,6 +18,7 @@ import { PracticeTimebase, type DurableClock, type LocalClock, type RuntimeVersi
 import {
   createLocalSessionId,
   type LocalPerformanceSessionSnapshot,
+  type LocalPracticeCompletionReason,
 } from './session';
 import { LocalPerformanceEvaluator } from './performance-evaluator';
 
@@ -35,6 +36,7 @@ export type PerformanceClockSnapshot = {
   scopeStartBeat: number;
   scopeTerminalBeat: number;
   speedRatio: number;
+  completionReason: LocalPracticeCompletionReason | null;
 };
 
 export type PerformancePracticeRuntimeOptions = {
@@ -79,6 +81,7 @@ export class PerformancePracticeRuntime {
   private readonly createdAtMs: number;
   private state: PerformanceRuntimeState = 'READY';
   private stateBeforePause: PerformanceRuntimeState = 'READY';
+  private completionReason: LocalPracticeCompletionReason | null = null;
   private activeElapsedMs = 0;
   private currentSegment: ClockSegment | null = null;
   private clockSegments: ClockSegment[] = [];
@@ -125,6 +128,7 @@ export class PerformancePracticeRuntime {
       this.stateBeforePause = options.snapshot.performance.state === 'PAUSED'
         ? options.snapshot.performance.stateBeforePause
         : options.snapshot.performance.state;
+      this.completionReason = options.snapshot.completionReason;
       this.activeElapsedMs = options.snapshot.performance.activeElapsedMs;
       this.observations = options.snapshot.performance.observations.map((observation) => ({
         ...observation,
@@ -140,6 +144,7 @@ export class PerformancePracticeRuntime {
     if (this.state !== 'READY') {
       throw new Error('Performance runtime can only start from READY.');
     }
+    this.completionReason = null;
     this.state = this.countInMs > 0 ? 'COUNT_IN' : 'RUNNING';
     this.activeElapsedMs = 0;
     this.currentSegment = this.startClockSegment(this.state, this.activeElapsedMs);
@@ -167,6 +172,17 @@ export class PerformancePracticeRuntime {
     return this.snapshot();
   }
 
+  end(reason: LocalPracticeCompletionReason = 'STOPPED_BY_USER'): PerformanceClockSnapshot {
+    if (this.state === 'ENDED') {
+      return this.snapshot();
+    }
+    this.activeElapsedMs = this.activeElapsedAt(this.nowSessionMs());
+    this.finishCurrentSegment(this.nowSessionMs());
+    this.state = 'ENDED';
+    this.completionReason = reason;
+    return this.snapshot();
+  }
+
   snapshot(): PerformanceClockSnapshot {
     const activeElapsedMs = this.advanceState();
     const performanceTimeMs = this.performanceElapsedMs(activeElapsedMs);
@@ -178,10 +194,11 @@ export class PerformancePracticeRuntime {
       countInRemainingMs: Math.max(0, this.countInMs - activeElapsedMs),
       countInBeats: this.countInBeats,
       countInPulses: this.countInPulses,
-      scopeCompleted: this.state === 'ENDED',
+      scopeCompleted: this.completionReason === 'SCOPE_COMPLETED',
       scopeStartBeat: this.scope.startBeat,
       scopeTerminalBeat: this.scope.terminalBeat,
       speedRatio: this.speedRatio,
+      completionReason: this.completionReason,
     };
   }
 
@@ -212,6 +229,7 @@ export class PerformancePracticeRuntime {
         endGroupId: this.scope.endGroupId,
       },
       lifecycleState: this.state === 'ENDED' ? 'ENDED' : this.state === 'PAUSED' ? 'PAUSED' : 'ACTIVE',
+      completionReason: this.completionReason,
       version: this.version,
       createdAtMs: this.createdAtMs,
       updatedAtMs: nowMs,
@@ -247,12 +265,16 @@ export class PerformancePracticeRuntime {
     return [...this.outcomes];
   }
 
+  get sessionCompletionReason(): LocalPracticeCompletionReason | null {
+    return this.completionReason;
+  }
+
   private advanceState(): number {
     if (this.state === 'READY') {
       return 0;
     }
     const activeElapsedMs = this.activeElapsedAt(this.nowSessionMs());
-    if (this.state === 'PAUSED') {
+    if (this.state === 'PAUSED' || this.state === 'ENDED') {
       return activeElapsedMs;
     }
     if (activeElapsedMs < this.countInMs) {
@@ -261,6 +283,7 @@ export class PerformancePracticeRuntime {
       this.activeElapsedMs = activeElapsedMs;
       this.finishCurrentSegment(this.nowSessionMs());
       this.state = 'ENDED';
+      this.completionReason = 'SCOPE_COMPLETED';
     } else {
       this.state = 'RUNNING';
     }

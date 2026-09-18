@@ -7,11 +7,11 @@ import { describe, expect, it, vi } from 'vitest';
 import practiceMessages from '../../../messages/en/practice.json';
 import { PracticeCompletionDialog } from './practice-completion-dialog';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
-import type { PracticeSessionMode } from '@/lib/practice/session-policy';
+import type { PracticeMode } from '@/lib/practice/local-core/artifact';
 
 function renderDialog(
   outcome: PracticeCompletionOutcome,
-  sessionMode: PracticeSessionMode = 'STEP_BY_STEP'
+  sessionMode: PracticeMode = 'STEP_BY_STEP'
 ) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ practice: practiceMessages }}>

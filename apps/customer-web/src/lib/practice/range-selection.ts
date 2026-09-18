@@ -1,7 +1,4 @@
-import type {
-  PracticeSessionScope,
-  PracticeTargetRead,
-} from '@/generated/practice-api';
+import type { ExpectedPracticeGroup, PracticeScope } from './local-core/artifact';
 
 export type PracticeRangeSelection =
   | { kind: 'FULL_PIECE' }
@@ -26,37 +23,55 @@ export function selectedPracticeRangeSelection(
   };
 }
 
+export function groupById(
+  groups: readonly ExpectedPracticeGroup[],
+  groupId: string
+): ExpectedPracticeGroup | null {
+  return groups.find((group) => group.groupId === groupId) ?? null;
+}
+
+export const targetByGroupId = groupById;
+
+export function groupForRenderNoteId(
+  groups: readonly ExpectedPracticeGroup[],
+  renderNoteId: string
+): ExpectedPracticeGroup | null {
+  return groups.find((group) => group.renderNoteIds.includes(renderNoteId)) ?? null;
+}
+
+export const targetForRenderNoteId = groupForRenderNoteId;
+
 export function selectPracticeRangeTarget(
   selection: PracticeRangeSelection,
-  targets: readonly PracticeTargetRead[],
+  groups: readonly ExpectedPracticeGroup[],
   groupId: string
 ): PracticeRangeSelection {
-  const clickedTarget = targetByGroupId(targets, groupId);
-  if (!clickedTarget) {
+  const clickedGroup = groupById(groups, groupId);
+  if (!clickedGroup) {
     return selection;
   }
 
   if (selection.kind === 'FULL_PIECE' || selection.endGroupId) {
-    return selectedPracticeRangeSelection(clickedTarget.group_id, null);
+    return selectedPracticeRangeSelection(clickedGroup.groupId, null);
   }
 
   if (!selection.startGroupId) {
-    return selectedPracticeRangeSelection(clickedTarget.group_id, null);
+    return selectedPracticeRangeSelection(clickedGroup.groupId, null);
   }
 
-  const startTarget = targetByGroupId(targets, selection.startGroupId);
-  if (!startTarget) {
-    return selectedPracticeRangeSelection(clickedTarget.group_id, null);
+  const startGroup = groupById(groups, selection.startGroupId);
+  if (!startGroup) {
+    return selectedPracticeRangeSelection(clickedGroup.groupId, null);
   }
 
-  const [start, end] = orderedPracticeTargets(startTarget, clickedTarget);
-  return selectedPracticeRangeSelection(start.group_id, end.group_id);
+  const [start, end] = orderedPracticeGroups(startGroup, clickedGroup, groups);
+  return selectedPracticeRangeSelection(start.groupId, end.groupId);
 }
 
 export function practiceScopeFromRangeSelection(
   selection: PracticeRangeSelection,
-  targets: readonly PracticeTargetRead[]
-): PracticeSessionScope | null {
+  groups: readonly ExpectedPracticeGroup[]
+): PracticeScope | null {
   if (
     selection.kind === 'FULL_PIECE' ||
     !selection.startGroupId ||
@@ -65,35 +80,23 @@ export function practiceScopeFromRangeSelection(
     return null;
   }
 
-  const startTarget = targetByGroupId(targets, selection.startGroupId);
-  const endTarget = targetByGroupId(targets, selection.endGroupId);
-  if (!startTarget || !endTarget) {
+  const startGroup = groupById(groups, selection.startGroupId);
+  const endGroup = groupById(groups, selection.endGroupId);
+  if (!startGroup || !endGroup) {
     return null;
   }
 
-  const [start, end] = orderedPracticeTargets(startTarget, endTarget);
+  const [start, end] = orderedPracticeGroups(startGroup, endGroup, groups);
   return {
-    start_expected_group_id: start.group_id,
-    end_expected_group_id: end.group_id,
-    start_measure_number: firstMeasureNumber(start),
-    end_measure_number: firstMeasureNumber(end),
+    startGroupId: start.groupId,
+    endGroupId: end.groupId,
   };
 }
 
-export function targetForRenderNoteId(
-  targets: readonly PracticeTargetRead[],
-  renderNoteId: string
-): PracticeTargetRead | null {
-  const matches = targets
-    .filter((target) => target.render_note_ids?.includes(renderNoteId))
-    .sort(comparePracticeTargets);
-  return matches[0] ?? null;
-}
-
-export function practiceTargetsInRangeSelection(
+export function practiceGroupsInRangeSelection(
   selection: PracticeRangeSelection,
-  targets: readonly PracticeTargetRead[]
-): PracticeTargetRead[] {
+  groups: readonly ExpectedPracticeGroup[]
+): ExpectedPracticeGroup[] {
   if (
     selection.kind === 'FULL_PIECE' ||
     !selection.startGroupId ||
@@ -102,39 +105,29 @@ export function practiceTargetsInRangeSelection(
     return [];
   }
 
-  const startTarget = targetByGroupId(targets, selection.startGroupId);
-  const endTarget = targetByGroupId(targets, selection.endGroupId);
-  if (!startTarget || !endTarget) {
+  const startGroup = groupById(groups, selection.startGroupId);
+  const endGroup = groupById(groups, selection.endGroupId);
+  if (!startGroup || !endGroup) {
     return [];
   }
 
-  const [start, end] = orderedPracticeTargets(startTarget, endTarget);
-  return targets
-    .filter((target) => target.index >= start.index && target.index <= end.index)
-    .sort(comparePracticeTargets);
+  const [start, end] = orderedPracticeGroups(startGroup, endGroup, groups);
+  const startIndex = groups.indexOf(start);
+  const endIndex = groups.indexOf(end);
+  if (startIndex === -1 || endIndex === -1) {
+    return [];
+  }
+  return groups.slice(startIndex, endIndex + 1);
 }
 
-export function targetByGroupId(
-  targets: readonly PracticeTargetRead[],
-  groupId: string
-): PracticeTargetRead | null {
-  return targets.find((target) => target.group_id === groupId) ?? null;
-}
+export const practiceTargetsInRangeSelection = practiceGroupsInRangeSelection;
 
-function orderedPracticeTargets(
-  first: PracticeTargetRead,
-  second: PracticeTargetRead
-): [PracticeTargetRead, PracticeTargetRead] {
-  return comparePracticeTargets(first, second) <= 0 ? [first, second] : [second, first];
-}
-
-function comparePracticeTargets(
-  first: PracticeTargetRead,
-  second: PracticeTargetRead
-): number {
-  return first.index - second.index;
-}
-
-function firstMeasureNumber(target: PracticeTargetRead): string | null {
-  return target.measure_numbers?.[0] ?? null;
+function orderedPracticeGroups(
+  first: ExpectedPracticeGroup,
+  second: ExpectedPracticeGroup,
+  groups: readonly ExpectedPracticeGroup[]
+): [ExpectedPracticeGroup, ExpectedPracticeGroup] {
+  const firstIndex = groups.indexOf(first);
+  const secondIndex = groups.indexOf(second);
+  return firstIndex <= secondIndex ? [first, second] : [second, first];
 }

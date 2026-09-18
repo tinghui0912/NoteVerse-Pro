@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { QueryClient } from '@tanstack/react-query';
 
@@ -86,6 +86,8 @@ export const queryKeys = {
     },
     practice: {
         all: ['practice'] as const,
+        artifact: (scoreId: string, revisionId: string) =>
+            ['practice', 'artifact', { scoreId, revisionId }] as const,
         targets: (scoreId: string, revisionId: string) =>
             ['practice', 'targets', { scoreId, revisionId }] as const,
         readyContent: (scoreId: string, revisionId: string) =>

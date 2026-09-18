@@ -5,34 +5,33 @@ import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils';
 import type { PracticeConnectionStatus } from '@/lib/practice/practice-types';
-import type { PracticeInputSource } from '@/generated/practice-api';
-import type { PracticeSessionMode } from '@/lib/practice/session-policy';
+import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-core/artifact';
 
 type PracticeSettingsPanelProps = {
   className?: string;
-  connectionStatus: PracticeConnectionStatus;
-  hasMicPermission: boolean | null;
+  connectionStatus?: PracticeConnectionStatus;
+  hasMicPermission?: boolean | null;
   audioWorkletSupported: boolean;
   midiSupported: boolean;
-  hasMidiPermission: boolean | null;
-  hasMidiInput: boolean | null;
-  practiceMode: PracticeSessionMode;
+  hasMidiPermission?: boolean | null;
+  hasMidiInput?: boolean | null;
+  practiceMode: PracticeMode;
   practiceModeLocked: boolean;
   inputSource: PracticeInputSource;
   microphoneInputLocked: boolean;
   midiInputLocked: boolean;
-  onPracticeModeChange: (practiceMode: PracticeSessionMode) => void;
+  onPracticeModeChange: (practiceMode: PracticeMode) => void;
   onInputSourceChange: (inputSource: PracticeInputSource) => void;
 };
 
 export function PracticeSettingsPanel({
   className,
-  connectionStatus,
-  hasMicPermission,
+  connectionStatus = 'ready',
+  hasMicPermission = true,
   audioWorkletSupported,
   midiSupported,
-  hasMidiPermission,
-  hasMidiInput,
+  hasMidiPermission = null,
+  hasMidiInput = null,
   practiceMode,
   practiceModeLocked,
   inputSource,

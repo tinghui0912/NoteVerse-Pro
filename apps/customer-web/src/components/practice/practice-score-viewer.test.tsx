@@ -6,8 +6,7 @@ import { useEffect, useRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PracticeScoreViewer } from './practice-score-viewer';
-import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
-import type { PracticeAlignmentUpdateMessage } from '@/lib/practice/protocol';
+import type { ExpectedPracticeGroup } from '@/lib/practice/local-core/artifact';
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -89,64 +88,19 @@ function renderViewer(props: Partial<PracticeScoreViewerProps> = {}) {
   );
 }
 
-function makeAlignment(): PracticeAlignmentUpdateMessage['payload'] {
-  return {
-    beat_position: 64,
-    confidence: 1,
-    alignment_confidence: 1,
-    audio_confidence: 1,
-    continuity_confidence: 1,
-    visual_confidence: 1,
-    timestamp_ms: 100,
-    scope_completed: true,
-    completion_reason: 'FINAL_EXPECTED_GROUP_MATCHED',
-    audio_active: false,
-    input_rms: 0,
-    input_peak: 0,
-    input_health: {
-      available: true,
-      level: 'good',
-      noise: 'good',
-      confidence: 1,
-    },
-    match_state: 'matched',
-    feature_confidence: 1,
-    beat_delta: null,
-    stream_state: 'skipped',
-    frame_class: 'unknown',
-    gate_reason: 'user_skipped',
-    queue_decision: 'user_skipped',
-    tonal_signal: false,
-    onset_signal: false,
-    spectral_flatness: 0,
-    peak_prominence: 0,
-    spectral_flux: 0,
-    alignment_state: 'skipped',
-    continuity_state: 'stable',
-    beat_velocity: null,
-    validation_confidence: 1,
-    input_weight: 0,
-    input_policy_confidence: 1,
-    decision: {
-      action: 'skip',
-      reason: 'user_skipped',
-      experience_state: 'skipped',
-      display_anchor: {
-        beat: 64,
-        group_id: 'entry-64',
-        render_note_ids: ['note-a'],
-      },
-      confidence_summary: {
-        visual: 1,
-        alignment: 1,
-        audio: 1,
-        continuity: 1,
-        validation: 1,
-        input_policy: 1,
-      },
-    },
-  };
-}
+const mockStepGroup: ExpectedPracticeGroup = {
+  groupId: 'entry-64',
+  onsetBeat: 64,
+  canonicalEndBeat: 66,
+  pitches: ['C4'],
+  renderNoteIds: ['note-a'],
+  measureNumbers: ['1'],
+  eventIds: [],
+  expectedNotes: [],
+  strikeTargets: [],
+  staffIds: [],
+  voiceIds: [],
+};
 
 describe('PracticeScoreViewer', () => {
   it('renders selected section as note backgrounds without recoloring note shapes', async () => {
@@ -239,31 +193,15 @@ describe('PracticeScoreViewer', () => {
     delete (SVGElement.prototype as SVGElement & { getBBox?: unknown }).getBBox;
   });
 
-  it('keeps the final step-by-step alignment visible after completion', async () => {
-    const getTimelineEntryForDisplayAnchor = vi
-      .spyOn(PracticeVerovioAdapter.prototype, 'getTimelineEntryForDisplayAnchor')
-      .mockReturnValue({
-        index: 0,
-        beat: 64,
-        endBeat: 66,
-        noteIds: ['note-a'],
-        groupId: 'entry-64',
-      });
-    const getPageWithElement = vi
-      .spyOn(PracticeVerovioAdapter.prototype, 'getPageWithElement')
-      .mockReturnValue(1);
-
+  it('highlights the active step target notes in STEP mode', async () => {
     renderViewer({
-      practiceStatus: 'finished',
-      alignment: makeAlignment(),
+      practiceStatus: 'listening',
+      activeStepGroup: mockStepGroup,
     });
 
     const selectedNote = await screen.findByTestId('selected-note');
     await waitFor(() => {
       expect(selectedNote).toHaveClass('practice-note-active');
     });
-
-    getTimelineEntryForDisplayAnchor.mockRestore();
-    getPageWithElement.mockRestore();
   });
 });

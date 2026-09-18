@@ -127,6 +127,21 @@ export type ByteDanceLoadDiagnostics = {
   persistentStorageGranted?: boolean | null;
 };
 
+export const BYTEDANCE_PRODUCTION_MODEL_BYTE_SIZE = 98_691_493;
+export const BYTEDANCE_PRODUCTION_MODEL_SHA256 = '6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5';
+export const BYTEDANCE_PRODUCTION_MODEL_DEFAULT_URL = '/models/bytedance/bytedance_note_model_fixed_anchor.onnx';
+
+export function createProductionByteDanceManifest(overrideUrl?: string): ByteDanceModelManifest {
+  const modelUrl = overrideUrl
+    || (typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_BYTEDANCE_MODEL_URL : undefined)
+    || BYTEDANCE_PRODUCTION_MODEL_DEFAULT_URL;
+  return defaultByteDanceModelManifest({
+    modelUrl,
+    expectedByteSize: BYTEDANCE_PRODUCTION_MODEL_BYTE_SIZE,
+    sha256: BYTEDANCE_PRODUCTION_MODEL_SHA256,
+  });
+}
+
 export function defaultByteDanceModelManifest(input: {
   modelUrl: string;
   expectedByteSize: number;

@@ -1,22 +1,22 @@
+import type { PracticePerformanceTimelineRead } from '@/generated/practice-api';
 import {
   focusPageContainer,
   keepElementInViewport,
   shouldFocusPage,
 } from './practice-scroll';
-import type {
-  PracticePerformanceClockPayload,
-  PracticePerformanceTimelinePayload,
-} from './protocol';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
+
+export type PerformanceScopeBeats = {
+  startBeat: number;
+  terminalBeat: number;
+  selectedRangeNoteIds?: readonly string[];
+};
 
 type PerformancePlayheadState = {
   activeNoteIds: string[];
   activePage: number | null;
-  sync: PracticePerformanceClockPayload | null;
-  timeline: PracticePerformanceTimelinePayload | null;
-  selectedRangeNoteIds: string[];
-  syncReceivedAtMs: number;
   displayedBeat: number | null;
+  selectedRangeNoteIds: string[];
 };
 
 function escapeCssId(id: string) {
@@ -26,62 +26,42 @@ function escapeCssId(id: string) {
   return id.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
 }
 
-function findElementByVerovioId(container: HTMLElement, verovioId: string) {
+function extractPageNumber(node: HTMLElement | null): number | null {
+  const pageContainer = node?.closest<HTMLElement>('[data-practice-page]');
+  const pageValue = pageContainer?.dataset.practicePage;
+  if (!pageValue) {
+    return null;
+  }
+  const parsed = Number.parseInt(pageValue, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function findElementByVerovioId(container: HTMLElement, verovioId: string): HTMLElement | null {
   return (
     container.querySelector<HTMLElement>(`[data-id="${verovioId}"]`) ??
     container.querySelector<HTMLElement>(`#${escapeCssId(verovioId)}`)
   );
 }
 
-function extractPageNumber(node: HTMLElement | null) {
-  const pageContainer = node?.closest<HTMLElement>('[data-practice-page]');
-  const pageValue = pageContainer?.dataset.practicePage;
-  if (!pageValue) {
-    return null;
-  }
-
-  const parsed = Number.parseInt(pageValue, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 export class PerformancePlayheadController {
   private state: PerformancePlayheadState = {
     activeNoteIds: [],
     activePage: null,
-    sync: null,
-    timeline: null,
-    selectedRangeNoteIds: [],
-    syncReceivedAtMs: 0,
     displayedBeat: null,
+    selectedRangeNoteIds: [],
   };
 
-  clear(container: HTMLElement) {
+  clear(container: HTMLElement): void {
     this.clearDecorations(container);
     this.state = {
       activeNoteIds: [],
       activePage: null,
-      sync: null,
-      timeline: null,
-      selectedRangeNoteIds: [],
-      syncReceivedAtMs: 0,
       displayedBeat: null,
+      selectedRangeNoteIds: [],
     };
   }
 
-  receiveSync(sync: PracticePerformanceClockPayload, receivedAtMs = performance.now()) {
-    this.state.sync = sync;
-    this.state.syncReceivedAtMs = receivedAtMs;
-  }
-
-  receiveTimeline(timeline: PracticePerformanceTimelinePayload) {
-    if (this.state.timeline === timeline) {
-      return;
-    }
-    this.state.timeline = timeline;
-    this.state.displayedBeat = null;
-  }
-
-  receiveSelectedRangeNoteIds(noteIds: readonly string[]) {
+  receiveSelectedRangeNoteIds(noteIds: readonly string[]): void {
     const uniqueNoteIds = Array.from(new Set(noteIds.filter(Boolean)));
     if (uniqueNoteIds.join('\u001f') === this.state.selectedRangeNoteIds.join('\u001f')) {
       return;
@@ -93,72 +73,31 @@ export class PerformancePlayheadController {
   apply(
     container: HTMLElement,
     adapter: PracticeVerovioAdapter,
-    receivedAtMs = performance.now()
+    musicalBeat: number | null,
+    scope?: PerformanceScopeBeats
   ): void {
-    const beat = this.projectVisualBeat(receivedAtMs);
-    if (beat === null) {
+    if (musicalBeat === null) {
       this.clearDecorations(container);
       return;
     }
 
-    this.applyBeat(container, adapter, beat, { monotonic: true });
-  }
-
-  applyPerformanceTime(
-    container: HTMLElement,
-    adapter: PracticeVerovioAdapter,
-    performanceTimeMs: number,
-    timeline: PracticePerformanceTimelinePayload
-  ): void {
-    this.receiveTimeline(timeline);
-    const beat = this.projectTimelineBeat(performanceTimeMs);
-    if (beat === null) {
-      this.clearDecorations(container);
-      return;
-    }
-    this.applyBeat(container, adapter, beat, { monotonic: false });
-  }
-
-  refreshDecorations(container: HTMLElement) {
-    for (const noteId of this.state.activeNoteIds) {
-      findElementByVerovioId(container, noteId)?.classList.add('practice-note-active');
-    }
-  }
-
-  private clearDecorations(container: HTMLElement) {
-    for (const noteId of this.state.activeNoteIds) {
-      findElementByVerovioId(container, noteId)?.classList.remove('practice-note-active');
-    }
-    this.state.activeNoteIds = [];
-    this.state.activePage = null;
-  }
-
-  private applyBeat(
-    container: HTMLElement,
-    adapter: PracticeVerovioAdapter,
-    beat: number,
-    options: { monotonic: boolean }
-  ) {
     const previousPage = this.state.activePage;
     this.clearDecorations(container);
-    const displayedBeat =
-      options.monotonic && this.state.displayedBeat !== null
-        ? Math.max(this.state.displayedBeat, beat)
-        : beat;
 
-    const scope = this.currentScope();
+    const rangeNoteIds = scope?.selectedRangeNoteIds ?? this.state.selectedRangeNoteIds;
     const entry = scope
       ? adapter.getCursorTimelineEntryForBeatRange(
-          displayedBeat,
+          musicalBeat,
           scope.startBeat,
           scope.terminalBeat,
-          this.state.selectedRangeNoteIds
+          rangeNoteIds
         )
-      : adapter.getTimelineEntryForBeat(displayedBeat);
+      : adapter.getTimelineEntryForBeat(musicalBeat);
+
     if (!entry) {
       return;
     }
-    this.state.displayedBeat = displayedBeat;
+    this.state.displayedBeat = musicalBeat;
 
     const noteElements: HTMLElement[] = [];
     for (const noteId of entry.noteIds) {
@@ -172,9 +111,17 @@ export class PerformancePlayheadController {
     }
 
     const anchorNode = noteElements[0] ?? null;
-    const activePage =
-      extractPageNumber(anchorNode) ??
-      (entry.noteIds[0] ? adapter.getPageWithElement(entry.noteIds[0]) : previousPage);
+    let activePage: number | null = extractPageNumber(anchorNode);
+    if (activePage === null && entry.noteIds[0]) {
+      try {
+        activePage = adapter.getPageWithElement(entry.noteIds[0]);
+      } catch {
+        activePage = previousPage;
+      }
+    } else if (activePage === null) {
+      activePage = previousPage;
+    }
+
     if (activePage !== null) {
       const activePageNode = container.querySelector<HTMLElement>(
         `[data-practice-page="${activePage}"]`
@@ -194,54 +141,35 @@ export class PerformancePlayheadController {
     }
   }
 
-  private projectVisualBeat(nowMs: number) {
-    const sync = this.state.sync;
-    if (!sync) {
-      return null;
+  applyPerformanceTime(
+    container: HTMLElement,
+    adapter: PracticeVerovioAdapter,
+    performanceTimeMs: number,
+    timeline: PracticePerformanceTimelineRead
+  ): void {
+    const beat = projectPerformanceTimeToBeat(timeline, performanceTimeMs);
+    if (beat === null) {
+      this.clearDecorations(container);
+      return;
     }
-    if (sync.state === 'READY' || sync.state === 'ENDED' || sync.scope_completed) {
-      return null;
-    }
-    if (sync.state === 'COUNT_IN' || sync.state === 'PAUSED') {
-      return clampBeat(sync.musical_beat, sync.scope_start_beat, sync.scope_terminal_beat);
-    }
-
-    const elapsedMs = Math.max(0, nowMs - this.state.syncReceivedAtMs);
-    const performanceTimeMs = sync.performance_time_ms + elapsedMs * sync.speed_ratio;
-    return this.projectRunningBeat(performanceTimeMs, sync);
+    this.apply(container, adapter, beat, {
+      startBeat: timeline.scope_start_beat,
+      terminalBeat: timeline.scope_terminal_beat,
+    });
   }
 
-  private projectRunningBeat(performanceTimeMs: number, sync: PracticePerformanceClockPayload) {
-    const timelineBeat = this.projectTimelineBeat(performanceTimeMs);
-    const projectedBeat = clampBeat(
-      timelineBeat ?? sync.musical_beat,
-      sync.scope_start_beat,
-      sync.scope_terminal_beat
-    );
-    return this.state.displayedBeat === null
-      ? projectedBeat
-      : Math.max(this.state.displayedBeat, projectedBeat);
+  refreshDecorations(container: HTMLElement): void {
+    for (const noteId of this.state.activeNoteIds) {
+      findElementByVerovioId(container, noteId)?.classList.add('practice-note-active');
+    }
   }
 
-  private currentScope() {
-    const sync = this.state.sync;
-    const timeline = this.state.timeline;
-    if (!sync && !timeline) {
-      return null;
+  private clearDecorations(container: HTMLElement): void {
+    for (const noteId of this.state.activeNoteIds) {
+      findElementByVerovioId(container, noteId)?.classList.remove('practice-note-active');
     }
-    return {
-      startBeat: timeline?.scope_start_beat ?? sync?.scope_start_beat ?? 0,
-      terminalBeat: timeline?.scope_terminal_beat ?? sync?.scope_terminal_beat ?? 0,
-    };
-  }
-
-  private projectTimelineBeat(performanceTimeMs: number) {
-    const timeline = this.state.timeline;
-    if (!timeline || timeline.segments.length === 0) {
-      return null;
-    }
-
-    return projectPerformanceTimeToBeat(timeline, performanceTimeMs);
+    this.state.activeNoteIds = [];
+    this.state.activePage = null;
   }
 }
 
@@ -250,10 +178,10 @@ function clampBeat(beat: number, startBeat: number, terminalBeat: number) {
 }
 
 export function projectPerformanceTimeToBeat(
-  timeline: PracticePerformanceTimelinePayload,
+  timeline: PracticePerformanceTimelineRead,
   performanceTimeMs: number
-) {
-  if (timeline.segments.length === 0) {
+): number | null {
+  if (!timeline.segments || timeline.segments.length === 0) {
     return null;
   }
   const boundedTime = Math.min(

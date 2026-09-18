@@ -9,16 +9,14 @@ import { PreviewLoading } from '@/components/loading';
 import { EmptyState } from '@/components/states';
 import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { PracticeFollowController } from '@/lib/practice/follow-controller';
-import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
+import { StepPlayheadController } from '@/lib/practice/step-playhead-controller';
+import {
+  PerformancePlayheadController,
+  type PerformanceScopeBeats,
+} from '@/lib/practice/performance-playhead-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import { cn } from '@/lib/utils';
-import type {
-  PracticeAlignmentUpdateMessage,
-  PracticePerformanceClockPayload,
-  PracticePerformanceTimelinePayload,
-} from '@/lib/practice/protocol';
-import type { PracticeSessionMode } from '@/lib/practice/session-policy';
+import type { ExpectedPracticeGroup, PracticeMode } from '@/lib/practice/local-core/artifact';
 
 type PracticeScoreViewerProps = {
   className?: string;
@@ -33,10 +31,10 @@ type PracticeScoreViewerProps = {
     | 'paused'
     | 'finishing'
     | 'finished';
-  alignment?: PracticeAlignmentUpdateMessage['payload'] | null;
-  performanceClockSync?: PracticePerformanceClockPayload | null;
-  performanceTimeline?: PracticePerformanceTimelinePayload | null;
-  sessionMode: PracticeSessionMode;
+  sessionMode: PracticeMode;
+  activeStepGroup?: ExpectedPracticeGroup | null;
+  performanceMusicalBeat?: number | null;
+  performanceScopeBeats?: PerformanceScopeBeats | null;
   selectedRangeRenderNoteIds?: readonly string[];
   selectedRangeStartRenderNoteIds?: readonly string[];
   selectedRangeEndRenderNoteIds?: readonly string[];
@@ -49,10 +47,10 @@ export function PracticeScoreViewer({
   xmlContent,
   isLoadingXml,
   practiceStatus,
-  alignment = null,
-  performanceClockSync = null,
-  performanceTimeline = null,
   sessionMode,
+  activeStepGroup = null,
+  performanceMusicalBeat = null,
+  performanceScopeBeats = null,
   selectedRangeRenderNoteIds = [],
   selectedRangeStartRenderNoteIds = [],
   selectedRangeEndRenderNoteIds = [],
@@ -62,7 +60,7 @@ export function PracticeScoreViewer({
   const tPractice = useTranslations('practice');
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
   const adapterFactory = useCallback(() => adapter, [adapter]);
-  const followController = useMemo(() => new PracticeFollowController(), []);
+  const stepPlayheadController = useMemo(() => new StepPlayheadController(), []);
   const performancePlayheadController = useMemo(() => new PerformancePlayheadController(), []);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -82,27 +80,27 @@ export function PracticeScoreViewer({
       return;
     }
 
-    const shouldClearFollowState =
+    const shouldClear =
       sessionMode !== 'STEP_BY_STEP' ||
-      !alignment ||
+      !activeStepGroup ||
       !xmlContent ||
       renderRevision === 0 ||
       practiceStatus === 'idle';
 
-    if (shouldClearFollowState) {
-      followController.clear(container);
+    if (shouldClear) {
+      stepPlayheadController.clear(container);
       return;
     }
 
-    followController.apply(container, adapter, alignment);
+    stepPlayheadController.apply(container, adapter, activeStepGroup);
     const frame = window.requestAnimationFrame(() => {
-      followController.refreshDecorations(container);
+      stepPlayheadController.refreshDecorations(container);
     });
     return () => window.cancelAnimationFrame(frame);
   }, [
     adapter,
-    alignment,
-    followController,
+    activeStepGroup,
+    stepPlayheadController,
     practiceStatus,
     renderRevision,
     sessionMode,
@@ -114,7 +112,7 @@ export function PracticeScoreViewer({
     if (
       !container ||
       sessionMode !== 'CONTINUOUS_PLAY' ||
-      !performanceClockSync ||
+      performanceMusicalBeat === null ||
       !xmlContent ||
       renderRevision === 0 ||
       practiceStatus === 'idle' ||
@@ -126,32 +124,20 @@ export function PracticeScoreViewer({
       return;
     }
 
-    if (performanceTimeline) {
-      performancePlayheadController.receiveTimeline(performanceTimeline);
-    }
     const rangeNoteIds = selectedRangeRenderNoteIdSignature
       ? selectedRangeRenderNoteIdSignature.split('\u001f')
       : [];
     performancePlayheadController.receiveSelectedRangeNoteIds(rangeNoteIds);
-    performancePlayheadController.receiveSync(performanceClockSync);
-    let frame: number | null = null;
-    const renderPlayhead = () => {
-      performancePlayheadController.apply(container, adapter);
-      if (performanceClockSync.state === 'COUNT_IN' || performanceClockSync.state === 'RUNNING') {
-        frame = window.requestAnimationFrame(renderPlayhead);
-      }
-    };
-
-    frame = window.requestAnimationFrame(renderPlayhead);
-    return () => {
-      if (frame !== null) {
-        window.cancelAnimationFrame(frame);
-      }
-    };
+    performancePlayheadController.apply(
+      container,
+      adapter,
+      performanceMusicalBeat,
+      performanceScopeBeats ?? undefined
+    );
   }, [
     adapter,
-    performanceClockSync,
-    performanceTimeline,
+    performanceMusicalBeat,
+    performanceScopeBeats,
     performancePlayheadController,
     practiceStatus,
     renderRevision,
@@ -211,7 +197,7 @@ export function PracticeScoreViewer({
     const container = containerRef.current;
     if (
       !container ||
-      !alignment ||
+      !activeStepGroup ||
       sessionMode !== 'STEP_BY_STEP' ||
       !xmlContent ||
       renderRevision === 0 ||
@@ -222,7 +208,7 @@ export function PracticeScoreViewer({
     }
 
     const frame = window.requestAnimationFrame(() => {
-      followController.refreshDecorations(container);
+      stepPlayheadController.refreshDecorations(container);
     });
     return () => window.cancelAnimationFrame(frame);
   });

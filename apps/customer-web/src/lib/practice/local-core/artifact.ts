@@ -128,18 +128,27 @@ export type CountInContract = {
   denominator: number;
 };
 
-export function assertPracticeScoreArtifact(artifact: PracticeScoreArtifact): void {
-  if (artifact.schemaVersion !== PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION) {
-    throw new Error(`Unsupported PracticeScoreArtifact schema: ${artifact.schemaVersion}`);
+export function assertPracticeScoreArtifact(artifact: unknown): asserts artifact is PracticeScoreArtifact {
+  if (!artifact || typeof artifact !== 'object') {
+    throw new Error('PracticeScoreArtifact must be an object');
   }
-  if (!artifact.scoreId || !artifact.revisionId || !artifact.artifactId) {
+  const candidate = artifact as Partial<PracticeScoreArtifact>;
+  if (candidate.schemaVersion !== PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION) {
+    throw new Error(`Unsupported PracticeScoreArtifact schema: ${candidate.schemaVersion}`);
+  }
+  if (!candidate.scoreId || !candidate.revisionId || !candidate.artifactId) {
     throw new Error('PracticeScoreArtifact requires stable score, revision, and artifact identity.');
   }
-  if (artifact.practiceAttackSteps.length !== artifact.expectedPracticeGroups.length) {
+  if (
+    !Array.isArray(candidate.practiceAttackSteps) ||
+    !Array.isArray(candidate.expectedPracticeGroups) ||
+    candidate.practiceAttackSteps.length !== candidate.expectedPracticeGroups.length
+  ) {
     throw new Error('PracticeScoreArtifact requires 1:1 attack steps and expected groups.');
   }
-  artifact.practiceAttackSteps.forEach((step, index) => {
-    const group = artifact.expectedPracticeGroups[index];
+  const validArtifact = candidate as PracticeScoreArtifact;
+  validArtifact.practiceAttackSteps.forEach((step, index) => {
+    const group = validArtifact.expectedPracticeGroups[index];
     if (roundBeat(step.onsetBeat) !== roundBeat(group.onsetBeat)) {
       throw new Error(`PracticeScoreArtifact step/group onset mismatch at index ${index}.`);
     }

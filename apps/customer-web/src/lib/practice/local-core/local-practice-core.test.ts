@@ -698,4 +698,107 @@ describe('local session foundation', () => {
     expect(() => new StepPracticeRuntime({ artifact: empty, clock: new ManualClock() })).toThrow(/at least one expected group/);
     expect(() => new PerformancePracticeRuntime({ artifact: empty, clock: new ManualClock() })).toThrow(/at least one expected group/);
   });
+
+  it('supports STEP pause, resume, and explicit user end with strict completion semantics', () => {
+    const clock = new ManualClock(100);
+    const runtime = new StepPracticeRuntime({ artifact, clock });
+    const target1 = runtime.currentTarget();
+    expect(target1).not.toBeNull();
+    expect(runtime.state).toBe('ACTIVE');
+    expect(runtime.sessionCompletionReason).toBeNull();
+
+    // Pause
+    runtime.pause();
+    expect(runtime.state).toBe('PAUSED');
+    expect(runtime.currentTarget()).toBeNull();
+    // Evidence during pause returns WAIT: stale_activation
+    expect(runtime.observe({
+      stepId: target1!.stepId,
+      activationGeneration: target1!.activationGeneration,
+      attackOnsetTime: { domainId: runtime.localSessionId, ms: 120 },
+      observedAttackPitches: target1!.attackPitches,
+      confidence: 1,
+      captureTime: { domainId: runtime.localSessionId, ms: 120 },
+      source: 'FAKE',
+    })).toMatchObject({ kind: 'WAIT', reason: 'stale_activation' });
+
+    // Resume
+    clock.advance(50); // now 150
+    runtime.resume();
+    expect(runtime.state).toBe('ACTIVE');
+    const target2 = runtime.currentTarget();
+    expect(target2).not.toBeNull();
+    expect(target2!.activationGeneration).toBeGreaterThan(target1!.activationGeneration);
+    expect(target2!.activationBoundary.ms).toBe(150);
+
+    // Old evidence prior to resume boundary cannot match
+    expect(runtime.observe({
+      stepId: target2!.stepId,
+      activationGeneration: target2!.activationGeneration,
+      attackOnsetTime: { domainId: runtime.localSessionId, ms: 140 },
+      observedAttackPitches: target2!.attackPitches,
+      confidence: 1,
+      captureTime: { domainId: runtime.localSessionId, ms: 140 },
+      source: 'FAKE',
+    })).toMatchObject({ kind: 'WAIT', reason: 'stale_attack' });
+
+    // User end()
+    runtime.end();
+    expect(runtime.state).toBe('ENDED');
+    expect(runtime.sessionCompletionReason).toBe('STOPPED_BY_USER');
+    expect(runtime.isCompleted).toBe(false);
+    expect(runtime.currentTarget()).toBeNull();
+  });
+
+  it('sets SCOPE_COMPLETED on natural STEP completion', () => {
+    const runtime = new StepPracticeRuntime({
+      artifact,
+      clock: new ManualClock(),
+      scope: {
+        startGroupId: artifact.expectedPracticeGroups[4].groupId,
+        endGroupId: artifact.expectedPracticeGroups[4].groupId,
+      },
+    });
+    expect(runtime.state).toBe('ACTIVE');
+    const decision = runtime.observe(observation(runtime, ['D5']));
+    expect(decision.kind).toBe('MATCH');
+    expect(runtime.isCompleted).toBe(true);
+    expect(runtime.state).toBe('ENDED');
+    expect(runtime.sessionCompletionReason).toBe('SCOPE_COMPLETED');
+    expect(runtime.snapshot().completionReason).toBe('SCOPE_COMPLETED');
+  });
+
+  it('supports CONTINUOUS user end vs SCOPE_COMPLETED natural completion', () => {
+    const clock = new ManualClock(0);
+    const runtime = new PerformancePracticeRuntime({ artifact, clock, countInBeats: 0 });
+    runtime.start();
+    expect(runtime.snapshot().state).toBe('RUNNING');
+    expect(runtime.snapshot().scopeCompleted).toBe(false);
+    expect(runtime.sessionCompletionReason).toBeNull();
+
+    // User end
+    const endedSnapshot = runtime.end('STOPPED_BY_USER');
+    expect(endedSnapshot.state).toBe('ENDED');
+    expect(endedSnapshot.scopeCompleted).toBe(false);
+    expect(endedSnapshot.completionReason).toBe('STOPPED_BY_USER');
+    expect(runtime.sessionCompletionReason).toBe('STOPPED_BY_USER');
+
+    // Natural scope completion
+    const naturalRuntime = new PerformancePracticeRuntime({
+      artifact,
+      clock: new ManualClock(0),
+      countInBeats: 0,
+      scope: {
+        startGroupId: artifact.expectedPracticeGroups[0].groupId,
+        endGroupId: artifact.expectedPracticeGroups[0].groupId,
+      },
+    });
+    naturalRuntime.start();
+    const naturalClock = (naturalRuntime as unknown as { clock: ManualClock }).clock;
+    naturalClock.advance(10_000);
+    const naturalSnapshot = naturalRuntime.snapshot();
+    expect(naturalSnapshot.state).toBe('ENDED');
+    expect(naturalSnapshot.scopeCompleted).toBe(true);
+    expect(naturalSnapshot.completionReason).toBe('SCOPE_COMPLETED');
+  });
 });

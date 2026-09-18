@@ -31,13 +31,12 @@ import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
 import { readPlayablePerformanceReplay } from '@/lib/practice/local-performance-replay-store';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
-import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
-import type { PracticePerformanceTimelinePayload } from '@/lib/practice/protocol';
 import {
   buildSavedPerformanceReplayUpload,
   checksumSha256Hex,
   readSavedPerformanceReplay,
 } from '@/lib/practice/saved-performance-replay';
+import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
 import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-annotation-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type {
@@ -278,7 +277,7 @@ function scoreIdFromParams(params: ReturnType<typeof useParams>): string {
 
 function practiceTimelinePayload(
   timeline: PracticePerformanceTimelineRead | null | undefined
-): PracticePerformanceTimelinePayload | null {
+): PracticePerformanceTimelineRead | null {
   if (!timeline) {
     return null;
   }
@@ -311,7 +310,7 @@ export default function PracticeSummaryPage() {
   );
   const [summary, setSummary] = useState<PracticeSessionSummaryPayloadRead | null>(null);
   const [performanceTimeline, setPerformanceTimeline] =
-    useState<PracticePerformanceTimelinePayload | null>(null);
+    useState<PracticePerformanceTimelineRead | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [savedReplayArtifact, setSavedReplayArtifact] =

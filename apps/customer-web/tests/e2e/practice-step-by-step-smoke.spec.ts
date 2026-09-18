@@ -7,7 +7,11 @@ import {
   mockAuthenticatedSession,
   mockRealtimeEvents,
 } from './support/api-mocks';
-import type { PracticeAlignmentUpdateMessage } from '../../src/lib/practice/protocol';
+type PracticeAlignmentUpdateMessage = {
+  protocol_version: number;
+  type: string;
+  payload: Record<string, unknown>;
+};
 
 const scoreId = 'practice-smoke-score';
 const revisionId = 'practice-smoke-revision';

@@ -2,6 +2,7 @@ import type { PracticeInputSource, PracticeMode, PracticeScope } from './artifac
 import type { RuntimeVersionIdentity, SessionTime } from './timebase';
 
 export type PracticeLifecycleState = 'CREATED' | 'ACTIVE' | 'PAUSED' | 'ENDED';
+export type LocalPracticeCompletionReason = 'SCOPE_COMPLETED' | 'STOPPED_BY_USER';
 
 export type LocalPracticeSessionBase = {
   localSessionId: string;
@@ -12,6 +13,7 @@ export type LocalPracticeSessionBase = {
   inputSource: PracticeInputSource;
   practiceScope?: PracticeScope;
   lifecycleState: PracticeLifecycleState;
+  completionReason: LocalPracticeCompletionReason | null;
   version: RuntimeVersionIdentity;
   createdAtMs: number;
   updatedAtMs: number;
