@@ -26,6 +26,7 @@ import type {
   PracticeMode,
   PracticeScope,
 } from '@/lib/practice/local-core/artifact';
+import type { PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
 import {
   fullPiecePracticeRangeSelection,
   practiceGroupsInRangeSelection,
@@ -49,6 +50,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   // Mode and settings
   const [practiceMode, setPracticeMode] = useState<PracticeMode>('STEP_BY_STEP');
   const [inputSource, setInputSource] = useState<PracticeInputSource>('MICROPHONE');
+  const [tempoSelection, setTempoSelection] = useState<PracticeTempoSelection>({ mode: 'SCORE' });
+  const [metronomeEnabled, setMetronomeEnabled] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
   const [rangeSelection, setRangeSelection] = useState<PracticeRangeSelection>(
@@ -115,10 +118,20 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     mode: practiceMode,
     inputSource,
     scope: selectedRangeScope,
+    tempoSelection,
+    metronomeEnabled,
     onCompletion: () => {
       setIsCompletionDialogOpen(true);
     },
   });
+
+  const handleMetronomeEnabledChange = useCallback(
+    (enabled: boolean) => {
+      setMetronomeEnabled(enabled);
+      localPractice.setMetronomeEnabled(enabled);
+    },
+    [localPractice]
+  );
 
   const isLoadingXml = scoreQuery.isLoading || revisionQuery.isLoading || artifactQuery.isLoading;
   const isResourceLoading =
@@ -331,6 +344,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                   midiInputLocked={isActive}
                   onPracticeModeChange={setPracticeMode}
                   onInputSourceChange={setInputSource}
+                  tempoSelection={tempoSelection}
+                  tempoLocked={isActive}
+                  scoreTempoSegments={artifact?.scoreTempoSegments}
+                  onTempoSelectionChange={setTempoSelection}
+                  metronomeEnabled={metronomeEnabled}
+                  onMetronomeEnabledChange={handleMetronomeEnabledChange}
                 />
               </div>
             </div>
@@ -352,6 +371,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                 midiInputLocked={isActive}
                 onPracticeModeChange={setPracticeMode}
                 onInputSourceChange={setInputSource}
+                tempoSelection={tempoSelection}
+                tempoLocked={isActive}
+                scoreTempoSegments={artifact?.scoreTempoSegments}
+                onTempoSelectionChange={setTempoSelection}
+                metronomeEnabled={metronomeEnabled}
+                onMetronomeEnabledChange={handleMetronomeEnabledChange}
               />
             </SheetContent>
           </Sheet>

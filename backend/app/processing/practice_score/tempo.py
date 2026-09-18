@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
-from app.processing.engines.practice_alignment.score_timeline import ScoreBeat
-from app.processing.performance.timeline import DEFAULT_PERFORMANCE_TEMPO_BPM, TempoSegment
+
+@dataclass(frozen=True)
+class PracticeTempoSegment:
+    start_beat: float
+    bpm: float
 
 
 BEAT_UNIT_TO_QUARTERS: dict[str, float] = {
@@ -27,17 +31,19 @@ BEAT_UNIT_TO_QUARTERS: dict[str, float] = {
 }
 
 
-def practice_tempo_segments_from_musicxml(score_file_path: str | Path) -> tuple[TempoSegment, ...]:
-    """Extract canonical quarter-note TempoSegments from a MusicXML document."""
+def practice_tempo_segments_from_musicxml(score_file_path: str | Path) -> tuple[PracticeTempoSegment, ...]:
+    """Extract canonical quarter-note PracticeTempoSegments from a MusicXML document.
+
+    Only returns explicit tempo markings from MusicXML. If no explicit tempo markings
+    exist, returns an empty tuple. If the score file is missing or invalid XML,
+    raises the corresponding FileNotFoundError or ParseError.
+    """
 
     path = Path(score_file_path)
     if not path.exists():
-        return ()
+        raise FileNotFoundError(f"Score file does not exist: {path}")
 
-    try:
-        root = ET.parse(path).getroot()
-    except (OSError, ET.ParseError):
-        return ()
+    root = ET.parse(path).getroot()
 
     first_part = next(iter(_direct_children_by_local_name(root, "part")), None)
     if first_part is None:
@@ -46,8 +52,7 @@ def practice_tempo_segments_from_musicxml(score_file_path: str | Path) -> tuple[
     divisions = 1.0
     current_measure_duration_beats = 4.0
     measure_start_beat = 0.0
-    raw_segments: list[tuple[ScoreBeat, float]] = []
-    has_notes = False
+    raw_segments: list[tuple[float, float]] = []
 
     for measure in _direct_children_by_local_name(first_part, "measure"):
         cursor = 0.0
@@ -80,7 +85,6 @@ def practice_tempo_segments_from_musicxml(score_file_path: str | Path) -> tuple[
 
             if tag in {"note", "forward"}:
                 if tag == "note":
-                    has_notes = True
                     is_chord = any(_local_name(child.tag) == "chord" for child in list(element))
                     if is_chord:
                         continue
@@ -93,19 +97,14 @@ def practice_tempo_segments_from_musicxml(score_file_path: str | Path) -> tuple[
         measure_start_beat += measure_extent if measure_extent > 0 else current_measure_duration_beats
 
     if not raw_segments:
-        if has_notes:
-            return (TempoSegment(start_beat=0.0, bpm=DEFAULT_PERFORMANCE_TEMPO_BPM),)
         return ()
 
-    merged: dict[ScoreBeat, float] = {}
+    merged: dict[float, float] = {}
     for beat, bpm in raw_segments:
         merged[beat] = bpm
 
-    if 0.0 not in merged:
-        merged[0.0] = DEFAULT_PERFORMANCE_TEMPO_BPM
-
     return tuple(
-        TempoSegment(start_beat=beat, bpm=merged[beat])
+        PracticeTempoSegment(start_beat=beat, bpm=merged[beat])
         for beat in sorted(merged)
     )
 
@@ -156,18 +155,18 @@ def _parse_metronome(metronome: ET.Element) -> float | None:
     return per_minute * unit_quarters * dot_multiplier
 
 
-def _duration_beats(element: ET.Element, divisions: float) -> ScoreBeat:
+def _duration_beats(element: ET.Element, divisions: float) -> float:
     duration = _positive_float_or_default(_child_text(element, "duration"), 0.0)
     return _duration_beats_raw(duration, divisions)
 
 
-def _duration_beats_raw(duration: float, divisions: float) -> ScoreBeat:
+def _duration_beats_raw(duration: float, divisions: float) -> float:
     if duration <= 0 or divisions <= 0:
         return 0.0
     return _round_beat(duration / divisions)
 
 
-def _round_beat(beat: float) -> ScoreBeat:
+def _round_beat(beat: float) -> float:
     return round(float(beat), 4)
 
 

@@ -341,7 +341,7 @@ class PracticeService:
                 practice_score_timeline_from_musicxml,
                 score_file_path,
             )
-            tempo_segments = await asyncio.to_thread(
+            score_tempo_segments = await asyncio.to_thread(
                 practice_tempo_segments_from_musicxml,
                 score_file_path,
             )
@@ -350,7 +350,7 @@ class PracticeService:
                 timeline,
                 score_id=access.score.score_uuid,
                 revision_id=access.revision.revision_uuid,
-                tempo_segments=tempo_segments,
+                score_tempo_segments=score_tempo_segments,
             )
         except Exception as exc:
             logger.bind(

@@ -136,5 +136,18 @@
   "toolMetronome": "Metronome",
   "toolLoop": "Loop section",
   "toolHands": "Both Hands",
-  "toolUnavailable": "Coming soon"
+  "toolUnavailable": "Coming soon",
+  "settingsTempoAndMetronome": "Tempo & Metronome",
+  "tempoScoreMode": "Score Tempo",
+  "tempoCustomMode": "Custom",
+  "tempoOriginal": "Score: ♩ = {bpm} BPM",
+  "tempoOriginalWithChanges": "Score: Variable tempo, starts at ♩ = {bpm} BPM",
+  "tempoOriginalDefault": "No tempo specified in score, default: ♩ = 80 BPM",
+  "restoreOriginalTempo": "Restore Score Tempo",
+  "restoreDefaultTempo": "Restore Default 80 BPM",
+  "metronome": "Metronome",
+  "metronomeOn": "On",
+  "metronomeOff": "Off",
+  "metronomeDescription": "Accents measure downbeats to support timing stability",
+  "tempoLockedNotice": "Tempo is locked while practice is active"
 }

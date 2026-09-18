@@ -38,12 +38,12 @@ const selectableMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
 </score-partwise>`;
 
 const smokeArtifact = {
-  schemaVersion: 1,
-  artifactId: 'practice-score-artifact-v1:smoke-test',
+  schemaVersion: 2,
+  artifactId: 'practice-score-artifact-v2:smoke-test',
   scoreId,
   revisionId,
-  tempoSegments: [
-    { startBeat: 0.0, bpm: 120.0 },
+  scoreTempoSegments: [
+    { startBeat: 0.0, bpm: 100.0 },
     { startBeat: 2.0, bpm: 90.0 },
   ],
   meterSegments: [
@@ -400,6 +400,80 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
 
     // Strict assertions: 0 /practice/sessions, 0 WebSockets
+    expect(disallowedRequests).toEqual([]);
+  });
+
+  test('TEMPO & METRONOME: custom tempo and metronome toggle function browser-locally', async ({
+    page,
+  }) => {
+    const disallowedRequests: string[] = [];
+    page.on('request', (request) => {
+      const url = request.url();
+      if (
+        url.includes('/practice/sessions') ||
+        url.includes('/targets') ||
+        request.resourceType() === 'websocket'
+      ) {
+        disallowedRequests.push(`${request.method()} ${url}`);
+      }
+    });
+
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    // Open settings
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    if (await settingsButton.isVisible()) {
+      await settingsButton.click();
+    }
+
+    // Verify original tempo display (has changes from 100 to 90)
+    await expect(page.getByText(/原速：含速度变化，起始 ♩ = 100 BPM/).first()).toBeVisible();
+
+    // Switch to custom tempo
+    const customButton = page.getByRole('button', { name: '自定义' }).first();
+    await expect(customButton).toBeEnabled();
+    await customButton.click();
+
+    // Verify initial custom BPM matches score starting BPM (100)
+    await expect(page.getByText('100 BPM').first()).toBeVisible();
+
+    // Adjust BPM with +5
+    const plusButton = page.getByRole('button', { name: '+5 BPM' }).first();
+    await expect(plusButton).toBeEnabled();
+    await plusButton.click();
+    await expect(page.getByText('105 BPM').first()).toBeVisible();
+
+    // Toggle metronome on
+    const metronomeToggle = page.getByRole('button', { name: '关' }).first();
+    await expect(metronomeToggle).toBeEnabled();
+    await metronomeToggle.click();
+    await expect(page.getByRole('button', { name: '开' }).first()).toBeVisible();
+
+    // Select MIDI input for reliable headless execution
+    const midiInputOption = page.getByRole('button', { name: /MIDI/i }).first();
+    await expect(midiInputOption).toBeEnabled();
+    await midiInputOption.click();
+
+    // Close settings if sheet opened
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    if (await sheetClose.isVisible()) {
+      await sheetClose.click();
+    }
+
+    // Start practice with custom tempo & metronome
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+
+    await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
+
+    // Finish
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+
+    await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
     expect(disallowedRequests).toEqual([]);
   });
 });

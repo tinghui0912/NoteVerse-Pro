@@ -28,6 +28,12 @@ import {
   type LocalPracticeInputState,
   type LocalPracticeSessionSnapshot,
 } from '@/lib/practice/local-core/session';
+import {
+  resolvePracticeTempoPlan,
+  type PracticeTempoSelection,
+  type ResolvedPracticeTempoPlan,
+} from '@/lib/practice/local-core/practice-tempo';
+import { MetronomeController } from '@/lib/practice/metronome/metronome-controller';
 import type {
   PerformanceEvidenceObservation,
   StepVerifierObservation,
@@ -44,12 +50,21 @@ import {
 
 export type { LocalPracticeLifecycle, LocalPracticeInputState };
 
+export type PracticeSetup = {
+  mode: PracticeMode;
+  inputSource: PracticeInputSource;
+  scope?: PracticeScope | null;
+  tempoSelection: PracticeTempoSelection;
+  metronomeEnabled: boolean;
+};
+
 export type UseLocalPracticeOptions = {
   artifact: PracticeScoreArtifact | null | undefined;
   mode: PracticeMode;
   inputSource: PracticeInputSource;
   scope?: PracticeScope | null;
-  speedRatio?: number;
+  tempoSelection?: PracticeTempoSelection;
+  metronomeEnabled?: boolean;
   onCompletion?: (snapshot: LocalPracticeSessionSnapshot) => void;
 };
 
@@ -64,7 +79,8 @@ export function useLocalPractice({
   mode,
   inputSource,
   scope,
-  speedRatio = 1,
+  tempoSelection = { mode: 'SCORE' },
+  metronomeEnabled = false,
   onCompletion,
 }: UseLocalPracticeOptions) {
   const [lifecycle, setLifecycle] = useState<LocalPracticeLifecycle>('READY');
@@ -78,11 +94,26 @@ export function useLocalPractice({
 
   const stepRuntimeRef = useRef<StepPracticeRuntime | null>(null);
   const performanceRuntimeRef = useRef<PerformancePracticeRuntime | null>(null);
+  const metronomeRef = useRef<MetronomeController | null>(null);
   const micControllerRef = useRef<BrowserMicrophoneCaptureController | null>(null);
   const midiControllerRef = useRef<BrowserMidiController | null>(null);
   const timebaseRef = useRef<PracticeTimebase | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const resolvedTempoPlan: ResolvedPracticeTempoPlan | null = artifact
+    ? resolvePracticeTempoPlan(artifact, tempoSelection)
+    : null;
+
+  useEffect(() => {
+    metronomeRef.current?.setEnabled(metronomeEnabled);
+  }, [metronomeEnabled]);
+
+  useEffect(() => {
+    if (resolvedTempoPlan) {
+      metronomeRef.current?.setTempoPlan(resolvedTempoPlan);
+    }
+  }, [resolvedTempoPlan]);
 
   // Stop performance animation loop
   const stopAnimationLoop = useCallback(() => {
@@ -137,6 +168,7 @@ export function useLocalPractice({
     async (snapshot: LocalPracticeSessionSnapshot) => {
       stopAnimationLoop();
       stopTimer();
+      metronomeRef.current?.stop();
       setCompletionReason('SCOPE_COMPLETED');
       setLastSnapshot(snapshot);
       defaultSessionStore.save(snapshot);
@@ -214,6 +246,7 @@ export function useLocalPractice({
   const handleFatalInputError = useCallback((errorMessage: string) => {
     stopTimer();
     stopAnimationLoop();
+    metronomeRef.current?.pause();
     if (mode === 'STEP_BY_STEP') {
       stepRuntimeRef.current?.pause();
     } else {
@@ -229,7 +262,7 @@ export function useLocalPractice({
 
   // Internal start session implementation
   const startSession = useCallback(async () => {
-    if (!artifact) {
+    if (!artifact || !resolvedTempoPlan) {
       throw new Error('Score artifact is not available yet.');
     }
 
@@ -239,6 +272,13 @@ export function useLocalPractice({
     const localSessionId = createLocalSessionId();
     const timebase = new PracticeTimebase({ domainId: localSessionId });
     timebaseRef.current = timebase;
+
+    const metronome = new MetronomeController({
+      tempoPlan: resolvedTempoPlan,
+      meterSegments: artifact.meterSegments,
+      enabled: metronomeEnabled,
+    });
+    metronomeRef.current = metronome;
 
     try {
       if (inputSource === 'MICROPHONE') {
@@ -280,22 +320,28 @@ export function useLocalPractice({
           localSessionId,
           clock: defaultClock,
           timebase,
+          tempoSelection,
+          metronomeEnabled,
         });
         stepRuntimeRef.current = runtime;
         setActiveStepGroup(groupForCurrentStep(runtime));
+        metronome.start(0);
       } else {
         const runtime = new PerformancePracticeRuntime({
           artifact,
+          tempoPlan: resolvedTempoPlan,
           scope: scope ?? undefined,
           inputSource,
-          speedRatio,
           localSessionId,
           clock: defaultClock,
           timebase,
+          tempoSelection,
+          metronomeEnabled,
         });
         performanceRuntimeRef.current = runtime;
         const initialClock = runtime.start();
         setPerformanceClock(initialClock);
+        metronome.start(0);
         runPerformanceLoop();
       }
 
@@ -305,6 +351,9 @@ export function useLocalPractice({
       setLastSnapshot(null);
       startTimer();
     } catch (err) {
+      metronome.stop();
+      metronome.destroy();
+      metronomeRef.current = null;
       await teardownInputs();
       stepRuntimeRef.current = null;
       performanceRuntimeRef.current = null;
@@ -319,12 +368,14 @@ export function useLocalPractice({
     handlePerformanceEvidence,
     handleStepObservation,
     inputSource,
+    metronomeEnabled,
     mode,
+    resolvedTempoPlan,
     runPerformanceLoop,
     scope,
-    speedRatio,
     startTimer,
     teardownInputs,
+    tempoSelection,
   ]);
 
   // Start practice session (requires READY)
@@ -342,6 +393,7 @@ export function useLocalPractice({
     }
     stopTimer();
     stopAnimationLoop();
+    metronomeRef.current?.pause();
 
     if (mode === 'STEP_BY_STEP') {
       stepRuntimeRef.current?.pause();
@@ -419,10 +471,14 @@ export function useLocalPractice({
 
       if (mode === 'STEP_BY_STEP') {
         stepRuntimeRef.current?.resume();
+        metronomeRef.current?.resume(stepRuntimeRef.current?.currentStepIndex ?? 0);
       } else {
         const clock = performanceRuntimeRef.current?.resume();
         if (clock) {
           setPerformanceClock(clock);
+          metronomeRef.current?.resume(clock.musicalBeat);
+        } else {
+          metronomeRef.current?.resume(0);
         }
         runPerformanceLoop();
       }
@@ -450,6 +506,7 @@ export function useLocalPractice({
   const finish = useCallback(async () => {
     stopTimer();
     stopAnimationLoop();
+    metronomeRef.current?.stop();
 
     let snapshot: LocalPracticeSessionSnapshot | null = null;
     if (mode === 'STEP_BY_STEP') {
@@ -495,6 +552,9 @@ export function useLocalPractice({
 
   // Reset / restart
   const restart = useCallback(async () => {
+    metronomeRef.current?.stop();
+    metronomeRef.current?.destroy();
+    metronomeRef.current = null;
     await teardownInputs();
     stepRuntimeRef.current = null;
     performanceRuntimeRef.current = null;
@@ -515,9 +575,15 @@ export function useLocalPractice({
     return () => {
       stopTimer();
       stopAnimationLoop();
+      metronomeRef.current?.destroy();
+      metronomeRef.current = null;
       void teardownInputs();
     };
   }, [stopAnimationLoop, stopTimer, teardownInputs]);
+
+  const setMetronomeEnabled = useCallback((enabled: boolean) => {
+    metronomeRef.current?.setEnabled(enabled);
+  }, []);
 
   return {
     lifecycle,
@@ -529,6 +595,8 @@ export function useLocalPractice({
     elapsedSeconds,
     completionReason,
     lastSnapshot,
+    resolvedTempoPlan,
+    setMetronomeEnabled,
     start,
     pause,
     resume,

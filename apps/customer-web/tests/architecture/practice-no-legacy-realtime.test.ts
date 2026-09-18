@@ -1,4 +1,4 @@
-﻿import { readdirSync, readFileSync, statSync } from 'fs';
+import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 
@@ -101,5 +101,39 @@ describe('Architecture Guard: No Legacy Practice Realtime Files, Imports, or Pro
     expect(content).not.toContain('usePracticeSession');
     expect(content).not.toContain('usePracticeAudioStream');
     expect(content).not.toContain('WebSocket');
+  });
+
+  it('ensures speedRatio is completely purged from active local practice core and hooks', () => {
+    const localCoreDir = join(srcDir, 'lib/practice/local-core');
+    const coreFiles = getSourceFiles(localCoreDir).filter(
+      (f) => !f.includes('.test.') && !f.includes('__fixtures__')
+    );
+    const hookFile = join(srcDir, 'hooks/practice/use-local-practice.ts');
+    const filesToCheck = [...coreFiles, hookFile];
+
+    const violations: { file: string; line: string }[] = [];
+    for (const file of filesToCheck) {
+      const content = readFileSync(file, 'utf-8');
+      const lines = content.split('\n');
+      for (const line of lines) {
+        if (/\bspeedRatio\b/.test(line)) {
+          violations.push({
+            file: file.replace(resolve(__dirname, '../..'), ''),
+            line: line.trim(),
+          });
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it('ensures PracticeScoreArtifact uses schemaVersion 2 and scoreTempoSegments', () => {
+    const artifactFile = join(srcDir, 'lib/practice/local-core/artifact.ts');
+    const content = readFileSync(artifactFile, 'utf-8');
+
+    expect(content).toContain('PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 2');
+    expect(content).toContain('scoreTempoSegments: TempoSegment[]');
+    expect(content).not.toMatch(/\btempoSegments\s*:\s*TempoSegment\[\]/);
   });
 });

@@ -281,7 +281,7 @@ class SavedPracticeReplayPlaybackRead(BaseModel):
 
 
 class PracticeScoreArtifactRead(BaseModel):
-    schemaVersion: int = 1
+    schemaVersion: int = 2
     scoreId: str
     revisionId: str
     artifactId: str
@@ -289,7 +289,7 @@ class PracticeScoreArtifactRead(BaseModel):
     expectedPracticeGroups: list[dict[str, Any]] = Field(default_factory=list)
     practiceAttackSteps: list[dict[str, Any]] = Field(default_factory=list)
     meterSegments: list[dict[str, Any]] = Field(default_factory=list)
-    tempoSegments: list[dict[str, Any]] = Field(default_factory=list)
+    scoreTempoSegments: list[dict[str, Any]] = Field(default_factory=list)
     firstPlayableBeat: float | None = None
     scoreEndBeat: float
 

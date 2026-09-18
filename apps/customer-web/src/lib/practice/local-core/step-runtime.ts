@@ -31,6 +31,8 @@ export type StepWaitReason =
   | 'stale_attack'
   | 'wrong_or_partial_attack_set';
 
+import type { PracticeTempoSelection } from './practice-tempo';
+
 export type StepPracticeRuntimeOptions = {
   artifact: PracticeScoreArtifact;
   scope?: PracticeScope;
@@ -41,6 +43,8 @@ export type StepPracticeRuntimeOptions = {
   metadataClock?: DurableClock;
   version?: RuntimeVersionIdentity;
   snapshot?: LocalStepSessionSnapshot;
+  tempoSelection?: PracticeTempoSelection;
+  metronomeEnabled?: boolean;
 };
 
 export class StepPracticeRuntime {
@@ -61,6 +65,8 @@ export class StepPracticeRuntime {
   private completionReason: LocalPracticeCompletionReason | null;
   private readonly version: RuntimeVersionIdentity;
   private readonly inputSource: 'MICROPHONE' | 'MIDI';
+  private readonly tempoSelection: PracticeTempoSelection;
+  private readonly metronomeEnabled: boolean;
   private readonly createdAtMs: number;
 
   constructor(options: StepPracticeRuntimeOptions) {
@@ -76,6 +82,8 @@ export class StepPracticeRuntime {
       validateStepSnapshot(options.artifact, options.snapshot, options.inputSource, options.scope);
     }
     this.inputSource = options.snapshot?.inputSource ?? options.inputSource ?? 'MICROPHONE';
+    this.tempoSelection = options.snapshot?.tempoSelection ?? options.tempoSelection ?? { mode: 'SCORE' };
+    this.metronomeEnabled = options.snapshot?.metronomeEnabled ?? options.metronomeEnabled ?? false;
     this.resolvedScope = this.scope(this.artifact, options.snapshot?.practiceScope ?? options.scope);
     this.localSessionId = options.snapshot?.localSessionId ?? options.localSessionId ?? createLocalSessionId();
     this.timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });
@@ -213,6 +221,8 @@ export class StepPracticeRuntime {
         startGroupId: this.resolvedScope.startGroupId,
         endGroupId: this.resolvedScope.endGroupId,
       },
+      tempoSelection: this.tempoSelection,
+      metronomeEnabled: this.metronomeEnabled,
       lifecycleState: this.lifecycleState,
       completionReason: this.completionReason,
       version: this.version,

@@ -8,10 +8,10 @@ from typing import Any
 from app.processing.engines.practice_alignment.score_timeline import (
     PracticeScoreTimeline,
 )
-from app.processing.performance.timeline import TempoSegment
+from app.processing.practice_score.tempo import PracticeTempoSegment
 
 
-PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1
+PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 2
 
 
 def practice_score_artifact_from_timeline(
@@ -19,7 +19,7 @@ def practice_score_artifact_from_timeline(
     *,
     score_id: str,
     revision_id: str,
-    tempo_segments: tuple[TempoSegment, ...],
+    score_tempo_segments: tuple[PracticeTempoSegment, ...] = (),
 ) -> dict[str, Any]:
     """Serialize the canonical backend practice timeline for browser-local runtimes."""
 
@@ -38,7 +38,7 @@ def practice_score_artifact_from_timeline(
         ],
         "practiceAttackSteps": [_camel_dataclass(step) for step in timeline.practice_attack_steps],
         "meterSegments": [_meter_segment(segment) for segment in timeline.meter_segments],
-        "tempoSegments": [_tempo_segment(segment) for segment in tempo_segments],
+        "scoreTempoSegments": [_tempo_segment(segment) for segment in score_tempo_segments],
         "firstPlayableBeat": timeline.first_playable_beat,
         "scoreEndBeat": timeline.end_beat,
     }
@@ -51,14 +51,14 @@ def practice_score_artifact_json(
     *,
     score_id: str,
     revision_id: str,
-    tempo_segments: tuple[TempoSegment, ...],
+    score_tempo_segments: tuple[PracticeTempoSegment, ...] = (),
 ) -> str:
     return json.dumps(
         practice_score_artifact_from_timeline(
             timeline,
             score_id=score_id,
             revision_id=revision_id,
-            tempo_segments=tempo_segments,
+            score_tempo_segments=score_tempo_segments,
         ),
         indent=2,
         sort_keys=True,
@@ -70,7 +70,7 @@ def _artifact_id(payload: dict[str, Any]) -> str:
     digest = hashlib.sha256(
         json.dumps(identity_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()[:16]
-    return f"practice-score-artifact-v1:{digest}"
+    return f"practice-score-artifact-v2:{digest}"
 
 
 def _camel_dataclass(item: Any) -> Any:
@@ -99,7 +99,7 @@ def _meter_segment(segment) -> dict[str, Any]:
     }
 
 
-def _tempo_segment(segment: TempoSegment) -> dict[str, Any]:
+def _tempo_segment(segment: PracticeTempoSegment) -> dict[str, Any]:
     return {
         "startBeat": segment.start_beat,
         "bpm": segment.bpm,

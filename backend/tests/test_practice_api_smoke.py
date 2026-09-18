@@ -137,15 +137,15 @@ class FakePracticeService:
         revision_uuid: str | None,
     ) -> dict[str, object]:
         return {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "scoreId": score_uuid,
             "revisionId": revision_uuid or "rev-1",
-            "artifactId": f"practice-score-artifact-v1:{score_uuid}:{revision_uuid}",
+            "artifactId": f"practice-score-artifact-v2:{score_uuid}:{revision_uuid}",
             "playableEvents": [],
             "expectedPracticeGroups": [],
             "practiceAttackSteps": [],
             "meterSegments": [],
-            "tempoSegments": [{"startBeat": 0.0, "bpm": 120.0}],
+            "scoreTempoSegments": [{"startBeat": 0.0, "bpm": 120.0}],
             "firstPlayableBeat": None,
             "scoreEndBeat": 0.0,
         }
@@ -340,10 +340,11 @@ def test_get_practice_score_artifact_endpoint(client: TestClient) -> None:
     response = client.get("/api/v1/practice/scores/score-1/revisions/revision-1/artifact")
     assert response.status_code == 200
     data = response.json()["data"]
-    assert data["schemaVersion"] == 1
+    assert data["schemaVersion"] == 2
     assert data["scoreId"] == "score-1"
     assert data["revisionId"] == "revision-1"
     assert "artifactId" in data
     assert "expectedPracticeGroups" in data
     assert "practiceAttackSteps" in data
+    assert "scoreTempoSegments" in data
 

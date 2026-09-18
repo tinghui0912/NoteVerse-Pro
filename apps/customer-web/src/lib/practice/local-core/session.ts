@@ -1,4 +1,5 @@
 import type { PracticeInputSource, PracticeMode, PracticeScope } from './artifact';
+import type { PracticeTempoSelection, ResolvedPracticeTempoPlan } from './practice-tempo';
 import type { RuntimeVersionIdentity, SessionTime } from './timebase';
 
 export type LocalPracticeLifecycle =
@@ -24,6 +25,8 @@ export type LocalPracticeSessionBase = {
   mode: PracticeMode;
   inputSource: PracticeInputSource;
   practiceScope?: PracticeScope;
+  tempoSelection: PracticeTempoSelection;
+  metronomeEnabled: boolean;
   lifecycleState: LocalPracticeLifecycle;
   completionReason: LocalPracticeCompletionReason | null;
   version: RuntimeVersionIdentity;
@@ -46,7 +49,7 @@ export type LocalPerformanceSessionSnapshot = LocalPracticeSessionBase & {
   performance: {
     state: 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
     stateBeforePause: 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
-    speedRatio: number;
+    resolvedTempoPlan: ResolvedPracticeTempoPlan;
     scopeStartBeat: number;
     scopeTerminalBeat: number;
     activeElapsedMs: number;

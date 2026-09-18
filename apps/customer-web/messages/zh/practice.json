@@ -136,5 +136,18 @@
   "toolMetronome": "节拍器",
   "toolLoop": "循环段落",
   "toolHands": "双手",
-  "toolUnavailable": "即将支持"
+  "toolUnavailable": "即将支持",
+  "settingsTempoAndMetronome": "速度与节拍器",
+  "tempoScoreMode": "原速",
+  "tempoCustomMode": "自定义",
+  "tempoOriginal": "原速：♩ = {bpm} BPM",
+  "tempoOriginalWithChanges": "原速：含速度变化，起始 ♩ = {bpm} BPM",
+  "tempoOriginalDefault": "原谱未指定速度，默认：♩ = 80 BPM",
+  "restoreOriginalTempo": "恢复原速",
+  "restoreDefaultTempo": "恢复默认 80 BPM",
+  "metronome": "节拍器",
+  "metronomeOn": "开",
+  "metronomeOff": "关",
+  "metronomeDescription": "测量下拍强音，辅助节拍稳定",
+  "tempoLockedNotice": "练习进行中速度已锁定"
 }

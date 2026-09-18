@@ -1,4 +1,4 @@
-﻿// @vitest-environment jsdom
+// @vitest-environment jsdom
 
 import { renderHook, act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -248,5 +248,45 @@ describe('useLocalPractice', () => {
     expect(result.current.activeStepGroup?.groupId).toBe(
       artifact.expectedPracticeGroups[0].groupId
     );
+  });
+
+  it('starts CONTINUOUS practice with custom tempo and exposes resolvedTempoPlan', async () => {
+    const { result } = renderHook(() =>
+      useLocalPractice({
+        artifact,
+        mode: 'CONTINUOUS_PLAY',
+        inputSource: 'MICROPHONE',
+        tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 },
+        metronomeEnabled: true,
+      })
+    );
+
+    expect(result.current.resolvedTempoPlan).toEqual({
+      source: 'CUSTOM',
+      segments: [{ startBeat: 0, bpm: 100 }],
+    });
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    expect(result.current.lifecycle).toBe('ACTIVE');
+    expect(result.current.inputState).toBe('RUNNING');
+    expect(result.current.performanceClock?.state).toBe('COUNT_IN');
+
+    await act(async () => {
+      await result.current.pause();
+    });
+    expect(result.current.lifecycle).toBe('PAUSED');
+
+    await act(async () => {
+      await result.current.resume();
+    });
+    expect(result.current.lifecycle).toBe('ACTIVE');
+
+    await act(async () => {
+      await result.current.finish();
+    });
+    expect(result.current.lifecycle).toBe('ENDED');
   });
 });

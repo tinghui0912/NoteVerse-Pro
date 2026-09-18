@@ -1,4 +1,4 @@
-﻿// @vitest-environment jsdom
+// @vitest-environment jsdom
 
 import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
@@ -34,7 +34,6 @@ function makePerformanceClock(
     scopeCompleted: false,
     scopeStartBeat: 1,
     scopeTerminalBeat: 4,
-    speedRatio: 1,
     completionReason: null,
     ...overrides,
   };

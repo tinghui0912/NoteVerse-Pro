@@ -21,6 +21,11 @@ import {
   type LocalPracticeCompletionReason,
 } from './session';
 import { LocalPerformanceEvaluator } from './performance-evaluator';
+import {
+  resolvePracticeTempoPlan,
+  type PracticeTempoSelection,
+  type ResolvedPracticeTempoPlan,
+} from './practice-tempo';
 
 export type PerformanceRuntimeState = 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
 
@@ -37,22 +42,23 @@ export type PerformanceClockSnapshot = {
   scopeCompleted: boolean;
   scopeStartBeat: number;
   scopeTerminalBeat: number;
-  speedRatio: number;
   completionReason: LocalPracticeCompletionReason | null;
 };
 
 export type PerformancePracticeRuntimeOptions = {
   artifact: PracticeScoreArtifact;
+  tempoPlan?: ResolvedPracticeTempoPlan;
   scope?: PracticeScope;
   clock: LocalClock;
   timebase?: PracticeTimebase;
   metadataClock?: DurableClock;
   inputSource?: PracticeInputSource;
-  speedRatio?: number;
   countInBeats?: number;
   localSessionId?: string;
   version?: RuntimeVersionIdentity;
   snapshot?: LocalPerformanceSessionSnapshot;
+  tempoSelection?: PracticeTempoSelection;
+  metronomeEnabled?: boolean;
 };
 
 type PerformanceScope = {
@@ -68,19 +74,20 @@ export class PerformancePracticeRuntime {
   readonly artifact: PracticeScoreArtifact;
   readonly localSessionId: string;
   readonly timebase: PracticeTimebase;
-
+  private readonly timeline: PerformanceTimeline;
+  private readonly evaluator: LocalPerformanceEvaluator;
   private readonly clock: LocalClock;
   private readonly metadataClock: DurableClock;
   private readonly version: RuntimeVersionIdentity;
-  private readonly inputSource: PracticeInputSource;
-  private readonly speedRatio: number;
-  private readonly timeline: PerformanceTimeline;
+  private readonly createdAtMs: number;
   private readonly scope: PerformanceScope;
-  private readonly countInMs: number;
   private readonly countInBeats: number;
   private readonly countInPulses: number;
-  private readonly evaluator: LocalPerformanceEvaluator;
-  private readonly createdAtMs: number;
+  private readonly countInMs: number;
+  private readonly tempoPlan: ResolvedPracticeTempoPlan;
+  private readonly tempoSelection: PracticeTempoSelection;
+  private readonly metronomeEnabled: boolean;
+  private inputSource: PracticeInputSource;
   private state: PerformanceRuntimeState = 'READY';
   private stateBeforePause: PerformanceRuntimeState = 'READY';
   private completionReason: LocalPracticeCompletionReason | null = null;
@@ -103,17 +110,25 @@ export class PerformancePracticeRuntime {
       validatePerformanceSnapshot(options.artifact, options.snapshot, options.inputSource, options.scope);
     }
     this.inputSource = options.snapshot?.inputSource ?? options.inputSource ?? 'MICROPHONE';
-    this.speedRatio = options.snapshot?.performance.speedRatio ?? options.speedRatio ?? 1;
-    if (this.speedRatio <= 0) {
-      throw new Error('Performance speed ratio must be positive.');
+    this.tempoPlan = options.snapshot?.performance.resolvedTempoPlan
+      ?? options.tempoPlan
+      ?? resolvePracticeTempoPlan(options.artifact, options.tempoSelection ?? { mode: 'SCORE' });
+    if (!this.tempoPlan || !Array.isArray(this.tempoPlan.segments) || this.tempoPlan.segments.length === 0) {
+      throw new Error('PerformancePracticeRuntime requires a valid ResolvedPracticeTempoPlan with segments.');
     }
-    this.timeline = new PerformanceTimeline(this.artifact);
+    this.tempoSelection = options.snapshot?.tempoSelection
+      ?? options.tempoSelection
+      ?? (this.tempoPlan.source === 'CUSTOM'
+        ? { mode: 'CUSTOM_FIXED_BPM', bpm: this.tempoPlan.segments[0].bpm }
+        : { mode: 'SCORE' });
+    this.metronomeEnabled = options.snapshot?.metronomeEnabled ?? options.metronomeEnabled ?? false;
+    this.timeline = new PerformanceTimeline(this.artifact, this.tempoPlan.segments);
     this.scope = resolvePerformanceScope(this.artifact, this.timeline, options.snapshot?.practiceScope ?? options.scope);
     const countIn = countInContractAt(this.artifact, this.scope.startBeat);
     this.countInBeats = options.snapshot?.performance.countInBeats ?? options.countInBeats ?? countIn.durationBeats;
     this.countInPulses = options.snapshot?.performance.countInPulses ?? countIn.pulses;
     this.countInMs = options.snapshot?.performance.countInMs
-      ?? beatsToMs(this.countInBeats, this.timeline.bpmAtBeat(this.scope.startBeat)) / this.speedRatio;
+      ?? beatsToMs(this.countInBeats, this.timeline.bpmAtBeat(this.scope.startBeat));
     this.evaluator = new LocalPerformanceEvaluator({
       artifact: this.artifact,
       timeline: this.timeline,
@@ -209,7 +224,6 @@ export class PerformancePracticeRuntime {
       scopeCompleted: this.completionReason === 'SCOPE_COMPLETED',
       scopeStartBeat: this.scope.startBeat,
       scopeTerminalBeat: this.scope.terminalBeat,
-      speedRatio: this.speedRatio,
       completionReason: this.completionReason,
     };
   }
@@ -243,6 +257,8 @@ export class PerformancePracticeRuntime {
         startGroupId: this.scope.startGroupId,
         endGroupId: this.scope.endGroupId,
       },
+      tempoSelection: this.tempoSelection,
+      metronomeEnabled: this.metronomeEnabled,
       lifecycleState: this.state === 'ENDED' ? 'ENDED' : this.state === 'PAUSED' ? 'PAUSED' : 'ACTIVE',
       completionReason: this.completionReason,
       version: this.version,
@@ -251,7 +267,7 @@ export class PerformancePracticeRuntime {
       performance: {
         state: this.state,
         stateBeforePause: this.stateBeforePause,
-        speedRatio: this.speedRatio,
+        resolvedTempoPlan: this.tempoPlan,
         scopeStartBeat: this.scope.startBeat,
         scopeTerminalBeat: this.scope.terminalBeat,
         activeElapsedMs: this.activeElapsedAt(this.nowSessionMs()),
@@ -353,7 +369,7 @@ export class PerformancePracticeRuntime {
 
   private performanceElapsedMs(activeElapsedMs: number): number {
     return Math.min(
-      Math.max(0, activeElapsedMs - this.countInMs) * this.speedRatio,
+      Math.max(0, activeElapsedMs - this.countInMs),
       this.scopeDurationMs()
     );
   }
@@ -385,9 +401,9 @@ export class PerformanceTimeline {
   private readonly segments: TimelineSegment[];
   readonly endBeat: number;
 
-  constructor(artifact: PracticeScoreArtifact) {
+  constructor(artifact: PracticeScoreArtifact, tempoSegments: readonly TempoSegment[]) {
     this.endBeat = artifact.scoreEndBeat;
-    this.segments = buildTimelineSegments(artifact.scoreEndBeat, artifact.tempoSegments);
+    this.segments = buildTimelineSegments(artifact.scoreEndBeat, tempoSegments);
   }
 
   beatToTimeMs(beat: number): number {
@@ -411,7 +427,7 @@ export class PerformanceTimeline {
 
   bpmAtBeat(beat: number): number {
     if (this.segments.length === 0) {
-      return 120;
+      throw new Error('Cannot determine BPM: performance timeline has no tempo segments.');
     }
     return this.segmentForBeat(Math.min(Math.max(beat, 0), this.endBeat)).bpm;
   }
@@ -454,9 +470,12 @@ function resolvePerformanceScope(
   };
 }
 
-function buildTimelineSegments(endBeat: number, tempoSegments: TempoSegment[]): TimelineSegment[] {
+function buildTimelineSegments(endBeat: number, tempoSegments: readonly TempoSegment[]): TimelineSegment[] {
   if (endBeat <= 0) {
     return [];
+  }
+  if (!tempoSegments || tempoSegments.length === 0) {
+    throw new Error('Performance timeline segments cannot be built without tempo segments.');
   }
   const byBeat = new Map<number, TempoSegment>();
   for (const segment of tempoSegments) {
@@ -465,7 +484,7 @@ function buildTimelineSegments(endBeat: number, tempoSegments: TempoSegment[]): 
     }
   }
   if (!byBeat.has(0)) {
-    byBeat.set(0, { startBeat: 0, bpm: 120 });
+    throw new Error('Performance timeline tempo segments must contain beat 0.');
   }
   const normalized = Array.from(byBeat.values()).sort((a, b) => a.startBeat - b.startBeat);
   let currentTimeMs = 0;
@@ -514,8 +533,12 @@ function validatePerformanceSnapshot(
   if (scope && JSON.stringify(scope) !== JSON.stringify(snapshot.practiceScope ?? {})) {
     throw new Error('Practice session snapshot scope mismatch.');
   }
-  if (snapshot.performance.speedRatio <= 0) {
-    throw new Error('Invalid performance snapshot speed ratio.');
+  if (
+    !snapshot.performance.resolvedTempoPlan ||
+    !Array.isArray(snapshot.performance.resolvedTempoPlan.segments) ||
+    snapshot.performance.resolvedTempoPlan.segments.length === 0
+  ) {
+    throw new Error('Invalid performance snapshot resolved tempo plan.');
   }
   if (snapshot.performance.activeElapsedMs < 0 || !Number.isFinite(snapshot.performance.activeElapsedMs)) {
     throw new Error('Invalid performance snapshot active elapsed time.');

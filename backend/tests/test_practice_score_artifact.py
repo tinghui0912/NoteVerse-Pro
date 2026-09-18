@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from app.processing.engines.practice_alignment.score_timeline import PracticeScoreTimeline
-from app.processing.performance.timeline import TempoSegment
 from app.processing.practice_score.practice_score_artifact import (
     practice_score_artifact_from_timeline,
 )
+from app.processing.practice_score.tempo import PracticeTempoSegment
 
 
 class _DType:
@@ -31,11 +31,15 @@ def test_practice_score_artifact_matches_browser_fixture(tmp_path) -> None:
         timeline,
         score_id="canonical-local-core-score",
         revision_id="canonical-local-core-revision",
-        tempo_segments=(TempoSegment(0.0, 120.0), TempoSegment(3.0, 90.0)),
+        score_tempo_segments=(PracticeTempoSegment(0.0, 120.0), PracticeTempoSegment(3.0, 90.0)),
     )
 
-    assert artifact["schemaVersion"] == 1
-    assert artifact["artifactId"] == "practice-score-artifact-v1:0529eb0f2b5dfe1a"
+    assert artifact["schemaVersion"] == 2
+    assert artifact["artifactId"] == "practice-score-artifact-v2:a6e6c1b2d2e277e3"
+    assert artifact["scoreTempoSegments"] == [
+        {"startBeat": 0.0, "bpm": 120.0},
+        {"startBeat": 3.0, "bpm": 90.0},
+    ]
     assert artifact["scoreId"] == "canonical-local-core-score"
     assert artifact["revisionId"] == "canonical-local-core-revision"
     assert [group["pitches"] for group in artifact["expectedPracticeGroups"]] == [
@@ -77,9 +81,11 @@ def test_empty_practice_score_artifact_uses_null_first_playable() -> None:
         ),
         score_id="empty-score",
         revision_id="empty-revision",
-        tempo_segments=(),
+        score_tempo_segments=(),
     )
 
+    assert artifact["schemaVersion"] == 2
+    assert artifact["scoreTempoSegments"] == []
     assert artifact["firstPlayableBeat"] is None
     assert artifact["expectedPracticeGroups"] == []
 
@@ -96,18 +102,18 @@ def test_practice_score_artifact_deterministic_identity(tmp_path) -> None:
         timeline,
         score_id="score-123",
         revision_id="rev-456",
-        tempo_segments=(TempoSegment(0.0, 120.0),),
+        score_tempo_segments=(PracticeTempoSegment(0.0, 120.0),),
     )
     artifact2 = practice_score_artifact_from_timeline(
         timeline,
         score_id="score-123",
         revision_id="rev-456",
-        tempo_segments=(TempoSegment(0.0, 120.0),),
+        score_tempo_segments=(PracticeTempoSegment(0.0, 120.0),),
     )
 
     assert artifact1 == artifact2
     assert artifact1["artifactId"] == artifact2["artifactId"]
-    assert artifact1["artifactId"].startswith("practice-score-artifact-v1:")
+    assert artifact1["artifactId"].startswith("practice-score-artifact-v2:")
 
 
 
@@ -176,12 +182,12 @@ def test_practice_tempo_segments_from_musicxml_multi_tempo(tmp_path: Path) -> No
 
     segments = practice_tempo_segments_from_musicxml(xml_path)
     assert segments == (
-        TempoSegment(start_beat=0.0, bpm=120.0),
-        TempoSegment(start_beat=3.0, bpm=90.0),
+        PracticeTempoSegment(start_beat=0.0, bpm=120.0),
+        PracticeTempoSegment(start_beat=3.0, bpm=90.0),
     )
 
 
-def test_practice_tempo_segments_fallback_default_120_when_no_tempo_tag(tmp_path: Path) -> None:
+def test_practice_tempo_segments_empty_when_no_tempo_tag(tmp_path: Path) -> None:
     from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
 
     xml = """<?xml version="1.0" encoding="UTF-8"?>
@@ -199,7 +205,7 @@ def test_practice_tempo_segments_fallback_default_120_when_no_tempo_tag(tmp_path
     xml_path.write_text(xml, encoding="utf-8")
 
     segments = practice_tempo_segments_from_musicxml(xml_path)
-    assert segments == (TempoSegment(start_beat=0.0, bpm=120.0),)
+    assert segments == ()
 
 
 def test_practice_tempo_segments_metronome_beat_units(tmp_path: Path) -> None:
@@ -240,12 +246,12 @@ def test_practice_tempo_segments_metronome_beat_units(tmp_path: Path) -> None:
     segments = practice_tempo_segments_from_musicxml(xml_path)
     # half at 60 = 120 bpm; dotted-quarter at 80 = 80 * 1.5 = 120 bpm
     assert segments == (
-        TempoSegment(start_beat=0.0, bpm=120.0),
-        TempoSegment(start_beat=2.0, bpm=120.0),
+        PracticeTempoSegment(start_beat=0.0, bpm=120.0),
+        PracticeTempoSegment(start_beat=2.0, bpm=120.0),
     )
 
 
-def test_practice_tempo_segments_prepends_120_if_first_tempo_at_positive_beat(tmp_path: Path) -> None:
+def test_practice_tempo_segments_preserves_positive_first_tempo_beat(tmp_path: Path) -> None:
     from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
 
     xml = """<?xml version="1.0" encoding="UTF-8"?>
@@ -268,7 +274,25 @@ def test_practice_tempo_segments_prepends_120_if_first_tempo_at_positive_beat(tm
 
     segments = practice_tempo_segments_from_musicxml(xml_path)
     assert segments == (
-        TempoSegment(start_beat=0.0, bpm=120.0),
-        TempoSegment(start_beat=4.0, bpm=100.0),
+        PracticeTempoSegment(start_beat=4.0, bpm=100.0),
     )
+
+
+def test_practice_tempo_segments_missing_file_raises(tmp_path: Path) -> None:
+    import pytest
+    from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
+
+    with pytest.raises(FileNotFoundError):
+        practice_tempo_segments_from_musicxml(tmp_path / "does_not_exist.musicxml")
+
+
+def test_practice_tempo_segments_invalid_xml_raises(tmp_path: Path) -> None:
+    import xml.etree.ElementTree as ET
+    import pytest
+    from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
+
+    bad_xml = tmp_path / "corrupted.musicxml"
+    bad_xml.write_text("<score-partwise><broken", encoding="utf-8")
+    with pytest.raises(ET.ParseError):
+        practice_tempo_segments_from_musicxml(bad_xml)
 
