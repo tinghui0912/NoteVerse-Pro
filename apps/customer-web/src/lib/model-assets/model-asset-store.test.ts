@@ -10,6 +10,7 @@ import {
   type ModelAssetDescriptor,
   ModelAssetDownloadError,
   ModelAssetIntegrityError,
+  ModelAssetStorageError,
   ModelAssetStorageUnavailableError,
 } from './types';
 import { byteDanceManifestToModelAssetDescriptor, createOpfsByteDanceModelLoader } from './bytedance-model-loader';
@@ -21,11 +22,18 @@ class MemoryWritableStream implements FileSystemWritableFileStream {
   private closed = false;
   private aborted = false;
 
-  constructor(private readonly onCommit: (bytes: Uint8Array) => void) {}
+  constructor(
+    private readonly onCommit: (bytes: Uint8Array) => void,
+    private readonly beforeWrite?: (data: unknown) => void | Promise<void>,
+    private readonly beforeClose?: () => void | Promise<void>
+  ) {}
 
   async write(data: unknown): Promise<void> {
     if (this.closed || this.aborted) {
       throw new Error('Cannot write to closed stream');
+    }
+    if (this.beforeWrite) {
+      await this.beforeWrite(data);
     }
     if (typeof data === 'string') {
       const bytes = new TextEncoder().encode(data);
@@ -46,6 +54,9 @@ class MemoryWritableStream implements FileSystemWritableFileStream {
 
   async close(): Promise<void> {
     if (this.closed || this.aborted) return;
+    if (this.beforeClose) {
+      await this.beforeClose();
+    }
     this.closed = true;
     this.onCommit(new Uint8Array(this.buffer));
   }
@@ -62,6 +73,9 @@ class MemoryWritableStream implements FileSystemWritableFileStream {
 class MemoryFileHandle {
   readonly kind = 'file' as const;
   private data: Uint8Array;
+  beforeWrite?: (data: unknown) => void | Promise<void>;
+  beforeClose?: () => void | Promise<void>;
+  onCreateWritable?: () => Promise<FileSystemWritableFileStream> | FileSystemWritableFileStream;
 
   constructor(
     readonly name: string,
@@ -83,9 +97,16 @@ class MemoryFileHandle {
   }
 
   async createWritable(): Promise<FileSystemWritableFileStream> {
-    return new MemoryWritableStream((committed) => {
-      this.data = committed;
-    });
+    if (this.onCreateWritable) {
+      return this.onCreateWritable();
+    }
+    return new MemoryWritableStream(
+      (committed) => {
+        this.data = committed;
+      },
+      this.beforeWrite,
+      this.beforeClose
+    );
   }
 
   async isSameEntry(other: unknown): Promise<boolean> {
@@ -96,10 +117,15 @@ class MemoryFileHandle {
 class MemoryDirectoryHandle {
   readonly kind = 'directory' as const;
   private readonly entriesMap = new Map<string, MemoryFileHandle | MemoryDirectoryHandle>();
+  onGetFileHandle?: (name: string, options?: { create?: boolean }) => MemoryFileHandle | undefined;
 
   constructor(readonly name: string) {}
 
   async getFileHandle(name: string, options?: { create?: boolean }): Promise<MemoryFileHandle> {
+    if (this.onGetFileHandle) {
+      const intercepted = this.onGetFileHandle(name, options);
+      if (intercepted) return intercepted;
+    }
     const existing = this.entriesMap.get(name);
     if (existing) {
       if (existing.kind !== 'file') {
@@ -121,10 +147,12 @@ class MemoryDirectoryHandle {
       if (existing.kind !== 'directory') {
         throw new Error(`Entry ${name} is a file, not a directory.`);
       }
+      existing.onGetFileHandle = this.onGetFileHandle;
       return existing;
     }
     if (options?.create) {
       const created = new MemoryDirectoryHandle(name);
+      created.onGetFileHandle = this.onGetFileHandle;
       this.entriesMap.set(name, created);
       return created;
     }
@@ -209,6 +237,19 @@ describe('ModelAssetDescriptor validation', () => {
     expect(() => validateModelAssetDescriptor({ ...descriptor, assetId: '' })).toThrow(/assetId/i);
   });
 
+  it('assetId validation rejects slash, uppercase, and unsafe values while accepting safe identifiers', async () => {
+    const { descriptor } = await makeTestAsset('valid');
+    expect(() => validateModelAssetDescriptor({ ...descriptor, assetId: 'test/model' })).toThrow(/assetId/i);
+    expect(() => validateModelAssetDescriptor({ ...descriptor, assetId: '../escape' })).toThrow(/assetId/i);
+    expect(() => validateModelAssetDescriptor({ ...descriptor, assetId: 'MODEL_UPPER' })).toThrow(/assetId/i);
+    expect(() => validateModelAssetDescriptor({ ...descriptor, assetId: '-leading-dash' })).toThrow(/assetId/i);
+    expect(() => validateModelAssetDescriptor({ ...descriptor, assetId: 'bad@char' })).toThrow(/assetId/i);
+
+    // Valid identifiers
+    expect(() => validateModelAssetDescriptor({ ...descriptor, assetId: 'bytedance-piano-transcription-note-model' })).not.toThrow();
+    expect(() => validateModelAssetDescriptor({ ...descriptor, assetId: 'model.v1_sub-part' })).not.toThrow();
+  });
+
   it('rejects non-positive expectedByteSize', async () => {
     const { descriptor } = await makeTestAsset('valid');
     expect(() => validateModelAssetDescriptor({ ...descriptor, expectedByteSize: 0 })).toThrow(/expectedByteSize/i);
@@ -269,7 +310,8 @@ describe('ModelAssetStore OPFS operations', () => {
     // Verify file layout in OPFS
     const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
     const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
-    const entryDir = (await v1Dir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
 
     const binHandle = (await entryDir.getFileHandle('model.bin')) as unknown as MemoryFileHandle;
     expect(binHandle.getData()).toEqual(bytes);
@@ -330,7 +372,8 @@ describe('ModelAssetStore OPFS operations', () => {
     // Marker must NOT exist
     const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
     const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
-    const entryDir = (await v1Dir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
 
     await expect(entryDir.getFileHandle('verified.json')).rejects.toThrow();
   });
@@ -352,7 +395,8 @@ describe('ModelAssetStore OPFS operations', () => {
 
     const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
     const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
-    const entryDir = (await v1Dir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
     await expect(entryDir.getFileHandle('verified.json')).rejects.toThrow();
   });
 
@@ -363,7 +407,8 @@ describe('ModelAssetStore OPFS operations', () => {
     // Pre-populate model.bin without verified.json
     const baseDir = (await root.getDirectoryHandle('noteverse-model-assets', { create: true })) as unknown as MemoryDirectoryHandle;
     const v1Dir = (await baseDir.getDirectoryHandle('v1', { create: true })) as unknown as MemoryDirectoryHandle;
-    const entryDir = (await v1Dir.getDirectoryHandle(descriptor.sha256.toLowerCase(), { create: true })) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId, { create: true })) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase(), { create: true })) as unknown as MemoryDirectoryHandle;
     const binHandle = (await entryDir.getFileHandle('model.bin', { create: true })) as unknown as MemoryFileHandle;
     binHandle.setData(bytes);
 
@@ -402,7 +447,8 @@ describe('ModelAssetStore OPFS operations', () => {
     // Tamper with cached model.bin
     const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
     const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
-    const entryDir = (await v1Dir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
     const binHandle = (await entryDir.getFileHandle('model.bin')) as unknown as MemoryFileHandle;
 
     const tampered = new Uint8Array(bytes);
@@ -502,13 +548,15 @@ describe('ModelAssetStore OPFS operations', () => {
     expect(thrownError?.message).not.toContain('token=secret123');
   });
 
-  it('new model B is completely verified before old model A is pruned', async () => {
+  it('two different assetIds can coexist and loading/upgrading asset A never deletes asset B', async () => {
     const root = new MemoryDirectoryHandle('root');
-    const assetA = await makeTestAsset('model-generation-a', 'model-a');
-    const assetB = await makeTestAsset('model-generation-b', 'model-b');
+    const assetA1 = await makeTestAsset('model-a-sha1-weights', 'note-model', 'v1.0.0');
+    const assetA2 = await makeTestAsset('model-a-sha2-weights', 'note-model', 'v2.0.0');
+    const assetB = await makeTestAsset('model-b-sha1-weights', 'pedal-model', 'v1.0.0');
 
     const mockFetch = vi.fn().mockImplementation(async (url: string) => {
-      if (url.includes(assetA.sha256)) return new Response(assetA.bytes, { status: 200 });
+      if (url.includes(assetA1.sha256)) return new Response(assetA1.bytes, { status: 200 });
+      if (url.includes(assetA2.sha256)) return new Response(assetA2.bytes, { status: 200 });
       if (url.includes(assetB.sha256)) return new Response(assetB.bytes, { status: 200 });
       return new Response(null, { status: 404 });
     });
@@ -518,32 +566,42 @@ describe('ModelAssetStore OPFS operations', () => {
       fetch: mockFetch,
     });
 
-    // 1. Download and verify Model A
-    await store.ensureAsset(assetA.descriptor);
+    // 1. Download Model B (pedal-model)
+    await store.ensureAsset(assetB.descriptor);
+
+    // 2. Download Model A1 (note-model)
+    await store.ensureAsset(assetA1.descriptor);
 
     const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
     const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
 
-    // Verify A exists
-    expect(await v1Dir.getDirectoryHandle(assetA.sha256.toLowerCase())).toBeDefined();
+    const pedalDir = (await v1Dir.getDirectoryHandle('pedal-model')) as unknown as MemoryDirectoryHandle;
+    const noteDir = (await v1Dir.getDirectoryHandle('note-model')) as unknown as MemoryDirectoryHandle;
 
-    // 2. Download and verify Model B
-    await store.ensureAsset(assetB.descriptor);
+    // Both coexist
+    expect(await pedalDir.getDirectoryHandle(assetB.sha256.toLowerCase())).toBeDefined();
+    expect(await noteDir.getDirectoryHandle(assetA1.sha256.toLowerCase())).toBeDefined();
 
-    // Verify B exists and A is now pruned
-    expect(await v1Dir.getDirectoryHandle(assetB.sha256.toLowerCase())).toBeDefined();
-    await expect(v1Dir.getDirectoryHandle(assetA.sha256.toLowerCase())).rejects.toThrow();
+    // 3. Upgrade Model A to A2
+    await store.ensureAsset(assetA2.descriptor);
+
+    // In note-model: A2 exists, A1 is pruned
+    expect(await noteDir.getDirectoryHandle(assetA2.sha256.toLowerCase())).toBeDefined();
+    await expect(noteDir.getDirectoryHandle(assetA1.sha256.toLowerCase())).rejects.toThrow();
+
+    // In pedal-model: B is STILL completely intact!
+    expect(await pedalDir.getDirectoryHandle(assetB.sha256.toLowerCase())).toBeDefined();
   });
 
-  it('model B failure keeps model A on disk but does not fallback to A', async () => {
+  it('A SHA1 -> A SHA2: SHA2 verified before SHA1 prune', async () => {
     const root = new MemoryDirectoryHandle('root');
-    const assetA = await makeTestAsset('model-version-a-valid', 'model-a');
-    const assetB = await makeTestAsset('model-version-b-failing', 'model-b');
+    const assetA1 = await makeTestAsset('note-model-content-v1', 'note-model', 'v1.0.0');
+    const assetA2 = await makeTestAsset('note-model-content-v2', 'note-model', 'v2.0.0');
 
     const mockFetch = vi.fn().mockImplementation(async (url: string) => {
-      if (url.includes(assetA.sha256)) return new Response(assetA.bytes, { status: 200 });
-      // B fails with 500
-      return new Response('Server error', { status: 500 });
+      if (url.includes(assetA1.sha256)) return new Response(assetA1.bytes, { status: 200 });
+      if (url.includes(assetA2.sha256)) return new Response(assetA2.bytes, { status: 200 });
+      return new Response(null, { status: 404 });
     });
 
     const store = new ModelAssetStore({
@@ -551,18 +609,263 @@ describe('ModelAssetStore OPFS operations', () => {
       fetch: mockFetch,
     });
 
-    // 1. Load A
-    await store.ensureAsset(assetA.descriptor);
+    // Step 1: Populate A1
+    await store.ensureAsset(assetA1.descriptor);
 
     const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
     const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
-    expect(await v1Dir.getDirectoryHandle(assetA.sha256.toLowerCase())).toBeDefined();
+    const noteDir = (await v1Dir.getDirectoryHandle('note-model')) as unknown as MemoryDirectoryHandle;
+    expect(await noteDir.getDirectoryHandle(assetA1.sha256.toLowerCase())).toBeDefined();
 
-    // 2. Load B -> must throw, NOT return A
-    await expect(store.ensureAsset(assetB.descriptor)).rejects.toThrow(ModelAssetDownloadError);
+    // Step 2: Load A2 -> A2 is completely verified before A1 is pruned
+    await store.ensureAsset(assetA2.descriptor);
+    expect(await noteDir.getDirectoryHandle(assetA2.sha256.toLowerCase())).toBeDefined();
+    await expect(noteDir.getDirectoryHandle(assetA1.sha256.toLowerCase())).rejects.toThrow();
+  });
 
-    // 3. Model A must still be preserved on disk
-    expect(await v1Dir.getDirectoryHandle(assetA.sha256.toLowerCase())).toBeDefined();
+  it('A SHA2 failure: SHA1 remains on disk but SHA1 is NOT returned as fallback', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const assetA1 = await makeTestAsset('note-model-content-v1', 'note-model', 'v1.0.0');
+    const assetA2 = await makeTestAsset('note-model-content-v2', 'note-model', 'v2.0.0');
+
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes(assetA1.sha256)) return new Response(assetA1.bytes, { status: 200 });
+      return new Response('Download failed', { status: 500 });
+    });
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    // 1. Load A1
+    await store.ensureAsset(assetA1.descriptor);
+
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
+    const noteDir = (await v1Dir.getDirectoryHandle('note-model')) as unknown as MemoryDirectoryHandle;
+    expect(await noteDir.getDirectoryHandle(assetA1.sha256.toLowerCase())).toBeDefined();
+
+    // 2. Load A2 -> must throw, NOT return A1
+    await expect(store.ensureAsset(assetA2.descriptor)).rejects.toThrow(ModelAssetDownloadError);
+
+    // 3. A1 must still remain on disk
+    expect(await noteDir.getDirectoryHandle(assetA1.sha256.toLowerCase())).toBeDefined();
+  });
+
+  it('cache hit performs scoped cleanup of stale/incomplete sibling SHA', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const active = await makeTestAsset('note-model-active', 'note-model', 'v1.0.0');
+    const stale = await makeTestAsset('note-model-stale', 'note-model', 'v0.9.0');
+    const otherAsset = await makeTestAsset('pedal-model-active', 'pedal-model', 'v1.0.0');
+
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes(active.sha256)) return new Response(active.bytes, { status: 200 });
+      if (url.includes(otherAsset.sha256)) return new Response(otherAsset.bytes, { status: 200 });
+      return new Response(null, { status: 404 });
+    });
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    // Populate active note model and pedal model
+    await store.ensureAsset(active.descriptor);
+    await store.ensureAsset(otherAsset.descriptor);
+
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
+    const noteDir = (await v1Dir.getDirectoryHandle('note-model')) as unknown as MemoryDirectoryHandle;
+    const pedalDir = (await v1Dir.getDirectoryHandle('pedal-model')) as unknown as MemoryDirectoryHandle;
+
+    // Simulate an incomplete/stale sibling folder created under note-model
+    const staleDir = await noteDir.getDirectoryHandle(stale.sha256.toLowerCase(), { create: true });
+    const staleBin = await staleDir.getFileHandle('model.bin', { create: true });
+    staleBin.setData(stale.bytes); // Incomplete: no verified.json
+
+    expect(await noteDir.getDirectoryHandle(stale.sha256.toLowerCase())).toBeDefined();
+
+    // Now trigger a cache hit on active note-model
+    const fetchCountBefore = mockFetch.mock.calls.length;
+    const cacheHitResult = await store.ensureAsset(active.descriptor);
+    expect(cacheHitResult.diagnostics.source).toBe('opfs-cache');
+    expect(mockFetch.mock.calls.length).toBe(fetchCountBefore); // 0 new network requests
+
+    // Sibling stale folder under note-model must be cleaned up
+    await expect(noteDir.getDirectoryHandle(stale.sha256.toLowerCase())).rejects.toThrow();
+
+    // Active note-model must remain
+    expect(await noteDir.getDirectoryHandle(active.sha256.toLowerCase())).toBeDefined();
+
+    // Other asset pedal-model must be completely untouched!
+    expect(await pedalDir.getDirectoryHandle(otherAsset.sha256.toLowerCase())).toBeDefined();
+  });
+
+  it('same SHA + changed assetVersion: zero network, marker metadata refreshed', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const assetV1 = await makeTestAsset('same-binary-different-version', 'note-model', 'v1.0.0');
+
+    let fetchCount = 0;
+    const mockFetch = vi.fn().mockImplementation(async () => {
+      fetchCount += 1;
+      return new Response(assetV1.bytes, { status: 200 });
+    });
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    // 1. Initial load
+    await store.ensureAsset(assetV1.descriptor);
+    expect(fetchCount).toBe(1);
+
+    // 2. Load same SHA but new assetVersion descriptor
+    const assetV2Descriptor: ModelAssetDescriptor = {
+      ...assetV1.descriptor,
+      assetVersion: 'v2.0.0',
+    };
+
+    const result = await store.ensureAsset(assetV2Descriptor);
+    expect(result.diagnostics.source).toBe('opfs-cache');
+    expect(result.bytes).toEqual(assetV1.bytes);
+    expect(fetchCount).toBe(1); // ZERO network requests for binary!
+
+    // Verify verified.json has been refreshed with new assetVersion
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
+    const noteDir = (await v1Dir.getDirectoryHandle('note-model')) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await noteDir.getDirectoryHandle(assetV1.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+
+    const markerHandle = await entryDir.getFileHandle('verified.json');
+    const marker = JSON.parse(new TextDecoder().decode((markerHandle as unknown as MemoryFileHandle).getData()));
+    expect(marker.assetVersion).toBe('v2.0.0');
+    expect(marker.sha256).toBe(assetV1.sha256.toLowerCase());
+  });
+
+  it('writable.write quota/storage failure -> ModelAssetStorageError -> no verified marker', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { bytes, descriptor } = await makeTestAsset('storage-write-failure-weights');
+
+    const mockFetch = vi.fn().mockResolvedValue(new Response(bytes, { status: 200 }));
+
+    // Intercept model.bin to throw on write
+    root.onGetFileHandle = (name) => {
+      if (name === 'model.bin') {
+        const file = new MemoryFileHandle(name);
+        file.beforeWrite = async () => {
+          throw new Error('QuotaExceededError: disk full');
+        };
+        return file;
+      }
+      return undefined;
+    };
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    await expect(store.ensureAsset(descriptor)).rejects.toThrow(ModelAssetStorageError);
+
+    // verified.json must not exist
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+    await expect(entryDir.getFileHandle('verified.json')).rejects.toThrow();
+  });
+
+  it('writable.close storage failure -> ModelAssetStorageError -> no verified marker', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { bytes, descriptor } = await makeTestAsset('storage-close-failure-weights');
+
+    const mockFetch = vi.fn().mockResolvedValue(new Response(bytes, { status: 200 }));
+
+    // Intercept model.bin to throw on close
+    root.onGetFileHandle = (name) => {
+      if (name === 'model.bin') {
+        const file = new MemoryFileHandle(name);
+        file.beforeClose = async () => {
+          throw new Error('I/O error during close');
+        };
+        return file;
+      }
+      return undefined;
+    };
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    await expect(store.ensureAsset(descriptor)).rejects.toThrow(ModelAssetStorageError);
+
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+    await expect(entryDir.getFileHandle('verified.json')).rejects.toThrow();
+  });
+
+  it('ReadableStream read failure -> ModelAssetDownloadError -> no verified marker', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { descriptor } = await makeTestAsset('network-stream-read-failure');
+
+    const failingStream = new ReadableStream({
+      start(controller) {
+        controller.error(new Error('Network connection reset during streaming'));
+      },
+    });
+
+    const mockFetch = vi.fn().mockResolvedValue(new Response(failingStream, { status: 200 }));
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    await expect(store.ensureAsset(descriptor)).rejects.toThrow(ModelAssetDownloadError);
+
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+    await expect(entryDir.getFileHandle('verified.json')).rejects.toThrow();
+  });
+
+  it('marker-write failure -> ModelAssetStorageError -> asset inactive', async () => {
+    const root = new MemoryDirectoryHandle('root');
+    const { bytes, descriptor } = await makeTestAsset('marker-write-failure-weights');
+
+    const mockFetch = vi.fn().mockResolvedValue(new Response(bytes, { status: 200 }));
+
+    // Intercept verified.json to fail writable creation
+    root.onGetFileHandle = (name, options) => {
+      if (name === 'verified.json' && options?.create) {
+        const file = new MemoryFileHandle(name);
+        file.onCreateWritable = () => {
+          throw new Error('Disk full: cannot write activation marker');
+        };
+        return file;
+      }
+      return undefined;
+    };
+
+    const store = new ModelAssetStore({
+      getDirectory: async () => root.asDirectoryHandle(),
+      fetch: mockFetch,
+    });
+
+    await expect(store.ensureAsset(descriptor)).rejects.toThrow(ModelAssetStorageError);
+
+    // verified.json must not exist / remain inactive
+    const baseDir = (await root.getDirectoryHandle('noteverse-model-assets')) as unknown as MemoryDirectoryHandle;
+    const v1Dir = (await baseDir.getDirectoryHandle('v1')) as unknown as MemoryDirectoryHandle;
+    const assetDir = (await v1Dir.getDirectoryHandle(descriptor.assetId)) as unknown as MemoryDirectoryHandle;
+    const entryDir = (await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase())) as unknown as MemoryDirectoryHandle;
+    await expect(entryDir.getFileHandle('verified.json')).rejects.toThrow();
   });
 });
 

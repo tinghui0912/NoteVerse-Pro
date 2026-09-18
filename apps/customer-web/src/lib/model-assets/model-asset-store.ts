@@ -4,6 +4,7 @@ import {
   type ModelAssetProgressCallback,
   type ModelAssetStoreOptions,
   type ModelAssetVerificationMarker,
+  ASSET_ID_REGEX,
   ModelAssetDownloadError,
   ModelAssetIntegrityError,
   ModelAssetStorageError,
@@ -24,7 +25,7 @@ export class ModelAssetStore {
     onProgress?: ModelAssetProgressCallback
   ): Promise<ModelAssetLoadResult> {
     validateModelAssetDescriptor(descriptor);
-    const key = descriptor.sha256.toLowerCase();
+    const key = `${descriptor.assetId.toLowerCase()}:${descriptor.sha256.toLowerCase()}`;
     const existing = this.inFlight.get(key);
     if (existing) {
       return existing;
@@ -46,13 +47,29 @@ export class ModelAssetStore {
     const persistentStorageGranted = await this.requestPersistence();
     const loadStartedAt = this.now();
 
-    const baseDir = await root.getDirectoryHandle(MODEL_ASSET_STORAGE_ROOT, { create: true });
-    const v1Dir = await baseDir.getDirectoryHandle(MODEL_ASSET_SCHEMA_VERSION_DIR, { create: true });
-    const targetDirName = descriptor.sha256.toLowerCase();
-    const entryDir = await v1Dir.getDirectoryHandle(targetDirName, { create: true });
+    let baseDir: FileSystemDirectoryHandle;
+    let v1Dir: FileSystemDirectoryHandle;
+    let assetDir: FileSystemDirectoryHandle;
+    let entryDir: FileSystemDirectoryHandle;
+    try {
+      baseDir = await root.getDirectoryHandle(MODEL_ASSET_STORAGE_ROOT, { create: true });
+      v1Dir = await baseDir.getDirectoryHandle(MODEL_ASSET_SCHEMA_VERSION_DIR, { create: true });
+      assetDir = await v1Dir.getDirectoryHandle(descriptor.assetId, { create: true });
+      entryDir = await assetDir.getDirectoryHandle(descriptor.sha256.toLowerCase(), { create: true });
+    } catch (error) {
+      throw new ModelAssetStorageError(
+        `Failed to initialize OPFS directory structure: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
 
     // Step 1: Check existing cache entry
-    const cacheResult = await this.tryReadCachedAsset(entryDir, descriptor, loadStartedAt, persistentStorageGranted);
+    const cacheResult = await this.tryReadCachedAsset(
+      assetDir,
+      entryDir,
+      descriptor,
+      loadStartedAt,
+      persistentStorageGranted
+    );
     if (cacheResult) {
       return cacheResult;
     }
@@ -110,31 +127,75 @@ export class ModelAssetStore {
 
     try {
       while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
+        let readResult: ReadableStreamReadResult<Uint8Array>;
+        try {
+          readResult = await reader.read();
+        } catch (readError) {
+          await writable.abort().catch(() => undefined);
+          await entryDir.removeEntry('model.bin').catch(() => undefined);
+          throw new ModelAssetDownloadError(
+            `Streaming download failed for ${sanitizeUrlForError(descriptor.url)}: ${readError instanceof Error ? readError.message : String(readError)}`
+          );
+        }
+
+        if (readResult.done) {
           break;
         }
-        await writable.write(value);
-        bytesDownloaded += value.byteLength;
+
+        try {
+          await writable.write(readResult.value as BufferSource);
+        } catch (writeError) {
+          await writable.abort().catch(() => undefined);
+          await entryDir.removeEntry('model.bin').catch(() => undefined);
+          throw new ModelAssetStorageError(
+            `Failed to write to model.bin: ${writeError instanceof Error ? writeError.message : String(writeError)}`
+          );
+        }
+
+        bytesDownloaded += readResult.value.byteLength;
         onProgress?.({
           bytesDownloaded,
           totalBytes: Number.isFinite(totalBytes) ? totalBytes : null,
         });
       }
-      await writable.close();
+
+      try {
+        await writable.close();
+      } catch (closeError) {
+        await entryDir.removeEntry('model.bin').catch(() => undefined);
+        throw new ModelAssetStorageError(
+          `Failed to close writable stream for model.bin: ${closeError instanceof Error ? closeError.message : String(closeError)}`
+        );
+      }
     } catch (error) {
+      if (
+        error instanceof ModelAssetDownloadError ||
+        error instanceof ModelAssetStorageError ||
+        error instanceof ModelAssetIntegrityError
+      ) {
+        throw error;
+      }
       await writable.abort().catch(() => undefined);
       await entryDir.removeEntry('model.bin').catch(() => undefined);
-      throw new ModelAssetDownloadError(
-        `Streaming download failed for ${sanitizeUrlForError(descriptor.url)}: ${error instanceof Error ? error.message : String(error)}`
+      throw new ModelAssetStorageError(
+        `Unexpected error during model download/storage: ${error instanceof Error ? error.message : String(error)}`
       );
     }
     const downloadMs = this.now() - downloadStartedAt;
 
     // Step 4: Verify freshly downloaded bytes from OPFS
     const readStartedAt = this.now();
-    const file = await binHandle.getFile();
-    const bytes = new Uint8Array(await file.arrayBuffer());
+    let file: File;
+    let bytes: Uint8Array;
+    try {
+      file = await binHandle.getFile();
+      bytes = new Uint8Array(await file.arrayBuffer());
+    } catch (error) {
+      await entryDir.removeEntry('model.bin').catch(() => undefined);
+      throw new ModelAssetStorageError(
+        `Failed to read downloaded model.bin from OPFS: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
     const cacheReadMs = this.now() - readStartedAt;
 
     if (bytes.byteLength !== descriptor.expectedByteSize) {
@@ -177,8 +238,8 @@ export class ModelAssetStore {
       );
     }
 
-    // Step 6: Prune other versions only after new asset is verified and active
-    await this.pruneOtherVersions(v1Dir, targetDirName);
+    // Step 6: Prune other versions within this assetId only after new asset is verified and active
+    await this.pruneOtherVersionsForAsset(assetDir, descriptor.sha256.toLowerCase());
 
     return {
       bytes,
@@ -196,6 +257,7 @@ export class ModelAssetStore {
   }
 
   private async tryReadCachedAsset(
+    assetDir: FileSystemDirectoryHandle,
     entryDir: FileSystemDirectoryHandle,
     descriptor: ModelAssetDescriptor,
     loadStartedAt: number,
@@ -208,10 +270,11 @@ export class ModelAssetStore {
       return null;
     }
 
+    let marker: ModelAssetVerificationMarker;
     try {
       const markerFile = await markerHandle.getFile();
       const markerText = await markerFile.text();
-      const marker = JSON.parse(markerText) as ModelAssetVerificationMarker;
+      marker = JSON.parse(markerText) as ModelAssetVerificationMarker;
       if (
         marker.schemaVersion !== 1 ||
         marker.assetId !== descriptor.assetId ||
@@ -249,6 +312,25 @@ export class ModelAssetStore {
         return null;
       }
 
+      // If descriptor assetVersion changed, update marker metadata without redownloading binary
+      if (marker.assetVersion !== descriptor.assetVersion) {
+        try {
+          const markerWritable = await markerHandle.createWritable();
+          const updatedMarker: ModelAssetVerificationMarker = {
+            ...marker,
+            assetVersion: descriptor.assetVersion,
+            verifiedAt: new Date().toISOString(),
+          };
+          await markerWritable.write(JSON.stringify(updatedMarker, null, 2));
+          await markerWritable.close();
+        } catch {
+          // Best-effort metadata update; failure does not block returning verified bytes
+        }
+      }
+
+      // Housekeeping: clean up stale/incomplete sibling versions under this assetId
+      await this.pruneOtherVersionsForAsset(assetDir, descriptor.sha256.toLowerCase());
+
       return {
         bytes,
         diagnostics: {
@@ -266,13 +348,16 @@ export class ModelAssetStore {
     }
   }
 
-  private async pruneOtherVersions(v1Dir: FileSystemDirectoryHandle, activeDirName: string): Promise<void> {
+  private async pruneOtherVersionsForAsset(
+    assetDir: FileSystemDirectoryHandle,
+    activeDirName: string
+  ): Promise<void> {
     try {
-      const entries = v1Dir.entries?.();
+      const entries = assetDir.entries?.();
       if (entries && typeof entries[Symbol.asyncIterator] === 'function') {
         for await (const [name, handle] of entries) {
           if (handle.kind === 'directory' && name.toLowerCase() !== activeDirName.toLowerCase()) {
-            await v1Dir.removeEntry(name, { recursive: true }).catch(() => undefined);
+            await assetDir.removeEntry(name, { recursive: true }).catch(() => undefined);
           }
         }
       }
@@ -318,8 +403,8 @@ export function validateModelAssetDescriptor(descriptor: ModelAssetDescriptor): 
   if (descriptor.schemaVersion !== 1) {
     throw new Error('Unsupported model asset descriptor schema version.');
   }
-  if (!descriptor.assetId || typeof descriptor.assetId !== 'string') {
-    throw new Error('Model asset descriptor must include an assetId.');
+  if (!descriptor.assetId || typeof descriptor.assetId !== 'string' || !ASSET_ID_REGEX.test(descriptor.assetId)) {
+    throw new Error('Model asset descriptor assetId must match /^[a-z0-9][a-z0-9._-]{0,127}$/.');
   }
   if (!descriptor.assetVersion || typeof descriptor.assetVersion !== 'string') {
     throw new Error('Model asset descriptor must include an assetVersion.');

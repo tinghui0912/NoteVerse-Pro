@@ -73,7 +73,7 @@ export type ByteDanceModelLoaderResult = {
 
 export type ByteDanceModelLoader = (
   manifest: ByteDanceModelManifest
-) => Promise<Uint8Array | ByteDanceModelLoaderResult>;
+) => Promise<ByteDanceModelLoaderResult>;
 
 export class ByteDanceOnnxInferenceCore {
   private session: ByteDanceOnnxSession | null = null;
@@ -94,8 +94,7 @@ export class ByteDanceOnnxInferenceCore {
     const modelLoadStartedAt = nowMs();
     const loaded = await this.modelLoader(manifest);
     const modelLoadedAt = nowMs();
-    const modelBytes = loaded instanceof Uint8Array ? loaded : loaded.bytes;
-    const loaderDiag = loaded instanceof Uint8Array ? undefined : loaded;
+    const modelBytes = loaded.bytes;
     this.session = await this.runtime.createSession(manifest, modelBytes);
     const sessionCreatedAt = nowMs();
     this.manifest = manifest;
@@ -105,11 +104,11 @@ export class ByteDanceOnnxInferenceCore {
       totalLoadMs: sessionCreatedAt - loadStartedAt,
       modelByteSize: modelBytes.byteLength,
       modelSha256: manifest.sha256,
-      source: loaderDiag?.source,
-      downloadMs: loaderDiag?.downloadMs,
-      cacheReadMs: loaderDiag?.cacheReadMs,
-      verificationMs: loaderDiag?.verificationMs,
-      persistentStorageGranted: loaderDiag?.persistentStorageGranted,
+      source: loaded.source,
+      downloadMs: loaded.downloadMs,
+      cacheReadMs: loaded.cacheReadMs,
+      verificationMs: loaded.verificationMs,
+      persistentStorageGranted: loaded.persistentStorageGranted,
     };
   }
 
@@ -145,36 +144,6 @@ export class ByteDanceOnnxInferenceCore {
 
 function nowMs(): number {
   return globalThis.performance?.now?.() ?? Date.now();
-}
-
-export async function fetchAndVerifyByteDanceModel(manifest: ByteDanceModelManifest): Promise<Uint8Array> {
-  validateByteDanceModelManifest(manifest);
-  const response = await fetch(manifest.modelUrl);
-  if (!response.ok) {
-    throw new Error(`ByteDance model fetch failed with HTTP ${response.status}.`);
-  }
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength !== manifest.expectedByteSize) {
-    throw new Error(
-      `ByteDance model byte size mismatch: expected ${manifest.expectedByteSize}, got ${bytes.byteLength}.`
-    );
-  }
-  const digest = await sha256Hex(bytes);
-  if (digest.toLowerCase() !== manifest.sha256.toLowerCase()) {
-    throw new Error('ByteDance model SHA256 mismatch.');
-  }
-  return bytes;
-}
-
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  if (!globalThis.crypto?.subtle) {
-    throw new Error('Web Crypto SHA-256 is unavailable; cannot verify ByteDance model integrity.');
-  }
-  const buffer = new Uint8Array(bytes).buffer;
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', buffer);
-  return Array.from(new Uint8Array(digest))
-    .map((value) => value.toString(16).padStart(2, '0'))
-    .join('');
 }
 
 function tensorData(tensor: OrtTensorLike | undefined): Float32Array {

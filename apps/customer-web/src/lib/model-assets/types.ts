@@ -1,3 +1,5 @@
+export const ASSET_ID_REGEX = /^[a-z0-9][a-z0-9._-]{0,127}$/;
+
 export type ModelAssetDescriptor = {
   schemaVersion: 1;
   assetId: string;

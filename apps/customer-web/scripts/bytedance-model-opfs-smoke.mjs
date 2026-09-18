@@ -272,7 +272,7 @@ function createSyntheticPcm(frequencyHz, sampleRateHz, length) {
   return pcm;
 }
 
-async function cleanOpfsCache(sha256) {
+async function cleanOpfsCache(assetId, sha256) {
   if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) {
     throw new Error('navigator.storage.getDirectory is unavailable');
   }
@@ -280,7 +280,8 @@ async function cleanOpfsCache(sha256) {
   try {
     const baseDir = await root.getDirectoryHandle('noteverse-model-assets');
     const v1Dir = await baseDir.getDirectoryHandle('v1');
-    await v1Dir.removeEntry(sha256.toLowerCase(), { recursive: true });
+    const assetDir = await v1Dir.getDirectoryHandle(assetId);
+    await assetDir.removeEntry(sha256.toLowerCase(), { recursive: true });
   } catch {
     // Cache was already clean
   }
@@ -310,7 +311,7 @@ async function main() {
   });
 
   // Step 1: Clean OPFS cache for deterministic test
-  await cleanOpfsCache(CONFIG.modelSha256);
+  await cleanOpfsCache(manifest.modelId, CONFIG.modelSha256);
   const persistentStorageGranted = await checkPersistence();
 
   // Step 2: First Worker - Online LOAD
@@ -361,7 +362,7 @@ async function main() {
 
   return {
     userAgent: navigator.userAgent,
-    opfsCachePath: 'noteverse-model-assets/v1/' + CONFIG.modelSha256.toLowerCase(),
+    opfsCachePath: 'noteverse-model-assets/v1/' + manifest.modelId + '/' + CONFIG.modelSha256.toLowerCase(),
     persistentStorageGranted,
     firstLoad: {
       source: load1.diagnostics?.source ?? 'network',

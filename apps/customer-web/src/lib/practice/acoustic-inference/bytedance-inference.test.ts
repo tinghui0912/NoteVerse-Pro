@@ -22,11 +22,11 @@ import {
   createByteDanceBrowserWorkerClient,
   decodeByteDanceRawOutputs,
   defaultByteDanceModelManifest,
-  fetchAndVerifyByteDanceModel,
   loadOnnxRuntimeWeb,
   pcmS16leToFloat32,
   prepareByteDanceInput,
   validateByteDanceModelManifest,
+  type ByteDanceModelLoader,
   type ByteDanceModelManifest,
   type ByteDanceOnnxRuntime,
   type ByteDancePcmInferenceRequest,
@@ -156,7 +156,10 @@ function verifiedManifest(overrides: Partial<ByteDanceModelManifest> = {}): Byte
   });
 }
 
-const passThroughModelLoader = async () => verifiedModelBytes;
+const passThroughModelLoader: ByteDanceModelLoader = async () => ({
+  bytes: verifiedModelBytes,
+  source: 'opfs-cache',
+});
 
 describe('ByteDance model manifest contract', () => {
   it('accepts the validated model identity and rejects drift', () => {
@@ -179,16 +182,13 @@ describe('ByteDance model manifest contract', () => {
     }))).toThrow(/output tensor descriptor/);
   });
 
-  it('verifies model byte size and SHA256 before session creation', async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () => new Response(verifiedModelBytes) as Response;
-    await expect(fetchAndVerifyByteDanceModel(verifiedManifest())).resolves.toEqual(verifiedModelBytes);
-    await expect(fetchAndVerifyByteDanceModel(verifiedManifest({ expectedByteSize: 3 })))
-      .rejects.toThrow(/byte size mismatch/);
-    await expect(fetchAndVerifyByteDanceModel(verifiedManifest({
-      sha256: '039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81',
-    }))).rejects.toThrow(/SHA256 mismatch/);
-    globalThis.fetch = originalFetch;
+  it('validates manifest byte size and SHA256 format', () => {
+    expect(() => validateByteDanceModelManifest(manifest({ expectedByteSize: 0 }))).toThrow(
+      /ByteDance model manifest must include URL, byte size, and SHA256/
+    );
+    expect(() => validateByteDanceModelManifest(manifest({ sha256: 'invalid' }))).toThrow(
+      /ByteDance model manifest must include URL, byte size, and SHA256/
+    );
   });
 });
 
