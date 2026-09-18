@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, is_dataclass
 import hashlib
 import json
-from typing import Any
+from typing import Any, Sequence
 
 from app.processing.engines.practice_alignment.score_timeline import (
     PracticeScoreTimeline,
@@ -19,7 +19,7 @@ def practice_score_artifact_from_timeline(
     *,
     score_id: str,
     revision_id: str,
-    score_tempo_segments: tuple[PracticeTempoSegment, ...] = (),
+    score_tempo_segments: Sequence[PracticeTempoSegment],
 ) -> dict[str, Any]:
     """Serialize the canonical backend practice timeline for browser-local runtimes."""
 
@@ -51,7 +51,7 @@ def practice_score_artifact_json(
     *,
     score_id: str,
     revision_id: str,
-    score_tempo_segments: tuple[PracticeTempoSegment, ...] = (),
+    score_tempo_segments: Sequence[PracticeTempoSegment],
 ) -> str:
     return json.dumps(
         practice_score_artifact_from_timeline(

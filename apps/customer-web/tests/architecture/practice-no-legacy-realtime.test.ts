@@ -136,4 +136,15 @@ describe('Architecture Guard: No Legacy Practice Realtime Files, Imports, or Pro
     expect(content).toContain('scoreTempoSegments: TempoSegment[]');
     expect(content).not.toMatch(/\btempoSegments\s*:\s*TempoSegment\[\]/);
   });
+
+  it('ensures DEFAULT_PERFORMANCE_TEMPO_BPM (120 legacy fallback) is never used in local practice', () => {
+    const localPracticeDir = join(srcDir, 'lib/practice');
+    const files = getSourceFiles(localPracticeDir).filter(
+      (f) => !f.includes('.test.') && !f.includes('__fixtures__')
+    );
+    for (const file of files) {
+      const content = readFileSync(file, 'utf-8');
+      expect(content).not.toContain('DEFAULT_PERFORMANCE_TEMPO_BPM');
+    }
+  });
 });

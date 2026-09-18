@@ -42,6 +42,9 @@ const smokeArtifact = {
   artifactId: 'practice-score-artifact-v2:smoke-test',
   scoreId,
   revisionId,
+  firstPlayableBeat: 0.0,
+  scoreEndBeat: 4.0,
+  playableEvents: [],
   scoreTempoSegments: [
     { startBeat: 0.0, bpm: 100.0 },
     { startBeat: 2.0, bpm: 90.0 },

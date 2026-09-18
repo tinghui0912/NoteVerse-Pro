@@ -213,5 +213,41 @@ describe('PracticeSettingsPanel', () => {
     fireEvent.click(metronomeButton);
     expect(onMetronomeEnabledChange).toHaveBeenCalledWith(true);
   });
+
+  it('reflects scopeStartBeat tempo for selected range practice', () => {
+    const onTempoSelectionChange = vi.fn();
+    render(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <PracticeSettingsPanel
+          audioWorkletSupported
+          midiSupported
+          practiceMode="CONTINUOUS_PLAY"
+          practiceModeLocked={false}
+          inputSource="MICROPHONE"
+          microphoneInputLocked={false}
+          midiInputLocked={false}
+          onPracticeModeChange={vi.fn()}
+          onInputSourceChange={vi.fn()}
+          scoreTempoSegments={[
+            { startBeat: 0, bpm: 120 },
+            { startBeat: 8, bpm: 90 },
+          ]}
+          scopeStartBeat={8}
+          tempoSelection={{ mode: 'SCORE' }}
+          onTempoSelectionChange={onTempoSelectionChange}
+        />
+      </NextIntlClientProvider>
+    );
+
+    // At scopeStartBeat = 8, active tempo is 90 BPM
+    expect(screen.getByText(/Score: ♩ = 90 BPM/i)).toBeInTheDocument();
+
+    // Switching to Custom should initialize with 90 BPM
+    fireEvent.click(screen.getByRole('button', { name: 'Custom' }));
+    expect(onTempoSelectionChange).toHaveBeenCalledWith({
+      mode: 'CUSTOM_FIXED_BPM',
+      bpm: 90,
+    });
+  });
 });
 

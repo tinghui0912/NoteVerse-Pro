@@ -77,8 +77,8 @@ describe('MetronomeController', () => {
   });
 
   const tempoPlan120: ResolvedPracticeTempoPlan = {
-    source: 'PRODUCT_DEFAULT',
-    segments: [{ startBeat: 0, bpm: 120 }], // 0.5s per beat
+    selection: { mode: 'SCORE' },
+    segments: [{ startBeat: 0, bpm: 120, source: 'PRODUCT_DEFAULT' }], // 0.5s per beat
   };
 
   const meter4_4: MeterSegment[] = [
@@ -250,5 +250,80 @@ describe('MetronomeController', () => {
       vi.advanceTimersByTime(200);
       metronome.stop();
     }).not.toThrow();
+  });
+
+  it('rejects invalid or empty tempoPlan with domain error', () => {
+    expect(() => {
+      new MetronomeController({
+        tempoPlan: { selection: { mode: 'SCORE' }, segments: [] },
+      });
+    }).toThrowError(/MetronomeController requires a valid ResolvedPracticeTempoPlan with segments/);
+  });
+
+  it('operates in STEP mode maintaining steady pulse anchored to targetOnsetBeat', () => {
+    const { ctx, scheduledClicks } = createMockAudioContext();
+    const metronome = new MetronomeController({
+      tempoPlan: tempoPlan120,
+      meterSegments: meter4_4,
+      mode: 'STEP',
+      enabled: true,
+      audioContext: ctx,
+    });
+
+    metronome.start(4.0); // target onsetBeat = 4.0 (measure downbeat)
+
+    // Initial click scheduled at 0.05s, downbeat accent
+    expect(scheduledClicks.length).toBeGreaterThanOrEqual(1);
+    expect(scheduledClicks[0].freq).toBe(1200); // downbeat accent
+
+    // Advance 1.2 seconds: should get 2 regular clicks (beats 5, 6)
+    ctx.advanceTime(1.2);
+    vi.advanceTimersByTime(1200);
+
+    const regular = scheduledClicks.filter((c) => c.freq === 800);
+    expect(regular.length).toBeGreaterThanOrEqual(2);
+
+    // Now update step target to beat 5.0 (which is not a downbeat in 4/4)
+    metronome.setStepContext(5.0);
+    const clickCountBefore = scheduledClicks.length;
+
+    ctx.advanceTime(0.6);
+    vi.advanceTimersByTime(600);
+
+    expect(scheduledClicks.length).toBeGreaterThan(clickCountBefore);
+    // At beat 5.0, virtual beat starts at 5.0 which is not downbeat
+    const newClicks = scheduledClicks.slice(clickCountBefore);
+    expect(newClicks[0].freq).toBe(800);
+
+    metronome.stop();
+  });
+
+  it('schedules count-in pulses before running in CONTINUOUS mode', () => {
+    const { ctx, scheduledClicks } = createMockAudioContext();
+    const metronome = new MetronomeController({
+      tempoPlan: tempoPlan120,
+      meterSegments: meter4_4,
+      mode: 'CONTINUOUS',
+      countInPulses: 4,
+      countInBeats: 4,
+      enabled: true,
+      audioContext: ctx,
+    });
+
+    metronome.start(0, { countIn: true, countInPulses: 4, countInBeats: 4 });
+
+    // In 120 bpm, 4 beats = 2.0s
+    // Initial tick schedules pulse 0 (count-in pulse 1/4)
+    expect(scheduledClicks.length).toBeGreaterThanOrEqual(1);
+    expect(scheduledClicks[0].freq).toBe(1200); // 0 % 4 === 0 is accent
+
+    // Advance through count-in (2.0s) + 1 beat of running (0.5s)
+    ctx.advanceTime(2.6);
+    vi.advanceTimersByTime(2600);
+
+    // Total clicks: 4 count-in + at least 1 running pulse (downbeat at beat 0)
+    expect(scheduledClicks.length).toBeGreaterThanOrEqual(5);
+
+    metronome.stop();
   });
 });

@@ -20,11 +20,12 @@ import { ScoreSurface } from '@/components/score/score-surface';
 import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
-import type {
-  ExpectedPracticeGroup,
-  PracticeInputSource,
-  PracticeMode,
-  PracticeScope,
+import {
+  resolvePracticeScope,
+  type ExpectedPracticeGroup,
+  type PracticeInputSource,
+  type PracticeMode,
+  type PracticeScope,
 } from '@/lib/practice/local-core/artifact';
 import type { PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
 import {
@@ -91,6 +92,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     () => practiceScopeFromRangeSelection(rangeSelection, expectedGroups),
     [expectedGroups, rangeSelection]
   );
+
+  const scopeStartBeat = useMemo(() => {
+    if (!artifact || !selectedRangeScope) return 0;
+    return resolvePracticeScope(artifact, selectedRangeScope).startBeat;
+  }, [artifact, selectedRangeScope]);
 
   const selectedRangeGroups = useMemo(
     () => practiceGroupsInRangeSelection(rangeSelection, expectedGroups),
@@ -347,6 +353,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                   tempoSelection={tempoSelection}
                   tempoLocked={isActive}
                   scoreTempoSegments={artifact?.scoreTempoSegments}
+                  scopeStartBeat={scopeStartBeat}
                   onTempoSelectionChange={setTempoSelection}
                   metronomeEnabled={metronomeEnabled}
                   onMetronomeEnabledChange={handleMetronomeEnabledChange}
@@ -374,6 +381,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                 tempoSelection={tempoSelection}
                 tempoLocked={isActive}
                 scoreTempoSegments={artifact?.scoreTempoSegments}
+                scopeStartBeat={scopeStartBeat}
                 onTempoSelectionChange={setTempoSelection}
                 metronomeEnabled={metronomeEnabled}
                 onMetronomeEnabledChange={handleMetronomeEnabledChange}

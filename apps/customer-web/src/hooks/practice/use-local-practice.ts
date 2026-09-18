@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type {
-  ExpectedPracticeGroup,
-  PracticeInputSource,
-  PracticeMode,
-  PracticeScope,
-  PracticeScoreArtifact,
+import {
+  entryGroupEndBeat,
+  resolvePracticeScope,
+  type ExpectedPracticeGroup,
+  type PracticeInputSource,
+  type PracticeMode,
+  type PracticeScope,
+  type PracticeScoreArtifact,
 } from '@/lib/practice/local-core/artifact';
 import {
   PracticeTimebase,
@@ -107,6 +109,8 @@ export function useLocalPractice({
 
   useEffect(() => {
     metronomeRef.current?.setEnabled(metronomeEnabled);
+    stepRuntimeRef.current?.setMetronomeEnabled(metronomeEnabled);
+    performanceRuntimeRef.current?.setMetronomeEnabled(metronomeEnabled);
   }, [metronomeEnabled]);
 
   useEffect(() => {
@@ -195,6 +199,7 @@ export function useLocalPractice({
           void handleNaturalCompletion(snapshot);
         } else {
           setActiveStepGroup(groupForCurrentStep(runtime));
+          metronomeRef.current?.setStepContext(runtime.currentOnsetBeat);
         }
       }
     },
@@ -273,10 +278,20 @@ export function useLocalPractice({
     const timebase = new PracticeTimebase({ domainId: localSessionId });
     timebaseRef.current = timebase;
 
+    const resolvedScope = scope ? resolvePracticeScope(artifact, scope) : null;
+    const scopeStartBeat = resolvedScope ? resolvedScope.startBeat : 0;
+    const scopeEndBeat = scope
+      ? (scope.endGroupId ? entryGroupEndBeat(artifact, scope.endGroupId) : resolvedScope?.terminalBeat ?? artifact.scoreEndBeat)
+      : artifact.scoreEndBeat;
+
     const metronome = new MetronomeController({
+      artifact,
       tempoPlan: resolvedTempoPlan,
       meterSegments: artifact.meterSegments,
       enabled: metronomeEnabled,
+      mode: mode === 'STEP_BY_STEP' ? 'STEP' : 'CONTINUOUS',
+      scopeStartBeat,
+      scopeEndBeat,
     });
     metronomeRef.current = metronome;
 
@@ -325,7 +340,9 @@ export function useLocalPractice({
         });
         stepRuntimeRef.current = runtime;
         setActiveStepGroup(groupForCurrentStep(runtime));
-        metronome.start(0);
+        const initialOnsetBeat = runtime.currentOnsetBeat;
+        metronome.setStepContext(initialOnsetBeat);
+        metronome.start(initialOnsetBeat);
       } else {
         const runtime = new PerformancePracticeRuntime({
           artifact,
@@ -341,7 +358,11 @@ export function useLocalPractice({
         performanceRuntimeRef.current = runtime;
         const initialClock = runtime.start();
         setPerformanceClock(initialClock);
-        metronome.start(0);
+        metronome.start(initialClock.musicalBeat, {
+          countIn: initialClock.state === 'COUNT_IN',
+          countInPulses: initialClock.countInPulses,
+          countInBeats: initialClock.countInBeats,
+        });
         runPerformanceLoop();
       }
 
@@ -471,7 +492,9 @@ export function useLocalPractice({
 
       if (mode === 'STEP_BY_STEP') {
         stepRuntimeRef.current?.resume();
-        metronomeRef.current?.resume(stepRuntimeRef.current?.currentStepIndex ?? 0);
+        const targetOnsetBeat = stepRuntimeRef.current?.currentOnsetBeat ?? 0;
+        metronomeRef.current?.setStepContext(targetOnsetBeat);
+        metronomeRef.current?.resume(targetOnsetBeat);
       } else {
         const clock = performanceRuntimeRef.current?.resume();
         if (clock) {
@@ -547,6 +570,7 @@ export function useLocalPractice({
       void handleNaturalCompletion(snapshot);
     } else {
       setActiveStepGroup(groupForCurrentStep(runtime));
+      metronomeRef.current?.setStepContext(runtime.currentOnsetBeat);
     }
   }, [handleNaturalCompletion]);
 
@@ -583,6 +607,8 @@ export function useLocalPractice({
 
   const setMetronomeEnabled = useCallback((enabled: boolean) => {
     metronomeRef.current?.setEnabled(enabled);
+    stepRuntimeRef.current?.setMetronomeEnabled(enabled);
+    performanceRuntimeRef.current?.setMetronomeEnabled(enabled);
   }, []);
 
   return {

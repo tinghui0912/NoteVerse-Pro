@@ -262,8 +262,8 @@ describe('useLocalPractice', () => {
     );
 
     expect(result.current.resolvedTempoPlan).toEqual({
-      source: 'CUSTOM',
-      segments: [{ startBeat: 0, bpm: 100 }],
+      selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 },
+      segments: [{ startBeat: 0, bpm: 100, source: 'CUSTOM' }],
     });
 
     await act(async () => {

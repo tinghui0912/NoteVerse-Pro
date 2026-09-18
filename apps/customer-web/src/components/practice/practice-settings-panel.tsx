@@ -24,9 +24,7 @@ import {
   MAX_PRACTICE_TEMPO_BPM,
   MIN_PRACTICE_TEMPO_BPM,
   clampCustomTempo,
-  hasExplicitScoreTempo,
-  hasScoreTempoChanges,
-  initialScoreTempoBpm,
+  effectiveScoreTempoAtBeat,
   type PracticeTempoSelection,
 } from '@/lib/practice/local-core/practice-tempo';
 
@@ -48,6 +46,7 @@ type PracticeSettingsPanelProps = {
   tempoSelection?: PracticeTempoSelection;
   tempoLocked?: boolean;
   scoreTempoSegments?: readonly TempoSegment[];
+  scopeStartBeat?: number;
   onTempoSelectionChange?: (selection: PracticeTempoSelection) => void;
   metronomeEnabled?: boolean;
   onMetronomeEnabledChange?: (enabled: boolean) => void;
@@ -71,6 +70,7 @@ export function PracticeSettingsPanel({
   tempoSelection = { mode: 'SCORE' },
   tempoLocked = false,
   scoreTempoSegments = [],
+  scopeStartBeat = 0,
   onTempoSelectionChange = () => {},
   metronomeEnabled = false,
   onMetronomeEnabledChange = () => {},
@@ -93,9 +93,10 @@ export function PracticeSettingsPanel({
           ? t('settingMidiConnected')
           : t('settingMidiBrowser');
 
-  const hasExplicit = hasExplicitScoreTempo(scoreTempoSegments);
-  const initialBpm = initialScoreTempoBpm(scoreTempoSegments);
-  const hasChanges = hasScoreTempoChanges(scoreTempoSegments);
+  const effectiveTempo = effectiveScoreTempoAtBeat(scoreTempoSegments, scopeStartBeat);
+  const initialBpm = effectiveTempo.bpm;
+  const hasExplicit = !effectiveTempo.isDefault;
+  const hasChanges = effectiveTempo.hasSubsequentChanges;
 
   return (
     <aside className={cn('overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm', className)}>

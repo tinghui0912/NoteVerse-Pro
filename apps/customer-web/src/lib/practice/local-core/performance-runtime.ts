@@ -3,7 +3,6 @@ import {
   countInContractAt,
   entryGroupEndBeat,
   resolvePracticeScope,
-  roundBeat,
   type PracticeScoreArtifact,
   type PracticeInputSource,
   type PracticeScope,
@@ -22,9 +21,12 @@ import {
 } from './session';
 import { LocalPerformanceEvaluator } from './performance-evaluator';
 import {
+  beatsToMs,
+  PracticeTempoTimeline,
   resolvePracticeTempoPlan,
   type PracticeTempoSelection,
   type ResolvedPracticeTempoPlan,
+  type ResolvedPracticeTempoSegment,
 } from './practice-tempo';
 
 export type PerformanceRuntimeState = 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
@@ -86,7 +88,7 @@ export class PerformancePracticeRuntime {
   private readonly countInMs: number;
   private readonly tempoPlan: ResolvedPracticeTempoPlan;
   private readonly tempoSelection: PracticeTempoSelection;
-  private readonly metronomeEnabled: boolean;
+  private metronomeEnabled: boolean;
   private inputSource: PracticeInputSource;
   private state: PerformanceRuntimeState = 'READY';
   private stateBeforePause: PerformanceRuntimeState = 'READY';
@@ -118,9 +120,7 @@ export class PerformancePracticeRuntime {
     }
     this.tempoSelection = options.snapshot?.tempoSelection
       ?? options.tempoSelection
-      ?? (this.tempoPlan.source === 'CUSTOM'
-        ? { mode: 'CUSTOM_FIXED_BPM', bpm: this.tempoPlan.segments[0].bpm }
-        : { mode: 'SCORE' });
+      ?? this.tempoPlan.selection;
     this.metronomeEnabled = options.snapshot?.metronomeEnabled ?? options.metronomeEnabled ?? false;
     this.timeline = new PerformanceTimeline(this.artifact, this.tempoPlan.segments);
     this.scope = resolvePerformanceScope(this.artifact, this.timeline, options.snapshot?.practiceScope ?? options.scope);
@@ -198,6 +198,10 @@ export class PerformancePracticeRuntime {
     this.state = 'ENDED';
     this.completionReason = reason;
     return this.snapshot();
+  }
+
+  setMetronomeEnabled(enabled: boolean): void {
+    this.metronomeEnabled = enabled;
   }
 
   snapshot(): PerformanceClockSnapshot {
@@ -397,59 +401,21 @@ type ClockSegment = {
   activeElapsedStartMs: number;
 };
 
-export class PerformanceTimeline {
-  private readonly segments: TimelineSegment[];
-  readonly endBeat: number;
-
+export class PerformanceTimeline extends PracticeTempoTimeline {
   constructor(artifact: PracticeScoreArtifact, tempoSegments: readonly TempoSegment[]) {
-    this.endBeat = artifact.scoreEndBeat;
-    this.segments = buildTimelineSegments(artifact.scoreEndBeat, tempoSegments);
-  }
-
-  beatToTimeMs(beat: number): number {
-    if (this.segments.length === 0) {
-      return 0;
-    }
-    const bounded = Math.min(Math.max(beat, 0), this.endBeat);
-    const segment = this.segmentForBeat(bounded);
-    return segment.startTimeMs + beatsToMs(bounded - segment.startBeat, segment.bpm);
-  }
-
-  timeMsToBeat(timeMs: number): number {
-    if (this.segments.length === 0) {
-      return 0;
-    }
-    const durationMs = this.segments[this.segments.length - 1]?.endTimeMs ?? 0;
-    const bounded = Math.min(Math.max(timeMs, 0), durationMs);
-    const segment = this.segmentForTimeMs(bounded);
-    return roundBeat(segment.startBeat + msToBeats(bounded - segment.startTimeMs, segment.bpm));
-  }
-
-  bpmAtBeat(beat: number): number {
-    if (this.segments.length === 0) {
-      throw new Error('Cannot determine BPM: performance timeline has no tempo segments.');
-    }
-    return this.segmentForBeat(Math.min(Math.max(beat, 0), this.endBeat)).bpm;
-  }
-
-  private segmentForBeat(beat: number): TimelineSegment {
-    return this.segments.find((segment) => segment.startBeat <= beat && beat < segment.endBeat)
-      ?? this.segments[this.segments.length - 1];
-  }
-
-  private segmentForTimeMs(timeMs: number): TimelineSegment {
-    return this.segments.find((segment) => segment.startTimeMs <= timeMs && timeMs < segment.endTimeMs)
-      ?? this.segments[this.segments.length - 1];
+    super(
+      {
+        selection: { mode: 'SCORE' },
+        segments: tempoSegments.map((s) => ({
+          startBeat: s.startBeat,
+          bpm: s.bpm,
+          source: 'source' in s ? (s as ResolvedPracticeTempoSegment).source : 'MUSICXML',
+        })),
+      },
+      artifact.scoreEndBeat
+    );
   }
 }
-
-type TimelineSegment = {
-  startBeat: number;
-  endBeat: number;
-  startTimeMs: number;
-  endTimeMs: number;
-  bpm: number;
-};
 
 function resolvePerformanceScope(
   artifact: PracticeScoreArtifact,
@@ -468,46 +434,6 @@ function resolvePerformanceScope(
     startGroupId: resolved.startGroupId,
     endGroupId: resolved.endGroupId,
   };
-}
-
-function buildTimelineSegments(endBeat: number, tempoSegments: readonly TempoSegment[]): TimelineSegment[] {
-  if (endBeat <= 0) {
-    return [];
-  }
-  if (!tempoSegments || tempoSegments.length === 0) {
-    throw new Error('Performance timeline segments cannot be built without tempo segments.');
-  }
-  const byBeat = new Map<number, TempoSegment>();
-  for (const segment of tempoSegments) {
-    if (segment.startBeat >= 0 && segment.bpm > 0) {
-      byBeat.set(roundBeat(segment.startBeat), { startBeat: roundBeat(segment.startBeat), bpm: segment.bpm });
-    }
-  }
-  if (!byBeat.has(0)) {
-    throw new Error('Performance timeline tempo segments must contain beat 0.');
-  }
-  const normalized = Array.from(byBeat.values()).sort((a, b) => a.startBeat - b.startBeat);
-  let currentTimeMs = 0;
-  return normalized.flatMap((tempo, index) => {
-    const nextStart = normalized[index + 1]?.startBeat ?? endBeat;
-    const startBeat = Math.min(Math.max(tempo.startBeat, 0), endBeat);
-    const end = Math.min(Math.max(nextStart, startBeat), endBeat);
-    if (end <= startBeat) {
-      return [];
-    }
-    const startTimeMs = currentTimeMs;
-    const endTimeMs = startTimeMs + beatsToMs(end - startBeat, tempo.bpm);
-    currentTimeMs = endTimeMs;
-    return [{ startBeat, endBeat: end, startTimeMs, endTimeMs, bpm: tempo.bpm }];
-  });
-}
-
-function beatsToMs(beats: number, bpm: number): number {
-  return beats * 60_000 / bpm;
-}
-
-function msToBeats(milliseconds: number, bpm: number): number {
-  return milliseconds * bpm / 60_000;
 }
 
 function validatePerformanceSnapshot(

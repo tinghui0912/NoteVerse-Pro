@@ -139,6 +139,41 @@ export function assertPracticeScoreArtifact(artifact: unknown): asserts artifact
   if (!candidate.scoreId || !candidate.revisionId || !candidate.artifactId) {
     throw new Error('PracticeScoreArtifact requires stable score, revision, and artifact identity.');
   }
+  if (!Array.isArray(candidate.scoreTempoSegments)) {
+    throw new Error('PracticeScoreArtifact requires scoreTempoSegments array.');
+  }
+  for (let i = 0; i < candidate.scoreTempoSegments.length; i += 1) {
+    const segment = candidate.scoreTempoSegments[i];
+    if (!segment || typeof segment !== 'object') {
+      throw new Error(`PracticeScoreArtifact scoreTempoSegment at index ${i} must be an object.`);
+    }
+    if (!Number.isFinite(segment.startBeat) || segment.startBeat < 0) {
+      throw new Error(`PracticeScoreArtifact scoreTempoSegment at index ${i} has invalid startBeat: ${segment.startBeat}.`);
+    }
+    if (!Number.isFinite(segment.bpm) || segment.bpm <= 0) {
+      throw new Error(`PracticeScoreArtifact scoreTempoSegment at index ${i} has invalid bpm: ${segment.bpm}.`);
+    }
+    if (i > 0 && segment.startBeat <= candidate.scoreTempoSegments[i - 1].startBeat) {
+      throw new Error(
+        'PracticeScoreArtifact scoreTempoSegments must be strictly sorted by startBeat ascending without duplicate start beats.'
+      );
+    }
+  }
+  if (!Array.isArray(candidate.meterSegments)) {
+    throw new Error('PracticeScoreArtifact requires meterSegments array.');
+  }
+  for (let i = 0; i < candidate.meterSegments.length; i += 1) {
+    const meter = candidate.meterSegments[i];
+    if (!meter || typeof meter !== 'object') {
+      throw new Error(`PracticeScoreArtifact meterSegment at index ${i} must be an object.`);
+    }
+    if (!Number.isFinite(meter.startBeat) || meter.startBeat < 0) {
+      throw new Error(`PracticeScoreArtifact meterSegment at index ${i} has invalid startBeat: ${meter.startBeat}.`);
+    }
+    if (!Number.isFinite(meter.numerator) || meter.numerator < 1 || !Number.isFinite(meter.denominator) || meter.denominator < 1) {
+      throw new Error(`PracticeScoreArtifact meterSegment at index ${i} has invalid time signature.`);
+    }
+  }
   if (
     !Array.isArray(candidate.practiceAttackSteps) ||
     !Array.isArray(candidate.expectedPracticeGroups) ||

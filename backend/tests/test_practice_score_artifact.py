@@ -296,3 +296,54 @@ def test_practice_tempo_segments_invalid_xml_raises(tmp_path: Path) -> None:
     with pytest.raises(ET.ParseError):
         practice_tempo_segments_from_musicxml(bad_xml)
 
+
+def test_practice_score_artifact_requires_explicit_score_tempo_segments() -> None:
+    import pytest
+
+    timeline = PracticeScoreTimeline(
+        events=(),
+        entry_groups=(),
+        first_playable_event_id=None,
+        first_playable_beat=None,
+        end_beat=0.0,
+        meter_segments=(),
+    )
+    with pytest.raises(TypeError):
+        # Omitting score_tempo_segments must raise TypeError
+        practice_score_artifact_from_timeline(  # type: ignore[call-arg]
+            timeline,
+            score_id="score-1",
+            revision_id="rev-1",
+        )
+
+
+def test_practice_score_artifact_read_schema_version_locked_to_2() -> None:
+    import pytest
+    from pydantic import ValidationError
+    from app.modules.practice.schemas import PracticeScoreArtifactRead
+
+    base_payload = {
+        "scoreId": "s-1",
+        "revisionId": "r-1",
+        "artifactId": "practice-score-artifact-v2:abc",
+        "scoreEndBeat": 10.0,
+        "scoreTempoSegments": [],
+        "meterSegments": [],
+        "playableEvents": [],
+        "expectedPracticeGroups": [],
+        "practiceAttackSteps": [],
+    }
+
+    # schemaVersion 2 must succeed
+    valid = PracticeScoreArtifactRead.model_validate({**base_payload, "schemaVersion": 2})
+    assert valid.schemaVersion == 2
+
+    # schemaVersion 1 must be rejected
+    with pytest.raises(ValidationError):
+        PracticeScoreArtifactRead.model_validate({**base_payload, "schemaVersion": 1})
+
+    # schemaVersion 3 must be rejected
+    with pytest.raises(ValidationError):
+        PracticeScoreArtifactRead.model_validate({**base_payload, "schemaVersion": 3})
+
+

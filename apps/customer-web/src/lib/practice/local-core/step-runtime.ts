@@ -66,7 +66,7 @@ export class StepPracticeRuntime {
   private readonly version: RuntimeVersionIdentity;
   private readonly inputSource: 'MICROPHONE' | 'MIDI';
   private readonly tempoSelection: PracticeTempoSelection;
-  private readonly metronomeEnabled: boolean;
+  private metronomeEnabled: boolean;
   private readonly createdAtMs: number;
 
   constructor(options: StepPracticeRuntimeOptions) {
@@ -237,8 +237,17 @@ export class StepPracticeRuntime {
     };
   }
 
+  setMetronomeEnabled(enabled: boolean): void {
+    this.metronomeEnabled = enabled;
+  }
+
   get currentStepIndex(): number {
     return this.currentIndex;
+  }
+
+  get currentOnsetBeat(): number {
+    const step = this.currentStep();
+    return step?.onsetBeat ?? this.artifact.practiceAttackSteps[0]?.onsetBeat ?? 0;
   }
 
   get isCompleted(): boolean {

@@ -898,4 +898,30 @@ describe('local session foundation', () => {
     expect(snapshot.performanceTimeMs).toBe(3000);
     expect(snapshot.musicalBeat).toBeCloseTo(5.0, 2);
   });
+
+  it('allows live metronome toggle on StepPracticeRuntime and PerformancePracticeRuntime snapshots', () => {
+    const art = cloneArtifact();
+    const clock = new ManualClock(100);
+
+    const stepRuntime = new StepPracticeRuntime({
+      artifact: art,
+      clock,
+      metronomeEnabled: false,
+    });
+    expect(stepRuntime.snapshot().metronomeEnabled).toBe(false);
+    expect(stepRuntime.currentOnsetBeat).toBe(0);
+
+    stepRuntime.setMetronomeEnabled(true);
+    expect(stepRuntime.snapshot().metronomeEnabled).toBe(true);
+
+    const perfRuntime = new PerformancePracticeRuntime({
+      artifact: art,
+      clock,
+      metronomeEnabled: false,
+    });
+    expect(perfRuntime.snapshotSession().metronomeEnabled).toBe(false);
+
+    perfRuntime.setMetronomeEnabled(true);
+    expect(perfRuntime.snapshotSession().metronomeEnabled).toBe(true);
+  });
 });
