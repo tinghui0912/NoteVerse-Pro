@@ -1,0 +1,116 @@
+{
+  "generatedAt": "2026-09-18T06:21:34.722Z",
+  "gitHead": "a3e3a1a4ef9b6ca82208754f87a82972c232bb87",
+  "command": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\scripts\\bytedance-model-opfs-smoke.mjs --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx --browser-channel chrome --headed --timeout 60000 --output backend/research/reports/bytedance_model_opfs_smoke_latest.json",
+  "harness": "apps/customer-web/scripts/bytedance-model-opfs-smoke.mjs",
+  "browser": {
+    "name": "chrome",
+    "headed": true,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
+  },
+  "environment": {
+    "os": "win32 10.0.26200 x64",
+    "node": "v24.19.0"
+  },
+  "model": {
+    "path": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\bytedance_browser_runtime_feasibility\\bytedance_note_model_fixed_anchor.onnx",
+    "byteSize": 98691493,
+    "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5"
+  },
+  "opfsCachePath": "noteverse-model-assets/v1/6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+  "persistentStorageGranted": false,
+  "firstLoad": {
+    "source": "network",
+    "networkRequestCount": 1,
+    "inference": {
+      "outputTensors": {
+        "regOnset": {
+          "name": "reg_onset_output",
+          "dtype": "float32",
+          "shape": [
+            1,
+            183,
+            88
+          ]
+        },
+        "frame": {
+          "name": "frame_output",
+          "dtype": "float32",
+          "shape": [
+            1,
+            183,
+            88
+          ]
+        }
+      },
+      "eventCount": 1,
+      "events": [
+        {
+          "pitch": "A4",
+          "midiPitch": 69,
+          "onsetTime": {
+            "domainId": "smoke-test",
+            "sampleIndex": 1760,
+            "ms": 110
+          },
+          "confidence": 0.40352505445480347,
+          "onsetScore": 0.40352505445480347,
+          "frameScore": 0.9820781350135803,
+          "source": "ACOUSTIC",
+          "inferenceCompletedAtMs": 4090.4000000953674
+        }
+      ]
+    }
+  },
+  "secondLoad": {
+    "source": "opfs-cache",
+    "networkRequestCount": 0,
+    "inference": {
+      "outputTensors": {
+        "regOnset": {
+          "name": "reg_onset_output",
+          "dtype": "float32",
+          "shape": [
+            1,
+            183,
+            88
+          ]
+        },
+        "frame": {
+          "name": "frame_output",
+          "dtype": "float32",
+          "shape": [
+            1,
+            183,
+            88
+          ]
+        }
+      },
+      "eventCount": 1,
+      "events": [
+        {
+          "pitch": "A4",
+          "midiPitch": 69,
+          "onsetTime": {
+            "domainId": "smoke-test",
+            "sampleIndex": 1760,
+            "ms": 110
+          },
+          "confidence": 0.40352505445480347,
+          "onsetScore": 0.40352505445480347,
+          "frameScore": 0.9820781350135803,
+          "source": "ACOUSTIC",
+          "inferenceCompletedAtMs": 2602.7999999523163
+        }
+      ]
+    }
+  },
+  "verifierDecisionAgreement": true,
+  "browserErrors": [
+    "error: \u001b[0;93m2026-09-18 14:21:30.295900 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "error: \u001b[0;93m2026-09-18 14:21:30.299100 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+    "error: \u001b[0;93m2026-09-18 14:21:32.824800 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "error: \u001b[0;93m2026-09-18 14:21:32.828100 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+  ],
+  "browserWarnings": []
+}
