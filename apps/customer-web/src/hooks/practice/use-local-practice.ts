@@ -24,6 +24,8 @@ import {
   createLocalSessionId,
   InMemoryPracticeSessionStore,
   type LocalPracticeCompletionReason,
+  type LocalPracticeLifecycle,
+  type LocalPracticeInputState,
   type LocalPracticeSessionSnapshot,
 } from '@/lib/practice/local-core/session';
 import type {
@@ -40,14 +42,7 @@ import {
   BrowserMidiController,
 } from '@/lib/practice/midi/browser-midi-controller';
 
-export type LocalPracticeStatus =
-  | 'idle'
-  | 'connecting'
-  | 'listening'
-  | 'practicing'
-  | 'paused'
-  | 'finishing'
-  | 'finished';
+export type { LocalPracticeLifecycle, LocalPracticeInputState };
 
 export type UseLocalPracticeOptions = {
   artifact: PracticeScoreArtifact | null | undefined;
@@ -72,8 +67,9 @@ export function useLocalPractice({
   speedRatio = 1,
   onCompletion,
 }: UseLocalPracticeOptions) {
-  const [status, setStatus] = useState<LocalPracticeStatus>('idle');
-  const [error, setError] = useState<string | null>(null);
+  const [lifecycle, setLifecycle] = useState<LocalPracticeLifecycle>('READY');
+  const [inputState, setInputState] = useState<LocalPracticeInputState>('IDLE');
+  const [inputError, setInputError] = useState<string | null>(null);
   const [activeStepGroup, setActiveStepGroup] = useState<ExpectedPracticeGroup | null>(null);
   const [performanceClock, setPerformanceClock] = useState<PerformanceClockSnapshot | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -87,7 +83,6 @@ export function useLocalPractice({
   const timebaseRef = useRef<PracticeTimebase | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const isCleaningUpRef = useRef(false);
 
   // Stop performance animation loop
   const stopAnimationLoop = useCallback(() => {
@@ -113,7 +108,7 @@ export function useLocalPractice({
     }, 1000);
   }, [stopTimer]);
 
-  // Teardown inputs
+  // Teardown inputs completely
   const teardownInputs = useCallback(async () => {
     const mic = micControllerRef.current;
     micControllerRef.current = null;
@@ -129,6 +124,7 @@ export function useLocalPractice({
     midiControllerRef.current = null;
     if (midi) {
       try {
+        midi.stop();
         midi.dispose();
       } catch {
         // Ignore dispose errors
@@ -141,13 +137,13 @@ export function useLocalPractice({
     async (snapshot: LocalPracticeSessionSnapshot) => {
       stopAnimationLoop();
       stopTimer();
-      await teardownInputs();
-
       setCompletionReason('SCOPE_COMPLETED');
       setLastSnapshot(snapshot);
       defaultSessionStore.save(snapshot);
-      setStatus('finished');
+      setLifecycle('ENDED');
       onCompletion?.(snapshot);
+      await teardownInputs();
+      setInputState('IDLE');
     },
     [onCompletion, stopAnimationLoop, stopTimer, teardownInputs]
   );
@@ -177,7 +173,7 @@ export function useLocalPractice({
   const handlePerformanceEvidence = useCallback(
     (observations: readonly PerformanceEvidenceObservation[]) => {
       const runtime = performanceRuntimeRef.current;
-      if (!runtime) {
+      if (!runtime || runtime.snapshot().state !== 'RUNNING') {
         return;
       }
       for (const obs of observations) {
@@ -214,27 +210,37 @@ export function useLocalPractice({
     animationFrameRef.current = requestAnimationFrame(loop);
   }, [handleNaturalCompletion, stopAnimationLoop]);
 
-  // Start practice session
-  const start = useCallback(async () => {
+  // Fatal input error handler
+  const handleFatalInputError = useCallback((errorMessage: string) => {
+    stopTimer();
+    stopAnimationLoop();
+    if (mode === 'STEP_BY_STEP') {
+      stepRuntimeRef.current?.pause();
+    } else {
+      const clock = performanceRuntimeRef.current?.pause();
+      if (clock) {
+        setPerformanceClock(clock);
+      }
+    }
+    setLifecycle('PAUSED');
+    setInputState('ERROR');
+    setInputError(errorMessage);
+  }, [mode, stopAnimationLoop, stopTimer]);
+
+  // Internal start session implementation
+  const startSession = useCallback(async () => {
     if (!artifact) {
       throw new Error('Score artifact is not available yet.');
     }
-    if (status === 'connecting' || status === 'practicing' || status === 'listening') {
-      return;
-    }
 
-    setError(null);
-    setStatus('connecting');
-    setElapsedSeconds(0);
-    setCompletionReason(null);
-    setLastSnapshot(null);
+    setInputError(null);
+    setInputState('STARTING');
 
     const localSessionId = createLocalSessionId();
     const timebase = new PracticeTimebase({ domainId: localSessionId });
     timebaseRef.current = timebase;
 
     try {
-      // 1. Initialize input controller
       if (inputSource === 'MICROPHONE') {
         const manifest = createProductionByteDanceManifest();
         const micController = new BrowserMicrophoneCaptureController({
@@ -248,9 +254,7 @@ export function useLocalPractice({
             onPerformanceEvidence: (evidences) => handlePerformanceEvidence(evidences),
           },
           onFatalError: (fatalError) => {
-            setError(fatalError.message);
-            void teardownInputs();
-            setStatus('idle');
+            handleFatalInputError(fatalError.message);
           },
         });
         micControllerRef.current = micController;
@@ -266,7 +270,8 @@ export function useLocalPractice({
         await midiController.start();
       }
 
-      // 2. Start local runtime
+      setInputState('RUNNING');
+
       if (mode === 'STEP_BY_STEP') {
         const runtime = new StepPracticeRuntime({
           artifact,
@@ -278,8 +283,6 @@ export function useLocalPractice({
         });
         stepRuntimeRef.current = runtime;
         setActiveStepGroup(groupForCurrentStep(runtime));
-        setStatus('listening');
-        startTimer();
       } else {
         const runtime = new PerformancePracticeRuntime({
           artifact,
@@ -293,20 +296,26 @@ export function useLocalPractice({
         performanceRuntimeRef.current = runtime;
         const initialClock = runtime.start();
         setPerformanceClock(initialClock);
-        setStatus('practicing');
-        startTimer();
         runPerformanceLoop();
       }
+
+      setLifecycle('ACTIVE');
+      setElapsedSeconds(0);
+      setCompletionReason(null);
+      setLastSnapshot(null);
+      startTimer();
     } catch (err) {
       await teardownInputs();
       stepRuntimeRef.current = null;
       performanceRuntimeRef.current = null;
       const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-      setStatus('idle');
+      setInputError(message);
+      setInputState('ERROR');
+      // lifecycle remains READY
     }
   }, [
     artifact,
+    handleFatalInputError,
     handlePerformanceEvidence,
     handleStepObservation,
     inputSource,
@@ -315,13 +324,20 @@ export function useLocalPractice({
     scope,
     speedRatio,
     startTimer,
-    status,
     teardownInputs,
   ]);
 
-  // Pause
-  const pause = useCallback(() => {
-    if (status !== 'listening' && status !== 'practicing') {
+  // Start practice session (requires READY)
+  const start = useCallback(async () => {
+    if (lifecycle !== 'READY') {
+      return;
+    }
+    await startSession();
+  }, [lifecycle, startSession]);
+
+  // Pause practice session (requires ACTIVE)
+  const pause = useCallback(async () => {
+    if (lifecycle !== 'ACTIVE') {
       return;
     }
     stopTimer();
@@ -335,39 +351,105 @@ export function useLocalPractice({
         setPerformanceClock(clock);
       }
     }
-    setStatus('paused');
-  }, [mode, status, stopAnimationLoop, stopTimer]);
+    setLifecycle('PAUSED');
 
-  // Resume
-  const resume = useCallback(() => {
-    if (status !== 'paused') {
-      return;
-    }
-    startTimer();
-
-    if (mode === 'STEP_BY_STEP') {
-      stepRuntimeRef.current?.resume();
-      setStatus('listening');
-    } else {
-      const clock = performanceRuntimeRef.current?.resume();
-      if (clock) {
-        setPerformanceClock(clock);
+    // Stop inputs without teardown
+    if (inputSource === 'MICROPHONE' && micControllerRef.current) {
+      try {
+        await micControllerRef.current.stop();
+      } catch {
+        // ignore
       }
-      setStatus('practicing');
-      runPerformanceLoop();
+    } else if (midiControllerRef.current) {
+      try {
+        midiControllerRef.current.stop();
+      } catch {
+        // ignore
+      }
     }
-  }, [mode, runPerformanceLoop, startTimer, status]);
+    setInputState('IDLE');
+  }, [inputSource, lifecycle, mode, stopAnimationLoop, stopTimer]);
 
-  // Finish (user stopped)
-  const finish = useCallback(async () => {
-    if (isCleaningUpRef.current) {
+  // Resume practice session (requires PAUSED)
+  const resume = useCallback(async () => {
+    if (lifecycle !== 'PAUSED') {
       return;
     }
-    isCleaningUpRef.current = true;
-    setStatus('finishing');
+
+    setInputError(null);
+    setInputState('STARTING');
+
+    try {
+      if (inputSource === 'MICROPHONE') {
+        if (!micControllerRef.current && timebaseRef.current) {
+          const manifest = createProductionByteDanceManifest();
+          micControllerRef.current = new BrowserMicrophoneCaptureController({
+            manifest,
+            sessionTimebase: timebaseRef.current,
+            sourceSampleRateHz: 48000,
+            captureDomainId: timebaseRef.current.domainId,
+            evidenceSink: {
+              currentStepTarget: () => stepRuntimeRef.current?.currentTarget() ?? null,
+              onStepObservation: (obs) => handleStepObservation(obs),
+              onPerformanceEvidence: (evidences) => handlePerformanceEvidence(evidences),
+            },
+            onFatalError: (fatalError) => {
+              handleFatalInputError(fatalError.message);
+            },
+          });
+        }
+        if (micControllerRef.current) {
+          await micControllerRef.current.start();
+        }
+      } else {
+        if (!midiControllerRef.current && timebaseRef.current) {
+          midiControllerRef.current = new BrowserMidiController({
+            timebase: timebaseRef.current,
+            getCurrentStepTarget: () => stepRuntimeRef.current?.currentTarget() ?? null,
+            onStepObservation: (obs) => handleStepObservation(obs),
+            onPerformanceObservation: (obs) => handlePerformanceEvidence([obs]),
+          });
+        }
+        if (midiControllerRef.current) {
+          await midiControllerRef.current.start();
+        }
+      }
+
+      setInputState('RUNNING');
+
+      if (mode === 'STEP_BY_STEP') {
+        stepRuntimeRef.current?.resume();
+      } else {
+        const clock = performanceRuntimeRef.current?.resume();
+        if (clock) {
+          setPerformanceClock(clock);
+        }
+        runPerformanceLoop();
+      }
+
+      setLifecycle('ACTIVE');
+      startTimer();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setInputError(message);
+      setInputState('ERROR');
+      // lifecycle remains PAUSED
+    }
+  }, [
+    handleFatalInputError,
+    handlePerformanceEvidence,
+    handleStepObservation,
+    inputSource,
+    lifecycle,
+    mode,
+    runPerformanceLoop,
+    startTimer,
+  ]);
+
+  // Finish practice session (user stopped)
+  const finish = useCallback(async () => {
     stopTimer();
     stopAnimationLoop();
-    await teardownInputs();
 
     let snapshot: LocalPracticeSessionSnapshot | null = null;
     if (mode === 'STEP_BY_STEP') {
@@ -389,8 +471,11 @@ export function useLocalPractice({
       setLastSnapshot(snapshot);
       defaultSessionStore.save(snapshot);
     }
-    setStatus('finished');
-    isCleaningUpRef.current = false;
+    setLifecycle('ENDED');
+
+    void teardownInputs().then(() => {
+      setInputState('IDLE');
+    });
   }, [mode, stopAnimationLoop, stopTimer, teardownInputs]);
 
   // Skip (for STEP mode)
@@ -410,9 +495,20 @@ export function useLocalPractice({
 
   // Reset / restart
   const restart = useCallback(async () => {
-    await finish();
-    await start();
-  }, [finish, start]);
+    await teardownInputs();
+    stepRuntimeRef.current = null;
+    performanceRuntimeRef.current = null;
+    timebaseRef.current = null;
+    setLifecycle('READY');
+    setInputState('IDLE');
+    setInputError(null);
+    setElapsedSeconds(0);
+    setCompletionReason(null);
+    setLastSnapshot(null);
+    setActiveStepGroup(null);
+    setPerformanceClock(null);
+    await startSession();
+  }, [startSession, teardownInputs]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -424,8 +520,10 @@ export function useLocalPractice({
   }, [stopAnimationLoop, stopTimer, teardownInputs]);
 
   return {
-    status,
-    error,
+    lifecycle,
+    inputState,
+    inputError,
+    error: inputError,
     activeStepGroup,
     performanceClock,
     elapsedSeconds,

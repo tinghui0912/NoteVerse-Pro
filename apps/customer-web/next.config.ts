@@ -29,6 +29,13 @@ const nextConfig: NextConfig = {
       config.plugins.push(
         new webpack.IgnorePlugin({ resourceRegExp: /^node:module$/ })
       );
+    } else {
+      config.resolve = config.resolve || {};
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'onnxruntime-web/webgpu': false,
+        'onnxruntime-web': false,
+      };
     }
     return config;
   },

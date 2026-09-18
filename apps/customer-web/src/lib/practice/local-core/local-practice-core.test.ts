@@ -375,9 +375,10 @@ describe('local CONTINUOUS practice runtime', () => {
       confidence: 1,
       source: 'FAKE',
     });
-    expect(evaluated.performanceTimeMs).toBe(200);
-    expect(evaluated.musicalBeat).toBe(0.4);
-    expect(runtime.snapshot().musicalBeat).toBeGreaterThan(evaluated.musicalBeat);
+    expect(evaluated).not.toBeNull();
+    expect(evaluated!.performanceTimeMs).toBe(200);
+    expect(evaluated!.musicalBeat).toBe(0.4);
+    expect(runtime.snapshot().musicalBeat).toBeGreaterThan(evaluated!.musicalBeat);
   });
 
   it('evaluates single notes, chords, missing notes, extra notes, partial chords, and timing offsets downstream of the clock', () => {
@@ -682,8 +683,9 @@ describe('local session foundation', () => {
       source: 'MIDI',
       inferenceCompletedAtMs: 5_000,
     });
-    expect(evaluated.performanceTimeMs).toBe(500);
-    expect(evaluated.source).toBe('MIDI');
+    expect(evaluated).not.toBeNull();
+    expect(evaluated!.performanceTimeMs).toBe(500);
+    expect(evaluated!.source).toBe('MIDI');
   });
 
   it('rejects empty artifacts before local practice instead of inventing playable state', () => {
@@ -800,5 +802,84 @@ describe('local session foundation', () => {
     expect(naturalSnapshot.state).toBe('ENDED');
     expect(naturalSnapshot.scopeCompleted).toBe(true);
     expect(naturalSnapshot.completionReason).toBe('SCOPE_COMPLETED');
+  });
+
+  it('rejects observeEvidence when performance runtime is not RUNNING', () => {
+    const clock = new ManualClock(0);
+    const runtime = new PerformancePracticeRuntime({ artifact, clock, countInBeats: 3 });
+    // Before start: state is READY
+    const evidence = performanceEvidence(runtime.timebase.domainId, 100, ['C4']);
+    expect(runtime.observeEvidence(evidence)).toBeNull();
+
+    // Start with count-in: state is COUNT_IN
+    runtime.start();
+    expect(runtime.snapshot().state).toBe('COUNT_IN');
+    expect(runtime.observeEvidence(evidence)).toBeNull();
+
+    // Advance past count-in into RUNNING
+    clock.advance(runtime.snapshot().countInTotalMs + 10);
+    expect(runtime.snapshot().state).toBe('RUNNING');
+    expect(runtime.observeEvidence(evidence)).not.toBeNull();
+
+    // Pause: state is PAUSED
+    runtime.pause();
+    expect(runtime.snapshot().state).toBe('PAUSED');
+    expect(runtime.observeEvidence(evidence)).toBeNull();
+
+    // End: state is ENDED
+    runtime.end('STOPPED_BY_USER');
+    expect(runtime.snapshot().state).toBe('ENDED');
+    expect(runtime.observeEvidence(evidence)).toBeNull();
+  });
+
+  it('provides deterministic countInPulse and handles multi-tempo segments correctly', () => {
+    const multiTempoArtifact = cloneArtifact({
+      tempoSegments: [
+        { startBeat: 0, bpm: 120 },
+        { startBeat: 4, bpm: 60 },
+      ],
+    });
+
+    const clock = new ManualClock(0);
+    const runtime = new PerformancePracticeRuntime({
+      artifact: multiTempoArtifact,
+      clock,
+      countInBeats: 3,
+    });
+
+    runtime.start();
+    let snapshot = runtime.snapshot();
+    expect(snapshot.state).toBe('COUNT_IN');
+    expect(snapshot.countInPulses).toBe(3);
+    expect(snapshot.countInPulse).toBe(1);
+
+    // Advance through count-in pulses (at 120 bpm, quarter note is 500ms)
+    clock.advance(550);
+    snapshot = runtime.snapshot();
+    expect(snapshot.countInPulse).toBe(2);
+
+    clock.advance(500);
+    snapshot = runtime.snapshot();
+    expect(snapshot.countInPulse).toBe(3);
+
+    // Complete count-in (total count-in = 1500ms for 3 beats at 120 bpm)
+    clock.advance(500);
+    snapshot = runtime.snapshot();
+    expect(snapshot.state).toBe('RUNNING');
+    expect(snapshot.performanceTimeMs).toBe(50);
+
+    // From beat 0 to 4 is at 120 BPM (500ms/beat). 4 beats = 2000ms performance time.
+    // Advance to performance time 2000ms (clock advances another 1950ms)
+    clock.advance(1950);
+    snapshot = runtime.snapshot();
+    expect(snapshot.performanceTimeMs).toBe(2000);
+    expect(snapshot.musicalBeat).toBeCloseTo(4.0, 2);
+
+    // After beat 4, tempo is 60 BPM (1000ms/beat).
+    // Advancing performance time by 1000ms should advance beat by 1.0 (to beat 5.0).
+    clock.advance(1000);
+    snapshot = runtime.snapshot();
+    expect(snapshot.performanceTimeMs).toBe(3000);
+    expect(snapshot.musicalBeat).toBeCloseTo(5.0, 2);
   });
 });

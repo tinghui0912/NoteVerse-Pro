@@ -26,6 +26,7 @@ export { profileApi } from './profile';
 
 // Practice API.
 export { practiceApi } from './practice';
+export { practiceHistoryApi } from './practice-history';
 export { scoresApi } from './scores';
 export { scoreSharingApi } from './score-sharing';
 export { scoreInvitesApi } from './score-invites';

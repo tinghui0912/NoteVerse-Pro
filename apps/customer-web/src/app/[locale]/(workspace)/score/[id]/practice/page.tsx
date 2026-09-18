@@ -189,21 +189,33 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   const isStepMode = practiceMode === 'STEP_BY_STEP';
   const isActive =
-    localPractice.status === 'listening' ||
-    localPractice.status === 'practicing' ||
-    localPractice.status === 'paused';
+    localPractice.lifecycle === 'ACTIVE' ||
+    localPractice.lifecycle === 'PAUSED';
+
+  const audioWorkletSupported = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const hasAudioContext = typeof (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext) !== 'undefined';
+    const hasAudioWorklet = typeof AudioWorkletNode !== 'undefined';
+    const hasGetUserMedia = typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
+    return hasAudioContext && hasAudioWorklet && hasGetUserMedia;
+  }, []);
+
+  const midiSupported = useMemo(() => {
+    return typeof navigator !== 'undefined' && typeof (navigator as { requestMIDIAccess?: unknown }).requestMIDIAccess === 'function';
+  }, []);
 
   const practiceControls = (
     <PracticeControls
-      status={localPractice.status}
+      lifecycle={localPractice.lifecycle}
       isLoading={isLoadingXml}
-      isPreparingSession={localPractice.status === 'connecting'}
+      isPreparingSession={localPractice.inputState === 'STARTING'}
       canPrepareSession={canPreparePractice}
-      audioWorkletSupported={true}
+      audioWorkletSupported={audioWorkletSupported}
       rangeSelectionActive={isRangeSelectionMode}
       canSelectRange={!isActive}
       onStart={() => void localPractice.start()}
-      onPause={localPractice.pause}
+      onPause={() => void localPractice.pause()}
+      onResume={() => void localPractice.resume()}
       onFinish={() => {
         void localPractice.finish();
         setIsCompletionDialogOpen(true);
@@ -216,7 +228,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const practiceSessionStatus = (
     <PracticeSessionStatus
       className="border-0 bg-transparent px-0 py-0 shadow-none"
-      status={localPractice.status}
+      lifecycle={localPractice.lifecycle}
+      inputState={localPractice.inputState}
       isLoading={isLoadingXml}
       sessionMode={practiceMode}
       practiceTime={localPractice.elapsedSeconds}
@@ -268,7 +281,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                       sessionStatus={practiceSessionStatus}
                       xmlContent={xmlContent}
                       isLoadingXml={isLoadingXml}
-                      practiceStatus={localPractice.status}
+                      lifecycle={localPractice.lifecycle}
                       sessionMode={practiceMode}
                       activeStepGroup={localPractice.activeStepGroup}
                       performanceMusicalBeat={localPractice.performanceClock?.musicalBeat ?? null}
@@ -291,7 +304,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                     <div className="pointer-events-none absolute bottom-24 right-6 z-30">
                       <PracticeSkipControl
                         visible={true}
-                        disabled={localPractice.status === 'paused'}
+                        disabled={localPractice.lifecycle === 'PAUSED'}
                         onSkip={localPractice.skip}
                       />
                     </div>
@@ -308,8 +321,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
               <div className="hidden xl:block xl:w-80 xl:shrink-0 xl:border-l xl:border-slate-200">
                 <PracticeSettingsPanel
                   className="h-full rounded-none border-0 shadow-none"
-                  audioWorkletSupported={true}
-                  midiSupported={typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator}
+                  inputState={localPractice.inputState}
+                  audioWorkletSupported={audioWorkletSupported}
+                  midiSupported={midiSupported}
                   practiceMode={practiceMode}
                   practiceModeLocked={isActive}
                   inputSource={inputSource}
@@ -328,8 +342,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
               <SheetDescription className="sr-only">{t('settingsSubtitle')}</SheetDescription>
               <PracticeSettingsPanel
                 className="h-full rounded-none border-0 shadow-none"
-                audioWorkletSupported={true}
-                midiSupported={typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator}
+                inputState={localPractice.inputState}
+                audioWorkletSupported={audioWorkletSupported}
+                midiSupported={midiSupported}
                 practiceMode={practiceMode}
                 practiceModeLocked={isActive}
                 inputSource={inputSource}

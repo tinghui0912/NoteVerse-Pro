@@ -29,9 +29,11 @@ export type PerformanceClockSnapshot = {
   nowMs: number;
   musicalBeat: number;
   performanceTimeMs: number;
+  countInTotalMs: number;
   countInRemainingMs: number;
   countInBeats: number;
   countInPulses: number;
+  countInPulse: number;
   scopeCompleted: boolean;
   scopeStartBeat: number;
   scopeTerminalBeat: number;
@@ -65,9 +67,9 @@ type PerformanceScope = {
 export class PerformancePracticeRuntime {
   readonly artifact: PracticeScoreArtifact;
   readonly localSessionId: string;
+  readonly timebase: PracticeTimebase;
 
   private readonly clock: LocalClock;
-  private readonly timebase: PracticeTimebase;
   private readonly metadataClock: DurableClock;
   private readonly version: RuntimeVersionIdentity;
   private readonly inputSource: PracticeInputSource;
@@ -186,14 +188,24 @@ export class PerformancePracticeRuntime {
   snapshot(): PerformanceClockSnapshot {
     const activeElapsedMs = this.advanceState();
     const performanceTimeMs = this.performanceElapsedMs(activeElapsedMs);
+    const countInTotalMs = this.countInMs;
+    const countInRemainingMs = Math.max(0, this.countInMs - activeElapsedMs);
+    const countInPulse = this.countInPulses > 0 && countInTotalMs > 0 && this.state === 'COUNT_IN'
+      ? Math.min(
+          this.countInPulses,
+          Math.max(1, Math.floor(((countInTotalMs - countInRemainingMs) / countInTotalMs) * this.countInPulses) + 1)
+        )
+      : 1;
     return {
       state: this.state,
       nowMs: this.nowSessionMs(),
       musicalBeat: this.musicalBeat(performanceTimeMs),
       performanceTimeMs,
-      countInRemainingMs: Math.max(0, this.countInMs - activeElapsedMs),
+      countInTotalMs,
+      countInRemainingMs,
       countInBeats: this.countInBeats,
       countInPulses: this.countInPulses,
+      countInPulse,
       scopeCompleted: this.completionReason === 'SCOPE_COMPLETED',
       scopeStartBeat: this.scope.startBeat,
       scopeTerminalBeat: this.scope.terminalBeat,
@@ -202,7 +214,10 @@ export class PerformancePracticeRuntime {
     };
   }
 
-  observeEvidence(observation: PerformanceEvidenceObservation): PerformanceEvaluationObservation {
+  observeEvidence(observation: PerformanceEvidenceObservation): PerformanceEvaluationObservation | null {
+    if (this.state !== 'RUNNING') {
+      return null;
+    }
     this.timebase.assertSameSessionTimeDomain(observation.captureTime, this.timebase.atSessionMs(0));
     const performanceTimeMs = this.performanceTimeAtCapture(observation.captureTime.ms);
     const evaluated: PerformanceEvaluationObservation = {

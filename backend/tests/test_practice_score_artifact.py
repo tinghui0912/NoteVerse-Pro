@@ -77,6 +77,7 @@ def test_empty_practice_score_artifact_uses_null_first_playable() -> None:
         ),
         score_id="empty-score",
         revision_id="empty-revision",
+        tempo_segments=(),
     )
 
     assert artifact["firstPlayableBeat"] is None
@@ -145,3 +146,129 @@ def _canonical_musicxml() -> str:
   </part>
 </score-partwise>
 """
+
+
+def test_practice_tempo_segments_from_musicxml_multi_tempo(tmp_path: Path) -> None:
+    from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
+
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes>
+      <direction placement="above"><sound tempo="120"/></direction>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+    </measure>
+    <measure number="2">
+      <direction placement="above"><sound tempo="90"/></direction>
+      <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+</score-partwise>
+"""
+    xml_path = tmp_path / "multi_tempo.musicxml"
+    xml_path.write_text(xml, encoding="utf-8")
+
+    segments = practice_tempo_segments_from_musicxml(xml_path)
+    assert segments == (
+        TempoSegment(start_beat=0.0, bpm=120.0),
+        TempoSegment(start_beat=3.0, bpm=90.0),
+    )
+
+
+def test_practice_tempo_segments_fallback_default_120_when_no_tempo_tag(tmp_path: Path) -> None:
+    from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
+
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+    </measure>
+  </part>
+</score-partwise>
+"""
+    xml_path = tmp_path / "no_tempo.musicxml"
+    xml_path.write_text(xml, encoding="utf-8")
+
+    segments = practice_tempo_segments_from_musicxml(xml_path)
+    assert segments == (TempoSegment(start_beat=0.0, bpm=120.0),)
+
+
+def test_practice_tempo_segments_metronome_beat_units(tmp_path: Path) -> None:
+    from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
+
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <direction>
+        <direction-type>
+          <metronome>
+            <beat-unit>half</beat-unit>
+            <per-minute>60</per-minute>
+          </metronome>
+        </direction-type>
+      </direction>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration></note>
+      <direction>
+        <direction-type>
+          <metronome>
+            <beat-unit>quarter</beat-unit>
+            <beat-unit-dot/>
+            <per-minute>80</per-minute>
+          </metronome>
+        </direction-type>
+      </direction>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>2</duration></note>
+    </measure>
+  </part>
+</score-partwise>
+"""
+    xml_path = tmp_path / "metronome.musicxml"
+    xml_path.write_text(xml, encoding="utf-8")
+
+    segments = practice_tempo_segments_from_musicxml(xml_path)
+    # half at 60 = 120 bpm; dotted-quarter at 80 = 80 * 1.5 = 120 bpm
+    assert segments == (
+        TempoSegment(start_beat=0.0, bpm=120.0),
+        TempoSegment(start_beat=2.0, bpm=120.0),
+    )
+
+
+def test_practice_tempo_segments_prepends_120_if_first_tempo_at_positive_beat(tmp_path: Path) -> None:
+    from app.processing.practice_score.tempo import practice_tempo_segments_from_musicxml
+
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+    <measure number="2">
+      <direction><sound tempo="100"/></direction>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>4</duration></note>
+    </measure>
+  </part>
+</score-partwise>
+"""
+    xml_path = tmp_path / "delayed_tempo.musicxml"
+    xml_path.write_text(xml, encoding="utf-8")
+
+    segments = practice_tempo_segments_from_musicxml(xml_path)
+    assert segments == (
+        TempoSegment(start_beat=0.0, bpm=120.0),
+        TempoSegment(start_beat=4.0, bpm=100.0),
+    )
+

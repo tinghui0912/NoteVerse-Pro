@@ -4,12 +4,12 @@ import { Cable, ListChecks, Mic, Music2, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils';
-import type { PracticeConnectionStatus } from '@/lib/practice/practice-types';
+import type { LocalPracticeInputState } from '@/lib/practice/local-core/session';
 import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-core/artifact';
 
 type PracticeSettingsPanelProps = {
   className?: string;
-  connectionStatus?: PracticeConnectionStatus;
+  inputState?: LocalPracticeInputState;
   hasMicPermission?: boolean | null;
   audioWorkletSupported: boolean;
   midiSupported: boolean;
@@ -26,8 +26,8 @@ type PracticeSettingsPanelProps = {
 
 export function PracticeSettingsPanel({
   className,
-  connectionStatus = 'ready',
-  hasMicPermission = true,
+  inputState = 'IDLE',
+  hasMicPermission = null,
   audioWorkletSupported,
   midiSupported,
   hasMidiPermission = null,
@@ -45,7 +45,7 @@ export function PracticeSettingsPanel({
     ? t('settingMicrophoneUnsupported')
     : hasMicPermission === false
       ? t('settingMicrophoneNeedsPermission')
-      : connectionStatus === 'ready'
+      : inputState === 'RUNNING' && inputSource === 'MICROPHONE'
         ? t('settingMicrophoneConnected')
         : t('settingMicrophoneBrowser');
   const midiState = !midiSupported
@@ -54,7 +54,7 @@ export function PracticeSettingsPanel({
       ? t('settingMidiNeedsPermission')
       : hasMidiInput === false
         ? t('settingMidiNoInput')
-        : connectionStatus === 'ready' && inputSource === 'MIDI'
+        : inputState === 'RUNNING' && inputSource === 'MIDI'
           ? t('settingMidiConnected')
           : t('settingMidiBrowser');
 

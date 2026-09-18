@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/api', () => ({
-  practiceApi: {
+  practiceHistoryApi: {
     deletePracticeReplayArtifact: mocks.deletePracticeReplayArtifact,
     listSavedPracticePerformances: mocks.listSavedPracticePerformances,
   },

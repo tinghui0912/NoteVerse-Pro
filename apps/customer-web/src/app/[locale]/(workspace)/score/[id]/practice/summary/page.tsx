@@ -26,7 +26,7 @@ import { ScoreSurface } from '@/components/score/score-surface';
 import { EmptyState, SectionErrorState } from '@/components/states';
 import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
 import { useToast } from '@/hooks/use-toast';
-import { practiceApi } from '@/lib/api';
+import { practiceHistoryApi } from '@/lib/api';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
 import { readPlayablePerformanceReplay } from '@/lib/practice/local-performance-replay-store';
@@ -37,6 +37,7 @@ import {
   readSavedPerformanceReplay,
 } from '@/lib/practice/saved-performance-replay';
 import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
+import { applySummaryPerformanceTime } from '@/lib/practice/summary-playhead-controller';
 import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-annotation-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type {
@@ -370,7 +371,7 @@ export default function PracticeSummaryPage() {
       try {
         setSessionLoadFailed(false);
         setHasRouteSessionMismatch(false);
-        const response = await practiceApi.getPracticeSession(sessionId);
+        const response = await practiceHistoryApi.getPracticeSession(sessionId);
         if (!cancelled) {
           const loadedSession = response.data ?? null;
           const routeMismatch =
@@ -438,7 +439,7 @@ export default function PracticeSummaryPage() {
       try {
         setIsLoading(true);
         setPageError(null);
-        const response = await practiceApi.getPracticeSessionSummary(sessionId);
+        const response = await practiceHistoryApi.getPracticeSessionSummary(sessionId);
         const nextSummary = response.data;
         if (!cancelled) {
           const nextStatus = nextSummary?.summary_status ?? 'FAILED';
@@ -535,7 +536,7 @@ export default function PracticeSummaryPage() {
       }
 
       try {
-        const artifactsResponse = await practiceApi.listPracticeReplayArtifacts(sessionId);
+        const artifactsResponse = await practiceHistoryApi.listPracticeReplayArtifacts(sessionId);
         const artifact =
           artifactsResponse.data?.find((candidate) => candidate.input_source === session.input_source) ??
           null;
@@ -570,7 +571,7 @@ export default function PracticeSummaryPage() {
         setIsLoadingSavedReplay(true);
         setSavedReplayPlaybackFailed(false);
         setAutoStartSavedReplay(false);
-        const playbackResponse = await practiceApi.getPracticeReplayArtifactPlaybackUrl(
+        const playbackResponse = await practiceHistoryApi.getPracticeReplayArtifactPlaybackUrl(
           sessionId,
           savedReplayArtifact.artifact_id
         );
@@ -632,7 +633,8 @@ export default function PracticeSummaryPage() {
         performancePlayheadController.clear(container);
         return;
       }
-      performancePlayheadController.applyPerformanceTime(
+      applySummaryPerformanceTime(
+        performancePlayheadController,
         container,
         adapter,
         replayTimeMs * performanceReplay.timebase.speedRatio,
@@ -666,7 +668,7 @@ export default function PracticeSummaryPage() {
       setIsSavingReplay(true);
       const upload = buildSavedPerformanceReplayUpload(localPerformanceReplay);
       const checksumSha256 = await checksumSha256Hex(upload.file);
-      const authorizationResponse = await practiceApi.authorizePracticeReplayUpload(sessionId, {
+      const authorizationResponse = await practiceHistoryApi.authorizePracticeReplayUpload(sessionId, {
         kind: upload.kind,
         content_type: upload.contentType,
         byte_size: upload.file.size,
@@ -679,12 +681,12 @@ export default function PracticeSummaryPage() {
       if (!authorization) {
         throw new Error('practice replay upload authorization missing');
       }
-      await practiceApi.uploadPracticeReplayObject(
+      await practiceHistoryApi.uploadPracticeReplayObject(
         authorization.upload_url,
         upload.file,
         authorization.upload_headers
       );
-      const response = await practiceApi.finalizePracticeReplayArtifact(sessionId, {
+      const response = await practiceHistoryApi.finalizePracticeReplayArtifact(sessionId, {
         artifact_id: authorization.artifact_id,
         kind: upload.kind,
         content_type: upload.contentType,

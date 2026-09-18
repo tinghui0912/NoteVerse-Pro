@@ -1,6 +1,5 @@
 'use client';
 
-import { useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Hand, Mic, Pause, Play, Repeat2, Settings, Square, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,11 +10,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { PracticeConnectionStatus, PracticeStatus } from '@/lib/practice/practice-types';
+import type { LocalPracticeLifecycle } from '@/lib/practice/local-core/session';
 
 interface PracticeControlsProps {
-  status: PracticeStatus;
-  connectionStatus?: PracticeConnectionStatus;
+  lifecycle: LocalPracticeLifecycle;
   isLoading: boolean;
   isPreparingSession: boolean;
   canPrepareSession: boolean;
@@ -24,14 +22,14 @@ interface PracticeControlsProps {
   canSelectRange: boolean;
   onStart: () => void;
   onPause: () => void;
+  onResume: () => void;
   onFinish: () => void;
   onOpenSettings: () => void;
   onToggleRangeSelection: () => void;
 }
 
 export function PracticeControls({
-  status,
-  connectionStatus: _connectionStatus = 'ready',
+  lifecycle,
   isLoading,
   isPreparingSession,
   canPrepareSession,
@@ -40,38 +38,21 @@ export function PracticeControls({
   canSelectRange,
   onStart,
   onPause,
+  onResume,
   onFinish,
   onOpenSettings,
   onToggleRangeSelection,
 }: PracticeControlsProps) {
   const t = useTranslations('practice');
-  const pointerHandledRef = useRef<string | null>(null);
-  const isActive = status === 'listening' || status === 'practicing' || status === 'paused';
+  const isActive = lifecycle === 'ACTIVE' || lifecycle === 'PAUSED';
+  const isPaused = lifecycle === 'PAUSED';
   const canStart =
-    (status === 'idle' || status === 'finished') &&
+    (lifecycle === 'READY' || lifecycle === 'ENDED') &&
     canPrepareSession &&
     !isLoading &&
     !isPreparingSession &&
     audioWorkletSupported;
   const actionButtonClass = 'h-11 w-32';
-
-  const runPointerControl = (
-    event: React.PointerEvent<HTMLButtonElement>,
-    control: string,
-    action: () => void
-  ) => {
-    event.preventDefault();
-    pointerHandledRef.current = control;
-    action();
-  };
-
-  const runClickControl = (control: string, action: () => void) => {
-    if (pointerHandledRef.current === control) {
-      pointerHandledRef.current = null;
-      return;
-    }
-    action();
-  };
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -79,14 +60,13 @@ export function PracticeControls({
         {isActive ? (
           <Button
             type="button"
-            onPointerDown={(event) => runPointerControl(event, 'pause', onPause)}
-            onClick={() => runClickControl('pause', onPause)}
+            onClick={isPaused ? onResume : onPause}
             size="lg"
             variant="outline"
             className={cn('bg-white', actionButtonClass)}
           >
-            {status === 'paused' ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
-            {t(status === 'paused' ? 'resume' : 'pause')}
+            {isPaused ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
+            {t(isPaused ? 'resume' : 'pause')}
           </Button>
         ) : (
           <Button
@@ -102,8 +82,11 @@ export function PracticeControls({
         )}
         <Button
           type="button"
-          onPointerDown={(event) => isActive && runPointerControl(event, 'finish', onFinish)}
-          onClick={() => isActive && runClickControl('finish', onFinish)}
+          onClick={() => {
+            if (isActive) {
+              onFinish();
+            }
+          }}
           variant="destructive"
           size="lg"
           disabled={!isActive}
@@ -159,23 +142,22 @@ function PracticeToolPlaceholder({
   label,
   unavailableLabel,
 }: {
-  icon: typeof Timer;
+  icon: React.ElementType;
   label: string;
   unavailableLabel: string;
 }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span>
-          <button
-            type="button"
-            disabled
-            className="flex h-11 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-500 disabled:cursor-not-allowed"
-          >
-            <Icon className="h-4 w-4" aria-hidden="true" />
-            {label}
-          </button>
-        </span>
+        <Button
+          type="button"
+          variant="outline"
+          disabled
+          className="h-11 gap-2 border-slate-200 bg-white text-slate-400"
+        >
+          <Icon className="h-4 w-4" aria-hidden="true" />
+          {label}
+        </Button>
       </TooltipTrigger>
       <TooltipContent>{unavailableLabel}</TooltipContent>
     </Tooltip>

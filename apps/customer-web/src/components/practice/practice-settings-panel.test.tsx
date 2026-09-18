@@ -12,7 +12,7 @@ describe('PracticeSettingsPanel', () => {
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeSettingsPanel
-          connectionStatus="disconnected"
+          inputState="IDLE"
           hasMicPermission={null}
           audioWorkletSupported
           midiSupported
@@ -38,7 +38,7 @@ describe('PracticeSettingsPanel', () => {
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeSettingsPanel
-          connectionStatus="disconnected"
+          inputState="IDLE"
           hasMicPermission={null}
           audioWorkletSupported
           midiSupported

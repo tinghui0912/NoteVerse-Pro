@@ -1,4 +1,4 @@
-// @vitest-environment jsdom
+﻿// @vitest-environment jsdom
 
 import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
@@ -27,8 +27,10 @@ function makePerformanceClock(
     musicalBeat: 1,
     performanceTimeMs: 0,
     countInRemainingMs: 0,
+    countInTotalMs: 2000,
     countInBeats: 4,
     countInPulses: 4,
+    countInPulse: 1,
     scopeCompleted: false,
     scopeStartBeat: 1,
     scopeTerminalBeat: 4,
@@ -39,10 +41,11 @@ function makePerformanceClock(
 }
 
 describe('resolvePracticeSessionStatusView', () => {
-  it('shows preparingPractice during connecting status', () => {
+  it('shows preparingPractice during STARTING inputState', () => {
     expect(
       resolvePracticeSessionStatusView({
-        status: 'connecting',
+        lifecycle: 'READY',
+        inputState: 'STARTING',
         sessionMode: 'STEP_BY_STEP',
       })
     ).toMatchObject({
@@ -51,22 +54,10 @@ describe('resolvePracticeSessionStatusView', () => {
     });
   });
 
-  it('shows finishingPractice during finishing status', () => {
+  it('shows paused during PAUSED lifecycle', () => {
     expect(
       resolvePracticeSessionStatusView({
-        status: 'finishing',
-        sessionMode: 'STEP_BY_STEP',
-      })
-    ).toMatchObject({
-      messageKey: 'finishingPractice',
-      pending: true,
-    });
-  });
-
-  it('shows paused during paused status', () => {
-    expect(
-      resolvePracticeSessionStatusView({
-        status: 'paused',
+        lifecycle: 'PAUSED',
         sessionMode: 'STEP_BY_STEP',
       })
     ).toMatchObject({
@@ -75,10 +66,10 @@ describe('resolvePracticeSessionStatusView', () => {
     });
   });
 
-  it('shows waitingForFirstNote during STEP listening status', () => {
+  it('shows waitingForFirstNote during ACTIVE STEP mode', () => {
     expect(
       resolvePracticeSessionStatusView({
-        status: 'listening',
+        lifecycle: 'ACTIVE',
         sessionMode: 'STEP_BY_STEP',
       })
     ).toMatchObject({
@@ -87,27 +78,29 @@ describe('resolvePracticeSessionStatusView', () => {
     });
   });
 
-  it('shows performanceCountIn during CONTINUOUS count-in', () => {
+  it('shows performanceCountIn with countInPulse during CONTINUOUS count-in', () => {
     expect(
       resolvePracticeSessionStatusView({
-        status: 'practicing',
+        lifecycle: 'ACTIVE',
         sessionMode: 'CONTINUOUS_PLAY',
         performanceClock: makePerformanceClock({
           state: 'COUNT_IN',
           countInRemainingMs: 1000,
-          countInPulses: 3,
+          countInPulses: 4,
+          countInPulse: 3,
         }),
       })
     ).toMatchObject({
       messageKey: 'performanceCountIn',
       pending: false,
+      countInPulse: 3,
     });
   });
 
   it('shows performanceRunning during CONTINUOUS playing', () => {
     expect(
       resolvePracticeSessionStatusView({
-        status: 'practicing',
+        lifecycle: 'ACTIVE',
         sessionMode: 'CONTINUOUS_PLAY',
         performanceClock: makePerformanceClock({
           state: 'RUNNING',
@@ -130,7 +123,7 @@ describe('PracticeSessionStatus rendering', () => {
           messages: { practice: practiceMessages },
         },
         createElement(PracticeSessionStatus, {
-          status: 'listening',
+          lifecycle: 'ACTIVE',
           sessionMode: 'STEP_BY_STEP',
           practiceTime: 65, // 01:05
         })

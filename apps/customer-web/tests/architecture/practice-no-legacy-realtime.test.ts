@@ -1,10 +1,11 @@
-import { readdirSync, readFileSync, statSync } from 'fs';
+﻿import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 
 const FORBIDDEN_IMPORT_PATTERNS = [
   /from\s+['"].*practice\/protocol['"]/,
   /from\s+['"].*practice\/session-policy['"]/,
+  /from\s+['"].*practice-types['"]/,
   /from\s+['"].*use-practice-socket['"]/,
   /from\s+['"].*use-practice-session['"]/,
   /from\s+['"].*use-practice-audio-stream['"]/,
@@ -15,13 +16,25 @@ const FORBIDDEN_IMPORT_PATTERNS = [
   /practice-pcm-processor\.js/,
 ];
 
+const FORBIDDEN_TOKEN_PATTERNS = [
+  /routeWebSocket\(/,
+  /PRACTICE_WEBSOCKET_PROTOCOL_VERSION/,
+  /['"]client\.init['"]/,
+  /['"]client\.midi_event['"]/,
+  /['"]alignment\.update['"]/,
+  /['"]performance\.clock_sync['"]/,
+  /\bPracticeConnectionStatus\b/,
+];
+
 function getSourceFiles(dir: string): string[] {
   const files: string[] = [];
   for (const entry of readdirSync(dir)) {
     const fullPath = join(dir, entry);
     const stat = statSync(fullPath);
     if (stat.isDirectory()) {
-      files.push(...getSourceFiles(fullPath));
+      if (entry !== 'node_modules' && entry !== '.next' && entry !== 'generated') {
+        files.push(...getSourceFiles(fullPath));
+      }
     } else if (/\.(ts|tsx|js|mjs)$/.test(entry) && !fullPath.includes('tests/architecture')) {
       files.push(fullPath);
     }
@@ -29,11 +42,12 @@ function getSourceFiles(dir: string): string[] {
   return files;
 }
 
-describe('Architecture Guard: No Legacy Practice Realtime Files or Imports', () => {
+describe('Architecture Guard: No Legacy Practice Realtime Files, Imports, or Protocols', () => {
   const srcDir = resolve(__dirname, '../../src');
-  const allFiles = getSourceFiles(srcDir);
+  const e2eDir = resolve(__dirname, '../e2e');
+  const allFiles = [...getSourceFiles(srcDir), ...getSourceFiles(e2eDir)];
 
-  it('ensures no customer-web source files import legacy realtime practice modules', () => {
+  it('ensures no customer-web source or E2E files import legacy realtime practice modules', () => {
     const violations: { file: string; pattern: string; line: string }[] = [];
 
     for (const file of allFiles) {
@@ -43,7 +57,29 @@ describe('Architecture Guard: No Legacy Practice Realtime Files or Imports', () 
         for (const pattern of FORBIDDEN_IMPORT_PATTERNS) {
           if (pattern.test(line)) {
             violations.push({
-              file: file.replace(srcDir, 'src'),
+              file: file.replace(resolve(__dirname, '../..'), ''),
+              pattern: pattern.toString(),
+              line: line.trim(),
+            });
+          }
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it('ensures no customer-web source or E2E files use legacy realtime protocol tokens', () => {
+    const violations: { file: string; pattern: string; line: string }[] = [];
+
+    for (const file of allFiles) {
+      const content = readFileSync(file, 'utf-8');
+      const lines = content.split('\n');
+      for (const line of lines) {
+        for (const pattern of FORBIDDEN_TOKEN_PATTERNS) {
+          if (pattern.test(line)) {
+            violations.push({
+              file: file.replace(resolve(__dirname, '../..'), ''),
               pattern: pattern.toString(),
               line: line.trim(),
             });

@@ -18,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { practiceApi } from '@/lib/api';
+import { practiceHistoryApi } from '@/lib/api';
 import { formatApiDateTime } from '@/lib/date-time';
 import { queryKeys } from '@/lib/query-client';
 import type { SavedPracticePerformanceRead } from '@/generated/practice-api';
@@ -70,13 +70,13 @@ export function ScoreSavedPerformancesPanel({ scoreId }: ScoreSavedPerformancesP
   const [deleteTarget, setDeleteTarget] = useState<SavedPracticePerformanceRead | null>(null);
   const savedPerformancesQuery = useQuery({
     queryKey: queryKeys.practice.savedPerformances(scoreId),
-    queryFn: ({ signal }) => practiceApi.listSavedPracticePerformances(scoreId, signal),
+    queryFn: ({ signal }) => practiceHistoryApi.listSavedPracticePerformances(scoreId, signal),
     enabled: Boolean(scoreId),
   });
   const savedPerformances = savedPerformancesQuery.data?.data ?? [];
   const deleteSavedPerformance = useMutation({
     mutationFn: (item: SavedPracticePerformanceRead) =>
-      practiceApi.deletePracticeReplayArtifact(item.session_id, item.artifact_id),
+      practiceHistoryApi.deletePracticeReplayArtifact(item.session_id, item.artifact_id),
     onSuccess: async () => {
       setDeleteTarget(null);
       await queryClient.invalidateQueries({

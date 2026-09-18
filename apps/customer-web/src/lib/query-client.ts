@@ -88,8 +88,6 @@ export const queryKeys = {
         all: ['practice'] as const,
         artifact: (scoreId: string, revisionId: string) =>
             ['practice', 'artifact', { scoreId, revisionId }] as const,
-        targets: (scoreId: string, revisionId: string) =>
-            ['practice', 'targets', { scoreId, revisionId }] as const,
         readyContent: (scoreId: string, revisionId: string) =>
             ['practice', 'ready-content', { scoreId, revisionId }] as const,
         savedPerformances: (scoreId: string) =>

@@ -127,7 +127,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/lib/api', () => ({
-  practiceApi: {
+  practiceHistoryApi: {
     authorizePracticeReplayUpload: (...args: unknown[]) =>
       apiMocks.authorizePracticeReplayUpload(...args),
     finalizePracticeReplayArtifact: (...args: unknown[]) =>
@@ -142,6 +142,12 @@ vi.mock('@/lib/api', () => ({
     uploadPracticeReplayObject: (...args: unknown[]) =>
       apiMocks.uploadPracticeReplayObject(...args),
   },
+}));
+
+vi.mock('@/lib/practice/summary-playhead-controller', () => ({
+  applySummaryPerformanceTime: (...args: unknown[]) =>
+    playheadMocks.applyPerformanceTime(...args),
+  projectPerformanceTimeToBeat: vi.fn(),
 }));
 
 vi.mock('@/lib/observability', () => ({

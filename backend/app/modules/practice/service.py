@@ -100,6 +100,9 @@ from app.processing.practice_score.practice_score_artifact import (
 from app.processing.practice_score.score_loader import (
     practice_score_timeline_from_musicxml,
 )
+from app.processing.practice_score.tempo import (
+    practice_tempo_segments_from_musicxml,
+)
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_access.policy import ScoreAccessContext, ScoreAccessPolicy, ScoreAction
 from app.modules.scores.repository import ScoreRepository
@@ -338,11 +341,16 @@ class PracticeService:
                 practice_score_timeline_from_musicxml,
                 score_file_path,
             )
+            tempo_segments = await asyncio.to_thread(
+                practice_tempo_segments_from_musicxml,
+                score_file_path,
+            )
             artifact = await asyncio.to_thread(
                 practice_score_artifact_from_timeline,
                 timeline,
                 score_id=access.score.score_uuid,
                 revision_id=access.revision.revision_uuid,
+                tempo_segments=tempo_segments,
             )
         except Exception as exc:
             logger.bind(

@@ -1,6 +1,6 @@
-// @vitest-environment jsdom
+﻿// @vitest-environment jsdom
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -15,8 +15,7 @@ function renderControls(
   render(
     <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
       <PracticeControls
-        status="idle"
-        connectionStatus="ready"
+        lifecycle="READY"
         isLoading={false}
         isPreparingSession={false}
         canPrepareSession
@@ -25,6 +24,7 @@ function renderControls(
         canSelectRange
         onStart={vi.fn()}
         onPause={vi.fn()}
+        onResume={vi.fn()}
         onFinish={vi.fn()}
         onOpenSettings={vi.fn()}
         onToggleRangeSelection={vi.fn()}
@@ -47,5 +47,59 @@ describe('PracticeControls', () => {
     renderControls(false);
 
     expect(screen.getByRole('button', { name: /settings/i })).toBeEnabled();
+  });
+
+  it('calls onPause when active and onResume when paused', () => {
+    const onPause = vi.fn();
+    const onResume = vi.fn();
+
+    const { rerender } = render(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <PracticeControls
+          lifecycle="ACTIVE"
+          isLoading={false}
+          isPreparingSession={false}
+          canPrepareSession
+          audioWorkletSupported
+          rangeSelectionActive={false}
+          canSelectRange={false}
+          onStart={vi.fn()}
+          onPause={onPause}
+          onResume={onResume}
+          onFinish={vi.fn()}
+          onOpenSettings={vi.fn()}
+          onToggleRangeSelection={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    );
+
+    const pauseButton = screen.getByRole('button', { name: /pause/i });
+    fireEvent.click(pauseButton);
+    expect(onPause).toHaveBeenCalledTimes(1);
+    expect(onResume).not.toHaveBeenCalled();
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <PracticeControls
+          lifecycle="PAUSED"
+          isLoading={false}
+          isPreparingSession={false}
+          canPrepareSession
+          audioWorkletSupported
+          rangeSelectionActive={false}
+          canSelectRange={false}
+          onStart={vi.fn()}
+          onPause={onPause}
+          onResume={onResume}
+          onFinish={vi.fn()}
+          onOpenSettings={vi.fn()}
+          onToggleRangeSelection={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    );
+
+    const resumeButton = screen.getByRole('button', { name: /resume/i });
+    fireEvent.click(resumeButton);
+    expect(onResume).toHaveBeenCalledTimes(1);
   });
 });

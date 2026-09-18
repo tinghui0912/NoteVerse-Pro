@@ -1,7 +1,19 @@
 import type { PracticeInputSource, PracticeMode, PracticeScope } from './artifact';
 import type { RuntimeVersionIdentity, SessionTime } from './timebase';
 
-export type PracticeLifecycleState = 'CREATED' | 'ACTIVE' | 'PAUSED' | 'ENDED';
+export type LocalPracticeLifecycle =
+  | 'READY'
+  | 'ACTIVE'
+  | 'PAUSED'
+  | 'ENDED';
+
+export type LocalPracticeInputState =
+  | 'IDLE'
+  | 'STARTING'
+  | 'RUNNING'
+  | 'ERROR';
+
+export type PracticeLifecycleState = LocalPracticeLifecycle;
 export type LocalPracticeCompletionReason = 'SCOPE_COMPLETED' | 'STOPPED_BY_USER';
 
 export type LocalPracticeSessionBase = {
@@ -12,7 +24,7 @@ export type LocalPracticeSessionBase = {
   mode: PracticeMode;
   inputSource: PracticeInputSource;
   practiceScope?: PracticeScope;
-  lifecycleState: PracticeLifecycleState;
+  lifecycleState: LocalPracticeLifecycle;
   completionReason: LocalPracticeCompletionReason | null;
   version: RuntimeVersionIdentity;
   createdAtMs: number;

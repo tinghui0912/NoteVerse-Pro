@@ -232,7 +232,7 @@ export function meterAt(artifact: PracticeScoreArtifact, beat: number): MeterSeg
     countInPulses: 4,
     source: 'DEFAULT_4_4',
   };
-  const segments = artifact.meterSegments.length > 0 ? artifact.meterSegments : [defaultMeter];
+  const segments = artifact.meterSegments && artifact.meterSegments.length > 0 ? artifact.meterSegments : [defaultMeter];
   let active = segments[0] ?? defaultMeter;
   for (const segment of segments) {
     if (segment.startBeat > beat) {

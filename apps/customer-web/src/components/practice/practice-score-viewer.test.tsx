@@ -81,7 +81,7 @@ function renderViewer(props: Partial<PracticeScoreViewerProps> = {}) {
     <PracticeScoreViewer
       xmlContent="<score-partwise />"
       isLoadingXml={false}
-      practiceStatus="idle"
+      lifecycle="READY"
       sessionMode="STEP_BY_STEP"
       {...props}
     />
@@ -195,7 +195,7 @@ describe('PracticeScoreViewer', () => {
 
   it('highlights the active step target notes in STEP mode', async () => {
     renderViewer({
-      practiceStatus: 'listening',
+      lifecycle: 'ACTIVE',
       activeStepGroup: mockStepGroup,
     });
 

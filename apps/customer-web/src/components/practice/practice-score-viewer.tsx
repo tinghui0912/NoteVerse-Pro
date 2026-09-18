@@ -18,19 +18,14 @@ import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import { cn } from '@/lib/utils';
 import type { ExpectedPracticeGroup, PracticeMode } from '@/lib/practice/local-core/artifact';
 
+import type { LocalPracticeLifecycle } from '@/lib/practice/local-core/session';
+
 type PracticeScoreViewerProps = {
   className?: string;
   sessionStatus?: ReactNode;
   xmlContent: string | null;
   isLoadingXml: boolean;
-  practiceStatus:
-    | 'idle'
-    | 'connecting'
-    | 'listening'
-    | 'practicing'
-    | 'paused'
-    | 'finishing'
-    | 'finished';
+  lifecycle: LocalPracticeLifecycle;
   sessionMode: PracticeMode;
   activeStepGroup?: ExpectedPracticeGroup | null;
   performanceMusicalBeat?: number | null;
@@ -46,7 +41,7 @@ export function PracticeScoreViewer({
   sessionStatus = null,
   xmlContent,
   isLoadingXml,
-  practiceStatus,
+  lifecycle,
   sessionMode,
   activeStepGroup = null,
   performanceMusicalBeat = null,
@@ -85,7 +80,7 @@ export function PracticeScoreViewer({
       !activeStepGroup ||
       !xmlContent ||
       renderRevision === 0 ||
-      practiceStatus === 'idle';
+      (lifecycle !== 'ACTIVE' && lifecycle !== 'PAUSED');
 
     if (shouldClear) {
       stepPlayheadController.clear(container);
@@ -101,7 +96,7 @@ export function PracticeScoreViewer({
     adapter,
     activeStepGroup,
     stepPlayheadController,
-    practiceStatus,
+    lifecycle,
     renderRevision,
     sessionMode,
     xmlContent,
@@ -115,8 +110,7 @@ export function PracticeScoreViewer({
       performanceMusicalBeat === null ||
       !xmlContent ||
       renderRevision === 0 ||
-      practiceStatus === 'idle' ||
-      practiceStatus === 'finished'
+      (lifecycle !== 'ACTIVE' && lifecycle !== 'PAUSED')
     ) {
       if (container) {
         performancePlayheadController.clear(container);
@@ -139,7 +133,7 @@ export function PracticeScoreViewer({
     performanceMusicalBeat,
     performanceScopeBeats,
     performancePlayheadController,
-    practiceStatus,
+    lifecycle,
     renderRevision,
     selectedRangeRenderNoteIdSignature,
     sessionMode,
@@ -201,8 +195,7 @@ export function PracticeScoreViewer({
       sessionMode !== 'STEP_BY_STEP' ||
       !xmlContent ||
       renderRevision === 0 ||
-      practiceStatus === 'idle' ||
-      practiceStatus === 'finished'
+      (lifecycle !== 'ACTIVE' && lifecycle !== 'PAUSED')
     ) {
       return;
     }

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { LoaderCircle, Mic } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { PracticeMode } from '@/lib/practice/local-core/artifact';
 import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/performance-runtime';
-import type { LocalPracticeStatus } from '@/hooks/practice/use-local-practice';
+import type { LocalPracticeLifecycle, LocalPracticeInputState } from '@/lib/practice/local-core/session';
 
 type PracticeStatusMessageKey =
   | 'preparingPractice'
@@ -20,15 +20,16 @@ type PracticeStatusMessageKey =
   | 'settingStatusPaused'
   | 'settingStatusReady';
 
-type PracticeSessionStatusView = {
+export type PracticeSessionStatusView = {
   messageKey: PracticeStatusMessageKey;
   pending: boolean;
   countInPulse: number | null;
 };
 
-type PracticeSessionStatusProps = {
+export type PracticeSessionStatusProps = {
   className?: string;
-  status: LocalPracticeStatus;
+  lifecycle: LocalPracticeLifecycle;
+  inputState?: LocalPracticeInputState;
   isLoading?: boolean;
   sessionMode: PracticeMode;
   practiceTime: number;
@@ -42,15 +43,17 @@ function formatTime(seconds: number) {
 }
 
 export function resolvePracticeSessionStatusView({
-  status,
+  lifecycle,
+  inputState = 'IDLE',
   sessionMode,
   performanceClock,
 }: {
-  status: LocalPracticeStatus;
+  lifecycle: LocalPracticeLifecycle;
+  inputState?: LocalPracticeInputState;
   sessionMode: PracticeMode;
   performanceClock?: PerformanceClockSnapshot | null;
 }): PracticeSessionStatusView {
-  if (status === 'connecting') {
+  if (inputState === 'STARTING') {
     return {
       messageKey: 'preparingPractice',
       pending: true,
@@ -58,15 +61,7 @@ export function resolvePracticeSessionStatusView({
     };
   }
 
-  if (status === 'finishing') {
-    return {
-      messageKey: 'finishingPractice',
-      pending: true,
-      countInPulse: null,
-    };
-  }
-
-  if (status === 'paused') {
+  if (lifecycle === 'PAUSED') {
     return {
       messageKey: 'settingStatusPaused',
       pending: false,
@@ -74,7 +69,7 @@ export function resolvePracticeSessionStatusView({
     };
   }
 
-  if (status !== 'listening' && status !== 'practicing') {
+  if (lifecycle !== 'ACTIVE') {
     return {
       messageKey: 'settingStatusReady',
       pending: false,
@@ -83,18 +78,14 @@ export function resolvePracticeSessionStatusView({
   }
 
   if (sessionMode === 'CONTINUOUS_PLAY' && performanceClock?.state === 'COUNT_IN') {
-    const pulse =
-      performanceClock.countInPulses > 0 && performanceClock.countInRemainingMs > 0
-        ? Math.max(1, Math.ceil(performanceClock.countInPulses * (performanceClock.countInRemainingMs / (performanceClock.countInRemainingMs + 10))))
-        : 1;
     return {
       messageKey: 'performanceCountIn',
       pending: false,
-      countInPulse: pulse,
+      countInPulse: performanceClock.countInPulse,
     };
   }
 
-  if (sessionMode === 'CONTINUOUS_PLAY' && status === 'practicing') {
+  if (sessionMode === 'CONTINUOUS_PLAY') {
     return {
       messageKey: 'performanceRunning',
       pending: false,
@@ -111,7 +102,8 @@ export function resolvePracticeSessionStatusView({
 
 export function PracticeSessionStatus({
   className,
-  status,
+  lifecycle,
+  inputState = 'IDLE',
   sessionMode,
   practiceTime,
   performanceClock,
@@ -120,15 +112,15 @@ export function PracticeSessionStatus({
   const resolvedView = useMemo(
     () =>
       resolvePracticeSessionStatusView({
-        status,
+        lifecycle,
+        inputState,
         sessionMode,
         performanceClock,
       }),
-    [performanceClock, sessionMode, status]
+    [inputState, lifecycle, performanceClock, sessionMode]
   );
 
-  const isRecording =
-    status === 'listening' || status === 'practicing' || status === 'paused';
+  const isRecording = lifecycle === 'ACTIVE' || lifecycle === 'PAUSED';
 
   const message =
     resolvedView.countInPulse !== null
@@ -150,9 +142,9 @@ export function PracticeSessionStatus({
         <span
           className={cn(
             'h-2 w-2 shrink-0 rounded-full',
-            status === 'listening' || status === 'practicing'
+            lifecycle === 'ACTIVE'
               ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]'
-              : status === 'paused'
+              : lifecycle === 'PAUSED'
                 ? 'bg-amber-400 shadow-[0_0_0_3px_rgba(251,191,36,0.14)]'
                 : 'bg-slate-400'
           )}

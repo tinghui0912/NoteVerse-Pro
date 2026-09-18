@@ -19,7 +19,7 @@ def practice_score_artifact_from_timeline(
     *,
     score_id: str,
     revision_id: str,
-    tempo_segments: tuple[TempoSegment, ...] = (),
+    tempo_segments: tuple[TempoSegment, ...],
 ) -> dict[str, Any]:
     """Serialize the canonical backend practice timeline for browser-local runtimes."""
 
@@ -51,7 +51,7 @@ def practice_score_artifact_json(
     *,
     score_id: str,
     revision_id: str,
-    tempo_segments: tuple[TempoSegment, ...] = (),
+    tempo_segments: tuple[TempoSegment, ...],
 ) -> str:
     return json.dumps(
         practice_score_artifact_from_timeline(

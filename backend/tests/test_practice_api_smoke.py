@@ -145,7 +145,7 @@ class FakePracticeService:
             "expectedPracticeGroups": [],
             "practiceAttackSteps": [],
             "meterSegments": [],
-            "tempoSegments": [],
+            "tempoSegments": [{"startBeat": 0.0, "bpm": 120.0}],
             "firstPlayableBeat": None,
             "scoreEndBeat": 0.0,
         }
