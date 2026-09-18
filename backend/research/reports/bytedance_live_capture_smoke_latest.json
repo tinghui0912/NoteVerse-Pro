@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-18T06:21:49.772Z",
-  "gitHead": "a3e3a1a4ef9b6ca82208754f87a82972c232bb87",
+  "generatedAt": "2026-09-18T06:43:13.156Z",
+  "gitHead": "45e87ee2d3cd3cbf8a54dcdf65403eff0c07d166",
   "command": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\scripts\\bytedance-live-capture-smoke.mjs --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx --browser-channel chrome --headed --timeout 60000 --output backend/research/reports/bytedance_live_capture_smoke_latest.json",
   "harness": "apps/customer-web/scripts/bytedance-live-capture-smoke.mjs",
   "model": {
@@ -27,13 +27,13 @@
         "features": [
           "depth32float-stencil8",
           "rg11b10ufloat-renderable",
-          "bgra8unorm-storage",
           "texture-formats-tier1",
+          "bgra8unorm-storage",
           "chromium-experimental-multi-draw-indirect",
           "texture-compression-bc",
           "dual-source-blending",
-          "core-features-and-limits",
           "chromium-experimental-sampling-resource-table",
+          "core-features-and-limits",
           "chromium-experimental-timestamp-query-inside-passes",
           "float32-filterable",
           "indirect-first-instance",
@@ -42,10 +42,10 @@
           "texture-compression-unaligned",
           "depth-clip-control",
           "texture-compression-bc-sliced-3d",
-          "clip-distances",
           "shader-f16",
-          "texture-formats-tier2",
           "timestamp-query",
+          "clip-distances",
+          "texture-formats-tier2",
           "primitive-index",
           "texture-component-swizzle",
           "subgroups"
@@ -96,13 +96,14 @@
           "sourceSampleRateHz": 48000,
           "captureStartSampleIndex": 0,
           "captureAnchorSessionTimeMs": 0,
-          "normalizedEndSampleIndex": 23851,
+          "normalizedEndSampleIndex": 25429,
           "skippedAnchorCount": 7,
+          "coalescedAnchorSampleIndex": 21600,
           "activeAnchorSampleIndex": 19200,
           "latestSubmittedAnchorSampleIndex": 19200,
-          "workletChunkCount": 559,
+          "workletChunkCount": 596,
           "sourceContinuityOk": true,
-          "lastSourceSampleIndex": 71552
+          "lastSourceSampleIndex": 76288
         }
       },
       {
@@ -139,14 +140,13 @@
           "sourceSampleRateHz": 48000,
           "captureStartSampleIndex": 80000,
           "captureAnchorSessionTimeMs": 5000,
-          "normalizedEndSampleIndex": 104491,
-          "skippedAnchorCount": 6,
-          "coalescedAnchorSampleIndex": 100800,
-          "activeAnchorSampleIndex": 98400,
-          "latestSubmittedAnchorSampleIndex": 98400,
-          "workletChunkCount": 574,
+          "normalizedEndSampleIndex": 106240,
+          "skippedAnchorCount": 7,
+          "activeAnchorSampleIndex": 100800,
+          "latestSubmittedAnchorSampleIndex": 100800,
+          "workletChunkCount": 615,
           "sourceContinuityOk": true,
-          "lastSourceSampleIndex": 73472
+          "lastSourceSampleIndex": 78720
         }
       },
       {
@@ -168,27 +168,28 @@
         "sourceSampleRateHz": 48000,
         "captureStartSampleIndex": 0,
         "captureAnchorSessionTimeMs": 0,
-        "normalizedEndSampleIndex": 23851,
+        "normalizedEndSampleIndex": 25429,
         "skippedAnchorCount": 7,
+        "coalescedAnchorSampleIndex": 21600,
         "activeAnchorSampleIndex": 19200,
         "latestSubmittedAnchorSampleIndex": 19200,
-        "workletChunkCount": 559,
+        "workletChunkCount": 596,
         "sourceContinuityOk": true,
-        "lastSourceSampleIndex": 71552
+        "lastSourceSampleIndex": 76288
       },
       "event": {
         "pitch": "A4",
         "midiPitch": 69,
         "onsetTime": {
           "domainId": "live-smoke-domain",
-          "ms": 10,
-          "sampleIndex": 160
+          "ms": 20,
+          "sampleIndex": 320
         },
-        "confidence": 0.575860321521759,
-        "onsetScore": 0.7380560040473938,
-        "frameScore": 0.575860321521759,
+        "confidence": 0.5820584893226624,
+        "onsetScore": 0.75302654504776,
+        "frameScore": 0.5820584893226624,
         "source": "ACOUSTIC",
-        "inferenceCompletedAtMs": 4147.5
+        "inferenceCompletedAtMs": 4577.700000047684
       }
     },
     "secondLifecycle": {
@@ -198,28 +199,27 @@
         "sourceSampleRateHz": 48000,
         "captureStartSampleIndex": 80000,
         "captureAnchorSessionTimeMs": 5000,
-        "normalizedEndSampleIndex": 104491,
-        "skippedAnchorCount": 6,
-        "coalescedAnchorSampleIndex": 100800,
-        "activeAnchorSampleIndex": 98400,
-        "latestSubmittedAnchorSampleIndex": 98400,
-        "workletChunkCount": 574,
+        "normalizedEndSampleIndex": 106240,
+        "skippedAnchorCount": 7,
+        "activeAnchorSampleIndex": 100800,
+        "latestSubmittedAnchorSampleIndex": 100800,
+        "workletChunkCount": 615,
         "sourceContinuityOk": true,
-        "lastSourceSampleIndex": 73472
+        "lastSourceSampleIndex": 78720
       },
       "event": {
         "pitch": "C#5",
         "midiPitch": 73,
         "onsetTime": {
           "domainId": "live-smoke-domain",
-          "ms": 5010,
-          "sampleIndex": 80160
+          "ms": 5020,
+          "sampleIndex": 80320
         },
-        "confidence": 0.7312116622924805,
-        "onsetScore": 0.7312116622924805,
-        "frameScore": 0.9807604551315308,
+        "confidence": 0.7308315634727478,
+        "onsetScore": 0.7308315634727478,
+        "frameScore": 0.9804084300994873,
         "source": "ACOUSTIC",
-        "inferenceCompletedAtMs": 2672.2999999523163
+        "inferenceCompletedAtMs": 2934.5999999046326
       }
     },
     "timeDidNotRewind": true,
@@ -227,32 +227,32 @@
       "loads": [
         {
           "workerIndex": 1,
-          "loadMs": 2687.899999856949,
+          "loadMs": 3045.7000000476837,
           "diagnostics": {
-            "modelFetchAndVerifyMs": 1803.1000001430511,
-            "sessionCreateMs": 803.0999999046326,
-            "totalLoadMs": 2606.2999999523163,
+            "modelFetchAndVerifyMs": 2023.7000000476837,
+            "sessionCreateMs": 935.5999999046326,
+            "totalLoadMs": 2959.2999999523163,
             "modelByteSize": 98691493,
             "modelSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
             "source": "network",
-            "downloadMs": 1473.8999998569489,
-            "cacheReadMs": 156.60000014305115,
-            "verificationMs": 138,
+            "downloadMs": 1662.9000000953674,
+            "cacheReadMs": 179.39999985694885,
+            "verificationMs": 143.39999985694885,
             "persistentStorageGranted": null
           }
         },
         {
           "workerIndex": 2,
-          "loadMs": 1163.8999998569489,
+          "loadMs": 1307,
           "diagnostics": {
-            "modelFetchAndVerifyMs": 314.09999990463257,
-            "sessionCreateMs": 798.6000001430511,
-            "totalLoadMs": 1112.7000000476837,
+            "modelFetchAndVerifyMs": 336,
+            "sessionCreateMs": 909.6000001430511,
+            "totalLoadMs": 1245.7000000476837,
             "modelByteSize": 98691493,
             "modelSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
             "source": "opfs-cache",
-            "cacheReadMs": 170.09999990463257,
-            "verificationMs": 137.60000014305115,
+            "cacheReadMs": 181.89999985694885,
+            "verificationMs": 145.10000014305115,
             "persistentStorageGranted": null
           }
         }
@@ -267,7 +267,7 @@
             "ms": -1600,
             "sampleIndex": -25600
           },
-          "endToEndMs": 1259.2999999523163,
+          "endToEndMs": 1323,
           "diagnostics": {
             "inputTensor": {
               "name": "audio",
@@ -298,9 +298,9 @@
               }
             },
             "timingMs": {
-              "onnxInference": 1257.8999998569489,
-              "decode": 0.8000001907348633,
-              "workerTotal": 1258.7000000476837
+              "onnxInference": 1321.3999998569489,
+              "decode": 1,
+              "workerTotal": 1322.3999998569489
             }
           },
           "eventCount": 1,
@@ -310,14 +310,14 @@
               "midiPitch": 69,
               "onsetTime": {
                 "domainId": "live-smoke-domain",
-                "ms": 10,
-                "sampleIndex": 160
+                "ms": 20,
+                "sampleIndex": 320
               },
-              "confidence": 0.575860321521759,
-              "onsetScore": 0.7380560040473938,
-              "frameScore": 0.575860321521759,
+              "confidence": 0.5820584893226624,
+              "onsetScore": 0.75302654504776,
+              "frameScore": 0.5820584893226624,
               "source": "ACOUSTIC",
-              "inferenceCompletedAtMs": 4147.5
+              "inferenceCompletedAtMs": 4577.700000047684
             }
           ]
         },
@@ -330,7 +330,7 @@
             "ms": 3500,
             "sampleIndex": 56000
           },
-          "endToEndMs": 1192.8000001907349,
+          "endToEndMs": 1322.7000000476837,
           "diagnostics": {
             "inputTensor": {
               "name": "audio",
@@ -361,9 +361,9 @@
               }
             },
             "timingMs": {
-              "onnxInference": 1191.3999998569489,
-              "decode": 0.9000000953674316,
-              "workerTotal": 1192.2999999523163
+              "onnxInference": 1321.0999999046326,
+              "decode": 1.2000000476837158,
+              "workerTotal": 1322.2999999523163
             }
           },
           "eventCount": 1,
@@ -373,14 +373,14 @@
               "midiPitch": 73,
               "onsetTime": {
                 "domainId": "live-smoke-domain",
-                "ms": 5010,
-                "sampleIndex": 80160
+                "ms": 5020,
+                "sampleIndex": 80320
               },
-              "confidence": 0.7312116622924805,
-              "onsetScore": 0.7312116622924805,
-              "frameScore": 0.9807604551315308,
+              "confidence": 0.7308315634727478,
+              "onsetScore": 0.7308315634727478,
+              "frameScore": 0.9804084300994873,
               "source": "ACOUSTIC",
-              "inferenceCompletedAtMs": 2672.2999999523163
+              "inferenceCompletedAtMs": 2934.5999999046326
             }
           ]
         }
@@ -388,10 +388,10 @@
     }
   },
   "browserErrors": [
-    "error: \u001b[0;93m2026-09-18 14:21:45.036300 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
-    "error: \u001b[0;93m2026-09-18 14:21:45.039900 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
-    "error: \u001b[0;93m2026-09-18 14:21:47.690800 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
-    "error: \u001b[0;93m2026-09-18 14:21:47.693199 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+    "error: \u001b[0;93m2026-09-18 14:43:08.024399 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "error: \u001b[0;93m2026-09-18 14:43:08.027199 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+    "error: \u001b[0;93m2026-09-18 14:43:10.925599 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "error: \u001b[0;93m2026-09-18 14:43:10.929399 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
   ],
   "browserWarnings": []
 }
