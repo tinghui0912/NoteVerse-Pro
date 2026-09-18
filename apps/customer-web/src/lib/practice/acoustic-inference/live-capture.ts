@@ -612,6 +612,15 @@ export class LiveByteDanceRollingPipeline {
   }
 }
 
+type OwnedBrowserResources = {
+  audioContext: AudioContext | null;
+  mediaStream: MediaStream | null;
+  sourceNode: MediaStreamAudioSourceNode | null;
+  workletNode: AudioWorkletNode | null;
+  sinkNode: GainNode | null;
+  pipeline: LiveByteDanceRollingPipeline | null;
+};
+
 export class BrowserMicrophoneCaptureController {
   private audioContext: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
@@ -623,7 +632,8 @@ export class BrowserMicrophoneCaptureController {
   private workletChunkCount = 0;
   private sourceContinuityOk = true;
   private expectedSourceSampleIndex = 0;
-  private fatalCleanupInProgress = false;
+  private generation = 0;
+  private pendingOperation: Promise<void> = Promise.resolve();
   private state: LiveCaptureState = {
     state: 'idle',
     normalizedEndSampleIndex: 0,
@@ -644,7 +654,20 @@ export class BrowserMicrophoneCaptureController {
   }
 
   async start(): Promise<void> {
-    this.fatalCleanupInProgress = false;
+    await this.pendingOperation;
+    const currentState = this.state.state;
+    if (
+      currentState === 'running' ||
+      currentState === 'requesting-permission' ||
+      currentState === 'initializing-audio' ||
+      currentState === 'initializing-model'
+    ) {
+      throw new Error(
+        `Cannot start capture: controller is already in '${currentState}' state.`
+      );
+    }
+    this.generation += 1;
+    const gen = this.generation;
     this.state = { ...this.state, state: 'requesting-permission' };
     try {
       const mediaDevices = globalThis.navigator?.mediaDevices;
@@ -667,7 +690,10 @@ export class BrowserMicrophoneCaptureController {
         ...this.options,
         sourceSampleRateHz: this.audioContext.sampleRate,
         onFatalError: (error) => {
-          void this.handleFatalError(error);
+          if (this.generation !== gen) {
+            return;
+          }
+          void this.enqueueFatalCleanup(error, gen);
         },
       });
       await this.pipeline.start();
@@ -678,9 +704,18 @@ export class BrowserMicrophoneCaptureController {
       );
       this.workletNode = new AudioWorkletNode(this.audioContext, 'noteverse-bytedance-capture');
       this.workletNode.addEventListener('processorerror', (event) => {
-        void this.handleProcessorError(event);
+        if (this.generation !== gen) {
+          return;
+        }
+        void this.enqueueFatalCleanup(
+          new Error(`AudioWorklet processor failed: ${event.type}`),
+          gen
+        );
       });
       this.workletNode.port.onmessage = (event: MessageEvent<WorkletPcmChunkMessage>) => {
+        if (this.generation !== gen) {
+          return;
+        }
         try {
           if (event.data.type !== 'pcm-chunk' || !this.resampler || !this.pipeline) {
             return;
@@ -696,7 +731,7 @@ export class BrowserMicrophoneCaptureController {
           });
           this.pipeline.appendNormalizedPcm(chunk.samples, chunk.startSampleIndex);
         } catch (error) {
-          void this.handleFatalError(error);
+          void this.enqueueFatalCleanup(error, gen);
         }
       };
       this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
@@ -716,14 +751,19 @@ export class BrowserMicrophoneCaptureController {
         state: 'error',
         lastError: error instanceof Error ? error.message : String(error),
       };
-      await this.cleanupResources();
+      await this.releaseOwnedResources(this.captureOwnedResources());
       throw error;
     }
   }
 
   async stop(): Promise<void> {
+    await this.pendingOperation;
+    if (this.state.state === 'idle' || this.state.state === 'error') {
+      return;
+    }
+    this.generation += 1;
     this.state = { ...this.state, state: 'stopping' };
-    await this.cleanupResources();
+    await this.releaseOwnedResources(this.captureOwnedResources());
     this.state = {
       state: 'idle',
       normalizedEndSampleIndex: 0,
@@ -731,55 +771,61 @@ export class BrowserMicrophoneCaptureController {
     };
   }
 
-  private async handleProcessorError(event: Event): Promise<void> {
-    await this.handleFatalError(new Error(`AudioWorklet processor failed: ${event.type}`));
+  private enqueueFatalCleanup(error: unknown, triggerGeneration: number): void {
+    const op = (async () => {
+      await this.pendingOperation;
+      if (this.generation !== triggerGeneration) {
+        return;
+      }
+      const fatalError = error instanceof Error ? error : new Error(String(error));
+      this.generation += 1;
+      this.state = {
+        ...this.state,
+        state: 'error',
+        lastError: fatalError.message,
+      };
+      await this.releaseOwnedResources(this.captureOwnedResources());
+      this.state = {
+        ...this.state,
+        state: 'error',
+        lastError: fatalError.message,
+      };
+    })();
+    this.pendingOperation = op.catch(() => undefined);
   }
 
-  private async handleFatalError(error: unknown): Promise<void> {
-    if (this.fatalCleanupInProgress) {
-      return;
-    }
-    this.fatalCleanupInProgress = true;
-    const fatalError = error instanceof Error ? error : new Error(String(error));
-    this.state = {
-      ...this.state,
-      state: 'error',
-      lastError: fatalError.message,
+  private captureOwnedResources(): OwnedBrowserResources {
+    const owned: OwnedBrowserResources = {
+      audioContext: this.audioContext,
+      mediaStream: this.mediaStream,
+      sourceNode: this.sourceNode,
+      workletNode: this.workletNode,
+      sinkNode: this.sinkNode,
+      pipeline: this.pipeline,
     };
-    await this.cleanupResources();
-    this.state = {
-      ...this.state,
-      state: 'error',
-      lastError: fatalError.message,
-    };
-    this.fatalCleanupInProgress = false;
-  }
-
-  private async cleanupResources(): Promise<void> {
-    const pipeline = this.pipeline;
-    await this.cleanupBrowserResources();
-    await pipeline?.stop().catch(() => undefined);
-    this.pipeline = null;
-  }
-
-  private async cleanupBrowserResources(): Promise<void> {
-    this.workletNode?.port.close();
-    this.workletNode?.disconnect();
-    this.sinkNode?.disconnect();
-    this.sourceNode?.disconnect();
-    for (const track of this.mediaStream?.getTracks() ?? []) {
-      track.stop();
-    }
-    await this.audioContext?.close().catch(() => undefined);
+    this.audioContext = null;
+    this.mediaStream = null;
+    this.sourceNode = null;
     this.workletNode = null;
     this.sinkNode = null;
-    this.sourceNode = null;
-    this.mediaStream = null;
-    this.audioContext = null;
+    this.pipeline = null;
     this.resampler = null;
     this.workletChunkCount = 0;
     this.sourceContinuityOk = true;
     this.expectedSourceSampleIndex = 0;
+    return owned;
+  }
+
+  private async releaseOwnedResources(owned: OwnedBrowserResources): Promise<void> {
+    owned.workletNode?.port.close();
+    owned.workletNode?.disconnect();
+    owned.sinkNode?.disconnect();
+    owned.sourceNode?.disconnect();
+    for (const track of owned.mediaStream?.getTracks() ?? []) {
+      track.stop();
+    }
+    await owned.audioContext?.close().catch(() => undefined);
+    await owned.pipeline?.stop().catch(() => undefined);
   }
 }
 
