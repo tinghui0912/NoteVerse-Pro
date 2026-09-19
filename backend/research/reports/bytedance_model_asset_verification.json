@@ -1,14 +1,17 @@
 {
   "schemaVersion": 1,
-  "verifiedAt": "2026-09-19T03:35:32.639Z",
-  "modelUrl": "https://assets.noteverse.net/models/bytedance/bytedance_note_model_fixed_anchor.onnx",
-  "source": "local-http-streaming-server",
+  "assetId": "bytedance-piano-transcription-note-model",
+  "assetVersion": "CRNN_note_F1_0.9677_pedal_F1_0.9186",
+  "bucket": "noteverse-model-assets",
+  "region": "cn-shenzhen",
+  "objectKey": "models/bytedance/piano-note/6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5/model.onnx",
+  "mediaType": "application/octet-stream",
   "expectedByteSize": 98691493,
   "actualByteSize": 98691493,
-  "byteSizeMatches": true,
   "expectedSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
   "actualSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
-  "sha256Matches": true,
-  "durationMs": 760,
-  "status": "VERIFIED"
+  "matches": true,
+  "verifiedAt": "2026-09-19T04:30:15.307743Z",
+  "source": "aliyun-oss-private-object",
+  "streamVerificationDurationMs": 56116
 }

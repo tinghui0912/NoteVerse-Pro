@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-19T03:35:15.466Z",
-  "gitHead": "0744bd89b1ec69a049843f09f68966dfc6820234",
-  "command": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\scripts\\practice-browser-smoke.mjs --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx --browser-channel chrome --headed",
+  "generatedAt": "2026-09-19T04:41:45.690Z",
+  "gitHead": "2f6b82045761eb01dfb47b56d1f80c5323b44681",
+  "command": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\scripts\\practice-browser-smoke.mjs --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx",
   "harness": "apps/customer-web/scripts/practice-browser-smoke.mjs",
   "model": {
     "filename": "bytedance_note_model_fixed_anchor.onnx",
@@ -10,7 +10,7 @@
   },
   "browser": {
     "channel": "chrome",
-    "headed": true
+    "headed": false
   },
   "os": {
     "platform": "win32",
@@ -25,8 +25,8 @@
       "features": [
         "depth32float-stencil8",
         "rg11b10ufloat-renderable",
-        "bgra8unorm-storage",
         "texture-formats-tier1",
+        "bgra8unorm-storage",
         "chromium-experimental-multi-draw-indirect",
         "texture-compression-bc",
         "dual-source-blending",
@@ -40,10 +40,10 @@
         "texture-compression-unaligned",
         "depth-clip-control",
         "texture-compression-bc-sliced-3d",
-        "timestamp-query",
         "clip-distances",
         "texture-formats-tier2",
         "shader-f16",
+        "timestamp-query",
         "primitive-index",
         "texture-component-swizzle",
         "subgroups"
@@ -54,12 +54,12 @@
         "maxComputeWorkgroupStorageSize": 32768
       }
     },
-    "localSessionId": "local-practice:5386aaf6-702a-47df-b175-e5c693fe24cd",
+    "localSessionId": "local-practice:9b689cb3-0f16-409f-ac95-260c68534e17",
     "initialTarget": {
       "stepId": "s-0",
       "activationGeneration": 1,
       "activationBoundary": {
-        "domainId": "local-practice:5386aaf6-702a-47df-b175-e5c693fe24cd",
+        "domainId": "local-practice:9b689cb3-0f16-409f-ac95-260c68534e17",
         "ms": -1
       },
       "attackPitches": [
@@ -73,19 +73,19 @@
         "stepId": "s-0",
         "activationGeneration": 1,
         "attackOnsetTime": {
-          "domainId": "local-practice:5386aaf6-702a-47df-b175-e5c693fe24cd",
-          "ms": 460,
-          "sampleIndex": 7360
+          "domainId": "local-practice:9b689cb3-0f16-409f-ac95-260c68534e17",
+          "ms": 740,
+          "sampleIndex": 11840
         },
         "captureTime": {
-          "domainId": "local-practice:5386aaf6-702a-47df-b175-e5c693fe24cd",
-          "ms": 460,
-          "sampleIndex": 7360
+          "domainId": "local-practice:9b689cb3-0f16-409f-ac95-260c68534e17",
+          "ms": 740,
+          "sampleIndex": 11840
         },
         "observedAttackPitches": [
           "A4"
         ],
-        "confidence": 0.6265868544578552,
+        "confidence": 0.2996366322040558,
         "source": "ACOUSTIC"
       }
     ],
@@ -98,8 +98,8 @@
             "stepId": "s-1",
             "activationGeneration": 2,
             "activationBoundary": {
-              "domainId": "local-practice:5386aaf6-702a-47df-b175-e5c693fe24cd",
-              "ms": 3861.399999856949
+              "domainId": "local-practice:9b689cb3-0f16-409f-ac95-260c68534e17",
+              "ms": 5225.299999952316
             },
             "attackPitches": [
               "B4"
@@ -111,8 +111,8 @@
           "stepId": "s-1",
           "activationGeneration": 2,
           "activationBoundary": {
-            "domainId": "local-practice:5386aaf6-702a-47df-b175-e5c693fe24cd",
-            "ms": 3861.399999856949
+            "domainId": "local-practice:9b689cb3-0f16-409f-ac95-260c68534e17",
+            "ms": 5225.299999952316
           },
           "attackPitches": [
             "B4"
@@ -125,8 +125,8 @@
       "stepId": "s-1",
       "activationGeneration": 2,
       "activationBoundary": {
-        "domainId": "local-practice:5386aaf6-702a-47df-b175-e5c693fe24cd",
-        "ms": 3861.399999856949
+        "domainId": "local-practice:9b689cb3-0f16-409f-ac95-260c68534e17",
+        "ms": 5225.299999952316
       },
       "attackPitches": [
         "B4"
@@ -134,22 +134,22 @@
       "continuationPitches": []
     },
     "loadDiagnostic": {
-      "modelFetchAndVerifyMs": 1404.2999999523163,
-      "sessionCreateMs": 703,
-      "totalLoadMs": 2107.2999999523163,
+      "modelFetchAndVerifyMs": 1458.5,
+      "sessionCreateMs": 710.4000000953674,
+      "totalLoadMs": 2168.9000000953674,
       "modelByteSize": 98691493,
       "modelSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
       "source": "network",
-      "downloadMs": 1160.6999998092651,
-      "cacheReadMs": 107.80000019073486,
-      "verificationMs": 105,
+      "downloadMs": 1194.1000001430511,
+      "cacheReadMs": 111.5,
+      "verificationMs": 124.39999985694885,
       "persistentStorageGranted": null
     },
     "offlineExecutionPassed": true
   },
   "browserErrors": [
-    "\u001b[0;93m2026-09-19 11:35:13.782899 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
-    "\u001b[0;93m2026-09-19 11:35:13.785199 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+    "\u001b[0;93m2026-09-19 12:41:42.880200 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "\u001b[0;93m2026-09-19 12:41:42.883400 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
   ],
   "browserWarnings": []
 }
