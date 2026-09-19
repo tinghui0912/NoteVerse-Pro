@@ -108,7 +108,6 @@ async function serveLocalFileAndVerify(filePath) {
 async function main() {
   const args = parseArgs(process.argv);
   const targetUrl = args.url
-    || process.env.NEXT_PUBLIC_BYTEDANCE_MODEL_URL
     || DEFAULT_MODEL_URL;
   const outputPath = args.output
     ? path.resolve(args.output)

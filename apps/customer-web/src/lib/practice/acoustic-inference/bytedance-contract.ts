@@ -129,19 +129,29 @@ export type ByteDanceLoadDiagnostics = {
 
 export const BYTEDANCE_PRODUCTION_MODEL_BYTE_SIZE = 98_691_493;
 export const BYTEDANCE_PRODUCTION_MODEL_SHA256 = '6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5';
-export function productionByteDanceModelUrl(): string | undefined {
-  if (typeof window !== 'undefined' && '__BYTEDANCE_MODEL_URL_OVERRIDE' in window) {
-    const override = (window as unknown as { __BYTEDANCE_MODEL_URL_OVERRIDE?: string }).__BYTEDANCE_MODEL_URL_OVERRIDE;
-    return typeof override === 'string' && override.trim().length > 0 ? override.trim() : undefined;
-  }
-  const url = process.env.NEXT_PUBLIC_BYTEDANCE_MODEL_URL;
-  return typeof url === 'string' && url.trim().length > 0 ? url.trim() : undefined;
+
+export function createByteDanceManifestFromAccess(access: {
+  downloadUrl: string;
+  expectedByteSize: number;
+  sha256: string;
+}): ByteDanceModelManifest {
+  return defaultByteDanceModelManifest({
+    modelUrl: access.downloadUrl,
+    expectedByteSize: access.expectedByteSize,
+    sha256: access.sha256,
+  });
 }
 
 export function createProductionByteDanceManifest(overrideUrl?: string): ByteDanceModelManifest {
-  const modelUrl = overrideUrl || productionByteDanceModelUrl();
+  let modelUrl = overrideUrl;
+  if (!modelUrl && typeof window !== 'undefined' && '__BYTEDANCE_MODEL_URL_OVERRIDE' in window) {
+    const override = (window as unknown as { __BYTEDANCE_MODEL_URL_OVERRIDE?: string }).__BYTEDANCE_MODEL_URL_OVERRIDE;
+    if (typeof override === 'string' && override.trim().length > 0) {
+      modelUrl = override.trim();
+    }
+  }
   if (!modelUrl) {
-    throw new Error('ByteDance production model URL is not configured (NEXT_PUBLIC_BYTEDANCE_MODEL_URL).');
+    throw new Error('ByteDance model URL must be provided from backend access descriptor.');
   }
   return defaultByteDanceModelManifest({
     modelUrl,

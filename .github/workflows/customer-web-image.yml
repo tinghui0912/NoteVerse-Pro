@@ -62,7 +62,6 @@ jobs:
             NEXT_PRACTICE_ORIGIN=http://noteverse-backend-practice:8000
             SESSION_COOKIE_NAME=noteverse_session
             SESSION_REFRESH_COOKIE_NAME=noteverse_refresh
-            NEXT_PUBLIC_BYTEDANCE_MODEL_URL=https://assets.noteverse.net/models/bytedance/bytedance_note_model_fixed_anchor.onnx
 
       - name: Generate Customer Web SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0

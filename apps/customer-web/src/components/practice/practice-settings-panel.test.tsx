@@ -116,14 +116,14 @@ describe('PracticeSettingsPanel', () => {
     expect(screen.queryByText(/^Metronome$/i)).toBeNull();
   });
 
-  it('displays model not configured status when microphoneCapability has MODEL_URL_NOT_CONFIGURED', () => {
+  it('displays model access unavailable status when microphoneCapability has MODEL_ACCESS_UNAVAILABLE', () => {
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeSettingsPanel
           microphoneCapability={{
             supported: false,
-            status: 'MODEL_URL_NOT_CONFIGURED',
-            reason: 'MODEL_URL_NOT_CONFIGURED',
+            status: 'MODEL_ACCESS_UNAVAILABLE',
+            reason: 'MODEL_ACCESS_UNAVAILABLE',
           }}
           midiCapability={{
             supported: true,
@@ -141,7 +141,7 @@ describe('PracticeSettingsPanel', () => {
     );
 
     expect(
-      screen.getByText('Microphone practice currently unavailable: Model asset not configured')
+      screen.getByText('Model asset currently unavailable')
     ).toBeVisible();
   });
 

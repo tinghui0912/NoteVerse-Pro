@@ -36,3 +36,4 @@ export { libraryApi } from './library';
 export { myScoresApi } from './my-scores';
 export { reviewApi } from './review';
 export { storageUsageApi } from './storage-usage';
+export { modelAssetsApi, type ModelAssetAccess } from './model-assets';

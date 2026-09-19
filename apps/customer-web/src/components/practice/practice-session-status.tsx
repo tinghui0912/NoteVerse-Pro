@@ -22,7 +22,8 @@ type PracticeStatusMessageKey =
   | 'settingStatusReady'
   | 'micStartFailed'
   | 'midiStartFailed'
-  | 'micModelNotConfigured'
+  | 'micModelAccessUnavailable'
+  | 'micModelStorageUnavailable'
   | 'micBrowserUnsupported'
   | 'midiBrowserUnsupported'
   | 'midiNoConnectedInput';
@@ -117,9 +118,17 @@ export function resolvePracticeSessionStatusView({
       };
     }
     if (selectedInputCapability && selectedInputCapability.status !== 'READY') {
-      if (selectedInputCapability.status === 'MODEL_URL_NOT_CONFIGURED') {
+      if (selectedInputCapability.status === 'MODEL_ACCESS_UNAVAILABLE') {
         return {
-          messageKey: 'micModelNotConfigured',
+          messageKey: 'micModelAccessUnavailable',
+          isError: true,
+          pending: false,
+          countInPulse: null,
+        };
+      }
+      if (selectedInputCapability.status === 'MODEL_STORAGE_UNAVAILABLE') {
+        return {
+          messageKey: 'micModelStorageUnavailable',
           isError: true,
           pending: false,
           countInPulse: null,
@@ -217,7 +226,8 @@ export function PracticeSessionStatus({
   } else if (resolvedView.isError) {
     if (
       resolvedView.messageKey === 'midiNoConnectedInput' ||
-      resolvedView.messageKey === 'micModelNotConfigured' ||
+      resolvedView.messageKey === 'micModelAccessUnavailable' ||
+      resolvedView.messageKey === 'micModelStorageUnavailable' ||
       resolvedView.messageKey === 'micBrowserUnsupported' ||
       resolvedView.messageKey === 'midiBrowserUnsupported'
     ) {

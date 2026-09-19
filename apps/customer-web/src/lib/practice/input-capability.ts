@@ -1,10 +1,10 @@
 import type { PracticeInputSource } from './local-core/artifact';
-import { productionByteDanceModelUrl } from './acoustic-inference/bytedance-contract';
 
 export type PracticeMicrophoneStatus =
   | 'READY'
   | 'BROWSER_UNSUPPORTED'
-  | 'MODEL_URL_NOT_CONFIGURED';
+  | 'MODEL_ACCESS_UNAVAILABLE'
+  | 'MODEL_STORAGE_UNAVAILABLE';
 
 export type PracticeMidiStatus =
   | 'READY'
@@ -13,7 +13,8 @@ export type PracticeMidiStatus =
 
 export type MicrophoneUnavailableReason =
   | 'BROWSER_UNSUPPORTED'
-  | 'MODEL_URL_NOT_CONFIGURED';
+  | 'MODEL_ACCESS_UNAVAILABLE'
+  | 'MODEL_STORAGE_UNAVAILABLE';
 
 export type MidiUnavailableReason =
   | 'BROWSER_UNSUPPORTED'
@@ -22,7 +23,8 @@ export type MidiUnavailableReason =
 export type PracticeMicrophoneCapability =
   | { supported: true; status: 'READY'; reason?: undefined }
   | { supported: false; status: 'BROWSER_UNSUPPORTED'; reason: 'BROWSER_UNSUPPORTED' }
-  | { supported: false; status: 'MODEL_URL_NOT_CONFIGURED'; reason: 'MODEL_URL_NOT_CONFIGURED' };
+  | { supported: false; status: 'MODEL_ACCESS_UNAVAILABLE'; reason: 'MODEL_ACCESS_UNAVAILABLE' }
+  | { supported: false; status: 'MODEL_STORAGE_UNAVAILABLE'; reason: 'MODEL_STORAGE_UNAVAILABLE' };
 
 export type PracticeMidiCapability =
   | { supported: true; status: 'READY'; reason?: undefined }
@@ -36,6 +38,7 @@ export type PracticeInputCapabilities = {
 
 export type EvaluatePracticeInputOptions = {
   connectedMidiInputs?: number;
+  modelAccessAvailable?: boolean;
 };
 
 export function evaluatePracticeInputCapabilities(
@@ -57,19 +60,21 @@ export function evaluatePracticeInputCapabilities(
     typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
   const isBrowserAudioSupported = hasAudioContext && hasAudioWorklet && hasGetUserMedia;
 
-  const modelUrl = productionByteDanceModelUrl();
-  const isModelConfigured = Boolean(modelUrl && modelUrl.trim().length > 0);
+  const hasOpfs = typeof navigator !== 'undefined' && Boolean(navigator.storage?.getDirectory);
+  const isModelAccessAvailable = options?.modelAccessAvailable !== false;
 
   let microphone: PracticeMicrophoneCapability;
   if (!isBrowserAudioSupported) {
     microphone = { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' };
-  } else if (!isModelConfigured) {
-    microphone = { supported: false, status: 'MODEL_URL_NOT_CONFIGURED', reason: 'MODEL_URL_NOT_CONFIGURED' };
+  } else if (!hasOpfs) {
+    microphone = { supported: false, status: 'MODEL_STORAGE_UNAVAILABLE', reason: 'MODEL_STORAGE_UNAVAILABLE' };
+  } else if (!isModelAccessAvailable) {
+    microphone = { supported: false, status: 'MODEL_ACCESS_UNAVAILABLE', reason: 'MODEL_ACCESS_UNAVAILABLE' };
   } else {
     microphone = { supported: true, status: 'READY' };
   }
 
-  // Evaluate MIDI (completely independent of AudioWorklet or microphone model)
+  // Evaluate MIDI (completely independent of AudioWorklet, OPFS, or microphone model)
   const isMidiSupported =
     typeof navigator !== 'undefined' &&
     typeof (navigator as { requestMIDIAccess?: unknown }).requestMIDIAccess === 'function';

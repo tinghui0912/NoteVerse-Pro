@@ -54,15 +54,17 @@ export function PracticeSettingsPanel({
 }: PracticeSettingsPanelProps) {
   const t = useTranslations('practice');
   const microphoneState = microphoneCapability
-    ? microphoneCapability.status === 'MODEL_URL_NOT_CONFIGURED'
-      ? t('micModelNotConfigured')
-      : microphoneCapability.status === 'BROWSER_UNSUPPORTED'
-        ? t('settingMicrophoneUnsupported')
-        : hasMicPermission === false
-          ? t('settingMicrophoneNeedsPermission')
-          : inputState === 'RUNNING' && inputSource === 'MICROPHONE'
-            ? t('settingMicrophoneConnected')
-            : t('settingMicrophoneBrowser')
+    ? microphoneCapability.status === 'MODEL_ACCESS_UNAVAILABLE'
+      ? t('micModelAccessUnavailable')
+      : microphoneCapability.status === 'MODEL_STORAGE_UNAVAILABLE'
+        ? t('micModelStorageUnavailable')
+        : microphoneCapability.status === 'BROWSER_UNSUPPORTED'
+          ? t('settingMicrophoneUnsupported')
+          : hasMicPermission === false
+            ? t('settingMicrophoneNeedsPermission')
+            : inputState === 'RUNNING' && inputSource === 'MICROPHONE'
+              ? t('settingMicrophoneConnected')
+              : t('settingMicrophoneBrowser')
     : audioWorkletSupported === false
       ? t('settingMicrophoneUnsupported')
       : hasMicPermission === false

@@ -160,7 +160,7 @@ describe('resolvePracticeSessionStatusView', () => {
   });
 
   it('displays capability unavailability reasons before practice starts', () => {
-    // Model URL missing
+    // Model access unavailable
     expect(
       resolvePracticeSessionStatusView({
         lifecycle: 'READY',
@@ -168,13 +168,31 @@ describe('resolvePracticeSessionStatusView', () => {
         inputSource: 'MICROPHONE',
         selectedInputCapability: {
           supported: false,
-          status: 'MODEL_URL_NOT_CONFIGURED',
-          reason: 'MODEL_URL_NOT_CONFIGURED',
+          status: 'MODEL_ACCESS_UNAVAILABLE',
+          reason: 'MODEL_ACCESS_UNAVAILABLE',
         },
         sessionMode: 'STEP_BY_STEP',
       })
     ).toMatchObject({
-      messageKey: 'micModelNotConfigured',
+      messageKey: 'micModelAccessUnavailable',
+      isError: true,
+    });
+
+    // Model storage unavailable
+    expect(
+      resolvePracticeSessionStatusView({
+        lifecycle: 'READY',
+        inputState: 'IDLE',
+        inputSource: 'MICROPHONE',
+        selectedInputCapability: {
+          supported: false,
+          status: 'MODEL_STORAGE_UNAVAILABLE',
+          reason: 'MODEL_STORAGE_UNAVAILABLE',
+        },
+        sessionMode: 'STEP_BY_STEP',
+      })
+    ).toMatchObject({
+      messageKey: 'micModelStorageUnavailable',
       isError: true,
     });
 
@@ -277,7 +295,7 @@ describe('PracticeSessionStatus rendering', () => {
     expect(screen.getByText(/Failed to start microphone: Device disconnected/)).toBeTruthy();
   });
 
-  it('renders model not configured message before start when capability is unavailable', () => {
+  it('renders model access unavailable message before start when capability is unavailable', () => {
     render(
       createElement(
         IntlProvider,
@@ -291,8 +309,8 @@ describe('PracticeSessionStatus rendering', () => {
           inputSource: 'MICROPHONE',
           selectedInputCapability: {
             supported: false,
-            status: 'MODEL_URL_NOT_CONFIGURED',
-            reason: 'MODEL_URL_NOT_CONFIGURED',
+            status: 'MODEL_ACCESS_UNAVAILABLE',
+            reason: 'MODEL_ACCESS_UNAVAILABLE',
           },
           sessionMode: 'STEP_BY_STEP',
           practiceTime: 0,
@@ -301,7 +319,7 @@ describe('PracticeSessionStatus rendering', () => {
     );
 
     expect(
-      screen.getByText('Microphone practice currently unavailable: Model asset not configured')
+      screen.getByText('Model asset currently unavailable')
     ).toBeTruthy();
   });
 

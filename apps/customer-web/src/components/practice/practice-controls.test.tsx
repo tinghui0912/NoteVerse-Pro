@@ -197,8 +197,8 @@ describe('PracticeControls', () => {
     const { rerender } = renderControls(false, {
       selectedInputCapability: {
         supported: false,
-        status: 'MODEL_URL_NOT_CONFIGURED',
-        reason: 'MODEL_URL_NOT_CONFIGURED',
+        status: 'MODEL_ACCESS_UNAVAILABLE',
+        reason: 'MODEL_ACCESS_UNAVAILABLE',
       },
     });
 

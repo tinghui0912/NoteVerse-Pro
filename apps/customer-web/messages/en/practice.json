@@ -158,6 +158,8 @@
   "metronomeToggleOff": "♩ Off",
   "micStartFailed": "Failed to start microphone",
   "midiStartFailed": "Failed to start MIDI",
+  "micModelAccessUnavailable": "Model asset currently unavailable",
+  "micModelStorageUnavailable": "Local model storage unavailable",
   "micModelNotConfigured": "Microphone practice currently unavailable: Model asset not configured",
   "micBrowserUnsupported": "The current browser does not support the required microphone practice features",
   "midiBrowserUnsupported": "The current browser does not support Web MIDI",

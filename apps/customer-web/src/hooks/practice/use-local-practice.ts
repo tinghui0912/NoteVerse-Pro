@@ -44,8 +44,11 @@ import {
   BrowserMicrophoneCaptureController,
 } from '@/lib/practice/acoustic-inference/live-capture';
 import {
+  createByteDanceManifestFromAccess,
   createProductionByteDanceManifest,
+  type ByteDanceModelManifest,
 } from '@/lib/practice/acoustic-inference/bytedance-contract';
+import { modelAssetsApi } from '@/lib/api';
 import {
   BrowserMidiController,
 } from '@/lib/practice/midi/browser-midi-controller';
@@ -316,23 +319,48 @@ export function useLocalPractice({
 
     try {
       if (inputSource === 'MICROPHONE') {
-        const manifest = createProductionByteDanceManifest();
-        const micController = new BrowserMicrophoneCaptureController({
-          manifest,
-          sessionTimebase: timebase,
-          sourceSampleRateHz: 48000,
-          captureDomainId: localSessionId,
-          evidenceSink: {
-            currentStepTarget: () => stepRuntimeRef.current?.currentTarget() ?? null,
-            onStepObservation: (obs) => handleStepObservation(obs),
-            onPerformanceEvidence: (evidences) => handlePerformanceEvidence(evidences),
-          },
-          onFatalError: (fatalError) => {
-            handleFatalInputError(fatalError.message);
-          },
-        });
+        let manifest: ByteDanceModelManifest;
+        try {
+          const modelAccess = await modelAssetsApi.getByteDanceNoteModelAccess();
+          manifest = createByteDanceManifestFromAccess(modelAccess);
+        } catch {
+          // Fallback to test override if available
+          manifest = createProductionByteDanceManifest();
+        }
+
+        const buildMicController = (m: ByteDanceModelManifest) =>
+          new BrowserMicrophoneCaptureController({
+            manifest: m,
+            sessionTimebase: timebase,
+            sourceSampleRateHz: 48000,
+            captureDomainId: localSessionId,
+            evidenceSink: {
+              currentStepTarget: () => stepRuntimeRef.current?.currentTarget() ?? null,
+              onStepObservation: (obs) => handleStepObservation(obs),
+              onPerformanceEvidence: (evidences) => handlePerformanceEvidence(evidences),
+            },
+            onFatalError: (fatalError) => {
+              handleFatalInputError(fatalError.message);
+            },
+          });
+
+        let micController = buildMicController(manifest);
         micControllerRef.current = micController;
-        await micController.start();
+        try {
+          await micController.start();
+        } catch (startError) {
+          // If start failed (e.g. presigned URL expired), re-fetch access descriptor once and retry
+          try {
+            await micController.stop().catch(() => undefined);
+            const freshAccess = await modelAssetsApi.getByteDanceNoteModelAccess();
+            manifest = createByteDanceManifestFromAccess(freshAccess);
+            micController = buildMicController(manifest);
+            micControllerRef.current = micController;
+            await micController.start();
+          } catch {
+            throw startError;
+          }
+        }
       } else {
         const midiController = new BrowserMidiController({
           timebase,
