@@ -142,24 +142,6 @@ export function createByteDanceManifestFromAccess(access: {
   });
 }
 
-export function createProductionByteDanceManifest(overrideUrl?: string): ByteDanceModelManifest {
-  let modelUrl = overrideUrl;
-  if (!modelUrl && typeof window !== 'undefined' && '__BYTEDANCE_MODEL_URL_OVERRIDE' in window) {
-    const override = (window as unknown as { __BYTEDANCE_MODEL_URL_OVERRIDE?: string }).__BYTEDANCE_MODEL_URL_OVERRIDE;
-    if (typeof override === 'string' && override.trim().length > 0) {
-      modelUrl = override.trim();
-    }
-  }
-  if (!modelUrl) {
-    throw new Error('ByteDance model URL must be provided from backend access descriptor.');
-  }
-  return defaultByteDanceModelManifest({
-    modelUrl,
-    expectedByteSize: BYTEDANCE_PRODUCTION_MODEL_BYTE_SIZE,
-    sha256: BYTEDANCE_PRODUCTION_MODEL_SHA256,
-  });
-}
-
 export function defaultByteDanceModelManifest(input: {
   modelUrl: string;
   expectedByteSize: number;

@@ -45,8 +45,6 @@ import {
 } from '@/lib/practice/acoustic-inference/live-capture';
 import {
   createByteDanceManifestFromAccess,
-  createProductionByteDanceManifest,
-  type ByteDanceModelManifest,
 } from '@/lib/practice/acoustic-inference/bytedance-contract';
 import { modelAssetsApi } from '@/lib/api';
 import {
@@ -319,48 +317,25 @@ export function useLocalPractice({
 
     try {
       if (inputSource === 'MICROPHONE') {
-        let manifest: ByteDanceModelManifest;
-        try {
-          const modelAccess = await modelAssetsApi.getByteDanceNoteModelAccess();
-          manifest = createByteDanceManifestFromAccess(modelAccess);
-        } catch {
-          // Fallback to test override if available
-          manifest = createProductionByteDanceManifest();
-        }
+        const modelAccess = await modelAssetsApi.getByteDanceNoteModelAccess();
+        const manifest = createByteDanceManifestFromAccess(modelAccess);
 
-        const buildMicController = (m: ByteDanceModelManifest) =>
-          new BrowserMicrophoneCaptureController({
-            manifest: m,
-            sessionTimebase: timebase,
-            sourceSampleRateHz: 48000,
-            captureDomainId: localSessionId,
-            evidenceSink: {
-              currentStepTarget: () => stepRuntimeRef.current?.currentTarget() ?? null,
-              onStepObservation: (obs) => handleStepObservation(obs),
-              onPerformanceEvidence: (evidences) => handlePerformanceEvidence(evidences),
-            },
-            onFatalError: (fatalError) => {
-              handleFatalInputError(fatalError.message);
-            },
-          });
-
-        let micController = buildMicController(manifest);
+        const micController = new BrowserMicrophoneCaptureController({
+          manifest,
+          sessionTimebase: timebase,
+          sourceSampleRateHz: 48000,
+          captureDomainId: localSessionId,
+          evidenceSink: {
+            currentStepTarget: () => stepRuntimeRef.current?.currentTarget() ?? null,
+            onStepObservation: (obs) => handleStepObservation(obs),
+            onPerformanceEvidence: (evidences) => handlePerformanceEvidence(evidences),
+          },
+          onFatalError: (fatalError) => {
+            handleFatalInputError(fatalError.message);
+          },
+        });
         micControllerRef.current = micController;
-        try {
-          await micController.start();
-        } catch (startError) {
-          // If start failed (e.g. presigned URL expired), re-fetch access descriptor once and retry
-          try {
-            await micController.stop().catch(() => undefined);
-            const freshAccess = await modelAssetsApi.getByteDanceNoteModelAccess();
-            manifest = createByteDanceManifestFromAccess(freshAccess);
-            micController = buildMicController(manifest);
-            micControllerRef.current = micController;
-            await micController.start();
-          } catch {
-            throw startError;
-          }
-        }
+        await micController.start();
       } else {
         const midiController = new BrowserMidiController({
           timebase,
@@ -506,38 +481,15 @@ export function useLocalPractice({
 
     try {
       if (inputSource === 'MICROPHONE') {
-        if (!micControllerRef.current && timebaseRef.current) {
-          const manifest = createProductionByteDanceManifest();
-          micControllerRef.current = new BrowserMicrophoneCaptureController({
-            manifest,
-            sessionTimebase: timebaseRef.current,
-            sourceSampleRateHz: 48000,
-            captureDomainId: timebaseRef.current.domainId,
-            evidenceSink: {
-              currentStepTarget: () => stepRuntimeRef.current?.currentTarget() ?? null,
-              onStepObservation: (obs) => handleStepObservation(obs),
-              onPerformanceEvidence: (evidences) => handlePerformanceEvidence(evidences),
-            },
-            onFatalError: (fatalError) => {
-              handleFatalInputError(fatalError.message);
-            },
-          });
+        if (!micControllerRef.current) {
+          throw new Error('Microphone session lost. Please restart practice.');
         }
-        if (micControllerRef.current) {
-          await micControllerRef.current.start();
-        }
+        await micControllerRef.current.start();
       } else {
-        if (!midiControllerRef.current && timebaseRef.current) {
-          midiControllerRef.current = new BrowserMidiController({
-            timebase: timebaseRef.current,
-            getCurrentStepTarget: () => stepRuntimeRef.current?.currentTarget() ?? null,
-            onStepObservation: (obs) => handleStepObservation(obs),
-            onPerformanceObservation: (obs) => handlePerformanceEvidence([obs]),
-          });
+        if (!midiControllerRef.current) {
+          throw new Error('MIDI session lost. Please restart practice.');
         }
-        if (midiControllerRef.current) {
-          await midiControllerRef.current.start();
-        }
+        await midiControllerRef.current.start();
       }
 
       setInputState('RUNNING');

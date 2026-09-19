@@ -131,7 +131,8 @@ function apiResponse(data: unknown) {
 
 type SetupPracticeMocksOptions = {
   artifactOverride?: unknown;
-  modelUrlOverride?: string | null;
+  modelAccessOverride?: unknown;
+  disableOpfs?: boolean;
   initialMidiInputs?: number;
 };
 
@@ -147,18 +148,20 @@ async function setupPracticeMocks(
       : { artifactOverride: artifactOrOptions };
 
   const artifactOverride = options.artifactOverride;
-  const modelUrlOverride = options.modelUrlOverride;
   const initialMidiInputs = options.initialMidiInputs ?? 1;
+  const disableOpfs = Boolean(options.disableOpfs);
 
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
 
   // Install mock Web MIDI API and capability overrides
   await page.addInitScript(
-    ({ initInputs, modelUrl }) => {
-      if (modelUrl !== undefined) {
-        (window as unknown as { __BYTEDANCE_MODEL_URL_OVERRIDE: string | null }).__BYTEDANCE_MODEL_URL_OVERRIDE =
-          modelUrl;
+    ({ initInputs, disableOpfs }) => {
+      if (disableOpfs && typeof navigator !== 'undefined') {
+        Object.defineProperty(navigator, 'storage', {
+          value: undefined,
+          configurable: true,
+        });
       }
 
       const midiListeners = new Set<(event: { data: Uint8Array }) => void>();
@@ -231,7 +234,7 @@ async function setupPracticeMocks(
         }
       }
     },
-    { initInputs: initialMidiInputs, modelUrl: modelUrlOverride }
+    { initInputs: initialMidiInputs, disableOpfs }
   );
 
   // Mock Score Detail
@@ -290,6 +293,31 @@ async function setupPracticeMocks(
       body: apiResponse(artifactOverride ?? smokeArtifact),
     })
   );
+
+  // Mock ByteDance Model Asset Access
+  await page.route('**/api/v1/model-assets/bytedance-note/access', (route) => {
+    if (options.modelAccessOverride === 'error') {
+      return route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: false, error: { message: 'Model asset unavailable' } }),
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        schemaVersion: 1,
+        assetId: 'bytedance-piano-transcription-note-model',
+        assetVersion: 'CRNN_note_F1_0.9677_pedal_F1_0.9186',
+        expectedByteSize: 98_691_493,
+        sha256: '6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5',
+        mediaType: 'application/octet-stream',
+        downloadUrl: 'http://127.0.0.1:9/fake-model.onnx?x-oss-signature-version=OSS4-HMAC-SHA256',
+        downloadUrlExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      }),
+    });
+  });
 }
 
 test.describe('Browser-Local Practice E2E Smoke', () => {
@@ -297,6 +325,7 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     page,
   }) => {
     const disallowedRequests: string[] = [];
+    const modelAssetRequests: string[] = [];
     page.on('request', (request) => {
       const url = request.url();
       if (
@@ -305,6 +334,9 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
         request.resourceType() === 'websocket'
       ) {
         disallowedRequests.push(`${request.method()} ${url}`);
+      }
+      if (url.includes('/model-assets')) {
+        modelAssetRequests.push(`${request.method()} ${url}`);
       }
     });
 
@@ -368,8 +400,9 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     // Assert dialog opened
     await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
 
-    // Strict assertions: 0 /practice/sessions, 0 WebSockets
+    // Strict assertions: 0 /practice/sessions, 0 WebSockets, 0 /model-assets
     expect(disallowedRequests).toEqual([]);
+    expect(modelAssetRequests).toEqual([]);
   });
 
   test('CONTINUOUS MIDI: executes count-in and playhead advance browser-locally', async ({
@@ -785,20 +818,20 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
   });
 
-  test('START CAPABILITY GATING & MIDI RETRY: missing model URL disables mic, MIDI 0-device fails start, connecting device enables retry', async ({
+  test('START CAPABILITY GATING & MIDI RETRY: missing OPFS disables mic, MIDI 0-device fails start, connecting device enables retry', async ({
     page,
   }) => {
     await setupPracticeMocks(page, {
-      modelUrlOverride: '',
+      disableOpfs: true,
       initialMidiInputs: 0,
     });
 
     await page.goto(`/zh/score/${scoreId}/practice`);
 
-    // 1. Initial load with default MICROPHONE: model URL missing
+    // 1. Initial load with default MICROPHONE: OPFS missing -> storage unavailable
     const status = page.getByRole('status');
     await expect(status).toBeVisible();
-    await expect(status).toContainText('麦克风练习当前不可用：模型资源未配置');
+    await expect(status).toContainText('本地模型存储不可用');
 
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeDisabled();
@@ -844,6 +877,38 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(finishButton).toBeEnabled();
     await finishButton.click();
     await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+  });
+
+  test('MICROPHONE START: fetches fresh model-assets descriptor on Start with zero preload, handles descriptor failure', async ({
+    page,
+  }) => {
+    const modelAssetRequests: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/model-assets')) {
+        modelAssetRequests.push(`${request.method()} ${request.url()}`);
+      }
+    });
+
+    await setupPracticeMocks(page, { modelAccessOverride: 'error' });
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    // 1. Page load must NOT preload signed URL
+    await page.waitForTimeout(300);
+    expect(modelAssetRequests.length).toBe(0);
+
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeEnabled();
+
+    // 2. Click Start: dispatches fresh descriptor request
+    await startButton.click();
+    await page.waitForTimeout(300);
+    expect(modelAssetRequests.length).toBe(1);
+
+    // 3. Descriptor failed: inputState = ERROR, message visible, lifecycle stays READY
+    const status = page.getByRole('status');
+    await expect(status).toBeVisible();
+    await expect(status).toContainText('模型资源暂时不可用');
+    await expect(startButton).toBeEnabled();
   });
 });
 

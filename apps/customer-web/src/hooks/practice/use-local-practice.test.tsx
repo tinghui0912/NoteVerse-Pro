@@ -34,7 +34,22 @@ vi.mock('@/lib/practice/acoustic-inference/live-capture', () => {
 });
 
 vi.mock('@/lib/practice/acoustic-inference/bytedance-contract', () => ({
-  createProductionByteDanceManifest: vi.fn(() => ({})),
+  createByteDanceManifestFromAccess: vi.fn(() => ({})),
+}));
+
+vi.mock('@/lib/api', () => ({
+  modelAssetsApi: {
+    getByteDanceNoteModelAccess: vi.fn(async () => ({
+      schemaVersion: 1,
+      assetId: 'bytedance-piano-transcription-note-model',
+      assetVersion: 'CRNN_note_F1_0.9677_pedal_F1_0.9186',
+      expectedByteSize: 98_691_493,
+      sha256: '6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5',
+      mediaType: 'application/octet-stream',
+      downloadUrl: 'https://test-bucket/model.onnx',
+      downloadUrlExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+    })),
+  },
 }));
 
 vi.mock('@/lib/practice/midi/browser-midi-controller', () => {

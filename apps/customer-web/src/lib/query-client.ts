@@ -93,10 +93,6 @@ export const queryKeys = {
         savedPerformances: (scoreId: string) =>
             ['practice', 'saved-performances', { scoreId }] as const,
     },
-    modelAssets: {
-        all: ['model-assets'] as const,
-        bytedanceNoteAccess: () => ['model-assets', 'bytedance-note', 'access'] as const,
-    },
     storageUsage: {
         all: ['storage-usage'] as const,
         current: () => ['storage-usage', 'current'] as const,

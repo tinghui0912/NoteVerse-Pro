@@ -1,9 +1,12 @@
-"""Service for generating presigned model asset access descriptors."""
+"""Service for generating presigned model asset access descriptors using Alibaba Cloud OSS SDK V2."""
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+
+import alibabacloud_oss_v2 as oss
 
 from app.core.config import settings
 from app.modules.model_assets.schemas import ModelAssetAccessRead
@@ -18,6 +21,7 @@ class ModelAssetService:
         region: str | None = None,
         object_key: str | None = None,
         ttl_seconds: int | None = None,
+        client: oss.Client | None = None,
     ) -> None:
         self.bucket = bucket or settings.ALIYUN_OSS_MODEL_BUCKET
         self.region = region or settings.ALIYUN_OSS_MODEL_REGION
@@ -27,47 +31,47 @@ class ModelAssetService:
             if ttl_seconds is not None
             else settings.MODEL_ASSET_SIGNED_GET_TTL_SECONDS
         )
-        self._client = None
+        self._client = client
 
     @property
-    def client(self):
-        """Lazily initialize boto3 S3 client with virtual-host addressing."""
+    def client(self) -> oss.Client:
+        """Lazily initialize Alibaba Cloud OSS SDK V2 client with Signature V4."""
         if self._client is not None:
             return self._client
 
-        import boto3
-        from botocore.config import Config
+        ak = os.environ.get("OSS_ACCESS_KEY_ID") or settings.S3_ACCESS_KEY_ID
+        sk = os.environ.get("OSS_ACCESS_KEY_SECRET") or settings.S3_SECRET_ACCESS_KEY
 
-        endpoint_url = settings.S3_ENDPOINT_URL or f"https://oss-{self.region}.aliyuncs.com"
-        self._client = boto3.client(
-            "s3",
-            endpoint_url=endpoint_url,
-            region_name=self.region,
-            aws_access_key_id=settings.S3_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
-            config=Config(
-                signature_version="s3v4",
-                s3={"addressing_style": "virtual"},
-            ),
-        )
+        cfg = oss.config.load_default()
+        cfg.credentials_provider = oss.credentials.StaticCredentialsProvider(ak, sk)
+        cfg.region = self.region
+        self._client = oss.Client(cfg)
         return self._client
 
     def get_bytedance_note_model_access(self) -> ModelAssetAccessRead:
         """Generate short-lived presigned GET descriptor for the ByteDance ONNX note model."""
-        now = datetime.now(timezone.utc)
-        expires_at = (now + timedelta(seconds=self.ttl_seconds)).isoformat().replace("+00:00", "Z")
+        request = oss.models.GetObjectRequest(
+            bucket=self.bucket,
+            key=self.object_key,
+        )
 
-        download_url = self.client.generate_presigned_url(
-            ClientMethod="get_object",
-            Params={
-                "Bucket": self.bucket,
-                "Key": self.object_key,
-            },
-            ExpiresIn=self.ttl_seconds,
+        presign_result = self.client.presign(
+            request,
+            expires=timedelta(seconds=self.ttl_seconds),
+        )
+
+        expiration_dt = presign_result.expiration
+        if not isinstance(expiration_dt, datetime):
+            raise RuntimeError(f"Unexpected presign expiration type: {type(expiration_dt)}")
+
+        expires_at = (
+            expiration_dt.astimezone(timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z")
         )
 
         return ModelAssetAccessRead(
-            downloadUrl=download_url,
+            downloadUrl=presign_result.url,
             downloadUrlExpiresAt=expires_at,
         )
 

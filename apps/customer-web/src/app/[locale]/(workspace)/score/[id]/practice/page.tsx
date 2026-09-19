@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useScoreDetail } from '@/hooks/queries/use-score-queries';
 import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
 import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-artifact';
-import { useByteDanceModelAccess } from '@/hooks/practice/use-bytedance-model-access';
 import { useLocalPractice } from '@/hooks/practice/use-local-practice';
 import { ClientOnly } from '@/components/client-only';
 import { PracticeScoreViewer } from '@/components/practice/practice-score-viewer';
@@ -87,9 +86,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     canEnterPractice && Boolean(selectedRevisionId)
   );
   const artifact = artifactQuery.data ?? null;
-
-  // Model access query (validates backend authorization and presigned access for microphone practice)
-  const modelAccessQuery = useByteDanceModelAccess(canEnterPractice);
 
   // Range scope calculation from artifact
   const expectedGroups: readonly ExpectedPracticeGroup[] = useMemo(
@@ -244,13 +240,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     localPractice.lifecycle === 'ACTIVE' ||
     localPractice.lifecycle === 'PAUSED';
 
-  const inputCapabilities = useMemo(
-    () =>
-      evaluatePracticeInputCapabilities({
-        modelAccessAvailable: !modelAccessQuery.isError,
-      }),
-    [modelAccessQuery.isError]
-  );
+  const inputCapabilities = useMemo(() => evaluatePracticeInputCapabilities(), []);
   const selectedInputCapability = useMemo(
     () => getSelectedInputCapability(inputSource, inputCapabilities),
     [inputCapabilities, inputSource]
