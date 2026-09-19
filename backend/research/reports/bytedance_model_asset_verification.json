@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-09-19T03:35:32.639Z",
+  "modelUrl": "https://assets.noteverse.net/models/bytedance/bytedance_note_model_fixed_anchor.onnx",
+  "source": "local-http-streaming-server",
+  "expectedByteSize": 98691493,
+  "actualByteSize": 98691493,
+  "byteSizeMatches": true,
+  "expectedSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+  "actualSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+  "sha256Matches": true,
+  "durationMs": 760,
+  "status": "VERIFIED"
+}
