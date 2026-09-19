@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import type { LocalPracticeLifecycle } from '@/lib/practice/local-core/session';
 import type { TempoSegment } from '@/lib/practice/local-core/artifact';
 import type { PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
+import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { PracticeTempoPopover } from './practice-tempo-popover';
 
 interface PracticeControlsProps {
@@ -21,6 +22,7 @@ interface PracticeControlsProps {
   isLoading: boolean;
   isPreparingSession: boolean;
   canPrepareSession: boolean;
+  selectedInputCapability?: PracticeMicrophoneCapability | PracticeMidiCapability;
   audioWorkletSupported?: boolean;
   selectedInputSupported?: boolean;
   rangeSelectionActive: boolean;
@@ -45,6 +47,7 @@ export function PracticeControls({
   isLoading,
   isPreparingSession,
   canPrepareSession,
+  selectedInputCapability,
   audioWorkletSupported,
   selectedInputSupported,
   rangeSelectionActive,
@@ -66,13 +69,15 @@ export function PracticeControls({
   const t = useTranslations('practice');
   const isActive = lifecycle === 'ACTIVE' || lifecycle === 'PAUSED';
   const isPaused = lifecycle === 'PAUSED';
-  const isInputSupported = selectedInputSupported ?? audioWorkletSupported ?? true;
+  const isSelectedInputReady = selectedInputCapability
+    ? selectedInputCapability.status === 'READY'
+    : (selectedInputSupported ?? audioWorkletSupported ?? true);
   const canStart =
     (lifecycle === 'READY' || lifecycle === 'ENDED') &&
     canPrepareSession &&
     !isLoading &&
     !isPreparingSession &&
-    isInputSupported;
+    isSelectedInputReady;
   const actionButtonClass = 'h-11 w-32';
 
   return (

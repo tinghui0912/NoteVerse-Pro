@@ -192,4 +192,42 @@ describe('PracticeControls', () => {
     const disabledStartBtn = screen.getByRole('button', { name: /start/i });
     expect(disabledStartBtn).toBeDisabled();
   });
+
+  it('enforces selectedInputCapability for start gating', () => {
+    const { rerender } = renderControls(false, {
+      selectedInputCapability: {
+        supported: false,
+        status: 'MODEL_URL_NOT_CONFIGURED',
+        reason: 'MODEL_URL_NOT_CONFIGURED',
+      },
+    });
+
+    expect(screen.getByRole('button', { name: /start/i })).toBeDisabled();
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <PracticeControls
+          lifecycle="READY"
+          isLoading={false}
+          isPreparingSession={false}
+          canPrepareSession
+          selectedInputCapability={{
+            supported: true,
+            status: 'READY',
+          }}
+          rangeSelectionActive={false}
+          canSelectRange
+          onStart={vi.fn()}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onFinish={vi.fn()}
+          onOpenSettings={vi.fn()}
+          onToggleRangeSelection={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    );
+
+    expect(screen.getByRole('button', { name: /start/i })).toBeEnabled();
+  });
 });
+

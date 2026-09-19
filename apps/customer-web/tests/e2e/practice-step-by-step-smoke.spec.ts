@@ -129,70 +129,110 @@ function apiResponse(data: unknown) {
   return JSON.stringify({ success: true, data });
 }
 
-async function setupPracticeMocks(page: Page, artifactOverride?: unknown) {
+type SetupPracticeMocksOptions = {
+  artifactOverride?: unknown;
+  modelUrlOverride?: string | null;
+  initialMidiInputs?: number;
+};
+
+async function setupPracticeMocks(
+  page: Page,
+  artifactOrOptions?: unknown | SetupPracticeMocksOptions
+) {
+  const options: SetupPracticeMocksOptions =
+    artifactOrOptions &&
+    typeof artifactOrOptions === 'object' &&
+    !('schemaVersion' in (artifactOrOptions as object))
+      ? (artifactOrOptions as SetupPracticeMocksOptions)
+      : { artifactOverride: artifactOrOptions };
+
+  const artifactOverride = options.artifactOverride;
+  const modelUrlOverride = options.modelUrlOverride;
+  const initialMidiInputs = options.initialMidiInputs ?? 1;
+
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
 
-  // Install mock Web MIDI API
-  await page.addInitScript(() => {
-    const midiListeners = new Set<(event: { data: Uint8Array }) => void>();
-    (window as unknown as { __emitMidiNote: (note: number, velocity: number) => void }).__emitMidiNote = (
-      note: number,
-      velocity: number
-    ) => {
-      const data = new Uint8Array([velocity > 0 ? 0x90 : 0x80, note, velocity]);
-      for (const listener of midiListeners) {
-        listener({ data });
+  // Install mock Web MIDI API and capability overrides
+  await page.addInitScript(
+    ({ initInputs, modelUrl }) => {
+      if (modelUrl !== undefined) {
+        (window as unknown as { __BYTEDANCE_MODEL_URL_OVERRIDE: string | null }).__BYTEDANCE_MODEL_URL_OVERRIDE =
+          modelUrl;
       }
-    };
 
-    const fakeInput = {
-      id: 'mock-midi-in-1',
-      name: 'Mock MIDI Keyboard',
-      manufacturer: 'Test',
-      state: 'connected',
-      connection: 'open',
-      addEventListener: (_type: string, handler: (event: { data: Uint8Array }) => void) => {
-        midiListeners.add(handler);
-      },
-      removeEventListener: (_type: string, handler: (event: { data: Uint8Array }) => void) => {
-        midiListeners.delete(handler);
-      },
-      set onmidimessage(handler: ((event: { data: Uint8Array }) => void) | null) {
-        if (handler) {
-          midiListeners.add(handler);
+      const midiListeners = new Set<(event: { data: Uint8Array }) => void>();
+      (window as unknown as { __emitMidiNote: (note: number, velocity: number) => void }).__emitMidiNote = (
+        note: number,
+        velocity: number
+      ) => {
+        const data = new Uint8Array([velocity > 0 ? 0x90 : 0x80, note, velocity]);
+        for (const listener of midiListeners) {
+          listener({ data });
         }
-      },
-    };
+      };
 
-    const mockAccess = {
-      inputs: new Map([['mock-midi-in-1', fakeInput]]),
-      outputs: new Map(),
-      onstatechange: null,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    };
+      const fakeInput = {
+        id: 'mock-midi-in-1',
+        name: 'Mock MIDI Keyboard',
+        manufacturer: 'Test',
+        state: 'connected',
+        connection: 'open',
+        addEventListener: (_type: string, handler: (event: { data: Uint8Array }) => void) => {
+          midiListeners.add(handler);
+        },
+        removeEventListener: (_type: string, handler: (event: { data: Uint8Array }) => void) => {
+          midiListeners.delete(handler);
+        },
+        set onmidimessage(handler: ((event: { data: Uint8Array }) => void) | null) {
+          if (handler) {
+            midiListeners.add(handler);
+          }
+        },
+      };
 
-    (navigator as unknown as { requestMIDIAccess: () => Promise<unknown> }).requestMIDIAccess = async () =>
-      mockAccess;
+      const inputsMap = new Map();
+      if (initInputs > 0) {
+        inputsMap.set('mock-midi-in-1', fakeInput);
+      }
 
-    // Ensure AudioWorklet capability exists in headless browser
-    if (typeof window !== 'undefined') {
-      if (!window.AudioContext && !(window as unknown as { webkitAudioContext?: unknown }).webkitAudioContext) {
-        (window as unknown as { AudioContext: unknown }).AudioContext = class MockAudioContext {};
+      const mockAccess = {
+        inputs: inputsMap,
+        outputs: new Map(),
+        onstatechange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      };
+
+      (window as unknown as { __connectMockMidiDevice: () => void }).__connectMockMidiDevice = () => {
+        inputsMap.set('mock-midi-in-1', fakeInput);
+        if (typeof mockAccess.onstatechange === 'function') {
+          (mockAccess.onstatechange as (e: unknown) => void)({ port: fakeInput });
+        }
+      };
+
+      (navigator as unknown as { requestMIDIAccess: () => Promise<unknown> }).requestMIDIAccess = async () =>
+        mockAccess;
+
+      // Ensure AudioWorklet capability exists in headless browser
+      if (typeof window !== 'undefined') {
+        if (!window.AudioContext && !(window as unknown as { webkitAudioContext?: unknown }).webkitAudioContext) {
+          (window as unknown as { AudioContext: unknown }).AudioContext = class MockAudioContext {};
+        }
+        if (typeof AudioWorkletNode === 'undefined') {
+          (window as unknown as { AudioWorkletNode: unknown }).AudioWorkletNode = class MockAudioWorkletNode {};
+        }
+        if (!navigator.mediaDevices) {
+          (navigator as unknown as { mediaDevices: unknown }).mediaDevices = {
+            getUserMedia: async () => ({}),
+          };
+        } else if (!navigator.mediaDevices.getUserMedia) {
+          navigator.mediaDevices.getUserMedia = async () => ({}) as unknown as MediaStream;
+        }
       }
-      if (typeof AudioWorkletNode === 'undefined') {
-        (window as unknown as { AudioWorkletNode: unknown }).AudioWorkletNode = class MockAudioWorkletNode {};
-      }
-      if (!navigator.mediaDevices) {
-        (navigator as unknown as { mediaDevices: unknown }).mediaDevices = {
-          getUserMedia: async () => ({}),
-        };
-      } else if (!navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia = async () => ({}) as unknown as MediaStream;
-      }
-    }
-  });
+    },
+    { initInputs: initialMidiInputs, modelUrl: modelUrlOverride }
+  );
 
   // Mock Score Detail
   await page.route(`**/api/v1/scores/${scoreId}`, (route) =>
@@ -737,6 +777,67 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await tempoButton.click();
     await expect(page.getByText('练习进行中速度已锁定')).toBeVisible();
     await page.keyboard.press('Escape');
+
+    // Finish session cleanly
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+    await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+  });
+
+  test('START CAPABILITY GATING & MIDI RETRY: missing model URL disables mic, MIDI 0-device fails start, connecting device enables retry', async ({
+    page,
+  }) => {
+    await setupPracticeMocks(page, {
+      modelUrlOverride: '',
+      initialMidiInputs: 0,
+    });
+
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    // 1. Initial load with default MICROPHONE: model URL missing
+    const status = page.getByRole('status');
+    await expect(status).toBeVisible();
+    await expect(status).toContainText('麦克风练习当前不可用：模型资源未配置');
+
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeDisabled();
+
+    // 2. Open Settings, switch to MIDI
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await settingsButton.click();
+    const midiOption = page.getByRole('button', { name: /MIDI/i }).first();
+    await midiOption.click();
+
+    // Close Settings Sheet
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    if (await sheetClose.isVisible()) {
+      await sheetClose.click();
+    } else {
+      await page.keyboard.press('Escape');
+    }
+
+    // 3. MIDI selected: Start button is enabled (since Web MIDI is supported in browser)
+    await expect(startButton).toBeEnabled();
+
+    // Click Start: fails because 0 devices connected
+    await startButton.click();
+
+    // Practice does NOT enter ACTIVE, stays READY, displays 0-device error
+    await expect(status).toContainText('未检测到 MIDI 输入设备，请连接 MIDI 键盘后重试');
+    await expect(status).not.toContainText('可以开始，请弹奏当前音符');
+
+    // 4. User plugs in MIDI keyboard
+    await page.evaluate(() => {
+      (window as unknown as { __connectMockMidiDevice: () => void }).__connectMockMidiDevice();
+    });
+
+    // Re-click Start to retry
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+
+    // Practice becomes ACTIVE
+    await expect(status).toContainText('可以开始，请弹奏当前音符');
 
     // Finish session cleanly
     const finishButton = page.getByRole('button', { name: '结束', exact: true });

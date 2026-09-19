@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-core/artifact';
 import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/performance-runtime';
 import type { LocalPracticeLifecycle, LocalPracticeInputState } from '@/lib/practice/local-core/session';
+import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 
 type PracticeStatusMessageKey =
   | 'preparingPractice'
@@ -20,7 +21,11 @@ type PracticeStatusMessageKey =
   | 'settingStatusPaused'
   | 'settingStatusReady'
   | 'micStartFailed'
-  | 'midiStartFailed';
+  | 'midiStartFailed'
+  | 'micModelNotConfigured'
+  | 'micBrowserUnsupported'
+  | 'midiBrowserUnsupported'
+  | 'midiNoConnectedInput';
 
 export type PracticeSessionStatusView = {
   messageKey?: PracticeStatusMessageKey;
@@ -36,6 +41,7 @@ export type PracticeSessionStatusProps = {
   inputState?: LocalPracticeInputState;
   inputError?: string | null;
   inputSource?: PracticeInputSource;
+  selectedInputCapability?: PracticeMicrophoneCapability | PracticeMidiCapability;
   rangePrompt?: string | null;
   isLoading?: boolean;
   sessionMode: PracticeMode;
@@ -54,6 +60,7 @@ export function resolvePracticeSessionStatusView({
   inputState = 'IDLE',
   inputError = null,
   inputSource = 'MICROPHONE',
+  selectedInputCapability,
   rangePrompt = null,
   sessionMode,
   performanceClock,
@@ -62,11 +69,20 @@ export function resolvePracticeSessionStatusView({
   inputState?: LocalPracticeInputState;
   inputError?: string | null;
   inputSource?: PracticeInputSource;
+  selectedInputCapability?: PracticeMicrophoneCapability | PracticeMidiCapability;
   rangePrompt?: string | null;
   sessionMode: PracticeMode;
   performanceClock?: PerformanceClockSnapshot | null;
 }): PracticeSessionStatusView {
   if (inputState === 'ERROR') {
+    if (inputError === 'NO_CONNECTED_INPUT') {
+      return {
+        messageKey: 'midiNoConnectedInput',
+        isError: true,
+        pending: false,
+        countInPulse: null,
+      };
+    }
     return {
       messageKey: inputSource === 'MIDI' ? 'midiStartFailed' : 'micStartFailed',
       customMessage: inputError ?? undefined,
@@ -99,6 +115,32 @@ export function resolvePracticeSessionStatusView({
         pending: false,
         countInPulse: null,
       };
+    }
+    if (selectedInputCapability && selectedInputCapability.status !== 'READY') {
+      if (selectedInputCapability.status === 'MODEL_URL_NOT_CONFIGURED') {
+        return {
+          messageKey: 'micModelNotConfigured',
+          isError: true,
+          pending: false,
+          countInPulse: null,
+        };
+      }
+      if (selectedInputCapability.status === 'BROWSER_UNSUPPORTED') {
+        return {
+          messageKey: inputSource === 'MIDI' ? 'midiBrowserUnsupported' : 'micBrowserUnsupported',
+          isError: true,
+          pending: false,
+          countInPulse: null,
+        };
+      }
+      if (selectedInputCapability.status === 'NO_CONNECTED_INPUT') {
+        return {
+          messageKey: 'midiNoConnectedInput',
+          isError: true,
+          pending: false,
+          countInPulse: null,
+        };
+      }
     }
     return {
       messageKey: 'settingStatusReady',
@@ -136,6 +178,7 @@ export function PracticeSessionStatus({
   inputState = 'IDLE',
   inputError = null,
   inputSource = 'MICROPHONE',
+  selectedInputCapability,
   rangePrompt = null,
   sessionMode,
   practiceTime,
@@ -149,11 +192,21 @@ export function PracticeSessionStatus({
         inputState,
         inputError,
         inputSource,
+        selectedInputCapability,
         rangePrompt,
         sessionMode,
         performanceClock,
       }),
-    [inputError, inputSource, inputState, lifecycle, performanceClock, rangePrompt, sessionMode]
+    [
+      inputError,
+      inputSource,
+      inputState,
+      lifecycle,
+      performanceClock,
+      rangePrompt,
+      selectedInputCapability,
+      sessionMode,
+    ]
   );
 
   const isRecording = lifecycle === 'ACTIVE' || lifecycle === 'PAUSED';
@@ -162,10 +215,19 @@ export function PracticeSessionStatus({
   if (resolvedView.countInPulse !== null) {
     messageText = t('performanceCountIn', { pulse: resolvedView.countInPulse });
   } else if (resolvedView.isError) {
-    const baseError = resolvedView.messageKey ? t(resolvedView.messageKey) : '';
-    messageText = resolvedView.customMessage
-      ? `${baseError}: ${resolvedView.customMessage}`
-      : baseError;
+    if (
+      resolvedView.messageKey === 'midiNoConnectedInput' ||
+      resolvedView.messageKey === 'micModelNotConfigured' ||
+      resolvedView.messageKey === 'micBrowserUnsupported' ||
+      resolvedView.messageKey === 'midiBrowserUnsupported'
+    ) {
+      messageText = t(resolvedView.messageKey);
+    } else {
+      const baseError = resolvedView.messageKey ? t(resolvedView.messageKey) : '';
+      messageText = resolvedView.customMessage
+        ? `${baseError}: ${resolvedView.customMessage}`
+        : baseError;
+    }
   } else if (resolvedView.customMessage) {
     messageText = resolvedView.customMessage;
   } else if (resolvedView.messageKey) {

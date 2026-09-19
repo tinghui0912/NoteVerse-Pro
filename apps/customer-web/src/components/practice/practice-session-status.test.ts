@@ -142,6 +142,96 @@ describe('resolvePracticeSessionStatusView', () => {
       pending: false,
     });
   });
+
+  it('maps NO_CONNECTED_INPUT error directly to midiNoConnectedInput', () => {
+    expect(
+      resolvePracticeSessionStatusView({
+        lifecycle: 'READY',
+        inputState: 'ERROR',
+        inputError: 'NO_CONNECTED_INPUT',
+        inputSource: 'MIDI',
+        sessionMode: 'STEP_BY_STEP',
+      })
+    ).toMatchObject({
+      messageKey: 'midiNoConnectedInput',
+      isError: true,
+      pending: false,
+    });
+  });
+
+  it('displays capability unavailability reasons before practice starts', () => {
+    // Model URL missing
+    expect(
+      resolvePracticeSessionStatusView({
+        lifecycle: 'READY',
+        inputState: 'IDLE',
+        inputSource: 'MICROPHONE',
+        selectedInputCapability: {
+          supported: false,
+          status: 'MODEL_URL_NOT_CONFIGURED',
+          reason: 'MODEL_URL_NOT_CONFIGURED',
+        },
+        sessionMode: 'STEP_BY_STEP',
+      })
+    ).toMatchObject({
+      messageKey: 'micModelNotConfigured',
+      isError: true,
+    });
+
+    // Mic browser unsupported
+    expect(
+      resolvePracticeSessionStatusView({
+        lifecycle: 'READY',
+        inputState: 'IDLE',
+        inputSource: 'MICROPHONE',
+        selectedInputCapability: {
+          supported: false,
+          status: 'BROWSER_UNSUPPORTED',
+          reason: 'BROWSER_UNSUPPORTED',
+        },
+        sessionMode: 'STEP_BY_STEP',
+      })
+    ).toMatchObject({
+      messageKey: 'micBrowserUnsupported',
+      isError: true,
+    });
+
+    // MIDI browser unsupported
+    expect(
+      resolvePracticeSessionStatusView({
+        lifecycle: 'READY',
+        inputState: 'IDLE',
+        inputSource: 'MIDI',
+        selectedInputCapability: {
+          supported: false,
+          status: 'BROWSER_UNSUPPORTED',
+          reason: 'BROWSER_UNSUPPORTED',
+        },
+        sessionMode: 'STEP_BY_STEP',
+      })
+    ).toMatchObject({
+      messageKey: 'midiBrowserUnsupported',
+      isError: true,
+    });
+
+    // MIDI no connected input
+    expect(
+      resolvePracticeSessionStatusView({
+        lifecycle: 'READY',
+        inputState: 'IDLE',
+        inputSource: 'MIDI',
+        selectedInputCapability: {
+          supported: false,
+          status: 'NO_CONNECTED_INPUT',
+          reason: 'NO_CONNECTED_INPUT',
+        },
+        sessionMode: 'STEP_BY_STEP',
+      })
+    ).toMatchObject({
+      messageKey: 'midiNoConnectedInput',
+      isError: true,
+    });
+  });
 });
 
 describe('PracticeSessionStatus rendering', () => {
@@ -186,5 +276,58 @@ describe('PracticeSessionStatus rendering', () => {
 
     expect(screen.getByText(/Failed to start microphone: Device disconnected/)).toBeTruthy();
   });
+
+  it('renders model not configured message before start when capability is unavailable', () => {
+    render(
+      createElement(
+        IntlProvider,
+        {
+          locale: 'en',
+          messages: { practice: practiceMessages },
+        },
+        createElement(PracticeSessionStatus, {
+          lifecycle: 'READY',
+          inputState: 'IDLE',
+          inputSource: 'MICROPHONE',
+          selectedInputCapability: {
+            supported: false,
+            status: 'MODEL_URL_NOT_CONFIGURED',
+            reason: 'MODEL_URL_NOT_CONFIGURED',
+          },
+          sessionMode: 'STEP_BY_STEP',
+          practiceTime: 0,
+        })
+      )
+    );
+
+    expect(
+      screen.getByText('Microphone practice currently unavailable: Model asset not configured')
+    ).toBeTruthy();
+  });
+
+  it('renders no connected input message on NO_CONNECTED_INPUT error', () => {
+    render(
+      createElement(
+        IntlProvider,
+        {
+          locale: 'en',
+          messages: { practice: practiceMessages },
+        },
+        createElement(PracticeSessionStatus, {
+          lifecycle: 'READY',
+          inputState: 'ERROR',
+          inputError: 'NO_CONNECTED_INPUT',
+          inputSource: 'MIDI',
+          sessionMode: 'STEP_BY_STEP',
+          practiceTime: 0,
+        })
+      )
+    );
+
+    expect(
+      screen.getByText('No MIDI input devices detected. Please connect a MIDI keyboard and retry.')
+    ).toBeTruthy();
+  });
 });
+
 

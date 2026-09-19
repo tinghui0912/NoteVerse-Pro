@@ -7,6 +7,7 @@ import {
   selectPracticeRangeTarget,
   selectedPracticeRangeSelection,
   targetForRenderNoteId,
+  transitionPracticeRangeSelection,
 } from './range-selection';
 
 const groups: ExpectedPracticeGroup[] = [
@@ -151,4 +152,46 @@ describe('practice range selection', () => {
       )
     ).toBeNull();
   });
+
+  it('handles two-stage transitionPracticeRangeSelection and reports completion', () => {
+    // Step 1: from FULL_PIECE to first click
+    const step1 = transitionPracticeRangeSelection(
+      fullPiecePracticeRangeSelection,
+      groups,
+      'g1'
+    );
+    expect(step1.completed).toBe(false);
+    expect(step1.nextSelection).toEqual({
+      kind: 'SELECTED_RANGE',
+      startGroupId: 'g1',
+      endGroupId: null,
+    });
+
+    // Step 2: from first note to second note -> completed
+    const step2 = transitionPracticeRangeSelection(
+      step1.nextSelection,
+      groups,
+      'g3'
+    );
+    expect(step2.completed).toBe(true);
+    expect(step2.nextSelection).toEqual({
+      kind: 'SELECTED_RANGE',
+      startGroupId: 'g1',
+      endGroupId: 'g3',
+    });
+
+    // Step 3: clicking again when already completed resets to new start note
+    const step3 = transitionPracticeRangeSelection(
+      step2.nextSelection,
+      groups,
+      'g2'
+    );
+    expect(step3.completed).toBe(false);
+    expect(step3.nextSelection).toEqual({
+      kind: 'SELECTED_RANGE',
+      startGroupId: 'g2',
+      endGroupId: null,
+    });
+  });
 });
+

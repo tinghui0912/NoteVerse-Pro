@@ -115,4 +115,62 @@ describe('PracticeSettingsPanel', () => {
     expect(screen.queryByLabelText(/BPM Slider/i)).toBeNull();
     expect(screen.queryByText(/^Metronome$/i)).toBeNull();
   });
+
+  it('displays model not configured status when microphoneCapability has MODEL_URL_NOT_CONFIGURED', () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <PracticeSettingsPanel
+          microphoneCapability={{
+            supported: false,
+            status: 'MODEL_URL_NOT_CONFIGURED',
+            reason: 'MODEL_URL_NOT_CONFIGURED',
+          }}
+          midiCapability={{
+            supported: true,
+            status: 'READY',
+          }}
+          practiceMode="STEP_BY_STEP"
+          practiceModeLocked={false}
+          inputSource="MICROPHONE"
+          microphoneInputLocked={false}
+          midiInputLocked={false}
+          onPracticeModeChange={vi.fn()}
+          onInputSourceChange={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    );
+
+    expect(
+      screen.getByText('Microphone practice currently unavailable: Model asset not configured')
+    ).toBeVisible();
+  });
+
+  it('disables MIDI button when midiCapability is BROWSER_UNSUPPORTED', () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <PracticeSettingsPanel
+          microphoneCapability={{
+            supported: true,
+            status: 'READY',
+          }}
+          midiCapability={{
+            supported: false,
+            status: 'BROWSER_UNSUPPORTED',
+            reason: 'BROWSER_UNSUPPORTED',
+          }}
+          practiceMode="STEP_BY_STEP"
+          practiceModeLocked={false}
+          inputSource="MICROPHONE"
+          microphoneInputLocked={false}
+          midiInputLocked={false}
+          onPracticeModeChange={vi.fn()}
+          onInputSourceChange={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    );
+
+    expect(screen.getByRole('button', { name: /midi keyboard/i })).toBeDisabled();
+    expect(screen.getByText('Unavailable in this browser')).toBeVisible();
+  });
 });
+

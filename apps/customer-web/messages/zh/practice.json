@@ -159,6 +159,9 @@
   "micStartFailed": "无法启动麦克风",
   "midiStartFailed": "无法启动 MIDI",
   "micModelNotConfigured": "麦克风练习当前不可用：模型资源未配置",
+  "micBrowserUnsupported": "当前浏览器不支持麦克风练习所需功能",
+  "midiBrowserUnsupported": "当前浏览器不支持 Web MIDI",
+  "midiNoConnectedInput": "未检测到 MIDI 输入设备，请连接 MIDI 键盘后重试",
   "sectionSelectingStart": "请选择起始音符",
   "sectionSelectingEnd": "请选择结束音符",
   "sectionSelectedRange": "已选择范围：第 {range} 小节"

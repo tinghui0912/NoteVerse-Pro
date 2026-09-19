@@ -68,6 +68,26 @@ export function selectPracticeRangeTarget(
   return selectedPracticeRangeSelection(start.groupId, end.groupId);
 }
 
+export function transitionPracticeRangeSelection(
+  current: PracticeRangeSelection,
+  expectedGroups: readonly ExpectedPracticeGroup[],
+  targetGroupId: string
+): { nextSelection: PracticeRangeSelection; completed: boolean } {
+  const baseSelection =
+    current.kind === 'SELECTED_RANGE' && current.startGroupId && current.endGroupId
+      ? selectedPracticeRangeSelection()
+      : current;
+  const nextSelection = selectPracticeRangeTarget(
+    baseSelection,
+    expectedGroups,
+    targetGroupId
+  );
+  const completed =
+    nextSelection.kind === 'SELECTED_RANGE' &&
+    Boolean(nextSelection.startGroupId && nextSelection.endGroupId);
+  return { nextSelection, completed };
+}
+
 export function practiceScopeFromRangeSelection(
   selection: PracticeRangeSelection,
   groups: readonly ExpectedPracticeGroup[]

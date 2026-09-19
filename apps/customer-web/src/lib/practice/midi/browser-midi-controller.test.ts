@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { PracticeTimebase } from '../local-core/timebase';
 import {
   BrowserMidiController,
+  MidiNoConnectedInputError,
   midiNoteToPitch,
   parseMidiMessage,
 } from './browser-midi-controller';
@@ -86,5 +87,73 @@ describe('browser MIDI controller', () => {
     });
 
     vi.useRealTimers();
+  });
+
+  it('throws MidiNoConnectedInputError when 0 connected MIDI devices are detected', async () => {
+    const timebase = new PracticeTimebase({ domainId: 'midi-session' });
+    const controller = new BrowserMidiController({ timebase });
+
+    const mockAccess = {
+      inputs: new Map(),
+      onstatechange: null,
+    };
+
+    const originalNavigator = globalThis.navigator;
+    Object.defineProperty(globalThis, 'navigator', {
+      value: {
+        requestMIDIAccess: async () => mockAccess,
+      },
+      configurable: true,
+    });
+
+    try {
+      await expect(controller.start()).rejects.toThrow(MidiNoConnectedInputError);
+      expect(controller.getState().isRunning).toBe(false);
+      expect(controller.getState().connectedInputCount).toBe(0);
+      expect(controller.getState().hasPermission).toBe(true);
+    } finally {
+      Object.defineProperty(globalThis, 'navigator', {
+        value: originalNavigator,
+        configurable: true,
+      });
+    }
+  });
+
+  it('starts successfully when at least 1 connected MIDI device is detected', async () => {
+    const timebase = new PracticeTimebase({ domainId: 'midi-session' });
+    const controller = new BrowserMidiController({ timebase });
+
+    const fakeInput = {
+      id: 'input-1',
+      name: 'MIDI Keyboard',
+      state: 'connected',
+      onmidimessage: null,
+    };
+
+    const mockAccess = {
+      inputs: new Map([['input-1', fakeInput]]),
+      onstatechange: null,
+    };
+
+    const originalNavigator = globalThis.navigator;
+    Object.defineProperty(globalThis, 'navigator', {
+      value: {
+        requestMIDIAccess: async () => mockAccess,
+      },
+      configurable: true,
+    });
+
+    try {
+      await controller.start();
+      expect(controller.getState().isRunning).toBe(true);
+      expect(controller.getState().connectedInputCount).toBe(1);
+      expect(controller.getState().hasPermission).toBe(true);
+    } finally {
+      controller.stop();
+      Object.defineProperty(globalThis, 'navigator', {
+        value: originalNavigator,
+        configurable: true,
+      });
+    }
   });
 });

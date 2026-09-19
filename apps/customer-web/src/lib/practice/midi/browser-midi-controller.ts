@@ -77,6 +77,14 @@ type NavigatorWithMidi = Navigator & {
   requestMIDIAccess?: (options?: { sysex?: boolean }) => Promise<MIDIAccess>;
 };
 
+export class MidiNoConnectedInputError extends Error {
+  readonly code = 'NO_CONNECTED_INPUT' as const;
+  constructor(message = 'NO_CONNECTED_INPUT') {
+    super(message);
+    this.name = 'MidiNoConnectedInputError';
+  }
+}
+
 export class BrowserMidiController {
   private readonly timebase: PracticeTimebase;
   private getCurrentStepTarget?: () => StepVerifierTarget | null;
@@ -145,20 +153,29 @@ export class BrowserMidiController {
       throw new Error('Web MIDI is not supported in this browser environment.');
     }
 
+    let access: MIDIAccess;
     try {
-      const access = await requestMIDIAccess.call(navigator, { sysex: false });
+      access = await requestMIDIAccess.call(navigator, { sysex: false });
       this.midiAccess = access;
       this.hasPermission = true;
-      this.isRunning = true;
-      this.bindAccess(access);
-      this.syncInputs(access);
-      this.notifyState();
     } catch (err) {
       this.hasPermission = false;
       this.isRunning = false;
       this.notifyState();
       throw err;
     }
+
+    this.bindAccess(access);
+    this.syncInputs(access);
+
+    if (this.connectedInputCount === 0) {
+      this.isRunning = false;
+      this.notifyState();
+      throw new MidiNoConnectedInputError('NO_CONNECTED_INPUT');
+    }
+
+    this.isRunning = true;
+    this.notifyState();
   }
 
   stop(): void {

@@ -10,13 +10,19 @@ import type {
   PracticeInputSource,
   PracticeMode,
 } from '@/lib/practice/local-core/artifact';
+import type {
+  PracticeMicrophoneCapability,
+  PracticeMidiCapability,
+} from '@/lib/practice/input-capability';
 
 type PracticeSettingsPanelProps = {
   className?: string;
   inputState?: LocalPracticeInputState;
   hasMicPermission?: boolean | null;
-  audioWorkletSupported: boolean;
-  midiSupported: boolean;
+  microphoneCapability?: PracticeMicrophoneCapability;
+  midiCapability?: PracticeMidiCapability;
+  audioWorkletSupported?: boolean;
+  midiSupported?: boolean;
   hasMidiPermission?: boolean | null;
   hasMidiInput?: boolean | null;
   practiceMode: PracticeMode;
@@ -32,6 +38,8 @@ export function PracticeSettingsPanel({
   className,
   inputState = 'IDLE',
   hasMicPermission = null,
+  microphoneCapability,
+  midiCapability,
   audioWorkletSupported,
   midiSupported,
   hasMidiPermission = null,
@@ -45,22 +53,43 @@ export function PracticeSettingsPanel({
   onInputSourceChange,
 }: PracticeSettingsPanelProps) {
   const t = useTranslations('practice');
-  const microphoneState = !audioWorkletSupported
-    ? t('settingMicrophoneUnsupported')
-    : hasMicPermission === false
-      ? t('settingMicrophoneNeedsPermission')
-      : inputState === 'RUNNING' && inputSource === 'MICROPHONE'
-        ? t('settingMicrophoneConnected')
-        : t('settingMicrophoneBrowser');
-  const midiState = !midiSupported
-    ? t('settingMidiUnsupported')
-    : hasMidiPermission === false
-      ? t('settingMidiNeedsPermission')
-      : hasMidiInput === false
-        ? t('settingMidiNoInput')
-        : inputState === 'RUNNING' && inputSource === 'MIDI'
-          ? t('settingMidiConnected')
-          : t('settingMidiBrowser');
+  const microphoneState = microphoneCapability
+    ? microphoneCapability.status === 'MODEL_URL_NOT_CONFIGURED'
+      ? t('micModelNotConfigured')
+      : microphoneCapability.status === 'BROWSER_UNSUPPORTED'
+        ? t('settingMicrophoneUnsupported')
+        : hasMicPermission === false
+          ? t('settingMicrophoneNeedsPermission')
+          : inputState === 'RUNNING' && inputSource === 'MICROPHONE'
+            ? t('settingMicrophoneConnected')
+            : t('settingMicrophoneBrowser')
+    : audioWorkletSupported === false
+      ? t('settingMicrophoneUnsupported')
+      : hasMicPermission === false
+        ? t('settingMicrophoneNeedsPermission')
+        : inputState === 'RUNNING' && inputSource === 'MICROPHONE'
+          ? t('settingMicrophoneConnected')
+          : t('settingMicrophoneBrowser');
+
+  const midiState = midiCapability
+    ? midiCapability.status === 'BROWSER_UNSUPPORTED'
+      ? t('settingMidiUnsupported')
+      : hasMidiPermission === false
+        ? t('settingMidiNeedsPermission')
+        : midiCapability.status === 'NO_CONNECTED_INPUT' || hasMidiInput === false
+          ? t('settingMidiNoInput')
+          : inputState === 'RUNNING' && inputSource === 'MIDI'
+            ? t('settingMidiConnected')
+            : t('settingMidiBrowser')
+    : midiSupported === false
+      ? t('settingMidiUnsupported')
+      : hasMidiPermission === false
+        ? t('settingMidiNeedsPermission')
+        : hasMidiInput === false
+          ? t('settingMidiNoInput')
+          : inputState === 'RUNNING' && inputSource === 'MIDI'
+            ? t('settingMidiConnected')
+            : t('settingMidiBrowser');
 
   return (
     <aside className={cn('overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm', className)}>
@@ -154,7 +183,7 @@ export function PracticeSettingsPanel({
                   ? 'border-emerald-200 bg-emerald-50 text-slate-950'
                   : 'border-slate-200 hover:bg-slate-50'
               )}
-              disabled={midiInputLocked || !midiSupported}
+              disabled={midiInputLocked || (midiCapability ? midiCapability.status === 'BROWSER_UNSUPPORTED' : midiSupported === false)}
               onClick={() => onInputSourceChange('MIDI')}
               aria-pressed={inputSource === 'MIDI'}
             >

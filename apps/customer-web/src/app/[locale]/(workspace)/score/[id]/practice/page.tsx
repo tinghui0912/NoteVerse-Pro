@@ -30,16 +30,16 @@ import {
 import type { PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
 import {
   evaluatePracticeInputCapabilities,
-  isInputSourceSupported,
+  getSelectedInputCapability,
 } from '@/lib/practice/input-capability';
 import {
   fullPiecePracticeRangeSelection,
   groupById,
   practiceGroupsInRangeSelection,
   practiceScopeFromRangeSelection,
-  selectPracticeRangeTarget,
   selectedPracticeRangeSelection,
   targetForRenderNoteId,
+  transitionPracticeRangeSelection,
   type PracticeRangeSelection,
 } from '@/lib/practice/range-selection';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
@@ -199,27 +199,17 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       if (!targetGroup) {
         return;
       }
-      setRangeSelection((current) => {
-        const baseSelection =
-          current.kind === 'SELECTED_RANGE' && current.startGroupId && current.endGroupId
-            ? selectedPracticeRangeSelection()
-            : current;
-        const nextSelection = selectPracticeRangeTarget(
-          baseSelection,
-          expectedGroups,
-          targetGroup.groupId
-        );
-        if (
-          nextSelection.kind === 'SELECTED_RANGE' &&
-          nextSelection.startGroupId &&
-          nextSelection.endGroupId
-        ) {
-          setIsRangeSelectionMode(false);
-        }
-        return nextSelection;
-      });
+      const { nextSelection, completed } = transitionPracticeRangeSelection(
+        rangeSelection,
+        expectedGroups,
+        targetGroup.groupId
+      );
+      setRangeSelection(nextSelection);
+      if (completed) {
+        setIsRangeSelectionMode(false);
+      }
     },
-    [expectedGroups, isRangeSelectionMode]
+    [expectedGroups, isRangeSelectionMode, rangeSelection]
   );
 
   const handleRestart = async () => {
@@ -251,9 +241,10 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     localPractice.lifecycle === 'PAUSED';
 
   const inputCapabilities = useMemo(() => evaluatePracticeInputCapabilities(), []);
-  const selectedInputSupported = isInputSourceSupported(inputSource, inputCapabilities);
-  const audioWorkletSupported = inputCapabilities.microphone.supported;
-  const midiSupported = inputCapabilities.midi.supported;
+  const selectedInputCapability = useMemo(
+    () => getSelectedInputCapability(inputSource, inputCapabilities),
+    [inputCapabilities, inputSource]
+  );
 
   const rangeSelectionPrompt = useMemo(() => {
     if (!isRangeSelectionMode) {
@@ -289,7 +280,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       isLoading={isLoadingXml}
       isPreparingSession={localPractice.inputState === 'STARTING'}
       canPrepareSession={canPreparePractice}
-      selectedInputSupported={selectedInputSupported}
+      selectedInputCapability={selectedInputCapability}
+      selectedInputSupported={selectedInputCapability.supported}
       rangeSelectionActive={isRangeSelectionMode}
       canSelectRange={!isActive}
       tempoSelection={tempoSelection}
@@ -318,6 +310,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       inputState={localPractice.inputState}
       inputError={localPractice.inputError}
       inputSource={inputSource}
+      selectedInputCapability={selectedInputCapability}
       rangePrompt={rangeSelectionPrompt}
       isLoading={isLoadingXml}
       sessionMode={practiceMode}
@@ -414,8 +407,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
               <PracticeSettingsPanel
                 className="h-full rounded-none border-0 shadow-none"
                 inputState={localPractice.inputState}
-                audioWorkletSupported={audioWorkletSupported}
-                midiSupported={midiSupported}
+                microphoneCapability={inputCapabilities.microphone}
+                midiCapability={inputCapabilities.midi}
                 practiceMode={practiceMode}
                 practiceModeLocked={isActive}
                 inputSource={inputSource}
