@@ -43,6 +43,7 @@ function getSourceFiles(dir: string): string[] {
 }
 
 describe('Architecture Guard: No Legacy Practice Realtime Files, Imports, or Protocols', () => {
+  const repoRoot = resolve(__dirname, '../../../..');
   const srcDir = resolve(__dirname, '../../src');
   const e2eDir = resolve(__dirname, '../e2e');
   const allFiles = [...getSourceFiles(srcDir), ...getSourceFiles(e2eDir)];
@@ -148,4 +149,31 @@ describe('Architecture Guard: No Legacy Practice Realtime Files, Imports, or Pro
       expect(content).not.toContain('DEFAULT_PERFORMANCE_TEMPO_BPM');
     }
   });
+
+  it('ensures production customer-web Dockerfile.runtime defines and validates NEXT_PUBLIC_BYTEDANCE_MODEL_URL', () => {
+    const dockerfilePath = resolve(repoRoot, 'docker/customer-web/Dockerfile.runtime');
+    const content = readFileSync(dockerfilePath, 'utf-8');
+
+    expect(content).toContain('ARG NEXT_PUBLIC_BYTEDANCE_MODEL_URL');
+    expect(content).toContain('NEXT_PUBLIC_BYTEDANCE_MODEL_URL=${NEXT_PUBLIC_BYTEDANCE_MODEL_URL}');
+    expect(content).toContain('test -n "$NEXT_PUBLIC_BYTEDANCE_MODEL_URL"');
+  });
+
+  it('ensures customer-web-image.yml explicitly passes NEXT_PUBLIC_BYTEDANCE_MODEL_URL build-arg', () => {
+    const workflowPath = resolve(repoRoot, '.github/workflows/customer-web-image.yml');
+    const content = readFileSync(workflowPath, 'utf-8');
+
+    expect(content).toContain('NEXT_PUBLIC_BYTEDANCE_MODEL_URL=');
+  });
+
+  it('ensures PracticeSettingsPanel does not contain duplicate tempo or metronome controls', () => {
+    const settingsPanelFile = join(srcDir, 'components/practice/practice-settings-panel.tsx');
+    const content = readFileSync(settingsPanelFile, 'utf-8');
+
+    expect(content).not.toContain('tempoSelection');
+    expect(content).not.toContain('scoreTempoSegments');
+    expect(content).not.toContain('metronomeEnabled');
+    expect(content).not.toContain('settingsTempoAndMetronome');
+  });
 });
+

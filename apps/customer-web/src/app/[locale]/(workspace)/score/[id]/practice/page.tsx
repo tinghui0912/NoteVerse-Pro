@@ -29,7 +29,12 @@ import {
 } from '@/lib/practice/local-core/artifact';
 import type { PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
 import {
+  evaluatePracticeInputCapabilities,
+  isInputSourceSupported,
+} from '@/lib/practice/input-capability';
+import {
   fullPiecePracticeRangeSelection,
+  groupById,
   practiceGroupsInRangeSelection,
   practiceScopeFromRangeSelection,
   selectPracticeRangeTarget,
@@ -100,20 +105,36 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   const scopeStartBeat = resolvedScope?.startBeat ?? 0;
 
+  const pendingStartGroup = useMemo(
+    () =>
+      rangeSelection.kind === 'SELECTED_RANGE' && rangeSelection.startGroupId
+        ? groupById(expectedGroups, rangeSelection.startGroupId)
+        : null,
+    [expectedGroups, rangeSelection]
+  );
+
   const selectedRangeGroups = useMemo(
     () => practiceGroupsInRangeSelection(rangeSelection, expectedGroups),
     [expectedGroups, rangeSelection]
   );
 
-  const selectedRangeRenderNoteIds = useMemo(
-    () => selectedRangeGroups.flatMap((group) => group.renderNoteIds),
-    [selectedRangeGroups]
-  );
+  const selectedRangeRenderNoteIds = useMemo(() => {
+    if (
+      rangeSelection.kind === 'SELECTED_RANGE' &&
+      rangeSelection.startGroupId &&
+      !rangeSelection.endGroupId
+    ) {
+      return pendingStartGroup ? pendingStartGroup.renderNoteIds : [];
+    }
+    return selectedRangeGroups.flatMap((group) => group.renderNoteIds);
+  }, [pendingStartGroup, rangeSelection, selectedRangeGroups]);
 
-  const selectedRangeStartRenderNoteIds = useMemo(
-    () => (selectedRangeGroups[0] ? selectedRangeGroups[0].renderNoteIds : []),
-    [selectedRangeGroups]
-  );
+  const selectedRangeStartRenderNoteIds = useMemo(() => {
+    if (pendingStartGroup) {
+      return pendingStartGroup.renderNoteIds;
+    }
+    return selectedRangeGroups[0] ? selectedRangeGroups[0].renderNoteIds : [];
+  }, [pendingStartGroup, selectedRangeGroups]);
 
   const selectedRangeEndRenderNoteIds = useMemo(
     () => (selectedRangeGroups.at(-1) ? selectedRangeGroups.at(-1)!.renderNoteIds : []),
@@ -178,9 +199,25 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       if (!targetGroup) {
         return;
       }
-      setRangeSelection((current) =>
-        selectPracticeRangeTarget(current, expectedGroups, targetGroup.groupId)
-      );
+      setRangeSelection((current) => {
+        const baseSelection =
+          current.kind === 'SELECTED_RANGE' && current.startGroupId && current.endGroupId
+            ? selectedPracticeRangeSelection()
+            : current;
+        const nextSelection = selectPracticeRangeTarget(
+          baseSelection,
+          expectedGroups,
+          targetGroup.groupId
+        );
+        if (
+          nextSelection.kind === 'SELECTED_RANGE' &&
+          nextSelection.startGroupId &&
+          nextSelection.endGroupId
+        ) {
+          setIsRangeSelectionMode(false);
+        }
+        return nextSelection;
+      });
     },
     [expectedGroups, isRangeSelectionMode]
   );
@@ -213,17 +250,38 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     localPractice.lifecycle === 'ACTIVE' ||
     localPractice.lifecycle === 'PAUSED';
 
-  const audioWorkletSupported = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    const hasAudioContext = typeof (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext) !== 'undefined';
-    const hasAudioWorklet = typeof AudioWorkletNode !== 'undefined';
-    const hasGetUserMedia = typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
-    return hasAudioContext && hasAudioWorklet && hasGetUserMedia;
-  }, []);
+  const inputCapabilities = useMemo(() => evaluatePracticeInputCapabilities(), []);
+  const selectedInputSupported = isInputSourceSupported(inputSource, inputCapabilities);
+  const audioWorkletSupported = inputCapabilities.microphone.supported;
+  const midiSupported = inputCapabilities.midi.supported;
 
-  const midiSupported = useMemo(() => {
-    return typeof navigator !== 'undefined' && typeof (navigator as { requestMIDIAccess?: unknown }).requestMIDIAccess === 'function';
-  }, []);
+  const rangeSelectionPrompt = useMemo(() => {
+    if (!isRangeSelectionMode) {
+      if (
+        rangeSelection.kind === 'SELECTED_RANGE' &&
+        rangeSelection.startGroupId &&
+        rangeSelection.endGroupId &&
+        selectedRangeGroups.length > 0
+      ) {
+        const startMeasure = selectedRangeGroups[0]?.measureNumbers[0];
+        const endMeasure = selectedRangeGroups.at(-1)?.measureNumbers.at(-1);
+        const rangeText =
+          startMeasure && endMeasure && startMeasure !== endMeasure
+            ? `${startMeasure}–${endMeasure}`
+            : (startMeasure ?? '');
+        return t('sectionSelectedRange', { range: rangeText });
+      }
+      return null;
+    }
+    if (
+      rangeSelection.kind === 'FULL_PIECE' ||
+      !rangeSelection.startGroupId ||
+      Boolean(rangeSelection.startGroupId && rangeSelection.endGroupId)
+    ) {
+      return t('sectionSelectingStart');
+    }
+    return t('sectionSelectingEnd');
+  }, [isRangeSelectionMode, rangeSelection, selectedRangeGroups, t]);
 
   const practiceControls = (
     <PracticeControls
@@ -231,9 +289,16 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       isLoading={isLoadingXml}
       isPreparingSession={localPractice.inputState === 'STARTING'}
       canPrepareSession={canPreparePractice}
-      audioWorkletSupported={audioWorkletSupported}
+      selectedInputSupported={selectedInputSupported}
       rangeSelectionActive={isRangeSelectionMode}
       canSelectRange={!isActive}
+      tempoSelection={tempoSelection}
+      scoreTempoSegments={artifact?.scoreTempoSegments}
+      scopeStartBeat={scopeStartBeat}
+      tempoLocked={isActive}
+      onTempoSelectionChange={setTempoSelection}
+      metronomeEnabled={metronomeEnabled}
+      onMetronomeEnabledChange={handleMetronomeEnabledChange}
       onStart={() => void localPractice.start()}
       onPause={() => void localPractice.pause()}
       onResume={() => void localPractice.resume()}
@@ -251,6 +316,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       className="border-0 bg-transparent px-0 py-0 shadow-none"
       lifecycle={localPractice.lifecycle}
       inputState={localPractice.inputState}
+      inputError={localPractice.inputError}
+      inputSource={inputSource}
+      rangePrompt={rangeSelectionPrompt}
       isLoading={isLoadingXml}
       sessionMode={practiceMode}
       practiceTime={localPractice.elapsedSeconds}
@@ -293,75 +361,50 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       ) : (
         <>
           <div className="min-h-[calc(100vh-4rem)] xl:flex xl:h-[calc(100dvh-4rem)] xl:min-h-[38rem] xl:flex-col">
-            <div className="min-h-0 xl:flex xl:flex-1">
-              <main className="min-w-0 xl:flex xl:h-full xl:min-h-0 xl:flex-1 xl:flex-col">
-                <div className="relative flex min-h-[38rem] flex-col pb-28 xl:h-full xl:min-h-0 xl:flex-1">
-                  <ClientOnly>
-                    <PracticeScoreViewer
-                      className="rounded-none border-0 shadow-none xl:min-h-0 xl:flex-1"
-                      sessionStatus={practiceSessionStatus}
-                      xmlContent={xmlContent}
-                      isLoadingXml={isLoadingXml}
-                      lifecycle={localPractice.lifecycle}
-                      sessionMode={practiceMode}
-                      activeStepGroup={localPractice.activeStepGroup}
-                      performanceMusicalBeat={localPractice.performanceClock?.musicalBeat ?? null}
-                      performanceScopeBeats={
-                        localPractice.performanceClock
-                          ? {
-                              startBeat: localPractice.performanceClock.scopeStartBeat,
-                              terminalBeat: localPractice.performanceClock.scopeTerminalBeat,
-                            }
-                          : null
-                      }
-                      selectedRangeRenderNoteIds={selectedRangeRenderNoteIds}
-                      selectedRangeStartRenderNoteIds={selectedRangeStartRenderNoteIds}
-                      selectedRangeEndRenderNoteIds={selectedRangeEndRenderNoteIds}
-                      onRenderNoteClick={isRangeSelectionMode ? handleRenderNoteClick : undefined}
+            <main className="min-w-0 xl:flex xl:h-full xl:min-h-0 xl:flex-1 xl:flex-col">
+              <div className="relative flex min-h-[38rem] flex-col pb-28 xl:h-full xl:min-h-0 xl:flex-1">
+                <ClientOnly>
+                  <PracticeScoreViewer
+                    className="rounded-none border-0 shadow-none xl:min-h-0 xl:flex-1"
+                    sessionStatus={practiceSessionStatus}
+                    xmlContent={xmlContent}
+                    isLoadingXml={isLoadingXml}
+                    lifecycle={localPractice.lifecycle}
+                    sessionMode={practiceMode}
+                    activeStepGroup={localPractice.activeStepGroup}
+                    performanceMusicalBeat={localPractice.performanceClock?.musicalBeat ?? null}
+                    performanceScopeBeats={
+                      localPractice.performanceClock
+                        ? {
+                            startBeat: localPractice.performanceClock.scopeStartBeat,
+                            terminalBeat: localPractice.performanceClock.scopeTerminalBeat,
+                          }
+                        : null
+                    }
+                    selectedRangeRenderNoteIds={selectedRangeRenderNoteIds}
+                    selectedRangeStartRenderNoteIds={selectedRangeStartRenderNoteIds}
+                    selectedRangeEndRenderNoteIds={selectedRangeEndRenderNoteIds}
+                    onRenderNoteClick={isRangeSelectionMode ? handleRenderNoteClick : undefined}
+                  />
+                </ClientOnly>
+
+                {isStepMode && isActive ? (
+                  <div className="pointer-events-none absolute bottom-24 right-6 z-30">
+                    <PracticeSkipControl
+                      visible={true}
+                      disabled={localPractice.lifecycle === 'PAUSED'}
+                      onSkip={localPractice.skip}
                     />
-                  </ClientOnly>
+                  </div>
+                ) : null}
 
-                  {isStepMode && isActive ? (
-                    <div className="pointer-events-none absolute bottom-24 right-6 z-30">
-                      <PracticeSkipControl
-                        visible={true}
-                        disabled={localPractice.lifecycle === 'PAUSED'}
-                        onSkip={localPractice.skip}
-                      />
-                    </div>
-                  ) : null}
-
-                  <footer className="absolute bottom-0 left-0 right-0 z-20 flex min-h-20 items-center justify-between border-t border-slate-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur sm:px-6">
-                    <div className="flex w-full items-center justify-between">
-                      {practiceControls}
-                    </div>
-                  </footer>
-                </div>
-              </main>
-
-              <div className="hidden xl:block xl:w-80 xl:shrink-0 xl:border-l xl:border-slate-200">
-                <PracticeSettingsPanel
-                  className="h-full rounded-none border-0 shadow-none"
-                  inputState={localPractice.inputState}
-                  audioWorkletSupported={audioWorkletSupported}
-                  midiSupported={midiSupported}
-                  practiceMode={practiceMode}
-                  practiceModeLocked={isActive}
-                  inputSource={inputSource}
-                  microphoneInputLocked={isActive}
-                  midiInputLocked={isActive}
-                  onPracticeModeChange={setPracticeMode}
-                  onInputSourceChange={setInputSource}
-                  tempoSelection={tempoSelection}
-                  tempoLocked={isActive}
-                  scoreTempoSegments={artifact?.scoreTempoSegments}
-                  scopeStartBeat={scopeStartBeat}
-                  onTempoSelectionChange={setTempoSelection}
-                  metronomeEnabled={metronomeEnabled}
-                  onMetronomeEnabledChange={handleMetronomeEnabledChange}
-                />
+                <footer className="absolute bottom-0 left-0 right-0 z-20 flex min-h-20 items-center justify-between border-t border-slate-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur sm:px-6">
+                  <div className="flex w-full items-center justify-between">
+                    {practiceControls}
+                  </div>
+                </footer>
               </div>
-            </div>
+            </main>
           </div>
 
           <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
@@ -380,13 +423,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                 midiInputLocked={isActive}
                 onPracticeModeChange={setPracticeMode}
                 onInputSourceChange={setInputSource}
-                tempoSelection={tempoSelection}
-                tempoLocked={isActive}
-                scoreTempoSegments={artifact?.scoreTempoSegments}
-                scopeStartBeat={scopeStartBeat}
-                onTempoSelectionChange={setTempoSelection}
-                metronomeEnabled={metronomeEnabled}
-                onMetronomeEnabledChange={handleMetronomeEnabledChange}
               />
             </SheetContent>
           </Sheet>

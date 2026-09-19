@@ -134,6 +134,8 @@ export function useLocalPractice({
     }
   }, [resolvedTempoPlan]);
 
+  const [errorInputSource, setErrorInputSource] = useState<PracticeInputSource | null>(null);
+
   // Stop performance animation loop
   const stopAnimationLoop = useCallback(() => {
     if (animationFrameRef.current !== null) {
@@ -275,10 +277,11 @@ export function useLocalPractice({
         setPerformanceClock(clock);
       }
     }
+    setErrorInputSource(inputSource);
     setLifecycle('PAUSED');
     setInputState('ERROR');
     setInputError(errorMessage);
-  }, [mode, stopAnimationLoop, stopTimer]);
+  }, [inputSource, mode, stopAnimationLoop, stopTimer]);
 
   // Internal start session implementation
   const startSession = useCallback(async () => {
@@ -286,6 +289,7 @@ export function useLocalPractice({
       throw new Error('Score artifact is not available yet.');
     }
 
+    setErrorInputSource(null);
     setInputError(null);
     setInputState('STARTING');
 
@@ -390,6 +394,7 @@ export function useLocalPractice({
       stepRuntimeRef.current = null;
       performanceRuntimeRef.current = null;
       const message = err instanceof Error ? err.message : String(err);
+      setErrorInputSource(inputSource);
       setInputError(message);
       setInputState('ERROR');
       // lifecycle remains READY
@@ -415,8 +420,15 @@ export function useLocalPractice({
     if (lifecycle !== 'READY') {
       return;
     }
-    await startSession();
-  }, [lifecycle, startSession]);
+    try {
+      await startSession();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setErrorInputSource(inputSource);
+      setInputError(message);
+      setInputState('ERROR');
+    }
+  }, [inputSource, lifecycle, startSession]);
 
   // Pause practice session (requires ACTIVE)
   const pause = useCallback(async () => {
@@ -460,6 +472,7 @@ export function useLocalPractice({
       return;
     }
 
+    setErrorInputSource(null);
     setInputError(null);
     setInputState('STARTING');
 
@@ -521,6 +534,7 @@ export function useLocalPractice({
       startTimer();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      setErrorInputSource(inputSource);
       setInputError(message);
       setInputState('ERROR');
       // lifecycle remains PAUSED
@@ -595,6 +609,7 @@ export function useLocalPractice({
     performanceRuntimeRef.current = null;
     timebaseRef.current = null;
     setLifecycle('READY');
+    setErrorInputSource(null);
     setInputState('IDLE');
     setInputError(null);
     setElapsedSeconds(0);
@@ -637,11 +652,15 @@ export function useLocalPractice({
     metronomeRef.current?.setEnabled(enabled);
   }, [mode]);
 
+  const effectiveInputError = errorInputSource === inputSource ? inputError : null;
+  const effectiveInputState =
+    errorInputSource === inputSource ? inputState : inputState === 'ERROR' ? 'IDLE' : inputState;
+
   return {
     lifecycle,
-    inputState,
-    inputError,
-    error: inputError,
+    inputState: effectiveInputState,
+    inputError: effectiveInputError,
+    error: effectiveInputError,
     activeStepGroup,
     performanceClock,
     elapsedSeconds,

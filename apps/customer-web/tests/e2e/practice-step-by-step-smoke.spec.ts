@@ -273,18 +273,16 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
     // Switch input to MIDI
     const settingsButton = page.getByRole('button', { name: '设置' });
-    if (await settingsButton.isVisible()) {
-      await settingsButton.click();
-    }
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
     const midiInputOption = page.getByRole('button', { name: /MIDI/i });
     await expect(midiInputOption).toBeEnabled();
     await midiInputOption.click();
 
     // Close settings if sheet opened
     const sheetClose = page.getByRole('button', { name: /close/i });
-    if (await sheetClose.isVisible()) {
-      await sheetClose.click();
-    }
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
 
     // Start practice
     const startButton = page.getByRole('button', { name: '开始', exact: true });
@@ -354,9 +352,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
     // Switch to Continuous play mode and MIDI input
     const settingsButton = page.getByRole('button', { name: '设置' });
-    if (await settingsButton.isVisible()) {
-      await settingsButton.click();
-    }
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
 
     const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
     await expect(continuousOption).toBeEnabled();
@@ -367,9 +364,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await midiInputOption.click();
 
     const sheetClose = page.getByRole('button', { name: /close/i });
-    if (await sheetClose.isVisible()) {
-      await sheetClose.click();
-    }
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
 
     // Start practice
     const startButton = page.getByRole('button', { name: '开始', exact: true });
@@ -424,11 +420,10 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await setupPracticeMocks(page);
     await page.goto(`/zh/score/${scoreId}/practice`);
 
-    // Open settings
-    const settingsButton = page.getByRole('button', { name: '设置' });
-    if (await settingsButton.isVisible()) {
-      await settingsButton.click();
-    }
+    // Open tempo popover from bottom controls
+    const tempoButton = page.getByRole('button', { name: '速度' });
+    await expect(tempoButton).toBeVisible();
+    await tempoButton.click();
 
     // Verify original tempo display (has changes from 100 to 90)
     await expect(page.getByText(/原速：含速度变化，起始 ♩ = 100 BPM/).first()).toBeVisible();
@@ -447,22 +442,28 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await plusButton.click();
     await expect(page.getByText('105 BPM').first()).toBeVisible();
 
-    // Toggle metronome on
-    const metronomeToggle = page.getByRole('button', { name: '关' }).first();
-    await expect(metronomeToggle).toBeEnabled();
-    await metronomeToggle.click();
-    await expect(page.getByRole('button', { name: '开' }).first()).toBeVisible();
+    // Close tempo popover
+    await page.keyboard.press('Escape');
+
+    // Toggle metronome on directly from bottom controls
+    const metronomeButton = page.getByRole('button', { name: '节拍器' });
+    await expect(metronomeButton).toBeEnabled();
+    await expect(metronomeButton).toContainText('♩ 关');
+    await metronomeButton.click();
+    await expect(metronomeButton).toContainText('♩ 开');
 
     // Select MIDI input for reliable headless execution
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
     const midiInputOption = page.getByRole('button', { name: /MIDI/i }).first();
     await expect(midiInputOption).toBeEnabled();
     await midiInputOption.click();
 
     // Close settings if sheet opened
     const sheetClose = page.getByRole('button', { name: /close/i });
-    if (await sheetClose.isVisible()) {
-      await sheetClose.click();
-    }
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
 
     // Start practice with custom tempo & metronome
     const startButton = page.getByRole('button', { name: '开始', exact: true });
@@ -500,9 +501,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
     // Switch to Continuous mode and MIDI
     const settingsButton = page.getByRole('button', { name: '设置' });
-    if (await settingsButton.isVisible()) {
-      await settingsButton.click();
-    }
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
     const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
     await expect(continuousOption).toBeEnabled();
     await continuousOption.click();
@@ -512,9 +512,8 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await midiInputOption.click();
 
     const sheetClose = page.getByRole('button', { name: /close/i });
-    if (await sheetClose.isVisible()) {
-      await sheetClose.click();
-    }
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
 
     // Start practice
     const startButton = page.getByRole('button', { name: '开始', exact: true });
@@ -582,11 +581,10 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await setupPracticeMocks(page, leadingRestArtifact);
     await page.goto(`/zh/score/${scoreId}/practice`);
 
-    // Open settings
-    const settingsButton = page.getByRole('button', { name: '设置' });
-    if (await settingsButton.isVisible()) {
-      await settingsButton.click();
-    }
+    // Open tempo popover from bottom controls
+    const tempoButton = page.getByRole('button', { name: '速度' });
+    await expect(tempoButton).toBeVisible();
+    await tempoButton.click();
 
     // Since startBeat of full-piece is 2.0 (where MusicXML tempo 90 exists):
     // effectiveScoreTempoAtBeat(leadingRestArtifact, 2.0) resolves to MUSICXML at 90 BPM
@@ -615,47 +613,31 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
     // Select MIDI input
     const settingsButton = page.getByRole('button', { name: '设置' });
-    if (await settingsButton.isVisible()) {
-      await settingsButton.click();
-    }
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
     const midiInputOption = page.getByRole('button', { name: /MIDI/i }).first();
     await expect(midiInputOption).toBeEnabled();
     await midiInputOption.click();
 
-    // Start practice (starts with Metronome OFF by default)
     const sheetClose = page.getByRole('button', { name: /close/i });
-    if (await sheetClose.isVisible()) {
-      await sheetClose.click();
-    }
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
 
+    // Start practice (starts with Metronome OFF by default)
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
     await startButton.click();
     await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
 
-    // Open settings while practice is ACTIVE
-    const activeSettingsButton = page.getByRole('button', { name: '设置' });
-    if (await activeSettingsButton.isVisible()) {
-      await activeSettingsButton.click();
-    }
+    // Toggle metronome ON while ACTIVE directly from bottom controls
+    const metronomeButton = page.getByRole('button', { name: '节拍器' });
+    await expect(metronomeButton).toContainText('♩ 关');
+    await metronomeButton.click();
+    await expect(metronomeButton).toContainText('♩ 开');
 
-    // Toggle metronome ON while ACTIVE
-    const metronomeToggleOff = page.getByRole('button', { name: '关' }).first();
-    await expect(metronomeToggleOff).toBeEnabled();
-    await metronomeToggleOff.click();
-    await expect(page.getByRole('button', { name: '开' }).first()).toBeVisible();
-
-    // Toggle metronome OFF while ACTIVE
-    const metronomeToggleOn = page.getByRole('button', { name: '开' }).first();
-    await expect(metronomeToggleOn).toBeEnabled();
-    await metronomeToggleOn.click();
-    await expect(page.getByRole('button', { name: '关' }).first()).toBeVisible();
-
-    // Close settings
-    const activeSheetClose = page.getByRole('button', { name: /close/i });
-    if (await activeSheetClose.isVisible()) {
-      await activeSheetClose.click();
-    }
+    // Toggle metronome OFF while ACTIVE directly from bottom controls
+    await metronomeButton.click();
+    await expect(metronomeButton).toContainText('♩ 关');
 
     // Practice remains ACTIVE and playable
     await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
@@ -668,4 +650,99 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
 
     expect(disallowedRequests).toEqual([]);
   });
+
+  test('CUSTOMER UX REGRESSION: desktop drawer parity, input gating, 2-stage section selection, bottom tempo/metronome', async ({
+    page,
+  }) => {
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    // 1. Desktop Layout Parity: NO persistent right settings panel (aside)
+    await expect(page.locator('aside')).toHaveCount(0);
+
+    // Click Settings: opens single Sheet
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
+
+    // Sheet contains Mode and Input options
+    await expect(page.getByText('逐音练习')).toBeVisible();
+    await expect(page.getByText('连贯演奏')).toBeVisible();
+    await expect(page.getByText('麦克风', { exact: true })).toBeVisible();
+    await expect(page.getByText('MIDI 键盘', { exact: true })).toBeVisible();
+
+    // Sheet does NOT contain Tempo and Metronome
+    await expect(page.getByText('速度与节拍器')).toHaveCount(0);
+
+    // Select MIDI input
+    const midiInput = page.getByRole('button', { name: /MIDI/i }).first();
+    await midiInput.click();
+
+    // Close Sheet
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    if (await sheetClose.isVisible()) {
+      await sheetClose.click();
+    }
+    await expect(page.getByText('逐音练习')).not.toBeVisible();
+
+    // 2. Bottom Bar Controls: Tempo & Metronome
+    const tempoButton = page.getByRole('button', { name: '速度' });
+    await expect(tempoButton).toBeVisible();
+    await expect(tempoButton).toContainText(/原速|BPM/);
+
+    const metronomeButton = page.getByRole('button', { name: '节拍器' });
+    await expect(metronomeButton).toBeVisible();
+    await expect(metronomeButton).toContainText('♩ 关');
+    await metronomeButton.click();
+    await expect(metronomeButton).toContainText('♩ 开');
+    await metronomeButton.click();
+    await expect(metronomeButton).toContainText('♩ 关');
+
+    // 3. Section Selection 2-Stage Interaction
+    const sectionButton = page.getByRole('button', { name: '分段' });
+    await expect(sectionButton).toBeVisible();
+    await sectionButton.click();
+
+    // Prompts to select start note
+    await expect(page.getByRole('status')).toContainText('请选择起始音符');
+
+    // First click: start note -> immediate boundary highlight
+    const startNote = page.locator('[data-id="select-start-note"]').first();
+    await expect(startNote).toBeVisible();
+    await startNote.click();
+
+    // Boundary note should have practice-range-boundary class
+    await expect(page.locator('.practice-range-boundary')).toHaveCount(1);
+    await expect(page.getByRole('status')).toContainText('请选择结束音符');
+
+    // Second click: end note -> completes range, auto-exits selection mode
+    const endNote = page.locator('[data-id="select-end-note"]').first();
+    await expect(endNote).toBeVisible();
+    await endNote.click();
+
+    // Range selection mode should auto-exit
+    await expect(page.getByRole('status')).toContainText('第 1 小节');
+    // Selected range background remains on notes in the range
+    await expect(page.locator('.practice-range-selected')).toHaveCount(3);
+    await expect(page.locator('.practice-range-boundary')).toHaveCount(2);
+
+    // 4. Start Practice with Range
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+
+    await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
+
+    // While ACTIVE, tempo button triggers popover showing locked notice
+    await tempoButton.click();
+    await expect(page.getByText('练习进行中速度已锁定')).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    // Finish session cleanly
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+    await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+  });
 });
+

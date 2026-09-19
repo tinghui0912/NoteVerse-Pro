@@ -1,11 +1,11 @@
-﻿'use client';
+'use client';
 
-import { LoaderCircle, Mic } from 'lucide-react';
+import { AlertCircle, LoaderCircle, Mic } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
 import { cn } from '@/lib/utils';
-import type { PracticeMode } from '@/lib/practice/local-core/artifact';
+import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-core/artifact';
 import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/performance-runtime';
 import type { LocalPracticeLifecycle, LocalPracticeInputState } from '@/lib/practice/local-core/session';
 
@@ -18,10 +18,14 @@ type PracticeStatusMessageKey =
   | 'waitingForFirstNote'
   | 'settingStatusFollowing'
   | 'settingStatusPaused'
-  | 'settingStatusReady';
+  | 'settingStatusReady'
+  | 'micStartFailed'
+  | 'midiStartFailed';
 
 export type PracticeSessionStatusView = {
-  messageKey: PracticeStatusMessageKey;
+  messageKey?: PracticeStatusMessageKey;
+  customMessage?: string;
+  isError?: boolean;
   pending: boolean;
   countInPulse: number | null;
 };
@@ -30,6 +34,9 @@ export type PracticeSessionStatusProps = {
   className?: string;
   lifecycle: LocalPracticeLifecycle;
   inputState?: LocalPracticeInputState;
+  inputError?: string | null;
+  inputSource?: PracticeInputSource;
+  rangePrompt?: string | null;
   isLoading?: boolean;
   sessionMode: PracticeMode;
   practiceTime: number;
@@ -45,14 +52,30 @@ function formatTime(seconds: number) {
 export function resolvePracticeSessionStatusView({
   lifecycle,
   inputState = 'IDLE',
+  inputError = null,
+  inputSource = 'MICROPHONE',
+  rangePrompt = null,
   sessionMode,
   performanceClock,
 }: {
   lifecycle: LocalPracticeLifecycle;
   inputState?: LocalPracticeInputState;
+  inputError?: string | null;
+  inputSource?: PracticeInputSource;
+  rangePrompt?: string | null;
   sessionMode: PracticeMode;
   performanceClock?: PerformanceClockSnapshot | null;
 }): PracticeSessionStatusView {
+  if (inputState === 'ERROR') {
+    return {
+      messageKey: inputSource === 'MIDI' ? 'midiStartFailed' : 'micStartFailed',
+      customMessage: inputError ?? undefined,
+      isError: true,
+      pending: false,
+      countInPulse: null,
+    };
+  }
+
   if (inputState === 'STARTING') {
     return {
       messageKey: 'preparingPractice',
@@ -70,6 +93,13 @@ export function resolvePracticeSessionStatusView({
   }
 
   if (lifecycle !== 'ACTIVE') {
+    if (rangePrompt) {
+      return {
+        customMessage: rangePrompt,
+        pending: false,
+        countInPulse: null,
+      };
+    }
     return {
       messageKey: 'settingStatusReady',
       pending: false,
@@ -104,6 +134,9 @@ export function PracticeSessionStatus({
   className,
   lifecycle,
   inputState = 'IDLE',
+  inputError = null,
+  inputSource = 'MICROPHONE',
+  rangePrompt = null,
   sessionMode,
   practiceTime,
   performanceClock,
@@ -114,18 +147,30 @@ export function PracticeSessionStatus({
       resolvePracticeSessionStatusView({
         lifecycle,
         inputState,
+        inputError,
+        inputSource,
+        rangePrompt,
         sessionMode,
         performanceClock,
       }),
-    [inputState, lifecycle, performanceClock, sessionMode]
+    [inputError, inputSource, inputState, lifecycle, performanceClock, rangePrompt, sessionMode]
   );
 
   const isRecording = lifecycle === 'ACTIVE' || lifecycle === 'PAUSED';
 
-  const message =
-    resolvedView.countInPulse !== null
-      ? t('performanceCountIn', { pulse: resolvedView.countInPulse })
-      : t(resolvedView.messageKey);
+  let messageText = '';
+  if (resolvedView.countInPulse !== null) {
+    messageText = t('performanceCountIn', { pulse: resolvedView.countInPulse });
+  } else if (resolvedView.isError) {
+    const baseError = resolvedView.messageKey ? t(resolvedView.messageKey) : '';
+    messageText = resolvedView.customMessage
+      ? `${baseError}: ${resolvedView.customMessage}`
+      : baseError;
+  } else if (resolvedView.customMessage) {
+    messageText = resolvedView.customMessage;
+  } else if (resolvedView.messageKey) {
+    messageText = t(resolvedView.messageKey);
+  }
 
   return (
     <div
@@ -133,11 +178,14 @@ export function PracticeSessionStatus({
       aria-live="polite"
       className={cn(
         'flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm',
+        resolvedView.isError ? 'border-rose-300 bg-rose-50/70 text-rose-900' : '',
         className
       )}
     >
       {resolvedView.pending ? (
         <LoaderCircle className="h-4 w-4 shrink-0 animate-spin text-orange-500" aria-hidden="true" />
+      ) : resolvedView.isError ? (
+        <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" aria-hidden="true" />
       ) : (
         <span
           className={cn(
@@ -151,7 +199,14 @@ export function PracticeSessionStatus({
           aria-hidden="true"
         />
       )}
-      <span className="min-w-0 max-w-52 truncate font-medium text-slate-700">{message}</span>
+      <span
+        className={cn(
+          'min-w-0 max-w-xs truncate font-medium sm:max-w-md',
+          resolvedView.isError ? 'text-rose-800' : 'text-slate-700'
+        )}
+      >
+        {messageText}
+      </span>
       {isRecording ? (
         <span className="flex shrink-0 items-center gap-1.5 border-l border-slate-200 pl-2.5 font-semibold tabular-nums text-rose-600">
           <Mic className="h-3.5 w-3.5" aria-hidden="true" />

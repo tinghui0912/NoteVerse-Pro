@@ -9,6 +9,7 @@ import { PracticeSettingsPanel } from './practice-settings-panel';
 
 describe('PracticeSettingsPanel', () => {
   it('keeps microphone and MIDI selectable before step-by-step practice starts', () => {
+    const onInputSourceChange = vi.fn();
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeSettingsPanel
@@ -24,16 +25,22 @@ describe('PracticeSettingsPanel', () => {
           microphoneInputLocked={false}
           midiInputLocked={false}
           onPracticeModeChange={vi.fn()}
-          onInputSourceChange={vi.fn()}
+          onInputSourceChange={onInputSourceChange}
         />
       </NextIntlClientProvider>
     );
 
-    expect(screen.getByRole('button', { name: /microphone/i })).toBeEnabled();
-    expect(screen.getByRole('button', { name: /midi keyboard/i })).toBeEnabled();
+    const micBtn = screen.getByRole('button', { name: /microphone/i });
+    const midiBtn = screen.getByRole('button', { name: /midi keyboard/i });
+    expect(micBtn).toBeEnabled();
+    expect(midiBtn).toBeEnabled();
+
+    fireEvent.click(midiBtn);
+    expect(onInputSourceChange).toHaveBeenCalledWith('MIDI');
   });
 
   it('keeps microphone and MIDI selectable before continuous play starts', () => {
+    const onPracticeModeChange = vi.fn();
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeSettingsPanel
@@ -48,7 +55,7 @@ describe('PracticeSettingsPanel', () => {
           inputSource="MICROPHONE"
           microphoneInputLocked={false}
           midiInputLocked={false}
-          onPracticeModeChange={vi.fn()}
+          onPracticeModeChange={onPracticeModeChange}
           onInputSourceChange={vi.fn()}
         />
       </NextIntlClientProvider>
@@ -56,128 +63,13 @@ describe('PracticeSettingsPanel', () => {
 
     expect(screen.getByRole('button', { name: /microphone/i })).toBeEnabled();
     expect(screen.getByRole('button', { name: /midi keyboard/i })).toBeEnabled();
+
+    const stepBtn = screen.getByRole('button', { name: /step-by-step/i });
+    fireEvent.click(stepBtn);
+    expect(onPracticeModeChange).toHaveBeenCalledWith('STEP_BY_STEP');
   });
 
-  it('renders original tempo when score tempo segments are provided', () => {
-    render(
-      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
-        <PracticeSettingsPanel
-          audioWorkletSupported
-          midiSupported
-          practiceMode="CONTINUOUS_PLAY"
-          practiceModeLocked={false}
-          inputSource="MICROPHONE"
-          microphoneInputLocked={false}
-          midiInputLocked={false}
-          onPracticeModeChange={vi.fn()}
-          onInputSourceChange={vi.fn()}
-          scoreTempoSegments={[{ startBeat: 0, bpm: 96 }]}
-        />
-      </NextIntlClientProvider>
-    );
-
-    expect(screen.getByText(/Score: ♩ = 96 BPM/i)).toBeInTheDocument();
-  });
-
-  it('renders default 80 BPM notice when score has no explicit tempo', () => {
-    render(
-      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
-        <PracticeSettingsPanel
-          audioWorkletSupported
-          midiSupported
-          practiceMode="CONTINUOUS_PLAY"
-          practiceModeLocked={false}
-          inputSource="MICROPHONE"
-          microphoneInputLocked={false}
-          midiInputLocked={false}
-          onPracticeModeChange={vi.fn()}
-          onInputSourceChange={vi.fn()}
-          scoreTempoSegments={[]}
-        />
-      </NextIntlClientProvider>
-    );
-
-    expect(screen.getByText(/No tempo specified in score, default: ♩ = 80 BPM/i)).toBeInTheDocument();
-  });
-
-  it('allows switching between SCORE mode and CUSTOM mode', () => {
-    const onTempoSelectionChange = vi.fn();
-    render(
-      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
-        <PracticeSettingsPanel
-          audioWorkletSupported
-          midiSupported
-          practiceMode="CONTINUOUS_PLAY"
-          practiceModeLocked={false}
-          inputSource="MICROPHONE"
-          microphoneInputLocked={false}
-          midiInputLocked={false}
-          onPracticeModeChange={vi.fn()}
-          onInputSourceChange={vi.fn()}
-          scoreTempoSegments={[{ startBeat: 0, bpm: 104 }]}
-          tempoSelection={{ mode: 'SCORE' }}
-          onTempoSelectionChange={onTempoSelectionChange}
-        />
-      </NextIntlClientProvider>
-    );
-
-    const customButton = screen.getByRole('button', { name: /Custom/i });
-    fireEvent.click(customButton);
-    expect(onTempoSelectionChange).toHaveBeenCalledWith({
-      mode: 'CUSTOM_FIXED_BPM',
-      bpm: 104,
-    });
-  });
-
-  it('allows adjusting custom BPM via +/- buttons and slider', () => {
-    const onTempoSelectionChange = vi.fn();
-    render(
-      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
-        <PracticeSettingsPanel
-          audioWorkletSupported
-          midiSupported
-          practiceMode="CONTINUOUS_PLAY"
-          practiceModeLocked={false}
-          inputSource="MICROPHONE"
-          microphoneInputLocked={false}
-          midiInputLocked={false}
-          onPracticeModeChange={vi.fn()}
-          onInputSourceChange={vi.fn()}
-          scoreTempoSegments={[{ startBeat: 0, bpm: 100 }]}
-          tempoSelection={{ mode: 'CUSTOM_FIXED_BPM', bpm: 100 }}
-          onTempoSelectionChange={onTempoSelectionChange}
-        />
-      </NextIntlClientProvider>
-    );
-
-    expect(screen.getByText('100 BPM')).toBeInTheDocument();
-
-    const minusButton = screen.getByRole('button', { name: '-5 BPM' });
-    fireEvent.click(minusButton);
-    expect(onTempoSelectionChange).toHaveBeenCalledWith({
-      mode: 'CUSTOM_FIXED_BPM',
-      bpm: 95,
-    });
-
-    const plusButton = screen.getByRole('button', { name: '+5 BPM' });
-    fireEvent.click(plusButton);
-    expect(onTempoSelectionChange).toHaveBeenCalledWith({
-      mode: 'CUSTOM_FIXED_BPM',
-      bpm: 105,
-    });
-
-    const slider = screen.getByLabelText(/BPM Slider/i);
-    fireEvent.change(slider, { target: { value: '120' } });
-    expect(onTempoSelectionChange).toHaveBeenCalledWith({
-      mode: 'CUSTOM_FIXED_BPM',
-      bpm: 120,
-    });
-  });
-
-  it('locks tempo controls during active practice but keeps metronome interactive', () => {
-    const onTempoSelectionChange = vi.fn();
-    const onMetronomeEnabledChange = vi.fn();
-
+  it('locks practice mode and input source during active practice', () => {
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeSettingsPanel
@@ -190,110 +82,37 @@ describe('PracticeSettingsPanel', () => {
           midiInputLocked={true}
           onPracticeModeChange={vi.fn()}
           onInputSourceChange={vi.fn()}
-          scoreTempoSegments={[{ startBeat: 0, bpm: 100 }]}
-          tempoSelection={{ mode: 'CUSTOM_FIXED_BPM', bpm: 100 }}
-          tempoLocked={true}
-          onTempoSelectionChange={onTempoSelectionChange}
-          metronomeEnabled={false}
-          onMetronomeEnabledChange={onMetronomeEnabledChange}
         />
       </NextIntlClientProvider>
     );
 
-    expect(screen.getByText(/Tempo is locked while practice is active/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Score Tempo' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Custom' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: '-5 BPM' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: '+5 BPM' })).toBeDisabled();
-    expect(screen.getByLabelText(/BPM Slider/i)).toBeDisabled();
-
-    // Metronome button must remain interactive!
-    const metronomeButton = screen.getByRole('button', { name: /Off/i });
-    expect(metronomeButton).toBeEnabled();
-    fireEvent.click(metronomeButton);
-    expect(onMetronomeEnabledChange).toHaveBeenCalledWith(true);
+    expect(screen.getByRole('button', { name: /step-by-step/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /continuous play/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /microphone/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /midi keyboard/i })).toBeDisabled();
   });
 
-  it('reflects scopeStartBeat tempo for selected range practice', () => {
-    const onTempoSelectionChange = vi.fn();
+  it('does NOT render duplicate tempo or metronome controls in settings panel', () => {
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeSettingsPanel
           audioWorkletSupported
           midiSupported
-          practiceMode="CONTINUOUS_PLAY"
+          practiceMode="STEP_BY_STEP"
           practiceModeLocked={false}
           inputSource="MICROPHONE"
           microphoneInputLocked={false}
           midiInputLocked={false}
           onPracticeModeChange={vi.fn()}
           onInputSourceChange={vi.fn()}
-          scoreTempoSegments={[
-            { startBeat: 0, bpm: 120 },
-            { startBeat: 8, bpm: 90 },
-          ]}
-          scopeStartBeat={8}
-          tempoSelection={{ mode: 'SCORE' }}
-          onTempoSelectionChange={onTempoSelectionChange}
         />
       </NextIntlClientProvider>
     );
 
-    // At scopeStartBeat = 8, active tempo is 90 BPM
-    expect(screen.getByText(/Score: ♩ = 90 BPM/i)).toBeInTheDocument();
-
-    // Switching to Custom should initialize with 90 BPM
-    fireEvent.click(screen.getByRole('button', { name: 'Custom' }));
-    expect(onTempoSelectionChange).toHaveBeenCalledWith({
-      mode: 'CUSTOM_FIXED_BPM',
-      bpm: 90,
-    });
-  });
-
-  it('renders positive-first tempo correctly at beat 0 and when scope reaches explicit tempo', () => {
-    const { rerender } = render(
-      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
-        <PracticeSettingsPanel
-          audioWorkletSupported
-          midiSupported
-          practiceMode="CONTINUOUS_PLAY"
-          practiceModeLocked={false}
-          inputSource="MICROPHONE"
-          microphoneInputLocked={false}
-          midiInputLocked={false}
-          onPracticeModeChange={vi.fn()}
-          onInputSourceChange={vi.fn()}
-          scoreTempoSegments={[{ startBeat: 4, bpm: 100 }]}
-          scopeStartBeat={0}
-          tempoSelection={{ mode: 'SCORE' }}
-        />
-      </NextIntlClientProvider>
-    );
-
-    expect(
-      screen.getByText(/Starts at ♩ = 80 BPM \(default\), score includes tempo changes later/i)
-    ).toBeInTheDocument();
-
-    rerender(
-      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
-        <PracticeSettingsPanel
-          audioWorkletSupported
-          midiSupported
-          practiceMode="CONTINUOUS_PLAY"
-          practiceModeLocked={false}
-          inputSource="MICROPHONE"
-          microphoneInputLocked={false}
-          midiInputLocked={false}
-          onPracticeModeChange={vi.fn()}
-          onInputSourceChange={vi.fn()}
-          scoreTempoSegments={[{ startBeat: 4, bpm: 100 }]}
-          scopeStartBeat={4}
-          tempoSelection={{ mode: 'SCORE' }}
-        />
-      </NextIntlClientProvider>
-    );
-
-    expect(screen.getByText(/Score: ♩ = 100 BPM/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Tempo & Metronome/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Score Tempo' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Custom' })).toBeNull();
+    expect(screen.queryByLabelText(/BPM Slider/i)).toBeNull();
+    expect(screen.queryByText(/^Metronome$/i)).toBeNull();
   });
 });
-

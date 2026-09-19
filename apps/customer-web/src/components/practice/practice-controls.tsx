@@ -1,7 +1,8 @@
 'use client';
 
+import React from 'react';
 import { useTranslations } from 'next-intl';
-import { Hand, Mic, Pause, Play, Repeat2, Settings, Square, Timer } from 'lucide-react';
+import { Mic, Pause, Play, Repeat2, Settings, Square, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -11,15 +12,26 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { LocalPracticeLifecycle } from '@/lib/practice/local-core/session';
+import type { TempoSegment } from '@/lib/practice/local-core/artifact';
+import type { PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
+import { PracticeTempoPopover } from './practice-tempo-popover';
 
 interface PracticeControlsProps {
   lifecycle: LocalPracticeLifecycle;
   isLoading: boolean;
   isPreparingSession: boolean;
   canPrepareSession: boolean;
-  audioWorkletSupported: boolean;
+  audioWorkletSupported?: boolean;
+  selectedInputSupported?: boolean;
   rangeSelectionActive: boolean;
   canSelectRange: boolean;
+  tempoSelection?: PracticeTempoSelection;
+  scoreTempoSegments?: readonly TempoSegment[];
+  scopeStartBeat?: number;
+  tempoLocked?: boolean;
+  onTempoSelectionChange?: (selection: PracticeTempoSelection) => void;
+  metronomeEnabled?: boolean;
+  onMetronomeEnabledChange?: (enabled: boolean) => void;
   onStart: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -34,8 +46,16 @@ export function PracticeControls({
   isPreparingSession,
   canPrepareSession,
   audioWorkletSupported,
+  selectedInputSupported,
   rangeSelectionActive,
   canSelectRange,
+  tempoSelection,
+  scoreTempoSegments,
+  scopeStartBeat,
+  tempoLocked,
+  onTempoSelectionChange,
+  metronomeEnabled = false,
+  onMetronomeEnabledChange,
   onStart,
   onPause,
   onResume,
@@ -46,12 +66,13 @@ export function PracticeControls({
   const t = useTranslations('practice');
   const isActive = lifecycle === 'ACTIVE' || lifecycle === 'PAUSED';
   const isPaused = lifecycle === 'PAUSED';
+  const isInputSupported = selectedInputSupported ?? audioWorkletSupported ?? true;
   const canStart =
     (lifecycle === 'READY' || lifecycle === 'ENDED') &&
     canPrepareSession &&
     !isLoading &&
     !isPreparingSession &&
-    audioWorkletSupported;
+    isInputSupported;
   const actionButtonClass = 'h-11 w-32';
 
   return (
@@ -100,7 +121,33 @@ export function PracticeControls({
 
       <TooltipProvider>
         <div className="flex flex-wrap items-center gap-2">
-          <PracticeToolPlaceholder icon={Timer} label={t('toolMetronome')} unavailableLabel={t('toolUnavailable')} />
+          {tempoSelection && onTempoSelectionChange ? (
+            <PracticeTempoPopover
+              tempoSelection={tempoSelection}
+              scoreTempoSegments={scoreTempoSegments}
+              scopeStartBeat={scopeStartBeat}
+              tempoLocked={tempoLocked ?? isActive}
+              onTempoSelectionChange={onTempoSelectionChange}
+            />
+          ) : null}
+
+          <Button
+            type="button"
+            variant={metronomeEnabled ? 'default' : 'outline'}
+            onClick={() => onMetronomeEnabledChange?.(!metronomeEnabled)}
+            className={cn(
+              'h-11 gap-2',
+              metronomeEnabled
+                ? 'border-orange-300 bg-orange-50 font-semibold text-orange-950 hover:bg-orange-100'
+                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+            )}
+            aria-label={t('metronome')}
+            aria-pressed={metronomeEnabled}
+          >
+            <Timer className="h-4 w-4" aria-hidden="true" />
+            <span>{metronomeEnabled ? t('metronomeToggleOn') : t('metronomeToggleOff')}</span>
+          </Button>
+
           <Button
             type="button"
             variant={rangeSelectionActive ? 'default' : 'outline'}
@@ -116,7 +163,7 @@ export function PracticeControls({
             <Repeat2 className="h-4 w-4" aria-hidden="true" />
             {t('rangeSelectionStart')}
           </Button>
-          <PracticeToolPlaceholder icon={Hand} label={t('toolHands')} unavailableLabel={t('toolUnavailable')} />
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -134,32 +181,5 @@ export function PracticeControls({
         </div>
       </TooltipProvider>
     </div>
-  );
-}
-
-function PracticeToolPlaceholder({
-  icon: Icon,
-  label,
-  unavailableLabel,
-}: {
-  icon: React.ElementType;
-  label: string;
-  unavailableLabel: string;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          disabled
-          className="h-11 gap-2 border-slate-200 bg-white text-slate-400"
-        >
-          <Icon className="h-4 w-4" aria-hidden="true" />
-          {label}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{unavailableLabel}</TooltipContent>
-    </Tooltip>
   );
 }

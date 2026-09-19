@@ -110,6 +110,38 @@ describe('resolvePracticeSessionStatusView', () => {
       pending: false,
     });
   });
+
+  it('shows error state when inputState is ERROR', () => {
+    expect(
+      resolvePracticeSessionStatusView({
+        lifecycle: 'READY',
+        inputState: 'ERROR',
+        inputError: 'Model asset not configured',
+        inputSource: 'MICROPHONE',
+        sessionMode: 'STEP_BY_STEP',
+      })
+    ).toMatchObject({
+      messageKey: 'micStartFailed',
+      customMessage: 'Model asset not configured',
+      isError: true,
+      pending: false,
+    });
+
+    expect(
+      resolvePracticeSessionStatusView({
+        lifecycle: 'READY',
+        inputState: 'ERROR',
+        inputError: 'MIDI access denied',
+        inputSource: 'MIDI',
+        sessionMode: 'STEP_BY_STEP',
+      })
+    ).toMatchObject({
+      messageKey: 'midiStartFailed',
+      customMessage: 'MIDI access denied',
+      isError: true,
+      pending: false,
+    });
+  });
 });
 
 describe('PracticeSessionStatus rendering', () => {
@@ -132,4 +164,27 @@ describe('PracticeSessionStatus rendering', () => {
     expect(screen.getByText('Ready. Play the current note.')).toBeTruthy();
     expect(screen.getByText('01:05')).toBeTruthy();
   });
+
+  it('renders visible error message on inputState ERROR', () => {
+    render(
+      createElement(
+        IntlProvider,
+        {
+          locale: 'en',
+          messages: { practice: practiceMessages },
+        },
+        createElement(PracticeSessionStatus, {
+          lifecycle: 'READY',
+          inputState: 'ERROR',
+          inputError: 'Device disconnected',
+          inputSource: 'MICROPHONE',
+          sessionMode: 'STEP_BY_STEP',
+          practiceTime: 0,
+        })
+      )
+    );
+
+    expect(screen.getByText(/Failed to start microphone: Device disconnected/)).toBeTruthy();
+  });
 });
+

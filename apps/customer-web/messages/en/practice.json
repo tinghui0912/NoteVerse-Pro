@@ -150,5 +150,16 @@
   "metronomeOn": "On",
   "metronomeOff": "Off",
   "metronomeDescription": "Accents measure downbeats to support timing stability",
-  "tempoLockedNotice": "Tempo is locked while practice is active"
+  "tempoLockedNotice": "Tempo is locked while practice is active",
+  "tempoButton": "Tempo",
+  "tempoBpm": "{bpm} BPM",
+  "tempoDefaultBpm": "Default {bpm} BPM",
+  "metronomeToggleOn": "♩ On",
+  "metronomeToggleOff": "♩ Off",
+  "micStartFailed": "Failed to start microphone",
+  "midiStartFailed": "Failed to start MIDI",
+  "micModelNotConfigured": "Microphone practice currently unavailable: Model asset not configured",
+  "sectionSelectingStart": "Select starting note",
+  "sectionSelectingEnd": "Select ending note",
+  "sectionSelectedRange": "Selected range: Measures {range}"
 }

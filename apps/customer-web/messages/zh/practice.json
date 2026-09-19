@@ -150,5 +150,16 @@
   "metronomeOn": "开",
   "metronomeOff": "关",
   "metronomeDescription": "测量下拍强音，辅助节拍稳定",
-  "tempoLockedNotice": "练习进行中速度已锁定"
+  "tempoLockedNotice": "练习进行中速度已锁定",
+  "tempoButton": "速度",
+  "tempoBpm": "{bpm} BPM",
+  "tempoDefaultBpm": "默认 {bpm} BPM",
+  "metronomeToggleOn": "♩ 开",
+  "metronomeToggleOff": "♩ 关",
+  "micStartFailed": "无法启动麦克风",
+  "midiStartFailed": "无法启动 MIDI",
+  "micModelNotConfigured": "麦克风练习当前不可用：模型资源未配置",
+  "sectionSelectingStart": "请选择起始音符",
+  "sectionSelectingEnd": "请选择结束音符",
+  "sectionSelectedRange": "已选择范围：第 {range} 小节"
 }

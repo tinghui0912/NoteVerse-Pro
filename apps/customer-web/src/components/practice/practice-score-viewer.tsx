@@ -61,6 +61,8 @@ export function PracticeScoreViewer({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [renderRevision, setRenderRevision] = useState(0);
   const selectedRangeRenderNoteIdSignature = selectedRangeRenderNoteIds.join('\u001f');
+  const selectedRangeStartSignature = selectedRangeStartRenderNoteIds.join('\u001f');
+  const selectedRangeEndSignature = selectedRangeEndRenderNoteIds.join('\u001f');
   const handleRendered = useCallback(
     (_adapter: unknown, container: HTMLDivElement) => {
       containerRef.current = container;
@@ -149,6 +151,12 @@ export function PracticeScoreViewer({
     const rangeNoteIds = selectedRangeRenderNoteIdSignature
       ? selectedRangeRenderNoteIdSignature.split('\u001f')
       : [];
+    const startNoteIds = selectedRangeStartSignature
+      ? selectedRangeStartSignature.split('\u001f')
+      : [];
+    const endNoteIds = selectedRangeEndSignature
+      ? selectedRangeEndSignature.split('\u001f')
+      : [];
     let frame: number | null = null;
     const scheduleSync = () => {
       if (frame !== null) {
@@ -158,6 +166,8 @@ export function PracticeScoreViewer({
         frame = null;
         clearRangeBackgrounds(container);
         applyRangeBackgrounds(container, rangeNoteIds);
+        clearRangeClasses(container);
+        applyRangeClasses(container, rangeNoteIds, [...startNoteIds, ...endNoteIds]);
       });
     };
 
@@ -184,8 +194,15 @@ export function PracticeScoreViewer({
         window.cancelAnimationFrame(frame);
       }
       clearRangeBackgrounds(container);
+      clearRangeClasses(container);
     };
-  }, [renderRevision, selectedRangeRenderNoteIdSignature, xmlContent]);
+  }, [
+    renderRevision,
+    selectedRangeEndSignature,
+    selectedRangeRenderNoteIdSignature,
+    selectedRangeStartSignature,
+    xmlContent,
+  ]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -235,6 +252,19 @@ export function PracticeScoreViewer({
           stroke: rgb(245 158 11 / 34%);
           stroke-width: 1.2px;
           pointer-events: none;
+        }
+        .practice-score-svg .practice-range-selected {
+          opacity: 1 !important;
+        }
+        .practice-score-svg .practice-range-boundary {
+          filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.65)) !important;
+        }
+        .practice-score-svg .practice-range-boundary .notehead,
+        .practice-score-svg .practice-range-boundary use,
+        .practice-score-svg .practice-range-boundary ellipse,
+        .practice-score-svg .practice-range-boundary circle {
+          fill: #f59e0b !important;
+          stroke: #d97706 !important;
         }
         .practice-score-svg .practice-note-active {
           fill: #f97316 !important;
@@ -421,5 +451,29 @@ function rangeVerticalBox(layer: SVGGraphicsElement, rangeBox: DOMRect): DOMRect
     });
   } catch {
     return rangeBox;
+  }
+}
+
+function clearRangeClasses(container: HTMLElement) {
+  container
+    .querySelectorAll('.practice-range-selected')
+    .forEach((element) => element.classList.remove('practice-range-selected'));
+  container
+    .querySelectorAll('.practice-range-boundary')
+    .forEach((element) => element.classList.remove('practice-range-boundary'));
+}
+
+function applyRangeClasses(
+  container: HTMLElement,
+  selectedNoteIds: readonly string[],
+  boundaryNoteIds: readonly string[]
+) {
+  for (const id of Array.from(new Set(selectedNoteIds.filter(Boolean)))) {
+    const el = container.querySelector(`[data-id=${cssStringLiteral(id)}]`);
+    el?.classList.add('practice-range-selected');
+  }
+  for (const id of Array.from(new Set(boundaryNoteIds.filter(Boolean)))) {
+    const el = container.querySelector(`[data-id=${cssStringLiteral(id)}]`);
+    el?.classList.add('practice-range-boundary');
   }
 }
