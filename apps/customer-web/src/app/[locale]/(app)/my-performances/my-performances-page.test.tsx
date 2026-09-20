@@ -301,4 +301,51 @@ describe('MyPerformancesPage', () => {
       expect(mockDeleteTakeMutation.mutateAsync).toHaveBeenCalledWith('take-1');
     });
   });
+
+  it('renders deleted score gracefully with no link and snapshot or fallback notice', () => {
+    mockTakesQuery.data.data.items = [
+      {
+        take_id: 'take-deleted',
+        score_id: null,
+        score_title: '已删除的奏鸣曲',
+        media_kind: 'AUDIO',
+        media_mime_type: 'audio/webm',
+        media_byte_size: 102400,
+        duration_ms: 60000,
+        scope_start_beat: 0,
+        scope_terminal_beat: 0,
+        created_at: '2026-09-20T10:00:00Z',
+      },
+    ];
+    mockTakesQuery.data.data.total = 1;
+
+    render(<MyPerformancesPage />);
+
+    // Score title snapshot is rendered
+    expect(screen.getByText('已删除的奏鸣曲')).toBeInTheDocument();
+    // Non-link element rendered
+    expect(screen.getByTestId('take-deleted-score-take-deleted')).toBeInTheDocument();
+    expect(screen.queryByTestId('take-score-link-take-deleted')).not.toBeInTheDocument();
+  });
+
+  it('renders load more button when more takes are available', () => {
+    mockTakesQuery.data.data.items = [
+      {
+        take_id: 'take-1',
+        score_id: 101,
+        media_kind: 'AUDIO',
+        media_mime_type: 'audio/webm',
+        media_byte_size: 102400,
+        duration_ms: 90000,
+        scope_start_beat: 0,
+        scope_terminal_beat: 0,
+        created_at: '2026-09-20T10:00:00Z',
+      },
+    ];
+    mockTakesQuery.data.data.total = 100; // total > items.length
+
+    render(<MyPerformancesPage />);
+
+    expect(screen.getByTestId('load-more-takes')).toBeInTheDocument();
+  });
 });

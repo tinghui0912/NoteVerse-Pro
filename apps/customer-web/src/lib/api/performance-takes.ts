@@ -44,7 +44,8 @@ export interface PerformanceTakeCreateRequest {
 
 export interface PerformanceTakeRead {
   take_id: string;
-  score_id: number;
+  score_id?: number | null;
+  score_title?: string | null;
   revision_id?: number | null;
   artifact_id?: string | null;
   media_kind: string;
@@ -73,6 +74,9 @@ export interface PerformanceTakePlaybackRead {
 export interface PerformanceTakeListResponse {
   items: PerformanceTakeRead[];
   total: number;
+  limit?: number;
+  offset?: number;
+  has_more?: boolean;
 }
 
 export const performanceTakesApi = {
@@ -80,6 +84,13 @@ export const performanceTakesApi = {
     apiClient.post<ApiResponse<PerformanceTakeUploadAuthorizationRead>>(
       '/performance-takes/upload-authorizations',
       request,
+      { signal }
+    ),
+
+  cancelUploadAuthorization: (reservationId: string, signal?: AbortSignal) =>
+    apiClient.post<ApiResponse<{ cancelled: boolean }>>(
+      `/performance-takes/upload-authorizations/${reservationId}/cancel`,
+      undefined,
       { signal }
     ),
 

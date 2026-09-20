@@ -207,6 +207,9 @@
   "performanceTakeDeleted": "已删除该演奏",
   "savePerformanceFailed": "保存演奏失败，请重试",
   "scoreFallback": "乐谱 #{id}",
+  "deletedScoreNotice": "原乐谱已删除",
+  "loadMore": "加载更多",
+  "noMorePerformances": "已加载全部演奏",
   "takeDurationSeconds": "{seconds} 秒",
   "takeDurationMinutesSeconds": "{minutes} 分 {seconds} 秒",
   "takeScopeBeats": "第 {start} - {end} 拍"

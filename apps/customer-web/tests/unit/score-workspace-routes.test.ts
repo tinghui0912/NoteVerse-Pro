@@ -11,7 +11,8 @@ describe('score workspace routes', () => {
     expect(existsSync(projectPath('src/app/[locale]/(app)/score/[id]/page.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/(workspace)/score/[id]/edit/page.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/app/[locale]/(workspace)/score/[id]/practice/summary/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/(workspace)/score/[id]/practice/review/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/app/[locale]/(workspace)/score/[id]/practice/summary/page.tsx'))).toBe(false);
     expect(existsSync(projectPath('src/app/[locale]/(app)/review/[jobId]/page.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/(workspace)/review/[jobId]/edit/page.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/(external)/share/[shareId]/page.tsx'))).toBe(true);

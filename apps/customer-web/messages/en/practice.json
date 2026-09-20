@@ -207,6 +207,9 @@
   "performanceTakeDeleted": "Performance deleted",
   "savePerformanceFailed": "Failed to save performance, please try again",
   "scoreFallback": "Score #{id}",
+  "deletedScoreNotice": "Original score deleted",
+  "loadMore": "Load More",
+  "noMorePerformances": "All performances loaded",
   "takeDurationSeconds": "{seconds}s",
   "takeDurationMinutesSeconds": "{minutes}m {seconds}s",
   "takeScopeBeats": "Beats {start} - {end}"

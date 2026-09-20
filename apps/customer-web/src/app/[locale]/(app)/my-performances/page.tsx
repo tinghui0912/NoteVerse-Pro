@@ -74,7 +74,10 @@ function PerformanceTakeCard({
 
   // Score details query - handles gracefully if score is deleted
   const scoreQuery = useScoreDetail(String(take.score_id), Boolean(take.score_id));
-  const scoreTitle = scoreQuery.data?.data?.title ?? t('scoreFallback', { id: take.score_id });
+  const scoreTitle =
+    take.score_title ||
+    scoreQuery.data?.data?.title ||
+    (take.score_id ? t('scoreFallback', { id: take.score_id }) : t('deletedScoreNotice'));
 
   // Playback URL query - only active when playing this card
   const playbackQuery = usePerformanceTakePlayback(take.take_id, isPlaying);
@@ -87,7 +90,8 @@ function PerformanceTakeCard({
       if (downloadUrl) {
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = `performance-${take.take_id}.webm`;
+        const ext = take.media_mime_type.includes('mp4') ? 'mp4' : 'webm';
+        a.download = `performance-${take.take_id}.${ext}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -129,12 +133,22 @@ function PerformanceTakeCard({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <Music className="h-4 w-4 text-orange-600 shrink-0" />
-                <Link
-                  href={`/score/${take.score_id}`}
-                  className="font-medium text-gray-900 hover:text-orange-600 hover:underline truncate"
-                >
-                  {scoreTitle}
-                </Link>
+                {take.score_id ? (
+                  <Link
+                    href={`/score/${take.score_id}`}
+                    className="font-medium text-gray-900 hover:text-orange-600 hover:underline truncate"
+                    data-testid={`take-score-link-${take.take_id}`}
+                  >
+                    {scoreTitle}
+                  </Link>
+                ) : (
+                  <span
+                    className="font-medium text-gray-500 truncate"
+                    data-testid={`take-deleted-score-${take.take_id}`}
+                  >
+                    {scoreTitle}
+                  </span>
+                )}
                 <span className="rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
                   {t('performanceInput')}: {t('inputSourceMic')}
                 </span>
@@ -208,13 +222,20 @@ function PerformanceTakeCard({
 export default function MyPerformancesPage() {
   const t = useTranslations('practice');
   const common = useTranslations('common');
-  const takesQuery = usePerformanceTakes();
+  const [limit, setLimit] = useState(50);
+  const takesQuery = usePerformanceTakes({ limit, offset: 0 });
   const deleteTake = useDeletePerformanceTake();
 
   const [activeTakeId, setActiveTakeId] = useState<string | null>(null);
   const [takePendingDelete, setTakePendingDelete] = useState<PerformanceTakeRead | null>(null);
 
   const takes = takesQuery.data?.data?.items ?? [];
+  const total = takesQuery.data?.data?.total ?? 0;
+  const hasMore = takes.length < total;
+
+  const handleLoadMore = () => {
+    setLimit((prev) => prev + 50);
+  };
 
   const handleDeleteConfirm = async () => {
     if (!takePendingDelete) return;
@@ -260,6 +281,23 @@ export default function MyPerformancesPage() {
               onDelete={() => setTakePendingDelete(take)}
             />
           ))}
+
+          {hasMore ? (
+            <div className="flex justify-center pt-4">
+              <Button
+                variant="outline"
+                onClick={handleLoadMore}
+                disabled={takesQuery.isFetching}
+                data-testid="load-more-takes"
+              >
+                {takesQuery.isFetching ? common('loading') : t('loadMore')}
+              </Button>
+            </div>
+          ) : total > 50 ? (
+            <div className="py-4 text-center text-xs text-gray-400">
+              {t('noMorePerformances')}
+            </div>
+          ) : null}
         </div>
       )}
 

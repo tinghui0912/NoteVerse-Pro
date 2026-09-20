@@ -58,13 +58,18 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    score_id: int = Field(
+    score_id: Optional[int] = Field(
+        default=None,
         sa_column=Column(
             bigint_pk_type,
-            ForeignKey("scores.id", ondelete="CASCADE"),
+            ForeignKey("scores.id", ondelete="SET NULL"),
             index=True,
-            nullable=False,
-        )
+            nullable=True,
+        ),
+    )
+    score_title: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String(255), nullable=True),
     )
     revision_id: Optional[int] = Field(
         default=None,

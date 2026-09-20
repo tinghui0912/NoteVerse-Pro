@@ -376,41 +376,48 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     return route.continue();
   });
 
-  await page.route('**/api/v1/performance-takes', (route) => {
-    if (route.request().method() === 'POST') {
-      const postData = route.request().postDataJSON();
-      const newTake = {
-        take_id: 'take-e2e-1',
-        score_id: postData.score_id,
-        revision_id: postData.revision_id ?? null,
-        artifact_id: postData.artifact_id ?? null,
-        media_kind: 'AUDIO',
-        media_mime_type: 'audio/webm',
-        media_byte_size: 1024,
-        duration_ms: 3000,
-        scope_start_beat: 0,
-        scope_terminal_beat: 0,
-        created_at: '2026-09-20T12:00:00Z',
-      };
-      takesDatabase.push(newTake);
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: apiResponse(newTake),
-      });
+  await page.route(
+    (url) => url.pathname === '/api/v1/performance-takes',
+    (route) => {
+      if (route.request().method() === 'POST') {
+        const postData = route.request().postDataJSON();
+        const newTake = {
+          take_id: 'take-e2e-1',
+          score_id: postData.score_id,
+          score_title: 'Continuous Review Score',
+          revision_id: postData.revision_id ?? null,
+          artifact_id: postData.artifact_id ?? null,
+          media_kind: 'AUDIO',
+          media_mime_type: 'audio/webm',
+          media_byte_size: 1024,
+          duration_ms: 3000,
+          scope_start_beat: 0,
+          scope_terminal_beat: 0,
+          created_at: '2026-09-20T12:00:00Z',
+        };
+        takesDatabase.push(newTake);
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: apiResponse(newTake),
+        });
+      }
+      if (route.request().method() === 'GET') {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: apiResponse({
+            items: [...takesDatabase],
+            total: takesDatabase.length,
+            limit: 50,
+            offset: 0,
+            has_more: false,
+          }),
+        });
+      }
+      return route.continue();
     }
-    if (route.request().method() === 'GET') {
-      return route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: apiResponse({
-          items: [...takesDatabase],
-          total: takesDatabase.length,
-        }),
-      });
-    }
-    return route.continue();
-  });
+  );
 
   // Mock PracticeScoreArtifact
   await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/artifact`, (route) =>
@@ -770,5 +777,11 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
 
     // Verify empty state is rendered
     await expect(page.getByText('暂无已保存的演奏')).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('Legacy /summary route returns 404 and is not accessible', async ({ page }) => {
+    await setupContinuousPracticeMocks(page);
+    const response = await page.goto(`/zh/score/${scoreId}/practice/summary`);
+    expect(response?.status()).toBe(404);
   });
 });

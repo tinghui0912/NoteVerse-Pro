@@ -90,15 +90,7 @@ export function useSavePerformanceTake() {
         throw new Error('Failed to authorize performance take upload');
       }
 
-      // 2. Direct upload binary to signed URL
-      await uploadMediaToSignedUrl(
-        authData.upload_url,
-        authData.upload_method,
-        authData.upload_headers,
-        input.audioBlob
-      );
-
-      // 3. Finalize take
+      // 3. Finalize take request shape
       const finalizeReq: PerformanceTakeCreateRequest = {
         take_id: authData.take_id,
         client_request_id: input.clientRequestId,
@@ -116,8 +108,25 @@ export function useSavePerformanceTake() {
         sync_metadata: input.syncMetadata,
       };
 
-      const finalizeRes = await performanceTakesApi.finalizeTake(finalizeReq);
-      return finalizeRes.data;
+      try {
+        // 2. Direct upload binary to signed URL
+        await uploadMediaToSignedUrl(
+          authData.upload_url,
+          authData.upload_method,
+          authData.upload_headers,
+          input.audioBlob
+        );
+
+        const finalizeRes = await performanceTakesApi.finalizeTake(finalizeReq);
+        return finalizeRes.data;
+      } catch (err) {
+        try {
+          await performanceTakesApi.cancelUploadAuthorization(authData.reservation_id);
+        } catch {
+          // ignore cancel error
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.performanceTakes.all });

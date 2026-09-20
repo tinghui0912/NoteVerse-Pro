@@ -54,7 +54,8 @@ class PerformanceTakeCreateRequest(BaseModel):
 
 class PerformanceTakeRead(BaseModel):
     take_id: str
-    score_id: int
+    score_id: Optional[int] = None
+    score_title: Optional[str] = None
     revision_id: Optional[int] = None
     artifact_id: Optional[str] = None
     media_kind: str
@@ -83,3 +84,6 @@ class PerformanceTakePlaybackRead(BaseModel):
 class PerformanceTakeListResponse(BaseModel):
     items: list[PerformanceTakeRead]
     total: int
+    limit: int = 50
+    offset: int = 0
+    has_more: bool = False

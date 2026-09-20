@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.db.models.performance_take import PerformanceTake, PerformanceTakeMediaKind
-from app.db.models.storage_usage import StorageUsageCategory
+from app.db.models.score import Score, ScoreDeletionStatus, ScoreRevision
+from app.db.models.storage_usage import StorageUsageCategory, StorageUsageReservationStatus
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import (
     PerformanceTakeCreateRequest,
@@ -18,9 +19,22 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakeUploadAuthorizationRead,
     PerformanceTakeUploadAuthorizationRequest,
 )
+from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.storage_usage.service import StorageUsageService
 from app.shared.constants import ErrorCode
 from app.storage.base import DirectUploadTarget, FileStorage
+
+SUPPORTED_AUDIO_MIMES = {
+    "audio/webm",
+    "audio/mp4",
+    "audio/m4a",
+    "audio/ogg",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/aac",
+}
 
 
 def _extension_for_mime(mime_type: str) -> str:
@@ -45,10 +59,12 @@ class PerformanceTakeService:
         repository: PerformanceTakeRepository | None = None,
         storage: FileStorage | None = None,
         storage_usage_service: StorageUsageService | None = None,
+        score_access_policy: ScoreAccessPolicy | None = None,
     ) -> None:
         self.repository = repository or PerformanceTakeRepository()
         self.storage = storage  # type: ignore[assignment]
         self.storage_usage_service = storage_usage_service or StorageUsageService()
+        self.score_access_policy = score_access_policy or ScoreAccessPolicy()
 
     def _build_object_key(self, user_id: int, take_uuid: str, mime_type: str) -> str:
         ext = _extension_for_mime(mime_type)
@@ -61,6 +77,7 @@ class PerformanceTakeService:
         return PerformanceTakeRead(
             take_id=take.take_uuid,
             score_id=take.score_id,
+            score_title=take.score_title,
             revision_id=take.revision_id,
             artifact_id=take.artifact_id,
             media_kind=take.media_kind.value,
@@ -81,15 +98,44 @@ class PerformanceTakeService:
         user_id: int,
         request: PerformanceTakeUploadAuthorizationRequest,
     ) -> PerformanceTakeUploadAuthorizationRead:
-        # Validate MIME is audio
+        # 1. Whitelist audio MIME type
         cleaned_mime = request.media_mime_type.split(";")[0].strip().lower()
-        if not cleaned_mime.startswith("audio/"):
+        if cleaned_mime not in SUPPORTED_AUDIO_MIMES:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
+
+        # 2. Validate beat scope and duration
+        if request.scope_start_beat < 0.0 or request.scope_terminal_beat <= request.scope_start_beat:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="scope_terminal_beat")
+        if request.duration_ms <= 0:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="duration_ms")
+        if request.media_byte_size <= 0:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
+
+        # 3. Validate score exists, is active
+        score = await db.get(Score, request.score_id)
+        if not score or score.deletion_status != ScoreDeletionStatus.ACTIVE:
+            raise ResourceNotFoundException("score", str(request.score_id), ErrorCode.SCORE_NOT_FOUND)
+
+        # 4. If revision_id is specified, verify it belongs to this score
+        revision_uuid: str | None = None
+        if request.revision_id is not None:
+            revision = await db.get(ScoreRevision, request.revision_id)
+            if not revision or revision.score_id != score.id:
+                raise ValidationException(ErrorCode.VALIDATION_ERROR, field="revision_id")
+            revision_uuid = revision.revision_uuid
+
+        await self.score_access_policy.authorize(
+            db,
+            score.score_uuid,
+            ScoreAction.PRACTICE,
+            user_id=user_id,
+            revision_uuid=revision_uuid,
+        )
 
         take_uuid = str(uuid4())
         object_key = self._build_object_key(user_id, take_uuid, cleaned_mime)
 
-        # Reserve storage quota
+        # 5. Reserve storage quota
         reservation_handle = await self.storage_usage_service.reserve(
             db,
             user_id=user_id,
@@ -101,20 +147,16 @@ class PerformanceTakeService:
             storage_key=object_key,
         )
 
-        upload_target: DirectUploadTarget | None = None
-        if self.storage is not None:
-            upload_target = self.storage.upload_url(
-                key=object_key,
-                content_type=cleaned_mime,
-                checksum_sha256="",
-            )
-
+        # 6. Generate presigned direct upload URL (OSS direct upload)
+        if self.storage is None:
+            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
+        upload_target = self.storage.upload_url(
+            key=object_key,
+            content_type=cleaned_mime,
+            checksum_sha256="",
+        )
         if upload_target is None:
-            upload_target = DirectUploadTarget(
-                upload_url=f"/api/v1/performance-takes/local-uploads/{take_uuid}?mime_type={cleaned_mime}",
-                upload_method="PUT",
-                upload_headers={"content-type": cleaned_mime},
-            )
+            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="upload_target")
 
         return PerformanceTakeUploadAuthorizationRead(
             take_id=take_uuid,
@@ -126,22 +168,15 @@ class PerformanceTakeService:
             expires_in=3600,
         )
 
-    async def upload_take_object_for_local_storage(
+    async def cancel_upload_authorization(
         self,
+        db: AsyncSession,
         user_id: int,
-        take_uuid: str,
-        *,
-        content: bytes,
-        mime_type: str,
+        reservation_id: str,
     ) -> None:
-        if self.storage.backend_name != "local":
-            raise ValidationException(code=ErrorCode.VALIDATION_ERROR, field="storage_backend")
-        object_key = self._build_object_key(user_id, take_uuid, mime_type)
-        self.storage.put_bytes(
-            key=object_key,
-            content=content,
-            content_type=mime_type,
-        )
+        reservation = await self.storage_usage_service.repository.reservation(db, reservation_id, lock=True)
+        if reservation and reservation.user_id == user_id and reservation.status == StorageUsageReservationStatus.RESERVED:
+            await self.storage_usage_service.release_reservation(db, reservation_id)
 
     async def finalize_take(
         self,
@@ -156,22 +191,51 @@ class PerformanceTakeService:
         if existing is not None:
             return self._to_read_dto(existing)
 
-        # 2. Verify media object exists in storage
         cleaned_mime = request.media_mime_type.split(";")[0].strip().lower()
+        if cleaned_mime not in SUPPORTED_AUDIO_MIMES:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
+
         object_key = self._build_object_key(user_id, request.take_id, cleaned_mime)
+
+        # 2. Strict Server Reservation Binding Validation
+        reservation = await self.storage_usage_service.repository.reservation(
+            db, request.reservation_id, lock=True
+        )
+        if reservation is None or reservation.user_id != user_id:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_id")
+        if reservation.status != StorageUsageReservationStatus.RESERVED:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_id")
+        if reservation.object_type != "performance_take" or reservation.object_id != request.take_id:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_id")
+        if reservation.storage_key != object_key:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_id")
+        if reservation.bytes_reserved != request.media_byte_size:
+            await self.storage_usage_service.release_reservation(db, request.reservation_id)
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
+
+        # 3. Verify media object exists in storage and matches byte size
+        if self.storage is None:
+            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
+
         if not self.storage.exists(object_key):
+            # Auto-release reservation on missing media object
+            await self.storage_usage_service.release_reservation(db, request.reservation_id)
             raise ResourceNotFoundException(
                 "performance_take_media_object",
                 request.take_id,
                 ErrorCode.FILE_NOT_FOUND,
             )
 
-        # 3. Verify media byte size matches
         metadata = self.storage.object_metadata(object_key)
         if metadata.size_bytes != request.media_byte_size:
+            await self.storage_usage_service.release_reservation(db, request.reservation_id)
             raise ValidationException(code=ErrorCode.VALIDATION_ERROR, field="media_byte_size")
 
-        # 4. Commit quota reservation
+        # 4. Snapshot score title if score exists
+        score = await db.get(Score, request.score_id)
+        score_title = score.title if score else None
+
+        # 5. Commit quota reservation
         await self.storage_usage_service.commit_reservation(
             db,
             reservation_id=request.reservation_id,
@@ -180,11 +244,12 @@ class PerformanceTakeService:
             storage_key=object_key,
         )
 
-        # 5. Persist PerformanceTake
+        # 6. Persist PerformanceTake entity
         take = PerformanceTake(
             take_uuid=request.take_id,
             user_id=user_id,
             score_id=request.score_id,
+            score_title=score_title,
             revision_id=request.revision_id,
             artifact_id=request.artifact_id,
             client_request_id=request.client_request_id,
@@ -214,9 +279,13 @@ class PerformanceTakeService:
         items, total = await self.repository.list_takes(
             db, user_id, score_id=score_id, limit=limit, offset=offset
         )
+        has_more = (offset + len(items)) < total
         return PerformanceTakeListResponse(
             items=[self._to_read_dto(item) for item in items],
             total=total,
+            limit=limit,
+            offset=offset,
+            has_more=has_more,
         )
 
     async def get_take(
@@ -240,21 +309,21 @@ class PerformanceTakeService:
         if take is None:
             raise ResourceNotFoundException("performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND)
 
+        if self.storage is None:
+            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
+
         playback_url = self.storage.download_url(
             take.media_object_key,
             content_type=take.media_mime_type,
         )
-        if not playback_url:
-            playback_url = f"/api/v1/performance-takes/{take.take_uuid}/media"
-
         ext = _extension_for_mime(take.media_mime_type)
         download_url = self.storage.download_url(
             take.media_object_key,
             filename=f"performance-{take.take_uuid}.{ext}",
             content_type=take.media_mime_type,
         )
-        if not download_url:
-            download_url = f"/api/v1/performance-takes/{take.take_uuid}/media?download=true"
+        if not playback_url or not download_url:
+            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="download_url")
 
         return PerformanceTakePlaybackRead(
             take_id=take.take_uuid,
@@ -277,7 +346,12 @@ class PerformanceTakeService:
         if take is None:
             raise ResourceNotFoundException("performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND)
 
-        # 1. Release storage quota
+        # 1. Delete OSS storage object FIRST (idempotent, fails before quota or DB touched)
+        if self.storage is not None:
+            self.storage.delete(take.media_object_key)
+
+        # 2. In single database transaction: delete DB record and release quota
+        await self.repository.delete_take(db, take)
         await self.storage_usage_service.record_release(
             db,
             user_id=take.user_id,
@@ -288,9 +362,4 @@ class PerformanceTakeService:
             object_id=take.take_uuid,
             storage_key=take.media_object_key,
         )
-
-        # 2. Delete storage object
-        self.storage.delete(take.media_object_key)
-
-        # 3. Delete database record
-        await self.repository.delete_take(db, take)
+        await db.commit()
