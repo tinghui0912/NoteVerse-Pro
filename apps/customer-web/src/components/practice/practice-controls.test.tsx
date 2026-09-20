@@ -103,16 +103,21 @@ describe('PracticeControls', () => {
     expect(onResume).toHaveBeenCalledTimes(1);
   });
 
-  it('renders interactive metronome toggle that switches state', () => {
+  it('renders interactive metronome toggle inside tempo popover that switches state', () => {
     const onMetronomeEnabledChange = vi.fn();
     const { rerender } = renderControls(false, {
+      tempoSelection: { mode: 'SCORE' },
+      onTempoSelectionChange: vi.fn(),
       metronomeEnabled: false,
       onMetronomeEnabledChange,
     });
 
-    const metronomeBtn = screen.getByRole('button', { name: /metronome/i });
+    const tempoBtn = screen.getByRole('button', { name: /tempo/i });
+    fireEvent.click(tempoBtn);
+
+    const metronomeBtn = screen.getByRole('button', { name: /metronome sound/i });
     expect(metronomeBtn).toBeEnabled();
-    expect(metronomeBtn).toHaveTextContent('♩ Off');
+    expect(metronomeBtn).toHaveTextContent('Off');
 
     fireEvent.click(metronomeBtn);
     expect(onMetronomeEnabledChange).toHaveBeenCalledWith(true);
@@ -126,6 +131,8 @@ describe('PracticeControls', () => {
           canPrepareSession
           rangeSelectionActive={false}
           canSelectRange={false}
+          tempoSelection={{ mode: 'SCORE' }}
+          onTempoSelectionChange={vi.fn()}
           metronomeEnabled={true}
           onMetronomeEnabledChange={onMetronomeEnabledChange}
           onStart={vi.fn()}
@@ -138,9 +145,9 @@ describe('PracticeControls', () => {
       </NextIntlClientProvider>
     );
 
-    const activeMetronomeBtn = screen.getByRole('button', { name: /metronome/i });
+    const activeMetronomeBtn = screen.getByRole('button', { name: /metronome sound/i });
     expect(activeMetronomeBtn).toBeEnabled();
-    expect(activeMetronomeBtn).toHaveTextContent('♩ On');
+    expect(activeMetronomeBtn).toHaveTextContent('On');
     fireEvent.click(activeMetronomeBtn);
     expect(onMetronomeEnabledChange).toHaveBeenCalledWith(false);
   });

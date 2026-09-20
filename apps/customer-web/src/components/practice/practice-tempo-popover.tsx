@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { Gauge, Minus, Plus, RotateCcw } from 'lucide-react';
+import { Gauge, Minus, Plus, RotateCcw, Timer } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +26,8 @@ export type PracticeTempoPopoverProps = {
   scopeStartBeat?: number;
   tempoLocked?: boolean;
   onTempoSelectionChange: (selection: PracticeTempoSelection) => void;
+  metronomeEnabled?: boolean;
+  onMetronomeEnabledChange?: (enabled: boolean) => void;
   className?: string;
 };
 
@@ -35,6 +37,8 @@ export function PracticeTempoPopover({
   scopeStartBeat = 0,
   tempoLocked = false,
   onTempoSelectionChange,
+  metronomeEnabled = false,
+  onMetronomeEnabledChange,
   className,
 }: PracticeTempoPopoverProps) {
   const t = useTranslations('practice');
@@ -49,13 +53,32 @@ export function PracticeTempoPopover({
   const isMusicXmlSingle =
     effectiveTempo.source === 'MUSICXML' && !effectiveTempo.hasSubsequentScoreTempoChanges;
 
-  // Trigger button label
+  const currentBpm =
+    tempoSelection.mode === 'CUSTOM_FIXED_BPM' ? tempoSelection.bpm : initialBpm;
+
+  // Single trigger label: [速度 · 原速] or [速度 · 80 BPM]
   const triggerLabel =
     tempoSelection.mode === 'CUSTOM_FIXED_BPM'
-      ? `${tempoSelection.bpm} BPM`
+      ? `${t('tempoButton')} · ${tempoSelection.bpm} BPM`
       : hasExplicit
-        ? t('tempoScoreMode')
-        : t('tempoDefaultBpm', { bpm: initialBpm });
+        ? `${t('tempoButton')} · ${t('tempoScoreMode')}`
+        : `${t('tempoButton')} · ${initialBpm} BPM`;
+
+  const handleAdjustBpm = (delta: number) => {
+    const nextBpm = clampCustomTempo(currentBpm + delta);
+    onTempoSelectionChange({
+      mode: 'CUSTOM_FIXED_BPM',
+      bpm: nextBpm,
+    });
+  };
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextBpm = clampCustomTempo(Number(e.target.value));
+    onTempoSelectionChange({
+      mode: 'CUSTOM_FIXED_BPM',
+      bpm: nextBpm,
+    });
+  };
 
   return (
     <Popover>
@@ -74,13 +97,15 @@ export function PracticeTempoPopover({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 p-4">
+        {/* Header */}
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-slate-900">{t('tempoButton')}</h4>
-          <span className="text-xs text-slate-400">
+          <h4 className="text-sm font-semibold text-slate-900">{t('settingsTempoAndMetronome')}</h4>
+          <span className="text-xs font-medium text-slate-400">
             {tempoSelection.mode === 'SCORE' ? t('tempoScoreMode') : t('tempoCustomMode')}
           </span>
         </div>
 
+        {/* Score original tempo description */}
         <p className="mt-1 text-xs text-slate-500">
           {isDefaultWithLaterChanges
             ? t('tempoOriginalDefaultWithLaterChanges', { bpm: initialBpm })
@@ -97,116 +122,90 @@ export function PracticeTempoPopover({
           </p>
         ) : null}
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            disabled={tempoLocked}
-            onClick={() => onTempoSelectionChange({ mode: 'SCORE' })}
-            className={cn(
-              'flex items-center justify-center rounded-md border py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60',
-              tempoSelection.mode === 'SCORE'
-                ? 'border-orange-200 bg-orange-50 font-semibold text-orange-950'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-            )}
-            aria-pressed={tempoSelection.mode === 'SCORE'}
-          >
-            {hasExplicit ? t('tempoScoreMode') : t('restoreDefaultTempo')}
-          </button>
-          <button
-            type="button"
-            disabled={tempoLocked}
-            onClick={() => {
-              if (tempoSelection.mode === 'SCORE') {
-                onTempoSelectionChange({
-                  mode: 'CUSTOM_FIXED_BPM',
-                  bpm: initialBpm,
-                });
-              }
-            }}
-            className={cn(
-              'flex items-center justify-center rounded-md border py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60',
-              tempoSelection.mode === 'CUSTOM_FIXED_BPM'
-                ? 'border-orange-200 bg-orange-50 font-semibold text-orange-950'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-            )}
-            aria-pressed={tempoSelection.mode === 'CUSTOM_FIXED_BPM'}
-          >
-            {t('tempoCustomMode')}
-          </button>
-        </div>
-
-        {tempoSelection.mode === 'CUSTOM_FIXED_BPM' ? (
-          <div className="mt-3 rounded-md border border-slate-200 bg-slate-50/50 p-3">
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                aria-label="-5 BPM"
-                disabled={tempoLocked || tempoSelection.bpm <= MIN_PRACTICE_TEMPO_BPM}
-                onClick={() =>
-                  onTempoSelectionChange({
-                    mode: 'CUSTOM_FIXED_BPM',
-                    bpm: clampCustomTempo(tempoSelection.bpm - 5),
-                  })
-                }
-                className="flex h-7 w-7 items-center justify-center rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Minus className="h-3.5 w-3.5" />
-              </button>
-              <span className="text-sm font-semibold tabular-nums text-slate-900">
-                {tempoSelection.bpm} BPM
+        {/* BPM Stepper and Display */}
+        <div className="mt-3.5 rounded-md border border-slate-200 bg-slate-50/50 p-3">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              aria-label="-5 BPM"
+              disabled={tempoLocked || currentBpm <= MIN_PRACTICE_TEMPO_BPM}
+              onClick={() => handleAdjustBpm(-5)}
+              className="flex h-8 w-8 items-center justify-center rounded border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+            <div className="flex flex-col items-center">
+              <span className="text-base font-bold tabular-nums text-slate-900">
+                {currentBpm} BPM
               </span>
-              <button
-                type="button"
-                aria-label="+5 BPM"
-                disabled={tempoLocked || tempoSelection.bpm >= MAX_PRACTICE_TEMPO_BPM}
-                onClick={() =>
-                  onTempoSelectionChange({
-                    mode: 'CUSTOM_FIXED_BPM',
-                    bpm: clampCustomTempo(tempoSelection.bpm + 5),
-                  })
-                }
-                className="flex h-7 w-7 items-center justify-center rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
             </div>
+            <button
+              type="button"
+              aria-label="+5 BPM"
+              disabled={tempoLocked || currentBpm >= MAX_PRACTICE_TEMPO_BPM}
+              onClick={() => handleAdjustBpm(5)}
+              className="flex h-8 w-8 items-center justify-center rounded border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
 
-            <div className="mt-2.5">
-              <input
-                type="range"
-                min={MIN_PRACTICE_TEMPO_BPM}
-                max={MAX_PRACTICE_TEMPO_BPM}
-                step={1}
-                value={tempoSelection.bpm}
-                disabled={tempoLocked}
-                onChange={(e) =>
-                  onTempoSelectionChange({
-                    mode: 'CUSTOM_FIXED_BPM',
-                    bpm: clampCustomTempo(Number(e.target.value)),
-                  })
-                }
-                aria-label="BPM Slider"
-                className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
-              />
-              <div className="mt-1 flex justify-between text-[10px] text-slate-400">
-                <span>{MIN_PRACTICE_TEMPO_BPM}</span>
-                <span>{MAX_PRACTICE_TEMPO_BPM}</span>
-              </div>
-            </div>
-
-            <div className="mt-2 flex justify-center border-t border-slate-200/60 pt-2">
-              <button
-                type="button"
-                disabled={tempoLocked}
-                onClick={() => onTempoSelectionChange({ mode: 'SCORE' })}
-                className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <RotateCcw className="h-3 w-3" />
-                <span>{hasExplicit ? t('restoreOriginalTempo') : t('restoreDefaultTempo')}</span>
-              </button>
+          {/* Slider */}
+          <div className="mt-3">
+            <input
+              type="range"
+              min={MIN_PRACTICE_TEMPO_BPM}
+              max={MAX_PRACTICE_TEMPO_BPM}
+              step={1}
+              value={currentBpm}
+              disabled={tempoLocked}
+              onChange={handleSliderChange}
+              aria-label="BPM Slider"
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+            />
+            <div className="mt-1 flex justify-between text-[10px] text-slate-400">
+              <span>{MIN_PRACTICE_TEMPO_BPM}</span>
+              <span>{MAX_PRACTICE_TEMPO_BPM}</span>
             </div>
           </div>
-        ) : null}
+
+          {/* Restore Original Tempo */}
+          <div className="mt-2.5 flex justify-center border-t border-slate-200/60 pt-2">
+            <button
+              type="button"
+              disabled={tempoLocked || tempoSelection.mode === 'SCORE'}
+              onClick={() => onTempoSelectionChange({ mode: 'SCORE' })}
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <RotateCcw className="h-3 w-3" />
+              <span>{hasExplicit ? t('restoreOriginalTempo') : t('restoreDefaultTempo')}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Metronome Sound Toggle - always operable even during practice */}
+        <div className="mt-4 flex items-center justify-between border-t border-slate-200/80 pt-3">
+          <div className="flex items-center gap-2">
+            <Timer className="h-4 w-4 text-slate-500" aria-hidden="true" />
+            <span className="text-sm font-medium text-slate-900">{t('metronomeSound')}</span>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant={metronomeEnabled ? 'default' : 'outline'}
+            onClick={() => onMetronomeEnabledChange?.(!metronomeEnabled)}
+            className={cn(
+              'h-8 px-3 text-xs font-semibold',
+              metronomeEnabled
+                ? 'border-orange-300 bg-orange-50 text-orange-950 hover:bg-orange-100'
+                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+            )}
+            aria-pressed={metronomeEnabled}
+            aria-label={t('metronomeSound')}
+          >
+            {metronomeEnabled ? t('metronomeOn') : t('metronomeOff')}
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   );

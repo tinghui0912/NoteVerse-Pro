@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { Mic, Pause, Play, Repeat2, Settings, Square, Timer } from 'lucide-react';
+import { Mic, Pause, Play, Repeat2, Settings, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -133,25 +133,10 @@ export function PracticeControls({
               scopeStartBeat={scopeStartBeat}
               tempoLocked={tempoLocked ?? isActive}
               onTempoSelectionChange={onTempoSelectionChange}
+              metronomeEnabled={metronomeEnabled}
+              onMetronomeEnabledChange={onMetronomeEnabledChange}
             />
           ) : null}
-
-          <Button
-            type="button"
-            variant={metronomeEnabled ? 'default' : 'outline'}
-            onClick={() => onMetronomeEnabledChange?.(!metronomeEnabled)}
-            className={cn(
-              'h-11 gap-2',
-              metronomeEnabled
-                ? 'border-orange-300 bg-orange-50 font-semibold text-orange-950 hover:bg-orange-100'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-            )}
-            aria-label={t('metronome')}
-            aria-pressed={metronomeEnabled}
-          >
-            <Timer className="h-4 w-4" aria-hidden="true" />
-            <span>{metronomeEnabled ? t('metronomeToggleOn') : t('metronomeToggleOff')}</span>
-          </Button>
 
           <Button
             type="button"

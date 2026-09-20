@@ -19,7 +19,7 @@ describe('PracticeTempoPopover', () => {
       </NextIntlClientProvider>
     );
 
-    expect(screen.getByRole('button', { name: /tempo/i })).toHaveTextContent('Score Tempo');
+    expect(screen.getByRole('button', { name: /tempo/i })).toHaveTextContent(/Score Tempo/);
   });
 
   it('renders trigger button showing Default 80 BPM when score has no explicit tempo', () => {
@@ -33,7 +33,7 @@ describe('PracticeTempoPopover', () => {
       </NextIntlClientProvider>
     );
 
-    expect(screen.getByRole('button', { name: /tempo/i })).toHaveTextContent('Default 80 BPM');
+    expect(screen.getByRole('button', { name: /tempo/i })).toHaveTextContent('80 BPM');
   });
 
   it('renders trigger button showing exact custom BPM in CUSTOM mode', () => {
@@ -50,7 +50,7 @@ describe('PracticeTempoPopover', () => {
     expect(screen.getByRole('button', { name: /tempo/i })).toHaveTextContent('72 BPM');
   });
 
-  it('allows opening popover and switching between SCORE and CUSTOM modes', () => {
+  it('allows adjusting BPM directly via -5 and +5 buttons without separate mode tabs', () => {
     const onTempoSelectionChange = vi.fn();
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
@@ -66,22 +66,30 @@ describe('PracticeTempoPopover', () => {
     fireEvent.click(screen.getByRole('button', { name: /tempo/i }));
 
     expect(screen.getByText(/Score: ♩ = 104 BPM/i)).toBeInTheDocument();
+    expect(screen.getByText('104 BPM')).toBeInTheDocument();
 
-    const customButton = screen.getByRole('button', { name: 'Custom' });
-    fireEvent.click(customButton);
+    // Clicking +5 directly transitions SCORE -> CUSTOM_FIXED_BPM
+    fireEvent.click(screen.getByRole('button', { name: '+5 BPM' }));
     expect(onTempoSelectionChange).toHaveBeenCalledWith({
       mode: 'CUSTOM_FIXED_BPM',
-      bpm: 104,
+      bpm: 109,
+    });
+
+    // Clicking -5 directly transitions SCORE -> CUSTOM_FIXED_BPM
+    fireEvent.click(screen.getByRole('button', { name: '-5 BPM' }));
+    expect(onTempoSelectionChange).toHaveBeenCalledWith({
+      mode: 'CUSTOM_FIXED_BPM',
+      bpm: 99,
     });
   });
 
-  it('adjusts BPM via -5, +5 buttons and slider in CUSTOM mode', () => {
+  it('allows restoring score tempo from custom mode', () => {
     const onTempoSelectionChange = vi.fn();
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeTempoPopover
           tempoSelection={{ mode: 'CUSTOM_FIXED_BPM', bpm: 100 }}
-          scoreTempoSegments={[{ startBeat: 0, bpm: 100 }]}
+          scoreTempoSegments={[{ startBeat: 0, bpm: 120 }]}
           onTempoSelectionChange={onTempoSelectionChange}
         />
       </NextIntlClientProvider>
@@ -89,35 +97,44 @@ describe('PracticeTempoPopover', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /tempo/i }));
 
-    expect(screen.getAllByText('100 BPM').length).toBeGreaterThanOrEqual(1);
-
-    fireEvent.click(screen.getByRole('button', { name: '-5 BPM' }));
-    expect(onTempoSelectionChange).toHaveBeenCalledWith({
-      mode: 'CUSTOM_FIXED_BPM',
-      bpm: 95,
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: '+5 BPM' }));
-    expect(onTempoSelectionChange).toHaveBeenCalledWith({
-      mode: 'CUSTOM_FIXED_BPM',
-      bpm: 105,
-    });
-
-    const slider = screen.getByLabelText(/BPM Slider/i);
-    fireEvent.change(slider, { target: { value: '120' } });
-    expect(onTempoSelectionChange).toHaveBeenCalledWith({
-      mode: 'CUSTOM_FIXED_BPM',
-      bpm: 120,
-    });
+    const restoreBtn = screen.getByRole('button', { name: /restore score tempo/i });
+    expect(restoreBtn).toBeEnabled();
+    fireEvent.click(restoreBtn);
+    expect(onTempoSelectionChange).toHaveBeenCalledWith({ mode: 'SCORE' });
   });
 
-  it('disables controls and displays lock notice when tempoLocked is true', () => {
+  it('toggles metronome sound within the same popover', () => {
+    const onMetronomeEnabledChange = vi.fn();
+    render(
+      <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+        <PracticeTempoPopover
+          tempoSelection={{ mode: 'SCORE' }}
+          scoreTempoSegments={[{ startBeat: 0, bpm: 100 }]}
+          metronomeEnabled={false}
+          onMetronomeEnabledChange={onMetronomeEnabledChange}
+          onTempoSelectionChange={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /tempo/i }));
+
+    const metronomeToggle = screen.getByRole('button', { name: /metronome sound/i });
+    expect(metronomeToggle).toHaveTextContent('Off');
+    fireEvent.click(metronomeToggle);
+    expect(onMetronomeEnabledChange).toHaveBeenCalledWith(true);
+  });
+
+  it('disables tempo controls while keeping metronome sound operable when tempoLocked is true', () => {
+    const onMetronomeEnabledChange = vi.fn();
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeTempoPopover
           tempoSelection={{ mode: 'CUSTOM_FIXED_BPM', bpm: 90 }}
           scoreTempoSegments={[{ startBeat: 0, bpm: 90 }]}
           tempoLocked={true}
+          metronomeEnabled={true}
+          onMetronomeEnabledChange={onMetronomeEnabledChange}
           onTempoSelectionChange={vi.fn()}
         />
       </NextIntlClientProvider>
@@ -126,10 +143,16 @@ describe('PracticeTempoPopover', () => {
     fireEvent.click(screen.getByRole('button', { name: /tempo/i }));
 
     expect(screen.getByText(/Tempo is locked while practice is active/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Score Tempo' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Custom' })).toBeDisabled();
     expect(screen.getByRole('button', { name: '-5 BPM' })).toBeDisabled();
     expect(screen.getByRole('button', { name: '+5 BPM' })).toBeDisabled();
     expect(screen.getByLabelText(/BPM Slider/i)).toBeDisabled();
+    expect(screen.getByRole('button', { name: /restore score tempo/i })).toBeDisabled();
+
+    // Metronome toggle is NOT locked
+    const metronomeToggle = screen.getByRole('button', { name: /metronome sound/i });
+    expect(metronomeToggle).toBeEnabled();
+    expect(metronomeToggle).toHaveTextContent('On');
+    fireEvent.click(metronomeToggle);
+    expect(onMetronomeEnabledChange).toHaveBeenCalledWith(false);
   });
 });

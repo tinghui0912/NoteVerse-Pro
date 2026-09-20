@@ -63,7 +63,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [rangeSelection, setRangeSelection] = useState<PracticeRangeSelection>(
     fullPiecePracticeRangeSelection
   );
-  const [isRangeSelectionMode, setIsRangeSelectionMode] = useState(false);
+  const [isSelectingRange, setIsSelectingRange] = useState(false);
+
+  const hasCompletedRange =
+    rangeSelection.kind === 'SELECTED_RANGE' &&
+    Boolean(rangeSelection.startGroupId && rangeSelection.endGroupId);
 
   // Score details and assets
   const scoreQuery = useScoreDetail(id);
@@ -129,18 +133,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     return selectedRangeGroups.flatMap((group) => group.renderNoteIds);
   }, [pendingStartGroup, rangeSelection, selectedRangeGroups]);
 
-  const selectedRangeStartRenderNoteIds = useMemo(() => {
-    if (pendingStartGroup) {
-      return pendingStartGroup.renderNoteIds;
-    }
-    return selectedRangeGroups[0] ? selectedRangeGroups[0].renderNoteIds : [];
-  }, [pendingStartGroup, selectedRangeGroups]);
-
-  const selectedRangeEndRenderNoteIds = useMemo(
-    () => (selectedRangeGroups.at(-1) ? selectedRangeGroups.at(-1)!.renderNoteIds : []),
-    [selectedRangeGroups]
-  );
-
   // Local Practice orchestration
   const localPractice = useLocalPractice({
     artifact,
@@ -180,19 +172,20 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     !loadError;
 
   const handleToggleRangeSelection = () => {
-    if (isRangeSelectionMode) {
-      setIsRangeSelectionMode(false);
+    if (hasCompletedRange || isSelectingRange) {
+      // Clear current range or cancel in-progress selection, restoring full piece
+      setIsSelectingRange(false);
+      setRangeSelection(fullPiecePracticeRangeSelection);
     } else {
-      setIsRangeSelectionMode(true);
-      if (rangeSelection.kind === 'FULL_PIECE') {
-        setRangeSelection(selectedPracticeRangeSelection());
-      }
+      // Begin selecting start note
+      setIsSelectingRange(true);
+      setRangeSelection(selectedPracticeRangeSelection());
     }
   };
 
   const handleRenderNoteClick = useCallback(
     (renderNoteId: string) => {
-      if (!isRangeSelectionMode) {
+      if (!isSelectingRange) {
         return;
       }
       const targetGroup = targetForRenderNoteId(expectedGroups, renderNoteId);
@@ -206,10 +199,10 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       );
       setRangeSelection(nextSelection);
       if (completed) {
-        setIsRangeSelectionMode(false);
+        setIsSelectingRange(false);
       }
     },
-    [expectedGroups, isRangeSelectionMode, rangeSelection]
+    [expectedGroups, isSelectingRange, rangeSelection]
   );
 
   const handleRestart = async () => {
@@ -220,7 +213,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const handleAdjustSelectedSection = () => {
     setIsCompletionDialogOpen(false);
     void localPractice.finish();
-    setIsRangeSelectionMode(true);
+    setIsSelectingRange(true);
     setRangeSelection(selectedPracticeRangeSelection());
   };
 
@@ -247,11 +240,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   );
 
   const rangeSelectionPrompt = useMemo(() => {
-    if (!isRangeSelectionMode) {
+    if (!isSelectingRange) {
       if (
-        rangeSelection.kind === 'SELECTED_RANGE' &&
-        rangeSelection.startGroupId &&
-        rangeSelection.endGroupId &&
+        hasCompletedRange &&
         selectedRangeGroups.length > 0
       ) {
         const startMeasure = selectedRangeGroups[0]?.measureNumbers[0];
@@ -272,7 +263,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       return t('sectionSelectingStart');
     }
     return t('sectionSelectingEnd');
-  }, [isRangeSelectionMode, rangeSelection, selectedRangeGroups, t]);
+  }, [hasCompletedRange, isSelectingRange, rangeSelection, selectedRangeGroups, t]);
 
   const practiceControls = (
     <PracticeControls
@@ -282,7 +273,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       canPrepareSession={canPreparePractice}
       selectedInputCapability={selectedInputCapability}
       selectedInputSupported={selectedInputCapability.supported}
-      rangeSelectionActive={isRangeSelectionMode}
+      rangeSelectionActive={isSelectingRange || hasCompletedRange}
       canSelectRange={!isActive}
       tempoSelection={tempoSelection}
       scoreTempoSegments={artifact?.scoreTempoSegments}
@@ -375,9 +366,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                         : null
                     }
                     selectedRangeRenderNoteIds={selectedRangeRenderNoteIds}
-                    selectedRangeStartRenderNoteIds={selectedRangeStartRenderNoteIds}
-                    selectedRangeEndRenderNoteIds={selectedRangeEndRenderNoteIds}
-                    onRenderNoteClick={isRangeSelectionMode ? handleRenderNoteClick : undefined}
+                    onRenderNoteClick={isSelectingRange ? handleRenderNoteClick : undefined}
                   />
                 </ClientOnly>
 

@@ -501,29 +501,21 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     // Verify original tempo display (has changes from 100 to 90)
     await expect(page.getByText(/原速：含速度变化，起始 ♩ = 100 BPM/).first()).toBeVisible();
 
-    // Switch to custom tempo
-    const customButton = page.getByRole('button', { name: '自定义' }).first();
-    await expect(customButton).toBeEnabled();
-    await customButton.click();
-
-    // Verify initial custom BPM matches score starting BPM (100)
-    await expect(page.getByText('100 BPM').first()).toBeVisible();
-
-    // Adjust BPM with +5
+    // Adjust BPM with +5 directly (transitions to custom fixed BPM)
     const plusButton = page.getByRole('button', { name: '+5 BPM' }).first();
     await expect(plusButton).toBeEnabled();
     await plusButton.click();
     await expect(page.getByText('105 BPM').first()).toBeVisible();
 
+    // Toggle metronome on directly inside tempo popover
+    const metronomeButton = page.getByRole('button', { name: '节拍器声音' });
+    await expect(metronomeButton).toBeEnabled();
+    await expect(metronomeButton).toContainText('关');
+    await metronomeButton.click();
+    await expect(metronomeButton).toContainText('开');
+
     // Close tempo popover
     await page.keyboard.press('Escape');
-
-    // Toggle metronome on directly from bottom controls
-    const metronomeButton = page.getByRole('button', { name: '节拍器' });
-    await expect(metronomeButton).toBeEnabled();
-    await expect(metronomeButton).toContainText('♩ 关');
-    await metronomeButton.click();
-    await expect(metronomeButton).toContainText('♩ 开');
 
     // Select MIDI input for reliable headless execution
     const settingsButton = page.getByRole('button', { name: '设置' });
@@ -702,15 +694,18 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await startButton.click();
     await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
 
-    // Toggle metronome ON while ACTIVE directly from bottom controls
-    const metronomeButton = page.getByRole('button', { name: '节拍器' });
-    await expect(metronomeButton).toContainText('♩ 关');
+    // Toggle metronome ON while ACTIVE inside tempo popover
+    const tempoButton = page.getByRole('button', { name: '速度' });
+    await tempoButton.click();
+    const metronomeButton = page.getByRole('button', { name: '节拍器声音' });
+    await expect(metronomeButton).toContainText('关');
     await metronomeButton.click();
-    await expect(metronomeButton).toContainText('♩ 开');
+    await expect(metronomeButton).toContainText('开');
 
-    // Toggle metronome OFF while ACTIVE directly from bottom controls
+    // Toggle metronome OFF while ACTIVE inside tempo popover
     await metronomeButton.click();
-    await expect(metronomeButton).toContainText('♩ 关');
+    await expect(metronomeButton).toContainText('关');
+    await page.keyboard.press('Escape');
 
     // Practice remains ACTIVE and playable
     await expect(page.getByRole('status')).toContainText('可以开始，请弹奏当前音符');
@@ -758,46 +753,65 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     }
     await expect(page.getByText('逐音练习')).not.toBeVisible();
 
-    // 2. Bottom Bar Controls: Tempo & Metronome
+    // 2. Bottom Bar Controls: Unified Tempo & Metronome Popover
     const tempoButton = page.getByRole('button', { name: '速度' });
     await expect(tempoButton).toBeVisible();
     await expect(tempoButton).toContainText(/原速|BPM/);
+    await tempoButton.click();
 
-    const metronomeButton = page.getByRole('button', { name: '节拍器' });
+    const metronomeButton = page.getByRole('button', { name: '节拍器声音' });
     await expect(metronomeButton).toBeVisible();
-    await expect(metronomeButton).toContainText('♩ 关');
+    await expect(metronomeButton).toContainText('关');
     await metronomeButton.click();
-    await expect(metronomeButton).toContainText('♩ 开');
+    await expect(metronomeButton).toContainText('开');
     await metronomeButton.click();
-    await expect(metronomeButton).toContainText('♩ 关');
+    await expect(metronomeButton).toContainText('关');
+    await page.keyboard.press('Escape');
 
-    // 3. Section Selection 2-Stage Interaction
+    // 3. Section Selection 3-State Interaction
     const sectionButton = page.getByRole('button', { name: '分段' });
     await expect(sectionButton).toBeVisible();
+    // Default inactive state: not active styling
+    await expect(sectionButton).not.toHaveClass(/bg-slate-200/);
+
     await sectionButton.click();
 
-    // Prompts to select start note
+    // Selecting state: active background and prompt to select start note
+    await expect(sectionButton).toHaveClass(/bg-slate-200/);
     await expect(page.getByRole('status')).toContainText('请选择起始音符');
 
-    // First click: start note -> immediate boundary highlight
+    // First click: start note -> prompt to select end note, NO orange notehead boundary classes
     const startNote = page.locator('[data-id="select-start-note"]').first();
     await expect(startNote).toBeVisible();
-    await startNote.click();
+    await startNote.locator('path, use').first().click();
 
-    // Boundary note should have practice-range-boundary class
-    await expect(page.locator('.practice-range-boundary')).toHaveCount(1);
+    await expect(page.locator('.practice-range-boundary')).toHaveCount(0);
     await expect(page.getByRole('status')).toContainText('请选择结束音符');
 
     // Second click: end note -> completes range, auto-exits selection mode
     const endNote = page.locator('[data-id="select-end-note"]').first();
     await expect(endNote).toBeVisible();
-    await endNote.click();
+    await endNote.locator('path, use').first().click();
 
     // Range selection mode should auto-exit
     await expect(page.getByRole('status')).toContainText('第 1 小节');
+    // Section button remains active/highlighted when completed
+    await expect(sectionButton).toHaveClass(/bg-slate-200/);
     // Selected range background remains on notes in the range
     await expect(page.locator('.practice-range-selected')).toHaveCount(3);
-    await expect(page.locator('.practice-range-boundary')).toHaveCount(2);
+    // Absolutely NO boundary orange notehead classes
+    await expect(page.locator('.practice-range-boundary')).toHaveCount(0);
+
+    // Clicking section button again clears the selection and restores full piece
+    await sectionButton.click();
+    await expect(sectionButton).not.toHaveClass(/bg-slate-200/);
+    await expect(page.locator('.practice-range-selected')).toHaveCount(0);
+
+    // Re-select range for starting practice with range
+    await sectionButton.click();
+    await startNote.locator('path, use').first().click();
+    await endNote.locator('path, use').first().click();
+    await expect(page.locator('.practice-range-selected')).toHaveCount(3);
 
     // 4. Start Practice with Range
     const startButton = page.getByRole('button', { name: '开始', exact: true });

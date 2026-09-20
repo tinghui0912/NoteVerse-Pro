@@ -31,8 +31,6 @@ type PracticeScoreViewerProps = {
   performanceMusicalBeat?: number | null;
   performanceScopeBeats?: PerformanceScopeBeats | null;
   selectedRangeRenderNoteIds?: readonly string[];
-  selectedRangeStartRenderNoteIds?: readonly string[];
-  selectedRangeEndRenderNoteIds?: readonly string[];
   onRenderNoteClick?: (renderNoteId: string) => void;
 };
 
@@ -47,8 +45,6 @@ export function PracticeScoreViewer({
   performanceMusicalBeat = null,
   performanceScopeBeats = null,
   selectedRangeRenderNoteIds = [],
-  selectedRangeStartRenderNoteIds = [],
-  selectedRangeEndRenderNoteIds = [],
   onRenderNoteClick,
 }: PracticeScoreViewerProps) {
   const isMobile = useIsMobile();
@@ -61,8 +57,6 @@ export function PracticeScoreViewer({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [renderRevision, setRenderRevision] = useState(0);
   const selectedRangeRenderNoteIdSignature = selectedRangeRenderNoteIds.join('\u001f');
-  const selectedRangeStartSignature = selectedRangeStartRenderNoteIds.join('\u001f');
-  const selectedRangeEndSignature = selectedRangeEndRenderNoteIds.join('\u001f');
   const handleRendered = useCallback(
     (_adapter: unknown, container: HTMLDivElement) => {
       containerRef.current = container;
@@ -151,12 +145,6 @@ export function PracticeScoreViewer({
     const rangeNoteIds = selectedRangeRenderNoteIdSignature
       ? selectedRangeRenderNoteIdSignature.split('\u001f')
       : [];
-    const startNoteIds = selectedRangeStartSignature
-      ? selectedRangeStartSignature.split('\u001f')
-      : [];
-    const endNoteIds = selectedRangeEndSignature
-      ? selectedRangeEndSignature.split('\u001f')
-      : [];
     let frame: number | null = null;
     const scheduleSync = () => {
       if (frame !== null) {
@@ -167,7 +155,7 @@ export function PracticeScoreViewer({
         clearRangeBackgrounds(container);
         applyRangeBackgrounds(container, rangeNoteIds);
         clearRangeClasses(container);
-        applyRangeClasses(container, rangeNoteIds, [...startNoteIds, ...endNoteIds]);
+        applyRangeClasses(container, rangeNoteIds);
       });
     };
 
@@ -198,9 +186,7 @@ export function PracticeScoreViewer({
     };
   }, [
     renderRevision,
-    selectedRangeEndSignature,
     selectedRangeRenderNoteIdSignature,
-    selectedRangeStartSignature,
     xmlContent,
   ]);
 
@@ -236,35 +222,31 @@ export function PracticeScoreViewer({
         className
       )}
       data-practice-range-note-ids={selectedRangeRenderNoteIds.join(',')}
-      data-practice-range-start-note-ids={selectedRangeStartRenderNoteIds.join(',')}
-      data-practice-range-end-note-ids={selectedRangeEndRenderNoteIds.join(',')}
     >
       <style jsx global>{`
         .practice-score-svg-selectable svg {
           cursor: crosshair;
         }
         .practice-score-svg-selectable [data-class='note'],
-        .practice-score-svg-selectable .note {
-          pointer-events: bounding-box;
+        .practice-score-svg-selectable .note,
+        .practice-score-svg-selectable [data-class='chord'],
+        .practice-score-svg-selectable .chord {
+          cursor: pointer;
+        }
+        .practice-score-svg-selectable .note *,
+        .practice-score-svg-selectable [data-class='note'] *,
+        .practice-score-svg-selectable .chord *,
+        .practice-score-svg-selectable [data-class='chord'] * {
+          pointer-events: auto;
         }
         .practice-score-svg .practice-range-background {
-          fill: rgb(251 191 36 / 10%);
-          stroke: rgb(245 158 11 / 34%);
-          stroke-width: 1.2px;
-          pointer-events: none;
+          fill: rgb(251 191 36 / 15%);
+          stroke: rgb(245 158 11 / 40%);
+          stroke-width: 1.5px;
+          pointer-events: none !important;
         }
         .practice-score-svg .practice-range-selected {
           opacity: 1 !important;
-        }
-        .practice-score-svg .practice-range-boundary {
-          filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.65)) !important;
-        }
-        .practice-score-svg .practice-range-boundary .notehead,
-        .practice-score-svg .practice-range-boundary use,
-        .practice-score-svg .practice-range-boundary ellipse,
-        .practice-score-svg .practice-range-boundary circle {
-          fill: #f59e0b !important;
-          stroke: #d97706 !important;
         }
         .practice-score-svg .practice-note-active {
           fill: #f97316 !important;
@@ -359,6 +341,20 @@ function cssStringLiteral(value: string) {
   return JSON.stringify(value);
 }
 
+function escapeCssId(id: string) {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(id);
+  }
+  return id.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
+}
+
+function findElementByVerovioId(container: HTMLElement, verovioId: string): SVGGraphicsElement | null {
+  return (
+    container.querySelector<SVGGraphicsElement>(`[data-id=${cssStringLiteral(verovioId)}]`) ??
+    container.querySelector<SVGGraphicsElement>(`#${escapeCssId(verovioId)}`)
+  );
+}
+
 function clearRangeBackgrounds(container: HTMLElement) {
   container
     .querySelectorAll('[data-practice-range-background]')
@@ -383,9 +379,7 @@ function applyRangeBackgrounds(
 ) {
   const systemBoxes = new Map<SVGGraphicsElement, DOMRect>();
   for (const noteId of Array.from(new Set(noteIds.filter(Boolean)))) {
-    const note = container.querySelector<SVGGraphicsElement>(
-      `[data-id=${cssStringLiteral(noteId)}]`
-    );
+    const note = findElementByVerovioId(container, noteId);
     if (!note || typeof note.getBBox !== 'function') {
       continue;
     }
@@ -465,15 +459,10 @@ function clearRangeClasses(container: HTMLElement) {
 
 function applyRangeClasses(
   container: HTMLElement,
-  selectedNoteIds: readonly string[],
-  boundaryNoteIds: readonly string[]
+  selectedNoteIds: readonly string[]
 ) {
   for (const id of Array.from(new Set(selectedNoteIds.filter(Boolean)))) {
-    const el = container.querySelector(`[data-id=${cssStringLiteral(id)}]`);
+    const el = findElementByVerovioId(container, id);
     el?.classList.add('practice-range-selected');
-  }
-  for (const id of Array.from(new Set(boundaryNoteIds.filter(Boolean)))) {
-    const el = container.querySelector(`[data-id=${cssStringLiteral(id)}]`);
-    el?.classList.add('practice-range-boundary');
   }
 }
