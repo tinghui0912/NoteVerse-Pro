@@ -31,6 +31,7 @@ import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-ar
 import {
   performanceReviewDraftStore,
   type PerformanceReviewDraft,
+  mediaTimeToPerformanceTimeMs,
 } from '@/lib/practice/performance-review-draft';
 import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
 import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-annotation-controller';
@@ -89,6 +90,15 @@ export default function PracticeReviewPage({
   );
   const artifact = artifactQuery.data ?? null;
 
+  const isRevisionMismatched = useMemo(() => {
+    if (!isValidDraft || !draft || !artifact) return false;
+    if (artifact.artifactId !== draft.artifactId) return true;
+    if (draft.revisionId && artifact.revisionId && draft.revisionId !== artifact.revisionId) {
+      return true;
+    }
+    return false;
+  }, [artifact, draft, isValidDraft]);
+
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
   const adapterFactory = useCallback(() => adapter, [adapter]);
   const playheadController = useMemo(() => new PerformancePlayheadController(), []);
@@ -97,54 +107,91 @@ export default function PracticeReviewPage({
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
 
   const confirmedCorrectNoteIds = useMemo(() => {
-    if (!isValidDraft || !draft?.performanceSnapshot?.performance?.outcomes) return [];
+    if (!isValidDraft || !draft?.performanceSnapshot?.performance?.outcomes || isRevisionMismatched) {
+      return [];
+    }
     const outcomes = draft.performanceSnapshot.performance.outcomes;
-    return outcomes
-      .filter((o) => o.result === 'MATCH')
-      .flatMap((o) =>
-        (o.expectedStrikeOutcomes ?? [])
-          .filter((s) => s.result === 'MATCHED')
-          .flatMap((s) => s.renderNoteIds ?? [])
-      );
-  }, [isValidDraft, draft]);
+    const ids: string[] = [];
+    for (const o of outcomes) {
+      if (o.expectedStrikeOutcomes && o.expectedStrikeOutcomes.length > 0) {
+        for (const s of o.expectedStrikeOutcomes) {
+          if (s.result === 'MATCHED' && s.renderNoteIds) {
+            ids.push(...s.renderNoteIds);
+          }
+        }
+      } else if (o.result === 'MATCH' && o.renderNoteIds) {
+        ids.push(...o.renderNoteIds);
+      }
+    }
+    return ids;
+  }, [draft, isRevisionMismatched, isValidDraft]);
 
   const confirmedErrorNoteIds = useMemo(() => {
-    if (!isValidDraft || !draft?.performanceSnapshot?.performance?.outcomes) return [];
+    if (!isValidDraft || !draft?.performanceSnapshot?.performance?.outcomes || isRevisionMismatched) {
+      return [];
+    }
     const outcomes = draft.performanceSnapshot.performance.outcomes;
-    return outcomes
-      .filter((o) => o.result === 'MISMATCH')
-      .flatMap((o) => o.renderNoteIds ?? []);
-  }, [isValidDraft, draft]);
+    const ids: string[] = [];
+    for (const o of outcomes) {
+      if (o.expectedStrikeOutcomes && o.expectedStrikeOutcomes.length > 0) {
+        for (const s of o.expectedStrikeOutcomes) {
+          if (s.result === 'MISSING' && s.renderNoteIds) {
+            ids.push(...s.renderNoteIds);
+          }
+        }
+      } else if (o.result === 'MISMATCH' && o.renderNoteIds) {
+        ids.push(...o.renderNoteIds);
+      }
+    }
+    return ids;
+  }, [draft, isRevisionMismatched, isValidDraft]);
 
   const handleScoreRendered = useCallback(
     (_adapter: unknown, container: HTMLDivElement) => {
       scoreContainerRef.current = container;
+      if (isRevisionMismatched) {
+        annotationController.apply(container, {
+          confirmedCorrectNoteIds: [],
+          confirmedErrorNoteIds: [],
+        });
+        return;
+      }
       annotationController.apply(container, {
         confirmedCorrectNoteIds,
         confirmedErrorNoteIds,
       });
     },
-    [annotationController, confirmedCorrectNoteIds, confirmedErrorNoteIds]
+    [annotationController, confirmedCorrectNoteIds, confirmedErrorNoteIds, isRevisionMismatched]
   );
 
   const handleReplayTimeChange = useCallback(
-    (replayTimeMs: number | null) => {
+    (replayTimeMs: number | null, actualMediaDurationMs?: number | null) => {
       const container = scoreContainerRef.current;
       if (!container || !draft) return;
-      if (replayTimeMs === null) {
+      if (replayTimeMs === null || isRevisionMismatched) {
+        playheadController.clear(container);
+        return;
+      }
+      const perfTimeMs = mediaTimeToPerformanceTimeMs(
+        replayTimeMs,
+        draft.recordingTimebase,
+        actualMediaDurationMs
+      );
+      if (perfTimeMs === null) {
         playheadController.clear(container);
         return;
       }
       const scoreEndBeat = artifact?.scoreEndBeat ?? draft.scope.terminalBeat;
       const timeline = new PracticeTempoTimeline(draft.tempoPlan, scoreEndBeat);
-      const nominalTimeMs = draft.replayTiming.scopeStartMs + replayTimeMs;
+      const scopeStartMs = draft.replayTiming?.scopeStartMs ?? 0;
+      const nominalTimeMs = scopeStartMs + perfTimeMs;
       const musicalBeat = timeline.timeMsToBeat(nominalTimeMs);
       playheadController.apply(container, adapter, musicalBeat, {
         startBeat: draft.scope.startBeat,
         terminalBeat: draft.scope.terminalBeat,
       });
     },
-    [adapter, artifact, draft, playheadController]
+    [adapter, artifact, draft, isRevisionMismatched, playheadController]
   );
 
   const replay = useMemo<PlayablePerformanceReplay | null>(() => {
@@ -192,6 +239,8 @@ export default function PracticeReviewPage({
   const outcomes = draft.performanceSnapshot.performance.outcomes ?? [];
   const matchedCount = outcomes.filter((o) => o.result === 'MATCH').length;
   const partialCount = outcomes.filter((o) => o.result === 'PARTIAL').length;
+  const mismatchCount = outcomes.filter((o) => o.result === 'MISMATCH').length;
+  const uncertainCount = outcomes.filter((o) => o.result === 'UNCERTAIN').length;
   const unobservedCount = outcomes.filter((o) => o.result === 'NOT_OBSERVED').length;
   const totalCount = outcomes.length;
 
@@ -252,6 +301,19 @@ export default function PracticeReviewPage({
           </div>
         }
       />
+
+      {/* Revision Mismatch Warning */}
+      {isRevisionMismatched && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-4 text-amber-900 dark:text-amber-200">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <h4 className="text-sm font-semibold">{t('scoreRevisionMismatchTitle')}</h4>
+          </div>
+          <p className="mt-1 text-xs text-amber-800 dark:text-amber-300 pl-7">
+            {t('scoreRevisionMismatchDesc')}
+          </p>
+        </div>
+      )}
 
       {/* Factual Performance Evidence Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -322,7 +384,7 @@ export default function PracticeReviewPage({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 text-center">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 text-center">
               <div className="rounded-md border bg-slate-50 dark:bg-slate-900 p-3">
                 <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
@@ -339,6 +401,24 @@ export default function PracticeReviewPage({
                 </div>
                 <div className="mt-1 text-lg font-bold text-amber-600">
                   {partialCount}
+                </div>
+              </div>
+              <div className="rounded-md border bg-slate-50 dark:bg-slate-900 p-3">
+                <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                  <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                  <span>{t('mismatchGroupCount')}</span>
+                </div>
+                <div className="mt-1 text-lg font-bold text-red-600">
+                  {mismatchCount}
+                </div>
+              </div>
+              <div className="rounded-md border bg-slate-50 dark:bg-slate-900 p-3">
+                <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                  <HelpCircle className="h-3.5 w-3.5 text-purple-400" />
+                  <span>{t('uncertainGroupCount')}</span>
+                </div>
+                <div className="mt-1 text-lg font-bold text-purple-600">
+                  {uncertainCount}
                 </div>
               </div>
               <div className="rounded-md border bg-slate-50 dark:bg-slate-900 p-3">

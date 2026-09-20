@@ -187,6 +187,11 @@
   "performanceOutcomes": "音符匹配结果",
   "matchedGroupCount": "已匹配音符组",
   "partialGroupCount": "部分匹配音符组",
+  "mismatchGroupCount": "错音音符组",
+  "uncertainGroupCount": "不确定音符组",
   "unobservedGroupCount": "未观察到音符组",
-  "totalGroupCount": "总目标音符组"
+  "totalGroupCount": "总目标音符组",
+  "scoreRevisionMismatchTitle": "乐谱版本不一致",
+  "scoreRevisionMismatchDesc": "当前乐谱版本与本次演奏生成的报告版本不一致，已停用谱面标注与回放同步，仅保留音频回放与数据统计。",
+  "audioPlaybackFailed": "本次录音不可回放"
 }

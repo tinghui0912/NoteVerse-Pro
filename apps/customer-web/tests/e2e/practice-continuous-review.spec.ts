@@ -399,9 +399,75 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(page.getByText('练习范围')).toBeVisible();
     await expect(page.getByText('输入方式')).toBeVisible();
     await expect(page.getByText('音符匹配结果')).toBeVisible();
+    await expect(page.getByText('已匹配音符组')).toBeVisible();
+    await expect(page.getByText('总目标音符组')).toBeVisible();
+    await expect(page.getByRole('button', { name: '回放' })).toBeVisible();
 
     // Zero backend session or take requests
     expect(disallowedRequests).toEqual([]);
+  });
+
+  test('CONTINUOUS_PLAY: Pause, resume, and complete session with synchronized audio review', async ({
+    page,
+  }) => {
+    await setupContinuousPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    // Open settings -> select CONTINUOUS_PLAY and MIDI
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
+
+    const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
+    await expect(continuousOption).toBeEnabled();
+    await continuousOption.click();
+
+    const midiInputOption = page.getByRole('button', { name: /MIDI/i });
+    await expect(midiInputOption).toBeEnabled();
+    await midiInputOption.click();
+
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
+
+    // Start practice
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+
+    // Wait until running
+    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+
+    // Pause practice
+    const pauseButton = page.getByRole('button', { name: '暂停', exact: true });
+    await expect(pauseButton).toBeEnabled();
+    await pauseButton.click();
+
+    // Verify paused state
+    await expect(page.getByRole('button', { name: '继续', exact: true })).toBeVisible();
+
+    // Resume practice
+    const resumeButton = page.getByRole('button', { name: '继续', exact: true });
+    await resumeButton.click();
+    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+
+    // Finish practice
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+
+    // Click "查看报告"
+    const viewReportButton = page.getByRole('button', { name: '查看报告' });
+    await expect(viewReportButton).toBeVisible();
+    await viewReportButton.click();
+
+    // Navigates to /review
+    await page.waitForURL(`**/score/${scoreId}/practice/review`);
+    await expect(page.getByRole('heading', { name: '临时演奏报告' })).toBeVisible();
+
+    // Verify player is present and ready to replay
+    await expect(page.getByRole('button', { name: '回放' })).toBeVisible();
+    await expect(page.getByRole('slider', { name: '回放位置' })).toBeVisible();
   });
 
   test('CONTINUOUS_PLAY + MIDI with Mic Denied: Graceful degradation, shows unavailable notice', async ({

@@ -142,7 +142,49 @@ describe('PerformanceReplayPlayer', () => {
 
     fireEvent.error(audio as HTMLAudioElement);
 
-    expect(screen.getByRole('button', { name: 'Replay' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Replay' })).toBeDisabled();
+    expect(screen.getByText('Audio playback unavailable')).toBeInTheDocument();
+  });
+
+  it('updates effective duration and passes actualDurationMs when onLoadedMetadata fires', () => {
+    const blob = new Blob(['audio'], { type: 'audio/webm' });
+    const onReplayTimeChange = vi.fn();
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:audio-replay');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+
+    render(
+      <NextIntlClientProvider locale="en" messages={{ practice: practiceMessages }}>
+        <PerformanceReplayPlayer
+          replay={{
+            kind: 'AUDIO_RECORDING',
+            blob,
+            contentType: 'audio/webm',
+            byteSize: blob.size,
+            durationMs: 1000,
+            timebase: {
+              version: 1,
+              speedRatio: 1,
+            },
+          }}
+          onReplayTimeChange={onReplayTimeChange}
+        />
+      </NextIntlClientProvider>
+    );
+
+    const audio = document.querySelector('audio') as HTMLAudioElement;
+    Object.defineProperty(audio, 'duration', {
+      configurable: true,
+      value: 2.5,
+    });
+    fireEvent.loadedMetadata(audio);
+
+    expect(screen.getByText('0:02')).toBeInTheDocument();
+
+    const slider = screen.getByRole('slider', { name: 'Replay position' });
+    fireEvent.change(slider, { target: { value: '1500' } });
+    expect(onReplayTimeChange).toHaveBeenCalledWith(1500, 2500);
   });
 
   it('samples audio currentTime with requestAnimationFrame while replay is playing', () => {

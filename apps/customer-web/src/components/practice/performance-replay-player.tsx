@@ -13,7 +13,7 @@ import type {
 
 type PerformanceReplayPlayerProps = {
   replay: PlayablePerformanceReplay;
-  onReplayTimeChange?: (replayTimeMs: number | null) => void;
+  onReplayTimeChange?: (replayTimeMs: number | null, actualDurationMs?: number | null) => void;
   autoStart?: boolean;
   actions?: ReactNode;
 };
@@ -54,7 +54,7 @@ function AudioPerformanceReplayPlayer({
   actions,
 }: {
   replay: AudioPerformanceReplay;
-  onReplayTimeChange?: (replayTimeMs: number | null) => void;
+  onReplayTimeChange?: (replayTimeMs: number | null, actualDurationMs?: number | null) => void;
   autoStart: boolean;
   actions?: ReactNode;
 }) {
@@ -62,16 +62,31 @@ function AudioPerformanceReplayPlayer({
   const autoStartedBlobRef = useRef<Blob | null>(null);
   const pendingAutoPlayBlobRef = useRef<Blob | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const [prevBlob, setPrevBlob] = useState(replay.blob);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentMs, setCurrentMs] = useState(0);
+  const [actualDurationMs, setActualDurationMs] = useState<number | null>(null);
+  const [hasPlaybackError, setHasPlaybackError] = useState(false);
+
+  if (prevBlob !== replay.blob) {
+    setPrevBlob(replay.blob);
+    setHasPlaybackError(false);
+    setActualDurationMs(null);
+  }
+
+  const effectiveDurationMs = actualDurationMs ?? replay.durationMs;
 
   const publishTime = useCallback(
     (timeMs: number) => {
-      const boundedTimeMs = boundReplayTime(timeMs, replay.durationMs);
+      const boundedTimeMs = boundReplayTime(timeMs, effectiveDurationMs);
       setCurrentMs(boundedTimeMs);
-      onReplayTimeChange?.(boundedTimeMs);
+      if (actualDurationMs !== null) {
+        onReplayTimeChange?.(boundedTimeMs, actualDurationMs);
+      } else {
+        onReplayTimeChange?.(boundedTimeMs);
+      }
     },
-    [onReplayTimeChange, replay.durationMs]
+    [actualDurationMs, effectiveDurationMs, onReplayTimeChange]
   );
 
   const stopRenderTicker = useCallback(() => {
@@ -128,6 +143,7 @@ function AudioPerformanceReplayPlayer({
     void audio.play().catch(() => {
       stopRenderTicker();
       setIsPlaying(false);
+      setHasPlaybackError(true);
     });
     return true;
   }, [stopRenderTicker]);
@@ -154,6 +170,7 @@ function AudioPerformanceReplayPlayer({
       void audio.play().catch(() => {
         stopRenderTicker();
         setIsPlaying(false);
+        setHasPlaybackError(true);
       });
       return;
     }
@@ -163,28 +180,35 @@ function AudioPerformanceReplayPlayer({
   const seek = useCallback(
     (nextTimeMs: number) => {
       const audio = audioRef.current;
-      const boundedTimeMs = boundReplayTime(nextTimeMs, replay.durationMs);
+      const boundedTimeMs = boundReplayTime(nextTimeMs, effectiveDurationMs);
       if (audio) {
         audio.currentTime = boundedTimeMs / 1000;
       }
       publishTime(boundedTimeMs);
     },
-    [publishTime, replay.durationMs]
+    [effectiveDurationMs, publishTime]
   );
 
   return (
     <ReplayChrome
       currentMs={currentMs}
-      durationMs={replay.durationMs}
+      durationMs={effectiveDurationMs}
       isPlaying={isPlaying}
       onTogglePlayback={togglePlayback}
       onSeek={seek}
       actions={actions}
+      hasPlaybackError={hasPlaybackError}
     >
       <audio
         ref={audioRef}
         preload="metadata"
         className="hidden"
+        onLoadedMetadata={(event) => {
+          const dur = event.currentTarget.duration;
+          if (Number.isFinite(dur) && dur > 0) {
+            setActualDurationMs(dur * 1000);
+          }
+        }}
         onPlay={() => {
           setIsPlaying(true);
           startRenderTicker();
@@ -197,6 +221,7 @@ function AudioPerformanceReplayPlayer({
         onError={() => {
           stopRenderTicker();
           setIsPlaying(false);
+          setHasPlaybackError(true);
         }}
         onSeeked={(event) => publishTime(event.currentTarget.currentTime * 1000)}
         onCanPlay={() => {
@@ -209,7 +234,7 @@ function AudioPerformanceReplayPlayer({
         onEnded={() => {
           stopRenderTicker();
           setIsPlaying(false);
-          publishTime(replay.durationMs);
+          publishTime(effectiveDurationMs);
         }}
       />
     </ReplayChrome>
@@ -372,6 +397,7 @@ function ReplayChrome({
   onTogglePlayback,
   onSeek,
   actions,
+  hasPlaybackError = false,
 }: {
   children?: ReactNode;
   currentMs: number;
@@ -380,6 +406,7 @@ function ReplayChrome({
   onTogglePlayback: () => void;
   onSeek: (timeMs: number) => void;
   actions?: ReactNode;
+  hasPlaybackError?: boolean;
 }) {
   const t = useTranslations('practice');
   const durationLabel = formatReplayTime(durationMs);
@@ -387,6 +414,11 @@ function ReplayChrome({
   return (
     <div className="space-y-3">
       {children}
+      {hasPlaybackError ? (
+        <div className="rounded border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive flex items-center gap-2">
+          <span>{t('audioPlaybackFailed')}</span>
+        </div>
+      ) : null}
       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 text-sm tabular-nums text-slate-600">
         <span>{currentLabel}</span>
         <input
@@ -398,7 +430,7 @@ function ReplayChrome({
           onChange={(event) => onSeek(Number(event.currentTarget.value))}
           className="h-2 w-full accent-orange-500"
           aria-label={t('replaySeek')}
-          disabled={durationMs <= 0}
+          disabled={hasPlaybackError || durationMs <= 0}
         />
         <span>{durationLabel}</span>
       </div>
@@ -409,7 +441,7 @@ function ReplayChrome({
           size="sm"
           className="h-10 w-24"
           onClick={onTogglePlayback}
-          disabled={durationMs <= 0}
+          disabled={hasPlaybackError || durationMs <= 0}
         >
           {isPlaying ? (
             <Pause className="mr-2 h-4 w-4" />

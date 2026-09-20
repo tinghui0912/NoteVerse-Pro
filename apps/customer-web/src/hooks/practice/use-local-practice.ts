@@ -56,6 +56,7 @@ import {
   performanceReviewDraftStore,
   type PerformanceReviewDraft,
   type PerformanceReviewDraftAudio,
+  type RecordingTimebaseMapping,
 } from '@/lib/practice/performance-review-draft';
 
 export type { LocalPracticeLifecycle, LocalPracticeInputState };
@@ -115,10 +116,22 @@ export function useLocalPractice({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
   const midiRecordingStreamRef = useRef<MediaStream | null>(null);
-  const activeRecordingStartedAtMsRef = useRef<number | null>(null);
-  const accumulatedActiveRecordingMsRef = useRef<number>(0);
-  const hasStartedRecordingRef = useRef<boolean>(false);
   const recordingUnavailableReasonRef = useRef<string | null>(null);
+  const recordingStateRef = useRef<
+    'NOT_STARTED' | 'RECORDING' | 'PAUSED' | 'FINALIZING' | 'READY' | 'UNAVAILABLE'
+  >('NOT_STARTED');
+  const sessionGenerationRef = useRef<number>(0);
+  const hasFinalizedRef = useRef<boolean>(false);
+
+  const recordingTimebaseRef = useRef<RecordingTimebaseMapping>({
+    recordingStartPerfTimeMs: 0,
+    recordingEndPerfTimeMs: 0,
+    activeSegments: [],
+    nominalMediaDurationMs: 0,
+  });
+  const currentSegmentStartPerfMsRef = useRef<number | null>(null);
+  const currentSegmentStartMediaMsRef = useRef<number>(0);
+  const cumulativeMediaMsRef = useRef<number>(0);
 
   const resolvedTempoPlan: ResolvedPracticeTempoPlan | null = artifact
     ? resolvePracticeTempoPlan(artifact, tempoSelection)
@@ -221,60 +234,88 @@ export function useLocalPractice({
 
   const finalizeRecordingAndBuildDraft = useCallback(
     async (sessionSnapshot: LocalPerformanceSessionSnapshot) => {
+      if (hasFinalizedRef.current) {
+        return;
+      }
+      hasFinalizedRef.current = true;
+      const sessionGen = sessionGenerationRef.current;
+
       setIsFinalizingRecording(true);
       try {
-        if (activeRecordingStartedAtMsRef.current !== null) {
-          accumulatedActiveRecordingMsRef.current += Math.max(
-            0,
-            performance.now() - activeRecordingStartedAtMsRef.current
+        if (currentSegmentStartPerfMsRef.current !== null) {
+          const perfEndMs = Math.max(
+            currentSegmentStartPerfMsRef.current,
+            sessionSnapshot.performance.activeElapsedMs - sessionSnapshot.performance.countInMs
           );
-          activeRecordingStartedAtMsRef.current = null;
+          const segmentDuration = Math.max(0, perfEndMs - currentSegmentStartPerfMsRef.current);
+          const mediaEndMs = currentSegmentStartMediaMsRef.current + segmentDuration;
+          recordingTimebaseRef.current.activeSegments.push({
+            perfStartMs: currentSegmentStartPerfMsRef.current,
+            perfEndMs,
+            mediaStartMs: currentSegmentStartMediaMsRef.current,
+            mediaEndMs,
+          });
+          cumulativeMediaMsRef.current = mediaEndMs;
+          currentSegmentStartPerfMsRef.current = null;
+          recordingTimebaseRef.current.recordingEndPerfTimeMs = perfEndMs;
+        } else if (recordingTimebaseRef.current.activeSegments.length > 0) {
+          const lastSeg =
+            recordingTimebaseRef.current.activeSegments[
+              recordingTimebaseRef.current.activeSegments.length - 1
+            ];
+          recordingTimebaseRef.current.recordingEndPerfTimeMs = lastSeg.perfEndMs;
         }
+        recordingTimebaseRef.current.nominalMediaDurationMs = cumulativeMediaMsRef.current;
 
         const recorder = mediaRecorderRef.current;
-        let audio: PerformanceReviewDraftAudio;
+        recordingStateRef.current = 'FINALIZING';
 
         if (recorder && recorder.state !== 'inactive') {
-          audio = await new Promise<PerformanceReviewDraftAudio>((resolve) => {
-            recorder.onstop = () => {
-              const mimeType = recorder.mimeType || 'audio/webm';
-              const blob = new Blob(recordingChunksRef.current, { type: mimeType });
-              resolve({
-                status: 'READY',
-                blob,
-                mimeType,
-                durationMs: Math.max(0, Math.round(accumulatedActiveRecordingMsRef.current)),
-              });
-            };
-            recorder.onerror = () => {
-              resolve({
-                status: 'UNAVAILABLE',
-                reason: 'MEDIA_RECORDER_ERROR',
-              });
-            };
-            try {
-              recorder.requestData();
-              recorder.stop();
-            } catch {
-              resolve({
-                status: 'UNAVAILABLE',
-                reason: 'RECORDER_STOP_FAILED',
-              });
-            }
-          });
-        } else if (recordingChunksRef.current.length > 0) {
+          await Promise.race([
+            new Promise<void>((resolve) => {
+              recorder.onstop = () => resolve();
+              try {
+                if (typeof recorder.requestData === 'function') {
+                  recorder.requestData();
+                }
+                recorder.stop();
+              } catch {
+                resolve();
+              }
+            }),
+            new Promise<void>((resolve) => setTimeout(resolve, 1500)),
+          ]);
+        }
+
+        // Stale session generation check
+        if (sessionGen !== sessionGenerationRef.current) {
+          return;
+        }
+
+        const totalBytes = recordingChunksRef.current.reduce((acc, chunk) => acc + (chunk?.size ?? 0), 0);
+        let audio: PerformanceReviewDraftAudio;
+
+        if (
+          totalBytes === 0 ||
+          recordingUnavailableReasonRef.current !== null ||
+          (recordingStateRef.current as string) === 'UNAVAILABLE'
+        ) {
+          recordingStateRef.current = 'UNAVAILABLE';
+          audio = {
+            status: 'UNAVAILABLE',
+            reason:
+              recordingUnavailableReasonRef.current ??
+              (totalBytes === 0 ? 'EMPTY_RECORDING_BLOB' : 'RECORDING_NOT_AVAILABLE'),
+          };
+        } else {
+          recordingStateRef.current = 'READY';
           const mimeType = recorder?.mimeType || 'audio/webm';
           const blob = new Blob(recordingChunksRef.current, { type: mimeType });
           audio = {
             status: 'READY',
             blob,
             mimeType,
-            durationMs: Math.max(0, Math.round(accumulatedActiveRecordingMsRef.current)),
-          };
-        } else {
-          audio = {
-            status: 'UNAVAILABLE',
-            reason: recordingUnavailableReasonRef.current ?? 'RECORDING_NOT_AVAILABLE',
+            durationMs: Math.max(0, Math.round(recordingTimebaseRef.current.nominalMediaDurationMs)),
           };
         }
 
@@ -294,6 +335,7 @@ export function useLocalPractice({
             tempoPlan: resolvedTempoPlan,
             performanceSnapshot: sessionSnapshot,
             audio,
+            recordingTimebase: structuredClone(recordingTimebaseRef.current),
             replayTiming: {
               scopeStartBeat: resolvedScope.startBeat,
               scopeStartMs,
@@ -381,17 +423,22 @@ export function useLocalPractice({
 
       if (
         clockSnapshot.state === 'RUNNING' &&
-        !hasStartedRecordingRef.current &&
+        recordingStateRef.current === 'NOT_STARTED' &&
         mediaRecorderRef.current &&
         mediaRecorderRef.current.state === 'inactive'
       ) {
-        hasStartedRecordingRef.current = true;
-        activeRecordingStartedAtMsRef.current = performance.now();
+        const perfTimeMs = clockSnapshot.performanceTimeMs;
+        recordingTimebaseRef.current.recordingStartPerfTimeMs = perfTimeMs;
+        currentSegmentStartPerfMsRef.current = perfTimeMs;
+        currentSegmentStartMediaMsRef.current = 0;
+        cumulativeMediaMsRef.current = 0;
         try {
           mediaRecorderRef.current.start(250);
+          recordingStateRef.current = 'RECORDING';
         } catch (err) {
           recordingUnavailableReasonRef.current =
             err instanceof Error ? err.message : 'RECORDING_START_FAILED';
+          recordingStateRef.current = 'UNAVAILABLE';
         }
       }
 
@@ -438,12 +485,21 @@ export function useLocalPractice({
     setInputError(null);
     setInputState('STARTING');
 
+    sessionGenerationRef.current += 1;
+    hasFinalizedRef.current = false;
     mediaRecorderRef.current = null;
     recordingChunksRef.current = [];
-    activeRecordingStartedAtMsRef.current = null;
-    accumulatedActiveRecordingMsRef.current = 0;
-    hasStartedRecordingRef.current = false;
     recordingUnavailableReasonRef.current = null;
+    recordingStateRef.current = 'NOT_STARTED';
+    recordingTimebaseRef.current = {
+      recordingStartPerfTimeMs: 0,
+      recordingEndPerfTimeMs: 0,
+      activeSegments: [],
+      nominalMediaDurationMs: 0,
+    };
+    currentSegmentStartPerfMsRef.current = null;
+    currentSegmentStartMediaMsRef.current = 0;
+    cumulativeMediaMsRef.current = 0;
 
     const localSessionId = createLocalSessionId();
     const timebase = new PracticeTimebase({ domainId: localSessionId });
@@ -503,6 +559,10 @@ export function useLocalPractice({
                   recordingChunksRef.current.push(event.data);
                 }
               };
+              recorder.onerror = () => {
+                recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_ERROR';
+                recordingStateRef.current = 'UNAVAILABLE';
+              };
               mediaRecorderRef.current = recorder;
             } catch (recErr) {
               recordingUnavailableReasonRef.current =
@@ -542,6 +602,10 @@ export function useLocalPractice({
                   if (event.data && event.data.size > 0) {
                     recordingChunksRef.current.push(event.data);
                   }
+                };
+                recorder.onerror = () => {
+                  recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_ERROR';
+                  recordingStateRef.current = 'UNAVAILABLE';
                 };
                 mediaRecorderRef.current = recorder;
               } else {
@@ -674,14 +738,28 @@ export function useLocalPractice({
         setPerformanceClock(clock);
       }
       if (mediaRecorderRef.current?.state === 'recording') {
-        if (activeRecordingStartedAtMsRef.current !== null) {
-          accumulatedActiveRecordingMsRef.current += Math.max(
-            0,
-            performance.now() - activeRecordingStartedAtMsRef.current
+        if (currentSegmentStartPerfMsRef.current !== null) {
+          const perfEndMs = Math.max(
+            currentSegmentStartPerfMsRef.current,
+            clock ? clock.performanceTimeMs : currentSegmentStartPerfMsRef.current
           );
-          activeRecordingStartedAtMsRef.current = null;
+          const segmentDuration = Math.max(0, perfEndMs - currentSegmentStartPerfMsRef.current);
+          const mediaEndMs = currentSegmentStartMediaMsRef.current + segmentDuration;
+          recordingTimebaseRef.current.activeSegments.push({
+            perfStartMs: currentSegmentStartPerfMsRef.current,
+            perfEndMs,
+            mediaStartMs: currentSegmentStartMediaMsRef.current,
+            mediaEndMs,
+          });
+          cumulativeMediaMsRef.current = mediaEndMs;
+          currentSegmentStartPerfMsRef.current = null;
         }
-        mediaRecorderRef.current.pause();
+        try {
+          mediaRecorderRef.current.pause();
+        } catch {
+          // ignore
+        }
+        recordingStateRef.current = 'PAUSED';
       }
     }
     setLifecycle('PAUSED');
@@ -719,16 +797,23 @@ export function useLocalPractice({
         metronomeRef.current?.resume(targetOnsetBeat);
       } else {
         setInputState('RUNNING');
-        if (mediaRecorderRef.current?.state === 'paused') {
-          activeRecordingStartedAtMsRef.current = performance.now();
-          mediaRecorderRef.current.resume();
-        }
         const clock = performanceRuntimeRef.current?.resume();
         if (clock) {
           setPerformanceClock(clock);
           metronomeRef.current?.resume(clock);
         } else {
           metronomeRef.current?.resume(0);
+        }
+        if (mediaRecorderRef.current?.state === 'paused') {
+          try {
+            mediaRecorderRef.current.resume();
+            recordingStateRef.current = 'RECORDING';
+            currentSegmentStartPerfMsRef.current = clock ? clock.performanceTimeMs : 0;
+            currentSegmentStartMediaMsRef.current = cumulativeMediaMsRef.current;
+          } catch {
+            recordingUnavailableReasonRef.current = 'RECORDER_RESUME_FAILED';
+            recordingStateRef.current = 'UNAVAILABLE';
+          }
         }
         runPerformanceLoop();
       }
@@ -805,6 +890,8 @@ export function useLocalPractice({
 
   // Reset / restart
   const restart = useCallback(async () => {
+    sessionGenerationRef.current += 1;
+    hasFinalizedRef.current = false;
     metronomeRef.current?.stop();
     metronomeRef.current?.destroy();
     metronomeRef.current = null;

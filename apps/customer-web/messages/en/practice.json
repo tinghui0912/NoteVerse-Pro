@@ -187,6 +187,11 @@
   "performanceOutcomes": "Note Match Outcomes",
   "matchedGroupCount": "Matched Note Groups",
   "partialGroupCount": "Partially Matched",
+  "mismatchGroupCount": "Mismatched",
+  "uncertainGroupCount": "Uncertain",
   "unobservedGroupCount": "Unobserved",
-  "totalGroupCount": "Total Expected Groups"
+  "totalGroupCount": "Total Expected Groups",
+  "scoreRevisionMismatchTitle": "Score Revision Mismatch",
+  "scoreRevisionMismatchDesc": "The loaded score revision does not match this performance draft. Score annotations and playhead sync are disabled; audio replay and statistics remain available.",
+  "audioPlaybackFailed": "Audio playback unavailable"
 }

@@ -29,8 +29,13 @@ const translationMocks = vi.hoisted(() => {
     performanceOutcomes: '音符匹配结果',
     matchedGroupCount: '已匹配音符组',
     partialGroupCount: '部分匹配音符组',
+    mismatchGroupCount: '错音音符组',
+    uncertainGroupCount: '不确定音符组',
     unobservedGroupCount: '未观察到音符组',
     totalGroupCount: '总目标音符组',
+    scoreRevisionMismatchTitle: '乐谱版本不一致',
+    scoreRevisionMismatchDesc: '当前乐谱版本与本次演奏生成的报告版本不一致，已停用谱面标注与回放同步，仅保留音频回放与数据统计。',
+    audioPlaybackFailed: '本次录音不可回放',
     retryPractice: '重弹一次',
     playback: '练习回放',
   };
@@ -73,32 +78,46 @@ vi.mock('@/i18n/routing', () => ({
   usePathname: () => '/score/score-123/practice/review',
 }));
 
+vi.mock('@/hooks/queries/use-score-queries', () => ({
+  useScoreDetail: vi.fn(() => ({
+    data: { data: { head_revision_id: 'rev-1' } },
+    isLoading: false,
+  })),
+}));
+
 vi.mock('@/hooks/practice/use-practice-ready-score-content', () => ({
   usePracticeReadyScoreContent: vi.fn(() => ({
-    xmlContent: '<score-partwise></score-partwise>',
+    data: {
+      data: {
+        content: '<score-partwise></score-partwise>',
+      },
+    },
     isLoading: false,
     selectedRevisionId: 'rev-1',
   })),
 }));
 
+let currentMockArtifact = {
+  scoreId: 'score-123',
+  revisionId: 'rev-1',
+  artifactId: 'art-1',
+  scoreEndBeat: 16,
+};
+
 vi.mock('@/hooks/practice/use-practice-score-artifact', () => ({
   usePracticeScoreArtifact: vi.fn(() => ({
-    artifact: {
-      scoreId: 'score-123',
-      revisionId: 'rev-1',
-      artifactId: 'art-1',
-      scoreEndBeat: 16,
-    },
+    data: currentMockArtifact,
+    isLoading: false,
   })),
 }));
 
 vi.mock('@/components/score-preview/verovio-score-viewer', () => ({
-  VerovioScoreViewer: ({ onRendered }: { onRendered?: (el: HTMLElement) => void }) => {
+  VerovioScoreViewer: ({ onRendered }: { onRendered?: (adapter: unknown, el: HTMLElement) => void }) => {
     return (
       <div
         data-testid="mock-verovio-viewer"
         ref={(el) => {
-          if (el && onRendered) onRendered(el);
+          if (el && onRendered) onRendered(null, el);
         }}
       >
         Mock Score Viewer
@@ -118,11 +137,19 @@ import {
   performanceReviewDraftStore,
   type PerformanceReviewDraft,
 } from '@/lib/practice/performance-review-draft';
+import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-annotation-controller';
 
 describe('PracticeReviewPage', () => {
   beforeEach(() => {
     navigationMocks.push.mockClear();
     performanceReviewDraftStore.clearDraft();
+    currentMockArtifact = {
+      scoreId: 'score-123',
+      revisionId: 'rev-1',
+      artifactId: 'art-1',
+      scoreEndBeat: 16,
+    };
+    vi.restoreAllMocks();
   });
 
   it('renders expired empty state when draft is absent', () => {
@@ -146,6 +173,12 @@ describe('PracticeReviewPage', () => {
       tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }] },
       performanceSnapshot: {} as unknown as PerformanceReviewDraft['performanceSnapshot'],
       audio: { status: 'UNAVAILABLE', reason: 'NONE' },
+      recordingTimebase: {
+        recordingStartPerfTimeMs: 0,
+        recordingEndPerfTimeMs: 6000,
+        activeSegments: [{ perfStartMs: 0, perfEndMs: 6000, mediaStartMs: 0, mediaEndMs: 6000 }],
+        nominalMediaDurationMs: 6000,
+      },
       replayTiming: { scopeStartBeat: 0, scopeStartMs: 0, nominalDurationMs: 6000 },
       completedAt: new Date().toISOString(),
     });
@@ -158,6 +191,8 @@ describe('PracticeReviewPage', () => {
     const validDraft: PerformanceReviewDraft = {
       localSessionId: 'sess-1',
       scoreId: 'score-123',
+      revisionId: 'rev-1',
+      artifactId: 'art-1',
       scope: { startIndex: 0, endIndex: 3, startBeat: 0, terminalBeat: 16 },
       tempoPlan: {
         selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 },
@@ -223,6 +258,12 @@ describe('PracticeReviewPage', () => {
         mimeType: 'audio/webm',
         durationMs: 9600,
       },
+      recordingTimebase: {
+        recordingStartPerfTimeMs: 0,
+        recordingEndPerfTimeMs: 9600,
+        activeSegments: [{ perfStartMs: 0, perfEndMs: 9600, mediaStartMs: 0, mediaEndMs: 9600 }],
+        nominalMediaDurationMs: 9600,
+      },
       replayTiming: {
         scopeStartBeat: 0,
         scopeStartMs: 0,
@@ -254,6 +295,286 @@ describe('PracticeReviewPage', () => {
     fireEvent.click(retryButton);
     expect(performanceReviewDraftStore.getDraft()).toBeNull();
     expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice');
+  });
+
+  it('correctly categorizes note-by-note strike colors and all 5 outcome counters', () => {
+    const applySpy = vi.spyOn(PracticeSummaryAnnotationController.prototype, 'apply');
+
+    const draftWithChordsAndOutcomes: PerformanceReviewDraft = {
+      localSessionId: 'sess-1',
+      scoreId: 'score-123',
+      revisionId: 'rev-1',
+      artifactId: 'art-1',
+      scope: { startIndex: 0, endIndex: 4, startBeat: 0, terminalBeat: 20 },
+      tempoPlan: {
+        selection: { mode: 'SCORE' },
+        segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }],
+      },
+      performanceSnapshot: {
+        localSessionId: 'sess-1',
+        scoreId: 'score-123',
+        revisionId: 'rev-1',
+        artifactId: 'art-1',
+        mode: 'CONTINUOUS_PLAY',
+        inputSource: 'MICROPHONE',
+        tempoSelection: { mode: 'SCORE' },
+        metronomeEnabled: false,
+        lifecycleState: 'ENDED',
+        completionReason: 'SCOPE_COMPLETED',
+        version: { schemaVersion: 1, runtimeVersion: '1.0.0' },
+        createdAtMs: 1000,
+        updatedAtMs: 12000,
+        performance: {
+          state: 'ENDED',
+          stateBeforePause: 'RUNNING',
+          resolvedTempoPlan: {
+            selection: { mode: 'SCORE' },
+            segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }],
+          },
+          scopeStartBeat: 0,
+          scopeTerminalBeat: 20,
+          activeElapsedMs: 10000,
+          countInMs: 0,
+          countInBeats: 0,
+          countInPulses: 0,
+          observations: [],
+          outcomes: [
+            // 1. MATCH group with 2 matched strikes in a chord
+            {
+              expectedGroupId: 'g-1',
+              performanceTimeMs: 0,
+              result: 'MATCH',
+              confidence: 0.95,
+              source: 'ACOUSTIC',
+              expectedStrikeOutcomes: [
+                { strikeId: 's-c4', pitch: 'C4', renderNoteIds: ['note-c4'], result: 'MATCHED' },
+                { strikeId: 's-e4', pitch: 'E4', renderNoteIds: ['note-e4'], result: 'MATCHED' },
+              ],
+              unexpectedPitches: [],
+              renderNoteIds: ['note-c4', 'note-e4'],
+              measureNumbers: ['1'],
+            },
+            // 2. PARTIAL group with 1 matched, 1 missing strike
+            {
+              expectedGroupId: 'g-2',
+              performanceTimeMs: 1000,
+              result: 'PARTIAL',
+              confidence: 0.7,
+              source: 'ACOUSTIC',
+              expectedStrikeOutcomes: [
+                { strikeId: 's-g4', pitch: 'G4', renderNoteIds: ['note-g4'], result: 'MATCHED' },
+                { strikeId: 's-b4', pitch: 'B4', renderNoteIds: ['note-b4'], result: 'MISSING' },
+              ],
+              unexpectedPitches: [],
+              renderNoteIds: ['note-g4', 'note-b4'],
+              measureNumbers: ['1'],
+            },
+            // 3. MISMATCH group where 1 note was actually matched
+            {
+              expectedGroupId: 'g-3',
+              performanceTimeMs: 2000,
+              result: 'MISMATCH',
+              confidence: 0.3,
+              source: 'ACOUSTIC',
+              expectedStrikeOutcomes: [
+                { strikeId: 's-c5', pitch: 'C5', renderNoteIds: ['note-c5'], result: 'MATCHED' },
+                { strikeId: 's-e5', pitch: 'E5', renderNoteIds: ['note-e5'], result: 'MISSING' },
+              ],
+              unexpectedPitches: ['D#5'],
+              renderNoteIds: ['note-c5', 'note-e5'],
+              measureNumbers: ['2'],
+            },
+            // 4. UNCERTAIN group with unconfirmed strike
+            {
+              expectedGroupId: 'g-4',
+              performanceTimeMs: 3000,
+              result: 'UNCERTAIN',
+              confidence: 0.4,
+              source: 'ACOUSTIC',
+              expectedStrikeOutcomes: [
+                { strikeId: 's-f4', pitch: 'F4', renderNoteIds: ['note-f4'], result: 'UNCONFIRMED' },
+              ],
+              unexpectedPitches: [],
+              renderNoteIds: ['note-f4'],
+              measureNumbers: ['2'],
+            },
+            // 5. NOT_OBSERVED group
+            {
+              expectedGroupId: 'g-5',
+              performanceTimeMs: 4000,
+              result: 'NOT_OBSERVED',
+              confidence: 0,
+              source: 'ACOUSTIC',
+              expectedStrikeOutcomes: [
+                { strikeId: 's-a4', pitch: 'A4', renderNoteIds: ['note-a4'], result: 'UNCONFIRMED' },
+              ],
+              unexpectedPitches: [],
+              renderNoteIds: ['note-a4'],
+              measureNumbers: ['3'],
+            },
+          ],
+        },
+      },
+      audio: {
+        status: 'READY',
+        blob: new Blob(['audio-bytes'], { type: 'audio/webm' }),
+        mimeType: 'audio/webm',
+        durationMs: 10000,
+      },
+      recordingTimebase: {
+        recordingStartPerfTimeMs: 0,
+        recordingEndPerfTimeMs: 10000,
+        activeSegments: [{ perfStartMs: 0, perfEndMs: 10000, mediaStartMs: 0, mediaEndMs: 10000 }],
+        nominalMediaDurationMs: 10000,
+      },
+      replayTiming: {
+        scopeStartBeat: 0,
+        scopeStartMs: 0,
+        nominalDurationMs: 10000,
+      },
+      completedAt: '2026-09-20T12:00:00.000Z',
+    };
+
+    performanceReviewDraftStore.setDraft(draftWithChordsAndOutcomes);
+
+    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+
+    // Check all 5 categories + total
+    expect(screen.getByText('已匹配音符组')).toBeDefined();
+    expect(screen.getByText('部分匹配音符组')).toBeDefined();
+    expect(screen.getByText('错音音符组')).toBeDefined();
+    expect(screen.getByText('不确定音符组')).toBeDefined();
+    expect(screen.getByText('未观察到音符组')).toBeDefined();
+    expect(screen.getByText('总目标音符组')).toBeDefined();
+
+    expect(screen.getByText('1 / 5')).toBeDefined(); // matched
+    expect(screen.getAllByText('1')).toHaveLength(4); // partial, mismatch, uncertain, unobserved each have 1
+    expect(screen.getByText('5')).toBeDefined(); // total
+
+    // Verify note-by-note strike annotation:
+    // Green (matched): note-c4, note-e4, note-g4, note-c5
+    // Red (missing): note-b4, note-e5
+    // Neutral (unconfirmed/not_observed): note-f4, note-a4 should NOT be in either
+    expect(applySpy).toHaveBeenCalled();
+    const lastCall = applySpy.mock.calls[applySpy.mock.calls.length - 1];
+    const annotations = lastCall[1];
+    expect(annotations.confirmedCorrectNoteIds).toEqual(
+      expect.arrayContaining(['note-c4', 'note-e4', 'note-g4', 'note-c5'])
+    );
+    expect(annotations.confirmedErrorNoteIds).toEqual(
+      expect.arrayContaining(['note-b4', 'note-e5'])
+    );
+    expect(annotations.confirmedCorrectNoteIds).not.toContain('note-f4');
+    expect(annotations.confirmedCorrectNoteIds).not.toContain('note-a4');
+    expect(annotations.confirmedErrorNoteIds).not.toContain('note-f4');
+    expect(annotations.confirmedErrorNoteIds).not.toContain('note-a4');
+  });
+
+  it('guards against score revision mismatch by disabling annotations and displaying notice', () => {
+    const applySpy = vi.spyOn(PracticeSummaryAnnotationController.prototype, 'apply');
+
+    // Artifact has revision 'rev-2', while draft has revision 'rev-1'
+    currentMockArtifact = {
+      scoreId: 'score-123',
+      revisionId: 'rev-2',
+      artifactId: 'art-1',
+      scoreEndBeat: 16,
+    };
+
+    const validDraft: PerformanceReviewDraft = {
+      localSessionId: 'sess-1',
+      scoreId: 'score-123',
+      revisionId: 'rev-1',
+      artifactId: 'art-1',
+      scope: { startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+      tempoPlan: {
+        selection: { mode: 'SCORE' },
+        segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }],
+      },
+      performanceSnapshot: {
+        localSessionId: 'sess-1',
+        scoreId: 'score-123',
+        revisionId: 'rev-1',
+        artifactId: 'art-1',
+        mode: 'CONTINUOUS_PLAY',
+        inputSource: 'MICROPHONE',
+        tempoSelection: { mode: 'SCORE' },
+        metronomeEnabled: false,
+        lifecycleState: 'ENDED',
+        completionReason: 'SCOPE_COMPLETED',
+        version: { schemaVersion: 1, runtimeVersion: '1.0.0' },
+        createdAtMs: 1000,
+        updatedAtMs: 4000,
+        performance: {
+          state: 'ENDED',
+          stateBeforePause: 'RUNNING',
+          resolvedTempoPlan: {
+            selection: { mode: 'SCORE' },
+            segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }],
+          },
+          scopeStartBeat: 0,
+          scopeTerminalBeat: 4,
+          activeElapsedMs: 3000,
+          countInMs: 0,
+          countInBeats: 0,
+          countInPulses: 0,
+          observations: [],
+          outcomes: [
+            {
+              expectedGroupId: 'g-1',
+              performanceTimeMs: 0,
+              result: 'MATCH',
+              confidence: 0.9,
+              source: 'ACOUSTIC',
+              expectedStrikeOutcomes: [{ strikeId: 's-1', pitch: 'C4', renderNoteIds: ['n-1'], result: 'MATCHED' }],
+              unexpectedPitches: [],
+              renderNoteIds: ['n-1'],
+              measureNumbers: ['1'],
+            },
+          ],
+        },
+      },
+      audio: {
+        status: 'READY',
+        blob: new Blob(['audio-bytes'], { type: 'audio/webm' }),
+        mimeType: 'audio/webm',
+        durationMs: 3000,
+      },
+      recordingTimebase: {
+        recordingStartPerfTimeMs: 0,
+        recordingEndPerfTimeMs: 3000,
+        activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
+        nominalMediaDurationMs: 3000,
+      },
+      replayTiming: {
+        scopeStartBeat: 0,
+        scopeStartMs: 0,
+        nominalDurationMs: 3000,
+      },
+      completedAt: '2026-09-20T12:00:00.000Z',
+    };
+
+    performanceReviewDraftStore.setDraft(validDraft);
+
+    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+
+    // Warning banner rendered
+    expect(screen.getByText('乐谱版本不一致')).toBeDefined();
+    expect(
+      screen.getByText(
+        '当前乐谱版本与本次演奏生成的报告版本不一致，已停用谱面标注与回放同步，仅保留音频回放与数据统计。'
+      )
+    ).toBeDefined();
+
+    // Score annotations are cleared
+    expect(applySpy).toHaveBeenCalled();
+    const lastCall = applySpy.mock.calls[applySpy.mock.calls.length - 1];
+    expect(lastCall[1].confirmedCorrectNoteIds).toEqual([]);
+    expect(lastCall[1].confirmedErrorNoteIds).toEqual([]);
+
+    // Player and factual stats remain rendered
+    expect(screen.getByTestId('mock-replay-player')).toBeDefined();
+    expect(screen.getByText('演奏时长')).toBeDefined();
   });
 
   it('renders notice when audio recording is UNAVAILABLE due to denied mic permission', () => {
@@ -299,6 +620,12 @@ describe('PracticeReviewPage', () => {
       audio: {
         status: 'UNAVAILABLE',
         reason: 'PERMISSION_DENIED',
+      },
+      recordingTimebase: {
+        recordingStartPerfTimeMs: 0,
+        recordingEndPerfTimeMs: 3000,
+        activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
+        nominalMediaDurationMs: 3000,
       },
       replayTiming: {
         scopeStartBeat: 0,
