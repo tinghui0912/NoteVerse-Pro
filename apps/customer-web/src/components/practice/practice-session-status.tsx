@@ -84,6 +84,22 @@ export function resolvePracticeSessionStatusView({
         countInPulse: null,
       };
     }
+    if (inputError === 'MODEL_ACCESS_UNAVAILABLE') {
+      return {
+        messageKey: 'micModelAccessUnavailable',
+        isError: true,
+        pending: false,
+        countInPulse: null,
+      };
+    }
+    if (inputError === 'MODEL_STORAGE_UNAVAILABLE') {
+      return {
+        messageKey: 'micModelStorageUnavailable',
+        isError: true,
+        pending: false,
+        countInPulse: null,
+      };
+    }
     return {
       messageKey: inputSource === 'MIDI' ? 'midiStartFailed' : 'micStartFailed',
       customMessage: inputError ?? undefined,

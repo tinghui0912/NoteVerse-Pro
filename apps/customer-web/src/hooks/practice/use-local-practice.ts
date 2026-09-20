@@ -317,7 +317,12 @@ export function useLocalPractice({
 
     try {
       if (inputSource === 'MICROPHONE') {
-        const modelAccess = await modelAssetsApi.getByteDanceNoteModelAccess();
+        let modelAccess;
+        try {
+          modelAccess = await modelAssetsApi.getByteDanceNoteModelAccess();
+        } catch {
+          throw new Error('MODEL_ACCESS_UNAVAILABLE');
+        }
         const manifest = createByteDanceManifestFromAccess(modelAccess);
 
         const micController = new BrowserMicrophoneCaptureController({
