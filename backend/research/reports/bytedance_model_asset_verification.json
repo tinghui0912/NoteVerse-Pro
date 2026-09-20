@@ -17,7 +17,7 @@
     "http://localhost:3000",
     "https://staging.johnabc.ccwu.cc"
   ],
-  "verifiedAt": "2026-09-19T09:18:46.019029Z",
+  "verifiedAt": "2026-09-20T06:58:30.492566Z",
   "source": "aliyun-oss-private-object",
-  "streamVerificationDurationMs": 46316
+  "streamVerificationDurationMs": 58135
 }

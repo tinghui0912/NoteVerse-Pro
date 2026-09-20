@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-19T04:41:45.690Z",
-  "gitHead": "2f6b82045761eb01dfb47b56d1f80c5323b44681",
+  "generatedAt": "2026-09-20T06:56:52.135Z",
+  "gitHead": "a03688ead52d7ea71409ae55f5036db85896d860",
   "command": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\scripts\\practice-browser-smoke.mjs --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx",
   "harness": "apps/customer-web/scripts/practice-browser-smoke.mjs",
   "model": {
@@ -25,13 +25,13 @@
       "features": [
         "depth32float-stencil8",
         "rg11b10ufloat-renderable",
-        "texture-formats-tier1",
         "bgra8unorm-storage",
+        "texture-formats-tier1",
         "chromium-experimental-multi-draw-indirect",
         "texture-compression-bc",
         "dual-source-blending",
-        "chromium-experimental-sampling-resource-table",
         "core-features-and-limits",
+        "chromium-experimental-sampling-resource-table",
         "chromium-experimental-timestamp-query-inside-passes",
         "float32-filterable",
         "indirect-first-instance",
@@ -40,10 +40,10 @@
         "texture-compression-unaligned",
         "depth-clip-control",
         "texture-compression-bc-sliced-3d",
-        "clip-distances",
         "texture-formats-tier2",
-        "shader-f16",
+        "clip-distances",
         "timestamp-query",
+        "shader-f16",
         "primitive-index",
         "texture-component-swizzle",
         "subgroups"
@@ -54,12 +54,12 @@
         "maxComputeWorkgroupStorageSize": 32768
       }
     },
-    "localSessionId": "local-practice:9b689cb3-0f16-409f-ac95-260c68534e17",
+    "localSessionId": "local-practice:519dd35b-0b1b-4c44-a99b-e769c6d2d0ee",
     "initialTarget": {
       "stepId": "s-0",
       "activationGeneration": 1,
       "activationBoundary": {
-        "domainId": "local-practice:9b689cb3-0f16-409f-ac95-260c68534e17",
+        "domainId": "local-practice:519dd35b-0b1b-4c44-a99b-e769c6d2d0ee",
         "ms": -1
       },
       "attackPitches": [
@@ -73,19 +73,19 @@
         "stepId": "s-0",
         "activationGeneration": 1,
         "attackOnsetTime": {
-          "domainId": "local-practice:9b689cb3-0f16-409f-ac95-260c68534e17",
-          "ms": 740,
-          "sampleIndex": 11840
+          "domainId": "local-practice:519dd35b-0b1b-4c44-a99b-e769c6d2d0ee",
+          "ms": 240.01249999925494,
+          "sampleIndex": 3840
         },
         "captureTime": {
-          "domainId": "local-practice:9b689cb3-0f16-409f-ac95-260c68534e17",
-          "ms": 740,
-          "sampleIndex": 11840
+          "domainId": "local-practice:519dd35b-0b1b-4c44-a99b-e769c6d2d0ee",
+          "ms": 240.01249999925494,
+          "sampleIndex": 3840
         },
         "observedAttackPitches": [
           "A4"
         ],
-        "confidence": 0.2996366322040558,
+        "confidence": 0.5995888113975525,
         "source": "ACOUSTIC"
       }
     ],
@@ -98,8 +98,8 @@
             "stepId": "s-1",
             "activationGeneration": 2,
             "activationBoundary": {
-              "domainId": "local-practice:9b689cb3-0f16-409f-ac95-260c68534e17",
-              "ms": 5225.299999952316
+              "domainId": "local-practice:519dd35b-0b1b-4c44-a99b-e769c6d2d0ee",
+              "ms": 2489.199999999255
             },
             "attackPitches": [
               "B4"
@@ -111,8 +111,8 @@
           "stepId": "s-1",
           "activationGeneration": 2,
           "activationBoundary": {
-            "domainId": "local-practice:9b689cb3-0f16-409f-ac95-260c68534e17",
-            "ms": 5225.299999952316
+            "domainId": "local-practice:519dd35b-0b1b-4c44-a99b-e769c6d2d0ee",
+            "ms": 2489.199999999255
           },
           "attackPitches": [
             "B4"
@@ -125,8 +125,8 @@
       "stepId": "s-1",
       "activationGeneration": 2,
       "activationBoundary": {
-        "domainId": "local-practice:9b689cb3-0f16-409f-ac95-260c68534e17",
-        "ms": 5225.299999952316
+        "domainId": "local-practice:519dd35b-0b1b-4c44-a99b-e769c6d2d0ee",
+        "ms": 2489.199999999255
       },
       "attackPitches": [
         "B4"
@@ -134,22 +134,22 @@
       "continuationPitches": []
     },
     "loadDiagnostic": {
-      "modelFetchAndVerifyMs": 1458.5,
-      "sessionCreateMs": 710.4000000953674,
-      "totalLoadMs": 2168.9000000953674,
+      "modelFetchAndVerifyMs": 700.1000000014901,
+      "sessionCreateMs": 440.2999999988824,
+      "totalLoadMs": 1140.4000000003725,
       "modelByteSize": 98691493,
       "modelSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
       "source": "network",
-      "downloadMs": 1194.1000001430511,
-      "cacheReadMs": 111.5,
-      "verificationMs": 124.39999985694885,
+      "downloadMs": 558.0999999996275,
+      "cacheReadMs": 44,
+      "verificationMs": 81.40000000037253,
       "persistentStorageGranted": null
     },
     "offlineExecutionPassed": true
   },
   "browserErrors": [
-    "\u001b[0;93m2026-09-19 12:41:42.880200 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
-    "\u001b[0;93m2026-09-19 12:41:42.883400 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+    "\u001b[0;93m2026-09-20 14:56:50.760000 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "\u001b[0;93m2026-09-20 14:56:50.761699 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
   ],
   "browserWarnings": []
 }
