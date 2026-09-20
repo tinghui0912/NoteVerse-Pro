@@ -29,8 +29,10 @@ import {
   type LocalPracticeLifecycle,
   type LocalPracticeInputState,
   type LocalPracticeSessionSnapshot,
+  type LocalPerformanceSessionSnapshot,
 } from '@/lib/practice/local-core/session';
 import {
+  PracticeTempoTimeline,
   resolvePracticeTempoPlan,
   type PracticeTempoSelection,
   type ResolvedPracticeTempoPlan,
@@ -50,6 +52,11 @@ import { modelAssetsApi } from '@/lib/api';
 import {
   BrowserMidiController,
 } from '@/lib/practice/midi/browser-midi-controller';
+import {
+  performanceReviewDraftStore,
+  type PerformanceReviewDraft,
+  type PerformanceReviewDraftAudio,
+} from '@/lib/practice/performance-review-draft';
 
 export type { LocalPracticeLifecycle, LocalPracticeInputState };
 
@@ -94,6 +101,7 @@ export function useLocalPractice({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [completionReason, setCompletionReason] = useState<LocalPracticeCompletionReason | null>(null);
   const [lastSnapshot, setLastSnapshot] = useState<LocalPracticeSessionSnapshot | null>(null);
+  const [isFinalizingRecording, setIsFinalizingRecording] = useState(false);
 
   const stepRuntimeRef = useRef<StepPracticeRuntime | null>(null);
   const performanceRuntimeRef = useRef<PerformancePracticeRuntime | null>(null);
@@ -103,6 +111,14 @@ export function useLocalPractice({
   const timebaseRef = useRef<PracticeTimebase | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const midiRecordingStreamRef = useRef<MediaStream | null>(null);
+  const activeRecordingStartedAtMsRef = useRef<number | null>(null);
+  const accumulatedActiveRecordingMsRef = useRef<number>(0);
+  const hasStartedRecordingRef = useRef<boolean>(false);
+  const recordingUnavailableReasonRef = useRef<string | null>(null);
 
   const resolvedTempoPlan: ResolvedPracticeTempoPlan | null = artifact
     ? resolvePracticeTempoPlan(artifact, tempoSelection)
@@ -163,6 +179,24 @@ export function useLocalPractice({
 
   // Teardown inputs completely
   const teardownInputs = useCallback(async () => {
+    const recorder = mediaRecorderRef.current;
+    mediaRecorderRef.current = null;
+    if (recorder && recorder.state !== 'inactive') {
+      try {
+        recorder.stop();
+      } catch {
+        // Ignore stop errors
+      }
+    }
+
+    const midiStream = midiRecordingStreamRef.current;
+    midiRecordingStreamRef.current = null;
+    if (midiStream) {
+      for (const track of midiStream.getTracks()) {
+        track.stop();
+      }
+    }
+
     const mic = micControllerRef.current;
     micControllerRef.current = null;
     if (mic) {
@@ -185,6 +219,97 @@ export function useLocalPractice({
     }
   }, []);
 
+  const finalizeRecordingAndBuildDraft = useCallback(
+    async (sessionSnapshot: LocalPerformanceSessionSnapshot) => {
+      setIsFinalizingRecording(true);
+      try {
+        if (activeRecordingStartedAtMsRef.current !== null) {
+          accumulatedActiveRecordingMsRef.current += Math.max(
+            0,
+            performance.now() - activeRecordingStartedAtMsRef.current
+          );
+          activeRecordingStartedAtMsRef.current = null;
+        }
+
+        const recorder = mediaRecorderRef.current;
+        let audio: PerformanceReviewDraftAudio;
+
+        if (recorder && recorder.state !== 'inactive') {
+          audio = await new Promise<PerformanceReviewDraftAudio>((resolve) => {
+            recorder.onstop = () => {
+              const mimeType = recorder.mimeType || 'audio/webm';
+              const blob = new Blob(recordingChunksRef.current, { type: mimeType });
+              resolve({
+                status: 'READY',
+                blob,
+                mimeType,
+                durationMs: Math.max(0, Math.round(accumulatedActiveRecordingMsRef.current)),
+              });
+            };
+            recorder.onerror = () => {
+              resolve({
+                status: 'UNAVAILABLE',
+                reason: 'MEDIA_RECORDER_ERROR',
+              });
+            };
+            try {
+              recorder.requestData();
+              recorder.stop();
+            } catch {
+              resolve({
+                status: 'UNAVAILABLE',
+                reason: 'RECORDER_STOP_FAILED',
+              });
+            }
+          });
+        } else if (recordingChunksRef.current.length > 0) {
+          const mimeType = recorder?.mimeType || 'audio/webm';
+          const blob = new Blob(recordingChunksRef.current, { type: mimeType });
+          audio = {
+            status: 'READY',
+            blob,
+            mimeType,
+            durationMs: Math.max(0, Math.round(accumulatedActiveRecordingMsRef.current)),
+          };
+        } else {
+          audio = {
+            status: 'UNAVAILABLE',
+            reason: recordingUnavailableReasonRef.current ?? 'RECORDING_NOT_AVAILABLE',
+          };
+        }
+
+        if (artifact && resolvedTempoPlan) {
+          const resolvedScope = resolvePracticeScope(artifact, scope ?? {});
+          const timeline = new PracticeTempoTimeline(resolvedTempoPlan, artifact.scoreEndBeat);
+          const scopeStartMs = timeline.beatToTimeMs(resolvedScope.startBeat);
+          const scopeTerminalMs = timeline.beatToTimeMs(resolvedScope.terminalBeat);
+          const nominalDurationMs = Math.max(0, scopeTerminalMs - scopeStartMs);
+
+          const draft: PerformanceReviewDraft = {
+            localSessionId: sessionSnapshot.localSessionId,
+            scoreId: sessionSnapshot.scoreId,
+            revisionId: sessionSnapshot.revisionId,
+            artifactId: sessionSnapshot.artifactId,
+            scope: resolvedScope,
+            tempoPlan: resolvedTempoPlan,
+            performanceSnapshot: sessionSnapshot,
+            audio,
+            replayTiming: {
+              scopeStartBeat: resolvedScope.startBeat,
+              scopeStartMs,
+              nominalDurationMs,
+            },
+            completedAt: new Date().toISOString(),
+          };
+          performanceReviewDraftStore.setDraft(draft);
+        }
+      } finally {
+        setIsFinalizingRecording(false);
+      }
+    },
+    [artifact, resolvedTempoPlan, scope]
+  );
+
   // Handle natural completion
   const handleNaturalCompletion = useCallback(
     async (snapshot: LocalPracticeSessionSnapshot) => {
@@ -195,11 +320,14 @@ export function useLocalPractice({
       setLastSnapshot(snapshot);
       defaultSessionStore.save(snapshot);
       setLifecycle('ENDED');
+      if (mode === 'CONTINUOUS_PLAY') {
+        await finalizeRecordingAndBuildDraft(snapshot as LocalPerformanceSessionSnapshot);
+      }
       onCompletion?.(snapshot);
       await teardownInputs();
       setInputState('IDLE');
     },
-    [onCompletion, stopAnimationLoop, stopTimer, teardownInputs]
+    [finalizeRecordingAndBuildDraft, mode, onCompletion, stopAnimationLoop, stopTimer, teardownInputs]
   );
 
   // Step observation handler
@@ -251,6 +379,22 @@ export function useLocalPractice({
       const clockSnapshot = runtime.snapshot();
       setPerformanceClock(clockSnapshot);
 
+      if (
+        clockSnapshot.state === 'RUNNING' &&
+        !hasStartedRecordingRef.current &&
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state === 'inactive'
+      ) {
+        hasStartedRecordingRef.current = true;
+        activeRecordingStartedAtMsRef.current = performance.now();
+        try {
+          mediaRecorderRef.current.start(250);
+        } catch (err) {
+          recordingUnavailableReasonRef.current =
+            err instanceof Error ? err.message : 'RECORDING_START_FAILED';
+        }
+      }
+
       if (clockSnapshot.state === 'ENDED') {
         const sessionSnapshot = runtime.snapshotSession();
         void handleNaturalCompletion(sessionSnapshot);
@@ -293,6 +437,13 @@ export function useLocalPractice({
     setErrorInputSource(null);
     setInputError(null);
     setInputState('STARTING');
+
+    mediaRecorderRef.current = null;
+    recordingChunksRef.current = [];
+    activeRecordingStartedAtMsRef.current = null;
+    accumulatedActiveRecordingMsRef.current = 0;
+    hasStartedRecordingRef.current = false;
+    recordingUnavailableReasonRef.current = null;
 
     const localSessionId = createLocalSessionId();
     const timebase = new PracticeTimebase({ domainId: localSessionId });
@@ -341,6 +492,28 @@ export function useLocalPractice({
         });
         micControllerRef.current = micController;
         await micController.start();
+
+        if (mode === 'CONTINUOUS_PLAY') {
+          const micStream = micController.mediaStream;
+          if (micStream && typeof MediaRecorder !== 'undefined') {
+            try {
+              const recorder = new MediaRecorder(micStream);
+              recorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                  recordingChunksRef.current.push(event.data);
+                }
+              };
+              mediaRecorderRef.current = recorder;
+            } catch (recErr) {
+              recordingUnavailableReasonRef.current =
+                recErr instanceof Error ? recErr.message : 'RECORDER_INIT_FAILED';
+            }
+          } else if (!micStream) {
+            recordingUnavailableReasonRef.current = 'MIC_STREAM_UNAVAILABLE';
+          } else {
+            recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_UNSUPPORTED';
+          }
+        }
       } else {
         const midiController = new BrowserMidiController({
           timebase,
@@ -350,6 +523,38 @@ export function useLocalPractice({
         });
         midiControllerRef.current = midiController;
         await midiController.start();
+
+        if (mode === 'CONTINUOUS_PLAY') {
+          try {
+            const mediaDevices = globalThis.navigator?.mediaDevices;
+            if (mediaDevices?.getUserMedia) {
+              const audioStream = await mediaDevices.getUserMedia({
+                audio: {
+                  echoCancellation: false,
+                  noiseSuppression: false,
+                  autoGainControl: false,
+                },
+              });
+              midiRecordingStreamRef.current = audioStream;
+              if (typeof MediaRecorder !== 'undefined') {
+                const recorder = new MediaRecorder(audioStream);
+                recorder.ondataavailable = (event) => {
+                  if (event.data && event.data.size > 0) {
+                    recordingChunksRef.current.push(event.data);
+                  }
+                };
+                mediaRecorderRef.current = recorder;
+              } else {
+                recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_UNSUPPORTED';
+              }
+            } else {
+              recordingUnavailableReasonRef.current = 'MEDIA_DEVICES_UNAVAILABLE';
+            }
+          } catch (permErr) {
+            recordingUnavailableReasonRef.current =
+              permErr instanceof Error ? permErr.name : 'PERMISSION_DENIED';
+          }
+        }
       }
 
       setInputState('RUNNING');
@@ -449,28 +654,37 @@ export function useLocalPractice({
 
     if (mode === 'STEP_BY_STEP') {
       stepRuntimeRef.current?.pause();
+      // Stop inputs without teardown for step mode
+      if (inputSource === 'MICROPHONE' && micControllerRef.current) {
+        try {
+          await micControllerRef.current.stop();
+        } catch {
+          // ignore
+        }
+      } else if (midiControllerRef.current) {
+        try {
+          midiControllerRef.current.stop();
+        } catch {
+          // ignore
+        }
+      }
     } else {
       const clock = performanceRuntimeRef.current?.pause();
       if (clock) {
         setPerformanceClock(clock);
       }
+      if (mediaRecorderRef.current?.state === 'recording') {
+        if (activeRecordingStartedAtMsRef.current !== null) {
+          accumulatedActiveRecordingMsRef.current += Math.max(
+            0,
+            performance.now() - activeRecordingStartedAtMsRef.current
+          );
+          activeRecordingStartedAtMsRef.current = null;
+        }
+        mediaRecorderRef.current.pause();
+      }
     }
     setLifecycle('PAUSED');
-
-    // Stop inputs without teardown
-    if (inputSource === 'MICROPHONE' && micControllerRef.current) {
-      try {
-        await micControllerRef.current.stop();
-      } catch {
-        // ignore
-      }
-    } else if (midiControllerRef.current) {
-      try {
-        midiControllerRef.current.stop();
-      } catch {
-        // ignore
-      }
-    }
     setInputState('IDLE');
   }, [inputSource, lifecycle, mode, stopAnimationLoop, stopTimer]);
 
@@ -485,26 +699,30 @@ export function useLocalPractice({
     setInputState('STARTING');
 
     try {
-      if (inputSource === 'MICROPHONE') {
-        if (!micControllerRef.current) {
-          throw new Error('Microphone session lost. Please restart practice.');
-        }
-        await micControllerRef.current.start();
-      } else {
-        if (!midiControllerRef.current) {
-          throw new Error('MIDI session lost. Please restart practice.');
-        }
-        await midiControllerRef.current.start();
-      }
-
-      setInputState('RUNNING');
-
       if (mode === 'STEP_BY_STEP') {
+        if (inputSource === 'MICROPHONE') {
+          if (!micControllerRef.current) {
+            throw new Error('Microphone session lost. Please restart practice.');
+          }
+          await micControllerRef.current.start();
+        } else {
+          if (!midiControllerRef.current) {
+            throw new Error('MIDI session lost. Please restart practice.');
+          }
+          await midiControllerRef.current.start();
+        }
+
+        setInputState('RUNNING');
         stepRuntimeRef.current?.resume();
         const targetOnsetBeat = stepRuntimeRef.current?.currentOnsetBeat ?? 0;
         metronomeRef.current?.setStepContext(targetOnsetBeat);
         metronomeRef.current?.resume(targetOnsetBeat);
       } else {
+        setInputState('RUNNING');
+        if (mediaRecorderRef.current?.state === 'paused') {
+          activeRecordingStartedAtMsRef.current = performance.now();
+          mediaRecorderRef.current.resume();
+        }
         const clock = performanceRuntimeRef.current?.resume();
         if (clock) {
           setPerformanceClock(clock);
@@ -525,9 +743,6 @@ export function useLocalPractice({
       // lifecycle remains PAUSED
     }
   }, [
-    handleFatalInputError,
-    handlePerformanceEvidence,
-    handleStepObservation,
     inputSource,
     lifecycle,
     mode,
@@ -563,10 +778,14 @@ export function useLocalPractice({
     }
     setLifecycle('ENDED');
 
+    if (mode === 'CONTINUOUS_PLAY' && snapshot) {
+      await finalizeRecordingAndBuildDraft(snapshot as LocalPerformanceSessionSnapshot);
+    }
+
     void teardownInputs().then(() => {
       setInputState('IDLE');
     });
-  }, [mode, stopAnimationLoop, stopTimer, teardownInputs]);
+  }, [finalizeRecordingAndBuildDraft, mode, stopAnimationLoop, stopTimer, teardownInputs]);
 
   // Skip (for STEP mode)
   const skip = useCallback(() => {
@@ -589,6 +808,7 @@ export function useLocalPractice({
     metronomeRef.current?.stop();
     metronomeRef.current?.destroy();
     metronomeRef.current = null;
+    performanceReviewDraftStore.clearDraft();
     await teardownInputs();
     stepRuntimeRef.current = null;
     performanceRuntimeRef.current = null;
@@ -652,6 +872,7 @@ export function useLocalPractice({
     completionReason,
     lastSnapshot,
     resolvedTempoPlan,
+    isFinalizingRecording,
     setMetronomeEnabled,
     start,
     pause,

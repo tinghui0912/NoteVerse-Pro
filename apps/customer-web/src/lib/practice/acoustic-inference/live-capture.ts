@@ -694,6 +694,10 @@ export class BrowserMicrophoneCaptureController {
     };
   }
 
+  get mediaStream(): MediaStream | null {
+    return this.currentLifecycle?.mediaStream ?? null;
+  }
+
   async start(): Promise<void> {
     const currentState = this.state.state;
     if (

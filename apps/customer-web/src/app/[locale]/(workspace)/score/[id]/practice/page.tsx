@@ -210,6 +210,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     await localPractice.restart();
   };
 
+  const handleViewSummary = useCallback(() => {
+    setIsCompletionDialogOpen(false);
+    router.push(`/score/${id}/practice/review`);
+  }, [id, router]);
+
   const handleAdjustSelectedSection = () => {
     setIsCompletionDialogOpen(false);
     void localPractice.finish();
@@ -413,13 +418,11 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             open={isCompletionDialogOpen}
             outcome={completionOutcome}
             sessionMode={practiceMode}
-            isLoading={false}
+            isLoading={localPractice.isFinalizingRecording}
             onOpenChange={setIsCompletionDialogOpen}
             onRestart={handleRestart}
             onAdjustSection={selectedRangeScope ? handleAdjustSelectedSection : undefined}
-            onViewSummary={() => {
-              setIsCompletionDialogOpen(false);
-            }}
+            onViewSummary={handleViewSummary}
           />
         </>
       )}

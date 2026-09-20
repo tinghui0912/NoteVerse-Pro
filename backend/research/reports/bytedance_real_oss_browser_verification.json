@@ -1,0 +1,153 @@
+{
+  "generatedAt": "2026-09-20T07:32:09.314Z",
+  "gitHead": "53ea8e4bbfd4cd5b8c8eedd89e862335c9c78814",
+  "command": "node apps/customer-web/scripts/bytedance-real-oss-browser-smoke.mjs",
+  "browser": {
+    "name": "chrome",
+    "headed": false,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36"
+  },
+  "environment": {
+    "os": "win32 10.0.26200 x64",
+    "node": "v24.19.0"
+  },
+  "modelAsset": {
+    "assetId": "bytedance-piano-transcription-note-model",
+    "expectedByteSize": 98691493,
+    "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "storageOrigin": "noteverse-model-assets.oss-cn-shenzhen.aliyuncs.com"
+  },
+  "opfsCachePath": "noteverse-model-assets/v1/bytedance-piano-transcription-note-model/6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+  "persistentStorageGranted": false,
+  "phase1_firstLoadDirectFromOSS": {
+    "description": "Clean OPFS -> Fetch real signed URL -> Browser direct download from Aliyun OSS -> Write OPFS -> ORT WebGPU inference",
+    "source": "network",
+    "byteSizeDownloaded": 98691493,
+    "sha256Verified": true,
+    "diagnostics": {
+      "modelFetchAndVerifyMs": 45225.5,
+      "sessionCreateMs": 493.2999999988824,
+      "totalLoadMs": 45718.79999999888,
+      "modelByteSize": 98691493,
+      "modelSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+      "source": "network",
+      "downloadMs": 43187.199999999255,
+      "cacheReadMs": 53.80000000074506,
+      "verificationMs": 81.90000000037253,
+      "persistentStorageGranted": null
+    },
+    "inference": {
+      "outputTensors": {
+        "regOnset": {
+          "name": "reg_onset_output",
+          "dtype": "float32",
+          "shape": [
+            1,
+            183,
+            88
+          ]
+        },
+        "frame": {
+          "name": "frame_output",
+          "dtype": "float32",
+          "shape": [
+            1,
+            183,
+            88
+          ]
+        }
+      },
+      "eventCount": 1,
+      "events": [
+        {
+          "pitch": "A4",
+          "midiPitch": 69,
+          "onsetTime": {
+            "domainId": "smoke-test",
+            "sampleIndex": 1760,
+            "ms": 110
+          },
+          "confidence": 0.40352505445480347,
+          "onsetScore": 0.40352505445480347,
+          "frameScore": 0.9820781350135803,
+          "source": "ACOUSTIC",
+          "inferenceCompletedAtMs": 46584.199999999255
+        }
+      ]
+    },
+    "status": "PASS"
+  },
+  "phase2_secondLoadCacheHit": {
+    "description": "Same browser profile -> Fetch fresh descriptor -> OPFS cache hit -> Zero OSS binary download -> ORT WebGPU inference",
+    "source": "opfs-cache",
+    "diagnostics": {
+      "modelFetchAndVerifyMs": 130.2000000011176,
+      "sessionCreateMs": 458.40000000037253,
+      "totalLoadMs": 588.6000000014901,
+      "modelByteSize": 98691493,
+      "modelSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+      "source": "opfs-cache",
+      "cacheReadMs": 44.20000000111759,
+      "verificationMs": 82.90000000037253,
+      "persistentStorageGranted": null
+    },
+    "inference": {
+      "outputTensors": {
+        "regOnset": {
+          "name": "reg_onset_output",
+          "dtype": "float32",
+          "shape": [
+            1,
+            183,
+            88
+          ]
+        },
+        "frame": {
+          "name": "frame_output",
+          "dtype": "float32",
+          "shape": [
+            1,
+            183,
+            88
+          ]
+        }
+      },
+      "eventCount": 1,
+      "events": [
+        {
+          "pitch": "A4",
+          "midiPitch": 69,
+          "onsetTime": {
+            "domainId": "smoke-test",
+            "sampleIndex": 1760,
+            "ms": 110
+          },
+          "confidence": 0.40352505445480347,
+          "onsetScore": 0.40352505445480347,
+          "frameScore": 0.9820781350135803,
+          "source": "ACOUSTIC",
+          "inferenceCompletedAtMs": 1328
+        }
+      ]
+    },
+    "status": "PASS"
+  },
+  "networkSummary": {
+    "descriptorRequestCount": 2,
+    "phase1BinarySource": "network",
+    "phase2BinarySource": "opfs-cache",
+    "phase1DownloadedBytes": 98691493,
+    "phase2DownloadedBytes": 0,
+    "phase1DownloadMs": 43187.199999999255,
+    "phase2CacheReadMs": 44.20000000111759
+  },
+  "verifierDecisionAgreement": true,
+  "browserErrors": [
+    "error: \u001b[0;93m2026-09-20 15:32:05.794199 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "error: \u001b[0;93m2026-09-20 15:32:05.795699 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+    "error: \u001b[0;93m2026-09-20 15:32:08.336400 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "error: \u001b[0;93m2026-09-20 15:32:08.338800 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+  ],
+  "browserWarnings": [],
+  "overallResult": "PASS"
+}
