@@ -37,3 +37,9 @@ export { myScoresApi } from './my-scores';
 export { reviewApi } from './review';
 export { storageUsageApi } from './storage-usage';
 export { modelAssetsApi, type ModelAssetAccess } from './model-assets';
+export {
+  performanceTakesApi,
+  uploadMediaToSignedUrl,
+  type PerformanceTakeRead,
+  type PerformanceTakePlaybackRead,
+} from './performance-takes';

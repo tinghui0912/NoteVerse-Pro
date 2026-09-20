@@ -13,11 +13,12 @@ export type PerformanceReplayTimebase = {
 export type PlayablePerformanceReplay =
   | {
       kind: 'AUDIO_RECORDING';
-      blob: Blob;
+      blob?: Blob;
+      url?: string;
       contentType: string;
-      byteSize: number;
+      byteSize?: number;
       durationMs: number;
-      timebase: PerformanceReplayTimebase;
+      timebase?: PerformanceReplayTimebase;
     }
   | {
       kind: 'MIDI_EVENTS';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { HelpCircle, Library, Menu, Music2, Search, Settings, Upload, X } from 'lucide-react';
+import { HelpCircle, Library, Menu, Music2, Radio, Search, Settings, Upload, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 
@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 const primaryNavItems = [
   { href: '/upload', label: 'nav.upload', icon: Upload },
   { href: '/my-scores', label: 'nav.myScores', icon: Music2 },
+  { href: '/my-performances', label: 'nav.myPerformances', icon: Radio },
   { href: '/library', label: 'nav.library', icon: Library },
   { href: '/settings/profile', label: 'settings', icon: Settings, match: '/settings' },
 ] as const;

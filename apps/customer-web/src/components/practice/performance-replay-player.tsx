@@ -59,17 +59,18 @@ function AudioPerformanceReplayPlayer({
   actions?: ReactNode;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const autoStartedBlobRef = useRef<Blob | null>(null);
-  const pendingAutoPlayBlobRef = useRef<Blob | null>(null);
+  const mediaSource = replay.url ?? replay.blob;
+  const autoStartedSourceRef = useRef<Blob | string | null>(null);
+  const pendingAutoPlaySourceRef = useRef<Blob | string | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const [prevBlob, setPrevBlob] = useState(replay.blob);
+  const [prevMediaSource, setPrevMediaSource] = useState(mediaSource);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentMs, setCurrentMs] = useState(0);
   const [actualDurationMs, setActualDurationMs] = useState<number | null>(null);
   const [hasPlaybackError, setHasPlaybackError] = useState(false);
 
-  if (prevBlob !== replay.blob) {
-    setPrevBlob(replay.blob);
+  if (prevMediaSource !== mediaSource) {
+    setPrevMediaSource(mediaSource);
     setHasPlaybackError(false);
     setActualDurationMs(null);
   }
@@ -122,7 +123,9 @@ function AudioPerformanceReplayPlayer({
     if (!audio) {
       return undefined;
     }
-    const audioUrl = URL.createObjectURL(replay.blob);
+    const audioUrl = replay.url ? replay.url : (replay.blob ? URL.createObjectURL(replay.blob) : '');
+    if (!audioUrl) return undefined;
+
     audio.src = audioUrl;
     audio.load();
     return () => {
@@ -130,10 +133,12 @@ function AudioPerformanceReplayPlayer({
       audio.pause();
       audio.removeAttribute('src');
       audio.load();
-      URL.revokeObjectURL(audioUrl);
+      if (!replay.url && audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
       onReplayTimeChange?.(null);
     };
-  }, [onReplayTimeChange, replay.blob, stopRenderTicker]);
+  }, [onReplayTimeChange, replay.blob, replay.url, stopRenderTicker]);
 
   const startAudioPlayback = useCallback(() => {
     const audio = audioRef.current;
@@ -150,16 +155,16 @@ function AudioPerformanceReplayPlayer({
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!autoStart || !audio || autoStartedBlobRef.current === replay.blob) {
+    if (!autoStart || !audio || autoStartedSourceRef.current === mediaSource) {
       return;
     }
-    autoStartedBlobRef.current = replay.blob;
-    pendingAutoPlayBlobRef.current = replay.blob;
+    autoStartedSourceRef.current = mediaSource ?? null;
+    pendingAutoPlaySourceRef.current = mediaSource ?? null;
     if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
-      pendingAutoPlayBlobRef.current = null;
+      pendingAutoPlaySourceRef.current = null;
       startAudioPlayback();
     }
-  }, [autoStart, replay.blob, startAudioPlayback]);
+  }, [autoStart, mediaSource, startAudioPlayback]);
 
   const togglePlayback = useCallback(() => {
     const audio = audioRef.current;
@@ -225,10 +230,10 @@ function AudioPerformanceReplayPlayer({
         }}
         onSeeked={(event) => publishTime(event.currentTarget.currentTime * 1000)}
         onCanPlay={() => {
-          if (pendingAutoPlayBlobRef.current !== replay.blob) {
+          if (pendingAutoPlaySourceRef.current !== mediaSource) {
             return;
           }
-          pendingAutoPlayBlobRef.current = null;
+          pendingAutoPlaySourceRef.current = null;
           startAudioPlayback();
         }}
         onEnded={() => {

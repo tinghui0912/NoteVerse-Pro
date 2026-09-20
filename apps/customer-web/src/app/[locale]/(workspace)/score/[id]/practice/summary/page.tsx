@@ -637,7 +637,7 @@ export default function PracticeSummaryPage() {
         performancePlayheadController,
         container,
         adapter,
-        replayTimeMs * performanceReplay.timebase.speedRatio,
+        replayTimeMs * (performanceReplay.timebase?.speedRatio ?? 1),
         performanceTimeline
       );
     },

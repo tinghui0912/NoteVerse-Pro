@@ -280,6 +280,138 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     })
   );
 
+  // Mock Score Detail for 0 fallback
+  await page.route('**/api/v1/scores/0', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        score_id: 0,
+        title: 'Continuous Review Score',
+        head_revision_id: revisionId,
+        version: 1,
+        created_at: '2026-08-24T00:00:00Z',
+        updated_at: '2026-08-24T00:00:00Z',
+        in_library: true,
+        input_assets: [],
+        taxonomy_tags: [],
+        metadata: null,
+        publication: null,
+        derived_assets: {
+          preview: { status: 'ready', asset_id: null, revision_id: revisionId, is_fallback: false },
+          audio: { status: 'unavailable', asset_id: null, revision_id: null, is_fallback: false },
+        },
+        capabilities: {
+          can_view: true,
+          can_edit: true,
+          can_delete: true,
+          can_manage_sharing: true,
+        },
+      }),
+    })
+  );
+
+  // Mock Performance Takes Routes
+  const takesDatabase: Array<{
+    take_id: string;
+    score_id: number;
+    revision_id: number | null;
+    artifact_id: string | null;
+    media_kind: string;
+    media_mime_type: string;
+    media_byte_size: number;
+    duration_ms: number;
+    scope_start_beat: number;
+    scope_terminal_beat: number;
+    created_at: string;
+  }> = [];
+
+  await page.route('**/api/v1/performance-takes/upload-authorizations', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        take_id: 'take-e2e-1',
+        upload_url: '/api/v1/performance-takes/mock-upload/take-e2e-1',
+        upload_method: 'PUT',
+        upload_headers: { 'content-type': 'audio/webm' },
+        object_key: 'performance-takes/1/take-e2e-1/recording.webm',
+        reservation_id: 'res-e2e-1',
+        expires_in: 3600,
+      }),
+    })
+  );
+
+  await page.route('**/api/v1/performance-takes/mock-upload/*', (route) =>
+    route.fulfill({ status: 200 })
+  );
+
+  await page.route('**/api/v1/performance-takes/take-e2e-1/playback-url', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: apiResponse({
+        take_id: 'take-e2e-1',
+        playback_url: 'https://mock-oss.noteverse.com/play.webm',
+        download_url: 'https://mock-oss.noteverse.com/download.webm',
+        media_kind: 'AUDIO',
+        media_mime_type: 'audio/webm',
+        media_byte_size: 1024,
+        duration_ms: 3000,
+        expires_in: 3600,
+      }),
+    })
+  );
+
+  await page.route('**/api/v1/performance-takes/take-e2e-1', (route) => {
+    if (route.request().method() === 'DELETE') {
+      const idx = takesDatabase.findIndex((t) => t.take_id === 'take-e2e-1');
+      if (idx !== -1) takesDatabase.splice(idx, 1);
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: apiResponse({ deleted: true }),
+      });
+    }
+    return route.continue();
+  });
+
+  await page.route('**/api/v1/performance-takes', (route) => {
+    if (route.request().method() === 'POST') {
+      const postData = route.request().postDataJSON();
+      const newTake = {
+        take_id: 'take-e2e-1',
+        score_id: postData.score_id,
+        revision_id: postData.revision_id ?? null,
+        artifact_id: postData.artifact_id ?? null,
+        media_kind: 'AUDIO',
+        media_mime_type: 'audio/webm',
+        media_byte_size: 1024,
+        duration_ms: 3000,
+        scope_start_beat: 0,
+        scope_terminal_beat: 0,
+        created_at: '2026-09-20T12:00:00Z',
+      };
+      takesDatabase.push(newTake);
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: apiResponse(newTake),
+      });
+    }
+    if (route.request().method() === 'GET') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: apiResponse({
+          items: [...takesDatabase],
+          total: takesDatabase.length,
+        }),
+      });
+    }
+    return route.continue();
+  });
+
   // Mock PracticeScoreArtifact
   await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/artifact`, (route) =>
     route.fulfill({
@@ -550,5 +682,93 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
 
     // Assert 0 session or take requests
     expect(disallowedRequests).toEqual([]);
+  });
+
+  test('CONTINUOUS_PLAY + Audio: Save performance, direct upload, view in My Performances, and delete', async ({
+    page,
+  }) => {
+    await setupContinuousPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    // Switch to continuous mode
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
+
+    const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
+    await expect(continuousOption).toBeEnabled();
+    await continuousOption.click();
+
+    const midiInputOption = page.getByRole('button', { name: /MIDI/i });
+    await expect(midiInputOption).toBeEnabled();
+    await midiInputOption.click();
+
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
+
+    // Start practice
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+
+    // Wait until running
+    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
+
+    // Finish practice
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+
+    // Click "查看报告"
+    const viewReportButton = page.getByRole('button', { name: '查看报告' });
+    await expect(viewReportButton).toBeVisible();
+    await viewReportButton.click();
+
+    // Navigates to /review
+    await page.waitForURL(`**/score/${scoreId}/practice/review`);
+    await expect(page.getByRole('heading', { name: '临时演奏报告' })).toBeVisible();
+
+    // Verify "保存演奏" button is visible and enabled
+    const saveButton = page.getByRole('button', { name: '保存演奏' });
+    await expect(saveButton).toBeVisible();
+    await expect(saveButton).toBeEnabled();
+
+    // Click "保存演奏"
+    await saveButton.click();
+
+    // Verify button changes to "已保存"
+    await expect(page.getByRole('button', { name: '已保存' })).toBeVisible({ timeout: 10_000 });
+
+    // Click "查看我的演奏" button
+    const viewMyPerformancesBtn = page.getByRole('button', { name: '查看我的演奏' }).first();
+    await expect(viewMyPerformancesBtn).toBeVisible();
+    await viewMyPerformancesBtn.click();
+
+    // Navigates to /zh/my-performances
+    await page.waitForURL('**/my-performances');
+    await expect(page.getByRole('heading', { name: '我的演奏' })).toBeVisible();
+
+    // Verify take card is rendered
+    await expect(page.getByTestId('play-take-take-e2e-1')).toBeVisible();
+    await expect(page.getByTestId('download-take-take-e2e-1')).toBeVisible();
+    await expect(page.getByTestId('delete-take-take-e2e-1')).toBeVisible();
+
+    // Click play
+    await page.getByTestId('play-take-take-e2e-1').click();
+    await expect(page.getByRole('slider', { name: '回放位置' })).toBeVisible({ timeout: 10_000 });
+
+    // Click delete
+    await page.getByTestId('delete-take-take-e2e-1').click();
+
+    // Confirmation dialog appears
+    await expect(page.getByText('确定要删除这条演奏记录吗？')).toBeVisible();
+
+    // Confirm deletion
+    const confirmDeleteBtn = page.getByRole('button', { name: '删除' });
+    await confirmDeleteBtn.click();
+
+    // Verify empty state is rendered
+    await expect(page.getByText('暂无已保存的演奏')).toBeVisible({ timeout: 10_000 });
   });
 });

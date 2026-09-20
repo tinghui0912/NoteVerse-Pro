@@ -36,6 +36,15 @@ const translationMocks = vi.hoisted(() => {
     scoreRevisionMismatchTitle: '乐谱版本不一致',
     scoreRevisionMismatchDesc: '当前乐谱版本与本次演奏生成的报告版本不一致，已停用谱面标注与回放同步，仅保留音频回放与数据统计。',
     audioPlaybackFailed: '本次录音不可回放',
+    savePerformance: '保存演奏',
+    performanceSaved: '已保存',
+    savingPerformance: '正在保存...',
+    retrySavePerformance: '重试保存',
+    viewMyPerformances: '查看我的演奏',
+    savePerformanceSuccessTitle: '演奏已保存',
+    savePerformanceSuccessDesc: '可以稍后在已保存演奏中查看。',
+    savePerformanceFailedTitle: '保存失败',
+    savePerformanceFailedDesc: '暂时无法保存这次演奏，请稍后重试。',
     retryPractice: '重弹一次',
     playback: '练习回放',
   };
@@ -78,11 +87,22 @@ vi.mock('@/i18n/routing', () => ({
   usePathname: () => '/score/score-123/practice/review',
 }));
 
+const useScoreDetailMock = vi.fn((_scoreId: string, _enabled = true) => ({
+  data: { data: { head_revision_id: 'rev-1' } },
+  isLoading: false,
+}));
+
 vi.mock('@/hooks/queries/use-score-queries', () => ({
-  useScoreDetail: vi.fn(() => ({
-    data: { data: { head_revision_id: 'rev-1' } },
-    isLoading: false,
-  })),
+  useScoreDetail: (scoreId: string, enabled?: boolean) => useScoreDetailMock(scoreId, enabled),
+}));
+
+const saveMutationMock = vi.hoisted(() => ({
+  mutateAsync: vi.fn(),
+  isPending: false,
+}));
+
+vi.mock('@/hooks/queries/use-performance-take-queries', () => ({
+  useSavePerformanceTake: () => saveMutationMock,
 }));
 
 vi.mock('@/hooks/practice/use-practice-ready-score-content', () => ({
@@ -642,5 +662,102 @@ describe('PracticeReviewPage', () => {
     expect(screen.getByText('本次录音不可用')).toBeDefined();
     expect(screen.getByText('未授予麦克风权限')).toBeDefined();
     expect(screen.queryByTestId('mock-replay-player')).toBeNull();
+
+    // When audio is UNAVAILABLE, Save Performance button is disabled
+    const saveBtn = screen.getByRole('button', { name: '保存演奏' });
+    expect(saveBtn.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('disables score queries when draft is absent', () => {
+    performanceReviewDraftStore.clearDraft();
+    useScoreDetailMock.mockClear();
+
+    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+
+    expect(useScoreDetailMock).toHaveBeenCalledWith('score-123', false);
+    expect(screen.getByText('本次临时报告已失效')).toBeDefined();
+  });
+
+  it('handles save performance flow with success state', async () => {
+    const validDraft: PerformanceReviewDraft = {
+      localSessionId: 'sess-save',
+      scoreId: 'score-123',
+      revisionId: 'rev-1',
+      artifactId: 'art-1',
+      scope: { startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+      tempoPlan: {
+        selection: { mode: 'SCORE' },
+        segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
+      },
+      performanceSnapshot: {
+        localSessionId: 'sess-save',
+        scoreId: 'score-123',
+        revisionId: 'rev-1',
+        artifactId: 'art-1',
+        mode: 'CONTINUOUS_PLAY',
+        inputSource: 'MIDI',
+        tempoSelection: { mode: 'SCORE' },
+        metronomeEnabled: false,
+        lifecycleState: 'ENDED',
+        completionReason: 'SCOPE_COMPLETED',
+        version: { schemaVersion: 1, runtimeVersion: '1.0.0' },
+        createdAtMs: 1000,
+        updatedAtMs: 4000,
+        performance: {
+          state: 'ENDED',
+          stateBeforePause: 'RUNNING',
+          resolvedTempoPlan: {
+            selection: { mode: 'SCORE' },
+            segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
+          },
+          scopeStartBeat: 0,
+          scopeTerminalBeat: 4,
+          activeElapsedMs: 3000,
+          countInMs: 0,
+          countInBeats: 0,
+          countInPulses: 0,
+          observations: [],
+          outcomes: [],
+        },
+      },
+      audio: {
+        status: 'READY',
+        blob: new Blob(['audio'], { type: 'audio/webm' }),
+        mimeType: 'audio/webm',
+        durationMs: 3000,
+      },
+      recordingTimebase: {
+        recordingStartPerfTimeMs: 0,
+        recordingEndPerfTimeMs: 3000,
+        activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
+        nominalMediaDurationMs: 3000,
+      },
+      replayTiming: {
+        scopeStartBeat: 0,
+        scopeStartMs: 0,
+        nominalDurationMs: 3000,
+      },
+      completedAt: '2026-09-20T12:00:00.000Z',
+    };
+
+    performanceReviewDraftStore.setDraft(validDraft);
+    saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-abc' });
+
+    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+
+    const saveBtn = screen.getByRole('button', { name: '保存演奏' });
+    expect(saveBtn.hasAttribute('disabled')).toBe(false);
+
+    fireEvent.click(saveBtn);
+
+    expect(saveMutationMock.mutateAsync).toHaveBeenCalled();
+    const saveCall = saveMutationMock.mutateAsync.mock.calls[0][0];
+    expect(saveCall.scoreId).toBe(0); // non-numeric or parsed
+    expect(saveCall.artifactId).toBe('art-1');
+    expect(saveCall.audioBlob).toBeDefined();
+
+    // After resolution, shows "已保存" and "查看我的演奏"
+    await screen.findByText('已保存');
+    expect(screen.getAllByText('查看我的演奏').length).toBeGreaterThanOrEqual(1);
   });
 });

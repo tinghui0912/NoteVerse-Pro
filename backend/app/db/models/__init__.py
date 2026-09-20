@@ -96,6 +96,10 @@ from .storage_usage import (
     StorageUsageReservation,
     StorageUsageReservationStatus,
 )
+from .performance_take import (
+    PerformanceTake,
+    PerformanceTakeMediaKind,
+)
 
 __all__ = [
     "User",
@@ -188,4 +192,6 @@ __all__ = [
     "StorageUsageEvent",
     "StorageUsageReservation",
     "StorageUsageReservationStatus",
+    "PerformanceTake",
+    "PerformanceTakeMediaKind",
 ]

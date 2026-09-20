@@ -18,6 +18,7 @@ from app.modules.realtime.router import router as realtime
 from app.modules.publications.router import public_router as publications
 from app.modules.publications.router import score_router as score_publications
 from app.modules.review.router import router as review
+from app.modules.performance_takes.router import router as performance_takes
 from app.modules.scores.router import router as scores
 from app.modules.storage_usage.router import router as storage_usage
 from app.modules.score_assets.router import render_asset_router
@@ -59,3 +60,4 @@ api_router.include_router(playback, tags=["Playback"])
 api_router.include_router(model_assets, prefix="/model-assets", tags=["Model Assets"])
 api_router.include_router(realtime, prefix="/realtime", tags=["Realtime"])
 api_router.include_router(review, prefix="/review", tags=["Review"])
+api_router.include_router(performance_takes, prefix="/performance-takes", tags=["Performance Takes"])

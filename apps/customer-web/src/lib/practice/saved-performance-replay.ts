@@ -36,6 +36,9 @@ export function buildSavedPerformanceReplayUpload(
   replay: PlayablePerformanceReplay
 ): SavedPerformanceReplayUpload {
   if (replay.kind === 'AUDIO_RECORDING') {
+    if (!replay.blob) {
+      throw new Error('Audio replay blob is required for upload');
+    }
     const contentType = normalizeAudioReplayContentType(replay.contentType);
     return {
       kind: 'AUDIO_RECORDING',
@@ -43,7 +46,7 @@ export function buildSavedPerformanceReplayUpload(
       filename: audioReplayFilename(contentType),
       contentType,
       durationMs: replay.durationMs,
-      timebaseVersion: replay.timebase.version,
+      timebaseVersion: replay.timebase?.version ?? 1,
       formatVersion: SAVED_REPLAY_FORMAT_VERSION,
     };
   }

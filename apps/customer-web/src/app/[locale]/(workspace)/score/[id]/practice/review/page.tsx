@@ -7,10 +7,12 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowLeft,
+  Bookmark,
   CheckCircle2,
   Clock,
   Gauge,
   HelpCircle,
+  Loader2,
   Mic,
   Music,
   Piano,
@@ -28,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useScoreDetail } from '@/hooks/queries/use-score-queries';
 import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
 import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-artifact';
+import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
 import {
   performanceReviewDraftStore,
   type PerformanceReviewDraft,
@@ -71,7 +74,7 @@ export default function PracticeReviewPage({
 
   const isValidDraft = Boolean(draft && draft.scoreId === id);
 
-  const scoreQuery = useScoreDetail(id);
+  const scoreQuery = useScoreDetail(id, isValidDraft && Boolean(id));
   const selectedRevisionId =
     draft?.revisionId ?? scoreQuery.data?.data?.head_revision_id ?? undefined;
 
@@ -99,6 +102,16 @@ export default function PracticeReviewPage({
     return false;
   }, [artifact, draft, isValidDraft]);
 
+  const isScoreIdentityConfirmed = useMemo(() => {
+    if (!isValidDraft || !draft || !artifact || !xmlContent || isRevisionMismatched) {
+      return false;
+    }
+    return (
+      artifact.artifactId === draft.artifactId &&
+      (!draft.revisionId || !artifact.revisionId || draft.revisionId === artifact.revisionId)
+    );
+  }, [artifact, draft, isRevisionMismatched, isValidDraft, xmlContent]);
+
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
   const adapterFactory = useCallback(() => adapter, [adapter]);
   const playheadController = useMemo(() => new PerformancePlayheadController(), []);
@@ -107,7 +120,7 @@ export default function PracticeReviewPage({
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
 
   const confirmedCorrectNoteIds = useMemo(() => {
-    if (!isValidDraft || !draft?.performanceSnapshot?.performance?.outcomes || isRevisionMismatched) {
+    if (!isScoreIdentityConfirmed || !draft?.performanceSnapshot?.performance?.outcomes) {
       return [];
     }
     const outcomes = draft.performanceSnapshot.performance.outcomes;
@@ -124,10 +137,10 @@ export default function PracticeReviewPage({
       }
     }
     return ids;
-  }, [draft, isRevisionMismatched, isValidDraft]);
+  }, [draft, isScoreIdentityConfirmed]);
 
   const confirmedErrorNoteIds = useMemo(() => {
-    if (!isValidDraft || !draft?.performanceSnapshot?.performance?.outcomes || isRevisionMismatched) {
+    if (!isScoreIdentityConfirmed || !draft?.performanceSnapshot?.performance?.outcomes) {
       return [];
     }
     const outcomes = draft.performanceSnapshot.performance.outcomes;
@@ -144,12 +157,12 @@ export default function PracticeReviewPage({
       }
     }
     return ids;
-  }, [draft, isRevisionMismatched, isValidDraft]);
+  }, [draft, isScoreIdentityConfirmed]);
 
   const handleScoreRendered = useCallback(
     (_adapter: unknown, container: HTMLDivElement) => {
       scoreContainerRef.current = container;
-      if (isRevisionMismatched) {
+      if (!isScoreIdentityConfirmed) {
         annotationController.apply(container, {
           confirmedCorrectNoteIds: [],
           confirmedErrorNoteIds: [],
@@ -161,14 +174,14 @@ export default function PracticeReviewPage({
         confirmedErrorNoteIds,
       });
     },
-    [annotationController, confirmedCorrectNoteIds, confirmedErrorNoteIds, isRevisionMismatched]
+    [annotationController, confirmedCorrectNoteIds, confirmedErrorNoteIds, isScoreIdentityConfirmed]
   );
 
   const handleReplayTimeChange = useCallback(
     (replayTimeMs: number | null, actualMediaDurationMs?: number | null) => {
       const container = scoreContainerRef.current;
       if (!container || !draft) return;
-      if (replayTimeMs === null || isRevisionMismatched) {
+      if (replayTimeMs === null || !isScoreIdentityConfirmed) {
         playheadController.clear(container);
         return;
       }
@@ -191,8 +204,20 @@ export default function PracticeReviewPage({
         terminalBeat: draft.scope.terminalBeat,
       });
     },
-    [adapter, artifact, draft, isRevisionMismatched, playheadController]
+    [adapter, artifact, draft, isScoreIdentityConfirmed, playheadController]
   );
+
+  useEffect(() => {
+    const container = scoreContainerRef.current;
+    if (!container) return;
+    if (!isScoreIdentityConfirmed) {
+      annotationController.apply(container, {
+        confirmedCorrectNoteIds: [],
+        confirmedErrorNoteIds: [],
+      });
+      playheadController.clear(container);
+    }
+  }, [annotationController, isScoreIdentityConfirmed, playheadController]);
 
   const replay = useMemo<PlayablePerformanceReplay | null>(() => {
     if (!draft || draft.audio.status !== 'READY') {
@@ -204,9 +229,53 @@ export default function PracticeReviewPage({
       contentType: draft.audio.mimeType,
       byteSize: draft.audio.blob.size,
       durationMs: draft.audio.durationMs,
-      timebase: { version: 1, speedRatio: 1 },
     };
   }, [draft]);
+
+  const clientRequestIdRef = useRef<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
+  const saveMutation = useSavePerformanceTake();
+
+  const handleSavePerformance = useCallback(async () => {
+    if (!draft || draft.audio.status !== 'READY' || saveStatus === 'saving' || saveStatus === 'saved') {
+      return;
+    }
+    if (!clientRequestIdRef.current) {
+      clientRequestIdRef.current = `take-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    }
+    setSaveStatus('saving');
+    setSaveErrorMessage(null);
+
+    const numericScoreId = Number(id);
+    const numericRevisionId = draft.revisionId ? Number(draft.revisionId) : undefined;
+
+    try {
+      await saveMutation.mutateAsync({
+        scoreId: Number.isFinite(numericScoreId) ? numericScoreId : 0,
+        revisionId: Number.isFinite(numericRevisionId) ? numericRevisionId : undefined,
+        artifactId: draft.artifactId,
+        clientRequestId: clientRequestIdRef.current ?? '',
+        audioBlob: draft.audio.blob,
+        mimeType: draft.audio.mimeType,
+        durationMs: draft.audio.durationMs,
+        scopeStartBeat: draft.scope.startBeat,
+        scopeTerminalBeat: draft.scope.terminalBeat,
+        tempoSelection: draft.tempoPlan.selection as unknown as Record<string, unknown>,
+        resolvedTempoPlan: draft.tempoPlan as unknown as Record<string, unknown>,
+        syncMetadata: {
+          recordingTimebase: draft.recordingTimebase,
+          replayTiming: draft.replayTiming,
+        },
+      });
+      setSaveStatus('saved');
+    } catch (err: unknown) {
+      setSaveStatus('error');
+      setSaveErrorMessage(
+        err instanceof Error ? err.message : t('savePerformanceFailed')
+      );
+    }
+  }, [draft, id, saveMutation, saveStatus, t]);
 
   const handleRestart = useCallback(() => {
     performanceReviewDraftStore.clearDraft();
@@ -294,13 +363,80 @@ export default function PracticeReviewPage({
               <ArrowLeft className="mr-1.5 h-4 w-4" />
               {t('backToScore')}
             </Button>
-            <Button size="sm" onClick={handleRestart}>
+            <Button variant="outline" size="sm" onClick={handleRestart}>
               <Repeat className="mr-1.5 h-4 w-4" />
               {t('retryPractice')}
             </Button>
+            {draft.audio.status !== 'READY' ? (
+              <Button size="sm" variant="outline" disabled title={t('audioRecordingUnavailable')}>
+                <Bookmark className="mr-1.5 h-4 w-4" />
+                {t('savePerformance')}
+              </Button>
+            ) : saveStatus === 'saved' ? (
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="secondary" disabled>
+                  <CheckCircle2 className="mr-1.5 h-4 w-4 text-green-600" />
+                  {t('performanceSaved')}
+                </Button>
+                <Button size="sm" onClick={() => router.push('/my-performances')}>
+                  {t('viewMyPerformances')}
+                </Button>
+              </div>
+            ) : saveStatus === 'saving' ? (
+              <Button size="sm" disabled>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                {t('savingPerformance')}
+              </Button>
+            ) : saveStatus === 'error' ? (
+              <Button size="sm" variant="destructive" onClick={handleSavePerformance}>
+                <AlertCircle className="mr-1.5 h-4 w-4" />
+                {t('retrySavePerformance')}
+              </Button>
+            ) : (
+              <Button size="sm" onClick={handleSavePerformance}>
+                <Bookmark className="mr-1.5 h-4 w-4" />
+                {t('savePerformance')}
+              </Button>
+            )}
           </div>
         }
       />
+
+      {/* Save Error Alert */}
+      {saveStatus === 'error' && (
+        <div className="rounded-lg border border-red-300 bg-red-50 dark:bg-red-950/30 p-4 text-red-900 dark:text-red-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+            <div>
+              <h4 className="text-sm font-semibold">{t('savePerformanceFailedTitle')}</h4>
+              <p className="text-xs text-red-700 dark:text-red-300">
+                {saveErrorMessage ?? t('savePerformanceFailedDesc')}
+              </p>
+            </div>
+          </div>
+          <Button size="sm" variant="outline" onClick={handleSavePerformance}>
+            {t('retrySavePerformance')}
+          </Button>
+        </div>
+      )}
+
+      {/* Save Success Banner */}
+      {saveStatus === 'saved' && (
+        <div className="rounded-lg border border-green-300 bg-green-50 dark:bg-green-950/30 p-4 text-green-900 dark:text-green-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+            <div>
+              <h4 className="text-sm font-semibold">{t('savePerformanceSuccessTitle')}</h4>
+              <p className="text-xs text-green-700 dark:text-green-300">
+                {t('savePerformanceSuccessDesc')}
+              </p>
+            </div>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => router.push('/my-performances')}>
+            {t('viewMyPerformances')}
+          </Button>
+        </div>
+      )}
 
       {/* Revision Mismatch Warning */}
       {isRevisionMismatched && (
