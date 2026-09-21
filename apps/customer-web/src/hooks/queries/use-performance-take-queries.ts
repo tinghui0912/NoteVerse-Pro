@@ -122,6 +122,33 @@ export function useSavePerformanceTake() {
         }
         return authData.take;
       }
+
+      const finalizeReq: PerformanceTakeCreateRequest = {
+        take_id: authData.take_id,
+        client_request_id: input.clientRequestId,
+        reservation_id: authData.reservation_id ?? '',
+        score_id: input.scoreId,
+        revision_id: input.revisionId,
+        artifact_id: input.artifactId,
+        media_byte_size: input.audioBlob.size,
+        media_mime_type: input.mimeType,
+        duration_ms: input.durationMs,
+        scope_type: input.scopeType ?? 'FULL',
+        scope_start_beat: input.scopeStartBeat,
+        scope_terminal_beat: input.scopeTerminalBeat,
+        tempo_selection: input.tempoSelection,
+        resolved_tempo_plan: input.resolvedTempoPlan,
+        sync_metadata: input.syncMetadata,
+      };
+
+      if (authData.status === 'FINALIZING') {
+        if (!authData.reservation_id) {
+          throw new Error('Performance take finalizing state is missing reservation');
+        }
+        const finalizeRes = await performanceTakesApi.finalizeTake(finalizeReq);
+        return finalizeRes.data;
+      }
+
       if (!authData.upload_url || !authData.upload_method || !authData.reservation_id) {
         throw new Error('Performance take upload authorization is incomplete');
       }
@@ -143,49 +170,13 @@ export function useSavePerformanceTake() {
         throw uploadErr;
       }
 
-      // 3. Finalize take request shape
-      const finalizeReq: PerformanceTakeCreateRequest = {
-        take_id: authData.take_id,
-        client_request_id: input.clientRequestId,
-        reservation_id: authData.reservation_id,
-        score_id: input.scoreId,
-        revision_id: input.revisionId,
-        artifact_id: input.artifactId,
-        media_byte_size: input.audioBlob.size,
-        media_mime_type: input.mimeType,
-        duration_ms: input.durationMs,
-        scope_type: input.scopeType ?? 'FULL',
-        scope_start_beat: input.scopeStartBeat,
-        scope_terminal_beat: input.scopeTerminalBeat,
-        tempo_selection: input.tempoSelection,
-        resolved_tempo_plan: input.resolvedTempoPlan,
-        sync_metadata: input.syncMetadata,
-      };
-
       try {
         const finalizeRes = await performanceTakesApi.finalizeTake(finalizeReq);
         return finalizeRes.data;
       } catch (finalizeErr: any) {
-        // Only cancel if deterministic non-retryable 4xx (e.g. 400, 401, 403, 404, 422);
-        // if timeout, network disconnect, or 5xx, keep auth for safe user retry.
-        const status =
-          finalizeErr?.status ??
-          finalizeErr?.response?.status ??
-          finalizeErr?.response?.data?.status;
-        const isDeterministic4xx =
-          typeof status === 'number' &&
-          status >= 400 &&
-          status < 500 &&
-          status !== 408 &&
-          status !== 429;
-
-        if (isDeterministic4xx) {
-          try {
-            await performanceTakesApi.cancelUploadAuthorization(authData.reservation_id);
-          } catch {
-            // ignore cancel error
-          }
-        }
+        // Finalize may still be running after a timeout, disconnect, or masked
+        // recoverable 4xx such as FINALIZING. Keep the authorization so the
+        // same client_request_id can be retried safely.
         throw finalizeErr;
       }
     },

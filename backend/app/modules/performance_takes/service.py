@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import hashlib
+import hmac
 import json
 import logging
 from typing import Optional
@@ -53,6 +55,7 @@ MAX_TAKE_DURATION_MS = 12 * 60 * 60 * 1000
 MAX_TAKE_METADATA_JSON_BYTES = 64 * 1024
 TAKE_UPLOAD_AUTHORIZATION_SECONDS = 3600
 TAKE_FINALIZING_LEASE_SECONDS = 15 * 60
+TAKE_FINALIZING_UNKNOWN_OUTCOME_GRACE_SECONDS = TAKE_FINALIZING_LEASE_SECONDS * 2
 logger = logging.getLogger(__name__)
 
 
@@ -131,7 +134,7 @@ def _max_datetime(*values: datetime | None) -> datetime | None:
     return max(present) if present else None
 
 
-def _load_orphan_final_keys(value: str | None) -> list[str]:
+def _load_orphan_final_entries(value: str | None) -> list[dict[str, str | None]]:
     if not value:
         return []
     try:
@@ -140,17 +143,78 @@ def _load_orphan_final_keys(value: str | None) -> list[str]:
         return []
     if not isinstance(decoded, list):
         return []
-    return [item for item in decoded if isinstance(item, str) and item]
+    entries: list[dict[str, str | None]] = []
+    for item in decoded:
+        if isinstance(item, str) and item:
+            entries.append({"key": item, "remove_after": None})
+        elif isinstance(item, dict):
+            key = item.get("key")
+            if isinstance(key, str) and key:
+                remove_after = item.get("remove_after")
+                entries.append(
+                    {
+                        "key": key,
+                        "remove_after": remove_after if isinstance(remove_after, str) else None,
+                    }
+                )
+    return entries
 
 
-def _dump_orphan_final_keys(keys: list[str]) -> str | None:
-    unique: list[str] = []
-    for key in keys:
-        if key and key not in unique:
-            unique.append(key)
+def _load_orphan_final_keys(value: str | None) -> list[str]:
+    return [entry["key"] for entry in _load_orphan_final_entries(value) if entry.get("key")]
+
+
+def _dump_orphan_final_entries(entries: list[dict[str, str | None]]) -> str | None:
+    unique: list[dict[str, str | None]] = []
+    seen: set[str] = set()
+    for entry in entries:
+        key = entry.get("key")
+        if key and key not in seen:
+            seen.add(key)
+            unique.append({"key": key, "remove_after": entry.get("remove_after")})
     if not unique:
         return None
     return json.dumps(unique, sort_keys=True, separators=(",", ":"))
+
+
+def _dump_orphan_final_keys(keys: list[str]) -> str | None:
+    return _dump_orphan_final_entries([{"key": key, "remove_after": None} for key in keys])
+
+
+def _append_orphan_final_key(
+    value: str | None,
+    key: str | None,
+    *,
+    unknown_outcome: bool,
+    now: datetime | None = None,
+) -> str | None:
+    if not key:
+        return value
+    entries = _load_orphan_final_entries(value)
+    remove_after = None
+    if unknown_outcome:
+        base = now or utc_now_naive()
+        remove_after = (
+            base + timedelta(seconds=TAKE_FINALIZING_UNKNOWN_OUTCOME_GRACE_SECONDS)
+        ).isoformat()
+    for entry in entries:
+        if entry.get("key") == key:
+            if remove_after and not entry.get("remove_after"):
+                entry["remove_after"] = remove_after
+            return _dump_orphan_final_entries(entries)
+    entries.append({"key": key, "remove_after": remove_after})
+    return _dump_orphan_final_entries(entries)
+
+
+def _sha256_storage_object(storage: FileStorage, key: str) -> str:
+    digest = hashlib.sha256()
+    for chunk in storage.iter_bytes(key, chunk_size=1024 * 1024):
+        digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _safe_compare_digest(left: str, right: str) -> bool:
+    return hmac.compare_digest(left.lower(), right.lower())
 
 
 class PerformanceTakeService:
@@ -377,9 +441,12 @@ class PerformanceTakeService:
             await db.commit()
             return
         keys = _load_orphan_final_keys(auth.orphan_final_object_keys)
-        if candidate_key != auth.final_object_key and candidate_key not in keys:
-            keys.append(candidate_key)
-            auth.orphan_final_object_keys = _dump_orphan_final_keys(keys)
+        if candidate_key not in keys:
+            auth.orphan_final_object_keys = _append_orphan_final_key(
+                auth.orphan_final_object_keys,
+                candidate_key,
+                unknown_outcome=True,
+            )
             auth.final_cleanup_completed_at = None
             auth.updated_at = utc_now_naive()
         await db.commit()
@@ -533,6 +600,19 @@ class PerformanceTakeService:
                     object_key=existing_auth.staging_object_key,
                     reservation_id=existing_auth.reservation_id,
                     expires_in=settings.S3_PRESIGN_EXPIRE_SECONDS,
+                )
+            if existing_auth.status == PerformanceTakeUploadAuthorizationStatus.FINALIZING:
+                if not self._authorization_matches_request(existing_auth, request, cleaned_mime):
+                    raise ValidationException(
+                        ErrorCode.VALIDATION_ERROR,
+                        field="client_request_id",
+                        details={"reason": "client_request_id_reuse_conflict"},
+                    )
+                return PerformanceTakeUploadAuthorizationRead(
+                    take_id=existing_auth.take_uuid,
+                    status=PerformanceTakeUploadAuthorizationStatus.FINALIZING.value,
+                    reservation_id=existing_auth.reservation_id,
+                    expires_in=0,
                 )
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
@@ -738,7 +818,7 @@ class PerformanceTakeService:
                     await db.commit()
                     return response.take
 
-        takeover_orphan_keys = _load_orphan_final_keys(auth.orphan_final_object_keys)
+        takeover_orphan_entries = _load_orphan_final_entries(auth.orphan_final_object_keys)
         if auth.status == PerformanceTakeUploadAuthorizationStatus.FINALIZING:
             if auth.finalizing_expires_at and auth.finalizing_expires_at > now:
                 await db.commit()
@@ -747,8 +827,17 @@ class PerformanceTakeService:
                     field="status",
                     details={"status": "FINALIZING", "reason": "finalize_in_progress"},
                 )
+            takeover_orphan_keys = {entry.get("key") for entry in takeover_orphan_entries}
             if auth.finalizing_object_key and auth.finalizing_object_key not in takeover_orphan_keys:
-                takeover_orphan_keys.append(auth.finalizing_object_key)
+                takeover_orphan_entries.append(
+                    {
+                        "key": auth.finalizing_object_key,
+                        "remove_after": (
+                            now
+                            + timedelta(seconds=TAKE_FINALIZING_UNKNOWN_OUTCOME_GRACE_SECONDS)
+                        ).isoformat(),
+                    }
+                )
         elif auth.status != PerformanceTakeUploadAuthorizationStatus.AUTHORIZED:
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
@@ -777,7 +866,7 @@ class PerformanceTakeService:
         auth.finalizing_expires_at = now + timedelta(seconds=TAKE_FINALIZING_LEASE_SECONDS)
         auth.finalizing_object_key = finalizing_object_key
         auth.final_object_key = finalizing_object_key
-        auth.orphan_final_object_keys = _dump_orphan_final_keys(takeover_orphan_keys)
+        auth.orphan_final_object_keys = _dump_orphan_final_entries(takeover_orphan_entries)
         auth.final_cleanup_completed_at = None
         auth.updated_at = now
         auth_snapshot = {
@@ -825,10 +914,11 @@ class PerformanceTakeService:
                 auth.finalizing_token = None
                 auth.finalizing_expires_at = None
                 if auth.finalizing_object_key:
-                    keys = _load_orphan_final_keys(auth.orphan_final_object_keys)
-                    if auth.finalizing_object_key not in keys:
-                        keys.append(auth.finalizing_object_key)
-                    auth.orphan_final_object_keys = _dump_orphan_final_keys(keys)
+                    auth.orphan_final_object_keys = _append_orphan_final_key(
+                        auth.orphan_final_object_keys,
+                        auth.finalizing_object_key,
+                        unknown_outcome=False,
+                    )
                     auth.finalizing_object_key = None
                 auth.staging_cleanup_after = _max_datetime(
                     auth.staging_cleanup_after,
@@ -858,10 +948,11 @@ class PerformanceTakeService:
                 auth.finalizing_token = None
                 auth.finalizing_expires_at = None
                 if auth.finalizing_object_key:
-                    keys = _load_orphan_final_keys(auth.orphan_final_object_keys)
-                    if auth.finalizing_object_key not in keys:
-                        keys.append(auth.finalizing_object_key)
-                    auth.orphan_final_object_keys = _dump_orphan_final_keys(keys)
+                    auth.orphan_final_object_keys = _append_orphan_final_key(
+                        auth.orphan_final_object_keys,
+                        auth.finalizing_object_key,
+                        unknown_outcome=False,
+                    )
                     auth.finalizing_object_key = None
                 auth.updated_at = utc_now_naive()
                 await db.commit()
@@ -888,6 +979,10 @@ class PerformanceTakeService:
             header_bytes, auth_snapshot["media_mime_type"]
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
+        verified_staging_sha256 = _sha256_storage_object(
+            self.storage,
+            auth_snapshot["staging_object_key"],
+        )
 
         candidate_key = auth_snapshot["finalizing_object_key"]
         try:
@@ -901,6 +996,16 @@ class PerformanceTakeService:
                 auth_snapshot["staging_object_key"],
                 candidate_key,
             )
+            candidate_metadata = self.storage.object_metadata(candidate_key)
+            if candidate_metadata.size_bytes != auth_snapshot["media_byte_size"]:
+                raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
+            candidate_sha256 = _sha256_storage_object(self.storage, candidate_key)
+            if not _safe_compare_digest(candidate_sha256, verified_staging_sha256):
+                raise ValidationException(
+                    ErrorCode.VALIDATION_ERROR,
+                    field="media_checksum",
+                    details={"reason": "candidate_content_mismatch"},
+                )
         except Exception:
             await self._record_failed_candidate_final(
                 db,
@@ -971,10 +1076,11 @@ class PerformanceTakeService:
             )
         if auth.expires_at < utc_now_naive():
             self._delete_candidate_final_best_effort(candidate_key)
-            keys = _load_orphan_final_keys(auth.orphan_final_object_keys)
-            if candidate_key and candidate_key not in keys:
-                keys.append(candidate_key)
-            auth.orphan_final_object_keys = _dump_orphan_final_keys(keys)
+            auth.orphan_final_object_keys = _append_orphan_final_key(
+                auth.orphan_final_object_keys,
+                candidate_key,
+                unknown_outcome=False,
+            )
             auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
             auth.finalizing_token = None
             auth.finalizing_expires_at = None

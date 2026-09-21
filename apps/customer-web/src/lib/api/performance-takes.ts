@@ -18,7 +18,7 @@ export interface PerformanceTakeUploadAuthorizationRequest {
 
 export interface PerformanceTakeUploadAuthorizationRead {
   take_id: string;
-  status?: 'AUTHORIZED' | 'ARCHIVED';
+  status?: 'AUTHORIZED' | 'FINALIZING' | 'ARCHIVED';
   upload_url?: string | null;
   upload_method?: string | null;
   upload_headers: Record<string, string>;

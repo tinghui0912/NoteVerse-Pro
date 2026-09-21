@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 import json
 import logging
 
@@ -27,7 +27,7 @@ from app.utils.timezone import utc_now_naive
 logger = logging.getLogger(__name__)
 
 
-def _load_orphan_final_keys(value: str | None) -> list[str]:
+def _load_orphan_final_entries(value: str | None) -> list[dict[str, str | None]]:
     if not value:
         return []
     try:
@@ -36,17 +36,51 @@ def _load_orphan_final_keys(value: str | None) -> list[str]:
         return []
     if not isinstance(decoded, list):
         return []
-    return [item for item in decoded if isinstance(item, str) and item]
+    entries: list[dict[str, str | None]] = []
+    for item in decoded:
+        if isinstance(item, str) and item:
+            entries.append({"key": item, "remove_after": None})
+        elif isinstance(item, dict):
+            key = item.get("key")
+            if isinstance(key, str) and key:
+                remove_after = item.get("remove_after")
+                entries.append(
+                    {
+                        "key": key,
+                        "remove_after": remove_after if isinstance(remove_after, str) else None,
+                    }
+                )
+    return entries
 
 
-def _dump_orphan_final_keys(keys: list[str]) -> str | None:
-    unique: list[str] = []
-    for key in keys:
-        if key and key not in unique:
-            unique.append(key)
+def _load_orphan_final_keys(value: str | None) -> list[str]:
+    return [entry["key"] for entry in _load_orphan_final_entries(value) if entry.get("key")]
+
+
+def _dump_orphan_final_entries(entries: list[dict[str, str | None]]) -> str | None:
+    unique: list[dict[str, str | None]] = []
+    seen: set[str] = set()
+    for entry in entries:
+        key = entry.get("key")
+        if key and key not in seen:
+            seen.add(key)
+            unique.append({"key": key, "remove_after": entry.get("remove_after")})
     if not unique:
         return None
     return json.dumps(unique, sort_keys=True, separators=(",", ":"))
+
+
+def _dump_orphan_final_keys(keys: list[str]) -> str | None:
+    return _dump_orphan_final_entries([{"key": key, "remove_after": None} for key in keys])
+
+
+def _parse_orphan_remove_after(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 @dataclass(frozen=True)
@@ -68,7 +102,7 @@ class AuthorizationCleanupTarget:
     status: PerformanceTakeUploadAuthorizationStatus
     staging_object_key: str
     final_object_key: str
-    orphan_final_object_keys: tuple[str, ...]
+    orphan_final_objects: tuple[dict[str, str | None], ...]
     delete_final_without_take: bool
     can_finalize_staging_cleanup: bool
     can_finalize_final_cleanup: bool
@@ -421,10 +455,19 @@ class PerformanceTakeDeleteOutboxService:
             if auth.finalizing_expires_at and auth.finalizing_expires_at > now:
                 return None, False
             if auth.finalizing_object_key:
-                orphan_keys = _load_orphan_final_keys(auth.orphan_final_object_keys)
+                orphan_entries = _load_orphan_final_entries(auth.orphan_final_object_keys)
+                orphan_keys = {entry.get("key") for entry in orphan_entries}
                 if auth.finalizing_object_key not in orphan_keys:
-                    orphan_keys.append(auth.finalizing_object_key)
-                    auth.orphan_final_object_keys = _dump_orphan_final_keys(orphan_keys)
+                    orphan_entries.append(
+                        {
+                            "key": auth.finalizing_object_key,
+                            "remove_after": (
+                                now
+                                + timedelta(seconds=30 * 60)
+                            ).isoformat(),
+                        }
+                    )
+                    auth.orphan_final_object_keys = _dump_orphan_final_entries(orphan_entries)
                     auth.final_cleanup_completed_at = None
             if take is not None:
                 auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
@@ -489,7 +532,15 @@ class PerformanceTakeDeleteOutboxService:
                 PerformanceTakeUploadAuthorizationStatus.EXPIRED,
             }
         )
-        orphan_final_keys = tuple(_load_orphan_final_keys(auth.orphan_final_object_keys))
+        orphan_final_entries = tuple(
+            entry
+            for entry in _load_orphan_final_entries(auth.orphan_final_object_keys)
+            if not db.execute(
+                select(PerformanceTake.id).where(
+                    PerformanceTake.media_object_key == entry.get("key")
+                )
+            ).first()
+        )
 
         return (
             AuthorizationCleanupTarget(
@@ -497,7 +548,7 @@ class PerformanceTakeDeleteOutboxService:
                 status=auth.status,
                 staging_object_key=auth.staging_object_key,
                 final_object_key=auth.final_object_key,
-                orphan_final_object_keys=orphan_final_keys,
+                orphan_final_objects=orphan_final_entries,
                 delete_final_without_take=(
                     take is None
                     and auth.status
@@ -539,11 +590,21 @@ class PerformanceTakeDeleteOutboxService:
                     final_deleted = bool(storage.delete(target.final_object_key))
                 final_absent_confirmed = not storage.exists(target.final_object_key)
 
-            if storage is not None and target.orphan_final_object_keys:
-                for orphan_key in target.orphan_final_object_keys:
+            now = utc_now_naive()
+            if storage is not None and target.orphan_final_objects:
+                for orphan_entry in target.orphan_final_objects:
+                    orphan_key = orphan_entry.get("key")
+                    if not orphan_key:
+                        continue
                     if storage.exists(orphan_key):
                         storage.delete(orphan_key)
                         if not storage.exists(orphan_key):
+                            absent_orphan_keys.append(orphan_key)
+                    else:
+                        remove_after = _parse_orphan_remove_after(
+                            orphan_entry.get("remove_after")
+                        )
+                        if remove_after is None or remove_after <= now:
                             absent_orphan_keys.append(orphan_key)
 
             return AuthorizationCleanupResult(
@@ -636,7 +697,16 @@ class PerformanceTakeDeleteOutboxService:
         if auth is None:
             return False
         current = _load_orphan_final_keys(auth.orphan_final_object_keys)
-        remaining = [key for key in current if key not in set(absent_keys)]
+        removable_keys = set(absent_keys)
+        referenced_keys = set(
+            db.execute(
+                select(PerformanceTake.media_object_key).where(
+                    PerformanceTake.media_object_key.in_(removable_keys)
+                )
+            ).scalars()
+        )
+        removable_keys -= referenced_keys
+        remaining = [key for key in current if key not in removable_keys]
         if len(remaining) == len(current):
             return False
         auth.orphan_final_object_keys = _dump_orphan_final_keys(remaining)

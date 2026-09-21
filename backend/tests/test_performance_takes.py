@@ -1304,6 +1304,145 @@ def test_finalize_safe_retry_idempotency(test_env):
         app.dependency_overrides.clear()
 
 
+def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_env):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+
+    first_content = b"\x1a\x45\xdf\xa3" + b"A" * 32
+    rewritten_content = b"\x1a\x45\xdf\xa3" + b"B" * 32
+    assert len(first_content) == len(rewritten_content)
+
+    class MutatingCopyStorage(LocalFileStorage):
+        def __init__(self, wrapped: LocalFileStorage) -> None:
+            super().__init__(storage_root=wrapped.storage_root)
+
+        def copy(self, source_key: str, target_key: str) -> None:
+            self.put_bytes(
+                key=source_key,
+                content=rewritten_content,
+                content_type="audio/webm",
+            )
+            super().copy(source_key, target_key)
+
+    mutating_storage = MutatingCopyStorage(storage)
+    mutating_storage.upload_url = storage.upload_url  # type: ignore[assignment]
+    take_svc = PerformanceTakeService(
+        storage=mutating_storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: mutating_storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = TestClient(app)
+
+    try:
+        auth_req = {
+            "score_id": "score-uuid-10",
+            "client_request_id": "req-staging-rewrite",
+            "media_byte_size": len(first_content),
+            "media_mime_type": "audio/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
+        assert res_auth.status_code == 200
+        auth_data = res_auth.json()["data"]
+        storage.put_bytes(
+            key=auth_data["object_key"],
+            content=first_content,
+            content_type="audio/webm",
+        )
+
+        fin_req = {
+            "take_id": auth_data["take_id"],
+            "client_request_id": "req-staging-rewrite",
+            "reservation_id": auth_data["reservation_id"],
+            "score_id": "score-uuid-10",
+            "media_byte_size": len(first_content),
+            "media_mime_type": "audio/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_fin = client.post("/api/v1/performance-takes", json=fin_req)
+        assert res_fin.status_code == 422
+        assert session.execute(
+            select(PerformanceTake).where(
+                PerformanceTake.client_request_id == "req-staging-rewrite"
+            )
+        ).scalar_one_or_none() is None
+
+        account = session.get(StorageUsageAccount, 1)
+        session.refresh(account)
+        assert account.used_bytes == 0
+        assert account.reserved_bytes == len(first_content)
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_authorize_finalizing_snapshot_retries_without_new_put(test_env):
+    session, _storage, user_1, _ = test_env
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    auth = PerformanceTakeUploadAuthorization(
+        user_id=user_1.id,
+        client_request_id="req-finalizing-authorize",
+        take_uuid="take-finalizing-authorize",
+        score_id=10,
+        score_uuid="score-uuid-10",
+        score_title="Moonlight Sonata",
+        revision_id=None,
+        revision_uuid=None,
+        artifact_id=None,
+        scope_type="FULL",
+        scope_start_beat=0.0,
+        scope_terminal_beat=4.0,
+        duration_ms=1000,
+        media_mime_type="audio/webm",
+        media_byte_size=len(VALID_WEBM_BYTES),
+        storage_backend="local",
+        staging_object_key="staging/performance-takes/1/finalizing-authorize/recording.webm",
+        final_object_key="performance-takes/1/finalizing-authorize/token.webm",
+        finalizing_object_key="performance-takes/1/finalizing-authorize/token.webm",
+        reservation_id="reservation-finalizing-authorize",
+        status=PerformanceTakeUploadAuthorizationStatus.FINALIZING,
+        expires_at=now + timedelta(minutes=10),
+        last_put_url_expires_at=now + timedelta(minutes=10),
+        staging_cleanup_after=now + timedelta(minutes=10),
+        finalizing_token="token",
+        finalizing_expires_at=now + timedelta(minutes=10),
+    )
+    session.add(auth)
+    session.commit()
+
+    take_svc = PerformanceTakeService(storage=_storage)
+    response = _run_async(
+        take_svc.authorize_upload(
+            AsyncSessionAdapter(session),
+            user_1.id,
+            PerformanceTakeUploadAuthorizationRequest(
+                score_id="score-uuid-10",
+                client_request_id="req-finalizing-authorize",
+                media_byte_size=len(VALID_WEBM_BYTES),
+                media_mime_type="audio/webm",
+                duration_ms=1000,
+                scope_start_beat=0.0,
+                scope_terminal_beat=4.0,
+            ),
+        )
+    )
+    assert response.status == "FINALIZING"
+    assert response.upload_url is None
+    assert response.reservation_id == "reservation-finalizing-authorize"
+
+
 def test_crash_abandoned_after_authorization(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
@@ -2158,6 +2297,137 @@ def test_authorization_cleanup_retries_orphan_final_without_touching_completed_s
     assert auth.orphan_final_object_keys is None
     assert all(auth.staging_object_key not in item for item in touched)
     assert any(orphan_key in item for item in touched)
+
+
+def test_authorization_cleanup_keeps_unknown_absent_orphan_until_grace_then_converges(test_env):
+    session, storage, user_1, _ = test_env
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    orphan_key = "performance-takes/1/orphan-late/old-token.webm"
+    auth = _expired_cleanup_auth(
+        user_id=user_1.id,
+        client_request_id="orphan-late-copy",
+        staging_key="staging/performance-takes/1/orphan-late/recording.webm",
+        final_key="performance-takes/1/orphan-late/current.webm",
+    )
+    auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+    auth.staging_cleanup_completed_at = now
+    auth.final_cleanup_completed_at = now
+    auth.orphan_final_object_keys = (
+        f'[{{"key":"{orphan_key}","remove_after":"'
+        f'{(now + timedelta(minutes=10)).isoformat()}"}}]'
+    )
+    session.add(auth)
+    session.commit()
+
+    cleaned = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+        session,
+        storage=storage,
+        storage_usage_service=StorageUsageService(),
+    )
+    session.commit()
+    assert cleaned == 0
+    session.refresh(auth)
+    assert orphan_key in (auth.orphan_final_object_keys or "")
+
+    storage.put_bytes(key=orphan_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    auth.orphan_final_object_keys = (
+        f'[{{"key":"{orphan_key}","remove_after":"'
+        f'{(now - timedelta(minutes=1)).isoformat()}"}}]'
+    )
+    session.commit()
+
+    cleaned_after_grace = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+        session,
+        storage=storage,
+        storage_usage_service=StorageUsageService(),
+    )
+    session.commit()
+
+    assert cleaned_after_grace == 1
+    assert not storage.exists(orphan_key)
+    session.refresh(auth)
+    assert auth.orphan_final_object_keys is None
+
+
+def test_authorization_cleanup_removes_absent_known_orphan(test_env):
+    session, storage, user_1, _ = test_env
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    orphan_key = "performance-takes/1/absent-known/old-token.webm"
+    auth = _expired_cleanup_auth(
+        user_id=user_1.id,
+        client_request_id="absent-known-orphan",
+        staging_key="staging/performance-takes/1/absent-known/recording.webm",
+        final_key="performance-takes/1/absent-known/current.webm",
+    )
+    auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+    auth.staging_cleanup_completed_at = now
+    auth.final_cleanup_completed_at = now
+    auth.orphan_final_object_keys = f'["{orphan_key}"]'
+    session.add(auth)
+    session.commit()
+
+    cleaned = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+        session,
+        storage=storage,
+        storage_usage_service=StorageUsageService(),
+    )
+    session.commit()
+
+    assert cleaned == 1
+    session.refresh(auth)
+    assert auth.orphan_final_object_keys is None
+
+
+def test_authorization_cleanup_does_not_delete_orphan_key_referenced_by_take(test_env):
+    session, storage, user_1, _ = test_env
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    referenced_key = "performance-takes/1/referenced-orphan/token.webm"
+    storage.put_bytes(key=referenced_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    auth = _expired_cleanup_auth(
+        user_id=user_1.id,
+        client_request_id="referenced-orphan",
+        staging_key="staging/performance-takes/1/referenced-orphan/recording.webm",
+        final_key=referenced_key,
+    )
+    auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+    auth.staging_cleanup_completed_at = now
+    auth.final_cleanup_completed_at = now
+    auth.orphan_final_object_keys = f'["{referenced_key}"]'
+    session.add(auth)
+    session.add(
+        PerformanceTake(
+            take_uuid="take-referenced-orphan",
+            user_id=user_1.id,
+            score_id=None,
+            score_title="Referenced orphan",
+            revision_id=None,
+            artifact_id=None,
+            client_request_id="referenced-orphan",
+            media_kind=PerformanceTakeMediaKind.AUDIO,
+            media_mime_type="audio/webm",
+            media_byte_size=len(VALID_WEBM_BYTES),
+            media_object_key=referenced_key,
+            storage_backend="local",
+            duration_ms=1000,
+            scope_type="FULL",
+            scope_start_beat=0.0,
+            scope_terminal_beat=4.0,
+            deletion_status=PerformanceTakeDeletionStatus.ACTIVE,
+        )
+    )
+    session.commit()
+
+    cleaned = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+        session,
+        storage=storage,
+        storage_usage_service=StorageUsageService(),
+    )
+    session.commit()
+
+    assert cleaned == 0
+    assert storage.exists(referenced_key)
+    session.refresh(auth)
+    assert referenced_key in (auth.orphan_final_object_keys or "")
 
 
 def test_expired_finalizing_lease_records_candidate_before_retry(test_env):

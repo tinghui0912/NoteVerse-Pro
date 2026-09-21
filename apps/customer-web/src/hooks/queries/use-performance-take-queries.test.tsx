@@ -131,4 +131,65 @@ describe('useSavePerformanceTake', () => {
     expect(uploadMediaToSignedUrl).toHaveBeenCalledTimes(1);
     expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
   });
+
+  it('retries finalize without uploading again when authorization is finalizing', async () => {
+    vi.mocked(performanceTakesApi.authorizeUpload).mockResolvedValue({
+      data: {
+        take_id: 'take-1',
+        status: 'FINALIZING',
+        upload_headers: {},
+        reservation_id: 'reservation-1',
+        expires_in: 0,
+      },
+    } as never);
+    vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
+      data: savedTake,
+    } as never);
+
+    const { result } = renderHook(() => useSavePerformanceTake(), {
+      wrapper: createWrapper(),
+    });
+
+    let response: PerformanceTakeRead | undefined;
+    await act(async () => {
+      response = await result.current.mutateAsync(createInput());
+    });
+
+    expect(response).toEqual(savedTake);
+    expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
+    expect(performanceTakesApi.finalizeTake).toHaveBeenCalledTimes(1);
+    expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
+  });
+
+  it('does not cancel after a masked finalize 4xx because save may still be recoverable', async () => {
+    vi.mocked(performanceTakesApi.authorizeUpload).mockResolvedValue({
+      data: {
+        take_id: 'take-1',
+        status: 'AUTHORIZED',
+        upload_url: '/uploads/staging.wav',
+        upload_method: 'PUT',
+        upload_headers: {},
+        object_key: 'staging/performance-takes/1/take-1/recording.wav',
+        reservation_id: 'reservation-1',
+        expires_in: 3600,
+      },
+    } as never);
+    vi.mocked(uploadMediaToSignedUrl).mockResolvedValue(undefined);
+    vi.mocked(performanceTakesApi.finalizeTake).mockRejectedValue({
+      response: { status: 422 },
+    });
+
+    const { result } = renderHook(() => useSavePerformanceTake(), {
+      wrapper: createWrapper(),
+    });
+
+    await expect(
+      act(async () => {
+        await result.current.mutateAsync(createInput());
+      })
+    ).rejects.toBeTruthy();
+
+    expect(uploadMediaToSignedUrl).toHaveBeenCalledTimes(1);
+    expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
+  });
 });
