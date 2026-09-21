@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.models import (
+    PerformanceTake,
     PerformanceTakeDeleteOutbox,
     PerformanceTakeDeleteOutboxStatus,
     PerformanceTakeUploadAuthorization,
@@ -191,35 +192,81 @@ class PerformanceTakeDeleteOutboxService:
         storage_usage_service: StorageUsageService,
     ) -> int:
         now = utc_now_naive()
-        expired_auths = db.execute(
-            select(PerformanceTakeUploadAuthorization).where(
-                PerformanceTakeUploadAuthorization.status
-                == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED,
+        cleanup_candidates = db.execute(
+            select(PerformanceTakeUploadAuthorization)
+            .where(
                 PerformanceTakeUploadAuthorization.expires_at <= now,
+                PerformanceTakeUploadAuthorization.status.in_(
+                    [
+                        PerformanceTakeUploadAuthorizationStatus.AUTHORIZED,
+                        PerformanceTakeUploadAuthorizationStatus.CANCELLED,
+                        PerformanceTakeUploadAuthorizationStatus.EXPIRED,
+                        PerformanceTakeUploadAuthorizationStatus.ARCHIVED,
+                    ]
+                ),
             )
+            .with_for_update()
         ).scalars().all()
 
         cleaned_count = 0
-        for auth in expired_auths:
-            if storage is not None and storage.exists(auth.final_object_key):
-                continue
-            auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
-            auth.updated_at = now
-            storage_usage_service.release_reservation_sync(
-                db, auth.reservation_id, auto_commit=False
-            )
+        for auth in cleanup_candidates:
+            cleaned_auth = False
+            take = db.execute(
+                select(PerformanceTake).where(
+                    PerformanceTake.user_id == auth.user_id,
+                    PerformanceTake.client_request_id == auth.client_request_id,
+                )
+            ).scalar_one_or_none()
+
+            if (
+                auth.status == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED
+                and take is not None
+            ):
+                auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+                auth.updated_at = now
+
+            if auth.status == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED:
+                auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
+                auth.updated_at = now
+                storage_usage_service.release_reservation_sync(
+                    db, auth.reservation_id, auto_commit=False
+                )
+                cleaned_auth = True
+
             try:
+                staging_deleted = False
+                final_deleted = False
                 if storage is not None and storage.exists(auth.staging_object_key):
                     storage.delete(auth.staging_object_key)
+                    staging_deleted = True
+
+                final_exists_without_take = (
+                    storage is not None
+                    and take is None
+                    and auth.status
+                    in {
+                        PerformanceTakeUploadAuthorizationStatus.CANCELLED,
+                        PerformanceTakeUploadAuthorizationStatus.EXPIRED,
+                    }
+                    and storage.exists(auth.final_object_key)
+                )
+                if final_exists_without_take:
+                    storage.delete(auth.final_object_key)
+                    final_deleted = True
+
+                cleaned_auth = cleaned_auth or staging_deleted or final_deleted
             except Exception:
                 logger.exception(
-                    "performance_take_upload_authorization.cleanup_staging_delete_failed",
+                    "performance_take_upload_authorization.cleanup_object_delete_failed",
                     extra={
                         "authorization_id": auth.id,
+                        "status": auth.status,
                         "staging_object_key": auth.staging_object_key,
+                        "final_object_key": auth.final_object_key,
                     },
                 )
-            cleaned_count += 1
+            if cleaned_auth:
+                cleaned_count += 1
 
         return cleaned_count
 

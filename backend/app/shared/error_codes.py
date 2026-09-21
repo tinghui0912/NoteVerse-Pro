@@ -64,6 +64,7 @@ class FileErrorCode:
     FILE_COPY_FAILED = "file_copy_failed"
     FILE_DELETE_FAILED = "file_delete_failed"
     FILE_TYPE_NOT_ALLOWED = "file_type_not_allowed"
+    STORAGE_BACKEND_UNAVAILABLE = "storage_backend_unavailable"
     NO_FILE_SELECTED = "no_file_selected"
     STORAGE_QUOTA_EXCEEDED = "storage_quota_exceeded"
     QUOTA_CHECK_UNAVAILABLE = "quota_check_unavailable"

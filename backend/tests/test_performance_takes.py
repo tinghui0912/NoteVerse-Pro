@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import os
 from collections.abc import Iterator
 from pathlib import Path
-from uuid import uuid4
-import warnings
 
 import pytest
 from fastapi.testclient import TestClient
@@ -53,8 +52,21 @@ from app.storage.local import LocalFileStorage
 from app.worker.execution import performance_take_deletion
 
 VALID_WEBM_BYTES = b"\x1a\x45\xdf\xa3" + b"fake-webm-audio-binary-data-12345"
-POSTGRES_TEST_ADMIN_URL_ENV = "NOTEVERSE_TEST_POSTGRES_ADMIN_URL"
-POSTGRES_TEST_DB_PREFIX = "noteverse_test_perf_takes_"
+POSTGRES_MIGRATION_EMPTY_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_EMPTY_URL"
+POSTGRES_MIGRATION_0053_SHORT_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_0053_SHORT_URL"
+POSTGRES_MIGRATION_0053_LONG_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_0053_LONG_URL"
+POSTGRES_MIGRATION_RESTRICTED_ALEMBIC_URL_ENV = (
+    "NOTEVERSE_TEST_POSTGRES_MIGRATION_RESTRICTED_ALEMBIC_URL"
+)
+POSTGRES_TEST_DATABASE_PREFIX = "noteverse_test_"
+
+
+@dataclass(frozen=True)
+class PostgresMigrationTestDatabase:
+    database_name: str
+    psycopg_url: str
+    sqlalchemy_sync_url: str
+    alembic_async_url: str
 
 
 class AsyncSessionAdapter:
@@ -1285,6 +1297,180 @@ def test_crash_abandoned_after_authorization(test_env):
         app.dependency_overrides.clear()
 
 
+def test_expired_authorization_staging_delete_failure_is_retryable(test_env, monkeypatch):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    take_svc = PerformanceTakeService(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = TestClient(app)
+
+    try:
+        size = len(VALID_WEBM_BYTES)
+        res_auth = client.post(
+            "/api/v1/performance-takes/upload-authorizations",
+            json={
+                "score_id": "score-uuid-10",
+                "client_request_id": "req-expired-delete-retry",
+                "media_byte_size": size,
+                "media_mime_type": "audio/webm",
+                "duration_ms": 5000,
+                "scope_start_beat": 0.0,
+                "scope_terminal_beat": 4.0,
+            },
+        )
+        assert res_auth.status_code == 200
+        auth_data = res_auth.json()["data"]
+        storage.put_bytes(
+            key=auth_data["object_key"],
+            content=VALID_WEBM_BYTES,
+            content_type="audio/webm",
+        )
+
+        auth = session.execute(
+            select(PerformanceTakeUploadAuthorization).where(
+                PerformanceTakeUploadAuthorization.client_request_id
+                == "req-expired-delete-retry"
+            )
+        ).scalar_one()
+        auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
+        session.commit()
+
+        original_delete = storage.delete
+
+        def fail_delete(_key: str) -> bool:
+            raise RuntimeError("storage temporarily unavailable")
+
+        monkeypatch.setattr(storage, "delete", fail_delete)
+        cleaned_count = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+            session,
+            storage=storage,
+            storage_usage_service=storage_usage_svc,
+        )
+        session.commit()
+
+        assert cleaned_count == 1
+        assert storage.exists(auth.staging_object_key)
+        account = session.get(StorageUsageAccount, 1)
+        session.refresh(account)
+        assert account.reserved_bytes == 0
+        session.refresh(auth)
+        assert auth.status == PerformanceTakeUploadAuthorizationStatus.EXPIRED
+
+        monkeypatch.setattr(storage, "delete", original_delete)
+        cleaned_count = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+            session,
+            storage=storage,
+            storage_usage_service=storage_usage_svc,
+        )
+        session.commit()
+
+        assert cleaned_count == 1
+        assert not storage.exists(auth.staging_object_key)
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_archived_authorization_late_staging_put_is_cleaned_after_expiry(test_env):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    take_svc = PerformanceTakeService(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = TestClient(app)
+
+    try:
+        content = VALID_WEBM_BYTES
+        size = len(content)
+        res_auth = client.post(
+            "/api/v1/performance-takes/upload-authorizations",
+            json={
+                "score_id": "score-uuid-10",
+                "client_request_id": "req-late-put-cleanup",
+                "media_byte_size": size,
+                "media_mime_type": "audio/webm",
+                "duration_ms": 5000,
+                "scope_start_beat": 0.0,
+                "scope_terminal_beat": 4.0,
+            },
+        )
+        assert res_auth.status_code == 200
+        auth_data = res_auth.json()["data"]
+        staging_key = auth_data["object_key"]
+        storage.put_bytes(key=staging_key, content=content, content_type="audio/webm")
+
+        res_fin = client.post(
+            "/api/v1/performance-takes",
+            json={
+                "take_id": auth_data["take_id"],
+                "client_request_id": "req-late-put-cleanup",
+                "reservation_id": auth_data["reservation_id"],
+                "score_id": "score-uuid-10",
+                "media_byte_size": size,
+                "media_mime_type": "audio/webm",
+                "duration_ms": 5000,
+                "scope_start_beat": 0.0,
+                "scope_terminal_beat": 4.0,
+            },
+        )
+        assert res_fin.status_code == 200
+
+        auth = session.execute(
+            select(PerformanceTakeUploadAuthorization).where(
+                PerformanceTakeUploadAuthorization.client_request_id
+                == "req-late-put-cleanup"
+            )
+        ).scalar_one()
+        final_bytes = storage.read_bytes(auth.final_object_key)
+
+        # A still-valid old presigned PUT can recreate staging after the successful save.
+        storage.put_bytes(
+            key=staging_key,
+            content=b"\x1a\x45\xdf\xa3late-staging-rewrite",
+            content_type="audio/webm",
+        )
+        assert storage.exists(staging_key)
+
+        auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+        session.commit()
+        cleaned_count = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+            session,
+            storage=storage,
+            storage_usage_service=storage_usage_svc,
+        )
+        session.commit()
+
+        assert cleaned_count == 1
+        assert not storage.exists(staging_key)
+        assert storage.read_bytes(auth.final_object_key) == final_bytes
+        session.refresh(auth)
+        assert auth.status == PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_score_deleted_between_auth_and_finalize(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
@@ -1562,95 +1748,80 @@ def _normalise_psycopg_url(database_url: str) -> str:
     )
 
 
-def _postgres_test_admin_url() -> str:
-    admin_url = os.environ.get(POSTGRES_TEST_ADMIN_URL_ENV)
-    if not admin_url:
+def _postgres_sqlalchemy_url(database_url: str, *, driver: str) -> str:
+    normalized = _normalise_psycopg_url(database_url)
+    return normalized.replace("postgresql://", f"postgresql+{driver}://", 1)
+
+
+def _postgres_migration_test_database(env_var: str) -> PostgresMigrationTestDatabase:
+    import psycopg
+
+    database_url = os.environ.get(env_var)
+    if not database_url:
         pytest.skip(
-            f"PostgreSQL migration tests NOT VERIFIED: set {POSTGRES_TEST_ADMIN_URL_ENV} "
-            "to an explicit disposable-test admin connection URL."
+            f"PostgreSQL migration test NOT VERIFIED: set {env_var} to an explicit "
+            "dedicated PostgreSQL test database URL."
         )
-    normalized = _normalise_psycopg_url(admin_url.strip())
+
+    normalized = _normalise_psycopg_url(database_url.strip())
     if not normalized.startswith("postgresql://"):
         pytest.skip(
-            f"PostgreSQL migration tests NOT VERIFIED: {POSTGRES_TEST_ADMIN_URL_ENV} "
-            "must use a PostgreSQL URL."
+            f"PostgreSQL migration test NOT VERIFIED: {env_var} must use a PostgreSQL URL."
         )
-    return normalized
 
-
-def _postgres_url_for_database(admin_url: str, database_name: str) -> str:
-    from urllib.parse import urlsplit, urlunsplit
-
-    parsed = urlsplit(admin_url)
-    return urlunsplit(parsed._replace(path=f"/{database_name}", query="", fragment=""))
-
-
-@contextmanager
-def _isolated_postgres_database() -> Iterator[tuple[str, str]]:
-    """Create and later drop a uniquely named PostgreSQL database for this test."""
-
-    import psycopg
-    from psycopg import sql
-
-    admin_url = _postgres_test_admin_url()
-    database_name = f"{POSTGRES_TEST_DB_PREFIX}{uuid4().hex}"
-    if not database_name.startswith(POSTGRES_TEST_DB_PREFIX):
-        raise AssertionError(f"Unsafe PostgreSQL test database name: {database_name}")
-
-    admin_conn = psycopg.connect(admin_url, autocommit=True, connect_timeout=3)
-    created = False
+    conn = psycopg.connect(normalized, autocommit=True, connect_timeout=3)
     try:
-        with admin_conn.cursor() as cur:
-            cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database_name)))
-        created = True
-
-        database_url = _postgres_url_for_database(admin_url, database_name)
-        marker_conn = psycopg.connect(database_url, autocommit=True, connect_timeout=3)
-        try:
-            with marker_conn.cursor() as cur:
-                cur.execute(
-                    "CREATE TABLE noteverse_test_database_marker "
-                    "(database_name TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now())"
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT current_database(), current_user, rolsuper, rolcreatedb
+                FROM pg_roles
+                WHERE rolname = current_user
+                """
+            )
+            database_name, _user_name, is_superuser, can_create_db = cur.fetchone()
+            if not str(database_name).startswith(POSTGRES_TEST_DATABASE_PREFIX):
+                pytest.skip(
+                    "PostgreSQL migration test NOT VERIFIED: target database name must "
+                    f"start with {POSTGRES_TEST_DATABASE_PREFIX!r}."
                 )
-                cur.execute(
-                    "INSERT INTO noteverse_test_database_marker (database_name) VALUES (%s)",
-                    (database_name,),
+            if is_superuser or can_create_db:
+                pytest.skip(
+                    "PostgreSQL migration test NOT VERIFIED: test user must not be "
+                    "SUPERUSER and must not have CREATEDB."
                 )
-        finally:
-            marker_conn.close()
-
-        yield database_name, database_url
     finally:
-        if created:
-            if not database_name.startswith(POSTGRES_TEST_DB_PREFIX):
-                raise AssertionError(f"Refusing to drop unsafe database name: {database_name}")
-            try:
-                verify_conn = psycopg.connect(
-                    _postgres_url_for_database(admin_url, database_name),
-                    autocommit=True,
-                    connect_timeout=3,
+        conn.close()
+
+    return PostgresMigrationTestDatabase(
+        database_name=database_name,
+        psycopg_url=normalized,
+        sqlalchemy_sync_url=_postgres_sqlalchemy_url(normalized, driver="psycopg"),
+        alembic_async_url=_postgres_sqlalchemy_url(normalized, driver="psycopg"),
+    )
+
+
+def _assert_postgres_database_empty(database_url: str) -> None:
+    import psycopg
+
+    conn = psycopg.connect(database_url, autocommit=True, connect_timeout=3)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                """
+            )
+            tables = [row[0] for row in cur.fetchall()]
+            if tables:
+                pytest.skip(
+                    "PostgreSQL migration test NOT VERIFIED: target test database is "
+                    f"not empty; rebuild the isolated test container/database. Tables: {tables}"
                 )
-                try:
-                    with verify_conn.cursor() as cur:
-                        cur.execute(
-                            "SELECT 1 FROM noteverse_test_database_marker WHERE database_name = %s",
-                            (database_name,),
-                        )
-                        if cur.fetchone() is None:
-                            raise AssertionError(
-                                f"Refusing to drop unmarked PostgreSQL test database: {database_name}"
-                            )
-                finally:
-                    verify_conn.close()
-            finally:
-                with admin_conn.cursor() as cur:
-                    cur.execute(
-                        "SELECT pg_terminate_backend(pid) "
-                        "FROM pg_stat_activity WHERE datname = %s AND pid <> pg_backend_pid()",
-                        (database_name,),
-                    )
-                    cur.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(database_name)))
-        admin_conn.close()
+    finally:
+        conn.close()
 
 
 def _alembic_config(database_url: str):
@@ -1661,180 +1832,6 @@ def _alembic_config(database_url: str):
     cfg.set_main_option("script_location", alembic_dir)
     cfg.set_main_option("sqlalchemy.url", database_url)
     return cfg
-
-
-def test_constructed_0053_alembic_upgrade_to_0056_sqlite(tmp_path: Path):
-    """Construct a 0053 SQLite state, then run the real 0054 -> 0056 migrations.
-
-    Checks:
-    - Real command.upgrade(cfg, '0056_take_auth_and_deletion_outbox') execution
-    - score_id / revision_id nullability
-    - score_title column added and safely backfilled
-    - scope_type column added with default 'FULL'
-    - deletion_status column added to performance_takes with default 'ACTIVE'
-    - performance_take_upload_authorizations table created with all columns and indexes
-    - performance_take_delete_outbox table created with all columns and indexes
-    - FK ON DELETE SET NULL for scores and score_revisions
-    - Exactly 1 uq_performance_takes_user_client_request_id (no duplicate unique constraints)
-    - 0 SAWarnings emitted during migration
-    - Under PRAGMA foreign_keys = ON, deleting the score sets score_id/revision_id to NULL,
-      preserving take row and score_title snapshot.
-    """
-    from alembic import command
-    import sqlalchemy as sa
-
-    db_path = tmp_path / "test_migration_sqlite.db"
-    sqlite_url = f"sqlite:///{db_path}"
-    engine = create_engine(sqlite_url)
-
-    # 1. Set up 0053 state
-    with engine.begin() as conn:
-        conn.execute(sa.text("CREATE TABLE alembic_version (version_num VARCHAR(128) NOT NULL, PRIMARY KEY (version_num));"))
-        conn.execute(sa.text("INSERT INTO alembic_version VALUES ('0053_performance_takes');"))
-        conn.execute(sa.text("CREATE TABLE users (id INTEGER PRIMARY KEY, email VARCHAR(255) NOT NULL);"))
-        conn.execute(sa.text("INSERT INTO users VALUES (1, 'u1@test.com');"))
-        conn.execute(sa.text("CREATE TABLE scores (id INTEGER PRIMARY KEY, title VARCHAR(255) NOT NULL);"))
-        conn.execute(sa.text("INSERT INTO scores VALUES (10, 'Sonata Allegro');"))
-        conn.execute(sa.text("CREATE TABLE score_revisions (id INTEGER PRIMARY KEY, score_id INTEGER NOT NULL REFERENCES scores(id) ON DELETE CASCADE);"))
-        conn.execute(sa.text("INSERT INTO score_revisions VALUES (100, 10);"))
-        # 0053 schema: score_id NOT NULL REFERENCES scores(id) ON DELETE CASCADE
-        conn.execute(sa.text("""
-        CREATE TABLE performance_takes (
-            id INTEGER PRIMARY KEY,
-            take_uuid VARCHAR(36) NOT NULL,
-            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            score_id INTEGER NOT NULL REFERENCES scores(id) ON DELETE CASCADE,
-            revision_id INTEGER REFERENCES score_revisions(id) ON DELETE SET NULL,
-            artifact_id VARCHAR(128),
-            client_request_id VARCHAR(128) NOT NULL,
-            media_kind VARCHAR(16) NOT NULL DEFAULT 'AUDIO',
-            media_mime_type VARCHAR(64) NOT NULL,
-            media_byte_size BIGINT NOT NULL,
-            media_object_key VARCHAR(768) NOT NULL,
-            storage_backend VARCHAR(32) NOT NULL,
-            duration_ms INTEGER NOT NULL,
-            scope_start_beat REAL NOT NULL,
-            scope_terminal_beat REAL NOT NULL,
-            tempo_selection TEXT,
-            resolved_tempo_plan TEXT,
-            sync_metadata TEXT,
-            created_at TIMESTAMP NOT NULL,
-            updated_at TIMESTAMP NOT NULL,
-            CONSTRAINT uq_performance_takes_user_client_request_id UNIQUE (user_id, client_request_id)
-        );
-        """))
-        conn.execute(sa.text("CREATE UNIQUE INDEX ix_performance_takes_take_uuid ON performance_takes (take_uuid);"))
-        conn.execute(sa.text("CREATE INDEX ix_performance_takes_user_id ON performance_takes (user_id);"))
-        conn.execute(sa.text("CREATE INDEX ix_performance_takes_score_id ON performance_takes (score_id);"))
-        conn.execute(sa.text("CREATE INDEX ix_performance_takes_revision_id ON performance_takes (revision_id);"))
-        conn.execute(sa.text("CREATE INDEX ix_performance_takes_client_request_id ON performance_takes (client_request_id);"))
-        conn.execute(sa.text("""
-        INSERT INTO performance_takes (
-            id, take_uuid, user_id, score_id, revision_id, artifact_id, client_request_id,
-            media_kind, media_mime_type, media_byte_size, media_object_key, storage_backend,
-            duration_ms, scope_start_beat, scope_terminal_beat, created_at, updated_at
-        ) VALUES (
-            1, 'take-sqlite-001', 1, 10, 100, 'art-1', 'req-1',
-            'AUDIO', 'audio/webm', 2048, 'users/1/takes/take-sqlite-001.webm', 'local',
-            90000, 0.0, 32.0, '2026-09-20 14:00:00', '2026-09-20 14:00:00'
-        );
-        """))
-    engine.dispose()
-
-    # 2. Run real Alembic upgrade to 0056
-    cfg = _alembic_config(sqlite_url)
-
-    with warnings.catch_warnings(record=True) as recorded_warnings:
-        warnings.simplefilter("always")
-        command.upgrade(cfg, "0056_take_auth_and_deletion_outbox")
-        sa_warnings = [w for w in recorded_warnings if issubclass(w.category, sa.exc.SAWarning)]
-        assert len(sa_warnings) == 0, f"Unexpected SAWarnings during SQLite upgrade: {sa_warnings}"
-
-    # 3. Introspect schema and verify columns, constraints, and indexes
-    engine2 = create_engine(sqlite_url)
-    inspector = inspect(engine2)
-    tables = set(inspector.get_table_names())
-    assert "performance_take_upload_authorizations" in tables
-    assert "performance_take_delete_outbox" in tables
-
-    cols = {c["name"]: c for c in inspector.get_columns("performance_takes")}
-    assert cols["score_id"]["nullable"] is True
-    assert cols["revision_id"]["nullable"] is True
-    assert "score_title" in cols
-    assert cols["score_title"]["nullable"] is True
-    assert "scope_type" in cols
-    assert cols["scope_type"]["nullable"] is False
-    assert "deletion_status" in cols
-    assert cols["deletion_status"]["nullable"] is False
-
-    auth_cols = {c["name"]: c for c in inspector.get_columns("performance_take_upload_authorizations")}
-    assert "auth_uuid" in auth_cols
-    assert "staging_object_key" in auth_cols
-    assert "final_object_key" in auth_cols
-    assert "status" in auth_cols
-
-    outbox_cols = {c["name"]: c for c in inspector.get_columns("performance_take_delete_outbox")}
-    assert "outbox_uuid" in outbox_cols
-    assert "take_uuid" in outbox_cols
-    assert "status" in outbox_cols
-    assert "next_attempt_at" in outbox_cols
-
-    # Check backfilled data
-    with engine2.connect() as conn:
-        row = conn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type, deletion_status FROM performance_takes WHERE id = 1")).fetchone()
-        assert row is not None
-        assert row[0] == 1
-        assert row[1] == "take-sqlite-001"
-        assert row[2] == 1
-        assert row[3] == 10
-        assert row[4] == 100
-        assert row[5] == "Sonata Allegro"  # safely backfilled
-        assert row[6] == "FULL"
-        assert row[7] == "ACTIVE"
-
-    # Check FKs: exactly 3 FKs, no duplicates
-    fks = inspector.get_foreign_keys("performance_takes")
-    assert len(fks) == 3, f"Expected 3 FKs, got {len(fks)}: {fks}"
-    score_fk = next(f for f in fks if f["referred_table"] == "scores")
-    assert score_fk["options"].get("ondelete") == "SET NULL"
-    rev_fk = next(f for f in fks if f["referred_table"] == "score_revisions")
-    assert rev_fk["options"].get("ondelete") == "SET NULL"
-    user_fk = next(f for f in fks if f["referred_table"] == "users")
-    assert user_fk["options"].get("ondelete") == "CASCADE"
-
-    # Check indexes on performance_takes
-    indexes = inspector.get_indexes("performance_takes")
-    index_names = {idx["name"] for idx in indexes}
-    expected_indexes = {
-        "ix_performance_takes_take_uuid",
-        "ix_performance_takes_user_id",
-        "ix_performance_takes_score_id",
-        "ix_performance_takes_revision_id",
-        "ix_performance_takes_client_request_id",
-        "ix_performance_takes_user_deletion_status",
-    }
-    assert expected_indexes.issubset(index_names), f"Missing indexes: {expected_indexes - index_names}"
-
-    # Check unique constraint: exactly 1 unique constraint for (user_id, client_request_id)
-    unique_constraints = inspector.get_unique_constraints("performance_takes")
-    uq_names = [uc["name"] for uc in unique_constraints if "uq_performance_takes_user_client_request_id" in str(uc.get("name", ""))]
-    assert len(uq_names) == 1, f"Expected 1 unique constraint, got: {unique_constraints}"
-
-    # 4. Under PRAGMA foreign_keys = ON, verify DELETE FROM scores
-    with engine2.begin() as conn:
-        conn.execute(sa.text("PRAGMA foreign_keys = ON;"))
-        conn.execute(sa.text("DELETE FROM scores WHERE id = 10;"))
-
-    with engine2.connect() as conn:
-        row2 = conn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type, deletion_status FROM performance_takes WHERE id = 1")).fetchone()
-        assert row2 is not None
-        assert row2[3] is None  # score_id SET NULL
-        assert row2[4] is None  # revision_id SET NULL
-        assert row2[5] == "Sonata Allegro"  # title preserved
-        assert row2[6] == "FULL"
-        assert row2[7] == "ACTIVE"
-
-    engine2.dispose()
 
 
 def _setup_constructed_0053_performance_takes_state_postgresql(database_url: str) -> None:
@@ -1906,12 +1903,17 @@ def _setup_constructed_0053_performance_takes_state_postgresql(database_url: str
         conn.close()
 
 
-def _assert_performance_take_upgrade_state(database_url: str) -> None:
+def _assert_performance_take_upgrade_state(
+    *, alembic_async_url: str, sqlalchemy_sync_url: str
+) -> None:
     from alembic import command
     import sqlalchemy as sa
 
-    command.upgrade(_alembic_config(database_url), "0056_take_auth_and_deletion_outbox")
-    engine_pg = create_engine(database_url.replace("postgresql://", "postgresql+psycopg://", 1))
+    command.upgrade(
+        _alembic_config(alembic_async_url),
+        "0056_take_auth_and_deletion_outbox",
+    )
+    engine_pg = create_engine(sqlalchemy_sync_url)
     try:
         inspector = inspect(engine_pg)
         tables = set(inspector.get_table_names())
@@ -1985,28 +1987,36 @@ def _assert_performance_take_upgrade_state(database_url: str) -> None:
 
 
 def test_empty_postgresql_database_initializes_with_wide_alembic_version_table():
-    """Run the real migration chain from an empty isolated PostgreSQL database."""
+    """Run the real migration chain from a pre-provisioned empty PostgreSQL database."""
 
     from alembic import command
 
-    with _isolated_postgres_database() as (_database_name, database_url):
-        command.upgrade(_alembic_config(database_url), "0056_take_auth_and_deletion_outbox")
-        engine_pg = create_engine(database_url.replace("postgresql://", "postgresql+psycopg://", 1))
-        try:
-            inspector = inspect(engine_pg)
-            version_cols = {c["name"]: c for c in inspector.get_columns("alembic_version")}
-            assert getattr(version_cols["version_num"]["type"], "length", None) == 128
-            assert "performance_takes" in inspector.get_table_names()
-        finally:
-            engine_pg.dispose()
+    pg = _postgres_migration_test_database(POSTGRES_MIGRATION_EMPTY_URL_ENV)
+    _assert_postgres_database_empty(pg.psycopg_url)
+    command.upgrade(
+        _alembic_config(pg.alembic_async_url),
+        "0056_take_auth_and_deletion_outbox",
+    )
+    engine_pg = create_engine(pg.sqlalchemy_sync_url)
+    try:
+        inspector = inspect(engine_pg)
+        version_cols = {c["name"]: c for c in inspector.get_columns("alembic_version")}
+        assert getattr(version_cols["version_num"]["type"], "length", None) == 128
+        assert "performance_takes" in inspector.get_table_names()
+    finally:
+        engine_pg.dispose()
 
 
 def test_constructed_0053_alembic_upgrade_to_0056_postgresql_short_version_table():
     """Construct a 0053 PostgreSQL state with VARCHAR(32), then run real 0054 -> 0056."""
 
-    with _isolated_postgres_database() as (_database_name, database_url):
-        _setup_constructed_0053_performance_takes_state_postgresql(database_url)
-        _assert_performance_take_upgrade_state(database_url)
+    pg = _postgres_migration_test_database(POSTGRES_MIGRATION_0053_SHORT_URL_ENV)
+    _assert_postgres_database_empty(pg.psycopg_url)
+    _setup_constructed_0053_performance_takes_state_postgresql(pg.psycopg_url)
+    _assert_performance_take_upgrade_state(
+        alembic_async_url=pg.alembic_async_url,
+        sqlalchemy_sync_url=pg.sqlalchemy_sync_url,
+    )
 
 
 def test_constructed_0053_alembic_upgrade_to_0056_postgresql_long_version_table():
@@ -2014,63 +2024,30 @@ def test_constructed_0053_alembic_upgrade_to_0056_postgresql_long_version_table(
 
     import psycopg
 
-    with _isolated_postgres_database() as (_database_name, database_url):
-        _setup_constructed_0053_performance_takes_state_postgresql(database_url)
-        conn = psycopg.connect(database_url, autocommit=True, connect_timeout=3)
-        try:
-            with conn.cursor() as cur:
-                cur.execute("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)")
-        finally:
-            conn.close()
-        _assert_performance_take_upgrade_state(database_url)
+    pg = _postgres_migration_test_database(POSTGRES_MIGRATION_0053_LONG_URL_ENV)
+    _assert_postgres_database_empty(pg.psycopg_url)
+    _setup_constructed_0053_performance_takes_state_postgresql(pg.psycopg_url)
+    conn = psycopg.connect(pg.psycopg_url, autocommit=True, connect_timeout=3)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)")
+    finally:
+        conn.close()
+    _assert_performance_take_upgrade_state(
+        alembic_async_url=pg.alembic_async_url,
+        sqlalchemy_sync_url=pg.sqlalchemy_sync_url,
+    )
 
 
 def test_postgresql_version_table_widening_permission_error_is_not_swallowed():
     """A permission failure while widening alembic_version must abort before migrations."""
 
-    import psycopg
-    from psycopg import sql
     from alembic import command
     from sqlalchemy.exc import DBAPIError
-    from urllib.parse import quote, urlsplit, urlunsplit
 
-    restricted_user = os.environ.get("NOTEVERSE_TEST_POSTGRES_RESTRICTED_USER")
-    restricted_password = os.environ.get("NOTEVERSE_TEST_POSTGRES_RESTRICTED_PASSWORD")
-    if not restricted_user or not restricted_password:
-        pytest.skip(
-            "PostgreSQL insufficient-permission migration test NOT VERIFIED: set "
-            "NOTEVERSE_TEST_POSTGRES_RESTRICTED_USER and "
-            "NOTEVERSE_TEST_POSTGRES_RESTRICTED_PASSWORD."
+    pg = _postgres_migration_test_database(POSTGRES_MIGRATION_RESTRICTED_ALEMBIC_URL_ENV)
+    with pytest.raises((DBAPIError, PermissionError, RuntimeError)):
+        command.upgrade(
+            _alembic_config(pg.alembic_async_url),
+            "0056_take_auth_and_deletion_outbox",
         )
-
-    with _isolated_postgres_database() as (_database_name, database_url):
-        conn = psycopg.connect(database_url, autocommit=True, connect_timeout=3)
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL, "
-                    "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num));"
-                )
-                cur.execute("INSERT INTO alembic_version VALUES ('0053_performance_takes');")
-                cur.execute("REVOKE ALL ON TABLE alembic_version FROM PUBLIC")
-                cur.execute(
-                    sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(
-                        sql.Identifier(restricted_user)
-                    )
-                )
-                cur.execute(
-                    sql.SQL("GRANT SELECT ON TABLE alembic_version TO {}").format(
-                        sql.Identifier(restricted_user)
-                    )
-                )
-        finally:
-            conn.close()
-
-        parsed = urlsplit(database_url)
-        host = parsed.hostname or "localhost"
-        netloc = f"{quote(restricted_user)}:{quote(restricted_password)}@{host}"
-        if parsed.port is not None:
-            netloc = f"{netloc}:{parsed.port}"
-        restricted_url = urlunsplit(parsed._replace(netloc=netloc))
-        with pytest.raises((DBAPIError, PermissionError, RuntimeError)):
-            command.upgrade(_alembic_config(restricted_url), "0056_take_auth_and_deletion_outbox")

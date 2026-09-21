@@ -26,9 +26,16 @@ target_metadata = SQLModel.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+def _alembic_database_url(url: str) -> str:
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return url
+
+
 db_url = config.get_main_option("sqlalchemy.url")
 if not db_url or db_url.startswith("driver://"):
-    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+    db_url = settings.DATABASE_URL
+config.set_main_option("sqlalchemy.url", _alembic_database_url(db_url))
 
 POSTGRESQL_ALEMBIC_VERSION_LENGTH = 128
 
@@ -103,7 +110,6 @@ def do_run_migrations(connection: Connection) -> None:
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
-        render_as_batch=connection.dialect.name == "sqlite",
     )
 
     with context.begin_transaction():
@@ -117,19 +123,6 @@ async def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    target_url = config.get_main_option("sqlalchemy.url", "")
-    if target_url.startswith("sqlite"):
-        from sqlalchemy import engine_from_config
-        connectable = engine_from_config(
-            config.get_section(config.config_ini_section, {}),
-            prefix="sqlalchemy.",
-            poolclass=pool.NullPool,
-        )
-        with connectable.connect() as connection:
-            do_run_migrations(connection)
-        connectable.dispose()
-        return
-
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
