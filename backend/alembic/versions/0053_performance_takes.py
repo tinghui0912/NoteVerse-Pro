@@ -17,9 +17,10 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
-media_kind_enum = sa.Enum(
+media_kind_enum = postgresql.ENUM(
     "AUDIO",
     name="performancetakemediakind",
+    create_type=False,
 )
 
 

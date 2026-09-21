@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 import json
+import logging
 from typing import Optional
 from uuid import uuid4
 
@@ -42,14 +43,14 @@ from app.utils.timezone import utc_now_naive
 SUPPORTED_AUDIO_MIMES = {
     "audio/webm",
     "audio/mp4",
-    "audio/m4a",
     "audio/ogg",
     "audio/wav",
     "audio/x-wav",
-    "audio/mpeg",
-    "audio/mp3",
-    "audio/aac",
 }
+MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024
+MAX_TAKE_DURATION_MS = 12 * 60 * 60 * 1000
+MAX_TAKE_METADATA_JSON_BYTES = 64 * 1024
+logger = logging.getLogger(__name__)
 
 
 def _extension_for_mime(mime_type: str) -> str:
@@ -57,13 +58,9 @@ def _extension_for_mime(mime_type: str) -> str:
     mapping = {
         "audio/webm": "webm",
         "audio/mp4": "mp4",
-        "audio/m4a": "m4a",
         "audio/ogg": "ogg",
         "audio/wav": "wav",
         "audio/x-wav": "wav",
-        "audio/mpeg": "mp3",
-        "audio/mp3": "mp3",
-        "audio/aac": "aac",
     }
     return mapping.get(cleaned, "webm")
 
@@ -90,19 +87,30 @@ def _verify_audio_container_magic_bytes(header_bytes: bytes, mime_type: str) -> 
         if len(header_bytes) < 12:
             return False
         return header_bytes.startswith(b"RIFF") and header_bytes[8:12] == b"WAVE"
-    if cleaned in ("audio/mp4", "audio/m4a", "audio/aac"):
+    if cleaned == "audio/mp4":
         if len(header_bytes) >= 8 and header_bytes[4:8] == b"ftyp":
-            return True
-        if header_bytes[:2] in (b"\xff\xf1", b"\xff\xf9", b"\xff\xf0"):
-            return True
-        return False
-    if cleaned in ("audio/mpeg", "audio/mp3"):
-        if header_bytes.startswith(b"ID3"):
-            return True
-        if len(header_bytes) >= 2 and header_bytes[0] == 0xFF and (header_bytes[1] & 0xE0) == 0xE0:
             return True
         return False
     return False
+
+
+def _json_snapshot(value: object | None) -> str | None:
+    if value is None:
+        return None
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"))
+    if len(encoded.encode("utf-8")) > MAX_TAKE_METADATA_JSON_BYTES:
+        raise ValidationException(ErrorCode.VALIDATION_ERROR, field="metadata_size")
+    return encoded
+
+
+def _json_equivalent(left: str | None, right: object | None) -> bool:
+    if left is None and right is None:
+        return True
+    try:
+        left_value = None if left is None else json.loads(left)
+    except json.JSONDecodeError:
+        left_value = left
+    return left_value == right
 
 
 class PerformanceTakeService:
@@ -191,6 +199,81 @@ class PerformanceTakeService:
         except Exception:
             return False
 
+    async def _archived_authorization_response(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        take: PerformanceTake,
+    ) -> PerformanceTakeUploadAuthorizationRead:
+        score = await db.get(Score, take.score_id) if take.score_id else None
+        revision = await db.get(ScoreRevision, take.revision_id) if take.revision_id else None
+        has_access = await self._has_view_access(db, score, user_id) if score else False
+        return PerformanceTakeUploadAuthorizationRead(
+            take_id=take.take_uuid,
+            status=PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
+            take=self._to_read_dto(
+                take,
+                score=score,
+                revision=revision,
+                has_score_view_access=has_access,
+            ),
+        )
+
+    def _authorization_matches_request(
+        self,
+        auth: PerformanceTakeUploadAuthorization,
+        request: PerformanceTakeUploadAuthorizationRequest,
+        cleaned_mime: str,
+    ) -> bool:
+        return (
+            auth.score_uuid == request.score_id
+            and auth.revision_uuid == request.revision_id
+            and auth.artifact_id == request.artifact_id
+            and auth.scope_type == request.scope_type
+            and auth.scope_start_beat == request.scope_start_beat
+            and auth.scope_terminal_beat == request.scope_terminal_beat
+            and auth.duration_ms == request.duration_ms
+            and auth.media_mime_type == cleaned_mime
+            and auth.media_byte_size == request.media_byte_size
+            and _json_equivalent(auth.tempo_selection, request.tempo_selection)
+            and _json_equivalent(auth.resolved_tempo_plan, request.resolved_tempo_plan)
+            and _json_equivalent(auth.sync_metadata, request.sync_metadata)
+        )
+
+    def _authorization_matches_finalize_request(
+        self,
+        auth: PerformanceTakeUploadAuthorization,
+        request: PerformanceTakeCreateRequest,
+    ) -> bool:
+        cleaned_mime = request.media_mime_type.split(";")[0].strip().lower()
+        return (
+            auth.score_uuid == request.score_id
+            and auth.revision_uuid == request.revision_id
+            and auth.artifact_id == request.artifact_id
+            and auth.scope_type == request.scope_type
+            and auth.scope_start_beat == request.scope_start_beat
+            and auth.scope_terminal_beat == request.scope_terminal_beat
+            and auth.duration_ms == request.duration_ms
+            and auth.media_mime_type == cleaned_mime
+            and auth.media_byte_size == request.media_byte_size
+            and _json_equivalent(auth.tempo_selection, request.tempo_selection)
+            and _json_equivalent(auth.resolved_tempo_plan, request.resolved_tempo_plan)
+            and _json_equivalent(auth.sync_metadata, request.sync_metadata)
+        )
+
+    async def _expire_authorization(
+        self,
+        db: AsyncSession,
+        auth: PerformanceTakeUploadAuthorization,
+    ) -> str:
+        auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
+        auth.updated_at = utc_now_naive()
+        await self.storage_usage_service.release_reservation(
+            db, auth.reservation_id, auto_commit=False
+        )
+        await db.commit()
+        return auth.staging_object_key
+
     async def authorize_upload(
         self,
         db: AsyncSession,
@@ -205,8 +288,83 @@ class PerformanceTakeService:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="scope_terminal_beat")
         if request.duration_ms <= 0:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="duration_ms")
+        if request.duration_ms > MAX_TAKE_DURATION_MS:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="duration_ms")
         if request.media_byte_size <= 0:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
+        if request.media_byte_size > MAX_TAKE_MEDIA_BYTES:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
+
+        _json_snapshot(request.tempo_selection)
+        _json_snapshot(request.resolved_tempo_plan)
+        _json_snapshot(request.sync_metadata)
+
+        if self.storage is None:
+            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
+
+        existing_take = await self.repository.get_by_client_request_id(
+            db, user_id, request.client_request_id
+        )
+        if existing_take is not None:
+            return await self._archived_authorization_response(db, user_id, existing_take)
+
+        existing_auth = await self.repository.get_authorization_by_client_request_id(
+            db, user_id, request.client_request_id, lock=True
+        )
+        if existing_auth is not None:
+            if existing_auth.status == PerformanceTakeUploadAuthorizationStatus.ARCHIVED:
+                archived_take = await self.repository.get_by_uuid(
+                    db, user_id, existing_auth.take_uuid
+                )
+                if archived_take is not None:
+                    return await self._archived_authorization_response(
+                        db, user_id, archived_take
+                    )
+                raise ValidationException(
+                    ErrorCode.VALIDATION_ERROR,
+                    field="client_request_id",
+                    details={"reason": "archived_authorization_missing_take"},
+                )
+            if existing_auth.status == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED:
+                if not self._authorization_matches_request(existing_auth, request, cleaned_mime):
+                    raise ValidationException(
+                        ErrorCode.VALIDATION_ERROR,
+                        field="client_request_id",
+                        details={"reason": "client_request_id_reuse_conflict"},
+                    )
+                if existing_auth.expires_at <= utc_now_naive():
+                    staging_key = await self._expire_authorization(db, existing_auth)
+                    if self.storage.exists(staging_key):
+                        self.storage.delete(staging_key)
+                    raise ValidationException(
+                        ErrorCode.VALIDATION_ERROR,
+                        field="client_request_id",
+                        details={"reason": "client_request_id_expired_use_new_id"},
+                    )
+                upload_target = self.storage.upload_url(
+                    key=existing_auth.staging_object_key,
+                    content_type=existing_auth.media_mime_type,
+                    checksum_sha256="",
+                )
+                if upload_target is None:
+                    raise ValidationException(
+                        ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="upload_target"
+                    )
+                return PerformanceTakeUploadAuthorizationRead(
+                    take_id=existing_auth.take_uuid,
+                    status=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value,
+                    upload_url=upload_target.upload_url,
+                    upload_method=upload_target.upload_method,
+                    upload_headers=upload_target.upload_headers,
+                    object_key=existing_auth.staging_object_key,
+                    reservation_id=existing_auth.reservation_id,
+                    expires_in=3600,
+                )
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="client_request_id",
+                details={"reason": f"client_request_id_{existing_auth.status.value.lower()}"},
+            )
 
         score_stmt = select(Score).where(
             Score.score_uuid == request.score_id,
@@ -238,41 +396,17 @@ class PerformanceTakeService:
             revision_uuid=revision_uuid,
         )
 
-        if self.storage is None:
-            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
-
-        # Idempotency check: if client_request_id already authorized and active, reuse it
-        existing_auth = await self.repository.get_authorization_by_client_request_id(
-            db, user_id, request.client_request_id, lock=True
-        )
-        if existing_auth is not None:
-            if existing_auth.status in {
-                PerformanceTakeUploadAuthorizationStatus.AUTHORIZED,
-                PerformanceTakeUploadAuthorizationStatus.FINALIZING,
-                PerformanceTakeUploadAuthorizationStatus.ARCHIVED,
-            }:
-                upload_target = self.storage.upload_url(
-                    key=existing_auth.staging_object_key,
-                    content_type=existing_auth.media_mime_type,
-                    checksum_sha256="",
-                )
-                if upload_target is None:
-                    raise ValidationException(
-                        ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="upload_target"
-                    )
-                return PerformanceTakeUploadAuthorizationRead(
-                    take_id=existing_auth.take_uuid,
-                    upload_url=upload_target.upload_url,
-                    upload_method=upload_target.upload_method,
-                    upload_headers=upload_target.upload_headers,
-                    object_key=existing_auth.staging_object_key,
-                    reservation_id=existing_auth.reservation_id,
-                    expires_in=3600,
-                )
-
         take_uuid = str(uuid4())
         staging_object_key = _build_staging_object_key(user_id, take_uuid, cleaned_mime)
         final_object_key = _build_final_object_key(user_id, take_uuid, cleaned_mime)
+
+        upload_target = self.storage.upload_url(
+            key=staging_object_key,
+            content_type=cleaned_mime,
+            checksum_sha256="",
+        )
+        if upload_target is None:
+            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="upload_target")
 
         reservation_handle = await self.storage_usage_service.reserve(
             db,
@@ -283,87 +417,44 @@ class PerformanceTakeService:
             object_type="performance_take",
             object_id=take_uuid,
             storage_key=staging_object_key,
+            auto_commit=False,
         )
-
-        upload_target = self.storage.upload_url(
-            key=staging_object_key,
-            content_type=cleaned_mime,
-            checksum_sha256="",
-        )
-        if upload_target is None:
-            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="upload_target")
 
         now = utc_now_naive()
         expires_at = now + timedelta(seconds=3600)
 
-        if existing_auth is not None:
-            existing_auth.take_uuid = take_uuid
-            existing_auth.score_id = score.id
-            existing_auth.score_uuid = score.score_uuid
-            existing_auth.score_title = score.title
-            existing_auth.revision_id = revision.id if revision else None
-            existing_auth.revision_uuid = revision.revision_uuid if revision else None
-            existing_auth.artifact_id = request.artifact_id
-            existing_auth.scope_type = request.scope_type
-            existing_auth.scope_start_beat = request.scope_start_beat
-            existing_auth.scope_terminal_beat = request.scope_terminal_beat
-            existing_auth.tempo_selection = (
-                json.dumps(request.tempo_selection) if request.tempo_selection else None
-            )
-            existing_auth.resolved_tempo_plan = (
-                json.dumps(request.resolved_tempo_plan) if request.resolved_tempo_plan else None
-            )
-            existing_auth.sync_metadata = (
-                json.dumps(request.sync_metadata) if request.sync_metadata else None
-            )
-            existing_auth.duration_ms = request.duration_ms
-            existing_auth.media_mime_type = cleaned_mime
-            existing_auth.media_byte_size = request.media_byte_size
-            existing_auth.storage_backend = self.storage.backend_name
-            existing_auth.staging_object_key = staging_object_key
-            existing_auth.final_object_key = final_object_key
-            existing_auth.reservation_id = reservation_handle.reservation_id
-            existing_auth.status = PerformanceTakeUploadAuthorizationStatus.AUTHORIZED
-            existing_auth.expires_at = expires_at
-            existing_auth.updated_at = now
-            await db.commit()
-        else:
-            auth = PerformanceTakeUploadAuthorization(
-                user_id=user_id,
-                client_request_id=request.client_request_id,
-                take_uuid=take_uuid,
-                score_id=score.id,
-                score_uuid=score.score_uuid,
-                score_title=score.title,
-                revision_id=revision.id if revision else None,
-                revision_uuid=revision.revision_uuid if revision else None,
-                artifact_id=request.artifact_id,
-                scope_type=request.scope_type,
-                scope_start_beat=request.scope_start_beat,
-                scope_terminal_beat=request.scope_terminal_beat,
-                tempo_selection=(
-                    json.dumps(request.tempo_selection) if request.tempo_selection else None
-                ),
-                resolved_tempo_plan=(
-                    json.dumps(request.resolved_tempo_plan) if request.resolved_tempo_plan else None
-                ),
-                sync_metadata=(
-                    json.dumps(request.sync_metadata) if request.sync_metadata else None
-                ),
-                duration_ms=request.duration_ms,
-                media_mime_type=cleaned_mime,
-                media_byte_size=request.media_byte_size,
-                storage_backend=self.storage.backend_name,
-                staging_object_key=staging_object_key,
-                final_object_key=final_object_key,
-                reservation_id=reservation_handle.reservation_id,
-                status=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED,
-                expires_at=expires_at,
-            )
-            await self.repository.create_authorization(db, auth, auto_commit=True)
+        auth = PerformanceTakeUploadAuthorization(
+            user_id=user_id,
+            client_request_id=request.client_request_id,
+            take_uuid=take_uuid,
+            score_id=score.id,
+            score_uuid=score.score_uuid,
+            score_title=score.title,
+            revision_id=revision.id if revision else None,
+            revision_uuid=revision.revision_uuid if revision else None,
+            artifact_id=request.artifact_id,
+            scope_type=request.scope_type,
+            scope_start_beat=request.scope_start_beat,
+            scope_terminal_beat=request.scope_terminal_beat,
+            tempo_selection=_json_snapshot(request.tempo_selection),
+            resolved_tempo_plan=_json_snapshot(request.resolved_tempo_plan),
+            sync_metadata=_json_snapshot(request.sync_metadata),
+            duration_ms=request.duration_ms,
+            media_mime_type=cleaned_mime,
+            media_byte_size=request.media_byte_size,
+            storage_backend=self.storage.backend_name,
+            staging_object_key=staging_object_key,
+            final_object_key=final_object_key,
+            reservation_id=reservation_handle.reservation_id,
+            status=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED,
+            expires_at=expires_at,
+        )
+        await self.repository.create_authorization(db, auth, auto_commit=False)
+        await db.commit()
 
         return PerformanceTakeUploadAuthorizationRead(
             take_id=take_uuid,
+            status=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value,
             upload_url=upload_target.upload_url,
             upload_method=upload_target.upload_method,
             upload_headers=upload_target.upload_headers,
@@ -388,15 +479,24 @@ class PerformanceTakeService:
         )
         auth_res = await db.execute(auth_stmt)
         auth = auth_res.scalars().first()
+        staging_key: str | None = None
         if auth is not None and auth.status == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED:
             auth.status = PerformanceTakeUploadAuthorizationStatus.CANCELLED
             auth.updated_at = utc_now_naive()
-            if self.storage is not None and self.storage.exists(auth.staging_object_key):
-                self.storage.delete(auth.staging_object_key)
+            staging_key = auth.staging_object_key
             await self.storage_usage_service.release_reservation(
                 db, reservation_id, auto_commit=False
             )
             await db.commit()
+        if staging_key is not None and self.storage is not None:
+            try:
+                if self.storage.exists(staging_key):
+                    self.storage.delete(staging_key)
+            except Exception:
+                logger.exception(
+                    "performance_take_upload_authorization.cancel_staging_delete_failed",
+                    extra={"reservation_id": reservation_id, "staging_object_key": staging_key},
+                )
 
     async def finalize_take(
         self,
@@ -432,101 +532,191 @@ class PerformanceTakeService:
         if auth.status == PerformanceTakeUploadAuthorizationStatus.ARCHIVED:
             archived_take = await self.repository.get_by_uuid(db, user_id, auth.take_uuid)
             if archived_take is not None:
-                score = (
-                    await db.get(Score, archived_take.score_id) if archived_take.score_id else None
+                response = await self._archived_authorization_response(
+                    db, user_id, archived_take
                 )
-                revision = (
-                    await db.get(ScoreRevision, archived_take.revision_id)
-                    if archived_take.revision_id
-                    else None
-                )
-                has_access = await self._has_view_access(db, score, user_id) if score else False
-                return self._to_read_dto(
-                    archived_take, score=score, revision=revision, has_score_view_access=has_access
-                )
+                if response.take is not None:
+                    return response.take
 
-        if auth.status not in {
-            PerformanceTakeUploadAuthorizationStatus.AUTHORIZED,
-            PerformanceTakeUploadAuthorizationStatus.FINALIZING,
-        }:
+        if auth.status != PerformanceTakeUploadAuthorizationStatus.AUTHORIZED:
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
                 field="status",
                 details={"status": auth.status.value},
             )
-
-        now = utc_now_naive()
-        if auth.expires_at < now:
-            auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
-            auth.updated_at = now
-            if self.storage is not None and self.storage.exists(auth.staging_object_key):
-                self.storage.delete(auth.staging_object_key)
-            await self.storage_usage_service.release_reservation(
-                db, auth.reservation_id, auto_commit=False
+        if not self._authorization_matches_finalize_request(auth, request):
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="client_request_id",
+                details={"reason": "finalize_request_mismatch"},
             )
-            await db.commit()
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="authorization_expired")
 
         if self.storage is None:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
 
-        if not self.storage.exists(auth.staging_object_key):
+        auth_snapshot = {
+            "take_uuid": auth.take_uuid,
+            "user_id": auth.user_id,
+            "score_id": auth.score_id,
+            "score_uuid": auth.score_uuid,
+            "score_title": auth.score_title,
+            "revision_id": auth.revision_id,
+            "revision_uuid": auth.revision_uuid,
+            "artifact_id": auth.artifact_id,
+            "client_request_id": auth.client_request_id,
+            "media_mime_type": auth.media_mime_type,
+            "media_byte_size": auth.media_byte_size,
+            "storage_backend": auth.storage_backend,
+            "staging_object_key": auth.staging_object_key,
+            "final_object_key": auth.final_object_key,
+            "duration_ms": auth.duration_ms,
+            "scope_type": auth.scope_type,
+            "scope_start_beat": auth.scope_start_beat,
+            "scope_terminal_beat": auth.scope_terminal_beat,
+            "tempo_selection": auth.tempo_selection,
+            "resolved_tempo_plan": auth.resolved_tempo_plan,
+            "sync_metadata": auth.sync_metadata,
+            "reservation_id": auth.reservation_id,
+            "expires_at": auth.expires_at,
+        }
+        await db.commit()
+
+        now = utc_now_naive()
+        final_exists = self.storage.exists(auth_snapshot["final_object_key"])
+        staging_exists = self.storage.exists(auth_snapshot["staging_object_key"])
+        if auth_snapshot["expires_at"] < now and not final_exists:
+            auth = await self.repository.get_authorization_by_take_uuid(
+                db, user_id, request.take_id, lock=True
+            )
+            if auth is not None and auth.status == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED:
+                staging_key = await self._expire_authorization(db, auth)
+            else:
+                staging_key = auth_snapshot["staging_object_key"]
+                await db.commit()
+            try:
+                if self.storage.exists(staging_key):
+                    self.storage.delete(staging_key)
+            except Exception:
+                logger.exception(
+                    "performance_take_upload_authorization.expired_staging_delete_failed",
+                    extra={
+                        "take_uuid": request.take_id,
+                        "staging_object_key": staging_key,
+                    },
+                )
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="authorization_expired")
+
+        source_key = (
+            auth_snapshot["final_object_key"]
+            if final_exists
+            else auth_snapshot["staging_object_key"]
+        )
+        if not final_exists and not staging_exists:
             raise ResourceNotFoundException(
                 "performance_take_media_object",
-                auth.take_uuid,
+                auth_snapshot["take_uuid"],
                 ErrorCode.FILE_NOT_FOUND,
             )
 
-        metadata = self.storage.object_metadata(auth.staging_object_key)
-        if metadata.size_bytes != auth.media_byte_size:
+        metadata = self.storage.object_metadata(source_key)
+        if metadata.size_bytes != auth_snapshot["media_byte_size"]:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
-
-        header_bytes = b"".join(
-            self.storage.iter_bytes(auth.staging_object_key, chunk_size=64, start=0, end=63)
-        )
-        if not _verify_audio_container_magic_bytes(header_bytes, auth.media_mime_type):
+        if (
+            metadata.content_type is not None
+            and metadata.content_type.split(";")[0].strip().lower()
+            != auth_snapshot["media_mime_type"]
+        ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
 
-        # Promote staging object to final immutable object key
-        self.storage.copy(auth.staging_object_key, auth.final_object_key)
+        header_bytes = b"".join(
+            self.storage.iter_bytes(source_key, chunk_size=64, start=0, end=63)
+        )
+        if not _verify_audio_container_magic_bytes(
+            header_bytes, auth_snapshot["media_mime_type"]
+        ):
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
+
+        if not final_exists:
+            if not self.storage.exists(auth_snapshot["final_object_key"]):
+                self.storage.copy(
+                    auth_snapshot["staging_object_key"],
+                    auth_snapshot["final_object_key"],
+                )
+            final_exists = True
 
         # Resolve score/revision at finalize time; if score deleted, keep score_title snapshot
-        score = await db.get(Score, auth.score_id) if auth.score_id else None
+        score = await db.get(Score, auth_snapshot["score_id"]) if auth_snapshot["score_id"] else None
         score_db_id: int | None = None
-        score_title_out = auth.score_title
+        score_title_out = auth_snapshot["score_title"]
         revision_db_id: int | None = None
         revision_obj: ScoreRevision | None = None
         if score is not None and score.deletion_status == ScoreDeletionStatus.ACTIVE:
             score_db_id = score.id
             score_title_out = score.title
-            if auth.revision_id:
-                rev = await db.get(ScoreRevision, auth.revision_id)
+            if auth_snapshot["revision_id"]:
+                rev = await db.get(ScoreRevision, auth_snapshot["revision_id"])
                 if rev is not None and rev.score_id == score.id:
                     revision_db_id = rev.id
                     revision_obj = rev
 
+        auth = await self.repository.get_authorization_by_take_uuid(
+            db, user_id, request.take_id, lock=True
+        )
+        if auth is None:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="reservation_id")
+        existing_take = await self.repository.get_by_client_request_id(
+            db, user_id, request.client_request_id
+        )
+        if existing_take is not None:
+            response = await self._archived_authorization_response(db, user_id, existing_take)
+            if response.take is not None:
+                return response.take
+        if auth.status != PerformanceTakeUploadAuthorizationStatus.AUTHORIZED:
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="status",
+                details={"status": auth.status.value},
+            )
+        if not self._authorization_matches_finalize_request(auth, request):
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="client_request_id",
+                details={"reason": "finalize_request_mismatch"},
+            )
+        if auth.expires_at < utc_now_naive() and not final_exists:
+            staging_key = await self._expire_authorization(db, auth)
+            try:
+                if self.storage.exists(staging_key):
+                    self.storage.delete(staging_key)
+            except Exception:
+                logger.exception(
+                    "performance_take_upload_authorization.expired_staging_delete_failed",
+                    extra={"take_uuid": request.take_id, "staging_object_key": staging_key},
+                )
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="authorization_expired")
+
         # Commit Take, Auth status, and Storage quota in ONE database transaction
         take = PerformanceTake(
-            take_uuid=auth.take_uuid,
+            take_uuid=auth_snapshot["take_uuid"],
             user_id=auth.user_id,
             score_id=score_db_id,
             score_title=score_title_out,
             revision_id=revision_db_id,
-            artifact_id=auth.artifact_id,
-            client_request_id=auth.client_request_id,
+            artifact_id=auth_snapshot["artifact_id"],
+            client_request_id=auth_snapshot["client_request_id"],
             media_kind=PerformanceTakeMediaKind.AUDIO,
-            media_mime_type=auth.media_mime_type,
-            media_byte_size=auth.media_byte_size,
-            media_object_key=auth.final_object_key,
-            storage_backend=auth.storage_backend,
-            duration_ms=auth.duration_ms,
-            scope_type=auth.scope_type,
-            scope_start_beat=auth.scope_start_beat,
-            scope_terminal_beat=auth.scope_terminal_beat,
+            media_mime_type=auth_snapshot["media_mime_type"],
+            media_byte_size=auth_snapshot["media_byte_size"],
+            media_object_key=auth_snapshot["final_object_key"],
+            storage_backend=auth_snapshot["storage_backend"],
+            duration_ms=auth_snapshot["duration_ms"],
+            scope_type=auth_snapshot["scope_type"],
+            scope_start_beat=auth_snapshot["scope_start_beat"],
+            scope_terminal_beat=auth_snapshot["scope_terminal_beat"],
             deletion_status=PerformanceTakeDeletionStatus.ACTIVE,
-            tempo_selection=auth.tempo_selection,
-            resolved_tempo_plan=auth.resolved_tempo_plan,
-            sync_metadata=auth.sync_metadata,
+            tempo_selection=auth_snapshot["tempo_selection"],
+            resolved_tempo_plan=auth_snapshot["resolved_tempo_plan"],
+            sync_metadata=auth_snapshot["sync_metadata"],
         )
         created = await self.repository.create_take(db, take, auto_commit=False)
         auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
@@ -536,17 +726,23 @@ class PerformanceTakeService:
             db,
             reservation_id=auth.reservation_id,
             object_type="performance_take",
-            object_id=auth.take_uuid,
-            storage_key=auth.final_object_key,
+            object_id=auth_snapshot["take_uuid"],
+            storage_key=auth_snapshot["final_object_key"],
             auto_commit=False,
         )
         await db.commit()
 
         # Clean staging object now that final object and DB record are committed
         try:
-            self.storage.delete(auth.staging_object_key)
+            self.storage.delete(auth_snapshot["staging_object_key"])
         except Exception:
-            pass
+            logger.exception(
+                "performance_take_upload_authorization.archived_staging_delete_failed",
+                extra={
+                    "take_uuid": auth_snapshot["take_uuid"],
+                    "staging_object_key": auth_snapshot["staging_object_key"],
+                },
+            )
 
         has_access = await self._has_view_access(db, score, user_id) if score else False
         return self._to_read_dto(

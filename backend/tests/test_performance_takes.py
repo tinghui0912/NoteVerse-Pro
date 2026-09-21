@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import os
 from collections.abc import Iterator
 from pathlib import Path
-import urllib.parse
+from uuid import uuid4
 import warnings
 
 import pytest
@@ -53,6 +53,8 @@ from app.storage.local import LocalFileStorage
 from app.worker.execution import performance_take_deletion
 
 VALID_WEBM_BYTES = b"\x1a\x45\xdf\xa3" + b"fake-webm-audio-binary-data-12345"
+POSTGRES_TEST_ADMIN_URL_ENV = "NOTEVERSE_TEST_POSTGRES_ADMIN_URL"
+POSTGRES_TEST_DB_PREFIX = "noteverse_test_perf_takes_"
 
 
 class AsyncSessionAdapter:
@@ -1553,8 +1555,116 @@ def test_worker_oss_success_then_db_retry(test_env, monkeypatch: pytest.MonkeyPa
         app.dependency_overrides.clear()
 
 
-def test_real_alembic_upgrade_chain_sqlite(tmp_path: Path):
-    """Verify real Alembic upgrade from 0053 -> 0054 -> 0055 -> 0056 on SQLite.
+def _normalise_psycopg_url(database_url: str) -> str:
+    return (
+        database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+        .replace("postgresql+psycopg://", "postgresql://", 1)
+    )
+
+
+def _postgres_test_admin_url() -> str:
+    admin_url = os.environ.get(POSTGRES_TEST_ADMIN_URL_ENV)
+    if not admin_url:
+        pytest.skip(
+            f"PostgreSQL migration tests NOT VERIFIED: set {POSTGRES_TEST_ADMIN_URL_ENV} "
+            "to an explicit disposable-test admin connection URL."
+        )
+    normalized = _normalise_psycopg_url(admin_url.strip())
+    if not normalized.startswith("postgresql://"):
+        pytest.skip(
+            f"PostgreSQL migration tests NOT VERIFIED: {POSTGRES_TEST_ADMIN_URL_ENV} "
+            "must use a PostgreSQL URL."
+        )
+    return normalized
+
+
+def _postgres_url_for_database(admin_url: str, database_name: str) -> str:
+    from urllib.parse import urlsplit, urlunsplit
+
+    parsed = urlsplit(admin_url)
+    return urlunsplit(parsed._replace(path=f"/{database_name}", query="", fragment=""))
+
+
+@contextmanager
+def _isolated_postgres_database() -> Iterator[tuple[str, str]]:
+    """Create and later drop a uniquely named PostgreSQL database for this test."""
+
+    import psycopg
+    from psycopg import sql
+
+    admin_url = _postgres_test_admin_url()
+    database_name = f"{POSTGRES_TEST_DB_PREFIX}{uuid4().hex}"
+    if not database_name.startswith(POSTGRES_TEST_DB_PREFIX):
+        raise AssertionError(f"Unsafe PostgreSQL test database name: {database_name}")
+
+    admin_conn = psycopg.connect(admin_url, autocommit=True, connect_timeout=3)
+    created = False
+    try:
+        with admin_conn.cursor() as cur:
+            cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database_name)))
+        created = True
+
+        database_url = _postgres_url_for_database(admin_url, database_name)
+        marker_conn = psycopg.connect(database_url, autocommit=True, connect_timeout=3)
+        try:
+            with marker_conn.cursor() as cur:
+                cur.execute(
+                    "CREATE TABLE noteverse_test_database_marker "
+                    "(database_name TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now())"
+                )
+                cur.execute(
+                    "INSERT INTO noteverse_test_database_marker (database_name) VALUES (%s)",
+                    (database_name,),
+                )
+        finally:
+            marker_conn.close()
+
+        yield database_name, database_url
+    finally:
+        if created:
+            if not database_name.startswith(POSTGRES_TEST_DB_PREFIX):
+                raise AssertionError(f"Refusing to drop unsafe database name: {database_name}")
+            try:
+                verify_conn = psycopg.connect(
+                    _postgres_url_for_database(admin_url, database_name),
+                    autocommit=True,
+                    connect_timeout=3,
+                )
+                try:
+                    with verify_conn.cursor() as cur:
+                        cur.execute(
+                            "SELECT 1 FROM noteverse_test_database_marker WHERE database_name = %s",
+                            (database_name,),
+                        )
+                        if cur.fetchone() is None:
+                            raise AssertionError(
+                                f"Refusing to drop unmarked PostgreSQL test database: {database_name}"
+                            )
+                finally:
+                    verify_conn.close()
+            finally:
+                with admin_conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT pg_terminate_backend(pid) "
+                        "FROM pg_stat_activity WHERE datname = %s AND pid <> pg_backend_pid()",
+                        (database_name,),
+                    )
+                    cur.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(database_name)))
+        admin_conn.close()
+
+
+def _alembic_config(database_url: str):
+    from alembic.config import Config
+
+    alembic_dir = str(Path(__file__).resolve().parents[1] / "alembic")
+    cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    cfg.set_main_option("script_location", alembic_dir)
+    cfg.set_main_option("sqlalchemy.url", database_url)
+    return cfg
+
+
+def test_constructed_0053_alembic_upgrade_to_0056_sqlite(tmp_path: Path):
+    """Construct a 0053 SQLite state, then run the real 0054 -> 0056 migrations.
 
     Checks:
     - Real command.upgrade(cfg, '0056_take_auth_and_deletion_outbox') execution
@@ -1571,7 +1681,6 @@ def test_real_alembic_upgrade_chain_sqlite(tmp_path: Path):
       preserving take row and score_title snapshot.
     """
     from alembic import command
-    from alembic.config import Config
     import sqlalchemy as sa
 
     db_path = tmp_path / "test_migration_sqlite.db"
@@ -1633,10 +1742,7 @@ def test_real_alembic_upgrade_chain_sqlite(tmp_path: Path):
     engine.dispose()
 
     # 2. Run real Alembic upgrade to 0056
-    alembic_dir = str(Path(__file__).resolve().parents[1] / "alembic")
-    cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
-    cfg.set_main_option("script_location", alembic_dir)
-    cfg.set_main_option("sqlalchemy.url", sqlite_url)
+    cfg = _alembic_config(sqlite_url)
 
     with warnings.catch_warnings(record=True) as recorded_warnings:
         warnings.simplefilter("always")
@@ -1731,105 +1837,88 @@ def test_real_alembic_upgrade_chain_sqlite(tmp_path: Path):
     engine2.dispose()
 
 
-def test_real_alembic_upgrade_chain_postgresql():
-    """Verify real Alembic upgrade from 0053 -> 0054 -> 0055 -> 0056 on PostgreSQL."""
+def _setup_constructed_0053_performance_takes_state_postgresql(database_url: str) -> None:
     import psycopg
-    from alembic import command
-    from alembic.config import Config
-    import sqlalchemy as sa
 
-    pg_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL") or "postgresql://postgres:123456@192.168.31.59:5432/noteverse_pro"
-
-    # Parse URL to get base connection info
-    clean_pg_url = pg_url.replace("postgresql+asyncpg://", "postgresql://").replace("postgresql+psycopg://", "postgresql://")
-    parsed = urllib.parse.urlparse(clean_pg_url)
-    user = parsed.username or "postgres"
-    password = parsed.password or "123456"
-    host = parsed.hostname or "192.168.31.59"
-    port = parsed.port or 5432
-
-    base_pg = f"postgresql://{user}:{password}@{host}:{port}"
-    test_db = "test_alembic_take_upgrade_pg"
-
+    conn = psycopg.connect(database_url, autocommit=True, connect_timeout=3)
     try:
-        conn = psycopg.connect(f"{base_pg}/postgres", autocommit=True, connect_timeout=3)
-    except Exception as exc:
-        pytest.skip(f"PostgreSQL environment not available (NOT VERIFIED): {exc}")
-
-    try:
-        cur = conn.cursor()
-        cur.execute(f"DROP DATABASE IF EXISTS {test_db}")
-        cur.execute(f"CREATE DATABASE {test_db}")
+        with conn.cursor() as pcur:
+            pcur.execute(
+                "CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL, "
+                "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num));"
+            )
+            pcur.execute("INSERT INTO alembic_version VALUES ('0053_performance_takes');")
+            pcur.execute("CREATE TABLE users (id BIGSERIAL PRIMARY KEY, email VARCHAR(255) NOT NULL);")
+            pcur.execute("INSERT INTO users (id, email) VALUES (1, 'u1@example.com');")
+            pcur.execute("CREATE TABLE scores (id BIGSERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL);")
+            pcur.execute("INSERT INTO scores (id, title) VALUES (10, 'PG Sonata Allegro');")
+            pcur.execute(
+                "CREATE TABLE score_revisions "
+                "(id BIGSERIAL PRIMARY KEY, score_id BIGINT NOT NULL REFERENCES scores(id) ON DELETE CASCADE);"
+            )
+            pcur.execute("INSERT INTO score_revisions (id, score_id) VALUES (100, 10);")
+            pcur.execute(
+                """
+                CREATE TABLE performance_takes (
+                    id BIGSERIAL PRIMARY KEY,
+                    take_uuid VARCHAR(36) NOT NULL,
+                    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    score_id BIGINT NOT NULL REFERENCES scores(id) ON DELETE CASCADE,
+                    revision_id BIGINT REFERENCES score_revisions(id) ON DELETE SET NULL,
+                    artifact_id VARCHAR(128),
+                    client_request_id VARCHAR(128) NOT NULL,
+                    media_kind VARCHAR(16) NOT NULL DEFAULT 'AUDIO',
+                    media_mime_type VARCHAR(64) NOT NULL,
+                    media_byte_size BIGINT NOT NULL,
+                    media_object_key VARCHAR(768) NOT NULL,
+                    storage_backend VARCHAR(32) NOT NULL,
+                    duration_ms INTEGER NOT NULL,
+                    scope_start_beat REAL NOT NULL,
+                    scope_terminal_beat REAL NOT NULL,
+                    tempo_selection TEXT,
+                    resolved_tempo_plan TEXT,
+                    sync_metadata TEXT,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL,
+                    CONSTRAINT uq_performance_takes_user_client_request_id UNIQUE (user_id, client_request_id)
+                );
+                """
+            )
+            pcur.execute("CREATE UNIQUE INDEX ix_performance_takes_take_uuid ON performance_takes (take_uuid);")
+            pcur.execute("CREATE INDEX ix_performance_takes_user_id ON performance_takes (user_id);")
+            pcur.execute("CREATE INDEX ix_performance_takes_score_id ON performance_takes (score_id);")
+            pcur.execute("CREATE INDEX ix_performance_takes_revision_id ON performance_takes (revision_id);")
+            pcur.execute("CREATE INDEX ix_performance_takes_client_request_id ON performance_takes (client_request_id);")
+            pcur.execute(
+                """
+                INSERT INTO performance_takes (
+                    id, take_uuid, user_id, score_id, revision_id, artifact_id, client_request_id,
+                    media_kind, media_mime_type, media_byte_size, media_object_key, storage_backend,
+                    duration_ms, scope_start_beat, scope_terminal_beat, created_at, updated_at
+                ) VALUES (
+                    1, 'take-pg-001', 1, 10, 100, 'art-1', 'req-1',
+                    'AUDIO', 'audio/webm', 2048, 'users/1/takes/take-pg-001.webm', 's3',
+                    90000, 0.0, 32.0, '2026-09-20 14:00:00', '2026-09-20 14:00:00'
+                );
+                """
+            )
+    finally:
         conn.close()
 
-        # Connect to new test DB and setup 0053 state
-        pg_conn = psycopg.connect(f"{base_pg}/{test_db}", autocommit=True)
-        pcur = pg_conn.cursor()
-        pcur.execute("CREATE TABLE alembic_version (version_num VARCHAR(128) NOT NULL, CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num));")
-        pcur.execute("INSERT INTO alembic_version VALUES ('0053_performance_takes');")
-        pcur.execute("CREATE TABLE users (id BIGSERIAL PRIMARY KEY, email VARCHAR(255) NOT NULL);")
-        pcur.execute("INSERT INTO users (id, email) VALUES (1, 'u1@example.com');")
-        pcur.execute("CREATE TABLE scores (id BIGSERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL);")
-        pcur.execute("INSERT INTO scores (id, title) VALUES (10, 'PG Sonata Allegro');")
-        pcur.execute("CREATE TABLE score_revisions (id BIGSERIAL PRIMARY KEY, score_id BIGINT NOT NULL REFERENCES scores(id) ON DELETE CASCADE);")
-        pcur.execute("INSERT INTO score_revisions (id, score_id) VALUES (100, 10);")
-        pcur.execute("""
-        CREATE TABLE performance_takes (
-            id BIGSERIAL PRIMARY KEY,
-            take_uuid VARCHAR(36) NOT NULL,
-            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            score_id BIGINT NOT NULL REFERENCES scores(id) ON DELETE CASCADE,
-            revision_id BIGINT REFERENCES score_revisions(id) ON DELETE SET NULL,
-            artifact_id VARCHAR(128),
-            client_request_id VARCHAR(128) NOT NULL,
-            media_kind VARCHAR(16) NOT NULL DEFAULT 'AUDIO',
-            media_mime_type VARCHAR(64) NOT NULL,
-            media_byte_size BIGINT NOT NULL,
-            media_object_key VARCHAR(768) NOT NULL,
-            storage_backend VARCHAR(32) NOT NULL,
-            duration_ms INTEGER NOT NULL,
-            scope_start_beat REAL NOT NULL,
-            scope_terminal_beat REAL NOT NULL,
-            tempo_selection TEXT,
-            resolved_tempo_plan TEXT,
-            sync_metadata TEXT,
-            created_at TIMESTAMP NOT NULL,
-            updated_at TIMESTAMP NOT NULL,
-            CONSTRAINT uq_performance_takes_user_client_request_id UNIQUE (user_id, client_request_id)
-        );
-        """)
-        pcur.execute("CREATE UNIQUE INDEX ix_performance_takes_take_uuid ON performance_takes (take_uuid);")
-        pcur.execute("CREATE INDEX ix_performance_takes_user_id ON performance_takes (user_id);")
-        pcur.execute("CREATE INDEX ix_performance_takes_score_id ON performance_takes (score_id);")
-        pcur.execute("CREATE INDEX ix_performance_takes_revision_id ON performance_takes (revision_id);")
-        pcur.execute("CREATE INDEX ix_performance_takes_client_request_id ON performance_takes (client_request_id);")
-        pcur.execute("""
-        INSERT INTO performance_takes (
-            id, take_uuid, user_id, score_id, revision_id, artifact_id, client_request_id,
-            media_kind, media_mime_type, media_byte_size, media_object_key, storage_backend,
-            duration_ms, scope_start_beat, scope_terminal_beat, created_at, updated_at
-        ) VALUES (
-            1, 'take-pg-001', 1, 10, 100, 'art-1', 'req-1',
-            'AUDIO', 'audio/webm', 2048, 'users/1/takes/take-pg-001.webm', 's3',
-            90000, 0.0, 32.0, '2026-09-20 14:00:00', '2026-09-20 14:00:00'
-        );
-        """)
-        pg_conn.close()
 
-        # Run real Alembic upgrade to 0056
-        alembic_dir = str(Path(__file__).resolve().parents[1] / "alembic")
-        cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
-        cfg.set_main_option("script_location", alembic_dir)
-        cfg.set_main_option("sqlalchemy.url", f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{test_db}")
+def _assert_performance_take_upgrade_state(database_url: str) -> None:
+    from alembic import command
+    import sqlalchemy as sa
 
-        command.upgrade(cfg, "0056_take_auth_and_deletion_outbox")
-
-        # Inspect on PG
-        engine_pg = create_engine(f"postgresql+psycopg://{user}:{password}@{host}:{port}/{test_db}")
+    command.upgrade(_alembic_config(database_url), "0056_take_auth_and_deletion_outbox")
+    engine_pg = create_engine(database_url.replace("postgresql://", "postgresql+psycopg://", 1))
+    try:
         inspector = inspect(engine_pg)
         tables = set(inspector.get_table_names())
         assert "performance_take_upload_authorizations" in tables
         assert "performance_take_delete_outbox" in tables
+        version_cols = {c["name"]: c for c in inspector.get_columns("alembic_version")}
+        assert getattr(version_cols["version_num"]["type"], "length", None) == 128
 
         cols = {c["name"]: c for c in inspector.get_columns("performance_takes")}
         assert cols["score_id"]["nullable"] is True
@@ -1842,14 +1931,38 @@ def test_real_alembic_upgrade_chain_postgresql():
         assert cols["deletion_status"]["nullable"] is False
 
         fks = inspector.get_foreign_keys("performance_takes")
+        assert len([fk for fk in fks if fk["referred_table"] == "scores"]) == 1
         score_fk = next(f for f in fks if f["referred_table"] == "scores")
         assert score_fk["options"].get("ondelete") == "SET NULL"
         rev_fk = next(f for f in fks if f["referred_table"] == "score_revisions")
         assert rev_fk["options"].get("ondelete") == "SET NULL"
+        user_fk = next(f for f in fks if f["referred_table"] == "users")
+        assert user_fk["options"].get("ondelete") == "CASCADE"
+
+        indexes = {idx["name"] for idx in inspector.get_indexes("performance_takes")}
+        assert {
+            "ix_performance_takes_take_uuid",
+            "ix_performance_takes_user_id",
+            "ix_performance_takes_score_id",
+            "ix_performance_takes_revision_id",
+            "ix_performance_takes_client_request_id",
+            "ix_performance_takes_user_deletion_status",
+        }.issubset(indexes)
+
+        unique_constraints = inspector.get_unique_constraints("performance_takes")
+        uq_names = [
+            uc["name"]
+            for uc in unique_constraints
+            if "uq_performance_takes_user_client_request_id" in str(uc.get("name", ""))
+        ]
+        assert len(uq_names) == 1, f"Expected 1 unique constraint, got: {unique_constraints}"
 
         with engine_pg.connect() as pconn:
             row = pconn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type, deletion_status FROM performance_takes WHERE id = 1")).fetchone()
             assert row is not None
+            assert row[0] == 1
+            assert row[1] == "take-pg-001"
+            assert row[2] == 1
             assert row[3] == 10
             assert row[4] == 100
             assert row[5] == "PG Sonata Allegro"
@@ -1867,15 +1980,97 @@ def test_real_alembic_upgrade_chain_postgresql():
             assert row_after[5] == "PG Sonata Allegro"  # title preserved
             assert row_after[6] == "FULL"
             assert row_after[7] == "ACTIVE"
-
+    finally:
         engine_pg.dispose()
 
-    finally:
-        # Cleanup PG DB
+
+def test_empty_postgresql_database_initializes_with_wide_alembic_version_table():
+    """Run the real migration chain from an empty isolated PostgreSQL database."""
+
+    from alembic import command
+
+    with _isolated_postgres_database() as (_database_name, database_url):
+        command.upgrade(_alembic_config(database_url), "0056_take_auth_and_deletion_outbox")
+        engine_pg = create_engine(database_url.replace("postgresql://", "postgresql+psycopg://", 1))
         try:
-            conn_clean = psycopg.connect(f"{base_pg}/postgres", autocommit=True, connect_timeout=3)
-            cur_clean = conn_clean.cursor()
-            cur_clean.execute(f"DROP DATABASE IF EXISTS {test_db}")
-            conn_clean.close()
-        except Exception:
-            pass
+            inspector = inspect(engine_pg)
+            version_cols = {c["name"]: c for c in inspector.get_columns("alembic_version")}
+            assert getattr(version_cols["version_num"]["type"], "length", None) == 128
+            assert "performance_takes" in inspector.get_table_names()
+        finally:
+            engine_pg.dispose()
+
+
+def test_constructed_0053_alembic_upgrade_to_0056_postgresql_short_version_table():
+    """Construct a 0053 PostgreSQL state with VARCHAR(32), then run real 0054 -> 0056."""
+
+    with _isolated_postgres_database() as (_database_name, database_url):
+        _setup_constructed_0053_performance_takes_state_postgresql(database_url)
+        _assert_performance_take_upgrade_state(database_url)
+
+
+def test_constructed_0053_alembic_upgrade_to_0056_postgresql_long_version_table():
+    """Construct a 0053 PostgreSQL state with pre-widened version table and upgrade."""
+
+    import psycopg
+
+    with _isolated_postgres_database() as (_database_name, database_url):
+        _setup_constructed_0053_performance_takes_state_postgresql(database_url)
+        conn = psycopg.connect(database_url, autocommit=True, connect_timeout=3)
+        try:
+            with conn.cursor() as cur:
+                cur.execute("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)")
+        finally:
+            conn.close()
+        _assert_performance_take_upgrade_state(database_url)
+
+
+def test_postgresql_version_table_widening_permission_error_is_not_swallowed():
+    """A permission failure while widening alembic_version must abort before migrations."""
+
+    import psycopg
+    from psycopg import sql
+    from alembic import command
+    from sqlalchemy.exc import DBAPIError
+    from urllib.parse import quote, urlsplit, urlunsplit
+
+    restricted_user = os.environ.get("NOTEVERSE_TEST_POSTGRES_RESTRICTED_USER")
+    restricted_password = os.environ.get("NOTEVERSE_TEST_POSTGRES_RESTRICTED_PASSWORD")
+    if not restricted_user or not restricted_password:
+        pytest.skip(
+            "PostgreSQL insufficient-permission migration test NOT VERIFIED: set "
+            "NOTEVERSE_TEST_POSTGRES_RESTRICTED_USER and "
+            "NOTEVERSE_TEST_POSTGRES_RESTRICTED_PASSWORD."
+        )
+
+    with _isolated_postgres_database() as (_database_name, database_url):
+        conn = psycopg.connect(database_url, autocommit=True, connect_timeout=3)
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL, "
+                    "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num));"
+                )
+                cur.execute("INSERT INTO alembic_version VALUES ('0053_performance_takes');")
+                cur.execute("REVOKE ALL ON TABLE alembic_version FROM PUBLIC")
+                cur.execute(
+                    sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(
+                        sql.Identifier(restricted_user)
+                    )
+                )
+                cur.execute(
+                    sql.SQL("GRANT SELECT ON TABLE alembic_version TO {}").format(
+                        sql.Identifier(restricted_user)
+                    )
+                )
+        finally:
+            conn.close()
+
+        parsed = urlsplit(database_url)
+        host = parsed.hostname or "localhost"
+        netloc = f"{quote(restricted_user)}:{quote(restricted_password)}@{host}"
+        if parsed.port is not None:
+            netloc = f"{netloc}:{parsed.port}"
+        restricted_url = urlunsplit(parsed._replace(netloc=netloc))
+        with pytest.raises((DBAPIError, PermissionError, RuntimeError)):
+            command.upgrade(_alembic_config(restricted_url), "0056_take_auth_and_deletion_outbox")

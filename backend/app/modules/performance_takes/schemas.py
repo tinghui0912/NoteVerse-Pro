@@ -26,12 +26,14 @@ class PerformanceTakeUploadAuthorizationRequest(BaseModel):
 
 class PerformanceTakeUploadAuthorizationRead(BaseModel):
     take_id: str
-    upload_url: str
-    upload_method: str
-    upload_headers: dict[str, str]
-    object_key: str
-    reservation_id: str
-    expires_in: int
+    status: str = "AUTHORIZED"
+    upload_url: Optional[str] = None
+    upload_method: Optional[str] = None
+    upload_headers: dict[str, str] = Field(default_factory=dict)
+    object_key: Optional[str] = None
+    reservation_id: Optional[str] = None
+    expires_in: int = 0
+    take: Optional["PerformanceTakeRead"] = None
 
 
 class PerformanceTakeCreateRequest(BaseModel):

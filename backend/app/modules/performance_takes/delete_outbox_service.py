@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import timedelta
+import logging
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -20,6 +21,8 @@ from app.modules.async_operations.delivery_policy import (
 from app.modules.storage_usage.service import StorageUsageService
 from app.storage.base import FileStorage
 from app.utils.timezone import utc_now_naive
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -198,13 +201,24 @@ class PerformanceTakeDeleteOutboxService:
 
         cleaned_count = 0
         for auth in expired_auths:
+            if storage is not None and storage.exists(auth.final_object_key):
+                continue
             auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
             auth.updated_at = now
-            if storage is not None and storage.exists(auth.staging_object_key):
-                storage.delete(auth.staging_object_key)
             storage_usage_service.release_reservation_sync(
                 db, auth.reservation_id, auto_commit=False
             )
+            try:
+                if storage is not None and storage.exists(auth.staging_object_key):
+                    storage.delete(auth.staging_object_key)
+            except Exception:
+                logger.exception(
+                    "performance_take_upload_authorization.cleanup_staging_delete_failed",
+                    extra={
+                        "authorization_id": auth.id,
+                        "staging_object_key": auth.staging_object_key,
+                    },
+                )
             cleaned_count += 1
 
         return cleaned_count

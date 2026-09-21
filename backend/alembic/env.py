@@ -1,7 +1,7 @@
 import asyncio
 from logging.config import fileConfig
 
-from sqlalchemy import pool
+from sqlalchemy import inspect, pool, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
@@ -26,37 +26,49 @@ target_metadata = SQLModel.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-from typing import Any
-from alembic.ddl.impl import DefaultImpl
-from sqlalchemy import Column, MetaData, PrimaryKeyConstraint, String, Table, text
-
 db_url = config.get_main_option("sqlalchemy.url")
 if not db_url or db_url.startswith("driver://"):
     config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
-_orig_version_table_impl = DefaultImpl.version_table_impl
+POSTGRESQL_ALEMBIC_VERSION_LENGTH = 128
 
 
-def _custom_version_table_impl(
-    self: Any,
-    *,
-    version_table: str,
-    version_table_schema: str | None = None,
-    version_table_pk: bool = True,
-    **kw: Any,
-) -> Table:
-    vt = Table(
-        version_table,
-        MetaData(),
-        Column("version_num", String(128), nullable=False),
-        schema=version_table_schema,
-    )
-    if version_table_pk:
-        vt.append_constraint(PrimaryKeyConstraint("version_num", name=f"{version_table}_pkc"))
-    return vt
+def _prepare_postgresql_version_table(connection: Connection) -> None:
+    """Ensure PostgreSQL's Alembic version table can store project revision ids.
 
+    Alembic's default version_num width is 32 characters, while this repository
+    already has revision identifiers up to 40 characters.  We create the table
+    explicitly for fresh PostgreSQL databases and widen existing shorter tables
+    before Alembic starts its migration transaction.  Any failure must abort the
+    run so PostgreSQL does not continue after an aborted DDL transaction.
+    """
 
-DefaultImpl.version_table_impl = _custom_version_table_impl
+    inspector = inspect(connection)
+    if not inspector.has_table("alembic_version"):
+        connection.execute(
+            text(
+                "CREATE TABLE alembic_version "
+                f"(version_num VARCHAR({POSTGRESQL_ALEMBIC_VERSION_LENGTH}) NOT NULL, "
+                "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))"
+            )
+        )
+        return
+
+    version_columns = {
+        column["name"]: column for column in inspector.get_columns("alembic_version")
+    }
+    version_num = version_columns.get("version_num")
+    if version_num is None:
+        raise RuntimeError("Existing alembic_version table is missing version_num column")
+
+    current_length = getattr(version_num["type"], "length", None)
+    if current_length is None or current_length < POSTGRESQL_ALEMBIC_VERSION_LENGTH:
+        connection.execute(
+            text(
+                "ALTER TABLE alembic_version "
+                f"ALTER COLUMN version_num TYPE VARCHAR({POSTGRESQL_ALEMBIC_VERSION_LENGTH})"
+            )
+        )
 
 
 def run_migrations_offline() -> None:
@@ -85,15 +97,13 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection: Connection) -> None:
     if connection.dialect.name == "postgresql":
-        try:
-            connection.execute(text("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)"))
-        except Exception:
-            pass
+        _prepare_postgresql_version_table(connection)
+        connection.commit()
 
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
-        render_as_batch=True,
+        render_as_batch=connection.dialect.name == "sqlite",
     )
 
     with context.begin_transaction():
@@ -128,7 +138,6 @@ async def run_migrations_online() -> None:
 
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
-        await connection.commit()
 
     await connectable.dispose()
 

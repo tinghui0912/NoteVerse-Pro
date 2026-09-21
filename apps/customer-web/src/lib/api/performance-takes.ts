@@ -18,12 +18,14 @@ export interface PerformanceTakeUploadAuthorizationRequest {
 
 export interface PerformanceTakeUploadAuthorizationRead {
   take_id: string;
-  upload_url: string;
-  upload_method: string;
+  status?: 'AUTHORIZED' | 'ARCHIVED';
+  upload_url?: string | null;
+  upload_method?: string | null;
   upload_headers: Record<string, string>;
-  object_key: string;
-  reservation_id: string;
-  expires_in: number;
+  object_key?: string | null;
+  reservation_id?: string | null;
+  expires_in?: number;
+  take?: PerformanceTakeRead | null;
 }
 
 export interface PerformanceTakeCreateRequest {

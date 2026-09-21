@@ -79,6 +79,7 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
+        auto_commit: bool = True,
     ) -> StorageReservationHandle:
         if bytes_count <= 0:
             raise ValidationException(
@@ -106,7 +107,8 @@ class StorageUsageService:
             storage_key=storage_key,
         )
         db.add(reservation)
-        await db.commit()
+        if auto_commit:
+            await db.commit()
         return StorageReservationHandle(
             reservation_id=reservation.reservation_uuid,
             bytes_reserved=bytes_count,

@@ -116,6 +116,15 @@ export function useSavePerformanceTake() {
       if (!authData) {
         throw new Error('Failed to authorize performance take upload');
       }
+      if (authData.status === 'ARCHIVED') {
+        if (!authData.take) {
+          throw new Error('Performance take was archived but no saved take was returned');
+        }
+        return authData.take;
+      }
+      if (!authData.upload_url || !authData.upload_method || !authData.reservation_id) {
+        throw new Error('Performance take upload authorization is incomplete');
+      }
 
       // 2. Direct upload binary to signed URL
       try {

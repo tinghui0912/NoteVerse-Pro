@@ -75,7 +75,8 @@ def execute_performance_take_deletion_task(
                     f"{payload.storage_backend} != {file_storage.backend_name}"
                 )
             # 1. Delete object from storage outside of database transaction (idempotent)
-            file_storage.delete(payload.object_key)
+            if file_storage.exists(payload.object_key):
+                file_storage.delete(payload.object_key)
         except Exception as exc:
             handled_error = True
             record_current_attempt_failure(exc)
@@ -101,18 +102,17 @@ def execute_performance_take_deletion_task(
             ).scalar_one_or_none()
             if take is not None:
                 db.delete(take)
-
-            storage_usage_service.record_release_sync(
-                db,
-                user_id=payload.user_id,
-                category=StorageUsageCategory.UPLOAD,
-                bytes_count=payload.media_byte_size,
-                reason="performance_take_deleted",
-                object_type="performance_take",
-                object_id=payload.take_uuid,
-                storage_key=payload.object_key,
-                auto_commit=False,
-            )
+                storage_usage_service.record_release_sync(
+                    db,
+                    user_id=payload.user_id,
+                    category=StorageUsageCategory.UPLOAD,
+                    bytes_count=payload.media_byte_size,
+                    reason="performance_take_deleted",
+                    object_type="performance_take",
+                    object_id=payload.take_uuid,
+                    storage_key=payload.object_key,
+                    auto_commit=False,
+                )
             performance_take_delete_outbox_service.complete(db, outbox_uuid)
             db.commit()
 
