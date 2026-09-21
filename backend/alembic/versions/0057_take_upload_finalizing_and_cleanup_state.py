@@ -23,7 +23,10 @@ def upgrade() -> None:
     inspector = sa.inspect(bind)
     existing_tables = set(inspector.get_table_names())
     if TABLE not in existing_tables:
-        return
+        raise RuntimeError(
+            f"{TABLE} is required before applying {revision}; "
+            "the expected 0056 performance take authorization schema is missing."
+        )
 
     columns = {column["name"] for column in inspector.get_columns(TABLE)}
     if "last_put_url_expires_at" not in columns:

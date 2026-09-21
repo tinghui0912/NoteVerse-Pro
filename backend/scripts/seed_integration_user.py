@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import os
 
 from sqlmodel import select
 
@@ -20,7 +21,7 @@ from app.storage import file_storage
 
 
 INTEGRATION_EMAIL = "integration@example.com"
-INTEGRATION_PASSWORD = "IntegrationPass123!"
+INTEGRATION_PASSWORD_ENV = "NOTEVERSE_INTEGRATION_PASSWORD"
 INTEGRATION_PRACTICE_SCORE_ID = "integration-practice-score"
 INTEGRATION_PRACTICE_REVISION_ID = "integration-practice-revision"
 INTEGRATION_MUSICXML = b'''<?xml version="1.0" encoding="UTF-8"?>
@@ -36,10 +37,16 @@ async def seed_user() -> None:
         user = result.one_or_none()
         created_user = False
         if user is None:
+            password = os.environ.get(INTEGRATION_PASSWORD_ENV)
+            if not password:
+                raise RuntimeError(
+                    f"{INTEGRATION_PASSWORD_ENV} must be set to create "
+                    f"{INTEGRATION_EMAIL}; refusing to use a hard-coded password."
+                )
             user = User(
                 email=INTEGRATION_EMAIL,
                 display_name="Integration User",
-                password_hash=get_password_hash(INTEGRATION_PASSWORD),
+                password_hash=get_password_hash(password),
                 is_active=True,
             )
             session.add(user)
@@ -84,6 +91,11 @@ async def seed_user() -> None:
             storage_key = (
                 f"scores/{score.score_uuid}/revisions/{revision.revision_uuid}/score.musicxml"
             )
+            if file_storage.exists(storage_key):
+                raise RuntimeError(
+                    f"Integration score object already exists at {storage_key}; "
+                    "refusing to overwrite existing development OSS data."
+                )
             stored = file_storage.put_bytes(
                 key=storage_key,
                 content=INTEGRATION_MUSICXML,

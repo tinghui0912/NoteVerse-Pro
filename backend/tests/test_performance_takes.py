@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -96,6 +97,10 @@ class AsyncSessionAdapter:
 
     def add(self, instance) -> None:  # type: ignore[no-untyped-def]
         self.session.add(instance)
+
+
+def _run_async(awaitable):  # type: ignore[no-untyped-def]
+    return asyncio.run(awaitable)
 
 
 @contextmanager
@@ -1851,6 +1856,230 @@ def test_expired_authorization_cleanup_releases_db_lock_before_storage_delete(te
         assert auth.status == PerformanceTakeUploadAuthorizationStatus.EXPIRED
     finally:
         app.dependency_overrides.clear()
+
+
+def _expired_cleanup_auth(
+    *,
+    user_id: int,
+    client_request_id: str,
+    staging_key: str,
+    final_key: str,
+) -> PerformanceTakeUploadAuthorization:
+    expired_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
+    return PerformanceTakeUploadAuthorization(
+        user_id=user_id,
+        client_request_id=client_request_id,
+        take_uuid=f"take-{client_request_id}",
+        score_id=None,
+        score_uuid=None,
+        score_title="Cleanup test",
+        revision_id=None,
+        revision_uuid=None,
+        artifact_id=None,
+        scope_type="FULL",
+        scope_start_beat=0.0,
+        scope_terminal_beat=4.0,
+        duration_ms=1000,
+        media_mime_type="audio/webm",
+        media_byte_size=len(VALID_WEBM_BYTES),
+        storage_backend="local",
+        staging_object_key=staging_key,
+        final_object_key=final_key,
+        reservation_id=f"reservation-{client_request_id}",
+        status=PerformanceTakeUploadAuthorizationStatus.EXPIRED,
+        expires_at=expired_at,
+        last_put_url_expires_at=expired_at,
+        staging_cleanup_after=expired_at,
+    )
+
+
+def test_authorization_cleanup_does_not_complete_when_delete_returns_false(test_env):
+    session, storage, user_1, _ = test_env
+    staging_key = "staging/performance-takes/1/delete-false/recording.webm"
+    final_key = "performance-takes/1/delete-false/recording.webm"
+    storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    auth = _expired_cleanup_auth(
+        user_id=user_1.id,
+        client_request_id="delete-false",
+        staging_key=staging_key,
+        final_key=final_key,
+    )
+    auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+    session.add(auth)
+    session.commit()
+
+    class DeleteFalseStorage(LocalFileStorage):
+        def __init__(self, wrapped: LocalFileStorage) -> None:
+            super().__init__(storage_root=wrapped.storage_root)
+
+        def delete(self, key: str) -> bool:
+            return False
+
+    cleaned = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+        session,
+        storage=DeleteFalseStorage(storage),
+        storage_usage_service=StorageUsageService(),
+    )
+    session.commit()
+
+    assert cleaned == 0
+    assert storage.exists(staging_key)
+    session.refresh(auth)
+    assert auth.staging_cleanup_completed_at is None
+
+
+def test_authorization_cleanup_does_not_complete_when_head_still_exists(test_env):
+    session, storage, user_1, _ = test_env
+    staging_key = "staging/performance-takes/1/head-still-exists/recording.webm"
+    final_key = "performance-takes/1/head-still-exists/recording.webm"
+    storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    auth = _expired_cleanup_auth(
+        user_id=user_1.id,
+        client_request_id="head-still-exists",
+        staging_key=staging_key,
+        final_key=final_key,
+    )
+    auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+    session.add(auth)
+    session.commit()
+
+    class DeleteLiesStorage(LocalFileStorage):
+        def __init__(self, wrapped: LocalFileStorage) -> None:
+            super().__init__(storage_root=wrapped.storage_root)
+
+        def delete(self, key: str) -> bool:
+            return True
+
+    cleaned = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+        session,
+        storage=DeleteLiesStorage(storage),
+        storage_usage_service=StorageUsageService(),
+    )
+    session.commit()
+
+    assert cleaned == 1
+    assert storage.exists(staging_key)
+    session.refresh(auth)
+    assert auth.staging_cleanup_completed_at is None
+
+
+def test_authorization_cleanup_does_not_complete_when_final_head_fails(test_env):
+    session, storage, user_1, _ = test_env
+    staging_key = "staging/performance-takes/1/head-fails/recording.webm"
+    final_key = "performance-takes/1/head-fails/recording.webm"
+    storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    auth = _expired_cleanup_auth(
+        user_id=user_1.id,
+        client_request_id="head-fails",
+        staging_key=staging_key,
+        final_key=final_key,
+    )
+    auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+    session.add(auth)
+    session.commit()
+
+    class HeadFailsAfterDeleteStorage(LocalFileStorage):
+        def __init__(self, wrapped: LocalFileStorage) -> None:
+            super().__init__(storage_root=wrapped.storage_root)
+            self._deleted = False
+
+        def delete(self, key: str) -> bool:
+            self._deleted = True
+            return super().delete(key)
+
+        def exists(self, key: str) -> bool:
+            if self._deleted and key == staging_key:
+                raise RuntimeError("head temporarily unavailable")
+            return super().exists(key)
+
+    cleaned = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+        session,
+        storage=HeadFailsAfterDeleteStorage(storage),
+        storage_usage_service=StorageUsageService(),
+    )
+    session.commit()
+
+    assert cleaned == 0
+    assert not storage.exists(staging_key)
+    session.refresh(auth)
+    assert auth.staging_cleanup_completed_at is None
+
+
+def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_env):
+    session, _storage, user_1, _ = test_env
+    take_svc = PerformanceTakeService(storage=_storage)
+    expired = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+    auth = PerformanceTakeUploadAuthorization(
+        user_id=user_1.id,
+        client_request_id="lease-expired-before-copy",
+        take_uuid="take-lease-expired-before-copy",
+        score_id=None,
+        score_uuid=None,
+        score_title="Lease test",
+        revision_id=None,
+        revision_uuid=None,
+        artifact_id=None,
+        scope_type="FULL",
+        scope_start_beat=0.0,
+        scope_terminal_beat=4.0,
+        duration_ms=1000,
+        media_mime_type="audio/webm",
+        media_byte_size=len(VALID_WEBM_BYTES),
+        storage_backend="local",
+        staging_object_key="staging/performance-takes/1/lease-expired/recording.webm",
+        final_object_key="performance-takes/1/lease-expired/recording.webm",
+        reservation_id="reservation-lease-expired",
+        status=PerformanceTakeUploadAuthorizationStatus.FINALIZING,
+        expires_at=expired + timedelta(hours=2),
+        finalizing_token="expired-token",
+        finalizing_expires_at=expired,
+    )
+    session.add(auth)
+    session.commit()
+
+    with pytest.raises(Exception) as exc_info:
+        _run_async(
+            take_svc._ensure_finalize_copy_lease(
+                AsyncSessionAdapter(session),
+                user_id=user_1.id,
+                take_uuid=auth.take_uuid,
+                finalizing_token="expired-token",
+            )
+        )
+
+    assert getattr(exc_info.value, "details", {}).get("reason") == "finalize_lease_lost"
+
+
+def test_completed_authorization_cleanup_does_not_touch_storage(test_env):
+    session, _storage, user_1, _ = test_env
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    past = now - timedelta(hours=2)
+    auth = _expired_cleanup_auth(
+        user_id=user_1.id,
+        client_request_id="already-completed-cleanup",
+        staging_key="staging/performance-takes/1/already-completed/recording.webm",
+        final_key="performance-takes/1/already-completed/recording.webm",
+    )
+    auth.staging_cleanup_completed_at = past
+    auth.final_cleanup_completed_at = past
+    session.add(auth)
+    session.commit()
+
+    class FailsOnAccessStorage(LocalFileStorage):
+        def exists(self, key: str) -> bool:
+            raise AssertionError(f"storage should not be touched for {key}")
+
+        def delete(self, key: str) -> bool:
+            raise AssertionError(f"storage should not be touched for {key}")
+
+    cleaned = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+        session,
+        storage=FailsOnAccessStorage(),
+        storage_usage_service=StorageUsageService(),
+    )
+    session.commit()
+
+    assert cleaned == 0
 
 
 def test_worker_oss_success_then_db_retry(test_env, monkeypatch: pytest.MonkeyPatch):

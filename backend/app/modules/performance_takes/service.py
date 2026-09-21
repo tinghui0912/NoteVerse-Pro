@@ -295,6 +295,36 @@ class PerformanceTakeService:
     def _put_url_expires_at(self, now: datetime) -> datetime:
         return now + timedelta(seconds=settings.S3_PRESIGN_EXPIRE_SECONDS)
 
+    async def _ensure_finalize_copy_lease(
+        self,
+        db: AsyncSession,
+        *,
+        user_id: int,
+        take_uuid: str,
+        finalizing_token: str,
+    ) -> None:
+        auth = await self.repository.get_authorization_by_take_uuid(
+            db,
+            user_id,
+            take_uuid,
+            lock=True,
+        )
+        now = utc_now_naive()
+        if (
+            auth is None
+            or auth.status != PerformanceTakeUploadAuthorizationStatus.FINALIZING
+            or auth.finalizing_token != finalizing_token
+            or auth.finalizing_expires_at is None
+            or auth.finalizing_expires_at <= now
+        ):
+            await db.commit()
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="status",
+                details={"status": "FINALIZING", "reason": "finalize_lease_lost"},
+            )
+        await db.commit()
+
     async def _expire_authorization(
         self,
         db: AsyncSession,
@@ -742,6 +772,12 @@ class PerformanceTakeService:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
 
         if not final_exists:
+            await self._ensure_finalize_copy_lease(
+                db,
+                user_id=user_id,
+                take_uuid=request.take_id,
+                finalizing_token=finalizing_token,
+            )
             if not self.storage.exists(auth_snapshot["final_object_key"]):
                 self.storage.copy(
                     auth_snapshot["staging_object_key"],

@@ -162,6 +162,10 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
         default=None,
         sa_column=Column(DateTime, nullable=True),
     )
+    final_cleanup_completed_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime, nullable=True),
+    )
     finalizing_token: Optional[str] = Field(
         default=None,
         sa_column=Column(String(36), nullable=True),

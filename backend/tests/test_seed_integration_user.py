@@ -43,6 +43,9 @@ class _FakeSeedSession:
 class _FailingStorage:
     backend_name = "s3"
 
+    def exists(self, _key: str) -> bool:
+        return False
+
     def put_bytes(self, **_kwargs: object) -> object:
         raise AssertionError("seed must not overwrite existing score resources")
 
@@ -119,4 +122,45 @@ async def test_seed_existing_integration_user_inactive_fails_closed(
     assert user.password_hash == "existing-password-hash"
     assert user.is_active is False
     assert session.added == []
+    assert session.committed is False
+
+
+@pytest.mark.anyio
+async def test_seed_new_integration_user_requires_explicit_password(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    session = _FakeSeedSession([None])
+
+    monkeypatch.setattr(seed_integration_user, "AsyncSessionLocal", lambda: session)
+    monkeypatch.delenv(seed_integration_user.INTEGRATION_PASSWORD_ENV, raising=False)
+
+    with pytest.raises(RuntimeError, match=seed_integration_user.INTEGRATION_PASSWORD_ENV):
+        await seed_integration_user.seed_user()
+
+    assert session.added == []
+    assert session.committed is False
+
+
+@pytest.mark.anyio
+async def test_seed_new_integration_score_refuses_existing_storage_key(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    session = _FakeSeedSession([None, None])
+
+    class ExistingObjectStorage:
+        backend_name = "s3"
+
+        def exists(self, _key: str) -> bool:
+            return True
+
+        def put_bytes(self, **_kwargs: object) -> object:
+            raise AssertionError("seed must not overwrite existing storage object")
+
+    monkeypatch.setattr(seed_integration_user, "AsyncSessionLocal", lambda: session)
+    monkeypatch.setattr(seed_integration_user, "file_storage", ExistingObjectStorage())
+    monkeypatch.setenv(seed_integration_user.INTEGRATION_PASSWORD_ENV, "explicit-dev-password")
+
+    with pytest.raises(RuntimeError, match="already exists"):
+        await seed_integration_user.seed_user()
+
     assert session.committed is False

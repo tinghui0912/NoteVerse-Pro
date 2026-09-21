@@ -47,6 +47,24 @@ class AuthorizationCleanupTarget:
     final_object_key: str
     delete_final_without_take: bool
     can_finalize_staging_cleanup: bool
+    can_finalize_final_cleanup: bool
+
+
+@dataclass(frozen=True)
+class AuthorizationCleanupResult:
+    staging_absent_confirmed: bool = False
+    staging_deleted: bool = False
+    final_absent_confirmed: bool = False
+    final_deleted: bool = False
+
+    @property
+    def touched_storage(self) -> bool:
+        return (
+            self.staging_absent_confirmed
+            or self.staging_deleted
+            or self.final_absent_confirmed
+            or self.final_deleted
+        )
 
 
 class PerformanceTakeDeleteOutboxService:
@@ -234,9 +252,6 @@ class PerformanceTakeDeleteOutboxService:
                         & PerformanceTakeUploadAuthorization.status.in_(
                             [
                                 PerformanceTakeUploadAuthorizationStatus.AUTHORIZED,
-                                PerformanceTakeUploadAuthorizationStatus.CANCELLED,
-                                PerformanceTakeUploadAuthorizationStatus.EXPIRED,
-                                PerformanceTakeUploadAuthorizationStatus.ARCHIVED,
                             ]
                         ),
                         (
@@ -262,6 +277,16 @@ class PerformanceTakeDeleteOutboxService:
                                 PerformanceTakeUploadAuthorizationStatus.ARCHIVED,
                             ]
                         ),
+                        (
+                            PerformanceTakeUploadAuthorization.final_cleanup_completed_at
+                            .is_(None)
+                        )
+                        & PerformanceTakeUploadAuthorization.status.in_(
+                            [
+                                PerformanceTakeUploadAuthorizationStatus.CANCELLED,
+                                PerformanceTakeUploadAuthorizationStatus.EXPIRED,
+                            ]
+                        ),
                     ),
                 )
                 .order_by(PerformanceTakeUploadAuthorization.created_at)
@@ -280,16 +305,22 @@ class PerformanceTakeDeleteOutboxService:
             if target is None:
                 continue
 
-            object_deleted = self._delete_authorization_cleanup_objects(storage, target)
-            cleanup_completed = False
-            if object_deleted and target.can_finalize_staging_cleanup:
+            cleanup_result = self._delete_authorization_cleanup_objects(storage, target)
+            if cleanup_result.staging_absent_confirmed and target.can_finalize_staging_cleanup:
                 with db.begin():
-                    cleanup_completed = self._mark_authorization_staging_cleanup_completed(
+                    self._mark_authorization_staging_cleanup_completed(
                         db,
                         target.authorization_id,
                         now=utc_now_naive(),
                     )
-            if cleaned_auth or object_deleted:
+            if cleanup_result.final_absent_confirmed and target.can_finalize_final_cleanup:
+                with db.begin():
+                    self._mark_authorization_final_cleanup_completed(
+                        db,
+                        target.authorization_id,
+                        now=utc_now_naive(),
+                    )
+            if cleaned_auth or cleanup_result.touched_storage:
                 cleaned_count += 1
 
         return cleaned_count
@@ -406,6 +437,15 @@ class PerformanceTakeDeleteOutboxService:
                 PerformanceTakeUploadAuthorizationStatus.ARCHIVED,
             }
         )
+        can_cleanup_final = (
+            auth.final_cleanup_completed_at is None
+            and take is None
+            and auth.status
+            in {
+                PerformanceTakeUploadAuthorizationStatus.CANCELLED,
+                PerformanceTakeUploadAuthorizationStatus.EXPIRED,
+            }
+        )
 
         return (
             AuthorizationCleanupTarget(
@@ -422,6 +462,7 @@ class PerformanceTakeDeleteOutboxService:
                     }
                 ),
                 can_finalize_staging_cleanup=can_cleanup_staging,
+                can_finalize_final_cleanup=can_cleanup_final,
             ),
             cleaned_auth,
         )
@@ -430,30 +471,34 @@ class PerformanceTakeDeleteOutboxService:
     def _delete_authorization_cleanup_objects(
         storage: FileStorage,
         target: AuthorizationCleanupTarget,
-    ) -> bool:
+    ) -> AuthorizationCleanupResult:
         try:
             staging_deleted = False
+            staging_absent_confirmed = False
             final_deleted = False
+            final_absent_confirmed = False
             if (
                 storage is not None
                 and target.can_finalize_staging_cleanup
-                and storage.exists(target.staging_object_key)
             ):
-                storage.delete(target.staging_object_key)
-                staging_deleted = True
+                if storage.exists(target.staging_object_key):
+                    staging_deleted = bool(storage.delete(target.staging_object_key))
+                staging_absent_confirmed = not storage.exists(target.staging_object_key)
 
             if (
                 storage is not None
-                and target.delete_final_without_take
-                and storage.exists(target.final_object_key)
+                and target.can_finalize_final_cleanup
             ):
-                storage.delete(target.final_object_key)
-                final_deleted = True
+                if storage.exists(target.final_object_key):
+                    final_deleted = bool(storage.delete(target.final_object_key))
+                final_absent_confirmed = not storage.exists(target.final_object_key)
 
-            if storage is not None and target.can_finalize_staging_cleanup:
-                storage.exists(target.staging_object_key)
-
-            return target.can_finalize_staging_cleanup or staging_deleted or final_deleted
+            return AuthorizationCleanupResult(
+                staging_absent_confirmed=staging_absent_confirmed,
+                staging_deleted=staging_deleted,
+                final_absent_confirmed=final_absent_confirmed,
+                final_deleted=final_deleted,
+            )
         except Exception:
             logger.exception(
                 "performance_take_upload_authorization.cleanup_object_delete_failed",
@@ -464,7 +509,7 @@ class PerformanceTakeDeleteOutboxService:
                     "final_object_key": target.final_object_key,
                 },
             )
-            return False
+            return AuthorizationCleanupResult()
 
     @staticmethod
     def _mark_authorization_staging_cleanup_completed(
@@ -493,6 +538,33 @@ class PerformanceTakeDeleteOutboxService:
         ):
             return False
         auth.staging_cleanup_completed_at = now
+        auth.updated_at = now
+        return True
+
+    @staticmethod
+    def _mark_authorization_final_cleanup_completed(
+        db: Session,
+        authorization_id: int,
+        *,
+        now,
+    ) -> bool:
+        auth = db.execute(
+            select(PerformanceTakeUploadAuthorization)
+            .where(PerformanceTakeUploadAuthorization.id == authorization_id)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if auth is None:
+            return False
+        if (
+            auth.final_cleanup_completed_at is not None
+            or auth.status
+            not in {
+                PerformanceTakeUploadAuthorizationStatus.CANCELLED,
+                PerformanceTakeUploadAuthorizationStatus.EXPIRED,
+            }
+        ):
+            return False
+        auth.final_cleanup_completed_at = now
         auth.updated_at = now
         return True
 
