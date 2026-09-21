@@ -166,6 +166,14 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
         default=None,
         sa_column=Column(DateTime, nullable=True),
     )
+    finalizing_object_key: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String(768), nullable=True),
+    )
+    orphan_final_object_keys: Optional[str] = Field(
+        default=None,
+        sa_column=Column(Text, nullable=True),
+    )
     finalizing_token: Optional[str] = Field(
         default=None,
         sa_column=Column(String(36), nullable=True),

@@ -41,6 +41,7 @@ from app.modules.performance_takes.dependencies import (
     get_performance_take_service,
 )
 from app.modules.performance_takes.service import PerformanceTakeService
+from app.modules.performance_takes.schemas import PerformanceTakeUploadAuthorizationRequest
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.scores.dependencies import get_score_service
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
@@ -363,8 +364,14 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert take_data["media_byte_size"] == media_size
         assert take_data["deletion_status"] == "ACTIVE"
 
-        # Final key is promoted. Staging may remain until every issued PUT URL expires.
-        final_object_key = f"performance-takes/1/{take_id}/recording.webm"
+        # Final key is promoted to a token-owned candidate object. Staging may
+        # remain until every issued PUT URL expires.
+        take_row = session.execute(
+            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+        ).scalar_one()
+        final_object_key = take_row.media_object_key
+        assert final_object_key.startswith(f"performance-takes/1/{take_id}/")
+        assert final_object_key != staging_object_key
         assert storage.exists(final_object_key)
         assert storage.exists(staging_object_key)
         auth = session.execute(
@@ -396,6 +403,25 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert res_idempotent.status_code == 200
         assert res_idempotent.json()["data"]["take_id"] == take_id
         assert res_idempotent.json()["data"]["score_id"] == "score-uuid-10"
+
+        conflicting_auth_req = {**auth_req, "media_byte_size": media_size + 1}
+        res_conflict = client.post(
+            "/api/v1/performance-takes/upload-authorizations",
+            json=conflicting_auth_req,
+        )
+        assert res_conflict.status_code == 422
+        with pytest.raises(Exception) as conflict_exc:
+            _run_async(
+                take_svc.authorize_upload(
+                    AsyncSessionAdapter(session),
+                    user_1.id,
+                    PerformanceTakeUploadAuthorizationRequest(**conflicting_auth_req),
+                )
+            )
+        assert (
+            getattr(conflict_exc.value, "details", {}).get("reason")
+            == "client_request_id_reuse_conflict"
+        )
 
         # 7. List takes
         res_list = client.get("/api/v1/performance-takes")
@@ -709,7 +735,11 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert res_fin.status_code == 200
         assert res_fin.json()["data"]["score_title"] == "Moonlight Sonata"
 
-        final_key = f"performance-takes/1/{take_id}/recording.webm"
+        take_row = session.execute(
+            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+        ).scalar_one()
+        final_key = take_row.media_object_key
+        assert final_key.startswith(f"performance-takes/1/{take_id}/")
         assert storage.exists(final_key)
 
         # Initial list check: score is active, so score_id is returned
@@ -2082,6 +2112,103 @@ def test_completed_authorization_cleanup_does_not_touch_storage(test_env):
     assert cleaned == 0
 
 
+def test_authorization_cleanup_retries_orphan_final_without_touching_completed_staging(test_env):
+    session, storage, user_1, _ = test_env
+    orphan_key = "performance-takes/1/orphan-token/old-token.webm"
+    storage.put_bytes(key=orphan_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    auth = _expired_cleanup_auth(
+        user_id=user_1.id,
+        client_request_id="orphan-final-only",
+        staging_key="staging/performance-takes/1/orphan-final-only/recording.webm",
+        final_key="performance-takes/1/orphan-final-only/current.webm",
+    )
+    auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+    auth.staging_cleanup_completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    auth.final_cleanup_completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    auth.orphan_final_object_keys = f'["{orphan_key}"]'
+    session.add(auth)
+    session.commit()
+
+    touched: list[str] = []
+
+    class TrackingStorage(LocalFileStorage):
+        def __init__(self, wrapped: LocalFileStorage) -> None:
+            super().__init__(storage_root=wrapped.storage_root)
+
+        def exists(self, key: str) -> bool:
+            touched.append(f"exists:{key}")
+            return super().exists(key)
+
+        def delete(self, key: str) -> bool:
+            touched.append(f"delete:{key}")
+            return super().delete(key)
+
+    cleaned = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+        session,
+        storage=TrackingStorage(storage),
+        storage_usage_service=StorageUsageService(),
+    )
+    session.commit()
+
+    assert cleaned == 1
+    assert not storage.exists(orphan_key)
+    session.refresh(auth)
+    assert auth.staging_cleanup_completed_at is not None
+    assert auth.final_cleanup_completed_at is not None
+    assert auth.orphan_final_object_keys is None
+    assert all(auth.staging_object_key not in item for item in touched)
+    assert any(orphan_key in item for item in touched)
+
+
+def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
+    session, storage, user_1, _ = test_env
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    candidate_key = "performance-takes/1/finalizing-expired/old-token.webm"
+    auth = PerformanceTakeUploadAuthorization(
+        user_id=user_1.id,
+        client_request_id="finalizing-expired-retry",
+        take_uuid="finalizing-expired",
+        score_id=None,
+        score_uuid=None,
+        score_title="Finalizing retry",
+        revision_id=None,
+        revision_uuid=None,
+        artifact_id=None,
+        scope_type="FULL",
+        scope_start_beat=0.0,
+        scope_terminal_beat=4.0,
+        duration_ms=1000,
+        media_mime_type="audio/webm",
+        media_byte_size=len(VALID_WEBM_BYTES),
+        storage_backend="local",
+        staging_object_key="staging/performance-takes/1/finalizing-expired/recording.webm",
+        final_object_key=candidate_key,
+        finalizing_object_key=candidate_key,
+        reservation_id="reservation-finalizing-expired",
+        status=PerformanceTakeUploadAuthorizationStatus.FINALIZING,
+        expires_at=now + timedelta(minutes=10),
+        last_put_url_expires_at=now + timedelta(minutes=10),
+        staging_cleanup_after=now + timedelta(minutes=10),
+        finalizing_token="old-token",
+        finalizing_expires_at=now - timedelta(minutes=1),
+    )
+    session.add(auth)
+    session.commit()
+
+    performance_take_delete_outbox_service.cleanup_expired_authorizations(
+        session,
+        storage=storage,
+        storage_usage_service=StorageUsageService(),
+    )
+    session.commit()
+
+    session.refresh(auth)
+    assert auth.status == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED
+    assert auth.finalizing_token is None
+    assert auth.finalizing_object_key is None
+    assert candidate_key in (auth.orphan_final_object_keys or "")
+
+
 def test_worker_oss_success_then_db_retry(test_env, monkeypatch: pytest.MonkeyPatch):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
@@ -2133,7 +2260,11 @@ def test_worker_oss_success_then_db_retry(test_env, monkeypatch: pytest.MonkeyPa
         res_fin = client.post("/api/v1/performance-takes", json=fin_req)
         assert res_fin.status_code == 200
 
-        final_key = f"performance-takes/1/{take_id}/recording.webm"
+        take_row = session.execute(
+            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+        ).scalar_one()
+        final_key = take_row.media_object_key
+        assert final_key.startswith(f"performance-takes/1/{take_id}/")
         assert storage.exists(final_key)
 
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")

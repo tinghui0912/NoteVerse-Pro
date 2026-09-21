@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import timedelta
+import json
 import logging
 
 from sqlalchemy import or_, select
@@ -26,6 +27,28 @@ from app.utils.timezone import utc_now_naive
 logger = logging.getLogger(__name__)
 
 
+def _load_orphan_final_keys(value: str | None) -> list[str]:
+    if not value:
+        return []
+    try:
+        decoded = json.loads(value)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(decoded, list):
+        return []
+    return [item for item in decoded if isinstance(item, str) and item]
+
+
+def _dump_orphan_final_keys(keys: list[str]) -> str | None:
+    unique: list[str] = []
+    for key in keys:
+        if key and key not in unique:
+            unique.append(key)
+    if not unique:
+        return None
+    return json.dumps(unique, sort_keys=True, separators=(",", ":"))
+
+
 @dataclass(frozen=True)
 class PerformanceTakeDeletePayload:
     outbox_uuid: str
@@ -45,6 +68,7 @@ class AuthorizationCleanupTarget:
     status: PerformanceTakeUploadAuthorizationStatus
     staging_object_key: str
     final_object_key: str
+    orphan_final_object_keys: tuple[str, ...]
     delete_final_without_take: bool
     can_finalize_staging_cleanup: bool
     can_finalize_final_cleanup: bool
@@ -56,6 +80,7 @@ class AuthorizationCleanupResult:
     staging_deleted: bool = False
     final_absent_confirmed: bool = False
     final_deleted: bool = False
+    absent_orphan_final_object_keys: tuple[str, ...] = ()
 
     @property
     def touched_storage(self) -> bool:
@@ -64,6 +89,7 @@ class AuthorizationCleanupResult:
             or self.staging_deleted
             or self.final_absent_confirmed
             or self.final_deleted
+            or bool(self.absent_orphan_final_object_keys)
         )
 
 
@@ -287,6 +313,7 @@ class PerformanceTakeDeleteOutboxService:
                                 PerformanceTakeUploadAuthorizationStatus.EXPIRED,
                             ]
                         ),
+                        PerformanceTakeUploadAuthorization.orphan_final_object_keys.is_not(None),
                     ),
                 )
                 .order_by(PerformanceTakeUploadAuthorization.created_at)
@@ -319,6 +346,13 @@ class PerformanceTakeDeleteOutboxService:
                         db,
                         target.authorization_id,
                         now=utc_now_naive(),
+                    )
+            if cleanup_result.absent_orphan_final_object_keys:
+                with db.begin():
+                    self._remove_authorization_orphan_final_keys(
+                        db,
+                        target.authorization_id,
+                        cleanup_result.absent_orphan_final_object_keys,
                     )
             if cleaned_auth or cleanup_result.touched_storage:
                 cleaned_count += 1
@@ -386,10 +420,17 @@ class PerformanceTakeDeleteOutboxService:
         elif auth.status == PerformanceTakeUploadAuthorizationStatus.FINALIZING:
             if auth.finalizing_expires_at and auth.finalizing_expires_at > now:
                 return None, False
+            if auth.finalizing_object_key:
+                orphan_keys = _load_orphan_final_keys(auth.orphan_final_object_keys)
+                if auth.finalizing_object_key not in orphan_keys:
+                    orphan_keys.append(auth.finalizing_object_key)
+                    auth.orphan_final_object_keys = _dump_orphan_final_keys(orphan_keys)
+                    auth.final_cleanup_completed_at = None
             if take is not None:
                 auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
                 auth.finalizing_token = None
                 auth.finalizing_expires_at = None
+                auth.finalizing_object_key = None
                 auth.staging_cleanup_after = max(
                     value
                     for value in [
@@ -405,6 +446,7 @@ class PerformanceTakeDeleteOutboxService:
                 auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
                 auth.finalizing_token = None
                 auth.finalizing_expires_at = None
+                auth.finalizing_object_key = None
                 auth.staging_cleanup_after = max(
                     value
                     for value in [
@@ -423,6 +465,7 @@ class PerformanceTakeDeleteOutboxService:
                 auth.status = PerformanceTakeUploadAuthorizationStatus.AUTHORIZED
                 auth.finalizing_token = None
                 auth.finalizing_expires_at = None
+                auth.finalizing_object_key = None
                 auth.updated_at = now
                 return None, True
 
@@ -446,6 +489,7 @@ class PerformanceTakeDeleteOutboxService:
                 PerformanceTakeUploadAuthorizationStatus.EXPIRED,
             }
         )
+        orphan_final_keys = tuple(_load_orphan_final_keys(auth.orphan_final_object_keys))
 
         return (
             AuthorizationCleanupTarget(
@@ -453,6 +497,7 @@ class PerformanceTakeDeleteOutboxService:
                 status=auth.status,
                 staging_object_key=auth.staging_object_key,
                 final_object_key=auth.final_object_key,
+                orphan_final_object_keys=orphan_final_keys,
                 delete_final_without_take=(
                     take is None
                     and auth.status
@@ -477,6 +522,7 @@ class PerformanceTakeDeleteOutboxService:
             staging_absent_confirmed = False
             final_deleted = False
             final_absent_confirmed = False
+            absent_orphan_keys: list[str] = []
             if (
                 storage is not None
                 and target.can_finalize_staging_cleanup
@@ -493,11 +539,19 @@ class PerformanceTakeDeleteOutboxService:
                     final_deleted = bool(storage.delete(target.final_object_key))
                 final_absent_confirmed = not storage.exists(target.final_object_key)
 
+            if storage is not None and target.orphan_final_object_keys:
+                for orphan_key in target.orphan_final_object_keys:
+                    if storage.exists(orphan_key):
+                        storage.delete(orphan_key)
+                        if not storage.exists(orphan_key):
+                            absent_orphan_keys.append(orphan_key)
+
             return AuthorizationCleanupResult(
                 staging_absent_confirmed=staging_absent_confirmed,
                 staging_deleted=staging_deleted,
                 final_absent_confirmed=final_absent_confirmed,
                 final_deleted=final_deleted,
+                absent_orphan_final_object_keys=tuple(absent_orphan_keys),
             )
         except Exception:
             logger.exception(
@@ -566,6 +620,27 @@ class PerformanceTakeDeleteOutboxService:
             return False
         auth.final_cleanup_completed_at = now
         auth.updated_at = now
+        return True
+
+    @staticmethod
+    def _remove_authorization_orphan_final_keys(
+        db: Session,
+        authorization_id: int,
+        absent_keys: tuple[str, ...],
+    ) -> bool:
+        auth = db.execute(
+            select(PerformanceTakeUploadAuthorization)
+            .where(PerformanceTakeUploadAuthorization.id == authorization_id)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if auth is None:
+            return False
+        current = _load_orphan_final_keys(auth.orphan_final_object_keys)
+        remaining = [key for key in current if key not in set(absent_keys)]
+        if len(remaining) == len(current):
+            return False
+        auth.orphan_final_object_keys = _dump_orphan_final_keys(remaining)
+        auth.updated_at = utc_now_naive()
         return True
 
     @staticmethod

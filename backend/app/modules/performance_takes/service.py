@@ -78,6 +78,16 @@ def _build_final_object_key(user_id: int, take_uuid: str, mime_type: str) -> str
     return f"performance-takes/{user_id}/{take_uuid}/recording.{ext}"
 
 
+def _build_final_candidate_object_key(
+    user_id: int,
+    take_uuid: str,
+    finalizing_token: str,
+    mime_type: str,
+) -> str:
+    ext = _extension_for_mime(mime_type)
+    return f"performance-takes/{user_id}/{take_uuid}/{finalizing_token}.{ext}"
+
+
 def _verify_audio_container_magic_bytes(header_bytes: bytes, mime_type: str) -> bool:
     cleaned = mime_type.split(";")[0].strip().lower()
     if len(header_bytes) < 4:
@@ -119,6 +129,28 @@ def _json_equivalent(left: str | None, right: object | None) -> bool:
 def _max_datetime(*values: datetime | None) -> datetime | None:
     present = [value for value in values if value is not None]
     return max(present) if present else None
+
+
+def _load_orphan_final_keys(value: str | None) -> list[str]:
+    if not value:
+        return []
+    try:
+        decoded = json.loads(value)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(decoded, list):
+        return []
+    return [item for item in decoded if isinstance(item, str) and item]
+
+
+def _dump_orphan_final_keys(keys: list[str]) -> str | None:
+    unique: list[str] = []
+    for key in keys:
+        if key and key not in unique:
+            unique.append(key)
+    if not unique:
+        return None
+    return json.dumps(unique, sort_keys=True, separators=(",", ":"))
 
 
 class PerformanceTakeService:
@@ -325,6 +357,45 @@ class PerformanceTakeService:
             )
         await db.commit()
 
+    async def _record_failed_candidate_final(
+        self,
+        db: AsyncSession,
+        *,
+        user_id: int,
+        take_uuid: str,
+        candidate_key: str | None,
+    ) -> None:
+        if not candidate_key:
+            return
+        auth = await self.repository.get_authorization_by_take_uuid(
+            db,
+            user_id,
+            take_uuid,
+            lock=True,
+        )
+        if auth is None:
+            await db.commit()
+            return
+        keys = _load_orphan_final_keys(auth.orphan_final_object_keys)
+        if candidate_key != auth.final_object_key and candidate_key not in keys:
+            keys.append(candidate_key)
+            auth.orphan_final_object_keys = _dump_orphan_final_keys(keys)
+            auth.final_cleanup_completed_at = None
+            auth.updated_at = utc_now_naive()
+        await db.commit()
+
+    def _delete_candidate_final_best_effort(self, candidate_key: str | None) -> None:
+        if not candidate_key or self.storage is None:
+            return
+        try:
+            if self.storage.exists(candidate_key):
+                self.storage.delete(candidate_key)
+        except Exception:
+            logger.exception(
+                "performance_take_upload.finalize_candidate_cleanup_failed",
+                extra={"candidate_object_key": candidate_key},
+            )
+
     async def _expire_authorization(
         self,
         db: AsyncSession,
@@ -372,21 +443,47 @@ class PerformanceTakeService:
         if self.storage is None:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
 
+        existing_auth = await self.repository.get_authorization_by_client_request_id(
+            db, user_id, request.client_request_id, lock=True
+        )
         existing_take = await self.repository.get_by_client_request_id(
             db, user_id, request.client_request_id
         )
         if existing_take is not None:
+            if (
+                existing_auth is None
+                or not self._authorization_matches_request(existing_auth, request, cleaned_mime)
+                or not self._take_matches_authorization(existing_take, existing_auth)
+            ):
+                raise ValidationException(
+                    ErrorCode.VALIDATION_ERROR,
+                    field="client_request_id",
+                    details={"reason": "client_request_id_reuse_conflict"},
+                )
             return await self._archived_authorization_response(db, user_id, existing_take)
 
-        existing_auth = await self.repository.get_authorization_by_client_request_id(
-            db, user_id, request.client_request_id, lock=True
-        )
         if existing_auth is not None:
             if existing_auth.status == PerformanceTakeUploadAuthorizationStatus.ARCHIVED:
                 archived_take = await self.repository.get_by_uuid(
                     db, user_id, existing_auth.take_uuid
                 )
                 if archived_take is not None:
+                    if (
+                        not self._authorization_matches_request(
+                            existing_auth,
+                            request,
+                            cleaned_mime,
+                        )
+                        or not self._take_matches_authorization(
+                            archived_take,
+                            existing_auth,
+                        )
+                    ):
+                        raise ValidationException(
+                            ErrorCode.VALIDATION_ERROR,
+                            field="client_request_id",
+                            details={"reason": "client_request_id_reuse_conflict"},
+                        )
                     return await self._archived_authorization_response(
                         db, user_id, archived_take
                     )
@@ -641,6 +738,7 @@ class PerformanceTakeService:
                     await db.commit()
                     return response.take
 
+        takeover_orphan_keys = _load_orphan_final_keys(auth.orphan_final_object_keys)
         if auth.status == PerformanceTakeUploadAuthorizationStatus.FINALIZING:
             if auth.finalizing_expires_at and auth.finalizing_expires_at > now:
                 await db.commit()
@@ -649,6 +747,8 @@ class PerformanceTakeService:
                     field="status",
                     details={"status": "FINALIZING", "reason": "finalize_in_progress"},
                 )
+            if auth.finalizing_object_key and auth.finalizing_object_key not in takeover_orphan_keys:
+                takeover_orphan_keys.append(auth.finalizing_object_key)
         elif auth.status != PerformanceTakeUploadAuthorizationStatus.AUTHORIZED:
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
@@ -666,9 +766,19 @@ class PerformanceTakeService:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
 
         finalizing_token = str(uuid4())
+        finalizing_object_key = _build_final_candidate_object_key(
+            auth.user_id,
+            auth.take_uuid,
+            finalizing_token,
+            auth.media_mime_type,
+        )
         auth.status = PerformanceTakeUploadAuthorizationStatus.FINALIZING
         auth.finalizing_token = finalizing_token
         auth.finalizing_expires_at = now + timedelta(seconds=TAKE_FINALIZING_LEASE_SECONDS)
+        auth.finalizing_object_key = finalizing_object_key
+        auth.final_object_key = finalizing_object_key
+        auth.orphan_final_object_keys = _dump_orphan_final_keys(takeover_orphan_keys)
+        auth.final_cleanup_completed_at = None
         auth.updated_at = now
         auth_snapshot = {
             "take_uuid": auth.take_uuid,
@@ -685,6 +795,7 @@ class PerformanceTakeService:
             "storage_backend": auth.storage_backend,
             "staging_object_key": auth.staging_object_key,
             "final_object_key": auth.final_object_key,
+            "finalizing_object_key": auth.finalizing_object_key,
             "duration_ms": auth.duration_ms,
             "scope_type": auth.scope_type,
             "scope_start_beat": auth.scope_start_beat,
@@ -700,9 +811,8 @@ class PerformanceTakeService:
         }
         await db.commit()
 
-        final_exists = self.storage.exists(auth_snapshot["final_object_key"])
         staging_exists = self.storage.exists(auth_snapshot["staging_object_key"])
-        if auth_snapshot["expires_at"] < now and not final_exists:
+        if auth_snapshot["expires_at"] < now:
             auth = await self.repository.get_authorization_by_take_uuid(
                 db, user_id, request.take_id, lock=True
             )
@@ -714,6 +824,12 @@ class PerformanceTakeService:
                 auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
                 auth.finalizing_token = None
                 auth.finalizing_expires_at = None
+                if auth.finalizing_object_key:
+                    keys = _load_orphan_final_keys(auth.orphan_final_object_keys)
+                    if auth.finalizing_object_key not in keys:
+                        keys.append(auth.finalizing_object_key)
+                    auth.orphan_final_object_keys = _dump_orphan_final_keys(keys)
+                    auth.finalizing_object_key = None
                 auth.staging_cleanup_after = _max_datetime(
                     auth.staging_cleanup_after,
                     auth.last_put_url_expires_at,
@@ -728,12 +844,8 @@ class PerformanceTakeService:
             await db.commit()
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="authorization_expired")
 
-        source_key = (
-            auth_snapshot["final_object_key"]
-            if final_exists
-            else auth_snapshot["staging_object_key"]
-        )
-        if not final_exists and not staging_exists:
+        source_key = auth_snapshot["staging_object_key"]
+        if not staging_exists:
             auth = await self.repository.get_authorization_by_take_uuid(
                 db, user_id, request.take_id, lock=True
             )
@@ -745,6 +857,12 @@ class PerformanceTakeService:
                 auth.status = PerformanceTakeUploadAuthorizationStatus.AUTHORIZED
                 auth.finalizing_token = None
                 auth.finalizing_expires_at = None
+                if auth.finalizing_object_key:
+                    keys = _load_orphan_final_keys(auth.orphan_final_object_keys)
+                    if auth.finalizing_object_key not in keys:
+                        keys.append(auth.finalizing_object_key)
+                    auth.orphan_final_object_keys = _dump_orphan_final_keys(keys)
+                    auth.finalizing_object_key = None
                 auth.updated_at = utc_now_naive()
                 await db.commit()
             raise ResourceNotFoundException(
@@ -771,19 +889,27 @@ class PerformanceTakeService:
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
 
-        if not final_exists:
+        candidate_key = auth_snapshot["finalizing_object_key"]
+        try:
             await self._ensure_finalize_copy_lease(
                 db,
                 user_id=user_id,
                 take_uuid=request.take_id,
                 finalizing_token=finalizing_token,
             )
-            if not self.storage.exists(auth_snapshot["final_object_key"]):
-                self.storage.copy(
-                    auth_snapshot["staging_object_key"],
-                    auth_snapshot["final_object_key"],
-                )
-            final_exists = True
+            self.storage.copy(
+                auth_snapshot["staging_object_key"],
+                candidate_key,
+            )
+        except Exception:
+            await self._record_failed_candidate_final(
+                db,
+                user_id=user_id,
+                take_uuid=request.take_id,
+                candidate_key=candidate_key,
+            )
+            self._delete_candidate_final_best_effort(candidate_key)
+            raise
 
         # Resolve score/revision at finalize time; if score deleted, keep score_title snapshot
         score = await db.get(Score, auth_snapshot["score_id"]) if auth_snapshot["score_id"] else None
@@ -821,7 +947,17 @@ class PerformanceTakeService:
         if (
             auth.status != PerformanceTakeUploadAuthorizationStatus.FINALIZING
             or auth.finalizing_token != finalizing_token
+            or auth.finalizing_object_key != candidate_key
+            or auth.finalizing_expires_at is None
+            or auth.finalizing_expires_at <= utc_now_naive()
         ):
+            await self._record_failed_candidate_final(
+                db,
+                user_id=user_id,
+                take_uuid=request.take_id,
+                candidate_key=candidate_key,
+            )
+            self._delete_candidate_final_best_effort(candidate_key)
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
                 field="status",
@@ -833,10 +969,16 @@ class PerformanceTakeService:
                 field="client_request_id",
                 details={"reason": "finalize_request_mismatch"},
             )
-        if auth.expires_at < utc_now_naive() and not final_exists:
+        if auth.expires_at < utc_now_naive():
+            self._delete_candidate_final_best_effort(candidate_key)
+            keys = _load_orphan_final_keys(auth.orphan_final_object_keys)
+            if candidate_key and candidate_key not in keys:
+                keys.append(candidate_key)
+            auth.orphan_final_object_keys = _dump_orphan_final_keys(keys)
             auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
             auth.finalizing_token = None
             auth.finalizing_expires_at = None
+            auth.finalizing_object_key = None
             auth.staging_cleanup_after = _max_datetime(
                 auth.staging_cleanup_after,
                 auth.last_put_url_expires_at,
@@ -863,7 +1005,7 @@ class PerformanceTakeService:
             media_kind=PerformanceTakeMediaKind.AUDIO,
             media_mime_type=auth_snapshot["media_mime_type"],
             media_byte_size=auth_snapshot["media_byte_size"],
-            media_object_key=auth_snapshot["final_object_key"],
+            media_object_key=candidate_key,
             storage_backend=auth_snapshot["storage_backend"],
             duration_ms=auth_snapshot["duration_ms"],
             scope_type=auth_snapshot["scope_type"],
@@ -878,6 +1020,8 @@ class PerformanceTakeService:
         auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
         auth.finalizing_token = None
         auth.finalizing_expires_at = None
+        auth.finalizing_object_key = None
+        auth.final_object_key = candidate_key
         auth.staging_cleanup_after = _max_datetime(
             auth.staging_cleanup_after,
             auth.last_put_url_expires_at,
@@ -890,7 +1034,7 @@ class PerformanceTakeService:
             reservation_id=auth.reservation_id,
             object_type="performance_take",
             object_id=auth_snapshot["take_uuid"],
-            storage_key=auth_snapshot["final_object_key"],
+            storage_key=candidate_key,
             auto_commit=False,
         )
         await db.commit()

@@ -33,20 +33,28 @@ def upgrade() -> None:
         op.add_column(TABLE, sa.Column("final_cleanup_completed_at", sa.DateTime(), nullable=True))
 
     # Historical rows created before 0057 did not persist the latest PUT URL
-    # expiry. Be conservative: do not assume an old signed URL has expired at
-    # migration time. Instead, schedule cleanup no earlier than one hour after
-    # the business authorization expiry for terminal states.
+    # expiry. Existing configuration uses a 15 minute presign TTL, but the
+    # value is environment-driven and older deployments did not store it per
+    # authorization. Do not infer that these URLs are already expired when this
+    # migration runs; give terminal rows a migration-time compatibility grace
+    # before staging cleanup can be finalized.
     bind.execute(
         sa.text(
             """
             UPDATE performance_take_upload_authorizations
                SET last_put_url_expires_at = COALESCE(
                        last_put_url_expires_at,
-                       expires_at + INTERVAL '1 hour'
+                       GREATEST(
+                           expires_at + INTERVAL '1 hour',
+                           CURRENT_TIMESTAMP + INTERVAL '7 days'
+                       )
                    ),
                    staging_cleanup_after = COALESCE(
                        staging_cleanup_after,
-                       expires_at + INTERVAL '1 hour'
+                       GREATEST(
+                           expires_at + INTERVAL '1 hour',
+                           CURRENT_TIMESTAMP + INTERVAL '7 days'
+                       )
                    )
              WHERE status IN ('CANCELLED', 'EXPIRED', 'ARCHIVED')
             """
