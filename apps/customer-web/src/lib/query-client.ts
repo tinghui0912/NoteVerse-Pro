@@ -98,7 +98,7 @@ export const queryKeys = {
     performanceTakes: {
         all: ['performance-takes'] as const,
         lists: () => ['performance-takes', 'list'] as const,
-        list: (params?: { score_id?: number; limit?: number; offset?: number }) =>
+        list: (params?: { score_id?: string; limit?: number; offset?: number }) =>
             ['performance-takes', 'list', params ?? {}] as const,
         detail: (takeId: string) => ['performance-takes', 'detail', { takeId }] as const,
         playbackUrl: (takeId: string) => ['performance-takes', 'playback-url', { takeId }] as const,

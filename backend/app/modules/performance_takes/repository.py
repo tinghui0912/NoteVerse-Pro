@@ -60,7 +60,7 @@ class PerformanceTakeRepository:
         statement = (
             select(PerformanceTake)
             .where(*filters)
-            .order_by(PerformanceTake.created_at.desc())
+            .order_by(PerformanceTake.created_at.desc(), PerformanceTake.id.desc())
             .limit(limit)
             .offset(offset)
         )

@@ -9,14 +9,15 @@ from pydantic import BaseModel, ConfigDict, Field
 class PerformanceTakeUploadAuthorizationRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    score_id: int
+    score_id: str = Field(min_length=1, max_length=64)
     client_request_id: str = Field(min_length=1, max_length=128)
     media_byte_size: int = Field(gt=0)
     media_mime_type: str = Field(min_length=1, max_length=64)
     duration_ms: int = Field(ge=0)
+    scope_type: str = Field(default="FULL", pattern="^(FULL|RANGE)$")
     scope_start_beat: float = Field(ge=0.0)
     scope_terminal_beat: float = Field(gt=0.0)
-    revision_id: Optional[int] = None
+    revision_id: Optional[str] = Field(default=None, max_length=64)
     artifact_id: Optional[str] = None
     tempo_selection: Optional[dict[str, Any]] = None
     resolved_tempo_plan: Optional[dict[str, Any]] = None
@@ -39,13 +40,14 @@ class PerformanceTakeCreateRequest(BaseModel):
     take_id: str = Field(min_length=1, max_length=36)
     client_request_id: str = Field(min_length=1, max_length=128)
     reservation_id: str = Field(min_length=1, max_length=128)
-    score_id: int
+    score_id: str = Field(min_length=1, max_length=64)
     media_byte_size: int = Field(gt=0)
     media_mime_type: str = Field(min_length=1, max_length=64)
     duration_ms: int = Field(ge=0)
+    scope_type: str = Field(default="FULL", pattern="^(FULL|RANGE)$")
     scope_start_beat: float = Field(ge=0.0)
     scope_terminal_beat: float = Field(gt=0.0)
-    revision_id: Optional[int] = None
+    revision_id: Optional[str] = Field(default=None, max_length=64)
     artifact_id: Optional[str] = None
     tempo_selection: Optional[dict[str, Any]] = None
     resolved_tempo_plan: Optional[dict[str, Any]] = None
@@ -54,14 +56,15 @@ class PerformanceTakeCreateRequest(BaseModel):
 
 class PerformanceTakeRead(BaseModel):
     take_id: str
-    score_id: Optional[int] = None
+    score_id: Optional[str] = None
     score_title: Optional[str] = None
-    revision_id: Optional[int] = None
+    revision_id: Optional[str] = None
     artifact_id: Optional[str] = None
     media_kind: str
     media_mime_type: str
     media_byte_size: int
     duration_ms: int
+    scope_type: str = "FULL"
     scope_start_beat: float
     scope_terminal_beat: float
     tempo_selection: Optional[dict[str, Any]] = None

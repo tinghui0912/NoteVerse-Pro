@@ -1,14 +1,15 @@
 import { apiClient, apiUrl, type ApiResponse } from '@/lib/api-client';
 
 export interface PerformanceTakeUploadAuthorizationRequest {
-  score_id: number;
+  score_id: string;
   client_request_id: string;
   media_byte_size: number;
   media_mime_type: string;
   duration_ms: number;
+  scope_type?: string;
   scope_start_beat: number;
   scope_terminal_beat: number;
-  revision_id?: number | null;
+  revision_id?: string | null;
   artifact_id?: string | null;
   tempo_selection?: Record<string, unknown> | null;
   resolved_tempo_plan?: Record<string, unknown> | null;
@@ -29,13 +30,14 @@ export interface PerformanceTakeCreateRequest {
   take_id: string;
   client_request_id: string;
   reservation_id: string;
-  score_id: number;
+  score_id: string;
   media_byte_size: number;
   media_mime_type: string;
   duration_ms: number;
+  scope_type?: string;
   scope_start_beat: number;
   scope_terminal_beat: number;
-  revision_id?: number | null;
+  revision_id?: string | null;
   artifact_id?: string | null;
   tempo_selection?: Record<string, unknown> | null;
   resolved_tempo_plan?: Record<string, unknown> | null;
@@ -44,14 +46,15 @@ export interface PerformanceTakeCreateRequest {
 
 export interface PerformanceTakeRead {
   take_id: string;
-  score_id?: number | null;
+  score_id?: string | null;
   score_title?: string | null;
-  revision_id?: number | null;
+  revision_id?: string | null;
   artifact_id?: string | null;
   media_kind: string;
   media_mime_type: string;
   media_byte_size: number;
   duration_ms: number;
+  scope_type?: string;
   scope_start_beat: number;
   scope_terminal_beat: number;
   tempo_selection?: Record<string, unknown> | null;
@@ -97,7 +100,7 @@ export const performanceTakesApi = {
   finalizeTake: (request: PerformanceTakeCreateRequest, signal?: AbortSignal) =>
     apiClient.post<ApiResponse<PerformanceTakeRead>>('/performance-takes', request, { signal }),
 
-  listTakes: (params?: { score_id?: number; limit?: number; offset?: number }, signal?: AbortSignal) =>
+  listTakes: (params?: { score_id?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
     apiClient.get<ApiResponse<PerformanceTakeListResponse>>('/performance-takes', params, { signal }),
 
   getTake: (takeId: string, signal?: AbortSignal) =>
@@ -116,17 +119,20 @@ export const performanceTakesApi = {
 
 export async function uploadMediaToSignedUrl(
   uploadUrl: string,
-  uploadMethod: string,
-  uploadHeaders: Record<string, string>,
-  blob: Blob
+  method: string,
+  headers: Record<string, string>,
+  body: Blob | ArrayBuffer
 ): Promise<void> {
-  const targetUrl = uploadUrl.startsWith('/') ? apiUrl(uploadUrl) : uploadUrl;
+  const isDirectOss = uploadUrl.startsWith('http://') || uploadUrl.startsWith('https://');
+  const targetUrl = isDirectOss ? uploadUrl : apiUrl(uploadUrl);
+
   const res = await fetch(targetUrl, {
-    method: uploadMethod,
-    headers: uploadHeaders,
-    body: blob,
+    method,
+    headers,
+    body,
   });
+
   if (!res.ok) {
-    throw new Error(`Media upload failed with status ${res.status}`);
+    throw new Error(`Direct media upload failed with status ${res.status}`);
   }
 }

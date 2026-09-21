@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Calendar, Clock, Download, Music, Play, Radio, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
@@ -23,9 +23,8 @@ import {
 import {
   useDeletePerformanceTake,
   usePerformanceTakePlayback,
-  usePerformanceTakes,
+  useInfinitePerformanceTakes,
 } from '@/hooks/queries/use-performance-take-queries';
-import { useScoreDetail } from '@/hooks/queries/use-score-queries';
 import { PerformanceReplayPlayer } from '@/components/practice/performance-replay-player';
 import { performanceTakesApi, type PerformanceTakeRead } from '@/lib/api/performance-takes';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
@@ -55,6 +54,52 @@ function formatDate(isoDate: string): string {
   }
 }
 
+function getTempoLabel(
+  take: PerformanceTakeRead,
+  t: (key: string, values?: Record<string, string | number>) => string
+): string | null {
+  const selection = take.tempo_selection as {
+    mode?: string;
+    bpm?: number;
+    customBpm?: number;
+  } | null;
+  const mode = selection?.mode?.toUpperCase();
+
+  if (mode === 'CUSTOM_FIXED_BPM' || mode === 'CUSTOM') {
+    const bpm = selection?.bpm ?? selection?.customBpm;
+    if (bpm) {
+      return `♩ = ${bpm} BPM`;
+    }
+  }
+
+  const plan = take.resolved_tempo_plan as {
+    segments?: Array<{ startBeat?: number; bpm?: number }>;
+    nominal_bpm?: number;
+  } | null;
+
+  if (plan?.segments && plan.segments.length > 0) {
+    const uniqueBpms = Array.from(
+      new Set(plan.segments.map((s) => s.bpm).filter((b): b is number => typeof b === 'number'))
+    );
+    if (uniqueBpms.length === 1) {
+      return t('tempoScoreModeWithBpm', { bpm: uniqueBpms[0] });
+    }
+    if (uniqueBpms.length > 1) {
+      return t('tempoScoreModeVariable');
+    }
+  }
+
+  if (plan?.nominal_bpm) {
+    return t('tempoScoreModeWithBpm', { bpm: plan.nominal_bpm });
+  }
+
+  if (mode === 'SCORE') {
+    return t('tempoScoreMode');
+  }
+
+  return null;
+}
+
 interface PerformanceTakeCardProps {
   take: PerformanceTakeRead;
   isPlaying: boolean;
@@ -71,13 +116,11 @@ function PerformanceTakeCard({
   const t = useTranslations('practice');
   const common = useTranslations('common');
   const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  // Score details query - handles gracefully if score is deleted
-  const scoreQuery = useScoreDetail(String(take.score_id), Boolean(take.score_id));
-  const scoreTitle =
-    take.score_title ||
-    scoreQuery.data?.data?.title ||
-    (take.score_id ? t('scoreFallback', { id: take.score_id }) : t('deletedScoreNotice'));
+  const scoreTitle = take.score_id
+    ? take.score_title || t('scoreFallback', { id: take.score_id })
+    : take.score_title || t('deletedScoreNotice');
 
   // Playback URL query - only active when playing this card
   const playbackQuery = usePerformanceTakePlayback(take.take_id, isPlaying);
@@ -85,19 +128,21 @@ function PerformanceTakeCard({
   const handleDownload = async () => {
     try {
       setDownloading(true);
+      setDownloadError(null);
       const res = await performanceTakesApi.getPlaybackUrl(take.take_id);
-      const downloadUrl = res.data?.download_url ?? res.data?.playback_url;
-      if (downloadUrl) {
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        const ext = take.media_mime_type.includes('mp4') ? 'mp4' : 'webm';
-        a.download = `performance-${take.take_id}.${ext}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+      const downloadUrl = res.data?.download_url;
+      if (!downloadUrl) {
+        throw new Error('Missing download_url');
       }
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      const ext = take.media_mime_type.includes('mp4') ? 'mp4' : 'webm';
+      a.download = `performance-${take.take_id}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } catch {
-      // ignore
+      setDownloadError(t('downloadFailedRetry'));
     } finally {
       setDownloading(false);
     }
@@ -113,17 +158,19 @@ function PerformanceTakeCard({
     : null;
 
   const isFullScope =
-    (take.scope_start_beat === 0 && take.scope_terminal_beat === 0) ||
-    take.scope_terminal_beat <= take.scope_start_beat;
+    take.scope_type === 'FULL' ||
+    (!take.scope_type &&
+      ((take.scope_start_beat === 0 && take.scope_terminal_beat === 0) ||
+        take.scope_terminal_beat <= take.scope_start_beat));
 
   const scopeLabel = isFullScope
     ? t('scopeFull')
-    : `${t('scopeSection')} (${t('takeScopeBeats', { start: take.scope_start_beat, end: take.scope_terminal_beat })})`;
+    : `${t('scopeSection')} (${t('takeScopeBeats', {
+        start: take.scope_start_beat,
+        end: take.scope_terminal_beat,
+      })})`;
 
-  const tempoBpm =
-    (take.tempo_selection as { customBpm?: number; mode?: string } | null)?.customBpm ??
-    (take.resolved_tempo_plan as { nominal_bpm?: number } | null)?.nominal_bpm ??
-    null;
+  const tempoLabel = getTempoLabel(take, t);
 
   return (
     <Card className="overflow-hidden border border-gray-200 transition-all hover:border-gray-300">
@@ -163,7 +210,7 @@ function PerformanceTakeCard({
                   {formatDuration(take.duration_ms)}
                 </span>
                 <span>{scopeLabel}</span>
-                {tempoBpm ? <span>♩ = {tempoBpm} BPM</span> : null}
+                {tempoLabel ? <span>{tempoLabel}</span> : null}
               </div>
             </div>
 
@@ -197,13 +244,40 @@ function PerformanceTakeCard({
             </div>
           </div>
 
+          {downloadError ? (
+            <div
+              className="flex items-center gap-2 text-xs text-red-600"
+              data-testid={`download-error-${take.take_id}`}
+            >
+              <span>{downloadError}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-red-700 underline"
+                onClick={handleDownload}
+                data-testid={`retry-download-${take.take_id}`}
+              >
+                {common('tryAgain')}
+              </Button>
+            </div>
+          ) : null}
+
           {isPlaying ? (
             <div className="mt-2 border-t border-gray-100 pt-3">
               {playbackQuery.isLoading ? (
                 <div className="py-2 text-xs text-gray-500">{common('loading')}</div>
               ) : playbackQuery.isError ? (
-                <div className="py-2 text-xs text-red-600">
-                  {t('audioPlaybackFailed')}
+                <div className="flex items-center gap-2 py-2 text-xs text-red-600">
+                  <span>{t('audioPlaybackFailed')}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-red-700 underline"
+                    onClick={() => playbackQuery.refetch()}
+                    data-testid={`retry-playback-${take.take_id}`}
+                  >
+                    {common('tryAgain')}
+                  </Button>
                 </div>
               ) : replay ? (
                 <PerformanceReplayPlayer
@@ -222,30 +296,43 @@ function PerformanceTakeCard({
 export default function MyPerformancesPage() {
   const t = useTranslations('practice');
   const common = useTranslations('common');
-  const [limit, setLimit] = useState(50);
-  const takesQuery = usePerformanceTakes({ limit, offset: 0 });
+  const takesQuery = useInfinitePerformanceTakes();
   const deleteTake = useDeletePerformanceTake();
 
   const [activeTakeId, setActiveTakeId] = useState<string | null>(null);
   const [takePendingDelete, setTakePendingDelete] = useState<PerformanceTakeRead | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const takes = takesQuery.data?.data?.items ?? [];
-  const total = takesQuery.data?.data?.total ?? 0;
-  const hasMore = takes.length < total;
+  const takes = useMemo(() => {
+    const map = new Map<string, PerformanceTakeRead>();
+    if (takesQuery.data?.pages) {
+      for (const page of takesQuery.data.pages) {
+        if (page.data?.items) {
+          for (const item of page.data.items) {
+            if (!map.has(item.take_id)) {
+              map.set(item.take_id, item);
+            }
+          }
+        }
+      }
+    }
+    return Array.from(map.values());
+  }, [takesQuery.data]);
 
-  const handleLoadMore = () => {
-    setLimit((prev) => prev + 50);
-  };
+  const total = takesQuery.data?.pages?.[0]?.data?.total ?? 0;
+  const hasMore = Boolean(takesQuery.hasNextPage);
 
   const handleDeleteConfirm = async () => {
     if (!takePendingDelete) return;
+    setDeleteError(null);
     try {
       await deleteTake.mutateAsync(takePendingDelete.take_id);
       if (activeTakeId === takePendingDelete.take_id) {
         setActiveTakeId(null);
       }
-    } finally {
       setTakePendingDelete(null);
+    } catch {
+      setDeleteError(t('deleteFailedRetry'));
     }
   };
 
@@ -278,7 +365,10 @@ export default function MyPerformancesPage() {
               take={take}
               isPlaying={activeTakeId === take.take_id}
               onPlay={() => setActiveTakeId(take.take_id)}
-              onDelete={() => setTakePendingDelete(take)}
+              onDelete={() => {
+                setDeleteError(null);
+                setTakePendingDelete(take);
+              }}
             />
           ))}
 
@@ -286,11 +376,11 @@ export default function MyPerformancesPage() {
             <div className="flex justify-center pt-4">
               <Button
                 variant="outline"
-                onClick={handleLoadMore}
-                disabled={takesQuery.isFetching}
+                onClick={() => takesQuery.fetchNextPage()}
+                disabled={takesQuery.isFetchingNextPage}
                 data-testid="load-more-takes"
               >
-                {takesQuery.isFetching ? common('loading') : t('loadMore')}
+                {takesQuery.isFetchingNextPage ? common('loading') : t('loadMore')}
               </Button>
             </div>
           ) : total > 50 ? (
@@ -304,7 +394,10 @@ export default function MyPerformancesPage() {
       <AlertDialog
         open={Boolean(takePendingDelete)}
         onOpenChange={(open) => {
-          if (!open) setTakePendingDelete(null);
+          if (!open && !deleteTake.isPending) {
+            setTakePendingDelete(null);
+            setDeleteError(null);
+          }
         }}
       >
         <AlertDialogContent>
@@ -312,13 +405,25 @@ export default function MyPerformancesPage() {
             <AlertDialogTitle>{t('deletePerformanceTakeConfirmTitle')}</AlertDialogTitle>
             <AlertDialogDescription>{t('deletePerformanceTakeConfirmDesc')}</AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError ? (
+            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600" data-testid="delete-take-error">
+              {deleteError}
+            </div>
+          ) : null}
           <AlertDialogFooter>
-            <AlertDialogCancel>{common('cancel')}</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteTake.isPending}>
+              {common('cancel')}
+            </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteConfirm}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteConfirm();
+              }}
+              disabled={deleteTake.isPending}
               className="bg-red-600 text-white hover:bg-red-700"
+              data-testid="confirm-delete-take-button"
             >
-              {common('delete')}
+              {deleteTake.isPending ? common('loading') : common('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

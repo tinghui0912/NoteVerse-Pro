@@ -752,7 +752,9 @@ describe('PracticeReviewPage', () => {
 
     expect(saveMutationMock.mutateAsync).toHaveBeenCalled();
     const saveCall = saveMutationMock.mutateAsync.mock.calls[0][0];
-    expect(saveCall.scoreId).toBe(0); // non-numeric or parsed
+    expect(saveCall.scoreId).toBe('score-123');
+    expect(saveCall.revisionId).toBe('rev-1');
+    expect(saveCall.scopeType).toBe('FULL');
     expect(saveCall.artifactId).toBe('art-1');
     expect(saveCall.audioBlob).toBeDefined();
 

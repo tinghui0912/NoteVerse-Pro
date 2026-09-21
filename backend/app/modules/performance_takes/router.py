@@ -73,7 +73,7 @@ async def finalize_take(
     response_model=APIResponse[PerformanceTakeListResponse],
 )
 async def list_takes(
-    score_id: Optional[int] = Query(default=None),
+    score_id: Optional[str] = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_user),

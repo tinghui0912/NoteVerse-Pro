@@ -212,5 +212,9 @@
   "noMorePerformances": "已加载全部演奏",
   "takeDurationSeconds": "{seconds} 秒",
   "takeDurationMinutesSeconds": "{minutes} 分 {seconds} 秒",
-  "takeScopeBeats": "第 {start} - {end} 拍"
+  "takeScopeBeats": "第 {start} - {end} 拍",
+  "tempoScoreModeWithBpm": "原谱速度 (♩ = {bpm})",
+  "tempoScoreModeVariable": "原谱速度 (变化速度)",
+  "downloadFailedRetry": "下载录音失败，请重试",
+  "deleteFailedRetry": "删除演奏失败，请重试"
 }

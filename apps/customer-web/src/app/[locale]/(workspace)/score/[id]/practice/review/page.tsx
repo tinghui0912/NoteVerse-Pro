@@ -247,13 +247,13 @@ export default function PracticeReviewPage({
     setSaveStatus('saving');
     setSaveErrorMessage(null);
 
-    const numericScoreId = Number(id);
-    const numericRevisionId = draft.revisionId ? Number(draft.revisionId) : undefined;
+    const scopeType = draft.scope.startGroupId || draft.scope.endGroupId ? 'RANGE' : 'FULL';
 
     try {
       await saveMutation.mutateAsync({
-        scoreId: Number.isFinite(numericScoreId) ? numericScoreId : 0,
-        revisionId: Number.isFinite(numericRevisionId) ? numericRevisionId : undefined,
+        scoreId: id,
+        revisionId: draft.revisionId ?? null,
+        scopeType,
         artifactId: draft.artifactId,
         clientRequestId: clientRequestIdRef.current ?? '',
         audioBlob: draft.audio.blob,

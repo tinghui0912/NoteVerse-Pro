@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   performanceTakesApi,
@@ -11,12 +11,37 @@ import {
 import { queryKeys } from '@/lib/query-client';
 
 export function usePerformanceTakes(
-  params?: { score_id?: number; limit?: number; offset?: number },
+  params?: { score_id?: string; limit?: number; offset?: number },
   enabled = true
 ) {
   return useQuery({
     queryKey: queryKeys.performanceTakes.list(params),
     queryFn: ({ signal }) => performanceTakesApi.listTakes(params, signal),
+    enabled,
+  });
+}
+
+export function useInfinitePerformanceTakes(
+  params?: { score_id?: string },
+  enabled = true
+) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.performanceTakes.list(params),
+    queryFn: ({ pageParam = 0, signal }) =>
+      performanceTakesApi.listTakes(
+        { ...params, limit: 50, offset: pageParam as number },
+        signal
+      ),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const data = lastPage.data;
+      if (!data || !data.has_more) return undefined;
+      const loadedCount = allPages.reduce(
+        (acc, p) => acc + (p.data?.items.length ?? 0),
+        0
+      );
+      return loadedCount;
+    },
     enabled,
   });
 }
@@ -49,13 +74,14 @@ export function useDeletePerformanceTake() {
 }
 
 export interface SavePerformanceTakeInput {
-  scoreId: number;
-  revisionId?: number | null;
+  scoreId: string;
+  revisionId?: string | null;
   artifactId?: string | null;
   clientRequestId: string;
   audioBlob: Blob;
   mimeType: string;
   durationMs: number;
+  scopeType?: string;
   scopeStartBeat: number;
   scopeTerminalBeat: number;
   tempoSelection?: Record<string, unknown> | null;
@@ -77,6 +103,7 @@ export function useSavePerformanceTake() {
         media_byte_size: input.audioBlob.size,
         media_mime_type: input.mimeType,
         duration_ms: input.durationMs,
+        scope_type: input.scopeType ?? 'FULL',
         scope_start_beat: input.scopeStartBeat,
         scope_terminal_beat: input.scopeTerminalBeat,
         tempo_selection: input.tempoSelection,
@@ -101,6 +128,7 @@ export function useSavePerformanceTake() {
         media_byte_size: input.audioBlob.size,
         media_mime_type: input.mimeType,
         duration_ms: input.durationMs,
+        scope_type: input.scopeType ?? 'FULL',
         scope_start_beat: input.scopeStartBeat,
         scope_terminal_beat: input.scopeTerminalBeat,
         tempo_selection: input.tempoSelection,

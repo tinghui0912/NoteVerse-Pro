@@ -212,5 +212,9 @@
   "noMorePerformances": "All performances loaded",
   "takeDurationSeconds": "{seconds}s",
   "takeDurationMinutesSeconds": "{minutes}m {seconds}s",
-  "takeScopeBeats": "Beats {start} - {end}"
+  "takeScopeBeats": "Beats {start} - {end}",
+  "tempoScoreModeWithBpm": "Score Tempo (♩ = {bpm})",
+  "tempoScoreModeVariable": "Score Tempo (Variable)",
+  "downloadFailedRetry": "Failed to download recording. Please try again.",
+  "deleteFailedRetry": "Failed to delete performance. Please try again."
 }

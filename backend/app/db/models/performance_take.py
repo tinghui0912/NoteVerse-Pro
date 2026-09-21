@@ -110,6 +110,10 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     duration_ms: int = Field(
         sa_column=Column(Integer, nullable=False)
     )
+    scope_type: str = Field(
+        default="FULL",
+        sa_column=Column(String(16), nullable=False, default="FULL"),
+    )
     scope_start_beat: float = Field(
         sa_column=Column(Float, nullable=False)
     )

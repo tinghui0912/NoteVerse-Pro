@@ -31,8 +31,7 @@ def upgrade() -> None:
         sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True, nullable=False),
         sa.Column("take_uuid", sa.String(length=36), nullable=False),
         sa.Column("user_id", sa.BigInteger(), nullable=False),
-        sa.Column("score_id", sa.BigInteger(), nullable=True),
-        sa.Column("score_title", sa.String(length=255), nullable=True),
+        sa.Column("score_id", sa.BigInteger(), nullable=False),
         sa.Column("revision_id", sa.BigInteger(), nullable=True),
         sa.Column("artifact_id", sa.String(length=128), nullable=True),
         sa.Column("client_request_id", sa.String(length=128), nullable=False),
@@ -50,7 +49,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["score_id"], ["scores.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["score_id"], ["scores.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["revision_id"], ["score_revisions.id"], ondelete="SET NULL"),
         sa.UniqueConstraint("user_id", "client_request_id", name="uq_performance_takes_user_client_request_id"),
     )
