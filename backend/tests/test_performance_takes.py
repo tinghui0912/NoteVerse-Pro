@@ -1659,6 +1659,149 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
         app.dependency_overrides.clear()
 
 
+def test_delete_outbox_late_fail_cannot_overwrite_completed_attempt(test_env):
+    session, _storage, user_1, _ = test_env
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    outbox = PerformanceTakeDeleteOutbox(
+        outbox_uuid="outbox-late-fail-001",
+        take_id=None,
+        take_uuid="take-late-fail-001",
+        user_id=user_1.id,
+        storage_backend="local",
+        object_key="performance-takes/1/take-late-fail-001/recording.webm",
+        media_byte_size=123,
+        status=PerformanceTakeDeleteOutboxStatus.PENDING,
+        attempt_count=0,
+        max_attempts=5,
+        next_attempt_at=now,
+    )
+    session.add(outbox)
+    session.commit()
+
+    payload_a = performance_take_delete_outbox_service.claim(
+        session,
+        outbox.outbox_uuid,
+    )
+    assert payload_a is not None
+    assert payload_a.attempt == 1
+    session.commit()
+
+    outbox.status = PerformanceTakeDeleteOutboxStatus.FAILED
+    outbox.next_attempt_at = now - timedelta(seconds=1)
+    outbox.last_error = "lease expired"
+    session.commit()
+
+    payload_b = performance_take_delete_outbox_service.claim(
+        session,
+        outbox.outbox_uuid,
+    )
+    assert payload_b is not None
+    assert payload_b.attempt == 2
+    session.commit()
+
+    assert performance_take_delete_outbox_service.complete(
+        session,
+        outbox.outbox_uuid,
+        attempt=payload_b.attempt,
+    ) is True
+    session.commit()
+
+    assert performance_take_delete_outbox_service.complete(
+        session,
+        outbox.outbox_uuid,
+        attempt=payload_a.attempt,
+    ) is False
+    session.commit()
+
+    assert performance_take_delete_outbox_service.fail(
+        session,
+        outbox.outbox_uuid,
+        "stale worker failure",
+        attempt=payload_a.attempt,
+    ) is False
+    session.commit()
+
+    session.refresh(outbox)
+    assert outbox.status == PerformanceTakeDeleteOutboxStatus.COMPLETED
+    assert outbox.attempt_count == 2
+    assert outbox.last_error is None
+
+
+def test_expired_authorization_cleanup_releases_db_lock_before_storage_delete(test_env):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    take_svc = PerformanceTakeService(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = TestClient(app)
+
+    class LockAssertingStorage(LocalFileStorage):
+        backend_name = "local"
+
+        def __init__(self, wrapped: LocalFileStorage) -> None:
+            super().__init__(storage_root=wrapped.storage_root)
+
+        def delete(self, key: str) -> bool:
+            assert not session.in_transaction()
+            return super().delete(key)
+
+    try:
+        size = len(VALID_WEBM_BYTES)
+        res_auth = client.post(
+            "/api/v1/performance-takes/upload-authorizations",
+            json={
+                "score_id": "score-uuid-10",
+                "client_request_id": "req-expired-no-lock-delete",
+                "media_byte_size": size,
+                "media_mime_type": "audio/webm",
+                "duration_ms": 5000,
+                "scope_start_beat": 0.0,
+                "scope_terminal_beat": 4.0,
+            },
+        )
+        assert res_auth.status_code == 200
+        auth_data = res_auth.json()["data"]
+        storage.put_bytes(
+            key=auth_data["object_key"],
+            content=VALID_WEBM_BYTES,
+            content_type="audio/webm",
+        )
+
+        auth = session.execute(
+            select(PerformanceTakeUploadAuthorization).where(
+                PerformanceTakeUploadAuthorization.client_request_id
+                == "req-expired-no-lock-delete"
+            )
+        ).scalar_one()
+        auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
+        session.commit()
+
+        cleaned_count = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+            session,
+            storage=LockAssertingStorage(storage),
+            storage_usage_service=storage_usage_svc,
+        )
+        session.commit()
+
+        assert cleaned_count == 1
+        assert not storage.exists(auth.staging_object_key)
+        session.refresh(auth)
+        assert auth.status == PerformanceTakeUploadAuthorizationStatus.EXPIRED
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_worker_oss_success_then_db_retry(test_env, monkeypatch: pytest.MonkeyPatch):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()

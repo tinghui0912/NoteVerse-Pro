@@ -9,12 +9,6 @@ x-backend-integration: &backend-integration
     - path: backend/.env.docker
       required: true
   environment:
-    DATABASE_URL: postgresql+psycopg://noteverse:noteverse@postgres:5432/noteverse_integration
-    SYNC_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@postgres:5432/noteverse_integration
-    SCHEDULER_LOCK_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@postgres:5432/noteverse_integration
-    REDIS_URL: redis://redis:6379/0
-    CELERY_BROKER_URL: redis://redis:6379/0
-    CELERY_RESULT_BACKEND: redis://redis:6379/1
     DEBUG: "false"
     FRONTEND_BASE_URL: http://customer-web:3000
     BACKEND_CORS_ORIGINS: '["http://localhost:3010"]'
@@ -25,36 +19,13 @@ x-backend-integration: &backend-integration
     WORK_ROOT: /tmp/noteverse-integration/work
   volumes:
     - integration_storage:/tmp/noteverse-integration
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
 
 services:
-  postgres:
-    image: postgres:16.12-bookworm
-    environment:
-      POSTGRES_DB: noteverse_integration
-      POSTGRES_USER: noteverse
-      POSTGRES_PASSWORD: noteverse
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U noteverse -d noteverse_integration"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    volumes:
-      - integration_postgres:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7.4.2-bookworm
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
   migrate:
     <<: *backend-integration
     command: migrate
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: "no"
 
   seed:
@@ -71,10 +42,6 @@ services:
     ports:
       - "3011:8000"
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
       seed:
         condition: service_completed_successfully
     healthcheck:
@@ -94,12 +61,6 @@ services:
       - path: backend/.env.docker.practice
         required: true
     environment:
-      DATABASE_URL: postgresql+psycopg://noteverse:noteverse@postgres:5432/noteverse_integration
-      SYNC_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@postgres:5432/noteverse_integration
-      SCHEDULER_LOCK_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@postgres:5432/noteverse_integration
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
       DEBUG: "false"
       FRONTEND_BASE_URL: http://customer-web:3000
       BACKEND_CORS_ORIGINS: '["http://localhost:3010"]'
@@ -108,15 +69,13 @@ services:
       FILE_STORAGE_BACKEND: s3
       STORAGE_ROOT: /tmp/noteverse-integration/storage
       WORK_ROOT: /tmp/noteverse-integration/work
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - integration_storage:/tmp/noteverse-integration
       - ./models/soundfonts:/opt/noteverse/models/soundfonts:ro
     command: practice
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
       seed:
         condition: service_completed_successfully
     healthcheck:
@@ -124,6 +83,33 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  worker:
+    <<: *backend-integration
+    env_file:
+      - path: backend/.env.docker
+        required: true
+      - path: backend/.env.docker.worker
+        required: true
+    image: noteverse-backend-worker:integration
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.worker
+    command: worker
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+
+  beat:
+    <<: *backend-integration
+    image: noteverse-backend-beat:integration
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.beat
+    command: beat
+    depends_on:
+      seed:
+        condition: service_completed_successfully
 
   customer-web:
     image: noteverse-customer-web-integration:dev
@@ -151,6 +137,5 @@ services:
         condition: service_healthy
 
 volumes:
-  integration_postgres:
   integration_customer_web_node_modules:
   integration_storage:

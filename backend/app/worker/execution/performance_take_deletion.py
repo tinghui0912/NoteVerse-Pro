@@ -89,6 +89,7 @@ def execute_performance_take_deletion_task(
                     db,
                     outbox_uuid,
                     str(exc),
+                    attempt=payload.attempt,
                 )
                 db.commit()
             operation_logger(
@@ -121,6 +122,11 @@ def execute_performance_take_deletion_task(
             if outbox.status != PerformanceTakeDeleteOutboxStatus.PROCESSING:
                 raise RuntimeError(
                     "performance take deletion outbox is not processing during completion: "
+                    f"{outbox_uuid}"
+                )
+            if outbox.attempt_count != payload.attempt:
+                raise RuntimeError(
+                    "performance take deletion outbox attempt changed during processing: "
                     f"{outbox_uuid}"
                 )
             if (
@@ -163,7 +169,15 @@ def execute_performance_take_deletion_task(
                     storage_key=payload.object_key,
                     auto_commit=False,
                 )
-            performance_take_delete_outbox_service.complete(db, outbox_uuid)
+            if not performance_take_delete_outbox_service.complete(
+                db,
+                outbox_uuid,
+                attempt=payload.attempt,
+            ):
+                raise RuntimeError(
+                    "performance take deletion outbox completion lease mismatch: "
+                    f"{outbox_uuid}"
+                )
             db.commit()
 
         operation_logger(

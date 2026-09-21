@@ -228,8 +228,6 @@ class S3CompatibleStorage:
             params["ResponseContentDisposition"] = (
                 f'attachment; filename="{filename.replace(chr(34), "")}"'
             )
-        if content_type:
-            params["ResponseContentType"] = content_type
         return self.client.generate_presigned_url(
             ClientMethod="get_object",
             Params=params,

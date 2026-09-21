@@ -39,6 +39,15 @@ class PerformanceTakeDeletePayload:
     max_attempts: int
 
 
+@dataclass(frozen=True)
+class AuthorizationCleanupTarget:
+    authorization_id: int
+    status: PerformanceTakeUploadAuthorizationStatus
+    staging_object_key: str
+    final_object_key: str
+    delete_final_without_take: bool
+
+
 class PerformanceTakeDeleteOutboxService:
     def claim(
         self,
@@ -92,20 +101,40 @@ class PerformanceTakeDeleteOutboxService:
             max_attempts=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS,
         )
 
-    def complete(self, db: Session, outbox_uuid: str) -> None:
-        outbox = self._get(db, outbox_uuid)
+    def complete(self, db: Session, outbox_uuid: str, *, attempt: int | None = None) -> bool:
+        outbox = self._get(db, outbox_uuid, lock=True)
         if outbox is None:
-            return
+            return False
+        if outbox.status == PerformanceTakeDeleteOutboxStatus.COMPLETED:
+            if attempt is not None and outbox.attempt_count != attempt:
+                return False
+            return True
+        if outbox.status != PerformanceTakeDeleteOutboxStatus.PROCESSING:
+            return False
+        if attempt is not None and outbox.attempt_count != attempt:
+            return False
         now = utc_now_naive()
         outbox.status = PerformanceTakeDeleteOutboxStatus.COMPLETED
         outbox.completed_at = now
         outbox.last_error = None
         outbox.updated_at = now
+        return True
 
-    def fail(self, db: Session, outbox_uuid: str, error: str) -> None:
-        outbox = self._get(db, outbox_uuid)
+    def fail(
+        self,
+        db: Session,
+        outbox_uuid: str,
+        error: str,
+        *,
+        attempt: int | None = None,
+    ) -> bool:
+        outbox = self._get(db, outbox_uuid, lock=True)
         if outbox is None:
-            return
+            return False
+        if outbox.status != PerformanceTakeDeleteOutboxStatus.PROCESSING:
+            return False
+        if attempt is not None and outbox.attempt_count != attempt:
+            return False
         now = utc_now_naive()
         delay = exponential_retry_delay_seconds(
             base_seconds=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_RETRY_BASE_SECONDS,
@@ -115,6 +144,7 @@ class PerformanceTakeDeleteOutboxService:
         outbox.next_attempt_at = now + timedelta(seconds=delay)
         outbox.last_error = error[:4000]
         outbox.updated_at = now
+        return True
 
     def mark_dispatched(self, db: Session, outbox_uuid: str) -> bool:
         outbox = self._get(db, outbox_uuid)
@@ -192,9 +222,54 @@ class PerformanceTakeDeleteOutboxService:
         storage_usage_service: StorageUsageService,
     ) -> int:
         now = utc_now_naive()
-        cleanup_candidates = db.execute(
+        cleanup_candidate_ids = list(
+            db.execute(
+                select(PerformanceTakeUploadAuthorization.id)
+                .where(
+                    PerformanceTakeUploadAuthorization.expires_at <= now,
+                    PerformanceTakeUploadAuthorization.status.in_(
+                        [
+                            PerformanceTakeUploadAuthorizationStatus.AUTHORIZED,
+                            PerformanceTakeUploadAuthorizationStatus.CANCELLED,
+                            PerformanceTakeUploadAuthorizationStatus.EXPIRED,
+                            PerformanceTakeUploadAuthorizationStatus.ARCHIVED,
+                        ]
+                    ),
+                )
+                .order_by(PerformanceTakeUploadAuthorization.created_at)
+            ).scalars()
+        )
+
+        cleaned_count = 0
+        for auth_id in cleanup_candidate_ids:
+            target, cleaned_auth = self._prepare_authorization_cleanup(
+                db,
+                auth_id,
+                storage_usage_service,
+                now=now,
+            )
+            db.commit()
+            if target is None:
+                continue
+
+            object_deleted = self._delete_authorization_cleanup_objects(storage, target)
+            if cleaned_auth or object_deleted:
+                cleaned_count += 1
+
+        return cleaned_count
+
+    def _prepare_authorization_cleanup(
+        self,
+        db: Session,
+        authorization_id: int,
+        storage_usage_service: StorageUsageService,
+        *,
+        now,
+    ) -> tuple[AuthorizationCleanupTarget | None, bool]:
+        auth = db.execute(
             select(PerformanceTakeUploadAuthorization)
             .where(
+                PerformanceTakeUploadAuthorization.id == authorization_id,
                 PerformanceTakeUploadAuthorization.expires_at <= now,
                 PerformanceTakeUploadAuthorization.status.in_(
                     [
@@ -206,80 +281,97 @@ class PerformanceTakeDeleteOutboxService:
                 ),
             )
             .with_for_update()
-        ).scalars().all()
+        ).scalar_one_or_none()
+        if auth is None:
+            return None, False
 
-        cleaned_count = 0
-        for auth in cleanup_candidates:
-            cleaned_auth = False
-            take = db.execute(
-                select(PerformanceTake).where(
-                    PerformanceTake.user_id == auth.user_id,
-                    PerformanceTake.client_request_id == auth.client_request_id,
-                )
-            ).scalar_one_or_none()
+        cleaned_auth = False
+        take = db.execute(
+            select(PerformanceTake).where(
+                PerformanceTake.user_id == auth.user_id,
+                PerformanceTake.client_request_id == auth.client_request_id,
+            )
+        ).scalar_one_or_none()
 
-            if (
-                auth.status == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED
-                and take is not None
-            ):
-                auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
-                auth.updated_at = now
+        if (
+            auth.status == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED
+            and take is not None
+        ):
+            auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+            auth.updated_at = now
 
-            if auth.status == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED:
-                auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
-                auth.updated_at = now
-                storage_usage_service.release_reservation_sync(
-                    db, auth.reservation_id, auto_commit=False
-                )
-                cleaned_auth = True
+        if auth.status == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED:
+            auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
+            auth.updated_at = now
+            storage_usage_service.release_reservation_sync(
+                db, auth.reservation_id, auto_commit=False
+            )
+            cleaned_auth = True
 
-            try:
-                staging_deleted = False
-                final_deleted = False
-                if storage is not None and storage.exists(auth.staging_object_key):
-                    storage.delete(auth.staging_object_key)
-                    staging_deleted = True
-
-                final_exists_without_take = (
-                    storage is not None
-                    and take is None
+        return (
+            AuthorizationCleanupTarget(
+                authorization_id=auth.id,
+                status=auth.status,
+                staging_object_key=auth.staging_object_key,
+                final_object_key=auth.final_object_key,
+                delete_final_without_take=(
+                    take is None
                     and auth.status
                     in {
                         PerformanceTakeUploadAuthorizationStatus.CANCELLED,
                         PerformanceTakeUploadAuthorizationStatus.EXPIRED,
                     }
-                    and storage.exists(auth.final_object_key)
-                )
-                if final_exists_without_take:
-                    storage.delete(auth.final_object_key)
-                    final_deleted = True
+                ),
+            ),
+            cleaned_auth,
+        )
 
-                cleaned_auth = cleaned_auth or staging_deleted or final_deleted
-            except Exception:
-                logger.exception(
-                    "performance_take_upload_authorization.cleanup_object_delete_failed",
-                    extra={
-                        "authorization_id": auth.id,
-                        "status": auth.status,
-                        "staging_object_key": auth.staging_object_key,
-                        "final_object_key": auth.final_object_key,
-                    },
-                )
-            if cleaned_auth:
-                cleaned_count += 1
+    @staticmethod
+    def _delete_authorization_cleanup_objects(
+        storage: FileStorage,
+        target: AuthorizationCleanupTarget,
+    ) -> bool:
+        try:
+            staging_deleted = False
+            final_deleted = False
+            if storage is not None and storage.exists(target.staging_object_key):
+                storage.delete(target.staging_object_key)
+                staging_deleted = True
 
-        return cleaned_count
+            if (
+                storage is not None
+                and target.delete_final_without_take
+                and storage.exists(target.final_object_key)
+            ):
+                storage.delete(target.final_object_key)
+                final_deleted = True
+
+            return staging_deleted or final_deleted
+        except Exception:
+            logger.exception(
+                "performance_take_upload_authorization.cleanup_object_delete_failed",
+                extra={
+                    "authorization_id": target.authorization_id,
+                    "status": target.status,
+                    "staging_object_key": target.staging_object_key,
+                    "final_object_key": target.final_object_key,
+                },
+            )
+            return False
 
     @staticmethod
     def _get(
         db: Session,
         outbox_uuid: str,
+        *,
+        lock: bool = False,
     ) -> PerformanceTakeDeleteOutbox | None:
-        return db.execute(
-            select(PerformanceTakeDeleteOutbox).where(
-                PerformanceTakeDeleteOutbox.outbox_uuid == outbox_uuid
-            )
-        ).scalar_one_or_none()
+        statement = select(PerformanceTakeDeleteOutbox).where(
+            PerformanceTakeDeleteOutbox.outbox_uuid == outbox_uuid
+        )
+        if lock:
+            statement = statement.with_for_update()
+        return db.execute(statement).scalar_one_or_none()
 
     @staticmethod
     def _is_dispatchable(outbox: PerformanceTakeDeleteOutbox) -> bool:
