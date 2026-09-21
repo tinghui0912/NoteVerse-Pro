@@ -696,7 +696,7 @@ class PerformanceTakeDeleteOutboxService:
         ).scalar_one_or_none()
         if auth is None:
             return False
-        current = _load_orphan_final_keys(auth.orphan_final_object_keys)
+        current_entries = _load_orphan_final_entries(auth.orphan_final_object_keys)
         removable_keys = set(absent_keys)
         referenced_keys = set(
             db.execute(
@@ -706,10 +706,18 @@ class PerformanceTakeDeleteOutboxService:
             ).scalars()
         )
         removable_keys -= referenced_keys
-        remaining = [key for key in current if key not in removable_keys]
-        if len(remaining) == len(current):
+        now = utc_now_naive()
+        remaining_entries: list[dict[str, str | None]] = []
+        for entry in current_entries:
+            key = entry.get("key")
+            remove_after = _parse_orphan_remove_after(entry.get("remove_after"))
+            remove_is_still_allowed = remove_after is None or remove_after <= now
+            if key in removable_keys and remove_is_still_allowed:
+                continue
+            remaining_entries.append(entry)
+        if len(remaining_entries) == len(current_entries):
             return False
-        auth.orphan_final_object_keys = _dump_orphan_final_keys(remaining)
+        auth.orphan_final_object_keys = _dump_orphan_final_entries(remaining_entries)
         auth.updated_at = utc_now_naive()
         return True
 

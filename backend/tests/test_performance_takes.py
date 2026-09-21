@@ -2378,6 +2378,79 @@ def test_authorization_cleanup_removes_absent_known_orphan(test_env):
     assert auth.orphan_final_object_keys is None
 
 
+def test_authorization_cleanup_preserves_remaining_orphan_remove_after(test_env):
+    session, storage, user_1, _ = test_env
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    removable_key = "performance-takes/1/two-orphans/removable.webm"
+    waiting_key = "performance-takes/1/two-orphans/waiting.webm"
+    waiting_until = now + timedelta(minutes=15)
+    storage.put_bytes(key=removable_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    auth = _expired_cleanup_auth(
+        user_id=user_1.id,
+        client_request_id="two-orphans-preserve",
+        staging_key="staging/performance-takes/1/two-orphans/recording.webm",
+        final_key="performance-takes/1/two-orphans/current.webm",
+    )
+    auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+    auth.staging_cleanup_completed_at = now
+    auth.final_cleanup_completed_at = now
+    auth.orphan_final_object_keys = (
+        "["
+        f'{{"key":"{removable_key}","remove_after":"{(now - timedelta(minutes=1)).isoformat()}"}},'
+        f'{{"key":"{waiting_key}","remove_after":"{waiting_until.isoformat()}"}}'
+        "]"
+    )
+    session.add(auth)
+    session.commit()
+
+    cleaned = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+        session,
+        storage=storage,
+        storage_usage_service=StorageUsageService(),
+    )
+    session.commit()
+
+    assert cleaned == 1
+    assert not storage.exists(removable_key)
+    session.refresh(auth)
+    assert removable_key not in (auth.orphan_final_object_keys or "")
+    assert waiting_key in (auth.orphan_final_object_keys or "")
+    assert waiting_until.isoformat() in (auth.orphan_final_object_keys or "")
+
+
+def test_authorization_cleanup_does_not_remove_orphan_when_remove_after_was_extended(test_env):
+    session, _storage, user_1, _ = test_env
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    orphan_key = "performance-takes/1/remove-after-extended/token.webm"
+    auth = _expired_cleanup_auth(
+        user_id=user_1.id,
+        client_request_id="remove-after-extended",
+        staging_key="staging/performance-takes/1/remove-after-extended/recording.webm",
+        final_key="performance-takes/1/remove-after-extended/current.webm",
+    )
+    auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+    auth.staging_cleanup_completed_at = now
+    auth.final_cleanup_completed_at = now
+    extended_until = now + timedelta(minutes=20)
+    auth.orphan_final_object_keys = (
+        f'[{{"key":"{orphan_key}","remove_after":"{extended_until.isoformat()}"}}]'
+    )
+    session.add(auth)
+    session.commit()
+
+    removed = performance_take_delete_outbox_service._remove_authorization_orphan_final_keys(
+        session,
+        auth.id,
+        (orphan_key,),
+    )
+    session.commit()
+
+    assert removed is False
+    session.refresh(auth)
+    assert orphan_key in (auth.orphan_final_object_keys or "")
+    assert extended_until.isoformat() in (auth.orphan_final_object_keys or "")
+
+
 def test_authorization_cleanup_does_not_delete_orphan_key_referenced_by_take(test_env):
     session, storage, user_1, _ = test_env
     now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -2479,7 +2552,7 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
     assert candidate_key in (auth.orphan_final_object_keys or "")
 
 
-def test_worker_oss_success_then_db_retry(test_env, monkeypatch: pytest.MonkeyPatch):
+def test_worker_handles_already_absent_object_idempotently(test_env, monkeypatch: pytest.MonkeyPatch):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = PerformanceTakeService(
@@ -2546,7 +2619,9 @@ def test_worker_oss_success_then_db_retry(test_env, monkeypatch: pytest.MonkeyPa
             )
         ).scalar_one()
 
-        # Simulate OSS file already removed on prior attempt before DB crashed
+        # Simulate a final object that is already absent before the worker runs.
+        # This verifies idempotent absent-object handling, not a real DB commit
+        # failure after successful object deletion.
         storage.delete(final_key)
         assert not storage.exists(final_key)
 

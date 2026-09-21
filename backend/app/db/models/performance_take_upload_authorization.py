@@ -9,7 +9,6 @@ from sqlalchemy import (
     BigInteger,
     Column,
     DateTime,
-    Enum as SAEnum,
     Float,
     ForeignKey,
     Index,
@@ -185,13 +184,9 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
     status: PerformanceTakeUploadAuthorizationStatus = Field(
         default=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED,
         sa_column=Column(
-            SAEnum(
-                PerformanceTakeUploadAuthorizationStatus,
-                name="performancetakeuploadauthorizationstatus",
-                values_callable=lambda obj: [e.value for e in obj],
-            ),
+            String(16),
             nullable=False,
-            default=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED,
+            default=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value,
         ),
     )
     created_at: datetime = Field(
