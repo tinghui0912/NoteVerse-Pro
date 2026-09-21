@@ -216,5 +216,8 @@
   "tempoScoreModeWithBpm": "Score Tempo (♩ = {bpm})",
   "tempoScoreModeVariable": "Score Tempo (Variable)",
   "downloadFailedRetry": "Failed to download recording. Please try again.",
-  "deleteFailedRetry": "Failed to delete performance. Please try again."
+  "deleteFailedRetry": "Failed to delete performance. Please try again.",
+  "pagination": "Page {page} of {totalPages}",
+  "previousPage": "Previous",
+  "nextPage": "Next"
 }

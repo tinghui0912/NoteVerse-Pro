@@ -20,7 +20,7 @@ import {
 } from '@/components/library/library-entry-action-dialogs';
 import { LibraryFilterBar } from '@/components/library/library-filter-bar';
 import { LibraryFolderDialog } from '@/components/library/library-folder-dialog';
-import { LibraryPagination } from '@/components/library/library-pagination';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { LibrarySidebar } from '@/components/library/library-sidebar';
 import { SectionLoading } from '@/components/loading';
 import { EmptyState } from '@/components/states';
@@ -511,7 +511,7 @@ export default function LibraryPage({
               </Card>
             )}
             {pagination && pagination.total_pages > 1 ? (
-              <LibraryPagination
+              <PaginationControls
                 page={pagination.page}
                 totalPages={pagination.total_pages}
                 canGoPrevious={canGoPrevious}

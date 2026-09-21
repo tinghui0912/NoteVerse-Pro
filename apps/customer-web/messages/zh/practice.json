@@ -216,5 +216,8 @@
   "tempoScoreModeWithBpm": "原谱速度 (♩ = {bpm})",
   "tempoScoreModeVariable": "原谱速度 (变化速度)",
   "downloadFailedRetry": "下载录音失败，请重试",
-  "deleteFailedRetry": "删除演奏失败，请重试"
+  "deleteFailedRetry": "删除演奏失败，请重试",
+  "pagination": "第 {page} / {totalPages} 页",
+  "previousPage": "上一页",
+  "nextPage": "下一页"
 }

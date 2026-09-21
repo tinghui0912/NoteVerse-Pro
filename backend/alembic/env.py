@@ -26,7 +26,38 @@ target_metadata = SQLModel.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+from typing import Any
+from alembic.ddl.impl import DefaultImpl
+from sqlalchemy import Column, MetaData, PrimaryKeyConstraint, String, Table, text
+
+db_url = config.get_main_option("sqlalchemy.url")
+if not db_url or db_url.startswith("driver://"):
+    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+
+_orig_version_table_impl = DefaultImpl.version_table_impl
+
+
+def _custom_version_table_impl(
+    self: Any,
+    *,
+    version_table: str,
+    version_table_schema: str | None = None,
+    version_table_pk: bool = True,
+    **kw: Any,
+) -> Table:
+    vt = Table(
+        version_table,
+        MetaData(),
+        Column("version_num", String(128), nullable=False),
+        schema=version_table_schema,
+    )
+    if version_table_pk:
+        vt.append_constraint(PrimaryKeyConstraint("version_num", name=f"{version_table}_pkc"))
+    return vt
+
+
+DefaultImpl.version_table_impl = _custom_version_table_impl
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -53,7 +84,17 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    if connection.dialect.name == "postgresql":
+        try:
+            connection.execute(text("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)"))
+        except Exception:
+            pass
+
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        render_as_batch=True,
+    )
 
     with context.begin_transaction():
         context.run_migrations()
@@ -66,6 +107,19 @@ async def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    target_url = config.get_main_option("sqlalchemy.url", "")
+    if target_url.startswith("sqlite"):
+        from sqlalchemy import engine_from_config
+        connectable = engine_from_config(
+            config.get_section(config.config_ini_section, {}),
+            prefix="sqlalchemy.",
+            poolclass=pool.NullPool,
+        )
+        with connectable.connect() as connection:
+            do_run_migrations(connection)
+        connectable.dispose()
+        return
+
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
@@ -74,6 +128,7 @@ async def run_migrations_online() -> None:
 
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
+        await connection.commit()
 
     await connectable.dispose()
 

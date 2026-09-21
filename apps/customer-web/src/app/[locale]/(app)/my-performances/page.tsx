@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Calendar, Clock, Download, Music, Play, Radio, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Link } from '@/i18n/routing';
 
 import { PageHeader } from '@/components/page';
@@ -20,14 +21,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import {
   useDeletePerformanceTake,
   usePerformanceTakePlayback,
-  useInfinitePerformanceTakes,
+  usePerformanceTakes,
 } from '@/hooks/queries/use-performance-take-queries';
 import { PerformanceReplayPlayer } from '@/components/practice/performance-replay-player';
 import { performanceTakesApi, type PerformanceTakeRead } from '@/lib/api/performance-takes';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
+
+export function normalizePage(value?: string | number): number {
+  const page = Math.floor(Number(value ?? 1));
+  return Number.isFinite(page) ? Math.max(1, page) : 1;
+}
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -179,28 +186,27 @@ function PerformanceTakeCard({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <Music className="h-4 w-4 text-orange-600 shrink-0" />
+                <Music className="h-5 w-5 flex-shrink-0 text-primary" />
                 {take.score_id ? (
                   <Link
                     href={`/score/${take.score_id}`}
-                    className="font-medium text-gray-900 hover:text-orange-600 hover:underline truncate"
-                    data-testid={`take-score-link-${take.take_id}`}
+                    className="truncate font-semibold text-gray-900 transition-colors hover:text-primary hover:underline"
                   >
                     {scoreTitle}
                   </Link>
                 ) : (
-                  <span
-                    className="font-medium text-gray-500 truncate"
-                    data-testid={`take-deleted-score-${take.take_id}`}
-                  >
+                  <span className="truncate font-semibold text-gray-700">
                     {scoreTitle}
                   </span>
                 )}
-                <span className="rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
-                  {t('performanceInput')}: {t('inputSourceMic')}
-                </span>
+                {!take.score_id ? (
+                  <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                    {t('deletedScoreNotice')}
+                  </span>
+                ) : null}
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-500">
+
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
                 <span className="flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" />
                   {formatDate(take.created_at)}
@@ -209,28 +215,44 @@ function PerformanceTakeCard({
                   <Clock className="h-3.5 w-3.5" />
                   {formatDuration(take.duration_ms)}
                 </span>
-                <span>{scopeLabel}</span>
-                {tempoLabel ? <span>{tempoLabel}</span> : null}
+                <span className="rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-600">
+                  {take.media_mime_type.split('/')[1]?.toUpperCase() || 'AUDIO'}
+                </span>
+                <span className="rounded bg-blue-50 px-1.5 py-0.5 font-medium text-blue-700">
+                  {scopeLabel}
+                </span>
+                {tempoLabel ? (
+                  <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700">
+                    {tempoLabel}
+                  </span>
+                ) : null}
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              {!isPlaying ? (
-                <Button variant="outline" size="sm" onClick={onPlay} data-testid={`play-take-${take.take_id}`}>
-                  <Play className="mr-1.5 h-3.5 w-3.5" />
-                  {common('play')}
-                </Button>
-              ) : null}
+            <div className="flex items-center gap-2">
+              <Button
+                variant={isPlaying ? 'secondary' : 'outline'}
+                size="sm"
+                className="gap-1.5"
+                onClick={onPlay}
+                data-testid={`play-take-${take.take_id}`}
+              >
+                <Play className="h-4 w-4" />
+                {isPlaying ? common('playing') : common('play')}
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
+                className="gap-1.5"
                 onClick={handleDownload}
                 disabled={downloading}
                 data-testid={`download-take-${take.take_id}`}
               >
-                <Download className="mr-1.5 h-3.5 w-3.5" />
-                {t('downloadRecording')}
+                <Download className="h-4 w-4" />
+                {downloading ? common('downloading') : t('downloadRecording')}
               </Button>
+
               <Button
                 variant="ghost"
                 size="sm"
@@ -238,7 +260,7 @@ function PerformanceTakeCard({
                 onClick={onDelete}
                 data-testid={`delete-take-${take.take_id}`}
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-4 w-4" />
                 <span className="sr-only">{t('deletePerformanceTake')}</span>
               </Button>
             </div>
@@ -246,7 +268,7 @@ function PerformanceTakeCard({
 
           {downloadError ? (
             <div
-              className="flex items-center gap-2 text-xs text-red-600"
+              className="flex items-center justify-between rounded-md bg-red-50 px-3 py-1.5 text-xs text-red-700"
               data-testid={`download-error-${take.take_id}`}
             >
               <span>{downloadError}</span>
@@ -293,34 +315,73 @@ function PerformanceTakeCard({
   );
 }
 
-export default function MyPerformancesPage() {
+export default function MyPerformancesPage({
+  searchParams,
+}: {
+  searchParams?:
+    | Promise<{
+        page?: string;
+      }>
+    | {
+        page?: string;
+      };
+}) {
+  const routerSearchParams = useSearchParams();
+  const isPromise = Boolean(
+    searchParams && typeof (searchParams as Promise<unknown>).then === 'function'
+  );
+  const resolvedParams = isPromise
+    ? React.use(searchParams as Promise<{ page?: string }>)
+    : (searchParams as { page?: string } | undefined);
+
+  const pageParam = resolvedParams?.page ?? routerSearchParams?.get('page') ?? undefined;
+  const rawPage = normalizePage(pageParam);
+
   const t = useTranslations('practice');
   const common = useTranslations('common');
-  const takesQuery = useInfinitePerformanceTakes();
+  const router = useRouter();
+
+  const pageSize = 20;
+
+  const takesQuery = usePerformanceTakes({
+    limit: pageSize,
+    offset: (rawPage - 1) * pageSize,
+  });
   const deleteTake = useDeletePerformanceTake();
 
   const [activeTakeId, setActiveTakeId] = useState<string | null>(null);
   const [takePendingDelete, setTakePendingDelete] = useState<PerformanceTakeRead | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const takes = useMemo(() => {
-    const map = new Map<string, PerformanceTakeRead>();
-    if (takesQuery.data?.pages) {
-      for (const page of takesQuery.data.pages) {
-        if (page.data?.items) {
-          for (const item of page.data.items) {
-            if (!map.has(item.take_id)) {
-              map.set(item.take_id, item);
-            }
-          }
-        }
-      }
-    }
-    return Array.from(map.values());
-  }, [takesQuery.data]);
+  const total = takesQuery.data?.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(rawPage, totalPages);
+  const takes = takesQuery.data?.data?.items ?? [];
 
-  const total = takesQuery.data?.pages?.[0]?.data?.total ?? 0;
-  const hasMore = Boolean(takesQuery.hasNextPage);
+  const goToPage = React.useCallback(
+    (nextPage: number) => {
+      setActiveTakeId(null);
+      const targetPage = Math.max(1, nextPage);
+      const search = targetPage > 1 ? `?page=${targetPage}` : '/my-performances';
+      router.push(search);
+    },
+    [router]
+  );
+
+  // If query succeeded and rawPage is beyond totalPages, normalize URL to totalPages
+  React.useEffect(() => {
+    if (takesQuery.isSuccess && total > 0 && rawPage > totalPages) {
+      goToPage(totalPages);
+    }
+  }, [takesQuery.isSuccess, total, totalPages, rawPage, goToPage]);
+
+  // Reset active playback whenever page changes
+  React.useEffect(() => {
+    setActiveTakeId(null);
+  }, [rawPage]);
+
+  const canGoPrevious = currentPage > 1;
+  const canGoNext = currentPage < totalPages;
 
   const handleDeleteConfirm = async () => {
     if (!takePendingDelete) return;
@@ -348,6 +409,7 @@ export default function MyPerformancesPage() {
       ) : takesQuery.isError ? (
         <SectionErrorState
           description={common('loadFailedDescription')}
+          retryLabel={common('tryAgain')}
           onRetry={() => takesQuery.refetch()}
         />
       ) : takes.length === 0 ? (
@@ -372,21 +434,15 @@ export default function MyPerformancesPage() {
             />
           ))}
 
-          {hasMore ? (
-            <div className="flex justify-center pt-4">
-              <Button
-                variant="outline"
-                onClick={() => takesQuery.fetchNextPage()}
-                disabled={takesQuery.isFetchingNextPage}
-                data-testid="load-more-takes"
-              >
-                {takesQuery.isFetchingNextPage ? common('loading') : t('loadMore')}
-              </Button>
-            </div>
-          ) : total > 50 ? (
-            <div className="py-4 text-center text-xs text-gray-400">
-              {t('noMorePerformances')}
-            </div>
+          {totalPages > 1 ? (
+            <PaginationControls
+              page={currentPage}
+              totalPages={totalPages}
+              canGoPrevious={canGoPrevious}
+              canGoNext={canGoNext}
+              onPageChange={goToPage}
+              t={t}
+            />
           ) : null}
         </div>
       )}

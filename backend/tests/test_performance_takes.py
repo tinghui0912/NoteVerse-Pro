@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
+from pathlib import Path
+import urllib.parse
+import warnings
 
 import pytest
 from fastapi.testclient import TestClient
@@ -29,7 +32,9 @@ from app.modules.performance_takes.dependencies import (
 )
 from app.modules.performance_takes.service import PerformanceTakeService
 from app.modules.score_access.policy import ScoreAccessPolicy
+from app.modules.scores.dependencies import get_score_service
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
+from app.modules.scores.service import ScoreService
 from app.modules.storage_usage.dependencies import get_storage_usage_service
 from app.modules.storage_usage.service import StorageUsageService
 from app.storage.base import DirectUploadTarget
@@ -602,10 +607,16 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env):
         assert res_init_list.status_code == 200
         assert res_init_list.json()["data"]["items"][0]["score_id"] == "score-uuid-10"
 
-        # 2. REAL SOFT DELETE: invoke project lifecycle delete_score
+        # 2. REAL SOFT DELETE: invoke real ScoreService.batch_delete / HTTP POST /api/v1/scores/batch-delete
+        score_svc = ScoreService(storage=storage)
+        app.dependency_overrides[get_score_service] = lambda: score_svc
+
+        res_soft = client.post("/api/v1/scores/batch-delete", json={"score_ids": ["score-uuid-10"]})
+        assert res_soft.status_code == 200
+        assert res_soft.json()["data"]["removed"] == 1
+
         score_row = session.execute(select(Score).where(Score.id == 10)).scalar_one()
-        score_row.deletion_status = ScoreDeletionStatus.DELETING
-        session.commit()
+        assert score_row.deletion_status == ScoreDeletionStatus.DELETING
 
         # Listing takes: score is DELETING, so score_id is None, score_title snapshot preserved
         res_list_soft = client.get("/api/v1/performance-takes")
@@ -615,19 +626,35 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env):
         assert item_soft["score_id"] is None
         assert item_soft["score_title"] == "Moonlight Sonata"
 
-        # Playback still works
+        # Playback still works during soft delete
         res_play_soft = client.get(f"/api/v1/performance-takes/{take_id}/playback-url")
         assert res_play_soft.status_code == 200
 
-        # 3. REAL HARD CLEANUP: invoke cleanup_deleting_score
-        lifecycle_svc.cleanup_deleting_score(session, score_row)
+        # User's storage quota still accounts for take audio
+        account = session.get(StorageUsageAccount, 1)
+        session.refresh(account)
+        assert account.used_bytes == size
 
-        # Verify in DB: score and score_revisions are gone, take row is still present with score_id=None
+        # 3. REAL HARD CLEANUP: invoke cleanup_deleting_scores
+        cleanup_res = lifecycle_svc.cleanup_deleting_scores(session)
+        assert cleanup_res.scores_deleted == 1
+
+        # Verify in DB: score is deleted
+        assert session.execute(select(Score).where(Score.id == 10)).scalar_one_or_none() is None
+
+        # Verify in DB: take row is preserved with score_id=None, revision_id=None, score_title="Moonlight Sonata"
         take_in_db = session.execute(select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)).scalar_one_or_none()
         assert take_in_db is not None
         assert take_in_db.score_id is None
         assert take_in_db.revision_id is None
         assert take_in_db.score_title == "Moonlight Sonata"
+
+        # Verify storage: media object is STILL PRESERVED!
+        assert storage.exists(key)
+
+        # Verify storage quota: user quota is STILL PRESERVED!
+        session.refresh(account)
+        assert account.used_bytes == size
 
         # Listing takes after hard delete: score_id is None, score_title preserved
         res_list_hard = client.get("/api/v1/performance-takes")
@@ -637,15 +664,18 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env):
         assert item_hard["score_id"] is None
         assert item_hard["score_title"] == "Moonlight Sonata"
 
-        # Playback and download still work
+        # Playback and download still work after score hard delete
         res_play_hard = client.get(f"/api/v1/performance-takes/{take_id}/playback-url")
         assert res_play_hard.status_code == 200
         assert "download_url" in res_play_hard.json()["data"]
 
-        # Deleting take still works
+        # Deleting take removes media and releases quota
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
         assert res_del.status_code == 200
         assert not storage.exists(key)
+
+        session.refresh(account)
+        assert account.used_bytes == 0
 
     finally:
         app.dependency_overrides.clear()
@@ -878,97 +908,299 @@ def test_pagination(test_env):
         app.dependency_overrides.clear()
 
 
-def test_legacy_migration_upgrade_and_foreign_key_introspection():
-    """Verify that a database running the old 0053 schema (NOT NULL score_id, CASCADE FK)
+def test_real_alembic_upgrade_chain_sqlite(tmp_path: Path):
+    """Verify real Alembic upgrade from 0053 -> 0054 -> 0055 on SQLite.
 
-    can be upgraded by migration 0055 so that score_id is nullable, FK is ON DELETE SET NULL,
-    score_title is safely backfilled, and hard deleting the score does not destroy the take.
+    Checks:
+    - Real command.upgrade(cfg, '0055_performance_take_fk_and_scope_fix') execution
+    - score_id / revision_id nullability
+    - score_title column added and safely backfilled
+    - scope_type column added with default 'FULL'
+    - FK ON DELETE SET NULL for scores and score_revisions
+    - Exactly 1 uq_performance_takes_user_client_request_id (no duplicate unique constraints)
+    - No duplicate foreign keys
+    - 0 SAWarnings emitted during migration
+    - All 5 performance_takes indexes present
+    - Under PRAGMA foreign_keys = ON, deleting the score sets score_id/revision_id to NULL,
+      preserving take row and score_title snapshot.
     """
+    from alembic import command
+    from alembic.config import Config
     import sqlalchemy as sa
-    from alembic.migration import MigrationContext
-    from alembic.operations import Operations
 
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    db_path = tmp_path / "test_migration_sqlite.db"
+    sqlite_url = f"sqlite:///{db_path}"
+    engine = create_engine(sqlite_url)
 
-    @event.listens_for(engine, "connect")
-    def _set_sqlite_pragma(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]
-        del connection_record
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
-
+    # 1. Set up 0053 state
     with engine.begin() as conn:
-        conn.execute(sa.text("PRAGMA foreign_keys = ON;"))
-        # Create users table
-        conn.execute(sa.text("CREATE TABLE users (id INTEGER PRIMARY KEY);"))
-        conn.execute(sa.text("INSERT INTO users VALUES (1);"))
-
-        # Create scores table
-        conn.execute(sa.text("CREATE TABLE scores (id INTEGER PRIMARY KEY, title TEXT NOT NULL);"))
+        conn.execute(sa.text("CREATE TABLE alembic_version (version_num VARCHAR(128) NOT NULL, PRIMARY KEY (version_num));"))
+        conn.execute(sa.text("INSERT INTO alembic_version VALUES ('0053_performance_takes');"))
+        conn.execute(sa.text("CREATE TABLE users (id INTEGER PRIMARY KEY, email VARCHAR(255) NOT NULL);"))
+        conn.execute(sa.text("INSERT INTO users VALUES (1, 'u1@test.com');"))
+        conn.execute(sa.text("CREATE TABLE scores (id INTEGER PRIMARY KEY, title VARCHAR(255) NOT NULL);"))
         conn.execute(sa.text("INSERT INTO scores VALUES (10, 'Sonata Allegro');"))
-
-        # Create score_revisions table
         conn.execute(sa.text("CREATE TABLE score_revisions (id INTEGER PRIMARY KEY, score_id INTEGER NOT NULL REFERENCES scores(id) ON DELETE CASCADE);"))
         conn.execute(sa.text("INSERT INTO score_revisions VALUES (100, 10);"))
+        # 0053 schema: score_id NOT NULL REFERENCES scores(id) ON DELETE CASCADE
+        conn.execute(sa.text("""
+        CREATE TABLE performance_takes (
+            id INTEGER PRIMARY KEY,
+            take_uuid VARCHAR(36) NOT NULL,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            score_id INTEGER NOT NULL REFERENCES scores(id) ON DELETE CASCADE,
+            revision_id INTEGER REFERENCES score_revisions(id) ON DELETE SET NULL,
+            artifact_id VARCHAR(128),
+            client_request_id VARCHAR(128) NOT NULL,
+            media_kind VARCHAR(16) NOT NULL DEFAULT 'AUDIO',
+            media_mime_type VARCHAR(64) NOT NULL,
+            media_byte_size BIGINT NOT NULL,
+            media_object_key VARCHAR(768) NOT NULL,
+            storage_backend VARCHAR(32) NOT NULL,
+            duration_ms INTEGER NOT NULL,
+            scope_start_beat REAL NOT NULL,
+            scope_terminal_beat REAL NOT NULL,
+            tempo_selection TEXT,
+            resolved_tempo_plan TEXT,
+            sync_metadata TEXT,
+            created_at TIMESTAMP NOT NULL,
+            updated_at TIMESTAMP NOT NULL,
+            CONSTRAINT uq_performance_takes_user_client_request_id UNIQUE (user_id, client_request_id)
+        );
+        """))
+        conn.execute(sa.text("CREATE UNIQUE INDEX ix_performance_takes_take_uuid ON performance_takes (take_uuid);"))
+        conn.execute(sa.text("CREATE INDEX ix_performance_takes_user_id ON performance_takes (user_id);"))
+        conn.execute(sa.text("CREATE INDEX ix_performance_takes_score_id ON performance_takes (score_id);"))
+        conn.execute(sa.text("CREATE INDEX ix_performance_takes_revision_id ON performance_takes (revision_id);"))
+        conn.execute(sa.text("CREATE INDEX ix_performance_takes_client_request_id ON performance_takes (client_request_id);"))
+        conn.execute(sa.text("""
+        INSERT INTO performance_takes (
+            id, take_uuid, user_id, score_id, revision_id, artifact_id, client_request_id,
+            media_kind, media_mime_type, media_byte_size, media_object_key, storage_backend,
+            duration_ms, scope_start_beat, scope_terminal_beat, created_at, updated_at
+        ) VALUES (
+            1, 'take-sqlite-001', 1, 10, 100, 'art-1', 'req-1',
+            'AUDIO', 'audio/webm', 2048, 'users/1/takes/take-sqlite-001.webm', 'local',
+            90000, 0.0, 32.0, '2026-09-20 14:00:00', '2026-09-20 14:00:00'
+        );
+        """))
+    engine.dispose()
 
-        # Simulate old 0053 performance_takes table: NOT NULL score_id, CASCADE FK, NO score_title
-        conn.execute(sa.text(
-            "CREATE TABLE performance_takes ("
-            "  id INTEGER PRIMARY KEY, "
-            "  take_uuid VARCHAR(36) NOT NULL, "
-            "  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, "
-            "  score_id INTEGER NOT NULL REFERENCES scores(id) ON DELETE CASCADE, "
-            "  revision_id INTEGER REFERENCES score_revisions(id) ON DELETE CASCADE, "
-            "  client_request_id VARCHAR(128) NOT NULL"
-            ");"
-        ))
-        conn.execute(sa.text("INSERT INTO performance_takes VALUES (1, 'uuid-legacy-1', 1, 10, 100, 'req-leg-1');"))
+    # 2. Run real Alembic upgrade
+    alembic_dir = str(Path(__file__).resolve().parents[1] / "alembic")
+    cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    cfg.set_main_option("script_location", alembic_dir)
+    cfg.set_main_option("sqlalchemy.url", sqlite_url)
 
-        # Now execute upgrade logic as in 0055:
-        ctx = MigrationContext.configure(conn)
-        op = Operations(ctx)
+    with warnings.catch_warnings(record=True) as recorded_warnings:
+        warnings.simplefilter("always")
+        command.upgrade(cfg, "0055_performance_take_fk_and_scope_fix")
+        sa_warnings = [w for w in recorded_warnings if issubclass(w.category, sa.exc.SAWarning)]
+        assert len(sa_warnings) == 0, f"Unexpected SAWarnings during SQLite upgrade: {sa_warnings}"
 
-        table_args = (
-            sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
-            sa.ForeignKeyConstraint(["score_id"], ["scores.id"], ondelete="SET NULL"),
-            sa.ForeignKeyConstraint(["revision_id"], ["score_revisions.id"], ondelete="SET NULL"),
-            sa.UniqueConstraint("user_id", "client_request_id", name="uq_performance_takes_user_client_request_id"),
-        )
-        with op.batch_alter_table("performance_takes", recreate="always", table_args=table_args) as batch_op:
-            batch_op.alter_column("score_id", existing_type=sa.Integer(), nullable=True)
-            batch_op.add_column(sa.Column("score_title", sa.String(255), nullable=True))
-            batch_op.add_column(sa.Column("scope_type", sa.String(16), nullable=False, server_default="FULL"))
+    # 3. Introspect schema and verify columns, constraints, and indexes
+    engine2 = create_engine(sqlite_url)
+    inspector = inspect(engine2)
+    cols = {c["name"]: c for c in inspector.get_columns("performance_takes")}
+    assert cols["score_id"]["nullable"] is True
+    assert cols["revision_id"]["nullable"] is True
+    assert "score_title" in cols
+    assert cols["score_title"]["nullable"] is True
+    assert "scope_type" in cols
+    assert cols["scope_type"]["nullable"] is False
 
-        # Backfill score_title
-        conn.execute(sa.text(
-            "UPDATE performance_takes "
-            "SET score_title = (SELECT title FROM scores WHERE scores.id = performance_takes.score_id) "
-            "WHERE performance_takes.score_id IS NOT NULL AND performance_takes.score_title IS NULL"
-        ))
+    # Check backfilled data
+    with engine2.connect() as conn:
+        row = conn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type FROM performance_takes WHERE id = 1")).fetchone()
+        assert row is not None
+        assert row[0] == 1
+        assert row[1] == "take-sqlite-001"
+        assert row[2] == 1
+        assert row[3] == 10
+        assert row[4] == 100
+        assert row[5] == "Sonata Allegro"  # safely backfilled
+        assert row[6] == "FULL"
 
-    # Introspect foreign keys and columns
-    inspector = inspect(engine)
-    columns = {col["name"]: col for col in inspector.get_columns("performance_takes")}
-    assert "score_title" in columns
-    assert "scope_type" in columns
-    assert columns["score_id"]["nullable"] is True
-
+    # Check FKs: exactly 3 FKs, no duplicates
     fks = inspector.get_foreign_keys("performance_takes")
+    assert len(fks) == 3, f"Expected 3 FKs, got {len(fks)}: {fks}"
     score_fk = next(f for f in fks if f["referred_table"] == "scores")
     assert score_fk["options"].get("ondelete") == "SET NULL"
+    rev_fk = next(f for f in fks if f["referred_table"] == "score_revisions")
+    assert rev_fk["options"].get("ondelete") == "SET NULL"
+    user_fk = next(f for f in fks if f["referred_table"] == "users")
+    assert user_fk["options"].get("ondelete") == "CASCADE"
 
-    # Now verify actual HARD DELETE on scores
-    with engine.begin() as conn:
+    # Check indexes: all 5 indexes present
+    indexes = inspector.get_indexes("performance_takes")
+    index_names = {idx["name"] for idx in indexes}
+    expected_indexes = {
+        "ix_performance_takes_take_uuid",
+        "ix_performance_takes_user_id",
+        "ix_performance_takes_score_id",
+        "ix_performance_takes_revision_id",
+        "ix_performance_takes_client_request_id",
+    }
+    assert expected_indexes.issubset(index_names), f"Missing indexes: {expected_indexes - index_names}"
+
+    # Check unique constraint: exactly 1 unique constraint for (user_id, client_request_id)
+    unique_constraints = inspector.get_unique_constraints("performance_takes")
+    uq_names = [uc["name"] for uc in unique_constraints if "uq_performance_takes_user_client_request_id" in str(uc.get("name", ""))]
+    assert len(uq_names) == 1, f"Expected 1 unique constraint, got: {unique_constraints}"
+
+    # 4. Under PRAGMA foreign_keys = ON, verify DELETE FROM scores
+    with engine2.begin() as conn:
         conn.execute(sa.text("PRAGMA foreign_keys = ON;"))
         conn.execute(sa.text("DELETE FROM scores WHERE id = 10;"))
-        take_row = conn.execute(sa.text("SELECT id, take_uuid, score_id, revision_id, score_title, scope_type FROM performance_takes;")).fetchone()
-        assert take_row is not None
-        assert take_row[0] == 1
-        assert take_row[2] is None  # score_id was SET NULL, not cascade deleted!
-        assert take_row[3] is None  # revision_id was SET NULL, not cascade deleted!
-        assert take_row[4] == "Sonata Allegro"  # score_title was preserved!
-        assert take_row[5] == "FULL"
+
+    with engine2.connect() as conn:
+        row2 = conn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type FROM performance_takes WHERE id = 1")).fetchone()
+        assert row2 is not None
+        assert row2[3] is None  # score_id SET NULL
+        assert row2[4] is None  # revision_id SET NULL
+        assert row2[5] == "Sonata Allegro"  # title preserved
+        assert row2[6] == "FULL"
+
+    engine2.dispose()
+
+
+def test_real_alembic_upgrade_chain_postgresql():
+    """Verify real Alembic upgrade from 0053 -> 0054 -> 0055 on PostgreSQL."""
+    import psycopg
+    from alembic import command
+    from alembic.config import Config
+    import sqlalchemy as sa
+
+    pg_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL") or "postgresql://postgres:123456@192.168.31.59:5432/noteverse_pro"
+
+    # Parse URL to get base connection info
+    clean_pg_url = pg_url.replace("postgresql+asyncpg://", "postgresql://").replace("postgresql+psycopg://", "postgresql://")
+    parsed = urllib.parse.urlparse(clean_pg_url)
+    user = parsed.username or "postgres"
+    password = parsed.password or "123456"
+    host = parsed.hostname or "192.168.31.59"
+    port = parsed.port or 5432
+
+    base_pg = f"postgresql://{user}:{password}@{host}:{port}"
+    test_db = "test_alembic_take_upgrade_pg"
+
+    try:
+        conn = psycopg.connect(f"{base_pg}/postgres", autocommit=True, connect_timeout=3)
+    except Exception as exc:
+        pytest.skip(f"PostgreSQL environment not available (NOT VERIFIED): {exc}")
+
+    try:
+        cur = conn.cursor()
+        cur.execute(f"DROP DATABASE IF EXISTS {test_db}")
+        cur.execute(f"CREATE DATABASE {test_db}")
+        conn.close()
+
+        # Connect to new test DB and setup 0053 state
+        pg_conn = psycopg.connect(f"{base_pg}/{test_db}", autocommit=True)
+        pcur = pg_conn.cursor()
+        pcur.execute("CREATE TABLE alembic_version (version_num VARCHAR(128) NOT NULL, CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num));")
+        pcur.execute("INSERT INTO alembic_version VALUES ('0053_performance_takes');")
+        pcur.execute("CREATE TABLE users (id BIGSERIAL PRIMARY KEY, email VARCHAR(255) NOT NULL);")
+        pcur.execute("INSERT INTO users (id, email) VALUES (1, 'u1@example.com');")
+        pcur.execute("CREATE TABLE scores (id BIGSERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL);")
+        pcur.execute("INSERT INTO scores (id, title) VALUES (10, 'PG Sonata Allegro');")
+        pcur.execute("CREATE TABLE score_revisions (id BIGSERIAL PRIMARY KEY, score_id BIGINT NOT NULL REFERENCES scores(id) ON DELETE CASCADE);")
+        pcur.execute("INSERT INTO score_revisions (id, score_id) VALUES (100, 10);")
+        pcur.execute("""
+        CREATE TABLE performance_takes (
+            id BIGSERIAL PRIMARY KEY,
+            take_uuid VARCHAR(36) NOT NULL,
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            score_id BIGINT NOT NULL REFERENCES scores(id) ON DELETE CASCADE,
+            revision_id BIGINT REFERENCES score_revisions(id) ON DELETE SET NULL,
+            artifact_id VARCHAR(128),
+            client_request_id VARCHAR(128) NOT NULL,
+            media_kind VARCHAR(16) NOT NULL DEFAULT 'AUDIO',
+            media_mime_type VARCHAR(64) NOT NULL,
+            media_byte_size BIGINT NOT NULL,
+            media_object_key VARCHAR(768) NOT NULL,
+            storage_backend VARCHAR(32) NOT NULL,
+            duration_ms INTEGER NOT NULL,
+            scope_start_beat REAL NOT NULL,
+            scope_terminal_beat REAL NOT NULL,
+            tempo_selection TEXT,
+            resolved_tempo_plan TEXT,
+            sync_metadata TEXT,
+            created_at TIMESTAMP NOT NULL,
+            updated_at TIMESTAMP NOT NULL,
+            CONSTRAINT uq_performance_takes_user_client_request_id UNIQUE (user_id, client_request_id)
+        );
+        """)
+        pcur.execute("CREATE UNIQUE INDEX ix_performance_takes_take_uuid ON performance_takes (take_uuid);")
+        pcur.execute("CREATE INDEX ix_performance_takes_user_id ON performance_takes (user_id);")
+        pcur.execute("CREATE INDEX ix_performance_takes_score_id ON performance_takes (score_id);")
+        pcur.execute("CREATE INDEX ix_performance_takes_revision_id ON performance_takes (revision_id);")
+        pcur.execute("CREATE INDEX ix_performance_takes_client_request_id ON performance_takes (client_request_id);")
+        pcur.execute("""
+        INSERT INTO performance_takes (
+            id, take_uuid, user_id, score_id, revision_id, artifact_id, client_request_id,
+            media_kind, media_mime_type, media_byte_size, media_object_key, storage_backend,
+            duration_ms, scope_start_beat, scope_terminal_beat, created_at, updated_at
+        ) VALUES (
+            1, 'take-pg-001', 1, 10, 100, 'art-1', 'req-1',
+            'AUDIO', 'audio/webm', 2048, 'users/1/takes/take-pg-001.webm', 's3',
+            90000, 0.0, 32.0, '2026-09-20 14:00:00', '2026-09-20 14:00:00'
+        );
+        """)
+        pg_conn.close()
+
+        # Run real Alembic upgrade
+        alembic_dir = str(Path(__file__).resolve().parents[1] / "alembic")
+        cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+        cfg.set_main_option("script_location", alembic_dir)
+        cfg.set_main_option("sqlalchemy.url", f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{test_db}")
+
+        command.upgrade(cfg, "0055_performance_take_fk_and_scope_fix")
+
+        # Inspect on PG
+        engine_pg = create_engine(f"postgresql+psycopg://{user}:{password}@{host}:{port}/{test_db}")
+        inspector = inspect(engine_pg)
+        cols = {c["name"]: c for c in inspector.get_columns("performance_takes")}
+        assert cols["score_id"]["nullable"] is True
+        assert cols["revision_id"]["nullable"] is True
+        assert "score_title" in cols
+        assert cols["score_title"]["nullable"] is True
+        assert "scope_type" in cols
+        assert cols["scope_type"]["nullable"] is False
+
+        fks = inspector.get_foreign_keys("performance_takes")
+        score_fk = next(f for f in fks if f["referred_table"] == "scores")
+        assert score_fk["options"].get("ondelete") == "SET NULL"
+        rev_fk = next(f for f in fks if f["referred_table"] == "score_revisions")
+        assert rev_fk["options"].get("ondelete") == "SET NULL"
+
+        with engine_pg.connect() as pconn:
+            row = pconn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type FROM performance_takes WHERE id = 1")).fetchone()
+            assert row is not None
+            assert row[3] == 10
+            assert row[4] == 100
+            assert row[5] == "PG Sonata Allegro"
+            assert row[6] == "FULL"
+
+            # DELETE FROM scores on PG
+            pconn.execute(sa.text("DELETE FROM scores WHERE id = 10;"))
+            pconn.commit()
+
+            row_after = pconn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type FROM performance_takes WHERE id = 1")).fetchone()
+            assert row_after is not None
+            assert row_after[3] is None  # score_id SET NULL
+            assert row_after[4] is None  # revision_id SET NULL
+            assert row_after[5] == "PG Sonata Allegro"  # title preserved
+            assert row_after[6] == "FULL"
+
+        engine_pg.dispose()
+
+    finally:
+        # Cleanup PG DB
+        try:
+            conn_clean = psycopg.connect(f"{base_pg}/postgres", autocommit=True, connect_timeout=3)
+            cur_clean = conn_clean.cursor()
+            cur_clean.execute(f"DROP DATABASE IF EXISTS {test_db}")
+            conn_clean.close()
+        except Exception:
+            pass

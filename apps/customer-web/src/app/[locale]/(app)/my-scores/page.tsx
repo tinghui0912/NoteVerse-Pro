@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/states';
 import { SectionErrorState } from '@/components/states';
 import { MyScoresBulkActions } from '@/components/my-scores/my-scores-bulk-actions';
 import { MyScoresFilterBar } from '@/components/my-scores/my-scores-filter-bar';
-import { MyScoresPagination } from '@/components/my-scores/my-scores-pagination';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { MyScoreCard } from '@/components/my-scores/my-score-card';
 import { ImportJobCard } from '@/components/my-scores/import-job-card';
 import { Button } from '@/components/ui/button';
@@ -354,7 +354,7 @@ export default function MyScoresPage({
             </Card>
           )}
           {showScores && scorePagination && scorePagination.total_pages > 1 ? (
-            <MyScoresPagination
+            <PaginationControls
               page={scorePagination.page}
               totalPages={scorePagination.total_pages}
               canGoPrevious={canGoPrevious}

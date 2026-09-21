@@ -76,28 +76,99 @@ def upgrade() -> None:
         )
 
     elif bind.dialect.name == "sqlite":
-        # SQLite recreate table to ensure foreign keys have ON DELETE SET NULL
-        table_args = (
-            sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
-            sa.ForeignKeyConstraint(["score_id"], ["scores.id"], ondelete="SET NULL"),
-            sa.ForeignKeyConstraint(["revision_id"], ["score_revisions.id"], ondelete="SET NULL"),
-            sa.UniqueConstraint("user_id", "client_request_id", name="uq_performance_takes_user_client_request_id"),
-        )
-        with op.batch_alter_table("performance_takes", recreate="always", table_args=table_args) as batch_op:
-            batch_op.alter_column("score_id", existing_type=sa.BigInteger(), nullable=True)
-            if "score_title" not in columns:
-                batch_op.add_column(sa.Column("score_title", sa.String(length=255), nullable=True))
-            if "scope_type" not in columns:
-                batch_op.add_column(sa.Column("scope_type", sa.String(length=16), nullable=False, server_default="FULL"))
-
-        # Backfill score_title in SQLite
+        # SQLite clean recreate table to ensure foreign keys have ON DELETE SET NULL,
+        # avoiding duplicate constraints and preserving all indexes and data.
+        bind.execute(sa.text("PRAGMA foreign_keys = OFF;"))
         bind.execute(
             sa.text(
-                "UPDATE performance_takes "
-                "SET score_title = (SELECT title FROM scores WHERE scores.id = performance_takes.score_id) "
-                "WHERE performance_takes.score_id IS NOT NULL AND performance_takes.score_title IS NULL"
+                """
+            CREATE TABLE _new_performance_takes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                take_uuid VARCHAR(36) NOT NULL,
+                user_id BIGINT NOT NULL,
+                score_id BIGINT,
+                revision_id BIGINT,
+                artifact_id VARCHAR(128),
+                client_request_id VARCHAR(128) NOT NULL,
+                media_kind VARCHAR(16) NOT NULL DEFAULT 'AUDIO',
+                media_mime_type VARCHAR(64) NOT NULL,
+                media_byte_size BIGINT NOT NULL,
+                media_object_key VARCHAR(768) NOT NULL,
+                storage_backend VARCHAR(32) NOT NULL,
+                duration_ms INTEGER NOT NULL,
+                scope_start_beat FLOAT NOT NULL,
+                scope_terminal_beat FLOAT NOT NULL,
+                tempo_selection TEXT,
+                resolved_tempo_plan TEXT,
+                sync_metadata TEXT,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                score_title VARCHAR(255),
+                scope_type VARCHAR(16) NOT NULL DEFAULT 'FULL',
+                CONSTRAINT fk_performance_takes_user_id_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                CONSTRAINT fk_performance_takes_score_id_scores FOREIGN KEY (score_id) REFERENCES scores(id) ON DELETE SET NULL,
+                CONSTRAINT fk_performance_takes_revision_id_score_revisions FOREIGN KEY (revision_id) REFERENCES score_revisions(id) ON DELETE SET NULL,
+                CONSTRAINT uq_performance_takes_user_client_request_id UNIQUE (user_id, client_request_id)
+            );
+        """
             )
         )
+
+        has_score_title = "score_title" in columns
+        has_scope_type = "scope_type" in columns
+
+        score_title_expr = (
+            "COALESCE(score_title, (SELECT title FROM scores WHERE scores.id = performance_takes.score_id))"
+            if has_score_title
+            else "(SELECT title FROM scores WHERE scores.id = performance_takes.score_id)"
+        )
+        scope_type_expr = "COALESCE(scope_type, 'FULL')" if has_scope_type else "'FULL'"
+
+        bind.execute(
+            sa.text(
+                f"""
+            INSERT INTO _new_performance_takes (
+                id, take_uuid, user_id, score_id, revision_id, artifact_id, client_request_id,
+                media_kind, media_mime_type, media_byte_size, media_object_key, storage_backend,
+                duration_ms, scope_start_beat, scope_terminal_beat, tempo_selection, resolved_tempo_plan,
+                sync_metadata, created_at, updated_at, score_title, scope_type
+            )
+            SELECT 
+                id, take_uuid, user_id, score_id, revision_id, artifact_id, client_request_id,
+                media_kind, media_mime_type, media_byte_size, media_object_key, storage_backend,
+                duration_ms, scope_start_beat, scope_terminal_beat, tempo_selection, resolved_tempo_plan,
+                sync_metadata, created_at, updated_at,
+                {score_title_expr},
+                {scope_type_expr}
+            FROM performance_takes;
+        """
+            )
+        )
+
+        bind.execute(sa.text("DROP TABLE performance_takes;"))
+        bind.execute(sa.text("ALTER TABLE _new_performance_takes RENAME TO performance_takes;"))
+        bind.execute(
+            sa.text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_performance_takes_take_uuid ON performance_takes (take_uuid);"
+            )
+        )
+        bind.execute(
+            sa.text("CREATE INDEX IF NOT EXISTS ix_performance_takes_user_id ON performance_takes (user_id);")
+        )
+        bind.execute(
+            sa.text("CREATE INDEX IF NOT EXISTS ix_performance_takes_score_id ON performance_takes (score_id);")
+        )
+        bind.execute(
+            sa.text(
+                "CREATE INDEX IF NOT EXISTS ix_performance_takes_revision_id ON performance_takes (revision_id);"
+            )
+        )
+        bind.execute(
+            sa.text(
+                "CREATE INDEX IF NOT EXISTS ix_performance_takes_client_request_id ON performance_takes (client_request_id);"
+            )
+        )
+        bind.execute(sa.text("PRAGMA foreign_keys = ON;"))
 
 
 def downgrade() -> None:

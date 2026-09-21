@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 
+import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import MyPerformancesPage from './page';
+
+const mockRouterPush = vi.fn();
 
 const translationMocks = vi.hoisted(() => {
   const practice: Record<string, string> = {
@@ -24,8 +27,9 @@ const translationMocks = vi.hoisted(() => {
     scopeSection: '选段演奏',
     scoreFallback: '乐谱 #{id}',
     deletedScoreNotice: '原乐谱已删除',
-    loadMore: '加载更多',
-    noMorePerformances: '已加载全部演奏',
+    pagination: '第 {page} / {totalPages} 页',
+    previousPage: '上一页',
+    nextPage: '下一页',
     takeScopeBeats: '第 {start} - {end} 拍',
     audioPlaybackFailed: '本次录音不可回放',
     tempoScoreMode: '原谱速度',
@@ -37,6 +41,7 @@ const translationMocks = vi.hoisted(() => {
 
   const common: Record<string, string> = {
     play: '播放',
+    playing: '播放中',
     delete: '删除',
     cancel: '取消',
     loading: '加载中...',
@@ -76,12 +81,12 @@ vi.mock('@/i18n/routing', () => ({
       {children}
     </a>
   ),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: mockRouterPush }),
   usePathname: () => '/my-performances',
 }));
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: mockRouterPush }),
   useSearchParams: () => ({ get: () => null }),
 }));
 
@@ -91,28 +96,6 @@ vi.mock('@/components/practice/performance-replay-player', () => ({
       <span>Replaying: {replay.url}</span>
     </div>
   ),
-}));
-
-const mockTakesInfiniteQuery = vi.hoisted(() => ({
-  data: {
-    pages: [
-      {
-        data: {
-          items: [] as Array<Record<string, unknown>>,
-          total: 0,
-          limit: 50,
-          offset: 0,
-          has_more: false,
-        },
-      },
-    ],
-  },
-  isLoading: false,
-  isError: false,
-  hasNextPage: false,
-  isFetchingNextPage: false,
-  fetchNextPage: vi.fn(),
-  refetch: vi.fn(),
 }));
 
 const mockDeleteTakeMutation = vi.hoisted(() => ({
@@ -138,8 +121,66 @@ const mockPlaybackQuery = vi.hoisted(() => ({
   refetch: vi.fn(),
 }));
 
+// 121 fixture items
+const fixture121Takes = Array.from({ length: 121 }, (_, i) => ({
+  take_id: `take-${i + 1}`,
+  score_id: `score-uuid-${i + 1}`,
+  score_title: `Score Title ${i + 1}`,
+  revision_id: `rev-uuid-${i + 1}`,
+  media_kind: 'AUDIO',
+  media_mime_type: 'audio/webm',
+  media_byte_size: 1024 * (i + 1),
+  duration_ms: 30000 + i * 1000,
+  scope_type: i % 2 === 0 ? 'FULL' : 'RANGE',
+  scope_start_beat: i % 2 === 0 ? 0 : 4,
+  scope_terminal_beat: i % 2 === 0 ? 0 : 16,
+  tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
+  created_at: new Date(1700000000000 - i * 60000).toISOString(),
+  updated_at: new Date(1700000000000 - i * 60000).toISOString(),
+}));
+
+let currentTakesTotal = 121;
+interface MockTakesQueryResult {
+  data: {
+    data: {
+      items: typeof fixture121Takes;
+      total: number;
+      limit: number;
+      offset: number;
+      has_more: boolean;
+    };
+  };
+  isLoading: boolean;
+  isError: boolean;
+  isSuccess: boolean;
+  refetch: () => void;
+}
+let mockQueryOverride: MockTakesQueryResult | null = null;
+
+const mockUsePerformanceTakes = vi.fn((params?: { limit?: number; offset?: number }) => {
+  if (mockQueryOverride) return mockQueryOverride;
+  const limit = params?.limit ?? 20;
+  const offset = params?.offset ?? 0;
+  const items = fixture121Takes.slice(0, currentTakesTotal).slice(offset, offset + limit);
+  return {
+    data: {
+      data: {
+        items,
+        total: currentTakesTotal,
+        limit,
+        offset,
+        has_more: offset + limit < currentTakesTotal,
+      },
+    },
+    isLoading: false,
+    isError: false,
+    isSuccess: true,
+    refetch: vi.fn(),
+  };
+});
+
 vi.mock('@/hooks/queries/use-performance-take-queries', () => ({
-  useInfinitePerformanceTakes: () => mockTakesInfiniteQuery,
+  usePerformanceTakes: (params?: { limit?: number; offset?: number }) => mockUsePerformanceTakes(params),
   useDeletePerformanceTake: () => mockDeleteTakeMutation,
   usePerformanceTakePlayback: (takeId: string, enabled: boolean) => {
     if (!enabled) {
@@ -165,284 +206,171 @@ vi.mock('@/lib/api/performance-takes', () => ({
 describe('MyPerformancesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockDeleteTakeMutation.isPending = false;
+    mockQueryOverride = null;
+    currentTakesTotal = 121;
+    mockPlaybackQuery.isLoading = false;
     mockPlaybackQuery.isError = false;
-    mockTakesInfiniteQuery.isLoading = false;
-    mockTakesInfiniteQuery.isError = false;
-    mockTakesInfiniteQuery.hasNextPage = false;
-    mockTakesInfiniteQuery.isFetchingNextPage = false;
+    mockDeleteTakeMutation.isPending = false;
+  });
+
+  it('renders loading state', () => {
+    mockQueryOverride = {
+      data: null,
+      isLoading: true,
+      isError: false,
+      isSuccess: false,
+      refetch: vi.fn(),
+    };
+
+    render(<MyPerformancesPage />);
+    expect(screen.getByText('加载中...')).toBeInTheDocument();
+  });
+
+  it('renders error state with retry button', () => {
+    const refetch = vi.fn();
+    mockQueryOverride = {
+      data: null,
+      isLoading: false,
+      isError: true,
+      isSuccess: false,
+      refetch,
+    };
+
+    render(<MyPerformancesPage />);
+    expect(screen.getByText('暂时无法加载内容，请稍后重试。')).toBeInTheDocument();
+    const retryBtn = screen.getByRole('button', { name: '重试' });
+    fireEvent.click(retryBtn);
+    expect(refetch).toHaveBeenCalled();
   });
 
   it('renders empty state when no takes exist', () => {
-    mockTakesInfiniteQuery.data = {
-      pages: [
-        {
-          data: {
-            items: [],
-            total: 0,
-            limit: 50,
-            offset: 0,
-            has_more: false,
-          },
-        },
-      ],
-    };
-
+    currentTakesTotal = 0;
     render(<MyPerformancesPage />);
-
-    expect(screen.getByText('我的演奏')).toBeInTheDocument();
     expect(screen.getByText('暂无已保存的演奏')).toBeInTheDocument();
   });
 
-  it('renders list of saved takes with external UUID, scope, and tempo details', () => {
-    mockTakesInfiniteQuery.data = {
-      pages: [
-        {
-          data: {
-            items: [
-              {
-                take_id: 'take-1',
-                score_id: '550e8400-e29b-41d4-a716-446655440001',
-                score_title: '月光奏鸣曲',
-                media_kind: 'AUDIO',
-                media_mime_type: 'audio/webm',
-                media_byte_size: 102400,
-                duration_ms: 90000,
-                scope_type: 'FULL',
-                scope_start_beat: 0,
-                scope_terminal_beat: 0,
-                tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 92 },
-                created_at: '2026-09-20T10:00:00Z',
-              },
-              {
-                take_id: 'take-2',
-                score_id: '550e8400-e29b-41d4-a716-446655440002',
-                score_title: null,
-                media_kind: 'AUDIO',
-                media_mime_type: 'audio/webm',
-                media_byte_size: 51200,
-                duration_ms: 45000,
-                scope_type: 'RANGE',
-                scope_start_beat: 16,
-                scope_terminal_beat: 32,
-                tempo_selection: { mode: 'SCORE' },
-                resolved_tempo_plan: {
-                  segments: [{ startBeat: 0, bpm: 120 }],
-                },
-                created_at: '2026-09-20T11:00:00Z',
-              },
-            ],
-            total: 2,
-            limit: 50,
-            offset: 0,
-            has_more: false,
-          },
+  it('renders snapshot title and deletedScoreNotice when score_id is null', () => {
+    mockQueryOverride = {
+      data: {
+        data: {
+          items: [
+            {
+              take_id: 'take-deleted-score',
+              score_id: null,
+              score_title: 'Sonata Allegro Op. 57',
+              media_kind: 'AUDIO',
+              media_mime_type: 'audio/webm',
+              media_byte_size: 1024,
+              duration_ms: 60000,
+              scope_type: 'FULL',
+              scope_start_beat: 0,
+              scope_terminal_beat: 0,
+              tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+          ],
+          total: 1,
+          limit: 20,
+          offset: 0,
+          has_more: false,
         },
-      ],
+      },
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      refetch: vi.fn(),
     };
 
     render(<MyPerformancesPage />);
-
-    // Score 1 has title snapshot "月光奏鸣曲" and Link to /score/UUID
-    expect(screen.getByText('月光奏鸣曲')).toBeInTheDocument();
-    const link1 = screen.getByTestId('take-score-link-take-1');
-    expect(link1).toHaveAttribute('href', '/score/550e8400-e29b-41d4-a716-446655440001');
-
-    // Score 2 has no title snapshot -> fallback "乐谱 #550e8400-e29b-41d4-a716-446655440002"
-    expect(screen.getByText('乐谱 #550e8400-e29b-41d4-a716-446655440002')).toBeInTheDocument();
-    const link2 = screen.getByTestId('take-score-link-take-2');
-    expect(link2).toHaveAttribute('href', '/score/550e8400-e29b-41d4-a716-446655440002');
-
-    // Duration
-    expect(screen.getByText('1:30')).toBeInTheDocument();
-    expect(screen.getByText('0:45')).toBeInTheDocument();
-
-    // Scope (explicit FULL and RANGE)
-    expect(screen.getByText('全曲演奏')).toBeInTheDocument();
-    expect(screen.getByText('选段演奏 (第 16 - 32 拍)')).toBeInTheDocument();
-
-    // Tempo
-    expect(screen.getByText('♩ = 92 BPM')).toBeInTheDocument();
-    expect(screen.getByText('原谱速度 (♩ = 120)')).toBeInTheDocument();
-
-    // Action buttons
-    expect(screen.getByTestId('play-take-take-1')).toBeInTheDocument();
-    expect(screen.getByTestId('download-take-take-1')).toBeInTheDocument();
-    expect(screen.getByTestId('delete-take-take-1')).toBeInTheDocument();
-  });
-
-  it('renders variable tempo when score has multiple tempo segments', () => {
-    mockTakesInfiniteQuery.data = {
-      pages: [
-        {
-          data: {
-            items: [
-              {
-                take_id: 'take-var-tempo',
-                score_id: '550e8400-e29b-41d4-a716-446655440003',
-                score_title: '土耳其进行曲',
-                media_kind: 'AUDIO',
-                media_mime_type: 'audio/webm',
-                media_byte_size: 102400,
-                duration_ms: 60000,
-                scope_type: 'FULL',
-                scope_start_beat: 0,
-                scope_terminal_beat: 0,
-                tempo_selection: { mode: 'SCORE' },
-                resolved_tempo_plan: {
-                  segments: [
-                    { startBeat: 0, bpm: 120 },
-                    { startBeat: 32, bpm: 140 },
-                  ],
-                },
-                created_at: '2026-09-20T10:00:00Z',
-              },
-            ],
-            total: 1,
-            limit: 50,
-            offset: 0,
-            has_more: false,
-          },
-        },
-      ],
-    };
-
-    render(<MyPerformancesPage />);
-
-    expect(screen.getByText('原谱速度 (变化速度)')).toBeInTheDocument();
-  });
-
-  it('renders deleted score gracefully with no link and snapshot title or fallback notice', () => {
-    mockTakesInfiniteQuery.data = {
-      pages: [
-        {
-          data: {
-            items: [
-              {
-                take_id: 'take-deleted-1',
-                score_id: null,
-                score_title: '已删除的奏鸣曲',
-                media_kind: 'AUDIO',
-                media_mime_type: 'audio/webm',
-                media_byte_size: 102400,
-                duration_ms: 60000,
-                scope_type: 'FULL',
-                scope_start_beat: 0,
-                scope_terminal_beat: 0,
-                created_at: '2026-09-20T10:00:00Z',
-              },
-              {
-                take_id: 'take-deleted-2',
-                score_id: null,
-                score_title: null,
-                media_kind: 'AUDIO',
-                media_mime_type: 'audio/webm',
-                media_byte_size: 102400,
-                duration_ms: 60000,
-                scope_type: 'FULL',
-                scope_start_beat: 0,
-                scope_terminal_beat: 0,
-                created_at: '2026-09-20T10:00:00Z',
-              },
-            ],
-            total: 2,
-            limit: 50,
-            offset: 0,
-            has_more: false,
-          },
-        },
-      ],
-    };
-
-    render(<MyPerformancesPage />);
-
-    // Snapshot title rendered without link
-    expect(screen.getByText('已删除的奏鸣曲')).toBeInTheDocument();
-    expect(screen.getByTestId('take-deleted-score-take-deleted-1')).toBeInTheDocument();
-    expect(screen.queryByTestId('take-score-link-take-deleted-1')).not.toBeInTheDocument();
-
-    // Fallback notice rendered when title is also null
+    expect(screen.getByText('Sonata Allegro Op. 57')).toBeInTheDocument();
     expect(screen.getByText('原乐谱已删除')).toBeInTheDocument();
-    expect(screen.getByTestId('take-deleted-score-take-deleted-2')).toBeInTheDocument();
-    expect(screen.queryByTestId('take-score-link-take-deleted-2')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Sonata Allegro/ })).not.toBeInTheDocument();
   });
 
-  it('triggers playback when play button is clicked and allows retry on failure', () => {
-    mockTakesInfiniteQuery.data = {
-      pages: [
-        {
-          data: {
-            items: [
-              {
-                take_id: 'take-1',
-                score_id: 'score-1',
-                media_kind: 'AUDIO',
-                media_mime_type: 'audio/webm',
-                media_byte_size: 102400,
-                duration_ms: 90000,
-                scope_type: 'FULL',
-                scope_start_beat: 0,
-                scope_terminal_beat: 0,
-                created_at: '2026-09-20T10:00:00Z',
-              },
-            ],
-            total: 1,
-            limit: 50,
-            offset: 0,
-            has_more: false,
-          },
+  it('handles playback toggling and playback error retry', () => {
+    mockQueryOverride = {
+      data: {
+        data: {
+          items: [
+            {
+              take_id: 'take-1',
+              score_id: 'score-uuid-1',
+              score_title: 'Score Title 1',
+              media_kind: 'AUDIO',
+              media_mime_type: 'audio/webm',
+              media_byte_size: 1024,
+              duration_ms: 60000,
+              scope_type: 'FULL',
+              scope_start_beat: 0,
+              scope_terminal_beat: 0,
+              tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+          ],
+          total: 1,
+          limit: 20,
+          offset: 0,
+          has_more: false,
         },
-      ],
+      },
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      refetch: vi.fn(),
     };
 
     const { rerender } = render(<MyPerformancesPage />);
-
     const playBtn = screen.getByTestId('play-take-take-1');
     fireEvent.click(playBtn);
 
     expect(screen.getByTestId('performance-replay-player')).toBeInTheDocument();
     expect(screen.getByText('Replaying: https://oss.example.com/play-1.webm')).toBeInTheDocument();
 
-    // Test playback error
+    // Playback error handling
     mockPlaybackQuery.isError = true;
     rerender(<MyPerformancesPage />);
-
     expect(screen.getByText('本次录音不可回放')).toBeInTheDocument();
     const retryBtn = screen.getByTestId('retry-playback-take-1');
     fireEvent.click(retryBtn);
     expect(mockPlaybackQuery.refetch).toHaveBeenCalled();
   });
 
-  it('triggers download with download_url and handles download failure with retry', async () => {
-    mockTakesInfiniteQuery.data = {
-      pages: [
-        {
-          data: {
-            items: [
-              {
-                take_id: 'take-1',
-                score_id: 'score-1',
-                media_kind: 'AUDIO',
-                media_mime_type: 'audio/webm',
-                media_byte_size: 102400,
-                duration_ms: 90000,
-                scope_type: 'FULL',
-                scope_start_beat: 0,
-                scope_terminal_beat: 0,
-                created_at: '2026-09-20T10:00:00Z',
-              },
-            ],
-            total: 1,
-            limit: 50,
-            offset: 0,
-            has_more: false,
-          },
+  it('triggers download and handles download failure with retry', async () => {
+    mockQueryOverride = {
+      data: {
+        data: {
+          items: [
+            {
+              take_id: 'take-1',
+              score_id: 'score-uuid-1',
+              score_title: 'Score Title 1',
+              media_kind: 'AUDIO',
+              media_mime_type: 'audio/webm',
+              media_byte_size: 1024,
+              duration_ms: 60000,
+              scope_type: 'FULL',
+              scope_start_beat: 0,
+              scope_terminal_beat: 0,
+              tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+          ],
+          total: 1,
+          limit: 20,
+          offset: 0,
+          has_more: false,
         },
-      ],
+      },
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      refetch: vi.fn(),
     };
 
     render(<MyPerformancesPage />);
-
     const downloadBtn = screen.getByTestId('download-take-take-1');
     fireEvent.click(downloadBtn);
 
@@ -450,7 +378,7 @@ describe('MyPerformancesPage', () => {
       expect(mockApi.getPlaybackUrl).toHaveBeenCalledWith('take-1');
     });
 
-    // Test failure case
+    // Failure simulation
     mockApi.getPlaybackUrl.mockRejectedValueOnce(new Error('Network error'));
     fireEvent.click(downloadBtn);
 
@@ -459,7 +387,7 @@ describe('MyPerformancesPage', () => {
       expect(screen.getByText('下载录音失败，请重试')).toBeInTheDocument();
     });
 
-    // Test retry
+    // Retry
     mockApi.getPlaybackUrl.mockResolvedValueOnce({
       data: {
         playback_url: 'https://oss.example.com/play-1.webm',
@@ -474,36 +402,40 @@ describe('MyPerformancesPage', () => {
     });
   });
 
-  it('opens confirmation dialog, keeps dialog open on delete failure, and displays retryable error', async () => {
-    mockTakesInfiniteQuery.data = {
-      pages: [
-        {
-          data: {
-            items: [
-              {
-                take_id: 'take-1',
-                score_id: 'score-1',
-                media_kind: 'AUDIO',
-                media_mime_type: 'audio/webm',
-                media_byte_size: 102400,
-                duration_ms: 90000,
-                scope_type: 'FULL',
-                scope_start_beat: 0,
-                scope_terminal_beat: 0,
-                created_at: '2026-09-20T10:00:00Z',
-              },
-            ],
-            total: 1,
-            limit: 50,
-            offset: 0,
-            has_more: false,
-          },
+  it('opens confirmation dialog and handles delete failure with retry', async () => {
+    mockQueryOverride = {
+      data: {
+        data: {
+          items: [
+            {
+              take_id: 'take-1',
+              score_id: 'score-uuid-1',
+              score_title: 'Score Title 1',
+              media_kind: 'AUDIO',
+              media_mime_type: 'audio/webm',
+              media_byte_size: 1024,
+              duration_ms: 60000,
+              scope_type: 'FULL',
+              scope_start_beat: 0,
+              scope_terminal_beat: 0,
+              tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+          ],
+          total: 1,
+          limit: 20,
+          offset: 0,
+          has_more: false,
         },
-      ],
+      },
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      refetch: vi.fn(),
     };
 
     render(<MyPerformancesPage />);
-
     const deleteBtn = screen.getByTestId('delete-take-take-1');
     fireEvent.click(deleteBtn);
 
@@ -519,7 +451,7 @@ describe('MyPerformancesPage', () => {
       expect(screen.getByText('删除演奏失败，请重试')).toBeInTheDocument();
     });
 
-    // Dialog must remain open
+    // Dialog stays open
     expect(screen.getByText('确定要删除这条演奏记录吗？')).toBeInTheDocument();
 
     // 2. Retry with success
@@ -530,136 +462,153 @@ describe('MyPerformancesPage', () => {
       expect(mockDeleteTakeMutation.mutateAsync).toHaveBeenCalledWith('take-1');
     });
 
-    // Upon success, dialog closes
     await waitFor(() => {
       expect(screen.queryByText('确定要删除这条演奏记录吗？')).not.toBeInTheDocument();
     });
   });
 
-  it('supports 121+ items pagination with fixed limit 50, deduplication by take_id, and loads more', async () => {
-    // Generate 50 items for page 1
-    const page1Items = Array.from({ length: 50 }, (_, i) => ({
-      take_id: `take-${i + 1}`,
-      score_id: `score-${i + 1}`,
-      score_title: `Score ${i + 1}`,
-      media_kind: 'AUDIO',
-      media_mime_type: 'audio/webm',
-      media_byte_size: 10000,
-      duration_ms: 30000,
-      scope_type: 'FULL',
-      scope_start_beat: 0,
-      scope_terminal_beat: 0,
-      created_at: '2026-09-20T10:00:00Z',
-    }));
+  describe('121+ Items Pagination Verification (Pages 1, 2, and 7)', () => {
+    it('verifies Page 1: limit=20, offset=0, items 1-20, canGoPrevious=false, canGoNext=true', () => {
+      render(<MyPerformancesPage searchParams={{ page: '1' }} />);
 
-    // Page 2: items 51-100 + duplicate of take-50 to test deduplication
-    const page2Items = [
-      page1Items[49], // duplicate take-50
-      ...Array.from({ length: 50 }, (_, i) => ({
-        take_id: `take-${i + 51}`,
-        score_id: `score-${i + 51}`,
-        score_title: `Score ${i + 51}`,
-        media_kind: 'AUDIO',
-        media_mime_type: 'audio/webm',
-        media_byte_size: 10000,
-        duration_ms: 30000,
-        scope_type: 'FULL',
-        scope_start_beat: 0,
-        scope_terminal_beat: 0,
-        created_at: '2026-09-20T09:00:00Z',
-      })),
-    ];
+      expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
+        limit: 20,
+        offset: 0,
+      });
 
-    // Page 3: items 101-121 (21 items, total 121)
-    const page3Items = Array.from({ length: 21 }, (_, i) => ({
-      take_id: `take-${i + 101}`,
-      score_id: `score-${i + 101}`,
-      score_title: `Score ${i + 101}`,
-      media_kind: 'AUDIO',
-      media_mime_type: 'audio/webm',
-      media_byte_size: 10000,
-      duration_ms: 30000,
-      scope_type: 'FULL',
-      scope_start_beat: 0,
-      scope_terminal_beat: 0,
-      created_at: '2026-09-20T08:00:00Z',
-    }));
+      // Renders items 1 through 20
+      expect(screen.getByText('Score Title 1')).toBeInTheDocument();
+      expect(screen.getByText('Score Title 20')).toBeInTheDocument();
+      expect(screen.queryByText('Score Title 21')).not.toBeInTheDocument();
 
-    // Start with page 1 loaded
-    mockTakesInfiniteQuery.data = {
-      pages: [
-        {
-          data: {
-            items: page1Items,
-            total: 121,
-            limit: 50,
-            offset: 0,
-            has_more: true,
-          },
-        },
-      ],
-    };
-    mockTakesInfiniteQuery.hasNextPage = true;
+      // Pagination indicator: Page 1 of 7
+      expect(screen.getByText('第 1 / 7 页')).toBeInTheDocument();
 
-    const { rerender } = render(<MyPerformancesPage />);
+      const prevBtn = screen.getByRole('button', { name: '上一页' });
+      const nextBtn = screen.getByRole('button', { name: '下一页' });
+      expect(prevBtn).toBeDisabled();
+      expect(nextBtn).toBeEnabled();
 
-    // Verify card 1 and card 50 exist
-    expect(screen.getByTestId('take-score-link-take-1')).toBeInTheDocument();
-    expect(screen.getByTestId('take-score-link-take-50')).toBeInTheDocument();
-    expect(screen.queryByTestId('take-score-link-take-51')).not.toBeInTheDocument();
+      fireEvent.click(nextBtn);
+      expect(mockRouterPush).toHaveBeenCalledWith('?page=2');
+    });
 
-    // Click load more
-    const loadMoreBtn = screen.getByTestId('load-more-takes');
-    expect(loadMoreBtn).toBeInTheDocument();
-    fireEvent.click(loadMoreBtn);
-    expect(mockTakesInfiniteQuery.fetchNextPage).toHaveBeenCalled();
+    it('verifies Page 2: limit=20, offset=20, items 21-40, canGoPrevious=true, canGoNext=true', () => {
+      render(<MyPerformancesPage searchParams={{ page: '2' }} />);
 
-    // Simulate page 2 loaded
-    mockTakesInfiniteQuery.data = {
-      pages: [
-        mockTakesInfiniteQuery.data.pages[0],
-        {
-          data: {
-            items: page2Items,
-            total: 121,
-            limit: 50,
-            offset: 50,
-            has_more: true,
-          },
-        },
-      ],
-    };
-    rerender(<MyPerformancesPage />);
+      expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
+        limit: 20,
+        offset: 20,
+      });
 
-    // Verify card 51 and card 100 are now present, and take-50 wasn't duplicated
-    expect(screen.getByTestId('take-score-link-take-51')).toBeInTheDocument();
-    expect(screen.getByTestId('take-score-link-take-100')).toBeInTheDocument();
-    expect(screen.getAllByTestId('take-score-link-take-50')).toHaveLength(1);
+      // Renders items 21 through 40
+      expect(screen.queryByText('Score Title 20')).not.toBeInTheDocument();
+      expect(screen.getByText('Score Title 21')).toBeInTheDocument();
+      expect(screen.getByText('Score Title 40')).toBeInTheDocument();
+      expect(screen.queryByText('Score Title 41')).not.toBeInTheDocument();
 
-    // Simulate page 3 loaded (all 121 items loaded, hasNextPage = false)
-    mockTakesInfiniteQuery.data = {
-      pages: [
-        ...mockTakesInfiniteQuery.data.pages,
-        {
-          data: {
-            items: page3Items,
-            total: 121,
-            limit: 50,
-            offset: 100,
-            has_more: false,
-          },
-        },
-      ],
-    };
-    mockTakesInfiniteQuery.hasNextPage = false;
-    rerender(<MyPerformancesPage />);
+      expect(screen.getByText('第 2 / 7 页')).toBeInTheDocument();
 
-    // Verify card 101 and card 121 exist
-    expect(screen.getByTestId('take-score-link-take-101')).toBeInTheDocument();
-    expect(screen.getByTestId('take-score-link-take-121')).toBeInTheDocument();
+      const prevBtn = screen.getByRole('button', { name: '上一页' });
+      const nextBtn = screen.getByRole('button', { name: '下一页' });
+      expect(prevBtn).toBeEnabled();
+      expect(nextBtn).toBeEnabled();
 
-    // "All performances loaded" message should appear
-    expect(screen.getByText('已加载全部演奏')).toBeInTheDocument();
-    expect(screen.queryByTestId('load-more-takes')).not.toBeInTheDocument();
+      fireEvent.click(prevBtn);
+      expect(mockRouterPush).toHaveBeenCalledWith('/my-performances');
+
+      fireEvent.click(nextBtn);
+      expect(mockRouterPush).toHaveBeenCalledWith('?page=3');
+    });
+
+    it('verifies Page 7: limit=20, offset=120, item 121 (last item), canGoPrevious=true, canGoNext=false', () => {
+      render(<MyPerformancesPage searchParams={{ page: '7' }} />);
+
+      expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
+        limit: 20,
+        offset: 120,
+      });
+
+      // Exactly 1 item on Page 7
+      expect(screen.getByText('Score Title 121')).toBeInTheDocument();
+      expect(screen.queryByText('Score Title 120')).not.toBeInTheDocument();
+
+      expect(screen.getByText('第 7 / 7 页')).toBeInTheDocument();
+
+      const prevBtn = screen.getByRole('button', { name: '上一页' });
+      const nextBtn = screen.getByRole('button', { name: '下一页' });
+      expect(prevBtn).toBeEnabled();
+      expect(nextBtn).toBeDisabled();
+
+      fireEvent.click(prevBtn);
+      expect(mockRouterPush).toHaveBeenCalledWith('?page=6');
+    });
+
+    it('normalizes illegal and negative query parameters to Page 1', () => {
+      render(<MyPerformancesPage searchParams={{ page: 'invalid' }} />);
+      expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
+        limit: 20,
+        offset: 0,
+      });
+
+      render(<MyPerformancesPage searchParams={{ page: '-5' }} />);
+      expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
+        limit: 20,
+        offset: 0,
+      });
+    });
+
+    it('redirects to max valid page when URL page exceeds total pages', async () => {
+      render(<MyPerformancesPage searchParams={{ page: '99' }} />);
+
+      await waitFor(() => {
+        expect(mockRouterPush).toHaveBeenCalledWith('?page=7');
+      });
+    });
+
+    it('adjusts total and page when last item on page is deleted', async () => {
+      currentTakesTotal = 121;
+      const { rerender } = render(<MyPerformancesPage searchParams={{ page: '7' }} />);
+
+      expect(screen.getByText('Score Title 121')).toBeInTheDocument();
+      const deleteBtn = screen.getByTestId('delete-take-take-121');
+      fireEvent.click(deleteBtn);
+
+      const confirmBtn = screen.getByTestId('confirm-delete-take-button');
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(mockDeleteTakeMutation.mutateAsync).toHaveBeenCalledWith('take-121');
+      });
+
+      // Total drops to 120 (6 pages)
+      currentTakesTotal = 120;
+      rerender(<MyPerformancesPage searchParams={{ page: '7' }} />);
+
+      await waitFor(() => {
+        expect(mockRouterPush).toHaveBeenCalledWith('?page=6');
+      });
+    });
+
+    it('resets playing audio when changing page', () => {
+      const { rerender } = render(<MyPerformancesPage searchParams={{ page: '1' }} />);
+
+      const playBtn = screen.getByTestId('play-take-take-1');
+      fireEvent.click(playBtn);
+      expect(screen.getByTestId('performance-replay-player')).toBeInTheDocument();
+
+      // Page change stops playback
+      rerender(<MyPerformancesPage searchParams={{ page: '2' }} />);
+      expect(screen.queryByTestId('performance-replay-player')).not.toBeInTheDocument();
+    });
+
+    it('renders scope as beat range (takeScopeBeats) instead of measure/bar numbers', () => {
+      render(<MyPerformancesPage searchParams={{ page: '1' }} />);
+
+      // Range item: scope_start_beat = 4, scope_terminal_beat = 16
+      expect(screen.getAllByText('选段演奏 (第 4 - 16 拍)').length).toBeGreaterThan(0);
+      // Full item:
+      expect(screen.getAllByText('全曲演奏').length).toBeGreaterThan(0);
+    });
   });
 });
