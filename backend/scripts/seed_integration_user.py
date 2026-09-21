@@ -1,4 +1,9 @@
-"""Create the deterministic local account used by Docker integration tests."""
+"""Create the deterministic local account used by Docker integration tests.
+
+This script may run against a long-lived development database. Existing
+accounts and score resources are treated as preconfigured fixtures and are
+validated only; they are never silently repaired or overwritten.
+"""
 
 from __future__ import annotations
 
@@ -29,6 +34,7 @@ async def seed_user() -> None:
     async with AsyncSessionLocal() as session:
         result = await session.exec(select(User).where(User.email == INTEGRATION_EMAIL))
         user = result.one_or_none()
+        created_user = False
         if user is None:
             user = User(
                 email=INTEGRATION_EMAIL,
@@ -37,9 +43,13 @@ async def seed_user() -> None:
                 is_active=True,
             )
             session.add(user)
+            created_user = True
         else:
-            user.password_hash = get_password_hash(INTEGRATION_PASSWORD)
-            user.is_active = True
+            if not user.is_active:
+                raise RuntimeError(
+                    f"Preconfigured integration user {INTEGRATION_EMAIL} is inactive; "
+                    "refusing to modify an existing development account."
+                )
         await session.flush()
 
         score = (
@@ -48,6 +58,12 @@ async def seed_user() -> None:
             )
         ).one_or_none()
         if score is None:
+            if not created_user:
+                raise RuntimeError(
+                    f"Integration score {INTEGRATION_PRACTICE_SCORE_ID} is missing for "
+                    f"existing user {INTEGRATION_EMAIL}; refusing to create resources "
+                    "under a pre-existing development account."
+                )
             score = Score(
                 score_uuid=INTEGRATION_PRACTICE_SCORE_ID,
                 owner_user_id=user.id,
@@ -89,6 +105,38 @@ async def seed_user() -> None:
                 )
             )
             score.head_revision_id = revision.id
+        else:
+            if score.owner_user_id != user.id:
+                raise RuntimeError(
+                    f"Integration score {INTEGRATION_PRACTICE_SCORE_ID} is not owned by "
+                    f"{INTEGRATION_EMAIL}; refusing to modify existing development data."
+                )
+            revision = (
+                await session.exec(
+                    select(ScoreRevision).where(
+                        ScoreRevision.revision_uuid == INTEGRATION_PRACTICE_REVISION_ID,
+                        ScoreRevision.score_id == score.id,
+                    )
+                )
+            ).one_or_none()
+            if revision is None:
+                raise RuntimeError(
+                    f"Integration revision {INTEGRATION_PRACTICE_REVISION_ID} is missing; "
+                    "refusing to repair existing development data."
+                )
+            source = (
+                await session.exec(
+                    select(ScoreRevisionSource).where(
+                        ScoreRevisionSource.revision_id == revision.id,
+                        ScoreRevisionSource.source_uuid == "integration-practice-source",
+                    )
+                )
+            ).one_or_none()
+            if source is None:
+                raise RuntimeError(
+                    "Integration MusicXML source is missing; refusing to overwrite or "
+                    "recreate existing score resources."
+                )
         await session.commit()
 
 

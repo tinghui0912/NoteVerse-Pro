@@ -95,6 +95,8 @@ services:
     build:
       context: .
       dockerfile: docker/backend/Dockerfile.worker
+      args:
+        WORKER_DEPS_IMAGE: ${WORKER_DEPS_IMAGE:-noteverse-backend-worker-deps:dev}
     command: worker
     depends_on:
       seed:

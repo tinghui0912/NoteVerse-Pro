@@ -332,6 +332,9 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
             "scope_type": "FULL",
             "scope_start_beat": 0.0,
             "scope_terminal_beat": 16.0,
+            "tempo_selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 120},
+            "resolved_tempo_plan": {"selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 120}, "segments": [{"startBeat": 0, "bpm": 120}]},
+            "sync_metadata": {"recordingTimebase": {"activeSegments": []}},
         }
         res_fail = client.post("/api/v1/performance-takes", json=fin_req)
         assert res_fail.status_code == 404
@@ -355,10 +358,28 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert take_data["media_byte_size"] == media_size
         assert take_data["deletion_status"] == "ACTIVE"
 
-        # Staging key cleaned, final key promoted
+        # Final key is promoted. Staging may remain until every issued PUT URL expires.
         final_object_key = f"performance-takes/1/{take_id}/recording.webm"
-        assert not storage.exists(staging_object_key)
         assert storage.exists(final_object_key)
+        assert storage.exists(staging_object_key)
+        auth = session.execute(
+            select(PerformanceTakeUploadAuthorization).where(
+                PerformanceTakeUploadAuthorization.client_request_id == "req-001"
+            )
+        ).scalar_one()
+        auth.last_put_url_expires_at = (
+            datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+        )
+        auth.staging_cleanup_after = auth.last_put_url_expires_at
+        session.commit()
+        cleaned_count = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+            session,
+            storage=storage,
+            storage_usage_service=storage_usage_svc,
+        )
+        session.commit()
+        assert cleaned_count == 1
+        assert not storage.exists(staging_object_key)
 
         # Quota should now be committed
         session.refresh(account)
@@ -881,7 +902,10 @@ def test_quota_rejection(test_env):
     client = TestClient(app)
 
     try:
-        excessive_size = 150 * 1024 * 1024
+        account = session.get(StorageUsageAccount, 1)
+        account.quota_limit_bytes = 1024 * 1024
+        session.commit()
+        excessive_size = 2 * 1024 * 1024
         auth_req = {
             "score_id": "score-uuid-10",
             "client_request_id": "req-huge",
@@ -944,6 +968,25 @@ def test_cancel_upload_authorization(test_env):
 
         session.refresh(account)
         assert account.reserved_bytes == 0
+        assert storage.exists(staging_key)
+
+        auth = session.execute(
+            select(PerformanceTakeUploadAuthorization).where(
+                PerformanceTakeUploadAuthorization.reservation_id == res_id
+            )
+        ).scalar_one()
+        auth.last_put_url_expires_at = (
+            datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+        )
+        auth.staging_cleanup_after = auth.last_put_url_expires_at
+        session.commit()
+        cleaned_count = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+            session,
+            storage=storage,
+            storage_usage_service=storage_usage_svc,
+        )
+        session.commit()
+        assert cleaned_count == 1
         assert not storage.exists(staging_key)
 
         # Idempotent cancel via legacy POST /cancel route
@@ -1274,6 +1317,8 @@ def test_crash_abandoned_after_authorization(test_env):
             )
         ).scalar_one()
         auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
+        auth.last_put_url_expires_at = auth.expires_at
+        auth.staging_cleanup_after = auth.expires_at
         session.commit()
 
         # Background maintenance task cleans expired authorizations
@@ -1345,6 +1390,8 @@ def test_expired_authorization_staging_delete_failure_is_retryable(test_env, mon
             )
         ).scalar_one()
         auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
+        auth.last_put_url_expires_at = auth.expires_at
+        auth.staging_cleanup_after = auth.expires_at
         session.commit()
 
         original_delete = storage.delete
@@ -1454,6 +1501,8 @@ def test_archived_authorization_late_staging_put_is_cleaned_after_expiry(test_en
         assert storage.exists(staging_key)
 
         auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+        auth.last_put_url_expires_at = auth.expires_at
+        auth.staging_cleanup_after = auth.expires_at
         session.commit()
         cleaned_count = performance_take_delete_outbox_service.cleanup_expired_authorizations(
             session,
@@ -1785,6 +1834,8 @@ def test_expired_authorization_cleanup_releases_db_lock_before_storage_delete(te
             )
         ).scalar_one()
         auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
+        auth.last_put_url_expires_at = auth.expires_at
+        auth.staging_cleanup_after = auth.expires_at
         session.commit()
 
         cleaned_count = performance_take_delete_outbox_service.cleanup_expired_authorizations(

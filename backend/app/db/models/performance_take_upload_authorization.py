@@ -150,6 +150,26 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
     expires_at: datetime = Field(
         sa_column=Column(DateTime, nullable=False)
     )
+    last_put_url_expires_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime, nullable=True),
+    )
+    staging_cleanup_after: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime, nullable=True),
+    )
+    staging_cleanup_completed_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime, nullable=True),
+    )
+    finalizing_token: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String(36), nullable=True),
+    )
+    finalizing_expires_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime, nullable=True),
+    )
     status: PerformanceTakeUploadAuthorizationStatus = Field(
         default=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED,
         sa_column=Column(
