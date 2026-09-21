@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 import os
 from collections.abc import Iterator
 from pathlib import Path
@@ -16,7 +18,12 @@ from sqlmodel import SQLModel, create_engine
 from app.api.deps import get_current_user, get_db
 from app.db.models import (
     PerformanceTake,
+    PerformanceTakeDeletionStatus,
+    PerformanceTakeDeleteOutbox,
+    PerformanceTakeDeleteOutboxStatus,
     PerformanceTakeMediaKind,
+    PerformanceTakeUploadAuthorization,
+    PerformanceTakeUploadAuthorizationStatus,
     Score,
     ScoreRevision,
     StorageQuotaPolicy,
@@ -27,6 +34,9 @@ from app.db.models import (
 )
 from app.db.models.score import RevisionOrigin, ScoreDeletionStatus
 from app.main import app
+from app.modules.performance_takes.delete_outbox_service import (
+    performance_take_delete_outbox_service,
+)
 from app.modules.performance_takes.dependencies import (
     get_performance_take_service,
 )
@@ -40,6 +50,9 @@ from app.modules.storage_usage.service import StorageUsageService
 from app.storage.base import DirectUploadTarget
 from app.storage.factory import get_file_storage
 from app.storage.local import LocalFileStorage
+from app.worker.execution import performance_take_deletion
+
+VALID_WEBM_BYTES = b"\x1a\x45\xdf\xa3" + b"fake-webm-audio-binary-data-12345"
 
 
 class AsyncSessionAdapter:
@@ -69,6 +82,35 @@ class AsyncSessionAdapter:
 
     def add(self, instance) -> None:  # type: ignore[no-untyped-def]
         self.session.add(instance)
+
+
+@contextmanager
+def _mock_worker_db(session: Session) -> Iterator[Session]:
+    yield session
+
+
+class _TraceScope:
+    def __enter__(self) -> None:
+        return None
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+
+def _run_worker_deletion(
+    monkeypatch: pytest.MonkeyPatch,
+    session: Session,
+    storage: LocalFileStorage,
+    outbox_uuid: str,
+) -> dict[str, str]:
+    monkeypatch.setattr(
+        performance_take_deletion, "get_worker_db", lambda: _mock_worker_db(session)
+    )
+    monkeypatch.setattr(performance_take_deletion, "file_storage", storage)
+    monkeypatch.setattr(
+        performance_take_deletion, "start_attempt_trace", lambda **_kwargs: _TraceScope()
+    )
+    return performance_take_deletion.execute_performance_take_deletion_task(None, outbox_uuid)
 
 
 @pytest.fixture
@@ -205,7 +247,7 @@ def test_unauthenticated_access_denied():
     assert r6.status_code == 401
 
 
-def test_take_lifecycle_direct_oss_and_quota(test_env):
+def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.MonkeyPatch):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = PerformanceTakeService(
@@ -226,7 +268,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env):
 
     try:
         # 1. Authorize upload with external UUIDs
-        media_content = b"fake-webm-audio-binary-data-12345"
+        media_content = VALID_WEBM_BYTES
         media_size = len(media_content)
 
         auth_req = {
@@ -250,10 +292,11 @@ def test_take_lifecycle_direct_oss_and_quota(test_env):
         take_id = auth_data["take_id"]
         reservation_id = auth_data["reservation_id"]
         upload_url = auth_data["upload_url"]
-        object_key = auth_data["object_key"]
+        staging_object_key = auth_data["object_key"]
         assert take_id
         assert reservation_id
         assert upload_url.startswith("https://oss.example.com/")
+        assert staging_object_key.startswith("staging/performance-takes/")
 
         # Verify quota reservation was held
         account = session.get(StorageUsageAccount, 1)
@@ -261,7 +304,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env):
         assert account.reserved_bytes == media_size
         assert account.used_bytes == 0
 
-        # 2. Finalize fails before upload to storage and auto-releases quota reservation
+        # 2. Finalize fails before upload to storage; reservation is preserved for retry
         fin_req = {
             "take_id": take_id,
             "client_request_id": "req-001",
@@ -279,24 +322,14 @@ def test_take_lifecycle_direct_oss_and_quota(test_env):
         res_fail = client.post("/api/v1/performance-takes", json=fin_req)
         assert res_fail.status_code == 404
 
-        # Quota reservation is auto-released on missing storage object
+        # Quota reservation is preserved for safe retry
         session.refresh(account)
-        assert account.reserved_bytes == 0
+        assert account.reserved_bytes == media_size
 
-        # 3. Re-authorize for successful upload
-        res_real = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
-        assert res_real.status_code == 200
-        auth_data_real = res_real.json()["data"]
-        take_id = auth_data_real["take_id"]
-        reservation_id = auth_data_real["reservation_id"]
-        object_key = auth_data_real["object_key"]
-
-        # Simulate client direct upload to storage object
-        storage.put_bytes(key=object_key, content=media_content, content_type="audio/webm")
+        # 3. Simulate client direct upload to staging storage object
+        storage.put_bytes(key=staging_object_key, content=media_content, content_type="audio/webm")
 
         # 4. Finalize successfully with external UUIDs
-        fin_req["take_id"] = take_id
-        fin_req["reservation_id"] = reservation_id
         res_fin = client.post("/api/v1/performance-takes", json=fin_req)
         assert res_fin.status_code == 200, res_fin.text
         take_data = res_fin.json()["data"]
@@ -306,6 +339,12 @@ def test_take_lifecycle_direct_oss_and_quota(test_env):
         assert take_data["score_title"] == "Moonlight Sonata"
         assert take_data["scope_type"] == "FULL"
         assert take_data["media_byte_size"] == media_size
+        assert take_data["deletion_status"] == "ACTIVE"
+
+        # Staging key cleaned, final key promoted
+        final_object_key = f"performance-takes/1/{take_id}/recording.webm"
+        assert not storage.exists(staging_object_key)
+        assert storage.exists(final_object_key)
 
         # Quota should now be committed
         session.refresh(account)
@@ -340,19 +379,47 @@ def test_take_lifecycle_direct_oss_and_quota(test_env):
         assert "playback_url" in play_data
         assert "download_url" in play_data
 
-        # 10. Delete take
+        # 10. Delete take (P0-2 returns 202 Accepted, marks DELETING, writes outbox)
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
-        assert res_del.status_code == 200
-        assert res_del.json()["data"]["deleted"] is True
+        assert res_del.status_code == 202
+        assert res_del.json()["data"]["status"] == "deleting"
+        assert res_del.json()["data"]["take_id"] == take_id
 
-        # Verify take is gone
+        # Verify take is DELETING
+        res_deleting = client.get(f"/api/v1/performance-takes/{take_id}")
+        assert res_deleting.status_code == 200
+        assert res_deleting.json()["data"]["deletion_status"] == "DELETING"
+
+        # Verify playback URL returns 404 while DELETING
+        res_play_deleting = client.get(f"/api/v1/performance-takes/{take_id}/playback-url")
+        assert res_play_deleting.status_code == 404
+
+        # Repeated delete returns 202 idempotently
+        res_del_repeat = client.delete(f"/api/v1/performance-takes/{take_id}")
+        assert res_del_repeat.status_code == 202
+        assert res_del_repeat.json()["data"]["status"] == "deleting"
+
+        # Execute worker outbox deletion task
+        outbox = session.execute(
+            select(PerformanceTakeDeleteOutbox).where(
+                PerformanceTakeDeleteOutbox.take_uuid == take_id
+            )
+        ).scalar_one()
+        worker_res = _run_worker_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
+        assert worker_res["status"] == "deleted"
+
+        # Verify take is gone after worker completes
         res_after_del = client.get(f"/api/v1/performance-takes/{take_id}")
         assert res_after_del.status_code == 404
 
         # Verify quota is released
         session.refresh(account)
         assert account.used_bytes == 0
-        assert not storage.exists(object_key)
+        assert not storage.exists(final_object_key)
+
+        # Deleting nonexistent take returns 404
+        res_del_after = client.delete(f"/api/v1/performance-takes/{take_id}")
+        assert res_del_after.status_code == 404
 
     finally:
         app.dependency_overrides.clear()
@@ -544,7 +611,7 @@ def test_cross_user_score_permission(test_env):
         app.dependency_overrides.clear()
 
 
-def test_real_soft_delete_and_real_cleanup_hard_delete(test_env):
+def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: pytest.MonkeyPatch):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = PerformanceTakeService(
@@ -566,7 +633,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env):
 
     try:
         # 1. Create a take on score 10
-        content = b"audio-data-independence-real"
+        content = VALID_WEBM_BYTES
         size = len(content)
         auth_req = {
             "score_id": "score-uuid-10",
@@ -583,8 +650,8 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env):
         auth_data = res_auth.json()["data"]
         take_id = auth_data["take_id"]
         res_id = auth_data["reservation_id"]
-        key = auth_data["object_key"]
-        storage.put_bytes(key=key, content=content, content_type="audio/webm")
+        staging_key = auth_data["object_key"]
+        storage.put_bytes(key=staging_key, content=content, content_type="audio/webm")
 
         fin_req = {
             "take_id": take_id,
@@ -601,6 +668,9 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env):
         res_fin = client.post("/api/v1/performance-takes", json=fin_req)
         assert res_fin.status_code == 200
         assert res_fin.json()["data"]["score_title"] == "Moonlight Sonata"
+
+        final_key = f"performance-takes/1/{take_id}/recording.webm"
+        assert storage.exists(final_key)
 
         # Initial list check: score is active, so score_id is returned
         res_init_list = client.get("/api/v1/performance-takes")
@@ -650,7 +720,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env):
         assert take_in_db.score_title == "Moonlight Sonata"
 
         # Verify storage: media object is STILL PRESERVED!
-        assert storage.exists(key)
+        assert storage.exists(final_key)
 
         # Verify storage quota: user quota is STILL PRESERVED!
         session.refresh(account)
@@ -669,11 +739,20 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env):
         assert res_play_hard.status_code == 200
         assert "download_url" in res_play_hard.json()["data"]
 
-        # Deleting take removes media and releases quota
+        # Deleting take returns 202 Accepted
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
-        assert res_del.status_code == 200
-        assert not storage.exists(key)
+        assert res_del.status_code == 202
 
+        # Run worker to complete deletion
+        outbox = session.execute(
+            select(PerformanceTakeDeleteOutbox).where(
+                PerformanceTakeDeleteOutbox.take_uuid == take_id
+            )
+        ).scalar_one()
+        worker_res = _run_worker_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
+        assert worker_res["status"] == "deleted"
+
+        assert not storage.exists(final_key)
         session.refresh(account)
         assert account.used_bytes == 0
 
@@ -681,7 +760,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env):
         app.dependency_overrides.clear()
 
 
-def test_duplicate_deletion_idempotency(test_env):
+def test_duplicate_deletion_idempotency(test_env, monkeypatch: pytest.MonkeyPatch):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = PerformanceTakeService(
@@ -701,7 +780,7 @@ def test_duplicate_deletion_idempotency(test_env):
     client = TestClient(app)
 
     try:
-        content = b"audio-data-idempotency"
+        content = VALID_WEBM_BYTES
         size = len(content)
         auth_req = {
             "score_id": "score-uuid-10",
@@ -715,8 +794,8 @@ def test_duplicate_deletion_idempotency(test_env):
         res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
         take_id = res_auth.json()["data"]["take_id"]
         res_id = res_auth.json()["data"]["reservation_id"]
-        key = res_auth.json()["data"]["object_key"]
-        storage.put_bytes(key=key, content=content, content_type="audio/webm")
+        staging_key = res_auth.json()["data"]["object_key"]
+        storage.put_bytes(key=staging_key, content=content, content_type="audio/webm")
 
         fin_req = {
             "take_id": take_id,
@@ -729,20 +808,37 @@ def test_duplicate_deletion_idempotency(test_env):
             "scope_start_beat": 0.0,
             "scope_terminal_beat": 4.0,
         }
-        client.post("/api/v1/performance-takes", json=fin_req)
+        res_fin = client.post("/api/v1/performance-takes", json=fin_req)
+        assert res_fin.status_code == 200
 
-        # First delete succeeds
+        # First delete succeeds and returns 202
         res_del1 = client.delete(f"/api/v1/performance-takes/{take_id}")
-        assert res_del1.status_code == 200
+        assert res_del1.status_code == 202
+
+        # Second delete while DELETING returns 202 idempotently
+        res_del2 = client.delete(f"/api/v1/performance-takes/{take_id}")
+        assert res_del2.status_code == 202
+
+        # Exactly 1 outbox record in DB
+        outboxes = session.execute(
+            select(PerformanceTakeDeleteOutbox).where(
+                PerformanceTakeDeleteOutbox.take_uuid == take_id
+            )
+        ).scalars().all()
+        assert len(outboxes) == 1
+
+        # Run worker deletion
+        worker_res = _run_worker_deletion(monkeypatch, session, storage, outboxes[0].outbox_uuid)
+        assert worker_res["status"] == "deleted"
 
         # Account used_bytes is 0
         account = session.get(StorageUsageAccount, 1)
         session.refresh(account)
         assert account.used_bytes == 0
 
-        # Second delete returns 404, does NOT double-release quota
-        res_del2 = client.delete(f"/api/v1/performance-takes/{take_id}")
-        assert res_del2.status_code == 404
+        # Third delete returns 404, does NOT double-release quota
+        res_del3 = client.delete(f"/api/v1/performance-takes/{take_id}")
+        assert res_del3.status_code == 404
 
         session.refresh(account)
         assert account.used_bytes == 0  # not negative!
@@ -820,18 +916,27 @@ def test_cancel_upload_authorization(test_env):
         res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
         assert res_auth.status_code == 200
         res_id = res_auth.json()["data"]["reservation_id"]
+        staging_key = res_auth.json()["data"]["object_key"]
+        storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
 
         account = session.get(StorageUsageAccount, 1)
         session.refresh(account)
         assert account.reserved_bytes == 5000
 
-        # Cancel authorization
-        res_cancel = client.post(f"/api/v1/performance-takes/upload-authorizations/{res_id}/cancel")
+        # Cancel authorization via DELETE route
+        res_cancel = client.delete(f"/api/v1/performance-takes/upload-authorizations/{res_id}")
         assert res_cancel.status_code == 200
         assert res_cancel.json()["data"]["cancelled"] is True
 
         session.refresh(account)
         assert account.reserved_bytes == 0
+        assert not storage.exists(staging_key)
+
+        # Idempotent cancel via legacy POST /cancel route
+        res_cancel_post = client.post(f"/api/v1/performance-takes/upload-authorizations/{res_id}/cancel")
+        assert res_cancel_post.status_code == 200
+        assert res_cancel_post.json()["data"]["cancelled"] is True
+
     finally:
         app.dependency_overrides.clear()
 
@@ -856,9 +961,9 @@ def test_pagination(test_env):
     client = TestClient(app)
 
     try:
-        # Create 3 takes for User 1
+        # Create 3 takes for User 1 with valid container bytes
         for i in range(1, 4):
-            content = f"audio-{i}".encode()
+            content = VALID_WEBM_BYTES + f"-take-{i}".encode()
             size = len(content)
             auth_req = {
                 "score_id": "score-uuid-10",
@@ -870,6 +975,7 @@ def test_pagination(test_env):
                 "scope_terminal_beat": 4.0,
             }
             res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
+            assert res_auth.status_code == 200
             data = res_auth.json()["data"]
             take_id = data["take_id"]
             res_id = data["reservation_id"]
@@ -886,7 +992,8 @@ def test_pagination(test_env):
                 "scope_start_beat": 0.0,
                 "scope_terminal_beat": 4.0,
             }
-            client.post("/api/v1/performance-takes", json=fin_req)
+            res_fin = client.post("/api/v1/performance-takes", json=fin_req)
+            assert res_fin.status_code == 200
 
         # Page 1: limit=2, offset=0
         r1 = client.get("/api/v1/performance-takes?limit=2&offset=0")
@@ -908,19 +1015,558 @@ def test_pagination(test_env):
         app.dependency_overrides.clear()
 
 
+def test_audio_container_magic_bytes_validation(test_env):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    take_svc = PerformanceTakeService(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = TestClient(app)
+
+    try:
+        # 1. Invalid container header rejected with 422 media_mime_type
+        bad_content = b"INVALID_MAGIC_BYTES_1234567890"
+        auth_req = {
+            "score_id": "score-uuid-10",
+            "client_request_id": "req-bad-magic",
+            "media_byte_size": len(bad_content),
+            "media_mime_type": "audio/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
+        assert res_auth.status_code == 200
+        auth_data = res_auth.json()["data"]
+        staging_key = auth_data["object_key"]
+        take_id = auth_data["take_id"]
+        res_id = auth_data["reservation_id"]
+        storage.put_bytes(key=staging_key, content=bad_content, content_type="audio/webm")
+
+        fin_req = {
+            "take_id": take_id,
+            "client_request_id": "req-bad-magic",
+            "reservation_id": res_id,
+            "score_id": "score-uuid-10",
+            "media_byte_size": len(bad_content),
+            "media_mime_type": "audio/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_fin_bad = client.post("/api/v1/performance-takes", json=fin_req)
+        assert res_fin_bad.status_code == 422
+        assert res_fin_bad.json()["public_code"] == "validation_error"
+        # Final immutable object was NEVER created
+        final_key = f"performance-takes/1/{take_id}/recording.webm"
+        assert not storage.exists(final_key)
+
+        # 2. Valid OGG container: b"OggS..."
+        ogg_content = b"OggS" + b"\x00" * 40
+        auth_ogg = {
+            "score_id": "score-uuid-10",
+            "client_request_id": "req-ogg-magic",
+            "media_byte_size": len(ogg_content),
+            "media_mime_type": "audio/ogg",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_auth_ogg = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_ogg)
+        assert res_auth_ogg.status_code == 200
+        ogg_auth_data = res_auth_ogg.json()["data"]
+        storage.put_bytes(key=ogg_auth_data["object_key"], content=ogg_content, content_type="audio/ogg")
+        fin_ogg = {
+            "take_id": ogg_auth_data["take_id"],
+            "client_request_id": "req-ogg-magic",
+            "reservation_id": ogg_auth_data["reservation_id"],
+            "score_id": "score-uuid-10",
+            "media_byte_size": len(ogg_content),
+            "media_mime_type": "audio/ogg",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_fin_ogg = client.post("/api/v1/performance-takes", json=fin_ogg)
+        assert res_fin_ogg.status_code == 200
+
+        # 3. Valid WAV container: b"RIFF....WAVE..."
+        wav_content = b"RIFF" + b"\x24\x00\x00\x00" + b"WAVEfmt " + b"\x00" * 32
+        auth_wav = {
+            "score_id": "score-uuid-10",
+            "client_request_id": "req-wav-magic",
+            "media_byte_size": len(wav_content),
+            "media_mime_type": "audio/wav",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_auth_wav = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_wav)
+        assert res_auth_wav.status_code == 200
+        wav_auth_data = res_auth_wav.json()["data"]
+        storage.put_bytes(key=wav_auth_data["object_key"], content=wav_content, content_type="audio/wav")
+        fin_wav = {
+            "take_id": wav_auth_data["take_id"],
+            "client_request_id": "req-wav-magic",
+            "reservation_id": wav_auth_data["reservation_id"],
+            "score_id": "score-uuid-10",
+            "media_byte_size": len(wav_content),
+            "media_mime_type": "audio/wav",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_fin_wav = client.post("/api/v1/performance-takes", json=fin_wav)
+        assert res_fin_wav.status_code == 200
+
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_finalize_safe_retry_idempotency(test_env):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    take_svc = PerformanceTakeService(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = TestClient(app)
+
+    try:
+        content = VALID_WEBM_BYTES
+        size = len(content)
+        auth_req = {
+            "score_id": "score-uuid-10",
+            "client_request_id": "req-safe-retry-01",
+            "media_byte_size": size,
+            "media_mime_type": "audio/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
+        assert res_auth.status_code == 200
+        auth_data = res_auth.json()["data"]
+        take_id = auth_data["take_id"]
+        res_id = auth_data["reservation_id"]
+        storage.put_bytes(key=auth_data["object_key"], content=content, content_type="audio/webm")
+
+        fin_req = {
+            "take_id": take_id,
+            "client_request_id": "req-safe-retry-01",
+            "reservation_id": res_id,
+            "score_id": "score-uuid-10",
+            "media_byte_size": size,
+            "media_mime_type": "audio/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        # First finalize
+        res_fin_1 = client.post("/api/v1/performance-takes", json=fin_req)
+        assert res_fin_1.status_code == 200
+        take_1 = res_fin_1.json()["data"]
+
+        account = session.get(StorageUsageAccount, 1)
+        session.refresh(account)
+        assert account.used_bytes == size
+
+        # Client timeout / network error retry finalize with identical client_request_id
+        res_fin_2 = client.post("/api/v1/performance-takes", json=fin_req)
+        assert res_fin_2.status_code == 200
+        take_2 = res_fin_2.json()["data"]
+        assert take_2["take_id"] == take_1["take_id"]
+
+        # Quota used_bytes must NOT be doubled
+        session.refresh(account)
+        assert account.used_bytes == size
+
+        # Exactly 1 take row exists in DB
+        takes = session.execute(
+            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+        ).scalars().all()
+        assert len(takes) == 1
+
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_crash_abandoned_after_authorization(test_env):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    take_svc = PerformanceTakeService(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = TestClient(app)
+
+    try:
+        content = VALID_WEBM_BYTES
+        size = len(content)
+        auth_req = {
+            "score_id": "score-uuid-10",
+            "client_request_id": "req-abandoned-01",
+            "media_byte_size": size,
+            "media_mime_type": "audio/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
+        assert res_auth.status_code == 200
+        auth_data = res_auth.json()["data"]
+        staging_key = auth_data["object_key"]
+        storage.put_bytes(key=staging_key, content=content, content_type="audio/webm")
+
+        account = session.get(StorageUsageAccount, 1)
+        session.refresh(account)
+        assert account.reserved_bytes == size
+
+        # Simulate time passing and authorization expiring
+        auth = session.execute(
+            select(PerformanceTakeUploadAuthorization).where(
+                PerformanceTakeUploadAuthorization.client_request_id == "req-abandoned-01"
+            )
+        ).scalar_one()
+        auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
+        session.commit()
+
+        # Background maintenance task cleans expired authorizations
+        cleaned_count = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+            session,
+            storage=storage,
+            storage_usage_service=storage_usage_svc,
+        )
+        session.commit()
+        assert cleaned_count == 1
+
+        # Staging file is deleted, quota reservation released
+        assert not storage.exists(staging_key)
+        session.refresh(account)
+        assert account.reserved_bytes == 0
+
+        session.refresh(auth)
+        assert auth.status == PerformanceTakeUploadAuthorizationStatus.EXPIRED
+
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_score_deleted_between_auth_and_finalize(test_env):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    take_svc = PerformanceTakeService(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = TestClient(app)
+
+    try:
+        content = VALID_WEBM_BYTES
+        size = len(content)
+        auth_req = {
+            "score_id": "score-uuid-10",
+            "revision_id": "revision-uuid-100",
+            "client_request_id": "req-score-del-midway",
+            "media_byte_size": size,
+            "media_mime_type": "audio/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
+        assert res_auth.status_code == 200
+        auth_data = res_auth.json()["data"]
+        take_id = auth_data["take_id"]
+        res_id = auth_data["reservation_id"]
+        staging_key = auth_data["object_key"]
+        storage.put_bytes(key=staging_key, content=content, content_type="audio/webm")
+
+        # Simulate score being hard-deleted before client calls finalize
+        session.execute(text("UPDATE scores SET head_revision_id = NULL WHERE id = 10;"))
+        session.execute(text("DELETE FROM score_revisions WHERE score_id = 10;"))
+        session.execute(text("DELETE FROM scores WHERE id = 10;"))
+        session.commit()
+
+        # Client finalizes
+        fin_req = {
+            "take_id": take_id,
+            "client_request_id": "req-score-del-midway",
+            "reservation_id": res_id,
+            "score_id": "score-uuid-10",
+            "revision_id": "revision-uuid-100",
+            "media_byte_size": size,
+            "media_mime_type": "audio/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_fin = client.post("/api/v1/performance-takes", json=fin_req)
+        assert res_fin.status_code == 200
+        take_data = res_fin.json()["data"]
+        # Score and revision are cleared, snapshot title is preserved
+        assert take_data["score_id"] is None
+        assert take_data["revision_id"] is None
+        assert take_data["score_title"] == "Moonlight Sonata"
+
+        # List takes returns the take with score_id=None
+        res_list = client.get("/api/v1/performance-takes")
+        assert res_list.status_code == 200
+        item = res_list.json()["data"]["items"][0]
+        assert item["take_id"] == take_id
+        assert item["score_id"] is None
+        assert item["score_title"] == "Moonlight Sonata"
+
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.MonkeyPatch):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    take_svc = PerformanceTakeService(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = TestClient(app)
+
+    try:
+        content = VALID_WEBM_BYTES
+        size = len(content)
+        auth_req = {
+            "score_id": "score-uuid-10",
+            "client_request_id": "req-del-retry",
+            "media_byte_size": size,
+            "media_mime_type": "audio/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
+        auth_data = res_auth.json()["data"]
+        take_id = auth_data["take_id"]
+        res_id = auth_data["reservation_id"]
+        storage.put_bytes(key=auth_data["object_key"], content=content, content_type="audio/webm")
+
+        fin_req = {
+            "take_id": take_id,
+            "client_request_id": "req-del-retry",
+            "reservation_id": res_id,
+            "score_id": "score-uuid-10",
+            "media_byte_size": size,
+            "media_mime_type": "audio/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_fin = client.post("/api/v1/performance-takes", json=fin_req)
+        assert res_fin.status_code == 200
+
+        # Request deletion -> 202 Accepted
+        res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
+        assert res_del.status_code == 202
+
+        outbox = session.execute(
+            select(PerformanceTakeDeleteOutbox).where(
+                PerformanceTakeDeleteOutbox.take_uuid == take_id
+            )
+        ).scalar_one()
+        assert outbox.status == PerformanceTakeDeleteOutboxStatus.PENDING
+        assert outbox.attempt_count == 0
+
+        # 1. Simulate worker failure: storage raises connection error
+        class FailingStorage(LocalFileStorage):
+            def delete(self, key: str) -> None:
+                raise ConnectionError("Transient OSS deletion timeout")
+
+        failing_storage = FailingStorage(storage_root=storage.storage_root)
+        failing_res = _run_worker_deletion(monkeypatch, session, failing_storage, outbox.outbox_uuid)
+        assert failing_res["status"] == "failed"
+
+        # Outbox marked FAILED with backoff retry
+        session.refresh(outbox)
+        assert outbox.status == PerformanceTakeDeleteOutboxStatus.FAILED
+        assert outbox.attempt_count == 1
+        assert "Transient OSS deletion timeout" in (outbox.last_error or "")
+
+        # Take is still in DB, quota still charged
+        take_db = session.execute(
+            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+        ).scalar_one_or_none()
+        assert take_db is not None
+        assert take_db.deletion_status == PerformanceTakeDeletionStatus.DELETING
+        account = session.get(StorageUsageAccount, 1)
+        session.refresh(account)
+        assert account.used_bytes == size
+
+        # 2. Worker retry succeeds with healthy storage (advance next_attempt_at past delay)
+        outbox.next_attempt_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
+        session.commit()
+        ok_res = _run_worker_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
+        assert ok_res["status"] == "deleted"
+
+        # Outbox marked COMPLETED
+        session.refresh(outbox)
+        assert outbox.status == PerformanceTakeDeleteOutboxStatus.COMPLETED
+
+        # Take deleted, quota released
+        assert session.execute(
+            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+        ).scalar_one_or_none() is None
+        session.refresh(account)
+        assert account.used_bytes == 0
+
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_worker_oss_success_then_db_retry(test_env, monkeypatch: pytest.MonkeyPatch):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    take_svc = PerformanceTakeService(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = TestClient(app)
+
+    try:
+        content = VALID_WEBM_BYTES
+        size = len(content)
+        auth_req = {
+            "score_id": "score-uuid-10",
+            "client_request_id": "req-oss-idemp",
+            "media_byte_size": size,
+            "media_mime_type": "audio/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
+        auth_data = res_auth.json()["data"]
+        take_id = auth_data["take_id"]
+        res_id = auth_data["reservation_id"]
+        storage.put_bytes(key=auth_data["object_key"], content=content, content_type="audio/webm")
+
+        fin_req = {
+            "take_id": take_id,
+            "client_request_id": "req-oss-idemp",
+            "reservation_id": res_id,
+            "score_id": "score-uuid-10",
+            "media_byte_size": size,
+            "media_mime_type": "audio/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_fin = client.post("/api/v1/performance-takes", json=fin_req)
+        assert res_fin.status_code == 200
+
+        final_key = f"performance-takes/1/{take_id}/recording.webm"
+        assert storage.exists(final_key)
+
+        res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
+        assert res_del.status_code == 202
+
+        outbox = session.execute(
+            select(PerformanceTakeDeleteOutbox).where(
+                PerformanceTakeDeleteOutbox.take_uuid == take_id
+            )
+        ).scalar_one()
+
+        # Simulate OSS file already removed on prior attempt before DB crashed
+        storage.delete(final_key)
+        assert not storage.exists(final_key)
+
+        # Worker runs and handles absent file idempotently
+        worker_res = _run_worker_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
+        assert worker_res["status"] == "deleted"
+
+        session.refresh(outbox)
+        assert outbox.status == PerformanceTakeDeleteOutboxStatus.COMPLETED
+
+        account = session.get(StorageUsageAccount, 1)
+        session.refresh(account)
+        assert account.used_bytes == 0
+
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_real_alembic_upgrade_chain_sqlite(tmp_path: Path):
-    """Verify real Alembic upgrade from 0053 -> 0054 -> 0055 on SQLite.
+    """Verify real Alembic upgrade from 0053 -> 0054 -> 0055 -> 0056 on SQLite.
 
     Checks:
-    - Real command.upgrade(cfg, '0055_performance_take_fk_and_scope_fix') execution
+    - Real command.upgrade(cfg, '0056_take_auth_and_deletion_outbox') execution
     - score_id / revision_id nullability
     - score_title column added and safely backfilled
     - scope_type column added with default 'FULL'
+    - deletion_status column added to performance_takes with default 'ACTIVE'
+    - performance_take_upload_authorizations table created with all columns and indexes
+    - performance_take_delete_outbox table created with all columns and indexes
     - FK ON DELETE SET NULL for scores and score_revisions
     - Exactly 1 uq_performance_takes_user_client_request_id (no duplicate unique constraints)
-    - No duplicate foreign keys
     - 0 SAWarnings emitted during migration
-    - All 5 performance_takes indexes present
     - Under PRAGMA foreign_keys = ON, deleting the score sets score_id/revision_id to NULL,
       preserving take row and score_title snapshot.
     """
@@ -986,7 +1632,7 @@ def test_real_alembic_upgrade_chain_sqlite(tmp_path: Path):
         """))
     engine.dispose()
 
-    # 2. Run real Alembic upgrade
+    # 2. Run real Alembic upgrade to 0056
     alembic_dir = str(Path(__file__).resolve().parents[1] / "alembic")
     cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     cfg.set_main_option("script_location", alembic_dir)
@@ -994,13 +1640,17 @@ def test_real_alembic_upgrade_chain_sqlite(tmp_path: Path):
 
     with warnings.catch_warnings(record=True) as recorded_warnings:
         warnings.simplefilter("always")
-        command.upgrade(cfg, "0055_performance_take_fk_and_scope_fix")
+        command.upgrade(cfg, "0056_take_auth_and_deletion_outbox")
         sa_warnings = [w for w in recorded_warnings if issubclass(w.category, sa.exc.SAWarning)]
         assert len(sa_warnings) == 0, f"Unexpected SAWarnings during SQLite upgrade: {sa_warnings}"
 
     # 3. Introspect schema and verify columns, constraints, and indexes
     engine2 = create_engine(sqlite_url)
     inspector = inspect(engine2)
+    tables = set(inspector.get_table_names())
+    assert "performance_take_upload_authorizations" in tables
+    assert "performance_take_delete_outbox" in tables
+
     cols = {c["name"]: c for c in inspector.get_columns("performance_takes")}
     assert cols["score_id"]["nullable"] is True
     assert cols["revision_id"]["nullable"] is True
@@ -1008,10 +1658,24 @@ def test_real_alembic_upgrade_chain_sqlite(tmp_path: Path):
     assert cols["score_title"]["nullable"] is True
     assert "scope_type" in cols
     assert cols["scope_type"]["nullable"] is False
+    assert "deletion_status" in cols
+    assert cols["deletion_status"]["nullable"] is False
+
+    auth_cols = {c["name"]: c for c in inspector.get_columns("performance_take_upload_authorizations")}
+    assert "auth_uuid" in auth_cols
+    assert "staging_object_key" in auth_cols
+    assert "final_object_key" in auth_cols
+    assert "status" in auth_cols
+
+    outbox_cols = {c["name"]: c for c in inspector.get_columns("performance_take_delete_outbox")}
+    assert "outbox_uuid" in outbox_cols
+    assert "take_uuid" in outbox_cols
+    assert "status" in outbox_cols
+    assert "next_attempt_at" in outbox_cols
 
     # Check backfilled data
     with engine2.connect() as conn:
-        row = conn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type FROM performance_takes WHERE id = 1")).fetchone()
+        row = conn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type, deletion_status FROM performance_takes WHERE id = 1")).fetchone()
         assert row is not None
         assert row[0] == 1
         assert row[1] == "take-sqlite-001"
@@ -1020,6 +1684,7 @@ def test_real_alembic_upgrade_chain_sqlite(tmp_path: Path):
         assert row[4] == 100
         assert row[5] == "Sonata Allegro"  # safely backfilled
         assert row[6] == "FULL"
+        assert row[7] == "ACTIVE"
 
     # Check FKs: exactly 3 FKs, no duplicates
     fks = inspector.get_foreign_keys("performance_takes")
@@ -1031,7 +1696,7 @@ def test_real_alembic_upgrade_chain_sqlite(tmp_path: Path):
     user_fk = next(f for f in fks if f["referred_table"] == "users")
     assert user_fk["options"].get("ondelete") == "CASCADE"
 
-    # Check indexes: all 5 indexes present
+    # Check indexes on performance_takes
     indexes = inspector.get_indexes("performance_takes")
     index_names = {idx["name"] for idx in indexes}
     expected_indexes = {
@@ -1040,6 +1705,7 @@ def test_real_alembic_upgrade_chain_sqlite(tmp_path: Path):
         "ix_performance_takes_score_id",
         "ix_performance_takes_revision_id",
         "ix_performance_takes_client_request_id",
+        "ix_performance_takes_user_deletion_status",
     }
     assert expected_indexes.issubset(index_names), f"Missing indexes: {expected_indexes - index_names}"
 
@@ -1054,18 +1720,19 @@ def test_real_alembic_upgrade_chain_sqlite(tmp_path: Path):
         conn.execute(sa.text("DELETE FROM scores WHERE id = 10;"))
 
     with engine2.connect() as conn:
-        row2 = conn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type FROM performance_takes WHERE id = 1")).fetchone()
+        row2 = conn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type, deletion_status FROM performance_takes WHERE id = 1")).fetchone()
         assert row2 is not None
         assert row2[3] is None  # score_id SET NULL
         assert row2[4] is None  # revision_id SET NULL
         assert row2[5] == "Sonata Allegro"  # title preserved
         assert row2[6] == "FULL"
+        assert row2[7] == "ACTIVE"
 
     engine2.dispose()
 
 
 def test_real_alembic_upgrade_chain_postgresql():
-    """Verify real Alembic upgrade from 0053 -> 0054 -> 0055 on PostgreSQL."""
+    """Verify real Alembic upgrade from 0053 -> 0054 -> 0055 -> 0056 on PostgreSQL."""
     import psycopg
     from alembic import command
     from alembic.config import Config
@@ -1149,17 +1816,21 @@ def test_real_alembic_upgrade_chain_postgresql():
         """)
         pg_conn.close()
 
-        # Run real Alembic upgrade
+        # Run real Alembic upgrade to 0056
         alembic_dir = str(Path(__file__).resolve().parents[1] / "alembic")
         cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
         cfg.set_main_option("script_location", alembic_dir)
         cfg.set_main_option("sqlalchemy.url", f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{test_db}")
 
-        command.upgrade(cfg, "0055_performance_take_fk_and_scope_fix")
+        command.upgrade(cfg, "0056_take_auth_and_deletion_outbox")
 
         # Inspect on PG
         engine_pg = create_engine(f"postgresql+psycopg://{user}:{password}@{host}:{port}/{test_db}")
         inspector = inspect(engine_pg)
+        tables = set(inspector.get_table_names())
+        assert "performance_take_upload_authorizations" in tables
+        assert "performance_take_delete_outbox" in tables
+
         cols = {c["name"]: c for c in inspector.get_columns("performance_takes")}
         assert cols["score_id"]["nullable"] is True
         assert cols["revision_id"]["nullable"] is True
@@ -1167,6 +1838,8 @@ def test_real_alembic_upgrade_chain_postgresql():
         assert cols["score_title"]["nullable"] is True
         assert "scope_type" in cols
         assert cols["scope_type"]["nullable"] is False
+        assert "deletion_status" in cols
+        assert cols["deletion_status"]["nullable"] is False
 
         fks = inspector.get_foreign_keys("performance_takes")
         score_fk = next(f for f in fks if f["referred_table"] == "scores")
@@ -1175,23 +1848,25 @@ def test_real_alembic_upgrade_chain_postgresql():
         assert rev_fk["options"].get("ondelete") == "SET NULL"
 
         with engine_pg.connect() as pconn:
-            row = pconn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type FROM performance_takes WHERE id = 1")).fetchone()
+            row = pconn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type, deletion_status FROM performance_takes WHERE id = 1")).fetchone()
             assert row is not None
             assert row[3] == 10
             assert row[4] == 100
             assert row[5] == "PG Sonata Allegro"
             assert row[6] == "FULL"
+            assert row[7] == "ACTIVE"
 
             # DELETE FROM scores on PG
             pconn.execute(sa.text("DELETE FROM scores WHERE id = 10;"))
             pconn.commit()
 
-            row_after = pconn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type FROM performance_takes WHERE id = 1")).fetchone()
+            row_after = pconn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type, deletion_status FROM performance_takes WHERE id = 1")).fetchone()
             assert row_after is not None
             assert row_after[3] is None  # score_id SET NULL
             assert row_after[4] is None  # revision_id SET NULL
             assert row_after[5] == "PG Sonata Allegro"  # title preserved
             assert row_after[6] == "FULL"
+            assert row_after[7] == "ACTIVE"
 
         engine_pg.dispose()
 

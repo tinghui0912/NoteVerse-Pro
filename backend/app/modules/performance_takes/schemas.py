@@ -67,6 +67,7 @@ class PerformanceTakeRead(BaseModel):
     scope_type: str = "FULL"
     scope_start_beat: float
     scope_terminal_beat: float
+    deletion_status: str = "ACTIVE"
     tempo_selection: Optional[dict[str, Any]] = None
     resolved_tempo_plan: Optional[dict[str, Any]] = None
     sync_metadata: Optional[dict[str, Any]] = None
@@ -82,6 +83,11 @@ class PerformanceTakePlaybackRead(BaseModel):
     media_byte_size: int
     duration_ms: int
     expires_in: int
+
+
+class PerformanceTakeDeleteResponse(BaseModel):
+    status: str
+    take_id: str
 
 
 class PerformanceTakeListResponse(BaseModel):

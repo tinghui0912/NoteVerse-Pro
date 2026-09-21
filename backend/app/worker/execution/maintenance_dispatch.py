@@ -5,11 +5,16 @@ from __future__ import annotations
 from app.db.sync_session import get_worker_db
 from app.modules.import_jobs.dispatch_service import import_dispatch_service
 from app.modules.mail.outbox_service import mail_outbox_service
+from app.modules.performance_takes.delete_outbox_service import (
+    performance_take_delete_outbox_service,
+)
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.practice.replay_object_deletion_outbox_service import (
     practice_replay_object_deletion_outbox_service,
 )
 from app.modules.score_assets.render_outbox_service import render_outbox_service
+from app.modules.storage_usage.service import storage_usage_service
+from app.storage import file_storage
 from app.worker.task_runtime import run_scheduler_scan
 
 
@@ -92,3 +97,27 @@ def execute_practice_replay_object_deletion_maintenance() -> dict[str, int]:
         return {"due": len(due), "dispatched": dispatched}
 
     return run_scheduler_scan("practice_replay_object_deletion", scan)
+
+
+def execute_performance_take_deletion_maintenance() -> dict[str, int]:
+    """Recover stale performance take deletions, dispatch due records, and clean expired authorizations."""
+
+    def scan() -> dict[str, int]:
+        with get_worker_db() as db:
+            due = performance_take_delete_outbox_service.recover_and_list_due(db)
+            cleaned = performance_take_delete_outbox_service.cleanup_expired_authorizations(
+                db, file_storage, storage_usage_service
+            )
+
+        from app.worker.dispatch.performance_take_deletion import (
+            dispatch_performance_take_deletion,
+        )
+
+        dispatched = sum(
+            1
+            for outbox_uuid in due
+            if dispatch_performance_take_deletion(outbox_uuid)
+        )
+        return {"due": len(due), "dispatched": dispatched, "cleaned_authorizations": cleaned}
+
+    return run_scheduler_scan("performance_take_deletion", scan)

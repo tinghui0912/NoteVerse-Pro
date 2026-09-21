@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -11,6 +11,7 @@ from app.db.models import User
 from app.modules.performance_takes.dependencies import get_performance_take_service
 from app.modules.performance_takes.schemas import (
     PerformanceTakeCreateRequest,
+    PerformanceTakeDeleteResponse,
     PerformanceTakeListResponse,
     PerformanceTakePlaybackRead,
     PerformanceTakeRead,
@@ -38,6 +39,10 @@ async def authorize_take_upload(
     return success_response(data=data)
 
 
+@router.delete(
+    "/upload-authorizations/{reservation_id}",
+    response_model=APIResponse[dict[str, bool]],
+)
 @router.post(
     "/upload-authorizations/{reservation_id}/cancel",
     response_model=APIResponse[dict[str, bool]],
@@ -119,7 +124,8 @@ async def get_playback_url(
 
 @router.delete(
     "/{take_id}",
-    response_model=APIResponse[dict[str, bool]],
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=APIResponse[PerformanceTakeDeleteResponse],
 )
 async def delete_take(
     take_id: str,
@@ -128,5 +134,5 @@ async def delete_take(
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    await service.delete_take(db, user_id, take_id)
-    return success_response(data={"deleted": True})
+    data = await service.delete_take(db, user_id, take_id)
+    return success_response(data=data, message="Performance take deletion accepted")

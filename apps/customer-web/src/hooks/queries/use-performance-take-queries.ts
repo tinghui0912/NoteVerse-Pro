@@ -117,6 +117,23 @@ export function useSavePerformanceTake() {
         throw new Error('Failed to authorize performance take upload');
       }
 
+      // 2. Direct upload binary to signed URL
+      try {
+        await uploadMediaToSignedUrl(
+          authData.upload_url,
+          authData.upload_method,
+          authData.upload_headers,
+          input.audioBlob
+        );
+      } catch (uploadErr) {
+        try {
+          await performanceTakesApi.cancelUploadAuthorization(authData.reservation_id);
+        } catch {
+          // ignore cancel error
+        }
+        throw uploadErr;
+      }
+
       // 3. Finalize take request shape
       const finalizeReq: PerformanceTakeCreateRequest = {
         take_id: authData.take_id,
@@ -137,23 +154,30 @@ export function useSavePerformanceTake() {
       };
 
       try {
-        // 2. Direct upload binary to signed URL
-        await uploadMediaToSignedUrl(
-          authData.upload_url,
-          authData.upload_method,
-          authData.upload_headers,
-          input.audioBlob
-        );
-
         const finalizeRes = await performanceTakesApi.finalizeTake(finalizeReq);
         return finalizeRes.data;
-      } catch (err) {
-        try {
-          await performanceTakesApi.cancelUploadAuthorization(authData.reservation_id);
-        } catch {
-          // ignore cancel error
+      } catch (finalizeErr: any) {
+        // Only cancel if deterministic non-retryable 4xx (e.g. 400, 401, 403, 404, 422);
+        // if timeout, network disconnect, or 5xx, keep auth for safe user retry.
+        const status =
+          finalizeErr?.status ??
+          finalizeErr?.response?.status ??
+          finalizeErr?.response?.data?.status;
+        const isDeterministic4xx =
+          typeof status === 'number' &&
+          status >= 400 &&
+          status < 500 &&
+          status !== 408 &&
+          status !== 429;
+
+        if (isDeterministic4xx) {
+          try {
+            await performanceTakesApi.cancelUploadAuthorization(authData.reservation_id);
+          } catch {
+            // ignore cancel error
+          }
         }
-        throw err;
+        throw finalizeErr;
       }
     },
     onSuccess: () => {

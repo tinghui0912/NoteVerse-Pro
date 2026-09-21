@@ -295,6 +295,8 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
             "app.worker.tasks.run_playback_outbox_maintenance",
             "app.worker.tasks.practice_replay_object_deletion_task",
             "app.worker.tasks.run_practice_replay_object_deletion_maintenance",
+            "app.worker.tasks.performance_take_deletion_task",
+            "app.worker.tasks.run_performance_take_deletion_maintenance",
             "app.worker.tasks.run_job_maintenance",
             "app.worker.tasks.send_mail_outbox_task",
             "app.worker.tasks.run_mail_outbox_maintenance",

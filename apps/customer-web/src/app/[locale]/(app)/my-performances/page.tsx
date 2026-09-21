@@ -30,6 +30,7 @@ import {
 import { PerformanceReplayPlayer } from '@/components/practice/performance-replay-player';
 import { performanceTakesApi, type PerformanceTakeRead } from '@/lib/api/performance-takes';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
+import { useToast } from '@/hooks/use-toast';
 
 export function normalizePage(value?: string | number): number {
   const page = Math.floor(Number(value ?? 1));
@@ -164,6 +165,8 @@ function PerformanceTakeCard({
       }
     : null;
 
+  const isDeleting = take.deletion_status === 'DELETING';
+
   const isFullScope =
     take.scope_type === 'FULL' ||
     (!take.scope_type &&
@@ -204,6 +207,14 @@ function PerformanceTakeCard({
                     {t('deletedScoreNotice')}
                   </span>
                 ) : null}
+                {isDeleting ? (
+                  <span
+                    className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20"
+                    data-testid={`deleting-badge-${take.take_id}`}
+                  >
+                    {t('takeDeletingStatus')}
+                  </span>
+                ) : null}
               </div>
 
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
@@ -235,6 +246,7 @@ function PerformanceTakeCard({
                 size="sm"
                 className="gap-1.5"
                 onClick={onPlay}
+                disabled={isDeleting}
                 data-testid={`play-take-${take.take_id}`}
               >
                 <Play className="h-4 w-4" />
@@ -246,7 +258,7 @@ function PerformanceTakeCard({
                 size="sm"
                 className="gap-1.5"
                 onClick={handleDownload}
-                disabled={downloading}
+                disabled={downloading || isDeleting}
                 data-testid={`download-take-${take.take_id}`}
               >
                 <Download className="h-4 w-4" />
@@ -258,6 +270,7 @@ function PerformanceTakeCard({
                 size="sm"
                 className="text-red-600 hover:bg-red-50 hover:text-red-700"
                 onClick={onDelete}
+                disabled={isDeleting}
                 data-testid={`delete-take-${take.take_id}`}
               >
                 <Trash2 className="h-4 w-4" />
@@ -340,6 +353,7 @@ export default function MyPerformancesPage({
   const t = useTranslations('practice');
   const common = useTranslations('common');
   const router = useRouter();
+  const { toast } = useToast();
 
   const pageSize = 20;
 
@@ -392,6 +406,10 @@ export default function MyPerformancesPage({
         setActiveTakeId(null);
       }
       setTakePendingDelete(null);
+      toast({
+        title: t('deletePerformanceTakeAcceptedTitle'),
+        description: t('deletePerformanceTakeAcceptedDesc'),
+      });
     } catch {
       setDeleteError(t('deleteFailedRetry'));
     }

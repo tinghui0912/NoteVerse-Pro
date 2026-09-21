@@ -58,6 +58,12 @@ def build_beat_schedule(settings: Settings) -> BeatSchedule:
                 settings.PRACTICE_REPLAY_DELETE_OUTBOX_DISPATCH_INTERVAL_SECONDS
             ),
         },
+        "performance-take-deletion-maintenance": {
+            "task": "app.worker.tasks.run_performance_take_deletion_maintenance",
+            "schedule": float(
+                settings.PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_INTERVAL_SECONDS
+            ),
+        },
         "mail-outbox-maintenance": {
             "task": "app.worker.tasks.run_mail_outbox_maintenance",
             "schedule": float(settings.MAIL_OUTBOX_DISPATCH_INTERVAL_SECONDS),

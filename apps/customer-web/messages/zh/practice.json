@@ -219,5 +219,8 @@
   "deleteFailedRetry": "删除演奏失败，请重试",
   "pagination": "第 {page} / {totalPages} 页",
   "previousPage": "上一页",
-  "nextPage": "下一页"
+  "nextPage": "下一页",
+  "takeDeletingStatus": "删除中",
+  "deletePerformanceTakeAcceptedTitle": "删除请求已接受",
+  "deletePerformanceTakeAcceptedDesc": "删除请求已接受，正在后台清理并释放配额。"
 }

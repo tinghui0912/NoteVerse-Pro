@@ -78,6 +78,20 @@ def test_practice_replay_object_deletion_maintenance_is_scheduled() -> None:
     )
 
 
+def test_performance_take_deletion_maintenance_is_scheduled() -> None:
+    schedule = celery_app.conf.beat_schedule[
+        "performance-take-deletion-maintenance"
+    ]
+
+    assert (
+        schedule["task"]
+        == "app.worker.tasks.run_performance_take_deletion_maintenance"
+    )
+    assert schedule["schedule"] == float(
+        settings.PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_INTERVAL_SECONDS
+    )
+
+
 def test_mail_delivery_maintenance_is_scheduled() -> None:
     schedule = celery_app.conf.beat_schedule["mail-outbox-maintenance"]
 

@@ -120,6 +120,7 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
+        auto_commit: bool = True,
     ) -> None:
         reservation = await self.repository.reservation(db, reservation_id, lock=True)
         if reservation is None:
@@ -148,16 +149,24 @@ class StorageUsageService:
                 storage_key=reservation.storage_key,
             )
         )
-        await db.commit()
+        if auto_commit:
+            await db.commit()
 
-    async def release_reservation(self, db: AsyncSession, reservation_id: str) -> None:
+    async def release_reservation(
+        self,
+        db: AsyncSession,
+        reservation_id: str,
+        *,
+        auto_commit: bool = True,
+    ) -> None:
         reservation = await self.repository.reservation(db, reservation_id, lock=True)
         if reservation is None or reservation.status != StorageUsageReservationStatus.RESERVED:
             return
         account = await self._ensure_account(db, reservation.user_id, lock=True)
         counter = await self._ensure_counter(db, reservation.user_id, reservation.category, lock=True)
         release_reserved_usage(account=account, counter=counter, reservation=reservation)
-        await db.commit()
+        if auto_commit:
+            await db.commit()
 
     async def record_allocation(
         self,
@@ -202,6 +211,7 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
+        auto_commit: bool = True,
     ) -> None:
         if bytes_count <= 0:
             return
@@ -226,7 +236,8 @@ class StorageUsageService:
                 storage_key=storage_key,
             )
         )
-        await db.commit()
+        if auto_commit:
+            await db.commit()
 
     def reserve_sync(
         self,
@@ -277,6 +288,7 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
+        auto_commit: bool = True,
     ) -> None:
         reservation = self.repository.reservation_sync(db, reservation_id, lock=True)
         if reservation is None:
@@ -305,16 +317,24 @@ class StorageUsageService:
                 storage_key=reservation.storage_key,
             )
         )
-        db.commit()
+        if auto_commit:
+            db.commit()
 
-    def release_reservation_sync(self, db: Session, reservation_id: str) -> None:
+    def release_reservation_sync(
+        self,
+        db: Session,
+        reservation_id: str,
+        *,
+        auto_commit: bool = True,
+    ) -> None:
         reservation = self.repository.reservation_sync(db, reservation_id, lock=True)
         if reservation is None or reservation.status != StorageUsageReservationStatus.RESERVED:
             return
         account = self._ensure_account_sync(db, reservation.user_id, lock=True)
         counter = self._ensure_counter_sync(db, reservation.user_id, reservation.category, lock=True)
         release_reserved_usage(account=account, counter=counter, reservation=reservation)
-        db.commit()
+        if auto_commit:
+            db.commit()
 
     def record_allocation_sync(
         self,
@@ -359,6 +379,7 @@ class StorageUsageService:
         object_type: str | None = None,
         object_id: str | None = None,
         storage_key: str | None = None,
+        auto_commit: bool = True,
     ) -> None:
         if bytes_count <= 0:
             return
@@ -383,7 +404,8 @@ class StorageUsageService:
                 storage_key=storage_key,
             )
         )
-        db.commit()
+        if auto_commit:
+            db.commit()
 
     async def _ensure_account(
         self, db: AsyncSession, user_id: int, *, lock: bool

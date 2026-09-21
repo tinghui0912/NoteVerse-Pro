@@ -81,6 +81,9 @@ class FileStorage(Protocol):
     ) -> Iterator[bytes]:
         ...
 
+    def copy(self, source_key: str, target_key: str) -> None:
+        ...
+
     def delete(self, key: str) -> bool:
         ...
 

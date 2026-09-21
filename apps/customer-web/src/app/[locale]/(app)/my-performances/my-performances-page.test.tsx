@@ -5,8 +5,14 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import MyPerformancesPage from './page';
+import type { PerformanceTakeRead } from '@/lib/api/performance-takes';
 
 const mockRouterPush = vi.fn();
+const mockToast = vi.fn();
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({ toast: mockToast }),
+}));
+
 
 const translationMocks = vi.hoisted(() => {
   const practice: Record<string, string> = {
@@ -16,6 +22,9 @@ const translationMocks = vi.hoisted(() => {
     deletePerformanceTake: '删除演奏',
     deletePerformanceTakeConfirmTitle: '确定要删除这条演奏记录吗？',
     deletePerformanceTakeConfirmDesc: '删除后，该录音将从云端永久移除，无法恢复。',
+    takeDeletingStatus: '删除中',
+    deletePerformanceTakeAcceptedTitle: '删除请求已接受',
+    deletePerformanceTakeAcceptedDesc: '删除请求已接受，正在后台清理并释放配额。',
     downloadRecording: '下载录音',
     performanceTakeDeleted: '已删除该演奏',
     performanceDuration: '演奏时长',
@@ -122,7 +131,8 @@ const mockPlaybackQuery = vi.hoisted(() => ({
 }));
 
 // 121 fixture items
-const fixture121Takes = Array.from({ length: 121 }, (_, i) => ({
+const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i) => ({
+    deletion_status: 'ACTIVE',
   take_id: `take-${i + 1}`,
   score_id: `score-uuid-${i + 1}`,
   score_title: `Score Title ${i + 1}`,
@@ -136,20 +146,19 @@ const fixture121Takes = Array.from({ length: 121 }, (_, i) => ({
   scope_terminal_beat: i % 2 === 0 ? 0 : 16,
   tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
   created_at: new Date(1700000000000 - i * 60000).toISOString(),
-  updated_at: new Date(1700000000000 - i * 60000).toISOString(),
 }));
 
 let currentTakesTotal = 121;
 interface MockTakesQueryResult {
-  data: {
+  data?: {
     data: {
-      items: typeof fixture121Takes;
+      items: PerformanceTakeRead[];
       total: number;
       limit: number;
       offset: number;
       has_more: boolean;
     };
-  };
+  } | null;
   isLoading: boolean;
   isError: boolean;
   isSuccess: boolean;
@@ -267,7 +276,6 @@ describe('MyPerformancesPage', () => {
               scope_terminal_beat: 0,
               tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             },
           ],
           total: 1,
@@ -306,7 +314,6 @@ describe('MyPerformancesPage', () => {
               scope_terminal_beat: 0,
               tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             },
           ],
           total: 1,
@@ -355,7 +362,6 @@ describe('MyPerformancesPage', () => {
               scope_terminal_beat: 0,
               tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             },
           ],
           total: 1,
@@ -420,7 +426,6 @@ describe('MyPerformancesPage', () => {
               scope_terminal_beat: 0,
               tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             },
           ],
           total: 1,
@@ -610,5 +615,62 @@ describe('MyPerformancesPage', () => {
       // Full item:
       expect(screen.getAllByText('全曲演奏').length).toBeGreaterThan(0);
     });
+
+    it('renders deleting badge and disables actions when take is in DELETING status', () => {
+      mockQueryOverride = {
+        data: {
+          data: {
+            items: [
+              {
+                ...fixture121Takes[0],
+                take_id: 'take-deleting-1',
+                deletion_status: 'DELETING' as const,
+              },
+            ],
+            total: 1,
+            limit: 20,
+            offset: 0,
+            has_more: false,
+          },
+        },
+        isLoading: false,
+        isError: false,
+        isSuccess: true,
+        refetch: vi.fn(),
+      };
+
+      render(<MyPerformancesPage searchParams={{ page: '1' }} />);
+
+      // Badge visible
+      expect(screen.getByTestId('deleting-badge-take-deleting-1')).toBeInTheDocument();
+      expect(screen.getByText('删除中')).toBeInTheDocument();
+
+      // Action buttons disabled
+      expect(screen.getByTestId('play-take-take-deleting-1')).toBeDisabled();
+      expect(screen.getByTestId('download-take-take-deleting-1')).toBeDisabled();
+      expect(screen.getByTestId('delete-take-take-deleting-1')).toBeDisabled();
+
+      mockQueryOverride = null;
+    });
+
+    it('shows accepted toast when take deletion is confirmed', async () => {
+      mockToast.mockClear();
+      render(<MyPerformancesPage searchParams={{ page: '1' }} />);
+
+      const deleteBtn = screen.getByTestId('delete-take-take-1');
+      fireEvent.click(deleteBtn);
+
+      const confirmBtn = screen.getByTestId('confirm-delete-take-button');
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(mockDeleteTakeMutation.mutateAsync).toHaveBeenCalledWith('take-1');
+        expect(mockToast).toHaveBeenCalledWith({
+          title: '删除请求已接受',
+          description: '删除请求已接受，正在后台清理并释放配额。',
+        });
+      });
+    });
+
   });
 });

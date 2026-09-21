@@ -14,6 +14,7 @@ from app.core.settings.import_dispatch import ImportDispatchSettings
 from app.core.settings.mail_delivery import MailDeliverySettings
 from app.core.settings.model_asset_delivery import ModelAssetDeliverySettings
 from app.core.settings.notification_lifecycle import NotificationLifecycleSettings
+from app.core.settings.performance_take_deletion import PerformanceTakeDeletionSettings
 from app.core.settings.playback_delivery import PlaybackDeliverySettings
 from app.core.settings.practice_replay_deletion import PracticeReplayDeletionSettings
 from app.core.settings.public_frontend_url import PublicFrontendUrlSettings
@@ -46,6 +47,7 @@ class Settings(
     ModelAssetDeliverySettings,
     NotificationLifecycleSettings,
     ObservabilitySettings,
+    PerformanceTakeDeletionSettings,
     PlaybackDeliverySettings,
     PracticeReplayDeletionSettings,
     PublicFrontendUrlSettings,

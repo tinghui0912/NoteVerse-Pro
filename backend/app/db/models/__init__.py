@@ -98,7 +98,16 @@ from .storage_usage import (
 )
 from .performance_take import (
     PerformanceTake,
+    PerformanceTakeDeletionStatus,
     PerformanceTakeMediaKind,
+)
+from .performance_take_upload_authorization import (
+    PerformanceTakeUploadAuthorization,
+    PerformanceTakeUploadAuthorizationStatus,
+)
+from .performance_take_delete_outbox import (
+    PerformanceTakeDeleteOutbox,
+    PerformanceTakeDeleteOutboxStatus,
 )
 
 __all__ = [
@@ -193,5 +202,10 @@ __all__ = [
     "StorageUsageReservation",
     "StorageUsageReservationStatus",
     "PerformanceTake",
+    "PerformanceTakeDeletionStatus",
     "PerformanceTakeMediaKind",
+    "PerformanceTakeUploadAuthorization",
+    "PerformanceTakeUploadAuthorizationStatus",
+    "PerformanceTakeDeleteOutbox",
+    "PerformanceTakeDeleteOutboxStatus",
 ]

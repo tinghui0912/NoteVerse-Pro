@@ -219,5 +219,8 @@
   "deleteFailedRetry": "Failed to delete performance. Please try again.",
   "pagination": "Page {page} of {totalPages}",
   "previousPage": "Previous",
-  "nextPage": "Next"
+  "nextPage": "Next",
+  "takeDeletingStatus": "Deleting",
+  "deletePerformanceTakeAcceptedTitle": "Deletion Request Accepted",
+  "deletePerformanceTakeAcceptedDesc": "Deletion request accepted. Cleaning up in the background and releasing storage quota."
 }

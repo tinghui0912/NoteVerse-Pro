@@ -57,6 +57,7 @@ export interface PerformanceTakeRead {
   scope_type?: string;
   scope_start_beat: number;
   scope_terminal_beat: number;
+  deletion_status?: 'ACTIVE' | 'DELETING';
   tempo_selection?: Record<string, unknown> | null;
   resolved_tempo_plan?: Record<string, unknown> | null;
   sync_metadata?: Record<string, unknown> | null;
@@ -82,6 +83,11 @@ export interface PerformanceTakeListResponse {
   has_more?: boolean;
 }
 
+export interface PerformanceTakeDeleteResponse {
+  status: string;
+  take_id: string;
+}
+
 export const performanceTakesApi = {
   authorizeUpload: (request: PerformanceTakeUploadAuthorizationRequest, signal?: AbortSignal) =>
     apiClient.post<ApiResponse<PerformanceTakeUploadAuthorizationRead>>(
@@ -90,11 +96,9 @@ export const performanceTakesApi = {
       { signal }
     ),
 
-  cancelUploadAuthorization: (reservationId: string, signal?: AbortSignal) =>
-    apiClient.post<ApiResponse<{ cancelled: boolean }>>(
-      `/performance-takes/upload-authorizations/${reservationId}/cancel`,
-      undefined,
-      { signal }
+  cancelUploadAuthorization: (reservationId: string) =>
+    apiClient.delete<ApiResponse<{ cancelled: boolean }>>(
+      `/performance-takes/upload-authorizations/${reservationId}`
     ),
 
   finalizeTake: (request: PerformanceTakeCreateRequest, signal?: AbortSignal) =>
@@ -114,7 +118,7 @@ export const performanceTakesApi = {
     ),
 
   deleteTake: (takeId: string) =>
-    apiClient.delete<ApiResponse<{ deleted: boolean }>>(`/performance-takes/${takeId}`),
+    apiClient.delete<ApiResponse<PerformanceTakeDeleteResponse>>(`/performance-takes/${takeId}`),
 };
 
 export async function uploadMediaToSignedUrl(

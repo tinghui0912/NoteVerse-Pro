@@ -101,6 +101,14 @@ class LocalFileStorage:
         self._remove_empty_parents(os.path.dirname(path))
         return True
 
+    def copy(self, source_key: str, target_key: str) -> None:
+        source_path = self.local_path(source_key)
+        if not os.path.exists(source_path):
+            raise FileNotFoundError(source_key)
+        target_path = self.local_path(target_key)
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+        shutil.copyfile(source_path, target_path)
+
     def local_path(self, key: str) -> str:
         """Return a safe absolute local path for a storage key."""
 
