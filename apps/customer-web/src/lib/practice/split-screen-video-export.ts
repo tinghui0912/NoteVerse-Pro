@@ -71,9 +71,35 @@ export type SplitScreenExportOptions = {
 };
 
 type FrameRenderState = {
-  imageSignature: string | null;
-  image: HTMLImageElement | null;
+  scorePages: ScorePageCache;
+  stagingCanvas: HTMLCanvasElement;
+  stagingCtx: CanvasRenderingContext2D;
 };
+
+export type ScorePageCacheEntry = {
+  pageNumber: number;
+  image: HTMLImageElement;
+  svg: SVGSVGElement;
+  viewBox: SvgViewBox;
+};
+
+export type ScorePageCache = Map<number, ScorePageCacheEntry>;
+
+export type SvgViewBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type NoteHighlightBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type ScorePageImageLoader = (svgText: string) => Promise<HTMLImageElement>;
 
 export function selectSupportedSplitScreenMimeType(): string | null {
   if (typeof MediaRecorder === 'undefined') {
@@ -176,6 +202,46 @@ export function composeSplitScreenOutputStream(
   ]);
 }
 
+export async function prepareScorePageCache(
+  scoreContainer: HTMLElement,
+  loadImage: ScorePageImageLoader = loadImageFromSvg
+): Promise<ScorePageCache> {
+  const pageNodes = Array.from(
+    scoreContainer.querySelectorAll<HTMLElement>('[data-practice-review-page]')
+  );
+  const pages = pageNodes.length > 0
+    ? pageNodes
+    : Array.from(scoreContainer.querySelectorAll<HTMLElement>('[data-score-page]'));
+  if (pages.length === 0) {
+    throw new Error('split_screen_export_failed:score_page_unavailable');
+  }
+
+  const cache: ScorePageCache = new Map();
+  for (const page of pages) {
+    const pageNumber = Number.parseInt(
+      page.dataset.practiceReviewPage ?? page.dataset.scorePage ?? '',
+      10
+    );
+    const svg = page.querySelector<SVGSVGElement>('svg');
+    if (!Number.isFinite(pageNumber) || !svg) {
+      continue;
+    }
+    const cleanSvg = cloneScoreSvgWithoutRuntimeHighlights(svg);
+    const svgText = new XMLSerializer().serializeToString(cleanSvg);
+    cache.set(pageNumber, {
+      pageNumber,
+      image: await loadImage(svgText),
+      svg,
+      viewBox: readSvgViewBox(svg),
+    });
+  }
+
+  if (cache.size === 0) {
+    throw new Error('split_screen_export_failed:score_page_unavailable');
+  }
+  return cache;
+}
+
 export async function exportSplitScreenPerformanceVideo({
   draft,
   scoreContainer,
@@ -213,7 +279,6 @@ export async function exportSplitScreenPerformanceVideo({
   let outputStream: MediaStream | null = null;
   let recorder: MediaRecorder | null = null;
   let frameId: number | null = null;
-  const frameState: FrameRenderState = { imageSignature: null, image: null };
 
   try {
     video.src = objectUrl;
@@ -222,9 +287,33 @@ export async function exportSplitScreenPerformanceVideo({
     video.crossOrigin = 'anonymous';
 
     await waitForVideoMetadata(video, signal);
+    await waitForVideoFrame(video, signal);
     if (!video.videoWidth || !video.videoHeight) {
       throw new Error('split_screen_export_failed:video_decode');
     }
+
+    const scorePages = await prepareScorePageCache(scoreContainer);
+    const stagingCanvas = document.createElement('canvas');
+    stagingCanvas.width = EXPORT_WIDTH;
+    stagingCanvas.height = EXPORT_HEIGHT;
+    const stagingCtx = stagingCanvas.getContext('2d');
+    if (!stagingCtx) {
+      throw new Error('split_screen_export_unavailable:canvas_context');
+    }
+    const frameState: FrameRenderState = {
+      scorePages,
+      stagingCanvas,
+      stagingCtx,
+    };
+
+    drawExportFrame({
+      ctx,
+      video,
+      draft,
+      adapter,
+      scoreEndBeat,
+      frameState,
+    });
 
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextCtor) {
@@ -247,7 +336,9 @@ export async function exportSplitScreenPerformanceVideo({
     const chunks: Blob[] = [];
     recorder = new MediaRecorder(outputStream, { mimeType: readiness.mimeType });
     let wasAborted = false;
+    let rejectExport: ((reason?: unknown) => void) | null = null;
     const result = new Promise<SplitScreenExportResult>((resolve, reject) => {
+      rejectExport = reject;
       recorder!.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
           chunks.push(event.data);
@@ -284,21 +375,36 @@ export async function exportSplitScreenPerformanceVideo({
     await audioContext.resume();
     await video.play();
 
-    const renderLoop = async () => {
+    const failExport = (error: unknown) => {
+      if (signal?.aborted) {
+        stopRecorder();
+        return;
+      }
+      rejectExport?.(error);
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.stop();
+      }
+    };
+
+    const renderLoop = () => {
       if (signal?.aborted) {
         stopRecorder();
         return;
       }
       if (video.ended) {
-        await drawExportFrame({
-          ctx,
-          video,
-          draft,
-          scoreContainer,
-          adapter,
-          scoreEndBeat,
-          frameState,
-        });
+        try {
+          drawExportFrame({
+            ctx,
+            video,
+            draft,
+            adapter,
+            scoreEndBeat,
+            frameState,
+          });
+        } catch (err) {
+          failExport(err);
+          return;
+        }
         onProgress?.({
           mediaTimeMs: Math.max(0, video.currentTime * 1000),
           durationMs: Math.max(0, video.duration * 1000),
@@ -308,15 +414,19 @@ export async function exportSplitScreenPerformanceVideo({
         return;
       }
 
-      await drawExportFrame({
-        ctx,
-        video,
-        draft,
-        scoreContainer,
-        adapter,
-        scoreEndBeat,
-        frameState,
-      });
+      try {
+        drawExportFrame({
+          ctx,
+          video,
+          draft,
+          adapter,
+          scoreEndBeat,
+          frameState,
+        });
+      } catch (err) {
+        failExport(err);
+        return;
+      }
       const durationMs = Number.isFinite(video.duration)
         ? Math.max(0, video.duration * 1000)
         : sourceVideo.durationMs;
@@ -327,21 +437,12 @@ export async function exportSplitScreenPerformanceVideo({
         ratio: durationMs > 0 ? Math.min(1, mediaTimeMs / durationMs) : 0,
       });
       frameId = window.requestAnimationFrame(() => {
-        void renderLoop();
+        renderLoop();
       });
     };
 
-    await drawExportFrame({
-      ctx,
-      video,
-      draft,
-      scoreContainer,
-      adapter,
-      scoreEndBeat,
-      frameState,
-    });
     frameId = window.requestAnimationFrame(() => {
-      void renderLoop();
+      renderLoop();
     });
 
     return await result;
@@ -359,11 +460,10 @@ export async function exportSplitScreenPerformanceVideo({
   }
 }
 
-async function drawExportFrame({
+export function drawExportFrame({
   ctx,
   video,
   draft,
-  scoreContainer,
   adapter,
   scoreEndBeat,
   frameState,
@@ -371,7 +471,6 @@ async function drawExportFrame({
   ctx: CanvasRenderingContext2D;
   video: HTMLVideoElement;
   draft: PerformanceReviewDraft;
-  scoreContainer: HTMLElement;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
   frameState: FrameRenderState;
@@ -391,9 +490,6 @@ async function drawExportFrame({
     throw new Error('split_screen_export_failed:timebase_unavailable');
   }
 
-  ctx.fillStyle = '#0f172a';
-  ctx.fillRect(0, 0, EXPORT_WIDTH, EXPORT_HEIGHT);
-
   const scoreRect = {
     x: PADDING,
     y: PADDING,
@@ -407,77 +503,86 @@ async function drawExportFrame({
     height: EXPORT_HEIGHT - PADDING * 2,
   };
 
-  ctx.fillStyle = '#ffffff';
-  roundRect(ctx, scoreRect.x, scoreRect.y, scoreRect.width, scoreRect.height, 10);
-  ctx.fill();
-
-  const scoreImage = await getScorePageImage({
-    scoreContainer,
-    pageNumber: frame.pageNumber,
-    noteIds: frame.noteIds,
-    frameState,
-  });
-  drawContain(ctx, scoreImage, scoreRect, '#ffffff');
-
-  ctx.fillStyle = '#020617';
-  roundRect(ctx, videoRect.x, videoRect.y, videoRect.width, videoRect.height, 10);
-  ctx.fill();
-  drawContain(ctx, video, videoRect, '#020617');
-}
-
-async function getScorePageImage({
-  scoreContainer,
-  pageNumber,
-  noteIds,
-  frameState,
-}: {
-  scoreContainer: HTMLElement;
-  pageNumber: number;
-  noteIds: readonly string[];
-  frameState: FrameRenderState;
-}): Promise<HTMLImageElement> {
-  const signature = `${pageNumber}:${noteIds.join('\u001f')}`;
-  if (frameState.image && frameState.imageSignature === signature) {
-    return frameState.image;
-  }
-
-  const page = scoreContainer.querySelector<HTMLElement>(
-    `[data-practice-review-page="${pageNumber}"]`
-  );
-  const svg = page?.querySelector<SVGSVGElement>('svg');
-  if (!svg) {
+  const scorePage = frameState.scorePages.get(frame.pageNumber);
+  if (!scorePage) {
     throw new Error('split_screen_export_failed:score_page_unavailable');
   }
 
-  const clone = svg.cloneNode(true) as SVGSVGElement;
-  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-  clone.setAttribute('width', clone.getAttribute('width') || String(svg.viewBox.baseVal.width || 1200));
-  clone.setAttribute('height', clone.getAttribute('height') || String(svg.viewBox.baseVal.height || 1600));
+  const staging = frameState.stagingCtx;
+  staging.fillStyle = '#0f172a';
+  staging.fillRect(0, 0, EXPORT_WIDTH, EXPORT_HEIGHT);
 
-  for (const noteId of noteIds) {
-    const note =
-      clone.querySelector<SVGElement>(`[data-id="${cssString(noteId)}"]`) ??
-      clone.querySelector<SVGElement>(`#${escapeCssId(noteId)}`);
-    note?.classList.add('practice-note-active');
-  }
+  staging.fillStyle = '#ffffff';
+  roundRect(staging, scoreRect.x, scoreRect.y, scoreRect.width, scoreRect.height, 10);
+  staging.fill();
+  const scoreImageRect = drawContain(staging, scorePage.image, scoreRect, '#ffffff');
+  drawNoteHighlights(staging, scorePage, frame.noteIds, scoreImageRect);
 
-  const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
-  style.textContent = `
-    .practice-note-active,
-    .practice-note-active * {
-      fill: #f97316 !important;
-      stroke: #ea580c !important;
-      stroke-width: 2px !important;
-      opacity: 1 !important;
+  staging.fillStyle = '#020617';
+  roundRect(staging, videoRect.x, videoRect.y, videoRect.width, videoRect.height, 10);
+  staging.fill();
+  drawContain(staging, video, videoRect, '#020617');
+
+  ctx.drawImage(frameState.stagingCanvas, 0, 0);
+}
+
+export function getNoteHighlightBoxes(
+  page: Pick<ScorePageCacheEntry, 'svg' | 'viewBox'>,
+  noteIds: readonly string[]
+): NoteHighlightBox[] {
+  const boxes: NoteHighlightBox[] = [];
+  for (const noteId of Array.from(new Set(noteIds.filter(Boolean)))) {
+    const note = findSvgElementById(page.svg, noteId);
+    if (!note || typeof note.getBBox !== 'function') {
+      continue;
     }
-  `;
-  clone.insertBefore(style, clone.firstChild);
+    try {
+      const box = note.getBBox();
+      if (box.width > 0 && box.height > 0) {
+        boxes.push({
+          x: box.x,
+          y: box.y,
+          width: box.width,
+          height: box.height,
+        });
+      }
+    } catch {
+      continue;
+    }
+  }
+  return boxes;
+}
 
-  const svgText = new XMLSerializer().serializeToString(clone);
-  const image = await loadImageFromSvg(svgText);
-  frameState.imageSignature = signature;
-  frameState.image = image;
-  return image;
+function drawNoteHighlights(
+  ctx: CanvasRenderingContext2D,
+  page: ScorePageCacheEntry,
+  noteIds: readonly string[],
+  imageRect: Rect
+) {
+  const boxes = getNoteHighlightBoxes(page, noteIds);
+  if (boxes.length === 0) {
+    return;
+  }
+  const scaleX = imageRect.width / page.viewBox.width;
+  const scaleY = imageRect.height / page.viewBox.height;
+  ctx.save();
+  ctx.strokeStyle = '#f97316';
+  ctx.fillStyle = 'rgba(249, 115, 22, 0.22)';
+  ctx.lineWidth = Math.max(3, Math.min(7, imageRect.width / 180));
+  ctx.shadowColor = 'rgba(249, 115, 22, 0.55)';
+  ctx.shadowBlur = 8;
+  for (const box of boxes) {
+    const paddingX = Math.max(8, box.width * 0.32) * scaleX;
+    const paddingY = Math.max(8, box.height * 0.45) * scaleY;
+    const x = imageRect.x + (box.x - page.viewBox.x) * scaleX - paddingX;
+    const y = imageRect.y + (box.y - page.viewBox.y) * scaleY - paddingY;
+    const width = box.width * scaleX + paddingX * 2;
+    const height = box.height * scaleY + paddingY * 2;
+    roundRect(ctx, x, y, width, height, Math.min(14, Math.max(6, height / 3)));
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function canCaptureCanvasStream(): boolean {
@@ -516,6 +621,36 @@ function waitForVideoMetadata(video: HTMLVideoElement, signal?: AbortSignal): Pr
   });
 }
 
+function waitForVideoFrame(video: HTMLVideoElement, signal?: AbortSignal): Promise<void> {
+  if (video.readyState >= 2) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      video.removeEventListener('loadeddata', onLoaded);
+      video.removeEventListener('canplay', onLoaded);
+      video.removeEventListener('error', onError);
+      signal?.removeEventListener('abort', onAbort);
+    };
+    const onLoaded = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error('split_screen_export_failed:video_decode'));
+    };
+    const onAbort = () => {
+      cleanup();
+      reject(new DOMException('Export cancelled', 'AbortError'));
+    };
+    video.addEventListener('loadeddata', onLoaded, { once: true });
+    video.addEventListener('canplay', onLoaded, { once: true });
+    video.addEventListener('error', onError, { once: true });
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 function loadImageFromSvg(svgText: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
@@ -538,7 +673,7 @@ function drawContain(
   source: CanvasImageSource,
   rect: { x: number; y: number; width: number; height: number },
   background: string
-) {
+): Rect {
   const sourceWidth =
     source instanceof HTMLVideoElement
       ? source.videoWidth
@@ -559,7 +694,7 @@ function drawContain(
   ctx.fillStyle = background;
   ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
   if (sourceWidth <= 0 || sourceHeight <= 0) {
-    return;
+    return rect;
   }
   const scale = Math.min(rect.width / sourceWidth, rect.height / sourceHeight);
   const drawWidth = sourceWidth * scale;
@@ -567,6 +702,7 @@ function drawContain(
   const x = rect.x + (rect.width - drawWidth) / 2;
   const y = rect.y + (rect.height - drawHeight) / 2;
   ctx.drawImage(source, x, y, drawWidth, drawHeight);
+  return { x, y, width: drawWidth, height: drawHeight };
 }
 
 function roundRect(
@@ -594,6 +730,40 @@ function cssString(value: string) {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
+function cloneScoreSvgWithoutRuntimeHighlights(svg: SVGSVGElement): SVGSVGElement {
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  const viewBox = readSvgViewBox(svg);
+  clone.setAttribute('width', clone.getAttribute('width') || String(viewBox.width));
+  clone.setAttribute('height', clone.getAttribute('height') || String(viewBox.height));
+  clone
+    .querySelectorAll('.practice-note-active')
+    .forEach((element) => element.classList.remove('practice-note-active'));
+  return clone;
+}
+
+function readSvgViewBox(svg: SVGSVGElement): SvgViewBox {
+  const rawViewBox = svg.getAttribute('viewBox')?.trim();
+  if (rawViewBox) {
+    const [x, y, width, height] = rawViewBox
+      .split(/[\s,]+/)
+      .map((value) => Number.parseFloat(value));
+    if ([x, y, width, height].every((value) => Number.isFinite(value)) && width > 0 && height > 0) {
+      return { x, y, width, height };
+    }
+  }
+  const width = Number.parseFloat(svg.getAttribute('width') ?? '') || 1200;
+  const height = Number.parseFloat(svg.getAttribute('height') ?? '') || 1600;
+  return { x: 0, y: 0, width, height };
+}
+
+function findSvgElementById(svg: SVGSVGElement, id: string): SVGGraphicsElement | null {
+  return (
+    svg.querySelector<SVGGraphicsElement>(`[data-id="${cssString(id)}"]`) ??
+    svg.querySelector<SVGGraphicsElement>(`#${escapeCssId(id)}`)
+  );
+}
+
 function escapeCssId(id: string) {
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
     return CSS.escape(id);
@@ -612,3 +782,10 @@ declare global {
     webkitAudioContext?: typeof AudioContext;
   }
 }
+
+type Rect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
