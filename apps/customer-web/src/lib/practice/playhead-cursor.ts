@@ -96,26 +96,28 @@ export function getPlayheadCursorGeometry(
   noteIds: readonly string[],
   options: { requireRootCoordinates?: boolean } = {}
 ): PlayheadCursorGeometry | null {
-  const notes = Array.from(new Set(noteIds.filter(Boolean)))
+  const allNotes = Array.from(new Set(noteIds.filter(Boolean)))
     .map((noteId) => findElementByVerovioId(container, noteId))
     .filter((node): node is SVGGraphicsElement => node !== null);
-  if (notes.length === 0) {
+  if (allNotes.length === 0) {
     return null;
   }
 
-  const firstLayer = getCursorLayer(notes[0]);
+  const firstLayer = getCursorLayer(allNotes[0]);
   if (!firstLayer) {
     return null;
   }
 
   const noteBoxes: SvgRect[] = [];
-  for (const note of notes) {
+  const notes: SVGGraphicsElement[] = [];
+  for (const note of allNotes) {
     if (getCursorLayer(note) !== firstLayer) {
       continue;
     }
     const box = getElementBoxInLayer(note, firstLayer);
     if (box && box.width > 0 && box.height > 0) {
       noteBoxes.push(box);
+      notes.push(note);
     }
   }
   if (noteBoxes.length === 0) {
@@ -124,21 +126,21 @@ export function getPlayheadCursorGeometry(
 
   const noteBox = noteBoxes.reduce(mergeRects);
   const systemBox = getSystemBox(firstLayer, noteBox);
-  const paddingX = Math.max(8, noteBox.width * 0.08);
-  const paddingY = Math.max(8, systemBox.height * 0.035);
-  const box = {
-    x: noteBox.x - paddingX,
-    y: systemBox.y - paddingY,
-    width: noteBox.width + paddingX * 2,
-    height: systemBox.height + paddingY * 2,
-  };
+  const box = cursorBoxFor(noteBox, systemBox);
   const rootSvg = firstLayer instanceof SVGSVGElement ? firstLayer : firstLayer.ownerSVGElement;
   if (!rootSvg) {
     return null;
   }
-  const rootBoxResult = transformRectBetween(firstLayer, rootSvg, box);
-  const rootNoteBoxResult = transformRectBetween(firstLayer, rootSvg, noteBox);
-  const rootSystemBoxResult = transformRectBetween(firstLayer, rootSvg, systemBox);
+  const renderedRoot = getRenderedRootGeometry(rootSvg, firstLayer, notes);
+  const rootBoxResult = renderedRoot
+    ? ({ ok: true, rect: renderedRoot.rootBox } as const)
+    : transformRectBetween(firstLayer, rootSvg, box);
+  const rootNoteBoxResult = renderedRoot
+    ? ({ ok: true, rect: renderedRoot.rootNoteBox } as const)
+    : transformRectBetween(firstLayer, rootSvg, noteBox);
+  const rootSystemBoxResult = renderedRoot
+    ? ({ ok: true, rect: renderedRoot.rootSystemBox } as const)
+    : transformRectBetween(firstLayer, rootSvg, systemBox);
   const rootFailureReason = firstFailureReason(
     rootBoxResult,
     rootNoteBoxResult,
@@ -179,6 +181,74 @@ function getSystemBox(layer: SVGGraphicsElement, fallback: SvgRect): SvgRect {
     // Fall through to the note box when the browser cannot provide system geometry.
   }
   return fallback;
+}
+
+function cursorBoxFor(noteBox: SvgRect, systemBox: SvgRect): SvgRect {
+  const paddingX = Math.max(8, noteBox.width * 0.08);
+  const paddingY = Math.max(8, systemBox.height * 0.035);
+  return {
+    x: noteBox.x - paddingX,
+    y: systemBox.y - paddingY,
+    width: noteBox.width + paddingX * 2,
+    height: systemBox.height + paddingY * 2,
+  };
+}
+
+function getRenderedRootGeometry(
+  rootSvg: SVGSVGElement,
+  layer: SVGGraphicsElement,
+  notes: readonly SVGGraphicsElement[]
+): { rootBox: SvgRect; rootNoteBox: SvgRect; rootSystemBox: SvgRect } | null {
+  const rootNoteBoxes = notes
+    .map((note) => renderedRectToRootSvg(rootSvg, note))
+    .filter((box): box is SvgRect => box !== null);
+  if (rootNoteBoxes.length === 0) {
+    return null;
+  }
+  const rootNoteBox = rootNoteBoxes.reduce(mergeRects);
+  const rootSystemBox = renderedRectToRootSvg(rootSvg, layer) ?? rootNoteBox;
+  const rootBox = cursorBoxFor(rootNoteBox, rootSystemBox);
+  if (![rootBox, rootNoteBox, rootSystemBox].every(isFiniteRect)) {
+    return null;
+  }
+  return { rootBox, rootNoteBox, rootSystemBox };
+}
+
+function renderedRectToRootSvg(rootSvg: SVGSVGElement, element: SVGGraphicsElement): SvgRect | null {
+  const rootRect = rootSvg.getBoundingClientRect?.();
+  const elementRect = element.getBoundingClientRect?.();
+  if (
+    !rootRect ||
+    !elementRect ||
+    rootRect.width <= 0 ||
+    rootRect.height <= 0 ||
+    elementRect.width <= 0 ||
+    elementRect.height <= 0
+  ) {
+    return null;
+  }
+  const viewBox = readSvgViewBox(rootSvg);
+  const x = viewBox.x + ((elementRect.left - rootRect.left) / rootRect.width) * viewBox.width;
+  const y = viewBox.y + ((elementRect.top - rootRect.top) / rootRect.height) * viewBox.height;
+  const width = (elementRect.width / rootRect.width) * viewBox.width;
+  const height = (elementRect.height / rootRect.height) * viewBox.height;
+  const rect = { x, y, width, height };
+  return isFiniteRect(rect) ? rect : null;
+}
+
+function readSvgViewBox(svg: SVGSVGElement): SvgRect {
+  const rawViewBox = svg.getAttribute('viewBox')?.trim();
+  if (rawViewBox) {
+    const [x, y, width, height] = rawViewBox
+      .split(/[\s,]+/)
+      .map((value) => Number.parseFloat(value));
+    if ([x, y, width, height].every((value) => Number.isFinite(value)) && width > 0 && height > 0) {
+      return { x, y, width, height };
+    }
+  }
+  const width = Number.parseFloat(svg.getAttribute('width') ?? '') || 1;
+  const height = Number.parseFloat(svg.getAttribute('height') ?? '') || 1;
+  return { x: 0, y: 0, width, height };
 }
 
 function getElementBoxInLayer(

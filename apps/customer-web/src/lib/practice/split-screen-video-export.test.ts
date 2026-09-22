@@ -489,4 +489,75 @@ describe('split-screen video export helpers', () => {
       })
     ).toThrow('split_screen_export_failed:playhead_coordinate_transform');
   });
+
+  it('uses rendered SVG rectangles to keep visibly present transformed notes inside the export viewport', async () => {
+    const container = createScoreContainer();
+    const svg = container.querySelector<SVGSVGElement>('svg')!;
+    const system = container.querySelector<SVGGraphicsElement>('[data-testid="system-1"]')!;
+    const note = container.querySelector<SVGGraphicsElement>('[data-id="note-a"]')!;
+    svg.getBoundingClientRect = vi.fn(() => ({
+      left: 0,
+      top: 0,
+      width: 600,
+      height: 800,
+      right: 600,
+      bottom: 800,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect));
+    system.getBoundingClientRect = vi.fn(() => ({
+      left: 30,
+      top: 80,
+      width: 540,
+      height: 150,
+      right: 570,
+      bottom: 230,
+      x: 30,
+      y: 80,
+      toJSON: () => ({}),
+    } as DOMRect));
+    note.getBoundingClientRect = vi.fn(() => ({
+      left: 75,
+      top: 120,
+      width: 28,
+      height: 32,
+      right: 103,
+      bottom: 152,
+      x: 75,
+      y: 120,
+      toJSON: () => ({}),
+    } as DOMRect));
+    svg.getCTM = vi.fn(() => null);
+    system.getCTM = vi.fn(() => null);
+    note.getCTM = vi.fn(() => null);
+
+    const cache = await prepareScorePageCache(container, async () => makeImage());
+    const finalCtx = createFakeContext();
+    const stagingCtx = createFakeContext();
+    const stagingCanvas = document.createElement('canvas');
+    const video = document.createElement('video');
+    Object.defineProperty(video, 'videoWidth', { configurable: true, value: 640 });
+    Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
+    Object.defineProperty(video, 'currentTime', { configurable: true, value: 1 });
+
+    expect(() =>
+      drawExportFrame({
+        ctx: finalCtx,
+        video,
+        draft: createDraft(),
+        adapter: {
+          getCursorTimelineEntryForBeatRange: vi.fn((beat: number) => ({
+            index: 0,
+            beat,
+            endBeat: beat + 1,
+            noteIds: ['note-a'],
+          })),
+          getPageWithElement: vi.fn(() => 1),
+        } as never,
+        scoreEndBeat: 24,
+        frameState: { scorePages: cache, stagingCanvas, stagingCtx },
+      })
+    ).not.toThrow();
+  });
 });

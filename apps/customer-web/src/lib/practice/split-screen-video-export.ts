@@ -838,7 +838,17 @@ function logSplitScreenDiagnosticOnce(diagnostic: unknown) {
   }
   didLogSplitScreenDiagnostic = true;
   if (process.env.NODE_ENV !== 'production') {
-    globalThis.console.error('[NoteVerse split-screen export diagnostic]', diagnostic);
+    globalThis.console.error(
+      `[NoteVerse split-screen export diagnostic] ${stringifyDiagnostic(diagnostic)}`
+    );
+  }
+}
+
+function stringifyDiagnostic(diagnostic: unknown) {
+  try {
+    return JSON.stringify(diagnostic, null, 2);
+  } catch {
+    return String(diagnostic);
   }
 }
 
