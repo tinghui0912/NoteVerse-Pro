@@ -571,7 +571,15 @@ describe('split-screen video export helpers', () => {
     svg.setAttribute('height', '931px');
     Object.defineProperty(svg, 'getBoundingClientRect', {
       configurable: true,
-      value: vi.fn(() => ({ left: 0, top: 0, width: 0, height: 0 } as DOMRect)),
+      value: vi.fn(
+        () =>
+          ({
+            left: 0,
+            top: 0,
+            width: 840 * 0.053047619047619045,
+            height: 931 * 0.053047619047619045,
+          }) as DOMRect
+      ),
     });
     note.getBBox = vi.fn(() => ({
       x: 5039,

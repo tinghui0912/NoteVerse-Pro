@@ -247,6 +247,10 @@ function ctmViewportRectToRootSvg(
   if (!viewportRect) {
     return null;
   }
+  const viewBox = readSvgViewBox(rootSvg);
+  if (rectsIntersect(viewportRect, viewBox) || rectContains(viewBox, rectCenter(viewportRect))) {
+    return viewportRect;
+  }
   return viewportRectToRootSvg(rootSvg, viewportRect);
 }
 
@@ -433,6 +437,31 @@ function isFiniteRect(rect: SvgRect) {
     Number.isFinite(rect.height) &&
     rect.width > 0 &&
     rect.height > 0
+  );
+}
+
+function rectCenter(rect: SvgRect) {
+  return {
+    x: rect.x + rect.width / 2,
+    y: rect.y + rect.height / 2,
+  };
+}
+
+function rectContains(rect: SvgRect, point: { x: number; y: number }) {
+  return (
+    point.x >= rect.x &&
+    point.x <= rect.x + rect.width &&
+    point.y >= rect.y &&
+    point.y <= rect.y + rect.height
+  );
+}
+
+function rectsIntersect(first: SvgRect, second: SvgRect) {
+  return (
+    first.x < second.x + second.width &&
+    first.x + first.width > second.x &&
+    first.y < second.y + second.height &&
+    first.y + first.height > second.y
   );
 }
 
