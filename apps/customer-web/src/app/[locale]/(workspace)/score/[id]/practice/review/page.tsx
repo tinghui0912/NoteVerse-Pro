@@ -220,7 +220,19 @@ export default function PracticeReviewPage({
   }, [annotationController, isScoreIdentityConfirmed, playheadController]);
 
   const replay = useMemo<PlayablePerformanceReplay | null>(() => {
-    if (!draft || draft.audio.status !== 'READY') {
+    if (!draft) {
+      return null;
+    }
+    if (draft.video?.status === 'READY') {
+      return {
+        kind: 'VIDEO_RECORDING',
+        blob: draft.video.blob,
+        contentType: draft.video.mimeType,
+        byteSize: draft.video.blob.size,
+        durationMs: draft.video.durationMs,
+      };
+    }
+    if (draft.audio.status !== 'READY') {
       return null;
     }
     return {
@@ -232,13 +244,21 @@ export default function PracticeReviewPage({
     };
   }, [draft]);
 
+  const isLocalVideoReview = draft?.video?.status === 'READY';
+
   const clientRequestIdRef = useRef<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const saveMutation = useSavePerformanceTake();
 
   const handleSavePerformance = useCallback(async () => {
-    if (!draft || draft.audio.status !== 'READY' || saveStatus === 'saving' || saveStatus === 'saved') {
+    if (
+      !draft ||
+      isLocalVideoReview ||
+      draft.audio.status !== 'READY' ||
+      saveStatus === 'saving' ||
+      saveStatus === 'saved'
+    ) {
       return;
     }
     if (!clientRequestIdRef.current) {
@@ -275,7 +295,7 @@ export default function PracticeReviewPage({
         err instanceof Error ? err.message : t('savePerformanceFailed')
       );
     }
-  }, [draft, id, saveMutation, saveStatus, t]);
+  }, [draft, id, isLocalVideoReview, saveMutation, saveStatus, t]);
 
   const handleRestart = useCallback(() => {
     performanceReviewDraftStore.clearDraft();
@@ -367,7 +387,12 @@ export default function PracticeReviewPage({
               <Repeat className="mr-1.5 h-4 w-4" />
               {t('retryPractice')}
             </Button>
-            {draft.audio.status !== 'READY' ? (
+            {isLocalVideoReview ? (
+              <Button size="sm" variant="outline" disabled title={t('videoReviewLocalOnlyDesc')}>
+                <Bookmark className="mr-1.5 h-4 w-4" />
+                {t('videoReviewLocalOnly')}
+              </Button>
+            ) : draft.audio.status !== 'READY' ? (
               <Button size="sm" variant="outline" disabled title={t('audioRecordingUnavailable')}>
                 <Bookmark className="mr-1.5 h-4 w-4" />
                 {t('savePerformance')}

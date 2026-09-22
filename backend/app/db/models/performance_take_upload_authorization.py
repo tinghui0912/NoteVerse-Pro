@@ -181,10 +181,10 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
         default=None,
         sa_column=Column(DateTime, nullable=True),
     )
-    status: PerformanceTakeUploadAuthorizationStatus = Field(
-        default=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED,
+    status: str = Field(
+        default=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value,
         sa_column=Column(
-            String(16),
+            String(24),
             nullable=False,
             default=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value,
         ),

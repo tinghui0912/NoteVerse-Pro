@@ -138,8 +138,8 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(Text, nullable=True),
     )
-    deletion_status: PerformanceTakeDeletionStatus = Field(
-        default=PerformanceTakeDeletionStatus.ACTIVE,
+    deletion_status: str = Field(
+        default=PerformanceTakeDeletionStatus.ACTIVE.value,
         sa_column=Column(
             String(16),
             nullable=False,

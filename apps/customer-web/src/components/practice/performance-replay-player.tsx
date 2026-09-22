@@ -34,6 +34,16 @@ export function PerformanceReplayPlayer({
       />
     );
   }
+  if (replay.kind === 'VIDEO_RECORDING') {
+    return (
+      <VideoPerformanceReplayPlayer
+        replay={replay}
+        onReplayTimeChange={onReplayTimeChange}
+        autoStart={autoStart}
+        actions={actions}
+      />
+    );
+  }
   return (
     <MidiPerformanceReplayPlayer
       replay={replay}
@@ -45,6 +55,7 @@ export function PerformanceReplayPlayer({
 }
 
 type AudioPerformanceReplay = Extract<PlayablePerformanceReplay, { kind: 'AUDIO_RECORDING' }>;
+type VideoPerformanceReplay = Extract<PlayablePerformanceReplay, { kind: 'VIDEO_RECORDING' }>;
 type MidiPerformanceReplay = Extract<PlayablePerformanceReplay, { kind: 'MIDI_EVENTS' }>;
 
 function AudioPerformanceReplayPlayer({
@@ -235,6 +246,206 @@ function AudioPerformanceReplayPlayer({
           }
           pendingAutoPlaySourceRef.current = null;
           startAudioPlayback();
+        }}
+        onEnded={() => {
+          stopRenderTicker();
+          setIsPlaying(false);
+          publishTime(effectiveDurationMs);
+        }}
+      />
+    </ReplayChrome>
+  );
+}
+
+function VideoPerformanceReplayPlayer({
+  replay,
+  onReplayTimeChange,
+  autoStart,
+  actions,
+}: {
+  replay: VideoPerformanceReplay;
+  onReplayTimeChange?: (replayTimeMs: number | null, actualDurationMs?: number | null) => void;
+  autoStart: boolean;
+  actions?: ReactNode;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const mediaSource = replay.url ?? replay.blob;
+  const autoStartedSourceRef = useRef<Blob | string | null>(null);
+  const pendingAutoPlaySourceRef = useRef<Blob | string | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const [prevMediaSource, setPrevMediaSource] = useState(mediaSource);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentMs, setCurrentMs] = useState(0);
+  const [actualDurationMs, setActualDurationMs] = useState<number | null>(null);
+  const [hasPlaybackError, setHasPlaybackError] = useState(false);
+
+  if (prevMediaSource !== mediaSource) {
+    setPrevMediaSource(mediaSource);
+    setHasPlaybackError(false);
+    setActualDurationMs(null);
+  }
+
+  const effectiveDurationMs = actualDurationMs ?? replay.durationMs;
+
+  const publishTime = useCallback(
+    (timeMs: number) => {
+      const boundedTimeMs = boundReplayTime(timeMs, effectiveDurationMs);
+      setCurrentMs(boundedTimeMs);
+      if (actualDurationMs !== null) {
+        onReplayTimeChange?.(boundedTimeMs, actualDurationMs);
+      } else {
+        onReplayTimeChange?.(boundedTimeMs);
+      }
+    },
+    [actualDurationMs, effectiveDurationMs, onReplayTimeChange]
+  );
+
+  const stopRenderTicker = useCallback(() => {
+    if (animationFrameRef.current === null) {
+      return;
+    }
+    window.cancelAnimationFrame(animationFrameRef.current);
+    animationFrameRef.current = null;
+  }, []);
+
+  const startRenderTicker = useCallback(() => {
+    stopRenderTicker();
+
+    const reportPlaybackTime = () => {
+      const video = videoRef.current;
+      if (!video) {
+        animationFrameRef.current = null;
+        return;
+      }
+      publishTime(video.currentTime * 1000);
+      if (!video.paused && !video.ended) {
+        animationFrameRef.current = window.requestAnimationFrame(reportPlaybackTime);
+        return;
+      }
+      animationFrameRef.current = null;
+    };
+
+    animationFrameRef.current = window.requestAnimationFrame(reportPlaybackTime);
+  }, [publishTime, stopRenderTicker]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return undefined;
+    }
+    const videoUrl = replay.url ? replay.url : (replay.blob ? URL.createObjectURL(replay.blob) : '');
+    if (!videoUrl) return undefined;
+
+    video.src = videoUrl;
+    video.load();
+    return () => {
+      stopRenderTicker();
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      if (!replay.url && videoUrl) {
+        URL.revokeObjectURL(videoUrl);
+      }
+      onReplayTimeChange?.(null);
+    };
+  }, [onReplayTimeChange, replay.blob, replay.url, stopRenderTicker]);
+
+  const startVideoPlayback = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return false;
+    }
+    void video.play().catch(() => {
+      stopRenderTicker();
+      setIsPlaying(false);
+      setHasPlaybackError(true);
+    });
+    return true;
+  }, [stopRenderTicker]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!autoStart || !video || autoStartedSourceRef.current === mediaSource) {
+      return;
+    }
+    autoStartedSourceRef.current = mediaSource ?? null;
+    pendingAutoPlaySourceRef.current = mediaSource ?? null;
+    if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+      pendingAutoPlaySourceRef.current = null;
+      startVideoPlayback();
+    }
+  }, [autoStart, mediaSource, startVideoPlayback]);
+
+  const togglePlayback = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+    if (video.paused) {
+      void video.play().catch(() => {
+        stopRenderTicker();
+        setIsPlaying(false);
+        setHasPlaybackError(true);
+      });
+      return;
+    }
+    video.pause();
+  }, [stopRenderTicker]);
+
+  const seek = useCallback(
+    (nextTimeMs: number) => {
+      const video = videoRef.current;
+      const boundedTimeMs = boundReplayTime(nextTimeMs, effectiveDurationMs);
+      if (video) {
+        video.currentTime = boundedTimeMs / 1000;
+      }
+      publishTime(boundedTimeMs);
+    },
+    [effectiveDurationMs, publishTime]
+  );
+
+  return (
+    <ReplayChrome
+      currentMs={currentMs}
+      durationMs={effectiveDurationMs}
+      isPlaying={isPlaying}
+      onTogglePlayback={togglePlayback}
+      onSeek={seek}
+      actions={actions}
+      hasPlaybackError={hasPlaybackError}
+    >
+      <video
+        ref={videoRef}
+        preload="metadata"
+        playsInline
+        className="aspect-video w-full rounded-md bg-black object-contain"
+        onLoadedMetadata={(event) => {
+          const dur = event.currentTarget.duration;
+          if (Number.isFinite(dur) && dur > 0) {
+            setActualDurationMs(dur * 1000);
+          }
+        }}
+        onPlay={() => {
+          setIsPlaying(true);
+          startRenderTicker();
+        }}
+        onPause={(event) => {
+          stopRenderTicker();
+          setIsPlaying(false);
+          publishTime(event.currentTarget.currentTime * 1000);
+        }}
+        onError={() => {
+          stopRenderTicker();
+          setIsPlaying(false);
+          setHasPlaybackError(true);
+        }}
+        onSeeked={(event) => publishTime(event.currentTarget.currentTime * 1000)}
+        onCanPlay={() => {
+          if (pendingAutoPlaySourceRef.current !== mediaSource) {
+            return;
+          }
+          pendingAutoPlaySourceRef.current = null;
+          startVideoPlayback();
         }}
         onEnded={() => {
           stopRenderTicker();

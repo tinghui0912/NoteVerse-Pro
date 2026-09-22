@@ -21,6 +21,23 @@ export type PerformanceReviewDraftAudio =
   | PerformanceReviewDraftAudioReady
   | PerformanceReviewDraftAudioUnavailable;
 
+export interface PerformanceReviewDraftVideoReady {
+  status: 'READY';
+  blob: Blob;
+  mimeType: string;
+  durationMs: number;
+  actualMediaDurationMs?: number;
+}
+
+export interface PerformanceReviewDraftVideoUnavailable {
+  status: 'UNAVAILABLE';
+  reason: string;
+}
+
+export type PerformanceReviewDraftVideo =
+  | PerformanceReviewDraftVideoReady
+  | PerformanceReviewDraftVideoUnavailable;
+
 export interface RecordingActiveSegment {
   perfStartMs: number;
   perfEndMs: number;
@@ -96,6 +113,7 @@ export interface PerformanceReviewDraft {
   tempoPlan: ResolvedPracticeTempoPlan;
   performanceSnapshot: LocalPerformanceSessionSnapshot;
   audio: PerformanceReviewDraftAudio;
+  video?: PerformanceReviewDraftVideo;
   recordingTimebase: RecordingTimebaseMapping;
   replayTiming?: {
     scopeStartBeat: number;

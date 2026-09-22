@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useScoreDetail } from '@/hooks/queries/use-score-queries';
@@ -44,6 +44,47 @@ import {
 } from '@/lib/practice/range-selection';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
 
+function stopMediaStream(stream: MediaStream | null) {
+  if (!stream) return;
+  for (const track of stream.getTracks()) {
+    track.stop();
+  }
+}
+
+function CameraPreview({
+  stream,
+  label,
+}: {
+  stream: MediaStream;
+  label: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+    video.srcObject = stream;
+    void video.play().catch(() => undefined);
+    return () => {
+      video.pause();
+      video.srcObject = null;
+    };
+  }, [stream]);
+
+  return (
+    <div className="pointer-events-auto absolute right-4 top-4 z-30 w-48 overflow-hidden rounded-md border border-slate-200 bg-slate-950 shadow-lg">
+      <video
+        ref={videoRef}
+        muted
+        playsInline
+        className="aspect-video w-full bg-black object-cover"
+        aria-label={label}
+      />
+      <div className="bg-white px-2 py-1 text-xs font-medium text-slate-700">{label}</div>
+    </div>
+  );
+}
+
 export default function PracticePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
   const { id } = resolvedParams;
@@ -58,6 +99,10 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [inputSource, setInputSource] = useState<PracticeInputSource>('MICROPHONE');
   const [tempoSelection, setTempoSelection] = useState<PracticeTempoSelection>({ mode: 'SCORE' });
   const [metronomeEnabled, setMetronomeEnabled] = useState(false);
+  const [cameraRecordingEnabled, setCameraRecordingEnabled] = useState(false);
+  const [cameraPreviewStream, setCameraPreviewStream] = useState<MediaStream | null>(null);
+  const [cameraStatusMessage, setCameraStatusMessage] = useState<string | null>(null);
+  const [isPreparingCamera, setIsPreparingCamera] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
   const [rangeSelection, setRangeSelection] = useState<PracticeRangeSelection>(
@@ -133,6 +178,97 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     return selectedRangeGroups.flatMap((group) => group.renderNoteIds);
   }, [pendingStartGroup, rangeSelection, selectedRangeGroups]);
 
+  const releaseCameraPreview = useCallback(() => {
+    setCameraPreviewStream((current) => {
+      stopMediaStream(current);
+      return null;
+    });
+    setCameraRecordingEnabled(false);
+  }, []);
+
+  const handleCameraRecordingEnabledChange = useCallback(
+    async (enabled: boolean) => {
+      if (!enabled) {
+        releaseCameraPreview();
+        setCameraStatusMessage(null);
+        return;
+      }
+      if (practiceMode !== 'CONTINUOUS_PLAY') {
+        setCameraStatusMessage(t('settingCameraContinuousOnly'));
+        return;
+      }
+      const mediaDevices = globalThis.navigator?.mediaDevices;
+      if (!mediaDevices?.getUserMedia) {
+        setCameraStatusMessage(t('settingCameraUnsupported'));
+        return;
+      }
+
+      setIsPreparingCamera(true);
+      setCameraStatusMessage(t('settingCameraPreparing'));
+      try {
+        const stream = await mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+          },
+          audio:
+            inputSource === 'MIDI'
+              ? {
+                  echoCancellation: false,
+                  noiseSuppression: false,
+                  autoGainControl: false,
+                }
+              : false,
+        });
+        const hasVideo = stream.getVideoTracks().some((track) => track.readyState === 'live');
+        const hasAudio =
+          inputSource === 'MICROPHONE' ||
+          stream.getAudioTracks().some((track) => track.readyState === 'live');
+        if (!hasVideo || !hasAudio) {
+          stopMediaStream(stream);
+          setCameraStatusMessage(
+            hasVideo ? t('settingCameraAudioMissing') : t('settingCameraVideoMissing')
+          );
+          return;
+        }
+        setCameraPreviewStream((current) => {
+          stopMediaStream(current);
+          return stream;
+        });
+        setCameraRecordingEnabled(true);
+        setCameraStatusMessage(t('settingCameraReady'));
+      } catch (error) {
+        const name = error instanceof DOMException ? error.name : '';
+        setCameraStatusMessage(
+          name === 'NotAllowedError' || name === 'PermissionDeniedError'
+            ? t('settingCameraPermissionDenied')
+            : t('settingCameraUnavailable')
+        );
+        setCameraRecordingEnabled(false);
+      } finally {
+        setIsPreparingCamera(false);
+      }
+    },
+    [inputSource, practiceMode, releaseCameraPreview, t]
+  );
+
+  useEffect(() => {
+    if (practiceMode === 'STEP_BY_STEP') {
+      releaseCameraPreview();
+      setCameraStatusMessage(null);
+    }
+  }, [practiceMode, releaseCameraPreview]);
+
+  useEffect(() => {
+    releaseCameraPreview();
+    setCameraStatusMessage(null);
+  }, [inputSource, releaseCameraPreview]);
+
+  useEffect(() => {
+    return () => {
+      stopMediaStream(cameraPreviewStream);
+    };
+  }, [cameraPreviewStream]);
+
   // Local Practice orchestration
   const localPractice = useLocalPractice({
     artifact,
@@ -141,6 +277,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     scope: selectedRangeScope,
     tempoSelection,
     metronomeEnabled,
+    cameraRecordingEnabled: practiceMode === 'CONTINUOUS_PLAY' && cameraRecordingEnabled,
+    cameraMediaStream: cameraPreviewStream,
     onCompletion: () => {
       setIsCompletionDialogOpen(true);
     },
@@ -385,6 +523,10 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                   </div>
                 ) : null}
 
+                {!isStepMode && cameraRecordingEnabled && cameraPreviewStream ? (
+                  <CameraPreview stream={cameraPreviewStream} label={t('settingCameraPreview')} />
+                ) : null}
+
                 <footer className="absolute bottom-0 left-0 right-0 z-20 flex min-h-20 items-center justify-between border-t border-slate-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur sm:px-6">
                   <div className="flex w-full items-center justify-between">
                     {practiceControls}
@@ -408,8 +550,14 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                 inputSource={inputSource}
                 microphoneInputLocked={isActive}
                 midiInputLocked={isActive}
+                cameraRecordingEnabled={cameraRecordingEnabled}
+                cameraRecordingLocked={isActive || isPreparingCamera}
+                cameraRecordingStatus={cameraStatusMessage}
                 onPracticeModeChange={setPracticeMode}
                 onInputSourceChange={setInputSource}
+                onCameraRecordingEnabledChange={(enabled) => {
+                  void handleCameraRecordingEnabledChange(enabled);
+                }}
               />
             </SheetContent>
           </Sheet>

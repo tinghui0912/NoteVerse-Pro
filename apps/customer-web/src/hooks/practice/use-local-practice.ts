@@ -56,6 +56,7 @@ import {
   performanceReviewDraftStore,
   type PerformanceReviewDraft,
   type PerformanceReviewDraftAudio,
+  type PerformanceReviewDraftVideo,
   type RecordingTimebaseMapping,
 } from '@/lib/practice/performance-review-draft';
 
@@ -76,6 +77,8 @@ export type UseLocalPracticeOptions = {
   scope?: PracticeScope | null;
   tempoSelection?: PracticeTempoSelection;
   metronomeEnabled?: boolean;
+  cameraRecordingEnabled?: boolean;
+  cameraMediaStream?: MediaStream | null;
   onCompletion?: (snapshot: LocalPracticeSessionSnapshot) => void;
 };
 
@@ -85,6 +88,31 @@ const defaultClock: LocalClock = {
 
 const defaultSessionStore = new InMemoryPracticeSessionStore();
 
+function preferredVideoRecorderMimeType(): string | undefined {
+  if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+    return undefined;
+  }
+  const candidates = [
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm',
+    'video/mp4',
+  ];
+  return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
+}
+
+function createContinuousVideoStream(
+  cameraStream: MediaStream | null,
+  audioStream?: MediaStream | null
+): MediaStream | null {
+  const videoTracks = cameraStream?.getVideoTracks() ?? [];
+  const audioTracks = audioStream?.getAudioTracks() ?? cameraStream?.getAudioTracks() ?? [];
+  if (videoTracks.length === 0 || audioTracks.length === 0) {
+    return null;
+  }
+  return new MediaStream([videoTracks[0], audioTracks[0]]);
+}
+
 export function useLocalPractice({
   artifact,
   mode,
@@ -92,6 +120,8 @@ export function useLocalPractice({
   scope,
   tempoSelection = { mode: 'SCORE' },
   metronomeEnabled = false,
+  cameraRecordingEnabled = false,
+  cameraMediaStream = null,
   onCompletion,
 }: UseLocalPracticeOptions) {
   const [lifecycle, setLifecycle] = useState<LocalPracticeLifecycle>('READY');
@@ -116,6 +146,7 @@ export function useLocalPractice({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
   const midiRecordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingMediaKindRef = useRef<'AUDIO' | 'VIDEO'>('AUDIO');
   const recordingUnavailableReasonRef = useRef<string | null>(null);
   const recordingStateRef = useRef<
     'NOT_STARTED' | 'RECORDING' | 'PAUSED' | 'FINALIZING' | 'READY' | 'UNAVAILABLE'
@@ -299,6 +330,7 @@ export function useLocalPractice({
 
         const totalBytes = recordingChunksRef.current.reduce((acc, chunk) => acc + (chunk?.size ?? 0), 0);
         let audio: PerformanceReviewDraftAudio;
+        let video: PerformanceReviewDraftVideo | undefined;
 
         if (
           totalBytes === 0 ||
@@ -306,22 +338,49 @@ export function useLocalPractice({
           (recordingStateRef.current as string) === 'UNAVAILABLE'
         ) {
           recordingStateRef.current = 'UNAVAILABLE';
-          audio = {
-            status: 'UNAVAILABLE',
-            reason:
-              recordingUnavailableReasonRef.current ??
-              (totalBytes === 0 ? 'EMPTY_RECORDING_BLOB' : 'RECORDING_NOT_AVAILABLE'),
-          };
+          const unavailableReason =
+            recordingUnavailableReasonRef.current ??
+            (totalBytes === 0 ? 'EMPTY_RECORDING_BLOB' : 'RECORDING_NOT_AVAILABLE');
+          if (recordingMediaKindRef.current === 'VIDEO') {
+            audio = {
+              status: 'UNAVAILABLE',
+              reason: 'VIDEO_RECORDING_LOCAL_ONLY',
+            };
+            video = {
+              status: 'UNAVAILABLE',
+              reason: unavailableReason,
+            };
+          } else {
+            audio = {
+              status: 'UNAVAILABLE',
+              reason: unavailableReason,
+            };
+          }
         } else {
           recordingStateRef.current = 'READY';
-          const mimeType = recorder?.mimeType || 'audio/webm';
+          const fallbackMimeType =
+            recordingMediaKindRef.current === 'VIDEO' ? 'video/webm' : 'audio/webm';
+          const mimeType = recorder?.mimeType || fallbackMimeType;
           const blob = new Blob(recordingChunksRef.current, { type: mimeType });
-          audio = {
-            status: 'READY',
-            blob,
-            mimeType,
-            durationMs: Math.max(0, Math.round(recordingTimebaseRef.current.nominalMediaDurationMs)),
-          };
+          if (recordingMediaKindRef.current === 'VIDEO') {
+            audio = {
+              status: 'UNAVAILABLE',
+              reason: 'VIDEO_RECORDING_LOCAL_ONLY',
+            };
+            video = {
+              status: 'READY',
+              blob,
+              mimeType,
+              durationMs: Math.max(0, Math.round(recordingTimebaseRef.current.nominalMediaDurationMs)),
+            };
+          } else {
+            audio = {
+              status: 'READY',
+              blob,
+              mimeType,
+              durationMs: Math.max(0, Math.round(recordingTimebaseRef.current.nominalMediaDurationMs)),
+            };
+          }
         }
 
         if (artifact && resolvedTempoPlan) {
@@ -340,6 +399,7 @@ export function useLocalPractice({
             tempoPlan: resolvedTempoPlan,
             performanceSnapshot: sessionSnapshot,
             audio,
+            video,
             recordingTimebase: structuredClone(recordingTimebaseRef.current),
             replayTiming: {
               scopeStartBeat: resolvedScope.startBeat,
@@ -496,6 +556,7 @@ export function useLocalPractice({
     recordingChunksRef.current = [];
     recordingUnavailableReasonRef.current = null;
     recordingStateRef.current = 'NOT_STARTED';
+    recordingMediaKindRef.current = 'AUDIO';
     recordingTimebaseRef.current = {
       recordingStartPerfTimeMs: 0,
       recordingEndPerfTimeMs: 0,
@@ -556,9 +617,18 @@ export function useLocalPractice({
 
         if (mode === 'CONTINUOUS_PLAY') {
           const micStream = micController.mediaStream;
-          if (micStream && typeof MediaRecorder !== 'undefined') {
+          const recorderStream =
+            cameraRecordingEnabled
+              ? createContinuousVideoStream(cameraMediaStream, micStream)
+              : micStream;
+          if (recorderStream && typeof MediaRecorder !== 'undefined') {
             try {
-              const recorder = new MediaRecorder(micStream);
+              const recorderOptions =
+                cameraRecordingEnabled && preferredVideoRecorderMimeType()
+                  ? { mimeType: preferredVideoRecorderMimeType() }
+                  : undefined;
+              const recorder = new MediaRecorder(recorderStream, recorderOptions);
+              recordingMediaKindRef.current = cameraRecordingEnabled ? 'VIDEO' : 'AUDIO';
               recorder.ondataavailable = (event) => {
                 if (event.data && event.data.size > 0) {
                   recordingChunksRef.current.push(event.data);
@@ -573,8 +643,10 @@ export function useLocalPractice({
               recordingUnavailableReasonRef.current =
                 recErr instanceof Error ? recErr.message : 'RECORDER_INIT_FAILED';
             }
-          } else if (!micStream) {
-            recordingUnavailableReasonRef.current = 'MIC_STREAM_UNAVAILABLE';
+          } else if (!recorderStream) {
+            recordingUnavailableReasonRef.current = cameraRecordingEnabled
+              ? 'CAMERA_AUDIO_VIDEO_STREAM_UNAVAILABLE'
+              : 'MIC_STREAM_UNAVAILABLE';
           } else {
             recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_UNSUPPORTED';
           }
@@ -591,18 +663,16 @@ export function useLocalPractice({
 
         if (mode === 'CONTINUOUS_PLAY') {
           try {
-            const mediaDevices = globalThis.navigator?.mediaDevices;
-            if (mediaDevices?.getUserMedia) {
-              const audioStream = await mediaDevices.getUserMedia({
-                audio: {
-                  echoCancellation: false,
-                  noiseSuppression: false,
-                  autoGainControl: false,
-                },
-              });
-              midiRecordingStreamRef.current = audioStream;
-              if (typeof MediaRecorder !== 'undefined') {
-                const recorder = new MediaRecorder(audioStream);
+            if (cameraRecordingEnabled) {
+              const videoRecorderStream = createContinuousVideoStream(cameraMediaStream);
+              if (!videoRecorderStream) {
+                recordingUnavailableReasonRef.current = 'CAMERA_AUDIO_VIDEO_STREAM_UNAVAILABLE';
+              } else if (typeof MediaRecorder !== 'undefined') {
+                const recorderOptions = preferredVideoRecorderMimeType()
+                  ? { mimeType: preferredVideoRecorderMimeType() }
+                  : undefined;
+                const recorder = new MediaRecorder(videoRecorderStream, recorderOptions);
+                recordingMediaKindRef.current = 'VIDEO';
                 recorder.ondataavailable = (event) => {
                   if (event.data && event.data.size > 0) {
                     recordingChunksRef.current.push(event.data);
@@ -617,7 +687,34 @@ export function useLocalPractice({
                 recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_UNSUPPORTED';
               }
             } else {
-              recordingUnavailableReasonRef.current = 'MEDIA_DEVICES_UNAVAILABLE';
+              const mediaDevices = globalThis.navigator?.mediaDevices;
+              if (mediaDevices?.getUserMedia) {
+                const audioStream = await mediaDevices.getUserMedia({
+                  audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                  },
+                });
+                midiRecordingStreamRef.current = audioStream;
+                if (typeof MediaRecorder !== 'undefined') {
+                  const recorder = new MediaRecorder(audioStream);
+                  recorder.ondataavailable = (event) => {
+                    if (event.data && event.data.size > 0) {
+                      recordingChunksRef.current.push(event.data);
+                    }
+                  };
+                  recorder.onerror = () => {
+                    recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_ERROR';
+                    recordingStateRef.current = 'UNAVAILABLE';
+                  };
+                  mediaRecorderRef.current = recorder;
+                } else {
+                  recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_UNSUPPORTED';
+                }
+              } else {
+                recordingUnavailableReasonRef.current = 'MEDIA_DEVICES_UNAVAILABLE';
+              }
             }
           } catch (permErr) {
             recordingUnavailableReasonRef.current =
@@ -683,6 +780,8 @@ export function useLocalPractice({
     }
   }, [
     artifact,
+    cameraMediaStream,
+    cameraRecordingEnabled,
     handleFatalInputError,
     handlePerformanceEvidence,
     handleStepObservation,

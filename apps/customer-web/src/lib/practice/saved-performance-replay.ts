@@ -51,6 +51,10 @@ export function buildSavedPerformanceReplayUpload(
     };
   }
 
+  if (replay.kind !== 'MIDI_EVENTS') {
+    throw new Error('Video replay upload is not supported');
+  }
+
   const payload: NoteVerseMidiReplayPayload = {
     formatVersion: SAVED_REPLAY_FORMAT_VERSION,
     timebaseVersion: replay.timebase.version,

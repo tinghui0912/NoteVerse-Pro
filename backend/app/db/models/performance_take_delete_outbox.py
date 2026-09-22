@@ -73,8 +73,8 @@ class PerformanceTakeDeleteOutbox(SQLModel, table=True):  # type: ignore[call-ar
     media_byte_size: int = Field(
         sa_column=Column(BigInteger, nullable=False)
     )
-    status: PerformanceTakeDeleteOutboxStatus = Field(
-        default=PerformanceTakeDeleteOutboxStatus.PENDING,
+    status: str = Field(
+        default=PerformanceTakeDeleteOutboxStatus.PENDING.value,
         sa_column=Column(
             String(24),
             nullable=False,

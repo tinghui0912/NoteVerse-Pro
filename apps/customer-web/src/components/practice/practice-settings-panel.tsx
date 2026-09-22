@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Cable, ListChecks, Mic, Music2, Sparkles } from 'lucide-react';
+import { Cable, ListChecks, Mic, Music2, Sparkles, Video } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils';
@@ -30,8 +30,12 @@ type PracticeSettingsPanelProps = {
   inputSource: PracticeInputSource;
   microphoneInputLocked: boolean;
   midiInputLocked: boolean;
+  cameraRecordingEnabled?: boolean;
+  cameraRecordingLocked?: boolean;
+  cameraRecordingStatus?: string | null;
   onPracticeModeChange: (practiceMode: PracticeMode) => void;
   onInputSourceChange: (inputSource: PracticeInputSource) => void;
+  onCameraRecordingEnabledChange?: (enabled: boolean) => void;
 };
 
 export function PracticeSettingsPanel({
@@ -49,8 +53,12 @@ export function PracticeSettingsPanel({
   inputSource,
   microphoneInputLocked,
   midiInputLocked,
+  cameraRecordingEnabled = false,
+  cameraRecordingLocked = false,
+  cameraRecordingStatus = null,
   onPracticeModeChange,
   onInputSourceChange,
+  onCameraRecordingEnabledChange,
 }: PracticeSettingsPanelProps) {
   const t = useTranslations('practice');
   const microphoneState = microphoneCapability
@@ -199,6 +207,38 @@ export function PracticeSettingsPanel({
             </button>
           </div>
         </section>
+
+        {practiceMode === 'CONTINUOUS_PLAY' ? (
+          <section className="px-5 py-5" aria-labelledby="practice-camera-heading">
+            <h3 id="practice-camera-heading" className="text-sm font-semibold text-slate-900">
+              {t('settingsCamera')}
+            </h3>
+            <button
+              type="button"
+              className={cn(
+                'mt-3 flex min-h-14 w-full items-center gap-3 rounded-md border px-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+                cameraRecordingEnabled
+                  ? 'border-sky-200 bg-sky-50 text-slate-950'
+                  : 'border-slate-200 hover:bg-slate-50'
+              )}
+              disabled={cameraRecordingLocked || !onCameraRecordingEnabledChange}
+              onClick={() => onCameraRecordingEnabledChange?.(!cameraRecordingEnabled)}
+              aria-pressed={cameraRecordingEnabled}
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sky-600">
+                <Video className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-slate-900">
+                  {cameraRecordingEnabled ? t('settingCameraOn') : t('settingCameraOff')}
+                </span>
+                <span className="mt-0.5 block text-xs text-slate-500">
+                  {cameraRecordingStatus ?? t('settingCameraDesc')}
+                </span>
+              </span>
+            </button>
+          </section>
+        ) : null}
       </div>
     </aside>
   );

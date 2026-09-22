@@ -27,6 +27,11 @@ from app.utils.timezone import utc_now_naive
 logger = logging.getLogger(__name__)
 
 
+def _status_value(status: object) -> str:
+    value = getattr(status, "value", status)
+    return str(value)
+
+
 def _load_orphan_final_entries(value: str | None) -> list[dict[str, str | None]]:
     if not value:
         return []
@@ -138,13 +143,13 @@ class PerformanceTakeDeleteOutboxService:
             .where(PerformanceTakeDeleteOutbox.outbox_uuid == outbox_uuid)
             .with_for_update()
         ).scalar_one_or_none()
-        if outbox is None or outbox.status in {
-            PerformanceTakeDeleteOutboxStatus.PROCESSING,
-            PerformanceTakeDeleteOutboxStatus.COMPLETED,
+        if outbox is None or _status_value(outbox.status) in {
+            PerformanceTakeDeleteOutboxStatus.PROCESSING.value,
+            PerformanceTakeDeleteOutboxStatus.COMPLETED.value,
         }:
             return None
         if (
-            outbox.status == PerformanceTakeDeleteOutboxStatus.FAILED
+            _status_value(outbox.status) == PerformanceTakeDeleteOutboxStatus.FAILED.value
             and outbox.next_attempt_at > utc_now_naive()
         ):
             return None
@@ -158,7 +163,7 @@ class PerformanceTakeDeleteOutboxService:
             max_attempts=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS,
         )
         now = utc_now_naive()
-        outbox.status = PerformanceTakeDeleteOutboxStatus.PROCESSING
+        outbox.status = PerformanceTakeDeleteOutboxStatus.PROCESSING.value
         outbox.attempt_count += 1
         outbox.started_at = now
         outbox.updated_at = now
@@ -184,16 +189,16 @@ class PerformanceTakeDeleteOutboxService:
         outbox = self._get(db, outbox_uuid, lock=True)
         if outbox is None:
             return False
-        if outbox.status == PerformanceTakeDeleteOutboxStatus.COMPLETED:
+        if _status_value(outbox.status) == PerformanceTakeDeleteOutboxStatus.COMPLETED.value:
             if attempt is not None and outbox.attempt_count != attempt:
                 return False
             return True
-        if outbox.status != PerformanceTakeDeleteOutboxStatus.PROCESSING:
+        if _status_value(outbox.status) != PerformanceTakeDeleteOutboxStatus.PROCESSING.value:
             return False
         if attempt is not None and outbox.attempt_count != attempt:
             return False
         now = utc_now_naive()
-        outbox.status = PerformanceTakeDeleteOutboxStatus.COMPLETED
+        outbox.status = PerformanceTakeDeleteOutboxStatus.COMPLETED.value
         outbox.completed_at = now
         outbox.last_error = None
         outbox.updated_at = now
@@ -210,7 +215,7 @@ class PerformanceTakeDeleteOutboxService:
         outbox = self._get(db, outbox_uuid, lock=True)
         if outbox is None:
             return False
-        if outbox.status != PerformanceTakeDeleteOutboxStatus.PROCESSING:
+        if _status_value(outbox.status) != PerformanceTakeDeleteOutboxStatus.PROCESSING.value:
             return False
         if attempt is not None and outbox.attempt_count != attempt:
             return False
@@ -219,7 +224,7 @@ class PerformanceTakeDeleteOutboxService:
             base_seconds=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_RETRY_BASE_SECONDS,
             attempt_count=outbox.attempt_count,
         )
-        outbox.status = PerformanceTakeDeleteOutboxStatus.FAILED
+        outbox.status = PerformanceTakeDeleteOutboxStatus.FAILED.value
         outbox.next_attempt_at = now + timedelta(seconds=delay)
         outbox.last_error = error[:4000]
         outbox.updated_at = now
@@ -230,16 +235,16 @@ class PerformanceTakeDeleteOutboxService:
         if outbox is None or not self._is_dispatchable(outbox):
             return False
         now = utc_now_naive()
-        outbox.status = PerformanceTakeDeleteOutboxStatus.DISPATCHED
+        outbox.status = PerformanceTakeDeleteOutboxStatus.DISPATCHED.value
         outbox.dispatched_at = now
         outbox.updated_at = now
         return True
 
     def release_dispatch(self, db: Session, outbox_uuid: str, error: str) -> None:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or outbox.status != PerformanceTakeDeleteOutboxStatus.DISPATCHED:
+        if outbox is None or _status_value(outbox.status) != PerformanceTakeDeleteOutboxStatus.DISPATCHED.value:
             return
-        outbox.status = PerformanceTakeDeleteOutboxStatus.PENDING
+        outbox.status = PerformanceTakeDeleteOutboxStatus.PENDING.value
         outbox.dispatched_at = None
         outbox.last_error = error[:4000]
         outbox.updated_at = utc_now_naive()
@@ -250,17 +255,17 @@ class PerformanceTakeDeleteOutboxService:
             select(PerformanceTakeDeleteOutbox).where(
                 or_(
                     PerformanceTakeDeleteOutbox.status
-                    == PerformanceTakeDeleteOutboxStatus.DISPATCHED,
+                    == PerformanceTakeDeleteOutboxStatus.DISPATCHED.value,
                     PerformanceTakeDeleteOutbox.status
-                    == PerformanceTakeDeleteOutboxStatus.PROCESSING,
+                    == PerformanceTakeDeleteOutboxStatus.PROCESSING.value,
                 )
             )
         ).scalars()
         for outbox in stale:
             if delivery_lease_expired(
                 status=outbox.status,
-                dispatched_status=PerformanceTakeDeleteOutboxStatus.DISPATCHED,
-                processing_status=PerformanceTakeDeleteOutboxStatus.PROCESSING,
+                dispatched_status=PerformanceTakeDeleteOutboxStatus.DISPATCHED.value,
+                processing_status=PerformanceTakeDeleteOutboxStatus.PROCESSING.value,
                 dispatched_at=outbox.dispatched_at,
                 started_at=outbox.started_at,
                 now=now,
@@ -271,7 +276,7 @@ class PerformanceTakeDeleteOutboxService:
                     settings.PERFORMANCE_TAKE_DELETE_OUTBOX_PROCESSING_TIMEOUT_SECONDS
                 ),
             ):
-                outbox.status = PerformanceTakeDeleteOutboxStatus.FAILED
+                outbox.status = PerformanceTakeDeleteOutboxStatus.FAILED.value
                 outbox.next_attempt_at = now
                 outbox.last_error = "Performance take deletion lease expired"
                 outbox.updated_at = now
@@ -281,8 +286,8 @@ class PerformanceTakeDeleteOutboxService:
             .where(
                 PerformanceTakeDeleteOutbox.status.in_(
                     [
-                        PerformanceTakeDeleteOutboxStatus.PENDING,
-                        PerformanceTakeDeleteOutboxStatus.FAILED,
+                        PerformanceTakeDeleteOutboxStatus.PENDING.value,
+                        PerformanceTakeDeleteOutboxStatus.FAILED.value,
                     ]
                 ),
                 PerformanceTakeDeleteOutbox.next_attempt_at <= now,
@@ -311,12 +316,12 @@ class PerformanceTakeDeleteOutboxService:
                         )
                         & PerformanceTakeUploadAuthorization.status.in_(
                             [
-                                PerformanceTakeUploadAuthorizationStatus.AUTHORIZED,
+                                PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value,
                             ]
                         ),
                         (
                             PerformanceTakeUploadAuthorization.status
-                            == PerformanceTakeUploadAuthorizationStatus.FINALIZING
+                            == PerformanceTakeUploadAuthorizationStatus.FINALIZING.value
                         )
                         & (
                             PerformanceTakeUploadAuthorization.finalizing_expires_at
@@ -332,9 +337,9 @@ class PerformanceTakeDeleteOutboxService:
                         )
                         & PerformanceTakeUploadAuthorization.status.in_(
                             [
-                                PerformanceTakeUploadAuthorizationStatus.CANCELLED,
-                                PerformanceTakeUploadAuthorizationStatus.EXPIRED,
-                                PerformanceTakeUploadAuthorizationStatus.ARCHIVED,
+                                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
+                                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
+                                PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
                             ]
                         ),
                         (
@@ -343,8 +348,8 @@ class PerformanceTakeDeleteOutboxService:
                         )
                         & PerformanceTakeUploadAuthorization.status.in_(
                             [
-                                PerformanceTakeUploadAuthorizationStatus.CANCELLED,
-                                PerformanceTakeUploadAuthorizationStatus.EXPIRED,
+                                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
+                                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
                             ]
                         ),
                         PerformanceTakeUploadAuthorization.orphan_final_object_keys.is_not(None),
@@ -420,10 +425,10 @@ class PerformanceTakeDeleteOutboxService:
         ).scalar_one_or_none()
 
         if (
-            auth.status == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED
+            _status_value(auth.status) == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value
             and take is not None
         ):
-            auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+            auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value
             auth.staging_cleanup_after = max(
                 value
                 for value in [
@@ -435,8 +440,8 @@ class PerformanceTakeDeleteOutboxService:
             )
             auth.updated_at = now
 
-        if auth.status == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED:
-            auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
+        if _status_value(auth.status) == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value:
+            auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED.value
             auth.staging_cleanup_after = max(
                 value
                 for value in [
@@ -451,7 +456,7 @@ class PerformanceTakeDeleteOutboxService:
                 db, auth.reservation_id, auto_commit=False
             )
             cleaned_auth = True
-        elif auth.status == PerformanceTakeUploadAuthorizationStatus.FINALIZING:
+        elif _status_value(auth.status) == PerformanceTakeUploadAuthorizationStatus.FINALIZING.value:
             if auth.finalizing_expires_at and auth.finalizing_expires_at > now:
                 return None, False
             if auth.finalizing_object_key:
@@ -470,7 +475,7 @@ class PerformanceTakeDeleteOutboxService:
                     auth.orphan_final_object_keys = _dump_orphan_final_entries(orphan_entries)
                     auth.final_cleanup_completed_at = None
             if take is not None:
-                auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+                auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value
                 auth.finalizing_token = None
                 auth.finalizing_expires_at = None
                 auth.finalizing_object_key = None
@@ -486,7 +491,7 @@ class PerformanceTakeDeleteOutboxService:
                 auth.updated_at = now
                 cleaned_auth = True
             elif auth.expires_at <= now:
-                auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
+                auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED.value
                 auth.finalizing_token = None
                 auth.finalizing_expires_at = None
                 auth.finalizing_object_key = None
@@ -505,7 +510,7 @@ class PerformanceTakeDeleteOutboxService:
                 )
                 cleaned_auth = True
             else:
-                auth.status = PerformanceTakeUploadAuthorizationStatus.AUTHORIZED
+                auth.status = PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value
                 auth.finalizing_token = None
                 auth.finalizing_expires_at = None
                 auth.finalizing_object_key = None
@@ -516,20 +521,20 @@ class PerformanceTakeDeleteOutboxService:
             auth.staging_cleanup_completed_at is None
             and auth.staging_cleanup_after is not None
             and auth.staging_cleanup_after <= now
-            and auth.status
+            and _status_value(auth.status)
             in {
-                PerformanceTakeUploadAuthorizationStatus.CANCELLED,
-                PerformanceTakeUploadAuthorizationStatus.EXPIRED,
-                PerformanceTakeUploadAuthorizationStatus.ARCHIVED,
+                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
+                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
+                PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
             }
         )
         can_cleanup_final = (
             auth.final_cleanup_completed_at is None
             and take is None
-            and auth.status
+            and _status_value(auth.status)
             in {
-                PerformanceTakeUploadAuthorizationStatus.CANCELLED,
-                PerformanceTakeUploadAuthorizationStatus.EXPIRED,
+                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
+                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
             }
         )
         orphan_final_entries = tuple(
@@ -551,10 +556,10 @@ class PerformanceTakeDeleteOutboxService:
                 orphan_final_objects=orphan_final_entries,
                 delete_final_without_take=(
                     take is None
-                    and auth.status
+                    and _status_value(auth.status)
                     in {
-                        PerformanceTakeUploadAuthorizationStatus.CANCELLED,
-                        PerformanceTakeUploadAuthorizationStatus.EXPIRED,
+                        PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
+                        PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
                     }
                 ),
                 can_finalize_staging_cleanup=can_cleanup_staging,
@@ -644,11 +649,11 @@ class PerformanceTakeDeleteOutboxService:
             auth.staging_cleanup_completed_at is not None
             or auth.staging_cleanup_after is None
             or auth.staging_cleanup_after > now
-            or auth.status
+            or _status_value(auth.status)
             not in {
-                PerformanceTakeUploadAuthorizationStatus.CANCELLED,
-                PerformanceTakeUploadAuthorizationStatus.EXPIRED,
-                PerformanceTakeUploadAuthorizationStatus.ARCHIVED,
+                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
+                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
+                PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
             }
         ):
             return False
@@ -672,10 +677,10 @@ class PerformanceTakeDeleteOutboxService:
             return False
         if (
             auth.final_cleanup_completed_at is not None
-            or auth.status
+            or _status_value(auth.status)
             not in {
-                PerformanceTakeUploadAuthorizationStatus.CANCELLED,
-                PerformanceTakeUploadAuthorizationStatus.EXPIRED,
+                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
+                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
             }
         ):
             return False
@@ -738,15 +743,13 @@ class PerformanceTakeDeleteOutboxService:
     @staticmethod
     def _is_dispatchable(outbox: PerformanceTakeDeleteOutbox) -> bool:
         return (
-            outbox.status
+            _status_value(outbox.status)
             in {
-                PerformanceTakeDeleteOutboxStatus.PENDING,
-                PerformanceTakeDeleteOutboxStatus.FAILED,
+                PerformanceTakeDeleteOutboxStatus.PENDING.value,
+                PerformanceTakeDeleteOutboxStatus.FAILED.value,
             }
             and outbox.attempt_count
             < settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS
             and outbox.next_attempt_at <= utc_now_naive()
         )
-
-
 performance_take_delete_outbox_service = PerformanceTakeDeleteOutboxService()

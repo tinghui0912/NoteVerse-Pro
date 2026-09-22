@@ -261,11 +261,7 @@ class PerformanceTakeService:
             revision_id_out = revision.revision_uuid
 
         scope_type = getattr(take, "scope_type", "FULL") or "FULL"
-        deletion_status = (
-            take.deletion_status.value
-            if hasattr(take.deletion_status, "value")
-            else str(take.deletion_status)
-        )
+        deletion_status = _status_value(take.deletion_status)
 
         return PerformanceTakeRead(
             take_id=take.take_uuid,
@@ -413,7 +409,7 @@ class PerformanceTakeService:
         now = utc_now_naive()
         if (
             auth is None
-            or auth.status != PerformanceTakeUploadAuthorizationStatus.FINALIZING
+            or _status_value(auth.status) != PerformanceTakeUploadAuthorizationStatus.FINALIZING.value
             or auth.finalizing_token != finalizing_token
             or auth.finalizing_expires_at is None
             or auth.finalizing_expires_at <= now
@@ -474,7 +470,7 @@ class PerformanceTakeService:
         auth: PerformanceTakeUploadAuthorization,
     ) -> str:
         now = utc_now_naive()
-        auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
+        auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED.value
         auth.staging_cleanup_after = _max_datetime(
             auth.staging_cleanup_after,
             auth.last_put_url_expires_at,
@@ -535,7 +531,7 @@ class PerformanceTakeService:
             return await self._archived_authorization_response(db, user_id, existing_take)
 
         if existing_auth is not None:
-            if existing_auth.status == PerformanceTakeUploadAuthorizationStatus.ARCHIVED:
+            if _status_value(existing_auth.status) == PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value:
                 archived_take = await self.repository.get_by_uuid(
                     db, user_id, existing_auth.take_uuid
                 )
@@ -564,7 +560,7 @@ class PerformanceTakeService:
                     field="client_request_id",
                     details={"reason": "archived_authorization_missing_take"},
                 )
-            if existing_auth.status == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED:
+            if _status_value(existing_auth.status) == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value:
                 if not self._authorization_matches_request(existing_auth, request, cleaned_mime):
                     raise ValidationException(
                         ErrorCode.VALIDATION_ERROR,
@@ -606,7 +602,7 @@ class PerformanceTakeService:
                     reservation_id=existing_auth.reservation_id,
                     expires_in=settings.S3_PRESIGN_EXPIRE_SECONDS,
                 )
-            if existing_auth.status == PerformanceTakeUploadAuthorizationStatus.FINALIZING:
+            if _status_value(existing_auth.status) == PerformanceTakeUploadAuthorizationStatus.FINALIZING.value:
                 if not self._authorization_matches_request(existing_auth, request, cleaned_mime):
                     raise ValidationException(
                         ErrorCode.VALIDATION_ERROR,
@@ -706,7 +702,7 @@ class PerformanceTakeService:
             staging_object_key=staging_object_key,
             final_object_key=final_object_key,
             reservation_id=reservation_handle.reservation_id,
-            status=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED,
+            status=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value,
             expires_at=expires_at,
             last_put_url_expires_at=put_url_expires_at,
             staging_cleanup_after=put_url_expires_at,
@@ -742,9 +738,9 @@ class PerformanceTakeService:
         auth_res = await db.execute(auth_stmt)
         auth = auth_res.scalars().first()
         staging_key: str | None = None
-        if auth is not None and auth.status == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED:
+        if auth is not None and _status_value(auth.status) == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value:
             now = utc_now_naive()
-            auth.status = PerformanceTakeUploadAuthorizationStatus.CANCELLED
+            auth.status = PerformanceTakeUploadAuthorizationStatus.CANCELLED.value
             auth.staging_cleanup_after = _max_datetime(
                 auth.staging_cleanup_after,
                 auth.last_put_url_expires_at,
@@ -807,7 +803,7 @@ class PerformanceTakeService:
                 return response.take
 
         now = utc_now_naive()
-        if auth.status == PerformanceTakeUploadAuthorizationStatus.ARCHIVED:
+        if _status_value(auth.status) == PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value:
             archived_take = await self.repository.get_by_uuid(db, user_id, auth.take_uuid)
             if archived_take is not None:
                 if not self._authorization_matches_finalize_request(auth, request):
@@ -824,7 +820,7 @@ class PerformanceTakeService:
                     return response.take
 
         takeover_orphan_entries = _load_orphan_final_entries(auth.orphan_final_object_keys)
-        if auth.status == PerformanceTakeUploadAuthorizationStatus.FINALIZING:
+        if _status_value(auth.status) == PerformanceTakeUploadAuthorizationStatus.FINALIZING.value:
             if auth.finalizing_expires_at and auth.finalizing_expires_at > now:
                 await db.commit()
                 raise ValidationException(
@@ -843,7 +839,7 @@ class PerformanceTakeService:
                         ).isoformat(),
                     }
                 )
-        elif auth.status != PerformanceTakeUploadAuthorizationStatus.AUTHORIZED:
+        elif _status_value(auth.status) != PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value:
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
                 field="status",
@@ -866,7 +862,7 @@ class PerformanceTakeService:
             finalizing_token,
             auth.media_mime_type,
         )
-        auth.status = PerformanceTakeUploadAuthorizationStatus.FINALIZING
+        auth.status = PerformanceTakeUploadAuthorizationStatus.FINALIZING.value
         auth.finalizing_token = finalizing_token
         auth.finalizing_expires_at = now + timedelta(seconds=TAKE_FINALIZING_LEASE_SECONDS)
         auth.finalizing_object_key = finalizing_object_key
@@ -912,10 +908,10 @@ class PerformanceTakeService:
             )
             if (
                 auth is not None
-                and auth.status == PerformanceTakeUploadAuthorizationStatus.FINALIZING
+                and _status_value(auth.status) == PerformanceTakeUploadAuthorizationStatus.FINALIZING.value
                 and auth.finalizing_token == finalizing_token
             ):
-                auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
+                auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED.value
                 auth.finalizing_token = None
                 auth.finalizing_expires_at = None
                 if auth.finalizing_object_key:
@@ -946,10 +942,10 @@ class PerformanceTakeService:
             )
             if (
                 auth is not None
-                and auth.status == PerformanceTakeUploadAuthorizationStatus.FINALIZING
+                and _status_value(auth.status) == PerformanceTakeUploadAuthorizationStatus.FINALIZING.value
                 and auth.finalizing_token == finalizing_token
             ):
-                auth.status = PerformanceTakeUploadAuthorizationStatus.AUTHORIZED
+                auth.status = PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value
                 auth.finalizing_token = None
                 auth.finalizing_expires_at = None
                 if auth.finalizing_object_key:
@@ -1055,7 +1051,7 @@ class PerformanceTakeService:
             if response.take is not None:
                 return response.take
         if (
-            auth.status != PerformanceTakeUploadAuthorizationStatus.FINALIZING
+            _status_value(auth.status) != PerformanceTakeUploadAuthorizationStatus.FINALIZING.value
             or auth.finalizing_token != finalizing_token
             or auth.finalizing_object_key != candidate_key
             or auth.finalizing_expires_at is None
@@ -1086,7 +1082,7 @@ class PerformanceTakeService:
                 candidate_key,
                 unknown_outcome=False,
             )
-            auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED
+            auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED.value
             auth.finalizing_token = None
             auth.finalizing_expires_at = None
             auth.finalizing_object_key = None
@@ -1122,13 +1118,13 @@ class PerformanceTakeService:
             scope_type=auth_snapshot["scope_type"],
             scope_start_beat=auth_snapshot["scope_start_beat"],
             scope_terminal_beat=auth_snapshot["scope_terminal_beat"],
-            deletion_status=PerformanceTakeDeletionStatus.ACTIVE,
+            deletion_status=PerformanceTakeDeletionStatus.ACTIVE.value,
             tempo_selection=auth_snapshot["tempo_selection"],
             resolved_tempo_plan=auth_snapshot["resolved_tempo_plan"],
             sync_metadata=auth_snapshot["sync_metadata"],
         )
         created = await self.repository.create_take(db, take, auto_commit=False)
-        auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+        auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value
         auth.finalizing_token = None
         auth.finalizing_expires_at = None
         auth.finalizing_object_key = None
@@ -1244,7 +1240,7 @@ class PerformanceTakeService:
         take_id: str,
     ) -> PerformanceTakePlaybackRead:
         take = await self.repository.get_by_uuid(db, user_id, take_id)
-        if take is None or take.deletion_status == PerformanceTakeDeletionStatus.DELETING:
+        if take is None or _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value:
             raise ResourceNotFoundException("performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND)
 
         if self.storage is None:
@@ -1284,10 +1280,10 @@ class PerformanceTakeService:
         if take is None:
             raise ResourceNotFoundException("performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND)
 
-        if take.deletion_status == PerformanceTakeDeletionStatus.DELETING:
+        if _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value:
             return {"status": "deleting", "take_id": take_id}
 
-        take.deletion_status = PerformanceTakeDeletionStatus.DELETING
+        take.deletion_status = PerformanceTakeDeletionStatus.DELETING.value
         outbox = PerformanceTakeDeleteOutbox(
             take_id=take.id,
             take_uuid=take.take_uuid,
@@ -1295,7 +1291,7 @@ class PerformanceTakeService:
             storage_backend=take.storage_backend,
             object_key=take.media_object_key,
             media_byte_size=take.media_byte_size,
-            status=PerformanceTakeDeleteOutboxStatus.PENDING,
+            status=PerformanceTakeDeleteOutboxStatus.PENDING.value,
             next_attempt_at=utc_now_naive(),
         )
         await self.repository.create_delete_outbox(db, outbox, auto_commit=False)
