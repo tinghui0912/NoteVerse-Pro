@@ -10,6 +10,16 @@ import {
   type PlayheadCursorGeometryFailureReason,
   type SvgRect,
 } from './playhead-cursor';
+import {
+  exportCursorRect as computeExportCursorRect,
+  scoreViewportForLine,
+} from './split-screen-score-camera';
+import { resolveSplitScreenScoreFrame as resolvePlaybackFrame } from './split-screen-playback-position';
+import { prepareScorePageCache as prepareFrozenScorePageCache } from './split-screen-score-model';
+import {
+  drawSourceVideoContain,
+  drawStableScoreImage,
+} from './split-screen-frame-renderer';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 
 const EXPORT_WIDTH = 1280;
@@ -124,10 +134,7 @@ export function exportCursorRect(
   imageRect: Rect,
   paddingPx = 5
 ): Rect {
-  return clampRectToRect(
-    inflateRect(svgRectToCanvasRect(activeNoteBox, viewport, imageRect), paddingPx),
-    imageRect
-  );
+  return computeExportCursorRect(activeNoteBox, viewport, imageRect, paddingPx) as Rect;
 }
 
 export function selectSupportedSplitScreenMimeType(): string | null {
@@ -350,7 +357,7 @@ export async function exportSplitScreenPerformanceVideo({
       throw new Error('split_screen_export_failed:video_decode');
     }
 
-    const scorePages = await prepareScorePageCache(scoreContainer);
+    const scorePages = await prepareFrozenScorePageCache(scoreContainer);
     const stagingCanvas = document.createElement('canvas');
     stagingCanvas.width = EXPORT_WIDTH;
     stagingCanvas.height = EXPORT_HEIGHT;
@@ -535,7 +542,7 @@ export function drawExportFrame({
   frameState: FrameRenderState;
 }) {
   const videoDraft = draft.video?.status === 'READY' ? draft.video : null;
-  let frame = resolveSplitScreenScoreFrame({
+  let frame = resolvePlaybackFrame({
     draft,
     adapter,
     pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, frameState.scorePages),
@@ -625,7 +632,7 @@ export function drawExportFrame({
   staging.fillStyle = '#020617';
   roundRect(staging, videoRect.x, videoRect.y, videoRect.width, videoRect.height, 10);
   staging.fill();
-  drawContain(staging, video, videoRect, '#020617');
+  drawSourceVideoContain(staging, video, videoRect, '#020617');
 
   ctx.drawImage(frameState.stagingCanvas, 0, 0);
 }
@@ -652,16 +659,16 @@ function drawScorePanel(
       reason: 'note_box_outside_page',
     });
   }
-  const viewport = cursorViewport(
-    page.viewBox,
-    cursorGeometry.lineBox,
-    cursorGeometry.activeNoteBox,
-    frameState.viewportByLineKey ?? (frameState.viewportByLineKey = new Map()),
-    `${page.pageNumber}:${Math.round(cursorGeometry.lineBox.y)}:${Math.round(cursorGeometry.lineBox.height)}`
-  );
+  const viewport = scoreViewportForLine({
+    viewBox: page.viewBox,
+    lineBox: cursorGeometry.lineBox,
+    activeNoteBox: cursorGeometry.activeNoteBox,
+    viewportByLineKey: frameState.viewportByLineKey ?? (frameState.viewportByLineKey = new Map()),
+    lineKey: `${page.pageNumber}:${Math.round(cursorGeometry.lineBox.y)}:${Math.round(cursorGeometry.lineBox.height)}`,
+  });
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(scoreRect.x, scoreRect.y, scoreRect.width, scoreRect.height);
-  const imageRect = drawCroppedScoreImage(
+  const imageRect = drawStableScoreImage(
     ctx,
     page.image,
     page.viewBox,
@@ -702,7 +709,7 @@ function drawScorePanel(
   ctx.stroke();
   ctx.restore();
 
-  drawCroppedScoreImage(ctx, page.image, page.viewBox, viewport, scoreRect, true);
+  drawStableScoreImage(ctx, page.image, page.viewBox, viewport, scoreRect, true);
 }
 
 function canCaptureCanvasStream(): boolean {
