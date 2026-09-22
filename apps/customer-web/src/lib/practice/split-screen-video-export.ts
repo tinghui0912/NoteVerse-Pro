@@ -534,7 +534,7 @@ function drawScorePanel(
   cursorGeometry: PlayheadCursorGeometry,
   scoreRect: Rect
 ) {
-  const viewport = cursorViewport(page.viewBox, cursorGeometry.systemBox);
+  const viewport = cursorViewport(page.viewBox, cursorGeometry.rootSystemBox, cursorGeometry.rootBox);
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(scoreRect.x, scoreRect.y, scoreRect.width, scoreRect.height);
   const imageRect = drawCroppedScoreImage(
@@ -545,7 +545,7 @@ function drawScorePanel(
     scoreRect,
     false
   );
-  const cursorBox = svgRectToCanvasRect(cursorGeometry.box, viewport, imageRect);
+  const cursorBox = svgRectToCanvasRect(cursorGeometry.rootBox, viewport, imageRect);
   if (!rectsIntersect(cursorBox, imageRect)) {
     throw new Error('split_screen_export_failed:playhead_position_offscreen');
   }
@@ -716,7 +716,7 @@ function drawCroppedScoreImage(
   return { x: dx, y: dy, width: drawWidth, height: drawHeight };
 }
 
-function cursorViewport(viewBox: SvgViewBox, systemBox: SvgRect): SvgRect {
+function cursorViewport(viewBox: SvgViewBox, systemBox: SvgRect, cursorBox: SvgRect): SvgRect {
   const verticalPadding = Math.max(80, systemBox.height * 0.45);
   const desiredHeight = Math.min(
     viewBox.height,
@@ -725,12 +725,21 @@ function cursorViewport(viewBox: SvgViewBox, systemBox: SvgRect): SvgRect {
   const centerY = systemBox.y + systemBox.height / 2;
   let y = centerY - desiredHeight / 2;
   y = Math.max(viewBox.y, Math.min(y, viewBox.y + viewBox.height - desiredHeight));
-  return {
+  const viewport = {
     x: viewBox.x,
     y,
     width: viewBox.width,
     height: desiredHeight,
   };
+  if (cursorBox.y < viewport.y) {
+    viewport.y = Math.max(viewBox.y, cursorBox.y - verticalPadding);
+  } else if (cursorBox.y + cursorBox.height > viewport.y + viewport.height) {
+    viewport.y = Math.min(
+      viewBox.y + viewBox.height - viewport.height,
+      cursorBox.y + cursorBox.height + verticalPadding - viewport.height
+    );
+  }
+  return viewport;
 }
 
 function svgRectToCanvasRect(rect: SvgRect, viewport: SvgRect, imageRect: Rect): Rect {
@@ -780,6 +789,7 @@ function cloneScoreSvgWithoutRuntimeHighlights(svg: SVGSVGElement): SVGSVGElemen
   const viewBox = readSvgViewBox(svg);
   clone.setAttribute('width', clone.getAttribute('width') || String(viewBox.width));
   clone.setAttribute('height', clone.getAttribute('height') || String(viewBox.height));
+  removeOpaquePageBackgrounds(clone, viewBox);
   clone
     .querySelectorAll('.practice-note-active, .practice-playhead-cursor, [data-practice-playhead-cursor]')
     .forEach((element) => element.classList.remove('practice-note-active'));
@@ -787,6 +797,36 @@ function cloneScoreSvgWithoutRuntimeHighlights(svg: SVGSVGElement): SVGSVGElemen
     .querySelectorAll('.practice-playhead-cursor, [data-practice-playhead-cursor]')
     .forEach((element) => element.remove());
   return clone;
+}
+
+function removeOpaquePageBackgrounds(svg: SVGSVGElement, viewBox: SvgViewBox) {
+  Array.from(svg.children).forEach((child) => {
+    if (child.tagName.toLowerCase() !== 'rect') {
+      return;
+    }
+    const fill = (child.getAttribute('fill') ?? '').trim().toLowerCase();
+    const style = (child.getAttribute('style') ?? '').toLowerCase();
+    const isWhiteFill =
+      fill === '#fff' ||
+      fill === '#ffffff' ||
+      fill === 'white' ||
+      /fill\s*:\s*(#fff|#ffffff|white|rgb\(255,\s*255,\s*255\))/.test(style);
+    if (!isWhiteFill) {
+      return;
+    }
+    const x = Number.parseFloat(child.getAttribute('x') ?? String(viewBox.x));
+    const y = Number.parseFloat(child.getAttribute('y') ?? String(viewBox.y));
+    const width = Number.parseFloat(child.getAttribute('width') ?? String(viewBox.width));
+    const height = Number.parseFloat(child.getAttribute('height') ?? String(viewBox.height));
+    const coversPage =
+      x <= viewBox.x + 1 &&
+      y <= viewBox.y + 1 &&
+      x + width >= viewBox.x + viewBox.width - 1 &&
+      y + height >= viewBox.y + viewBox.height - 1;
+    if (coversPage) {
+      child.remove();
+    }
+  });
 }
 
 function readSvgViewBox(svg: SVGSVGElement): SvgViewBox {

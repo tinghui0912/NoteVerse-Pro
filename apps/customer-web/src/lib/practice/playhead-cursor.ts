@@ -17,9 +17,13 @@ export type SvgRect = {
 
 export type PlayheadCursorGeometry = {
   layer: SVGGraphicsElement;
+  rootSvg: SVGSVGElement;
   box: SvgRect;
   noteBox: SvgRect;
   systemBox: SvgRect;
+  rootBox: SvgRect;
+  rootNoteBox: SvgRect;
+  rootSystemBox: SvgRect;
 };
 
 export function cssStringLiteral(value: string) {
@@ -111,23 +115,33 @@ export function getPlayheadCursorGeometry(
 
   const noteBox = noteBoxes.reduce(mergeRects);
   const systemBox = getSystemBox(firstLayer, noteBox);
-  const cursorWidth = Math.min(
-    72,
-    Math.max(18, noteBox.width + Math.max(14, noteBox.width * 0.7))
-  );
-  const centerX = noteBox.x + noteBox.width / 2;
+  const paddingX = Math.max(8, noteBox.width * 0.08);
   const paddingY = Math.max(8, systemBox.height * 0.035);
   const box = {
-    x: centerX - cursorWidth / 2,
+    x: noteBox.x - paddingX,
     y: systemBox.y - paddingY,
-    width: cursorWidth,
+    width: noteBox.width + paddingX * 2,
     height: systemBox.height + paddingY * 2,
   };
+  const rootSvg = firstLayer.ownerSVGElement;
+  if (!rootSvg) {
+    return null;
+  }
+  const rootBox = transformRectBetween(firstLayer, rootSvg, box) ?? box;
+  const rootNoteBox = transformRectBetween(firstLayer, rootSvg, noteBox) ?? noteBox;
+  const rootSystemBox = transformRectBetween(firstLayer, rootSvg, systemBox) ?? systemBox;
+  if (![rootBox, rootNoteBox, rootSystemBox].every(isFiniteRect)) {
+    return null;
+  }
   return {
     layer: firstLayer,
+    rootSvg,
     box,
     noteBox,
     systemBox,
+    rootBox,
+    rootNoteBox,
+    rootSystemBox,
   };
 }
 
@@ -163,7 +177,12 @@ function getElementBoxInLayer(
     return null;
   }
 
-  const transformed = transformBoxToLayer(element, layer, box);
+  const transformed = transformRectBetween(element, layer, {
+    x: box.x,
+    y: box.y,
+    width: box.width,
+    height: box.height,
+  });
   if (transformed) {
     return transformed;
   }
@@ -175,22 +194,25 @@ function getElementBoxInLayer(
   };
 }
 
-function transformBoxToLayer(
-  element: SVGGraphicsElement,
-  layer: SVGGraphicsElement,
-  box: DOMRect
+function transformRectBetween(
+  from: SVGGraphicsElement,
+  to: SVGGraphicsElement,
+  box: SvgRect
 ): SvgRect | null {
-  const svg = element.ownerSVGElement;
+  const svg = from.ownerSVGElement;
   if (!svg || typeof svg.createSVGPoint !== 'function') {
+    return from === to ? box : null;
+  }
+  if (from === to) {
+    return box;
+  }
+  const fromCtm = from.getCTM?.();
+  const toCtm = to.getCTM?.();
+  const inverseToCtm = toCtm?.inverse?.();
+  if (!fromCtm || !inverseToCtm) {
     return null;
   }
-  const elementCtm = element.getCTM?.();
-  const layerCtm = layer.getCTM?.();
-  const inverseLayerCtm = layerCtm?.inverse?.();
-  if (!elementCtm || !inverseLayerCtm) {
-    return null;
-  }
-  const matrix = inverseLayerCtm.multiply(elementCtm);
+  const matrix = inverseToCtm.multiply(fromCtm);
   const corners = [
     [box.x, box.y],
     [box.x + box.width, box.y],
@@ -214,6 +236,17 @@ function transformBoxToLayer(
     width: right - left,
     height: bottom - top,
   };
+}
+
+function isFiniteRect(rect: SvgRect) {
+  return (
+    Number.isFinite(rect.x) &&
+    Number.isFinite(rect.y) &&
+    Number.isFinite(rect.width) &&
+    Number.isFinite(rect.height) &&
+    rect.width > 0 &&
+    rect.height > 0
+  );
 }
 
 function mergeRects(first: SvgRect, second: SvgRect): SvgRect {

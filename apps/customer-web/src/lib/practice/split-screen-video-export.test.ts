@@ -394,6 +394,41 @@ describe('split-screen video export helpers', () => {
     expect(geometry?.noteBox).toEqual({ x: 100, y: 200, width: 240, height: 210 });
     expect(geometry?.systemBox).toEqual({ x: 60, y: 120, width: 1080, height: 260 });
     expect(geometry?.box.height).toBeGreaterThan(260);
-    expect(geometry?.box.width).toBeLessThanOrEqual(72);
+    expect(geometry?.box.x).toBeLessThan(geometry!.noteBox.x);
+    expect(geometry?.box.width).toBeGreaterThan(geometry!.noteBox.width);
+  });
+
+  it('keeps transformed system-local and root SVG cursor rectangles in separate coordinate spaces', () => {
+    const container = createScoreContainer();
+    const svg = container.querySelector<SVGSVGElement>('svg')!;
+    const system = container.querySelector<SVGGraphicsElement>('[data-testid="system-1"]')!;
+    const systemMatrix = {};
+    const rootMatrix = {
+      inverse: vi.fn(() => rootInverse),
+    };
+    const rootInverse = {
+      multiply: vi.fn(() => ({
+        transformPoint: (point: { x: number; y: number }) => ({
+          x: point.x + 500,
+          y: point.y + 900,
+        }),
+      })),
+    };
+    const point = {
+      x: 0,
+      y: 0,
+      matrixTransform(matrix: { transformPoint: (point: { x: number; y: number }) => { x: number; y: number } }) {
+        return matrix.transformPoint(this);
+      },
+    };
+    svg.createSVGPoint = vi.fn(() => ({ ...point } as SVGPoint));
+    svg.getCTM = vi.fn(() => rootMatrix as unknown as DOMMatrix);
+    system.getCTM = vi.fn(() => systemMatrix as unknown as DOMMatrix);
+
+    const geometry = getPlayheadCursorGeometry(svg, ['note-a']);
+
+    expect(geometry?.box.x).toBeLessThan(200);
+    expect(geometry?.rootBox.x).toBeGreaterThan(500);
+    expect(geometry?.rootSystemBox.y).toBeGreaterThan(900);
   });
 });
