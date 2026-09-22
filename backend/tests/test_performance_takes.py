@@ -1388,6 +1388,90 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
         app.dependency_overrides.clear()
 
 
+def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    take_svc = PerformanceTakeService(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = TestClient(app)
+
+    try:
+        content = b"\x1a\x45\xdf\xa3" + b"fake-browser-video-with-audio"
+        auth_req = {
+            "score_id": "score-uuid-10",
+            "client_request_id": "req-video-save",
+            "media_kind": "VIDEO",
+            "media_byte_size": len(content),
+            "media_mime_type": "video/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
+        assert res_auth.status_code == 200, res_auth.text
+        auth_data = res_auth.json()["data"]
+        storage.put_bytes(
+            key=auth_data["object_key"],
+            content=content,
+            content_type="video/webm",
+        )
+
+        fin_req = {
+            "take_id": auth_data["take_id"],
+            "client_request_id": "req-video-save",
+            "reservation_id": auth_data["reservation_id"],
+            "score_id": "score-uuid-10",
+            "media_kind": "VIDEO",
+            "media_byte_size": len(content),
+            "media_mime_type": "video/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_fin = client.post("/api/v1/performance-takes", json=fin_req)
+        assert res_fin.status_code == 200, res_fin.text
+        take_data = res_fin.json()["data"]
+        assert take_data["media_kind"] == "VIDEO"
+        assert take_data["media_mime_type"] == "video/webm"
+
+        take_row = session.execute(
+            select(PerformanceTake).where(PerformanceTake.client_request_id == "req-video-save")
+        ).scalar_one()
+        assert take_row.media_kind == PerformanceTakeMediaKind.VIDEO
+        assert take_row.media_object_key.endswith(".webm")
+        assert storage.exists(take_row.media_object_key)
+        assert b"fake-browser-video-with-audio" in b"".join(
+            storage.iter_bytes(take_row.media_object_key)
+        )
+
+        res_playback = client.get(f"/api/v1/performance-takes/{take_data['take_id']}/playback-url")
+        assert res_playback.status_code == 200
+        playback_data = res_playback.json()["data"]
+        assert playback_data["media_kind"] == "VIDEO"
+        assert playback_data["media_mime_type"] == "video/webm"
+
+        conflict_req = {**auth_req, "media_kind": "AUDIO"}
+        res_conflict = client.post(
+            "/api/v1/performance-takes/upload-authorizations",
+            json=conflict_req,
+        )
+        assert res_conflict.status_code == 422
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_authorize_finalizing_snapshot_retries_without_new_put(test_env):
     session, _storage, user_1, _ = test_env
     now = datetime.now(timezone.utc).replace(tzinfo=None)

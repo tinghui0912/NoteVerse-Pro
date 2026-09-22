@@ -78,7 +78,8 @@ export interface SavePerformanceTakeInput {
   revisionId?: string | null;
   artifactId?: string | null;
   clientRequestId: string;
-  audioBlob: Blob;
+  mediaKind: 'AUDIO' | 'VIDEO';
+  mediaBlob: Blob;
   mimeType: string;
   durationMs: number;
   scopeType?: string;
@@ -100,7 +101,8 @@ export function useSavePerformanceTake() {
         revision_id: input.revisionId,
         artifact_id: input.artifactId,
         client_request_id: input.clientRequestId,
-        media_byte_size: input.audioBlob.size,
+        media_kind: input.mediaKind,
+        media_byte_size: input.mediaBlob.size,
         media_mime_type: input.mimeType,
         duration_ms: input.durationMs,
         scope_type: input.scopeType ?? 'FULL',
@@ -128,9 +130,10 @@ export function useSavePerformanceTake() {
         client_request_id: input.clientRequestId,
         reservation_id: authData.reservation_id ?? '',
         score_id: input.scoreId,
+        media_kind: input.mediaKind,
         revision_id: input.revisionId,
         artifact_id: input.artifactId,
-        media_byte_size: input.audioBlob.size,
+        media_byte_size: input.mediaBlob.size,
         media_mime_type: input.mimeType,
         duration_ms: input.durationMs,
         scope_type: input.scopeType ?? 'FULL',
@@ -159,7 +162,7 @@ export function useSavePerformanceTake() {
           authData.upload_url,
           authData.upload_method,
           authData.upload_headers,
-          input.audioBlob
+          input.mediaBlob
         );
       } catch (uploadErr) {
         try {

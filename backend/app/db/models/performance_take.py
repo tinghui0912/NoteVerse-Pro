@@ -30,6 +30,7 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 class PerformanceTakeMediaKind(str, enum.Enum):
     AUDIO = "AUDIO"
+    VIDEO = "VIDEO"
 
 
 class PerformanceTakeDeletionStatus(str, enum.Enum):

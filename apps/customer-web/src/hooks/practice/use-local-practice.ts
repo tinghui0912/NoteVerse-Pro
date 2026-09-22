@@ -154,6 +154,51 @@ export function useLocalPractice({
   const sessionGenerationRef = useRef<number>(0);
   const hasFinalizedRef = useRef<boolean>(false);
 
+  const installRecorderHandlers = useCallback(
+    (recorder: MediaRecorder, stream: MediaStream, mediaKind: 'AUDIO' | 'VIDEO') => {
+      const tracks = stream.getTracks();
+      const deadTrack = tracks.find((track) => track.readyState !== 'live');
+      if (deadTrack) {
+        recordingUnavailableReasonRef.current =
+          mediaKind === 'VIDEO' && deadTrack.kind === 'video'
+            ? 'VIDEO_TRACK_NOT_LIVE'
+            : 'AUDIO_TRACK_NOT_LIVE';
+        recordingStateRef.current = 'UNAVAILABLE';
+        return;
+      }
+      recordingMediaKindRef.current = mediaKind;
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          recordingChunksRef.current.push(event.data);
+        }
+      };
+      recorder.onerror = () => {
+        recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_ERROR';
+        recordingStateRef.current = 'UNAVAILABLE';
+      };
+      for (const track of tracks) {
+        track.addEventListener(
+          'ended',
+          () => {
+            if (
+              recordingStateRef.current === 'RECORDING' ||
+              recordingStateRef.current === 'PAUSED'
+            ) {
+              recordingUnavailableReasonRef.current =
+                mediaKind === 'VIDEO' && track.kind === 'video'
+                  ? 'VIDEO_TRACK_ENDED'
+                  : 'AUDIO_TRACK_ENDED';
+              recordingStateRef.current = 'UNAVAILABLE';
+            }
+          },
+          { once: true }
+        );
+      }
+      mediaRecorderRef.current = recorder;
+    },
+    []
+  );
+
   const recordingTimebaseRef = useRef<RecordingTimebaseMapping>({
     recordingStartPerfTimeMs: 0,
     recordingEndPerfTimeMs: 0,
@@ -628,17 +673,7 @@ export function useLocalPractice({
                   ? { mimeType: preferredVideoRecorderMimeType() }
                   : undefined;
               const recorder = new MediaRecorder(recorderStream, recorderOptions);
-              recordingMediaKindRef.current = cameraRecordingEnabled ? 'VIDEO' : 'AUDIO';
-              recorder.ondataavailable = (event) => {
-                if (event.data && event.data.size > 0) {
-                  recordingChunksRef.current.push(event.data);
-                }
-              };
-              recorder.onerror = () => {
-                recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_ERROR';
-                recordingStateRef.current = 'UNAVAILABLE';
-              };
-              mediaRecorderRef.current = recorder;
+              installRecorderHandlers(recorder, recorderStream, cameraRecordingEnabled ? 'VIDEO' : 'AUDIO');
             } catch (recErr) {
               recordingUnavailableReasonRef.current =
                 recErr instanceof Error ? recErr.message : 'RECORDER_INIT_FAILED';
@@ -672,17 +707,7 @@ export function useLocalPractice({
                   ? { mimeType: preferredVideoRecorderMimeType() }
                   : undefined;
                 const recorder = new MediaRecorder(videoRecorderStream, recorderOptions);
-                recordingMediaKindRef.current = 'VIDEO';
-                recorder.ondataavailable = (event) => {
-                  if (event.data && event.data.size > 0) {
-                    recordingChunksRef.current.push(event.data);
-                  }
-                };
-                recorder.onerror = () => {
-                  recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_ERROR';
-                  recordingStateRef.current = 'UNAVAILABLE';
-                };
-                mediaRecorderRef.current = recorder;
+                installRecorderHandlers(recorder, videoRecorderStream, 'VIDEO');
               } else {
                 recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_UNSUPPORTED';
               }
@@ -699,16 +724,7 @@ export function useLocalPractice({
                 midiRecordingStreamRef.current = audioStream;
                 if (typeof MediaRecorder !== 'undefined') {
                   const recorder = new MediaRecorder(audioStream);
-                  recorder.ondataavailable = (event) => {
-                    if (event.data && event.data.size > 0) {
-                      recordingChunksRef.current.push(event.data);
-                    }
-                  };
-                  recorder.onerror = () => {
-                    recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_ERROR';
-                    recordingStateRef.current = 'UNAVAILABLE';
-                  };
-                  mediaRecorderRef.current = recorder;
+                  installRecorderHandlers(recorder, audioStream, 'AUDIO');
                 } else {
                   recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_UNSUPPORTED';
                 }
@@ -785,6 +801,7 @@ export function useLocalPractice({
     handleFatalInputError,
     handlePerformanceEvidence,
     handleStepObservation,
+    installRecorderHandlers,
     inputSource,
     metronomeEnabled,
     mode,

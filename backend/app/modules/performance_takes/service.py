@@ -50,6 +50,9 @@ SUPPORTED_AUDIO_MIMES = {
     "audio/wav",
     "audio/x-wav",
 }
+SUPPORTED_VIDEO_MIMES = {
+    "video/webm",
+}
 MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024
 MAX_TAKE_DURATION_MS = 12 * 60 * 60 * 1000
 MAX_TAKE_METADATA_JSON_BYTES = 64 * 1024
@@ -64,6 +67,28 @@ def _status_value(status: object) -> str:
     return str(value)
 
 
+def _media_kind_value(media_kind: object) -> str:
+    value = getattr(media_kind, "value", media_kind)
+    return str(value or PerformanceTakeMediaKind.AUDIO.value).upper()
+
+
+def _clean_mime_type(mime_type: str) -> str:
+    return mime_type.split(";")[0].strip().lower()
+
+
+def _clean_media_kind(media_kind: object) -> str:
+    cleaned = _media_kind_value(media_kind)
+    if cleaned not in {kind.value for kind in PerformanceTakeMediaKind}:
+        raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_kind")
+    return cleaned
+
+
+def _supported_mimes_for_kind(media_kind: str) -> set[str]:
+    if media_kind == PerformanceTakeMediaKind.VIDEO.value:
+        return SUPPORTED_VIDEO_MIMES
+    return SUPPORTED_AUDIO_MIMES
+
+
 def _extension_for_mime(mime_type: str) -> str:
     cleaned = mime_type.split(";")[0].strip().lower()
     mapping = {
@@ -72,6 +97,8 @@ def _extension_for_mime(mime_type: str) -> str:
         "audio/ogg": "ogg",
         "audio/wav": "wav",
         "audio/x-wav": "wav",
+        "video/webm": "webm",
+        "video/mp4": "mp4",
     }
     return mapping.get(cleaned, "webm")
 
@@ -96,11 +123,11 @@ def _build_final_candidate_object_key(
     return f"performance-takes/{user_id}/{take_uuid}/{finalizing_token}.{ext}"
 
 
-def _verify_audio_container_magic_bytes(header_bytes: bytes, mime_type: str) -> bool:
-    cleaned = mime_type.split(";")[0].strip().lower()
+def _verify_container_magic_bytes(header_bytes: bytes, mime_type: str, media_kind: str) -> bool:
+    cleaned = _clean_mime_type(mime_type)
     if len(header_bytes) < 4:
         return False
-    if cleaned == "audio/webm":
+    if cleaned in ("audio/webm", "video/webm"):
         return header_bytes.startswith(b"\x1a\x45\xdf\xa3")
     if cleaned == "audio/ogg":
         return header_bytes.startswith(b"OggS")
@@ -269,7 +296,7 @@ class PerformanceTakeService:
             score_title=score_title_out,
             revision_id=revision_id_out,
             artifact_id=take.artifact_id,
-            media_kind=take.media_kind.value,
+            media_kind=_media_kind_value(take.media_kind),
             media_mime_type=take.media_mime_type,
             media_byte_size=take.media_byte_size,
             duration_ms=take.duration_ms,
@@ -330,6 +357,7 @@ class PerformanceTakeService:
         request: PerformanceTakeUploadAuthorizationRequest,
         cleaned_mime: str,
     ) -> bool:
+        media_kind = _clean_media_kind(request.media_kind)
         return (
             auth.score_uuid == request.score_id
             and auth.revision_uuid == request.revision_id
@@ -338,6 +366,7 @@ class PerformanceTakeService:
             and auth.scope_start_beat == request.scope_start_beat
             and auth.scope_terminal_beat == request.scope_terminal_beat
             and auth.duration_ms == request.duration_ms
+            and auth.media_kind == media_kind
             and auth.media_mime_type == cleaned_mime
             and auth.media_byte_size == request.media_byte_size
             and _json_equivalent(auth.tempo_selection, request.tempo_selection)
@@ -350,7 +379,8 @@ class PerformanceTakeService:
         auth: PerformanceTakeUploadAuthorization,
         request: PerformanceTakeCreateRequest,
     ) -> bool:
-        cleaned_mime = request.media_mime_type.split(";")[0].strip().lower()
+        cleaned_mime = _clean_mime_type(request.media_mime_type)
+        media_kind = _clean_media_kind(request.media_kind)
         return (
             auth.score_uuid == request.score_id
             and auth.revision_uuid == request.revision_id
@@ -359,6 +389,7 @@ class PerformanceTakeService:
             and auth.scope_start_beat == request.scope_start_beat
             and auth.scope_terminal_beat == request.scope_terminal_beat
             and auth.duration_ms == request.duration_ms
+            and auth.media_kind == media_kind
             and auth.media_mime_type == cleaned_mime
             and auth.media_byte_size == request.media_byte_size
             and _json_equivalent(auth.tempo_selection, request.tempo_selection)
@@ -375,6 +406,7 @@ class PerformanceTakeService:
             take.take_uuid == auth.take_uuid
             and take.user_id == auth.user_id
             and take.client_request_id == auth.client_request_id
+            and _media_kind_value(take.media_kind) == auth.media_kind
             and take.media_mime_type == auth.media_mime_type
             and take.media_byte_size == auth.media_byte_size
             and take.media_object_key == auth.final_object_key
@@ -489,8 +521,9 @@ class PerformanceTakeService:
         user_id: int,
         request: PerformanceTakeUploadAuthorizationRequest,
     ) -> PerformanceTakeUploadAuthorizationRead:
-        cleaned_mime = request.media_mime_type.split(";")[0].strip().lower()
-        if cleaned_mime not in SUPPORTED_AUDIO_MIMES:
+        media_kind = _clean_media_kind(request.media_kind)
+        cleaned_mime = _clean_mime_type(request.media_mime_type)
+        if cleaned_mime not in _supported_mimes_for_kind(media_kind):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
 
         if request.scope_start_beat < 0.0 or request.scope_terminal_beat <= request.scope_start_beat:
@@ -696,6 +729,7 @@ class PerformanceTakeService:
             resolved_tempo_plan=_json_snapshot(request.resolved_tempo_plan),
             sync_metadata=_json_snapshot(request.sync_metadata),
             duration_ms=request.duration_ms,
+            media_kind=media_kind,
             media_mime_type=cleaned_mime,
             media_byte_size=request.media_byte_size,
             storage_backend=self.storage.backend_name,
@@ -880,6 +914,7 @@ class PerformanceTakeService:
             "revision_uuid": auth.revision_uuid,
             "artifact_id": auth.artifact_id,
             "client_request_id": auth.client_request_id,
+            "media_kind": auth.media_kind,
             "media_mime_type": auth.media_mime_type,
             "media_byte_size": auth.media_byte_size,
             "storage_backend": auth.storage_backend,
@@ -976,8 +1011,10 @@ class PerformanceTakeService:
         header_bytes = b"".join(
             self.storage.iter_bytes(source_key, chunk_size=64, start=0, end=63)
         )
-        if not _verify_audio_container_magic_bytes(
-            header_bytes, auth_snapshot["media_mime_type"]
+        if not _verify_container_magic_bytes(
+            header_bytes,
+            auth_snapshot["media_mime_type"],
+            auth_snapshot["media_kind"],
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
         verified_staging_sha256 = _sha256_storage_object(
@@ -1109,7 +1146,7 @@ class PerformanceTakeService:
             revision_id=revision_db_id,
             artifact_id=auth_snapshot["artifact_id"],
             client_request_id=auth_snapshot["client_request_id"],
-            media_kind=PerformanceTakeMediaKind.AUDIO,
+            media_kind=PerformanceTakeMediaKind(auth_snapshot["media_kind"]),
             media_mime_type=auth_snapshot["media_mime_type"],
             media_byte_size=auth_snapshot["media_byte_size"],
             media_object_key=candidate_key,
@@ -1263,7 +1300,7 @@ class PerformanceTakeService:
             take_id=take.take_uuid,
             playback_url=playback_url,
             download_url=download_url,
-            media_kind=take.media_kind.value,
+            media_kind=_media_kind_value(take.media_kind),
             media_mime_type=take.media_mime_type,
             media_byte_size=take.media_byte_size,
             duration_ms=take.duration_ms,

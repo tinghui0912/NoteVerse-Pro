@@ -157,12 +157,20 @@ function PerformanceTakeCard({
   };
 
   const replay: PlayablePerformanceReplay | null = playbackQuery.data?.data
-    ? {
-        kind: 'AUDIO_RECORDING',
-        url: playbackQuery.data.data.playback_url,
-        durationMs: take.duration_ms,
-        contentType: take.media_mime_type,
-      }
+    ? take.media_kind === 'VIDEO'
+      ? {
+          kind: 'VIDEO_RECORDING',
+          url: playbackQuery.data.data.playback_url,
+          durationMs: take.duration_ms,
+          contentType: take.media_mime_type,
+          byteSize: take.media_byte_size,
+        }
+      : {
+          kind: 'AUDIO_RECORDING',
+          url: playbackQuery.data.data.playback_url,
+          durationMs: take.duration_ms,
+          contentType: take.media_mime_type,
+        }
     : null;
 
   const isDeleting = take.deletion_status === 'DELETING';
@@ -262,7 +270,11 @@ function PerformanceTakeCard({
                 data-testid={`download-take-${take.take_id}`}
               >
                 <Download className="h-4 w-4" />
-                {downloading ? common('downloading') : t('downloadRecording')}
+                {downloading
+                  ? common('downloading')
+                  : take.media_kind === 'VIDEO'
+                    ? t('downloadVideo')
+                    : t('downloadRecording')}
               </Button>
 
               <Button

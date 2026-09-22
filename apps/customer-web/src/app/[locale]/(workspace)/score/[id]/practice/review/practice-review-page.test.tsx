@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const navigationMocks = vi.hoisted(() => ({
@@ -45,6 +45,8 @@ const translationMocks = vi.hoisted(() => {
     savePerformanceSuccessDesc: '可以稍后在已保存演奏中查看。',
     savePerformanceFailedTitle: '保存失败',
     savePerformanceFailedDesc: '暂时无法保存这次演奏，请稍后重试。',
+    exportOriginalVideo: '导出原始视频',
+    savePerformanceMediaTooLarge: '本次媒体超过 100 MiB，暂不能保存到云端。你可以先导出原始视频。',
     retryPractice: '重弹一次',
     playback: '练习回放',
   };
@@ -170,6 +172,7 @@ describe('PracticeReviewPage', () => {
       scoreEndBeat: 16,
     };
     vi.restoreAllMocks();
+    saveMutationMock.mutateAsync.mockReset();
   });
 
   it('renders expired empty state when draft is absent', () => {
@@ -208,6 +211,7 @@ describe('PracticeReviewPage', () => {
   });
 
   it('renders full review report with player when valid draft has audio READY', () => {
+    const videoBlob = new Blob(['video'], { type: 'video/webm' });
     const validDraft: PerformanceReviewDraft = {
       localSessionId: 'sess-1',
       scoreId: 'score-123',
@@ -756,10 +760,109 @@ describe('PracticeReviewPage', () => {
     expect(saveCall.revisionId).toBe('rev-1');
     expect(saveCall.scopeType).toBe('FULL');
     expect(saveCall.artifactId).toBe('art-1');
-    expect(saveCall.audioBlob).toBeDefined();
+    expect(saveCall.mediaKind).toBe('AUDIO');
+    expect(saveCall.mediaBlob).toBeDefined();
 
     // After resolution, shows "已保存" and "查看我的演奏"
     await screen.findByText('已保存');
     expect(screen.getAllByText('查看我的演奏').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('exports and saves ready video review media without using the audio blob', async () => {
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:video-export'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    const createObjectURL = vi.mocked(URL.createObjectURL);
+    const revokeObjectURL = vi.mocked(URL.revokeObjectURL);
+
+    const videoBlob = new Blob(['video'], { type: 'video/webm' });
+    const validDraft: PerformanceReviewDraft = {
+      localSessionId: 'sess-video-save',
+      scoreId: 'score-123',
+      revisionId: 'rev-1',
+      artifactId: 'art-1',
+      scope: { startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+      tempoPlan: {
+        selection: { mode: 'SCORE' },
+        segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
+      },
+      performanceSnapshot: {
+        localSessionId: 'sess-video-save',
+        scoreId: 'score-123',
+        revisionId: 'rev-1',
+        artifactId: 'art-1',
+        mode: 'CONTINUOUS_PLAY',
+        inputSource: 'MICROPHONE',
+        tempoSelection: { mode: 'SCORE' },
+        metronomeEnabled: false,
+        lifecycleState: 'ENDED',
+        completionReason: 'SCOPE_COMPLETED',
+        version: { schemaVersion: 1, runtimeVersion: '1.0.0' },
+        createdAtMs: 1000,
+        updatedAtMs: 4000,
+        performance: {
+          state: 'ENDED',
+          stateBeforePause: 'RUNNING',
+          resolvedTempoPlan: {
+            selection: { mode: 'SCORE' },
+            segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
+          },
+          scopeStartBeat: 0,
+          scopeTerminalBeat: 4,
+          activeElapsedMs: 3000,
+          countInMs: 0,
+          countInBeats: 0,
+          countInPulses: 0,
+          observations: [],
+          outcomes: [],
+        },
+      },
+      audio: {
+        status: 'UNAVAILABLE',
+        reason: 'VIDEO_RECORDING_LOCAL_ONLY',
+      },
+      video: {
+        status: 'READY',
+        blob: videoBlob,
+        mimeType: 'video/webm',
+        durationMs: 3000,
+      },
+      recordingTimebase: {
+        recordingStartPerfTimeMs: 0,
+        recordingEndPerfTimeMs: 3000,
+        activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
+        nominalMediaDurationMs: 3000,
+      },
+      replayTiming: {
+        scopeStartBeat: 0,
+        scopeStartMs: 0,
+        nominalDurationMs: 3000,
+      },
+      completedAt: '2026-09-20T12:00:00.000Z',
+    };
+
+    performanceReviewDraftStore.setDraft(validDraft);
+    saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
+
+    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
+    expect(createObjectURL).toHaveBeenCalledWith(videoBlob);
+
+    fireEvent.click(screen.getByRole('button', { name: '保存演奏' }));
+    const saveCall = saveMutationMock.mutateAsync.mock.calls[0][0];
+    expect(saveCall.mediaKind).toBe('VIDEO');
+    expect(saveCall.mediaBlob).toBe(videoBlob);
+    expect(saveCall.mimeType).toBe('video/webm');
+
+    await screen.findByText('已保存');
+    await waitFor(() => {
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:video-export');
+    });
   });
 });

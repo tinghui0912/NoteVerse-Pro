@@ -26,6 +26,7 @@ const translationMocks = vi.hoisted(() => {
     deletePerformanceTakeAcceptedTitle: '删除请求已接受',
     deletePerformanceTakeAcceptedDesc: '删除请求已接受，正在后台清理并释放配额。',
     downloadRecording: '下载录音',
+    downloadVideo: '下载视频',
     performanceTakeDeleted: '已删除该演奏',
     performanceDuration: '演奏时长',
     performanceScope: '练习范围',
@@ -100,8 +101,9 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/components/practice/performance-replay-player', () => ({
-  PerformanceReplayPlayer: ({ replay }: { replay: { url?: string } }) => (
+  PerformanceReplayPlayer: ({ replay }: { replay: { kind?: string; url?: string } }) => (
     <div data-testid="performance-replay-player">
+      <span>Kind: {replay.kind}</span>
       <span>Replaying: {replay.url}</span>
     </div>
   ),
@@ -219,6 +221,8 @@ describe('MyPerformancesPage', () => {
     currentTakesTotal = 121;
     mockPlaybackQuery.isLoading = false;
     mockPlaybackQuery.isError = false;
+    mockPlaybackQuery.data.data.media_kind = 'AUDIO';
+    mockPlaybackQuery.data.data.media_mime_type = 'audio/webm';
     mockDeleteTakeMutation.isPending = false;
   });
 
@@ -342,6 +346,48 @@ describe('MyPerformancesPage', () => {
     const retryBtn = screen.getByTestId('retry-playback-take-1');
     fireEvent.click(retryBtn);
     expect(mockPlaybackQuery.refetch).toHaveBeenCalled();
+  });
+
+  it('uses video replay and video download copy for VIDEO takes', () => {
+    mockQueryOverride = {
+      data: {
+        data: {
+          items: [
+            {
+              take_id: 'take-video-1',
+              score_id: 'score-uuid-1',
+              score_title: 'Score Title 1',
+              media_kind: 'VIDEO',
+              media_mime_type: 'video/webm',
+              media_byte_size: 2048,
+              duration_ms: 60000,
+              scope_type: 'FULL',
+              scope_start_beat: 0,
+              scope_terminal_beat: 0,
+              tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
+              created_at: new Date().toISOString(),
+            },
+          ],
+          total: 1,
+          limit: 20,
+          offset: 0,
+          has_more: false,
+        },
+      },
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      refetch: vi.fn(),
+    };
+    mockPlaybackQuery.data.data.media_kind = 'VIDEO';
+    mockPlaybackQuery.data.data.media_mime_type = 'video/webm';
+
+    render(<MyPerformancesPage />);
+
+    expect(screen.getByTestId('download-take-take-video-1')).toHaveTextContent('下载视频');
+    fireEvent.click(screen.getByTestId('play-take-take-video-1'));
+
+    expect(screen.getByText('Kind: VIDEO_RECORDING')).toBeInTheDocument();
   });
 
   it('triggers download and handles download failure with retry', async () => {

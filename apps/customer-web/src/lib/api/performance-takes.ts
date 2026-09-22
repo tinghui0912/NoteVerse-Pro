@@ -3,6 +3,7 @@ import { apiClient, apiUrl, type ApiResponse } from '@/lib/api-client';
 export interface PerformanceTakeUploadAuthorizationRequest {
   score_id: string;
   client_request_id: string;
+  media_kind: 'AUDIO' | 'VIDEO';
   media_byte_size: number;
   media_mime_type: string;
   duration_ms: number;
@@ -33,6 +34,7 @@ export interface PerformanceTakeCreateRequest {
   client_request_id: string;
   reservation_id: string;
   score_id: string;
+  media_kind: 'AUDIO' | 'VIDEO';
   media_byte_size: number;
   media_mime_type: string;
   duration_ms: number;

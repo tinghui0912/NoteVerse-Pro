@@ -10,6 +10,7 @@ import {
   Bookmark,
   CheckCircle2,
   Clock,
+  Download,
   Gauge,
   HelpCircle,
   Loader2,
@@ -42,6 +43,8 @@ import { PracticeTempoTimeline } from '@/lib/practice/local-core/practice-tempo'
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
 
+const MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
+
 function scoreIdFromParams(params: ReturnType<typeof useParams>): string {
   const id = params?.id;
   return Array.isArray(id) ? id[0] ?? '' : id ?? '';
@@ -52,6 +55,14 @@ function formatDuration(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function extensionForMime(mimeType: string): string {
+  const cleaned = mimeType.split(';')[0]?.trim().toLowerCase();
+  if (cleaned === 'video/mp4' || cleaned === 'audio/mp4') return 'mp4';
+  if (cleaned === 'audio/ogg') return 'ogg';
+  if (cleaned === 'audio/wav' || cleaned === 'audio/x-wav') return 'wav';
+  return 'webm';
 }
 
 export default function PracticeReviewPage({
@@ -244,18 +255,49 @@ export default function PracticeReviewPage({
     };
   }, [draft]);
 
-  const isLocalVideoReview = draft?.video?.status === 'READY';
+  const saveMedia = useMemo(() => {
+    if (draft?.video?.status === 'READY') {
+      return {
+        kind: 'VIDEO' as const,
+        blob: draft.video.blob,
+        mimeType: draft.video.mimeType,
+        durationMs: draft.video.durationMs,
+      };
+    }
+    if (draft?.audio.status === 'READY') {
+      return {
+        kind: 'AUDIO' as const,
+        blob: draft.audio.blob,
+        mimeType: draft.audio.mimeType,
+        durationMs: draft.audio.durationMs,
+      };
+    }
+    return null;
+  }, [draft]);
 
   const clientRequestIdRef = useRef<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const saveMutation = useSavePerformanceTake();
 
+  const handleExportOriginalVideo = useCallback(() => {
+    if (draft?.video?.status !== 'READY' || draft.video.blob.size <= 0) {
+      return;
+    }
+    const url = URL.createObjectURL(draft.video.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `performance-video-${Date.now()}.${extensionForMime(draft.video.mimeType)}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }, [draft]);
+
   const handleSavePerformance = useCallback(async () => {
     if (
       !draft ||
-      isLocalVideoReview ||
-      draft.audio.status !== 'READY' ||
+      !saveMedia ||
       saveStatus === 'saving' ||
       saveStatus === 'saved'
     ) {
@@ -263,6 +305,11 @@ export default function PracticeReviewPage({
     }
     if (!clientRequestIdRef.current) {
       clientRequestIdRef.current = `take-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    }
+    if (saveMedia.blob.size > MAX_TAKE_MEDIA_BYTES) {
+      setSaveStatus('error');
+      setSaveErrorMessage(t('savePerformanceMediaTooLarge'));
+      return;
     }
     setSaveStatus('saving');
     setSaveErrorMessage(null);
@@ -276,9 +323,10 @@ export default function PracticeReviewPage({
         scopeType,
         artifactId: draft.artifactId,
         clientRequestId: clientRequestIdRef.current ?? '',
-        audioBlob: draft.audio.blob,
-        mimeType: draft.audio.mimeType,
-        durationMs: draft.audio.durationMs,
+        mediaKind: saveMedia.kind,
+        mediaBlob: saveMedia.blob,
+        mimeType: saveMedia.mimeType,
+        durationMs: saveMedia.durationMs,
         scopeStartBeat: draft.scope.startBeat,
         scopeTerminalBeat: draft.scope.terminalBeat,
         tempoSelection: draft.tempoPlan.selection as unknown as Record<string, unknown>,
@@ -295,7 +343,7 @@ export default function PracticeReviewPage({
         err instanceof Error ? err.message : t('savePerformanceFailed')
       );
     }
-  }, [draft, id, isLocalVideoReview, saveMutation, saveStatus, t]);
+  }, [draft, id, saveMedia, saveMutation, saveStatus, t]);
 
   const handleRestart = useCallback(() => {
     performanceReviewDraftStore.clearDraft();
@@ -387,12 +435,13 @@ export default function PracticeReviewPage({
               <Repeat className="mr-1.5 h-4 w-4" />
               {t('retryPractice')}
             </Button>
-            {isLocalVideoReview ? (
-              <Button size="sm" variant="outline" disabled title={t('videoReviewLocalOnlyDesc')}>
-                <Bookmark className="mr-1.5 h-4 w-4" />
-                {t('videoReviewLocalOnly')}
+            {draft.video?.status === 'READY' ? (
+              <Button size="sm" variant="outline" onClick={handleExportOriginalVideo}>
+                <Download className="mr-1.5 h-4 w-4" />
+                {t('exportOriginalVideo')}
               </Button>
-            ) : draft.audio.status !== 'READY' ? (
+            ) : null}
+            {!saveMedia ? (
               <Button size="sm" variant="outline" disabled title={t('audioRecordingUnavailable')}>
                 <Bookmark className="mr-1.5 h-4 w-4" />
                 {t('savePerformance')}

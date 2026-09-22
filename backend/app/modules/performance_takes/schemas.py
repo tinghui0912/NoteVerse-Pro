@@ -11,6 +11,7 @@ class PerformanceTakeUploadAuthorizationRequest(BaseModel):
 
     score_id: str = Field(min_length=1, max_length=64)
     client_request_id: str = Field(min_length=1, max_length=128)
+    media_kind: str = Field(default="AUDIO", pattern="^(AUDIO|VIDEO)$")
     media_byte_size: int = Field(gt=0)
     media_mime_type: str = Field(min_length=1, max_length=64)
     duration_ms: int = Field(ge=0)
@@ -43,6 +44,7 @@ class PerformanceTakeCreateRequest(BaseModel):
     client_request_id: str = Field(min_length=1, max_length=128)
     reservation_id: str = Field(min_length=1, max_length=128)
     score_id: str = Field(min_length=1, max_length=64)
+    media_kind: str = Field(default="AUDIO", pattern="^(AUDIO|VIDEO)$")
     media_byte_size: int = Field(gt=0)
     media_mime_type: str = Field(min_length=1, max_length=64)
     duration_ms: int = Field(ge=0)

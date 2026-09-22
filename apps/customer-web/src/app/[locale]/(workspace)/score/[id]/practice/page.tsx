@@ -105,6 +105,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [isPreparingCamera, setIsPreparingCamera] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
+  const cameraRequestGenerationRef = useRef(0);
   const [rangeSelection, setRangeSelection] = useState<PracticeRangeSelection>(
     fullPiecePracticeRangeSelection
   );
@@ -179,11 +180,13 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   }, [pendingStartGroup, rangeSelection, selectedRangeGroups]);
 
   const releaseCameraPreview = useCallback(() => {
+    cameraRequestGenerationRef.current += 1;
     setCameraPreviewStream((current) => {
       stopMediaStream(current);
       return null;
     });
     setCameraRecordingEnabled(false);
+    setIsPreparingCamera(false);
   }, []);
 
   const handleCameraRecordingEnabledChange = useCallback(
@@ -205,6 +208,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
       setIsPreparingCamera(true);
       setCameraStatusMessage(t('settingCameraPreparing'));
+      const requestGeneration = cameraRequestGenerationRef.current + 1;
+      cameraRequestGenerationRef.current = requestGeneration;
       try {
         const stream = await mediaDevices.getUserMedia({
           video: {
@@ -219,6 +224,13 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                 }
               : false,
         });
+        const isStillCurrent =
+          cameraRequestGenerationRef.current === requestGeneration &&
+          practiceMode === 'CONTINUOUS_PLAY';
+        if (!isStillCurrent) {
+          stopMediaStream(stream);
+          return;
+        }
         const hasVideo = stream.getVideoTracks().some((track) => track.readyState === 'live');
         const hasAudio =
           inputSource === 'MICROPHONE' ||
@@ -237,6 +249,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         setCameraRecordingEnabled(true);
         setCameraStatusMessage(t('settingCameraReady'));
       } catch (error) {
+        if (cameraRequestGenerationRef.current !== requestGeneration) {
+          return;
+        }
         const name = error instanceof DOMException ? error.name : '';
         setCameraStatusMessage(
           name === 'NotAllowedError' || name === 'PermissionDeniedError'
@@ -245,7 +260,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         );
         setCameraRecordingEnabled(false);
       } finally {
-        setIsPreparingCamera(false);
+        if (cameraRequestGenerationRef.current === requestGeneration) {
+          setIsPreparingCamera(false);
+        }
       }
     },
     [inputSource, practiceMode, releaseCameraPreview, t]
@@ -265,6 +282,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   useEffect(() => {
     return () => {
+      cameraRequestGenerationRef.current += 1;
       stopMediaStream(cameraPreviewStream);
     };
   }, [cameraPreviewStream]);
