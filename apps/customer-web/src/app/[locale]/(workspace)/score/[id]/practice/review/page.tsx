@@ -10,6 +10,7 @@ import {
   Bookmark,
   CheckCircle2,
   Clock,
+  Clapperboard,
   Download,
   Gauge,
   HelpCircle,
@@ -42,6 +43,11 @@ import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-anno
 import { PracticeTempoTimeline } from '@/lib/practice/local-core/practice-tempo';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
+import {
+  exportSplitScreenPerformanceVideo,
+  getSplitScreenExportReadiness,
+  type SplitScreenExportBlockReason,
+} from '@/lib/practice/split-screen-video-export';
 
 const MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 
@@ -63,6 +69,26 @@ function extensionForMime(mimeType: string): string {
   if (cleaned === 'audio/ogg') return 'ogg';
   if (cleaned === 'audio/wav' || cleaned === 'audio/x-wav') return 'wav';
   return 'webm';
+}
+
+function splitScreenBlockReasonToMessage(
+  t: (key: string) => string,
+  reason: SplitScreenExportBlockReason
+) {
+  switch (reason) {
+    case 'video_not_ready':
+    case 'empty_video':
+      return t('exportScoreVideoUnavailableVideo');
+    case 'score_identity_mismatch':
+      return t('exportScoreVideoUnavailableScoreMismatch');
+    case 'score_not_ready':
+      return t('exportScoreVideoUnavailableScore');
+    case 'timebase_unavailable':
+      return t('exportScoreVideoUnavailableSync');
+    case 'media_recorder_unsupported':
+    case 'canvas_capture_unsupported':
+      return t('exportScoreVideoUnsupportedBrowser');
+  }
 }
 
 export default function PracticeReviewPage({
@@ -129,6 +155,7 @@ export default function PracticeReviewPage({
   const annotationController = useMemo(() => new PracticeSummaryAnnotationController(), []);
 
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
+  const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);
 
   const confirmedCorrectNoteIds = useMemo(() => {
     if (!isScoreIdentityConfirmed || !draft?.performanceSnapshot?.performance?.outcomes) {
@@ -172,7 +199,11 @@ export default function PracticeReviewPage({
 
   const handleScoreRendered = useCallback(
     (_adapter: unknown, container: HTMLDivElement) => {
+      const isNewContainer = scoreContainerRef.current !== container;
       scoreContainerRef.current = container;
+      if (isNewContainer) {
+        setScoreContainer(container);
+      }
       if (!isScoreIdentityConfirmed) {
         annotationController.apply(container, {
           confirmedCorrectNoteIds: [],
@@ -278,7 +309,24 @@ export default function PracticeReviewPage({
   const clientRequestIdRef = useRef<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
+  const splitExportAbortRef = useRef<AbortController | null>(null);
+  const [splitExportStatus, setSplitExportStatus] = useState<
+    'idle' | 'exporting' | 'success' | 'error'
+  >('idle');
+  const [splitExportProgress, setSplitExportProgress] = useState(0);
+  const [splitExportError, setSplitExportError] = useState<string | null>(null);
   const saveMutation = useSavePerformanceTake();
+
+  const splitScreenReadiness = useMemo(
+    () =>
+      getSplitScreenExportReadiness({
+        draft,
+        isScoreIdentityConfirmed,
+        xmlContent,
+        scoreContainer,
+      }),
+    [draft, isScoreIdentityConfirmed, scoreContainer, xmlContent]
+  );
 
   const handleExportOriginalVideo = useCallback(() => {
     if (draft?.video?.status !== 'READY' || draft.video.blob.size <= 0) {
@@ -294,6 +342,61 @@ export default function PracticeReviewPage({
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }, [draft]);
 
+  const handleExportSplitScreenVideo = useCallback(async () => {
+    if (
+      !draft ||
+      draft.video?.status !== 'READY' ||
+      !scoreContainerRef.current ||
+      !splitScreenReadiness.ok ||
+      splitExportStatus === 'exporting'
+    ) {
+      return;
+    }
+
+    const abortController = new AbortController();
+    splitExportAbortRef.current = abortController;
+    setSplitExportStatus('exporting');
+    setSplitExportProgress(0);
+    setSplitExportError(null);
+
+    try {
+      const result = await exportSplitScreenPerformanceVideo({
+        draft,
+        scoreContainer: scoreContainerRef.current,
+        adapter,
+        scoreEndBeat: artifact?.scoreEndBeat ?? draft.scope.terminalBeat,
+        signal: abortController.signal,
+        onProgress: (progress) => setSplitExportProgress(progress.ratio),
+      });
+      const url = URL.createObjectURL(result.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `performance-score-video-${Date.now()}.${extensionForMime(result.mimeType)}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      setSplitExportProgress(1);
+      setSplitExportStatus('success');
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setSplitExportStatus('idle');
+        setSplitExportProgress(0);
+        return;
+      }
+      setSplitExportStatus('error');
+      setSplitExportError(
+        err instanceof Error ? err.message : t('exportScoreVideoFailedDesc')
+      );
+    } finally {
+      splitExportAbortRef.current = null;
+    }
+  }, [adapter, artifact, draft, splitExportStatus, splitScreenReadiness, t]);
+
+  const handleCancelSplitScreenExport = useCallback(() => {
+    splitExportAbortRef.current?.abort();
+  }, []);
+
   const handleSavePerformance = useCallback(async () => {
     if (
       !draft ||
@@ -305,6 +408,14 @@ export default function PracticeReviewPage({
     }
     if (!clientRequestIdRef.current) {
       clientRequestIdRef.current = `take-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    }
+    if (
+      saveMedia.kind === 'VIDEO' &&
+      saveMedia.mimeType.split(';')[0]?.trim().toLowerCase() !== 'video/webm'
+    ) {
+      setSaveStatus('error');
+      setSaveErrorMessage(t('savePerformanceVideoFormatUnsupported'));
+      return;
     }
     if (saveMedia.blob.size > MAX_TAKE_MEDIA_BYTES) {
       setSaveStatus('error');
@@ -344,6 +455,12 @@ export default function PracticeReviewPage({
       );
     }
   }, [draft, id, saveMedia, saveMutation, saveStatus, t]);
+
+  useEffect(() => {
+    return () => {
+      splitExportAbortRef.current?.abort();
+    };
+  }, []);
 
   const handleRestart = useCallback(() => {
     performanceReviewDraftStore.clearDraft();
@@ -441,6 +558,26 @@ export default function PracticeReviewPage({
                 {t('exportOriginalVideo')}
               </Button>
             ) : null}
+            {draft.video?.status === 'READY' ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleExportSplitScreenVideo}
+                disabled={!splitScreenReadiness.ok || splitExportStatus === 'exporting'}
+                title={
+                  splitScreenReadiness.ok
+                    ? undefined
+                    : splitScreenBlockReasonToMessage(t, splitScreenReadiness.reason)
+                }
+              >
+                {splitExportStatus === 'exporting' ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <Clapperboard className="mr-1.5 h-4 w-4" />
+                )}
+                {t('exportScoreVideo')}
+              </Button>
+            ) : null}
             {!saveMedia ? (
               <Button size="sm" variant="outline" disabled title={t('audioRecordingUnavailable')}>
                 <Bookmark className="mr-1.5 h-4 w-4" />
@@ -493,6 +630,48 @@ export default function PracticeReviewPage({
           </Button>
         </div>
       )}
+
+      {draft.video?.status === 'READY' && splitExportStatus === 'exporting' ? (
+        <div
+          className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100"
+          data-testid="split-screen-export-progress"
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h4 className="text-sm font-semibold">{t('exportScoreVideoProgressTitle')}</h4>
+              <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                {t('exportScoreVideoProgressDesc', {
+                  progress: Math.round(splitExportProgress * 100),
+                })}
+              </p>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-blue-100 dark:bg-blue-900">
+                <div
+                  className="h-full rounded-full bg-blue-600 transition-all"
+                  style={{ width: `${Math.round(splitExportProgress * 100)}%` }}
+                />
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={handleCancelSplitScreenExport}>
+              {t('cancelExportScoreVideo')}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {draft.video?.status === 'READY' && splitExportStatus === 'error' ? (
+        <div
+          className="rounded-lg border border-red-300 bg-red-50 p-4 text-red-900 dark:bg-red-950/30 dark:text-red-200"
+          data-testid="split-screen-export-error"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+            <h4 className="text-sm font-semibold">{t('exportScoreVideoFailedTitle')}</h4>
+          </div>
+          <p className="mt-1 pl-7 text-xs text-red-700 dark:text-red-300">
+            {splitExportError ?? t('exportScoreVideoFailedDesc')}
+          </p>
+        </div>
+      ) : null}
 
       {/* Save Success Banner */}
       {saveStatus === 'saved' && (

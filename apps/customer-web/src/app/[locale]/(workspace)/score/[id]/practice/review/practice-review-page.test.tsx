@@ -46,7 +46,19 @@ const translationMocks = vi.hoisted(() => {
     savePerformanceFailedTitle: '保存失败',
     savePerformanceFailedDesc: '暂时无法保存这次演奏，请稍后重试。',
     exportOriginalVideo: '导出原始视频',
+    exportScoreVideo: '导出乐谱＋视频',
+    exportScoreVideoProgressTitle: '正在合成乐谱＋演奏视频',
+    exportScoreVideoProgressDesc: '已处理 {progress}%。请保持页面打开。',
+    cancelExportScoreVideo: '取消合成',
+    exportScoreVideoFailedTitle: '合成导出失败',
+    exportScoreVideoFailedDesc: '暂时无法合成这次乐谱＋演奏视频。原始视频和保存演奏仍可继续使用。',
+    exportScoreVideoUnavailableVideo: '需要一段可播放的本地视频才能合成导出。',
+    exportScoreVideoUnavailableScore: '乐谱尚未准备好，暂不能可靠合成。',
+    exportScoreVideoUnavailableScoreMismatch: '当前乐谱版本与录像不一致，暂不能可靠合成。',
+    exportScoreVideoUnavailableSync: '缺少可靠的录像与乐谱时间映射，暂不能合成。',
+    exportScoreVideoUnsupportedBrowser: '当前浏览器不支持本地视频合成导出。',
     savePerformanceMediaTooLarge: '本次媒体超过 100 MiB，暂不能保存到云端。你可以先导出原始视频。',
+    savePerformanceVideoFormatUnsupported: '当前服务端暂只支持保存 WebM 视频。你仍可以导出原始视频或乐谱＋视频文件。',
     retryPractice: '重弹一次',
     playback: '练习回放',
   };
@@ -154,6 +166,16 @@ vi.mock('@/components/practice/performance-replay-player', () => ({
   },
 }));
 
+const splitScreenMocks = vi.hoisted(() => ({
+  exportSplitScreenPerformanceVideo: vi.fn(),
+  getSplitScreenExportReadiness: vi.fn(),
+}));
+
+vi.mock('@/lib/practice/split-screen-video-export', () => ({
+  exportSplitScreenPerformanceVideo: splitScreenMocks.exportSplitScreenPerformanceVideo,
+  getSplitScreenExportReadiness: splitScreenMocks.getSplitScreenExportReadiness,
+}));
+
 import PracticeReviewPage from './page';
 import {
   performanceReviewDraftStore,
@@ -173,6 +195,30 @@ describe('PracticeReviewPage', () => {
     };
     vi.restoreAllMocks();
     saveMutationMock.mutateAsync.mockReset();
+    splitScreenMocks.exportSplitScreenPerformanceVideo.mockReset();
+    splitScreenMocks.exportSplitScreenPerformanceVideo.mockResolvedValue({
+      blob: new Blob(['split-screen'], { type: 'video/webm' }),
+      mimeType: 'video/webm',
+      durationMs: 3000,
+    });
+    splitScreenMocks.getSplitScreenExportReadiness.mockImplementation(
+      ({
+        draft,
+        isScoreIdentityConfirmed,
+        xmlContent,
+        scoreContainer,
+      }: {
+        draft: PerformanceReviewDraft | null;
+        isScoreIdentityConfirmed: boolean;
+        xmlContent: string | null;
+        scoreContainer: HTMLElement | null;
+      }) => {
+        if (draft?.video?.status !== 'READY') return { ok: false, reason: 'video_not_ready' };
+        if (!isScoreIdentityConfirmed) return { ok: false, reason: 'score_identity_mismatch' };
+        if (!xmlContent || !scoreContainer) return { ok: false, reason: 'score_not_ready' };
+        return { ok: true, mimeType: 'video/webm' };
+      }
+    );
   });
 
   it('renders expired empty state when draft is absent', () => {
@@ -211,7 +257,6 @@ describe('PracticeReviewPage', () => {
   });
 
   it('renders full review report with player when valid draft has audio READY', () => {
-    const videoBlob = new Blob(['video'], { type: 'video/webm' });
     const validDraft: PerformanceReviewDraft = {
       localSessionId: 'sess-1',
       scoreId: 'score-123',
@@ -865,4 +910,230 @@ describe('PracticeReviewPage', () => {
       expect(revokeObjectURL).toHaveBeenCalledWith('blob:video-export');
     });
   });
+
+  it('exports score plus video as a separate composited file without replacing original export or save', async () => {
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn((blob: Blob) =>
+        blob.type === 'video/webm' && blob.size === 12 ? 'blob:split-screen-export' : 'blob:raw-video'
+      ),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    const createObjectURL = vi.mocked(URL.createObjectURL);
+
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const videoBlob = new Blob(['raw-video'], { type: 'video/webm' });
+    const draft = createVideoDraft({ videoBlob });
+    performanceReviewDraftStore.setDraft(draft);
+    saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
+
+    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '导出乐谱＋视频' }));
+
+    await waitFor(() => {
+      expect(splitScreenMocks.exportSplitScreenPerformanceVideo).toHaveBeenCalled();
+    });
+    expect(createObjectURL).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'video/webm' })
+    );
+    expect(clickSpy).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
+    expect(createObjectURL).toHaveBeenCalledWith(videoBlob);
+
+    fireEvent.click(screen.getByRole('button', { name: '保存演奏' }));
+    await waitFor(() => expect(saveMutationMock.mutateAsync).toHaveBeenCalled());
+    expect(saveMutationMock.mutateAsync.mock.calls[0][0].mediaKind).toBe('VIDEO');
+  });
+
+  it('disables score plus video export when score identity is mismatched and keeps raw video export available', () => {
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:raw-video'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    currentMockArtifact = {
+      scoreId: 'score-123',
+      revisionId: 'rev-2',
+      artifactId: 'art-1',
+      scoreEndBeat: 16,
+    };
+    performanceReviewDraftStore.setDraft(createVideoDraft());
+
+    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+
+    expect(screen.getByRole('button', { name: '导出乐谱＋视频' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
+    expect(URL.createObjectURL).toHaveBeenCalled();
+    expect(splitScreenMocks.exportSplitScreenPerformanceVideo).not.toHaveBeenCalled();
+  });
+
+  it('prevents parallel score-video exports and aborts the active export when cancelled', async () => {
+    const resolveExportRef: Array<
+      (value: { blob: Blob; mimeType: string; durationMs: number }) => void
+    > = [];
+    splitScreenMocks.exportSplitScreenPerformanceVideo.mockImplementation(
+      (_options: { signal: AbortSignal; onProgress?: (progress: { ratio: number }) => void }) => {
+        _options.onProgress?.({ ratio: 0.25 });
+        return new Promise((resolve) => {
+          resolveExportRef[0] = resolve;
+        });
+      }
+    );
+    performanceReviewDraftStore.setDraft(createVideoDraft());
+
+    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+
+    const exportButton = screen.getByRole('button', { name: '导出乐谱＋视频' });
+    fireEvent.click(exportButton);
+    fireEvent.click(exportButton);
+
+    await screen.findByTestId('split-screen-export-progress');
+    expect(splitScreenMocks.exportSplitScreenPerformanceVideo).toHaveBeenCalledTimes(1);
+    expect(exportButton).toBeDisabled();
+
+    const signal = splitScreenMocks.exportSplitScreenPerformanceVideo.mock.calls[0][0].signal as AbortSignal;
+    fireEvent.click(screen.getByRole('button', { name: '取消合成' }));
+    expect(signal.aborted).toBe(true);
+
+    resolveExportRef[0]?.({
+      blob: new Blob(['split-screen'], { type: 'video/webm' }),
+      mimeType: 'video/webm',
+      durationMs: 3000,
+    });
+  });
+
+  it('shows export failure while preserving raw video export and video save actions', async () => {
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:raw-video'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    splitScreenMocks.exportSplitScreenPerformanceVideo.mockRejectedValueOnce(
+      new Error('encoder failed')
+    );
+    performanceReviewDraftStore.setDraft(createVideoDraft());
+    saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
+
+    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+    fireEvent.click(screen.getByRole('button', { name: '导出乐谱＋视频' }));
+
+    await screen.findByTestId('split-screen-export-error');
+    expect(screen.getByText('encoder failed')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
+    expect(URL.createObjectURL).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '保存演奏' }));
+    await waitFor(() => expect(saveMutationMock.mutateAsync).toHaveBeenCalled());
+  });
+
+  it('explains unsupported MP4 cloud save before calling the backend while local exports remain available', async () => {
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:mp4-video'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    performanceReviewDraftStore.setDraft(
+      createVideoDraft({
+        videoBlob: new Blob(['mp4-video'], { type: 'video/mp4' }),
+        mimeType: 'video/mp4',
+      })
+    );
+
+    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
+    expect(URL.createObjectURL).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '保存演奏' }));
+    expect(saveMutationMock.mutateAsync).not.toHaveBeenCalled();
+    expect(screen.getByText('当前服务端暂只支持保存 WebM 视频。你仍可以导出原始视频或乐谱＋视频文件。')).toBeInTheDocument();
+  });
 });
+
+function createVideoDraft({
+  videoBlob = new Blob(['video'], { type: 'video/webm' }),
+  mimeType = videoBlob.type || 'video/webm',
+}: {
+  videoBlob?: Blob;
+  mimeType?: string;
+} = {}): PerformanceReviewDraft {
+  return {
+    localSessionId: 'sess-video',
+    scoreId: 'score-123',
+    revisionId: 'rev-1',
+    artifactId: 'art-1',
+    scope: { startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+    tempoPlan: {
+      selection: { mode: 'SCORE' },
+      segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
+    },
+    performanceSnapshot: {
+      localSessionId: 'sess-video',
+      scoreId: 'score-123',
+      revisionId: 'rev-1',
+      artifactId: 'art-1',
+      mode: 'CONTINUOUS_PLAY',
+      inputSource: 'MICROPHONE',
+      tempoSelection: { mode: 'SCORE' },
+      metronomeEnabled: false,
+      lifecycleState: 'ENDED',
+      completionReason: 'SCOPE_COMPLETED',
+      version: { schemaVersion: 1, runtimeVersion: '1.0.0' },
+      createdAtMs: 1000,
+      updatedAtMs: 4000,
+      performance: {
+        state: 'ENDED',
+        stateBeforePause: 'RUNNING',
+        resolvedTempoPlan: {
+          selection: { mode: 'SCORE' },
+          segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
+        },
+        scopeStartBeat: 0,
+        scopeTerminalBeat: 4,
+        activeElapsedMs: 3000,
+        countInMs: 0,
+        countInBeats: 0,
+        countInPulses: 0,
+        observations: [],
+        outcomes: [],
+      },
+    },
+    audio: {
+      status: 'UNAVAILABLE',
+      reason: 'VIDEO_RECORDING_LOCAL_ONLY',
+    },
+    video: {
+      status: 'READY',
+      blob: videoBlob,
+      mimeType,
+      durationMs: 3000,
+    },
+    recordingTimebase: {
+      recordingStartPerfTimeMs: 0,
+      recordingEndPerfTimeMs: 3000,
+      activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
+      nominalMediaDurationMs: 3000,
+    },
+    replayTiming: {
+      scopeStartBeat: 0,
+      scopeStartMs: 0,
+      nominalDurationMs: 3000,
+    },
+    completedAt: '2026-09-20T12:00:00.000Z',
+  };
+}
