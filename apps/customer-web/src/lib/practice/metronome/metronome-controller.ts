@@ -161,6 +161,9 @@ export class MetronomeController {
     if (!tempoPlan || !Array.isArray(tempoPlan.segments) || tempoPlan.segments.length === 0) {
       throw new Error('MetronomeController requires a valid ResolvedPracticeTempoPlan with segments.');
     }
+    if (tempoPlansEqual(this.tempoPlan, tempoPlan)) {
+      return;
+    }
     this.tempoPlan = tempoPlan;
     this.timeline = new PracticeTempoTimeline(tempoPlan, this.artifact.scoreEndBeat);
     const nowMs = (this.audioContext?.currentTime ?? 0) * 1000;
@@ -443,4 +446,35 @@ export class MetronomeController {
       this.audioAvailable = false;
     }
   }
+}
+
+function tempoPlansEqual(
+  left: ResolvedPracticeTempoPlan,
+  right: ResolvedPracticeTempoPlan
+): boolean {
+  if (left === right) {
+    return true;
+  }
+  if (left.selection.mode !== right.selection.mode) {
+    return false;
+  }
+  if (
+    left.selection.mode === 'CUSTOM_FIXED_BPM'
+    && right.selection.mode === 'CUSTOM_FIXED_BPM'
+    && left.selection.bpm !== right.selection.bpm
+  ) {
+    return false;
+  }
+  if (left.segments.length !== right.segments.length) {
+    return false;
+  }
+  return left.segments.every((segment, index) => {
+    const other = right.segments[index];
+    return (
+      other !== undefined
+      && segment.startBeat === other.startBeat
+      && segment.bpm === other.bpm
+      && segment.source === other.source
+    );
+  });
 }

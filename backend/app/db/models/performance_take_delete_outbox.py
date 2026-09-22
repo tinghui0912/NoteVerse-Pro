@@ -9,7 +9,6 @@ from sqlalchemy import (
     BigInteger,
     Column,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
     Integer,
@@ -77,13 +76,9 @@ class PerformanceTakeDeleteOutbox(SQLModel, table=True):  # type: ignore[call-ar
     status: PerformanceTakeDeleteOutboxStatus = Field(
         default=PerformanceTakeDeleteOutboxStatus.PENDING,
         sa_column=Column(
-            SAEnum(
-                PerformanceTakeDeleteOutboxStatus,
-                name="performancetakedeleteoutboxstatus",
-                values_callable=lambda obj: [e.value for e in obj],
-            ),
+            String(24),
             nullable=False,
-            default=PerformanceTakeDeleteOutboxStatus.PENDING,
+            default=PerformanceTakeDeleteOutboxStatus.PENDING.value,
         ),
     )
     attempt_count: int = Field(

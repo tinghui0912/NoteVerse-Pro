@@ -141,13 +141,9 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     deletion_status: PerformanceTakeDeletionStatus = Field(
         default=PerformanceTakeDeletionStatus.ACTIVE,
         sa_column=Column(
-            SAEnum(
-                PerformanceTakeDeletionStatus,
-                name="performancetakedeletionstatus",
-                values_callable=lambda obj: [e.value for e in obj],
-            ),
+            String(16),
             nullable=False,
-            default=PerformanceTakeDeletionStatus.ACTIVE,
+            default=PerformanceTakeDeletionStatus.ACTIVE.value,
         ),
     )
     created_at: datetime = Field(

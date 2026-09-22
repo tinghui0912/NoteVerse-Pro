@@ -379,4 +379,67 @@ describe('MetronomeController', () => {
 
     metronome.stop();
   });
+
+  it('does not consume continuous pulses when equivalent tempo plans are applied every render', () => {
+    const { ctx } = createMockAudioContext();
+    const scheduledPulses: Array<{ isCountIn?: boolean; scoreBeat: number; audioTime: number }> = [];
+    const metronome = new MetronomeController({
+      tempoPlan: tempoPlan120,
+      meterSegments: meter4_4,
+      mode: 'CONTINUOUS',
+      countInPulses: 4,
+      countInBeats: 4,
+      scopeStartBeat: 0,
+      scopeEndBeat: 32,
+      enabled: true,
+      audioContext: ctx,
+      onScheduledPulse: (pulse, audioTime) => {
+        scheduledPulses.push({
+          isCountIn: pulse.isCountIn,
+          scoreBeat: pulse.scoreBeat,
+          audioTime,
+        });
+      },
+    });
+
+    const cloneTempoPlan = (): ResolvedPracticeTempoPlan => ({
+      selection: { mode: 'SCORE' },
+      segments: tempoPlan120.segments.map((segment) => ({ ...segment })),
+    });
+
+    metronome.start(0, { countIn: true, countInPulses: 4, countInBeats: 4 });
+
+    for (let i = 0; i < 125; i += 1) {
+      metronome.setTempoPlan(cloneTempoPlan());
+      ctx.advanceTime(0.016);
+      vi.advanceTimersByTime(16);
+    }
+
+    for (let i = 0; i < 75; i += 1) {
+      metronome.setTempoPlan(cloneTempoPlan());
+      ctx.advanceTime(0.016);
+      vi.advanceTimersByTime(16);
+    }
+
+    const countInPulses = scheduledPulses.filter((pulse) => pulse.isCountIn);
+    const runningPulses = scheduledPulses.filter((pulse) => !pulse.isCountIn);
+
+    expect(countInPulses.map((pulse) => pulse.audioTime)).toEqual([
+      0.05,
+      0.55,
+      1.05,
+      1.55,
+    ]);
+    expect(runningPulses.length).toBeGreaterThanOrEqual(2);
+    expect(runningPulses.length).toBeLessThanOrEqual(4);
+    for (let i = 1; i < runningPulses.length; i += 1) {
+      expect(runningPulses[i].audioTime - runningPulses[i - 1].audioTime).toBeGreaterThanOrEqual(0.45);
+    }
+    expect(metronome.planningCursor?.phase).toBe('RUNNING');
+    if (metronome.planningCursor?.phase === 'RUNNING') {
+      expect(metronome.planningCursor.currentBeat).toBeLessThan(10);
+    }
+
+    metronome.stop();
+  });
 });

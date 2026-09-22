@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   entryGroupEndBeat,
   resolvePracticeScope,
@@ -133,9 +133,14 @@ export function useLocalPractice({
   const currentSegmentStartMediaMsRef = useRef<number>(0);
   const cumulativeMediaMsRef = useRef<number>(0);
 
-  const resolvedTempoPlan: ResolvedPracticeTempoPlan | null = artifact
-    ? resolvePracticeTempoPlan(artifact, tempoSelection)
-    : null;
+  const resolvedTempoPlan: ResolvedPracticeTempoPlan | null = useMemo(
+    () => (artifact ? resolvePracticeTempoPlan(artifact, tempoSelection) : null),
+    [
+      artifact,
+      tempoSelection.mode,
+      tempoSelection.mode === 'CUSTOM_FIXED_BPM' ? tempoSelection.bpm : null,
+    ]
+  );
 
   useEffect(() => {
     if (mode === 'STEP_BY_STEP') {

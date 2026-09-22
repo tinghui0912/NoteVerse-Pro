@@ -59,6 +59,11 @@ TAKE_FINALIZING_UNKNOWN_OUTCOME_GRACE_SECONDS = TAKE_FINALIZING_LEASE_SECONDS * 
 logger = logging.getLogger(__name__)
 
 
+def _status_value(status: object) -> str:
+    value = getattr(status, "value", status)
+    return str(value)
+
+
 def _extension_for_mime(mime_type: str) -> str:
     cleaned = mime_type.split(";")[0].strip().lower()
     mapping = {
@@ -617,7 +622,7 @@ class PerformanceTakeService:
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
                 field="client_request_id",
-                details={"reason": f"client_request_id_{existing_auth.status.value.lower()}"},
+                details={"reason": f"client_request_id_{_status_value(existing_auth.status).lower()}"},
             )
 
         score_stmt = select(Score).where(
@@ -842,7 +847,7 @@ class PerformanceTakeService:
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
                 field="status",
-                details={"status": auth.status.value},
+                details={"status": _status_value(auth.status)},
             )
         if not self._authorization_matches_finalize_request(auth, request):
             raise ValidationException(
@@ -1066,7 +1071,7 @@ class PerformanceTakeService:
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
                 field="status",
-                details={"status": auth.status.value},
+                details={"status": _status_value(auth.status)},
             )
         if not self._authorization_matches_finalize_request(auth, request):
             raise ValidationException(
