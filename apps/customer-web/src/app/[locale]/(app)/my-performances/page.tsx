@@ -32,6 +32,9 @@ import { performanceTakesApi, type PerformanceTakeRead } from '@/lib/api/perform
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
 import { useToast } from '@/hooks/use-toast';
 
+const DELETE_POLL_INTERVAL_MS = 2500;
+const DELETE_SLOW_NOTICE_MS = 30000;
+
 export function normalizePage(value?: string | number): number {
   const page = Math.floor(Number(value ?? 1));
   return Number.isFinite(page) ? Math.max(1, page) : 1;
@@ -111,6 +114,7 @@ function getTempoLabel(
 interface PerformanceTakeCardProps {
   take: PerformanceTakeRead;
   isPlaying: boolean;
+  isDeletePending?: boolean;
   onPlay: () => void;
   onDelete: () => void;
 }
@@ -118,6 +122,7 @@ interface PerformanceTakeCardProps {
 function PerformanceTakeCard({
   take,
   isPlaying,
+  isDeletePending = false,
   onPlay,
   onDelete,
 }: PerformanceTakeCardProps) {
@@ -130,8 +135,10 @@ function PerformanceTakeCard({
     ? take.score_title || t('scoreFallback', { id: take.score_id })
     : take.score_title || t('deletedScoreNotice');
 
-  // Playback URL query - only active when playing this card
-  const playbackQuery = usePerformanceTakePlayback(take.take_id, isPlaying);
+  const isDeleting = take.deletion_status === 'DELETING' || isDeletePending;
+
+  // Playback URL query - only active when playing this card and not being deleted.
+  const playbackQuery = usePerformanceTakePlayback(take.take_id, isPlaying && !isDeleting);
 
   const handleDownload = async () => {
     try {
@@ -172,8 +179,6 @@ function PerformanceTakeCard({
           contentType: take.media_mime_type,
         }
     : null;
-
-  const isDeleting = take.deletion_status === 'DELETING';
 
   const isFullScope =
     take.scope_type === 'FULL' ||
@@ -373,16 +378,48 @@ export default function MyPerformancesPage({
     limit: pageSize,
     offset: (rawPage - 1) * pageSize,
   });
+  const refetchTakes = takesQuery.refetch;
   const deleteTake = useDeletePerformanceTake();
 
   const [activeTakeId, setActiveTakeId] = useState<string | null>(null);
   const [takePendingDelete, setTakePendingDelete] = useState<PerformanceTakeRead | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteAcceptedAtByTakeId, setDeleteAcceptedAtByTakeId] = useState<Record<string, number>>(
+    {}
+  );
+  const [deleteObservedAtByTakeId, setDeleteObservedAtByTakeId] = useState<Record<string, number>>(
+    {}
+  );
+  const [isPageVisible, setIsPageVisible] = useState(() =>
+    typeof document === 'undefined' ? true : document.visibilityState !== 'hidden'
+  );
+  const [pollTick, setPollTick] = useState(() => Date.now());
 
   const total = takesQuery.data?.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const currentPage = Math.min(rawPage, totalPages);
-  const takes = takesQuery.data?.data?.items ?? [];
+  const queryItems = takesQuery.data?.data?.items;
+  const takes = React.useMemo(() => queryItems ?? [], [queryItems]);
+  const deletingTakeIds = React.useMemo(
+    () =>
+      new Set(
+        takes
+          .filter((take) => take.deletion_status === 'DELETING')
+          .map((take) => take.take_id)
+      ),
+    [takes]
+  );
+  const acceptedDeleteIds = React.useMemo(
+    () => new Set(Object.keys(deleteAcceptedAtByTakeId)),
+    [deleteAcceptedAtByTakeId]
+  );
+  const hasPendingDeletion = deletingTakeIds.size > 0 || acceptedDeleteIds.size > 0;
+  const oldestAcceptedDeleteAt =
+    Object.values({ ...deleteObservedAtByTakeId, ...deleteAcceptedAtByTakeId }).length > 0
+      ? Math.min(...Object.values({ ...deleteObservedAtByTakeId, ...deleteAcceptedAtByTakeId }))
+      : null;
+  const showDeletionSlowNotice =
+    oldestAcceptedDeleteAt !== null && pollTick - oldestAcceptedDeleteAt >= DELETE_SLOW_NOTICE_MS;
 
   const goToPage = React.useCallback(
     (nextPage: number) => {
@@ -406,22 +443,88 @@ export default function MyPerformancesPage({
     setActiveTakeId(null);
   }, [rawPage]);
 
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const onVisibilityChange = () => {
+      setIsPageVisible(document.visibilityState !== 'hidden');
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    onVisibilityChange();
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
+
+  React.useEffect(() => {
+    if (!takesQuery.isSuccess) return;
+
+    const listedTakeIds = new Set(takes.map((take) => take.take_id));
+    const now = Date.now();
+    setDeleteAcceptedAtByTakeId((prev) => {
+      const next = Object.fromEntries(
+        Object.entries(prev).filter(([takeId]) => listedTakeIds.has(takeId))
+      );
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+    setDeleteObservedAtByTakeId((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      for (const takeId of Object.keys(next)) {
+        if (!listedTakeIds.has(takeId) || !deletingTakeIds.has(takeId)) {
+          delete next[takeId];
+          changed = true;
+        }
+      }
+
+      for (const takeId of deletingTakeIds) {
+        if (!next[takeId]) {
+          next[takeId] = now;
+          changed = true;
+        }
+      }
+
+      return changed ? next : prev;
+    });
+
+    if (activeTakeId && deletingTakeIds.has(activeTakeId)) {
+      setActiveTakeId(null);
+    }
+  }, [activeTakeId, deletingTakeIds, takes, takesQuery.isSuccess]);
+
+  React.useEffect(() => {
+    if (!hasPendingDeletion || !isPageVisible) return;
+
+    const intervalId = window.setInterval(() => {
+      setPollTick(Date.now());
+      void refetchTakes();
+    }, DELETE_POLL_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [hasPendingDeletion, isPageVisible, refetchTakes]);
+
   const canGoPrevious = currentPage > 1;
   const canGoNext = currentPage < totalPages;
 
   const handleDeleteConfirm = async () => {
     if (!takePendingDelete) return;
+    const takeId = takePendingDelete.take_id;
     setDeleteError(null);
+    if (activeTakeId === takeId) {
+      setActiveTakeId(null);
+    }
     try {
-      await deleteTake.mutateAsync(takePendingDelete.take_id);
-      if (activeTakeId === takePendingDelete.take_id) {
-        setActiveTakeId(null);
-      }
+      await deleteTake.mutateAsync(takeId);
+      setDeleteAcceptedAtByTakeId((prev) => ({
+        ...prev,
+        [takeId]: Date.now(),
+      }));
       setTakePendingDelete(null);
       toast({
         title: t('deletePerformanceTakeAcceptedTitle'),
         description: t('deletePerformanceTakeAcceptedDesc'),
       });
+      void refetchTakes();
     } catch {
       setDeleteError(t('deleteFailedRetry'));
     }
@@ -451,12 +554,42 @@ export default function MyPerformancesPage({
         />
       ) : (
         <div className="flex flex-col gap-4">
+          {showDeletionSlowNotice ? (
+            <div
+              className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between"
+              data-testid="delete-still-processing-notice"
+            >
+              <div>
+                <p className="font-medium">{t('deleteStillProcessingTitle')}</p>
+                <p className="mt-0.5">{t('deleteStillProcessingDesc')}</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchTakes()}
+                data-testid="refresh-deleting-takes"
+              >
+                {common('refresh')}
+              </Button>
+            </div>
+          ) : null}
+
           {takes.map((take) => (
             <PerformanceTakeCard
               key={take.take_id}
               take={take}
-              isPlaying={activeTakeId === take.take_id}
-              onPlay={() => setActiveTakeId(take.take_id)}
+              isPlaying={
+                activeTakeId === take.take_id &&
+                take.deletion_status !== 'DELETING' &&
+                !acceptedDeleteIds.has(take.take_id)
+              }
+              isDeletePending={acceptedDeleteIds.has(take.take_id)}
+              onPlay={() => {
+                if (take.deletion_status === 'DELETING' || acceptedDeleteIds.has(take.take_id)) {
+                  return;
+                }
+                setActiveTakeId((current) => (current === take.take_id ? null : take.take_id));
+              }}
               onDelete={() => {
                 setDeleteError(null);
                 setTakePendingDelete(take);

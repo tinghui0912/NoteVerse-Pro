@@ -240,5 +240,7 @@
   "nextPage": "Next",
   "takeDeletingStatus": "Deleting",
   "deletePerformanceTakeAcceptedTitle": "Deletion Request Accepted",
-  "deletePerformanceTakeAcceptedDesc": "Deletion request accepted. Cleaning up in the background and releasing storage quota."
+  "deletePerformanceTakeAcceptedDesc": "Deletion request accepted. Cleaning up in the background and releasing storage quota.",
+  "deleteStillProcessingTitle": "Deletion is still running in the background",
+  "deleteStillProcessingDesc": "Object storage and quota cleanup have not finished yet. You can refresh later; this page will keep checking."
 }

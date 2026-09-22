@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
 import '@testing-library/jest-dom/vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as React from 'react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import MyPerformancesPage from './page';
 import type { PerformanceTakeRead } from '@/lib/api/performance-takes';
@@ -25,6 +26,8 @@ const translationMocks = vi.hoisted(() => {
     takeDeletingStatus: '删除中',
     deletePerformanceTakeAcceptedTitle: '删除请求已接受',
     deletePerformanceTakeAcceptedDesc: '删除请求已接受，正在后台清理并释放配额。',
+    deleteStillProcessingTitle: '删除仍在后台处理中',
+    deleteStillProcessingDesc: '对象存储和配额清理还没有完成。你可以稍后刷新，页面会继续自动更新。',
     downloadRecording: '下载录音',
     downloadVideo: '下载视频',
     performanceTakeDeleted: '已删除该演奏',
@@ -56,6 +59,7 @@ const translationMocks = vi.hoisted(() => {
     cancel: '取消',
     loading: '加载中...',
     tryAgain: '重试',
+    refresh: '刷新',
     loadFailedDescription: '暂时无法加载内容，请稍后重试。',
   };
 
@@ -164,11 +168,56 @@ interface MockTakesQueryResult {
   isLoading: boolean;
   isError: boolean;
   isSuccess: boolean;
-  refetch: () => void;
+  refetch: () => unknown;
 }
 let mockQueryOverride: MockTakesQueryResult | null = null;
+let mockReactiveQueryResponses: MockTakesQueryResult[] | null = null;
+let mockReactiveQueryIndex = 0;
+let mockReactiveQueryVersion = 0;
+const mockReactiveQueryListeners = new Set<() => void>();
+
+function subscribeToReactiveQuery(listener: () => void) {
+  mockReactiveQueryListeners.add(listener);
+  return () => mockReactiveQueryListeners.delete(listener);
+}
+
+function getReactiveQuerySnapshot() {
+  return mockReactiveQueryVersion;
+}
+
+function notifyReactiveQuery() {
+  mockReactiveQueryVersion += 1;
+  mockReactiveQueryListeners.forEach((listener) => listener());
+}
+
+function enableReactiveQueryResponses(responses: MockTakesQueryResult[]) {
+  mockReactiveQueryResponses = responses;
+  mockReactiveQueryIndex = 0;
+  notifyReactiveQuery();
+}
 
 const mockUsePerformanceTakes = vi.fn((params?: { limit?: number; offset?: number }) => {
+  if (mockReactiveQueryResponses) {
+    React.useSyncExternalStore(
+      subscribeToReactiveQuery,
+      getReactiveQuerySnapshot,
+      getReactiveQuerySnapshot
+    );
+    const response =
+      mockReactiveQueryResponses[
+        Math.min(mockReactiveQueryIndex, mockReactiveQueryResponses.length - 1)
+      ];
+    return {
+      ...response,
+      refetch: vi.fn(async () => {
+        if (mockReactiveQueryResponses && mockReactiveQueryIndex < mockReactiveQueryResponses.length - 1) {
+          mockReactiveQueryIndex += 1;
+          notifyReactiveQuery();
+        }
+        return mockReactiveQueryResponses?.[mockReactiveQueryIndex] ?? response;
+      }),
+    };
+  }
   if (mockQueryOverride) return mockQueryOverride;
   const limit = params?.limit ?? 20;
   const offset = params?.offset ?? 0;
@@ -215,9 +264,17 @@ vi.mock('@/lib/api/performance-takes', () => ({
 }));
 
 describe('MyPerformancesPage', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockQueryOverride = null;
+    mockReactiveQueryResponses = null;
+    mockReactiveQueryIndex = 0;
+    mockReactiveQueryListeners.clear();
+    mockReactiveQueryVersion = 0;
     currentTakesTotal = 121;
     mockPlaybackQuery.isLoading = false;
     mockPlaybackQuery.isError = false;
@@ -697,6 +754,221 @@ describe('MyPerformancesPage', () => {
       expect(screen.getByTestId('delete-take-take-deleting-1')).toBeDisabled();
 
       mockQueryOverride = null;
+    });
+
+    it('polls after DELETE 202, keeps processing state while backend returns DELETING, then removes the card', async () => {
+      vi.useFakeTimers();
+      const activeTake = {
+        ...fixture121Takes[0],
+        take_id: 'take-delete-flow',
+        score_title: 'Delete Flow',
+        deletion_status: 'ACTIVE' as const,
+      };
+      const deletingTake = {
+        ...activeTake,
+        deletion_status: 'DELETING' as const,
+      };
+      enableReactiveQueryResponses([
+        {
+          data: {
+            data: {
+              items: [activeTake],
+              total: 1,
+              limit: 20,
+              offset: 0,
+              has_more: false,
+            },
+          },
+          isLoading: false,
+          isError: false,
+          isSuccess: true,
+          refetch: vi.fn(),
+        },
+        {
+          data: {
+            data: {
+              items: [deletingTake],
+              total: 1,
+              limit: 20,
+              offset: 0,
+              has_more: false,
+            },
+          },
+          isLoading: false,
+          isError: false,
+          isSuccess: true,
+          refetch: vi.fn(),
+        },
+        {
+          data: {
+            data: {
+              items: [],
+              total: 0,
+              limit: 20,
+              offset: 0,
+              has_more: false,
+            },
+          },
+          isLoading: false,
+          isError: false,
+          isSuccess: true,
+          refetch: vi.fn(),
+        },
+      ]);
+
+      render(<MyPerformancesPage searchParams={{ page: '1' }} />);
+      fireEvent.click(screen.getByTestId('delete-take-take-delete-flow'));
+      fireEvent.click(screen.getByTestId('confirm-delete-take-button'));
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(screen.getByTestId('deleting-badge-take-delete-flow')).toBeInTheDocument();
+      expect(screen.getByTestId('play-take-take-delete-flow')).toBeDisabled();
+      expect(screen.getByTestId('download-take-take-delete-flow')).toBeDisabled();
+      expect(screen.getByTestId('delete-take-take-delete-flow')).toBeDisabled();
+
+      await act(async () => {
+        vi.advanceTimersByTime(2500);
+      });
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(screen.queryByText('Delete Flow')).not.toBeInTheDocument();
+      expect(screen.getByText('暂无已保存的演奏')).toBeInTheDocument();
+
+    });
+
+    it('does not claim success when deletion remains DELETING and stops polling after unmount', async () => {
+      vi.useFakeTimers();
+      const deletingTake = {
+        ...fixture121Takes[0],
+        take_id: 'take-slow-delete',
+        score_title: 'Slow Delete',
+        deletion_status: 'DELETING' as const,
+      };
+      const refetch = vi.fn(async () => undefined);
+      mockQueryOverride = {
+        data: {
+          data: {
+            items: [deletingTake],
+            total: 1,
+            limit: 20,
+            offset: 0,
+            has_more: false,
+          },
+        },
+        isLoading: false,
+        isError: false,
+        isSuccess: true,
+        refetch,
+      };
+
+      const rendered = render(<MyPerformancesPage searchParams={{ page: '1' }} />);
+      expect(screen.getByText('Slow Delete')).toBeInTheDocument();
+
+      await act(async () => {
+        vi.advanceTimersByTime(30000);
+      });
+
+      expect(screen.getByTestId('delete-still-processing-notice')).toBeInTheDocument();
+      expect(screen.getByText('删除仍在后台处理中')).toBeInTheDocument();
+      expect(screen.queryByText('已删除该演奏')).not.toBeInTheDocument();
+      const callsBeforeUnmount = refetch.mock.calls.length;
+
+      rendered.unmount();
+      await act(async () => {
+        vi.advanceTimersByTime(10000);
+      });
+
+      expect(refetch.mock.calls.length).toBe(callsBeforeUnmount);
+    });
+
+    it('stops playback when deleting the active AUDIO take and leaves other active takes playable', async () => {
+      const audioTake = {
+        ...fixture121Takes[0],
+        take_id: 'take-audio-delete',
+        score_title: 'Deleting Audio',
+        deletion_status: 'ACTIVE' as const,
+      };
+      const otherTake = {
+        ...fixture121Takes[1],
+        take_id: 'take-other-active',
+        score_title: 'Other Active',
+        deletion_status: 'ACTIVE' as const,
+      };
+      mockQueryOverride = {
+        data: {
+          data: {
+            items: [audioTake, otherTake],
+            total: 2,
+            limit: 20,
+            offset: 0,
+            has_more: false,
+          },
+        },
+        isLoading: false,
+        isError: false,
+        isSuccess: true,
+        refetch: vi.fn(),
+      };
+
+      render(<MyPerformancesPage searchParams={{ page: '1' }} />);
+      fireEvent.click(screen.getByTestId('play-take-take-audio-delete'));
+      expect(screen.getByTestId('performance-replay-player')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('delete-take-take-audio-delete'));
+      fireEvent.click(screen.getByTestId('confirm-delete-take-button'));
+
+      await waitFor(() => {
+        expect(mockDeleteTakeMutation.mutateAsync).toHaveBeenCalledWith('take-audio-delete');
+      });
+      expect(screen.queryByTestId('performance-replay-player')).not.toBeInTheDocument();
+      expect(screen.getByTestId('play-take-take-audio-delete')).toBeDisabled();
+
+      fireEvent.click(screen.getByTestId('play-take-take-other-active'));
+      expect(screen.getByTestId('performance-replay-player')).toBeInTheDocument();
+    });
+
+    it('stops playback when deleting the active VIDEO take', async () => {
+      const videoTake = {
+        ...fixture121Takes[0],
+        take_id: 'take-video-delete',
+        score_title: 'Deleting Video',
+        media_kind: 'VIDEO' as const,
+        media_mime_type: 'video/webm',
+        deletion_status: 'ACTIVE' as const,
+      };
+      mockQueryOverride = {
+        data: {
+          data: {
+            items: [videoTake],
+            total: 1,
+            limit: 20,
+            offset: 0,
+            has_more: false,
+          },
+        },
+        isLoading: false,
+        isError: false,
+        isSuccess: true,
+        refetch: vi.fn(),
+      };
+
+      render(<MyPerformancesPage searchParams={{ page: '1' }} />);
+      fireEvent.click(screen.getByTestId('play-take-take-video-delete'));
+      expect(screen.getByText('Kind: VIDEO_RECORDING')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('delete-take-take-video-delete'));
+      fireEvent.click(screen.getByTestId('confirm-delete-take-button'));
+
+      await waitFor(() => {
+        expect(mockDeleteTakeMutation.mutateAsync).toHaveBeenCalledWith('take-video-delete');
+      });
+      expect(screen.queryByTestId('performance-replay-player')).not.toBeInTheDocument();
+      expect(screen.getByTestId('play-take-take-video-delete')).toBeDisabled();
     });
 
     it('shows accepted toast when take deletion is confirmed', async () => {
