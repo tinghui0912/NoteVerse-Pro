@@ -200,13 +200,16 @@ function getRenderedRootGeometry(
   notes: readonly SVGGraphicsElement[]
 ): { rootBox: SvgRect; rootNoteBox: SvgRect; rootSystemBox: SvgRect } | null {
   const rootNoteBoxes = notes
-    .map((note) => renderedRectToRootSvg(rootSvg, note))
+    .map((note) => renderedRectToRootSvg(rootSvg, note) ?? ctmViewportRectToRootSvg(rootSvg, note))
     .filter((box): box is SvgRect => box !== null);
   if (rootNoteBoxes.length === 0) {
     return null;
   }
   const rootNoteBox = rootNoteBoxes.reduce(mergeRects);
-  const rootSystemBox = renderedRectToRootSvg(rootSvg, layer) ?? rootNoteBox;
+  const rootSystemBox =
+    renderedRectToRootSvg(rootSvg, layer) ??
+    ctmViewportRectToRootSvg(rootSvg, layer) ??
+    rootNoteBox;
   const rootBox = cursorBoxFor(rootNoteBox, rootSystemBox);
   if (![rootBox, rootNoteBox, rootSystemBox].every(isFiniteRect)) {
     return null;
@@ -234,6 +237,85 @@ function renderedRectToRootSvg(rootSvg: SVGSVGElement, element: SVGGraphicsEleme
   const height = (elementRect.height / rootRect.height) * viewBox.height;
   const rect = { x, y, width, height };
   return isFiniteRect(rect) ? rect : null;
+}
+
+function ctmViewportRectToRootSvg(
+  rootSvg: SVGSVGElement,
+  element: SVGGraphicsElement
+): SvgRect | null {
+  const viewportRect = getViewportRectFromCtm(element);
+  if (!viewportRect) {
+    return null;
+  }
+  return viewportRectToRootSvg(rootSvg, viewportRect);
+}
+
+function getViewportRectFromCtm(element: SVGGraphicsElement): SvgRect | null {
+  let box: DOMRect;
+  try {
+    box = element.getBBox();
+  } catch {
+    return null;
+  }
+  const ctm = element.getCTM?.();
+  if (!ctm) {
+    return null;
+  }
+  const corners = [
+    [box.x, box.y],
+    [box.x + box.width, box.y],
+    [box.x, box.y + box.height],
+    [box.x + box.width, box.y + box.height],
+  ].map(([x, y]) => ({
+    x: ctm.a * x + ctm.c * y + ctm.e,
+    y: ctm.b * x + ctm.d * y + ctm.f,
+  }));
+  const xs = corners.map((point) => point.x);
+  const ys = corners.map((point) => point.y);
+  const rect = {
+    x: Math.min(...xs),
+    y: Math.min(...ys),
+    width: Math.max(...xs) - Math.min(...xs),
+    height: Math.max(...ys) - Math.min(...ys),
+  };
+  return isFiniteRect(rect) ? rect : null;
+}
+
+function viewportRectToRootSvg(rootSvg: SVGSVGElement, viewportRect: SvgRect): SvgRect | null {
+  const rootViewport = getRootViewportRect(rootSvg);
+  if (!rootViewport) {
+    return null;
+  }
+  const viewBox = readSvgViewBox(rootSvg);
+  const rect = {
+    x: viewBox.x + ((viewportRect.x - rootViewport.x) / rootViewport.width) * viewBox.width,
+    y: viewBox.y + ((viewportRect.y - rootViewport.y) / rootViewport.height) * viewBox.height,
+    width: (viewportRect.width / rootViewport.width) * viewBox.width,
+    height: (viewportRect.height / rootViewport.height) * viewBox.height,
+  };
+  return isFiniteRect(rect) ? rect : null;
+}
+
+function getRootViewportRect(rootSvg: SVGSVGElement): SvgRect | null {
+  const rect = rootSvg.getBoundingClientRect?.();
+  if (rect && rect.width > 0 && rect.height > 0) {
+    return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+  }
+  const width = parseSvgLength(rootSvg.getAttribute('width'));
+  const height = parseSvgLength(rootSvg.getAttribute('height'));
+  if (width > 0 && height > 0) {
+    return { x: 0, y: 0, width, height };
+  }
+  const viewBox = readSvgViewBox(rootSvg);
+  return { x: 0, y: 0, width: viewBox.width, height: viewBox.height };
+}
+
+function parseSvgLength(value: string | null) {
+  if (!value) {
+    return 0;
+  }
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function readSvgViewBox(svg: SVGSVGElement): SvgRect {

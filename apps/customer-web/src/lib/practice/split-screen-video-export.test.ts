@@ -560,4 +560,81 @@ describe('split-screen video export helpers', () => {
       })
     ).not.toThrow();
   });
+
+  it('maps Verovio internal coordinates through CTM viewport pixels before comparing with the root viewBox', async () => {
+    const container = createScoreContainer();
+    const svg = container.querySelector<SVGSVGElement>('svg')!;
+    const system = container.querySelector<SVGGraphicsElement>('[data-testid="system-1"]')!;
+    const note = container.querySelector<SVGGraphicsElement>('[data-id="note-a"]')!;
+    svg.setAttribute('viewBox', '0 0 840 931');
+    svg.setAttribute('width', '840px');
+    svg.setAttribute('height', '931px');
+    Object.defineProperty(svg, 'getBoundingClientRect', {
+      configurable: true,
+      value: vi.fn(() => ({ left: 0, top: 0, width: 0, height: 0 } as DOMRect)),
+    });
+    note.getBBox = vi.fn(() => ({
+      x: 5039,
+      y: 1536.239990234375,
+      width: 226.080078125,
+      height: 842.760009765625,
+    } as DOMRect));
+    system.getBBox = vi.fn(() => ({
+      x: 182.479736328125,
+      y: 1266.239990234375,
+      width: 19819.51953125,
+      height: 3425.760009765625,
+    } as DOMRect));
+    const matrix = {
+      a: 0.053047619047619045,
+      b: 0,
+      c: 0,
+      d: 0.053047619047619045,
+      e: 26.523809523809522,
+      f: 74.66141915457588,
+      inverse: vi.fn(() => matrix),
+      multiply: vi.fn(() => matrix),
+      transformPoint: (point: { x: number; y: number }) => ({
+        x: matrix.a * point.x + matrix.c * point.y + matrix.e,
+        y: matrix.b * point.x + matrix.d * point.y + matrix.f,
+      }),
+    };
+    note.getCTM = vi.fn(() => matrix as unknown as DOMMatrix);
+    system.getCTM = vi.fn(() => matrix as unknown as DOMMatrix);
+
+    const geometry = getPlayheadCursorGeometry(svg, ['note-a']);
+
+    expect(geometry?.rootNoteBox?.x).toBeGreaterThan(250);
+    expect(geometry?.rootNoteBox?.x).toBeLessThan(360);
+    expect(geometry?.rootNoteBox?.y).toBeGreaterThan(140);
+    expect(geometry?.rootNoteBox?.y).toBeLessThan(230);
+
+    const cache = await prepareScorePageCache(container, async () => makeImage(840, 931));
+    const finalCtx = createFakeContext();
+    const stagingCtx = createFakeContext();
+    const stagingCanvas = document.createElement('canvas');
+    const video = document.createElement('video');
+    Object.defineProperty(video, 'videoWidth', { configurable: true, value: 640 });
+    Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
+    Object.defineProperty(video, 'currentTime', { configurable: true, value: 1 });
+
+    expect(() =>
+      drawExportFrame({
+        ctx: finalCtx,
+        video,
+        draft: createDraft(),
+        adapter: {
+          getCursorTimelineEntryForBeatRange: vi.fn((beat: number) => ({
+            index: 0,
+            beat,
+            endBeat: beat + 1,
+            noteIds: ['note-a'],
+          })),
+          getPageWithElement: vi.fn(() => 1),
+        } as never,
+        scoreEndBeat: 24,
+        frameState: { scorePages: cache, stagingCanvas, stagingCtx },
+      })
+    ).not.toThrow();
+  });
 });
