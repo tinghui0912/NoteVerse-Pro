@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   composeSplitScreenOutputStream,
   drawExportFrame,
+  exportCursorRect,
   getSplitScreenExportReadiness,
   prepareScorePageCache,
   resolveSplitScreenScoreFrame,
@@ -471,6 +472,18 @@ describe('split-screen video export helpers', () => {
     expect(geometry?.box.width).toBeGreaterThan(geometry!.noteBox.width);
   });
 
+  it('derives the export cursor from the active note box with output-pixel padding', () => {
+    const cursor = exportCursorRect(
+      { x: 240, y: 180, width: 20, height: 36 },
+      { x: 0, y: 0, width: 840, height: 931 },
+      { x: 24, y: 24, width: 704, height: 672 }
+    );
+
+    expect(cursor.width).toBeCloseTo(26.8, 1);
+    expect(cursor.height).toBeCloseTo(36, 1);
+    expect(cursor.height).toBeLessThan(80);
+  });
+
   it('keeps transformed system-local and root SVG cursor rectangles in separate coordinate spaces', () => {
     const container = createScoreContainer();
     const svg = container.querySelector<SVGSVGElement>('svg')!;
@@ -537,7 +550,7 @@ describe('split-screen video export helpers', () => {
         scoreEndBeat: 24,
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
       })
-    ).toThrow('split_screen_export_failed:playhead_coordinate_transform');
+    ).toThrow('split_screen_export_failed:note_page_unavailable');
   });
 
   it('uses rendered SVG rectangles to keep visibly present transformed notes inside the export viewport', async () => {
