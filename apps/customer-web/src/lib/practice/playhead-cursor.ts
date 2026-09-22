@@ -28,6 +28,18 @@ export type PlayheadCursorGeometry = {
   rootFailureReason: PlayheadCursorGeometryFailureReason | null;
 };
 
+export type PlayheadCursorGeometrySnapshot = Pick<
+  PlayheadCursorGeometry,
+  | 'box'
+  | 'noteBox'
+  | 'systemBox'
+  | 'rootBox'
+  | 'rootNoteBox'
+  | 'rootSystemBox'
+  | 'rootCoordinateSource'
+  | 'rootFailureReason'
+>;
+
 export type PlayheadRootCoordinateSource =
   | 'ctm_svg_viewport'
   | 'rendered_dom_rect'
@@ -170,6 +182,53 @@ export function getPlayheadCursorGeometry(
         ? null
         : 'matrix_to_root',
     rootFailureReason,
+  };
+}
+
+export function snapshotPlayheadCursorGeometry(
+  container: ParentNode,
+  noteIds: readonly string[]
+): PlayheadCursorGeometrySnapshot | null {
+  const geometry = getPlayheadCursorGeometry(container, noteIds, { requireRootCoordinates: true });
+  if (!geometry) {
+    return null;
+  }
+  return {
+    box: { ...geometry.box },
+    noteBox: { ...geometry.noteBox },
+    systemBox: { ...geometry.systemBox },
+    rootBox: geometry.rootBox ? { ...geometry.rootBox } : null,
+    rootNoteBox: geometry.rootNoteBox ? { ...geometry.rootNoteBox } : null,
+    rootSystemBox: geometry.rootSystemBox ? { ...geometry.rootSystemBox } : null,
+    rootCoordinateSource: geometry.rootCoordinateSource,
+    rootFailureReason: geometry.rootFailureReason,
+  };
+}
+
+export function mergePlayheadCursorGeometrySnapshots(
+  snapshots: readonly PlayheadCursorGeometrySnapshot[]
+): PlayheadCursorGeometrySnapshot | null {
+  if (snapshots.length === 0) {
+    return null;
+  }
+  const rootNoteBoxes = snapshots.map((snapshot) => snapshot.rootNoteBox).filter(isSvgRect);
+  const rootSystemBoxes = snapshots.map((snapshot) => snapshot.rootSystemBox).filter(isSvgRect);
+  if (rootNoteBoxes.length !== snapshots.length || rootSystemBoxes.length === 0) {
+    return null;
+  }
+  const rootNoteBox = rootNoteBoxes.reduce(mergeRects);
+  const rootSystemBox = rootSystemBoxes.reduce(mergeRects);
+  const rootBox = cursorBoxFor(rootNoteBox, rootSystemBox);
+  const first = snapshots[0];
+  return {
+    box: snapshots.map((snapshot) => snapshot.box).reduce(mergeRects),
+    noteBox: snapshots.map((snapshot) => snapshot.noteBox).reduce(mergeRects),
+    systemBox: snapshots.map((snapshot) => snapshot.systemBox).reduce(mergeRects),
+    rootBox,
+    rootNoteBox,
+    rootSystemBox,
+    rootCoordinateSource: first.rootCoordinateSource,
+    rootFailureReason: null,
   };
 }
 
@@ -457,6 +516,10 @@ function isFiniteRect(rect: SvgRect) {
     rect.width > 0 &&
     rect.height > 0
   );
+}
+
+function isSvgRect(rect: SvgRect | null): rect is SvgRect {
+  return rect !== null && isFiniteRect(rect);
 }
 
 function mergeRects(first: SvgRect, second: SvgRect): SvgRect {

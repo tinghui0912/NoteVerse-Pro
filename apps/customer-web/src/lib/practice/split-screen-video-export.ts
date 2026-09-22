@@ -4,10 +4,10 @@ import {
 } from './performance-review-draft';
 import { PracticeTempoTimeline } from './local-core/practice-tempo';
 import {
-  findElementByVerovioId,
-  getPlayheadCursorGeometry,
+  mergePlayheadCursorGeometrySnapshots,
   PLAYHEAD_CURSOR_STYLE,
-  type PlayheadCursorGeometry,
+  snapshotPlayheadCursorGeometry,
+  type PlayheadCursorGeometrySnapshot,
   type PlayheadCursorGeometryFailureReason,
   type SvgRect,
 } from './playhead-cursor';
@@ -57,6 +57,7 @@ export type ResolveSplitScreenFrameInput = {
     PracticeVerovioAdapter,
     'getCursorTimelineEntryForBeatRange' | 'getPageWithElement'
   >;
+  pageNumberResolver?: (noteIds: readonly string[]) => number | null;
   mediaTimeMs: number;
   actualMediaDurationMs?: number | null;
   scoreEndBeat: number;
@@ -87,8 +88,8 @@ type FrameRenderState = {
 export type ScorePageCacheEntry = {
   pageNumber: number;
   image: HTMLImageElement;
-  svg: SVGSVGElement;
   viewBox: SvgViewBox;
+  geometryByNoteId: Map<string, PlayheadCursorGeometrySnapshot | null>;
 };
 
 export type ScorePageCache = Map<number, ScorePageCacheEntry>;
@@ -153,6 +154,7 @@ export function getSplitScreenExportReadiness({
 export function resolveSplitScreenScoreFrame({
   draft,
   adapter,
+  pageNumberResolver,
   mediaTimeMs,
   actualMediaDurationMs,
   scoreEndBeat,
@@ -179,10 +181,14 @@ export function resolveSplitScreenScoreFrame({
   }
 
   let pageNumber = 1;
-  try {
-    pageNumber = adapter.getPageWithElement(entry.noteIds[0]) ?? 1;
-  } catch {
-    pageNumber = 1;
+  if (pageNumberResolver) {
+    pageNumber = pageNumberResolver(entry.noteIds) ?? 1;
+  } else {
+    try {
+      pageNumber = adapter.getPageWithElement(entry.noteIds[0]) ?? 1;
+    } catch {
+      pageNumber = 1;
+    }
   }
 
   return {
@@ -218,22 +224,43 @@ export async function prepareScorePageCache(
   }
 
   const cache: ScorePageCache = new Map();
-  for (const page of pages) {
+  const pageSnapshots = pages.map((page) => {
     const pageNumber = Number.parseInt(
       page.dataset.practiceReviewPage ?? page.dataset.scorePage ?? '',
       10
     );
     const svg = page.querySelector<SVGSVGElement>('svg');
     if (!Number.isFinite(pageNumber) || !svg) {
-      continue;
+      return null;
     }
     const cleanSvg = cloneScoreSvgWithoutRuntimeHighlights(svg);
     const svgText = new XMLSerializer().serializeToString(cleanSvg);
-    cache.set(pageNumber, {
+    const geometryByNoteId = new Map<string, PlayheadCursorGeometrySnapshot | null>();
+    svg.querySelectorAll<SVGGraphicsElement>('[data-id]').forEach((element) => {
+      const noteId = element.getAttribute('data-id');
+      if (noteId && hasSvgGeometry(element)) {
+        geometryByNoteId.set(noteId, snapshotPlayheadCursorGeometry(svg, [noteId]));
+      }
+    });
+    return {
       pageNumber,
-      image: await loadImage(svgText),
-      svg,
+      svgText,
+      geometryByNoteId,
       viewBox: readSvgViewBox(svg),
+    };
+  }).filter((snapshot): snapshot is {
+    pageNumber: number;
+    svgText: string;
+    geometryByNoteId: Map<string, PlayheadCursorGeometrySnapshot | null>;
+    viewBox: SvgViewBox;
+  } => snapshot !== null);
+
+  for (const snapshot of pageSnapshots) {
+    cache.set(snapshot.pageNumber, {
+      pageNumber: snapshot.pageNumber,
+      image: await loadImage(snapshot.svgText),
+      geometryByNoteId: snapshot.geometryByNoteId,
+      viewBox: snapshot.viewBox,
     });
   }
 
@@ -477,9 +504,10 @@ export function drawExportFrame({
   frameState: FrameRenderState;
 }) {
   const videoDraft = draft.video?.status === 'READY' ? draft.video : null;
-  const frame = resolveSplitScreenScoreFrame({
+  let frame = resolveSplitScreenScoreFrame({
     draft,
     adapter,
+    pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, frameState.scorePages),
     mediaTimeMs: Math.max(0, video.currentTime * 1000),
     actualMediaDurationMs:
       videoDraft
@@ -505,7 +533,19 @@ export function drawExportFrame({
   };
 
   const scorePage = frameState.scorePages.get(frame.pageNumber);
-  if (!scorePage) {
+  const stablePageNumber = findStablePageNumber(frame.noteIds, frameState.scorePages);
+  if (stablePageNumber === null) {
+    throw createSplitScreenExportError('split_screen_export_failed:note_page_unavailable', {
+      frame,
+      scorePage: scorePage ?? firstScorePage(frameState.scorePages),
+      reason: 'note_missing_from_snapshot',
+    });
+  }
+  if (stablePageNumber !== frame.pageNumber) {
+    frame = { ...frame, pageNumber: stablePageNumber };
+  }
+  const stableScorePage = frameState.scorePages.get(frame.pageNumber);
+  if (!stableScorePage) {
     throw new Error('split_screen_export_failed:score_page_unavailable');
   }
 
@@ -516,15 +556,40 @@ export function drawExportFrame({
   staging.fillStyle = '#ffffff';
   roundRect(staging, scoreRect.x, scoreRect.y, scoreRect.width, scoreRect.height, 10);
   staging.fill();
-  const cursorGeometry = getPlayheadCursorGeometry(scorePage.svg, frame.noteIds);
+  const snapshotGeometries = frame.noteIds.map((noteId) =>
+    stableScorePage.geometryByNoteId.get(noteId)
+  );
+  if (snapshotGeometries.some((geometry) => geometry === undefined)) {
+    throw createSplitScreenExportError(
+      'split_screen_export_failed:playhead_note_not_found_on_snapshot',
+      {
+        frame,
+        scorePage: stableScorePage,
+        reason: 'note_missing_from_snapshot',
+      }
+    );
+  }
+  if (snapshotGeometries.some((geometry) => geometry === null)) {
+    throw createSplitScreenExportError(
+      'split_screen_export_failed:playhead_coordinate_transform',
+      {
+        frame,
+        scorePage: stableScorePage,
+        reason: 'snapshot_geometry_unavailable',
+      }
+    );
+  }
+  const cursorGeometry = mergePlayheadCursorGeometrySnapshots(
+    snapshotGeometries as PlayheadCursorGeometrySnapshot[]
+  );
   if (!cursorGeometry) {
     throw createSplitScreenExportError('split_screen_export_failed:playhead_position_unavailable', {
       frame,
-      scorePage,
-      reason: 'note_not_found_on_page',
+      scorePage: stableScorePage,
+      reason: 'snapshot_geometry_merge_failed',
     });
   }
-  drawScorePanel(staging, scorePage, cursorGeometry, scoreRect, frame);
+  drawScorePanel(staging, stableScorePage, cursorGeometry, scoreRect, frame);
 
   staging.fillStyle = '#020617';
   roundRect(staging, videoRect.x, videoRect.y, videoRect.width, videoRect.height, 10);
@@ -537,7 +602,7 @@ export function drawExportFrame({
 function drawScorePanel(
   ctx: CanvasRenderingContext2D,
   page: ScorePageCacheEntry,
-  cursorGeometry: PlayheadCursorGeometry,
+  cursorGeometry: PlayheadCursorGeometrySnapshot,
   scoreRect: Rect,
   frame: SplitScreenScoreFrame
 ) {
@@ -801,6 +866,30 @@ function rectsIntersect(first: Rect, second: Rect) {
   );
 }
 
+function hasSvgGeometry(element: SVGGraphicsElement) {
+  try {
+    const box = element.getBBox();
+    return Number.isFinite(box.x) && Number.isFinite(box.y) && box.width > 0 && box.height > 0;
+  } catch {
+    return false;
+  }
+}
+
+function findStablePageNumber(noteIds: readonly string[], scorePages: ScorePageCache): number | null {
+  const matchingPages = Array.from(scorePages.values()).filter((page) =>
+    noteIds.every((noteId) => page.geometryByNoteId.has(noteId))
+  );
+  return matchingPages.length === 1 ? matchingPages[0].pageNumber : null;
+}
+
+function firstScorePage(scorePages: ScorePageCache): ScorePageCacheEntry {
+  const first = scorePages.values().next().value as ScorePageCacheEntry | undefined;
+  if (!first) {
+    throw new Error('split_screen_export_failed:score_page_unavailable');
+  }
+  return first;
+}
+
 function offscreenReason(first: Rect, second: Rect) {
   if (!isFiniteRect(first)) {
     return 'cursor_canvas_rect_invalid';
@@ -817,7 +906,7 @@ function createSplitScreenExportError(
   context: {
     frame: SplitScreenScoreFrame;
     scorePage: ScorePageCacheEntry;
-    cursorGeometry?: PlayheadCursorGeometry;
+    cursorGeometry?: PlayheadCursorGeometrySnapshot;
     viewport?: SvgRect;
     imageRect?: Rect;
     cursorBox?: Rect;
@@ -865,7 +954,7 @@ function splitScreenDiagnostic({
 }: {
   frame: SplitScreenScoreFrame;
   scorePage: ScorePageCacheEntry;
-  cursorGeometry?: PlayheadCursorGeometry;
+  cursorGeometry?: PlayheadCursorGeometrySnapshot;
   viewport?: SvgRect;
   imageRect?: Rect;
   cursorBox?: Rect;
@@ -883,16 +972,11 @@ function splitScreenDiagnostic({
     scorePage: {
       pageNumber: scorePage.pageNumber,
       viewBox: scorePage.viewBox,
-      svgConnected: scorePage.svg.isConnected,
-      svgWidth: scorePage.svg.getAttribute('width'),
-      svgHeight: scorePage.svg.getAttribute('height'),
+      geometryNoteCount: scorePage.geometryByNoteId.size,
     },
     geometry: cursorGeometry
       ? {
           rootFailureReason: cursorGeometry.rootFailureReason,
-          layerTag: cursorGeometry.layer.tagName,
-          layerClass: cursorGeometry.layer.getAttribute('class'),
-          layerConnected: cursorGeometry.layer.isConnected,
           localBox: cursorGeometry.box,
           localNoteBox: cursorGeometry.noteBox,
           localSystemBox: cursorGeometry.systemBox,
@@ -900,17 +984,6 @@ function splitScreenDiagnostic({
           rootNoteBox: cursorGeometry.rootNoteBox,
           rootSystemBox: cursorGeometry.rootSystemBox,
           rootCoordinateSource: cursorGeometry.rootCoordinateSource,
-          noteBoundingClientRect: rectSnapshot(
-            cursorGeometry.layer.ownerSVGElement
-              ? findElementByVerovioId(cursorGeometry.layer.ownerSVGElement, frame.noteIds[0])
-              : null
-          ),
-          layerBoundingClientRect: rectSnapshot(cursorGeometry.layer),
-          rootBoundingClientRect: rectSnapshot(cursorGeometry.rootSvg),
-          layerMatrix: matrixSnapshot(cursorGeometry.layer.getCTM?.() ?? null),
-          layerScreenMatrix: matrixSnapshot(cursorGeometry.layer.getScreenCTM?.() ?? null),
-          rootMatrix: matrixSnapshot(cursorGeometry.rootSvg.getCTM?.() ?? null),
-          rootScreenMatrix: matrixSnapshot(cursorGeometry.rootSvg.getScreenCTM?.() ?? null),
         }
       : null,
     viewport,
@@ -918,39 +991,6 @@ function splitScreenDiagnostic({
     cursorBox,
     noteBox,
   };
-}
-
-function matrixSnapshot(matrix: DOMMatrix | null) {
-  if (!matrix) {
-    return null;
-  }
-  return {
-    a: finiteOrNull(matrix.a),
-    b: finiteOrNull(matrix.b),
-    c: finiteOrNull(matrix.c),
-    d: finiteOrNull(matrix.d),
-    e: finiteOrNull(matrix.e),
-    f: finiteOrNull(matrix.f),
-  };
-}
-
-function rectSnapshot(element: SVGGraphicsElement | SVGSVGElement | null) {
-  if (!element || typeof element.getBoundingClientRect !== 'function') {
-    return null;
-  }
-  const rect = element.getBoundingClientRect();
-  return {
-    x: finiteOrNull(rect.x),
-    y: finiteOrNull(rect.y),
-    left: finiteOrNull(rect.left),
-    top: finiteOrNull(rect.top),
-    width: finiteOrNull(rect.width),
-    height: finiteOrNull(rect.height),
-  };
-}
-
-function finiteOrNull(value: number) {
-  return Number.isFinite(value) ? value : null;
 }
 
 function isFiniteRect(rect: Rect) {

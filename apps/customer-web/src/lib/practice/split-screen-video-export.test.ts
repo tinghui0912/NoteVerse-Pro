@@ -408,6 +408,56 @@ describe('split-screen video export helpers', () => {
     expect(finalCtx.calls).toEqual([{ name: 'drawImage', args: [stagingCanvas, 0, 0] }]);
   });
 
+  it('keeps drawing from one frozen score snapshot after Review replaces the mounted SVG', async () => {
+    const container = createScoreContainer();
+    const loadImage = vi.fn(async () => makeImage());
+    const cache = await prepareScorePageCache(container, loadImage);
+    const finalCtx = createFakeContext();
+    const stagingCtx = createFakeContext();
+    const stagingCanvas = document.createElement('canvas');
+    const video = document.createElement('video');
+    Object.defineProperty(video, 'videoWidth', { configurable: true, value: 640 });
+    Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
+    Object.defineProperty(video, 'currentTime', { configurable: true, value: 1 });
+    const adapter = {
+      getCursorTimelineEntryForBeatRange: vi.fn(() => ({
+        index: 0,
+        beat: 4,
+        endBeat: 5,
+        noteIds: ['note-a'],
+      })),
+      getPageWithElement: vi.fn(() => 1),
+    };
+    const frameState = { scorePages: cache, stagingCanvas, stagingCtx };
+
+    drawExportFrame({
+      ctx: finalCtx,
+      video,
+      draft: createDraft(),
+      adapter: adapter as never,
+      scoreEndBeat: 24,
+      frameState,
+    });
+
+    const replacement = createScoreContainer();
+    container.replaceWith(replacement);
+
+    expect(() =>
+      drawExportFrame({
+        ctx: finalCtx,
+        video,
+        draft: createDraft(),
+        adapter: adapter as never,
+        scoreEndBeat: 24,
+        frameState,
+      })
+    ).not.toThrow();
+    expect(loadImage).toHaveBeenCalledTimes(2);
+    expect(finalCtx.calls.filter((call) => call.name === 'drawImage')).toHaveLength(2);
+    expect(cache.get(1)?.geometryByNoteId.has('note-a')).toBe(true);
+    expect(adapter.getPageWithElement).not.toHaveBeenCalled();
+  });
+
   it('uses real note geometry for one background playhead cursor', () => {
     const container = createScoreContainer();
     const svg = container.querySelector<SVGSVGElement>('svg')!;
