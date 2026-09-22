@@ -24,8 +24,14 @@ export type PlayheadCursorGeometry = {
   rootBox: SvgRect | null;
   rootNoteBox: SvgRect | null;
   rootSystemBox: SvgRect | null;
+  rootCoordinateSource: PlayheadRootCoordinateSource | null;
   rootFailureReason: PlayheadCursorGeometryFailureReason | null;
 };
+
+export type PlayheadRootCoordinateSource =
+  | 'ctm_svg_viewport'
+  | 'rendered_dom_rect'
+  | 'matrix_to_root';
 
 export type PlayheadCursorGeometryFailureReason =
   | 'root_svg_unavailable'
@@ -158,6 +164,11 @@ export function getPlayheadCursorGeometry(
     rootBox: rootBoxResult.ok ? rootBoxResult.rect : null,
     rootNoteBox: rootNoteBoxResult.ok ? rootNoteBoxResult.rect : null,
     rootSystemBox: rootSystemBoxResult.ok ? rootSystemBoxResult.rect : null,
+    rootCoordinateSource: renderedRoot
+      ? renderedRoot.source
+      : rootFailureReason
+        ? null
+        : 'matrix_to_root',
     rootFailureReason,
   };
 }
@@ -198,18 +209,34 @@ function getRenderedRootGeometry(
   rootSvg: SVGSVGElement,
   layer: SVGGraphicsElement,
   notes: readonly SVGGraphicsElement[]
-): { rootBox: SvgRect; rootNoteBox: SvgRect; rootSystemBox: SvgRect } | null {
+): {
+  rootBox: SvgRect;
+  rootNoteBox: SvgRect;
+  rootSystemBox: SvgRect;
+  source: PlayheadRootCoordinateSource;
+} | null {
+  const ctmRoot = getRootGeometryFromSource(rootSvg, layer, notes, ctmViewportRectToRootSvg);
+  if (ctmRoot) {
+    return { ...ctmRoot, source: 'ctm_svg_viewport' };
+  }
+  const renderedRoot = getRootGeometryFromSource(rootSvg, layer, notes, renderedRectToRootSvg);
+  return renderedRoot ? { ...renderedRoot, source: 'rendered_dom_rect' } : null;
+}
+
+function getRootGeometryFromSource(
+  rootSvg: SVGSVGElement,
+  layer: SVGGraphicsElement,
+  notes: readonly SVGGraphicsElement[],
+  getRootRect: (rootSvg: SVGSVGElement, element: SVGGraphicsElement) => SvgRect | null
+) {
   const rootNoteBoxes = notes
-    .map((note) => renderedRectToRootSvg(rootSvg, note) ?? ctmViewportRectToRootSvg(rootSvg, note))
+    .map((note) => getRootRect(rootSvg, note))
     .filter((box): box is SvgRect => box !== null);
   if (rootNoteBoxes.length === 0) {
     return null;
   }
   const rootNoteBox = rootNoteBoxes.reduce(mergeRects);
-  const rootSystemBox =
-    renderedRectToRootSvg(rootSvg, layer) ??
-    ctmViewportRectToRootSvg(rootSvg, layer) ??
-    rootNoteBox;
+  const rootSystemBox = getRootRect(rootSvg, layer) ?? rootNoteBox;
   const rootBox = cursorBoxFor(rootNoteBox, rootSystemBox);
   if (![rootBox, rootNoteBox, rootSystemBox].every(isFiniteRect)) {
     return null;
@@ -247,10 +274,6 @@ function ctmViewportRectToRootSvg(
   if (!viewportRect) {
     return null;
   }
-  const viewBox = readSvgViewBox(rootSvg);
-  if (rectsIntersect(viewportRect, viewBox) || rectContains(viewBox, rectCenter(viewportRect))) {
-    return viewportRect;
-  }
   return viewportRectToRootSvg(rootSvg, viewportRect);
 }
 
@@ -286,7 +309,7 @@ function getViewportRectFromCtm(element: SVGGraphicsElement): SvgRect | null {
 }
 
 function viewportRectToRootSvg(rootSvg: SVGSVGElement, viewportRect: SvgRect): SvgRect | null {
-  const rootViewport = getRootViewportRect(rootSvg);
+  const rootViewport = getRootSvgViewportRect(rootSvg);
   if (!rootViewport) {
     return null;
   }
@@ -300,11 +323,7 @@ function viewportRectToRootSvg(rootSvg: SVGSVGElement, viewportRect: SvgRect): S
   return isFiniteRect(rect) ? rect : null;
 }
 
-function getRootViewportRect(rootSvg: SVGSVGElement): SvgRect | null {
-  const rect = rootSvg.getBoundingClientRect?.();
-  if (rect && rect.width > 0 && rect.height > 0) {
-    return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
-  }
+function getRootSvgViewportRect(rootSvg: SVGSVGElement): SvgRect | null {
   const width = parseSvgLength(rootSvg.getAttribute('width'));
   const height = parseSvgLength(rootSvg.getAttribute('height'));
   if (width > 0 && height > 0) {
@@ -437,31 +456,6 @@ function isFiniteRect(rect: SvgRect) {
     Number.isFinite(rect.height) &&
     rect.width > 0 &&
     rect.height > 0
-  );
-}
-
-function rectCenter(rect: SvgRect) {
-  return {
-    x: rect.x + rect.width / 2,
-    y: rect.y + rect.height / 2,
-  };
-}
-
-function rectContains(rect: SvgRect, point: { x: number; y: number }) {
-  return (
-    point.x >= rect.x &&
-    point.x <= rect.x + rect.width &&
-    point.y >= rect.y &&
-    point.y <= rect.y + rect.height
-  );
-}
-
-function rectsIntersect(first: SvgRect, second: SvgRect) {
-  return (
-    first.x < second.x + second.width &&
-    first.x + first.width > second.x &&
-    first.y < second.y + second.height &&
-    first.y + first.height > second.y
   );
 }
 

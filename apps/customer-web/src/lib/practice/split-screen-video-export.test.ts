@@ -593,6 +593,12 @@ describe('split-screen video export helpers', () => {
       width: 19819.51953125,
       height: 3425.760009765625,
     } as DOMRect));
+    note.getBoundingClientRect = vi.fn(
+      () => ({ left: 272, top: 157, width: 12, height: 45 }) as DOMRect
+    );
+    system.getBoundingClientRect = vi.fn(
+      () => ({ left: 10, top: 140, width: 820, height: 185 }) as DOMRect
+    );
     const matrix = {
       a: 0.053047619047619045,
       b: 0,
@@ -612,6 +618,7 @@ describe('split-screen video export helpers', () => {
 
     const geometry = getPlayheadCursorGeometry(svg, ['note-a']);
 
+    expect(geometry?.rootCoordinateSource).toBe('ctm_svg_viewport');
     expect(geometry?.rootNoteBox?.x).toBeGreaterThan(250);
     expect(geometry?.rootNoteBox?.x).toBeLessThan(360);
     expect(geometry?.rootNoteBox?.y).toBeGreaterThan(140);

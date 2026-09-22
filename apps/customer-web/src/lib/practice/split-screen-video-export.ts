@@ -4,6 +4,7 @@ import {
 } from './performance-review-draft';
 import { PracticeTempoTimeline } from './local-core/practice-tempo';
 import {
+  findElementByVerovioId,
   getPlayheadCursorGeometry,
   PLAYHEAD_CURSOR_STYLE,
   type PlayheadCursorGeometry,
@@ -898,8 +899,18 @@ function splitScreenDiagnostic({
           rootBox: cursorGeometry.rootBox,
           rootNoteBox: cursorGeometry.rootNoteBox,
           rootSystemBox: cursorGeometry.rootSystemBox,
+          rootCoordinateSource: cursorGeometry.rootCoordinateSource,
+          noteBoundingClientRect: rectSnapshot(
+            cursorGeometry.layer.ownerSVGElement
+              ? findElementByVerovioId(cursorGeometry.layer.ownerSVGElement, frame.noteIds[0])
+              : null
+          ),
+          layerBoundingClientRect: rectSnapshot(cursorGeometry.layer),
+          rootBoundingClientRect: rectSnapshot(cursorGeometry.rootSvg),
           layerMatrix: matrixSnapshot(cursorGeometry.layer.getCTM?.() ?? null),
+          layerScreenMatrix: matrixSnapshot(cursorGeometry.layer.getScreenCTM?.() ?? null),
           rootMatrix: matrixSnapshot(cursorGeometry.rootSvg.getCTM?.() ?? null),
+          rootScreenMatrix: matrixSnapshot(cursorGeometry.rootSvg.getScreenCTM?.() ?? null),
         }
       : null,
     viewport,
@@ -920,6 +931,21 @@ function matrixSnapshot(matrix: DOMMatrix | null) {
     d: finiteOrNull(matrix.d),
     e: finiteOrNull(matrix.e),
     f: finiteOrNull(matrix.f),
+  };
+}
+
+function rectSnapshot(element: SVGGraphicsElement | SVGSVGElement | null) {
+  if (!element || typeof element.getBoundingClientRect !== 'function') {
+    return null;
+  }
+  const rect = element.getBoundingClientRect();
+  return {
+    x: finiteOrNull(rect.x),
+    y: finiteOrNull(rect.y),
+    left: finiteOrNull(rect.left),
+    top: finiteOrNull(rect.top),
+    width: finiteOrNull(rect.width),
+    height: finiteOrNull(rect.height),
   };
 }
 
