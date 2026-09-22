@@ -3,6 +3,12 @@ import {
   type PerformanceReviewDraft,
 } from './performance-review-draft';
 import { PracticeTempoTimeline } from './local-core/practice-tempo';
+import {
+  getPlayheadCursorGeometry,
+  PLAYHEAD_CURSOR_STYLE,
+  type PlayheadCursorGeometry,
+  type SvgRect,
+} from './playhead-cursor';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 
 const EXPORT_WIDTH = 1280;
@@ -86,13 +92,6 @@ export type ScorePageCacheEntry = {
 export type ScorePageCache = Map<number, ScorePageCacheEntry>;
 
 export type SvgViewBox = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-export type NoteHighlightBox = {
   x: number;
   y: number;
   width: number;
@@ -515,8 +514,11 @@ export function drawExportFrame({
   staging.fillStyle = '#ffffff';
   roundRect(staging, scoreRect.x, scoreRect.y, scoreRect.width, scoreRect.height, 10);
   staging.fill();
-  const scoreImageRect = drawContain(staging, scorePage.image, scoreRect, '#ffffff');
-  drawNoteHighlights(staging, scorePage, frame.noteIds, scoreImageRect);
+  const cursorGeometry = getPlayheadCursorGeometry(scorePage.svg, frame.noteIds);
+  if (!cursorGeometry) {
+    throw new Error('split_screen_export_failed:playhead_position_unavailable');
+  }
+  drawScorePanel(staging, scorePage, cursorGeometry, scoreRect);
 
   staging.fillStyle = '#020617';
   roundRect(staging, videoRect.x, videoRect.y, videoRect.width, videoRect.height, 10);
@@ -526,63 +528,47 @@ export function drawExportFrame({
   ctx.drawImage(frameState.stagingCanvas, 0, 0);
 }
 
-export function getNoteHighlightBoxes(
-  page: Pick<ScorePageCacheEntry, 'svg' | 'viewBox'>,
-  noteIds: readonly string[]
-): NoteHighlightBox[] {
-  const boxes: NoteHighlightBox[] = [];
-  for (const noteId of Array.from(new Set(noteIds.filter(Boolean)))) {
-    const note = findSvgElementById(page.svg, noteId);
-    if (!note || typeof note.getBBox !== 'function') {
-      continue;
-    }
-    try {
-      const box = note.getBBox();
-      if (box.width > 0 && box.height > 0) {
-        boxes.push({
-          x: box.x,
-          y: box.y,
-          width: box.width,
-          height: box.height,
-        });
-      }
-    } catch {
-      continue;
-    }
-  }
-  return boxes;
-}
-
-function drawNoteHighlights(
+function drawScorePanel(
   ctx: CanvasRenderingContext2D,
   page: ScorePageCacheEntry,
-  noteIds: readonly string[],
-  imageRect: Rect
+  cursorGeometry: PlayheadCursorGeometry,
+  scoreRect: Rect
 ) {
-  const boxes = getNoteHighlightBoxes(page, noteIds);
-  if (boxes.length === 0) {
-    return;
+  const viewport = cursorViewport(page.viewBox, cursorGeometry.systemBox);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(scoreRect.x, scoreRect.y, scoreRect.width, scoreRect.height);
+  const imageRect = drawCroppedScoreImage(
+    ctx,
+    page.image,
+    page.viewBox,
+    viewport,
+    scoreRect,
+    false
+  );
+  const cursorBox = svgRectToCanvasRect(cursorGeometry.box, viewport, imageRect);
+  if (!rectsIntersect(cursorBox, imageRect)) {
+    throw new Error('split_screen_export_failed:playhead_position_offscreen');
   }
-  const scaleX = imageRect.width / page.viewBox.width;
-  const scaleY = imageRect.height / page.viewBox.height;
+
   ctx.save();
-  ctx.strokeStyle = '#f97316';
-  ctx.fillStyle = 'rgba(249, 115, 22, 0.22)';
-  ctx.lineWidth = Math.max(3, Math.min(7, imageRect.width / 180));
-  ctx.shadowColor = 'rgba(249, 115, 22, 0.55)';
-  ctx.shadowBlur = 8;
-  for (const box of boxes) {
-    const paddingX = Math.max(8, box.width * 0.32) * scaleX;
-    const paddingY = Math.max(8, box.height * 0.45) * scaleY;
-    const x = imageRect.x + (box.x - page.viewBox.x) * scaleX - paddingX;
-    const y = imageRect.y + (box.y - page.viewBox.y) * scaleY - paddingY;
-    const width = box.width * scaleX + paddingX * 2;
-    const height = box.height * scaleY + paddingY * 2;
-    roundRect(ctx, x, y, width, height, Math.min(14, Math.max(6, height / 3)));
-    ctx.fill();
-    ctx.stroke();
-  }
+  ctx.fillStyle = PLAYHEAD_CURSOR_STYLE.fill;
+  ctx.strokeStyle = PLAYHEAD_CURSOR_STYLE.stroke;
+  ctx.lineWidth = Math.max(1.5, imageRect.width / 520);
+  ctx.shadowColor = PLAYHEAD_CURSOR_STYLE.shadow;
+  ctx.shadowBlur = 7;
+  roundRect(
+    ctx,
+    cursorBox.x,
+    cursorBox.y,
+    cursorBox.width,
+    cursorBox.height,
+    Math.max(4, Math.min(10, cursorBox.width / 4))
+  );
+  ctx.fill();
+  ctx.stroke();
   ctx.restore();
+
+  drawCroppedScoreImage(ctx, page.image, page.viewBox, viewport, scoreRect, true);
 }
 
 function canCaptureCanvasStream(): boolean {
@@ -705,6 +691,68 @@ function drawContain(
   return { x, y, width: drawWidth, height: drawHeight };
 }
 
+function drawCroppedScoreImage(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  viewBox: SvgViewBox,
+  viewport: SvgRect,
+  scoreRect: Rect,
+  drawImage: boolean
+): Rect {
+  const scale = Math.min(scoreRect.width / viewport.width, scoreRect.height / viewport.height);
+  const drawWidth = viewport.width * scale;
+  const drawHeight = viewport.height * scale;
+  const dx = scoreRect.x + (scoreRect.width - drawWidth) / 2;
+  const dy = scoreRect.y + (scoreRect.height - drawHeight) / 2;
+  const imageScaleX = image.naturalWidth / viewBox.width;
+  const imageScaleY = image.naturalHeight / viewBox.height;
+  const sx = (viewport.x - viewBox.x) * imageScaleX;
+  const sy = (viewport.y - viewBox.y) * imageScaleY;
+  const sw = viewport.width * imageScaleX;
+  const sh = viewport.height * imageScaleY;
+  if (drawImage) {
+    ctx.drawImage(image, sx, sy, sw, sh, dx, dy, drawWidth, drawHeight);
+  }
+  return { x: dx, y: dy, width: drawWidth, height: drawHeight };
+}
+
+function cursorViewport(viewBox: SvgViewBox, systemBox: SvgRect): SvgRect {
+  const verticalPadding = Math.max(80, systemBox.height * 0.45);
+  const desiredHeight = Math.min(
+    viewBox.height,
+    Math.max(systemBox.height + verticalPadding * 2, viewBox.height * 0.22)
+  );
+  const centerY = systemBox.y + systemBox.height / 2;
+  let y = centerY - desiredHeight / 2;
+  y = Math.max(viewBox.y, Math.min(y, viewBox.y + viewBox.height - desiredHeight));
+  return {
+    x: viewBox.x,
+    y,
+    width: viewBox.width,
+    height: desiredHeight,
+  };
+}
+
+function svgRectToCanvasRect(rect: SvgRect, viewport: SvgRect, imageRect: Rect): Rect {
+  const scaleX = imageRect.width / viewport.width;
+  const scaleY = imageRect.height / viewport.height;
+  return {
+    x: imageRect.x + (rect.x - viewport.x) * scaleX,
+    y: imageRect.y + (rect.y - viewport.y) * scaleY,
+    width: rect.width * scaleX,
+    height: rect.height * scaleY,
+  };
+}
+
+function rectsIntersect(first: Rect, second: Rect) {
+  return (
+    first.x < second.x + second.width &&
+    first.x + first.width > second.x &&
+    first.y < second.y + second.height &&
+    first.y + first.height > second.y
+  );
+}
+
 function roundRect(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -726,10 +774,6 @@ function roundRect(
   ctx.closePath();
 }
 
-function cssString(value: string) {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
-
 function cloneScoreSvgWithoutRuntimeHighlights(svg: SVGSVGElement): SVGSVGElement {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -737,8 +781,11 @@ function cloneScoreSvgWithoutRuntimeHighlights(svg: SVGSVGElement): SVGSVGElemen
   clone.setAttribute('width', clone.getAttribute('width') || String(viewBox.width));
   clone.setAttribute('height', clone.getAttribute('height') || String(viewBox.height));
   clone
-    .querySelectorAll('.practice-note-active')
+    .querySelectorAll('.practice-note-active, .practice-playhead-cursor, [data-practice-playhead-cursor]')
     .forEach((element) => element.classList.remove('practice-note-active'));
+  clone
+    .querySelectorAll('.practice-playhead-cursor, [data-practice-playhead-cursor]')
+    .forEach((element) => element.remove());
   return clone;
 }
 
@@ -755,20 +802,6 @@ function readSvgViewBox(svg: SVGSVGElement): SvgViewBox {
   const width = Number.parseFloat(svg.getAttribute('width') ?? '') || 1200;
   const height = Number.parseFloat(svg.getAttribute('height') ?? '') || 1600;
   return { x: 0, y: 0, width, height };
-}
-
-function findSvgElementById(svg: SVGSVGElement, id: string): SVGGraphicsElement | null {
-  return (
-    svg.querySelector<SVGGraphicsElement>(`[data-id="${cssString(id)}"]`) ??
-    svg.querySelector<SVGGraphicsElement>(`#${escapeCssId(id)}`)
-  );
-}
-
-function escapeCssId(id: string) {
-  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-    return CSS.escape(id);
-  }
-  return id.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
 }
 
 function safeDurationMs(video: HTMLVideoElement): number | null {

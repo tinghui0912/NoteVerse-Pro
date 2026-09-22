@@ -525,12 +525,12 @@ export default function PracticeReviewPage({
           stroke: #b91c1c !important;
           opacity: 1 !important;
         }
-        .practice-summary-score-svg .practice-note-active {
-          fill: #f97316 !important;
-          stroke: #ea580c !important;
-          stroke-width: 2px !important;
-          opacity: 1 !important;
-          filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.65));
+        .practice-summary-score-svg .practice-playhead-cursor {
+          fill: rgb(251 191 36 / 22%);
+          stroke: rgb(245 158 11 / 46%);
+          stroke-width: 1.5px;
+          filter: drop-shadow(0 0 4px rgb(245 158 11 / 24%));
+          pointer-events: none !important;
         }
         .practice-summary-score-svg svg {
           display: block;

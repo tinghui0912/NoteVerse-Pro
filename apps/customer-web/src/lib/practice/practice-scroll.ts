@@ -4,7 +4,7 @@ function clamp(value: number, min: number, max: number) {
 
 export function keepElementInViewport(
   container: HTMLElement,
-  element: HTMLElement,
+  element: Element,
   behavior: ScrollBehavior = 'smooth'
 ) {
   const containerRect = container.getBoundingClientRect();
@@ -55,7 +55,7 @@ export function focusPageContainer(
 
 export function getVisibilityRatio(
   container: HTMLElement,
-  element: HTMLElement
+  element: Element
 ) {
   const containerRect = container.getBoundingClientRect();
   const elementRect = element.getBoundingClientRect();

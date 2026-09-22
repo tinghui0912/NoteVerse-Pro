@@ -193,7 +193,28 @@ describe('PracticeScoreViewer', () => {
     delete (SVGElement.prototype as SVGElement & { getBBox?: unknown }).getBBox;
   });
 
-  it('highlights the active step target notes in STEP mode', async () => {
+  it('renders the active STEP target as one background cursor without recoloring notes', async () => {
+    const getBBox = vi.fn(function getBBox(this: SVGElement) {
+      if (this.classList.contains('system')) {
+        return {
+          x: 0,
+          y: 0,
+          width: 120,
+          height: 80,
+        } as DOMRect;
+      }
+      return {
+        x: 10,
+        y: 20,
+        width: 30,
+        height: 40,
+      } as DOMRect;
+    });
+    Object.defineProperty(SVGElement.prototype, 'getBBox', {
+      configurable: true,
+      value: getBBox,
+    });
+
     renderViewer({
       lifecycle: 'ACTIVE',
       activeStepGroup: mockStepGroup,
@@ -201,7 +222,10 @@ describe('PracticeScoreViewer', () => {
 
     const selectedNote = await screen.findByTestId('selected-note');
     await waitFor(() => {
-      expect(selectedNote).toHaveClass('practice-note-active');
+      expect(screen.getByTestId('score-system').querySelectorAll('[data-practice-playhead-cursor]')).toHaveLength(1);
     });
+    expect(selectedNote).not.toHaveClass('practice-note-active');
+
+    delete (SVGElement.prototype as SVGElement & { getBBox?: unknown }).getBBox;
   });
 });

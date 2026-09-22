@@ -3,6 +3,10 @@ import {
   keepElementInViewport,
   shouldFocusPage,
 } from './practice-scroll';
+import {
+  applyPlayheadCursor,
+  clearPlayheadCursor,
+} from './playhead-cursor';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 
 export type PerformanceScopeBeats = {
@@ -18,14 +22,7 @@ type PerformancePlayheadState = {
   selectedRangeNoteIds: string[];
 };
 
-function escapeCssId(id: string) {
-  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-    return CSS.escape(id);
-  }
-  return id.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
-}
-
-function extractPageNumber(node: HTMLElement | null): number | null {
+function extractPageNumber(node: Element | null): number | null {
   const pageContainer = node?.closest<HTMLElement>('[data-practice-page]');
   const pageValue = pageContainer?.dataset.practicePage;
   if (!pageValue) {
@@ -33,13 +30,6 @@ function extractPageNumber(node: HTMLElement | null): number | null {
   }
   const parsed = Number.parseInt(pageValue, 10);
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-function findElementByVerovioId(container: HTMLElement, verovioId: string): HTMLElement | null {
-  return (
-    container.querySelector<HTMLElement>(`[data-id="${verovioId}"]`) ??
-    container.querySelector<HTMLElement>(`#${escapeCssId(verovioId)}`)
-  );
 }
 
 export class PerformancePlayheadController {
@@ -98,18 +88,11 @@ export class PerformancePlayheadController {
     }
     this.state.displayedBeat = musicalBeat;
 
-    const noteElements: HTMLElement[] = [];
-    for (const noteId of entry.noteIds) {
-      const node = findElementByVerovioId(container, noteId);
-      if (!node) {
-        continue;
-      }
-      node.classList.add('practice-note-active');
-      noteElements.push(node);
-      this.state.activeNoteIds.push(noteId);
-    }
+    const noteIds = Array.from(new Set(entry.noteIds.filter(Boolean)));
+    const { anchor } = applyPlayheadCursor(container, noteIds);
+    this.state.activeNoteIds = noteIds;
 
-    const anchorNode = noteElements[0] ?? null;
+    const anchorNode = anchor;
     let activePage: number | null = extractPageNumber(anchorNode);
     if (activePage === null && entry.noteIds[0]) {
       try {
@@ -141,15 +124,13 @@ export class PerformancePlayheadController {
   }
 
   refreshDecorations(container: HTMLElement): void {
-    for (const noteId of this.state.activeNoteIds) {
-      findElementByVerovioId(container, noteId)?.classList.add('practice-note-active');
+    if (this.state.activeNoteIds.length > 0) {
+      applyPlayheadCursor(container, this.state.activeNoteIds);
     }
   }
 
   private clearDecorations(container: HTMLElement): void {
-    for (const noteId of this.state.activeNoteIds) {
-      findElementByVerovioId(container, noteId)?.classList.remove('practice-note-active');
-    }
+    clearPlayheadCursor(container);
     this.state.activeNoteIds = [];
     this.state.activePage = null;
   }

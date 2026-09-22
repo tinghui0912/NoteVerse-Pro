@@ -248,34 +248,12 @@ export function PracticeScoreViewer({
         .practice-score-svg .practice-range-selected {
           opacity: 1 !important;
         }
-        .practice-score-svg .practice-note-active {
-          fill: #f97316 !important;
-          stroke: #ea580c !important;
-          stroke-width: 2px !important;
-          opacity: 1 !important;
-          filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.65));
-        }
-        .practice-score-svg .practice-note-active use,
-        .practice-score-svg .practice-note-active path,
-        .practice-score-svg .practice-note-active ellipse,
-        .practice-score-svg .practice-note-active circle,
-        .practice-score-svg .practice-note-active polygon,
-        .practice-score-svg .practice-note-active rect,
-        .practice-score-svg .practice-note-active line,
-        .practice-score-svg .practice-note-active polyline,
-        .practice-score-svg .practice-note-active .stem,
-        .practice-score-svg .practice-note-active .flag,
-        .practice-score-svg .practice-note-active .beam,
-        .practice-score-svg .practice-note-active .notehead {
-          fill: #f97316 !important;
-          stroke: #ea580c !important;
-          opacity: 1 !important;
-        }
-        .practice-score-svg .practice-note-active .practice-range-background {
-          fill: rgb(251 191 36 / 10%) !important;
-          stroke: rgb(245 158 11 / 34%) !important;
-          stroke-width: 1.2px !important;
-          filter: none !important;
+        .practice-score-svg .practice-playhead-cursor {
+          fill: rgb(251 191 36 / 22%);
+          stroke: rgb(245 158 11 / 46%);
+          stroke-width: 1.5px;
+          filter: drop-shadow(0 0 4px rgb(245 158 11 / 24%));
+          pointer-events: none !important;
         }
         .practice-score-svg svg {
           display: block;

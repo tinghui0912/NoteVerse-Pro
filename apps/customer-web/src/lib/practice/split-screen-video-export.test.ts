@@ -5,12 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   composeSplitScreenOutputStream,
   drawExportFrame,
-  getNoteHighlightBoxes,
   getSplitScreenExportReadiness,
   prepareScorePageCache,
   resolveSplitScreenScoreFrame,
   selectSupportedSplitScreenMimeType,
 } from './split-screen-video-export';
+import { getPlayheadCursorGeometry } from './playhead-cursor';
 import type { PerformanceReviewDraft } from './performance-review-draft';
 
 function createDraft(
@@ -108,26 +108,32 @@ function createScoreContainer() {
   container.innerHTML = `
     <div data-practice-review-page="1">
       <svg viewBox="0 0 1200 1600" width="1200" height="1600">
-        <g data-id="note-a"></g>
-        <g data-id="note-b"></g>
-        <g data-id="chord-1"></g>
-        <g class="practice-note-active" data-id="stale-highlight"></g>
+        <g class="system" data-testid="system-1">
+          <g data-id="note-a"></g>
+          <g data-id="note-b"></g>
+          <g data-id="chord-1"></g>
+          <g class="practice-note-active" data-id="stale-highlight"></g>
+        </g>
       </svg>
     </div>
     <div data-practice-review-page="2">
       <svg viewBox="0 0 1200 1600" width="1200" height="1600">
-        <g data-id="note-page-2"></g>
+        <g class="system" data-testid="system-2">
+          <g data-id="note-page-2"></g>
+        </g>
       </svg>
     </div>
   `;
   const boxes: Record<string, { x: number; y: number; width: number; height: number }> = {
+    'system-1': { x: 60, y: 120, width: 1080, height: 260 },
+    'system-2': { x: 60, y: 430, width: 1080, height: 260 },
     'note-a': { x: 100, y: 200, width: 30, height: 40 },
     'note-b': { x: 180, y: 200, width: 30, height: 40 },
     'chord-1': { x: 260, y: 360, width: 80, height: 50 },
     'note-page-2': { x: 400, y: 500, width: 35, height: 45 },
   };
-  container.querySelectorAll<SVGGraphicsElement>('[data-id]').forEach((element) => {
-    const id = element.getAttribute('data-id') ?? '';
+  container.querySelectorAll<SVGGraphicsElement>('[data-id], [data-testid]').forEach((element) => {
+    const id = element.getAttribute('data-id') ?? element.getAttribute('data-testid') ?? '';
     element.getBBox = vi.fn(() => boxes[id] as DOMRect);
   });
   return container;
@@ -379,18 +385,15 @@ describe('split-screen video export helpers', () => {
     expect(finalCtx.calls).toEqual([{ name: 'drawImage', args: [stagingCanvas, 0, 0] }]);
   });
 
-  it('uses real note geometry for note and chord highlight boxes', () => {
+  it('uses real note geometry for one background playhead cursor', () => {
     const container = createScoreContainer();
     const svg = container.querySelector<SVGSVGElement>('svg')!;
 
-    expect(
-      getNoteHighlightBoxes(
-        { svg, viewBox: { x: 0, y: 0, width: 1200, height: 1600 } },
-        ['note-a', 'chord-1']
-      )
-    ).toEqual([
-      { x: 100, y: 200, width: 30, height: 40 },
-      { x: 260, y: 360, width: 80, height: 50 },
-    ]);
+    const geometry = getPlayheadCursorGeometry(svg, ['note-a', 'chord-1']);
+
+    expect(geometry?.noteBox).toEqual({ x: 100, y: 200, width: 240, height: 210 });
+    expect(geometry?.systemBox).toEqual({ x: 60, y: 120, width: 1080, height: 260 });
+    expect(geometry?.box.height).toBeGreaterThan(260);
+    expect(geometry?.box.width).toBeLessThanOrEqual(72);
   });
 });

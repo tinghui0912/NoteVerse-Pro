@@ -16,20 +16,36 @@ function makeContainer() {
   container.scrollTo = vi.fn();
   container.innerHTML = `
     <div data-practice-page="1">
-      <g data-class="chord" data-testid="chord-1">
-        <g data-class="stem" data-testid="stem-1"></g>
-        <g data-id="n1"></g>
-      </g>
-      <g data-id="n2"></g>
-      <g data-id="n3"></g>
+      <svg viewBox="0 0 1000 1000">
+        <g class="system" data-testid="system-1">
+          <g data-class="chord" data-testid="chord-1">
+            <g data-class="stem" data-testid="stem-1"></g>
+            <g data-id="n1"></g>
+          </g>
+          <g data-id="n2"></g>
+          <g data-id="n3"></g>
+        </g>
+      </svg>
     </div>
   `;
+  const boxes: Record<string, { x: number; y: number; width: number; height: number }> = {
+    'system-1': { x: 0, y: 100, width: 800, height: 180 },
+    'chord-1': { x: 90, y: 145, width: 40, height: 48 },
+    'stem-1': { x: 115, y: 120, width: 4, height: 80 },
+    n1: { x: 100, y: 150, width: 24, height: 32 },
+    n2: { x: 220, y: 150, width: 24, height: 32 },
+    n3: { x: 340, y: 150, width: 24, height: 32 },
+  };
+  container.querySelectorAll<SVGGraphicsElement>('[data-id], [data-testid]').forEach((element) => {
+    const id = element.getAttribute('data-id') ?? element.getAttribute('data-testid') ?? '';
+    element.getBBox = vi.fn(() => boxes[id] as DOMRect);
+  });
   document.body.appendChild(container);
   return container;
 }
 
 describe('StepPlayheadController', () => {
-  it('highlights current active target notes and clears previous target', () => {
+  it('keeps one background cursor on the current target until the target changes', () => {
     const controller = new StepPlayheadController();
     const container = makeContainer();
     const adapter = makeAdapter();
@@ -63,18 +79,31 @@ describe('StepPlayheadController', () => {
     };
 
     controller.apply(container, adapter, group1);
-    expect(container.querySelector('[data-id="n1"]')).toHaveClass('practice-note-active');
-    expect(container.querySelector('[data-testid="chord-1"]')).toHaveClass('practice-note-active');
+    const firstCursorX = container
+      .querySelector('[data-practice-playhead-cursor]')
+      ?.getAttribute('x');
+    expect(firstCursorX).not.toBeNull();
+    expect(container.querySelector('[data-id="n1"]')).not.toHaveClass('practice-note-active');
+    expect(container.querySelector('[data-testid="chord-1"]')).not.toHaveClass('practice-note-active');
     expect(container.querySelector('[data-id="n2"]')).not.toHaveClass('practice-note-active');
+
+    // Reapplying the same target, as when a chord is not complete yet, keeps the cursor in place.
+    controller.apply(container, adapter, group1);
+    expect(container.querySelector('[data-practice-playhead-cursor]')?.getAttribute('x')).toBe(
+      firstCursorX
+    );
 
     // Advance to next group
     controller.apply(container, adapter, group2);
     expect(container.querySelector('[data-id="n1"]')).not.toHaveClass('practice-note-active');
     expect(container.querySelector('[data-testid="chord-1"]')).not.toHaveClass('practice-note-active');
-    expect(container.querySelector('[data-id="n2"]')).toHaveClass('practice-note-active');
+    expect(container.querySelector('[data-id="n2"]')).not.toHaveClass('practice-note-active');
+    expect(container.querySelector('[data-practice-playhead-cursor]')?.getAttribute('x')).not.toBe(
+      firstCursorX
+    );
 
     // End/null
     controller.apply(container, adapter, null);
-    expect(container.querySelector('.practice-note-active')).toBeNull();
+    expect(container.querySelector('[data-practice-playhead-cursor]')).toBeNull();
   });
 });
