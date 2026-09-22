@@ -136,7 +136,30 @@ function createScoreContainer() {
     const id = element.getAttribute('data-id') ?? element.getAttribute('data-testid') ?? '';
     element.getBBox = vi.fn(() => boxes[id] as DOMRect);
   });
+  installIdentitySvgGeometry(container);
+  document.body.appendChild(container);
   return container;
+}
+
+function installIdentitySvgGeometry(container: HTMLElement) {
+  const matrix = {
+    inverse: vi.fn(() => matrix),
+    multiply: vi.fn(() => ({
+      transformPoint: (point: { x: number; y: number }) => ({ x: point.x, y: point.y }),
+    })),
+  };
+  container.querySelectorAll<SVGGraphicsElement>('svg, g').forEach((element) => {
+    element.getCTM = vi.fn(() => matrix as unknown as DOMMatrix);
+  });
+  container.querySelectorAll<SVGSVGElement>('svg').forEach((svg) => {
+    svg.createSVGPoint = vi.fn(() => ({
+      x: 0,
+      y: 0,
+      matrixTransform(matrixLike: { transformPoint: (point: { x: number; y: number }) => { x: number; y: number } }) {
+        return matrixLike.transformPoint(this);
+      },
+    } as SVGPoint));
+  });
 }
 
 describe('split-screen video export helpers', () => {
@@ -428,7 +451,42 @@ describe('split-screen video export helpers', () => {
     const geometry = getPlayheadCursorGeometry(svg, ['note-a']);
 
     expect(geometry?.box.x).toBeLessThan(200);
-    expect(geometry?.rootBox.x).toBeGreaterThan(500);
-    expect(geometry?.rootSystemBox.y).toBeGreaterThan(900);
+    expect(geometry?.rootBox?.x).toBeGreaterThan(500);
+    expect(geometry?.rootSystemBox?.y).toBeGreaterThan(900);
+  });
+
+  it('fails coordinate conversion instead of exporting with system-local rectangles as root coordinates', async () => {
+    const container = createScoreContainer();
+    container.querySelectorAll<SVGGraphicsElement>('svg, g').forEach((element) => {
+      element.getCTM = undefined as unknown as SVGGraphicsElement['getCTM'];
+    });
+    const cache = await prepareScorePageCache(container, async () => makeImage());
+    const finalCtx = createFakeContext();
+    const stagingCtx = createFakeContext();
+    const stagingCanvas = document.createElement('canvas');
+    const video = document.createElement('video');
+    Object.defineProperty(video, 'videoWidth', { configurable: true, value: 640 });
+    Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
+    Object.defineProperty(video, 'currentTime', { configurable: true, value: 1 });
+    const adapter = {
+      getCursorTimelineEntryForBeatRange: vi.fn((beat: number) => ({
+        index: 0,
+        beat,
+        endBeat: beat + 1,
+        noteIds: ['note-a'],
+      })),
+      getPageWithElement: vi.fn(() => 1),
+    };
+
+    expect(() =>
+      drawExportFrame({
+        ctx: finalCtx,
+        video,
+        draft: createDraft(),
+        adapter: adapter as never,
+        scoreEndBeat: 24,
+        frameState: { scorePages: cache, stagingCanvas, stagingCtx },
+      })
+    ).toThrow('split_screen_export_failed:playhead_coordinate_transform');
   });
 });

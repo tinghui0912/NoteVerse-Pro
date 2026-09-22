@@ -7,6 +7,7 @@ import {
   getPlayheadCursorGeometry,
   PLAYHEAD_CURSOR_STYLE,
   type PlayheadCursorGeometry,
+  type PlayheadCursorGeometryFailureReason,
   type SvgRect,
 } from './playhead-cursor';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
@@ -516,9 +517,13 @@ export function drawExportFrame({
   staging.fill();
   const cursorGeometry = getPlayheadCursorGeometry(scorePage.svg, frame.noteIds);
   if (!cursorGeometry) {
-    throw new Error('split_screen_export_failed:playhead_position_unavailable');
+    throw createSplitScreenExportError('split_screen_export_failed:playhead_position_unavailable', {
+      frame,
+      scorePage,
+      reason: 'note_not_found_on_page',
+    });
   }
-  drawScorePanel(staging, scorePage, cursorGeometry, scoreRect);
+  drawScorePanel(staging, scorePage, cursorGeometry, scoreRect, frame);
 
   staging.fillStyle = '#020617';
   roundRect(staging, videoRect.x, videoRect.y, videoRect.width, videoRect.height, 10);
@@ -532,9 +537,32 @@ function drawScorePanel(
   ctx: CanvasRenderingContext2D,
   page: ScorePageCacheEntry,
   cursorGeometry: PlayheadCursorGeometry,
-  scoreRect: Rect
+  scoreRect: Rect,
+  frame: SplitScreenScoreFrame
 ) {
-  const viewport = cursorViewport(page.viewBox, cursorGeometry.rootSystemBox, cursorGeometry.rootBox);
+  if (!cursorGeometry.rootBox || !cursorGeometry.rootNoteBox || !cursorGeometry.rootSystemBox) {
+    throw createSplitScreenExportError('split_screen_export_failed:playhead_coordinate_transform', {
+      frame,
+      scorePage: page,
+      cursorGeometry,
+      reason: cursorGeometry.rootFailureReason ?? 'matrix_unavailable',
+    });
+  }
+  const pageRect = {
+    x: page.viewBox.x,
+    y: page.viewBox.y,
+    width: page.viewBox.width,
+    height: page.viewBox.height,
+  };
+  if (!rectsIntersect(cursorGeometry.rootNoteBox, pageRect)) {
+    throw createSplitScreenExportError('split_screen_export_failed:playhead_position_outside_page', {
+      frame,
+      scorePage: page,
+      cursorGeometry,
+      reason: 'note_box_outside_page',
+    });
+  }
+  const viewport = cursorViewport(page.viewBox, cursorGeometry.rootSystemBox, cursorGeometry.rootNoteBox);
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(scoreRect.x, scoreRect.y, scoreRect.width, scoreRect.height);
   const imageRect = drawCroppedScoreImage(
@@ -546,8 +574,18 @@ function drawScorePanel(
     false
   );
   const cursorBox = svgRectToCanvasRect(cursorGeometry.rootBox, viewport, imageRect);
-  if (!rectsIntersect(cursorBox, imageRect)) {
-    throw new Error('split_screen_export_failed:playhead_position_offscreen');
+  const noteBox = svgRectToCanvasRect(cursorGeometry.rootNoteBox, viewport, imageRect);
+  if (!rectsIntersect(noteBox, imageRect)) {
+    throw createSplitScreenExportError('split_screen_export_failed:playhead_position_offscreen', {
+      frame,
+      scorePage: page,
+      cursorGeometry,
+      viewport,
+      imageRect,
+      cursorBox,
+      noteBox,
+      reason: offscreenReason(noteBox, imageRect),
+    });
   }
 
   ctx.save();
@@ -759,6 +797,134 @@ function rectsIntersect(first: Rect, second: Rect) {
     first.x + first.width > second.x &&
     first.y < second.y + second.height &&
     first.y + first.height > second.y
+  );
+}
+
+function offscreenReason(first: Rect, second: Rect) {
+  if (!isFiniteRect(first)) {
+    return 'cursor_canvas_rect_invalid';
+  }
+  if (first.x + first.width <= second.x) return 'x_before_viewport';
+  if (first.x >= second.x + second.width) return 'x_after_viewport';
+  if (first.y + first.height <= second.y) return 'y_before_viewport';
+  if (first.y >= second.y + second.height) return 'y_after_viewport';
+  return 'unknown_offscreen';
+}
+
+function createSplitScreenExportError(
+  message: string,
+  context: {
+    frame: SplitScreenScoreFrame;
+    scorePage: ScorePageCacheEntry;
+    cursorGeometry?: PlayheadCursorGeometry;
+    viewport?: SvgRect;
+    imageRect?: Rect;
+    cursorBox?: Rect;
+    noteBox?: Rect;
+    reason: string | PlayheadCursorGeometryFailureReason;
+  }
+) {
+  const error = new Error(message) as Error & { diagnostic?: unknown };
+  error.diagnostic = splitScreenDiagnostic(context);
+  logSplitScreenDiagnosticOnce(error.diagnostic);
+  return error;
+}
+
+let didLogSplitScreenDiagnostic = false;
+
+function logSplitScreenDiagnosticOnce(diagnostic: unknown) {
+  if (didLogSplitScreenDiagnostic || typeof globalThis.console === 'undefined') {
+    return;
+  }
+  didLogSplitScreenDiagnostic = true;
+  if (process.env.NODE_ENV !== 'production') {
+    globalThis.console.error('[NoteVerse split-screen export diagnostic]', diagnostic);
+  }
+}
+
+function splitScreenDiagnostic({
+  frame,
+  scorePage,
+  cursorGeometry,
+  viewport,
+  imageRect,
+  cursorBox,
+  noteBox,
+  reason,
+}: {
+  frame: SplitScreenScoreFrame;
+  scorePage: ScorePageCacheEntry;
+  cursorGeometry?: PlayheadCursorGeometry;
+  viewport?: SvgRect;
+  imageRect?: Rect;
+  cursorBox?: Rect;
+  noteBox?: Rect;
+  reason: string | PlayheadCursorGeometryFailureReason;
+}) {
+  return {
+    reason,
+    mediaFrame: {
+      perfTimeMs: frame.perfTimeMs,
+      musicalBeat: frame.musicalBeat,
+      pageNumber: frame.pageNumber,
+      noteIds: frame.noteIds,
+    },
+    scorePage: {
+      pageNumber: scorePage.pageNumber,
+      viewBox: scorePage.viewBox,
+      svgConnected: scorePage.svg.isConnected,
+      svgWidth: scorePage.svg.getAttribute('width'),
+      svgHeight: scorePage.svg.getAttribute('height'),
+    },
+    geometry: cursorGeometry
+      ? {
+          rootFailureReason: cursorGeometry.rootFailureReason,
+          layerTag: cursorGeometry.layer.tagName,
+          layerClass: cursorGeometry.layer.getAttribute('class'),
+          layerConnected: cursorGeometry.layer.isConnected,
+          localBox: cursorGeometry.box,
+          localNoteBox: cursorGeometry.noteBox,
+          localSystemBox: cursorGeometry.systemBox,
+          rootBox: cursorGeometry.rootBox,
+          rootNoteBox: cursorGeometry.rootNoteBox,
+          rootSystemBox: cursorGeometry.rootSystemBox,
+          layerMatrix: matrixSnapshot(cursorGeometry.layer.getCTM?.() ?? null),
+          rootMatrix: matrixSnapshot(cursorGeometry.rootSvg.getCTM?.() ?? null),
+        }
+      : null,
+    viewport,
+    imageRect,
+    cursorBox,
+    noteBox,
+  };
+}
+
+function matrixSnapshot(matrix: DOMMatrix | null) {
+  if (!matrix) {
+    return null;
+  }
+  return {
+    a: finiteOrNull(matrix.a),
+    b: finiteOrNull(matrix.b),
+    c: finiteOrNull(matrix.c),
+    d: finiteOrNull(matrix.d),
+    e: finiteOrNull(matrix.e),
+    f: finiteOrNull(matrix.f),
+  };
+}
+
+function finiteOrNull(value: number) {
+  return Number.isFinite(value) ? value : null;
+}
+
+function isFiniteRect(rect: Rect) {
+  return (
+    Number.isFinite(rect.x) &&
+    Number.isFinite(rect.y) &&
+    Number.isFinite(rect.width) &&
+    Number.isFinite(rect.height) &&
+    rect.width > 0 &&
+    rect.height > 0
   );
 }
 

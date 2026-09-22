@@ -21,10 +21,18 @@ export type PlayheadCursorGeometry = {
   box: SvgRect;
   noteBox: SvgRect;
   systemBox: SvgRect;
-  rootBox: SvgRect;
-  rootNoteBox: SvgRect;
-  rootSystemBox: SvgRect;
+  rootBox: SvgRect | null;
+  rootNoteBox: SvgRect | null;
+  rootSystemBox: SvgRect | null;
+  rootFailureReason: PlayheadCursorGeometryFailureReason | null;
 };
+
+export type PlayheadCursorGeometryFailureReason =
+  | 'root_svg_unavailable'
+  | 'root_svg_disconnected'
+  | 'matrix_unavailable'
+  | 'matrix_not_invertible'
+  | 'non_finite_root_rect';
 
 export function cssStringLiteral(value: string) {
   return JSON.stringify(value);
@@ -85,7 +93,8 @@ export function applyPlayheadCursor(
 
 export function getPlayheadCursorGeometry(
   container: ParentNode,
-  noteIds: readonly string[]
+  noteIds: readonly string[],
+  options: { requireRootCoordinates?: boolean } = {}
 ): PlayheadCursorGeometry | null {
   const notes = Array.from(new Set(noteIds.filter(Boolean)))
     .map((noteId) => findElementByVerovioId(container, noteId))
@@ -123,14 +132,19 @@ export function getPlayheadCursorGeometry(
     width: noteBox.width + paddingX * 2,
     height: systemBox.height + paddingY * 2,
   };
-  const rootSvg = firstLayer.ownerSVGElement;
+  const rootSvg = firstLayer instanceof SVGSVGElement ? firstLayer : firstLayer.ownerSVGElement;
   if (!rootSvg) {
     return null;
   }
-  const rootBox = transformRectBetween(firstLayer, rootSvg, box) ?? box;
-  const rootNoteBox = transformRectBetween(firstLayer, rootSvg, noteBox) ?? noteBox;
-  const rootSystemBox = transformRectBetween(firstLayer, rootSvg, systemBox) ?? systemBox;
-  if (![rootBox, rootNoteBox, rootSystemBox].every(isFiniteRect)) {
+  const rootBoxResult = transformRectBetween(firstLayer, rootSvg, box);
+  const rootNoteBoxResult = transformRectBetween(firstLayer, rootSvg, noteBox);
+  const rootSystemBoxResult = transformRectBetween(firstLayer, rootSvg, systemBox);
+  const rootFailureReason = firstFailureReason(
+    rootBoxResult,
+    rootNoteBoxResult,
+    rootSystemBoxResult
+  );
+  if (options.requireRootCoordinates && rootFailureReason) {
     return null;
   }
   return {
@@ -139,9 +153,10 @@ export function getPlayheadCursorGeometry(
     box,
     noteBox,
     systemBox,
-    rootBox,
-    rootNoteBox,
-    rootSystemBox,
+    rootBox: rootBoxResult.ok ? rootBoxResult.rect : null,
+    rootNoteBox: rootNoteBoxResult.ok ? rootNoteBoxResult.rect : null,
+    rootSystemBox: rootSystemBoxResult.ok ? rootSystemBoxResult.rect : null,
+    rootFailureReason,
   };
 }
 
@@ -183,8 +198,8 @@ function getElementBoxInLayer(
     width: box.width,
     height: box.height,
   });
-  if (transformed) {
-    return transformed;
+  if (transformed.ok) {
+    return transformed.rect;
   }
   return {
     x: box.x,
@@ -198,19 +213,27 @@ function transformRectBetween(
   from: SVGGraphicsElement,
   to: SVGGraphicsElement,
   box: SvgRect
-): SvgRect | null {
+): { ok: true; rect: SvgRect } | { ok: false; reason: PlayheadCursorGeometryFailureReason } {
   const svg = from.ownerSVGElement;
   if (!svg || typeof svg.createSVGPoint !== 'function') {
-    return from === to ? box : null;
+    return from === to ? { ok: true, rect: box } : { ok: false, reason: 'root_svg_unavailable' };
   }
   if (from === to) {
-    return box;
+    return { ok: true, rect: box };
+  }
+  if (!from.isConnected || !to.isConnected || !svg.isConnected) {
+    return { ok: false, reason: 'root_svg_disconnected' };
   }
   const fromCtm = from.getCTM?.();
   const toCtm = to.getCTM?.();
-  const inverseToCtm = toCtm?.inverse?.();
-  if (!fromCtm || !inverseToCtm) {
-    return null;
+  if (!fromCtm || !toCtm || typeof toCtm.inverse !== 'function') {
+    return { ok: false, reason: 'matrix_unavailable' };
+  }
+  let inverseToCtm: DOMMatrix;
+  try {
+    inverseToCtm = toCtm.inverse();
+  } catch {
+    return { ok: false, reason: 'matrix_not_invertible' };
   }
   const matrix = inverseToCtm.multiply(fromCtm);
   const corners = [
@@ -230,12 +253,24 @@ function transformRectBetween(
   const top = Math.min(...ys);
   const right = Math.max(...xs);
   const bottom = Math.max(...ys);
-  return {
+  const rect = {
     x: left,
     y: top,
     width: right - left,
     height: bottom - top,
   };
+  if (!isFiniteRect(rect)) {
+    return { ok: false, reason: 'non_finite_root_rect' };
+  }
+  return { ok: true, rect };
+}
+
+function firstFailureReason(
+  ...results: Array<
+    { ok: true; rect: SvgRect } | { ok: false; reason: PlayheadCursorGeometryFailureReason }
+  >
+) {
+  return results.find((result) => !result.ok)?.reason ?? null;
 }
 
 function isFiniteRect(rect: SvgRect) {
