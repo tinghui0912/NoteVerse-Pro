@@ -377,7 +377,7 @@ describe('split-screen video export helpers', () => {
     expect(serialized.at(-1)).toContain('data-practice-playhead-cursor');
   });
 
-  it('keeps an exported two-staff event cursor on the anchor staff', () => {
+  it('renders one colored cursor per active staff without spanning the grand staff', () => {
     const container = document.createElement('div');
     container.innerHTML = `
       <svg viewBox="0 0 800 900" width="800" height="900">
@@ -423,9 +423,22 @@ describe('split-screen video export helpers', () => {
 
     expect(result.geometry).not.toBeNull();
     expect(cursor).not.toBeNull();
-    expect(container.querySelectorAll('[data-practice-playhead-cursor]')).toHaveLength(1);
-    expect(Number(cursor?.getAttribute('y'))).toBeLessThan(120);
-    expect(Number(cursor?.getAttribute('y')) + Number(cursor?.getAttribute('height'))).toBeLessThan(300);
+    const cursors = container.querySelectorAll<SVGRectElement>('[data-practice-playhead-cursor]');
+    expect(cursors).toHaveLength(2);
+    expect(
+      Array.from(cursors).map((cursor) => cursor.getAttribute('data-playhead-staff'))
+    ).toEqual(expect.arrayContaining(['treble', 'bass']));
+    expect(Array.from(cursors).map((cursor) => cursor.getAttribute('fill'))).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('251, 191, 36'),
+        expect.stringContaining('125, 211, 252'),
+      ])
+    );
+    const trebleCursor = container.querySelector<SVGRectElement>(
+      '[data-practice-playhead-cursor][data-playhead-staff="treble"]'
+    );
+    expect(Number(trebleCursor?.getAttribute('y'))).toBeLessThan(120);
+    expect(Number(trebleCursor?.getAttribute('y')) + Number(trebleCursor?.getAttribute('height'))).toBeLessThan(300);
   });
 
   it('advances five notes on the same page without decoding page images again', async () => {

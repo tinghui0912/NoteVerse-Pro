@@ -170,6 +170,8 @@ export default function PracticeReviewPage({
   const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);
   const [shareTemplateKind, setShareTemplateKind] = useState<'landscape' | 'portrait'>('landscape');
   const [sharePreviewTimeMs, setSharePreviewTimeMs] = useState(0);
+  const [isReplayPlaying, setIsReplayPlaying] = useState(false);
+  const latestReplayTimeMsRef = useRef(0);
   const [hasExportedOriginalMedia, setHasExportedOriginalMedia] = useState(false);
   const [leaveIntent, setLeaveIntent] = useState<'score' | 'practice' | null>(null);
 
@@ -237,7 +239,7 @@ export default function PracticeReviewPage({
 
   const handleReplayTimeChange = useCallback(
     (replayTimeMs: number | null, actualMediaDurationMs?: number | null) => {
-      setSharePreviewTimeMs(Math.max(0, replayTimeMs ?? 0));
+      latestReplayTimeMsRef.current = Math.max(0, replayTimeMs ?? 0);
       const container = scoreContainerRef.current;
       if (!container || !draft) return;
       if (replayTimeMs === null || !isScoreIdentityConfirmed) {
@@ -265,6 +267,18 @@ export default function PracticeReviewPage({
     },
     [adapter, artifact, draft, isScoreIdentityConfirmed, playheadController]
   );
+
+  const handleReplayPlaybackStateChange = useCallback((playing: boolean) => {
+    setIsReplayPlaying(playing);
+    if (!playing) {
+      setSharePreviewTimeMs(latestReplayTimeMsRef.current);
+    }
+  }, []);
+
+  const handleReplaySeekCommitted = useCallback((replayTimeMs: number) => {
+    latestReplayTimeMsRef.current = Math.max(0, replayTimeMs);
+    setSharePreviewTimeMs(Math.max(0, replayTimeMs));
+  }, []);
 
   const shareTemplate = useMemo<ShareVideoTemplate>(
     () => ({ kind: shareTemplateKind }),
@@ -571,11 +585,19 @@ export default function PracticeReviewPage({
           opacity: 1 !important;
         }
         .practice-summary-score-svg .practice-playhead-cursor {
+          stroke-width: 1.5px;
+          pointer-events: none !important;
+        }
+        .practice-summary-score-svg .practice-playhead-cursor[data-playhead-staff='treble'],
+        .practice-summary-score-svg .practice-playhead-cursor[data-playhead-staff='other'] {
           fill: rgb(251 191 36 / 22%);
           stroke: rgb(245 158 11 / 46%);
-          stroke-width: 1.5px;
           filter: drop-shadow(0 0 4px rgb(245 158 11 / 24%));
-          pointer-events: none !important;
+        }
+        .practice-summary-score-svg .practice-playhead-cursor[data-playhead-staff='bass'] {
+          fill: rgb(125 211 252 / 24%);
+          stroke: rgb(14 165 233 / 48%);
+          filter: drop-shadow(0 0 4px rgb(14 165 233 / 22%));
         }
         .practice-summary-score-svg svg {
           display: block;
@@ -775,6 +797,8 @@ export default function PracticeReviewPage({
               <PerformanceReplayPlayer
                 replay={replay}
                 onReplayTimeChange={handleReplayTimeChange}
+                onPlaybackStateChange={handleReplayPlaybackStateChange}
+                onReplaySeekCommitted={handleReplaySeekCommitted}
               />
             </CardContent>
           </Card>
@@ -904,6 +928,7 @@ export default function PracticeReviewPage({
               scoreEndBeat={artifact?.scoreEndBeat ?? draft.scope.terminalBeat}
               mediaTimeMs={sharePreviewTimeMs}
               template={shareTemplate}
+              isReplayPlaying={isReplayPlaying}
             />
 
             {splitExportStatus === 'exporting' ? (

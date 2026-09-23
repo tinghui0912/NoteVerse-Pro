@@ -1,5 +1,5 @@
 import {
-  applyExportPlayheadCursor,
+  applyPlayheadCursor,
   rootSvgRectForElement,
   snapshotPlayheadCursorGeometry,
   type SvgRect,
@@ -176,12 +176,12 @@ async function buildEventScoreImage(
   document.body.appendChild(host);
 
   try {
-    const result = applyExportPlayheadCursor(host, noteIds, anchorNoteId);
+    const result = applyPlayheadCursor(host, noteIds);
     if (!result.geometry) {
       throw new Error('split_screen_export_failed:event_score_cursor_unavailable');
     }
     const cursorCount = svg.querySelectorAll('[data-practice-playhead-cursor]').length;
-    if (cursorCount !== 1) {
+    if (cursorCount < 1 || cursorCount > 2) {
       throw new Error('split_screen_export_failed:event_score_cursor_count');
     }
     const svgText = new XMLSerializer().serializeToString(svg);

@@ -14,6 +14,8 @@ import type {
 type PerformanceReplayPlayerProps = {
   replay: PlayablePerformanceReplay;
   onReplayTimeChange?: (replayTimeMs: number | null, actualDurationMs?: number | null) => void;
+  onPlaybackStateChange?: (playing: boolean) => void;
+  onReplaySeekCommitted?: (replayTimeMs: number) => void;
   autoStart?: boolean;
   actions?: ReactNode;
 };
@@ -21,6 +23,8 @@ type PerformanceReplayPlayerProps = {
 export function PerformanceReplayPlayer({
   replay,
   onReplayTimeChange,
+  onPlaybackStateChange,
+  onReplaySeekCommitted,
   autoStart = false,
   actions,
 }: PerformanceReplayPlayerProps) {
@@ -29,6 +33,8 @@ export function PerformanceReplayPlayer({
       <AudioPerformanceReplayPlayer
         replay={replay}
         onReplayTimeChange={onReplayTimeChange}
+        onPlaybackStateChange={onPlaybackStateChange}
+        onReplaySeekCommitted={onReplaySeekCommitted}
         autoStart={autoStart}
         actions={actions}
       />
@@ -39,6 +45,8 @@ export function PerformanceReplayPlayer({
       <VideoPerformanceReplayPlayer
         replay={replay}
         onReplayTimeChange={onReplayTimeChange}
+        onPlaybackStateChange={onPlaybackStateChange}
+        onReplaySeekCommitted={onReplaySeekCommitted}
         autoStart={autoStart}
         actions={actions}
       />
@@ -48,6 +56,8 @@ export function PerformanceReplayPlayer({
     <MidiPerformanceReplayPlayer
       replay={replay}
       onReplayTimeChange={onReplayTimeChange}
+      onPlaybackStateChange={onPlaybackStateChange}
+      onReplaySeekCommitted={onReplaySeekCommitted}
       autoStart={autoStart}
       actions={actions}
     />
@@ -61,11 +71,15 @@ type MidiPerformanceReplay = Extract<PlayablePerformanceReplay, { kind: 'MIDI_EV
 function AudioPerformanceReplayPlayer({
   replay,
   onReplayTimeChange,
+  onPlaybackStateChange,
+  onReplaySeekCommitted,
   autoStart,
   actions,
 }: {
   replay: AudioPerformanceReplay;
   onReplayTimeChange?: (replayTimeMs: number | null, actualDurationMs?: number | null) => void;
+  onPlaybackStateChange?: (playing: boolean) => void;
+  onReplaySeekCommitted?: (replayTimeMs: number) => void;
   autoStart: boolean;
   actions?: ReactNode;
 }) {
@@ -212,6 +226,7 @@ function AudioPerformanceReplayPlayer({
       isPlaying={isPlaying}
       onTogglePlayback={togglePlayback}
       onSeek={seek}
+      onSeekCommitted={onReplaySeekCommitted}
       actions={actions}
       hasPlaybackError={hasPlaybackError}
     >
@@ -227,12 +242,14 @@ function AudioPerformanceReplayPlayer({
         }}
         onPlay={() => {
           setIsPlaying(true);
+          onPlaybackStateChange?.(true);
           startRenderTicker();
         }}
         onPause={(event) => {
           stopRenderTicker();
           setIsPlaying(false);
           publishTime(event.currentTarget.currentTime * 1000);
+          onPlaybackStateChange?.(false);
         }}
         onError={() => {
           stopRenderTicker();
@@ -251,6 +268,7 @@ function AudioPerformanceReplayPlayer({
           stopRenderTicker();
           setIsPlaying(false);
           publishTime(effectiveDurationMs);
+          onPlaybackStateChange?.(false);
         }}
       />
     </ReplayChrome>
@@ -260,11 +278,15 @@ function AudioPerformanceReplayPlayer({
 function VideoPerformanceReplayPlayer({
   replay,
   onReplayTimeChange,
+  onPlaybackStateChange,
+  onReplaySeekCommitted,
   autoStart,
   actions,
 }: {
   replay: VideoPerformanceReplay;
   onReplayTimeChange?: (replayTimeMs: number | null, actualDurationMs?: number | null) => void;
+  onPlaybackStateChange?: (playing: boolean) => void;
+  onReplaySeekCommitted?: (replayTimeMs: number) => void;
   autoStart: boolean;
   actions?: ReactNode;
 }) {
@@ -411,6 +433,7 @@ function VideoPerformanceReplayPlayer({
       isPlaying={isPlaying}
       onTogglePlayback={togglePlayback}
       onSeek={seek}
+      onSeekCommitted={onReplaySeekCommitted}
       actions={actions}
       hasPlaybackError={hasPlaybackError}
     >
@@ -427,12 +450,14 @@ function VideoPerformanceReplayPlayer({
         }}
         onPlay={() => {
           setIsPlaying(true);
+          onPlaybackStateChange?.(true);
           startRenderTicker();
         }}
         onPause={(event) => {
           stopRenderTicker();
           setIsPlaying(false);
           publishTime(event.currentTarget.currentTime * 1000);
+          onPlaybackStateChange?.(false);
         }}
         onError={() => {
           stopRenderTicker();
@@ -451,6 +476,7 @@ function VideoPerformanceReplayPlayer({
           stopRenderTicker();
           setIsPlaying(false);
           publishTime(effectiveDurationMs);
+          onPlaybackStateChange?.(false);
         }}
       />
     </ReplayChrome>
@@ -460,11 +486,15 @@ function VideoPerformanceReplayPlayer({
 function MidiPerformanceReplayPlayer({
   replay,
   onReplayTimeChange,
+  onPlaybackStateChange,
+  onReplaySeekCommitted,
   autoStart,
   actions,
 }: {
   replay: MidiPerformanceReplay;
   onReplayTimeChange?: (replayTimeMs: number | null) => void;
+  onPlaybackStateChange?: (playing: boolean) => void;
+  onReplaySeekCommitted?: (replayTimeMs: number) => void;
   autoStart: boolean;
   actions?: ReactNode;
 }) {
@@ -514,7 +544,8 @@ function MidiPerformanceReplayPlayer({
     stopScheduledPlayback();
     playbackOffsetMsRef.current = pausedAtMs;
     setIsPlaying(false);
-  }, [currentMs, stopScheduledPlayback]);
+    onPlaybackStateChange?.(false);
+  }, [currentMs, onPlaybackStateChange, stopScheduledPlayback]);
 
   const scheduleFrom = useCallback(
     (offsetMs: number) => {
@@ -527,6 +558,7 @@ function MidiPerformanceReplayPlayer({
       playbackOffsetMsRef.current = boundReplayTime(offsetMs, replay.durationMs);
       playbackStartedAtMsRef.current = performance.now();
       setIsPlaying(true);
+      onPlaybackStateChange?.(true);
       publishTime(playbackOffsetMsRef.current);
 
       const reportPlaybackTime = () => {
@@ -550,12 +582,13 @@ function MidiPerformanceReplayPlayer({
       const finishTimeoutId = window.setTimeout(() => {
         stopScheduledPlayback();
         setIsPlaying(false);
+        onPlaybackStateChange?.(false);
         playbackOffsetMsRef.current = replay.durationMs;
         publishTime(replay.durationMs);
       }, replay.durationMs - playbackOffsetMsRef.current + 50);
       timeoutsRef.current.push(finishTimeoutId);
     },
-    [publishTime, replay.durationMs, replay.events, stopScheduledPlayback]
+    [onPlaybackStateChange, publishTime, replay.durationMs, replay.events, stopScheduledPlayback]
   );
 
   const togglePlayback = useCallback(() => {
@@ -600,6 +633,7 @@ function MidiPerformanceReplayPlayer({
       isPlaying={isPlaying}
       onTogglePlayback={togglePlayback}
       onSeek={seek}
+      onSeekCommitted={onReplaySeekCommitted}
       actions={actions}
     />
   );
@@ -612,6 +646,7 @@ function ReplayChrome({
   isPlaying,
   onTogglePlayback,
   onSeek,
+  onSeekCommitted,
   actions,
   hasPlaybackError = false,
 }: {
@@ -621,6 +656,7 @@ function ReplayChrome({
   isPlaying: boolean;
   onTogglePlayback: () => void;
   onSeek: (timeMs: number) => void;
+  onSeekCommitted?: (timeMs: number) => void;
   actions?: ReactNode;
   hasPlaybackError?: boolean;
 }) {
@@ -644,6 +680,13 @@ function ReplayChrome({
           step={50}
           value={Math.round(boundReplayTime(currentMs, durationMs))}
           onChange={(event) => onSeek(Number(event.currentTarget.value))}
+          onPointerUp={(event) => onSeekCommitted?.(Number(event.currentTarget.value))}
+          onTouchEnd={(event) => onSeekCommitted?.(Number(event.currentTarget.value))}
+          onKeyUp={(event) => {
+            if (event.key.startsWith('Arrow') || event.key === 'Home' || event.key === 'End') {
+              onSeekCommitted?.(Number(event.currentTarget.value));
+            }
+          }}
           className="h-2 w-full accent-orange-500"
           aria-label={t('replaySeek')}
           disabled={hasPlaybackError || durationMs <= 0}

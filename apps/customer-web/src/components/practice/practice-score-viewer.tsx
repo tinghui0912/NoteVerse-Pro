@@ -249,11 +249,19 @@ export function PracticeScoreViewer({
           opacity: 1 !important;
         }
         .practice-score-svg .practice-playhead-cursor {
+          stroke-width: 1.5px;
+          pointer-events: none !important;
+        }
+        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='treble'],
+        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='other'] {
           fill: rgb(251 191 36 / 22%);
           stroke: rgb(245 158 11 / 46%);
-          stroke-width: 1.5px;
           filter: drop-shadow(0 0 4px rgb(245 158 11 / 24%));
-          pointer-events: none !important;
+        }
+        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='bass'] {
+          fill: rgb(125 211 252 / 24%);
+          stroke: rgb(14 165 233 / 48%);
+          filter: drop-shadow(0 0 4px rgb(14 165 233 / 22%));
         }
         .practice-score-svg svg {
           display: block;

@@ -2,10 +2,30 @@ export const PLAYHEAD_CURSOR_CLASS = 'practice-playhead-cursor';
 export const PLAYHEAD_CURSOR_DATA_ATTR = 'data-practice-playhead-cursor';
 
 export const PLAYHEAD_CURSOR_STYLE = {
-  fill: 'rgba(251, 191, 36, 0.22)',
-  stroke: 'rgba(245, 158, 11, 0.46)',
-  shadow: 'rgba(245, 158, 11, 0.24)',
   radius: 4,
+};
+
+export type PlayheadStaffRole = 'treble' | 'bass' | 'other';
+
+export const PLAYHEAD_CURSOR_STYLES: Record<
+  PlayheadStaffRole,
+  { fill: string; stroke: string; shadow: string }
+> = {
+  treble: {
+    fill: 'rgba(251, 191, 36, 0.22)',
+    stroke: 'rgba(245, 158, 11, 0.46)',
+    shadow: 'rgba(245, 158, 11, 0.24)',
+  },
+  bass: {
+    fill: 'rgba(125, 211, 252, 0.24)',
+    stroke: 'rgba(14, 165, 233, 0.48)',
+    shadow: 'rgba(14, 165, 233, 0.22)',
+  },
+  other: {
+    fill: 'rgba(251, 191, 36, 0.22)',
+    stroke: 'rgba(245, 158, 11, 0.46)',
+    shadow: 'rgba(245, 158, 11, 0.24)',
+  },
 };
 
 export type SvgRect = {
@@ -46,6 +66,13 @@ export type ExportPlayheadCursorGeometry = {
   box: SvgRect;
   noteBox: SvgRect;
   staffBox: SvgRect;
+};
+
+export type ActivePlayheadStaffGroup = {
+  layer: SVGGraphicsElement;
+  staff: SVGGraphicsElement;
+  role: PlayheadStaffRole;
+  noteIds: string[];
 };
 
 export type PlayheadRootCoordinateSource =
@@ -92,29 +119,33 @@ export function applyPlayheadCursor(
   noteIds: readonly string[]
 ): { anchor: Element | null; geometry: PlayheadCursorGeometry | null } {
   clearPlayheadCursor(container);
-  const geometry = getPlayheadCursorGeometry(container, noteIds);
-  if (!geometry) {
-    return { anchor: null, geometry: null };
+  const groups = groupActiveNotesByStaff(container, noteIds);
+  let firstGeometry: PlayheadCursorGeometry | null = null;
+  let firstAnchor: SVGGraphicsElement | null = null;
+  for (const group of groups) {
+    const geometry = getPlayheadCursorGeometryForGroup(group, container);
+    if (!geometry) continue;
+    const style = PLAYHEAD_CURSOR_STYLES[group.role];
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute(PLAYHEAD_CURSOR_DATA_ATTR, 'true');
+    rect.setAttribute('class', PLAYHEAD_CURSOR_CLASS);
+    rect.setAttribute('data-playhead-staff', group.role);
+    rect.setAttribute('x', String(geometry.box.x));
+    rect.setAttribute('y', String(geometry.box.y));
+    rect.setAttribute('width', String(geometry.box.width));
+    rect.setAttribute('height', String(geometry.box.height));
+    rect.setAttribute('rx', String(PLAYHEAD_CURSOR_STYLE.radius));
+    rect.setAttribute('fill', style.fill);
+    rect.setAttribute('stroke', style.stroke);
+    rect.setAttribute('stroke-width', '1.5');
+    rect.setAttribute('pointer-events', 'none');
+    geometry.layer.insertBefore(rect, geometry.layer.firstChild);
+    firstGeometry ??= geometry;
+    firstAnchor ??= group.noteIds
+      .map((noteId) => findElementByVerovioId(container, noteId))
+      .find((node): node is SVGGraphicsElement => node !== null) ?? null;
   }
-
-  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-  rect.setAttribute(PLAYHEAD_CURSOR_DATA_ATTR, 'true');
-  rect.setAttribute('class', PLAYHEAD_CURSOR_CLASS);
-  rect.setAttribute('x', String(geometry.box.x));
-  rect.setAttribute('y', String(geometry.box.y));
-  rect.setAttribute('width', String(geometry.box.width));
-  rect.setAttribute('height', String(geometry.box.height));
-  rect.setAttribute('rx', String(PLAYHEAD_CURSOR_STYLE.radius));
-  rect.setAttribute('fill', PLAYHEAD_CURSOR_STYLE.fill);
-  rect.setAttribute('stroke', PLAYHEAD_CURSOR_STYLE.stroke);
-  rect.setAttribute('stroke-width', '1.5');
-  rect.setAttribute('pointer-events', 'none');
-  geometry.layer.insertBefore(rect, geometry.layer.firstChild);
-
-  const anchor = noteIds
-    .map((noteId) => findElementByVerovioId(container, noteId))
-    .find((node): node is SVGGraphicsElement => node !== null) ?? null;
-  return { anchor, geometry };
+  return { anchor: firstAnchor, geometry: firstGeometry };
 }
 
 export function applyExportPlayheadCursor(
@@ -122,38 +153,65 @@ export function applyExportPlayheadCursor(
   noteIds: readonly string[],
   anchorNoteId: string
 ): { anchor: SVGGraphicsElement | null; geometry: ExportPlayheadCursorGeometry | null } {
-  clearPlayheadCursor(container);
-  const anchor = findElementByVerovioId(container, anchorNoteId);
-  if (!anchor) {
-    return { anchor: null, geometry: null };
+  const result = applyPlayheadCursor(container, noteIds);
+  const anchor = findElementByVerovioId(container, anchorNoteId) ?? result.anchor;
+  if (!result.geometry || !anchor) {
+    return { anchor: anchor as SVGGraphicsElement | null, geometry: null };
   }
+  return {
+    anchor: anchor as SVGGraphicsElement,
+    geometry: {
+      layer: result.geometry.layer,
+      rootSvg: result.geometry.rootSvg,
+      box: result.geometry.box,
+      noteBox: result.geometry.noteBox,
+      staffBox: result.geometry.systemBox,
+    },
+  };
+}
 
-  const layer = getCursorLayer(anchor);
-  const rootSvg = anchor.ownerSVGElement;
-  if (!layer || !rootSvg) {
-    return { anchor, geometry: null };
+export function groupActiveNotesByStaff(
+  container: ParentNode,
+  noteIds: readonly string[]
+): ActivePlayheadStaffGroup[] {
+  const groups = new Map<SVGGraphicsElement, ActivePlayheadStaffGroup>();
+  for (const noteId of Array.from(new Set(noteIds.filter(Boolean)))) {
+    const note = findElementByVerovioId(container, noteId);
+    if (!note) continue;
+    const layer = getCursorLayer(note);
+    if (!layer) continue;
+    const staff = note.closest<SVGGraphicsElement>('.staff, [data-class="staff"]') ?? layer;
+    const existing = groups.get(staff);
+    if (existing) {
+      existing.noteIds.push(noteId);
+    } else {
+      groups.set(staff, {
+        layer,
+        staff,
+        role: staffRoleFor(staff, layer),
+        noteIds: [noteId],
+      });
+    }
   }
+  return Array.from(groups.values());
+}
 
-  const anchorStaff =
-    anchor.closest<SVGGraphicsElement>('.staff, [data-class="staff"]') ?? layer;
-  const eventNotes = noteIds
+function getPlayheadCursorGeometryForGroup(
+  group: ActivePlayheadStaffGroup,
+  container: ParentNode
+): PlayheadCursorGeometry | null {
+  const notes = group.noteIds
     .map((noteId) => findElementByVerovioId(container, noteId))
-    .filter((note): note is SVGGraphicsElement => note !== null)
-    .filter((note) => {
-      const noteLayer = getCursorLayer(note);
-      const noteStaff =
-        note.closest<SVGGraphicsElement>('.staff, [data-class="staff"]') ?? noteLayer;
-      return noteLayer === layer && noteStaff === anchorStaff;
-    });
-  const notes = eventNotes.length > 0 ? eventNotes : [anchor];
-  const noteBox = notes
-    .map((note) => getElementBoxInLayer(note, layer))
-    .filter((box): box is SvgRect => box !== null && box.width > 0 && box.height > 0)
-    .reduce(mergeHorizontalRects, null);
-  const staffBox = noteBox ? getElementBoxInLayer(anchorStaff, layer) ?? noteBox : null;
-  if (!noteBox || !staffBox || staffBox.width <= 0 || staffBox.height <= 0) {
-    return { anchor, geometry: null };
-  }
+    .filter((note): note is SVGGraphicsElement => note !== null);
+  const noteBoxes = notes
+    .map((note) => getElementBoxInLayer(note, group.layer))
+    .filter((box): box is SvgRect => box !== null && box.width > 0 && box.height > 0);
+  const noteBox = noteBoxes.reduce(mergeHorizontalRects, null);
+  const staffBox = noteBox
+    ? getElementBoxInLayer(group.staff, group.layer) ?? noteBox
+    : null;
+  const rootSvg = group.layer.ownerSVGElement;
+  if (!noteBox || !staffBox || !rootSvg || notes.length === 0) return null;
 
   const horizontalPadding = Math.max(8, noteBox.width * 0.08);
   const verticalPadding = Math.max(8, staffBox.height * 0.06);
@@ -163,21 +221,44 @@ export function applyExportPlayheadCursor(
     width: noteBox.width + horizontalPadding * 2,
     height: staffBox.height + verticalPadding * 2,
   };
-  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-  rect.setAttribute(PLAYHEAD_CURSOR_DATA_ATTR, 'true');
-  rect.setAttribute('class', PLAYHEAD_CURSOR_CLASS);
-  rect.setAttribute('x', String(box.x));
-  rect.setAttribute('y', String(box.y));
-  rect.setAttribute('width', String(box.width));
-  rect.setAttribute('height', String(box.height));
-  rect.setAttribute('rx', String(PLAYHEAD_CURSOR_STYLE.radius));
-  rect.setAttribute('fill', PLAYHEAD_CURSOR_STYLE.fill);
-  rect.setAttribute('stroke', PLAYHEAD_CURSOR_STYLE.stroke);
-  rect.setAttribute('stroke-width', '1.5');
-  rect.setAttribute('pointer-events', 'none');
-  layer.insertBefore(rect, layer.firstChild);
+  const renderedRoot = getRenderedRootGeometry(rootSvg, group.layer, notes);
+  return {
+    layer: group.layer,
+    rootSvg,
+    box,
+    noteBox,
+    systemBox: staffBox,
+    rootBox: renderedRoot?.rootBox ?? null,
+    rootNoteBox: renderedRoot?.rootNoteBox ?? null,
+    rootSystemBox: renderedRoot?.rootSystemBox ?? null,
+    rootCoordinateSource: renderedRoot?.source ?? null,
+    rootFailureReason: renderedRoot ? null : 'matrix_unavailable',
+  };
+}
 
-  return { anchor, geometry: { layer, rootSvg, box, noteBox, staffBox } };
+function staffRoleFor(staff: SVGGraphicsElement, layer: SVGGraphicsElement): PlayheadStaffRole {
+  const explicitRole =
+    staff.getAttribute('data-staff-role') ??
+    staff.getAttribute('data-role') ??
+    staff.getAttribute('aria-label') ??
+    '';
+  if (/bass|低音/i.test(explicitRole)) return 'bass';
+  if (/treble|高音/i.test(explicitRole)) return 'treble';
+
+  const staffElements = Array.from(
+    layer.querySelectorAll<SVGGraphicsElement>('.staff, [data-class="staff"]')
+  );
+  if (staffElements.length <= 1) return 'treble';
+  const ranked = staffElements
+    .map((candidate) => ({
+      candidate,
+      y: getElementBoxInLayer(candidate, layer)?.y ?? Number.POSITIVE_INFINITY,
+    }))
+    .sort((first, second) => first.y - second.y);
+  const index = ranked.findIndex((entry) => entry.candidate === staff);
+  if (index === 0) return 'treble';
+  if (index === 1) return 'bass';
+  return 'other';
 }
 
 export function getPlayheadCursorGeometry(
