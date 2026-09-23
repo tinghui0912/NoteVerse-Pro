@@ -171,6 +171,7 @@ export default function PracticeReviewPage({
   const [shareTemplateKind, setShareTemplateKind] = useState<'landscape' | 'portrait'>('landscape');
   const [sharePreviewTimeMs, setSharePreviewTimeMs] = useState(0);
   const [isReplayPlaying, setIsReplayPlaying] = useState(false);
+  const [replayVideo, setReplayVideo] = useState<HTMLVideoElement | null>(null);
   const latestReplayTimeMsRef = useRef(0);
   const [hasExportedOriginalMedia, setHasExportedOriginalMedia] = useState(false);
   const [leaveIntent, setLeaveIntent] = useState<'score' | 'practice' | null>(null);
@@ -240,6 +241,9 @@ export default function PracticeReviewPage({
   const handleReplayTimeChange = useCallback(
     (replayTimeMs: number | null, actualMediaDurationMs?: number | null) => {
       latestReplayTimeMsRef.current = Math.max(0, replayTimeMs ?? 0);
+      if (isReplayPlaying && replayTimeMs !== null) {
+        setSharePreviewTimeMs(latestReplayTimeMsRef.current);
+      }
       const container = scoreContainerRef.current;
       if (!container || !draft) return;
       if (replayTimeMs === null || !isScoreIdentityConfirmed) {
@@ -265,7 +269,7 @@ export default function PracticeReviewPage({
         terminalBeat: draft.scope.terminalBeat,
       });
     },
-    [adapter, artifact, draft, isScoreIdentityConfirmed, playheadController]
+    [adapter, artifact, draft, isReplayPlaying, isScoreIdentityConfirmed, playheadController]
   );
 
   const handleReplayPlaybackStateChange = useCallback((playing: boolean) => {
@@ -588,16 +592,20 @@ export default function PracticeReviewPage({
           stroke-width: 1.5px;
           pointer-events: none !important;
         }
-        .practice-summary-score-svg .practice-playhead-cursor[data-playhead-staff='treble'],
-        .practice-summary-score-svg .practice-playhead-cursor[data-playhead-staff='other'] {
+        .practice-summary-score-svg .practice-playhead-cursor[data-playhead-staff='treble'] {
+          fill: rgb(125 211 252 / 24%);
+          stroke: rgb(14 165 233 / 48%);
+          filter: drop-shadow(0 0 4px rgb(14 165 233 / 22%));
+        }
+        .practice-summary-score-svg .practice-playhead-cursor[data-playhead-staff='bass'] {
           fill: rgb(251 191 36 / 22%);
           stroke: rgb(245 158 11 / 46%);
           filter: drop-shadow(0 0 4px rgb(245 158 11 / 24%));
         }
-        .practice-summary-score-svg .practice-playhead-cursor[data-playhead-staff='bass'] {
-          fill: rgb(125 211 252 / 24%);
-          stroke: rgb(14 165 233 / 48%);
-          filter: drop-shadow(0 0 4px rgb(14 165 233 / 22%));
+        .practice-summary-score-svg .practice-playhead-cursor[data-playhead-staff='other'] {
+          fill: rgb(148 163 184 / 20%);
+          stroke: rgb(100 116 139 / 44%);
+          filter: drop-shadow(0 0 4px rgb(100 116 139 / 18%));
         }
         .practice-summary-score-svg svg {
           display: block;
@@ -799,6 +807,7 @@ export default function PracticeReviewPage({
                 onReplayTimeChange={handleReplayTimeChange}
                 onPlaybackStateChange={handleReplayPlaybackStateChange}
                 onReplaySeekCommitted={handleReplaySeekCommitted}
+                onVideoElementChange={setReplayVideo}
               />
             </CardContent>
           </Card>
@@ -929,6 +938,7 @@ export default function PracticeReviewPage({
               mediaTimeMs={sharePreviewTimeMs}
               template={shareTemplate}
               isReplayPlaying={isReplayPlaying}
+              replayVideo={replayVideo}
             />
 
             {splitExportStatus === 'exporting' ? (

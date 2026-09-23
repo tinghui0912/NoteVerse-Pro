@@ -252,16 +252,20 @@ export function PracticeScoreViewer({
           stroke-width: 1.5px;
           pointer-events: none !important;
         }
-        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='treble'],
-        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='other'] {
+        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='treble'] {
+          fill: rgb(125 211 252 / 24%);
+          stroke: rgb(14 165 233 / 48%);
+          filter: drop-shadow(0 0 4px rgb(14 165 233 / 22%));
+        }
+        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='bass'] {
           fill: rgb(251 191 36 / 22%);
           stroke: rgb(245 158 11 / 46%);
           filter: drop-shadow(0 0 4px rgb(245 158 11 / 24%));
         }
-        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='bass'] {
-          fill: rgb(125 211 252 / 24%);
-          stroke: rgb(14 165 233 / 48%);
-          filter: drop-shadow(0 0 4px rgb(14 165 233 / 22%));
+        .practice-score-svg .practice-playhead-cursor[data-playhead-staff='other'] {
+          fill: rgb(148 163 184 / 20%);
+          stroke: rgb(100 116 139 / 44%);
+          filter: drop-shadow(0 0 4px rgb(100 116 139 / 18%));
         }
         .practice-score-svg svg {
           display: block;

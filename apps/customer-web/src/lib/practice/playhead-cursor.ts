@@ -12,19 +12,19 @@ export const PLAYHEAD_CURSOR_STYLES: Record<
   { fill: string; stroke: string; shadow: string }
 > = {
   treble: {
-    fill: 'rgba(251, 191, 36, 0.22)',
-    stroke: 'rgba(245, 158, 11, 0.46)',
-    shadow: 'rgba(245, 158, 11, 0.24)',
-  },
-  bass: {
     fill: 'rgba(125, 211, 252, 0.24)',
     stroke: 'rgba(14, 165, 233, 0.48)',
     shadow: 'rgba(14, 165, 233, 0.22)',
   },
-  other: {
+  bass: {
     fill: 'rgba(251, 191, 36, 0.22)',
     stroke: 'rgba(245, 158, 11, 0.46)',
     shadow: 'rgba(245, 158, 11, 0.24)',
+  },
+  other: {
+    fill: 'rgba(148, 163, 184, 0.2)',
+    stroke: 'rgba(100, 116, 139, 0.44)',
+    shadow: 'rgba(100, 116, 139, 0.18)',
   },
 };
 
@@ -244,7 +244,16 @@ function staffRoleFor(staff: SVGGraphicsElement, layer: SVGGraphicsElement): Pla
     '';
   if (/bass|低音/i.test(explicitRole)) return 'bass';
   if (/treble|高音/i.test(explicitRole)) return 'treble';
+  const staffNumber =
+    staff.getAttribute('n') ??
+    staff.getAttribute('data-n') ??
+    staff.getAttribute('data-staff') ??
+    staff.getAttribute('staff');
+  if (staffNumber === '1') return 'treble';
+  if (staffNumber === '2') return 'bass';
 
+  // Rank every staff in the frozen system, not just the staves represented by
+  // the current event. This keeps a single hand's color stable between beats.
   const staffElements = Array.from(
     layer.querySelectorAll<SVGGraphicsElement>('.staff, [data-class="staff"]')
   );

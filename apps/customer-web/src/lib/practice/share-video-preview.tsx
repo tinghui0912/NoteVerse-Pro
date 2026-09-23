@@ -13,13 +13,6 @@ import { resolveSplitScreenScoreFrame } from './split-screen-playback-position';
 import { getShareVideoLayout, type ShareVideoTemplate } from './share-video-templates';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 
-type PreviewResources = {
-  video: HTMLVideoElement;
-  objectUrl: string;
-  scorePages: ScorePageCache;
-  durationMs: number;
-};
-
 type PreviewStatus = 'idle' | 'preparing' | 'ready' | 'error';
 
 type PreviewRequest = {
@@ -28,6 +21,17 @@ type PreviewRequest = {
   template: ShareVideoTemplate;
 };
 
+type RenderableVideo = HTMLVideoElement & {
+  requestVideoFrameCallback?: (
+    callback: (now: number, metadata: { mediaTime: number }) => void
+  ) => number;
+  cancelVideoFrameCallback?: (handle: number) => void;
+};
+
+/**
+ * The preview is a view of the replay player's video element. It never owns
+ * media playback, seeks, audio, or an object URL of its own.
+ */
 export function ShareVideoPreview({
   draft,
   scoreContainer,
@@ -36,6 +40,7 @@ export function ShareVideoPreview({
   mediaTimeMs,
   template,
   isReplayPlaying = false,
+  replayVideo,
 }: {
   draft: PerformanceReviewDraft;
   scoreContainer: HTMLElement | null;
@@ -44,72 +49,37 @@ export function ShareVideoPreview({
   mediaTimeMs: number;
   template: ShareVideoTemplate;
   isReplayPlaying?: boolean;
+  replayVideo: HTMLVideoElement | null;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stagingCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const resourcesRef = useRef<PreviewResources | null>(null);
+  const scorePagesRef = useRef<ScorePageCache | null>(null);
   const pendingRequestRef = useRef<PreviewRequest | null>(null);
   const activeRenderRef = useRef(false);
   const requestIdRef = useRef(0);
+  const frameCallbackRef = useRef<number | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const disposedRef = useRef(false);
+  const isPlayingRef = useRef(isReplayPlaying);
+  const templateRef = useRef(template);
+  const mediaTimeRef = useRef(mediaTimeMs);
   const [status, setStatus] = useState<PreviewStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [resourceVersion, setResourceVersion] = useState(0);
   const [retryNonce, setRetryNonce] = useState(0);
+  mediaTimeRef.current = mediaTimeMs;
 
-  useEffect(() => {
-    let disposed = false;
-    disposedRef.current = false;
-    const canvas = canvasRef.current;
-    if (!canvas || !scoreContainer || draft.video?.status !== 'READY') {
-      setStatus('idle');
-      return;
+  const clearFrameScheduler = useCallback(() => {
+    const video = replayVideo as RenderableVideo | null;
+    if (frameCallbackRef.current !== null) {
+      video?.cancelVideoFrameCallback?.(frameCallbackRef.current);
+      frameCallbackRef.current = null;
     }
-
-    const videoDraft = draft.video;
-    const video = document.createElement('video');
-    const objectUrl = URL.createObjectURL(videoDraft.blob);
-    setStatus('preparing');
-    setError(null);
-
-    const prepare = async () => {
-      try {
-        video.src = objectUrl;
-        video.preload = 'auto';
-        video.playsInline = true;
-        await waitForPreviewVideo(video);
-        if (disposed) return;
-        const durationMs = Number.isFinite(video.duration)
-          ? video.duration * 1000
-          : videoDraft.durationMs;
-        const scorePages = await prepareScorePageCache(scoreContainer);
-        if (disposed) return;
-        resourcesRef.current = { video, objectUrl, scorePages, durationMs };
-        setStatus('ready');
-        setResourceVersion((version) => version + 1);
-      } catch (cause) {
-        if (!disposed) {
-          setStatus('error');
-          setError(cause instanceof Error ? cause.message : '分享视频预览无法准备');
-        }
-      } finally {
-        if (disposed || !resourcesRef.current) {
-          disposePreviewResources({ video, objectUrl, scorePages: null });
-        }
-      }
-    };
-
-    void prepare();
-    return () => {
-      disposed = true;
-      disposedRef.current = true;
-      requestIdRef.current += 1;
-      pendingRequestRef.current = null;
-      const resources = resourcesRef.current;
-      resourcesRef.current = null;
-      disposePreviewResources(resources ?? { video, objectUrl, scorePages: null });
-    };
-  }, [adapter, draft, scoreContainer, scoreEndBeat]);
+    if (animationFrameRef.current !== null) {
+      window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, [replayVideo]);
 
   const commitStagingFrame = useCallback((layout: ReturnType<typeof getShareVideoLayout>) => {
     const visibleCanvas = canvasRef.current;
@@ -119,108 +89,192 @@ export function ShareVideoPreview({
       visibleCanvas.width = layout.width;
       visibleCanvas.height = layout.height;
     }
-    const visibleContext = visibleCanvas.getContext('2d');
-    if (!visibleContext) throw new Error('分享视频预览无法创建显示画布');
-    visibleContext.drawImage(stagingCanvas, 0, 0);
+    const context = visibleCanvas.getContext('2d');
+    if (!context) throw new Error('分享视频预览无法创建显示画布');
+    context.drawImage(stagingCanvas, 0, 0);
   }, []);
 
   const drainPreviewQueue = useCallback(async () => {
-    if (activeRenderRef.current || disposedRef.current || isReplayPlaying) return;
+    if (activeRenderRef.current || disposedRef.current) return;
     activeRenderRef.current = true;
     try {
-      while (!disposedRef.current && !isReplayPlaying && pendingRequestRef.current) {
+      while (!disposedRef.current && pendingRequestRef.current) {
         const request = pendingRequestRef.current;
         pendingRequestRef.current = null;
-        const resources = resourcesRef.current;
+        const scorePages = scorePagesRef.current;
+        const sourceVideo = replayVideo;
         const stagingCanvas = stagingCanvasRef.current;
-        if (!resources || !stagingCanvas) continue;
+        if (!scorePages || !sourceVideo || !stagingCanvas) continue;
+
         const layout = getShareVideoLayout(request.template);
         if (stagingCanvas.width !== layout.width || stagingCanvas.height !== layout.height) {
           stagingCanvas.width = layout.width;
           stagingCanvas.height = layout.height;
         }
+
         try {
-          const timeSeconds = Math.min(
-            Math.max(0, request.mediaTimeMs / 1000),
-            Math.max(0, resources.durationMs / 1000 - 0.001)
-          );
-          await seekPreviewVideo(resources.video, timeSeconds);
-          if (
-            disposedRef.current ||
-            isReplayPlaying ||
-            request.id !== requestIdRef.current ||
-            pendingRequestRef.current
-          ) {
-            continue;
+          if (!isPlayingRef.current) {
+            await waitForReplayVideoFrame(sourceVideo);
           }
           await renderSplitScreenFrameAtTime({
-            mediaTimeMs: resources.video.currentTime * 1000,
-            scoreModel: resources.scorePages,
+            mediaTimeMs: sourceVideo.currentTime * 1000,
+            scoreModel: scorePages,
             playbackTimeline: {
               resolve: (timeMs) =>
                 resolveSplitScreenScoreFrame({
                   draft,
                   adapter,
-                  pageNumberResolver: (noteIds) =>
-                    findStablePageNumber(noteIds, resources.scorePages),
+                  pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, scorePages),
                   mediaTimeMs: timeMs,
-                  actualMediaDurationMs: resources.durationMs,
+                  actualMediaDurationMs:
+                    Number.isFinite(sourceVideo.duration) && sourceVideo.duration > 0
+                      ? sourceVideo.duration * 1000
+                      : draft.video && 'durationMs' in draft.video
+                        ? draft.video.durationMs
+                        : null,
                   scoreEndBeat,
                 }),
             },
-            sourceVideoFrame: resources.video,
+            sourceVideoFrame: sourceVideo,
             outputCanvas: stagingCanvas,
             layout,
           });
-          if (
-            disposedRef.current ||
-            isReplayPlaying ||
-            request.id !== requestIdRef.current ||
-            pendingRequestRef.current
-          ) {
-            continue;
-          }
+
+          const currentTimeMs = sourceVideo.currentTime * 1000;
+          const requestIsCurrent =
+            request.id === requestIdRef.current &&
+            !pendingRequestRef.current &&
+            Math.abs(currentTimeMs - request.mediaTimeMs) < 250;
+          if (!requestIsCurrent || disposedRef.current) continue;
+
           commitStagingFrame(layout);
           setError(null);
+          setStatus('ready');
         } catch (cause) {
-          if (
-            !disposedRef.current &&
-            !isReplayPlaying &&
-            request.id === requestIdRef.current &&
-            !pendingRequestRef.current
-          ) {
-            setError(cause instanceof Error ? cause.message : '分享视频预览失败');
-            setStatus('ready');
-          }
+          if (request.id !== requestIdRef.current || disposedRef.current) continue;
+          setError(cause instanceof Error ? cause.message : '分享视频预览失败');
+          setStatus('error');
         }
       }
     } finally {
       activeRenderRef.current = false;
     }
-  }, [adapter, commitStagingFrame, draft, isReplayPlaying, scoreEndBeat]);
+  }, [adapter, commitStagingFrame, draft, replayVideo, scoreEndBeat]);
+
+  const enqueuePreview = useCallback(
+    (nextTimeMs: number) => {
+      if (disposedRef.current || !replayVideo || !scorePagesRef.current) return;
+      requestIdRef.current += 1;
+      pendingRequestRef.current = {
+        id: requestIdRef.current,
+        mediaTimeMs: Math.max(0, nextTimeMs),
+        template: templateRef.current,
+      };
+      void drainPreviewQueue();
+    },
+    [drainPreviewQueue, replayVideo]
+  );
 
   useEffect(() => {
-    if (isReplayPlaying) {
+    disposedRef.current = false;
+    scorePagesRef.current = null;
+    pendingRequestRef.current = null;
+    requestIdRef.current += 1;
+    setStatus('preparing');
+    setError(null);
+
+    if (!scoreContainer || draft.video?.status !== 'READY') {
+      setStatus('idle');
+      return () => {
+        disposedRef.current = true;
+      };
+    }
+
+    let cancelled = false;
+    const prepare = async () => {
+      try {
+        const scorePages = await prepareScorePageCache(scoreContainer);
+        if (cancelled || disposedRef.current) return;
+        scorePagesRef.current = scorePages;
+        setStatus('ready');
+        setResourceVersion((version) => version + 1);
+      } catch (cause) {
+        if (!cancelled && !disposedRef.current) {
+          setStatus('error');
+          setError(cause instanceof Error ? cause.message : '分享视频预览无法准备乐谱');
+        }
+      }
+    };
+    void prepare();
+
+    return () => {
+      cancelled = true;
+      disposedRef.current = true;
       requestIdRef.current += 1;
       pendingRequestRef.current = null;
+      clearFrameScheduler();
+      const scorePages = scorePagesRef.current;
+      scorePagesRef.current = null;
+      if (scorePages) {
+        for (const page of scorePages.values()) {
+          page.eventImages.clear();
+          page.eventImagePromises.clear();
+        }
+        scorePages.clear();
+      }
+    };
+  }, [clearFrameScheduler, draft, retryNonce, scoreContainer]);
+
+  useEffect(() => {
+    templateRef.current = template;
+    if (status === 'ready' && !isReplayPlaying) {
+      enqueuePreview(replayVideo?.currentTime ? replayVideo.currentTime * 1000 : mediaTimeMs);
+    }
+  }, [enqueuePreview, isReplayPlaying, mediaTimeMs, replayVideo, resourceVersion, status, template]);
+
+  useEffect(() => {
+    isPlayingRef.current = isReplayPlaying;
+    clearFrameScheduler();
+    if (!isReplayPlaying || status !== 'ready' || !replayVideo) {
+      if (!isReplayPlaying && status === 'ready') {
+        enqueuePreview(
+          replayVideo?.currentTime ? replayVideo.currentTime * 1000 : mediaTimeRef.current
+        );
+      }
       return;
     }
-    if (status !== 'ready' || !resourcesRef.current) return;
-    requestIdRef.current += 1;
-    pendingRequestRef.current = {
-      id: requestIdRef.current,
-      mediaTimeMs,
-      template,
+
+    const video = replayVideo as RenderableVideo;
+    const renderCurrentFrame = () => {
+      if (disposedRef.current || !isPlayingRef.current || !replayVideo) return;
+      enqueuePreview(replayVideo.currentTime * 1000);
     };
-    void drainPreviewQueue();
+
+    if (typeof video.requestVideoFrameCallback === 'function') {
+      const onVideoFrame = () => {
+        renderCurrentFrame();
+        if (!disposedRef.current && isPlayingRef.current) {
+          frameCallbackRef.current = video.requestVideoFrameCallback(onVideoFrame);
+        }
+      };
+      frameCallbackRef.current = video.requestVideoFrameCallback(onVideoFrame);
+    } else {
+      const tick = () => {
+        renderCurrentFrame();
+        if (!disposedRef.current && isPlayingRef.current) {
+          animationFrameRef.current = window.requestAnimationFrame(tick);
+        }
+      };
+      animationFrameRef.current = window.requestAnimationFrame(tick);
+    }
+
+    return clearFrameScheduler;
   }, [
-    drainPreviewQueue,
+    clearFrameScheduler,
+    enqueuePreview,
     isReplayPlaying,
-    mediaTimeMs,
-    resourceVersion,
-    retryNonce,
+    replayVideo,
     status,
-    template,
   ]);
 
   return (
@@ -238,12 +292,12 @@ export function ShareVideoPreview({
       ) : null}
       {status === 'ready' && !error ? (
         <p className="text-xs text-muted-foreground">
-          当前时间点的版式预览，可在回放暂停或定位后更新。
+          分享预览与回放同步，不改变原始演奏录像。
         </p>
       ) : null}
-      {error ? (
+      {status === 'error' ? (
         <div className="flex items-center justify-between gap-3 text-xs text-destructive">
-          <p>{error}</p>
+          <p>{error ?? '分享视频预览失败'}</p>
           <button
             type="button"
             className="shrink-0 underline underline-offset-2"
@@ -257,65 +311,28 @@ export function ShareVideoPreview({
   );
 }
 
-function disposePreviewResources(resources: {
-  video: HTMLVideoElement;
-  objectUrl: string;
-  scorePages: ScorePageCache | null;
-}) {
-  resources.video.pause();
-  resources.video.removeAttribute('src');
-  resources.video.load();
-  URL.revokeObjectURL(resources.objectUrl);
-  if (resources.scorePages) {
-    for (const page of resources.scorePages.values()) {
-      page.eventImages.clear();
-      page.eventImagePromises.clear();
-    }
-    resources.scorePages.clear();
-  }
-}
-
-function waitForPreviewVideo(video: HTMLVideoElement): Promise<void> {
-  if (video.readyState >= 2) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const onLoaded = () => {
-      cleanup();
-      resolve();
-    };
-    const onError = () => {
-      cleanup();
-      reject(new Error('分享视频预览无法解码原始录像'));
-    };
-    const cleanup = () => {
-      video.removeEventListener('loadeddata', onLoaded);
-      video.removeEventListener('canplay', onLoaded);
-      video.removeEventListener('error', onError);
-    };
-    video.addEventListener('loadeddata', onLoaded, { once: true });
-    video.addEventListener('canplay', onLoaded, { once: true });
-    video.addEventListener('error', onError, { once: true });
-  });
-}
-
-function seekPreviewVideo(video: HTMLVideoElement, timeSeconds: number): Promise<void> {
-  if (Math.abs(video.currentTime - timeSeconds) < 0.001) {
+function waitForReplayVideoFrame(video: HTMLVideoElement): Promise<void> {
+  if (!video.seeking && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
     return Promise.resolve();
   }
   return new Promise((resolve, reject) => {
-    const onSeeked = () => {
+    const onReady = () => {
       cleanup();
       resolve();
     };
     const onError = () => {
       cleanup();
-      reject(new Error('分享视频预览无法定位到指定时间'));
+      reject(new Error('分享视频预览无法解码当前回放画面'));
     };
     const cleanup = () => {
-      video.removeEventListener('seeked', onSeeked);
+      video.removeEventListener('seeked', onReady);
+      video.removeEventListener('loadeddata', onReady);
+      video.removeEventListener('canplay', onReady);
       video.removeEventListener('error', onError);
     };
-    video.addEventListener('seeked', onSeeked, { once: true });
+    video.addEventListener('seeked', onReady, { once: true });
+    video.addEventListener('loadeddata', onReady, { once: true });
+    video.addEventListener('canplay', onReady, { once: true });
     video.addEventListener('error', onError, { once: true });
-    video.currentTime = timeSeconds;
   });
 }

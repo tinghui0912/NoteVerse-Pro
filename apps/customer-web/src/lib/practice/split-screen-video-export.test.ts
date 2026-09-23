@@ -428,14 +428,17 @@ describe('split-screen video export helpers', () => {
     expect(
       Array.from(cursors).map((cursor) => cursor.getAttribute('data-playhead-staff'))
     ).toEqual(expect.arrayContaining(['treble', 'bass']));
-    expect(Array.from(cursors).map((cursor) => cursor.getAttribute('fill'))).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining('251, 191, 36'),
-        expect.stringContaining('125, 211, 252'),
-      ])
-    );
     const trebleCursor = container.querySelector<SVGRectElement>(
       '[data-practice-playhead-cursor][data-playhead-staff="treble"]'
+    );
+    const bassCursor = container.querySelector<SVGRectElement>(
+      '[data-practice-playhead-cursor][data-playhead-staff="bass"]'
+    );
+    expect(trebleCursor?.getAttribute('fill')).toEqual(
+      expect.stringContaining('125, 211, 252')
+    );
+    expect(bassCursor?.getAttribute('fill')).toEqual(
+      expect.stringContaining('251, 191, 36')
     );
     expect(Number(trebleCursor?.getAttribute('y'))).toBeLessThan(120);
     expect(Number(trebleCursor?.getAttribute('y')) + Number(trebleCursor?.getAttribute('height'))).toBeLessThan(300);

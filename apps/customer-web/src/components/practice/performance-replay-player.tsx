@@ -16,6 +16,7 @@ type PerformanceReplayPlayerProps = {
   onReplayTimeChange?: (replayTimeMs: number | null, actualDurationMs?: number | null) => void;
   onPlaybackStateChange?: (playing: boolean) => void;
   onReplaySeekCommitted?: (replayTimeMs: number) => void;
+  onVideoElementChange?: (video: HTMLVideoElement | null) => void;
   autoStart?: boolean;
   actions?: ReactNode;
 };
@@ -25,6 +26,7 @@ export function PerformanceReplayPlayer({
   onReplayTimeChange,
   onPlaybackStateChange,
   onReplaySeekCommitted,
+  onVideoElementChange,
   autoStart = false,
   actions,
 }: PerformanceReplayPlayerProps) {
@@ -47,6 +49,7 @@ export function PerformanceReplayPlayer({
         onReplayTimeChange={onReplayTimeChange}
         onPlaybackStateChange={onPlaybackStateChange}
         onReplaySeekCommitted={onReplaySeekCommitted}
+        onVideoElementChange={onVideoElementChange}
         autoStart={autoStart}
         actions={actions}
       />
@@ -280,6 +283,7 @@ function VideoPerformanceReplayPlayer({
   onReplayTimeChange,
   onPlaybackStateChange,
   onReplaySeekCommitted,
+  onVideoElementChange,
   autoStart,
   actions,
 }: {
@@ -287,6 +291,7 @@ function VideoPerformanceReplayPlayer({
   onReplayTimeChange?: (replayTimeMs: number | null, actualDurationMs?: number | null) => void;
   onPlaybackStateChange?: (playing: boolean) => void;
   onReplaySeekCommitted?: (replayTimeMs: number) => void;
+  onVideoElementChange?: (video: HTMLVideoElement | null) => void;
   autoStart: boolean;
   actions?: ReactNode;
 }) {
@@ -300,6 +305,13 @@ function VideoPerformanceReplayPlayer({
   const [currentMs, setCurrentMs] = useState(0);
   const [actualDurationMs, setActualDurationMs] = useState<number | null>(null);
   const [hasPlaybackError, setHasPlaybackError] = useState(false);
+  const handleVideoRef = useCallback(
+    (element: HTMLVideoElement | null) => {
+      videoRef.current = element;
+      onVideoElementChange?.(element);
+    },
+    [onVideoElementChange]
+  );
 
   if (prevMediaSource !== mediaSource) {
     setPrevMediaSource(mediaSource);
@@ -438,7 +450,7 @@ function VideoPerformanceReplayPlayer({
       hasPlaybackError={hasPlaybackError}
     >
       <video
-        ref={videoRef}
+        ref={handleVideoRef}
         preload="metadata"
         playsInline
         className="aspect-video w-full rounded-md bg-black object-contain"

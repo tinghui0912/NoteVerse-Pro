@@ -235,4 +235,48 @@ describe('PerformanceReplayPlayer', () => {
 
     expect(onReplayTimeChange).toHaveBeenCalledWith(250);
   });
+
+  it('exposes the owned video element without creating a second playback source', () => {
+    const blob = new Blob(['video'], { type: 'video/webm' });
+    const onVideoElementChange = vi.fn();
+    const onPlaybackStateChange = vi.fn();
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:video-replay');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+
+    const { unmount } = render(
+      <NextIntlClientProvider locale="en" messages={{ practice: practiceMessages }}>
+        <PerformanceReplayPlayer
+          replay={{
+            kind: 'VIDEO_RECORDING',
+            blob,
+            contentType: 'video/webm',
+            byteSize: blob.size,
+            durationMs: 1000,
+            timebase: {
+              version: 1,
+              speedRatio: 1,
+            },
+          }}
+          onVideoElementChange={onVideoElementChange}
+          onPlaybackStateChange={onPlaybackStateChange}
+        />
+      </NextIntlClientProvider>
+    );
+
+    const video = document.querySelector('video');
+    expect(video).not.toBeNull();
+    expect(onVideoElementChange).toHaveBeenLastCalledWith(video);
+    expect(document.querySelectorAll('video')).toHaveLength(1);
+
+    fireEvent.play(video as HTMLVideoElement);
+    fireEvent.pause(video as HTMLVideoElement);
+    expect(onPlaybackStateChange).toHaveBeenNthCalledWith(1, true);
+    expect(onPlaybackStateChange).toHaveBeenNthCalledWith(2, false);
+
+    unmount();
+    expect(onVideoElementChange).toHaveBeenLastCalledWith(null);
+  });
 });
