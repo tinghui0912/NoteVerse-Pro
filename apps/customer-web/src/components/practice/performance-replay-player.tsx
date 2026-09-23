@@ -96,6 +96,10 @@ function AudioPerformanceReplayPlayer({
   const [currentMs, setCurrentMs] = useState(0);
   const [actualDurationMs, setActualDurationMs] = useState<number | null>(null);
   const [hasPlaybackError, setHasPlaybackError] = useState(false);
+  const onReplayTimeChangeRef = useRef(onReplayTimeChange);
+  useEffect(() => {
+    onReplayTimeChangeRef.current = onReplayTimeChange;
+  }, [onReplayTimeChange]);
 
   if (prevMediaSource !== mediaSource) {
     setPrevMediaSource(mediaSource);
@@ -164,9 +168,9 @@ function AudioPerformanceReplayPlayer({
       if (!replay.url && audioUrl) {
         URL.revokeObjectURL(audioUrl);
       }
-      onReplayTimeChange?.(null);
+      onReplayTimeChangeRef.current?.(null);
     };
-  }, [onReplayTimeChange, replay.blob, replay.url, stopRenderTicker]);
+  }, [replay.blob, replay.url, stopRenderTicker]);
 
   const startAudioPlayback = useCallback(() => {
     const audio = audioRef.current;
@@ -305,6 +309,10 @@ function VideoPerformanceReplayPlayer({
   const [currentMs, setCurrentMs] = useState(0);
   const [actualDurationMs, setActualDurationMs] = useState<number | null>(null);
   const [hasPlaybackError, setHasPlaybackError] = useState(false);
+  const onReplayTimeChangeRef = useRef(onReplayTimeChange);
+  useEffect(() => {
+    onReplayTimeChangeRef.current = onReplayTimeChange;
+  }, [onReplayTimeChange]);
   const handleVideoRef = useCallback(
     (element: HTMLVideoElement | null) => {
       videoRef.current = element;
@@ -380,9 +388,9 @@ function VideoPerformanceReplayPlayer({
       if (!replay.url && videoUrl) {
         URL.revokeObjectURL(videoUrl);
       }
-      onReplayTimeChange?.(null);
+      onReplayTimeChangeRef.current?.(null);
     };
-  }, [onReplayTimeChange, replay.blob, replay.url, stopRenderTicker]);
+  }, [replay.blob, replay.url, stopRenderTicker]);
 
   const startVideoPlayback = useCallback(() => {
     const video = videoRef.current;

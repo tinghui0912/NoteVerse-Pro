@@ -2,6 +2,7 @@
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import practiceMessages from '../../../messages/en/practice.json';
@@ -278,5 +279,51 @@ describe('PerformanceReplayPlayer', () => {
 
     unmount();
     expect(onVideoElementChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it('does not reload video when the parent rerenders from the first play event', () => {
+    const blob = new Blob(['video'], { type: 'video/webm' });
+    const load = vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:video-replay');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+    function Harness() {
+      const [playing, setPlaying] = useState(false);
+      const onReplayTimeChange = () => {
+        void playing;
+      };
+      return (
+        <PerformanceReplayPlayer
+          replay={{
+            kind: 'VIDEO_RECORDING',
+            blob,
+            contentType: 'video/webm',
+            byteSize: blob.size,
+            durationMs: 1000,
+            timebase: {
+              version: 1,
+              speedRatio: 1,
+            },
+          }}
+          onReplayTimeChange={onReplayTimeChange}
+          onPlaybackStateChange={setPlaying}
+        />
+      );
+    }
+
+    render(
+      <NextIntlClientProvider locale="en" messages={{ practice: practiceMessages }}>
+        <Harness />
+      </NextIntlClientProvider>
+    );
+
+    const video = document.querySelector('video') as HTMLVideoElement;
+    const initialLoadCount = load.mock.calls.length;
+    fireEvent.play(video);
+
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+    expect(load).toHaveBeenCalledTimes(initialLoadCount);
   });
 });

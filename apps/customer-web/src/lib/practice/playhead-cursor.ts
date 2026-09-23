@@ -180,15 +180,30 @@ export function groupActiveNotesByStaff(
     if (!note) continue;
     const layer = getCursorLayer(note);
     if (!layer) continue;
-    const staff = note.closest<SVGGraphicsElement>('.staff, [data-class="staff"]') ?? layer;
-    const existing = groups.get(staff);
+    const staff = findStaffForNote(note, layer);
+    if (!staff && getSystemStaves(layer).length >= 2) {
+      if (process.env.NODE_ENV !== 'production') {
+        // This is intentionally development-only: an unknown staff in a
+        // two-staff system must be visible instead of silently becoming gray.
+        globalThis.console.warn('[NoteVerse playhead] unable to identify staff', {
+          noteId,
+          systemId: layer.getAttribute('data-id') ?? layer.id ?? null,
+          staffIds: getSystemStaves(layer).map(
+            (candidate) => candidate.getAttribute('data-id') ?? candidate.id ?? null
+          ),
+        });
+      }
+      continue;
+    }
+    const resolvedStaff = staff ?? layer;
+    const existing = groups.get(resolvedStaff);
     if (existing) {
       existing.noteIds.push(noteId);
     } else {
-      groups.set(staff, {
+      groups.set(resolvedStaff, {
         layer,
-        staff,
-        role: staffRoleFor(staff, layer),
+        staff: resolvedStaff,
+        role: staffRoleFor(resolvedStaff, layer),
         noteIds: [noteId],
       });
     }
@@ -254,9 +269,7 @@ function staffRoleFor(staff: SVGGraphicsElement, layer: SVGGraphicsElement): Pla
 
   // Rank every staff in the frozen system, not just the staves represented by
   // the current event. This keeps a single hand's color stable between beats.
-  const staffElements = Array.from(
-    layer.querySelectorAll<SVGGraphicsElement>('.staff, [data-class="staff"]')
-  );
+  const staffElements = getSystemStaves(layer);
   if (staffElements.length <= 1) return 'treble';
   const ranked = staffElements
     .map((candidate) => ({
@@ -268,6 +281,45 @@ function staffRoleFor(staff: SVGGraphicsElement, layer: SVGGraphicsElement): Pla
   if (index === 0) return 'treble';
   if (index === 1) return 'bass';
   return 'other';
+}
+
+function findStaffForNote(
+  note: SVGGraphicsElement,
+  layer: SVGGraphicsElement
+): SVGGraphicsElement | null {
+  const directStaff = note.closest<SVGGraphicsElement>('.staff, [data-class="staff"]');
+  if (directStaff) return directStaff;
+
+  const staffElements = getSystemStaves(layer);
+  if (staffElements.length === 0) return null;
+
+  const noteBox = getElementBoxInLayer(note, layer);
+  if (!noteBox) return null;
+  const centerY = noteBox.y + noteBox.height / 2;
+  const candidates = staffElements
+    .map((candidate) => ({
+      candidate,
+      box: getElementBoxInLayer(candidate, layer),
+    }))
+    .filter((entry): entry is { candidate: SVGGraphicsElement; box: SvgRect } => entry.box !== null);
+  if (candidates.length === 0) return null;
+
+  const containing = candidates
+    .filter(({ box }) => centerY >= box.y && centerY <= box.y + box.height)
+    .sort((first, second) => first.box.width * first.box.height - second.box.width * second.box.height);
+  if (containing[0]) return containing[0].candidate;
+
+  return candidates
+    .slice()
+    .sort(
+      (first, second) =>
+        Math.abs(first.box.y + first.box.height / 2 - centerY) -
+        Math.abs(second.box.y + second.box.height / 2 - centerY)
+    )[0]?.candidate ?? null;
+}
+
+function getSystemStaves(layer: SVGGraphicsElement): SVGGraphicsElement[] {
+  return Array.from(layer.querySelectorAll<SVGGraphicsElement>('.staff, [data-class="staff"]'));
 }
 
 export function getPlayheadCursorGeometry(

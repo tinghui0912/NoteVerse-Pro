@@ -241,9 +241,6 @@ export default function PracticeReviewPage({
   const handleReplayTimeChange = useCallback(
     (replayTimeMs: number | null, actualMediaDurationMs?: number | null) => {
       latestReplayTimeMsRef.current = Math.max(0, replayTimeMs ?? 0);
-      if (isReplayPlaying && replayTimeMs !== null) {
-        setSharePreviewTimeMs(latestReplayTimeMsRef.current);
-      }
       const container = scoreContainerRef.current;
       if (!container || !draft) return;
       if (replayTimeMs === null || !isScoreIdentityConfirmed) {
@@ -269,7 +266,7 @@ export default function PracticeReviewPage({
         terminalBeat: draft.scope.terminalBeat,
       });
     },
-    [adapter, artifact, draft, isReplayPlaying, isScoreIdentityConfirmed, playheadController]
+    [adapter, artifact, draft, isScoreIdentityConfirmed, playheadController]
   );
 
   const handleReplayPlaybackStateChange = useCallback((playing: boolean) => {

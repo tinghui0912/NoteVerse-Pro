@@ -16,9 +16,9 @@ import type { PracticeVerovioAdapter } from './verovio-adapter';
 type PreviewStatus = 'idle' | 'preparing' | 'ready' | 'error';
 
 type PreviewRequest = {
-  id: number;
   mediaTimeMs: number;
   template: ShareVideoTemplate;
+  templateVersion: number;
 };
 
 type RenderableVideo = HTMLVideoElement & {
@@ -56,7 +56,7 @@ export function ShareVideoPreview({
   const scorePagesRef = useRef<ScorePageCache | null>(null);
   const pendingRequestRef = useRef<PreviewRequest | null>(null);
   const activeRenderRef = useRef(false);
-  const requestIdRef = useRef(0);
+  const templateVersionRef = useRef(0);
   const frameCallbackRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const disposedRef = useRef(false);
@@ -140,18 +140,22 @@ export function ShareVideoPreview({
             layout,
           });
 
-          const currentTimeMs = sourceVideo.currentTime * 1000;
           const requestIsCurrent =
-            request.id === requestIdRef.current &&
             !pendingRequestRef.current &&
-            Math.abs(currentTimeMs - request.mediaTimeMs) < 250;
+            request.templateVersion === templateVersionRef.current;
           if (!requestIsCurrent || disposedRef.current) continue;
 
           commitStagingFrame(layout);
           setError(null);
           setStatus('ready');
         } catch (cause) {
-          if (request.id !== requestIdRef.current || disposedRef.current) continue;
+          if (
+            request.templateVersion !== templateVersionRef.current ||
+            disposedRef.current ||
+            pendingRequestRef.current
+          ) {
+            continue;
+          }
           setError(cause instanceof Error ? cause.message : '分享视频预览失败');
           setStatus('error');
         }
@@ -164,11 +168,10 @@ export function ShareVideoPreview({
   const enqueuePreview = useCallback(
     (nextTimeMs: number) => {
       if (disposedRef.current || !replayVideo || !scorePagesRef.current) return;
-      requestIdRef.current += 1;
       pendingRequestRef.current = {
-        id: requestIdRef.current,
         mediaTimeMs: Math.max(0, nextTimeMs),
         template: templateRef.current,
+        templateVersion: templateVersionRef.current,
       };
       void drainPreviewQueue();
     },
@@ -179,7 +182,6 @@ export function ShareVideoPreview({
     disposedRef.current = false;
     scorePagesRef.current = null;
     pendingRequestRef.current = null;
-    requestIdRef.current += 1;
     setStatus('preparing');
     setError(null);
 
@@ -210,7 +212,6 @@ export function ShareVideoPreview({
     return () => {
       cancelled = true;
       disposedRef.current = true;
-      requestIdRef.current += 1;
       pendingRequestRef.current = null;
       clearFrameScheduler();
       const scorePages = scorePagesRef.current;
@@ -226,11 +227,16 @@ export function ShareVideoPreview({
   }, [clearFrameScheduler, draft, retryNonce, scoreContainer]);
 
   useEffect(() => {
-    templateRef.current = template;
-    if (status === 'ready' && !isReplayPlaying) {
-      enqueuePreview(replayVideo?.currentTime ? replayVideo.currentTime * 1000 : mediaTimeMs);
+    if (JSON.stringify(templateRef.current) !== JSON.stringify(template)) {
+      templateVersionRef.current += 1;
     }
-  }, [enqueuePreview, isReplayPlaying, mediaTimeMs, replayVideo, resourceVersion, status, template]);
+    templateRef.current = template;
+    if (status === 'ready') {
+      enqueuePreview(
+        replayVideo?.currentTime ? replayVideo.currentTime * 1000 : mediaTimeMs
+      );
+    }
+  }, [enqueuePreview, mediaTimeMs, replayVideo, resourceVersion, status, template]);
 
   useEffect(() => {
     isPlayingRef.current = isReplayPlaying;
