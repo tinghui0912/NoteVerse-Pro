@@ -43,6 +43,8 @@ import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-anno
 import { PracticeTempoTimeline } from '@/lib/practice/local-core/practice-tempo';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
+import { ShareVideoPreview } from '@/lib/practice/share-video-preview';
+import type { ShareVideoTemplate } from '@/lib/practice/share-video-templates';
 import {
   exportSplitScreenPerformanceVideo,
   getSplitScreenExportReadiness,
@@ -156,6 +158,16 @@ export default function PracticeReviewPage({
 
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
   const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);
+  const [shareTemplateKind, setShareTemplateKind] = useState<'landscape' | 'portrait' | 'floating'>(
+    'landscape'
+  );
+  const [floatingPosition, setFloatingPosition] = useState<
+    'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  >('top-right');
+  const [floatingOrientation, setFloatingOrientation] = useState<'landscape' | 'portrait'>(
+    'landscape'
+  );
+  const [sharePreviewTimeMs, setSharePreviewTimeMs] = useState(0);
 
   const confirmedCorrectNoteIds = useMemo(() => {
     if (!isScoreIdentityConfirmed || !draft?.performanceSnapshot?.performance?.outcomes) {
@@ -221,6 +233,7 @@ export default function PracticeReviewPage({
 
   const handleReplayTimeChange = useCallback(
     (replayTimeMs: number | null, actualMediaDurationMs?: number | null) => {
+      setSharePreviewTimeMs(Math.max(0, replayTimeMs ?? 0));
       const container = scoreContainerRef.current;
       if (!container || !draft) return;
       if (replayTimeMs === null || !isScoreIdentityConfirmed) {
@@ -247,6 +260,14 @@ export default function PracticeReviewPage({
       });
     },
     [adapter, artifact, draft, isScoreIdentityConfirmed, playheadController]
+  );
+
+  const shareTemplate = useMemo<ShareVideoTemplate>(
+    () =>
+      shareTemplateKind === 'floating'
+        ? { kind: 'floating', orientation: floatingOrientation, position: floatingPosition }
+        : { kind: shareTemplateKind },
+    [floatingOrientation, floatingPosition, shareTemplateKind]
   );
 
   useEffect(() => {
@@ -367,6 +388,7 @@ export default function PracticeReviewPage({
         scoreEndBeat: artifact?.scoreEndBeat ?? draft.scope.terminalBeat,
         signal: abortController.signal,
         onProgress: (progress) => setSplitExportProgress(progress.ratio),
+        template: shareTemplate,
       });
       const url = URL.createObjectURL(result.blob);
       const a = document.createElement('a');
@@ -391,7 +413,7 @@ export default function PracticeReviewPage({
     } finally {
       splitExportAbortRef.current = null;
     }
-  }, [adapter, artifact, draft, splitExportStatus, splitScreenReadiness, t]);
+  }, [adapter, artifact, draft, shareTemplate, splitExportStatus, splitScreenReadiness, t]);
 
   const handleCancelSplitScreenExport = useCallback(() => {
     splitExportAbortRef.current?.abort();
@@ -559,24 +581,66 @@ export default function PracticeReviewPage({
               </Button>
             ) : null}
             {draft.video?.status === 'READY' ? (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleExportSplitScreenVideo}
-                disabled={!splitScreenReadiness.ok || splitExportStatus === 'exporting'}
-                title={
-                  splitScreenReadiness.ok
-                    ? undefined
-                    : splitScreenBlockReasonToMessage(t, splitScreenReadiness.reason)
-                }
-              >
-                {splitExportStatus === 'exporting' ? (
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                ) : (
-                  <Clapperboard className="mr-1.5 h-4 w-4" />
-                )}
-                {t('exportScoreVideo')}
-              </Button>
+              <div className="flex items-center gap-1">
+                <select
+                  className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+                  value={shareTemplateKind}
+                  onChange={(event) =>
+                    setShareTemplateKind(event.target.value as 'landscape' | 'portrait' | 'floating')
+                  }
+                  aria-label="分享视频模板"
+                >
+                  <option value="landscape">横版 16:9</option>
+                  <option value="portrait">竖版 9:16</option>
+                  <option value="floating">悬浮卡片</option>
+                </select>
+                {shareTemplateKind === 'floating' ? (
+                  <>
+                    <select
+                      className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+                      value={floatingOrientation}
+                      onChange={(event) =>
+                        setFloatingOrientation(event.target.value as typeof floatingOrientation)
+                      }
+                      aria-label="悬浮版方向"
+                    >
+                      <option value="landscape">横向</option>
+                      <option value="portrait">纵向</option>
+                    </select>
+                    <select
+                      className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+                      value={floatingPosition}
+                      onChange={(event) =>
+                        setFloatingPosition(event.target.value as typeof floatingPosition)
+                      }
+                      aria-label="悬浮卡片位置"
+                    >
+                      <option value="top-left">左上</option>
+                      <option value="top-right">右上</option>
+                      <option value="bottom-left">左下</option>
+                      <option value="bottom-right">右下</option>
+                    </select>
+                  </>
+                ) : null}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleExportSplitScreenVideo}
+                  disabled={!splitScreenReadiness.ok || splitExportStatus === 'exporting'}
+                  title={
+                    splitScreenReadiness.ok
+                      ? undefined
+                      : splitScreenBlockReasonToMessage(t, splitScreenReadiness.reason)
+                  }
+                >
+                  {splitExportStatus === 'exporting' ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Clapperboard className="mr-1.5 h-4 w-4" />
+                  )}
+                  {t('exportScoreVideo')}
+                </Button>
+              </div>
             ) : null}
             {!saveMedia ? (
               <Button size="sm" variant="outline" disabled title={t('audioRecordingUnavailable')}>
@@ -656,6 +720,24 @@ export default function PracticeReviewPage({
             </Button>
           </div>
         </div>
+      ) : null}
+
+      {draft.video?.status === 'READY' && scoreContainer ? (
+        <Card className="rounded-lg bg-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">分享视频预览</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ShareVideoPreview
+              draft={draft}
+              scoreContainer={scoreContainer}
+              adapter={adapter}
+              scoreEndBeat={artifact?.scoreEndBeat ?? draft.scope.terminalBeat}
+              mediaTimeMs={sharePreviewTimeMs}
+              template={shareTemplate}
+            />
+          </CardContent>
+        </Card>
       ) : null}
 
       {draft.video?.status === 'READY' && splitExportStatus === 'error' ? (
