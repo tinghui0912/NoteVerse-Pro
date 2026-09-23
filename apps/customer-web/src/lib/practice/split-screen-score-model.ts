@@ -1,24 +1,43 @@
 import {
+  rootSvgRectForElement,
   snapshotPlayheadCursorGeometry,
-  type PlayheadCursorGeometrySnapshot,
   type SvgRect,
 } from './playhead-cursor';
 
-export type SvgViewBox = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
+export type SvgViewBox = { x: number; y: number; width: number; height: number };
 export type ScorePageImageLoader = (svgText: string) => Promise<HTMLImageElement>;
+
+export type ExportScoreSystem = {
+  systemId: string;
+  pageNumber: number;
+  order: number;
+  bounds: SvgRect;
+  viewport: SvgRect;
+  staffBoundsById: Map<string, SvgRect>;
+  measureIds: string[];
+};
 
 export type ExportNoteGeometry = {
   pageNumber: number;
   noteId: string;
   noteBox: SvgRect;
-  lineBox: SvgRect;
-  rootCoordinateSource: PlayheadCursorGeometrySnapshot['rootCoordinateSource'];
+  staffBox: SvgRect;
+  systemBox: SvgRect;
+  systemId: string;
+  staffId: string;
+  measureId: string;
+  anchor: { x: number; y: number };
+  rootCoordinateSource: 'frozen_root_svg';
+};
+
+export type ExportPlaybackGeometry = {
+  pageNumber: number;
+  system: ExportScoreSystem;
+  notes: ExportNoteGeometry[];
+  anchorNote: ExportNoteGeometry;
+  activeColumn: SvgRect;
+  previousAnchorX: number | null;
+  nextAnchorX: number | null;
 };
 
 export type ScorePageCacheEntry = {
@@ -26,6 +45,7 @@ export type ScorePageCacheEntry = {
   image: HTMLImageElement;
   viewBox: SvgViewBox;
   geometryByNoteId: Map<string, ExportNoteGeometry | null>;
+  systems: ExportScoreSystem[];
   measureCount: number;
 };
 
@@ -45,217 +65,301 @@ export async function prepareScorePageCache(
     throw new Error('split_screen_export_failed:score_page_unavailable');
   }
 
-  const cache: ScorePageCache = new Map();
-  const pageSnapshots = pages.map((page) => {
-    const pageNumber = Number.parseInt(
-      page.dataset.practiceReviewPage ?? page.dataset.scorePage ?? '',
-      10
-    );
-    const svg = page.querySelector<SVGSVGElement>('svg');
-    if (!Number.isFinite(pageNumber) || !svg) {
-      return null;
-    }
-    const cleanSvg = cloneScoreSvgWithoutRuntimeHighlights(svg);
-    const svgText = new XMLSerializer().serializeToString(cleanSvg);
-    const geometryByNoteId = new Map<string, ExportNoteGeometry | null>();
-    svg.querySelectorAll<SVGGraphicsElement>('[data-id], [id]').forEach((element) => {
-      const noteId = element.getAttribute('data-id') ?? element.getAttribute('id');
-      if (noteId && hasSvgGeometry(element)) {
-        geometryByNoteId.set(noteId, snapshotExportNoteGeometry(svg, pageNumber, noteId));
-      }
-    });
-    return {
-      pageNumber,
-      svgText,
-      geometryByNoteId,
-      measureCount: countMeasures(svg),
-      viewBox: readSvgViewBox(svg),
-    };
-  }).filter((snapshot): snapshot is {
-    pageNumber: number;
-    svgText: string;
-    geometryByNoteId: Map<string, ExportNoteGeometry | null>;
-    measureCount: number;
-    viewBox: SvgViewBox;
-  } => snapshot !== null);
+  const snapshots = pages
+    .map(snapshotPage)
+    .filter((snapshot): snapshot is PageSnapshot => snapshot !== null);
+  if (snapshots.length === 0) {
+    throw new Error('split_screen_export_failed:score_page_unavailable');
+  }
 
-  for (const snapshot of pageSnapshots) {
+  const cache: ScorePageCache = new Map();
+  for (const snapshot of snapshots) {
     cache.set(snapshot.pageNumber, {
       pageNumber: snapshot.pageNumber,
       image: await loadImage(snapshot.svgText),
-      geometryByNoteId: snapshot.geometryByNoteId,
-      measureCount: snapshot.measureCount,
       viewBox: snapshot.viewBox,
+      geometryByNoteId: snapshot.geometryByNoteId,
+      systems: buildSystemViewports(snapshot.viewBox, snapshot.systems),
+      measureCount: snapshot.measureCount,
     });
-  }
-
-  if (cache.size === 0) {
-    throw new Error('split_screen_export_failed:score_page_unavailable');
   }
   return cache;
 }
 
-export function findStablePageNumber(
-  noteIds: readonly string[],
-  scorePages: ScorePageCache
-): number | null {
-  const matchingPages = Array.from(scorePages.values()).filter((page) =>
-    noteIds.every((noteId) => {
-      const geometry = page.geometryByNoteId.get(noteId);
-      return geometry !== undefined && geometry !== null;
-    })
+export function findStablePageNumber(noteIds: readonly string[], scorePages: ScorePageCache) {
+  const matches = Array.from(scorePages.values()).filter((page) =>
+    noteIds.every((noteId) => page.geometryByNoteId.get(noteId))
   );
-  return matchingPages.length === 1 ? matchingPages[0].pageNumber : null;
+  return matches.length === 1 ? matches[0].pageNumber : null;
 }
 
 export function firstScorePage(scorePages: ScorePageCache): ScorePageCacheEntry {
   const first = scorePages.values().next().value as ScorePageCacheEntry | undefined;
-  if (!first) {
-    throw new Error('split_screen_export_failed:score_page_unavailable');
-  }
+  if (!first) throw new Error('split_screen_export_failed:score_page_unavailable');
   return first;
 }
 
-export function mergeExportNoteGeometries(
-  geometries: readonly ExportNoteGeometry[]
-): { activeNoteBox: SvgRect; lineBox: SvgRect; rootCoordinateSource: ExportNoteGeometry['rootCoordinateSource'] } | null {
-  if (geometries.length === 0) {
-    return null;
-  }
-  const pageNumber = geometries[0].pageNumber;
-  if (geometries.some((geometry) => geometry.pageNumber !== pageNumber)) {
-    return null;
-  }
+export function resolveExportPlaybackGeometry(
+  page: ScorePageCacheEntry,
+  noteIds: readonly string[]
+): ExportPlaybackGeometry | null {
+  const notes = noteIds
+    .map((noteId) => page.geometryByNoteId.get(noteId))
+    .filter((geometry): geometry is ExportNoteGeometry => Boolean(geometry));
+  if (notes.length !== noteIds.length || notes.length === 0) return null;
+
+  const primaryStaffId = choosePrimaryStaff(notes);
+  const sameStaff = notes.filter((note) => note.staffId === primaryStaffId);
+  const anchorNote = sameStaff.slice().sort((a, b) => a.anchor.x - b.anchor.x)[0] ?? notes[0];
+  const system = page.systems.find((candidate) => candidate.systemId === anchorNote.systemId);
+  if (!system) return null;
+
+  const activeColumn = sameStaff
+    .map((note) => note.noteBox)
+    .reduce(mergeHorizontalRects);
+  const peers = Array.from(page.geometryByNoteId.values())
+    .filter((geometry): geometry is ExportNoteGeometry =>
+      geometry !== null &&
+      geometry !== undefined &&
+      geometry.systemId === anchorNote.systemId &&
+      geometry.staffId === primaryStaffId
+    )
+    .sort((a, b) => a.anchor.x - b.anchor.x);
+  const index = peers.findIndex((peer) => peer.noteId === anchorNote.noteId);
   return {
-    activeNoteBox: geometries.map((geometry) => geometry.noteBox).reduce(mergeRects),
-    lineBox: geometries.map((geometry) => geometry.lineBox).reduce(mergeRects),
-    rootCoordinateSource: geometries[0].rootCoordinateSource,
+    pageNumber: page.pageNumber,
+    system,
+    notes,
+    anchorNote,
+    activeColumn,
+    previousAnchorX: index > 0 ? peers[index - 1].anchor.x : null,
+    nextAnchorX: index >= 0 && index < peers.length - 1 ? peers[index + 1].anchor.x : null,
   };
+}
+
+type PageSnapshot = {
+  pageNumber: number;
+  svgText: string;
+  viewBox: SvgViewBox;
+  geometryByNoteId: Map<string, ExportNoteGeometry | null>;
+  systems: ExportScoreSystem[];
+  measureCount: number;
+};
+
+function snapshotPage(page: HTMLElement): PageSnapshot | null {
+  const pageNumber = Number.parseInt(
+    page.dataset.practiceReviewPage ?? page.dataset.scorePage ?? '',
+    10
+  );
+  const svg = page.querySelector<SVGSVGElement>('svg');
+  if (!Number.isFinite(pageNumber) || !svg || !svg.isConnected) return null;
+
+  const viewBox = readSvgViewBox(svg);
+  const systemElements = Array.from(
+    svg.querySelectorAll<SVGGraphicsElement>('.system, [data-class="system"]')
+  );
+  const systemIndex = new Map(systemElements.map((element, index) => [element, index]));
+  const systems: ExportScoreSystem[] = [];
+  systemElements.forEach((element, order) => {
+    const bounds = rootSvgRectForElement(svg, element);
+    if (bounds) {
+      systems.push({
+        systemId: stableElementId(element, `page-${pageNumber}-system-${order + 1}`),
+        pageNumber,
+        order,
+        bounds,
+        viewport: bounds,
+        staffBoundsById: new Map<string, SvgRect>(),
+        measureIds: [],
+      });
+    }
+  });
+
+  const geometryByNoteId = new Map<string, ExportNoteGeometry | null>();
+  svg.querySelectorAll<SVGGraphicsElement>('[data-id], [id]').forEach((element) => {
+    const noteId = element.getAttribute('data-id') ?? element.getAttribute('id');
+    if (!noteId || !isLikelyNote(element)) return;
+    const systemElement = element.closest<SVGGraphicsElement>('.system, [data-class="system"]');
+    const order = systemElement ? systemIndex.get(systemElement) : undefined;
+    const system = order === undefined ? undefined : systems.find((candidate) => candidate.order === order);
+    const staffElement =
+      element.closest<SVGGraphicsElement>('.staff, [data-class="staff"]') ?? systemElement;
+    const noteBox =
+      snapshotPlayheadCursorGeometry(svg, [noteId])?.rootNoteBox ??
+      rootSvgRectForElement(svg, element);
+    if (!system || !staffElement || !noteBox) {
+      geometryByNoteId.set(noteId, null);
+      return;
+    }
+    const rawStaffBox = staffElement ? rootSvgRectForElement(svg, staffElement) : null;
+    const rawSystemBox = systemElement ? rootSvgRectForElement(svg, systemElement) : null;
+    const staffBox = rawStaffBox && rectsIntersect(rawStaffBox, viewBox) ? rawStaffBox : noteBox;
+    const systemBox = rawSystemBox && rectsIntersect(rawSystemBox, viewBox) ? rawSystemBox : noteBox;
+    if (!staffBox || !systemBox) {
+      geometryByNoteId.set(noteId, null);
+      return;
+    }
+    const staffId = stableElementId(staffElement, `${system.systemId}-staff-${system.staffBoundsById.size + 1}`);
+    const measureElement = element.closest<SVGGraphicsElement>('.measure, [data-class="measure"]');
+    const measureId = measureElement
+      ? stableElementId(measureElement, `${system.systemId}-measure-unknown`)
+      : `${system.systemId}-measure-unknown`;
+    system.staffBoundsById.set(staffId, staffBox);
+    if (!system.measureIds.includes(measureId)) system.measureIds.push(measureId);
+    geometryByNoteId.set(noteId, {
+      pageNumber,
+      noteId,
+      noteBox,
+      staffBox,
+      systemBox,
+      systemId: system.systemId,
+      staffId,
+      measureId,
+      anchor: { x: noteBox.x + noteBox.width / 2, y: noteBox.y + noteBox.height / 2 },
+      rootCoordinateSource: 'frozen_root_svg',
+    });
+  });
+
+  for (const system of systems) {
+    if (rectsIntersect(system.bounds, viewBox)) continue;
+    const fallbackBounds = Array.from(geometryByNoteId.values())
+      .filter((geometry): geometry is ExportNoteGeometry =>
+        geometry !== null && geometry !== undefined && geometry.systemId === system.systemId
+      )
+      .map((geometry) => geometry.staffBox)
+      .reduce(mergeRectsOrNull, null);
+    if (fallbackBounds) {
+      system.bounds = fallbackBounds;
+      system.viewport = fallbackBounds;
+    }
+  }
+
+  return {
+    pageNumber,
+    svgText: new XMLSerializer().serializeToString(cloneScoreSvgWithoutRuntimeHighlights(svg, viewBox)),
+    viewBox,
+    geometryByNoteId,
+    systems,
+    measureCount: countMeasures(svg),
+  };
+}
+
+function buildSystemViewports(viewBox: SvgViewBox, systems: ExportScoreSystem[]) {
+  const ordered = systems.slice().sort((a, b) => a.bounds.y - b.bounds.y);
+  return systems.map((system) => {
+    const index = ordered.findIndex((candidate) => candidate.systemId === system.systemId);
+    let top = system.bounds.y;
+    let bottom = system.bounds.y + system.bounds.height;
+    for (const neighbor of [ordered[index - 1], ordered[index + 1]]) {
+      if (!neighbor) continue;
+      const candidateTop = Math.min(top, neighbor.bounds.y);
+      const candidateBottom = Math.max(bottom, neighbor.bounds.y + neighbor.bounds.height);
+      if (candidateBottom - candidateTop <= viewBox.height) {
+        top = candidateTop;
+        bottom = candidateBottom;
+      }
+    }
+    return {
+      ...system,
+      viewport: {
+        x: viewBox.x,
+        y: Math.max(viewBox.y, top),
+        width: viewBox.width,
+        height: Math.min(viewBox.height, bottom - top),
+      },
+    };
+  });
+}
+
+function choosePrimaryStaff(notes: ExportNoteGeometry[]) {
+  const groups = new Map<string, ExportNoteGeometry[]>();
+  for (const note of notes) groups.set(note.staffId, [...(groups.get(note.staffId) ?? []), note]);
+  return Array.from(groups.values())
+    .sort((a, b) => Math.min(...a.map((note) => note.staffBox.y)) - Math.min(...b.map((note) => note.staffBox.y)))[0][0].staffId;
+}
+
+function mergeHorizontalRects(a: SvgRect, b: SvgRect): SvgRect {
+  const x = Math.min(a.x, b.x);
+  return { x, y: a.y, width: Math.max(a.x + a.width, b.x + b.width) - x, height: a.height };
+}
+
+function stableElementId(element: SVGGraphicsElement, fallback: string) {
+  return element.getAttribute('data-id') || element.id || fallback;
+}
+
+function isLikelyNote(element: SVGGraphicsElement) {
+  const className = element.getAttribute('class') ?? '';
+  const dataClass = element.getAttribute('data-class') ?? '';
+  const id = element.getAttribute('data-id') ?? element.id;
+  if (!id || ['system', 'staff', 'measure', 'page', 'beam', 'layer'].includes(dataClass)) {
+    return false;
+  }
+  return (
+    className.split(/\s+/).includes('note') ||
+    dataClass === 'note' ||
+    /(?:^|-)note(?:\d+|[a-z])?(?:-|$)/i.test(id) ||
+    /(?:^|-)chord(?:\d+|[a-z])?(?:-|$)/i.test(id)
+  );
 }
 
 export function readSvgViewBox(svg: SVGSVGElement): SvgViewBox {
-  const rawViewBox = svg.getAttribute('viewBox')?.trim();
-  if (rawViewBox) {
-    const [x, y, width, height] = rawViewBox
-      .split(/[\s,]+/)
-      .map((value) => Number.parseFloat(value));
-    if ([x, y, width, height].every((value) => Number.isFinite(value)) && width > 0 && height > 0) {
+  const raw = svg.getAttribute('viewBox')?.trim();
+  if (raw) {
+    const [x, y, width, height] = raw.split(/[\s,]+/).map(Number.parseFloat);
+    if ([x, y, width, height].every(Number.isFinite) && width > 0 && height > 0) {
       return { x, y, width, height };
     }
   }
-  const width = Number.parseFloat(svg.getAttribute('width') ?? '') || 1200;
-  const height = Number.parseFloat(svg.getAttribute('height') ?? '') || 1600;
-  return { x: 0, y: 0, width, height };
-}
-
-function snapshotExportNoteGeometry(
-  svg: SVGSVGElement,
-  pageNumber: number,
-  noteId: string
-): ExportNoteGeometry | null {
-  const snapshot = snapshotPlayheadCursorGeometry(svg, [noteId]);
-  if (!snapshot?.rootNoteBox || !snapshot.rootSystemBox) {
-    return null;
-  }
   return {
-    pageNumber,
-    noteId,
-    noteBox: snapshot.rootNoteBox,
-    lineBox: snapshot.rootSystemBox,
-    rootCoordinateSource: snapshot.rootCoordinateSource,
+    x: 0,
+    y: 0,
+    width: Number.parseFloat(svg.getAttribute('width') ?? '') || 1200,
+    height: Number.parseFloat(svg.getAttribute('height') ?? '') || 1600,
   };
 }
 
-function hasSvgGeometry(element: SVGGraphicsElement) {
-  try {
-    const box = element.getBBox();
-    return Number.isFinite(box.x) && Number.isFinite(box.y) && box.width > 0 && box.height > 0;
-  } catch {
-    return false;
-  }
-}
-
 function countMeasures(svg: SVGSVGElement) {
-  const measureNumbers = new Set<string>();
-  svg.querySelectorAll<SVGElement>('[data-id], [id], .measure').forEach((element) => {
-    const value = element.getAttribute('data-id') ?? element.getAttribute('id') ?? '';
-    const match = value.match(/(?:^|-)m(\d+)(?:-|$)/i);
-    if (match) {
-      measureNumbers.add(match[1]);
-    } else if (element.classList.contains('measure')) {
-      measureNumbers.add(value || String(measureNumbers.size + 1));
-    }
-  });
-  return measureNumbers.size;
+  return new Set(
+    Array.from(svg.querySelectorAll<SVGElement>('.measure, [data-class="measure"]'))
+      .map((element) => element.getAttribute('data-id') ?? element.id)
+      .filter(Boolean)
+  ).size;
 }
 
-function cloneScoreSvgWithoutRuntimeHighlights(svg: SVGSVGElement): SVGSVGElement {
+function rectsIntersect(first: SvgRect, second: SvgRect) {
+  return first.x < second.x + second.width &&
+    first.x + first.width > second.x &&
+    first.y < second.y + second.height &&
+    first.y + first.height > second.y;
+}
+
+function mergeRectsOrNull(current: SvgRect | null, next: SvgRect): SvgRect {
+  if (!current) return { ...next };
+  const x = Math.min(current.x, next.x);
+  const y = Math.min(current.y, next.y);
+  const right = Math.max(current.x + current.width, next.x + next.width);
+  const bottom = Math.max(current.y + current.height, next.y + next.height);
+  return { x, y, width: right - x, height: bottom - y };
+}
+
+function cloneScoreSvgWithoutRuntimeHighlights(svg: SVGSVGElement, viewBox: SvgViewBox) {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-  const viewBox = readSvgViewBox(svg);
   clone.setAttribute('width', clone.getAttribute('width') || String(viewBox.width));
   clone.setAttribute('height', clone.getAttribute('height') || String(viewBox.height));
-  removeOpaquePageBackgrounds(clone, viewBox);
-  clone
-    .querySelectorAll('.practice-note-active, .practice-playhead-cursor, [data-practice-playhead-cursor]')
+  clone.querySelectorAll('.practice-note-active, .practice-playhead-cursor, [data-practice-playhead-cursor]')
     .forEach((element) => element.classList.remove('practice-note-active'));
-  clone
-    .querySelectorAll('.practice-playhead-cursor, [data-practice-playhead-cursor]')
+  clone.querySelectorAll('.practice-playhead-cursor, [data-practice-playhead-cursor]')
     .forEach((element) => element.remove());
   return clone;
 }
 
-function removeOpaquePageBackgrounds(svg: SVGSVGElement, viewBox: SvgViewBox) {
-  Array.from(svg.children).forEach((child) => {
-    if (child.tagName.toLowerCase() !== 'rect') {
-      return;
-    }
-    const fill = (child.getAttribute('fill') ?? '').trim().toLowerCase();
-    const style = (child.getAttribute('style') ?? '').toLowerCase();
-    const isWhiteFill =
-      fill === '#fff' ||
-      fill === '#ffffff' ||
-      fill === 'white' ||
-      /fill\s*:\s*(#fff|#ffffff|white|rgb\(255,\s*255,\s*255\))/.test(style);
-    if (!isWhiteFill) {
-      return;
-    }
-    const x = Number.parseFloat(child.getAttribute('x') ?? String(viewBox.x));
-    const y = Number.parseFloat(child.getAttribute('y') ?? String(viewBox.y));
-    const width = Number.parseFloat(child.getAttribute('width') ?? String(viewBox.width));
-    const height = Number.parseFloat(child.getAttribute('height') ?? String(viewBox.height));
-    const coversPage =
-      x <= viewBox.x + 1 &&
-      y <= viewBox.y + 1 &&
-      x + width >= viewBox.x + viewBox.width - 1 &&
-      y + height >= viewBox.y + viewBox.height - 1;
-    if (coversPage) {
-      child.remove();
-    }
-  });
-}
-
 function loadImageFromSvg(svgText: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' }));
     const image = new Image();
-    image.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(image);
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('split_screen_export_failed:score_image_decode'));
-    };
+    image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('split_screen_export_failed:score_image_decode')); };
     image.src = url;
   });
-}
-
-function mergeRects(first: SvgRect, second: SvgRect): SvgRect {
-  const x = Math.min(first.x, second.x);
-  const y = Math.min(first.y, second.y);
-  const right = Math.max(first.x + first.width, second.x + second.width);
-  const bottom = Math.max(first.y + first.height, second.y + second.height);
-  return { x, y, width: right - x, height: bottom - y };
 }

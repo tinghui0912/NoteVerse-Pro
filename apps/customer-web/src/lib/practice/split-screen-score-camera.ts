@@ -1,49 +1,10 @@
 import type { SvgRect } from './playhead-cursor';
-import type { SvgViewBox } from './split-screen-score-model';
+import type { ExportPlaybackGeometry, SvgViewBox } from './split-screen-score-model';
 
-export type Rect = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
+export type Rect = { x: number; y: number; width: number; height: number };
 
-export function scoreViewportForLine({
-  viewBox,
-  lineBox,
-  activeNoteBox,
-  viewportByLineKey,
-  lineKey,
-}: {
-  viewBox: SvgViewBox;
-  lineBox: SvgRect;
-  activeNoteBox: SvgRect;
-  viewportByLineKey: Map<string, SvgRect>;
-  lineKey: string;
-}): SvgRect {
-  const cached = viewportByLineKey.get(lineKey);
-  if (cached && rectContains(cached, activeNoteBox)) {
-    return cached;
-  }
-  const contextPadding = Math.max(24, lineBox.height * 0.18);
-  const desiredHeight = Math.min(
-    viewBox.height,
-    Math.max(lineBox.height + contextPadding * 2, viewBox.height * 0.34)
-  );
-  let y = lineBox.y + lineBox.height / 2 - desiredHeight / 2;
-  y = Math.max(viewBox.y, Math.min(y, viewBox.y + viewBox.height - desiredHeight));
-  const viewport = {
-    x: viewBox.x,
-    y,
-    width: viewBox.width,
-    height: desiredHeight,
-  };
-  if (!rectContains(viewport, activeNoteBox)) {
-    y = activeNoteBox.y + activeNoteBox.height / 2 - desiredHeight / 2;
-    viewport.y = Math.max(viewBox.y, Math.min(y, viewBox.y + viewBox.height - desiredHeight));
-  }
-  viewportByLineKey.set(lineKey, viewport);
-  return viewport;
+export function scoreViewportForSystem(system: ExportPlaybackGeometry['system']): SvgRect {
+  return { ...system.viewport };
 }
 
 export function svgRectToCanvasRect(rect: SvgRect, viewport: SvgRect, imageRect: Rect): Rect {
@@ -57,54 +18,61 @@ export function svgRectToCanvasRect(rect: SvgRect, viewport: SvgRect, imageRect:
   };
 }
 
-export function exportCursorRect(
-  activeNoteBox: SvgRect,
+export function cursorRectForPlayback(
+  geometry: ExportPlaybackGeometry,
   viewport: SvgRect,
   imageRect: Rect,
   paddingPx = 5
 ): Rect {
-  return clampRectToRect(
-    inflateRect(svgRectToCanvasRect(activeNoteBox, viewport, imageRect), paddingPx),
-    imageRect
-  );
+  const anchor = geometry.anchorNote.anchor.x;
+  const leftBoundary = geometry.previousAnchorX === null
+    ? geometry.activeColumn.x
+    : (geometry.previousAnchorX + anchor) / 2;
+  const rightBoundary = geometry.nextAnchorX === null
+    ? geometry.activeColumn.x + geometry.activeColumn.width
+    : (anchor + geometry.nextAnchorX) / 2;
+  const column = {
+    x: Math.min(leftBoundary, geometry.activeColumn.x),
+    y: geometry.anchorNote.staffBox.y,
+    width: Math.max(
+      1,
+      Math.max(rightBoundary, geometry.activeColumn.x + geometry.activeColumn.width) -
+        Math.min(leftBoundary, geometry.activeColumn.x)
+    ),
+    height: geometry.anchorNote.staffBox.height,
+  };
+  const mapped = svgRectToCanvasRect(column, viewport, imageRect);
+  const x = Math.max(imageRect.x, mapped.x - paddingPx);
+  const y = Math.max(imageRect.y, mapped.y - paddingPx);
+  const right = Math.min(imageRect.x + imageRect.width, mapped.x + mapped.width + paddingPx);
+  const bottom = Math.min(imageRect.y + imageRect.height, mapped.y + mapped.height + paddingPx);
+  return { x, y, width: Math.max(1, right - x), height: Math.max(1, bottom - y) };
+}
+
+export function scoreImageRect(
+  _viewBox: SvgViewBox,
+  viewport: SvgRect,
+  scoreRect: Rect
+): Rect {
+  const scale = Math.min(scoreRect.width / viewport.width, scoreRect.height / viewport.height);
+  return {
+    x: scoreRect.x + (scoreRect.width - viewport.width * scale) / 2,
+    y: scoreRect.y + (scoreRect.height - viewport.height * scale) / 2,
+    width: viewport.width * scale,
+    height: viewport.height * scale,
+  };
 }
 
 export function rectsIntersect(first: Rect, second: Rect) {
-  return (
-    first.x < second.x + second.width &&
+  return first.x < second.x + second.width &&
     first.x + first.width > second.x &&
     first.y < second.y + second.height &&
-    first.y + first.height > second.y
-  );
+    first.y + first.height > second.y;
 }
 
 export function rectContains(outer: Rect, inner: Rect) {
-  return (
-    inner.x >= outer.x &&
+  return inner.x >= outer.x &&
     inner.y >= outer.y &&
     inner.x + inner.width <= outer.x + outer.width &&
-    inner.y + inner.height <= outer.y + outer.height
-  );
-}
-
-function inflateRect(rect: Rect, padding: number): Rect {
-  return {
-    x: rect.x - padding,
-    y: rect.y - padding,
-    width: rect.width + padding * 2,
-    height: rect.height + padding * 2,
-  };
-}
-
-function clampRectToRect(rect: Rect, bounds: Rect): Rect {
-  const x = Math.max(bounds.x, rect.x);
-  const y = Math.max(bounds.y, rect.y);
-  const right = Math.min(bounds.x + bounds.width, rect.x + rect.width);
-  const bottom = Math.min(bounds.y + bounds.height, rect.y + rect.height);
-  return {
-    x,
-    y,
-    width: Math.max(1, right - x),
-    height: Math.max(1, bottom - y),
-  };
+    inner.y + inner.height <= outer.y + outer.height;
 }

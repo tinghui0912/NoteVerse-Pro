@@ -11,6 +11,7 @@ import {
   resolveSplitScreenScoreFrame,
   selectSupportedSplitScreenMimeType,
 } from './split-screen-video-export';
+import { renderSplitScreenFrameAtTime } from './split-screen-frame-renderer';
 import { getPlayheadCursorGeometry } from './playhead-cursor';
 import type { PerformanceReviewDraft } from './performance-review-draft';
 
@@ -482,6 +483,46 @@ describe('split-screen video export helpers', () => {
     expect(cursor.width).toBeCloseTo(26.8, 1);
     expect(cursor.height).toBeCloseTo(36, 1);
     expect(cursor.height).toBeLessThan(80);
+  });
+
+  it('renders a deterministic static frame from the frozen score model', async () => {
+    const container = createScoreContainer();
+    const cache = await prepareScorePageCache(container, async () => makeImage());
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = 1280;
+    outputCanvas.height = 720;
+    const ctx = createFakeContext();
+    Object.defineProperty(outputCanvas, 'getContext', {
+      configurable: true,
+      value: () => ctx,
+    });
+    const diagnostics = renderSplitScreenFrameAtTime({
+      mediaTimeMs: 1000,
+      scoreModel: cache,
+      playbackTimeline: {
+        resolve: () => ({
+          perfTimeMs: 1000,
+          musicalBeat: 4,
+          pageNumber: 1,
+          noteIds: ['note-a'],
+        }),
+      },
+      sourceVideoFrame: {
+        width: 640,
+        height: 480,
+      } as unknown as CanvasImageSource,
+      outputCanvas,
+      layout: {
+        scoreRect: { x: 24, y: 24, width: 704, height: 672 },
+        videoRect: { x: 752, y: 24, width: 504, height: 672 },
+        background: '#0f172a',
+      },
+    });
+
+    expect(diagnostics.anchorNoteId).toBe('note-a');
+    expect(diagnostics.systemId).toBeTruthy();
+    expect(diagnostics.cursorBox.height).toBeLessThan(100);
+    expect(ctx.drawImage).toHaveBeenCalled();
   });
 
   it('keeps transformed system-local and root SVG cursor rectangles in separate coordinate spaces', () => {

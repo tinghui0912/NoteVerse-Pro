@@ -205,6 +205,98 @@ export function snapshotPlayheadCursorGeometry(
   };
 }
 
+export function rootSvgRectForElement(
+  rootSvg: SVGSVGElement,
+  element: SVGGraphicsElement
+): SvgRect | null {
+  let box: DOMRect;
+  try {
+    box = element.getBBox();
+  } catch {
+    return null;
+  }
+  if (element === rootSvg) {
+    return { x: box.x, y: box.y, width: box.width, height: box.height };
+  }
+
+  const rootRect = rootSvg.getBoundingClientRect?.();
+  const elementRect = element.getBoundingClientRect?.();
+  const viewBox = readSvgViewBox(rootSvg);
+  if (
+    rootRect &&
+    elementRect &&
+    rootRect.width > 0 &&
+    rootRect.height > 0 &&
+    elementRect.width > 0 &&
+    elementRect.height > 0 &&
+    elementRect.right >= rootRect.left &&
+    elementRect.left <= rootRect.right &&
+    elementRect.bottom >= rootRect.top &&
+    elementRect.top <= rootRect.bottom
+  ) {
+    const rect = {
+      x: viewBox.x + ((elementRect.left - rootRect.left) / rootRect.width) * viewBox.width,
+      y: viewBox.y + ((elementRect.top - rootRect.top) / rootRect.height) * viewBox.height,
+      width: (elementRect.width / rootRect.width) * viewBox.width,
+      height: (elementRect.height / rootRect.height) * viewBox.height,
+    };
+    if (isFiniteRect(rect)) {
+      return rect;
+    }
+  }
+
+  const elementCtm = element.getCTM?.();
+  const rootCtm = rootSvg.getCTM?.();
+  if (elementCtm && rootCtm && typeof rootCtm.inverse === 'function') {
+    try {
+      const rootInverse = rootCtm.inverse();
+      const matrix = rootInverse.multiply(elementCtm);
+      const points = [
+        [box.x, box.y],
+        [box.x + box.width, box.y],
+        [box.x, box.y + box.height],
+        [box.x + box.width, box.y + box.height],
+      ].map(([x, y]) => {
+        const point = rootSvg.createSVGPoint();
+        point.x = x;
+        point.y = y;
+        return point.matrixTransform(matrix);
+      });
+      const xs = points.map((point) => point.x);
+      const ys = points.map((point) => point.y);
+      const rect = {
+        x: Math.min(...xs),
+        y: Math.min(...ys),
+        width: Math.max(...xs) - Math.min(...xs),
+        height: Math.max(...ys) - Math.min(...ys),
+      };
+      if (isFiniteRect(rect)) {
+        return rect;
+      }
+    } catch {
+      // Use the browser-layout fallback only when both elements are measurable.
+    }
+  }
+
+  if (
+    rootRect &&
+    elementRect &&
+    rootRect.width > 0 &&
+    rootRect.height > 0 &&
+    elementRect.width > 0 &&
+    elementRect.height > 0
+  ) {
+    const rect = {
+      x: viewBox.x + ((elementRect.left - rootRect.left) / rootRect.width) * viewBox.width,
+      y: viewBox.y + ((elementRect.top - rootRect.top) / rootRect.height) * viewBox.height,
+      width: (elementRect.width / rootRect.width) * viewBox.width,
+      height: (elementRect.height / rootRect.height) * viewBox.height,
+    };
+    return isFiniteRect(rect) ? rect : null;
+  }
+  return null;
+}
+
 export function mergePlayheadCursorGeometrySnapshots(
   snapshots: readonly PlayheadCursorGeometrySnapshot[]
 ): PlayheadCursorGeometrySnapshot | null {

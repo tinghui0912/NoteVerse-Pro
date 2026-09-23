@@ -5,25 +5,26 @@ import {
 import { PracticeTempoTimeline } from './local-core/practice-tempo';
 import {
   PLAYHEAD_CURSOR_STYLE,
-  type PlayheadCursorGeometrySnapshot,
   type PlayheadCursorGeometryFailureReason,
   type SvgRect,
 } from './playhead-cursor';
 import {
-  exportCursorRect as computeExportCursorRect,
-  scoreViewportForLine,
+  cursorRectForPlayback,
+  scoreViewportForSystem,
+  svgRectToCanvasRect,
 } from './split-screen-score-camera';
 import { resolveSplitScreenScoreFrame as resolvePlaybackFrame } from './split-screen-playback-position';
 import {
   drawSourceVideoContain,
   drawStableScoreImage,
+  renderSplitScreenFrameAtTime,
 } from './split-screen-frame-renderer';
 import {
   findStablePageNumber,
   firstScorePage,
-  mergeExportNoteGeometries,
   prepareScorePageCache,
-  type ExportNoteGeometry,
+  resolveExportPlaybackGeometry,
+  type ExportPlaybackGeometry,
   type ScorePageCache,
   type ScorePageCacheEntry,
 } from './split-screen-score-model';
@@ -32,8 +33,8 @@ import type { PracticeVerovioAdapter } from './verovio-adapter';
 export {
   findStablePageNumber,
   firstScorePage,
-  mergeExportNoteGeometries,
   prepareScorePageCache,
+  resolveExportPlaybackGeometry,
 } from './split-screen-score-model';
 export type {
   ExportNoteGeometry,
@@ -117,9 +118,7 @@ type FrameRenderState = {
 };
 
 type ExportCursorGeometry = {
-  activeNoteBox: SvgRect;
-  lineBox: SvgRect;
-  rootCoordinateSource: PlayheadCursorGeometrySnapshot['rootCoordinateSource'];
+  playback: ExportPlaybackGeometry;
 };
 
 export function exportCursorRect(
@@ -128,7 +127,15 @@ export function exportCursorRect(
   imageRect: Rect,
   paddingPx = 5
 ): Rect {
-  return computeExportCursorRect(activeNoteBox, viewport, imageRect, paddingPx) as Rect;
+  const mapped = svgRectToCanvasRect(activeNoteBox, viewport, imageRect);
+  return {
+    x: Math.max(imageRect.x, mapped.x - paddingPx),
+    y: Math.max(imageRect.y, mapped.y - paddingPx),
+    width: Math.min(imageRect.x + imageRect.width, mapped.x + mapped.width + paddingPx) -
+      Math.max(imageRect.x, mapped.x - paddingPx),
+    height: Math.min(imageRect.y + imageRect.height, mapped.y + mapped.height + paddingPx) -
+      Math.max(imageRect.y, mapped.y - paddingPx),
+  };
 }
 
 export function selectSupportedSplitScreenMimeType(): string | null {
@@ -472,21 +479,6 @@ export function drawExportFrame({
   frameState: FrameRenderState;
 }) {
   const videoDraft = draft.video?.status === 'READY' ? draft.video : null;
-  let frame = resolvePlaybackFrame({
-    draft,
-    adapter,
-    pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, frameState.scorePages),
-    mediaTimeMs: Math.max(0, video.currentTime * 1000),
-    actualMediaDurationMs:
-      videoDraft
-        ? videoDraft.actualMediaDurationMs ?? safeDurationMs(video)
-        : safeDurationMs(video),
-    scoreEndBeat,
-  });
-  if (!frame) {
-    throw new Error('split_screen_export_failed:timebase_unavailable');
-  }
-
   const scoreRect = {
     x: PADDING,
     y: PADDING,
@@ -500,146 +492,31 @@ export function drawExportFrame({
     height: EXPORT_HEIGHT - PADDING * 2,
   };
 
-  const scorePage = frameState.scorePages.get(frame.pageNumber);
-  const stablePageNumber = findStablePageNumber(frame.noteIds, frameState.scorePages);
-  if (stablePageNumber === null) {
-    throw createSplitScreenExportError('split_screen_export_failed:note_page_unavailable', {
-      frame,
-      scorePage: scorePage ?? firstScorePage(frameState.scorePages),
-      reason: 'note_missing_from_snapshot',
-    });
-  }
-  if (stablePageNumber !== frame.pageNumber) {
-    frame = { ...frame, pageNumber: stablePageNumber };
-  }
-  const stableScorePage = frameState.scorePages.get(frame.pageNumber);
-  if (!stableScorePage) {
-    throw new Error('split_screen_export_failed:score_page_unavailable');
-  }
-
-  const staging = frameState.stagingCtx;
-  staging.fillStyle = '#0f172a';
-  staging.fillRect(0, 0, EXPORT_WIDTH, EXPORT_HEIGHT);
-
-  staging.fillStyle = '#ffffff';
-  roundRect(staging, scoreRect.x, scoreRect.y, scoreRect.width, scoreRect.height, 10);
-  staging.fill();
-  const snapshotGeometries = frame.noteIds.map((noteId) =>
-    stableScorePage.geometryByNoteId.get(noteId)
-  );
-  if (snapshotGeometries.some((geometry) => geometry === undefined)) {
-    throw createSplitScreenExportError(
-      'split_screen_export_failed:playhead_note_not_found_on_snapshot',
-      {
-        frame,
-        scorePage: stableScorePage,
-        reason: 'note_missing_from_snapshot',
-      }
-    );
-  }
-  if (snapshotGeometries.some((geometry) => geometry === null)) {
-    throw createSplitScreenExportError(
-      'split_screen_export_failed:playhead_coordinate_transform',
-      {
-        frame,
-        scorePage: stableScorePage,
-        reason: 'snapshot_geometry_unavailable',
-      }
-    );
-  }
-  const cursorGeometry = mergeExportNoteGeometries(
-    snapshotGeometries as ExportNoteGeometry[]
-  );
-  if (!cursorGeometry) {
-    throw createSplitScreenExportError('split_screen_export_failed:playhead_position_unavailable', {
-      frame,
-      scorePage: stableScorePage,
-      reason: 'snapshot_geometry_merge_failed',
-    });
-  }
-  drawScorePanel(staging, stableScorePage, cursorGeometry, scoreRect, frame, frameState);
-
-  staging.fillStyle = '#020617';
-  roundRect(staging, videoRect.x, videoRect.y, videoRect.width, videoRect.height, 10);
-  staging.fill();
-  drawSourceVideoContain(staging, video, videoRect, '#020617');
-
-  ctx.drawImage(frameState.stagingCanvas, 0, 0);
-}
-
-function drawScorePanel(
-  ctx: CanvasRenderingContext2D,
-  page: ScorePageCacheEntry,
-  cursorGeometry: ExportCursorGeometry,
-  scoreRect: Rect,
-  frame: SplitScreenScoreFrame,
-  frameState: FrameRenderState
-) {
-  const pageRect = {
-    x: page.viewBox.x,
-    y: page.viewBox.y,
-    width: page.viewBox.width,
-    height: page.viewBox.height,
-  };
-  if (!rectsIntersect(cursorGeometry.activeNoteBox, pageRect)) {
-    throw createSplitScreenExportError('split_screen_export_failed:playhead_position_outside_page', {
-      frame,
-      scorePage: page,
-      cursorGeometry,
-      reason: 'note_box_outside_page',
-    });
-  }
-  const viewport = scoreViewportForLine({
-    viewBox: page.viewBox,
-    lineBox: cursorGeometry.lineBox,
-    activeNoteBox: cursorGeometry.activeNoteBox,
-    viewportByLineKey: frameState.viewportByLineKey ?? (frameState.viewportByLineKey = new Map()),
-    lineKey: `${page.pageNumber}:${Math.round(cursorGeometry.lineBox.y)}:${Math.round(cursorGeometry.lineBox.height)}`,
+  renderSplitScreenFrameAtTime({
+    mediaTimeMs: Math.max(0, video.currentTime * 1000),
+    scoreModel: frameState.scorePages,
+    playbackTimeline: {
+      resolve: (mediaTimeMs) => resolvePlaybackFrame({
+        draft,
+        adapter,
+        pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, frameState.scorePages),
+        mediaTimeMs,
+        actualMediaDurationMs:
+          videoDraft
+            ? videoDraft.actualMediaDurationMs ?? safeDurationMs(video)
+            : safeDurationMs(video),
+        scoreEndBeat,
+      }),
+    },
+    sourceVideoFrame: video,
+    outputCanvas: frameState.stagingCanvas,
+    layout: {
+      scoreRect,
+      videoRect,
+      background: '#0f172a',
+    },
   });
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(scoreRect.x, scoreRect.y, scoreRect.width, scoreRect.height);
-  const imageRect = drawStableScoreImage(
-    ctx,
-    page.image,
-    page.viewBox,
-    viewport,
-    scoreRect,
-    false
-  );
-  const noteBox = svgRectToCanvasRect(cursorGeometry.activeNoteBox, viewport, imageRect);
-  const cursorBox = exportCursorRect(cursorGeometry.activeNoteBox, viewport, imageRect);
-  if (!rectsIntersect(noteBox, imageRect)) {
-    throw createSplitScreenExportError('split_screen_export_failed:playhead_position_offscreen', {
-      frame,
-      scorePage: page,
-      cursorGeometry,
-      viewport,
-      imageRect,
-      cursorBox,
-      noteBox,
-      reason: offscreenReason(noteBox, imageRect),
-    });
-  }
-
-  ctx.save();
-  ctx.fillStyle = PLAYHEAD_CURSOR_STYLE.fill;
-  ctx.strokeStyle = PLAYHEAD_CURSOR_STYLE.stroke;
-  ctx.lineWidth = Math.max(1.5, imageRect.width / 520);
-  ctx.shadowColor = PLAYHEAD_CURSOR_STYLE.shadow;
-  ctx.shadowBlur = 7;
-  roundRect(
-    ctx,
-    cursorBox.x,
-    cursorBox.y,
-    cursorBox.width,
-    cursorBox.height,
-    Math.max(4, Math.min(10, cursorBox.width / 4))
-  );
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
-
-  drawStableScoreImage(ctx, page.image, page.viewBox, viewport, scoreRect, true);
+  ctx.drawImage(frameState.stagingCanvas, 0, 0);
 }
 
 function canCaptureCanvasStream(): boolean {
@@ -706,17 +583,6 @@ function waitForVideoFrame(video: HTMLVideoElement, signal?: AbortSignal): Promi
     video.addEventListener('error', onError, { once: true });
     signal?.addEventListener('abort', onAbort, { once: true });
   });
-}
-
-function svgRectToCanvasRect(rect: SvgRect, viewport: SvgRect, imageRect: Rect): Rect {
-  const scaleX = imageRect.width / viewport.width;
-  const scaleY = imageRect.height / viewport.height;
-  return {
-    x: imageRect.x + (rect.x - viewport.x) * scaleX,
-    y: imageRect.y + (rect.y - viewport.y) * scaleY,
-    width: rect.width * scaleX,
-    height: rect.height * scaleY,
-  };
 }
 
 function rectsIntersect(first: Rect, second: Rect) {
@@ -815,9 +681,12 @@ function splitScreenDiagnostic({
     },
     geometry: cursorGeometry
       ? {
-          activeNoteBox: cursorGeometry.activeNoteBox,
-          lineBox: cursorGeometry.lineBox,
-          rootCoordinateSource: cursorGeometry.rootCoordinateSource,
+          activeColumn: cursorGeometry.playback.activeColumn,
+          anchorNoteId: cursorGeometry.playback.anchorNote.noteId,
+          anchorNoteBox: cursorGeometry.playback.anchorNote.noteBox,
+          staffId: cursorGeometry.playback.anchorNote.staffId,
+          systemId: cursorGeometry.playback.anchorNote.systemId,
+          viewport: cursorGeometry.playback.system.viewport,
         }
       : null,
     viewport,
