@@ -444,6 +444,75 @@ describe('split-screen video export helpers', () => {
     expect(Number(trebleCursor?.getAttribute('y')) + Number(trebleCursor?.getAttribute('height'))).toBeLessThan(300);
   });
 
+  it('keeps staff colors stable when a system contains repeated measure staff pairs', () => {
+    const container = document.createElement('div');
+    container.innerHTML = `
+      <svg viewBox="0 0 800 900" width="800" height="900">
+        <g class="system" data-id="system-1">
+          <g class="measure" data-id="measure-1">
+            <g class="staff" data-id="measure-1-top"><g data-id="measure-1-top-note"></g></g>
+            <g class="staff" data-id="measure-1-bottom"><g data-id="measure-1-bottom-note"></g></g>
+          </g>
+          <g class="measure" data-id="measure-2">
+            <g class="staff" data-id="measure-2-top"><g data-id="measure-2-top-note"></g></g>
+            <g class="staff" data-id="measure-2-bottom"><g data-id="measure-2-bottom-note"></g></g>
+          </g>
+        </g>
+      </svg>
+    `;
+    const boxes: Record<string, { x: number; y: number; width: number; height: number }> = {
+      'measure-1-top': { x: 80, y: 100, width: 300, height: 100 },
+      'measure-1-bottom': { x: 80, y: 300, width: 300, height: 100 },
+      'measure-2-top': { x: 420, y: 100, width: 300, height: 100 },
+      'measure-2-bottom': { x: 420, y: 300, width: 300, height: 100 },
+      'measure-2-top-note': { x: 520, y: 120, width: 24, height: 32 },
+      'measure-2-bottom-note': { x: 520, y: 320, width: 24, height: 32 },
+    };
+    const containerSvg = container.querySelector<SVGSVGElement>('svg')!;
+    const system = container.querySelector<SVGGraphicsElement>('.system')!;
+    const identity = {
+      inverse: vi.fn(() => identity),
+      multiply: vi.fn(() => identity),
+    };
+    container.querySelectorAll<SVGGraphicsElement>('[data-id]').forEach((element) => {
+      element.getBBox = vi.fn(() => (boxes[element.getAttribute('data-id')!] ?? {
+        x: 0,
+        y: 0,
+        width: 1,
+        height: 1,
+      }) as DOMRect);
+      element.getCTM = vi.fn(() => identity as unknown as DOMMatrix);
+    });
+    system.getBBox = vi.fn(() => ({ x: 80, y: 100, width: 640, height: 300 } as DOMRect));
+    system.getCTM = vi.fn(() => identity as unknown as DOMMatrix);
+    containerSvg.createSVGPoint = vi.fn(() => ({
+      x: 0,
+      y: 0,
+      matrixTransform: (point: { x: number; y: number }) => point,
+    } as SVGPoint));
+    document.body.appendChild(container);
+
+    applyExportPlayheadCursor(
+      container,
+      ['measure-2-top-note', 'measure-2-bottom-note'],
+      'measure-2-top-note'
+    );
+
+    expect(
+      container.querySelector(
+        '[data-practice-playhead-cursor][data-playhead-staff="treble"]'
+      )
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-practice-playhead-cursor][data-playhead-staff="bass"]'
+      )
+    ).not.toBeNull();
+    expect(
+      container.querySelectorAll('[data-playhead-staff="other"]')
+    ).toHaveLength(0);
+  });
+
   it('advances five notes on the same page without decoding page images again', async () => {
     const container = createScoreContainer();
     const loadImage = vi.fn(async () => makeImage());

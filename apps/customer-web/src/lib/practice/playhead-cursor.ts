@@ -267,9 +267,10 @@ function staffRoleFor(staff: SVGGraphicsElement, layer: SVGGraphicsElement): Pla
   if (staffNumber === '1') return 'treble';
   if (staffNumber === '2') return 'bass';
 
-  // Rank every staff in the frozen system, not just the staves represented by
-  // the current event. This keeps a single hand's color stable between beats.
-  const staffElements = getSystemStaves(layer);
+  // Verovio repeats the two staves inside every measure. Rank the complete
+  // staff pair belonging to this measure, rather than every staff in the
+  // system, otherwise the second measure's treble staff becomes "other".
+  const staffElements = getStaffsForRoleMapping(staff, layer);
   if (staffElements.length <= 1) return 'treble';
   const ranked = staffElements
     .map((candidate) => ({
@@ -320,6 +321,19 @@ function findStaffForNote(
 
 function getSystemStaves(layer: SVGGraphicsElement): SVGGraphicsElement[] {
   return Array.from(layer.querySelectorAll<SVGGraphicsElement>('.staff, [data-class="staff"]'));
+}
+
+function getStaffsForRoleMapping(
+  staff: SVGGraphicsElement,
+  layer: SVGGraphicsElement
+): SVGGraphicsElement[] {
+  const measure = staff.closest<SVGGraphicsElement>('.measure, [data-class="measure"]');
+  if (measure) {
+    return Array.from(
+      measure.querySelectorAll<SVGGraphicsElement>(':scope > .staff, :scope > [data-class="staff"]')
+    );
+  }
+  return getSystemStaves(layer);
 }
 
 export function getPlayheadCursorGeometry(
