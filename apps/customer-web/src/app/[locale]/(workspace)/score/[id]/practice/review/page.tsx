@@ -29,6 +29,16 @@ import { PerformanceReplayPlayer } from '@/components/practice/performance-repla
 import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useScoreDetail } from '@/hooks/queries/use-score-queries';
 import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
 import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-artifact';
@@ -158,16 +168,10 @@ export default function PracticeReviewPage({
 
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
   const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);
-  const [shareTemplateKind, setShareTemplateKind] = useState<'landscape' | 'portrait' | 'floating'>(
-    'landscape'
-  );
-  const [floatingPosition, setFloatingPosition] = useState<
-    'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
-  >('top-right');
-  const [floatingOrientation, setFloatingOrientation] = useState<'landscape' | 'portrait'>(
-    'landscape'
-  );
+  const [shareTemplateKind, setShareTemplateKind] = useState<'landscape' | 'portrait'>('landscape');
   const [sharePreviewTimeMs, setSharePreviewTimeMs] = useState(0);
+  const [hasExportedOriginalMedia, setHasExportedOriginalMedia] = useState(false);
+  const [leaveIntent, setLeaveIntent] = useState<'score' | 'practice' | null>(null);
 
   const confirmedCorrectNoteIds = useMemo(() => {
     if (!isScoreIdentityConfirmed || !draft?.performanceSnapshot?.performance?.outcomes) {
@@ -263,11 +267,8 @@ export default function PracticeReviewPage({
   );
 
   const shareTemplate = useMemo<ShareVideoTemplate>(
-    () =>
-      shareTemplateKind === 'floating'
-        ? { kind: 'floating', orientation: floatingOrientation, position: floatingPosition }
-        : { kind: shareTemplateKind },
-    [floatingOrientation, floatingPosition, shareTemplateKind]
+    () => ({ kind: shareTemplateKind }),
+    [shareTemplateKind]
   );
 
   useEffect(() => {
@@ -360,6 +361,7 @@ export default function PracticeReviewPage({
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    setHasExportedOriginalMedia(true);
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }, [draft]);
 
@@ -484,15 +486,36 @@ export default function PracticeReviewPage({
     };
   }, []);
 
-  const handleRestart = useCallback(() => {
+  const performLeave = useCallback((target: 'score' | 'practice') => {
+    splitExportAbortRef.current?.abort();
     performanceReviewDraftStore.clearDraft();
-    router.push(`/score/${id}/practice`);
+    router.push(target === 'score' ? `/score/${id}` : `/score/${id}/practice`);
   }, [id, router]);
 
+  const requestLeave = useCallback(
+    (target: 'score' | 'practice') => {
+      const hasUncommittedMedia = Boolean(
+        draft &&
+          (draft.audio.status === 'READY' || draft.video?.status === 'READY') &&
+          saveStatus !== 'saved' &&
+          !hasExportedOriginalMedia
+      );
+      if (hasUncommittedMedia || splitExportStatus === 'exporting') {
+        setLeaveIntent(target);
+        return;
+      }
+      performLeave(target);
+    },
+    [draft, hasExportedOriginalMedia, performLeave, saveStatus, splitExportStatus]
+  );
+
+  const handleRestart = useCallback(() => {
+    requestLeave('practice');
+  }, [requestLeave]);
+
   const handleBackToScore = useCallback(() => {
-    performanceReviewDraftStore.clearDraft();
-    router.push(`/score/${id}`);
-  }, [id, router]);
+    requestLeave('score');
+  }, [requestLeave]);
 
   if (!isValidDraft || !draft) {
     return (
@@ -574,105 +597,6 @@ export default function PracticeReviewPage({
               <Repeat className="mr-1.5 h-4 w-4" />
               {t('retryPractice')}
             </Button>
-            {draft.video?.status === 'READY' ? (
-              <Button size="sm" variant="outline" onClick={handleExportOriginalVideo}>
-                <Download className="mr-1.5 h-4 w-4" />
-                {t('exportOriginalVideo')}
-              </Button>
-            ) : null}
-            {draft.video?.status === 'READY' ? (
-              <div className="flex items-center gap-1">
-                <select
-                  className="h-9 rounded-md border border-input bg-background px-2 text-xs"
-                  value={shareTemplateKind}
-                  onChange={(event) =>
-                    setShareTemplateKind(event.target.value as 'landscape' | 'portrait' | 'floating')
-                  }
-                  aria-label="分享视频模板"
-                >
-                  <option value="landscape">横版 16:9</option>
-                  <option value="portrait">竖版 9:16</option>
-                  <option value="floating">悬浮卡片</option>
-                </select>
-                {shareTemplateKind === 'floating' ? (
-                  <>
-                    <select
-                      className="h-9 rounded-md border border-input bg-background px-2 text-xs"
-                      value={floatingOrientation}
-                      onChange={(event) =>
-                        setFloatingOrientation(event.target.value as typeof floatingOrientation)
-                      }
-                      aria-label="悬浮版方向"
-                    >
-                      <option value="landscape">横向</option>
-                      <option value="portrait">纵向</option>
-                    </select>
-                    <select
-                      className="h-9 rounded-md border border-input bg-background px-2 text-xs"
-                      value={floatingPosition}
-                      onChange={(event) =>
-                        setFloatingPosition(event.target.value as typeof floatingPosition)
-                      }
-                      aria-label="悬浮卡片位置"
-                    >
-                      <option value="top-left">左上</option>
-                      <option value="top-right">右上</option>
-                      <option value="bottom-left">左下</option>
-                      <option value="bottom-right">右下</option>
-                    </select>
-                  </>
-                ) : null}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleExportSplitScreenVideo}
-                  disabled={!splitScreenReadiness.ok || splitExportStatus === 'exporting'}
-                  title={
-                    splitScreenReadiness.ok
-                      ? undefined
-                      : splitScreenBlockReasonToMessage(t, splitScreenReadiness.reason)
-                  }
-                >
-                  {splitExportStatus === 'exporting' ? (
-                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Clapperboard className="mr-1.5 h-4 w-4" />
-                  )}
-                  {t('exportScoreVideo')}
-                </Button>
-              </div>
-            ) : null}
-            {!saveMedia ? (
-              <Button size="sm" variant="outline" disabled title={t('audioRecordingUnavailable')}>
-                <Bookmark className="mr-1.5 h-4 w-4" />
-                {t('savePerformance')}
-              </Button>
-            ) : saveStatus === 'saved' ? (
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="secondary" disabled>
-                  <CheckCircle2 className="mr-1.5 h-4 w-4 text-green-600" />
-                  {t('performanceSaved')}
-                </Button>
-                <Button size="sm" onClick={() => router.push('/my-performances')}>
-                  {t('viewMyPerformances')}
-                </Button>
-              </div>
-            ) : saveStatus === 'saving' ? (
-              <Button size="sm" disabled>
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                {t('savingPerformance')}
-              </Button>
-            ) : saveStatus === 'error' ? (
-              <Button size="sm" variant="destructive" onClick={handleSavePerformance}>
-                <AlertCircle className="mr-1.5 h-4 w-4" />
-                {t('retrySavePerformance')}
-              </Button>
-            ) : (
-              <Button size="sm" onClick={handleSavePerformance}>
-                <Bookmark className="mr-1.5 h-4 w-4" />
-                {t('savePerformance')}
-              </Button>
-            )}
           </div>
         }
       />
@@ -691,84 +615,6 @@ export default function PracticeReviewPage({
           </div>
           <Button size="sm" variant="outline" onClick={handleSavePerformance}>
             {t('retrySavePerformance')}
-          </Button>
-        </div>
-      )}
-
-      {draft.video?.status === 'READY' && splitExportStatus === 'exporting' ? (
-        <div
-          className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100"
-          data-testid="split-screen-export-progress"
-        >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h4 className="text-sm font-semibold">{t('exportScoreVideoProgressTitle')}</h4>
-              <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
-                {t('exportScoreVideoProgressDesc', {
-                  progress: Math.round(splitExportProgress * 100),
-                })}
-              </p>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-blue-100 dark:bg-blue-900">
-                <div
-                  className="h-full rounded-full bg-blue-600 transition-all"
-                  style={{ width: `${Math.round(splitExportProgress * 100)}%` }}
-                />
-              </div>
-            </div>
-            <Button size="sm" variant="outline" onClick={handleCancelSplitScreenExport}>
-              {t('cancelExportScoreVideo')}
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      {draft.video?.status === 'READY' && scoreContainer ? (
-        <Card className="rounded-lg bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">分享视频预览</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ShareVideoPreview
-              draft={draft}
-              scoreContainer={scoreContainer}
-              adapter={adapter}
-              scoreEndBeat={artifact?.scoreEndBeat ?? draft.scope.terminalBeat}
-              mediaTimeMs={sharePreviewTimeMs}
-              template={shareTemplate}
-            />
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {draft.video?.status === 'READY' && splitExportStatus === 'error' ? (
-        <div
-          className="rounded-lg border border-red-300 bg-red-50 p-4 text-red-900 dark:bg-red-950/30 dark:text-red-200"
-          data-testid="split-screen-export-error"
-        >
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-            <h4 className="text-sm font-semibold">{t('exportScoreVideoFailedTitle')}</h4>
-          </div>
-          <p className="mt-1 pl-7 text-xs text-red-700 dark:text-red-300">
-            {splitExportError ?? t('exportScoreVideoFailedDesc')}
-          </p>
-        </div>
-      ) : null}
-
-      {/* Save Success Banner */}
-      {saveStatus === 'saved' && (
-        <div className="rounded-lg border border-green-300 bg-green-50 dark:bg-green-950/30 p-4 text-green-900 dark:text-green-200 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-            <div>
-              <h4 className="text-sm font-semibold">{t('savePerformanceSuccessTitle')}</h4>
-              <p className="text-xs text-green-700 dark:text-green-300">
-                {t('savePerformanceSuccessDesc')}
-              </p>
-            </div>
-          </div>
-          <Button size="sm" variant="outline" onClick={() => router.push('/my-performances')}>
-            {t('viewMyPerformances')}
           </Button>
         </div>
       )}
@@ -915,65 +761,283 @@ export default function PracticeReviewPage({
         </Card>
       )}
 
-      {/* Synchronized Replay Player / Recording Status */}
-      {replay ? (
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        {/* Synchronized Replay Player / Recording Status */}
+        {replay ? (
+          <Card className="rounded-lg bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Music className="h-4 w-4 text-orange-500" />
+                {t('playback')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PerformanceReplayPlayer
+                replay={replay}
+                onReplayTimeChange={handleReplayTimeChange}
+              />
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-4 text-amber-800 dark:text-amber-300">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <span className="text-sm font-semibold">{t('audioRecordingUnavailable')}</span>
+            </div>
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-400 pl-6">
+              {draft.audio.status === 'UNAVAILABLE' &&
+              (draft.audio.reason === 'PERMISSION_DENIED' ||
+                draft.audio.reason === 'NotAllowedError')
+                ? t('audioRecordingUnavailableMicDenied')
+                : t('audioRecordingUnavailableDesc')}
+            </p>
+          </div>
+        )}
+
+        {/* Sheet Music Viewer with Synchronized Cursor & Annotations */}
         <Card className="rounded-lg bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Music className="h-4 w-4 text-orange-500" />
-              {t('playback')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PerformanceReplayPlayer
-              replay={replay}
-              onReplayTimeChange={handleReplayTimeChange}
+          <CardContent className="p-4">
+            <VerovioScoreViewer
+              xmlContent={xmlContent}
+              isLoading={isLoadingXml}
+              adapterFactory={adapterFactory}
+              pageDataAttribute="data-practice-review-page"
+              onRendered={handleScoreRendered}
+              className="max-h-[46rem] overflow-auto rounded-md border border-border bg-white"
+              pagesClassName="gap-4 p-4"
+              pageClassName="w-full overflow-hidden bg-white"
+              svgClassName="practice-summary-score-svg"
+              loadingContent={
+                <PreviewLoading label="正在加载乐谱..." className="min-h-80" />
+              }
+              emptyContent={
+                <EmptyState title="乐谱未加载" className="min-h-80" />
+              }
+              renderError={(message) => (
+                <div className="flex min-h-80 items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                  {message}
+                </div>
+              )}
             />
           </CardContent>
         </Card>
+      </div>
+
+      {draft.video?.status === 'READY' && scoreContainer ? (
+        <Card className="rounded-lg bg-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">保存与分享</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              保存原始演奏与生成分享视频是两个独立操作。分享视频只在本地生成，不会替换原始演奏。
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" onClick={handleExportOriginalVideo}>
+                <Download className="mr-1.5 h-4 w-4" />
+                {t('exportOriginalVideo')}
+              </Button>
+              {saveStatus === 'saved' ? (
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="secondary" disabled>
+                    <CheckCircle2 className="mr-1.5 h-4 w-4 text-green-600" />
+                    {t('performanceSaved')}
+                  </Button>
+                  <Button size="sm" onClick={() => router.push('/my-performances')}>
+                    {t('viewMyPerformances')}
+                  </Button>
+                </div>
+              ) : saveStatus === 'saving' ? (
+                <Button size="sm" disabled>
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  {t('savingPerformance')}
+                </Button>
+              ) : saveStatus === 'error' ? (
+                <Button size="sm" variant="destructive" onClick={handleSavePerformance}>
+                  <AlertCircle className="mr-1.5 h-4 w-4" />
+                  {t('retrySavePerformance')}
+                </Button>
+              ) : (
+                <Button size="sm" onClick={handleSavePerformance}>
+                  <Bookmark className="mr-1.5 h-4 w-4" />
+                  {t('savePerformance')}
+                </Button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+                value={shareTemplateKind}
+                onChange={(event) =>
+                  setShareTemplateKind(event.target.value as 'landscape' | 'portrait')
+                }
+                aria-label="分享视频模板"
+              >
+                <option value="landscape">横版 16:9</option>
+                <option value="portrait">竖版 9:16</option>
+              </select>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleExportSplitScreenVideo}
+                disabled={!splitScreenReadiness.ok || splitExportStatus === 'exporting'}
+                title={
+                  splitScreenReadiness.ok
+                    ? undefined
+                    : splitScreenBlockReasonToMessage(t, splitScreenReadiness.reason)
+                }
+              >
+                {splitExportStatus === 'exporting' ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <Clapperboard className="mr-1.5 h-4 w-4" />
+                )}
+                {t('exportScoreVideo')}
+              </Button>
+            </div>
+
+            <ShareVideoPreview
+              draft={draft}
+              scoreContainer={scoreContainer}
+              adapter={adapter}
+              scoreEndBeat={artifact?.scoreEndBeat ?? draft.scope.terminalBeat}
+              mediaTimeMs={sharePreviewTimeMs}
+              template={shareTemplate}
+            />
+
+            {splitExportStatus === 'exporting' ? (
+              <div
+                className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100"
+                data-testid="split-screen-export-progress"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h4 className="text-sm font-semibold">{t('exportScoreVideoProgressTitle')}</h4>
+                    <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                      {t('exportScoreVideoProgressDesc', {
+                        progress: Math.round(splitExportProgress * 100),
+                      })}
+                    </p>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-blue-100 dark:bg-blue-900">
+                      <div
+                        className="h-full rounded-full bg-blue-600 transition-all"
+                        style={{ width: `${Math.round(splitExportProgress * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={handleCancelSplitScreenExport}>
+                    {t('cancelExportScoreVideo')}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {splitExportStatus === 'error' ? (
+              <div
+                className="rounded-lg border border-red-300 bg-red-50 p-4 text-red-900 dark:bg-red-950/30 dark:text-red-200"
+                data-testid="split-screen-export-error"
+              >
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                  <h4 className="text-sm font-semibold">{t('exportScoreVideoFailedTitle')}</h4>
+                </div>
+                <p className="mt-1 pl-7 text-xs text-red-700 dark:text-red-300">
+                  {splitExportError ?? t('exportScoreVideoFailedDesc')}
+                </p>
+              </div>
+            ) : null}
+
+            {saveStatus === 'saved' ? (
+              <div className="rounded-lg border border-green-300 bg-green-50 p-4 text-green-900 dark:bg-green-950/30 dark:text-green-200">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <div>
+                    <h4 className="text-sm font-semibold">{t('savePerformanceSuccessTitle')}</h4>
+                    <p className="text-xs text-green-700 dark:text-green-300">
+                      {t('savePerformanceSuccessDesc')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : saveMedia ? (
+        <Card className="rounded-lg bg-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">保存演奏</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-2">
+            {saveStatus === 'saved' ? (
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="secondary" disabled>
+                  <CheckCircle2 className="mr-1.5 h-4 w-4 text-green-600" />
+                  {t('performanceSaved')}
+                </Button>
+                <Button size="sm" onClick={() => router.push('/my-performances')}>
+                  {t('viewMyPerformances')}
+                </Button>
+              </div>
+            ) : saveStatus === 'saving' ? (
+              <Button size="sm" disabled>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                {t('savingPerformance')}
+              </Button>
+            ) : (
+              <Button size="sm" onClick={handleSavePerformance}>
+                <Bookmark className="mr-1.5 h-4 w-4" />
+                {saveStatus === 'error' ? t('retrySavePerformance') : t('savePerformance')}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       ) : (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-4 text-amber-800 dark:text-amber-300">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            <span className="text-sm font-semibold">{t('audioRecordingUnavailable')}</span>
-          </div>
-          <p className="mt-1 text-xs text-amber-700 dark:text-amber-400 pl-6">
-            {draft.audio.status === 'UNAVAILABLE' &&
-            (draft.audio.reason === 'PERMISSION_DENIED' ||
-              draft.audio.reason === 'NotAllowedError')
-              ? t('audioRecordingUnavailableMicDenied')
-              : t('audioRecordingUnavailableDesc')}
-          </p>
-        </div>
+        <Card className="rounded-lg bg-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">保存演奏</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button size="sm" variant="outline" disabled title={t('audioRecordingUnavailable')}>
+              <Bookmark className="mr-1.5 h-4 w-4" />
+              {t('savePerformance')}
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Sheet Music Viewer with Synchronized Cursor & Annotations */}
-      <Card className="rounded-lg bg-card">
-        <CardContent className="p-4">
-          <VerovioScoreViewer
-            xmlContent={xmlContent}
-            isLoading={isLoadingXml}
-            adapterFactory={adapterFactory}
-            pageDataAttribute="data-practice-review-page"
-            onRendered={handleScoreRendered}
-            className="max-h-[46rem] overflow-auto rounded-md border border-border bg-white"
-            pagesClassName="gap-4 p-4"
-            pageClassName="w-full overflow-hidden bg-white"
-            svgClassName="practice-summary-score-svg"
-            loadingContent={
-              <PreviewLoading label="正在加载乐谱..." className="min-h-80" />
-            }
-            emptyContent={
-              <EmptyState title="乐谱未加载" className="min-h-80" />
-            }
-            renderError={(message) => (
-              <div className="flex min-h-80 items-center justify-center p-6 text-center text-sm text-muted-foreground">
-                {message}
-              </div>
-            )}
-          />
-        </CardContent>
-      </Card>
+      <AlertDialog
+        open={leaveIntent !== null}
+        onOpenChange={(open) => {
+          if (!open) setLeaveIntent(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>离开临时演奏报告？</AlertDialogTitle>
+            <AlertDialogDescription>
+              本地原始录音或录像尚未保存为正式演奏，也尚未导出。离开或重新练习后，这份临时媒体可能无法再次访问。
+              {splitExportStatus === 'exporting'
+                ? ' 当前合成也会被取消。'
+                : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setLeaveIntent(null)}>
+              继续查看
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const target = leaveIntent;
+                setLeaveIntent(null);
+                if (target) performLeave(target);
+              }}
+            >
+              确认离开
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -11,7 +11,7 @@ import {
   selectSupportedSplitScreenMimeType,
 } from './split-screen-video-export';
 import { renderSplitScreenFrameAtTime } from './split-screen-frame-renderer';
-import { getPlayheadCursorGeometry } from './playhead-cursor';
+import { applyExportPlayheadCursor, getPlayheadCursorGeometry } from './playhead-cursor';
 import { getEventScoreImage } from './split-screen-score-model';
 import type { PerformanceReviewDraft } from './performance-review-draft';
 
@@ -375,6 +375,57 @@ describe('split-screen video export helpers', () => {
     expect(eventImageLoader).toHaveBeenCalledTimes(1);
     expect(serialized.filter((text) => text.includes('data-practice-playhead-cursor'))).toHaveLength(1);
     expect(serialized.at(-1)).toContain('data-practice-playhead-cursor');
+  });
+
+  it('keeps an exported two-staff event cursor on the anchor staff', () => {
+    const container = document.createElement('div');
+    container.innerHTML = `
+      <svg viewBox="0 0 800 900" width="800" height="900">
+        <g class="system">
+          <g class="staff" data-id="staff-top">
+            <g data-id="top-a"></g>
+            <g data-id="top-b"></g>
+          </g>
+          <g class="staff" data-id="staff-bottom">
+            <g data-id="bottom-a"></g>
+          </g>
+        </g>
+      </svg>
+    `;
+    const boxes: Record<string, { x: number; y: number; width: number; height: number }> = {
+      'staff-top': { x: 80, y: 120, width: 640, height: 100 },
+      'staff-bottom': { x: 80, y: 520, width: 640, height: 100 },
+      'top-a': { x: 240, y: 150, width: 24, height: 32 },
+      'top-b': { x: 246, y: 150, width: 28, height: 32 },
+      'bottom-a': { x: 240, y: 550, width: 24, height: 32 },
+    };
+    const svg = container.querySelector<SVGSVGElement>('svg')!;
+    const system = container.querySelector<SVGGraphicsElement>('.system')!;
+    const identity = {
+      inverse: vi.fn(() => identity),
+      multiply: vi.fn(() => identity),
+    };
+    container.querySelectorAll<SVGGraphicsElement>('[data-id]').forEach((element) => {
+      element.getBBox = vi.fn(() => boxes[element.getAttribute('data-id')!] as DOMRect);
+      element.getCTM = vi.fn(() => identity as unknown as DOMMatrix);
+    });
+    system.getBBox = vi.fn(() => ({ x: 80, y: 120, width: 640, height: 500 } as DOMRect));
+    system.getCTM = vi.fn(() => identity as unknown as DOMMatrix);
+    svg.createSVGPoint = vi.fn(() => ({
+      x: 0,
+      y: 0,
+      matrixTransform: (point: { x: number; y: number }) => point,
+    } as SVGPoint));
+    document.body.appendChild(container);
+
+    const result = applyExportPlayheadCursor(container, ['top-a', 'top-b', 'bottom-a'], 'top-a');
+    const cursor = container.querySelector<SVGRectElement>('[data-practice-playhead-cursor]');
+
+    expect(result.geometry).not.toBeNull();
+    expect(cursor).not.toBeNull();
+    expect(container.querySelectorAll('[data-practice-playhead-cursor]')).toHaveLength(1);
+    expect(Number(cursor?.getAttribute('y'))).toBeLessThan(120);
+    expect(Number(cursor?.getAttribute('y')) + Number(cursor?.getAttribute('height'))).toBeLessThan(300);
   });
 
   it('advances five notes on the same page without decoding page images again', async () => {

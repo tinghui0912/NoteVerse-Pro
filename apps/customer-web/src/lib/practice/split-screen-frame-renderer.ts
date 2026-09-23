@@ -70,7 +70,11 @@ export async function renderSplitScreenFrameAtTime({
   const ctx = context ?? outputCanvas.getContext('2d');
   if (!ctx) throw new Error('split_screen_export_failed:canvas_context');
 
-  const image = await getEventScoreImage(page, position.noteIds);
+  const image = await getEventScoreImage(
+    page,
+    position.noteIds,
+    playback.anchorNote.noteId
+  );
   const viewport = page.viewBox;
   ctx.fillStyle = layout.background;
   ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);

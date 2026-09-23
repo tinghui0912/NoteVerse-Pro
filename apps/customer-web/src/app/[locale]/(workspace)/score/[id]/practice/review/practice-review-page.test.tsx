@@ -362,6 +362,7 @@ describe('PracticeReviewPage', () => {
     // Clicking retry button clears draft and routes to practice
     const retryButton = screen.getByRole('button', { name: /重弹一次/i });
     fireEvent.click(retryButton);
+    fireEvent.click(screen.getByRole('button', { name: '确认离开' }));
     expect(performanceReviewDraftStore.getDraft()).toBeNull();
     expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice');
   });

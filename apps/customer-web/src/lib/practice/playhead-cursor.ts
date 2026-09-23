@@ -40,6 +40,14 @@ export type PlayheadCursorGeometrySnapshot = Pick<
   | 'rootFailureReason'
 >;
 
+export type ExportPlayheadCursorGeometry = {
+  layer: SVGGraphicsElement;
+  rootSvg: SVGSVGElement;
+  box: SvgRect;
+  noteBox: SvgRect;
+  staffBox: SvgRect;
+};
+
 export type PlayheadRootCoordinateSource =
   | 'ctm_svg_viewport'
   | 'rendered_dom_rect'
@@ -107,6 +115,69 @@ export function applyPlayheadCursor(
     .map((noteId) => findElementByVerovioId(container, noteId))
     .find((node): node is SVGGraphicsElement => node !== null) ?? null;
   return { anchor, geometry };
+}
+
+export function applyExportPlayheadCursor(
+  container: HTMLElement,
+  noteIds: readonly string[],
+  anchorNoteId: string
+): { anchor: SVGGraphicsElement | null; geometry: ExportPlayheadCursorGeometry | null } {
+  clearPlayheadCursor(container);
+  const anchor = findElementByVerovioId(container, anchorNoteId);
+  if (!anchor) {
+    return { anchor: null, geometry: null };
+  }
+
+  const layer = getCursorLayer(anchor);
+  const rootSvg = anchor.ownerSVGElement;
+  if (!layer || !rootSvg) {
+    return { anchor, geometry: null };
+  }
+
+  const anchorStaff =
+    anchor.closest<SVGGraphicsElement>('.staff, [data-class="staff"]') ?? layer;
+  const eventNotes = noteIds
+    .map((noteId) => findElementByVerovioId(container, noteId))
+    .filter((note): note is SVGGraphicsElement => note !== null)
+    .filter((note) => {
+      const noteLayer = getCursorLayer(note);
+      const noteStaff =
+        note.closest<SVGGraphicsElement>('.staff, [data-class="staff"]') ?? noteLayer;
+      return noteLayer === layer && noteStaff === anchorStaff;
+    });
+  const notes = eventNotes.length > 0 ? eventNotes : [anchor];
+  const noteBox = notes
+    .map((note) => getElementBoxInLayer(note, layer))
+    .filter((box): box is SvgRect => box !== null && box.width > 0 && box.height > 0)
+    .reduce(mergeHorizontalRects, null);
+  const staffBox = noteBox ? getElementBoxInLayer(anchorStaff, layer) ?? noteBox : null;
+  if (!noteBox || !staffBox || staffBox.width <= 0 || staffBox.height <= 0) {
+    return { anchor, geometry: null };
+  }
+
+  const horizontalPadding = Math.max(8, noteBox.width * 0.08);
+  const verticalPadding = Math.max(8, staffBox.height * 0.06);
+  const box = {
+    x: noteBox.x - horizontalPadding,
+    y: staffBox.y - verticalPadding,
+    width: noteBox.width + horizontalPadding * 2,
+    height: staffBox.height + verticalPadding * 2,
+  };
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute(PLAYHEAD_CURSOR_DATA_ATTR, 'true');
+  rect.setAttribute('class', PLAYHEAD_CURSOR_CLASS);
+  rect.setAttribute('x', String(box.x));
+  rect.setAttribute('y', String(box.y));
+  rect.setAttribute('width', String(box.width));
+  rect.setAttribute('height', String(box.height));
+  rect.setAttribute('rx', String(PLAYHEAD_CURSOR_STYLE.radius));
+  rect.setAttribute('fill', PLAYHEAD_CURSOR_STYLE.fill);
+  rect.setAttribute('stroke', PLAYHEAD_CURSOR_STYLE.stroke);
+  rect.setAttribute('stroke-width', '1.5');
+  rect.setAttribute('pointer-events', 'none');
+  layer.insertBefore(rect, layer.firstChild);
+
+  return { anchor, geometry: { layer, rootSvg, box, noteBox, staffBox } };
 }
 
 export function getPlayheadCursorGeometry(
@@ -624,5 +695,19 @@ function mergeRects(first: SvgRect, second: SvgRect): SvgRect {
     y,
     width: right - x,
     height: bottom - y,
+  };
+}
+
+function mergeHorizontalRects(current: SvgRect | null, next: SvgRect): SvgRect {
+  if (!current) {
+    return { ...next };
+  }
+  const left = Math.min(current.x, next.x);
+  const right = Math.max(current.x + current.width, next.x + next.width);
+  return {
+    x: left,
+    y: current.y,
+    width: right - left,
+    height: current.height,
   };
 }

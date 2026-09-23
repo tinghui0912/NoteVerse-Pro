@@ -11,7 +11,9 @@ import {
 } from './share-video-templates';
 import {
   findStablePageNumber,
+  prefetchEventScoreImage,
   prepareScorePageCache,
+  resolveExportPlaybackGeometry,
   type ScorePageCache,
 } from './split-screen-score-model';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
@@ -279,6 +281,14 @@ export async function exportSplitScreenPerformanceVideo({
       frameState,
       template,
     });
+    await prefetchUpcomingEventImage({
+      mediaTimeMs: Math.max(0, video.currentTime * 1000) + 400,
+      video,
+      draft,
+      adapter,
+      scoreEndBeat,
+      scorePages,
+    });
 
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextCtor) {
@@ -381,6 +391,7 @@ export async function exportSplitScreenPerformanceVideo({
       }
 
       try {
+        const frameStartedAt = performance.now();
         await drawExportFrame({
           ctx,
           video,
@@ -390,6 +401,19 @@ export async function exportSplitScreenPerformanceVideo({
           frameState,
           template,
         });
+        const frameWaitMs = performance.now() - frameStartedAt;
+        if (frameWaitMs > 250) {
+          failExport(new Error('split_screen_export_failed:frame_prepare_timeout'));
+          return;
+        }
+        void prefetchUpcomingEventImage({
+          mediaTimeMs: Math.max(0, video.currentTime * 1000) + 400,
+          video,
+          draft,
+          adapter,
+          scoreEndBeat,
+          scorePages: frameState.scorePages,
+        }).catch(() => undefined);
       } catch (err) {
         failExport(err);
         return;
@@ -425,6 +449,37 @@ export async function exportSplitScreenPerformanceVideo({
     outputStream?.getTracks().forEach((track) => track.stop());
     await audioContext?.close().catch(() => undefined);
   }
+}
+
+async function prefetchUpcomingEventImage({
+  mediaTimeMs,
+  video,
+  draft,
+  adapter,
+  scoreEndBeat,
+  scorePages,
+}: {
+  mediaTimeMs: number;
+  video: HTMLVideoElement;
+  draft: PerformanceReviewDraft;
+  adapter: PracticeVerovioAdapter;
+  scoreEndBeat: number;
+  scorePages: ScorePageCache;
+}) {
+  const position = resolvePlaybackFrame({
+    draft,
+    adapter,
+    pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, scorePages),
+    mediaTimeMs,
+    actualMediaDurationMs: safeDurationMs(video),
+    scoreEndBeat,
+  });
+  if (!position) return;
+  const page = scorePages.get(position.pageNumber);
+  if (!page) return;
+  const playback = resolveExportPlaybackGeometry(page, position.noteIds);
+  if (!playback) return;
+  await prefetchEventScoreImage(page, position.noteIds, playback.anchorNote.noteId);
 }
 
 export async function drawExportFrame({

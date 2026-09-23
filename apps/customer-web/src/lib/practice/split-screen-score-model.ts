@@ -1,5 +1,5 @@
 import {
-  applyPlayheadCursor,
+  applyExportPlayheadCursor,
   rootSvgRectForElement,
   snapshotPlayheadCursorGeometry,
   type SvgRect,
@@ -54,6 +54,7 @@ export type ScorePageCacheEntry = {
   systems: ExportScoreSystem[];
   measureCount: number;
   eventImages: Map<string, HTMLImageElement>;
+  eventImagePromises: Map<string, Promise<HTMLImageElement>>;
   eventImageLoader?: ScorePageImageLoader;
   eventSvgDecorator?: (svg: SVGSVGElement) => void;
 };
@@ -93,6 +94,7 @@ export async function prepareScorePageCache(
       systems: buildSystemViewports(snapshot.viewBox, snapshot.systems),
       measureCount: snapshot.measureCount,
       eventImages: new Map(),
+      eventImagePromises: new Map(),
       eventImageLoader: options.eventImageLoader ?? (
         loadImage === loadImageFromSvg ? loadImageFromSvg : undefined
       ),
@@ -106,14 +108,19 @@ const MAX_EVENT_IMAGE_CACHE_ENTRIES = 24;
 
 export async function getEventScoreImage(
   page: ScorePageCacheEntry,
-  noteIds: readonly string[]
+  noteIds: readonly string[],
+  anchorNoteId = noteIds[0] ?? ''
 ): Promise<HTMLImageElement> {
-  const key = noteIds.join('|');
+  const key = `${anchorNoteId}:${noteIds.join('|')}`;
   const cached = page.eventImages.get(key);
   if (cached) {
     page.eventImages.delete(key);
     page.eventImages.set(key, cached);
     return cached;
+  }
+  const pending = page.eventImagePromises.get(key);
+  if (pending) {
+    return pending;
   }
 
   if (!page.eventImageLoader) {
@@ -124,6 +131,25 @@ export async function getEventScoreImage(
     return image;
   }
 
+  const promise = buildEventScoreImage(page, noteIds, anchorNoteId, key);
+  page.eventImagePromises.set(key, promise);
+  try {
+    return await promise;
+  } finally {
+    page.eventImagePromises.delete(key);
+  }
+}
+
+async function buildEventScoreImage(
+  page: ScorePageCacheEntry,
+  noteIds: readonly string[],
+  anchorNoteId: string,
+  key: string
+): Promise<HTMLImageElement> {
+  const eventImageLoader = page.eventImageLoader;
+  if (!eventImageLoader) {
+    return page.image;
+  }
   const host = document.createElement('div');
   host.setAttribute('data-split-screen-export-host', 'true');
   Object.assign(host.style, {
@@ -150,7 +176,7 @@ export async function getEventScoreImage(
   document.body.appendChild(host);
 
   try {
-    const result = applyPlayheadCursor(host, noteIds);
+    const result = applyExportPlayheadCursor(host, noteIds, anchorNoteId);
     if (!result.geometry) {
       throw new Error('split_screen_export_failed:event_score_cursor_unavailable');
     }
@@ -159,7 +185,7 @@ export async function getEventScoreImage(
       throw new Error('split_screen_export_failed:event_score_cursor_count');
     }
     const svgText = new XMLSerializer().serializeToString(svg);
-    const image = await page.eventImageLoader(svgText);
+    const image = await eventImageLoader(svgText);
     page.eventImages.set(key, image);
     while (page.eventImages.size > MAX_EVENT_IMAGE_CACHE_ENTRIES) {
       const oldestKey = page.eventImages.keys().next().value as string | undefined;
@@ -170,6 +196,14 @@ export async function getEventScoreImage(
   } finally {
     host.remove();
   }
+}
+
+export function prefetchEventScoreImage(
+  page: ScorePageCacheEntry,
+  noteIds: readonly string[],
+  anchorNoteId = noteIds[0] ?? ''
+): Promise<HTMLImageElement> {
+  return getEventScoreImage(page, noteIds, anchorNoteId);
 }
 
 export function findStablePageNumber(noteIds: readonly string[], scorePages: ScorePageCache) {
