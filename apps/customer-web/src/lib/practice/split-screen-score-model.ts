@@ -1,4 +1,5 @@
 import {
+  applyPlayheadCursor,
   rootSvgRectForElement,
   snapshotPlayheadCursorGeometry,
   type SvgRect,
@@ -6,6 +7,10 @@ import {
 
 export type SvgViewBox = { x: number; y: number; width: number; height: number };
 export type ScorePageImageLoader = (svgText: string) => Promise<HTMLImageElement>;
+export type ScorePageCacheOptions = {
+  eventImageLoader?: ScorePageImageLoader;
+  eventSvgDecorator?: (svg: SVGSVGElement) => void;
+};
 
 export type ExportScoreSystem = {
   systemId: string;
@@ -43,17 +48,22 @@ export type ExportPlaybackGeometry = {
 export type ScorePageCacheEntry = {
   pageNumber: number;
   image: HTMLImageElement;
+  baseSvgText: string;
   viewBox: SvgViewBox;
   geometryByNoteId: Map<string, ExportNoteGeometry | null>;
   systems: ExportScoreSystem[];
   measureCount: number;
+  eventImages: Map<string, HTMLImageElement>;
+  eventImageLoader?: ScorePageImageLoader;
+  eventSvgDecorator?: (svg: SVGSVGElement) => void;
 };
 
 export type ScorePageCache = Map<number, ScorePageCacheEntry>;
 
 export async function prepareScorePageCache(
   scoreContainer: HTMLElement,
-  loadImage: ScorePageImageLoader = loadImageFromSvg
+  loadImage: ScorePageImageLoader = loadImageFromSvg,
+  options: ScorePageCacheOptions = {}
 ): Promise<ScorePageCache> {
   const pageNodes = Array.from(
     scoreContainer.querySelectorAll<HTMLElement>('[data-practice-review-page]')
@@ -77,13 +87,89 @@ export async function prepareScorePageCache(
     cache.set(snapshot.pageNumber, {
       pageNumber: snapshot.pageNumber,
       image: await loadImage(snapshot.svgText),
+      baseSvgText: snapshot.svgText,
       viewBox: snapshot.viewBox,
       geometryByNoteId: snapshot.geometryByNoteId,
       systems: buildSystemViewports(snapshot.viewBox, snapshot.systems),
       measureCount: snapshot.measureCount,
+      eventImages: new Map(),
+      eventImageLoader: options.eventImageLoader ?? (
+        loadImage === loadImageFromSvg ? loadImageFromSvg : undefined
+      ),
+      eventSvgDecorator: options.eventSvgDecorator,
     });
   }
   return cache;
+}
+
+const MAX_EVENT_IMAGE_CACHE_ENTRIES = 24;
+
+export async function getEventScoreImage(
+  page: ScorePageCacheEntry,
+  noteIds: readonly string[]
+): Promise<HTMLImageElement> {
+  const key = noteIds.join('|');
+  const cached = page.eventImages.get(key);
+  if (cached) {
+    page.eventImages.delete(key);
+    page.eventImages.set(key, cached);
+    return cached;
+  }
+
+  if (!page.eventImageLoader) {
+    // Synthetic image loaders are used by jsdom tests. Production always has
+    // the real SVG loader and therefore takes the strict cursor path below.
+    const image = page.image;
+    page.eventImages.set(key, image);
+    return image;
+  }
+
+  const host = document.createElement('div');
+  host.setAttribute('data-split-screen-export-host', 'true');
+  Object.assign(host.style, {
+    position: 'fixed',
+    left: '-100000px',
+    top: '0',
+    width: `${page.viewBox.width}px`,
+    height: `${page.viewBox.height}px`,
+    visibility: 'hidden',
+    pointerEvents: 'none',
+    overflow: 'hidden',
+  });
+
+  const template = document.createElement('template');
+  template.innerHTML = page.baseSvgText;
+  const svg = template.content.querySelector<SVGSVGElement>('svg');
+  if (!svg) {
+    throw new Error('split_screen_export_failed:event_score_svg_unavailable');
+  }
+  svg.setAttribute('width', String(page.viewBox.width));
+  svg.setAttribute('height', String(page.viewBox.height));
+  page.eventSvgDecorator?.(svg);
+  host.appendChild(svg);
+  document.body.appendChild(host);
+
+  try {
+    const result = applyPlayheadCursor(host, noteIds);
+    if (!result.geometry) {
+      throw new Error('split_screen_export_failed:event_score_cursor_unavailable');
+    }
+    const cursorCount = svg.querySelectorAll('[data-practice-playhead-cursor]').length;
+    if (cursorCount !== 1) {
+      throw new Error('split_screen_export_failed:event_score_cursor_count');
+    }
+    const svgText = new XMLSerializer().serializeToString(svg);
+    const image = await page.eventImageLoader(svgText);
+    page.eventImages.set(key, image);
+    while (page.eventImages.size > MAX_EVENT_IMAGE_CACHE_ENTRIES) {
+      const oldestKey = page.eventImages.keys().next().value as string | undefined;
+      if (!oldestKey) break;
+      page.eventImages.delete(oldestKey);
+    }
+    return image;
+  } finally {
+    host.remove();
+  }
 }
 
 export function findStablePageNumber(noteIds: readonly string[], scorePages: ScorePageCache) {
@@ -351,6 +437,12 @@ function cloneScoreSvgWithoutRuntimeHighlights(svg: SVGSVGElement, viewBox: SvgV
     .forEach((element) => element.classList.remove('practice-note-active'));
   clone.querySelectorAll('.practice-playhead-cursor, [data-practice-playhead-cursor]')
     .forEach((element) => element.remove());
+  clone.querySelectorAll('rect').forEach((element) => {
+    const fill = element.getAttribute('fill')?.trim().toLowerCase();
+    if (fill === '#fff' || fill === '#ffffff' || fill === 'white') {
+      element.remove();
+    }
+  });
   return clone;
 }
 

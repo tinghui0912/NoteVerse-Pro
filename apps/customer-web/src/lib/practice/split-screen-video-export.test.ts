@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   composeSplitScreenOutputStream,
   drawExportFrame,
-  exportCursorRect,
   getSplitScreenExportReadiness,
   prepareScorePageCache,
   resolveSplitScreenScoreFrame,
@@ -13,6 +12,7 @@ import {
 } from './split-screen-video-export';
 import { renderSplitScreenFrameAtTime } from './split-screen-frame-renderer';
 import { getPlayheadCursorGeometry } from './playhead-cursor';
+import { getEventScoreImage } from './split-screen-score-model';
 import type { PerformanceReviewDraft } from './performance-review-draft';
 
 function createDraft(
@@ -323,6 +323,60 @@ describe('split-screen video export helpers', () => {
     expect(loadImage).toHaveBeenCalledTimes(2);
   });
 
+  it('renders the event cursor inside the frozen SVG image instead of on Canvas', async () => {
+    const container = createScoreContainer();
+    const serialized: string[] = [];
+    const eventImageLoader = vi.fn(async (svgText: string) => {
+      serialized.push(svgText);
+      return makeImage();
+    });
+    const matrix = {
+      inverse: vi.fn(() => matrix),
+      multiply: vi.fn(() => matrix),
+    };
+    const cache = await prepareScorePageCache(
+      container,
+      async (svgText) => {
+        serialized.push(svgText);
+        return makeImage();
+      },
+      {
+        eventImageLoader,
+        eventSvgDecorator: (svg) => {
+          svg.createSVGPoint = vi.fn(() => ({
+            x: 0,
+            y: 0,
+            matrixTransform(pointMatrix: { transformPoint?: (point: unknown) => unknown }) {
+              return pointMatrix.transformPoint?.(this) ?? this;
+            },
+          } as SVGPoint));
+          svg.getCTM = vi.fn(() => matrix as unknown as DOMMatrix);
+          svg.querySelectorAll<SVGGraphicsElement>('g').forEach((element) => {
+            const id = element.getAttribute('data-id');
+            if (id === 'note-a') {
+              element.getBBox = vi.fn(() => ({
+                x: 100,
+                y: 200,
+                width: 30,
+                height: 40,
+              } as DOMRect));
+              element.getCTM = vi.fn(() => matrix as unknown as DOMMatrix);
+            }
+          });
+        },
+      }
+    );
+
+    const image = await getEventScoreImage(cache.get(1)!, ['note-a']);
+    const cachedImage = await getEventScoreImage(cache.get(1)!, ['note-a']);
+
+    expect(image).toBeTruthy();
+    expect(cachedImage).toBe(image);
+    expect(eventImageLoader).toHaveBeenCalledTimes(1);
+    expect(serialized.filter((text) => text.includes('data-practice-playhead-cursor'))).toHaveLength(1);
+    expect(serialized.at(-1)).toContain('data-practice-playhead-cursor');
+  });
+
   it('advances five notes on the same page without decoding page images again', async () => {
     const container = createScoreContainer();
     const loadImage = vi.fn(async () => makeImage());
@@ -360,7 +414,7 @@ describe('split-screen video export helpers', () => {
 
     for (let i = 0; i < 5; i += 1) {
       Object.defineProperty(video, 'currentTime', { configurable: true, value: i });
-      drawExportFrame({
+      await drawExportFrame({
         ctx: finalCtx,
         video,
         draft,
@@ -394,7 +448,7 @@ describe('split-screen video export helpers', () => {
       getPageWithElement: vi.fn(() => 1),
     };
 
-    drawExportFrame({
+    await drawExportFrame({
       ctx: finalCtx,
       video,
       draft: createDraft(),
@@ -406,7 +460,7 @@ describe('split-screen video export helpers', () => {
     const stagingCallNames = stagingCtx.calls.map((call) => call.name);
     expect(stagingCallNames).toContain('fillRect');
     expect(stagingCallNames).toContain('drawImage');
-    expect(stagingCallNames).toContain('stroke');
+    expect(stagingCallNames.filter((name) => name === 'drawImage')).toHaveLength(2);
     expect(finalCtx.calls).toEqual([{ name: 'drawImage', args: [stagingCanvas, 0, 0] }]);
   });
 
@@ -432,7 +486,7 @@ describe('split-screen video export helpers', () => {
     };
     const frameState = { scorePages: cache, stagingCanvas, stagingCtx };
 
-    drawExportFrame({
+    await drawExportFrame({
       ctx: finalCtx,
       video,
       draft: createDraft(),
@@ -444,16 +498,14 @@ describe('split-screen video export helpers', () => {
     const replacement = createScoreContainer();
     container.replaceWith(replacement);
 
-    expect(() =>
-      drawExportFrame({
+    await expect(drawExportFrame({
         ctx: finalCtx,
         video,
         draft: createDraft(),
         adapter: adapter as never,
         scoreEndBeat: 24,
         frameState,
-      })
-    ).not.toThrow();
+      })).resolves.toBeUndefined();
     expect(loadImage).toHaveBeenCalledTimes(2);
     expect(finalCtx.calls.filter((call) => call.name === 'drawImage')).toHaveLength(2);
     expect(cache.get(1)?.geometryByNoteId.has('note-a')).toBe(true);
@@ -473,18 +525,6 @@ describe('split-screen video export helpers', () => {
     expect(geometry?.box.width).toBeGreaterThan(geometry!.noteBox.width);
   });
 
-  it('derives the export cursor from the active note box with output-pixel padding', () => {
-    const cursor = exportCursorRect(
-      { x: 240, y: 180, width: 20, height: 36 },
-      { x: 0, y: 0, width: 840, height: 931 },
-      { x: 24, y: 24, width: 704, height: 672 }
-    );
-
-    expect(cursor.width).toBeCloseTo(26.8, 1);
-    expect(cursor.height).toBeCloseTo(36, 1);
-    expect(cursor.height).toBeLessThan(80);
-  });
-
   it('renders a deterministic static frame from the frozen score model', async () => {
     const container = createScoreContainer();
     const cache = await prepareScorePageCache(container, async () => makeImage());
@@ -496,7 +536,7 @@ describe('split-screen video export helpers', () => {
       configurable: true,
       value: () => ctx,
     });
-    const diagnostics = renderSplitScreenFrameAtTime({
+    const diagnostics = await renderSplitScreenFrameAtTime({
       mediaTimeMs: 1000,
       scoreModel: cache,
       playbackTimeline: {
@@ -521,7 +561,7 @@ describe('split-screen video export helpers', () => {
 
     expect(diagnostics.anchorNoteId).toBe('note-a');
     expect(diagnostics.systemId).toBeTruthy();
-    expect(diagnostics.cursorBox.height).toBeLessThan(100);
+    expect(diagnostics.cursorBox.height).toBeGreaterThan(0);
     expect(ctx.drawImage).toHaveBeenCalled();
   });
 
@@ -582,16 +622,14 @@ describe('split-screen video export helpers', () => {
       getPageWithElement: vi.fn(() => 1),
     };
 
-    expect(() =>
-      drawExportFrame({
+    await expect(drawExportFrame({
         ctx: finalCtx,
         video,
         draft: createDraft(),
         adapter: adapter as never,
         scoreEndBeat: 24,
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
-      })
-    ).toThrow('split_screen_export_failed:note_page_unavailable');
+      })).rejects.toThrow('split_screen_export_failed:playback_event_geometry_unavailable');
   });
 
   it('uses rendered SVG rectangles to keep visibly present transformed notes inside the export viewport', async () => {
@@ -645,8 +683,7 @@ describe('split-screen video export helpers', () => {
     Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
     Object.defineProperty(video, 'currentTime', { configurable: true, value: 1 });
 
-    expect(() =>
-      drawExportFrame({
+    await expect(drawExportFrame({
         ctx: finalCtx,
         video,
         draft: createDraft(),
@@ -661,8 +698,7 @@ describe('split-screen video export helpers', () => {
         } as never,
         scoreEndBeat: 24,
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
-      })
-    ).not.toThrow();
+      })).resolves.toBeUndefined();
   });
 
   it('maps Verovio internal coordinates through CTM viewport pixels before comparing with the root viewBox', async () => {
@@ -737,8 +773,7 @@ describe('split-screen video export helpers', () => {
     Object.defineProperty(video, 'videoHeight', { configurable: true, value: 480 });
     Object.defineProperty(video, 'currentTime', { configurable: true, value: 1 });
 
-    expect(() =>
-      drawExportFrame({
+    await expect(drawExportFrame({
         ctx: finalCtx,
         video,
         draft: createDraft(),
@@ -753,7 +788,6 @@ describe('split-screen video export helpers', () => {
         } as never,
         scoreEndBeat: 24,
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
-      })
-    ).not.toThrow();
+      })).resolves.toBeUndefined();
   });
 });

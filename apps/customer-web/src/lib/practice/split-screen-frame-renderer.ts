@@ -1,14 +1,11 @@
 import type { SvgRect } from './playhead-cursor';
 import {
+  getEventScoreImage,
   resolveExportPlaybackGeometry,
   type ScorePageCache,
   type SvgViewBox,
 } from './split-screen-score-model';
-import {
-  cursorRectForPlayback,
-  scoreViewportForSystem,
-  type Rect,
-} from './split-screen-score-camera';
+import { svgRectToCanvasRect, type Rect } from './split-screen-score-camera';
 
 export type SplitScreenFramePosition = {
   eventId?: string;
@@ -26,7 +23,7 @@ export type SplitScreenOutputLayout = {
   scoreRect: Rect;
   videoRect: Rect;
   background: string;
-  cursorPaddingPx?: number;
+  cardRect?: Rect;
 };
 
 export type SplitScreenFrameDiagnostics = {
@@ -41,13 +38,14 @@ export type SplitScreenFrameDiagnostics = {
   cursorBox: Rect;
 };
 
-export function renderSplitScreenFrameAtTime({
+export async function renderSplitScreenFrameAtTime({
   mediaTimeMs,
   scoreModel,
   playbackTimeline,
   sourceVideoFrame,
   outputCanvas,
   layout,
+  context,
 }: {
   mediaTimeMs: number;
   scoreModel: ScorePageCache;
@@ -55,7 +53,8 @@ export function renderSplitScreenFrameAtTime({
   sourceVideoFrame: CanvasImageSource;
   outputCanvas: HTMLCanvasElement;
   layout: SplitScreenOutputLayout;
-}): SplitScreenFrameDiagnostics {
+  context?: CanvasRenderingContext2D;
+}): Promise<SplitScreenFrameDiagnostics> {
   const position = playbackTimeline.resolve(mediaTimeMs);
   if (!position) {
     throw new Error('split_screen_export_failed:playback_position_unavailable');
@@ -68,32 +67,27 @@ export function renderSplitScreenFrameAtTime({
   if (!playback) {
     throw new Error('split_screen_export_failed:playback_event_geometry_unavailable');
   }
-  const ctx = outputCanvas.getContext('2d');
+  const ctx = context ?? outputCanvas.getContext('2d');
   if (!ctx) throw new Error('split_screen_export_failed:canvas_context');
 
+  const image = await getEventScoreImage(page, position.noteIds);
+  const viewport = page.viewBox;
   ctx.fillStyle = layout.background;
   ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+  drawSourceVideoContain(ctx, sourceVideoFrame, layout.videoRect, layout.background);
+  if (layout.cardRect) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(
+      layout.cardRect.x,
+      layout.cardRect.y,
+      layout.cardRect.width,
+      layout.cardRect.height
+    );
+  }
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(layout.scoreRect.x, layout.scoreRect.y, layout.scoreRect.width, layout.scoreRect.height);
-  const viewport = scoreViewportForSystem(playback.system);
-  const imageRect = drawStableScoreImage(
-    ctx,
-    page.image,
-    page.viewBox,
-    viewport,
-    layout.scoreRect,
-    false
-  );
-  const cursorBox = cursorRectForPlayback(
-    playback,
-    viewport,
-    imageRect,
-    layout.cursorPaddingPx ?? 5
-  );
-  ctx.fillStyle = 'rgba(251, 191, 36, 0.22)';
-  ctx.fillRect(cursorBox.x, cursorBox.y, cursorBox.width, cursorBox.height);
-  drawStableScoreImage(ctx, page.image, page.viewBox, viewport, layout.scoreRect, true);
-  drawSourceVideoContain(ctx, sourceVideoFrame, layout.videoRect, layout.background);
+  const imageRect = drawStableScoreImage(ctx, image, page.viewBox, viewport, layout.scoreRect, true);
+  const cursorBox = svgRectToCanvasRect(playback.anchorNote.noteBox, viewport, imageRect);
 
   return {
     position,

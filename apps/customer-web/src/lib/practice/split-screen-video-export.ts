@@ -3,30 +3,16 @@ import {
   type PerformanceReviewDraft,
 } from './performance-review-draft';
 import { PracticeTempoTimeline } from './local-core/practice-tempo';
-import {
-  PLAYHEAD_CURSOR_STYLE,
-  type PlayheadCursorGeometryFailureReason,
-  type SvgRect,
-} from './playhead-cursor';
-import {
-  cursorRectForPlayback,
-  scoreViewportForSystem,
-  svgRectToCanvasRect,
-} from './split-screen-score-camera';
 import { resolveSplitScreenScoreFrame as resolvePlaybackFrame } from './split-screen-playback-position';
+import { renderSplitScreenFrameAtTime } from './split-screen-frame-renderer';
 import {
-  drawSourceVideoContain,
-  drawStableScoreImage,
-  renderSplitScreenFrameAtTime,
-} from './split-screen-frame-renderer';
+  getShareVideoLayout,
+  type ShareVideoTemplate,
+} from './share-video-templates';
 import {
   findStablePageNumber,
-  firstScorePage,
   prepareScorePageCache,
-  resolveExportPlaybackGeometry,
-  type ExportPlaybackGeometry,
   type ScorePageCache,
-  type ScorePageCacheEntry,
 } from './split-screen-score-model';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 
@@ -44,12 +30,7 @@ export type {
   SvgViewBox,
 } from './split-screen-score-model';
 
-const EXPORT_WIDTH = 1280;
-const EXPORT_HEIGHT = 720;
 const EXPORT_FPS = 30;
-const SCORE_WIDTH = 704;
-const PANEL_GAP = 24;
-const PADDING = 24;
 
 const SPLIT_SCREEN_MIME_CANDIDATES = [
   'video/webm;codecs=vp9,opus',
@@ -108,35 +89,14 @@ export type SplitScreenExportOptions = {
   scoreEndBeat: number;
   signal?: AbortSignal;
   onProgress?: (progress: SplitScreenExportProgress) => void;
+  template?: ShareVideoTemplate;
 };
 
 type FrameRenderState = {
   scorePages: ScorePageCache;
   stagingCanvas: HTMLCanvasElement;
   stagingCtx: CanvasRenderingContext2D;
-  viewportByLineKey?: Map<string, SvgRect>;
 };
-
-type ExportCursorGeometry = {
-  playback: ExportPlaybackGeometry;
-};
-
-export function exportCursorRect(
-  activeNoteBox: SvgRect,
-  viewport: SvgRect,
-  imageRect: Rect,
-  paddingPx = 5
-): Rect {
-  const mapped = svgRectToCanvasRect(activeNoteBox, viewport, imageRect);
-  return {
-    x: Math.max(imageRect.x, mapped.x - paddingPx),
-    y: Math.max(imageRect.y, mapped.y - paddingPx),
-    width: Math.min(imageRect.x + imageRect.width, mapped.x + mapped.width + paddingPx) -
-      Math.max(imageRect.x, mapped.x - paddingPx),
-    height: Math.min(imageRect.y + imageRect.height, mapped.y + mapped.height + paddingPx) -
-      Math.max(imageRect.y, mapped.y - paddingPx),
-  };
-}
 
 export function selectSupportedSplitScreenMimeType(): string | null {
   if (typeof MediaRecorder === 'undefined') {
@@ -251,6 +211,7 @@ export async function exportSplitScreenPerformanceVideo({
   scoreEndBeat,
   signal,
   onProgress,
+  template = { kind: 'landscape' },
 }: SplitScreenExportOptions): Promise<SplitScreenExportResult> {
   const readiness = getSplitScreenExportReadiness({
     draft,
@@ -265,10 +226,11 @@ export async function exportSplitScreenPerformanceVideo({
     throw new Error('split_screen_export_unavailable:video_not_ready');
   }
   const sourceVideo = draft.video;
+  const layout = getShareVideoLayout(template);
 
   const canvas = document.createElement('canvas');
-  canvas.width = EXPORT_WIDTH;
-  canvas.height = EXPORT_HEIGHT;
+  canvas.width = layout.width;
+  canvas.height = layout.height;
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     throw new Error('split_screen_export_unavailable:canvas_context');
@@ -296,8 +258,8 @@ export async function exportSplitScreenPerformanceVideo({
 
     const scorePages = await prepareScorePageCache(scoreContainer);
     const stagingCanvas = document.createElement('canvas');
-    stagingCanvas.width = EXPORT_WIDTH;
-    stagingCanvas.height = EXPORT_HEIGHT;
+    stagingCanvas.width = layout.width;
+    stagingCanvas.height = layout.height;
     const stagingCtx = stagingCanvas.getContext('2d');
     if (!stagingCtx) {
       throw new Error('split_screen_export_unavailable:canvas_context');
@@ -306,16 +268,16 @@ export async function exportSplitScreenPerformanceVideo({
       scorePages,
       stagingCanvas,
       stagingCtx,
-      viewportByLineKey: new Map(),
     };
 
-    drawExportFrame({
+    await drawExportFrame({
       ctx,
       video,
       draft,
       adapter,
       scoreEndBeat,
       frameState,
+      template,
     });
 
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
@@ -389,20 +351,21 @@ export async function exportSplitScreenPerformanceVideo({
       }
     };
 
-    const renderLoop = () => {
+    const renderLoop = async () => {
       if (signal?.aborted) {
         stopRecorder();
         return;
       }
       if (video.ended) {
         try {
-          drawExportFrame({
+          await drawExportFrame({
             ctx,
             video,
             draft,
             adapter,
             scoreEndBeat,
             frameState,
+            template,
           });
         } catch (err) {
           failExport(err);
@@ -418,13 +381,14 @@ export async function exportSplitScreenPerformanceVideo({
       }
 
       try {
-        drawExportFrame({
+        await drawExportFrame({
           ctx,
           video,
           draft,
           adapter,
           scoreEndBeat,
           frameState,
+          template,
         });
       } catch (err) {
         failExport(err);
@@ -440,12 +404,12 @@ export async function exportSplitScreenPerformanceVideo({
         ratio: durationMs > 0 ? Math.min(1, mediaTimeMs / durationMs) : 0,
       });
       frameId = window.requestAnimationFrame(() => {
-        renderLoop();
+        void renderLoop();
       });
     };
 
     frameId = window.requestAnimationFrame(() => {
-      renderLoop();
+      void renderLoop();
     });
 
     return await result;
@@ -463,13 +427,14 @@ export async function exportSplitScreenPerformanceVideo({
   }
 }
 
-export function drawExportFrame({
+export async function drawExportFrame({
   ctx,
   video,
   draft,
   adapter,
   scoreEndBeat,
   frameState,
+  template = { kind: 'landscape' },
 }: {
   ctx: CanvasRenderingContext2D;
   video: HTMLVideoElement;
@@ -477,22 +442,12 @@ export function drawExportFrame({
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
   frameState: FrameRenderState;
-}) {
+  template?: ShareVideoTemplate;
+}): Promise<void> {
   const videoDraft = draft.video?.status === 'READY' ? draft.video : null;
-  const scoreRect = {
-    x: PADDING,
-    y: PADDING,
-    width: SCORE_WIDTH,
-    height: EXPORT_HEIGHT - PADDING * 2,
-  };
-  const videoRect = {
-    x: PADDING + SCORE_WIDTH + PANEL_GAP,
-    y: PADDING,
-    width: EXPORT_WIDTH - PADDING * 2 - SCORE_WIDTH - PANEL_GAP,
-    height: EXPORT_HEIGHT - PADDING * 2,
-  };
+  const layout = getShareVideoLayout(template);
 
-  renderSplitScreenFrameAtTime({
+  await renderSplitScreenFrameAtTime({
     mediaTimeMs: Math.max(0, video.currentTime * 1000),
     scoreModel: frameState.scorePages,
     playbackTimeline: {
@@ -510,11 +465,8 @@ export function drawExportFrame({
     },
     sourceVideoFrame: video,
     outputCanvas: frameState.stagingCanvas,
-    layout: {
-      scoreRect,
-      videoRect,
-      background: '#0f172a',
-    },
+    context: frameState.stagingCtx,
+    layout,
   });
   ctx.drawImage(frameState.stagingCanvas, 0, 0);
 }
@@ -585,6 +537,7 @@ function waitForVideoFrame(video: HTMLVideoElement, signal?: AbortSignal): Promi
   });
 }
 
+/*
 function rectsIntersect(first: Rect, second: Rect) {
   return (
     first.x < second.x + second.width &&
@@ -728,6 +681,8 @@ function roundRect(
   ctx.closePath();
 }
 
+*/
+
 function safeDurationMs(video: HTMLVideoElement): number | null {
   return Number.isFinite(video.duration) && video.duration > 0
     ? video.duration * 1000
@@ -739,10 +694,3 @@ declare global {
     webkitAudioContext?: typeof AudioContext;
   }
 }
-
-type Rect = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
