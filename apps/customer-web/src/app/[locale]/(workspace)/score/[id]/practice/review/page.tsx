@@ -10,22 +10,14 @@ import {
   Bookmark,
   CheckCircle2,
   Clock,
-  Clapperboard,
-  ChevronDown,
-  ChevronUp,
-  Columns2,
   Download,
   Gauge,
   HelpCircle,
   Loader2,
-  Layers2,
   Mic,
   Music,
   Piano,
-  RectangleHorizontal,
-  RectangleVertical,
   Repeat,
-  SlidersHorizontal,
   Target,
 } from 'lucide-react';
 
@@ -60,21 +52,9 @@ import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-anno
 import { PracticeTempoTimeline } from '@/lib/practice/local-core/practice-tempo';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
-import { ShareVideoPreview } from '@/lib/practice/share-video-preview';
-import type { ShareVideoTemplate } from '@/lib/practice/share-video-templates';
-import {
-  exportSplitScreenPerformanceVideo,
-  getSplitScreenExportReadiness,
-  type SplitScreenExportBlockReason,
-} from '@/lib/practice/split-screen-video-export';
+import { ShareVideoStudio } from '@/components/practice/share-video-studio';
 
 const MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
-const FLOATING_SHARE_TEMPLATE_ENABLED = process.env.NODE_ENV !== 'production';
-
-type VideoOrientation = 'landscape' | 'portrait';
-type ScorePresentation = 'split' | 'floating';
-type FloatingPosition = 'top' | 'bottom';
-type FloatingSize = 'small' | 'medium' | 'large';
 
 function scoreIdFromParams(params: ReturnType<typeof useParams>): string {
   const id = params?.id;
@@ -94,82 +74,6 @@ function extensionForMime(mimeType: string): string {
   if (cleaned === 'audio/ogg') return 'ogg';
   if (cleaned === 'audio/wav' || cleaned === 'audio/x-wav') return 'wav';
   return 'webm';
-}
-
-function ShareChoiceCard({
-  selected,
-  title,
-  description,
-  icon: Icon,
-  badge,
-  onClick,
-  testId,
-}: {
-  selected: boolean;
-  title: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: string;
-  onClick: () => void;
-  testId?: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      data-testid={testId}
-      onClick={onClick}
-      className={[
-        'flex min-w-0 flex-1 items-start gap-3 rounded-lg border p-3 text-left transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        selected
-          ? 'border-primary bg-primary/5 shadow-sm'
-          : 'border-border bg-background hover:border-primary/50',
-      ].join(' ')}
-    >
-      <span
-        className={[
-          'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border',
-          selected ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground',
-        ].join(' ')}
-        aria-hidden="true"
-      >
-        <Icon className="h-5 w-5" />
-      </span>
-      <span className="min-w-0">
-        <span className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-          {title}
-          {badge ? (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-              {badge}
-            </span>
-          ) : null}
-        </span>
-        <span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span>
-      </span>
-    </button>
-  );
-}
-
-function splitScreenBlockReasonToMessage(
-  t: (key: string) => string,
-  reason: SplitScreenExportBlockReason
-) {
-  switch (reason) {
-    case 'video_not_ready':
-    case 'empty_video':
-      return t('exportScoreVideoUnavailableVideo');
-    case 'score_identity_mismatch':
-      return t('exportScoreVideoUnavailableScoreMismatch');
-    case 'score_not_ready':
-      return t('exportScoreVideoUnavailableScore');
-    case 'timebase_unavailable':
-      return t('exportScoreVideoUnavailableSync');
-    case 'media_recorder_unsupported':
-    case 'canvas_capture_unsupported':
-      return t('exportScoreVideoUnsupportedBrowser');
-  }
 }
 
 export default function PracticeReviewPage({
@@ -237,18 +141,14 @@ export default function PracticeReviewPage({
 
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
   const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);
-  const [videoOrientation, setVideoOrientation] = useState<VideoOrientation>('landscape');
-  const [scorePresentation, setScorePresentation] = useState<ScorePresentation>('split');
-  const [floatingPosition, setFloatingPosition] = useState<FloatingPosition>('top');
-  const [floatingSize, setFloatingSize] = useState<FloatingSize>('medium');
-  const [isFloatingAdvancedOpen, setIsFloatingAdvancedOpen] = useState(false);
   const [sharePreviewTimeMs, setSharePreviewTimeMs] = useState(0);
   const [isReplayPlaying, setIsReplayPlaying] = useState(false);
   const [replayVideo, setReplayVideo] = useState<HTMLVideoElement | null>(null);
   const latestReplayTimeMsRef = useRef(0);
-  const hasInitializedVideoOrientationRef = useRef(false);
   const [hasExportedOriginalMedia, setHasExportedOriginalMedia] = useState(false);
   const [leaveIntent, setLeaveIntent] = useState<'score' | 'practice' | null>(null);
+  const [isShareStudioOpen, setIsShareStudioOpen] = useState(false);
+  const [isShareExporting, setIsShareExporting] = useState(false);
 
   const confirmedCorrectNoteIds = useMemo(() => {
     if (!isScoreIdentityConfirmed || !draft?.performanceSnapshot?.performance?.outcomes) {
@@ -356,52 +256,6 @@ export default function PracticeReviewPage({
   }, []);
 
   useEffect(() => {
-    if (!replayVideo || hasInitializedVideoOrientationRef.current) return;
-    const applyVideoOrientation = () => {
-      if (replayVideo.videoWidth <= 0 || replayVideo.videoHeight <= 0) return;
-      setVideoOrientation(replayVideo.videoWidth >= replayVideo.videoHeight ? 'landscape' : 'portrait');
-      hasInitializedVideoOrientationRef.current = true;
-    };
-    applyVideoOrientation();
-    replayVideo.addEventListener('loadedmetadata', applyVideoOrientation);
-    return () => replayVideo.removeEventListener('loadedmetadata', applyVideoOrientation);
-  }, [replayVideo]);
-
-  const shareTemplate = useMemo<ShareVideoTemplate>(
-    () => {
-      if (scorePresentation === 'floating') {
-        return {
-          kind: 'floating',
-          orientation: videoOrientation,
-          position: floatingPosition,
-          size: floatingSize,
-        };
-      }
-      return { kind: videoOrientation };
-    },
-    [floatingPosition, floatingSize, scorePresentation, videoOrientation]
-  );
-
-  const shareTemplateSummary = useMemo(() => {
-    const orientationLabel = videoOrientation === 'landscape'
-      ? t('shareLandscapeTitle')
-      : t('sharePortraitTitle');
-    const presentationLabel = scorePresentation === 'floating'
-      ? t('shareFloatingTitle')
-      : t('shareSplitTitle');
-    return scorePresentation === 'floating'
-      ? t('shareTemplateSummary', {
-          orientation: orientationLabel,
-          presentation: presentationLabel,
-          position: floatingPosition === 'top' ? t('shareTop') : t('shareBottom'),
-        })
-      : t('shareTemplateSummaryWithoutPosition', {
-          orientation: orientationLabel,
-          presentation: presentationLabel,
-        });
-  }, [floatingPosition, scorePresentation, t, videoOrientation]);
-
-  useEffect(() => {
     const container = scoreContainerRef.current;
     if (!container) return;
     if (!isScoreIdentityConfirmed) {
@@ -461,24 +315,7 @@ export default function PracticeReviewPage({
   const clientRequestIdRef = useRef<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
-  const splitExportAbortRef = useRef<AbortController | null>(null);
-  const [splitExportStatus, setSplitExportStatus] = useState<
-    'idle' | 'exporting' | 'success' | 'error'
-  >('idle');
-  const [splitExportProgress, setSplitExportProgress] = useState(0);
-  const [splitExportError, setSplitExportError] = useState<string | null>(null);
   const saveMutation = useSavePerformanceTake();
-
-  const splitScreenReadiness = useMemo(
-    () =>
-      getSplitScreenExportReadiness({
-        draft,
-        isScoreIdentityConfirmed,
-        xmlContent,
-        scoreContainer,
-      }),
-    [draft, isScoreIdentityConfirmed, scoreContainer, xmlContent]
-  );
 
   const handleExportOriginalVideo = useCallback(() => {
     if (draft?.video?.status !== 'READY' || draft.video.blob.size <= 0) {
@@ -494,62 +331,6 @@ export default function PracticeReviewPage({
     setHasExportedOriginalMedia(true);
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }, [draft]);
-
-  const handleExportSplitScreenVideo = useCallback(async () => {
-    if (
-      !draft ||
-      draft.video?.status !== 'READY' ||
-      !scoreContainerRef.current ||
-      !splitScreenReadiness.ok ||
-      splitExportStatus === 'exporting'
-    ) {
-      return;
-    }
-
-    const abortController = new AbortController();
-    splitExportAbortRef.current = abortController;
-    setSplitExportStatus('exporting');
-    setSplitExportProgress(0);
-    setSplitExportError(null);
-
-    try {
-      const result = await exportSplitScreenPerformanceVideo({
-        draft,
-        scoreContainer: scoreContainerRef.current,
-        adapter,
-        scoreEndBeat: artifact?.scoreEndBeat ?? draft.scope.terminalBeat,
-        signal: abortController.signal,
-        onProgress: (progress) => setSplitExportProgress(progress.ratio),
-        template: shareTemplate,
-      });
-      const url = URL.createObjectURL(result.blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `performance-score-video-${Date.now()}.${extensionForMime(result.mimeType)}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
-      setSplitExportProgress(1);
-      setSplitExportStatus('success');
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        setSplitExportStatus('idle');
-        setSplitExportProgress(0);
-        return;
-      }
-      setSplitExportStatus('error');
-      setSplitExportError(
-        err instanceof Error ? err.message : t('exportScoreVideoFailedDesc')
-      );
-    } finally {
-      splitExportAbortRef.current = null;
-    }
-  }, [adapter, artifact, draft, shareTemplate, splitExportStatus, splitScreenReadiness, t]);
-
-  const handleCancelSplitScreenExport = useCallback(() => {
-    splitExportAbortRef.current?.abort();
-  }, []);
 
   const handleSavePerformance = useCallback(async () => {
     if (
@@ -612,12 +393,10 @@ export default function PracticeReviewPage({
 
   useEffect(() => {
     return () => {
-      splitExportAbortRef.current?.abort();
     };
   }, []);
 
   const performLeave = useCallback((target: 'score' | 'practice') => {
-    splitExportAbortRef.current?.abort();
     performanceReviewDraftStore.clearDraft();
     router.push(target === 'score' ? `/score/${id}` : `/score/${id}/practice`);
   }, [id, router]);
@@ -630,13 +409,13 @@ export default function PracticeReviewPage({
           saveStatus !== 'saved' &&
           !hasExportedOriginalMedia
       );
-      if (hasUncommittedMedia || splitExportStatus === 'exporting') {
+      if (hasUncommittedMedia || isShareExporting) {
         setLeaveIntent(target);
         return;
       }
       performLeave(target);
     },
-    [draft, hasExportedOriginalMedia, performLeave, saveStatus, splitExportStatus]
+    [draft, hasExportedOriginalMedia, isShareExporting, performLeave, saveStatus]
   );
 
   const handleRestart = useCallback(() => {
@@ -1019,6 +798,22 @@ export default function PracticeReviewPage({
       </Card>
 
       {draft.video?.status === 'READY' ? (
+        <ShareVideoStudio
+          draft={draft}
+          scoreContainer={scoreContainer}
+          adapter={adapter}
+          scoreEndBeat={artifact?.scoreEndBeat ?? draft.scope.terminalBeat}
+          isScoreIdentityConfirmed={isScoreIdentityConfirmed}
+          xmlContent={xmlContent}
+          mediaTimeMs={sharePreviewTimeMs}
+          isReplayPlaying={isReplayPlaying}
+          replayVideo={replayVideo}
+          open={isShareStudioOpen}
+          onOpenChange={setIsShareStudioOpen}
+          onExportingChange={setIsShareExporting}
+        />
+      ) : null}
+      {/*
         <Card className="rounded-lg bg-card" data-testid="share-performance-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">{t('sharePerformanceVideoTitle')}</CardTitle>
@@ -1295,7 +1090,7 @@ export default function PracticeReviewPage({
             ) : null}
           </CardContent>
         </Card>
-      ) : null}
+      */}
 
       <AlertDialog
         open={leaveIntent !== null}
@@ -1308,9 +1103,6 @@ export default function PracticeReviewPage({
             <AlertDialogTitle>离开临时演奏报告？</AlertDialogTitle>
             <AlertDialogDescription>
               本地原始录音或录像尚未保存为正式演奏，也尚未导出。离开或重新练习后，这份临时媒体可能无法再次访问。
-              {splitExportStatus === 'exporting'
-                ? ' 当前合成也会被取消。'
-                : ''}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

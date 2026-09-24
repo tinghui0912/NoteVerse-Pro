@@ -41,6 +41,7 @@ export function ShareVideoPreview({
   template,
   isReplayPlaying = false,
   replayVideo,
+  onFrameCommitted,
 }: {
   draft: PerformanceReviewDraft;
   scoreContainer: HTMLElement | null;
@@ -50,6 +51,7 @@ export function ShareVideoPreview({
   template: ShareVideoTemplate;
   isReplayPlaying?: boolean;
   replayVideo: HTMLVideoElement | null;
+  onFrameCommitted?: (mediaTimeMs: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stagingCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -162,6 +164,7 @@ export function ShareVideoPreview({
           if (!requestIsCurrent || disposedRef.current) continue;
 
           commitStagingFrame(layout);
+          onFrameCommitted?.(sourceVideo.currentTime * 1000);
           setError(null);
           setStatus('ready');
         } catch (cause) {
@@ -179,7 +182,7 @@ export function ShareVideoPreview({
     } finally {
       activeRenderRef.current = false;
     }
-  }, [adapter, commitStagingFrame, draft, replayVideo, scoreEndBeat]);
+  }, [adapter, commitStagingFrame, draft, onFrameCommitted, replayVideo, scoreEndBeat]);
 
   const enqueuePreview = useCallback(
     (nextTimeMs: number) => {

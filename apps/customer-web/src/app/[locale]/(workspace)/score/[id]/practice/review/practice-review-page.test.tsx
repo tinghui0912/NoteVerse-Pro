@@ -61,6 +61,43 @@ const translationMocks = vi.hoisted(() => {
     savePerformanceVideoFormatUnsupported: '当前服务端暂只支持保存 WebM 视频。你仍可以导出原始视频或乐谱＋视频文件。',
     retryPractice: '重弹一次',
     playback: '练习回放',
+    makeShareVideoTitle: '制作分享视频',
+    makeShareVideoDesc: '将动态乐谱加入演奏画面，制作适合分享的视频。',
+    makeShareVideoAction: '制作分享视频',
+    collapseShareVideoStudio: '收起制作工具',
+    sharePerformanceVideoTitle: '分享演奏视频',
+    sharePerformanceVideoDesc: '将动态乐谱与原始演奏合成为分享视频。',
+    shareVideoOrientationStep: '1. 视频比例',
+    shareVideoOrientationDesc: '选择发布视频的画布方向。',
+    shareLandscapeTitle: '横版 16:9',
+    shareLandscapeDesc: '适合横向演奏视频。',
+    sharePortraitTitle: '竖版 9:16',
+    sharePortraitDesc: '适合手机竖屏分享。',
+    sharePresentationStep: '2. 乐谱呈现方式',
+    sharePresentationDesc: '选择乐谱与演奏画面的组合方式。',
+    shareSplitTitle: '分屏',
+    shareSplitDesc: '完整乐谱与演奏对照。',
+    shareFloatingTitle: '悬浮乐谱',
+    shareFloatingDesc: '演奏为主，动态乐谱叠加。',
+    shareDevPreview: '开发预览',
+    sharePositionStep: '3. 乐谱位置',
+    sharePositionDesc: '悬浮乐谱会遮挡部分演奏画面。',
+    shareAdjustPositionSize: '调整位置与大小',
+    shareTop: '顶部',
+    shareTopDesc: '靠近画面上方。',
+    shareBottom: '底部',
+    shareBottomDesc: '靠近画面下方。',
+    shareScoreSize: '乐谱大小',
+    shareSmall: '小',
+    shareMedium: '中',
+    shareLarge: '大',
+    sharePreviewTitle: '实时合成预览',
+    sharePreviewDesc: '与原始演奏回放同步。',
+    sharePreviewTime: '预览时间：{time}',
+    shareExportTitle: '导出视频',
+    shareExportAction: '生成并下载分享视频',
+    shareTemplateSummary: '{orientation} · {presentation} · {position} · 原始音轨',
+    shareTemplateSummaryWithoutPosition: '{orientation} · {presentation} · 原始音轨',
   };
 
   function translate(dict: Record<string, string>) {
@@ -932,8 +969,9 @@ describe('PracticeReviewPage', () => {
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+    fireEvent.click(screen.getByTestId('open-share-video-studio'));
 
-    fireEvent.click(screen.getByRole('button', { name: '导出乐谱＋视频' }));
+    fireEvent.click(screen.getByTestId('generate-share-video'));
 
     await waitFor(() => {
       expect(splitScreenMocks.exportSplitScreenPerformanceVideo).toHaveBeenCalled();
@@ -969,8 +1007,9 @@ describe('PracticeReviewPage', () => {
     performanceReviewDraftStore.setDraft(createVideoDraft());
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+    fireEvent.click(screen.getByTestId('open-share-video-studio'));
 
-    expect(screen.getByRole('button', { name: '导出乐谱＋视频' })).toBeDisabled();
+    expect(screen.getByTestId('generate-share-video')).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
     expect(URL.createObjectURL).toHaveBeenCalled();
     expect(splitScreenMocks.exportSplitScreenPerformanceVideo).not.toHaveBeenCalled();
@@ -991,8 +1030,9 @@ describe('PracticeReviewPage', () => {
     performanceReviewDraftStore.setDraft(createVideoDraft());
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+    fireEvent.click(screen.getByTestId('open-share-video-studio'));
 
-    const exportButton = screen.getByRole('button', { name: '导出乐谱＋视频' });
+    const exportButton = screen.getByTestId('generate-share-video');
     fireEvent.click(exportButton);
     fireEvent.click(exportButton);
 
@@ -1027,7 +1067,8 @@ describe('PracticeReviewPage', () => {
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
-    fireEvent.click(screen.getByRole('button', { name: '导出乐谱＋视频' }));
+    fireEvent.click(screen.getByTestId('open-share-video-studio'));
+    fireEvent.click(screen.getByTestId('generate-share-video'));
 
     await screen.findByTestId('split-screen-export-error');
     expect(screen.getByText('encoder failed')).toBeInTheDocument();
@@ -1071,7 +1112,10 @@ describe('PracticeReviewPage', () => {
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
     expect(screen.getByTestId('original-performance-card')).toBeInTheDocument();
-    expect(screen.getByTestId('share-performance-card')).toBeInTheDocument();
+    expect(screen.getByTestId('share-video-entry-card')).toBeInTheDocument();
+    expect(screen.queryByTestId('share-video-studio')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('open-share-video-studio'));
+    expect(screen.getByTestId('share-video-studio')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('share-orientation-portrait'));
     fireEvent.click(screen.getByTestId('share-presentation-floating'));
@@ -1098,6 +1142,27 @@ describe('PracticeReviewPage', () => {
       kind: 'portrait',
     });
     expect(screen.queryByTestId('share-floating-position-bottom')).not.toBeInTheDocument();
+  });
+
+  it('keeps share selections when the studio is collapsed and reopened', () => {
+    performanceReviewDraftStore.setDraft(createVideoDraft());
+    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+
+    fireEvent.click(screen.getByTestId('open-share-video-studio'));
+    fireEvent.click(screen.getByTestId('share-orientation-portrait'));
+    fireEvent.click(screen.getByTestId('share-presentation-floating'));
+    fireEvent.click(screen.getByTestId('share-floating-advanced-toggle'));
+    fireEvent.click(screen.getByTestId('share-floating-position-bottom'));
+    fireEvent.click(screen.getByTestId('share-floating-size-large'));
+    fireEvent.click(screen.getByTestId('collapse-share-video-studio'));
+
+    expect(screen.getByTestId('share-video-entry-card')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('open-share-video-studio'));
+
+    expect(screen.getByTestId('share-orientation-portrait')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('share-presentation-floating')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('share-floating-position-bottom')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('share-floating-size-large')).toHaveAttribute('aria-checked', 'true');
   });
 });
 
