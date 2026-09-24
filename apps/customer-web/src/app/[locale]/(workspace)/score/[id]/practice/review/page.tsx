@@ -11,14 +11,21 @@ import {
   CheckCircle2,
   Clock,
   Clapperboard,
+  ChevronDown,
+  ChevronUp,
+  Columns2,
   Download,
   Gauge,
   HelpCircle,
   Loader2,
+  Layers2,
   Mic,
   Music,
   Piano,
+  RectangleHorizontal,
+  RectangleVertical,
   Repeat,
+  SlidersHorizontal,
   Target,
 } from 'lucide-react';
 
@@ -64,8 +71,8 @@ import {
 const MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 const FLOATING_SHARE_TEMPLATE_ENABLED = process.env.NODE_ENV !== 'production';
 
-type ShareTemplateKind = 'landscape' | 'portrait' | 'floating';
-type FloatingOrientation = 'landscape' | 'portrait';
+type VideoOrientation = 'landscape' | 'portrait';
+type ScorePresentation = 'split' | 'floating';
 type FloatingPosition = 'top' | 'bottom';
 type FloatingSize = 'small' | 'medium' | 'large';
 
@@ -87,6 +94,62 @@ function extensionForMime(mimeType: string): string {
   if (cleaned === 'audio/ogg') return 'ogg';
   if (cleaned === 'audio/wav' || cleaned === 'audio/x-wav') return 'wav';
   return 'webm';
+}
+
+function ShareChoiceCard({
+  selected,
+  title,
+  description,
+  icon: Icon,
+  badge,
+  onClick,
+  testId,
+}: {
+  selected: boolean;
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: string;
+  onClick: () => void;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      data-testid={testId}
+      onClick={onClick}
+      className={[
+        'flex min-w-0 flex-1 items-start gap-3 rounded-lg border p-3 text-left transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        selected
+          ? 'border-primary bg-primary/5 shadow-sm'
+          : 'border-border bg-background hover:border-primary/50',
+      ].join(' ')}
+    >
+      <span
+        className={[
+          'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border',
+          selected ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground',
+        ].join(' ')}
+        aria-hidden="true"
+      >
+        <Icon className="h-5 w-5" />
+      </span>
+      <span className="min-w-0">
+        <span className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+          {title}
+          {badge ? (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+              {badge}
+            </span>
+          ) : null}
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span>
+      </span>
+    </button>
+  );
 }
 
 function splitScreenBlockReasonToMessage(
@@ -174,14 +237,16 @@ export default function PracticeReviewPage({
 
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
   const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);
-  const [shareTemplateKind, setShareTemplateKind] = useState<ShareTemplateKind>('landscape');
-  const [floatingOrientation, setFloatingOrientation] = useState<FloatingOrientation>('landscape');
+  const [videoOrientation, setVideoOrientation] = useState<VideoOrientation>('landscape');
+  const [scorePresentation, setScorePresentation] = useState<ScorePresentation>('split');
   const [floatingPosition, setFloatingPosition] = useState<FloatingPosition>('top');
   const [floatingSize, setFloatingSize] = useState<FloatingSize>('medium');
+  const [isFloatingAdvancedOpen, setIsFloatingAdvancedOpen] = useState(false);
   const [sharePreviewTimeMs, setSharePreviewTimeMs] = useState(0);
   const [isReplayPlaying, setIsReplayPlaying] = useState(false);
   const [replayVideo, setReplayVideo] = useState<HTMLVideoElement | null>(null);
   const latestReplayTimeMsRef = useRef(0);
+  const hasInitializedVideoOrientationRef = useRef(false);
   const [hasExportedOriginalMedia, setHasExportedOriginalMedia] = useState(false);
   const [leaveIntent, setLeaveIntent] = useState<'score' | 'practice' | null>(null);
 
@@ -290,20 +355,51 @@ export default function PracticeReviewPage({
     setSharePreviewTimeMs(Math.max(0, replayTimeMs));
   }, []);
 
+  useEffect(() => {
+    if (!replayVideo || hasInitializedVideoOrientationRef.current) return;
+    const applyVideoOrientation = () => {
+      if (replayVideo.videoWidth <= 0 || replayVideo.videoHeight <= 0) return;
+      setVideoOrientation(replayVideo.videoWidth >= replayVideo.videoHeight ? 'landscape' : 'portrait');
+      hasInitializedVideoOrientationRef.current = true;
+    };
+    applyVideoOrientation();
+    replayVideo.addEventListener('loadedmetadata', applyVideoOrientation);
+    return () => replayVideo.removeEventListener('loadedmetadata', applyVideoOrientation);
+  }, [replayVideo]);
+
   const shareTemplate = useMemo<ShareVideoTemplate>(
     () => {
-      if (shareTemplateKind === 'floating') {
+      if (scorePresentation === 'floating') {
         return {
           kind: 'floating',
-          orientation: floatingOrientation,
+          orientation: videoOrientation,
           position: floatingPosition,
           size: floatingSize,
         };
       }
-      return { kind: shareTemplateKind };
+      return { kind: videoOrientation };
     },
-    [floatingOrientation, floatingPosition, floatingSize, shareTemplateKind]
+    [floatingPosition, floatingSize, scorePresentation, videoOrientation]
   );
+
+  const shareTemplateSummary = useMemo(() => {
+    const orientationLabel = videoOrientation === 'landscape'
+      ? t('shareLandscapeTitle')
+      : t('sharePortraitTitle');
+    const presentationLabel = scorePresentation === 'floating'
+      ? t('shareFloatingTitle')
+      : t('shareSplitTitle');
+    return scorePresentation === 'floating'
+      ? t('shareTemplateSummary', {
+          orientation: orientationLabel,
+          presentation: presentationLabel,
+          position: floatingPosition === 'top' ? t('shareTop') : t('shareBottom'),
+        })
+      : t('shareTemplateSummaryWithoutPosition', {
+          orientation: orientationLabel,
+          presentation: presentationLabel,
+        });
+  }, [floatingPosition, scorePresentation, t, videoOrientation]);
 
   useEffect(() => {
     const container = scoreContainerRef.current;
@@ -872,135 +968,275 @@ export default function PracticeReviewPage({
         </Card>
       </div>
 
-      {draft.video?.status === 'READY' && scoreContainer ? (
-        <Card className="rounded-lg bg-card">
+      <Card className="rounded-lg bg-card" data-testid="original-performance-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">{t('saveOriginalPerformanceTitle')}</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {t('saveOriginalPerformanceDesc')}
+          </p>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center gap-2">
+          {draft.video?.status === 'READY' ? (
+            <Button size="sm" variant="outline" onClick={handleExportOriginalVideo}>
+              <Download className="mr-1.5 h-4 w-4" />
+              {t('exportOriginalVideo')}
+            </Button>
+          ) : null}
+          {saveMedia ? (
+            saveStatus === 'saved' ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="secondary" disabled>
+                  <CheckCircle2 className="mr-1.5 h-4 w-4 text-green-600" />
+                  {t('performanceSaved')}
+                </Button>
+                <Button size="sm" onClick={() => router.push('/my-performances')}>
+                  {t('viewMyPerformances')}
+                </Button>
+              </div>
+            ) : saveStatus === 'saving' ? (
+              <Button size="sm" disabled>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                {t('savingPerformance')}
+              </Button>
+            ) : saveStatus === 'error' ? (
+              <Button size="sm" variant="destructive" onClick={handleSavePerformance}>
+                <AlertCircle className="mr-1.5 h-4 w-4" />
+                {t('retrySavePerformance')}
+              </Button>
+            ) : (
+              <Button size="sm" onClick={handleSavePerformance}>
+                <Bookmark className="mr-1.5 h-4 w-4" />
+                {t('savePerformance')}
+              </Button>
+            )
+          ) : (
+            <Button size="sm" variant="outline" disabled title={t('audioRecordingUnavailable')}>
+              <Bookmark className="mr-1.5 h-4 w-4" />
+              {t('savePerformance')}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {draft.video?.status === 'READY' ? (
+        <Card className="rounded-lg bg-card" data-testid="share-performance-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">保存与分享</CardTitle>
+            <CardTitle className="text-sm font-semibold">{t('sharePerformanceVideoTitle')}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              保存原始演奏与生成分享视频是两个独立操作。分享视频只在本地生成，不会替换原始演奏。
+              {t('sharePerformanceVideoDesc')}
             </p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="outline" onClick={handleExportOriginalVideo}>
-                <Download className="mr-1.5 h-4 w-4" />
-                {t('exportOriginalVideo')}
-              </Button>
-              {saveStatus === 'saved' ? (
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="secondary" disabled>
-                    <CheckCircle2 className="mr-1.5 h-4 w-4 text-green-600" />
-                    {t('performanceSaved')}
-                  </Button>
-                  <Button size="sm" onClick={() => router.push('/my-performances')}>
-                    {t('viewMyPerformances')}
-                  </Button>
-                </div>
-              ) : saveStatus === 'saving' ? (
-                <Button size="sm" disabled>
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                  {t('savingPerformance')}
-                </Button>
-              ) : saveStatus === 'error' ? (
-                <Button size="sm" variant="destructive" onClick={handleSavePerformance}>
-                  <AlertCircle className="mr-1.5 h-4 w-4" />
-                  {t('retrySavePerformance')}
-                </Button>
-              ) : (
-                <Button size="sm" onClick={handleSavePerformance}>
-                  <Bookmark className="mr-1.5 h-4 w-4" />
-                  {t('savePerformance')}
-                </Button>
-              )}
-            </div>
+          <CardContent className="space-y-6">
+            <section className="space-y-3" aria-labelledby="share-video-orientation-heading">
+              <div>
+                <h3 id="share-video-orientation-heading" className="text-sm font-semibold">
+                  {t('shareVideoOrientationStep')}
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">{t('shareVideoOrientationDesc')}</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="视频比例">
+                <ShareChoiceCard
+                  selected={videoOrientation === 'landscape'}
+                  title={t('shareLandscapeTitle')}
+                  description={t('shareLandscapeDesc')}
+                  icon={RectangleHorizontal}
+                  onClick={() => {
+                    hasInitializedVideoOrientationRef.current = true;
+                    setVideoOrientation('landscape');
+                  }}
+                  testId="share-orientation-landscape"
+                />
+                <ShareChoiceCard
+                  selected={videoOrientation === 'portrait'}
+                  title={t('sharePortraitTitle')}
+                  description={t('sharePortraitDesc')}
+                  icon={RectangleVertical}
+                  onClick={() => {
+                    hasInitializedVideoOrientationRef.current = true;
+                    setVideoOrientation('portrait');
+                  }}
+                  testId="share-orientation-portrait"
+                />
+              </div>
+            </section>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                className="h-9 rounded-md border border-input bg-background px-2 text-xs"
-                value={shareTemplateKind}
-                onChange={(event) =>
-                  setShareTemplateKind(event.target.value as ShareTemplateKind)
-                }
-                aria-label="分享视频模板"
-              >
-                <option value="landscape">横版 16:9</option>
-                <option value="portrait">竖版 9:16</option>
+            <section className="space-y-3" aria-labelledby="share-video-presentation-heading">
+              <div>
+                <h3 id="share-video-presentation-heading" className="text-sm font-semibold">
+                  {t('sharePresentationStep')}
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">{t('sharePresentationDesc')}</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="乐谱呈现方式">
+                <ShareChoiceCard
+                  selected={scorePresentation === 'split'}
+                  title={t('shareSplitTitle')}
+                  description={t('shareSplitDesc')}
+                  icon={Columns2}
+                  onClick={() => setScorePresentation('split')}
+                  testId="share-presentation-split"
+                />
                 {FLOATING_SHARE_TEMPLATE_ENABLED ? (
-                  <option value="floating">悬浮版（开发预览）</option>
+                  <ShareChoiceCard
+                    selected={scorePresentation === 'floating'}
+                    title={t('shareFloatingTitle')}
+                    description={t('shareFloatingDesc')}
+                    icon={Layers2}
+                    badge={t('shareDevPreview')}
+                    onClick={() => setScorePresentation('floating')}
+                    testId="share-presentation-floating"
+                  />
                 ) : null}
-              </select>
-              {shareTemplateKind === 'floating' ? (
-                <>
-                  <select
-                    className="h-9 rounded-md border border-input bg-background px-2 text-xs"
-                    value={floatingOrientation}
-                    onChange={(event) =>
-                      setFloatingOrientation(event.target.value as FloatingOrientation)
-                    }
-                    aria-label="悬浮版画布方向"
+              </div>
+            </section>
+
+            {scorePresentation === 'floating' ? (
+              <section className="space-y-3" aria-labelledby="share-video-position-heading">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <h3 id="share-video-position-heading" className="text-sm font-semibold">
+                      {t('sharePositionStep')}
+                    </h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t('sharePositionDesc')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline"
+                    aria-expanded={isFloatingAdvancedOpen}
+                    onClick={() => setIsFloatingAdvancedOpen((open) => !open)}
+                    data-testid="share-floating-advanced-toggle"
                   >
-                    <option value="landscape">横版画布</option>
-                    <option value="portrait">竖版画布</option>
-                  </select>
-                  <select
-                    className="h-9 rounded-md border border-input bg-background px-2 text-xs"
-                    value={floatingPosition}
-                    onChange={(event) =>
-                      setFloatingPosition(event.target.value as FloatingPosition)
-                    }
-                    aria-label="悬浮乐谱位置"
-                  >
-                    <option value="top">顶部居中</option>
-                    <option value="bottom">底部居中</option>
-                  </select>
-                  <select
-                    className="h-9 rounded-md border border-input bg-background px-2 text-xs"
-                    value={floatingSize}
-                    onChange={(event) => setFloatingSize(event.target.value as FloatingSize)}
-                    aria-label="悬浮乐谱大小"
-                  >
-                    <option value="small">小卡片</option>
-                    <option value="medium">中卡片</option>
-                    <option value="large">大卡片</option>
-                  </select>
-                </>
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    {t('shareAdjustPositionSize')}
+                    {isFloatingAdvancedOpen ? (
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="乐谱位置">
+                  <ShareChoiceCard
+                    selected={floatingPosition === 'top'}
+                    title={t('shareTop')}
+                    description={t('shareTopDesc')}
+                    icon={RectangleHorizontal}
+                    onClick={() => setFloatingPosition('top')}
+                    testId="share-floating-position-top"
+                  />
+                  <ShareChoiceCard
+                    selected={floatingPosition === 'bottom'}
+                    title={t('shareBottom')}
+                    description={t('shareBottomDesc')}
+                    icon={RectangleHorizontal}
+                    onClick={() => setFloatingPosition('bottom')}
+                    testId="share-floating-position-bottom"
+                  />
+                </div>
+                {isFloatingAdvancedOpen ? (
+                  <div className="rounded-md border border-border bg-muted/30 p-3">
+                    <div className="mb-2 flex items-center gap-2 text-xs font-semibold">
+                      <SlidersHorizontal className="h-4 w-4" />
+                      {t('shareScoreSize')}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="悬浮乐谱大小">
+                      {(['small', 'medium', 'large'] as const).map((size) => (
+                        <button
+                          key={size}
+                          type="button"
+                          role="radio"
+                          aria-checked={floatingSize === size}
+                          onClick={() => setFloatingSize(size)}
+                          className={[
+                            'rounded-md border px-3 py-2 text-sm font-medium transition-colors',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                            floatingSize === size
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border bg-background hover:border-primary/50',
+                          ].join(' ')}
+                          data-testid={`share-floating-size-${size}`}
+                        >
+                          {size === 'small'
+                            ? t('shareSmall')
+                            : size === 'medium'
+                              ? t('shareMedium')
+                              : t('shareLarge')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
+            <section className="space-y-3" aria-labelledby="share-video-preview-heading">
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <h3 id="share-video-preview-heading" className="text-sm font-semibold">
+                    {t('sharePreviewTitle')}
+                  </h3>
+                  <p className="mt-1 text-xs text-muted-foreground">{t('sharePreviewDesc')}</p>
+                </div>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {t('sharePreviewTime', { time: formatDuration(sharePreviewTimeMs) })}
+                </span>
+              </div>
+              <ShareVideoPreview
+                draft={draft}
+                scoreContainer={scoreContainer}
+                adapter={adapter}
+                scoreEndBeat={artifact?.scoreEndBeat ?? draft.scope.terminalBeat}
+                mediaTimeMs={sharePreviewTimeMs}
+                template={shareTemplate}
+                isReplayPlaying={isReplayPlaying}
+                replayVideo={replayVideo}
+              />
+              {scorePresentation === 'floating' ? (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline"
+                  onClick={() => setIsFloatingAdvancedOpen(true)}
+                  data-testid="share-adjust-frame"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  {t('shareAdjustFrame')}
+                </button>
+              ) : null}
+            </section>
+
+            <section className="space-y-3" aria-labelledby="share-video-export-heading">
+              <div>
+                <h3 id="share-video-export-heading" className="text-sm font-semibold">
+                  {t('shareExportTitle')}
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">{shareTemplateSummary}</p>
+              </div>
+              {!splitScreenReadiness.ok ? (
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  {splitScreenBlockReasonToMessage(t, splitScreenReadiness.reason)}
+                </p>
               ) : null}
               <Button
-                size="sm"
-                variant="outline"
                 onClick={handleExportSplitScreenVideo}
                 disabled={!splitScreenReadiness.ok || splitExportStatus === 'exporting'}
+                aria-label={t('exportScoreVideo')}
                 title={
                   splitScreenReadiness.ok
                     ? undefined
                     : splitScreenBlockReasonToMessage(t, splitScreenReadiness.reason)
                 }
+                data-testid="generate-share-video"
               >
                 {splitExportStatus === 'exporting' ? (
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                 ) : (
                   <Clapperboard className="mr-1.5 h-4 w-4" />
                 )}
-                {t('exportScoreVideo')}
+                {t('shareExportAction')}
               </Button>
-            </div>
-
-            {shareTemplateKind === 'floating' ? (
-              <p className="text-xs text-muted-foreground">
-                悬浮乐谱会遮挡下方部分演奏画面，请确认未挡住您希望展示的手部、键盘或人物。
-              </p>
-            ) : null}
-
-            <ShareVideoPreview
-              draft={draft}
-              scoreContainer={scoreContainer}
-              adapter={adapter}
-              scoreEndBeat={artifact?.scoreEndBeat ?? draft.scope.terminalBeat}
-              mediaTimeMs={sharePreviewTimeMs}
-              template={shareTemplate}
-              isReplayPlaying={isReplayPlaying}
-              replayVideo={replayVideo}
-            />
+            </section>
 
             {splitExportStatus === 'exporting' ? (
               <div
@@ -1059,48 +1295,7 @@ export default function PracticeReviewPage({
             ) : null}
           </CardContent>
         </Card>
-      ) : saveMedia ? (
-        <Card className="rounded-lg bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">保存演奏</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap items-center gap-2">
-            {saveStatus === 'saved' ? (
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="secondary" disabled>
-                  <CheckCircle2 className="mr-1.5 h-4 w-4 text-green-600" />
-                  {t('performanceSaved')}
-                </Button>
-                <Button size="sm" onClick={() => router.push('/my-performances')}>
-                  {t('viewMyPerformances')}
-                </Button>
-              </div>
-            ) : saveStatus === 'saving' ? (
-              <Button size="sm" disabled>
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                {t('savingPerformance')}
-              </Button>
-            ) : (
-              <Button size="sm" onClick={handleSavePerformance}>
-                <Bookmark className="mr-1.5 h-4 w-4" />
-                {saveStatus === 'error' ? t('retrySavePerformance') : t('savePerformance')}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="rounded-lg bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">保存演奏</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button size="sm" variant="outline" disabled title={t('audioRecordingUnavailable')}>
-              <Bookmark className="mr-1.5 h-4 w-4" />
-              {t('savePerformance')}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      ) : null}
 
       <AlertDialog
         open={leaveIntent !== null}

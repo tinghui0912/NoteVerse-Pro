@@ -1064,6 +1064,41 @@ describe('PracticeReviewPage', () => {
     expect(saveMutationMock.mutateAsync).not.toHaveBeenCalled();
     expect(screen.getByText('当前服务端暂只支持保存 WebM 视频。你仍可以导出原始视频或乐谱＋视频文件。')).toBeInTheDocument();
   });
+
+  it('keeps video orientation and score presentation independent when deriving export templates', async () => {
+    performanceReviewDraftStore.setDraft(createVideoDraft());
+
+    render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
+
+    expect(screen.getByTestId('original-performance-card')).toBeInTheDocument();
+    expect(screen.getByTestId('share-performance-card')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('share-orientation-portrait'));
+    fireEvent.click(screen.getByTestId('share-presentation-floating'));
+    fireEvent.click(screen.getByTestId('share-floating-advanced-toggle'));
+    fireEvent.click(screen.getByTestId('share-floating-position-bottom'));
+    fireEvent.click(screen.getByTestId('share-floating-size-large'));
+
+    expect(screen.getByTestId('share-floating-position-bottom')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('share-floating-size-large')).toHaveAttribute('aria-checked', 'true');
+
+    fireEvent.click(screen.getByTestId('generate-share-video'));
+    await waitFor(() => expect(splitScreenMocks.exportSplitScreenPerformanceVideo).toHaveBeenCalled());
+    expect(splitScreenMocks.exportSplitScreenPerformanceVideo.mock.calls.at(-1)?.[0].template).toEqual({
+      kind: 'floating',
+      orientation: 'portrait',
+      position: 'bottom',
+      size: 'large',
+    });
+
+    fireEvent.click(screen.getByTestId('share-presentation-split'));
+    fireEvent.click(screen.getByTestId('generate-share-video'));
+    await waitFor(() => expect(splitScreenMocks.exportSplitScreenPerformanceVideo).toHaveBeenCalledTimes(2));
+    expect(splitScreenMocks.exportSplitScreenPerformanceVideo.mock.calls.at(-1)?.[0].template).toEqual({
+      kind: 'portrait',
+    });
+    expect(screen.queryByTestId('share-floating-position-bottom')).not.toBeInTheDocument();
+  });
 });
 
 function createVideoDraft({
