@@ -62,6 +62,12 @@ import {
 } from '@/lib/practice/split-screen-video-export';
 
 const MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
+const FLOATING_SHARE_TEMPLATE_ENABLED = process.env.NODE_ENV !== 'production';
+
+type ShareTemplateKind = 'landscape' | 'portrait' | 'floating';
+type FloatingOrientation = 'landscape' | 'portrait';
+type FloatingPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+type FloatingSize = 'small' | 'medium' | 'large';
 
 function scoreIdFromParams(params: ReturnType<typeof useParams>): string {
   const id = params?.id;
@@ -168,7 +174,10 @@ export default function PracticeReviewPage({
 
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
   const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);
-  const [shareTemplateKind, setShareTemplateKind] = useState<'landscape' | 'portrait'>('landscape');
+  const [shareTemplateKind, setShareTemplateKind] = useState<ShareTemplateKind>('landscape');
+  const [floatingOrientation, setFloatingOrientation] = useState<FloatingOrientation>('landscape');
+  const [floatingPosition, setFloatingPosition] = useState<FloatingPosition>('top-right');
+  const [floatingSize, setFloatingSize] = useState<FloatingSize>('medium');
   const [sharePreviewTimeMs, setSharePreviewTimeMs] = useState(0);
   const [isReplayPlaying, setIsReplayPlaying] = useState(false);
   const [replayVideo, setReplayVideo] = useState<HTMLVideoElement | null>(null);
@@ -282,8 +291,18 @@ export default function PracticeReviewPage({
   }, []);
 
   const shareTemplate = useMemo<ShareVideoTemplate>(
-    () => ({ kind: shareTemplateKind }),
-    [shareTemplateKind]
+    () => {
+      if (shareTemplateKind === 'floating') {
+        return {
+          kind: 'floating',
+          orientation: floatingOrientation,
+          position: floatingPosition,
+          size: floatingSize,
+        };
+      }
+      return { kind: shareTemplateKind };
+    },
+    [floatingOrientation, floatingPosition, floatingSize, shareTemplateKind]
   );
 
   useEffect(() => {
@@ -900,13 +919,54 @@ export default function PracticeReviewPage({
                 className="h-9 rounded-md border border-input bg-background px-2 text-xs"
                 value={shareTemplateKind}
                 onChange={(event) =>
-                  setShareTemplateKind(event.target.value as 'landscape' | 'portrait')
+                  setShareTemplateKind(event.target.value as ShareTemplateKind)
                 }
                 aria-label="分享视频模板"
               >
                 <option value="landscape">横版 16:9</option>
                 <option value="portrait">竖版 9:16</option>
+                {FLOATING_SHARE_TEMPLATE_ENABLED ? (
+                  <option value="floating">悬浮版（开发预览）</option>
+                ) : null}
               </select>
+              {shareTemplateKind === 'floating' ? (
+                <>
+                  <select
+                    className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+                    value={floatingOrientation}
+                    onChange={(event) =>
+                      setFloatingOrientation(event.target.value as FloatingOrientation)
+                    }
+                    aria-label="悬浮版画布方向"
+                  >
+                    <option value="landscape">横版画布</option>
+                    <option value="portrait">竖版画布</option>
+                  </select>
+                  <select
+                    className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+                    value={floatingPosition}
+                    onChange={(event) =>
+                      setFloatingPosition(event.target.value as FloatingPosition)
+                    }
+                    aria-label="悬浮乐谱位置"
+                  >
+                    <option value="top-left">左上</option>
+                    <option value="top-right">右上</option>
+                    <option value="bottom-left">左下</option>
+                    <option value="bottom-right">右下</option>
+                  </select>
+                  <select
+                    className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+                    value={floatingSize}
+                    onChange={(event) => setFloatingSize(event.target.value as FloatingSize)}
+                    aria-label="悬浮乐谱大小"
+                  >
+                    <option value="small">小卡片</option>
+                    <option value="medium">中卡片</option>
+                    <option value="large">大卡片</option>
+                  </select>
+                </>
+              ) : null}
               <Button
                 size="sm"
                 variant="outline"
@@ -926,6 +986,12 @@ export default function PracticeReviewPage({
                 {t('exportScoreVideo')}
               </Button>
             </div>
+
+            {shareTemplateKind === 'floating' ? (
+              <p className="text-xs text-muted-foreground">
+                悬浮乐谱会遮挡下方部分演奏画面，请确认未挡住您希望展示的手部、键盘或人物。
+              </p>
+            ) : null}
 
             <ShareVideoPreview
               draft={draft}

@@ -17,18 +17,52 @@ describe('share video templates', () => {
   });
 
   it('keeps floating cards inside the canvas at every corner', () => {
-    for (const position of ['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const) {
-      const layout = getShareVideoLayout({
-        kind: 'floating',
-        orientation: 'landscape',
-        position,
-      });
-      expect(layout.cardRect).toBeDefined();
-      const card = layout.cardRect!;
-      expect(card.x).toBeGreaterThanOrEqual(0);
-      expect(card.y).toBeGreaterThanOrEqual(0);
-      expect(card.x + card.width).toBeLessThanOrEqual(layout.width);
-      expect(card.y + card.height).toBeLessThanOrEqual(layout.height);
+    for (const orientation of ['landscape', 'portrait'] as const) {
+      for (const size of ['small', 'medium', 'large'] as const) {
+        for (const position of ['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const) {
+          const layout = getShareVideoLayout({
+            kind: 'floating',
+            orientation,
+            position,
+            size,
+          });
+          expect(layout.cardRect).toBeDefined();
+          const card = layout.cardRect!;
+          expect(layout.videoRect).toEqual({
+            x: 0,
+            y: 0,
+            width: layout.width,
+            height: layout.height,
+          });
+          expect(card.x).toBeGreaterThanOrEqual(0);
+          expect(card.y).toBeGreaterThanOrEqual(0);
+          expect(card.x + card.width).toBeLessThanOrEqual(layout.width);
+          expect(card.y + card.height).toBeLessThanOrEqual(layout.height);
+          expect(layout.scoreRect.x).toBeGreaterThan(card.x);
+          expect(layout.scoreRect.y).toBeGreaterThan(card.y);
+          expect(layout.scoreRect.x + layout.scoreRect.width).toBeLessThan(card.x + card.width);
+          expect(layout.scoreRect.y + layout.scoreRect.height).toBeLessThan(card.y + card.height);
+        }
+      }
     }
+  });
+
+  it('uses explicit floating sizes without changing export resolution', () => {
+    const small = getShareVideoLayout({
+      kind: 'floating',
+      orientation: 'landscape',
+      position: 'top-right',
+      size: 'small',
+    });
+    const large = getShareVideoLayout({
+      kind: 'floating',
+      orientation: 'landscape',
+      position: 'top-right',
+      size: 'large',
+    });
+    expect([small.width, small.height]).toEqual([1280, 720]);
+    expect([large.width, large.height]).toEqual([1280, 720]);
+    expect(large.cardRect!.width).toBeGreaterThan(small.cardRect!.width);
+    expect(large.cardRect!.height).toBeGreaterThan(small.cardRect!.height);
   });
 });

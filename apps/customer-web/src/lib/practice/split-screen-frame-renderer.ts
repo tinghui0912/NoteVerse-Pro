@@ -75,7 +75,7 @@ export async function renderSplitScreenFrameAtTime({
     position.noteIds,
     playback.anchorNote.noteId
   );
-  const viewport = page.viewBox;
+  const viewport = layout.cardRect ? playback.system.bounds : page.viewBox;
   ctx.fillStyle = layout.background;
   ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
   drawSourceVideoContain(ctx, sourceVideoFrame, layout.videoRect, layout.background);

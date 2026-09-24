@@ -99,6 +99,41 @@ describe('ShareVideoPreview', () => {
         height: 1280,
       },
     });
+
+    const portraitCallCount = mocks.renderSplitScreenFrameAtTime.mock.calls.length;
+
+    rerender(
+      <ShareVideoPreview
+        draft={draft}
+        scoreContainer={scoreContainer}
+        adapter={{} as never}
+        scoreEndBeat={16}
+        mediaTimeMs={1250}
+        template={{
+          kind: 'floating',
+          orientation: 'portrait',
+          position: 'bottom-left',
+          size: 'large',
+        }}
+        replayVideo={video}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mocks.renderSplitScreenFrameAtTime.mock.calls.length).toBeGreaterThan(
+        portraitCallCount
+      );
+    });
+    expect(
+      mocks.renderSplitScreenFrameAtTime.mock.calls.at(-1)?.[0]
+    ).toMatchObject({
+      sourceVideoFrame: video,
+      layout: {
+        width: 720,
+        height: 1280,
+        videoRect: { x: 0, y: 0, width: 720, height: 1280 },
+      },
+    });
     expect(play).not.toHaveBeenCalled();
     expect(pause).not.toHaveBeenCalled();
     expect(load).not.toHaveBeenCalled();

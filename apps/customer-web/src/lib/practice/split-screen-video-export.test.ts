@@ -13,6 +13,7 @@ import {
 import { renderSplitScreenFrameAtTime } from './split-screen-frame-renderer';
 import { applyExportPlayheadCursor, getPlayheadCursorGeometry } from './playhead-cursor';
 import { getEventScoreImage } from './split-screen-score-model';
+import { getShareVideoLayout } from './share-video-templates';
 import type { PerformanceReviewDraft } from './performance-review-draft';
 
 function createDraft(
@@ -698,6 +699,48 @@ describe('split-screen video export helpers', () => {
     expect(diagnostics.anchorNoteId).toBe('note-a');
     expect(diagnostics.systemId).toBeTruthy();
     expect(diagnostics.cursorBox.height).toBeGreaterThan(0);
+    expect(ctx.drawImage).toHaveBeenCalled();
+  });
+
+  it('uses the frozen current system as the floating score-card viewport', async () => {
+    const container = createScoreContainer();
+    const cache = await prepareScorePageCache(container, async () => makeImage());
+    const outputCanvas = document.createElement('canvas');
+    const layout = getShareVideoLayout({
+      kind: 'floating',
+      orientation: 'landscape',
+      position: 'top-right',
+      size: 'medium',
+    });
+    outputCanvas.width = layout.width;
+    outputCanvas.height = layout.height;
+    const ctx = createFakeContext();
+    Object.defineProperty(outputCanvas, 'getContext', {
+      configurable: true,
+      value: () => ctx,
+    });
+
+    const diagnostics = await renderSplitScreenFrameAtTime({
+      mediaTimeMs: 1000,
+      scoreModel: cache,
+      playbackTimeline: {
+        resolve: () => ({
+          perfTimeMs: 1000,
+          musicalBeat: 4,
+          pageNumber: 1,
+          noteIds: ['note-a'],
+        }),
+      },
+      sourceVideoFrame: {
+        width: 640,
+        height: 480,
+      } as unknown as CanvasImageSource,
+      outputCanvas,
+      layout,
+    });
+
+    expect(diagnostics.viewport).toEqual(cache.get(1)?.systems[0]?.bounds);
+    expect(layout.cardRect).toBeDefined();
     expect(ctx.drawImage).toHaveBeenCalled();
   });
 

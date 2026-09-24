@@ -68,6 +68,19 @@ export function ShareVideoPreview({
   const [resourceVersion, setResourceVersion] = useState(0);
   const [retryNonce, setRetryNonce] = useState(0);
   mediaTimeRef.current = mediaTimeMs;
+  const isDebugPreviewExportEnabled = process.env.NODE_ENV !== 'production';
+
+  const handleSavePreviewPng = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || canvas.width <= 0 || canvas.height <= 0) return;
+    const url = canvas.toDataURL('image/png');
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `noteverse-share-preview-${Date.now()}.png`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }, []);
 
   const clearFrameScheduler = useCallback(() => {
     const video = replayVideo as RenderableVideo | null;
@@ -297,9 +310,18 @@ export function ShareVideoPreview({
         <p className="text-xs text-muted-foreground">预览准备中...</p>
       ) : null}
       {status === 'ready' && !error ? (
-        <p className="text-xs text-muted-foreground">
-          分享预览与回放同步，不改变原始演奏录像。
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <p>分享预览与回放同步，不改变原始演奏录像。</p>
+          {isDebugPreviewExportEnabled ? (
+            <button
+              type="button"
+              className="underline underline-offset-2"
+              onClick={handleSavePreviewPng}
+            >
+              保存当前预览 PNG
+            </button>
+          ) : null}
+        </div>
       ) : null}
       {status === 'error' ? (
         <div className="flex items-center justify-between gap-3 text-xs text-destructive">
