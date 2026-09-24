@@ -295,5 +295,11 @@
   "deletePerformanceTakeAcceptedTitle": "Deletion Request Accepted",
   "deletePerformanceTakeAcceptedDesc": "Deletion request accepted. Cleaning up in the background and releasing storage quota.",
   "deleteStillProcessingTitle": "Deletion is still running in the background",
-  "deleteStillProcessingDesc": "Object storage and quota cleanup have not finished yet. You can refresh later; this page will keep checking."
+  "deleteStillProcessingDesc": "Object storage and quota cleanup have not finished yet. You can refresh later; this page will keep checking.",
+  "leaveReviewTitle": "Leave this temporary performance report?",
+  "leaveReviewDesc": "This temporary performance report may not be available after you leave. Downloading a share video does not save the original performance.",
+  "leaveReviewUnsavedMediaDesc": "The original recording has not been saved as a performance yet. Leaving or restarting may make this temporary media unavailable; downloading a share video does not save the original performance.",
+  "leaveReviewWhileExportingDesc": "The share video is being generated. Leaving will cancel the current composite export; downloading a share video does not save the original performance.",
+  "leaveReviewContinue": "Continue viewing",
+  "leaveReviewConfirm": "Leave"
 }

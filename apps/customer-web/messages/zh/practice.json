@@ -295,5 +295,11 @@
   "deletePerformanceTakeAcceptedTitle": "删除请求已接受",
   "deletePerformanceTakeAcceptedDesc": "删除请求已接受，正在后台清理并释放配额。",
   "deleteStillProcessingTitle": "删除仍在后台处理中",
-  "deleteStillProcessingDesc": "对象存储和配额清理还没有完成。你可以稍后刷新，页面会继续自动更新。"
+  "deleteStillProcessingDesc": "对象存储和配额清理还没有完成。你可以稍后刷新，页面会继续自动更新。",
+  "leaveReviewTitle": "离开临时演奏报告？",
+  "leaveReviewDesc": "这份临时演奏报告离开后可能无法再次访问。分享视频下载不等于保存原始演奏。",
+  "leaveReviewUnsavedMediaDesc": "原始录音或录像尚未保存为正式演奏。离开或重新练习后，这份临时媒体可能无法再次访问；分享视频下载不等于保存原始演奏。",
+  "leaveReviewWhileExportingDesc": "分享视频正在生成。确认离开会取消当前合成任务；分享视频下载不等于保存原始演奏。",
+  "leaveReviewContinue": "继续查看",
+  "leaveReviewConfirm": "确认离开"
 }

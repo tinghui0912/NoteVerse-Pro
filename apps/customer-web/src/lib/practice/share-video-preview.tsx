@@ -134,8 +134,9 @@ export function ShareVideoPreview({
           if (!isPlayingRef.current) {
             await waitForReplayVideoFrame(sourceVideo);
           }
+          const renderMediaTimeMs = request.mediaTimeMs;
           await renderSplitScreenFrameAtTime({
-            mediaTimeMs: sourceVideo.currentTime * 1000,
+            mediaTimeMs: renderMediaTimeMs,
             scoreModel: scorePages,
             playbackTimeline: {
               resolve: (timeMs) =>
@@ -164,7 +165,7 @@ export function ShareVideoPreview({
           if (!requestIsCurrent || disposedRef.current) continue;
 
           commitStagingFrame(layout);
-          onFrameCommitted?.(sourceVideo.currentTime * 1000);
+          onFrameCommitted?.(renderMediaTimeMs);
           setError(null);
           setStatus('ready');
         } catch (cause) {

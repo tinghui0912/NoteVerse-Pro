@@ -138,4 +138,60 @@ describe('ShareVideoPreview', () => {
     expect(pause).not.toHaveBeenCalled();
     expect(load).not.toHaveBeenCalled();
   });
+
+  it('reports the requested media time when async rendering finishes after the source advances', async () => {
+    const video = document.createElement('video');
+    let currentTime = 1;
+    Object.defineProperty(video, 'currentTime', {
+      configurable: true,
+      get: () => currentTime,
+    });
+    Object.defineProperty(video, 'duration', { configurable: true, value: 4 });
+    Object.defineProperty(video, 'readyState', {
+      configurable: true,
+      value: HTMLMediaElement.HAVE_CURRENT_DATA,
+    });
+    Object.defineProperty(video, 'seeking', { configurable: true, value: false });
+
+    const renderGate: { resolve: (() => void) | null } = { resolve: null };
+    mocks.renderSplitScreenFrameAtTime.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        renderGate.resolve = resolve;
+      });
+    });
+
+    const onFrameCommitted = vi.fn();
+    const draft = {
+      localSessionId: 'session-1',
+      video: {
+        status: 'READY',
+        blob: new Blob(['video'], { type: 'video/webm' }),
+        durationMs: 4000,
+      },
+    } as unknown as PerformanceReviewDraft;
+
+    render(
+      <ShareVideoPreview
+        draft={draft}
+        scoreContainer={document.createElement('div')}
+        adapter={{} as never}
+        scoreEndBeat={16}
+        mediaTimeMs={1000}
+        template={{ kind: 'landscape' }}
+        replayVideo={video}
+        onFrameCommitted={onFrameCommitted}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mocks.renderSplitScreenFrameAtTime).toHaveBeenCalled();
+    });
+    currentTime = 2.5;
+    renderGate.resolve?.();
+
+    await waitFor(() => {
+      expect(onFrameCommitted).toHaveBeenCalledWith(1000);
+    });
+    expect(onFrameCommitted).not.toHaveBeenCalledWith(2500);
+  });
 });

@@ -33,6 +33,15 @@ type ScorePresentation = 'split' | 'floating';
 type FloatingPosition = 'top' | 'bottom';
 type FloatingSize = 'small' | 'medium' | 'large';
 
+export function initialShareVideoOrientation(
+  video: Pick<HTMLVideoElement, 'videoWidth' | 'videoHeight'> | null
+): VideoOrientation {
+  if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+    return video.videoWidth >= video.videoHeight ? 'landscape' : 'portrait';
+  }
+  return 'landscape';
+}
+
 function formatDuration(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const minutes = Math.floor(totalSeconds / 60);
@@ -152,6 +161,7 @@ export function ShareVideoStudio({
 }) {
   const t = useTranslations('practice');
   const [videoOrientation, setVideoOrientation] = useState<VideoOrientation>('landscape');
+  const hasManuallySelectedOrientationRef = useRef(false);
   const [scorePresentation, setScorePresentation] = useState<ScorePresentation>('split');
   const [floatingPosition, setFloatingPosition] = useState<FloatingPosition>('top');
   const [floatingSize, setFloatingSize] = useState<FloatingSize>('medium');
@@ -163,6 +173,24 @@ export function ShareVideoStudio({
   const [splitExportProgress, setSplitExportProgress] = useState(0);
   const [splitExportError, setSplitExportError] = useState<string | null>(null);
   const splitExportAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    hasManuallySelectedOrientationRef.current = false;
+
+    const video = replayVideo;
+    if (!video) return;
+
+    const syncOrientationFromMetadata = () => {
+      if (hasManuallySelectedOrientationRef.current) {
+        return;
+      }
+      setVideoOrientation(initialShareVideoOrientation(video));
+    };
+
+    syncOrientationFromMetadata();
+    video.addEventListener('loadedmetadata', syncOrientationFromMetadata);
+    return () => video.removeEventListener('loadedmetadata', syncOrientationFromMetadata);
+  }, [draft.localSessionId, replayVideo]);
 
   const shareTemplate = useMemo<ShareVideoTemplate>(() => {
     if (scorePresentation === 'floating') {
@@ -324,7 +352,10 @@ export function ShareVideoStudio({
               title={t('shareLandscapeTitle')}
               description={t('shareLandscapeDesc')}
               icon={RectangleHorizontal}
-              onClick={() => setVideoOrientation('landscape')}
+              onClick={() => {
+                hasManuallySelectedOrientationRef.current = true;
+                setVideoOrientation('landscape');
+              }}
               testId="share-orientation-landscape"
             />
             <ShareChoiceCard
@@ -332,7 +363,10 @@ export function ShareVideoStudio({
               title={t('sharePortraitTitle')}
               description={t('sharePortraitDesc')}
               icon={RectangleVertical}
-              onClick={() => setVideoOrientation('portrait')}
+              onClick={() => {
+                hasManuallySelectedOrientationRef.current = true;
+                setVideoOrientation('portrait');
+              }}
               testId="share-orientation-portrait"
             />
           </div>

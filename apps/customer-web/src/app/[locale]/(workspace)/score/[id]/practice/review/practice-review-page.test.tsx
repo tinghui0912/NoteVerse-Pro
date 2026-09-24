@@ -98,6 +98,12 @@ const translationMocks = vi.hoisted(() => {
     shareExportAction: '生成并下载分享视频',
     shareTemplateSummary: '{orientation} · {presentation} · {position} · 原始音轨',
     shareTemplateSummaryWithoutPosition: '{orientation} · {presentation} · 原始音轨',
+    leaveReviewTitle: '离开临时演奏报告？',
+    leaveReviewDesc: '这份临时演奏报告离开后可能无法再次访问。分享视频下载不等于保存原始演奏。',
+    leaveReviewUnsavedMediaDesc: '原始录音或录像尚未保存为正式演奏。离开或重新练习后，这份临时媒体可能无法再次访问；分享视频下载不等于保存原始演奏。',
+    leaveReviewWhileExportingDesc: '分享视频正在生成。确认离开会取消当前合成任务；分享视频下载不等于保存原始演奏。',
+    leaveReviewContinue: '继续查看',
+    leaveReviewConfirm: '确认离开',
   };
 
   function translate(dict: Record<string, string>) {
