@@ -759,7 +759,7 @@ describe('split-screen video export helpers', () => {
     expect(ctx.drawImage).toHaveBeenCalled();
   });
 
-  it('uses the frozen current system as the floating score-card viewport', async () => {
+  it('uses the frozen system content bounds for the floating score viewport', async () => {
     const container = createScoreContainer();
     const cache = await prepareScorePageCache(container, async () => makeImage());
     const outputCanvas = document.createElement('canvas');
@@ -796,8 +796,10 @@ describe('split-screen video export helpers', () => {
       layout,
     });
 
-    expect(diagnostics.viewport).toEqual(cache.get(1)?.systems[0]?.bounds);
-    expect(layout.cardRect).toBeDefined();
+    expect(diagnostics.viewport).toEqual(cache.get(1)?.systems[0]?.contentBounds);
+    expect(diagnostics.scoreRect.width).toBeGreaterThan(0);
+    expect(diagnostics.scoreRect.width).toBeLessThanOrEqual(outputCanvas.width);
+    expect(diagnostics.imageRect.width).toBeCloseTo(diagnostics.scoreRect.width);
     expect(ctx.drawImage).toHaveBeenCalled();
     const fillRects = ctx.calls.filter((call) => call.name === 'fillRect');
     expect(fillRects).toHaveLength(2);

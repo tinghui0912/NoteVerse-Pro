@@ -22,7 +22,9 @@ export type ShareVideoLayout = {
   scoreRect: Rect;
   videoRect: Rect;
   background: string;
-  cardRect?: Rect;
+  scoreMode: 'page' | 'floating';
+  floatingPosition?: 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  floatingSize?: 'small' | 'medium' | 'large';
   scoreBackground?: string;
   scoreImageAlign?: 'center' | 'top' | 'bottom';
 };
@@ -31,20 +33,6 @@ const PADDING = 24;
 const GAP = 24;
 const BACKGROUND = '#0f172a';
 const SCORE_BACKGROUND = '#ffffff';
-const FLOATING_CARD_MARGIN = 20;
-const FLOATING_CARD_PADDING = 16;
-const FLOATING_CARD_SIZES = {
-  landscape: {
-    small: { width: 0.34, height: 0.3 },
-    medium: { width: 0.46, height: 0.42 },
-    large: { width: 0.58, height: 0.52 },
-  },
-  portrait: {
-    small: { width: 0.48, height: 0.24 },
-    medium: { width: 0.6, height: 0.34 },
-    large: { width: 0.72, height: 0.46 },
-  },
-} as const;
 
 export function getShareVideoLayout(template: ShareVideoTemplate): ShareVideoLayout {
   if (template.kind === 'portrait') {
@@ -55,6 +43,7 @@ export function getShareVideoLayout(template: ShareVideoTemplate): ShareVideoLay
       width,
       height,
       background: BACKGROUND,
+      scoreMode: 'page',
       scoreBackground: SCORE_BACKGROUND,
       scoreRect: { x: PADDING, y: PADDING, width: width - PADDING * 2, height: scoreHeight },
       videoRect: {
@@ -70,36 +59,18 @@ export function getShareVideoLayout(template: ShareVideoTemplate): ShareVideoLay
     const width = template.orientation === 'portrait' ? 720 : 1280;
     const height = template.orientation === 'portrait' ? 1280 : 720;
     const videoRect = { x: 0, y: 0, width, height };
-    const preset = FLOATING_CARD_SIZES[template.orientation][template.size];
-    const maxCardWidth = width - FLOATING_CARD_MARGIN * 2;
-    const maxCardHeight = height - FLOATING_CARD_MARGIN * 2;
-    const cardWidth = Math.min(maxCardWidth, Math.round(width * preset.width));
-    const cardHeight = Math.min(maxCardHeight, Math.round(height * preset.height));
-    const x = template.position === 'top' || template.position === 'bottom'
-      ? Math.round((width - cardWidth) / 2)
-      : template.position.endsWith('right')
-        ? width - cardWidth - FLOATING_CARD_MARGIN
-        : FLOATING_CARD_MARGIN;
-    const y = template.position.startsWith('bottom')
-      ? height - cardHeight - FLOATING_CARD_MARGIN
-      : FLOATING_CARD_MARGIN;
-    const cardRect = { x, y, width: cardWidth, height: cardHeight };
     return {
       width,
       height,
       background: BACKGROUND,
-      scoreRect: {
-        x: cardRect.x + FLOATING_CARD_PADDING,
-        y: cardRect.y + FLOATING_CARD_PADDING,
-        width: cardRect.width - FLOATING_CARD_PADDING * 2,
-        height: cardRect.height - FLOATING_CARD_PADDING * 2,
-      },
+      scoreMode: 'floating',
+      // Floating score geometry is resolved per frame from the actual contained
+      // video rectangle and the frozen system content bounds.
+      scoreRect: { x: 0, y: 0, width: 0, height: 0 },
       videoRect,
-      cardRect,
+      floatingPosition: template.position,
+      floatingSize: template.size,
       scoreBackground: undefined,
-      scoreImageAlign: template.position.startsWith('bottom')
-        ? 'bottom'
-        : 'top',
     };
   }
 
@@ -110,6 +81,7 @@ export function getShareVideoLayout(template: ShareVideoTemplate): ShareVideoLay
     width,
     height,
     background: BACKGROUND,
+    scoreMode: 'page',
     scoreBackground: SCORE_BACKGROUND,
     scoreRect: { x: PADDING, y: PADDING, width: scoreWidth, height: height - PADDING * 2 },
     videoRect: {

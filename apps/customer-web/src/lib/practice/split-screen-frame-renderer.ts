@@ -23,7 +23,9 @@ export type SplitScreenOutputLayout = {
   scoreRect: Rect;
   videoRect: Rect;
   background: string;
-  cardRect?: Rect;
+  scoreMode?: 'page' | 'floating';
+  floatingPosition?: 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  floatingSize?: 'small' | 'medium' | 'large';
   scoreBackground?: string;
   scoreImageAlign?: 'center' | 'top' | 'bottom';
 };
@@ -38,7 +40,20 @@ export type SplitScreenFrameDiagnostics = {
   viewport: SvgRect;
   anchorBox: SvgRect;
   cursorBox: Rect;
+  scoreRect: Rect;
+  imageRect: Rect;
+  videoDrawRect: Rect;
 };
+
+const FLOATING_SCORE_WIDTH_FACTORS = {
+  small: 0.72,
+  medium: 0.86,
+  large: 0.94,
+} as const;
+
+const FLOATING_SAFE_MARGIN = 20;
+const FLOATING_VIDEO_GAP = 16;
+const FLOATING_MAX_HEIGHT_RATIO = 0.42;
 
 export async function renderSplitScreenFrameAtTime({
   mediaTimeMs,
@@ -77,29 +92,30 @@ export async function renderSplitScreenFrameAtTime({
     position.noteIds,
     playback.anchorNote.noteId
   );
-  const viewport = layout.cardRect ? playback.system.bounds : page.viewBox;
+  const viewport = layout.scoreMode === 'floating'
+    ? playback.system.contentBounds
+    : page.viewBox;
   ctx.fillStyle = layout.background;
   ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
-  drawSourceVideoContain(ctx, sourceVideoFrame, layout.videoRect, layout.background);
-  if (layout.cardRect && layout.scoreBackground) {
-    ctx.fillStyle = layout.scoreBackground;
-    ctx.fillRect(
-      layout.cardRect.x,
-      layout.cardRect.y,
-      layout.cardRect.width,
-      layout.cardRect.height
-    );
-  }
+  const videoDrawRect = drawSourceVideoContain(ctx, sourceVideoFrame, layout.videoRect, layout.background);
+  const scoreRect = layout.scoreMode === 'floating'
+    ? resolveFloatingScoreRect({
+        width: outputCanvas.width,
+        height: outputCanvas.height,
+        floatingPosition: layout.floatingPosition,
+        floatingSize: layout.floatingSize,
+      }, videoDrawRect, viewport)
+    : layout.scoreRect;
   if (layout.scoreBackground) {
     ctx.fillStyle = layout.scoreBackground;
-    ctx.fillRect(layout.scoreRect.x, layout.scoreRect.y, layout.scoreRect.width, layout.scoreRect.height);
+    ctx.fillRect(scoreRect.x, scoreRect.y, scoreRect.width, scoreRect.height);
   }
   const imageRect = drawStableScoreImage(
     ctx,
     image,
     page.viewBox,
     viewport,
-    layout.scoreRect,
+    scoreRect,
     true,
     layout.scoreImageAlign
   );
@@ -115,7 +131,63 @@ export async function renderSplitScreenFrameAtTime({
     viewport,
     anchorBox: playback.anchorNote.noteBox,
     cursorBox,
+    scoreRect,
+    imageRect,
+    videoDrawRect,
   };
+}
+
+export function resolveFloatingScoreRect(
+  layout: {
+    width: number;
+    height: number;
+    floatingPosition?: SplitScreenOutputLayout['floatingPosition'];
+    floatingSize?: SplitScreenOutputLayout['floatingSize'];
+  },
+  videoDrawRect: Rect,
+  viewport: SvgRect
+): Rect {
+  const aspectRatio = viewport.width / viewport.height;
+  if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) {
+    throw new Error('split_screen_export_failed:floating_score_aspect_ratio');
+  }
+
+  const sizeFactor = FLOATING_SCORE_WIDTH_FACTORS[layout.floatingSize ?? 'medium'];
+  const maxWidth = Math.min(
+    videoDrawRect.width * sizeFactor,
+    layout.width - FLOATING_SAFE_MARGIN * 2
+  );
+  const maxHeight = layout.height * FLOATING_MAX_HEIGHT_RATIO;
+  const width = Math.max(1, Math.min(maxWidth, maxHeight * aspectRatio));
+  const height = width / aspectRatio;
+  const centeredX = videoDrawRect.x + (videoDrawRect.width - width) / 2;
+  const x = layout.floatingPosition?.endsWith('right')
+    ? layout.width - FLOATING_SAFE_MARGIN - width
+    : layout.floatingPosition?.endsWith('left')
+      ? FLOATING_SAFE_MARGIN
+      : centeredX;
+  const topY = Math.max(
+    FLOATING_SAFE_MARGIN,
+    videoDrawRect.y - FLOATING_VIDEO_GAP - height
+  );
+  const bottomY = Math.min(
+    layout.height - FLOATING_SAFE_MARGIN - height,
+    videoDrawRect.y + videoDrawRect.height + FLOATING_VIDEO_GAP
+  );
+  const y = layout.floatingPosition?.startsWith('bottom')
+    ? bottomY
+    : topY;
+
+  return {
+    x: clamp(x, FLOATING_SAFE_MARGIN, layout.width - FLOATING_SAFE_MARGIN - width),
+    y: clamp(y, FLOATING_SAFE_MARGIN, layout.height - FLOATING_SAFE_MARGIN - height),
+    width,
+    height,
+  };
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 export function drawStableScoreImage(

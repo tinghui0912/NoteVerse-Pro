@@ -20,6 +20,7 @@ export type ExportScoreSystem = {
   pageNumber: number;
   order: number;
   bounds: SvgRect;
+  contentBounds: SvgRect;
   viewport: SvgRect;
   staffBoundsById: Map<string, SvgRect>;
   measureIds: string[];
@@ -292,11 +293,13 @@ function snapshotPage(page: HTMLElement): PageSnapshot | null {
   systemElements.forEach((element, order) => {
     const bounds = rootSvgRectForElement(svg, element);
     if (bounds) {
+      const contentBounds = systemContentBounds(svg, element, bounds);
       systems.push({
         systemId: stableElementId(element, `page-${pageNumber}-system-${order + 1}`),
         pageNumber,
         order,
         bounds,
+        contentBounds,
         viewport: bounds,
         staffBoundsById: new Map<string, SvgRect>(),
         measureIds: [],
@@ -359,6 +362,7 @@ function snapshotPage(page: HTMLElement): PageSnapshot | null {
       .reduce(mergeRectsOrNull, null);
     if (fallbackBounds) {
       system.bounds = fallbackBounds;
+      system.contentBounds = fallbackBounds;
       system.viewport = fallbackBounds;
     }
   }
@@ -371,6 +375,27 @@ function snapshotPage(page: HTMLElement): PageSnapshot | null {
     systems,
     measureCount: countMeasures(svg),
   };
+}
+
+function systemContentBounds(
+  rootSvg: SVGSVGElement,
+  systemElement: SVGGraphicsElement,
+  fallback: SvgRect
+): SvgRect {
+  const candidates = Array.from(systemElement.querySelectorAll<SVGGraphicsElement>('*'))
+    .filter((element) => {
+      if (element.hasAttribute('data-practice-playhead-cursor')) return false;
+      const dataClass = element.getAttribute('data-class') ?? '';
+      const className = element.getAttribute('class') ?? '';
+      return !['section', 'pb'].includes(dataClass) &&
+        !className.split(/\s+/).some((name) => name === 'systemMilestone' || name === 'practice-playhead-cursor');
+    })
+    .map((element) => rootSvgRectForElement(rootSvg, element))
+    .filter((rect): rect is SvgRect => rect !== null && rect.width > 0 && rect.height > 0)
+    .filter((rect) => rectsIntersect(rect, readSvgViewBox(rootSvg)));
+
+  const contentBounds = candidates.reduce(mergeRectsOrNull, null);
+  return contentBounds ?? fallback;
 }
 
 function buildSystemViewports(viewBox: SvgViewBox, systems: ExportScoreSystem[]) {
