@@ -522,24 +522,6 @@ export default function PracticeReviewPage({
         }
       />
 
-      {/* Save Error Alert */}
-      {saveStatus === 'error' && (
-        <div className="rounded-lg border border-red-300 bg-red-50 dark:bg-red-950/30 p-4 text-red-900 dark:text-red-200 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0" />
-            <div>
-              <h4 className="text-sm font-semibold">{t('savePerformanceFailedTitle')}</h4>
-              <p className="text-xs text-red-700 dark:text-red-300">
-                {saveErrorMessage ?? t('savePerformanceFailedDesc')}
-              </p>
-            </div>
-          </div>
-          <Button size="sm" variant="outline" onClick={handleSavePerformance}>
-            {t('retrySavePerformance')}
-          </Button>
-        </div>
-      )}
-
       {/* Revision Mismatch Warning */}
       {isRevisionMismatched && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-4 text-amber-900 dark:text-amber-200">
@@ -794,6 +776,19 @@ export default function PracticeReviewPage({
               {t('savePerformance')}
             </Button>
           )}
+          {saveStatus === 'error' ? (
+            <div className="basis-full rounded-lg border border-red-300 bg-red-50 p-3 text-red-900 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600 dark:text-red-400" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{t('savePerformanceFailedTitle')}</p>
+                  <p className="text-xs text-red-700 dark:text-red-300">
+                    {saveErrorMessage ?? t('savePerformanceFailedDesc')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
