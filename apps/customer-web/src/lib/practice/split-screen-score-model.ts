@@ -4,12 +4,15 @@ import {
   snapshotPlayheadCursorGeometry,
   type SvgRect,
 } from './playhead-cursor';
+import { applyFloatingScoreSvgStyle } from './floating-score-svg';
 
 export type SvgViewBox = { x: number; y: number; width: number; height: number };
 export type ScorePageImageLoader = (svgText: string) => Promise<HTMLImageElement>;
+export type ScoreVisualMode = 'standard' | 'floating';
 export type ScorePageCacheOptions = {
   eventImageLoader?: ScorePageImageLoader;
   eventSvgDecorator?: (svg: SVGSVGElement) => void;
+  visualMode?: ScoreVisualMode;
 };
 
 export type ExportScoreSystem = {
@@ -55,6 +58,7 @@ export type ScorePageCacheEntry = {
   measureCount: number;
   eventImages: Map<string, HTMLImageElement>;
   eventImagePromises: Map<string, Promise<HTMLImageElement>>;
+  visualMode: ScoreVisualMode;
   eventImageLoader?: ScorePageImageLoader;
   eventSvgDecorator?: (svg: SVGSVGElement) => void;
 };
@@ -84,6 +88,7 @@ export async function prepareScorePageCache(
   }
 
   const cache: ScorePageCache = new Map();
+  const visualMode = options.visualMode ?? 'standard';
   for (const snapshot of snapshots) {
     cache.set(snapshot.pageNumber, {
       pageNumber: snapshot.pageNumber,
@@ -95,6 +100,7 @@ export async function prepareScorePageCache(
       measureCount: snapshot.measureCount,
       eventImages: new Map(),
       eventImagePromises: new Map(),
+      visualMode,
       eventImageLoader: options.eventImageLoader ?? (
         loadImage === loadImageFromSvg ? loadImageFromSvg : undefined
       ),
@@ -111,7 +117,7 @@ export async function getEventScoreImage(
   noteIds: readonly string[],
   anchorNoteId = noteIds[0] ?? ''
 ): Promise<HTMLImageElement> {
-  const key = `${anchorNoteId}:${noteIds.join('|')}`;
+  const key = `${page.visualMode}:${anchorNoteId}:${noteIds.join('|')}`;
   const cached = page.eventImages.get(key);
   if (cached) {
     page.eventImages.delete(key);
@@ -171,6 +177,9 @@ async function buildEventScoreImage(
   }
   svg.setAttribute('width', String(page.viewBox.width));
   svg.setAttribute('height', String(page.viewBox.height));
+  if (page.visualMode === 'floating') {
+    applyFloatingScoreSvgStyle(svg);
+  }
   page.eventSvgDecorator?.(svg);
   host.appendChild(svg);
   document.body.appendChild(host);

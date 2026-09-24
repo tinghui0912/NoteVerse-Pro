@@ -378,6 +378,63 @@ describe('split-screen video export helpers', () => {
     expect(serialized.at(-1)).toContain('data-practice-playhead-cursor');
   });
 
+  it('keeps standard and floating event image styling in separate visual modes', async () => {
+    const container = createScoreContainer();
+    container.querySelector('svg')?.insertAdjacentHTML(
+      'beforeend',
+      '<path data-testid="floating-notation" fill="#000000" stroke="#000000" d="M0 0h10" />'
+    );
+    const serialized: string[] = [];
+    const eventImageLoader = vi.fn(async (svgText: string) => {
+      serialized.push(svgText);
+      return makeImage();
+    });
+    const matrix = {
+      inverse: vi.fn(() => matrix),
+      multiply: vi.fn(() => matrix),
+    };
+    const decorateGeometry = (svg: SVGSVGElement) => {
+      svg.createSVGPoint = vi.fn(() => ({
+        x: 0,
+        y: 0,
+        matrixTransform(pointMatrix: { transformPoint?: (point: unknown) => unknown }) {
+          return pointMatrix.transformPoint?.(this) ?? this;
+        },
+      } as SVGPoint));
+      svg.getCTM = vi.fn(() => matrix as unknown as DOMMatrix);
+      const note = svg.querySelector<SVGGraphicsElement>('[data-id="note-a"]');
+      if (note) {
+        note.getBBox = vi.fn(() => ({
+          x: 100,
+          y: 200,
+          width: 30,
+          height: 40,
+        } as DOMRect));
+        note.getCTM = vi.fn(() => matrix as unknown as DOMMatrix);
+      }
+    };
+
+    const standard = await prepareScorePageCache(
+      container,
+      async () => makeImage(),
+      { eventImageLoader, eventSvgDecorator: decorateGeometry, visualMode: 'standard' }
+    );
+    const floating = await prepareScorePageCache(
+      container,
+      async () => makeImage(),
+      { eventImageLoader, eventSvgDecorator: decorateGeometry, visualMode: 'floating' }
+    );
+
+    await getEventScoreImage(standard.get(1)!, ['note-a']);
+    await getEventScoreImage(floating.get(1)!, ['note-a']);
+
+    expect(standard.get(1)?.visualMode).toBe('standard');
+    expect(floating.get(1)?.visualMode).toBe('floating');
+    expect(serialized).toHaveLength(2);
+    expect(serialized[0]).not.toContain('#f8fafc');
+    expect(serialized[1]).toContain('#f8fafc');
+  });
+
   it('renders one colored cursor per active staff without spanning the grand staff', () => {
     const container = document.createElement('div');
     container.innerHTML = `
@@ -742,6 +799,8 @@ describe('split-screen video export helpers', () => {
     expect(diagnostics.viewport).toEqual(cache.get(1)?.systems[0]?.bounds);
     expect(layout.cardRect).toBeDefined();
     expect(ctx.drawImage).toHaveBeenCalled();
+    const fillRects = ctx.calls.filter((call) => call.name === 'fillRect');
+    expect(fillRects).toHaveLength(2);
   });
 
   it('keeps transformed system-local and root SVG cursor rectangles in separate coordinate spaces', () => {

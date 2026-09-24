@@ -24,6 +24,8 @@ export type SplitScreenOutputLayout = {
   videoRect: Rect;
   background: string;
   cardRect?: Rect;
+  scoreBackground?: string;
+  scoreImageAlign?: 'center' | 'top' | 'bottom';
 };
 
 export type SplitScreenFrameDiagnostics = {
@@ -79,8 +81,8 @@ export async function renderSplitScreenFrameAtTime({
   ctx.fillStyle = layout.background;
   ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
   drawSourceVideoContain(ctx, sourceVideoFrame, layout.videoRect, layout.background);
-  if (layout.cardRect) {
-    ctx.fillStyle = '#ffffff';
+  if (layout.cardRect && layout.scoreBackground) {
+    ctx.fillStyle = layout.scoreBackground;
     ctx.fillRect(
       layout.cardRect.x,
       layout.cardRect.y,
@@ -88,9 +90,19 @@ export async function renderSplitScreenFrameAtTime({
       layout.cardRect.height
     );
   }
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(layout.scoreRect.x, layout.scoreRect.y, layout.scoreRect.width, layout.scoreRect.height);
-  const imageRect = drawStableScoreImage(ctx, image, page.viewBox, viewport, layout.scoreRect, true);
+  if (layout.scoreBackground) {
+    ctx.fillStyle = layout.scoreBackground;
+    ctx.fillRect(layout.scoreRect.x, layout.scoreRect.y, layout.scoreRect.width, layout.scoreRect.height);
+  }
+  const imageRect = drawStableScoreImage(
+    ctx,
+    image,
+    page.viewBox,
+    viewport,
+    layout.scoreRect,
+    true,
+    layout.scoreImageAlign
+  );
   const cursorBox = svgRectToCanvasRect(playback.anchorNote.noteBox, viewport, imageRect);
 
   return {
@@ -112,13 +124,18 @@ export function drawStableScoreImage(
   viewBox: SvgViewBox,
   viewport: SvgRect,
   scoreRect: Rect,
-  drawImage: boolean
+  drawImage: boolean,
+  align: 'center' | 'top' | 'bottom' = 'center'
 ): Rect {
   const scale = Math.min(scoreRect.width / viewport.width, scoreRect.height / viewport.height);
   const drawWidth = viewport.width * scale;
   const drawHeight = viewport.height * scale;
   const dx = scoreRect.x + (scoreRect.width - drawWidth) / 2;
-  const dy = scoreRect.y + (scoreRect.height - drawHeight) / 2;
+  const dy = align === 'top'
+    ? scoreRect.y
+    : align === 'bottom'
+      ? scoreRect.y + scoreRect.height - drawHeight
+      : scoreRect.y + (scoreRect.height - drawHeight) / 2;
   const imageScaleX = image.naturalWidth / viewBox.width;
   const imageScaleY = image.naturalHeight / viewBox.height;
   const sx = (viewport.x - viewBox.x) * imageScaleX;

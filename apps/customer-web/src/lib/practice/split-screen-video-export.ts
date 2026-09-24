@@ -258,7 +258,9 @@ export async function exportSplitScreenPerformanceVideo({
       throw new Error('split_screen_export_failed:video_decode');
     }
 
-    const scorePages = await prepareScorePageCache(scoreContainer);
+    const scorePages = await prepareScorePageCache(scoreContainer, undefined, {
+      visualMode: template.kind === 'floating' ? 'floating' : 'standard',
+    });
     const stagingCanvas = document.createElement('canvas');
     stagingCanvas.width = layout.width;
     stagingCanvas.height = layout.height;

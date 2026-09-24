@@ -66,7 +66,7 @@ const FLOATING_SHARE_TEMPLATE_ENABLED = process.env.NODE_ENV !== 'production';
 
 type ShareTemplateKind = 'landscape' | 'portrait' | 'floating';
 type FloatingOrientation = 'landscape' | 'portrait';
-type FloatingPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+type FloatingPosition = 'top' | 'bottom';
 type FloatingSize = 'small' | 'medium' | 'large';
 
 function scoreIdFromParams(params: ReturnType<typeof useParams>): string {
@@ -176,7 +176,7 @@ export default function PracticeReviewPage({
   const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);
   const [shareTemplateKind, setShareTemplateKind] = useState<ShareTemplateKind>('landscape');
   const [floatingOrientation, setFloatingOrientation] = useState<FloatingOrientation>('landscape');
-  const [floatingPosition, setFloatingPosition] = useState<FloatingPosition>('top-right');
+  const [floatingPosition, setFloatingPosition] = useState<FloatingPosition>('top');
   const [floatingSize, setFloatingSize] = useState<FloatingSize>('medium');
   const [sharePreviewTimeMs, setSharePreviewTimeMs] = useState(0);
   const [isReplayPlaying, setIsReplayPlaying] = useState(false);
@@ -950,10 +950,8 @@ export default function PracticeReviewPage({
                     }
                     aria-label="悬浮乐谱位置"
                   >
-                    <option value="top-left">左上</option>
-                    <option value="top-right">右上</option>
-                    <option value="bottom-left">左下</option>
-                    <option value="bottom-right">右下</option>
+                    <option value="top">顶部居中</option>
+                    <option value="bottom">底部居中</option>
                   </select>
                   <select
                     className="h-9 rounded-md border border-input bg-background px-2 text-xs"

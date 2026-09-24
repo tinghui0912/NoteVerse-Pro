@@ -65,4 +65,19 @@ describe('share video templates', () => {
     expect(large.cardRect!.width).toBeGreaterThan(small.cardRect!.width);
     expect(large.cardRect!.height).toBeGreaterThan(small.cardRect!.height);
   });
+
+  it('centers the transparent floating score at the top or bottom', () => {
+    for (const position of ['top', 'bottom'] as const) {
+      const layout = getShareVideoLayout({
+        kind: 'floating',
+        orientation: 'landscape',
+        position,
+        size: 'medium',
+      });
+      const card = layout.cardRect!;
+      expect(Math.abs(card.x - (layout.width - card.width) / 2)).toBeLessThanOrEqual(0.5);
+      expect(layout.scoreBackground).toBeUndefined();
+      expect(layout.scoreRect.x).toBeGreaterThan(card.x);
+    }
+  });
 });

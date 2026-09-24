@@ -67,8 +67,11 @@ export function ShareVideoPreview({
   const [error, setError] = useState<string | null>(null);
   const [resourceVersion, setResourceVersion] = useState(0);
   const [retryNonce, setRetryNonce] = useState(0);
-  mediaTimeRef.current = mediaTimeMs;
   const isDebugPreviewExportEnabled = process.env.NODE_ENV !== 'production';
+
+  useEffect(() => {
+    mediaTimeRef.current = mediaTimeMs;
+  }, [mediaTimeMs]);
 
   const handleSavePreviewPng = useCallback(() => {
     const canvas = canvasRef.current;
@@ -195,20 +198,18 @@ export function ShareVideoPreview({
     disposedRef.current = false;
     scorePagesRef.current = null;
     pendingRequestRef.current = null;
-    setStatus('preparing');
-    setError(null);
-
-    if (!scoreContainer || draft.video?.status !== 'READY') {
-      setStatus('idle');
-      return () => {
-        disposedRef.current = true;
-      };
-    }
-
     let cancelled = false;
     const prepare = async () => {
+      setStatus('preparing');
+      setError(null);
+      if (!scoreContainer || draft.video?.status !== 'READY') {
+        setStatus('idle');
+        return;
+      }
       try {
-        const scorePages = await prepareScorePageCache(scoreContainer);
+        const scorePages = await prepareScorePageCache(scoreContainer, undefined, {
+          visualMode: template.kind === 'floating' ? 'floating' : 'standard',
+        });
         if (cancelled || disposedRef.current) return;
         scorePagesRef.current = scorePages;
         setStatus('ready');
@@ -237,7 +238,13 @@ export function ShareVideoPreview({
         scorePages.clear();
       }
     };
-  }, [clearFrameScheduler, draft, retryNonce, scoreContainer]);
+  }, [
+    clearFrameScheduler,
+    draft,
+    retryNonce,
+    scoreContainer,
+    template.kind,
+  ]);
 
   useEffect(() => {
     if (JSON.stringify(templateRef.current) !== JSON.stringify(template)) {

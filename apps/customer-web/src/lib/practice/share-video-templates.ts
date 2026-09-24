@@ -6,7 +6,13 @@ export type ShareVideoTemplate =
   | {
       kind: 'floating';
       orientation: 'landscape' | 'portrait';
-      position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+      position:
+        | 'top'
+        | 'bottom'
+        | 'top-left'
+        | 'top-right'
+        | 'bottom-left'
+        | 'bottom-right';
       size: 'small' | 'medium' | 'large';
     };
 
@@ -17,6 +23,8 @@ export type ShareVideoLayout = {
   videoRect: Rect;
   background: string;
   cardRect?: Rect;
+  scoreBackground?: string;
+  scoreImageAlign?: 'center' | 'top' | 'bottom';
 };
 
 const PADDING = 24;
@@ -47,6 +55,7 @@ export function getShareVideoLayout(template: ShareVideoTemplate): ShareVideoLay
       width,
       height,
       background: BACKGROUND,
+      scoreBackground: SCORE_BACKGROUND,
       scoreRect: { x: PADDING, y: PADDING, width: width - PADDING * 2, height: scoreHeight },
       videoRect: {
         x: PADDING,
@@ -66,9 +75,11 @@ export function getShareVideoLayout(template: ShareVideoTemplate): ShareVideoLay
     const maxCardHeight = height - FLOATING_CARD_MARGIN * 2;
     const cardWidth = Math.min(maxCardWidth, Math.round(width * preset.width));
     const cardHeight = Math.min(maxCardHeight, Math.round(height * preset.height));
-    const x = template.position.endsWith('right')
-      ? width - cardWidth - FLOATING_CARD_MARGIN
-      : FLOATING_CARD_MARGIN;
+    const x = template.position === 'top' || template.position === 'bottom'
+      ? Math.round((width - cardWidth) / 2)
+      : template.position.endsWith('right')
+        ? width - cardWidth - FLOATING_CARD_MARGIN
+        : FLOATING_CARD_MARGIN;
     const y = template.position.startsWith('bottom')
       ? height - cardHeight - FLOATING_CARD_MARGIN
       : FLOATING_CARD_MARGIN;
@@ -85,6 +96,10 @@ export function getShareVideoLayout(template: ShareVideoTemplate): ShareVideoLay
       },
       videoRect,
       cardRect,
+      scoreBackground: undefined,
+      scoreImageAlign: template.position.startsWith('bottom')
+        ? 'bottom'
+        : 'top',
     };
   }
 
@@ -95,6 +110,7 @@ export function getShareVideoLayout(template: ShareVideoTemplate): ShareVideoLay
     width,
     height,
     background: BACKGROUND,
+    scoreBackground: SCORE_BACKGROUND,
     scoreRect: { x: PADDING, y: PADDING, width: scoreWidth, height: height - PADDING * 2 },
     videoRect: {
       x: PADDING + scoreWidth + GAP,
@@ -102,6 +118,7 @@ export function getShareVideoLayout(template: ShareVideoTemplate): ShareVideoLay
       width: width - PADDING * 2 - scoreWidth - GAP,
       height: height - PADDING * 2,
     },
+    scoreImageAlign: 'center',
   };
 }
 
