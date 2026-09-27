@@ -19,6 +19,7 @@ import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-ar
 import {
   downloadPerformanceTakeMediaBlob,
 } from '@/lib/api/performance-takes';
+import { ApiError } from '@/lib/api-client';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
 import {
   createShareVideoSessionFromSavedTake,
@@ -32,14 +33,22 @@ function takeIdFromParams(params: ReturnType<typeof useParams>): string {
   return Array.isArray(value) ? value[0] ?? '' : value ?? '';
 }
 
+function isPermanentResourceError(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 403 || error.status === 404);
+}
+
 function HistoricalTakeUnavailable({
   message,
   backLabel,
   onBack,
+  retryLabel,
+  onRetry,
 }: {
   message: string;
   backLabel: string;
   onBack: () => void;
+  retryLabel?: string;
+  onRetry?: () => void;
 }) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
@@ -47,10 +56,15 @@ function HistoricalTakeUnavailable({
         <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
           <AlertCircle className="h-8 w-8 text-amber-600" />
           <p className="text-sm text-muted-foreground">{message}</p>
-          <Button variant="outline" onClick={onBack}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {backLabel}
-          </Button>
+          <div className="flex flex-wrap justify-center gap-2">
+            {onRetry && retryLabel ? (
+              <Button onClick={onRetry}>{retryLabel}</Button>
+            ) : null}
+            <Button variant="outline" onClick={onBack}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {backLabel}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -79,6 +93,12 @@ export default function HistoricalPerformanceSharePage() {
 
   const [mediaBlob, setMediaBlob] = useState<Blob | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [mediaErrorPermanent, setMediaErrorPermanent] = useState(false);
+  const [mediaProgress, setMediaProgress] = useState<{
+    loadedBytes: number;
+    totalBytes: number | null;
+  }>({ loadedBytes: 0, totalBytes: null });
+  const [mediaRetryNonce, setMediaRetryNonce] = useState(0);
   const [replayVideo, setReplayVideo] = useState<HTMLVideoElement | null>(null);
   const [mediaTimeMs, setMediaTimeMs] = useState(0);
   const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);
@@ -93,19 +113,25 @@ export default function HistoricalPerformanceSharePage() {
     const controller = new AbortController();
     void downloadPerformanceTakeMediaBlob(take.take_id, {
       signal: controller.signal,
+      onProgress: (loadedBytes, totalBytes) => {
+        if (!controller.signal.aborted) {
+          setMediaProgress({ loadedBytes, totalBytes });
+        }
+      },
     })
       .then((blob) => {
         if (!controller.signal.aborted) setMediaBlob(blob);
       })
       .catch((error) => {
         if (!controller.signal.aborted) {
+          setMediaErrorPermanent(isPermanentResourceError(error));
           setMediaError(
-            error instanceof Error ? error.message : t('historicalShareMediaUnavailable')
+            t('historicalShareMediaUnavailable')
           );
         }
       });
     return () => controller.abort();
-  }, [isBaseEligible, t, take]);
+  }, [isBaseEligible, mediaRetryNonce, t, take]);
 
   useEffect(() => () => adapter.dispose(), [adapter]);
 
@@ -165,15 +191,29 @@ export default function HistoricalPerformanceSharePage() {
   if (mediaError) {
     return (
       <HistoricalTakeUnavailable
-        message={mediaError}
+        message={
+          mediaErrorPermanent
+            ? t('historicalShareUnavailable')
+            : t('historicalShareTemporaryUnavailable')
+        }
         backLabel={t('historicalShareBack')}
+        retryLabel={mediaErrorPermanent ? undefined : t('historicalShareRetry')}
+        onRetry={
+          mediaErrorPermanent
+            ? undefined
+            : () => {
+                setMediaBlob(null);
+                setMediaError(null);
+                setMediaErrorPermanent(false);
+                setMediaProgress({ loadedBytes: 0, totalBytes: null });
+                setMediaRetryNonce((value) => value + 1);
+              }
+        }
         onBack={() => router.push('/my-performances')}
       />
     );
   }
   if (
-    revisionQuery.isError ||
-    artifactQuery.isError ||
     (revisionQuery.data?.data && artifactQuery.data && !exactIdentityMatches)
   ) {
     return (
@@ -184,14 +224,64 @@ export default function HistoricalPerformanceSharePage() {
       />
     );
   }
+  if (
+    isPermanentResourceError(revisionQuery.error) ||
+    isPermanentResourceError(artifactQuery.error)
+  ) {
+    return (
+      <HistoricalTakeUnavailable
+        message={t('historicalShareRevisionUnavailable')}
+        backLabel={t('historicalShareBack')}
+        onBack={() => router.push('/my-performances')}
+      />
+    );
+  }
+  if (revisionQuery.isError || artifactQuery.isError) {
+    return (
+      <HistoricalTakeUnavailable
+        message={t('historicalShareTemporaryUnavailable')}
+        backLabel={t('historicalShareBack')}
+        retryLabel={t('historicalShareRetry')}
+        onRetry={() => {
+          if (revisionQuery.isError) void revisionQuery.refetch();
+          if (artifactQuery.isError) void artifactQuery.refetch();
+        }}
+        onBack={() => router.push('/my-performances')}
+      />
+    );
+  }
   if (!session || !replay || !exactIdentityMatches || !xmlContent || !artifactQuery.data) {
     return (
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
-        <PageHeader title="制作分享视频" />
+        <PageHeader title={t('historicalShareTitle')} />
         <Card>
-          <CardContent className="flex min-h-48 items-center justify-center gap-3 p-8 text-sm text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            {t('historicalSharePreparing')}
+          <CardContent className="flex min-h-48 flex-col items-center justify-center gap-3 p-8 text-sm text-muted-foreground">
+            {mediaProgress.totalBytes ? (
+              <p>
+                {t('historicalShareLoadingMedia', {
+                  progress: ` ${Math.round(
+                    (mediaProgress.loadedBytes / mediaProgress.totalBytes) * 100
+                  )}%`,
+                })}
+              </p>
+            ) : (
+              <p>{t('historicalShareLoadingMedia', { progress: '' })}</p>
+            )}
+            {mediaProgress.totalBytes ? (
+              <progress
+                className="h-2 w-full max-w-sm"
+                value={Math.min(mediaProgress.loadedBytes, mediaProgress.totalBytes)}
+                max={mediaProgress.totalBytes}
+                aria-label={t('historicalShareLoadingMedia', {
+                  progress: `${Math.round(
+                    (mediaProgress.loadedBytes / mediaProgress.totalBytes) * 100
+                  )}%`,
+                })}
+              />
+            ) : (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            )}
+            {!mediaBlob ? null : <p>{t('historicalSharePreparing')}</p>}
           </CardContent>
         </Card>
       </div>

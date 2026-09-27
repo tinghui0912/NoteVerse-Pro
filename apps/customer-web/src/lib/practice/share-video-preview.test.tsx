@@ -24,6 +24,7 @@ vi.mock('./split-screen-playback-position', () => ({
 }));
 
 import { ShareVideoPreview } from './share-video-preview';
+import { captureReplayVideoFrame } from './share-video-preview';
 
 describe('ShareVideoPreview', () => {
   beforeEach(() => {
@@ -158,10 +159,10 @@ describe('ShareVideoPreview', () => {
 
   it('reports the requested media time when async rendering finishes after the source advances', async () => {
     const video = document.createElement('video');
-    let currentTime = 1;
+    let sourceAdvanced = false;
     Object.defineProperty(video, 'currentTime', {
       configurable: true,
-      get: () => currentTime,
+      get: () => (sourceAdvanced ? 2.5 : 1.05),
     });
     Object.defineProperty(video, 'duration', { configurable: true, value: 4 });
     Object.defineProperty(video, 'readyState', {
@@ -171,7 +172,10 @@ describe('ShareVideoPreview', () => {
     Object.defineProperty(video, 'seeking', { configurable: true, value: false });
 
     const renderGate: { resolve: (() => void) | null } = { resolve: null };
-    mocks.renderSplitScreenFrameAtTime.mockImplementationOnce(async () => {
+    mocks.renderSplitScreenFrameAtTime.mockImplementationOnce(async (rawOptions: unknown) => {
+      const options = rawOptions as { mediaTimeMs: number };
+      expect(options.mediaTimeMs).toBe(1050);
+      sourceAdvanced = true;
       await new Promise<void>((resolve) => {
         renderGate.resolve = resolve;
       });
@@ -219,12 +223,20 @@ describe('ShareVideoPreview', () => {
     await waitFor(() => {
       expect(mocks.renderSplitScreenFrameAtTime).toHaveBeenCalled();
     });
-    currentTime = 2.5;
     renderGate.resolve?.();
 
     await waitFor(() => {
-      expect(onFrameCommitted).toHaveBeenCalledWith(1000);
+      expect(onFrameCommitted).toHaveBeenCalled();
     });
+    expect(onFrameCommitted).toHaveBeenCalledWith(1050);
     expect(onFrameCommitted).not.toHaveBeenCalledWith(2500);
+  });
+
+  it('freezes the media time at the same instant as the source frame', () => {
+    const video = document.createElement('video');
+    Object.defineProperty(video, 'currentTime', { configurable: true, value: 1.05 });
+    const source = captureReplayVideoFrame(video, { current: null });
+    expect(source.mediaTimeMs).toBe(1050);
+    expect(source.canvas).toBeInstanceOf(HTMLCanvasElement);
   });
 });

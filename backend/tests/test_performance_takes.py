@@ -455,6 +455,18 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert res_media.content == media_content
         assert res_media.headers["content-type"].startswith("audio/webm")
         assert "performance-" in res_media.headers.get("content-disposition", "")
+        res_media_range = client.get(
+            f"/api/v1/performance-takes/{take_id}/media",
+            headers={"Range": "bytes=0-3"},
+        )
+        assert res_media_range.status_code == 206
+        assert res_media_range.content == media_content[:4]
+
+        app.dependency_overrides[get_current_user] = lambda: user_2
+        res_media_other_user = client.get(f"/api/v1/performance-takes/{take_id}/media")
+        assert res_media_other_user.status_code == 404
+        assert media_content not in res_media_other_user.content
+        app.dependency_overrides[get_current_user] = lambda: user_1
 
         # 10. Delete take (P0-2 returns 202 Accepted, marks DELETING, writes outbox)
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")

@@ -100,5 +100,43 @@ describe('share video session saved-take parsing', () => {
         segments: [{ startBeat: 1, bpm: 96, source: 'MUSICXML' }],
       })
     ).toThrow(/beat_zero/);
+    expect(() =>
+      parseSavedSyncMetadata({
+        recordingTimebase: syncMetadata.recordingTimebase,
+      })
+    ).toThrow(/replay_timing_invalid/);
+    expect(() =>
+      parseSavedSyncMetadata(syncMetadata, 4)
+    ).toThrow(/replay_scopeStartBeat_mismatch/);
+  });
+
+  it('requires replay timing to agree with the saved range start', () => {
+    expect(
+      createShareVideoSessionFromSavedTake(
+        { ...take, scope_start_beat: 4, sync_metadata: {
+          ...syncMetadata,
+          replayTiming: { ...syncMetadata.replayTiming, scopeStartBeat: 4 },
+        } },
+        new Blob(['video'], { type: 'video/webm' })
+      ).status
+    ).toBe('supported');
+    expect(
+      createShareVideoSessionFromSavedTake(
+        { ...take, scope_start_beat: 4 },
+        new Blob(['video'], { type: 'video/webm' })
+      )
+    ).toMatchObject({ status: 'unsupported', reason: 'replay_scopeStartBeat_mismatch' });
+  });
+
+  it('does not claim the database duration is the decoded media duration', () => {
+    const result = createShareVideoSessionFromSavedTake(
+      take,
+      new Blob(['video'], { type: 'video/webm' })
+    );
+    expect(result.status).toBe('supported');
+    if (result.status === 'supported') {
+      expect(result.session.video.durationMs).toBe(4000);
+      expect(result.session.video.actualMediaDurationMs).toBeUndefined();
+    }
   });
 });

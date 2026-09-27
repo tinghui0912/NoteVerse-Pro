@@ -1,4 +1,6 @@
-import { apiClient, apiUrl, type ApiResponse } from '@/lib/api-client';
+import { ApiError, apiClient, apiUrl, type ApiResponse } from '@/lib/api-client';
+
+export const MAX_PERFORMANCE_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 
 export interface PerformanceTakeUploadAuthorizationRequest {
   score_id: string;
@@ -148,38 +150,57 @@ export async function downloadPerformanceTakeMediaBlob(
     }
   );
   if (!response.ok) {
-    throw new Error(`Historical performance media request failed with status ${response.status}`);
+    throw new ApiError(
+      response.status,
+      'historical_media_request_failed',
+      `Historical performance media request failed with status ${response.status}`
+    );
+  }
+  const contentLength = response.headers.get('content-length');
+  const total = contentLength ? Number(contentLength) : Number.NaN;
+  const totalBytes =
+    Number.isFinite(total) && total > 0 && total <= MAX_PERFORMANCE_TAKE_MEDIA_BYTES
+      ? total
+      : null;
+  if (Number.isFinite(total) && total > MAX_PERFORMANCE_TAKE_MEDIA_BYTES) {
+    throw new Error('historical_media_too_large');
   }
   if (!response.body) {
     const blob = await response.blob();
-    options?.onProgress?.(blob.size, blob.size);
+    if (blob.size > MAX_PERFORMANCE_TAKE_MEDIA_BYTES) {
+      throw new Error('historical_media_too_large');
+    }
+    options?.onProgress?.(blob.size, totalBytes ?? blob.size);
     return blob;
   }
 
   const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  const total = Number(response.headers.get('content-length'));
-  const totalBytes = Number.isFinite(total) && total >= 0 ? total : null;
+  const chunks: BlobPart[] = [];
   let loaded = 0;
+  let completed = false;
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       if (!value) continue;
-      chunks.push(new Uint8Array(value));
+      if (loaded + value.byteLength > MAX_PERFORMANCE_TAKE_MEDIA_BYTES) {
+        throw new Error('historical_media_too_large');
+      }
+      chunks.push(value as unknown as BlobPart);
       loaded += value.byteLength;
       options?.onProgress?.(loaded, totalBytes);
     }
+    completed = true;
   } finally {
+    if (!completed) {
+      await reader.cancel().catch(() => undefined);
+    }
     reader.releaseLock();
   }
-  const blob = new Blob(
-    chunks.map((chunk) => new Uint8Array(chunk).buffer as ArrayBuffer),
-    {
+  const blob = new Blob(chunks, {
     type: response.headers.get('content-type') ?? 'application/octet-stream',
-    }
-  );
-  options?.onProgress?.(loaded, totalBytes ?? loaded);
+  });
+  options?.onProgress?.(loaded, totalBytes);
   return blob;
 }
 

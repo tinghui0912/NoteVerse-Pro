@@ -25,7 +25,11 @@ import {
   type SplitScreenExportBlockReason,
 } from '@/lib/practice/split-screen-video-export';
 import type { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
-import { toShareVideoSession, type ShareVideoSessionInput } from '@/lib/practice/share-video-session';
+import {
+  toShareVideoSession,
+  type ShareVideoSession,
+  type ShareVideoSessionInput,
+} from '@/lib/practice/share-video-session';
 
 const FLOATING_SHARE_TEMPLATE_ENABLED = process.env.NODE_ENV !== 'production';
 
@@ -164,14 +168,17 @@ export function ShareVideoStudio({
   collapsible?: boolean;
 }) {
   const t = useTranslations('practice');
-  const session = useMemo(
-    () => toShareVideoSession(sessionInput ?? draft!),
-    [draft, sessionInput]
-  );
+  const session = useMemo<ShareVideoSession | null>(() => {
+    try {
+      return toShareVideoSession(sessionInput ?? draft!);
+    } catch {
+      return null;
+    }
+  }, [draft, sessionInput]);
   const [orientationPreference, setOrientationPreference] = useState<{
     sessionId: string;
     value: VideoOrientation;
-  }>({ sessionId: session.sourceId, value: 'landscape' });
+  }>({ sessionId: session?.sourceId ?? '', value: 'landscape' });
   const manualOrientationSessionRef = useRef<string | null>(null);
   const [scorePresentation, setScorePresentation] = useState<ScorePresentation>('split');
   const [floatingPosition, setFloatingPosition] = useState<FloatingPosition>('top');
@@ -187,7 +194,7 @@ export function ShareVideoStudio({
 
   useEffect(() => {
     const video = replayVideo;
-    if (!video) return;
+    if (!video || !session) return;
 
     const syncOrientationFromMetadata = () => {
       if (manualOrientationSessionRef.current === session.sourceId) {
@@ -202,10 +209,10 @@ export function ShareVideoStudio({
     syncOrientationFromMetadata();
     video.addEventListener('loadedmetadata', syncOrientationFromMetadata);
     return () => video.removeEventListener('loadedmetadata', syncOrientationFromMetadata);
-  }, [replayVideo, session.sourceId]);
+  }, [replayVideo, session]);
 
   const videoOrientation =
-    orientationPreference.sessionId === session.sourceId
+    session && orientationPreference.sessionId === session.sourceId
       ? orientationPreference.value
       : initialShareVideoOrientation(replayVideo);
 
@@ -255,6 +262,7 @@ export function ShareVideoStudio({
   const handleExport = useCallback(async () => {
     if (
       !scoreContainer ||
+      !session ||
       !readiness.ok ||
       splitExportStatus === 'exporting' ||
       session.video.status !== 'READY'
@@ -341,6 +349,23 @@ export function ShareVideoStudio({
     );
   }
 
+  if (!session) {
+    return (
+      <Card className="rounded-lg bg-card" data-testid="share-video-studio-unavailable">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">
+            {t('sharePerformanceVideoTitle')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            {t('exportScoreVideoUnavailableScore')}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="rounded-lg bg-card" data-testid="share-video-studio">
       <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
@@ -366,13 +391,14 @@ export function ShareVideoStudio({
             <h3 className="text-sm font-semibold">{t('shareVideoOrientationStep')}</h3>
             <p className="mt-1 text-xs text-muted-foreground">{t('shareVideoOrientationDesc')}</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label={t('shareVideoOrientationStep')}>
+          <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label={t('shareVideoOrientationStep')}>
             <ShareChoiceCard
               selected={videoOrientation === 'landscape'}
               title={t('shareLandscapeTitle')}
               description={t('shareLandscapeDesc')}
               icon={RectangleHorizontal}
               onClick={() => {
+                if (!session) return;
                 manualOrientationSessionRef.current = session.sourceId;
                 setOrientationPreference({ sessionId: session.sourceId, value: 'landscape' });
               }}
@@ -384,6 +410,7 @@ export function ShareVideoStudio({
               description={t('sharePortraitDesc')}
               icon={RectangleVertical}
               onClick={() => {
+                if (!session) return;
                 manualOrientationSessionRef.current = session.sourceId;
                 setOrientationPreference({ sessionId: session.sourceId, value: 'portrait' });
               }}
@@ -397,7 +424,7 @@ export function ShareVideoStudio({
             <h3 className="text-sm font-semibold">{t('sharePresentationStep')}</h3>
             <p className="mt-1 text-xs text-muted-foreground">{t('sharePresentationDesc')}</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label={t('sharePresentationStep')}>
+          <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label={t('sharePresentationStep')}>
             <ShareChoiceCard
               selected={scorePresentation === 'split'}
               title={t('shareSplitTitle')}
@@ -439,7 +466,7 @@ export function ShareVideoStudio({
                 {isFloatingAdvancedOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label={t('sharePositionStep')}>
+            <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label={t('sharePositionStep')}>
               <ShareChoiceCard
                 selected={floatingPosition === 'top'}
                 title={t('shareTop')}
@@ -463,7 +490,7 @@ export function ShareVideoStudio({
                   <SlidersHorizontal className="h-4 w-4" />
                   {t('shareScoreSize')}
                 </div>
-                <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t('shareScoreSize')}>
+                <div className="grid grid-cols-3 gap-2" role="group" aria-label={t('shareScoreSize')}>
                   {(['small', 'medium', 'large'] as const).map((size) => (
                     <button
                       key={size}

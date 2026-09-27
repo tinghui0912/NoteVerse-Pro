@@ -66,6 +66,7 @@ export function ShareVideoPreview({
   const scorePagesRef = useRef<ScorePageCache | null>(null);
   const pendingRequestRef = useRef<PreviewRequest | null>(null);
   const activeRenderRef = useRef(false);
+  const initialPreviewQueuedRef = useRef(false);
   const templateVersionRef = useRef(0);
   const frameCallbackRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -75,7 +76,6 @@ export function ShareVideoPreview({
   const mediaTimeRef = useRef(mediaTimeMs);
   const [status, setStatus] = useState<PreviewStatus>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [resourceVersion, setResourceVersion] = useState(0);
   const [retryNonce, setRetryNonce] = useState(0);
   const isDebugPreviewExportEnabled = process.env.NODE_ENV !== 'production';
 
@@ -146,7 +146,7 @@ export function ShareVideoPreview({
             sourceVideo,
             sourceFrameCanvasRef
           );
-          const renderMediaTimeMs = request.mediaTimeMs;
+          const renderMediaTimeMs = frozenSource.mediaTimeMs;
           await renderSplitScreenFrameAtTime({
             mediaTimeMs: renderMediaTimeMs,
             scoreModel: scorePages,
@@ -216,6 +216,7 @@ export function ShareVideoPreview({
     const prepare = async () => {
       setStatus('preparing');
       setError(null);
+      initialPreviewQueuedRef.current = false;
       if (!scoreContainer || session.video.status !== 'READY') {
         setStatus('idle');
         return;
@@ -227,7 +228,10 @@ export function ShareVideoPreview({
         if (cancelled || disposedRef.current) return;
         scorePagesRef.current = scorePages;
         setStatus('ready');
-        setResourceVersion((version) => version + 1);
+        initialPreviewQueuedRef.current = true;
+        enqueuePreview(
+          replayVideo?.currentTime ? replayVideo.currentTime * 1000 : mediaTimeRef.current
+        );
       } catch (cause) {
         if (!cancelled && !disposedRef.current) {
           setStatus('error');
@@ -254,6 +258,8 @@ export function ShareVideoPreview({
     };
   }, [
     clearFrameScheduler,
+    enqueuePreview,
+    replayVideo,
     session,
     retryNonce,
     scoreContainer,
@@ -265,18 +271,22 @@ export function ShareVideoPreview({
       templateVersionRef.current += 1;
     }
     templateRef.current = template;
-    if (status === 'ready') {
+    if (scorePagesRef.current) {
       enqueuePreview(
         replayVideo?.currentTime ? replayVideo.currentTime * 1000 : mediaTimeMs
       );
     }
-  }, [enqueuePreview, mediaTimeMs, replayVideo, resourceVersion, status, template]);
+  }, [enqueuePreview, mediaTimeMs, replayVideo, template]);
 
   useEffect(() => {
     isPlayingRef.current = isReplayPlaying;
     clearFrameScheduler();
     if (!isReplayPlaying || status !== 'ready' || !replayVideo) {
       if (!isReplayPlaying && status === 'ready') {
+        if (initialPreviewQueuedRef.current) {
+          initialPreviewQueuedRef.current = false;
+          return;
+        }
         enqueuePreview(
           replayVideo?.currentTime ? replayVideo.currentTime * 1000 : mediaTimeRef.current
         );
@@ -386,7 +396,7 @@ function waitForReplayVideoFrame(video: HTMLVideoElement): Promise<void> {
   });
 }
 
-function captureReplayVideoFrame(
+export function captureReplayVideoFrame(
   video: HTMLVideoElement,
   canvasRef: React.MutableRefObject<HTMLCanvasElement | null>
 ): { canvas: HTMLCanvasElement; mediaTimeMs: number } {
@@ -399,10 +409,11 @@ function captureReplayVideoFrame(
   if (!context) {
     throw new Error('分享视频预览无法创建视频帧缓冲区');
   }
-  context.drawImage(video, 0, 0, width, height);
-  const currentTimeMs = Number.isFinite(video.currentTime) && video.currentTime >= 0
-    ? video.currentTime * 1000
+  const currentTime = video.currentTime;
+  const currentTimeMs = Number.isFinite(currentTime) && currentTime >= 0
+    ? currentTime * 1000
     : 0;
+  context.drawImage(video, 0, 0, width, height);
   canvasRef.current = canvas;
   return { canvas, mediaTimeMs: currentTimeMs };
 }
