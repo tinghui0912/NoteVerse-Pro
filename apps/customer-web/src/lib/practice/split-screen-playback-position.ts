@@ -51,7 +51,8 @@ export function resolveSplitScreenScoreFrame({
   const entry = adapter.getCursorTimelineEntryForBeatRange(
     musicalBeat,
     session.scope.startBeat,
-    session.scope.terminalBeat
+    session.scope.terminalBeat,
+    session.scope.selectedRangeNoteIds
   );
   if (!entry || entry.noteIds.length === 0) {
     return null;

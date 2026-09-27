@@ -7,10 +7,12 @@ from datetime import datetime, timedelta, timezone
 import os
 from collections.abc import Iterator
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import event, inspect, select, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel, create_engine
@@ -92,6 +94,11 @@ class AsyncSessionAdapter:
 
     async def get(self, model, identity):  # type: ignore[no-untyped-def]
         return self.session.get(model, identity)
+
+    async def invalidate(self) -> None:
+        # The production AsyncSession invalidates the stale connection here.
+        # SQLite's synchronous test adapter has no pooled async connection to invalidate.
+        return None
 
     async def delete(self, instance) -> None:  # type: ignore[no-untyped-def]
         self.session.delete(instance)
@@ -1325,6 +1332,183 @@ def test_finalize_safe_retry_idempotency(test_env):
         ).scalars().all()
         assert len(takes) == 1
 
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    take_svc = PerformanceTakeService(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    original_get = AsyncSessionAdapter.get
+    first_score_read = {"pending": True}
+
+    async def disconnect_once(self, model, identity):  # type: ignore[no-untyped-def]
+        if model is Score and first_score_read["pending"]:
+            first_score_read["pending"] = False
+            raise DBAPIError.instance(
+                "SELECT score",
+                {},
+                Exception("connection is closed"),
+                Exception,
+                connection_invalidated=True,
+            )
+        return await original_get(self, model, identity)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = TestClient(app)
+
+    try:
+        content = VALID_WEBM_BYTES
+        auth_req = {
+            "score_id": "score-uuid-10",
+            "client_request_id": "req-post-storage-disconnect",
+            "media_kind": "VIDEO",
+            "media_byte_size": len(content),
+            "media_mime_type": "video/webm",
+            "duration_ms": 5000,
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+        }
+        res_auth = client.post(
+            "/api/v1/performance-takes/upload-authorizations",
+            json=auth_req,
+        )
+        assert res_auth.status_code == 200, res_auth.text
+        auth_data = res_auth.json()["data"]
+        storage.put_bytes(
+            key=auth_data["object_key"],
+            content=content,
+            content_type="video/webm",
+        )
+
+        fin_req = {
+            **auth_req,
+            "take_id": auth_data["take_id"],
+            "reservation_id": auth_data["reservation_id"],
+        }
+        with patch.object(AsyncSessionAdapter, "get", new=disconnect_once):
+            res_fin = client.post("/api/v1/performance-takes", json=fin_req)
+
+        assert res_fin.status_code == 200, res_fin.text
+        assert first_score_read["pending"] is False
+        assert session.execute(
+            select(PerformanceTake).where(
+                PerformanceTake.client_request_id == "req-post-storage-disconnect"
+            )
+        ).scalars().one()
+        account = session.get(StorageUsageAccount, user_1.id)
+        session.refresh(account)
+        assert account.used_bytes == len(content)
+        assert account.reserved_bytes == 0
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_finalize_range_video_preserves_scope_identity_and_sync_metadata(test_env):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    take_svc = PerformanceTakeService(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = TestClient(app)
+    try:
+        content = VALID_WEBM_BYTES
+        sync_metadata = {
+            "recordingTimebase": {
+                "recordingStartPerfTimeMs": 0,
+                "recordingEndPerfTimeMs": 5000,
+                "nominalMediaDurationMs": 5000,
+                "activeSegments": [{
+                    "perfStartMs": 0,
+                    "perfEndMs": 5000,
+                    "mediaStartMs": 0,
+                    "mediaEndMs": 5000,
+                }],
+            },
+            "replayTiming": {
+                "scopeStartBeat": 4,
+                "scopeStartMs": 0,
+                "nominalDurationMs": 5000,
+            },
+            "scopeIdentity": {
+                "startGroupId": "group-2",
+                "endGroupId": "group-4",
+            },
+        }
+        resolved_tempo_plan = {
+            "selection": {"mode": "SCORE"},
+            "segments": [{"startBeat": 0, "bpm": 96, "source": "MUSICXML"}],
+        }
+        request = {
+            "score_id": "score-uuid-10",
+            "client_request_id": "req-range-video-scope-identity",
+            "media_kind": "VIDEO",
+            "media_byte_size": len(content),
+            "media_mime_type": "video/webm",
+            "duration_ms": 5000,
+            "scope_type": "RANGE",
+            "scope_start_beat": 4,
+            "scope_terminal_beat": 8,
+            "resolved_tempo_plan": resolved_tempo_plan,
+            "sync_metadata": sync_metadata,
+        }
+        res_auth = client.post(
+            "/api/v1/performance-takes/upload-authorizations",
+            json=request,
+        )
+        assert res_auth.status_code == 200, res_auth.text
+        auth_data = res_auth.json()["data"]
+        storage.put_bytes(
+            key=auth_data["object_key"],
+            content=content,
+            content_type="video/webm",
+        )
+
+        res_fin = client.post(
+            "/api/v1/performance-takes",
+            json={
+                **request,
+                "take_id": auth_data["take_id"],
+                "reservation_id": auth_data["reservation_id"],
+            },
+        )
+        assert res_fin.status_code == 200, res_fin.text
+        take_data = res_fin.json()["data"]
+        assert take_data["scope_type"] == "RANGE"
+        assert take_data["scope_start_beat"] == 4
+        assert take_data["scope_terminal_beat"] == 8
+        assert take_data["sync_metadata"]["scopeIdentity"] == sync_metadata["scopeIdentity"]
+        assert take_data["sync_metadata"]["replayTiming"]["scopeStartBeat"] == 4
+        assert take_data["resolved_tempo_plan"] == resolved_tempo_plan
+        assert session.execute(
+            select(PerformanceTake).where(
+                PerformanceTake.client_request_id == "req-range-video-scope-identity"
+            )
+        ).scalar_one()
     finally:
         app.dependency_overrides.clear()
 

@@ -50,9 +50,11 @@ import {
 import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
 import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-annotation-controller';
 import { PracticeTempoTimeline } from '@/lib/practice/local-core/practice-tempo';
+import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/local-core/artifact';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
 import { ShareVideoStudio } from '@/components/practice/share-video-studio';
+import { createShareVideoSessionFromReviewDraft } from '@/lib/practice/share-video-session';
 
 const MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 
@@ -114,6 +116,28 @@ export default function PracticeReviewPage({
     isValidDraft && Boolean(id)
   );
   const artifact = artifactQuery.data ?? null;
+  const selectedRangeNoteIds = useMemo(
+    () => {
+      if (!artifact || !draft) return [];
+      try {
+        return resolvePracticeScopeCursorNoteIds(artifact, draft.scope);
+      } catch {
+        return [];
+      }
+    },
+    [artifact, draft]
+  );
+  const shareVideoSession = useMemo(
+    () => {
+      if (!draft || !artifact) return null;
+      try {
+        return createShareVideoSessionFromReviewDraft(draft, artifact);
+      } catch {
+        return null;
+      }
+    },
+    [artifact, draft]
+  );
 
   const isRevisionMismatched = useMemo(() => {
     if (!isValidDraft || !draft || !artifact) return false;
@@ -238,9 +262,17 @@ export default function PracticeReviewPage({
       playheadController.apply(container, adapter, musicalBeat, {
         startBeat: draft.scope.startBeat,
         terminalBeat: draft.scope.terminalBeat,
+        selectedRangeNoteIds,
       });
     },
-    [adapter, artifact, draft, isScoreIdentityConfirmed, playheadController]
+    [
+      adapter,
+      artifact,
+      draft,
+      isScoreIdentityConfirmed,
+      playheadController,
+      selectedRangeNoteIds,
+    ]
   );
 
   const handleReplayPlaybackStateChange = useCallback((playing: boolean) => {
@@ -254,6 +286,13 @@ export default function PracticeReviewPage({
     latestReplayTimeMsRef.current = Math.max(0, replayTimeMs);
     setSharePreviewTimeMs(Math.max(0, replayTimeMs));
   }, []);
+
+  const handleReplayEnded = useCallback(() => {
+    const container = scoreContainerRef.current;
+    if (container) {
+      playheadController.clear(container);
+    }
+  }, [playheadController]);
 
   useEffect(() => {
     const container = scoreContainerRef.current;
@@ -380,6 +419,13 @@ export default function PracticeReviewPage({
         syncMetadata: {
           recordingTimebase: draft.recordingTimebase,
           replayTiming: draft.replayTiming,
+          scopeIdentity:
+            scopeType === 'RANGE'
+              ? {
+                  startGroupId: draft.scope.startGroupId,
+                  endGroupId: draft.scope.endGroupId,
+                }
+              : null,
         },
       });
       setSaveStatus('saved');
@@ -688,6 +734,7 @@ export default function PracticeReviewPage({
                 replay={replay}
                 onReplayTimeChange={handleReplayTimeChange}
                 onPlaybackStateChange={handleReplayPlaybackStateChange}
+                onReplayEnded={handleReplayEnded}
                 onReplaySeekCommitted={handleReplaySeekCommitted}
                 onVideoElementChange={setReplayVideo}
               />
@@ -804,7 +851,7 @@ export default function PracticeReviewPage({
       {draft.video?.status === 'READY' ? (
         <ShareVideoStudio
           key={draft.localSessionId}
-          draft={draft}
+          session={shareVideoSession ?? undefined}
           scoreContainer={scoreContainer}
           adapter={adapter}
           scoreEndBeat={artifact?.scoreEndBeat ?? draft.scope.terminalBeat}

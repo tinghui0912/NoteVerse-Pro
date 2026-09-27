@@ -24,7 +24,6 @@ import type { PlayablePerformanceReplay } from '@/lib/practice/performance-repla
 import {
   createShareVideoSessionFromSavedTake,
   hasSavedTakeShareVideoMetadata,
-  type ShareVideoSession,
 } from '@/lib/practice/share-video-session';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 
@@ -145,11 +144,18 @@ export default function HistoricalPerformanceSharePage() {
       artifactQuery.data.revisionId === take.revision_id &&
       artifactQuery.data.artifactId === take.artifact_id
   );
-  const session = useMemo<ShareVideoSession | null>(() => {
+  const sessionEligibility = useMemo(() => {
     if (!take || !mediaBlob || !exactIdentityMatches) return null;
-    const result = createShareVideoSessionFromSavedTake(take, mediaBlob);
-    return result.status === 'supported' ? result.session : null;
-  }, [exactIdentityMatches, mediaBlob, take]);
+    return createShareVideoSessionFromSavedTake(
+      take,
+      mediaBlob,
+      artifactQuery.data ?? undefined
+    );
+  }, [artifactQuery.data, exactIdentityMatches, mediaBlob, take]);
+  const session =
+    sessionEligibility?.status === 'supported'
+      ? sessionEligibility.session
+      : null;
 
   const replay = useMemo<PlayablePerformanceReplay | null>(() => {
     if (!session) return null;
@@ -242,6 +248,15 @@ export default function HistoricalPerformanceSharePage() {
     isPermanentResourceError(revisionQuery.error) ||
     isPermanentResourceError(artifactQuery.error)
   ) {
+    return (
+      <HistoricalTakeUnavailable
+        message={t('historicalShareRevisionUnavailable')}
+        backLabel={t('historicalShareBack')}
+        onBack={() => router.push('/my-performances')}
+      />
+    );
+  }
+  if (sessionEligibility?.status === 'unsupported') {
     return (
       <HistoricalTakeUnavailable
         message={t('historicalShareRevisionUnavailable')}

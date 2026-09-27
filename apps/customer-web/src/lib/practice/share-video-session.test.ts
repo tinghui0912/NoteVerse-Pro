@@ -25,6 +25,10 @@ const syncMetadata = {
     scopeStartMs: 0,
     nominalDurationMs: 4000,
   },
+  scopeIdentity: {
+    startGroupId: 'group-1',
+    endGroupId: 'group-2',
+  },
 };
 
 const take = {
@@ -43,6 +47,76 @@ const take = {
   sync_metadata: syncMetadata,
   created_at: '2026-09-26T00:00:00.000Z',
 } as const;
+
+const artifact = {
+  schemaVersion: 1 as const,
+  scoreId: 'score-1',
+  revisionId: 'revision-1',
+  artifactId: 'artifact-1',
+  playableEvents: [],
+  scoreTempoSegments: [{ startBeat: 0, bpm: 96 }],
+  meterSegments: [{
+    startBeat: 0,
+    numerator: 4,
+    denominator: 4,
+    measureDurationBeats: 4,
+    countInPulses: 0,
+  }],
+  firstPlayableBeat: 0,
+  scoreEndBeat: 16,
+  expectedPracticeGroups: [
+    {
+      groupId: 'group-1',
+      onsetBeat: 0,
+      eventIds: [],
+      expectedNotes: [],
+      strikeTargets: [],
+      renderNoteIds: ['note-1'],
+      pitches: [],
+      measureNumbers: ['1'],
+      staffIds: [],
+      voiceIds: [],
+      canonicalEndBeat: 4,
+    },
+    {
+      groupId: 'group-2',
+      onsetBeat: 4,
+      eventIds: [],
+      expectedNotes: [],
+      strikeTargets: [],
+      renderNoteIds: ['note-2'],
+      pitches: [],
+      measureNumbers: ['2'],
+      staffIds: [],
+      voiceIds: [],
+      canonicalEndBeat: 16,
+    },
+  ],
+  practiceAttackSteps: [
+    {
+      stepId: 'step-1',
+      onsetBeat: 0,
+      eventIds: [],
+      attackTargets: [],
+      continuation: [],
+      renderNoteIds: ['note-1'],
+      measureNumbers: ['1'],
+      staffIds: [],
+      voiceIds: [],
+    },
+    {
+      stepId: 'step-2',
+      onsetBeat: 4,
+      eventIds: [],
+      attackTargets: [],
+      continuation: [],
+      renderNoteIds: ['note-2'],
+      measureNumbers: ['2'],
+      staffIds: [],
+      voiceIds: [],
+    },
+  ],
+};
 
 describe('share video session saved-take parsing', () => {
   it('creates a session only from complete historical video metadata', () => {
@@ -138,5 +212,61 @@ describe('share video session saved-take parsing', () => {
       expect(result.session.video.durationMs).toBe(4000);
       expect(result.session.video.actualMediaDurationMs).toBeUndefined();
     }
+  });
+
+  it('rejects a RANGE take without exact scope identity', () => {
+    expect(
+      createShareVideoSessionFromSavedTake(
+        { ...take, scope_type: 'RANGE', sync_metadata: {
+          recordingTimebase: syncMetadata.recordingTimebase,
+          replayTiming: syncMetadata.replayTiming,
+        } },
+        new Blob(['video'], { type: 'video/webm' })
+      )
+    ).toMatchObject({ status: 'unsupported', reason: 'scope_identity_missing' });
+  });
+
+  it('does not require scope identity for FULL takes', () => {
+    const result = createShareVideoSessionFromSavedTake(
+      { ...take, scope_type: 'FULL', sync_metadata: {
+        recordingTimebase: syncMetadata.recordingTimebase,
+        replayTiming: syncMetadata.replayTiming,
+      } },
+      new Blob(['video'], { type: 'video/webm' })
+    );
+    expect(result.status).toBe('supported');
+  });
+
+  it('resolves and validates exact scope identity for RANGE takes', () => {
+    const result = createShareVideoSessionFromSavedTake(
+      { ...take, scope_type: 'RANGE' },
+      new Blob(['video'], { type: 'video/webm' }),
+      artifact
+    );
+    expect(result.status).toBe('supported');
+    if (result.status === 'supported') {
+      expect(result.session.scope.selectedRangeNoteIds).toEqual(['note-1', 'note-2']);
+      expect(result.session.scope.startGroupId).toBe('group-1');
+      expect(result.session.scope.endGroupId).toBe('group-2');
+    }
+  });
+
+  it('rejects RANGE scope identity that does not match the exact artifact', () => {
+    const result = createShareVideoSessionFromSavedTake(
+      {
+        ...take,
+        scope_type: 'RANGE',
+        sync_metadata: {
+          ...syncMetadata,
+          scopeIdentity: { startGroupId: 'group-1', endGroupId: 'missing-group' },
+        },
+      },
+      new Blob(['video'], { type: 'video/webm' }),
+      artifact
+    );
+    expect(result).toMatchObject({
+      status: 'unsupported',
+      reason: 'scope_identity_invalid',
+    });
   });
 });

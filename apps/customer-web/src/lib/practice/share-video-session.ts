@@ -6,10 +6,12 @@ import type {
   RecordingTimebaseMapping,
 } from './performance-review-draft';
 import type {
+  PracticeScoreArtifact,
   ResolvedPracticeScope,
   PracticeTempoSegmentSource,
   ResolvedPracticeTempoPlan,
 } from './local-core';
+import { resolvePracticeScopeCursorNoteIds } from './local-core/artifact';
 
 export type ShareVideoSession = {
   sourceId: string;
@@ -19,7 +21,11 @@ export type ShareVideoSession = {
     artifactId: string;
   };
   video: PerformanceReviewDraftVideoReady;
-  scope: Pick<ResolvedPracticeScope, 'startBeat' | 'terminalBeat'>;
+  scope: Pick<ResolvedPracticeScope, 'startBeat' | 'terminalBeat'> & {
+    selectedRangeNoteIds: string[];
+    startGroupId?: string;
+    endGroupId?: string;
+  };
   tempoPlan: ResolvedPracticeTempoPlan;
   recordingTimebase: RecordingTimebaseMapping;
   replayTiming?: {
@@ -32,7 +38,8 @@ export type ShareVideoSession = {
 export type ShareVideoSessionInput = ShareVideoSession | PerformanceReviewDraft;
 
 export function createShareVideoSessionFromReviewDraft(
-  draft: PerformanceReviewDraft
+  draft: PerformanceReviewDraft,
+  artifact?: PracticeScoreArtifact
 ): ShareVideoSession {
   if (draft.video?.status !== 'READY') {
     throw new Error('Share video requires a ready video recording.');
@@ -40,6 +47,9 @@ export function createShareVideoSessionFromReviewDraft(
   if (!draft.revisionId || !draft.artifactId) {
     throw new Error('Share video requires a stable score revision and artifact identity.');
   }
+  const selectedRangeNoteIds = artifact
+    ? resolvePracticeScopeCursorNoteIds(artifact, draft.scope)
+    : [];
   return {
     sourceId: draft.localSessionId,
     scoreIdentity: {
@@ -51,6 +61,9 @@ export function createShareVideoSessionFromReviewDraft(
     scope: {
       startBeat: draft.scope.startBeat,
       terminalBeat: draft.scope.terminalBeat,
+      selectedRangeNoteIds,
+      startGroupId: draft.scope.startGroupId,
+      endGroupId: draft.scope.endGroupId,
     },
     tempoPlan: draft.tempoPlan,
     recordingTimebase: draft.recordingTimebase,
@@ -102,7 +115,13 @@ export function hasSavedTakeShareVideoMetadata(take: PerformanceTakeRead): boole
       return false;
     }
     parseSavedTempoPlan(take.resolved_tempo_plan);
-    parseSavedSyncMetadata(take.sync_metadata, scopeStartBeat);
+    const syncMetadata = parseSavedSyncMetadata(take.sync_metadata, scopeStartBeat);
+    if (
+      take.scope_type === 'RANGE' &&
+      !syncMetadata.scopeIdentity
+    ) {
+      return false;
+    }
     return true;
   } catch {
     return false;
@@ -111,7 +130,8 @@ export function hasSavedTakeShareVideoMetadata(take: PerformanceTakeRead): boole
 
 export function createShareVideoSessionFromSavedTake(
   take: PerformanceTakeRead,
-  videoBlob: Blob
+  videoBlob: Blob,
+  artifact?: PracticeScoreArtifact
 ): SavedTakeEligibility {
   if (take.deletion_status === 'DELETING') {
     return { status: 'unsupported', reason: 'take_deleting' };
@@ -140,6 +160,37 @@ export function createShareVideoSessionFromSavedTake(
     }
     const tempoPlan = parseSavedTempoPlan(take.resolved_tempo_plan);
     const syncMetadata = parseSavedSyncMetadata(take.sync_metadata, scopeStartBeat);
+    const isRange = take.scope_type === 'RANGE';
+    if (isRange && !syncMetadata.scopeIdentity) {
+      return { status: 'unsupported', reason: 'scope_identity_missing' };
+    }
+    if (isRange && !artifact) {
+      return { status: 'unsupported', reason: 'scope_artifact_required' };
+    }
+    const startGroup = artifact?.expectedPracticeGroups.find(
+      (group) => group.groupId === syncMetadata.scopeIdentity?.startGroupId
+    );
+    const endGroup = artifact?.expectedPracticeGroups.find(
+      (group) => group.groupId === syncMetadata.scopeIdentity?.endGroupId
+    );
+    if (isRange && (!startGroup || !endGroup)) {
+      return { status: 'unsupported', reason: 'scope_identity_invalid' };
+    }
+    if (
+      isRange &&
+      (!startGroup ||
+        !endGroup ||
+        Math.abs(startGroup.onsetBeat - scopeStartBeat) > 1e-6 ||
+        Math.abs(endGroup.canonicalEndBeat - scopeTerminalBeat) > 1e-6)
+    ) {
+      return { status: 'unsupported', reason: 'scope_identity_mismatch' };
+    }
+    const selectedRangeNoteIds = artifact
+      ? resolvePracticeScopeCursorNoteIds(artifact, {
+          startGroupId: syncMetadata.scopeIdentity?.startGroupId,
+          endGroupId: syncMetadata.scopeIdentity?.endGroupId,
+        })
+      : [];
     return {
       status: 'supported',
       session: {
@@ -158,6 +209,9 @@ export function createShareVideoSessionFromSavedTake(
         scope: {
           startBeat: scopeStartBeat,
           terminalBeat: scopeTerminalBeat,
+          selectedRangeNoteIds,
+          startGroupId: syncMetadata.scopeIdentity?.startGroupId,
+          endGroupId: syncMetadata.scopeIdentity?.endGroupId,
         },
         tempoPlan,
         recordingTimebase: syncMetadata.recordingTimebase,
@@ -225,13 +279,28 @@ export function parseSavedSyncMetadata(
 ): {
   recordingTimebase: ParsedRecordingTimebase;
   replayTiming: NonNullable<ShareVideoSession['replayTiming']>;
+  scopeIdentity?: { startGroupId: string; endGroupId: string };
 } {
   if (!raw || typeof raw !== 'object') {
     throw new Error('sync_metadata_missing');
   }
   const recordingTimebase = parseRecordingTimebase(raw.recordingTimebase);
   const replayTiming = parseReplayTiming(raw.replayTiming, expectedScopeStartBeat);
-  return { recordingTimebase, replayTiming };
+  const rawIdentity = raw.scopeIdentity;
+  const scopeIdentity =
+    rawIdentity && typeof rawIdentity === 'object'
+      ? {
+          startGroupId: String((rawIdentity as Record<string, unknown>).startGroupId ?? ''),
+          endGroupId: String((rawIdentity as Record<string, unknown>).endGroupId ?? ''),
+        }
+      : undefined;
+  if (
+    scopeIdentity &&
+    (!scopeIdentity.startGroupId || !scopeIdentity.endGroupId)
+  ) {
+    throw new Error('scope_identity_invalid');
+  }
+  return { recordingTimebase, replayTiming, scopeIdentity };
 }
 
 function parseRecordingTimebase(raw: unknown): ParsedRecordingTimebase {

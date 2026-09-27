@@ -235,6 +235,24 @@ export function resolvePracticeScope(
   };
 }
 
+export function resolvePracticeScopeCursorNoteIds(
+  artifact: PracticeScoreArtifact,
+  scope: ResolvedPracticeScope | PracticeScope
+): string[] {
+  assertPracticeScoreArtifact(artifact);
+  const resolved = 'startIndex' in scope
+    ? scope
+    : resolvePracticeScope(artifact, scope);
+  return Array.from(
+    new Set(
+      artifact.expectedPracticeGroups
+        .slice(resolved.startIndex, resolved.endIndex + 1)
+        .flatMap((group) => group.renderNoteIds)
+        .filter(Boolean)
+    )
+  );
+}
+
 export function entryGroupEndBeat(artifact: PracticeScoreArtifact, groupId: string): number {
   const group = artifact.expectedPracticeGroups.find((candidate) => candidate.groupId === groupId);
   if (!group) {

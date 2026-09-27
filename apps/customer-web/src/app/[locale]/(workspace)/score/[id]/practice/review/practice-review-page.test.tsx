@@ -175,12 +175,50 @@ vi.mock('@/hooks/practice/use-practice-ready-score-content', () => ({
   })),
 }));
 
-let currentMockArtifact = {
+const createMockArtifact = (overrides: Record<string, unknown> = {}) => ({
+  schemaVersion: 1,
   scoreId: 'score-123',
   revisionId: 'rev-1',
   artifactId: 'art-1',
   scoreEndBeat: 16,
-};
+  playableEvents: [],
+  scoreTempoSegments: [{ startBeat: 0, bpm: 100 }],
+  meterSegments: [{
+    startBeat: 0,
+    numerator: 4,
+    denominator: 4,
+    measureDurationBeats: 4,
+    countInPulses: 0,
+  }],
+  firstPlayableBeat: 0,
+  expectedPracticeGroups: Array.from({ length: 5 }, (_, index) => ({
+    groupId: `g-${index + 1}`,
+    onsetBeat: index * 4,
+    eventIds: [],
+    expectedNotes: [],
+    strikeTargets: [],
+    renderNoteIds: [`n-${index + 1}`],
+    pitches: [],
+    measureNumbers: ['1'],
+    staffIds: [],
+    voiceIds: [],
+    canonicalEndBeat: (index + 1) * 4,
+  })),
+  practiceAttackSteps: Array.from({ length: 5 }, (_, index) => ({
+    stepId: `step-${index + 1}`,
+    onsetBeat: index * 4,
+    eventIds: [],
+    attackTargets: [],
+    continuation: [],
+    renderNoteIds: [`n-${index + 1}`],
+    measureNumbers: ['1'],
+    staffIds: [],
+    voiceIds: [],
+  })),
+  ...overrides,
+});
+
+let currentMockArtifact = createMockArtifact();
 
 vi.mock('@/hooks/practice/use-practice-score-artifact', () => ({
   usePracticeScoreArtifact: vi.fn(() => ({
@@ -231,12 +269,7 @@ describe('PracticeReviewPage', () => {
   beforeEach(() => {
     navigationMocks.push.mockClear();
     performanceReviewDraftStore.clearDraft();
-    currentMockArtifact = {
-      scoreId: 'score-123',
-      revisionId: 'rev-1',
-      artifactId: 'art-1',
-      scoreEndBeat: 16,
-    };
+    currentMockArtifact = createMockArtifact();
     vi.restoreAllMocks();
     saveMutationMock.mutateAsync.mockReset();
     splitScreenMocks.exportSplitScreenPerformanceVideo.mockReset();
@@ -248,16 +281,20 @@ describe('PracticeReviewPage', () => {
     splitScreenMocks.getSplitScreenExportReadiness.mockImplementation(
       ({
         draft,
+        session,
         isScoreIdentityConfirmed,
         xmlContent,
         scoreContainer,
       }: {
         draft: PerformanceReviewDraft | null;
+        session?: { video?: { status?: string } } | null;
         isScoreIdentityConfirmed: boolean;
         xmlContent: string | null;
         scoreContainer: HTMLElement | null;
       }) => {
-        if (draft?.video?.status !== 'READY') return { ok: false, reason: 'video_not_ready' };
+        if (draft?.video?.status !== 'READY' && session?.video?.status !== 'READY') {
+          return { ok: false, reason: 'video_not_ready' };
+        }
         if (!isScoreIdentityConfirmed) return { ok: false, reason: 'score_identity_mismatch' };
         if (!xmlContent || !scoreContainer) return { ok: false, reason: 'score_not_ready' };
         return { ok: true, mimeType: 'video/webm' };
@@ -588,12 +625,7 @@ describe('PracticeReviewPage', () => {
     const applySpy = vi.spyOn(PracticeSummaryAnnotationController.prototype, 'apply');
 
     // Artifact has revision 'rev-2', while draft has revision 'rev-1'
-    currentMockArtifact = {
-      scoreId: 'score-123',
-      revisionId: 'rev-2',
-      artifactId: 'art-1',
-      scoreEndBeat: 16,
-    };
+    currentMockArtifact = createMockArtifact({ revisionId: 'rev-2' });
 
     const validDraft: PerformanceReviewDraft = {
       localSessionId: 'sess-1',
@@ -1005,12 +1037,7 @@ describe('PracticeReviewPage', () => {
       configurable: true,
       value: vi.fn(),
     });
-    currentMockArtifact = {
-      scoreId: 'score-123',
-      revisionId: 'rev-2',
-      artifactId: 'art-1',
-      scoreEndBeat: 16,
-    };
+    currentMockArtifact = createMockArtifact({ revisionId: 'rev-2' });
     performanceReviewDraftStore.setDraft(createVideoDraft());
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
