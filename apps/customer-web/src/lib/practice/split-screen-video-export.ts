@@ -17,6 +17,11 @@ import {
   type ScorePageCache,
 } from './split-screen-score-model';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
+import {
+  toShareVideoSession,
+  type ShareVideoSession,
+  type ShareVideoSessionInput,
+} from './share-video-session';
 
 export {
   findStablePageNumber,
@@ -66,7 +71,8 @@ export type SplitScreenExportResult = {
 };
 
 export type ResolveSplitScreenFrameInput = {
-  draft: PerformanceReviewDraft;
+  draft?: PerformanceReviewDraft;
+  session?: ShareVideoSessionInput;
   adapter: Pick<
     PracticeVerovioAdapter,
     'getCursorTimelineEntryForBeatRange' | 'getPageWithElement'
@@ -85,7 +91,8 @@ export type SplitScreenScoreFrame = {
 };
 
 export type SplitScreenExportOptions = {
-  draft: PerformanceReviewDraft;
+  draft?: PerformanceReviewDraft;
+  session?: ShareVideoSessionInput;
   scoreContainer: HTMLElement;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
@@ -114,19 +121,31 @@ export function selectSupportedSplitScreenMimeType(): string | null {
 
 export function getSplitScreenExportReadiness({
   draft,
+  session: sessionInput,
   isScoreIdentityConfirmed,
   xmlContent,
   scoreContainer,
 }: {
-  draft: PerformanceReviewDraft | null;
+  draft?: PerformanceReviewDraft | null;
+  session?: ShareVideoSessionInput | null;
   isScoreIdentityConfirmed: boolean;
   xmlContent: string | null;
   scoreContainer: HTMLElement | null;
 }): SplitScreenExportReadiness {
-  if (draft?.video?.status !== 'READY') {
+  let session: ShareVideoSession | null = null;
+  try {
+    session = sessionInput
+      ? toShareVideoSession(sessionInput)
+      : draft
+        ? toShareVideoSession(draft)
+        : null;
+  } catch {
     return { ok: false, reason: 'video_not_ready' };
   }
-  if (draft.video.blob.size <= 0) {
+  if (!session?.video || session.video.status !== 'READY') {
+    return { ok: false, reason: 'video_not_ready' };
+  }
+  if (session.video.blob.size <= 0) {
     return { ok: false, reason: 'empty_video' };
   }
   if (!isScoreIdentityConfirmed) {
@@ -135,7 +154,7 @@ export function getSplitScreenExportReadiness({
   if (!xmlContent || !scoreContainer) {
     return { ok: false, reason: 'score_not_ready' };
   }
-  if (!draft.recordingTimebase?.activeSegments?.length) {
+  if (!session.recordingTimebase?.activeSegments?.length) {
     return { ok: false, reason: 'timebase_unavailable' };
   }
   const mimeType = selectSupportedSplitScreenMimeType();
@@ -150,28 +169,30 @@ export function getSplitScreenExportReadiness({
 
 export function resolveSplitScreenScoreFrame({
   draft,
+  session: sessionInput,
   adapter,
   pageNumberResolver,
   mediaTimeMs,
   actualMediaDurationMs,
   scoreEndBeat,
 }: ResolveSplitScreenFrameInput): SplitScreenScoreFrame | null {
+  const session = toShareVideoSession(sessionInput ?? draft!);
   const perfTimeMs = mediaTimeToPerformanceTimeMs(
     mediaTimeMs,
-    draft.recordingTimebase,
+    session.recordingTimebase,
     actualMediaDurationMs
   );
   if (perfTimeMs === null) {
     return null;
   }
 
-  const timeline = new PracticeTempoTimeline(draft.tempoPlan, scoreEndBeat);
-  const scopeStartMs = draft.replayTiming?.scopeStartMs ?? 0;
+  const timeline = new PracticeTempoTimeline(session.tempoPlan, scoreEndBeat);
+  const scopeStartMs = session.replayTiming?.scopeStartMs ?? 0;
   const musicalBeat = timeline.timeMsToBeat(scopeStartMs + perfTimeMs);
   const entry = adapter.getCursorTimelineEntryForBeatRange(
     musicalBeat,
-    draft.scope.startBeat,
-    draft.scope.terminalBeat
+    session.scope.startBeat,
+    session.scope.terminalBeat
   );
   if (!entry || entry.noteIds.length === 0) {
     return null;
@@ -208,6 +229,7 @@ export function composeSplitScreenOutputStream(
 
 export async function exportSplitScreenPerformanceVideo({
   draft,
+  session: sessionInput,
   scoreContainer,
   adapter,
   scoreEndBeat,
@@ -215,8 +237,10 @@ export async function exportSplitScreenPerformanceVideo({
   onProgress,
   template = { kind: 'landscape' },
 }: SplitScreenExportOptions): Promise<SplitScreenExportResult> {
+  const session = toShareVideoSession(sessionInput ?? draft!);
   const readiness = getSplitScreenExportReadiness({
     draft,
+    session,
     isScoreIdentityConfirmed: true,
     xmlContent: 'ready',
     scoreContainer,
@@ -224,10 +248,10 @@ export async function exportSplitScreenPerformanceVideo({
   if (!readiness.ok) {
     throw new Error(`split_screen_export_unavailable:${readiness.reason}`);
   }
-  if (draft.video?.status !== 'READY') {
+  if (session.video.status !== 'READY') {
     throw new Error('split_screen_export_unavailable:video_not_ready');
   }
-  const sourceVideo = draft.video;
+  const sourceVideo = session.video;
   const layout = getShareVideoLayout(template);
 
   const canvas = document.createElement('canvas');
@@ -239,7 +263,7 @@ export async function exportSplitScreenPerformanceVideo({
   }
 
   const video = document.createElement('video');
-  const objectUrl = URL.createObjectURL(draft.video.blob);
+  const objectUrl = URL.createObjectURL(session.video.blob);
   let audioContext: AudioContext | null = null;
   let canvasStream: MediaStream | null = null;
   let outputStream: MediaStream | null = null;
@@ -277,7 +301,7 @@ export async function exportSplitScreenPerformanceVideo({
     await drawExportFrame({
       ctx,
       video,
-      draft,
+      session,
       adapter,
       scoreEndBeat,
       frameState,
@@ -286,7 +310,7 @@ export async function exportSplitScreenPerformanceVideo({
     await prefetchUpcomingEventImage({
       mediaTimeMs: Math.max(0, video.currentTime * 1000) + 400,
       video,
-      draft,
+      session,
       adapter,
       scoreEndBeat,
       scorePages,
@@ -373,7 +397,7 @@ export async function exportSplitScreenPerformanceVideo({
           await drawExportFrame({
             ctx,
             video,
-            draft,
+            session,
             adapter,
             scoreEndBeat,
             frameState,
@@ -397,7 +421,7 @@ export async function exportSplitScreenPerformanceVideo({
         await drawExportFrame({
           ctx,
           video,
-          draft,
+          session,
           adapter,
           scoreEndBeat,
           frameState,
@@ -411,7 +435,7 @@ export async function exportSplitScreenPerformanceVideo({
         void prefetchUpcomingEventImage({
           mediaTimeMs: Math.max(0, video.currentTime * 1000) + 400,
           video,
-          draft,
+          session,
           adapter,
           scoreEndBeat,
           scorePages: frameState.scorePages,
@@ -456,20 +480,20 @@ export async function exportSplitScreenPerformanceVideo({
 async function prefetchUpcomingEventImage({
   mediaTimeMs,
   video,
-  draft,
+  session,
   adapter,
   scoreEndBeat,
   scorePages,
 }: {
   mediaTimeMs: number;
   video: HTMLVideoElement;
-  draft: PerformanceReviewDraft;
+  session: ShareVideoSessionInput;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
   scorePages: ScorePageCache;
 }) {
   const position = resolvePlaybackFrame({
-    draft,
+    session,
     adapter,
     pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, scorePages),
     mediaTimeMs,
@@ -487,6 +511,7 @@ async function prefetchUpcomingEventImage({
 export async function drawExportFrame({
   ctx,
   video,
+  session,
   draft,
   adapter,
   scoreEndBeat,
@@ -495,13 +520,14 @@ export async function drawExportFrame({
 }: {
   ctx: CanvasRenderingContext2D;
   video: HTMLVideoElement;
-  draft: PerformanceReviewDraft;
+  session?: ShareVideoSessionInput;
+  draft?: PerformanceReviewDraft;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
   frameState: FrameRenderState;
   template?: ShareVideoTemplate;
 }): Promise<void> {
-  const videoDraft = draft.video?.status === 'READY' ? draft.video : null;
+  const normalizedSession = toShareVideoSession(session ?? draft!);
   const layout = getShareVideoLayout(template);
 
   await renderSplitScreenFrameAtTime({
@@ -509,14 +535,12 @@ export async function drawExportFrame({
     scoreModel: frameState.scorePages,
     playbackTimeline: {
       resolve: (mediaTimeMs) => resolvePlaybackFrame({
-        draft,
+        session: normalizedSession,
         adapter,
         pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, frameState.scorePages),
         mediaTimeMs,
         actualMediaDurationMs:
-          videoDraft
-            ? videoDraft.actualMediaDurationMs ?? safeDurationMs(video)
-            : safeDurationMs(video),
+          normalizedSession.video.actualMediaDurationMs ?? safeDurationMs(video),
         scoreEndBeat,
       }),
     },

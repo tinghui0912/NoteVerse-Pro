@@ -25,6 +25,7 @@ import {
   type SplitScreenExportBlockReason,
 } from '@/lib/practice/split-screen-video-export';
 import type { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
+import { toShareVideoSession, type ShareVideoSessionInput } from '@/lib/practice/share-video-session';
 
 const FLOATING_SHARE_TEMPLATE_ENABLED = process.env.NODE_ENV !== 'production';
 
@@ -94,8 +95,7 @@ function ShareChoiceCard({
   return (
     <button
       type="button"
-      role="radio"
-      aria-checked={selected}
+      aria-pressed={selected}
       data-testid={testId}
       onClick={onClick}
       className={[
@@ -134,6 +134,7 @@ function ShareChoiceCard({
 
 export function ShareVideoStudio({
   draft,
+  session: sessionInput,
   scoreContainer,
   adapter,
   scoreEndBeat,
@@ -145,8 +146,10 @@ export function ShareVideoStudio({
   open,
   onOpenChange,
   onExportingChange,
+  collapsible = true,
 }: {
-  draft: PerformanceReviewDraft;
+  draft?: PerformanceReviewDraft;
+  session?: ShareVideoSessionInput;
   scoreContainer: HTMLElement | null;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
@@ -158,10 +161,18 @@ export function ShareVideoStudio({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onExportingChange?: (exporting: boolean) => void;
+  collapsible?: boolean;
 }) {
   const t = useTranslations('practice');
-  const [videoOrientation, setVideoOrientation] = useState<VideoOrientation>('landscape');
-  const hasManuallySelectedOrientationRef = useRef(false);
+  const session = useMemo(
+    () => toShareVideoSession(sessionInput ?? draft!),
+    [draft, sessionInput]
+  );
+  const [orientationPreference, setOrientationPreference] = useState<{
+    sessionId: string;
+    value: VideoOrientation;
+  }>({ sessionId: session.sourceId, value: 'landscape' });
+  const manualOrientationSessionRef = useRef<string | null>(null);
   const [scorePresentation, setScorePresentation] = useState<ScorePresentation>('split');
   const [floatingPosition, setFloatingPosition] = useState<FloatingPosition>('top');
   const [floatingSize, setFloatingSize] = useState<FloatingSize>('medium');
@@ -175,22 +186,28 @@ export function ShareVideoStudio({
   const splitExportAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    hasManuallySelectedOrientationRef.current = false;
-
     const video = replayVideo;
     if (!video) return;
 
     const syncOrientationFromMetadata = () => {
-      if (hasManuallySelectedOrientationRef.current) {
+      if (manualOrientationSessionRef.current === session.sourceId) {
         return;
       }
-      setVideoOrientation(initialShareVideoOrientation(video));
+      setOrientationPreference({
+        sessionId: session.sourceId,
+        value: initialShareVideoOrientation(video),
+      });
     };
 
     syncOrientationFromMetadata();
     video.addEventListener('loadedmetadata', syncOrientationFromMetadata);
     return () => video.removeEventListener('loadedmetadata', syncOrientationFromMetadata);
-  }, [draft.localSessionId, replayVideo]);
+  }, [replayVideo, session.sourceId]);
+
+  const videoOrientation =
+    orientationPreference.sessionId === session.sourceId
+      ? orientationPreference.value
+      : initialShareVideoOrientation(replayVideo);
 
   const shareTemplate = useMemo<ShareVideoTemplate>(() => {
     if (scorePresentation === 'floating') {
@@ -226,12 +243,13 @@ export function ShareVideoStudio({
   const readiness = useMemo(
     () =>
       getSplitScreenExportReadiness({
-        draft,
+        draft: draft ?? null,
+        session,
         isScoreIdentityConfirmed,
         xmlContent,
         scoreContainer,
       }),
-    [draft, isScoreIdentityConfirmed, scoreContainer, xmlContent]
+    [draft, isScoreIdentityConfirmed, scoreContainer, session, xmlContent]
   );
 
   const handleExport = useCallback(async () => {
@@ -239,7 +257,7 @@ export function ShareVideoStudio({
       !scoreContainer ||
       !readiness.ok ||
       splitExportStatus === 'exporting' ||
-      draft.video?.status !== 'READY'
+      session.video.status !== 'READY'
     ) {
       return;
     }
@@ -253,7 +271,7 @@ export function ShareVideoStudio({
 
     try {
       const result = await exportSplitScreenPerformanceVideo({
-        draft,
+        session,
         scoreContainer,
         adapter,
         scoreEndBeat,
@@ -285,7 +303,6 @@ export function ShareVideoStudio({
     }
   }, [
     adapter,
-    draft,
     readiness.ok,
     scoreContainer,
     scoreEndBeat,
@@ -293,6 +310,7 @@ export function ShareVideoStudio({
     splitExportStatus,
     t,
     onExportingChange,
+    session,
   ]);
 
   const handleCancelExport = useCallback(() => {
@@ -330,15 +348,17 @@ export function ShareVideoStudio({
           <CardTitle className="text-sm font-semibold">{t('sharePerformanceVideoTitle')}</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">{t('sharePerformanceVideoDesc')}</p>
         </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={splitExportStatus === 'exporting'}
-          onClick={() => onOpenChange(false)}
-          data-testid="collapse-share-video-studio"
-        >
-          {t('collapseShareVideoStudio')}
-        </Button>
+        {collapsible ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={splitExportStatus === 'exporting'}
+            onClick={() => onOpenChange(false)}
+            data-testid="collapse-share-video-studio"
+          >
+            {t('collapseShareVideoStudio')}
+          </Button>
+        ) : null}
       </CardHeader>
       <CardContent className="space-y-6">
         <section className="space-y-3">
@@ -353,8 +373,8 @@ export function ShareVideoStudio({
               description={t('shareLandscapeDesc')}
               icon={RectangleHorizontal}
               onClick={() => {
-                hasManuallySelectedOrientationRef.current = true;
-                setVideoOrientation('landscape');
+                manualOrientationSessionRef.current = session.sourceId;
+                setOrientationPreference({ sessionId: session.sourceId, value: 'landscape' });
               }}
               testId="share-orientation-landscape"
             />
@@ -364,8 +384,8 @@ export function ShareVideoStudio({
               description={t('sharePortraitDesc')}
               icon={RectangleVertical}
               onClick={() => {
-                hasManuallySelectedOrientationRef.current = true;
-                setVideoOrientation('portrait');
+                manualOrientationSessionRef.current = session.sourceId;
+                setOrientationPreference({ sessionId: session.sourceId, value: 'portrait' });
               }}
               testId="share-orientation-portrait"
             />
@@ -448,8 +468,7 @@ export function ShareVideoStudio({
                     <button
                       key={size}
                       type="button"
-                      role="radio"
-                      aria-checked={floatingSize === size}
+                      aria-pressed={floatingSize === size}
                       onClick={() => setFloatingSize(size)}
                       className={[
                         'rounded-md border px-3 py-2 text-sm font-medium transition-colors',
@@ -480,7 +499,7 @@ export function ShareVideoStudio({
             </span>
           </div>
           <ShareVideoPreview
-            draft={draft}
+            session={session}
             scoreContainer={scoreContainer}
             adapter={adapter}
             scoreEndBeat={scoreEndBeat}

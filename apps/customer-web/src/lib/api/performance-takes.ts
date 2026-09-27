@@ -120,10 +120,68 @@ export const performanceTakesApi = {
       undefined,
       { signal }
     ),
+  downloadMediaBlob: (
+    takeId: string,
+    options?: {
+      signal?: AbortSignal;
+      onProgress?: (loadedBytes: number, totalBytes: number | null) => void;
+    }
+  ) => downloadPerformanceTakeMediaBlob(takeId, options),
 
   deleteTake: (takeId: string) =>
     apiClient.delete<ApiResponse<PerformanceTakeDeleteResponse>>(`/performance-takes/${takeId}`),
 };
+
+export async function downloadPerformanceTakeMediaBlob(
+  takeId: string,
+  options?: {
+    signal?: AbortSignal;
+    onProgress?: (loadedBytes: number, totalBytes: number | null) => void;
+  }
+): Promise<Blob> {
+  const response = await fetch(
+    apiUrl(`/performance-takes/${encodeURIComponent(takeId)}/media`),
+    {
+      method: 'GET',
+      credentials: 'include',
+      signal: options?.signal,
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Historical performance media request failed with status ${response.status}`);
+  }
+  if (!response.body) {
+    const blob = await response.blob();
+    options?.onProgress?.(blob.size, blob.size);
+    return blob;
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  const total = Number(response.headers.get('content-length'));
+  const totalBytes = Number.isFinite(total) && total >= 0 ? total : null;
+  let loaded = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      chunks.push(new Uint8Array(value));
+      loaded += value.byteLength;
+      options?.onProgress?.(loaded, totalBytes);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const blob = new Blob(
+    chunks.map((chunk) => new Uint8Array(chunk).buffer as ArrayBuffer),
+    {
+    type: response.headers.get('content-type') ?? 'application/octet-stream',
+    }
+  );
+  options?.onProgress?.(loaded, totalBytes ?? loaded);
+  return blob;
+}
 
 export async function uploadMediaToSignedUrl(
   uploadUrl: string,

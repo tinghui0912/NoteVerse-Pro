@@ -3,10 +3,12 @@ import {
   type PerformanceReviewDraft,
 } from './performance-review-draft';
 import { PracticeTempoTimeline } from './local-core/practice-tempo';
+import { toShareVideoSession, type ShareVideoSessionInput } from './share-video-session';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 
 export type ResolveSplitScreenFrameInput = {
-  draft: PerformanceReviewDraft;
+  session?: ShareVideoSessionInput;
+  draft?: PerformanceReviewDraft;
   adapter: Pick<
     PracticeVerovioAdapter,
     'getCursorTimelineEntryForBeatRange' | 'getPageWithElement'
@@ -25,6 +27,7 @@ export type SplitScreenScoreFrame = {
 };
 
 export function resolveSplitScreenScoreFrame({
+  session: sessionInput,
   draft,
   adapter,
   pageNumberResolver,
@@ -32,22 +35,23 @@ export function resolveSplitScreenScoreFrame({
   actualMediaDurationMs,
   scoreEndBeat,
 }: ResolveSplitScreenFrameInput): SplitScreenScoreFrame | null {
+  const session = toShareVideoSession(sessionInput ?? draft!);
   const perfTimeMs = mediaTimeToPerformanceTimeMs(
     mediaTimeMs,
-    draft.recordingTimebase,
+    session.recordingTimebase,
     actualMediaDurationMs
   );
   if (perfTimeMs === null) {
     return null;
   }
 
-  const timeline = new PracticeTempoTimeline(draft.tempoPlan, scoreEndBeat);
-  const scopeStartMs = draft.replayTiming?.scopeStartMs ?? 0;
+  const timeline = new PracticeTempoTimeline(session.tempoPlan, scoreEndBeat);
+  const scopeStartMs = session.replayTiming?.scopeStartMs ?? 0;
   const musicalBeat = timeline.timeMsToBeat(scopeStartMs + perfTimeMs);
   const entry = adapter.getCursorTimelineEntryForBeatRange(
     musicalBeat,
-    draft.scope.startBeat,
-    draft.scope.terminalBeat
+    session.scope.startBeat,
+    session.scope.terminalBeat
   );
   if (!entry || entry.noteIds.length === 0) {
     return null;

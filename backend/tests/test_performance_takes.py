@@ -263,8 +263,11 @@ def test_unauthenticated_access_denied():
     r5 = client.get("/api/v1/performance-takes/some-uuid/playback-url")
     assert r5.status_code == 401
 
-    r6 = client.delete("/api/v1/performance-takes/some-uuid")
+    r6 = client.get("/api/v1/performance-takes/some-uuid/media")
     assert r6.status_code == 401
+
+    r7 = client.delete("/api/v1/performance-takes/some-uuid")
+    assert r7.status_code == 401
 
 
 def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.MonkeyPatch):
@@ -445,6 +448,14 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert "playback_url" in play_data
         assert "download_url" in play_data
 
+        # Historical share production uses the authenticated same-origin
+        # stream instead of relying on cross-origin signed-URL fetch/CORS.
+        res_media = client.get(f"/api/v1/performance-takes/{take_id}/media")
+        assert res_media.status_code == 200
+        assert res_media.content == media_content
+        assert res_media.headers["content-type"].startswith("audio/webm")
+        assert "performance-" in res_media.headers.get("content-disposition", "")
+
         # 10. Delete take (P0-2 returns 202 Accepted, marks DELETING, writes outbox)
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
         assert res_del.status_code == 202
@@ -459,6 +470,8 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         # Verify playback URL returns 404 while DELETING
         res_play_deleting = client.get(f"/api/v1/performance-takes/{take_id}/playback-url")
         assert res_play_deleting.status_code == 404
+        res_media_deleting = client.get(f"/api/v1/performance-takes/{take_id}/media")
+        assert res_media_deleting.status_code == 404
 
         # Repeated delete returns 202 idempotently
         res_del_repeat = client.delete(f"/api/v1/performance-takes/{take_id}")

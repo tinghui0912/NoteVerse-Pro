@@ -48,6 +48,23 @@ describe('ShareVideoPreview', () => {
     const load = vi.spyOn(video, 'load').mockImplementation(() => {});
 
     const draft = {
+      localSessionId: 'session-1',
+      scoreId: 'score-1',
+      revisionId: 'revision-1',
+      artifactId: 'artifact-1',
+      scope: { startBeat: 0, terminalBeat: 16 },
+      tempoPlan: {
+        selection: { mode: 'SCORE' },
+        segments: [{ startBeat: 0, bpm: 96, source: 'MUSICXML' }],
+      },
+      recordingTimebase: {
+        recordingStartPerfTimeMs: 0,
+        recordingEndPerfTimeMs: 4000,
+        nominalMediaDurationMs: 4000,
+        activeSegments: [
+          { perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 },
+        ],
+      },
       video: {
         status: 'READY',
         blob: new Blob(['video'], { type: 'video/webm' }),
@@ -93,7 +110,7 @@ describe('ShareVideoPreview', () => {
       mocks.renderSplitScreenFrameAtTime.mock.calls.at(-1)?.[0]
     ).toMatchObject({
       mediaTimeMs: 1250,
-      sourceVideoFrame: video,
+      sourceVideoFrame: expect.any(HTMLCanvasElement),
       layout: {
         width: 720,
         height: 1280,
@@ -127,7 +144,7 @@ describe('ShareVideoPreview', () => {
     expect(
       mocks.renderSplitScreenFrameAtTime.mock.calls.at(-1)?.[0]
     ).toMatchObject({
-      sourceVideoFrame: video,
+      sourceVideoFrame: expect.any(HTMLCanvasElement),
       layout: {
         width: 720,
         height: 1280,
@@ -163,6 +180,22 @@ describe('ShareVideoPreview', () => {
     const onFrameCommitted = vi.fn();
     const draft = {
       localSessionId: 'session-1',
+      scoreId: 'score-1',
+      revisionId: 'revision-1',
+      artifactId: 'artifact-1',
+      scope: { startBeat: 0, terminalBeat: 16 },
+      tempoPlan: {
+        selection: { mode: 'SCORE' },
+        segments: [{ startBeat: 0, bpm: 96, source: 'MUSICXML' }],
+      },
+      recordingTimebase: {
+        recordingStartPerfTimeMs: 0,
+        recordingEndPerfTimeMs: 4000,
+        nominalMediaDurationMs: 4000,
+        activeSegments: [
+          { perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 },
+        ],
+      },
       video: {
         status: 'READY',
         blob: new Blob(['video'], { type: 'video/webm' }),

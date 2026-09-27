@@ -102,6 +102,7 @@ const translationMocks = vi.hoisted(() => {
     leaveReviewDesc: '这份临时演奏报告离开后可能无法再次访问。分享视频下载不等于保存原始演奏。',
     leaveReviewUnsavedMediaDesc: '原始录音或录像尚未保存为正式演奏。离开或重新练习后，这份临时媒体可能无法再次访问；分享视频下载不等于保存原始演奏。',
     leaveReviewWhileExportingDesc: '分享视频正在生成。确认离开会取消当前合成任务；分享视频下载不等于保存原始演奏。',
+    leaveReviewWhileExportingAndUnsavedDesc: '分享视频正在生成，确认离开会取消当前合成任务；同时，原始录音或录像尚未保存为正式演奏，离开后这份临时媒体可能无法再次访问。',
     leaveReviewContinue: '继续查看',
     leaveReviewConfirm: '确认离开',
   };
@@ -1129,8 +1130,8 @@ describe('PracticeReviewPage', () => {
     fireEvent.click(screen.getByTestId('share-floating-position-bottom'));
     fireEvent.click(screen.getByTestId('share-floating-size-large'));
 
-    expect(screen.getByTestId('share-floating-position-bottom')).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByTestId('share-floating-size-large')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('share-floating-position-bottom')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('share-floating-size-large')).toHaveAttribute('aria-pressed', 'true');
 
     fireEvent.click(screen.getByTestId('generate-share-video'));
     await waitFor(() => expect(splitScreenMocks.exportSplitScreenPerformanceVideo).toHaveBeenCalled());
@@ -1165,10 +1166,10 @@ describe('PracticeReviewPage', () => {
     expect(screen.getByTestId('share-video-entry-card')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('open-share-video-studio'));
 
-    expect(screen.getByTestId('share-orientation-portrait')).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByTestId('share-presentation-floating')).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByTestId('share-floating-position-bottom')).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByTestId('share-floating-size-large')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('share-orientation-portrait')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('share-presentation-floating')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('share-floating-position-bottom')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('share-floating-size-large')).toHaveAttribute('aria-pressed', 'true');
   });
 });
 

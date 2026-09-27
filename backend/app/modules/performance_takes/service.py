@@ -1307,6 +1307,25 @@ class PerformanceTakeService:
             expires_in=3600,
         )
 
+    async def get_media_delivery(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        take_id: str,
+    ) -> tuple[str, str, str]:
+        """Return an authorized, server-streamed media target without exposing its object key."""
+        take = await self.repository.get_by_uuid(db, user_id, take_id)
+        if take is None or _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value:
+            raise ResourceNotFoundException("performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND)
+        if self.storage is None:
+            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
+        extension = _extension_for_mime(take.media_mime_type)
+        return (
+            take.media_object_key,
+            f"performance-{take.take_uuid}.{extension}",
+            take.media_mime_type,
+        )
+
     async def delete_take(
         self,
         db: AsyncSession,

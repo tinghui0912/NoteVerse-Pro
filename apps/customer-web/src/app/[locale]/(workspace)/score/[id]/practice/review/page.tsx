@@ -427,6 +427,13 @@ export default function PracticeReviewPage({
       saveStatus !== 'saved' &&
       !hasExportedOriginalMedia
   );
+  const leaveReviewDescription = isShareExporting
+    ? hasUncommittedReviewMedia
+      ? t('leaveReviewWhileExportingAndUnsavedDesc')
+      : t('leaveReviewWhileExportingDesc')
+    : hasUncommittedReviewMedia
+      ? t('leaveReviewUnsavedMediaDesc')
+      : t('leaveReviewDesc');
 
   if (!isValidDraft || !draft) {
     return (
@@ -821,11 +828,7 @@ export default function PracticeReviewPage({
           <AlertDialogHeader>
             <AlertDialogTitle>{t('leaveReviewTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {isShareExporting
-                ? t('leaveReviewWhileExportingDesc')
-                : hasUncommittedReviewMedia
-                  ? t('leaveReviewUnsavedMediaDesc')
-                  : t('leaveReviewDesc')}
+              {leaveReviewDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { PerformanceReviewDraft } from './performance-review-draft';
+import { toShareVideoSession, type ShareVideoSessionInput } from './share-video-session';
 import { renderSplitScreenFrameAtTime } from './split-screen-frame-renderer';
 import {
   findStablePageNumber,
@@ -34,6 +35,7 @@ type RenderableVideo = HTMLVideoElement & {
  */
 export function ShareVideoPreview({
   draft,
+  session: sessionInput,
   scoreContainer,
   adapter,
   scoreEndBeat,
@@ -43,7 +45,8 @@ export function ShareVideoPreview({
   replayVideo,
   onFrameCommitted,
 }: {
-  draft: PerformanceReviewDraft;
+  draft?: PerformanceReviewDraft;
+  session?: ShareVideoSessionInput;
   scoreContainer: HTMLElement | null;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
@@ -53,8 +56,13 @@ export function ShareVideoPreview({
   replayVideo: HTMLVideoElement | null;
   onFrameCommitted?: (mediaTimeMs: number) => void;
 }) {
+  const session = useMemo(
+    () => toShareVideoSession(sessionInput ?? draft!),
+    [draft, sessionInput]
+  );
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stagingCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const sourceFrameCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const scorePagesRef = useRef<ScorePageCache | null>(null);
   const pendingRequestRef = useRef<PreviewRequest | null>(null);
   const activeRenderRef = useRef(false);
@@ -134,6 +142,10 @@ export function ShareVideoPreview({
           if (!isPlayingRef.current) {
             await waitForReplayVideoFrame(sourceVideo);
           }
+          const frozenSource = captureReplayVideoFrame(
+            sourceVideo,
+            sourceFrameCanvasRef
+          );
           const renderMediaTimeMs = request.mediaTimeMs;
           await renderSplitScreenFrameAtTime({
             mediaTimeMs: renderMediaTimeMs,
@@ -141,20 +153,18 @@ export function ShareVideoPreview({
             playbackTimeline: {
               resolve: (timeMs) =>
                 resolveSplitScreenScoreFrame({
-                  draft,
+                  session,
                   adapter,
                   pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, scorePages),
                   mediaTimeMs: timeMs,
                   actualMediaDurationMs:
                     Number.isFinite(sourceVideo.duration) && sourceVideo.duration > 0
                       ? sourceVideo.duration * 1000
-                      : draft.video && 'durationMs' in draft.video
-                        ? draft.video.durationMs
-                        : null,
+                      : session.video.durationMs,
                   scoreEndBeat,
                 }),
             },
-            sourceVideoFrame: sourceVideo,
+            sourceVideoFrame: frozenSource.canvas,
             outputCanvas: stagingCanvas,
             layout,
           });
@@ -183,7 +193,7 @@ export function ShareVideoPreview({
     } finally {
       activeRenderRef.current = false;
     }
-  }, [adapter, commitStagingFrame, draft, onFrameCommitted, replayVideo, scoreEndBeat]);
+  }, [adapter, commitStagingFrame, session, onFrameCommitted, replayVideo, scoreEndBeat]);
 
   const enqueuePreview = useCallback(
     (nextTimeMs: number) => {
@@ -206,7 +216,7 @@ export function ShareVideoPreview({
     const prepare = async () => {
       setStatus('preparing');
       setError(null);
-      if (!scoreContainer || draft.video?.status !== 'READY') {
+      if (!scoreContainer || session.video.status !== 'READY') {
         setStatus('idle');
         return;
       }
@@ -244,7 +254,7 @@ export function ShareVideoPreview({
     };
   }, [
     clearFrameScheduler,
-    draft,
+    session,
     retryNonce,
     scoreContainer,
     template.kind,
@@ -374,4 +384,25 @@ function waitForReplayVideoFrame(video: HTMLVideoElement): Promise<void> {
     video.addEventListener('canplay', onReady, { once: true });
     video.addEventListener('error', onError, { once: true });
   });
+}
+
+function captureReplayVideoFrame(
+  video: HTMLVideoElement,
+  canvasRef: React.MutableRefObject<HTMLCanvasElement | null>
+): { canvas: HTMLCanvasElement; mediaTimeMs: number } {
+  const width = Math.max(1, video.videoWidth || video.clientWidth || 1);
+  const height = Math.max(1, video.videoHeight || video.clientHeight || 1);
+  const canvas = canvasRef.current ?? document.createElement('canvas');
+  if (canvas.width !== width) canvas.width = width;
+  if (canvas.height !== height) canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) {
+    throw new Error('分享视频预览无法创建视频帧缓冲区');
+  }
+  context.drawImage(video, 0, 0, width, height);
+  const currentTimeMs = Number.isFinite(video.currentTime) && video.currentTime >= 0
+    ? video.currentTime * 1000
+    : 0;
+  canvasRef.current = canvas;
+  return { canvas, mediaTimeMs: currentTimeMs };
 }

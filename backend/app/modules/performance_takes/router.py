@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.api.storage_streaming import stream_storage_object
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.performance_takes.dependencies import get_performance_take_service
@@ -120,6 +121,27 @@ async def get_playback_url(
     user_id = require_persisted_id(current_user.id, entity="user")
     data = await service.get_playback_url(db, user_id, take_id)
     return success_response(data=data)
+
+
+@router.get("/{take_id}/media")
+async def stream_take_media(
+    take_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: PerformanceTakeService = Depends(get_performance_take_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    storage_key, filename, media_type = await service.get_media_delivery(db, user_id, take_id)
+    return stream_storage_object(
+        storage=service.storage,
+        storage_key=storage_key,
+        filename=filename,
+        media_type=media_type,
+        attachment=False,
+        request=request,
+        enable_range=True,
+    )
 
 
 @router.delete(
