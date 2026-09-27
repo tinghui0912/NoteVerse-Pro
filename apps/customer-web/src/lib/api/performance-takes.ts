@@ -1,4 +1,4 @@
-import { ApiError, apiClient, apiUrl, type ApiResponse } from '@/lib/api-client';
+import { apiClient, apiUrl, type ApiResponse } from '@/lib/api-client';
 
 export const MAX_PERFORMANCE_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 
@@ -141,21 +141,11 @@ export async function downloadPerformanceTakeMediaBlob(
     onProgress?: (loadedBytes: number, totalBytes: number | null) => void;
   }
 ): Promise<Blob> {
-  const response = await fetch(
-    apiUrl(`/performance-takes/${encodeURIComponent(takeId)}/media`),
-    {
-      method: 'GET',
-      credentials: 'include',
-      signal: options?.signal,
-    }
+  const response = await apiClient.getRaw(
+    `/performance-takes/${encodeURIComponent(takeId)}/media`,
+    undefined,
+    { signal: options?.signal }
   );
-  if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      'historical_media_request_failed',
-      `Historical performance media request failed with status ${response.status}`
-    );
-  }
   const contentLength = response.headers.get('content-length');
   const total = contentLength ? Number(contentLength) : Number.NaN;
   const totalBytes =

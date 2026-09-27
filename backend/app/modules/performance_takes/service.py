@@ -1,18 +1,26 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta
 import hashlib
 import hmac
 import json
 import logging
+from time import monotonic
 from typing import Optional
 from uuid import uuid4
 
 from sqlalchemy import select
+from sqlalchemy.exc import DBAPIError, InterfaceError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.exceptions import ResourceNotFoundException, ValidationException
+from app.core.exceptions import (
+    ExternalServiceException,
+    ResourceNotFoundException,
+    ValidationException,
+)
+from app.db.session import AsyncSessionLocal
 from app.db.models.performance_take import (
     PerformanceTake,
     PerformanceTakeDeletionStatus,
@@ -247,6 +255,15 @@ def _sha256_storage_object(storage: FileStorage, key: str) -> str:
 
 def _safe_compare_digest(left: str, right: str) -> bool:
     return hmac.compare_digest(left.lower(), right.lower())
+
+
+def _is_transient_db_disconnect(error: BaseException) -> bool:
+    if isinstance(error, DBAPIError) and error.connection_invalidated:
+        return True
+    if isinstance(error, InterfaceError):
+        message = str(error).lower()
+        return "connection is closed" in message or "connection closed" in message
+    return False
 
 
 class PerformanceTakeService:
@@ -495,6 +512,52 @@ class PerformanceTakeService:
                 "performance_take_upload.finalize_candidate_cleanup_failed",
                 extra={"candidate_object_key": candidate_key},
             )
+
+    async def _delete_candidate_final_async(self, candidate_key: str | None) -> None:
+        if not candidate_key or self.storage is None:
+            return
+        await asyncio.to_thread(self._delete_candidate_final_best_effort, candidate_key)
+
+    async def _recover_after_db_disconnect(
+        self,
+        *,
+        user_id: int,
+        take_uuid: str,
+        client_request_id: str,
+        finalizing_token: str,
+        candidate_key: str,
+    ) -> None:
+        """Release a failed finalize lease without guessing the transaction outcome."""
+        async with AsyncSessionLocal() as recovery_db:
+            auth = await self.repository.get_authorization_by_take_uuid(
+                recovery_db, user_id, take_uuid, lock=True
+            )
+            existing_take = await self.repository.get_by_client_request_id(
+                recovery_db, user_id, client_request_id
+            )
+            if existing_take is not None:
+                await recovery_db.commit()
+                return
+            if (
+                auth is None
+                or _status_value(auth.status)
+                != PerformanceTakeUploadAuthorizationStatus.FINALIZING.value
+                or auth.finalizing_token != finalizing_token
+            ):
+                await recovery_db.commit()
+                return
+            auth.orphan_final_object_keys = _append_orphan_final_key(
+                auth.orphan_final_object_keys,
+                candidate_key,
+                unknown_outcome=True,
+            )
+            auth.status = PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value
+            auth.finalizing_token = None
+            auth.finalizing_expires_at = None
+            auth.finalizing_object_key = None
+            auth.final_object_key = None
+            auth.updated_at = utc_now_naive()
+            await recovery_db.commit()
 
     async def _expire_authorization(
         self,
@@ -794,13 +857,16 @@ class PerformanceTakeService:
             and auth.staging_cleanup_after <= utc_now_naive()
         ):
             try:
-                if self.storage.exists(staging_key):
-                    self.storage.delete(staging_key)
+                await asyncio.to_thread(self._delete_storage_object_if_exists, staging_key)
             except Exception:
                 logger.exception(
                     "performance_take_upload_authorization.cancel_staging_delete_failed",
                     extra={"reservation_id": reservation_id, "staging_object_key": staging_key},
                 )
+
+    def _delete_storage_object_if_exists(self, key: str) -> None:
+        if self.storage is not None and self.storage.exists(key):
+            self.storage.delete(key)
 
     async def finalize_take(
         self,
@@ -808,6 +874,23 @@ class PerformanceTakeService:
         user_id: int,
         request: PerformanceTakeCreateRequest,
     ) -> PerformanceTakeRead:
+        finalize_started = monotonic()
+
+        def log_stage(stage: str, *, started_at: float) -> None:
+            logger.info(
+                "performance_take.finalize.stage",
+                extra={
+                    "take_uuid": request.take_id,
+                    "stage": stage,
+                    "elapsed_ms": round((monotonic() - started_at) * 1000, 1),
+                    "media_kind": request.media_kind,
+                    "media_byte_size": request.media_byte_size,
+                    "storage_backend": self.storage.__class__.__name__
+                    if self.storage is not None
+                    else None,
+                },
+            )
+
         auth = await self.repository.get_authorization_by_take_uuid(
             db, user_id, request.take_id, lock=True
         )
@@ -935,8 +1018,11 @@ class PerformanceTakeService:
             "finalizing_token": finalizing_token,
         }
         await db.commit()
+        log_stage("lease_acquired", started_at=finalize_started)
 
-        staging_exists = self.storage.exists(auth_snapshot["staging_object_key"])
+        staging_exists = await asyncio.to_thread(
+            self.storage.exists, auth_snapshot["staging_object_key"]
+        )
         if auth_snapshot["expires_at"] < now:
             auth = await self.repository.get_authorization_by_take_uuid(
                 db, user_id, request.take_id, lock=True
@@ -998,7 +1084,7 @@ class PerformanceTakeService:
                 ErrorCode.FILE_NOT_FOUND,
             )
 
-        metadata = self.storage.object_metadata(source_key)
+        metadata = await asyncio.to_thread(self.storage.object_metadata, source_key)
         if metadata.size_bytes != auth_snapshot["media_byte_size"]:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
         if (
@@ -1008,8 +1094,10 @@ class PerformanceTakeService:
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
 
-        header_bytes = b"".join(
-            self.storage.iter_bytes(source_key, chunk_size=64, start=0, end=63)
+        header_bytes = await asyncio.to_thread(
+            lambda: b"".join(
+                self.storage.iter_bytes(source_key, chunk_size=64, start=0, end=63)
+            )
         )
         if not _verify_container_magic_bytes(
             header_bytes,
@@ -1017,10 +1105,13 @@ class PerformanceTakeService:
             auth_snapshot["media_kind"],
         ):
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_mime_type")
-        verified_staging_sha256 = _sha256_storage_object(
+        verified_staging_sha256 = await asyncio.to_thread(
+            _sha256_storage_object,
             self.storage,
             auth_snapshot["staging_object_key"],
         )
+        log_stage("staging_verified", started_at=finalize_started)
+        log_stage("staging_hash_complete", started_at=finalize_started)
 
         candidate_key = auth_snapshot["finalizing_object_key"]
         try:
@@ -1030,14 +1121,22 @@ class PerformanceTakeService:
                 take_uuid=request.take_id,
                 finalizing_token=finalizing_token,
             )
-            self.storage.copy(
+            await asyncio.to_thread(
+                self.storage.copy,
                 auth_snapshot["staging_object_key"],
                 candidate_key,
             )
-            candidate_metadata = self.storage.object_metadata(candidate_key)
+            candidate_metadata = await asyncio.to_thread(
+                self.storage.object_metadata, candidate_key
+            )
             if candidate_metadata.size_bytes != auth_snapshot["media_byte_size"]:
                 raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
-            candidate_sha256 = _sha256_storage_object(self.storage, candidate_key)
+            log_stage("candidate_copy_complete", started_at=finalize_started)
+            candidate_sha256 = await asyncio.to_thread(
+                _sha256_storage_object,
+                self.storage,
+                candidate_key,
+            )
             if not _safe_compare_digest(candidate_sha256, verified_staging_sha256):
                 raise ValidationException(
                     ErrorCode.VALIDATION_ERROR,
@@ -1051,11 +1150,39 @@ class PerformanceTakeService:
                 take_uuid=request.take_id,
                 candidate_key=candidate_key,
             )
-            self._delete_candidate_final_best_effort(candidate_key)
+            await self._delete_candidate_final_async(candidate_key)
             raise
+        log_stage("candidate_hash_complete", started_at=finalize_started)
 
         # Resolve score/revision at finalize time; if score deleted, keep score_title snapshot
-        score = await db.get(Score, auth_snapshot["score_id"]) if auth_snapshot["score_id"] else None
+        try:
+            score = (
+                await db.get(Score, auth_snapshot["score_id"])
+                if auth_snapshot["score_id"]
+                else None
+            )
+        except Exception as error:
+            if not _is_transient_db_disconnect(error):
+                raise
+            try:
+                await db.rollback()
+            except Exception:
+                logger.debug(
+                    "performance_take.finalize.db_rollback_failed_after_disconnect",
+                    exc_info=True,
+                )
+            finally:
+                await db.invalidate()
+            logger.warning(
+                "performance_take.finalize.db_reconnect_retry",
+                extra={"take_uuid": request.take_id, "stage": "db_finalize_started"},
+            )
+            score = (
+                await db.get(Score, auth_snapshot["score_id"])
+                if auth_snapshot["score_id"]
+                else None
+            )
+        log_stage("db_finalize_started", started_at=finalize_started)
         score_db_id: int | None = None
         score_title_out = auth_snapshot["score_title"]
         revision_db_id: int | None = None
@@ -1100,7 +1227,7 @@ class PerformanceTakeService:
                 take_uuid=request.take_id,
                 candidate_key=candidate_key,
             )
-            self._delete_candidate_final_best_effort(candidate_key)
+            await self._delete_candidate_final_async(candidate_key)
             raise ValidationException(
                 ErrorCode.VALIDATION_ERROR,
                 field="status",
@@ -1113,7 +1240,7 @@ class PerformanceTakeService:
                 details={"reason": "finalize_request_mismatch"},
             )
         if auth.expires_at < utc_now_naive():
-            self._delete_candidate_final_best_effort(candidate_key)
+            await self._delete_candidate_final_async(candidate_key)
             auth.orphan_final_object_keys = _append_orphan_final_key(
                 auth.orphan_final_object_keys,
                 candidate_key,
@@ -1181,7 +1308,32 @@ class PerformanceTakeService:
             storage_key=candidate_key,
             auto_commit=False,
         )
-        await db.commit()
+        try:
+            await db.commit()
+        except Exception as error:
+            if not _is_transient_db_disconnect(error):
+                raise
+            try:
+                await db.rollback()
+            except Exception:
+                logger.debug(
+                    "performance_take.finalize.db_rollback_failed_after_disconnect",
+                    exc_info=True,
+                )
+            finally:
+                await db.invalidate()
+            await self._recover_after_db_disconnect(
+                user_id=user_id,
+                take_uuid=request.take_id,
+                client_request_id=request.client_request_id,
+                finalizing_token=finalizing_token,
+                candidate_key=candidate_key,
+            )
+            raise ExternalServiceException(
+                "database",
+                details={"retryable": True, "operation": "performance_take_finalize"},
+            ) from error
+        log_stage("db_finalize_committed", started_at=finalize_started)
 
         has_access = await self._has_view_access(db, score, user_id) if score else False
         return self._to_read_dto(

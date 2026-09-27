@@ -7,7 +7,15 @@ from sqlmodel import SQLModel
 from app.core.config import settings
 
 # Central async database entry point for API and async services.
-engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
+engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=False,
+    future=True,
+    pool_pre_ping=True,
+    pool_recycle=3600,
+    pool_size=5,
+    max_overflow=10,
+)
 
 AsyncSessionLocal = async_sessionmaker(
     engine,

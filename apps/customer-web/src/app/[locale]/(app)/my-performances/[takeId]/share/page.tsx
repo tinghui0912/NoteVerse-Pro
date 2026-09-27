@@ -173,8 +173,22 @@ export default function HistoricalPerformanceSharePage() {
   if (takeQuery.isError || !take) {
     return (
       <HistoricalTakeUnavailable
-        message={t('historicalShareLoadFailed')}
+        message={
+          isPermanentResourceError(takeQuery.error)
+            ? t('historicalShareUnavailable')
+            : t('historicalShareTemporaryUnavailable')
+        }
         backLabel={t('historicalShareBack')}
+        retryLabel={
+          isPermanentResourceError(takeQuery.error)
+            ? undefined
+            : t('historicalShareRetry')
+        }
+        onRetry={
+          isPermanentResourceError(takeQuery.error)
+            ? undefined
+            : () => void takeQuery.refetch()
+        }
         onBack={() => router.push('/my-performances')}
       />
     );

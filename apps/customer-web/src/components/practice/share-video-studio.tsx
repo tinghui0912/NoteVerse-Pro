@@ -332,23 +332,6 @@ export function ShareVideoStudio({
     };
   }, [onExportingChange]);
 
-  if (!open) {
-    return (
-      <Card className="rounded-lg bg-card" data-testid="share-video-entry-card">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">{t('makeShareVideoTitle')}</CardTitle>
-          <p className="text-xs text-muted-foreground">{t('makeShareVideoDesc')}</p>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={() => onOpenChange(true)} data-testid="open-share-video-studio">
-            <Clapperboard className="mr-1.5 h-4 w-4" />
-            {t('makeShareVideoAction')}
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
   if (!session) {
     return (
       <Card className="rounded-lg bg-card" data-testid="share-video-studio-unavailable">
@@ -361,6 +344,23 @@ export function ShareVideoStudio({
           <p className="text-xs text-amber-700 dark:text-amber-300">
             {t('exportScoreVideoUnavailableScore')}
           </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!open) {
+    return (
+      <Card className="rounded-lg bg-card" data-testid="share-video-entry-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">{t('makeShareVideoTitle')}</CardTitle>
+          <p className="text-xs text-muted-foreground">{t('makeShareVideoDesc')}</p>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={() => onOpenChange(true)} data-testid="open-share-video-studio">
+            <Clapperboard className="mr-1.5 h-4 w-4" />
+            {t('makeShareVideoAction')}
+          </Button>
         </CardContent>
       </Card>
     );
