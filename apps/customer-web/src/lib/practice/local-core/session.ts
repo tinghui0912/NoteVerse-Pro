@@ -24,7 +24,7 @@ export type LocalPracticeSessionBase = {
   artifactId: string;
   mode: PracticeMode;
   inputSource: PracticeInputSource;
-  practiceScope?: PracticeScope;
+  practiceScope: PracticeScope;
   tempoSelection: PracticeTempoSelection;
   metronomeEnabled: boolean;
   lifecycleState: LocalPracticeLifecycle;
@@ -101,29 +101,6 @@ export type LocalPerformanceExpectedEventOutcomeRecord = {
   measureNumbers: string[];
   timingOffsetMs?: number;
 };
-
-export type LocalPracticeSessionStore = {
-  save(snapshot: LocalPracticeSessionSnapshot): Promise<void> | void;
-  load(localSessionId: string): Promise<LocalPracticeSessionSnapshot | null> | LocalPracticeSessionSnapshot | null;
-  delete(localSessionId: string): Promise<void> | void;
-};
-
-export class InMemoryPracticeSessionStore implements LocalPracticeSessionStore {
-  private readonly snapshots = new Map<string, LocalPracticeSessionSnapshot>();
-
-  save(snapshot: LocalPracticeSessionSnapshot): void {
-    this.snapshots.set(snapshot.localSessionId, structuredClone(snapshot));
-  }
-
-  load(localSessionId: string): LocalPracticeSessionSnapshot | null {
-    const snapshot = this.snapshots.get(localSessionId);
-    return snapshot ? structuredClone(snapshot) : null;
-  }
-
-  delete(localSessionId: string): void {
-    this.snapshots.delete(localSessionId);
-  }
-}
 
 export function createLocalSessionId(prefix = 'local-practice'): string {
   const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;

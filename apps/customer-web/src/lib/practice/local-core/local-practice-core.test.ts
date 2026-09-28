@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import canonicalArtifactJson from './__fixtures__/canonical-practice-score-artifact.json';
 import {
-  InMemoryPracticeSessionStore,
   ManualClock,
   ManualDurableClock,
   PerformancePracticeRuntime,
@@ -165,6 +164,7 @@ describe('local STEP practice runtime', () => {
       artifact,
       clock: new ManualClock(),
       scope: {
+        kind: 'RANGE',
         startGroupId: artifact.expectedPracticeGroups[3].groupId,
         endGroupId: artifact.expectedPracticeGroups[3].groupId,
       },
@@ -243,6 +243,7 @@ describe('local STEP practice runtime', () => {
   it('restores scoped STEP snapshots with input source and validates artifact compatibility', () => {
     const clock = new ManualClock(42);
     const scoped = {
+      kind: 'RANGE' as const,
       startGroupId: artifact.expectedPracticeGroups[2].groupId,
       endGroupId: artifact.expectedPracticeGroups[3].groupId,
     };
@@ -341,6 +342,7 @@ describe('local CONTINUOUS practice runtime', () => {
       clock,
       countInBeats: 0,
       scope: {
+        kind: 'RANGE',
         startGroupId: artifact.expectedPracticeGroups[2].groupId,
         endGroupId: artifact.expectedPracticeGroups[2].groupId,
       },
@@ -446,6 +448,7 @@ describe('local CONTINUOUS practice runtime', () => {
       inputSource: 'MIDI',
       countInBeats: 0,
       scope: {
+        kind: 'RANGE',
         startGroupId: artifact.expectedPracticeGroups[1].groupId,
         endGroupId: artifact.expectedPracticeGroups[3].groupId,
       },
@@ -582,26 +585,6 @@ describe('local CONTINUOUS practice runtime', () => {
 });
 
 describe('local session foundation', () => {
-  it('persists and restores local session snapshots without backend sessions or WebSockets', () => {
-    const store = new InMemoryPracticeSessionStore();
-    const runtime = new StepPracticeRuntime({
-      artifact,
-      clock: new ManualClock(42),
-      localSessionId: 'local-session-1',
-    });
-
-    runtime.observe(observation(runtime));
-    store.save(runtime.snapshot());
-
-    const saved = store.load('local-session-1');
-    const restored = new StepPracticeRuntime({
-      artifact,
-      clock: new ManualClock(100),
-      snapshot: saved && saved.mode === 'STEP_BY_STEP' ? saved : undefined,
-    });
-    expect(restored.currentTarget()?.stepId).toBe(artifact.practiceAttackSteps[1].stepId);
-  });
-
   it('defines one comparable local session timebase for runtime and sample-index evidence', () => {
     const timebase = new PracticeTimebase({
       domainId: 'session-domain',
@@ -770,6 +753,7 @@ describe('local session foundation', () => {
       artifact,
       clock: new ManualClock(),
       scope: {
+        kind: 'RANGE',
         startGroupId: artifact.expectedPracticeGroups[4].groupId,
         endGroupId: artifact.expectedPracticeGroups[4].groupId,
       },
@@ -806,6 +790,7 @@ describe('local session foundation', () => {
       clock: new ManualClock(0),
       countInBeats: 0,
       scope: {
+        kind: 'RANGE',
         startGroupId: artifact.expectedPracticeGroups[0].groupId,
         endGroupId: artifact.expectedPracticeGroups[0].groupId,
       },
@@ -963,7 +948,7 @@ describe('local session foundation', () => {
     });
 
     // Unconditional resolvePracticeScope:
-    const resolvedScope = resolvePracticeScope(leadingRestArtifact, {});
+    const resolvedScope = resolvePracticeScope(leadingRestArtifact, { kind: 'FULL' });
     expect(resolvedScope.startBeat).toBe(2.0);
     expect(resolvedScope.startIndex).toBe(0);
     expect(leadingRestArtifact.expectedPracticeGroups[resolvedScope.startIndex].groupId).toBe('g-rest-1');

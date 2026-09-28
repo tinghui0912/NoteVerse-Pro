@@ -217,10 +217,14 @@ export class StepPracticeRuntime {
       artifactId: this.artifact.artifactId,
       mode: 'STEP_BY_STEP',
       inputSource: this.inputSource,
-      practiceScope: {
-        startGroupId: this.resolvedScope.startGroupId,
-        endGroupId: this.resolvedScope.endGroupId,
-      },
+      practiceScope:
+        this.resolvedScope.kind === 'RANGE'
+          ? {
+              kind: 'RANGE',
+              startGroupId: this.resolvedScope.startGroupId,
+              endGroupId: this.resolvedScope.endGroupId,
+            }
+          : { kind: 'FULL' },
       tempoSelection: this.tempoSelection,
       metronomeEnabled: this.metronomeEnabled,
       lifecycleState: this.lifecycleState,
@@ -335,7 +339,7 @@ function validateCommonSnapshot(
   if (inputSource && snapshot.inputSource !== inputSource) {
     throw new Error('Practice session snapshot input source mismatch.');
   }
-  if (scope && JSON.stringify(scope) !== JSON.stringify(snapshot.practiceScope ?? {})) {
+  if (scope && JSON.stringify(scope) !== JSON.stringify(snapshot.practiceScope)) {
     throw new Error('Practice session snapshot scope mismatch.');
   }
 }

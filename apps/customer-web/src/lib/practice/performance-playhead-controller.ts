@@ -8,19 +8,9 @@ import {
   clearPlayheadCursor,
 } from './playhead-cursor';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
+import type { CursorScope } from './cursor-scope';
 
-export type CursorScope =
-  | {
-      kind: 'FULL';
-      startBeat: number;
-      terminalBeat: number;
-    }
-  | {
-      kind: 'RANGE';
-      startBeat: number;
-      terminalBeat: number;
-      allowedNoteIds: readonly string[];
-    };
+export type { CursorScope } from './cursor-scope';
 
 type PerformancePlayheadState = {
   activeNoteIds: string[];

@@ -37,7 +37,6 @@ import {
   groupById,
   practiceGroupsInRangeSelection,
   practiceScopeFromRangeSelection,
-  selectedPracticeRangeSelection,
   groupForRenderNoteId,
   transitionPracticeRangeSelection,
   type PracticeRangeSelection,
@@ -112,8 +111,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [isSelectingRange, setIsSelectingRange] = useState(false);
 
   const hasCompletedRange =
-    rangeSelection.kind === 'SELECTED_RANGE' &&
-    Boolean(rangeSelection.startGroupId && rangeSelection.endGroupId);
+    rangeSelection.kind === 'RANGE';
 
   // Score details and assets
   const scoreQuery = useScoreDetail(id);
@@ -150,14 +148,14 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   const resolvedScope = useMemo(() => {
     if (!artifact || expectedGroups.length === 0) return null;
-    return resolvePracticeScope(artifact, selectedRangeScope ?? {});
+    return resolvePracticeScope(artifact, selectedRangeScope ?? { kind: 'FULL' });
   }, [artifact, expectedGroups.length, selectedRangeScope]);
 
   const scopeStartBeat = resolvedScope?.startBeat ?? 0;
 
   const pendingStartGroup = useMemo(
     () =>
-      rangeSelection.kind === 'SELECTED_RANGE' && rangeSelection.startGroupId
+      rangeSelection.kind === 'SELECTING_END'
         ? groupById(expectedGroups, rangeSelection.startGroupId)
         : null,
     [expectedGroups, rangeSelection]
@@ -170,9 +168,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   const selectedRangeRenderNoteIds = useMemo(() => {
     if (
-      rangeSelection.kind === 'SELECTED_RANGE' &&
-      rangeSelection.startGroupId &&
-      !rangeSelection.endGroupId
+      rangeSelection.kind === 'SELECTING_END'
     ) {
       return pendingStartGroup ? pendingStartGroup.renderNoteIds : [];
     }
@@ -335,7 +331,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     } else {
       // Begin selecting start note
       setIsSelectingRange(true);
-      setRangeSelection(selectedPracticeRangeSelection());
+      setRangeSelection(fullPiecePracticeRangeSelection);
     }
   };
 
@@ -375,7 +371,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     setIsCompletionDialogOpen(false);
     void localPractice.finish();
     setIsSelectingRange(true);
-    setRangeSelection(selectedPracticeRangeSelection());
+    setRangeSelection(fullPiecePracticeRangeSelection);
   };
 
   const completionOutcome: PracticeCompletionOutcome = useMemo(() => {
@@ -418,8 +414,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     }
     if (
       rangeSelection.kind === 'FULL_PIECE' ||
-      !rangeSelection.startGroupId ||
-      Boolean(rangeSelection.startGroupId && rangeSelection.endGroupId)
+      rangeSelection.kind === 'RANGE'
     ) {
       return t('sectionSelectingStart');
     }
@@ -520,7 +515,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                     performanceMusicalBeat={localPractice.performanceClock?.musicalBeat ?? null}
                     performanceScope={
                       localPractice.performanceClock
-                        ? rangeSelection.kind === 'SELECTED_RANGE'
+                        ? rangeSelection.kind === 'RANGE' || rangeSelection.kind === 'SELECTING_END'
                           ? {
                               kind: 'RANGE' as const,
                               startBeat: localPractice.performanceClock.scopeStartBeat,

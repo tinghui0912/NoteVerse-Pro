@@ -145,15 +145,6 @@ vi.mock('@/i18n/routing', () => ({
   usePathname: () => '/score/score-123/practice/review',
 }));
 
-const useScoreDetailMock = vi.fn((_scoreId: string, _enabled = true) => ({
-  data: { data: { head_revision_id: 'rev-1' } },
-  isLoading: false,
-}));
-
-vi.mock('@/hooks/queries/use-score-queries', () => ({
-  useScoreDetail: (scoreId: string, enabled?: boolean) => useScoreDetailMock(scoreId, enabled),
-}));
-
 const saveMutationMock = vi.hoisted(() => ({
   mutateAsync: vi.fn(),
   isPending: false,
@@ -260,15 +251,15 @@ vi.mock('@/lib/practice/split-screen-video-export', () => ({
 
 import PracticeReviewPage from './page';
 import {
-  performanceReviewDraftStore,
-  type PerformanceReviewDraft,
-} from '@/lib/practice/performance-review-draft';
+  completedPerformanceStore,
+  type CompletedPerformance,
+} from '@/lib/practice/completed-performance';
 import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-annotation-controller';
 
 describe('PracticeReviewPage', () => {
   beforeEach(() => {
     navigationMocks.push.mockClear();
-    performanceReviewDraftStore.clearDraft();
+    completedPerformanceStore.clearPerformance();
     currentMockArtifact = createMockArtifact();
     vi.restoreAllMocks();
     saveMutationMock.mutateAsync.mockReset();
@@ -286,13 +277,13 @@ describe('PracticeReviewPage', () => {
         xmlContent,
         scoreContainer,
       }: {
-        draft: PerformanceReviewDraft | null;
+        draft: CompletedPerformance | null;
         session?: { video?: { status?: string } } | null;
         isScoreIdentityConfirmed: boolean;
         xmlContent: string | null;
         scoreContainer: HTMLElement | null;
       }) => {
-        if (draft?.video?.status !== 'READY' && session?.video?.status !== 'READY') {
+        if (draft?.media.status !== 'READY' && session?.video?.status !== 'READY') {
           return { ok: false, reason: 'video_not_ready' };
         }
         if (!isScoreIdentityConfirmed) return { ok: false, reason: 'score_identity_mismatch' };
@@ -316,20 +307,21 @@ describe('PracticeReviewPage', () => {
   });
 
   it('renders expired empty state when draft scoreId does not match url', () => {
-    performanceReviewDraftStore.setDraft({
+    completedPerformanceStore.setPerformance({
       localSessionId: 'sess-1',
       scoreId: 'score-OTHER',
-      scope: { startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 8 },
+      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 8 },
       tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }] },
-      performanceSnapshot: {} as unknown as PerformanceReviewDraft['performanceSnapshot'],
-      audio: { status: 'UNAVAILABLE', reason: 'NONE' },
+      performanceSnapshot: {} as unknown as CompletedPerformance['performanceSnapshot'],
+      revisionId: 'rev-1',
+      artifactId: 'art-1',
+      media: { status: 'UNAVAILABLE', reason: 'NONE' },
       recordingTimebase: {
         recordingStartPerfTimeMs: 0,
         recordingEndPerfTimeMs: 6000,
         activeSegments: [{ perfStartMs: 0, perfEndMs: 6000, mediaStartMs: 0, mediaEndMs: 6000 }],
         nominalMediaDurationMs: 6000,
       },
-      replayTiming: { scopeStartBeat: 0, scopeStartMs: 0, nominalDurationMs: 6000 },
       completedAt: new Date().toISOString(),
     });
 
@@ -338,12 +330,12 @@ describe('PracticeReviewPage', () => {
   });
 
   it('renders full review report with player when valid draft has audio READY', () => {
-    const validDraft: PerformanceReviewDraft = {
+    const validDraft: CompletedPerformance = {
       localSessionId: 'sess-1',
       scoreId: 'score-123',
       revisionId: 'rev-1',
       artifactId: 'art-1',
-      scope: { startIndex: 0, endIndex: 3, startBeat: 0, terminalBeat: 16 },
+      scope: { kind: 'FULL', startIndex: 0, endIndex: 3, startBeat: 0, terminalBeat: 16 },
       tempoPlan: {
         selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 },
         segments: [{ startBeat: 0, bpm: 100, source: 'CUSTOM' }],
@@ -355,6 +347,7 @@ describe('PracticeReviewPage', () => {
         artifactId: 'art-1',
         mode: 'CONTINUOUS_PLAY',
         inputSource: 'MICROPHONE',
+        practiceScope: { kind: 'FULL' },
         tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 },
         metronomeEnabled: false,
         lifecycleState: 'ENDED',
@@ -402,8 +395,9 @@ describe('PracticeReviewPage', () => {
           ],
         },
       },
-      audio: {
+      media: {
         status: 'READY',
+        kind: 'AUDIO',
         blob: new Blob(['audio-bytes'], { type: 'audio/webm' }),
         mimeType: 'audio/webm',
         durationMs: 9600,
@@ -414,15 +408,10 @@ describe('PracticeReviewPage', () => {
         activeSegments: [{ perfStartMs: 0, perfEndMs: 9600, mediaStartMs: 0, mediaEndMs: 9600 }],
         nominalMediaDurationMs: 9600,
       },
-      replayTiming: {
-        scopeStartBeat: 0,
-        scopeStartMs: 0,
-        nominalDurationMs: 9600,
-      },
       completedAt: '2026-09-20T12:00:00.000Z',
     };
 
-    performanceReviewDraftStore.setDraft(validDraft);
+    completedPerformanceStore.setPerformance(validDraft);
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -444,19 +433,19 @@ describe('PracticeReviewPage', () => {
     const retryButton = screen.getByRole('button', { name: /重弹一次/i });
     fireEvent.click(retryButton);
     fireEvent.click(screen.getByRole('button', { name: '确认离开' }));
-    expect(performanceReviewDraftStore.getDraft()).toBeNull();
+    expect(completedPerformanceStore.getPerformance()).toBeNull();
     expect(navigationMocks.push).toHaveBeenCalledWith('/score/score-123/practice');
   });
 
   it('correctly categorizes note-by-note strike colors and all 5 outcome counters', () => {
     const applySpy = vi.spyOn(PracticeSummaryAnnotationController.prototype, 'apply');
 
-    const draftWithChordsAndOutcomes: PerformanceReviewDraft = {
+    const draftWithChordsAndOutcomes: CompletedPerformance = {
       localSessionId: 'sess-1',
       scoreId: 'score-123',
       revisionId: 'rev-1',
       artifactId: 'art-1',
-      scope: { startIndex: 0, endIndex: 4, startBeat: 0, terminalBeat: 20 },
+      scope: { kind: 'FULL', startIndex: 0, endIndex: 4, startBeat: 0, terminalBeat: 20 },
       tempoPlan: {
         selection: { mode: 'SCORE' },
         segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }],
@@ -468,6 +457,7 @@ describe('PracticeReviewPage', () => {
         artifactId: 'art-1',
         mode: 'CONTINUOUS_PLAY',
         inputSource: 'MICROPHONE',
+        practiceScope: { kind: 'FULL' },
         tempoSelection: { mode: 'SCORE' },
         metronomeEnabled: false,
         lifecycleState: 'ENDED',
@@ -566,8 +556,9 @@ describe('PracticeReviewPage', () => {
           ],
         },
       },
-      audio: {
+      media: {
         status: 'READY',
+        kind: 'AUDIO',
         blob: new Blob(['audio-bytes'], { type: 'audio/webm' }),
         mimeType: 'audio/webm',
         durationMs: 10000,
@@ -578,15 +569,10 @@ describe('PracticeReviewPage', () => {
         activeSegments: [{ perfStartMs: 0, perfEndMs: 10000, mediaStartMs: 0, mediaEndMs: 10000 }],
         nominalMediaDurationMs: 10000,
       },
-      replayTiming: {
-        scopeStartBeat: 0,
-        scopeStartMs: 0,
-        nominalDurationMs: 10000,
-      },
       completedAt: '2026-09-20T12:00:00.000Z',
     };
 
-    performanceReviewDraftStore.setDraft(draftWithChordsAndOutcomes);
+    completedPerformanceStore.setPerformance(draftWithChordsAndOutcomes);
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -627,12 +613,12 @@ describe('PracticeReviewPage', () => {
     // Artifact has revision 'rev-2', while draft has revision 'rev-1'
     currentMockArtifact = createMockArtifact({ revisionId: 'rev-2' });
 
-    const validDraft: PerformanceReviewDraft = {
+    const validDraft: CompletedPerformance = {
       localSessionId: 'sess-1',
       scoreId: 'score-123',
       revisionId: 'rev-1',
       artifactId: 'art-1',
-      scope: { startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
       tempoPlan: {
         selection: { mode: 'SCORE' },
         segments: [{ startBeat: 0, bpm: 80, source: 'MUSICXML' }],
@@ -644,6 +630,7 @@ describe('PracticeReviewPage', () => {
         artifactId: 'art-1',
         mode: 'CONTINUOUS_PLAY',
         inputSource: 'MICROPHONE',
+        practiceScope: { kind: 'FULL' },
         tempoSelection: { mode: 'SCORE' },
         metronomeEnabled: false,
         lifecycleState: 'ENDED',
@@ -680,8 +667,9 @@ describe('PracticeReviewPage', () => {
           ],
         },
       },
-      audio: {
+      media: {
         status: 'READY',
+        kind: 'AUDIO',
         blob: new Blob(['audio-bytes'], { type: 'audio/webm' }),
         mimeType: 'audio/webm',
         durationMs: 3000,
@@ -692,15 +680,10 @@ describe('PracticeReviewPage', () => {
         activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
         nominalMediaDurationMs: 3000,
       },
-      replayTiming: {
-        scopeStartBeat: 0,
-        scopeStartMs: 0,
-        nominalDurationMs: 3000,
-      },
       completedAt: '2026-09-20T12:00:00.000Z',
     };
 
-    performanceReviewDraftStore.setDraft(validDraft);
+    completedPerformanceStore.setPerformance(validDraft);
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -724,10 +707,12 @@ describe('PracticeReviewPage', () => {
   });
 
   it('renders notice when audio recording is UNAVAILABLE due to denied mic permission', () => {
-    const validDraft: PerformanceReviewDraft = {
+    const validDraft: CompletedPerformance = {
       localSessionId: 'sess-1',
       scoreId: 'score-123',
-      scope: { startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+      revisionId: 'rev-1',
+      artifactId: 'art-1',
+      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
       tempoPlan: {
         selection: { mode: 'SCORE' },
         segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
@@ -739,6 +724,7 @@ describe('PracticeReviewPage', () => {
         artifactId: 'art-1',
         mode: 'CONTINUOUS_PLAY',
         inputSource: 'MIDI',
+        practiceScope: { kind: 'FULL' },
         tempoSelection: { mode: 'SCORE' },
         metronomeEnabled: false,
         lifecycleState: 'ENDED',
@@ -763,7 +749,7 @@ describe('PracticeReviewPage', () => {
           outcomes: [],
         },
       },
-      audio: {
+      media: {
         status: 'UNAVAILABLE',
         reason: 'PERMISSION_DENIED',
       },
@@ -773,15 +759,10 @@ describe('PracticeReviewPage', () => {
         activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
         nominalMediaDurationMs: 3000,
       },
-      replayTiming: {
-        scopeStartBeat: 0,
-        scopeStartMs: 0,
-        nominalDurationMs: 3000,
-      },
       completedAt: '2026-09-20T12:00:00.000Z',
     };
 
-    performanceReviewDraftStore.setDraft(validDraft);
+    completedPerformanceStore.setPerformance(validDraft);
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -795,22 +776,20 @@ describe('PracticeReviewPage', () => {
   });
 
   it('disables score queries when draft is absent', () => {
-    performanceReviewDraftStore.clearDraft();
-    useScoreDetailMock.mockClear();
+    completedPerformanceStore.clearPerformance();
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
-    expect(useScoreDetailMock).toHaveBeenCalledWith('score-123', false);
     expect(screen.getByText('本次临时报告已失效')).toBeDefined();
   });
 
   it('handles save performance flow with success state', async () => {
-    const validDraft: PerformanceReviewDraft = {
+    const validDraft: CompletedPerformance = {
       localSessionId: 'sess-save',
       scoreId: 'score-123',
       revisionId: 'rev-1',
       artifactId: 'art-1',
-      scope: { startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
       tempoPlan: {
         selection: { mode: 'SCORE' },
         segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
@@ -822,6 +801,7 @@ describe('PracticeReviewPage', () => {
         artifactId: 'art-1',
         mode: 'CONTINUOUS_PLAY',
         inputSource: 'MIDI',
+        practiceScope: { kind: 'FULL' },
         tempoSelection: { mode: 'SCORE' },
         metronomeEnabled: false,
         lifecycleState: 'ENDED',
@@ -846,8 +826,9 @@ describe('PracticeReviewPage', () => {
           outcomes: [],
         },
       },
-      audio: {
+      media: {
         status: 'READY',
+        kind: 'AUDIO',
         blob: new Blob(['audio'], { type: 'audio/webm' }),
         mimeType: 'audio/webm',
         durationMs: 3000,
@@ -858,15 +839,10 @@ describe('PracticeReviewPage', () => {
         activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
         nominalMediaDurationMs: 3000,
       },
-      replayTiming: {
-        scopeStartBeat: 0,
-        scopeStartMs: 0,
-        nominalDurationMs: 3000,
-      },
       completedAt: '2026-09-20T12:00:00.000Z',
     };
 
-    performanceReviewDraftStore.setDraft(validDraft);
+    completedPerformanceStore.setPerformance(validDraft);
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-abc' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
@@ -903,12 +879,12 @@ describe('PracticeReviewPage', () => {
     const revokeObjectURL = vi.mocked(URL.revokeObjectURL);
 
     const videoBlob = new Blob(['video'], { type: 'video/webm' });
-    const validDraft: PerformanceReviewDraft = {
+    const validDraft: CompletedPerformance = {
       localSessionId: 'sess-video-save',
       scoreId: 'score-123',
       revisionId: 'rev-1',
       artifactId: 'art-1',
-      scope: { startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+      scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
       tempoPlan: {
         selection: { mode: 'SCORE' },
         segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
@@ -920,6 +896,7 @@ describe('PracticeReviewPage', () => {
         artifactId: 'art-1',
         mode: 'CONTINUOUS_PLAY',
         inputSource: 'MICROPHONE',
+        practiceScope: { kind: 'FULL' },
         tempoSelection: { mode: 'SCORE' },
         metronomeEnabled: false,
         lifecycleState: 'ENDED',
@@ -944,12 +921,9 @@ describe('PracticeReviewPage', () => {
           outcomes: [],
         },
       },
-      audio: {
-        status: 'UNAVAILABLE',
-        reason: 'VIDEO_RECORDING_LOCAL_ONLY',
-      },
-      video: {
+      media: {
         status: 'READY',
+        kind: 'VIDEO',
         blob: videoBlob,
         mimeType: 'video/webm',
         durationMs: 3000,
@@ -960,15 +934,10 @@ describe('PracticeReviewPage', () => {
         activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
         nominalMediaDurationMs: 3000,
       },
-      replayTiming: {
-        scopeStartBeat: 0,
-        scopeStartMs: 0,
-        nominalDurationMs: 3000,
-      },
       completedAt: '2026-09-20T12:00:00.000Z',
     };
 
-    performanceReviewDraftStore.setDraft(validDraft);
+    completedPerformanceStore.setPerformance(validDraft);
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
@@ -1004,7 +973,7 @@ describe('PracticeReviewPage', () => {
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     const videoBlob = new Blob(['raw-video'], { type: 'video/webm' });
     const draft = createVideoDraft({ videoBlob });
-    performanceReviewDraftStore.setDraft(draft);
+    completedPerformanceStore.setPerformance(draft);
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
@@ -1038,7 +1007,7 @@ describe('PracticeReviewPage', () => {
       value: vi.fn(),
     });
     currentMockArtifact = createMockArtifact({ revisionId: 'rev-2' });
-    performanceReviewDraftStore.setDraft(createVideoDraft());
+    completedPerformanceStore.setPerformance(createVideoDraft());
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
     expect(screen.getByTestId('share-video-studio-unavailable')).toBeInTheDocument();
@@ -1060,7 +1029,7 @@ describe('PracticeReviewPage', () => {
         });
       }
     );
-    performanceReviewDraftStore.setDraft(createVideoDraft());
+    completedPerformanceStore.setPerformance(createVideoDraft());
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
     fireEvent.click(screen.getByTestId('open-share-video-studio'));
@@ -1096,7 +1065,7 @@ describe('PracticeReviewPage', () => {
     splitScreenMocks.exportSplitScreenPerformanceVideo.mockRejectedValueOnce(
       new Error('encoder failed')
     );
-    performanceReviewDraftStore.setDraft(createVideoDraft());
+    completedPerformanceStore.setPerformance(createVideoDraft());
     saveMutationMock.mutateAsync.mockResolvedValueOnce({ take_id: 'take-video' });
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
@@ -1122,7 +1091,7 @@ describe('PracticeReviewPage', () => {
       configurable: true,
       value: vi.fn(),
     });
-    performanceReviewDraftStore.setDraft(
+    completedPerformanceStore.setPerformance(
       createVideoDraft({
         videoBlob: new Blob(['mp4-video'], { type: 'video/mp4' }),
         mimeType: 'video/mp4',
@@ -1140,7 +1109,7 @@ describe('PracticeReviewPage', () => {
   });
 
   it('keeps video orientation and score presentation independent when deriving export templates', async () => {
-    performanceReviewDraftStore.setDraft(createVideoDraft());
+    completedPerformanceStore.setPerformance(createVideoDraft());
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
@@ -1178,7 +1147,7 @@ describe('PracticeReviewPage', () => {
   });
 
   it('keeps share selections when the studio is collapsed and reopened', () => {
-    performanceReviewDraftStore.setDraft(createVideoDraft());
+    completedPerformanceStore.setPerformance(createVideoDraft());
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
     fireEvent.click(screen.getByTestId('open-share-video-studio'));
@@ -1205,13 +1174,13 @@ function createVideoDraft({
 }: {
   videoBlob?: Blob;
   mimeType?: string;
-} = {}): PerformanceReviewDraft {
+} = {}): CompletedPerformance {
   return {
     localSessionId: 'sess-video',
     scoreId: 'score-123',
     revisionId: 'rev-1',
     artifactId: 'art-1',
-    scope: { startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
+    scope: { kind: 'FULL', startIndex: 0, endIndex: 1, startBeat: 0, terminalBeat: 4 },
     tempoPlan: {
       selection: { mode: 'SCORE' },
       segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }],
@@ -1223,6 +1192,7 @@ function createVideoDraft({
       artifactId: 'art-1',
       mode: 'CONTINUOUS_PLAY',
       inputSource: 'MICROPHONE',
+      practiceScope: { kind: 'FULL' },
       tempoSelection: { mode: 'SCORE' },
       metronomeEnabled: false,
       lifecycleState: 'ENDED',
@@ -1247,12 +1217,9 @@ function createVideoDraft({
         outcomes: [],
       },
     },
-    audio: {
-      status: 'UNAVAILABLE',
-      reason: 'VIDEO_RECORDING_LOCAL_ONLY',
-    },
-    video: {
+    media: {
       status: 'READY',
+      kind: 'VIDEO',
       blob: videoBlob,
       mimeType,
       durationMs: 3000,
@@ -1262,11 +1229,6 @@ function createVideoDraft({
       recordingEndPerfTimeMs: 3000,
       activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
       nominalMediaDurationMs: 3000,
-    },
-    replayTiming: {
-      scopeStartBeat: 0,
-      scopeStartMs: 0,
-      nominalDurationMs: 3000,
     },
     completedAt: '2026-09-20T12:00:00.000Z',
   };

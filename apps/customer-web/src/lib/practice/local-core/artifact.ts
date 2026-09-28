@@ -107,19 +107,31 @@ export type TempoSegment = {
   bpm: number;
 };
 
-export type PracticeScope = {
-  startGroupId?: string;
-  endGroupId?: string;
-};
+export type PracticeScope =
+  | { kind: 'FULL' }
+  | {
+      kind: 'RANGE';
+      startGroupId: string;
+      endGroupId: string;
+    };
 
-export type ResolvedPracticeScope = {
-  startIndex: number;
-  endIndex: number;
-  startBeat: number;
-  terminalBeat: number;
-  startGroupId?: string;
-  endGroupId?: string;
-};
+export type ResolvedPracticeScope =
+  | {
+      kind: 'FULL';
+      startIndex: number;
+      endIndex: number;
+      startBeat: number;
+      terminalBeat: number;
+    }
+  | {
+      kind: 'RANGE';
+      startGroupId: string;
+      endGroupId: string;
+      startIndex: number;
+      endIndex: number;
+      startBeat: number;
+      terminalBeat: number;
+    };
 
 export type CountInContract = {
   durationBeats: number;
@@ -204,17 +216,16 @@ export function assertPracticeScoreArtifact(artifact: unknown): asserts artifact
 
 export function resolvePracticeScope(
   artifact: PracticeScoreArtifact,
-  scope: PracticeScope = {}
+  scope: PracticeScope = { kind: 'FULL' }
 ): ResolvedPracticeScope {
   assertPracticeScoreArtifact(artifact);
   if (artifact.expectedPracticeGroups.length === 0) {
     throw new Error('Practice scope requires at least one expected group.');
   }
 
-  const startIndex = scope.startGroupId
-    ? groupIndex(artifact, scope.startGroupId)
-    : 0;
-  const endIndex = scope.endGroupId
+  const isRange = scope.kind === 'RANGE';
+  const startIndex = isRange ? groupIndex(artifact, scope.startGroupId) : 0;
+  const endIndex = isRange
     ? groupIndex(artifact, scope.endGroupId)
     : artifact.expectedPracticeGroups.length - 1;
   if (endIndex < startIndex) {
@@ -223,15 +234,23 @@ export function resolvePracticeScope(
 
   const startGroup = artifact.expectedPracticeGroups[startIndex];
   const endGroup = artifact.expectedPracticeGroups[endIndex];
+  if (scope.kind === 'RANGE') {
+    return {
+      kind: 'RANGE',
+      startGroupId: scope.startGroupId,
+      endGroupId: scope.endGroupId,
+      startIndex,
+      endIndex,
+      startBeat: startGroup.onsetBeat,
+      terminalBeat: entryGroupEndBeat(artifact, endGroup.groupId),
+    };
+  }
   return {
+    kind: 'FULL',
     startIndex,
     endIndex,
     startBeat: startGroup.onsetBeat,
-    terminalBeat: scope.endGroupId
-      ? entryGroupEndBeat(artifact, endGroup.groupId)
-      : artifact.scoreEndBeat,
-    startGroupId: scope.startGroupId,
-    endGroupId: scope.endGroupId,
+    terminalBeat: artifact.scoreEndBeat,
   };
 }
 

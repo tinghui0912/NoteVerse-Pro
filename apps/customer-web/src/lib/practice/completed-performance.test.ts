@@ -1,26 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import {
   mediaTimeToPerformanceTimeMs,
-  performanceReviewDraftStore,
-  type PerformanceReviewDraft,
-} from './performance-review-draft';
+  completedPerformanceStore,
+  type CompletedPerformance,
+} from './completed-performance';
 
-describe('PerformanceReviewDraftStore', () => {
+describe('CompletedPerformanceStore', () => {
   it('stores, retrieves, clears and notifies subscribers of draft', () => {
-    performanceReviewDraftStore.clearDraft();
-    expect(performanceReviewDraftStore.getDraft()).toBeNull();
+    completedPerformanceStore.clearPerformance();
+    expect(completedPerformanceStore.getPerformance()).toBeNull();
 
-    const notifications: (PerformanceReviewDraft | null)[] = [];
-    const unsubscribe = performanceReviewDraftStore.subscribe((draft) => {
+    const notifications: (CompletedPerformance | null)[] = [];
+    const unsubscribe = completedPerformanceStore.subscribe((draft) => {
       notifications.push(draft);
     });
 
-    const mockDraft: PerformanceReviewDraft = {
+    const mockDraft: CompletedPerformance = {
       localSessionId: 'sess-123',
       scoreId: 'score-abc',
       revisionId: 'rev-1',
       artifactId: 'art-1',
       scope: {
+        kind: 'FULL',
         startIndex: 0,
         endIndex: 2,
         startBeat: 0,
@@ -37,6 +38,7 @@ describe('PerformanceReviewDraftStore', () => {
         artifactId: 'art-1',
         mode: 'CONTINUOUS_PLAY',
         inputSource: 'MICROPHONE',
+        practiceScope: { kind: 'FULL' },
         tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 90 },
         metronomeEnabled: false,
         lifecycleState: 'ENDED',
@@ -61,8 +63,9 @@ describe('PerformanceReviewDraftStore', () => {
           outcomes: [],
         },
       },
-      audio: {
+      media: {
         status: 'READY',
+        kind: 'AUDIO',
         blob: new Blob(['audio-data'], { type: 'audio/webm' }),
         mimeType: 'audio/webm',
         durationMs: 4000,
@@ -73,19 +76,14 @@ describe('PerformanceReviewDraftStore', () => {
         activeSegments: [{ perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 }],
         nominalMediaDurationMs: 4000,
       },
-      replayTiming: {
-        scopeStartBeat: 0,
-        scopeStartMs: 0,
-        nominalDurationMs: 5333,
-      },
       completedAt: '2026-09-20T12:00:00.000Z',
     };
 
-    performanceReviewDraftStore.setDraft(mockDraft);
-    expect(performanceReviewDraftStore.getDraft()).toEqual(mockDraft);
+    completedPerformanceStore.setPerformance(mockDraft);
+    expect(completedPerformanceStore.getPerformance()).toEqual(mockDraft);
 
-    performanceReviewDraftStore.clearDraft();
-    expect(performanceReviewDraftStore.getDraft()).toBeNull();
+    completedPerformanceStore.clearPerformance();
+    expect(completedPerformanceStore.getPerformance()).toBeNull();
 
     unsubscribe();
     expect(notifications).toEqual([null, mockDraft, null]);

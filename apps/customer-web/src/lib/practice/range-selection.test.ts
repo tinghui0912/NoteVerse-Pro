@@ -63,9 +63,8 @@ describe('practice range selection', () => {
     expect(
       selectPracticeRangeTarget(fullPiecePracticeRangeSelection, groups, 'g2')
     ).toEqual({
-      kind: 'SELECTED_RANGE',
+      kind: 'SELECTING_END',
       startGroupId: 'g2',
-      endGroupId: null,
     });
   });
 
@@ -83,6 +82,7 @@ describe('practice range selection', () => {
     );
 
     expect(practiceScopeFromRangeSelection(selection, groups)).toEqual({
+      kind: 'RANGE',
       startGroupId: 'g1',
       endGroupId: 'g3',
     });
@@ -96,6 +96,7 @@ describe('practice range selection', () => {
     );
 
     expect(practiceScopeFromRangeSelection(selection, groups)).toEqual({
+      kind: 'RANGE',
       startGroupId: 'g1',
       endGroupId: 'g3',
     });
@@ -109,6 +110,7 @@ describe('practice range selection', () => {
     );
 
     expect(practiceScopeFromRangeSelection(selection, groups)).toEqual({
+      kind: 'RANGE',
       startGroupId: 'g2',
       endGroupId: 'g2',
     });
@@ -116,15 +118,18 @@ describe('practice range selection', () => {
 
   it('starts a new pending selection when selecting after a complete range', () => {
     const selection = selectPracticeRangeTarget(
-      selectedPracticeRangeSelection('g1', 'g3'),
+      selectPracticeRangeTarget(
+        selectedPracticeRangeSelection('g1'),
+        groups,
+        'g3'
+      ),
       groups,
       'g2'
     );
 
     expect(selection).toEqual({
-      kind: 'SELECTED_RANGE',
+      kind: 'SELECTING_END',
       startGroupId: 'g2',
-      endGroupId: null,
     });
   });
 
@@ -135,7 +140,11 @@ describe('practice range selection', () => {
   it('returns every group inside the selected inclusive range', () => {
     expect(
       practiceGroupsInRangeSelection(
-        selectedPracticeRangeSelection('g3', 'g1'),
+        selectPracticeRangeTarget(
+          selectedPracticeRangeSelection('g3'),
+          groups,
+          'g1'
+        ),
         groups
       ).map((group) => group.groupId)
     ).toEqual(['g1', 'g2', 'g3']);
@@ -147,7 +156,11 @@ describe('practice range selection', () => {
     expect(selectPracticeRangeTarget(selection, groups, 'missing')).toBe(selection);
     expect(
       practiceScopeFromRangeSelection(
-        selectedPracticeRangeSelection('g1', 'missing'),
+        {
+          kind: 'RANGE',
+          startGroupId: 'g1',
+          endGroupId: 'missing',
+        },
         groups
       )
     ).toBeNull();
@@ -162,9 +175,8 @@ describe('practice range selection', () => {
     );
     expect(step1.completed).toBe(false);
     expect(step1.nextSelection).toEqual({
-      kind: 'SELECTED_RANGE',
+      kind: 'SELECTING_END',
       startGroupId: 'g1',
-      endGroupId: null,
     });
 
     // Step 2: from first note to second note -> completed
@@ -175,7 +187,7 @@ describe('practice range selection', () => {
     );
     expect(step2.completed).toBe(true);
     expect(step2.nextSelection).toEqual({
-      kind: 'SELECTED_RANGE',
+      kind: 'RANGE',
       startGroupId: 'g1',
       endGroupId: 'g3',
     });
@@ -188,9 +200,8 @@ describe('practice range selection', () => {
     );
     expect(step3.completed).toBe(false);
     expect(step3.nextSelection).toEqual({
-      kind: 'SELECTED_RANGE',
+      kind: 'SELECTING_END',
       startGroupId: 'g2',
-      endGroupId: null,
     });
   });
 });

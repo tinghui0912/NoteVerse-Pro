@@ -44,6 +44,7 @@ const session: ShareVideoSession = {
   },
   video: {
     status: 'READY',
+    kind: 'VIDEO',
     blob: new Blob(['video'], { type: 'video/webm' }),
     mimeType: 'video/webm',
     durationMs: 4000,

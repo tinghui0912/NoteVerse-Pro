@@ -24,7 +24,6 @@ import {
 } from '@/lib/practice/local-core/performance-runtime';
 import {
   createLocalSessionId,
-  InMemoryPracticeSessionStore,
   type LocalPracticeCompletionReason,
   type LocalPracticeLifecycle,
   type LocalPracticeInputState,
@@ -32,7 +31,6 @@ import {
   type LocalPerformanceSessionSnapshot,
 } from '@/lib/practice/local-core/session';
 import {
-  PracticeTempoTimeline,
   resolvePracticeTempoPlan,
   type PracticeTempoSelection,
   type ResolvedPracticeTempoPlan,
@@ -53,12 +51,11 @@ import {
   BrowserMidiController,
 } from '@/lib/practice/midi/browser-midi-controller';
 import {
-  performanceReviewDraftStore,
-  type PerformanceReviewDraft,
-  type PerformanceReviewDraftAudio,
-  type PerformanceReviewDraftVideo,
+  completedPerformanceStore,
+  type CompletedPerformance,
+  type PerformanceMedia,
   type RecordingTimebaseMapping,
-} from '@/lib/practice/performance-review-draft';
+} from '@/lib/practice/completed-performance';
 
 export type { LocalPracticeLifecycle, LocalPracticeInputState };
 
@@ -85,8 +82,6 @@ export type UseLocalPracticeOptions = {
 const defaultClock: LocalClock = {
   nowMs: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
 };
-
-const defaultSessionStore = new InMemoryPracticeSessionStore();
 
 function preferredVideoRecorderMimeType(): string | undefined {
   if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
@@ -211,11 +206,7 @@ export function useLocalPractice({
 
   const resolvedTempoPlan: ResolvedPracticeTempoPlan | null = useMemo(
     () => (artifact ? resolvePracticeTempoPlan(artifact, tempoSelection) : null),
-    [
-      artifact,
-      tempoSelection.mode,
-      tempoSelection.mode === 'CUSTOM_FIXED_BPM' ? tempoSelection.bpm : null,
-    ]
+    [artifact, tempoSelection]
   );
 
   useEffect(() => {
@@ -374,8 +365,7 @@ export function useLocalPractice({
         }
 
         const totalBytes = recordingChunksRef.current.reduce((acc, chunk) => acc + (chunk?.size ?? 0), 0);
-        let audio: PerformanceReviewDraftAudio;
-        let video: PerformanceReviewDraftVideo | undefined;
+        let media: PerformanceMedia;
 
         if (
           totalBytes === 0 ||
@@ -386,56 +376,25 @@ export function useLocalPractice({
           const unavailableReason =
             recordingUnavailableReasonRef.current ??
             (totalBytes === 0 ? 'EMPTY_RECORDING_BLOB' : 'RECORDING_NOT_AVAILABLE');
-          if (recordingMediaKindRef.current === 'VIDEO') {
-            audio = {
-              status: 'UNAVAILABLE',
-              reason: 'VIDEO_RECORDING_LOCAL_ONLY',
-            };
-            video = {
-              status: 'UNAVAILABLE',
-              reason: unavailableReason,
-            };
-          } else {
-            audio = {
-              status: 'UNAVAILABLE',
-              reason: unavailableReason,
-            };
-          }
+          media = { status: 'UNAVAILABLE', reason: unavailableReason };
         } else {
           recordingStateRef.current = 'READY';
           const fallbackMimeType =
             recordingMediaKindRef.current === 'VIDEO' ? 'video/webm' : 'audio/webm';
           const mimeType = recorder?.mimeType || fallbackMimeType;
           const blob = new Blob(recordingChunksRef.current, { type: mimeType });
-          if (recordingMediaKindRef.current === 'VIDEO') {
-            audio = {
-              status: 'UNAVAILABLE',
-              reason: 'VIDEO_RECORDING_LOCAL_ONLY',
-            };
-            video = {
-              status: 'READY',
-              blob,
-              mimeType,
-              durationMs: Math.max(0, Math.round(recordingTimebaseRef.current.nominalMediaDurationMs)),
-            };
-          } else {
-            audio = {
-              status: 'READY',
-              blob,
-              mimeType,
-              durationMs: Math.max(0, Math.round(recordingTimebaseRef.current.nominalMediaDurationMs)),
-            };
-          }
+          media = {
+            status: 'READY',
+            kind: recordingMediaKindRef.current,
+            blob,
+            mimeType,
+            durationMs: Math.max(0, Math.round(recordingTimebaseRef.current.nominalMediaDurationMs)),
+          };
         }
 
         if (artifact && resolvedTempoPlan) {
-          const resolvedScope = resolvePracticeScope(artifact, scope ?? {});
-          const timeline = new PracticeTempoTimeline(resolvedTempoPlan, artifact.scoreEndBeat);
-          const scopeStartMs = timeline.beatToTimeMs(resolvedScope.startBeat);
-          const scopeTerminalMs = timeline.beatToTimeMs(resolvedScope.terminalBeat);
-          const nominalDurationMs = Math.max(0, scopeTerminalMs - scopeStartMs);
-
-          const draft: PerformanceReviewDraft = {
+          const resolvedScope = resolvePracticeScope(artifact, scope ?? { kind: 'FULL' });
+          const draft: CompletedPerformance = {
             localSessionId: sessionSnapshot.localSessionId,
             scoreId: sessionSnapshot.scoreId,
             revisionId: sessionSnapshot.revisionId,
@@ -443,17 +402,11 @@ export function useLocalPractice({
             scope: resolvedScope,
             tempoPlan: resolvedTempoPlan,
             performanceSnapshot: sessionSnapshot,
-            audio,
-            video,
+            media,
             recordingTimebase: structuredClone(recordingTimebaseRef.current),
-            replayTiming: {
-              scopeStartBeat: resolvedScope.startBeat,
-              scopeStartMs,
-              nominalDurationMs,
-            },
             completedAt: new Date().toISOString(),
           };
-          performanceReviewDraftStore.setDraft(draft);
+          completedPerformanceStore.setPerformance(draft);
         }
       } finally {
         setIsFinalizingRecording(false);
@@ -470,7 +423,6 @@ export function useLocalPractice({
       metronomeRef.current?.stop();
       setCompletionReason('SCOPE_COMPLETED');
       setLastSnapshot(snapshot);
-      defaultSessionStore.save(snapshot);
       setLifecycle('ENDED');
       if (mode === 'CONTINUOUS_PLAY') {
         await finalizeRecordingAndBuildDraft(snapshot as LocalPerformanceSessionSnapshot);
@@ -616,9 +568,11 @@ export function useLocalPractice({
     const timebase = new PracticeTimebase({ domainId: localSessionId });
     timebaseRef.current = timebase;
 
-    const resolvedScope = artifact ? resolvePracticeScope(artifact, scope ?? {}) : null;
+    const resolvedScope = artifact
+      ? resolvePracticeScope(artifact, scope ?? { kind: 'FULL' })
+      : null;
     const scopeStartBeat = resolvedScope?.startBeat ?? 0;
-    const scopeEndBeat = scope?.endGroupId
+    const scopeEndBeat = scope?.kind === 'RANGE'
       ? entryGroupEndBeat(artifact, scope.endGroupId)
       : (resolvedScope?.terminalBeat ?? artifact.scoreEndBeat);
 
@@ -980,7 +934,6 @@ export function useLocalPractice({
     setCompletionReason('STOPPED_BY_USER');
     if (snapshot) {
       setLastSnapshot(snapshot);
-      defaultSessionStore.save(snapshot);
     }
     setLifecycle('ENDED');
 
@@ -1016,7 +969,7 @@ export function useLocalPractice({
     metronomeRef.current?.stop();
     metronomeRef.current?.destroy();
     metronomeRef.current = null;
-    performanceReviewDraftStore.clearDraft();
+    completedPerformanceStore.clearPerformance();
     await teardownInputs();
     stepRuntimeRef.current = null;
     performanceRuntimeRef.current = null;

@@ -1449,11 +1449,6 @@ def test_finalize_range_video_preserves_scope_identity_and_sync_metadata(test_en
                     "mediaEndMs": 5000,
                 }],
             },
-            "replayTiming": {
-                "scopeStartBeat": 4,
-                "scopeStartMs": 0,
-                "nominalDurationMs": 5000,
-            },
             "scopeIdentity": {
                 "startGroupId": "group-2",
                 "endGroupId": "group-4",
@@ -1502,7 +1497,6 @@ def test_finalize_range_video_preserves_scope_identity_and_sync_metadata(test_en
         assert take_data["scope_start_beat"] == 4
         assert take_data["scope_terminal_beat"] == 8
         assert take_data["sync_metadata"]["scopeIdentity"] == sync_metadata["scopeIdentity"]
-        assert take_data["sync_metadata"]["replayTiming"]["scopeStartBeat"] == 4
         assert take_data["resolved_tempo_plan"] == resolved_tempo_plan
         assert session.execute(
             select(PerformanceTake).where(

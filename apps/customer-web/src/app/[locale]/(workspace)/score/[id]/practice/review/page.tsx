@@ -40,13 +40,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
 import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-artifact';
-import { useScoreDetail } from '@/hooks/queries/use-score-queries';
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
 import {
-  performanceReviewDraftStore,
-  type PerformanceReviewDraft,
+  completedPerformanceStore,
+  type CompletedPerformance,
   mediaTimeToPerformanceTimeMs,
-} from '@/lib/practice/performance-review-draft';
+} from '@/lib/practice/completed-performance';
 import {
   PerformancePlayheadController,
   type CursorScope,
@@ -54,10 +53,11 @@ import {
 import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-annotation-controller';
 import { PracticeTempoTimeline } from '@/lib/practice/local-core/practice-tempo';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/local-core/artifact';
+import { resolveScopeTiming } from '@/lib/practice/scope-timing';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
 import { ShareVideoStudio } from '@/components/practice/share-video-studio';
-import { createShareVideoSessionFromReviewDraft } from '@/lib/practice/share-video-session';
+import { createShareVideoSessionFromCompletedPerformance } from '@/lib/practice/share-video-session';
 
 const MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 
@@ -91,17 +91,16 @@ export default function PracticeReviewPage({
   const t = useTranslations('practice');
   const router = useRouter();
 
-  const [draft, setDraft] = useState<PerformanceReviewDraft | null>(() =>
-    performanceReviewDraftStore.getDraft()
+  const [draft, setDraft] = useState<CompletedPerformance | null>(() =>
+    completedPerformanceStore.getPerformance()
   );
 
   useEffect(() => {
-    return performanceReviewDraftStore.subscribe(setDraft);
+    return completedPerformanceStore.subscribe(setDraft);
   }, []);
 
   const isValidDraft = Boolean(draft && draft.scoreId === id);
 
-  useScoreDetail(id, isValidDraft && Boolean(id));
   const selectedRevisionId = draft?.revisionId ?? undefined;
 
   const revisionQuery = usePracticeReadyScoreContent(
@@ -126,7 +125,7 @@ export default function PracticeReviewPage({
       return { status: 'invalid', reason: 'score_source_unavailable' };
     }
     try {
-      const isRange = Boolean(draft.scope.startGroupId || draft.scope.endGroupId);
+      const isRange = draft.scope.kind === 'RANGE';
       if (!isRange) {
         return {
           status: 'ready',
@@ -165,7 +164,7 @@ export default function PracticeReviewPage({
     () => {
       if (!draft || !artifact) return null;
       try {
-        return createShareVideoSessionFromReviewDraft(draft, artifact);
+        return createShareVideoSessionFromCompletedPerformance(draft, artifact);
       } catch {
         return null;
       }
@@ -294,7 +293,11 @@ export default function PracticeReviewPage({
       }
       const scoreEndBeat = artifact?.scoreEndBeat ?? draft.scope.terminalBeat;
       const timeline = new PracticeTempoTimeline(draft.tempoPlan, scoreEndBeat);
-      const scopeStartMs = draft.replayTiming?.scopeStartMs ?? 0;
+      const scopeStartMs = resolveScopeTiming(
+        draft.scope,
+        draft.tempoPlan,
+        scoreEndBeat
+      ).scopeStartMs;
       const nominalTimeMs = scopeStartMs + perfTimeMs;
       const musicalBeat = timeline.timeMsToBeat(nominalTimeMs);
       playheadController.apply(
@@ -342,42 +345,34 @@ export default function PracticeReviewPage({
     if (!draft) {
       return null;
     }
-    if (draft.video?.status === 'READY') {
+    if (draft.media.status === 'READY' && draft.media.kind === 'VIDEO') {
       return {
         kind: 'VIDEO_RECORDING',
-        blob: draft.video.blob,
-        contentType: draft.video.mimeType,
-        byteSize: draft.video.blob.size,
-        durationMs: draft.video.durationMs,
+        blob: draft.media.blob,
+        contentType: draft.media.mimeType,
+        byteSize: draft.media.blob.size,
+        durationMs: draft.media.durationMs,
       };
     }
-    if (draft.audio.status !== 'READY') {
+    if (draft.media.status !== 'READY' || draft.media.kind !== 'AUDIO') {
       return null;
     }
     return {
       kind: 'AUDIO_RECORDING',
-      blob: draft.audio.blob,
-      contentType: draft.audio.mimeType,
-      byteSize: draft.audio.blob.size,
-      durationMs: draft.audio.durationMs,
+      blob: draft.media.blob,
+      contentType: draft.media.mimeType,
+      byteSize: draft.media.blob.size,
+      durationMs: draft.media.durationMs,
     };
   }, [draft]);
 
   const saveMedia = useMemo(() => {
-    if (draft?.video?.status === 'READY') {
+    if (draft?.media.status === 'READY') {
       return {
-        kind: 'VIDEO' as const,
-        blob: draft.video.blob,
-        mimeType: draft.video.mimeType,
-        durationMs: draft.video.durationMs,
-      };
-    }
-    if (draft?.audio.status === 'READY') {
-      return {
-        kind: 'AUDIO' as const,
-        blob: draft.audio.blob,
-        mimeType: draft.audio.mimeType,
-        durationMs: draft.audio.durationMs,
+        kind: draft.media.kind,
+        blob: draft.media.blob,
+        mimeType: draft.media.mimeType,
+        durationMs: draft.media.durationMs,
       };
     }
     return null;
@@ -389,13 +384,17 @@ export default function PracticeReviewPage({
   const saveMutation = useSavePerformanceTake();
 
   const handleExportOriginalVideo = useCallback(() => {
-    if (draft?.video?.status !== 'READY' || draft.video.blob.size <= 0) {
+    if (
+      draft?.media.status !== 'READY' ||
+      draft.media.kind !== 'VIDEO' ||
+      draft.media.blob.size <= 0
+    ) {
       return;
     }
-    const url = URL.createObjectURL(draft.video.blob);
+    const url = URL.createObjectURL(draft.media.blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `performance-video-${Date.now()}.${extensionForMime(draft.video.mimeType)}`;
+    a.download = `performance-video-${Date.now()}.${extensionForMime(draft.media.mimeType)}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -431,7 +430,7 @@ export default function PracticeReviewPage({
     setSaveStatus('saving');
     setSaveErrorMessage(null);
 
-    const scopeType = draft.scope.startGroupId || draft.scope.endGroupId ? 'RANGE' : 'FULL';
+    const scopeType = draft.scope.kind === 'RANGE' ? 'RANGE' : 'FULL';
 
     try {
       await saveMutation.mutateAsync({
@@ -450,9 +449,8 @@ export default function PracticeReviewPage({
         resolvedTempoPlan: draft.tempoPlan as unknown as Record<string, unknown>,
         syncMetadata: {
           recordingTimebase: draft.recordingTimebase,
-          replayTiming: draft.replayTiming,
           scopeIdentity:
-            scopeType === 'RANGE'
+            draft.scope.kind === 'RANGE'
               ? {
                   startGroupId: draft.scope.startGroupId,
                   endGroupId: draft.scope.endGroupId,
@@ -470,7 +468,7 @@ export default function PracticeReviewPage({
   }, [draft, id, saveMedia, saveMutation, saveStatus, t]);
 
   const performLeave = useCallback((target: 'score' | 'practice') => {
-    performanceReviewDraftStore.clearDraft();
+    completedPerformanceStore.clearPerformance();
     router.push(target === 'score' ? `/score/${id}` : `/score/${id}/practice`);
   }, [id, router]);
 
@@ -478,7 +476,7 @@ export default function PracticeReviewPage({
     (target: 'score' | 'practice') => {
       const hasUncommittedMedia = Boolean(
         draft &&
-          (draft.audio.status === 'READY' || draft.video?.status === 'READY') &&
+          draft.media.status === 'READY' &&
           saveStatus !== 'saved' &&
           !hasExportedOriginalMedia
       );
@@ -501,7 +499,7 @@ export default function PracticeReviewPage({
 
   const hasUncommittedReviewMedia = Boolean(
     draft &&
-      (draft.audio.status === 'READY' || draft.video?.status === 'READY') &&
+      draft.media.status === 'READY' &&
       saveStatus !== 'saved' &&
       !hasExportedOriginalMedia
   );
@@ -544,7 +542,7 @@ export default function PracticeReviewPage({
       ? `${draft.tempoPlan.selection.bpm} BPM`
       : '原曲速度';
 
-  const scopeText = draft.scope.startGroupId
+  const scopeText = draft.scope.kind === 'RANGE'
     ? `${t('scopeSection')} (${draft.scope.startBeat} - ${draft.scope.terminalBeat} 拍)`
     : `${t('scopeFull')} (${draft.scope.startBeat} - ${draft.scope.terminalBeat} 拍)`;
 
@@ -778,9 +776,9 @@ export default function PracticeReviewPage({
               <span className="text-sm font-semibold">{t('audioRecordingUnavailable')}</span>
             </div>
             <p className="mt-1 text-xs text-amber-700 dark:text-amber-400 pl-6">
-              {draft.audio.status === 'UNAVAILABLE' &&
-              (draft.audio.reason === 'PERMISSION_DENIED' ||
-                draft.audio.reason === 'NotAllowedError')
+              {draft.media.status === 'UNAVAILABLE' &&
+              (draft.media.reason === 'PERMISSION_DENIED' ||
+                draft.media.reason === 'NotAllowedError')
                 ? t('audioRecordingUnavailableMicDenied')
                 : t('audioRecordingUnavailableDesc')}
             </p>
@@ -824,7 +822,7 @@ export default function PracticeReviewPage({
           </p>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-2">
-          {draft.video?.status === 'READY' ? (
+          {draft.media.status === 'READY' && draft.media.kind === 'VIDEO' ? (
             <Button size="sm" variant="outline" onClick={handleExportOriginalVideo}>
               <Download className="mr-1.5 h-4 w-4" />
               {t('exportOriginalVideo')}
@@ -879,7 +877,7 @@ export default function PracticeReviewPage({
         </CardContent>
       </Card>
 
-      {draft.video?.status === 'READY' ? (
+      {draft.media.status === 'READY' && draft.media.kind === 'VIDEO' ? (
         <ShareVideoStudio
           key={draft.localSessionId}
           session={shareVideoSession}

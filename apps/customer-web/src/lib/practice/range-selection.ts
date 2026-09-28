@@ -3,9 +3,13 @@ import type { ExpectedPracticeGroup, PracticeScope } from './local-core/artifact
 export type PracticeRangeSelection =
   | { kind: 'FULL_PIECE' }
   | {
-      kind: 'SELECTED_RANGE';
-      startGroupId: string | null;
-      endGroupId: string | null;
+      kind: 'SELECTING_END';
+      startGroupId: string;
+    }
+  | {
+      kind: 'RANGE';
+      startGroupId: string;
+      endGroupId: string;
     };
 
 export const fullPiecePracticeRangeSelection: PracticeRangeSelection = {
@@ -13,13 +17,11 @@ export const fullPiecePracticeRangeSelection: PracticeRangeSelection = {
 };
 
 export function selectedPracticeRangeSelection(
-  startGroupId: string | null = null,
-  endGroupId: string | null = null
+  startGroupId: string
 ): PracticeRangeSelection {
   return {
-    kind: 'SELECTED_RANGE',
+    kind: 'SELECTING_END',
     startGroupId,
-    endGroupId,
   };
 }
 
@@ -47,21 +49,21 @@ export function selectPracticeRangeTarget(
     return selection;
   }
 
-  if (selection.kind === 'FULL_PIECE' || selection.endGroupId) {
-    return selectedPracticeRangeSelection(clickedGroup.groupId, null);
-  }
-
-  if (!selection.startGroupId) {
-    return selectedPracticeRangeSelection(clickedGroup.groupId, null);
+  if (selection.kind === 'FULL_PIECE' || selection.kind === 'RANGE') {
+    return selectedPracticeRangeSelection(clickedGroup.groupId);
   }
 
   const startGroup = groupById(groups, selection.startGroupId);
   if (!startGroup) {
-    return selectedPracticeRangeSelection(clickedGroup.groupId, null);
+    return selectedPracticeRangeSelection(clickedGroup.groupId);
   }
 
   const [start, end] = orderedPracticeGroups(startGroup, clickedGroup, groups);
-  return selectedPracticeRangeSelection(start.groupId, end.groupId);
+  return {
+    kind: 'RANGE',
+    startGroupId: start.groupId,
+    endGroupId: end.groupId,
+  };
 }
 
 export function transitionPracticeRangeSelection(
@@ -70,8 +72,8 @@ export function transitionPracticeRangeSelection(
   targetGroupId: string
 ): { nextSelection: PracticeRangeSelection; completed: boolean } {
   const baseSelection =
-    current.kind === 'SELECTED_RANGE' && current.startGroupId && current.endGroupId
-      ? selectedPracticeRangeSelection()
+    current.kind === 'RANGE'
+      ? fullPiecePracticeRangeSelection
       : current;
   const nextSelection = selectPracticeRangeTarget(
     baseSelection,
@@ -79,8 +81,7 @@ export function transitionPracticeRangeSelection(
     targetGroupId
   );
   const completed =
-    nextSelection.kind === 'SELECTED_RANGE' &&
-    Boolean(nextSelection.startGroupId && nextSelection.endGroupId);
+    nextSelection.kind === 'RANGE';
   return { nextSelection, completed };
 }
 
@@ -90,8 +91,7 @@ export function practiceScopeFromRangeSelection(
 ): PracticeScope | null {
   if (
     selection.kind === 'FULL_PIECE' ||
-    !selection.startGroupId ||
-    !selection.endGroupId
+    selection.kind === 'SELECTING_END'
   ) {
     return null;
   }
@@ -104,6 +104,7 @@ export function practiceScopeFromRangeSelection(
 
   const [start, end] = orderedPracticeGroups(startGroup, endGroup, groups);
   return {
+    kind: 'RANGE',
     startGroupId: start.groupId,
     endGroupId: end.groupId,
   };
@@ -115,8 +116,7 @@ export function practiceGroupsInRangeSelection(
 ): ExpectedPracticeGroup[] {
   if (
     selection.kind === 'FULL_PIECE' ||
-    !selection.startGroupId ||
-    !selection.endGroupId
+    selection.kind === 'SELECTING_END'
   ) {
     return [];
   }

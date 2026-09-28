@@ -54,7 +54,6 @@ function createSession(
         { perfStartMs: 5000, perfEndMs: 8000, mediaStartMs: 3000, mediaEndMs: 6000 },
       ],
     },
-    replayTiming: { scopeStartBeat: 4, scopeStartMs: 2000, nominalDurationMs: 6000 },
     ...overrides,
   } as ShareVideoSession;
 }
@@ -602,7 +601,6 @@ describe('split-screen video export helpers', () => {
         nominalMediaDurationMs: 5000,
         activeSegments: [{ perfStartMs: 0, perfEndMs: 5000, mediaStartMs: 0, mediaEndMs: 5000 }],
       },
-      replayTiming: { scopeStartBeat: 0, scopeStartMs: 0, nominalDurationMs: 5000 },
       tempoPlan: {
         selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 60 },
         segments: [{ startBeat: 0, bpm: 60, source: 'CUSTOM' }],

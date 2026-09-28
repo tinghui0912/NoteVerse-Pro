@@ -1,17 +1,20 @@
 import type { PerformanceTakeRead } from '@/lib/api/performance-takes';
 
 import type {
-  PerformanceReviewDraft,
-  PerformanceReviewDraftVideoReady,
+  CompletedPerformance,
+  PerformanceMediaReady,
   RecordingTimebaseMapping,
-} from './performance-review-draft';
+} from './completed-performance';
 import type {
   PracticeScoreArtifact,
   PracticeTempoSegmentSource,
   ResolvedPracticeTempoPlan,
 } from './local-core';
-import { resolvePracticeScopeCursorNoteIds } from './local-core/artifact';
-import type { CursorScope } from './performance-playhead-controller';
+import {
+  resolvePracticeScope,
+  resolvePracticeScopeCursorNoteIds,
+} from './local-core/artifact';
+import { cursorScopeFromResolvedPracticeScope, type CursorScope } from './cursor-scope';
 
 export type ShareVideoSession = {
   sourceId: string;
@@ -20,26 +23,19 @@ export type ShareVideoSession = {
     revisionId: string;
     artifactId: string;
   };
-  video: PerformanceReviewDraftVideoReady;
+  video: PerformanceMediaReady & { kind: 'VIDEO' };
   scope: CursorScope;
   tempoPlan: ResolvedPracticeTempoPlan;
   recordingTimebase: RecordingTimebaseMapping;
-  replayTiming?: {
-    scopeStartBeat: number;
-    scopeStartMs: number;
-    nominalDurationMs: number;
-  };
 };
 
-export function createShareVideoSessionFromReviewDraft(
-  draft: PerformanceReviewDraft,
+export function createShareVideoSessionFromCompletedPerformance(
+  draft: CompletedPerformance,
   artifact: PracticeScoreArtifact
 ): ShareVideoSession {
-  if (draft.video?.status !== 'READY') {
+  const media = draft.media;
+  if (media.status !== 'READY' || media.kind !== 'VIDEO') {
     throw new Error('Share video requires a ready video recording.');
-  }
-  if (!draft.revisionId || !draft.artifactId) {
-    throw new Error('Share video requires a stable score revision and artifact identity.');
   }
   if (
     artifact.scoreId !== draft.scoreId ||
@@ -48,22 +44,10 @@ export function createShareVideoSessionFromReviewDraft(
   ) {
     throw new Error('Share video score artifact identity mismatch.');
   }
-  const isRange = Boolean(draft.scope.startGroupId || draft.scope.endGroupId);
-  const scope: CursorScope = isRange
-    ? {
-        kind: 'RANGE',
-        startBeat: draft.scope.startBeat,
-        terminalBeat: draft.scope.terminalBeat,
-        allowedNoteIds: resolvePracticeScopeCursorNoteIds(artifact, draft.scope),
-      }
-    : {
-        kind: 'FULL',
-        startBeat: draft.scope.startBeat,
-        terminalBeat: draft.scope.terminalBeat,
-      };
-  if (scope.kind === 'RANGE' && scope.allowedNoteIds.length === 0) {
-    throw new Error('Share video range has no selectable notes.');
-  }
+  const scope = cursorScopeFromResolvedPracticeScope(
+    draft.scope,
+    resolvePracticeScopeCursorNoteIds(artifact, draft.scope)
+  );
   return {
     sourceId: draft.localSessionId,
     scoreIdentity: {
@@ -71,11 +55,10 @@ export function createShareVideoSessionFromReviewDraft(
       revisionId: draft.revisionId,
       artifactId: draft.artifactId,
     },
-    video: draft.video,
+    video: media,
     scope,
     tempoPlan: draft.tempoPlan,
     recordingTimebase: draft.recordingTimebase,
-    replayTiming: draft.replayTiming,
   };
 }
 
@@ -109,7 +92,7 @@ export function hasSavedTakeShareVideoMetadata(take: PerformanceTakeRead): boole
       return false;
     }
     parseSavedTempoPlan(take.resolved_tempo_plan);
-    const syncMetadata = parseSavedSyncMetadata(take.sync_metadata, scopeStartBeat);
+    const syncMetadata = parseSavedSyncMetadata(take.sync_metadata);
     if (
       take.scope_type === 'RANGE' &&
       !syncMetadata.scopeIdentity
@@ -160,7 +143,7 @@ export function createShareVideoSessionFromSavedTake(
       throw new Error('scope_terminal_beat_invalid');
     }
     const tempoPlan = parseSavedTempoPlan(take.resolved_tempo_plan);
-    const syncMetadata = parseSavedSyncMetadata(take.sync_metadata, scopeStartBeat);
+    const syncMetadata = parseSavedSyncMetadata(take.sync_metadata);
     const isRange = take.scope_type === 'RANGE';
     if (isRange && !syncMetadata.scopeIdentity) {
       return { status: 'unsupported', reason: 'scope_identity_missing' };
@@ -183,24 +166,20 @@ export function createShareVideoSessionFromSavedTake(
     ) {
       return { status: 'unsupported', reason: 'scope_identity_mismatch' };
     }
-    const scope: CursorScope = isRange
-      ? {
+    const resolvedPracticeScope = isRange
+      ? resolvePracticeScope(artifact, {
           kind: 'RANGE',
-          startBeat: scopeStartBeat,
-          terminalBeat: scopeTerminalBeat,
-          allowedNoteIds: resolvePracticeScopeCursorNoteIds(artifact, {
-            startGroupId: syncMetadata.scopeIdentity?.startGroupId,
-            endGroupId: syncMetadata.scopeIdentity?.endGroupId,
-          }),
-        }
-      : {
-          kind: 'FULL',
-          startBeat: scopeStartBeat,
-          terminalBeat: scopeTerminalBeat,
-        };
-    if (scope.kind === 'RANGE' && scope.allowedNoteIds.length === 0) {
-      return { status: 'unsupported', reason: 'scope_identity_empty' };
-    }
+          startGroupId: syncMetadata.scopeIdentity?.startGroupId ?? '',
+          endGroupId: syncMetadata.scopeIdentity?.endGroupId ?? '',
+        })
+      : resolvePracticeScope(artifact, { kind: 'FULL' });
+    const resolvedScope = resolvePracticeScopeCursorNoteIds(
+      artifact,
+      resolvedPracticeScope
+    );
+    const scope: CursorScope = isRange
+      ? cursorScopeFromResolvedPracticeScope(resolvedPracticeScope, resolvedScope)
+      : cursorScopeFromResolvedPracticeScope(resolvedPracticeScope);
     return {
       status: 'supported',
       session: {
@@ -212,6 +191,7 @@ export function createShareVideoSessionFromSavedTake(
         },
         video: {
           status: 'READY',
+          kind: 'VIDEO',
           blob: videoBlob,
           mimeType: take.media_mime_type,
           durationMs: take.duration_ms,
@@ -219,7 +199,6 @@ export function createShareVideoSessionFromSavedTake(
         scope,
         tempoPlan,
         recordingTimebase: syncMetadata.recordingTimebase,
-        replayTiming: syncMetadata.replayTiming,
       },
     };
   } catch (error) {
@@ -278,18 +257,15 @@ export function parseSavedTempoPlan(
 }
 
 export function parseSavedSyncMetadata(
-  raw: Record<string, unknown> | null | undefined,
-  expectedScopeStartBeat?: number
+  raw: Record<string, unknown> | null | undefined
 ): {
   recordingTimebase: ParsedRecordingTimebase;
-  replayTiming: NonNullable<ShareVideoSession['replayTiming']>;
   scopeIdentity?: { startGroupId: string; endGroupId: string };
 } {
   if (!raw || typeof raw !== 'object') {
     throw new Error('sync_metadata_missing');
   }
   const recordingTimebase = parseRecordingTimebase(raw.recordingTimebase);
-  const replayTiming = parseReplayTiming(raw.replayTiming, expectedScopeStartBeat);
   const rawIdentity = raw.scopeIdentity;
   const scopeIdentity =
     rawIdentity && typeof rawIdentity === 'object'
@@ -304,7 +280,7 @@ export function parseSavedSyncMetadata(
   ) {
     throw new Error('scope_identity_invalid');
   }
-  return { recordingTimebase, replayTiming, scopeIdentity };
+  return { recordingTimebase, scopeIdentity };
 }
 
 function parseRecordingTimebase(raw: unknown): ParsedRecordingTimebase {
@@ -370,31 +346,6 @@ function parseRecordingTimebase(raw: unknown): ParsedRecordingTimebase {
     recordingEndPerfTimeMs,
     nominalMediaDurationMs,
     activeSegments: parsed,
-  };
-}
-
-function parseReplayTiming(
-  raw: unknown,
-  expectedScopeStartBeat?: number
-): NonNullable<ShareVideoSession['replayTiming']> {
-  if (typeof raw !== 'object') {
-    throw new Error('replay_timing_invalid');
-  }
-  const value = raw as Record<string, unknown>;
-  const scopeStartBeat = requireFiniteNonNegative(
-    value.scopeStartBeat,
-    'replay_scopeStartBeat'
-  );
-  if (
-    expectedScopeStartBeat !== undefined &&
-    Math.abs(scopeStartBeat - expectedScopeStartBeat) > 1e-6
-  ) {
-    throw new Error('replay_scopeStartBeat_mismatch');
-  }
-  return {
-    scopeStartBeat,
-    scopeStartMs: requireFiniteNonNegative(value.scopeStartMs, 'replay_scopeStartMs'),
-    nominalDurationMs: requireFinitePositive(value.nominalDurationMs, 'replay_nominalDurationMs'),
   };
 }
 

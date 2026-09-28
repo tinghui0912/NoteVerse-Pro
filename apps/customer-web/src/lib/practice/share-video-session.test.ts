@@ -20,11 +20,6 @@ const syncMetadata = {
       { perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 },
     ],
   },
-  replayTiming: {
-    scopeStartBeat: 0,
-    scopeStartMs: 0,
-    nominalDurationMs: 4000,
-  },
   scopeIdentity: {
     startGroupId: 'group-1',
     endGroupId: 'group-2',
@@ -188,34 +183,33 @@ describe('share video session saved-take parsing', () => {
         segments: [{ startBeat: 1, bpm: 96, source: 'MUSICXML' }],
       })
     ).toThrow(/beat_zero/);
-    expect(() =>
+    expect(
       parseSavedSyncMetadata({
         recordingTimebase: syncMetadata.recordingTimebase,
-      })
-    ).toThrow(/replay_timing_invalid/);
-    expect(() =>
-      parseSavedSyncMetadata(syncMetadata, 4)
-    ).toThrow(/replay_scopeStartBeat_mismatch/);
+      }).scopeIdentity
+    ).toBeUndefined();
   });
 
-  it('requires replay timing to agree with the saved range start', () => {
+  it('requires the persisted range identity to agree with the saved range start', () => {
     expect(
       createShareVideoSessionFromSavedTake(
-        { ...take, scope_start_beat: 4, sync_metadata: {
-          ...syncMetadata,
-          replayTiming: { ...syncMetadata.replayTiming, scopeStartBeat: 4 },
-        } },
+        { ...take, scope_start_beat: 4, sync_metadata: syncMetadata },
         new Blob(['video'], { type: 'video/webm' }),
         artifact
       ).status
     ).toBe('supported');
     expect(
       createShareVideoSessionFromSavedTake(
-        { ...take, scope_start_beat: 4 },
+        {
+          ...take,
+          scope_type: 'RANGE',
+          scope_start_beat: 4,
+          sync_metadata: syncMetadata,
+        },
         new Blob(['video'], { type: 'video/webm' }),
         artifact
       )
-    ).toMatchObject({ status: 'unsupported', reason: 'replay_scopeStartBeat_mismatch' });
+    ).toMatchObject({ status: 'unsupported', reason: 'scope_identity_mismatch' });
   });
 
   it('does not claim the database duration is the decoded media duration', () => {
@@ -236,7 +230,6 @@ describe('share video session saved-take parsing', () => {
       createShareVideoSessionFromSavedTake(
         { ...take, scope_type: 'RANGE', sync_metadata: {
           recordingTimebase: syncMetadata.recordingTimebase,
-          replayTiming: syncMetadata.replayTiming,
         } },
       new Blob(['video'], { type: 'video/webm' }),
       artifact
@@ -248,7 +241,6 @@ describe('share video session saved-take parsing', () => {
     const result = createShareVideoSessionFromSavedTake(
       { ...take, scope_type: 'FULL', sync_metadata: {
         recordingTimebase: syncMetadata.recordingTimebase,
-        replayTiming: syncMetadata.replayTiming,
       } },
       new Blob(['video'], { type: 'video/webm' }),
       artifact

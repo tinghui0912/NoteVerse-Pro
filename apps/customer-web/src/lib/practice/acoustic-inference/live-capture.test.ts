@@ -365,6 +365,7 @@ describe('live ByteDance rolling pipeline', () => {
       artifact,
       clock,
       scope: {
+        kind: 'RANGE',
         startGroupId: artifact.expectedPracticeGroups[3].groupId,
         endGroupId: artifact.expectedPracticeGroups[3].groupId,
       },

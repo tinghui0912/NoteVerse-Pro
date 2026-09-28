@@ -539,6 +539,7 @@ describe('ByteDance local practice adapters', () => {
       clock: new ManualClock(0),
       localSessionId: 'chord-domain',
       scope: {
+        kind: 'RANGE',
         startGroupId: artifact.expectedPracticeGroups[3].groupId,
         endGroupId: artifact.expectedPracticeGroups[3].groupId,
       },
@@ -573,6 +574,7 @@ describe('ByteDance local practice adapters', () => {
       clock: new ManualClock(0),
       localSessionId: 'coherent-chord-domain',
       scope: {
+        kind: 'RANGE',
         startGroupId: artifact.expectedPracticeGroups[3].groupId,
         endGroupId: artifact.expectedPracticeGroups[3].groupId,
       },
@@ -617,6 +619,7 @@ describe('ByteDance local practice adapters', () => {
       clock: new ManualClock(0),
       localSessionId: 'later-chord-domain',
       scope: {
+        kind: 'RANGE',
         startGroupId: artifact.expectedPracticeGroups[3].groupId,
         endGroupId: artifact.expectedPracticeGroups[3].groupId,
       },
@@ -753,6 +756,7 @@ describe('ByteDance local practice adapters', () => {
       countInBeats: 0,
       localSessionId: 'continuous-chord',
       scope: {
+        kind: 'RANGE',
         startGroupId: artifact.expectedPracticeGroups[3].groupId,
         endGroupId: artifact.expectedPracticeGroups[3].groupId,
       },

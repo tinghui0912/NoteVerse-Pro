@@ -1,11 +1,11 @@
 import {
   assertPracticeScoreArtifact,
   countInContractAt,
-  entryGroupEndBeat,
   resolvePracticeScope,
   type PracticeScoreArtifact,
   type PracticeInputSource,
   type PracticeScope,
+  type ResolvedPracticeScope,
   type TempoSegment,
 } from './artifact';
 import type {
@@ -63,13 +63,9 @@ export type PerformancePracticeRuntimeOptions = {
   metronomeEnabled?: boolean;
 };
 
-type PerformanceScope = {
-  startBeat: number;
-  terminalBeat: number;
+type PerformanceScope = ResolvedPracticeScope & {
   nominalStartTimeMs: number;
   nominalEndTimeMs: number;
-  startGroupId?: string;
-  endGroupId?: string;
 };
 
 export class PerformancePracticeRuntime {
@@ -257,10 +253,14 @@ export class PerformancePracticeRuntime {
       artifactId: this.artifact.artifactId,
       mode: 'CONTINUOUS_PLAY',
       inputSource: this.inputSource,
-      practiceScope: {
-        startGroupId: this.scope.startGroupId,
-        endGroupId: this.scope.endGroupId,
-      },
+      practiceScope:
+        this.scope.kind === 'RANGE'
+          ? {
+              kind: 'RANGE',
+              startGroupId: this.scope.startGroupId,
+              endGroupId: this.scope.endGroupId,
+            }
+          : { kind: 'FULL' },
       tempoSelection: this.tempoSelection,
       metronomeEnabled: this.metronomeEnabled,
       lifecycleState: this.state === 'ENDED' ? 'ENDED' : this.state === 'PAUSED' ? 'PAUSED' : 'ACTIVE',
@@ -422,17 +422,11 @@ function resolvePerformanceScope(
   timeline: PerformanceTimeline,
   scope?: PracticeScope
 ): PerformanceScope {
-  const resolved = resolvePracticeScope(artifact, scope);
-  const terminalBeat = scope?.endGroupId
-    ? entryGroupEndBeat(artifact, scope.endGroupId)
-    : resolved.terminalBeat;
+  const resolved = resolvePracticeScope(artifact, scope ?? { kind: 'FULL' });
   return {
-    startBeat: resolved.startBeat,
-    terminalBeat,
+    ...resolved,
     nominalStartTimeMs: timeline.beatToTimeMs(resolved.startBeat),
-    nominalEndTimeMs: timeline.beatToTimeMs(terminalBeat),
-    startGroupId: resolved.startGroupId,
-    endGroupId: resolved.endGroupId,
+    nominalEndTimeMs: timeline.beatToTimeMs(resolved.terminalBeat),
   };
 }
 
@@ -456,7 +450,7 @@ function validatePerformanceSnapshot(
   if (inputSource && snapshot.inputSource !== inputSource) {
     throw new Error('Practice session snapshot input source mismatch.');
   }
-  if (scope && JSON.stringify(scope) !== JSON.stringify(snapshot.practiceScope ?? {})) {
+  if (scope && JSON.stringify(scope) !== JSON.stringify(snapshot.practiceScope)) {
     throw new Error('Practice session snapshot scope mismatch.');
   }
   if (

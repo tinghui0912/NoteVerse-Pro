@@ -4,7 +4,7 @@ import type {
   ResolvedPracticeTempoPlan,
 } from './local-core';
 
-export interface PerformanceReviewDraftAudioReady {
+interface PerformanceMediaReadyBase {
   status: 'READY';
   blob: Blob;
   mimeType: string;
@@ -12,31 +12,16 @@ export interface PerformanceReviewDraftAudioReady {
   actualMediaDurationMs?: number;
 }
 
-export interface PerformanceReviewDraftAudioUnavailable {
+export type PerformanceMediaReady =
+  | (PerformanceMediaReadyBase & { kind: 'AUDIO' })
+  | (PerformanceMediaReadyBase & { kind: 'VIDEO' });
+
+export interface PerformanceMediaUnavailable {
   status: 'UNAVAILABLE';
   reason: string;
 }
 
-export type PerformanceReviewDraftAudio =
-  | PerformanceReviewDraftAudioReady
-  | PerformanceReviewDraftAudioUnavailable;
-
-export interface PerformanceReviewDraftVideoReady {
-  status: 'READY';
-  blob: Blob;
-  mimeType: string;
-  durationMs: number;
-  actualMediaDurationMs?: number;
-}
-
-export interface PerformanceReviewDraftVideoUnavailable {
-  status: 'UNAVAILABLE';
-  reason: string;
-}
-
-export type PerformanceReviewDraftVideo =
-  | PerformanceReviewDraftVideoReady
-  | PerformanceReviewDraftVideoUnavailable;
+export type PerformanceMedia = PerformanceMediaReady | PerformanceMediaUnavailable;
 
 export interface RecordingActiveSegment {
   perfStartMs: number;
@@ -104,46 +89,40 @@ export function mediaTimeToPerformanceTimeMs(
   return lastSeg.perfEndMs;
 }
 
-export interface PerformanceReviewDraft {
+export interface CompletedPerformance {
   localSessionId: string;
   scoreId: string;
-  revisionId?: string | null;
-  artifactId?: string | null;
+  revisionId: string;
+  artifactId: string;
   scope: ResolvedPracticeScope;
   tempoPlan: ResolvedPracticeTempoPlan;
   performanceSnapshot: LocalPerformanceSessionSnapshot;
-  audio: PerformanceReviewDraftAudio;
-  video?: PerformanceReviewDraftVideo;
+  media: PerformanceMedia;
   recordingTimebase: RecordingTimebaseMapping;
-  replayTiming?: {
-    scopeStartBeat: number;
-    scopeStartMs: number;
-    nominalDurationMs: number;
-  };
   completedAt: string;
 }
 
-class PerformanceReviewDraftStore {
-  private draft: PerformanceReviewDraft | null = null;
-  private listeners = new Set<(draft: PerformanceReviewDraft | null) => void>();
+class CompletedPerformanceStore {
+  private performance: CompletedPerformance | null = null;
+  private listeners = new Set<(performance: CompletedPerformance | null) => void>();
 
-  getDraft(): PerformanceReviewDraft | null {
-    return this.draft;
+  getPerformance(): CompletedPerformance | null {
+    return this.performance;
   }
 
-  setDraft(draft: PerformanceReviewDraft): void {
-    this.draft = draft;
+  setPerformance(performance: CompletedPerformance): void {
+    this.performance = performance;
     this.notify();
   }
 
-  clearDraft(): void {
-    this.draft = null;
+  clearPerformance(): void {
+    this.performance = null;
     this.notify();
   }
 
-  subscribe(listener: (draft: PerformanceReviewDraft | null) => void): () => void {
+  subscribe(listener: (performance: CompletedPerformance | null) => void): () => void {
     this.listeners.add(listener);
-    listener(this.draft);
+    listener(this.performance);
     return () => {
       this.listeners.delete(listener);
     };
@@ -151,9 +130,9 @@ class PerformanceReviewDraftStore {
 
   private notify(): void {
     for (const listener of this.listeners) {
-      listener(this.draft);
+      listener(this.performance);
     }
   }
 }
 
-export const performanceReviewDraftStore = new PerformanceReviewDraftStore();
+export const completedPerformanceStore = new CompletedPerformanceStore();

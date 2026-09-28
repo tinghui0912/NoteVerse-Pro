@@ -85,6 +85,7 @@ function session(allowedNoteIds: string[]): ShareVideoSession {
     scoreIdentity: { scoreId: 'score', revisionId: 'revision', artifactId: 'artifact' },
     video: {
       status: 'READY',
+      kind: 'VIDEO',
       blob: new Blob(['video'], { type: 'video/webm' }),
       mimeType: 'video/webm',
       durationMs: 2500,
@@ -105,7 +106,6 @@ function session(allowedNoteIds: string[]): ShareVideoSession {
       nominalMediaDurationMs: 2500,
       activeSegments: [{ perfStartMs: 0, perfEndMs: 2500, mediaStartMs: 0, mediaEndMs: 2500 }],
     },
-    replayTiming: { scopeStartBeat: 2, scopeStartMs: 2000, nominalDurationMs: 2500 },
   };
 }
 
@@ -136,6 +136,7 @@ describe('cursor selection scope', () => {
   it('derives legal cursor note ids from exact artifact group indices', () => {
     expect(
       resolvePracticeScopeCursorNoteIds(artifact(), {
+        kind: 'RANGE',
         startIndex: 0,
         endIndex: 1,
         startBeat: 2,

@@ -1,5 +1,6 @@
-import { mediaTimeToPerformanceTimeMs } from './performance-review-draft';
+import { mediaTimeToPerformanceTimeMs } from './completed-performance';
 import { PracticeTempoTimeline } from './local-core/practice-tempo';
+import { resolveScopeTiming } from './scope-timing';
 import type { ShareVideoSession } from './share-video-session';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 
@@ -40,7 +41,7 @@ export function resolveSplitScreenScoreFrame({
   }
 
   const timeline = new PracticeTempoTimeline(session.tempoPlan, scoreEndBeat);
-  const scopeStartMs = session.replayTiming?.scopeStartMs ?? 0;
+  const scopeStartMs = resolveScopeTiming(session.scope, session.tempoPlan, scoreEndBeat).scopeStartMs;
   const musicalBeat = timeline.timeMsToBeat(scopeStartMs + perfTimeMs);
   const entry = adapter.getCursorTimelineEntryForBeatRange(
     musicalBeat,
