@@ -1,2 +1,2 @@
 # Image inspection and avatar/preview processing.
-Pillow==12.2.0
+Pillow==12.3.0
