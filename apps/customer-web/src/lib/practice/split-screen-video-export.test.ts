@@ -7,24 +7,31 @@ import {
   drawExportFrame,
   getSplitScreenExportReadiness,
   prepareScorePageCache,
-  resolveSplitScreenScoreFrame,
   selectSupportedSplitScreenMimeType,
 } from './split-screen-video-export';
+import { resolveSplitScreenScoreFrame } from './split-screen-playback-position';
 import { renderSplitScreenFrameAtTime } from './split-screen-frame-renderer';
 import { applyExportPlayheadCursor, getPlayheadCursorGeometry } from './playhead-cursor';
 import { getEventScoreImage } from './split-screen-score-model';
 import { getShareVideoLayout } from './share-video-templates';
-import type { PerformanceReviewDraft } from './performance-review-draft';
+import type { ShareVideoSession } from './share-video-session';
 
-function createDraft(
-  overrides: Partial<PerformanceReviewDraft> = {}
-): PerformanceReviewDraft {
+function createSession(
+  overrides: Partial<ShareVideoSession> = {}
+): ShareVideoSession {
   return {
-    localSessionId: 'session-1',
-    scoreId: 'score-1',
-    revisionId: 'rev-1',
-    artifactId: 'artifact-1',
-    scope: { startIndex: 4, endIndex: 12, startBeat: 4, terminalBeat: 16 },
+    sourceId: 'session-1',
+    scoreIdentity: {
+      scoreId: 'score-1',
+      revisionId: 'rev-1',
+      artifactId: 'artifact-1',
+    },
+    scope: {
+      kind: 'RANGE',
+      startBeat: 4,
+      terminalBeat: 16,
+      allowedNoteIds: ['note-page-1', 'note-page-2'],
+    },
     tempoPlan: {
       selection: { mode: 'SCORE' },
       segments: [
@@ -32,8 +39,6 @@ function createDraft(
         { startBeat: 8, bpm: 60, source: 'MUSICXML' },
       ],
     },
-    performanceSnapshot: {} as PerformanceReviewDraft['performanceSnapshot'],
-    audio: { status: 'UNAVAILABLE', reason: 'VIDEO_RECORDING_LOCAL_ONLY' },
     video: {
       status: 'READY',
       blob: new Blob(['video'], { type: 'video/webm' }),
@@ -50,9 +55,8 @@ function createDraft(
       ],
     },
     replayTiming: { scopeStartBeat: 4, scopeStartMs: 2000, nominalDurationMs: 6000 },
-    completedAt: '2026-09-22T00:00:00.000Z',
     ...overrides,
-  };
+  } as ShareVideoSession;
 }
 
 function createAdapter() {
@@ -201,7 +205,7 @@ describe('split-screen video export helpers', () => {
 
     expect(
       getSplitScreenExportReadiness({
-        draft: createDraft({ video: { status: 'UNAVAILABLE', reason: 'none' } }),
+        session: null,
         isScoreIdentityConfirmed: true,
         xmlContent: '<score/>',
         scoreContainer: document.createElement('div'),
@@ -210,7 +214,7 @@ describe('split-screen video export helpers', () => {
 
     expect(
       getSplitScreenExportReadiness({
-        draft: createDraft(),
+        session: createSession(),
         isScoreIdentityConfirmed: false,
         xmlContent: '<score/>',
         scoreContainer: document.createElement('div'),
@@ -219,7 +223,7 @@ describe('split-screen video export helpers', () => {
 
     expect(
       getSplitScreenExportReadiness({
-        draft: createDraft(),
+        session: createSession(),
         isScoreIdentityConfirmed: true,
         xmlContent: null,
         scoreContainer: document.createElement('div'),
@@ -228,7 +232,7 @@ describe('split-screen video export helpers', () => {
 
     expect(
       getSplitScreenExportReadiness({
-        draft: createDraft({
+        session: createSession({
           recordingTimebase: {
             recordingStartPerfTimeMs: 0,
             recordingEndPerfTimeMs: 0,
@@ -244,11 +248,11 @@ describe('split-screen video export helpers', () => {
   });
 
   it('resolves selected-scope timing through pause/resume and variable tempo into score pages', () => {
-    const draft = createDraft();
+    const session = createSession();
     const adapter = createAdapter();
 
     const firstSegment = resolveSplitScreenScoreFrame({
-      draft,
+      session,
       adapter,
       mediaTimeMs: 1000,
       scoreEndBeat: 24,
@@ -259,7 +263,7 @@ describe('split-screen video export helpers', () => {
     expect(firstSegment?.noteIds).toEqual(['note-page-1']);
 
     const afterPause = resolveSplitScreenScoreFrame({
-      draft,
+      session,
       adapter,
       mediaTimeMs: 4000,
       scoreEndBeat: 24,
@@ -271,11 +275,11 @@ describe('split-screen video export helpers', () => {
   });
 
   it('scales media time when decoded media duration differs from nominal duration', () => {
-    const draft = createDraft();
+    const session = createSession();
     const adapter = createAdapter();
 
     const frame = resolveSplitScreenScoreFrame({
-      draft,
+      session,
       adapter,
       mediaTimeMs: 5000,
       actualMediaDurationMs: 10000,
@@ -591,7 +595,7 @@ describe('split-screen video export helpers', () => {
       })),
       getPageWithElement: vi.fn(() => 1),
     };
-    const draft = createDraft({
+    const session = createSession({
       recordingTimebase: {
         recordingStartPerfTimeMs: 0,
         recordingEndPerfTimeMs: 5000,
@@ -603,7 +607,11 @@ describe('split-screen video export helpers', () => {
         selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 60 },
         segments: [{ startBeat: 0, bpm: 60, source: 'CUSTOM' }],
       },
-      scope: { startIndex: 0, endIndex: 8, startBeat: 0, terminalBeat: 8 },
+      scope: {
+        kind: 'FULL',
+        startBeat: 0,
+        terminalBeat: 8,
+      },
     });
 
     for (let i = 0; i < 5; i += 1) {
@@ -611,7 +619,7 @@ describe('split-screen video export helpers', () => {
       await drawExportFrame({
         ctx: finalCtx,
         video,
-        draft,
+        session,
         adapter: adapter as never,
         scoreEndBeat: 8,
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
@@ -645,7 +653,7 @@ describe('split-screen video export helpers', () => {
     await drawExportFrame({
       ctx: finalCtx,
       video,
-      draft: createDraft(),
+      session: createSession(),
       adapter: adapter as never,
       scoreEndBeat: 24,
       frameState: { scorePages: cache, stagingCanvas, stagingCtx },
@@ -683,7 +691,7 @@ describe('split-screen video export helpers', () => {
     await drawExportFrame({
       ctx: finalCtx,
       video,
-      draft: createDraft(),
+      session: createSession(),
       adapter: adapter as never,
       scoreEndBeat: 24,
       frameState,
@@ -695,7 +703,7 @@ describe('split-screen video export helpers', () => {
     await expect(drawExportFrame({
         ctx: finalCtx,
         video,
-        draft: createDraft(),
+        session: createSession(),
         adapter: adapter as never,
         scoreEndBeat: 24,
         frameState,
@@ -865,7 +873,7 @@ describe('split-screen video export helpers', () => {
     await expect(drawExportFrame({
         ctx: finalCtx,
         video,
-        draft: createDraft(),
+        session: createSession(),
         adapter: adapter as never,
         scoreEndBeat: 24,
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
@@ -926,7 +934,7 @@ describe('split-screen video export helpers', () => {
     await expect(drawExportFrame({
         ctx: finalCtx,
         video,
-        draft: createDraft(),
+        session: createSession(),
         adapter: {
           getCursorTimelineEntryForBeatRange: vi.fn((beat: number) => ({
             index: 0,
@@ -1016,7 +1024,7 @@ describe('split-screen video export helpers', () => {
     await expect(drawExportFrame({
         ctx: finalCtx,
         video,
-        draft: createDraft(),
+        session: createSession(),
         adapter: {
           getCursorTimelineEntryForBeatRange: vi.fn((beat: number) => ({
             index: 0,

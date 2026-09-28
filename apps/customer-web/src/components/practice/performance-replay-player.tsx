@@ -15,7 +15,6 @@ type PerformanceReplayPlayerProps = {
   replay: PlayablePerformanceReplay;
   onReplayTimeChange?: (replayTimeMs: number | null, actualDurationMs?: number | null) => void;
   onPlaybackStateChange?: (playing: boolean) => void;
-  onReplayEnded?: () => void;
   onReplaySeekCommitted?: (replayTimeMs: number) => void;
   onVideoElementChange?: (video: HTMLVideoElement | null) => void;
   autoStart?: boolean;
@@ -26,7 +25,6 @@ export function PerformanceReplayPlayer({
   replay,
   onReplayTimeChange,
   onPlaybackStateChange,
-  onReplayEnded,
   onReplaySeekCommitted,
   onVideoElementChange,
   autoStart = false,
@@ -38,7 +36,6 @@ export function PerformanceReplayPlayer({
         replay={replay}
         onReplayTimeChange={onReplayTimeChange}
         onPlaybackStateChange={onPlaybackStateChange}
-        onReplayEnded={onReplayEnded}
         onReplaySeekCommitted={onReplaySeekCommitted}
         autoStart={autoStart}
         actions={actions}
@@ -51,7 +48,6 @@ export function PerformanceReplayPlayer({
         replay={replay}
         onReplayTimeChange={onReplayTimeChange}
         onPlaybackStateChange={onPlaybackStateChange}
-        onReplayEnded={onReplayEnded}
         onReplaySeekCommitted={onReplaySeekCommitted}
         onVideoElementChange={onVideoElementChange}
         autoStart={autoStart}
@@ -64,7 +60,6 @@ export function PerformanceReplayPlayer({
       replay={replay}
       onReplayTimeChange={onReplayTimeChange}
       onPlaybackStateChange={onPlaybackStateChange}
-      onReplayEnded={onReplayEnded}
       onReplaySeekCommitted={onReplaySeekCommitted}
       autoStart={autoStart}
       actions={actions}
@@ -80,7 +75,6 @@ function AudioPerformanceReplayPlayer({
   replay,
   onReplayTimeChange,
   onPlaybackStateChange,
-  onReplayEnded,
   onReplaySeekCommitted,
   autoStart,
   actions,
@@ -88,7 +82,6 @@ function AudioPerformanceReplayPlayer({
   replay: AudioPerformanceReplay;
   onReplayTimeChange?: (replayTimeMs: number | null, actualDurationMs?: number | null) => void;
   onPlaybackStateChange?: (playing: boolean) => void;
-  onReplayEnded?: () => void;
   onReplaySeekCommitted?: (replayTimeMs: number) => void;
   autoStart: boolean;
   actions?: ReactNode;
@@ -283,7 +276,6 @@ function AudioPerformanceReplayPlayer({
           setIsPlaying(false);
           publishTime(effectiveDurationMs);
           onPlaybackStateChange?.(false);
-          onReplayEnded?.();
         }}
       />
     </ReplayChrome>
@@ -294,7 +286,6 @@ function VideoPerformanceReplayPlayer({
   replay,
   onReplayTimeChange,
   onPlaybackStateChange,
-  onReplayEnded,
   onReplaySeekCommitted,
   onVideoElementChange,
   autoStart,
@@ -303,7 +294,6 @@ function VideoPerformanceReplayPlayer({
   replay: VideoPerformanceReplay;
   onReplayTimeChange?: (replayTimeMs: number | null, actualDurationMs?: number | null) => void;
   onPlaybackStateChange?: (playing: boolean) => void;
-  onReplayEnded?: () => void;
   onReplaySeekCommitted?: (replayTimeMs: number) => void;
   onVideoElementChange?: (video: HTMLVideoElement | null) => void;
   autoStart: boolean;
@@ -507,7 +497,6 @@ function VideoPerformanceReplayPlayer({
           setIsPlaying(false);
           publishTime(effectiveDurationMs);
           onPlaybackStateChange?.(false);
-          onReplayEnded?.();
         }}
       />
     </ReplayChrome>
@@ -518,7 +507,6 @@ function MidiPerformanceReplayPlayer({
   replay,
   onReplayTimeChange,
   onPlaybackStateChange,
-  onReplayEnded,
   onReplaySeekCommitted,
   autoStart,
   actions,
@@ -526,7 +514,6 @@ function MidiPerformanceReplayPlayer({
   replay: MidiPerformanceReplay;
   onReplayTimeChange?: (replayTimeMs: number | null) => void;
   onPlaybackStateChange?: (playing: boolean) => void;
-  onReplayEnded?: () => void;
   onReplaySeekCommitted?: (replayTimeMs: number) => void;
   autoStart: boolean;
   actions?: ReactNode;
@@ -618,13 +605,11 @@ function MidiPerformanceReplayPlayer({
         onPlaybackStateChange?.(false);
         playbackOffsetMsRef.current = replay.durationMs;
         publishTime(replay.durationMs);
-        onReplayEnded?.();
       }, replay.durationMs - playbackOffsetMsRef.current + 50);
       timeoutsRef.current.push(finishTimeoutId);
     },
     [
       onPlaybackStateChange,
-      onReplayEnded,
       publishTime,
       replay.durationMs,
       replay.events,

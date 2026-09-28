@@ -30,16 +30,12 @@ export function groupById(
   return groups.find((group) => group.groupId === groupId) ?? null;
 }
 
-export const targetByGroupId = groupById;
-
 export function groupForRenderNoteId(
   groups: readonly ExpectedPracticeGroup[],
   renderNoteId: string
 ): ExpectedPracticeGroup | null {
   return groups.find((group) => group.renderNoteIds.includes(renderNoteId)) ?? null;
 }
-
-export const targetForRenderNoteId = groupForRenderNoteId;
 
 export function selectPracticeRangeTarget(
   selection: PracticeRangeSelection,
@@ -139,8 +135,6 @@ export function practiceGroupsInRangeSelection(
   }
   return groups.slice(startIndex, endIndex + 1);
 }
-
-export const practiceTargetsInRangeSelection = practiceGroupsInRangeSelection;
 
 function orderedPracticeGroups(
   first: ExpectedPracticeGroup,

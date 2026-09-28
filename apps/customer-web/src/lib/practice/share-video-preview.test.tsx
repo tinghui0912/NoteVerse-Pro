@@ -3,7 +3,7 @@
 import { render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { PerformanceReviewDraft } from './performance-review-draft';
+import type { ShareVideoSession } from './share-video-session';
 
 const mocks = vi.hoisted(() => ({
   prepareScorePageCache: vi.fn(async () => new Map()),
@@ -25,6 +25,30 @@ vi.mock('./split-screen-playback-position', () => ({
 
 import { ShareVideoPreview } from './share-video-preview';
 import { captureReplayVideoFrame } from './share-video-preview';
+
+const session: ShareVideoSession = {
+  sourceId: 'session-1',
+  scoreIdentity: { scoreId: 'score-1', revisionId: 'revision-1', artifactId: 'artifact-1' },
+  scope: { kind: 'FULL', startBeat: 0, terminalBeat: 16 },
+  tempoPlan: {
+    selection: { mode: 'SCORE' },
+    segments: [{ startBeat: 0, bpm: 96, source: 'MUSICXML' }],
+  },
+  recordingTimebase: {
+    recordingStartPerfTimeMs: 0,
+    recordingEndPerfTimeMs: 4000,
+    nominalMediaDurationMs: 4000,
+    activeSegments: [
+      { perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 },
+    ],
+  },
+  video: {
+    status: 'READY',
+    blob: new Blob(['video'], { type: 'video/webm' }),
+    mimeType: 'video/webm',
+    durationMs: 4000,
+  },
+};
 
 describe('ShareVideoPreview', () => {
   beforeEach(() => {
@@ -48,34 +72,10 @@ describe('ShareVideoPreview', () => {
     const pause = vi.spyOn(video, 'pause').mockImplementation(() => {});
     const load = vi.spyOn(video, 'load').mockImplementation(() => {});
 
-    const draft = {
-      localSessionId: 'session-1',
-      scoreId: 'score-1',
-      revisionId: 'revision-1',
-      artifactId: 'artifact-1',
-      scope: { startBeat: 0, terminalBeat: 16 },
-      tempoPlan: {
-        selection: { mode: 'SCORE' },
-        segments: [{ startBeat: 0, bpm: 96, source: 'MUSICXML' }],
-      },
-      recordingTimebase: {
-        recordingStartPerfTimeMs: 0,
-        recordingEndPerfTimeMs: 4000,
-        nominalMediaDurationMs: 4000,
-        activeSegments: [
-          { perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 },
-        ],
-      },
-      video: {
-        status: 'READY',
-        blob: new Blob(['video'], { type: 'video/webm' }),
-        durationMs: 4000,
-      },
-    } as unknown as PerformanceReviewDraft;
     const scoreContainer = document.createElement('div');
     const { rerender } = render(
       <ShareVideoPreview
-        draft={draft}
+        session={session}
         scoreContainer={scoreContainer}
         adapter={{} as never}
         scoreEndBeat={16}
@@ -92,7 +92,7 @@ describe('ShareVideoPreview', () => {
 
     rerender(
       <ShareVideoPreview
-        draft={draft}
+        session={session}
         scoreContainer={scoreContainer}
         adapter={{} as never}
         scoreEndBeat={16}
@@ -122,7 +122,7 @@ describe('ShareVideoPreview', () => {
 
     rerender(
       <ShareVideoPreview
-        draft={draft}
+        session={session}
         scoreContainer={scoreContainer}
         adapter={{} as never}
         scoreEndBeat={16}
@@ -182,34 +182,9 @@ describe('ShareVideoPreview', () => {
     });
 
     const onFrameCommitted = vi.fn();
-    const draft = {
-      localSessionId: 'session-1',
-      scoreId: 'score-1',
-      revisionId: 'revision-1',
-      artifactId: 'artifact-1',
-      scope: { startBeat: 0, terminalBeat: 16 },
-      tempoPlan: {
-        selection: { mode: 'SCORE' },
-        segments: [{ startBeat: 0, bpm: 96, source: 'MUSICXML' }],
-      },
-      recordingTimebase: {
-        recordingStartPerfTimeMs: 0,
-        recordingEndPerfTimeMs: 4000,
-        nominalMediaDurationMs: 4000,
-        activeSegments: [
-          { perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 },
-        ],
-      },
-      video: {
-        status: 'READY',
-        blob: new Blob(['video'], { type: 'video/webm' }),
-        durationMs: 4000,
-      },
-    } as unknown as PerformanceReviewDraft;
-
     render(
       <ShareVideoPreview
-        draft={draft}
+        session={session}
         scoreContainer={document.createElement('div')}
         adapter={{} as never}
         scoreEndBeat={16}

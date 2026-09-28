@@ -38,7 +38,7 @@ import {
   practiceGroupsInRangeSelection,
   practiceScopeFromRangeSelection,
   selectedPracticeRangeSelection,
-  targetForRenderNoteId,
+  groupForRenderNoteId,
   transitionPracticeRangeSelection,
   type PracticeRangeSelection,
 } from '@/lib/practice/range-selection';
@@ -344,7 +344,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       if (!isSelectingRange) {
         return;
       }
-      const targetGroup = targetForRenderNoteId(expectedGroups, renderNoteId);
+      const targetGroup = groupForRenderNoteId(expectedGroups, renderNoteId);
       if (!targetGroup) {
         return;
       }
@@ -518,12 +518,20 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                     sessionMode={practiceMode}
                     activeStepGroup={localPractice.activeStepGroup}
                     performanceMusicalBeat={localPractice.performanceClock?.musicalBeat ?? null}
-                    performanceScopeBeats={
+                    performanceScope={
                       localPractice.performanceClock
-                        ? {
-                            startBeat: localPractice.performanceClock.scopeStartBeat,
-                            terminalBeat: localPractice.performanceClock.scopeTerminalBeat,
-                          }
+                        ? rangeSelection.kind === 'SELECTED_RANGE'
+                          ? {
+                              kind: 'RANGE' as const,
+                              startBeat: localPractice.performanceClock.scopeStartBeat,
+                              terminalBeat: localPractice.performanceClock.scopeTerminalBeat,
+                              allowedNoteIds: selectedRangeRenderNoteIds,
+                            }
+                          : {
+                              kind: 'FULL' as const,
+                              startBeat: localPractice.performanceClock.scopeStartBeat,
+                              terminalBeat: localPractice.performanceClock.scopeTerminalBeat,
+                            }
                         : null
                     }
                     selectedRangeRenderNoteIds={selectedRangeRenderNoteIds}

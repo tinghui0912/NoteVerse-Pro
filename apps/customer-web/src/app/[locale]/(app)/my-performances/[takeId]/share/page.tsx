@@ -145,11 +145,11 @@ export default function HistoricalPerformanceSharePage() {
       artifactQuery.data.artifactId === take.artifact_id
   );
   const sessionEligibility = useMemo(() => {
-    if (!take || !mediaBlob || !exactIdentityMatches) return null;
+    if (!take || !mediaBlob || !artifactQuery.data || !exactIdentityMatches) return null;
     return createShareVideoSessionFromSavedTake(
       take,
       mediaBlob,
-      artifactQuery.data ?? undefined
+      artifactQuery.data
     );
   }, [artifactQuery.data, exactIdentityMatches, mediaBlob, take]);
   const session =

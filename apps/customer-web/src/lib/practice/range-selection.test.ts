@@ -6,7 +6,7 @@ import {
   practiceGroupsInRangeSelection,
   selectPracticeRangeTarget,
   selectedPracticeRangeSelection,
-  targetForRenderNoteId,
+  groupForRenderNoteId,
   transitionPracticeRangeSelection,
 } from './range-selection';
 
@@ -129,7 +129,7 @@ describe('practice range selection', () => {
   });
 
   it('maps any rendered chord note back to the practice group', () => {
-    expect(targetForRenderNoteId(groups, 'n3')?.groupId).toBe('g2');
+    expect(groupForRenderNoteId(groups, 'n3')?.groupId).toBe('g2');
   });
 
   it('returns every group inside the selected inclusive range', () => {

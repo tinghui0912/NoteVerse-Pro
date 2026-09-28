@@ -122,7 +122,8 @@ describe('share video session saved-take parsing', () => {
   it('creates a session only from complete historical video metadata', () => {
     const result = createShareVideoSessionFromSavedTake(
       take,
-      new Blob(['video'], { type: 'video/webm' })
+      new Blob(['video'], { type: 'video/webm' }),
+      artifact
     );
     expect(result.status).toBe('supported');
     if (result.status === 'supported') {
@@ -139,21 +140,34 @@ describe('share video session saved-take parsing', () => {
     expect(
       createShareVideoSessionFromSavedTake(
         { ...take, media_kind: 'AUDIO' },
-        new Blob(['audio'])
+        new Blob(['audio']),
+        artifact
       )
     ).toMatchObject({ status: 'unsupported', reason: 'video_required' });
     expect(
       createShareVideoSessionFromSavedTake(
         { ...take, deletion_status: 'DELETING' },
-        new Blob(['video'])
+        new Blob(['video']),
+        artifact
       )
     ).toMatchObject({ status: 'unsupported', reason: 'take_deleting' });
     expect(
       createShareVideoSessionFromSavedTake(
         { ...take, artifact_id: null },
-        new Blob(['video'])
+        new Blob(['video']),
+        artifact
       )
     ).toMatchObject({ status: 'unsupported', reason: 'score_revision_artifact_missing' });
+  });
+
+  it('enforces exact artifact identity inside the saved-take adapter', () => {
+    expect(
+      createShareVideoSessionFromSavedTake(
+        take,
+        new Blob(['video'], { type: 'video/webm' }),
+        { ...artifact, artifactId: 'different-artifact' }
+      )
+    ).toMatchObject({ status: 'unsupported', reason: 'artifact_identity_mismatch' });
   });
 
   it('rejects missing and malformed sync data instead of inventing a timeline', () => {
@@ -191,13 +205,15 @@ describe('share video session saved-take parsing', () => {
           ...syncMetadata,
           replayTiming: { ...syncMetadata.replayTiming, scopeStartBeat: 4 },
         } },
-        new Blob(['video'], { type: 'video/webm' })
+        new Blob(['video'], { type: 'video/webm' }),
+        artifact
       ).status
     ).toBe('supported');
     expect(
       createShareVideoSessionFromSavedTake(
         { ...take, scope_start_beat: 4 },
-        new Blob(['video'], { type: 'video/webm' })
+        new Blob(['video'], { type: 'video/webm' }),
+        artifact
       )
     ).toMatchObject({ status: 'unsupported', reason: 'replay_scopeStartBeat_mismatch' });
   });
@@ -205,7 +221,8 @@ describe('share video session saved-take parsing', () => {
   it('does not claim the database duration is the decoded media duration', () => {
     const result = createShareVideoSessionFromSavedTake(
       take,
-      new Blob(['video'], { type: 'video/webm' })
+      new Blob(['video'], { type: 'video/webm' }),
+      artifact
     );
     expect(result.status).toBe('supported');
     if (result.status === 'supported') {
@@ -221,7 +238,8 @@ describe('share video session saved-take parsing', () => {
           recordingTimebase: syncMetadata.recordingTimebase,
           replayTiming: syncMetadata.replayTiming,
         } },
-        new Blob(['video'], { type: 'video/webm' })
+      new Blob(['video'], { type: 'video/webm' }),
+      artifact
       )
     ).toMatchObject({ status: 'unsupported', reason: 'scope_identity_missing' });
   });
@@ -232,7 +250,8 @@ describe('share video session saved-take parsing', () => {
         recordingTimebase: syncMetadata.recordingTimebase,
         replayTiming: syncMetadata.replayTiming,
       } },
-      new Blob(['video'], { type: 'video/webm' })
+      new Blob(['video'], { type: 'video/webm' }),
+      artifact
     );
     expect(result.status).toBe('supported');
   });
@@ -245,9 +264,10 @@ describe('share video session saved-take parsing', () => {
     );
     expect(result.status).toBe('supported');
     if (result.status === 'supported') {
-      expect(result.session.scope.selectedRangeNoteIds).toEqual(['note-1', 'note-2']);
-      expect(result.session.scope.startGroupId).toBe('group-1');
-      expect(result.session.scope.endGroupId).toBe('group-2');
+      expect(result.session.scope).toMatchObject({
+        kind: 'RANGE',
+        allowedNoteIds: ['note-1', 'note-2'],
+      });
     }
   });
 

@@ -1,9 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { PerformanceReviewDraft } from './performance-review-draft';
-import { toShareVideoSession, type ShareVideoSessionInput } from './share-video-session';
+import type { ShareVideoSession } from './share-video-session';
 import { renderSplitScreenFrameAtTime } from './split-screen-frame-renderer';
 import {
   findStablePageNumber,
@@ -34,8 +33,7 @@ type RenderableVideo = HTMLVideoElement & {
  * media playback, seeks, audio, or an object URL of its own.
  */
 export function ShareVideoPreview({
-  draft,
-  session: sessionInput,
+  session,
   scoreContainer,
   adapter,
   scoreEndBeat,
@@ -45,8 +43,7 @@ export function ShareVideoPreview({
   replayVideo,
   onFrameCommitted,
 }: {
-  draft?: PerformanceReviewDraft;
-  session?: ShareVideoSessionInput;
+  session: ShareVideoSession;
   scoreContainer: HTMLElement | null;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
@@ -56,10 +53,6 @@ export function ShareVideoPreview({
   replayVideo: HTMLVideoElement | null;
   onFrameCommitted?: (mediaTimeMs: number) => void;
 }) {
-  const session = useMemo(
-    () => toShareVideoSession(sessionInput ?? draft!),
-    [draft, sessionInput]
-  );
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stagingCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const sourceFrameCanvasRef = useRef<HTMLCanvasElement | null>(null);

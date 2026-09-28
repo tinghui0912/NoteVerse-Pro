@@ -16,7 +16,6 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { PerformanceReviewDraft } from '@/lib/practice/performance-review-draft';
 import { ShareVideoPreview } from '@/lib/practice/share-video-preview';
 import type { ShareVideoTemplate } from '@/lib/practice/share-video-templates';
 import {
@@ -25,11 +24,7 @@ import {
   type SplitScreenExportBlockReason,
 } from '@/lib/practice/split-screen-video-export';
 import type { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
-import {
-  toShareVideoSession,
-  type ShareVideoSession,
-  type ShareVideoSessionInput,
-} from '@/lib/practice/share-video-session';
+import type { ShareVideoSession } from '@/lib/practice/share-video-session';
 
 const FLOATING_SHARE_TEMPLATE_ENABLED = process.env.NODE_ENV !== 'production';
 
@@ -137,8 +132,7 @@ function ShareChoiceCard({
 }
 
 export function ShareVideoStudio({
-  draft,
-  session: sessionInput,
+  session,
   scoreContainer,
   adapter,
   scoreEndBeat,
@@ -152,8 +146,7 @@ export function ShareVideoStudio({
   onExportingChange,
   collapsible = true,
 }: {
-  draft?: PerformanceReviewDraft;
-  session?: ShareVideoSessionInput;
+  session: ShareVideoSession | null;
   scoreContainer: HTMLElement | null;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
@@ -168,13 +161,6 @@ export function ShareVideoStudio({
   collapsible?: boolean;
 }) {
   const t = useTranslations('practice');
-  const session = useMemo<ShareVideoSession | null>(() => {
-    try {
-      return toShareVideoSession(sessionInput ?? draft!);
-    } catch {
-      return null;
-    }
-  }, [draft, sessionInput]);
   const [orientationPreference, setOrientationPreference] = useState<{
     sessionId: string;
     value: VideoOrientation;
@@ -250,13 +236,12 @@ export function ShareVideoStudio({
   const readiness = useMemo(
     () =>
       getSplitScreenExportReadiness({
-        draft: draft ?? null,
         session,
         isScoreIdentityConfirmed,
         xmlContent,
         scoreContainer,
       }),
-    [draft, isScoreIdentityConfirmed, scoreContainer, session, xmlContent]
+    [isScoreIdentityConfirmed, scoreContainer, session, xmlContent]
   );
 
   const handleExport = useCallback(async () => {

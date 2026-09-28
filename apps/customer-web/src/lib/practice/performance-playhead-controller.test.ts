@@ -88,7 +88,11 @@ describe('PerformancePlayheadController', () => {
     const container = makeContainer();
     const adapter = makeAdapter(entries);
 
-    controller.apply(container, adapter, 2);
+    controller.apply(container, adapter, 2, {
+      kind: 'FULL',
+      startBeat: 1,
+      terminalBeat: 4,
+    });
 
     expect(container.querySelector('[data-practice-playhead-cursor]')).not.toBeNull();
     expect(container.querySelector('[data-id="n2"]')).not.toHaveClass('practice-note-active');
@@ -100,10 +104,18 @@ describe('PerformancePlayheadController', () => {
     const container = makeContainer();
     const adapter = makeAdapter(entries);
 
-    controller.apply(container, adapter, 2);
+    controller.apply(container, adapter, 2, {
+      kind: 'FULL',
+      startBeat: 1,
+      terminalBeat: 4,
+    });
     expect(container.querySelector('[data-practice-playhead-cursor]')).not.toBeNull();
 
-    controller.apply(container, adapter, null);
+    controller.apply(container, adapter, null, {
+      kind: 'FULL',
+      startBeat: 1,
+      terminalBeat: 4,
+    });
     expect(container.querySelector('[data-practice-playhead-cursor]')).toBeNull();
   });
 
@@ -113,14 +125,30 @@ describe('PerformancePlayheadController', () => {
     const adapter = makeAdapter(entries);
 
     controller.apply(container, adapter, 3, {
+      kind: 'RANGE',
       startBeat: 1,
       terminalBeat: 2,
-      selectedRangeNoteIds: ['n1', 'n2'],
+      allowedNoteIds: ['n1', 'n2'],
     });
 
     // Bounded beat is 2, so n2 is active, not n3
     expect(container.querySelector('[data-practice-playhead-cursor]')).not.toBeNull();
     expect(container.querySelector('[data-id="n2"]')).not.toHaveClass('practice-note-active');
     expect(container.querySelector('[data-id="n3"]')).not.toHaveClass('practice-note-active');
+  });
+
+  it('fails closed when a range has no allowed note IDs', () => {
+    const controller = new PerformancePlayheadController();
+    const container = makeContainer();
+    const adapter = makeAdapter(entries);
+
+    controller.apply(container, adapter, 2, {
+      kind: 'RANGE',
+      startBeat: 1,
+      terminalBeat: 4,
+      allowedNoteIds: [],
+    });
+
+    expect(container.querySelector('[data-practice-playhead-cursor]')).toBeNull();
   });
 });

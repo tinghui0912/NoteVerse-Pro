@@ -12,7 +12,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { StepPlayheadController } from '@/lib/practice/step-playhead-controller';
 import {
   PerformancePlayheadController,
-  type PerformanceScopeBeats,
+  type CursorScope,
 } from '@/lib/practice/performance-playhead-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import { cn } from '@/lib/utils';
@@ -29,7 +29,7 @@ type PracticeScoreViewerProps = {
   sessionMode: PracticeMode;
   activeStepGroup?: ExpectedPracticeGroup | null;
   performanceMusicalBeat?: number | null;
-  performanceScopeBeats?: PerformanceScopeBeats | null;
+  performanceScope?: CursorScope | null;
   selectedRangeRenderNoteIds?: readonly string[];
   onRenderNoteClick?: (renderNoteId: string) => void;
 };
@@ -43,7 +43,7 @@ export function PracticeScoreViewer({
   sessionMode,
   activeStepGroup = null,
   performanceMusicalBeat = null,
-  performanceScopeBeats = null,
+  performanceScope = null,
   selectedRangeRenderNoteIds = [],
   onRenderNoteClick,
 }: PracticeScoreViewerProps) {
@@ -114,20 +114,21 @@ export function PracticeScoreViewer({
       return;
     }
 
-    const rangeNoteIds = selectedRangeRenderNoteIdSignature
-      ? selectedRangeRenderNoteIdSignature.split('\u001f')
-      : [];
-    performancePlayheadController.receiveSelectedRangeNoteIds(rangeNoteIds);
+    const scope = performanceScope;
+    if (!scope) {
+      performancePlayheadController.clear(container);
+      return;
+    }
     performancePlayheadController.apply(
       container,
       adapter,
       performanceMusicalBeat,
-      performanceScopeBeats ?? undefined
+      scope
     );
   }, [
     adapter,
     performanceMusicalBeat,
-    performanceScopeBeats,
+    performanceScope,
     performancePlayheadController,
     lifecycle,
     renderRevision,

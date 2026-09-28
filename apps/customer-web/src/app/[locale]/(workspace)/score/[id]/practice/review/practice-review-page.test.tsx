@@ -1041,9 +1041,8 @@ describe('PracticeReviewPage', () => {
     performanceReviewDraftStore.setDraft(createVideoDraft());
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
-    fireEvent.click(screen.getByTestId('open-share-video-studio'));
-
-    expect(screen.getByTestId('generate-share-video')).toBeDisabled();
+    expect(screen.getByTestId('share-video-studio-unavailable')).toBeInTheDocument();
+    expect(screen.queryByTestId('open-share-video-studio')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
     expect(URL.createObjectURL).toHaveBeenCalled();
     expect(splitScreenMocks.exportSplitScreenPerformanceVideo).not.toHaveBeenCalled();

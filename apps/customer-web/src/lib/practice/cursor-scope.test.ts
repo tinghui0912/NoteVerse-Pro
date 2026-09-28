@@ -79,7 +79,7 @@ function adapter() {
   return instance;
 }
 
-function session(selectedRangeNoteIds: string[]): ShareVideoSession {
+function session(allowedNoteIds: string[]): ShareVideoSession {
   return {
     sourceId: 'session',
     scoreIdentity: { scoreId: 'score', revisionId: 'revision', artifactId: 'artifact' },
@@ -92,9 +92,8 @@ function session(selectedRangeNoteIds: string[]): ShareVideoSession {
     scope: {
       startBeat: 2,
       terminalBeat: 4.5,
-      selectedRangeNoteIds,
-      startGroupId: 'A',
-      endGroupId: 'A',
+      kind: 'RANGE',
+      allowedNoteIds,
     },
     tempoPlan: {
       selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 60 },

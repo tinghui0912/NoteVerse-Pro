@@ -1,9 +1,4 @@
-import {
-  mediaTimeToPerformanceTimeMs,
-  type PerformanceReviewDraft,
-} from './performance-review-draft';
-import { PracticeTempoTimeline } from './local-core/practice-tempo';
-import { resolveSplitScreenScoreFrame as resolvePlaybackFrame } from './split-screen-playback-position';
+import { resolveSplitScreenScoreFrame } from './split-screen-playback-position';
 import { renderSplitScreenFrameAtTime } from './split-screen-frame-renderer';
 import {
   getShareVideoLayout,
@@ -17,11 +12,7 @@ import {
   type ScorePageCache,
 } from './split-screen-score-model';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
-import {
-  toShareVideoSession,
-  type ShareVideoSession,
-  type ShareVideoSessionInput,
-} from './share-video-session';
+import type { ShareVideoSession } from './share-video-session';
 
 export {
   findStablePageNumber,
@@ -70,29 +61,8 @@ export type SplitScreenExportResult = {
   durationMs: number;
 };
 
-export type ResolveSplitScreenFrameInput = {
-  draft?: PerformanceReviewDraft;
-  session?: ShareVideoSessionInput;
-  adapter: Pick<
-    PracticeVerovioAdapter,
-    'getCursorTimelineEntryForBeatRange' | 'getPageWithElement'
-  >;
-  pageNumberResolver?: (noteIds: readonly string[]) => number | null;
-  mediaTimeMs: number;
-  actualMediaDurationMs?: number | null;
-  scoreEndBeat: number;
-};
-
-export type SplitScreenScoreFrame = {
-  perfTimeMs: number;
-  musicalBeat: number;
-  pageNumber: number;
-  noteIds: string[];
-};
-
 export type SplitScreenExportOptions = {
-  draft?: PerformanceReviewDraft;
-  session?: ShareVideoSessionInput;
+  session: ShareVideoSession;
   scoreContainer: HTMLElement;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
@@ -120,28 +90,16 @@ export function selectSupportedSplitScreenMimeType(): string | null {
 }
 
 export function getSplitScreenExportReadiness({
-  draft,
-  session: sessionInput,
+  session,
   isScoreIdentityConfirmed,
   xmlContent,
   scoreContainer,
 }: {
-  draft?: PerformanceReviewDraft | null;
-  session?: ShareVideoSessionInput | null;
+  session: ShareVideoSession | null;
   isScoreIdentityConfirmed: boolean;
   xmlContent: string | null;
   scoreContainer: HTMLElement | null;
 }): SplitScreenExportReadiness {
-  let session: ShareVideoSession | null = null;
-  try {
-    session = sessionInput
-      ? toShareVideoSession(sessionInput)
-      : draft
-        ? toShareVideoSession(draft)
-        : null;
-  } catch {
-    return { ok: false, reason: 'video_not_ready' };
-  }
   if (!session?.video || session.video.status !== 'READY') {
     return { ok: false, reason: 'video_not_ready' };
   }
@@ -167,56 +125,6 @@ export function getSplitScreenExportReadiness({
   return { ok: true, mimeType };
 }
 
-export function resolveSplitScreenScoreFrame({
-  draft,
-  session: sessionInput,
-  adapter,
-  pageNumberResolver,
-  mediaTimeMs,
-  actualMediaDurationMs,
-  scoreEndBeat,
-}: ResolveSplitScreenFrameInput): SplitScreenScoreFrame | null {
-  const session = toShareVideoSession(sessionInput ?? draft!);
-  const perfTimeMs = mediaTimeToPerformanceTimeMs(
-    mediaTimeMs,
-    session.recordingTimebase,
-    actualMediaDurationMs
-  );
-  if (perfTimeMs === null) {
-    return null;
-  }
-
-  const timeline = new PracticeTempoTimeline(session.tempoPlan, scoreEndBeat);
-  const scopeStartMs = session.replayTiming?.scopeStartMs ?? 0;
-  const musicalBeat = timeline.timeMsToBeat(scopeStartMs + perfTimeMs);
-  const entry = adapter.getCursorTimelineEntryForBeatRange(
-    musicalBeat,
-    session.scope.startBeat,
-    session.scope.terminalBeat
-  );
-  if (!entry || entry.noteIds.length === 0) {
-    return null;
-  }
-
-  let pageNumber = 1;
-  if (pageNumberResolver) {
-    pageNumber = pageNumberResolver(entry.noteIds) ?? 1;
-  } else {
-    try {
-      pageNumber = adapter.getPageWithElement(entry.noteIds[0]) ?? 1;
-    } catch {
-      pageNumber = 1;
-    }
-  }
-
-  return {
-    perfTimeMs,
-    musicalBeat,
-    pageNumber,
-    noteIds: entry.noteIds,
-  };
-}
-
 export function composeSplitScreenOutputStream(
   canvasStream: MediaStream,
   audioStream: MediaStream
@@ -228,8 +136,7 @@ export function composeSplitScreenOutputStream(
 }
 
 export async function exportSplitScreenPerformanceVideo({
-  draft,
-  session: sessionInput,
+  session,
   scoreContainer,
   adapter,
   scoreEndBeat,
@@ -237,9 +144,7 @@ export async function exportSplitScreenPerformanceVideo({
   onProgress,
   template = { kind: 'landscape' },
 }: SplitScreenExportOptions): Promise<SplitScreenExportResult> {
-  const session = toShareVideoSession(sessionInput ?? draft!);
   const readiness = getSplitScreenExportReadiness({
-    draft,
     session,
     isScoreIdentityConfirmed: true,
     xmlContent: 'ready',
@@ -487,12 +392,12 @@ async function prefetchUpcomingEventImage({
 }: {
   mediaTimeMs: number;
   video: HTMLVideoElement;
-  session: ShareVideoSessionInput;
+  session: ShareVideoSession;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
   scorePages: ScorePageCache;
 }) {
-  const position = resolvePlaybackFrame({
+  const position = resolveSplitScreenScoreFrame({
     session,
     adapter,
     pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, scorePages),
@@ -512,7 +417,6 @@ export async function drawExportFrame({
   ctx,
   video,
   session,
-  draft,
   adapter,
   scoreEndBeat,
   frameState,
@@ -520,27 +424,25 @@ export async function drawExportFrame({
 }: {
   ctx: CanvasRenderingContext2D;
   video: HTMLVideoElement;
-  session?: ShareVideoSessionInput;
-  draft?: PerformanceReviewDraft;
+  session: ShareVideoSession;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
   frameState: FrameRenderState;
   template?: ShareVideoTemplate;
 }): Promise<void> {
-  const normalizedSession = toShareVideoSession(session ?? draft!);
   const layout = getShareVideoLayout(template);
 
   await renderSplitScreenFrameAtTime({
     mediaTimeMs: Math.max(0, video.currentTime * 1000),
     scoreModel: frameState.scorePages,
     playbackTimeline: {
-      resolve: (mediaTimeMs) => resolvePlaybackFrame({
-        session: normalizedSession,
+      resolve: (mediaTimeMs) => resolveSplitScreenScoreFrame({
+        session,
         adapter,
         pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, frameState.scorePages),
         mediaTimeMs,
         actualMediaDurationMs:
-          normalizedSession.video.actualMediaDurationMs ?? safeDurationMs(video),
+          session.video.actualMediaDurationMs ?? safeDurationMs(video),
         scoreEndBeat,
       }),
     },
@@ -617,152 +519,6 @@ function waitForVideoFrame(video: HTMLVideoElement, signal?: AbortSignal): Promi
     signal?.addEventListener('abort', onAbort, { once: true });
   });
 }
-
-/*
-function rectsIntersect(first: Rect, second: Rect) {
-  return (
-    first.x < second.x + second.width &&
-    first.x + first.width > second.x &&
-    first.y < second.y + second.height &&
-    first.y + first.height > second.y
-  );
-}
-
-function offscreenReason(first: Rect, second: Rect) {
-  if (!isFiniteRect(first)) {
-    return 'cursor_canvas_rect_invalid';
-  }
-  if (first.x + first.width <= second.x) return 'x_before_viewport';
-  if (first.x >= second.x + second.width) return 'x_after_viewport';
-  if (first.y + first.height <= second.y) return 'y_before_viewport';
-  if (first.y >= second.y + second.height) return 'y_after_viewport';
-  return 'unknown_offscreen';
-}
-
-function createSplitScreenExportError(
-  message: string,
-  context: {
-    frame: SplitScreenScoreFrame;
-    scorePage: ScorePageCacheEntry;
-    cursorGeometry?: ExportCursorGeometry;
-    viewport?: SvgRect;
-    imageRect?: Rect;
-    cursorBox?: Rect;
-    noteBox?: Rect;
-    reason: string | PlayheadCursorGeometryFailureReason;
-  }
-) {
-  const error = new Error(message) as Error & { diagnostic?: unknown };
-  error.diagnostic = splitScreenDiagnostic(context);
-  logSplitScreenDiagnosticOnce(error.diagnostic);
-  return error;
-}
-
-let didLogSplitScreenDiagnostic = false;
-
-function logSplitScreenDiagnosticOnce(diagnostic: unknown) {
-  if (didLogSplitScreenDiagnostic || typeof globalThis.console === 'undefined') {
-    return;
-  }
-  didLogSplitScreenDiagnostic = true;
-  if (process.env.NODE_ENV !== 'production') {
-    globalThis.console.error(
-      `[NoteVerse split-screen export diagnostic] ${stringifyDiagnostic(diagnostic)}`
-    );
-  }
-}
-
-function stringifyDiagnostic(diagnostic: unknown) {
-  try {
-    return JSON.stringify(diagnostic, null, 2);
-  } catch {
-    return String(diagnostic);
-  }
-}
-
-function splitScreenDiagnostic({
-  frame,
-  scorePage,
-  cursorGeometry,
-  viewport,
-  imageRect,
-  cursorBox,
-  noteBox,
-  reason,
-}: {
-  frame: SplitScreenScoreFrame;
-  scorePage: ScorePageCacheEntry;
-  cursorGeometry?: ExportCursorGeometry;
-  viewport?: SvgRect;
-  imageRect?: Rect;
-  cursorBox?: Rect;
-  noteBox?: Rect;
-  reason: string | PlayheadCursorGeometryFailureReason;
-}) {
-  return {
-    reason,
-    mediaFrame: {
-      perfTimeMs: frame.perfTimeMs,
-      musicalBeat: frame.musicalBeat,
-      pageNumber: frame.pageNumber,
-      noteIds: frame.noteIds,
-    },
-    scorePage: {
-      pageNumber: scorePage.pageNumber,
-      viewBox: scorePage.viewBox,
-      geometryNoteCount: scorePage.geometryByNoteId.size,
-      measureCount: scorePage.measureCount,
-    },
-    geometry: cursorGeometry
-      ? {
-          activeColumn: cursorGeometry.playback.activeColumn,
-          anchorNoteId: cursorGeometry.playback.anchorNote.noteId,
-          anchorNoteBox: cursorGeometry.playback.anchorNote.noteBox,
-          staffId: cursorGeometry.playback.anchorNote.staffId,
-          systemId: cursorGeometry.playback.anchorNote.systemId,
-          viewport: cursorGeometry.playback.system.viewport,
-        }
-      : null,
-    viewport,
-    imageRect,
-    cursorBox,
-    noteBox,
-  };
-}
-
-function isFiniteRect(rect: Rect) {
-  return (
-    Number.isFinite(rect.x) &&
-    Number.isFinite(rect.y) &&
-    Number.isFinite(rect.width) &&
-    Number.isFinite(rect.height) &&
-    rect.width > 0 &&
-    rect.height > 0
-  );
-}
-
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
-}
-
-*/
 
 function safeDurationMs(video: HTMLVideoElement): number | null {
   return Number.isFinite(video.duration) && video.duration > 0

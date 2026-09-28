@@ -7,11 +7,11 @@ import type {
 } from './performance-review-draft';
 import type {
   PracticeScoreArtifact,
-  ResolvedPracticeScope,
   PracticeTempoSegmentSource,
   ResolvedPracticeTempoPlan,
 } from './local-core';
 import { resolvePracticeScopeCursorNoteIds } from './local-core/artifact';
+import type { CursorScope } from './performance-playhead-controller';
 
 export type ShareVideoSession = {
   sourceId: string;
@@ -21,11 +21,7 @@ export type ShareVideoSession = {
     artifactId: string;
   };
   video: PerformanceReviewDraftVideoReady;
-  scope: Pick<ResolvedPracticeScope, 'startBeat' | 'terminalBeat'> & {
-    selectedRangeNoteIds: string[];
-    startGroupId?: string;
-    endGroupId?: string;
-  };
+  scope: CursorScope;
   tempoPlan: ResolvedPracticeTempoPlan;
   recordingTimebase: RecordingTimebaseMapping;
   replayTiming?: {
@@ -35,11 +31,9 @@ export type ShareVideoSession = {
   };
 };
 
-export type ShareVideoSessionInput = ShareVideoSession | PerformanceReviewDraft;
-
 export function createShareVideoSessionFromReviewDraft(
   draft: PerformanceReviewDraft,
-  artifact?: PracticeScoreArtifact
+  artifact: PracticeScoreArtifact
 ): ShareVideoSession {
   if (draft.video?.status !== 'READY') {
     throw new Error('Share video requires a ready video recording.');
@@ -47,9 +41,29 @@ export function createShareVideoSessionFromReviewDraft(
   if (!draft.revisionId || !draft.artifactId) {
     throw new Error('Share video requires a stable score revision and artifact identity.');
   }
-  const selectedRangeNoteIds = artifact
-    ? resolvePracticeScopeCursorNoteIds(artifact, draft.scope)
-    : [];
+  if (
+    artifact.scoreId !== draft.scoreId ||
+    artifact.revisionId !== draft.revisionId ||
+    artifact.artifactId !== draft.artifactId
+  ) {
+    throw new Error('Share video score artifact identity mismatch.');
+  }
+  const isRange = Boolean(draft.scope.startGroupId || draft.scope.endGroupId);
+  const scope: CursorScope = isRange
+    ? {
+        kind: 'RANGE',
+        startBeat: draft.scope.startBeat,
+        terminalBeat: draft.scope.terminalBeat,
+        allowedNoteIds: resolvePracticeScopeCursorNoteIds(artifact, draft.scope),
+      }
+    : {
+        kind: 'FULL',
+        startBeat: draft.scope.startBeat,
+        terminalBeat: draft.scope.terminalBeat,
+      };
+  if (scope.kind === 'RANGE' && scope.allowedNoteIds.length === 0) {
+    throw new Error('Share video range has no selectable notes.');
+  }
   return {
     sourceId: draft.localSessionId,
     scoreIdentity: {
@@ -58,31 +72,11 @@ export function createShareVideoSessionFromReviewDraft(
       artifactId: draft.artifactId,
     },
     video: draft.video,
-    scope: {
-      startBeat: draft.scope.startBeat,
-      terminalBeat: draft.scope.terminalBeat,
-      selectedRangeNoteIds,
-      startGroupId: draft.scope.startGroupId,
-      endGroupId: draft.scope.endGroupId,
-    },
+    scope,
     tempoPlan: draft.tempoPlan,
     recordingTimebase: draft.recordingTimebase,
     replayTiming: draft.replayTiming,
   };
-}
-
-export function isShareVideoSession(
-  value: ShareVideoSessionInput
-): value is ShareVideoSession {
-  return 'sourceId' in value && 'scoreIdentity' in value;
-}
-
-export function toShareVideoSession(
-  value: ShareVideoSessionInput
-): ShareVideoSession {
-  return isShareVideoSession(value)
-    ? value
-    : createShareVideoSessionFromReviewDraft(value);
 }
 
 type ParsedRecordingTimebase = RecordingTimebaseMapping;
@@ -131,7 +125,7 @@ export function hasSavedTakeShareVideoMetadata(take: PerformanceTakeRead): boole
 export function createShareVideoSessionFromSavedTake(
   take: PerformanceTakeRead,
   videoBlob: Blob,
-  artifact?: PracticeScoreArtifact
+  artifact: PracticeScoreArtifact
 ): SavedTakeEligibility {
   if (take.deletion_status === 'DELETING') {
     return { status: 'unsupported', reason: 'take_deleting' };
@@ -144,6 +138,13 @@ export function createShareVideoSessionFromSavedTake(
   }
   if (!take.score_id || !take.revision_id || !take.artifact_id) {
     return { status: 'unsupported', reason: 'score_revision_artifact_missing' };
+  }
+  if (
+    artifact.scoreId !== take.score_id ||
+    artifact.revisionId !== take.revision_id ||
+    artifact.artifactId !== take.artifact_id
+  ) {
+    return { status: 'unsupported', reason: 'artifact_identity_mismatch' };
   }
 
   try {
@@ -164,13 +165,10 @@ export function createShareVideoSessionFromSavedTake(
     if (isRange && !syncMetadata.scopeIdentity) {
       return { status: 'unsupported', reason: 'scope_identity_missing' };
     }
-    if (isRange && !artifact) {
-      return { status: 'unsupported', reason: 'scope_artifact_required' };
-    }
-    const startGroup = artifact?.expectedPracticeGroups.find(
+    const startGroup = artifact.expectedPracticeGroups.find(
       (group) => group.groupId === syncMetadata.scopeIdentity?.startGroupId
     );
-    const endGroup = artifact?.expectedPracticeGroups.find(
+    const endGroup = artifact.expectedPracticeGroups.find(
       (group) => group.groupId === syncMetadata.scopeIdentity?.endGroupId
     );
     if (isRange && (!startGroup || !endGroup)) {
@@ -185,12 +183,24 @@ export function createShareVideoSessionFromSavedTake(
     ) {
       return { status: 'unsupported', reason: 'scope_identity_mismatch' };
     }
-    const selectedRangeNoteIds = artifact
-      ? resolvePracticeScopeCursorNoteIds(artifact, {
-          startGroupId: syncMetadata.scopeIdentity?.startGroupId,
-          endGroupId: syncMetadata.scopeIdentity?.endGroupId,
-        })
-      : [];
+    const scope: CursorScope = isRange
+      ? {
+          kind: 'RANGE',
+          startBeat: scopeStartBeat,
+          terminalBeat: scopeTerminalBeat,
+          allowedNoteIds: resolvePracticeScopeCursorNoteIds(artifact, {
+            startGroupId: syncMetadata.scopeIdentity?.startGroupId,
+            endGroupId: syncMetadata.scopeIdentity?.endGroupId,
+          }),
+        }
+      : {
+          kind: 'FULL',
+          startBeat: scopeStartBeat,
+          terminalBeat: scopeTerminalBeat,
+        };
+    if (scope.kind === 'RANGE' && scope.allowedNoteIds.length === 0) {
+      return { status: 'unsupported', reason: 'scope_identity_empty' };
+    }
     return {
       status: 'supported',
       session: {
@@ -206,13 +216,7 @@ export function createShareVideoSessionFromSavedTake(
           mimeType: take.media_mime_type,
           durationMs: take.duration_ms,
         },
-        scope: {
-          startBeat: scopeStartBeat,
-          terminalBeat: scopeTerminalBeat,
-          selectedRangeNoteIds,
-          startGroupId: syncMetadata.scopeIdentity?.startGroupId,
-          endGroupId: syncMetadata.scopeIdentity?.endGroupId,
-        },
+        scope,
         tempoPlan,
         recordingTimebase: syncMetadata.recordingTimebase,
         replayTiming: syncMetadata.replayTiming,

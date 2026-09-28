@@ -9,17 +9,23 @@ import {
 } from './playhead-cursor';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 
-export type PerformanceScopeBeats = {
-  startBeat: number;
-  terminalBeat: number;
-  selectedRangeNoteIds?: readonly string[];
-};
+export type CursorScope =
+  | {
+      kind: 'FULL';
+      startBeat: number;
+      terminalBeat: number;
+    }
+  | {
+      kind: 'RANGE';
+      startBeat: number;
+      terminalBeat: number;
+      allowedNoteIds: readonly string[];
+    };
 
 type PerformancePlayheadState = {
   activeNoteIds: string[];
   activePage: number | null;
   displayedBeat: number | null;
-  selectedRangeNoteIds: string[];
 };
 
 function extractPageNumber(node: Element | null): number | null {
@@ -37,7 +43,6 @@ export class PerformancePlayheadController {
     activeNoteIds: [],
     activePage: null,
     displayedBeat: null,
-    selectedRangeNoteIds: [],
   };
 
   clear(container: HTMLElement): void {
@@ -46,26 +51,20 @@ export class PerformancePlayheadController {
       activeNoteIds: [],
       activePage: null,
       displayedBeat: null,
-      selectedRangeNoteIds: [],
     };
-  }
-
-  receiveSelectedRangeNoteIds(noteIds: readonly string[]): void {
-    const uniqueNoteIds = Array.from(new Set(noteIds.filter(Boolean)));
-    if (uniqueNoteIds.join('\u001f') === this.state.selectedRangeNoteIds.join('\u001f')) {
-      return;
-    }
-    this.state.selectedRangeNoteIds = uniqueNoteIds;
-    this.state.displayedBeat = null;
   }
 
   apply(
     container: HTMLElement,
     adapter: PracticeVerovioAdapter,
     musicalBeat: number | null,
-    scope?: PerformanceScopeBeats
+    scope: CursorScope
   ): void {
     if (musicalBeat === null) {
+      this.clearDecorations(container);
+      return;
+    }
+    if (scope.kind === 'RANGE' && scope.allowedNoteIds.length === 0) {
       this.clearDecorations(container);
       return;
     }
@@ -73,15 +72,12 @@ export class PerformancePlayheadController {
     const previousPage = this.state.activePage;
     this.clearDecorations(container);
 
-    const rangeNoteIds = scope?.selectedRangeNoteIds ?? this.state.selectedRangeNoteIds;
-    const entry = scope
-      ? adapter.getCursorTimelineEntryForBeatRange(
-          musicalBeat,
-          scope.startBeat,
-          scope.terminalBeat,
-          rangeNoteIds
-        )
-      : adapter.getTimelineEntryForBeat(musicalBeat);
+    const entry = adapter.getCursorTimelineEntryForBeatRange(
+      musicalBeat,
+      scope.startBeat,
+      scope.terminalBeat,
+      scope.kind === 'RANGE' ? scope.allowedNoteIds : undefined
+    );
 
     if (!entry) {
       return;

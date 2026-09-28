@@ -327,34 +327,4 @@ describe('PerformanceReplayPlayer', () => {
     expect(load).toHaveBeenCalledTimes(initialLoadCount);
   });
 
-  it('reports ended separately from pause', () => {
-    const blob = new Blob(['video'], { type: 'video/webm' });
-    const onReplayEnded = vi.fn();
-    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:video-replay');
-    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
-    vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
-    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
-
-    render(
-      <NextIntlClientProvider locale="en" messages={{ practice: practiceMessages }}>
-        <PerformanceReplayPlayer
-          replay={{
-            kind: 'VIDEO_RECORDING',
-            blob,
-            contentType: 'video/webm',
-            byteSize: blob.size,
-            durationMs: 1000,
-            timebase: { version: 1, speedRatio: 1 },
-          }}
-          onReplayEnded={onReplayEnded}
-        />
-      </NextIntlClientProvider>
-    );
-
-    const video = document.querySelector('video') as HTMLVideoElement;
-    fireEvent.pause(video);
-    expect(onReplayEnded).not.toHaveBeenCalled();
-    fireEvent.ended(video);
-    expect(onReplayEnded).toHaveBeenCalledTimes(1);
-  });
 });

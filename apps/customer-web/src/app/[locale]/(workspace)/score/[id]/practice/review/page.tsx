@@ -38,16 +38,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useScoreDetail } from '@/hooks/queries/use-score-queries';
 import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
 import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-artifact';
+import { useScoreDetail } from '@/hooks/queries/use-score-queries';
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
 import {
   performanceReviewDraftStore,
   type PerformanceReviewDraft,
   mediaTimeToPerformanceTimeMs,
 } from '@/lib/practice/performance-review-draft';
-import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
+import {
+  PerformancePlayheadController,
+  type CursorScope,
+} from '@/lib/practice/performance-playhead-controller';
 import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-annotation-controller';
 import { PracticeTempoTimeline } from '@/lib/practice/local-core/practice-tempo';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/local-core/artifact';
@@ -98,9 +101,8 @@ export default function PracticeReviewPage({
 
   const isValidDraft = Boolean(draft && draft.scoreId === id);
 
-  const scoreQuery = useScoreDetail(id, isValidDraft && Boolean(id));
-  const selectedRevisionId =
-    draft?.revisionId ?? scoreQuery.data?.data?.head_revision_id ?? undefined;
+  useScoreDetail(id, isValidDraft && Boolean(id));
+  const selectedRevisionId = draft?.revisionId ?? undefined;
 
   const revisionQuery = usePracticeReadyScoreContent(
     id,
@@ -116,17 +118,49 @@ export default function PracticeReviewPage({
     isValidDraft && Boolean(id)
   );
   const artifact = artifactQuery.data ?? null;
-  const selectedRangeNoteIds = useMemo(
-    () => {
-      if (!artifact || !draft) return [];
-      try {
-        return resolvePracticeScopeCursorNoteIds(artifact, draft.scope);
-      } catch {
-        return [];
+  const cursorScopeResolution = useMemo<
+    | { status: 'ready'; scope: CursorScope }
+    | { status: 'invalid'; reason: string }
+  >(() => {
+    if (!artifact || !draft) {
+      return { status: 'invalid', reason: 'score_source_unavailable' };
+    }
+    try {
+      const isRange = Boolean(draft.scope.startGroupId || draft.scope.endGroupId);
+      if (!isRange) {
+        return {
+          status: 'ready',
+          scope: {
+            kind: 'FULL',
+            startBeat: draft.scope.startBeat,
+            terminalBeat: draft.scope.terminalBeat,
+          },
+        };
       }
-    },
-    [artifact, draft]
-  );
+      const allowedNoteIds = resolvePracticeScopeCursorNoteIds(artifact, draft.scope);
+      if (allowedNoteIds.length === 0) {
+        return { status: 'invalid', reason: 'range_has_no_selectable_notes' };
+      }
+      return {
+        status: 'ready',
+        scope: {
+          kind: 'RANGE',
+          startBeat: draft.scope.startBeat,
+          terminalBeat: draft.scope.terminalBeat,
+          allowedNoteIds,
+        },
+      };
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.warn('[NoteVerse] invalid review cursor scope', error);
+      }
+      return {
+        status: 'invalid',
+        reason: error instanceof Error ? error.message : 'cursor_scope_invalid',
+      };
+    }
+  }, [artifact, draft]);
   const shareVideoSession = useMemo(
     () => {
       if (!draft || !artifact) return null;
@@ -241,7 +275,11 @@ export default function PracticeReviewPage({
       latestReplayTimeMsRef.current = Math.max(0, replayTimeMs ?? 0);
       const container = scoreContainerRef.current;
       if (!container || !draft) return;
-      if (replayTimeMs === null || !isScoreIdentityConfirmed) {
+      if (
+        replayTimeMs === null ||
+        !isScoreIdentityConfirmed ||
+        cursorScopeResolution.status !== 'ready'
+      ) {
         playheadController.clear(container);
         return;
       }
@@ -259,11 +297,12 @@ export default function PracticeReviewPage({
       const scopeStartMs = draft.replayTiming?.scopeStartMs ?? 0;
       const nominalTimeMs = scopeStartMs + perfTimeMs;
       const musicalBeat = timeline.timeMsToBeat(nominalTimeMs);
-      playheadController.apply(container, adapter, musicalBeat, {
-        startBeat: draft.scope.startBeat,
-        terminalBeat: draft.scope.terminalBeat,
-        selectedRangeNoteIds,
-      });
+      playheadController.apply(
+        container,
+        adapter,
+        musicalBeat,
+        cursorScopeResolution.scope
+      );
     },
     [
       adapter,
@@ -271,7 +310,7 @@ export default function PracticeReviewPage({
       draft,
       isScoreIdentityConfirmed,
       playheadController,
-      selectedRangeNoteIds,
+      cursorScopeResolution,
     ]
   );
 
@@ -286,13 +325,6 @@ export default function PracticeReviewPage({
     latestReplayTimeMsRef.current = Math.max(0, replayTimeMs);
     setSharePreviewTimeMs(Math.max(0, replayTimeMs));
   }, []);
-
-  const handleReplayEnded = useCallback(() => {
-    const container = scoreContainerRef.current;
-    if (container) {
-      playheadController.clear(container);
-    }
-  }, [playheadController]);
 
   useEffect(() => {
     const container = scoreContainerRef.current;
@@ -734,7 +766,6 @@ export default function PracticeReviewPage({
                 replay={replay}
                 onReplayTimeChange={handleReplayTimeChange}
                 onPlaybackStateChange={handleReplayPlaybackStateChange}
-                onReplayEnded={handleReplayEnded}
                 onReplaySeekCommitted={handleReplaySeekCommitted}
                 onVideoElementChange={setReplayVideo}
               />
@@ -851,7 +882,7 @@ export default function PracticeReviewPage({
       {draft.video?.status === 'READY' ? (
         <ShareVideoStudio
           key={draft.localSessionId}
-          session={shareVideoSession ?? undefined}
+          session={shareVideoSession}
           scoreContainer={scoreContainer}
           adapter={adapter}
           scoreEndBeat={artifact?.scoreEndBeat ?? draft.scope.terminalBeat}
