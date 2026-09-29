@@ -3053,6 +3053,7 @@ export type PerformanceTakeCreateRequest = {
      * Media Mime Type
      */
     media_mime_type: string;
+    recording_timebase: RecordingTimebase;
     /**
      * Reservation Id
      */
@@ -3086,7 +3087,6 @@ export type PerformanceTakeCreateRequest = {
      * Score Id
      */
     score_id: string;
-    sync_metadata: PerformanceTakeSyncMetadata;
     /**
      * Take Id
      */
@@ -3203,6 +3203,7 @@ export type PerformanceTakeRead = {
      * Media Mime Type
      */
     media_mime_type: string;
+    recording_timebase: RecordingTimebase;
     resolved_tempo_plan: ResolvedTempoPlan;
     /**
      * Revision Id
@@ -3236,18 +3237,10 @@ export type PerformanceTakeRead = {
      * Score Title
      */
     score_title?: string | null;
-    sync_metadata: PerformanceTakeSyncMetadata;
     /**
      * Take Id
      */
     take_id: string;
-};
-
-/**
- * PerformanceTakeSyncMetadata
- */
-export type PerformanceTakeSyncMetadata = {
-    recordingTimebase: RecordingTimebase;
 };
 
 /**
@@ -3319,6 +3312,7 @@ export type PerformanceTakeUploadAuthorizationRequest = {
      * Media Mime Type
      */
     media_mime_type: string;
+    recording_timebase: RecordingTimebase;
     resolved_tempo_plan: ResolvedTempoPlan;
     /**
      * Revision Id
@@ -3348,7 +3342,6 @@ export type PerformanceTakeUploadAuthorizationRequest = {
      * Score Id
      */
     score_id: string;
-    sync_metadata: PerformanceTakeSyncMetadata;
 };
 
 /**

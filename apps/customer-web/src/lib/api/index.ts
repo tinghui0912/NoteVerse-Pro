@@ -44,8 +44,8 @@ export {
   type PerformanceTakeListResponse,
   type PerformanceTakeRead,
   type PerformanceTakePlaybackRead,
-  type PerformanceTakeSyncMetadata,
   type PerformanceTakeUploadAuthorizationRead,
   type PerformanceTakeUploadAuthorizationRequest,
+  type RecordingTimebase,
   type ResolvedTempoPlan,
 } from './performance-takes';

@@ -85,10 +85,6 @@ class RecordingTimebase(StrictPerformanceTakeModel):
         return self
 
 
-class PerformanceTakeSyncMetadata(StrictPerformanceTakeModel):
-    recordingTimebase: RecordingTimebase
-
-
 def _validate_scope_identity(
     scope_type: str,
     start_group_id: Optional[str],
@@ -117,7 +113,7 @@ class PerformanceTakeUploadAuthorizationRequest(StrictPerformanceTakeModel):
     revision_id: str = Field(min_length=1, max_length=64)
     artifact_id: str = Field(min_length=1, max_length=128)
     resolved_tempo_plan: ResolvedTempoPlan
-    sync_metadata: PerformanceTakeSyncMetadata
+    recording_timebase: RecordingTimebase
 
     @model_validator(mode="after")
     def validate_scope_identity(self) -> "PerformanceTakeUploadAuthorizationRequest":
@@ -158,7 +154,7 @@ class PerformanceTakeCreateRequest(StrictPerformanceTakeModel):
     revision_id: str = Field(min_length=1, max_length=64)
     artifact_id: str = Field(min_length=1, max_length=128)
     resolved_tempo_plan: ResolvedTempoPlan
-    sync_metadata: PerformanceTakeSyncMetadata
+    recording_timebase: RecordingTimebase
 
     @model_validator(mode="after")
     def validate_scope_identity(self) -> "PerformanceTakeCreateRequest":
@@ -187,7 +183,7 @@ class PerformanceTakeRead(StrictPerformanceTakeModel):
     scope_end_group_id: Optional[str] = None
     deletion_status: str = "ACTIVE"
     resolved_tempo_plan: ResolvedTempoPlan
-    sync_metadata: PerformanceTakeSyncMetadata
+    recording_timebase: RecordingTimebase
     created_at: datetime
 
 

@@ -5,7 +5,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import {
   performanceTakesApi,
   uploadMediaToSignedUrl,
-  type PerformanceTakeSyncMetadata,
+  type RecordingTimebase,
   type ResolvedTempoPlan,
   type PerformanceTakeCreateRequest,
   type PerformanceTakeUploadAuthorizationRequest,
@@ -90,7 +90,7 @@ export interface SavePerformanceTakeInput {
   scopeStartGroupId?: string | null;
   scopeEndGroupId?: string | null;
   resolvedTempoPlan: ResolvedTempoPlan;
-  syncMetadata: PerformanceTakeSyncMetadata;
+  recordingTimebase: RecordingTimebase;
 }
 
 export function useSavePerformanceTake() {
@@ -114,7 +114,7 @@ export function useSavePerformanceTake() {
         scope_start_group_id: input.scopeStartGroupId ?? null,
         scope_end_group_id: input.scopeEndGroupId ?? null,
         resolved_tempo_plan: input.resolvedTempoPlan,
-        sync_metadata: input.syncMetadata,
+        recording_timebase: input.recordingTimebase,
       };
 
       const authRes = await performanceTakesApi.authorizeUpload(authReq);
@@ -146,7 +146,7 @@ export function useSavePerformanceTake() {
         scope_start_group_id: input.scopeStartGroupId ?? null,
         scope_end_group_id: input.scopeEndGroupId ?? null,
         resolved_tempo_plan: input.resolvedTempoPlan,
-        sync_metadata: input.syncMetadata,
+        recording_timebase: input.recordingTimebase,
       };
 
       if (authData.status === 'FINALIZING') {

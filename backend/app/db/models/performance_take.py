@@ -135,7 +135,7 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     resolved_tempo_plan: str = Field(
         sa_column=Column(Text, nullable=False),
     )
-    sync_metadata: str = Field(
+    recording_timebase: str = Field(
         sa_column=Column(Text, nullable=False),
     )
     deletion_status: str = Field(

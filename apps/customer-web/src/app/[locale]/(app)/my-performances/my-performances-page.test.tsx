@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MyPerformancesPage from './page';
 import type {
   PerformanceTakeRead,
-  PerformanceTakeSyncMetadata,
+  RecordingTimebase,
   ResolvedTempoPlan,
 } from '@/lib/api/performance-takes';
 
@@ -144,15 +144,13 @@ const resolvedTempoPlan: ResolvedTempoPlan = {
   segments: [{ startBeat: 0, bpm: 120, source: 'CUSTOM' }],
 };
 
-const syncMetadata: PerformanceTakeSyncMetadata = {
-  recordingTimebase: {
-    recordingStartPerfTimeMs: 0,
-    recordingEndPerfTimeMs: 30000,
-    nominalMediaDurationMs: 30000,
-    activeSegments: [
-      { perfStartMs: 0, perfEndMs: 30000, mediaStartMs: 0, mediaEndMs: 30000 },
-    ],
-  },
+const recordingTimebase: RecordingTimebase = {
+  recordingStartPerfTimeMs: 0,
+  recordingEndPerfTimeMs: 30000,
+  nominalMediaDurationMs: 30000,
+  activeSegments: [
+    { perfStartMs: 0, perfEndMs: 30000, mediaStartMs: 0, mediaEndMs: 30000 },
+  ],
 };
 
 // 121 fixture items
@@ -173,7 +171,7 @@ const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i
   scope_start_group_id: i % 2 === 0 ? null : 'group-1',
   scope_end_group_id: i % 2 === 0 ? null : 'group-2',
   resolved_tempo_plan: resolvedTempoPlan,
-  sync_metadata: syncMetadata,
+  recording_timebase: recordingTimebase,
   created_at: new Date(1700000000000 - i * 60000).toISOString(),
 }));
 
@@ -361,7 +359,7 @@ describe('MyPerformancesPage', () => {
               revision_id: 'revision-1',
               artifact_id: 'artifact-1',
               resolved_tempo_plan: resolvedTempoPlan,
-              sync_metadata: syncMetadata,
+              recording_timebase: recordingTimebase,
               created_at: new Date().toISOString(),
             },
           ],
@@ -403,7 +401,7 @@ describe('MyPerformancesPage', () => {
               revision_id: 'revision-1',
               artifact_id: 'artifact-1',
               resolved_tempo_plan: resolvedTempoPlan,
-              sync_metadata: syncMetadata,
+              recording_timebase: recordingTimebase,
               created_at: new Date().toISOString(),
             },
           ],
@@ -454,7 +452,7 @@ describe('MyPerformancesPage', () => {
               revision_id: 'revision-1',
               artifact_id: 'artifact-1',
               resolved_tempo_plan: resolvedTempoPlan,
-              sync_metadata: syncMetadata,
+              recording_timebase: recordingTimebase,
               created_at: new Date().toISOString(),
             },
           ],
@@ -499,7 +497,7 @@ describe('MyPerformancesPage', () => {
               revision_id: 'revision-1',
               artifact_id: 'artifact-1',
               resolved_tempo_plan: resolvedTempoPlan,
-              sync_metadata: syncMetadata,
+              recording_timebase: recordingTimebase,
               created_at: new Date().toISOString(),
             },
           ],
@@ -566,7 +564,7 @@ describe('MyPerformancesPage', () => {
               revision_id: 'revision-1',
               artifact_id: 'artifact-1',
               resolved_tempo_plan: resolvedTempoPlan,
-              sync_metadata: syncMetadata,
+              recording_timebase: recordingTimebase,
               created_at: new Date().toISOString(),
             },
           ],

@@ -5,9 +5,9 @@ import type {
   PerformanceTakeListResponse,
   PerformanceTakePlaybackRead,
   PerformanceTakeRead,
-  PerformanceTakeSyncMetadata,
   PerformanceTakeUploadAuthorizationRead,
   PerformanceTakeUploadAuthorizationRequest,
+  RecordingTimebase,
   ResolvedTempoPlan,
 } from '@/generated/api/types.gen';
 
@@ -19,9 +19,9 @@ export type {
   PerformanceTakeListResponse,
   PerformanceTakePlaybackRead,
   PerformanceTakeRead,
-  PerformanceTakeSyncMetadata,
   PerformanceTakeUploadAuthorizationRead,
   PerformanceTakeUploadAuthorizationRequest,
+  RecordingTimebase,
   ResolvedTempoPlan,
 };
 

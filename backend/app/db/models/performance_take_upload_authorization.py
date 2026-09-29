@@ -115,7 +115,7 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
     resolved_tempo_plan: str = Field(
         sa_column=Column(Text, nullable=False),
     )
-    sync_metadata: str = Field(
+    recording_timebase: str = Field(
         sa_column=Column(Text, nullable=False),
     )
     duration_ms: int = Field(

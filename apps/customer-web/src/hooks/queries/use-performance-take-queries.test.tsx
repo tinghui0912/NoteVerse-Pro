@@ -9,7 +9,7 @@ import {
   performanceTakesApi,
   uploadMediaToSignedUrl,
   type PerformanceTakeRead,
-  type PerformanceTakeSyncMetadata,
+  type RecordingTimebase,
   type ResolvedTempoPlan,
 } from '@/lib/api/performance-takes';
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
@@ -41,15 +41,13 @@ const resolvedTempoPlan: ResolvedTempoPlan = {
   segments: [{ startBeat: 0, bpm: 120, source: 'MUSICXML' }],
 };
 
-const syncMetadata: PerformanceTakeSyncMetadata = {
-  recordingTimebase: {
-    recordingStartPerfTimeMs: 0,
-    recordingEndPerfTimeMs: 1000,
-    nominalMediaDurationMs: 1000,
-    activeSegments: [
-      { perfStartMs: 0, perfEndMs: 1000, mediaStartMs: 0, mediaEndMs: 1000 },
-    ],
-  },
+const recordingTimebase: RecordingTimebase = {
+  recordingStartPerfTimeMs: 0,
+  recordingEndPerfTimeMs: 1000,
+  nominalMediaDurationMs: 1000,
+  activeSegments: [
+    { perfStartMs: 0, perfEndMs: 1000, mediaStartMs: 0, mediaEndMs: 1000 },
+  ],
 };
 
 function createInput() {
@@ -66,7 +64,7 @@ function createInput() {
     scopeStartBeat: 0,
     scopeTerminalBeat: 4,
     resolvedTempoPlan,
-    syncMetadata,
+    recordingTimebase,
   };
 }
 
@@ -85,7 +83,7 @@ const savedTake: PerformanceTakeRead = {
   scope_terminal_beat: 4,
   deletion_status: 'ACTIVE',
   resolved_tempo_plan: resolvedTempoPlan,
-  sync_metadata: syncMetadata,
+  recording_timebase: recordingTimebase,
   created_at: '2026-09-21T00:00:00Z',
 };
 

@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createShareVideoSessionFromSavedTake,
-  parseSavedSyncMetadata,
+  parseSavedRecordingTimebase,
   parseSavedTempoPlan,
 } from './share-video-session';
 import type {
   PerformanceTakeRead,
-  PerformanceTakeSyncMetadata,
+  RecordingTimebase,
   ResolvedTempoPlan,
 } from '@/lib/api/performance-takes';
 
@@ -16,15 +16,13 @@ const tempoPlan: ResolvedTempoPlan = {
   segments: [{ startBeat: 0, bpm: 96, source: 'MUSICXML' }],
 };
 
-const syncMetadata: PerformanceTakeSyncMetadata = {
-  recordingTimebase: {
-    recordingStartPerfTimeMs: 0,
-    recordingEndPerfTimeMs: 4000,
-    nominalMediaDurationMs: 4000,
-    activeSegments: [
-      { perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 },
-    ],
-  },
+const recordingTimebase: RecordingTimebase = {
+  recordingStartPerfTimeMs: 0,
+  recordingEndPerfTimeMs: 4000,
+  nominalMediaDurationMs: 4000,
+  activeSegments: [
+    { perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 },
+  ],
 };
 
 const take: PerformanceTakeRead = {
@@ -40,7 +38,7 @@ const take: PerformanceTakeRead = {
   scope_terminal_beat: 16,
   deletion_status: 'ACTIVE',
   resolved_tempo_plan: tempoPlan,
-  sync_metadata: syncMetadata,
+  recording_timebase: recordingTimebase,
   created_at: '2026-09-26T00:00:00.000Z',
 };
 
@@ -159,16 +157,13 @@ describe('share video session saved-take parsing', () => {
     ).toMatchObject({ status: 'unsupported', reason: 'artifact_identity_mismatch' });
   });
 
-  it('rejects missing and malformed sync data instead of inventing a timeline', () => {
+  it('rejects missing and malformed recording timebase instead of inventing a timeline', () => {
     expect(() => parseSavedTempoPlan(null)).toThrow(/missing/);
-    expect(() => parseSavedSyncMetadata(null)).toThrow(/missing/);
+    expect(() => parseSavedRecordingTimebase(null)).toThrow(/missing/);
     expect(() =>
-      parseSavedSyncMetadata({
-        ...syncMetadata,
-        recordingTimebase: {
-          ...syncMetadata.recordingTimebase,
-          activeSegments: [],
-        },
+      parseSavedRecordingTimebase({
+        ...recordingTimebase,
+        activeSegments: [],
       })
     ).toThrow(/segments_missing/);
     expect(() =>
@@ -177,11 +172,7 @@ describe('share video session saved-take parsing', () => {
         segments: [{ startBeat: 1, bpm: 96, source: 'MUSICXML' }],
       })
     ).toThrow(/beat_zero/);
-    expect(
-      parseSavedSyncMetadata({
-        recordingTimebase: syncMetadata.recordingTimebase,
-      }).recordingTimebase
-    ).toEqual(syncMetadata.recordingTimebase);
+    expect(parseSavedRecordingTimebase(recordingTimebase)).toEqual(recordingTimebase);
   });
 
   it('requires the persisted range identity to agree with the saved range start', () => {

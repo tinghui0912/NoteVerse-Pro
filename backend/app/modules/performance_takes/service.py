@@ -293,7 +293,7 @@ class PerformanceTakeService:
         has_score_view_access: bool = False,
     ) -> PerformanceTakeRead:
         resolved_tempo_plan = json.loads(take.resolved_tempo_plan)
-        sync_metadata = json.loads(take.sync_metadata)
+        recording_timebase = json.loads(take.recording_timebase)
 
         if score is None:
             raise RuntimeError("performance take source score is missing")
@@ -327,7 +327,7 @@ class PerformanceTakeService:
             scope_end_group_id=take.scope_end_group_id,
             deletion_status=deletion_status,
             resolved_tempo_plan=resolved_tempo_plan,
-            sync_metadata=sync_metadata,
+            recording_timebase=recording_timebase,
             created_at=take.created_at,
         )
 
@@ -393,7 +393,7 @@ class PerformanceTakeService:
             and auth.media_mime_type == cleaned_mime
             and auth.media_byte_size == request.media_byte_size
             and _json_equivalent(auth.resolved_tempo_plan, request.resolved_tempo_plan)
-            and _json_equivalent(auth.sync_metadata, request.sync_metadata)
+            and _json_equivalent(auth.recording_timebase, request.recording_timebase)
         )
 
     def _authorization_matches_finalize_request(
@@ -417,7 +417,7 @@ class PerformanceTakeService:
             and auth.media_mime_type == cleaned_mime
             and auth.media_byte_size == request.media_byte_size
             and _json_equivalent(auth.resolved_tempo_plan, request.resolved_tempo_plan)
-            and _json_equivalent(auth.sync_metadata, request.sync_metadata)
+            and _json_equivalent(auth.recording_timebase, request.recording_timebase)
         )
 
     def _take_matches_authorization(
@@ -442,7 +442,7 @@ class PerformanceTakeService:
             and take.scope_end_group_id == auth.scope_end_group_id
             and take.artifact_id == auth.artifact_id
             and take.resolved_tempo_plan == auth.resolved_tempo_plan
-            and take.sync_metadata == auth.sync_metadata
+            and take.recording_timebase == auth.recording_timebase
         )
 
     def _put_url_expires_at(self, now: datetime) -> datetime:
@@ -608,7 +608,7 @@ class PerformanceTakeService:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
 
         _json_snapshot(request.resolved_tempo_plan)
-        _json_snapshot(request.sync_metadata)
+        _json_snapshot(request.recording_timebase)
 
         if self.storage is None:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
@@ -797,7 +797,7 @@ class PerformanceTakeService:
             scope_start_group_id=request.scope_start_group_id,
             scope_end_group_id=request.scope_end_group_id,
             resolved_tempo_plan=_json_snapshot(request.resolved_tempo_plan),
-            sync_metadata=_json_snapshot(request.sync_metadata),
+            recording_timebase=_json_snapshot(request.recording_timebase),
             duration_ms=request.duration_ms,
             media_kind=media_kind,
             media_mime_type=cleaned_mime,
@@ -1018,7 +1018,7 @@ class PerformanceTakeService:
             "scope_start_group_id": auth.scope_start_group_id,
             "scope_end_group_id": auth.scope_end_group_id,
             "resolved_tempo_plan": auth.resolved_tempo_plan,
-            "sync_metadata": auth.sync_metadata,
+            "recording_timebase": auth.recording_timebase,
             "reservation_id": auth.reservation_id,
             "expires_at": auth.expires_at,
             "staging_cleanup_after": auth.staging_cleanup_after,
@@ -1310,7 +1310,7 @@ class PerformanceTakeService:
             scope_end_group_id=auth_snapshot["scope_end_group_id"],
             deletion_status=PerformanceTakeDeletionStatus.ACTIVE.value,
             resolved_tempo_plan=auth_snapshot["resolved_tempo_plan"],
-            sync_metadata=auth_snapshot["sync_metadata"],
+            recording_timebase=auth_snapshot["recording_timebase"],
         )
         created = await self.repository.create_take(db, take, auto_commit=False)
         auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value

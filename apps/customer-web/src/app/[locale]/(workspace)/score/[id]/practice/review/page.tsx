@@ -459,9 +459,7 @@ export default function PracticeReviewPage({
         scopeStartGroupId: draft.scope.kind === 'RANGE' ? draft.scope.startGroupId : null,
         scopeEndGroupId: draft.scope.kind === 'RANGE' ? draft.scope.endGroupId : null,
         resolvedTempoPlan: toPerformanceTakeTempoPlan(draft.tempoPlan),
-        syncMetadata: {
-          recordingTimebase: draft.recordingTimebase,
-        },
+        recordingTimebase: draft.recordingTimebase,
       });
       setSaveStatus('saved');
     } catch (err: unknown) {

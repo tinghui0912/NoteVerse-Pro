@@ -1,6 +1,6 @@
 import type {
   PerformanceTakeRead,
-  PerformanceTakeSyncMetadata,
+  RecordingTimebase,
   ResolvedTempoPlan,
 } from '@/lib/api/performance-takes';
 
@@ -99,7 +99,7 @@ export function hasSavedTakeShareVideoMetadata(take: PerformanceTakeRead): boole
     ) {
       return false;
     }
-    parseSavedSyncMetadata(take.sync_metadata);
+    parseSavedRecordingTimebase(take.recording_timebase);
     return true;
   } catch {
     return false;
@@ -141,7 +141,7 @@ export function createShareVideoSessionFromSavedTake(
       throw new Error('scope_terminal_beat_invalid');
     }
     const tempoPlan = parseSavedTempoPlan(take.resolved_tempo_plan);
-    const syncMetadata = parseSavedSyncMetadata(take.sync_metadata);
+    const recordingTimebase = parseSavedRecordingTimebase(take.recording_timebase);
     const isRange = take.scope_type === 'RANGE';
     if (isRange && (!take.scope_start_group_id || !take.scope_end_group_id)) {
       return { status: 'unsupported', reason: 'scope_identity_missing' };
@@ -196,13 +196,13 @@ export function createShareVideoSessionFromSavedTake(
         },
         scope,
         tempoPlan,
-        recordingTimebase: syncMetadata.recordingTimebase,
+        recordingTimebase,
       },
     };
   } catch (error) {
     return {
       status: 'unsupported',
-      reason: error instanceof Error ? error.message : 'sync_metadata_invalid',
+      reason: error instanceof Error ? error.message : 'recording_timebase_invalid',
     };
   }
 }
@@ -248,19 +248,16 @@ export function parseSavedTempoPlan(raw: ResolvedTempoPlan | null | undefined): 
   };
 }
 
-export function parseSavedSyncMetadata(
-  raw: PerformanceTakeSyncMetadata | null | undefined
-): {
-  recordingTimebase: ParsedRecordingTimebase;
-} {
+export function parseSavedRecordingTimebase(
+  raw: RecordingTimebase | null | undefined
+): ParsedRecordingTimebase {
   if (!raw) {
-    throw new Error('sync_metadata_missing');
+    throw new Error('recording_timebase_missing');
   }
-  const recordingTimebase = parseRecordingTimebase(raw.recordingTimebase);
-  return { recordingTimebase };
+  return parseRecordingTimebase(raw);
 }
 
-function parseRecordingTimebase(raw: PerformanceTakeSyncMetadata['recordingTimebase']): ParsedRecordingTimebase {
+function parseRecordingTimebase(raw: RecordingTimebase): ParsedRecordingTimebase {
   if (!raw) {
     throw new Error('recording_timebase_missing');
   }

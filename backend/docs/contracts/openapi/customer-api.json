@@ -6142,6 +6142,9 @@
             "title": "Media Mime Type",
             "type": "string"
           },
+          "recording_timebase": {
+            "$ref": "#/components/schemas/RecordingTimebase"
+          },
           "reservation_id": {
             "maxLength": 128,
             "minLength": 1,
@@ -6205,9 +6208,6 @@
             "title": "Score Id",
             "type": "string"
           },
-          "sync_metadata": {
-            "$ref": "#/components/schemas/PerformanceTakeSyncMetadata"
-          },
           "take_id": {
             "maxLength": 36,
             "minLength": 1,
@@ -6228,7 +6228,7 @@
           "revision_id",
           "artifact_id",
           "resolved_tempo_plan",
-          "sync_metadata"
+          "recording_timebase"
         ],
         "title": "PerformanceTakeCreateRequest",
         "type": "object"
@@ -6371,6 +6371,9 @@
             "title": "Media Mime Type",
             "type": "string"
           },
+          "recording_timebase": {
+            "$ref": "#/components/schemas/RecordingTimebase"
+          },
           "resolved_tempo_plan": {
             "$ref": "#/components/schemas/ResolvedTempoPlan"
           },
@@ -6428,9 +6431,6 @@
             ],
             "title": "Score Title"
           },
-          "sync_metadata": {
-            "$ref": "#/components/schemas/PerformanceTakeSyncMetadata"
-          },
           "take_id": {
             "title": "Take Id",
             "type": "string"
@@ -6448,23 +6448,10 @@
           "scope_start_beat",
           "scope_terminal_beat",
           "resolved_tempo_plan",
-          "sync_metadata",
+          "recording_timebase",
           "created_at"
         ],
         "title": "PerformanceTakeRead",
-        "type": "object"
-      },
-      "PerformanceTakeSyncMetadata": {
-        "additionalProperties": false,
-        "properties": {
-          "recordingTimebase": {
-            "$ref": "#/components/schemas/RecordingTimebase"
-          }
-        },
-        "required": [
-          "recordingTimebase"
-        ],
-        "title": "PerformanceTakeSyncMetadata",
         "type": "object"
       },
       "PerformanceTakeUploadAuthorizationRead": {
@@ -6589,6 +6576,9 @@
             "title": "Media Mime Type",
             "type": "string"
           },
+          "recording_timebase": {
+            "$ref": "#/components/schemas/RecordingTimebase"
+          },
           "resolved_tempo_plan": {
             "$ref": "#/components/schemas/ResolvedTempoPlan"
           },
@@ -6645,9 +6635,6 @@
             "minLength": 1,
             "title": "Score Id",
             "type": "string"
-          },
-          "sync_metadata": {
-            "$ref": "#/components/schemas/PerformanceTakeSyncMetadata"
           }
         },
         "required": [
@@ -6661,7 +6648,7 @@
           "revision_id",
           "artifact_id",
           "resolved_tempo_plan",
-          "sync_metadata"
+          "recording_timebase"
         ],
         "title": "PerformanceTakeUploadAuthorizationRequest",
         "type": "object"
