@@ -8,7 +8,6 @@ from app.utils.timezone import utc_now_naive
 if TYPE_CHECKING:
     from .auth import RefreshToken
     from .file import Upload
-    from .practice import PracticeSession
 
 class User(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "users"
@@ -29,5 +28,4 @@ class User(SQLModel, table=True):  # type: ignore[call-arg]
     updated_at: datetime = Field(default_factory=utc_now_naive, sa_column=Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False))
 
     uploads: List["Upload"] = Relationship(back_populates="uploader")
-    practice_sessions: List["PracticeSession"] = Relationship(back_populates="user")
     refresh_tokens: List["RefreshToken"] = Relationship(back_populates="user")

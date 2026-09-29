@@ -9,7 +9,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .playback import PlaybackSettings
 from .performance_take_deletion import PerformanceTakeDeletionSettings
-from .practice_replay_deletion import PracticeReplayDeletionSettings
 from .task_reliability import TaskReliabilitySettings
 from .worker_model_engine import WorkerModelEngineSettings
 
@@ -17,7 +16,6 @@ from .worker_model_engine import WorkerModelEngineSettings
 class WorkerRuntimeSettings(
     PlaybackSettings,
     PerformanceTakeDeletionSettings,
-    PracticeReplayDeletionSettings,
     WorkerModelEngineSettings,
     TaskReliabilitySettings,
     BaseSettings,

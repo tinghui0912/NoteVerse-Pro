@@ -11,9 +11,6 @@ from app.modules.performance_takes.delete_outbox_service import (
     performance_take_delete_outbox_service,
 )
 from app.modules.playback.outbox_service import playback_outbox_service
-from app.modules.practice.replay_object_deletion_outbox_service import (
-    practice_replay_object_deletion_outbox_service,
-)
 from app.modules.score_assets.render_outbox_service import render_outbox_service
 from app.modules.storage_usage.service import storage_usage_service
 from app.storage import file_storage
@@ -80,27 +77,6 @@ def execute_mail_outbox_maintenance() -> dict[str, int]:
         return {"due": len(due), "dispatched": dispatched}
 
     return run_scheduler_scan("mail_outbox", scan)
-
-
-def execute_practice_replay_object_deletion_maintenance() -> dict[str, int]:
-    """Recover stale saved-replay object deletions and dispatch due records."""
-
-    def scan() -> dict[str, int]:
-        with get_worker_db() as db:
-            due = practice_replay_object_deletion_outbox_service.recover_and_list_due(db)
-
-        from app.worker.dispatch.practice_replay_object_deletion import (
-            dispatch_practice_replay_object_deletion,
-        )
-
-        dispatched = sum(
-            1
-            for outbox_uuid in due
-            if dispatch_practice_replay_object_deletion(outbox_uuid)
-        )
-        return {"due": len(due), "dispatched": dispatched}
-
-    return run_scheduler_scan("practice_replay_object_deletion", scan)
 
 
 def execute_performance_take_deletion_maintenance() -> dict[str, int]:

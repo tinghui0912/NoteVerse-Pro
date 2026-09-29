@@ -52,12 +52,6 @@ def build_beat_schedule(settings: Settings) -> BeatSchedule:
             "task": "app.worker.tasks.run_playback_outbox_maintenance",
             "schedule": float(settings.PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS),
         },
-        "practice-replay-object-deletion-maintenance": {
-            "task": "app.worker.tasks.run_practice_replay_object_deletion_maintenance",
-            "schedule": float(
-                settings.PRACTICE_REPLAY_DELETE_OUTBOX_DISPATCH_INTERVAL_SECONDS
-            ),
-        },
         "performance-take-deletion-maintenance": {
             "task": "app.worker.tasks.run_performance_take_deletion_maintenance",
             "schedule": float(

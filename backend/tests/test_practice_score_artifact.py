@@ -320,7 +320,7 @@ def test_practice_score_artifact_requires_explicit_score_tempo_segments() -> Non
 def test_practice_score_artifact_read_schema_version_locked_to_1() -> None:
     import pytest
     from pydantic import ValidationError
-    from app.modules.practice.schemas import PracticeScoreArtifactRead
+    from app.modules.practice.source_schemas import PracticeScoreArtifactRead
 
     base_payload = {
         "scoreId": "s-1",
@@ -345,5 +345,4 @@ def test_practice_score_artifact_read_schema_version_locked_to_1() -> None:
     # schemaVersion 3 must be rejected
     with pytest.raises(ValidationError):
         PracticeScoreArtifactRead.model_validate({**base_payload, "schemaVersion": 3})
-
 

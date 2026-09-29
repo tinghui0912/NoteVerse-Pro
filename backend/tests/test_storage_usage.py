@@ -18,10 +18,6 @@ from app.db.models import (
     ImportArtifact,
     ImportJob,
     ImportJobUpload,
-    PracticeInputSource,
-    PracticeSessionSummaryStatus,
-    PracticeSession,
-    PracticeSessionState,
     Score,
     ScoreRevision,
     ScoreRevisionSource,
@@ -36,7 +32,6 @@ from app.db.models import (
     User,
 )
 from app.db.models.import_job import ImportJobState
-from app.db.models.score_access import AccessOrigin
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat, ScoreDeletionStatus
 from app.modules.files.service import FilesService
 from app.modules.files.dependencies import get_files_service
@@ -612,61 +607,6 @@ def test_score_deletion_cleanup_records_retry_state_on_failure(
     assert stored.next_cleanup_at is not None
     assert stored.next_cleanup_at > now
     assert stored.deletion_error == "object storage temporarily unavailable"
-
-
-@pytest.mark.asyncio
-async def test_score_delete_removes_practice_sessions(
-    storage_usage_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, storage = storage_usage_session
-    score, revision, source = _seed_score_with_source(session, storage)
-    assert score.id is not None
-    assert score.score_uuid is not None
-    assert revision.id is not None
-    assert source.size_bytes is not None
-    session.add(
-        PracticeSession(
-            id=2001,
-            session_uuid="practice-delete-with-score",
-            score_id=score.id,
-            revision_id=revision.id,
-            access_origin=AccessOrigin.OWNER,
-            user_id=1,
-            state=PracticeSessionState.FINISHED,
-            input_source=PracticeInputSource.MICROPHONE,
-            sample_rate=44100,
-            channels=1,
-            frame_format="float32",
-            summary_status=PracticeSessionSummaryStatus.READY,
-            summary_payload='{"summary":"done"}',
-        )
-    )
-    session.commit()
-    storage_usage_service.record_allocation_sync(
-        session,
-        user_id=1,
-        category=StorageUsageCategory.SOURCE,
-        bytes_count=source.size_bytes,
-        reason="seed_source",
-        object_type="score_revision_source",
-        object_id=source.source_uuid,
-        storage_key=source.storage_key,
-    )
-
-    service = ScoreService(storage=storage)
-    await service.delete(AsyncSessionAdapter(session), score.score_uuid, 1)
-
-    marked_score = session.get(Score, score.id)
-    assert marked_score is not None
-    assert marked_score.deletion_status == ScoreDeletionStatus.DELETING
-
-    result = service.lifecycle_service.cleanup_deleting_scores(session)
-    assert result.scores_deleted == 1
-    assert session.get(Score, score.id) is None
-    assert session.get(PracticeSession, 2001) is None
-    account = session.get(StorageUsageAccount, 1)
-    assert account is not None
-    assert account.used_bytes == 0
 
 
 @pytest.mark.asyncio

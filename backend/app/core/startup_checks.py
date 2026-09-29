@@ -29,10 +29,6 @@ def log_external_tool_status(role: RuntimeRole) -> None:
     """Log role-specific runtime tool configuration."""
     if role in {RuntimeRole.WORKER, RuntimeRole.ALL}:
         _log_worker_tool_status()
-    if role in {RuntimeRole.PRACTICE, RuntimeRole.ALL}:
-        logger.bind(
-            event="runtime.practice_alignment_configured",
-        ).info("Practice alignment runtime configured")
 
 
 def _log_worker_tool_status() -> None:

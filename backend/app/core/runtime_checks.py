@@ -16,11 +16,9 @@ import redis
 
 from app.core.config import settings
 from app.core.control_plane_settings import require_control_plane_settings
-from app.core.settings.practice_runtime import get_practice_runtime_settings
 from app.core.settings.task_reliability import get_task_reliability_settings
 from app.core.settings.worker_runtime import get_worker_runtime_settings
 from app.processing.engines.omr.legato_manifest import HF_MODEL_REPOSITORIES, LEGATO_REPO_COMMIT
-from app.processing.resources import ensure_partitura_default_soundfont
 
 
 class RuntimeRole(StrEnum):
@@ -29,7 +27,6 @@ class RuntimeRole(StrEnum):
     OBSERVABILITY_EXPORTER = "observability-exporter"
     WORKER = "worker"
     BEAT = "beat"
-    PRACTICE = "practice"
     ALL = "all"
 
 
@@ -293,8 +290,6 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
             "app.worker.tasks.run_render_outbox_maintenance",
             "app.worker.tasks.playback_outbox_task",
             "app.worker.tasks.run_playback_outbox_maintenance",
-            "app.worker.tasks.practice_replay_object_deletion_task",
-            "app.worker.tasks.run_practice_replay_object_deletion_maintenance",
             "app.worker.tasks.performance_take_deletion_task",
             "app.worker.tasks.run_performance_take_deletion_maintenance",
             "app.worker.tasks.run_job_maintenance",
@@ -382,18 +377,6 @@ def check_render_engine(_: bool = False) -> CheckResult:
         return _result(
             "render_engine", False, f"verovio import failed: {type(exc).__name__}: {exc}"
         )
-
-
-def check_soundfont(_: bool = False) -> CheckResult:
-    practice_settings = get_practice_runtime_settings()
-    if not practice_settings.PRACTICE_SOUNDFONT_PATH:
-        return _result("soundfont", False, "PRACTICE_SOUNDFONT_PATH is not configured")
-    path = Path(practice_settings.PRACTICE_SOUNDFONT_PATH)
-    if not path.is_file():
-        return _result("soundfont", False, f"soundfont does not exist: {path}")
-    return _result(
-        "soundfont", True, f"soundfont found: {path} ({_format_size(path.stat().st_size)})"
-    )
 
 
 def check_paddleocr_models(include_sizes: bool = False) -> CheckResult:
@@ -494,24 +477,6 @@ def check_huggingface_models(include_sizes: bool = False) -> CheckResult:
     return _result("huggingface_models", True, "; ".join(summaries) + "; " + offline)
 
 
-def check_practice_alignment(_: bool = False) -> CheckResult:
-    ensure_partitura_default_soundfont(get_practice_runtime_settings().PRACTICE_SOUNDFONT_PATH)
-    try:
-        import numpy  # noqa: F401
-        import partitura  # noqa: F401
-        from matchmaker.dp import OnlineTimeWarpingArztFrame  # noqa: F401
-        from matchmaker.features.audio import ChromagramProcessor  # noqa: F401
-        from partitura.io.exportmidi import get_ppq  # noqa: F401
-    except Exception as exc:
-        return _result(
-            "practice_alignment", False, f"practice imports failed: {type(exc).__name__}: {exc}"
-        )
-    fluidsynth = shutil.which("fluidsynth")
-    if not fluidsynth:
-        return _result("practice_alignment", False, "fluidsynth executable not found on PATH")
-    return _result("practice_alignment", True, f"practice alignment ready; fluidsynth={fluidsynth}")
-
-
 def check_playback_renderer(_: bool = False) -> CheckResult:
     worker_settings = _worker_settings()
     if not worker_settings.PLAYBACK_SOUNDFONT_PATH:
@@ -561,15 +526,6 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
         "huggingface_models",
     ),
     RuntimeRole.BEAT: ("settings", "redis", "beat_state"),
-    RuntimeRole.PRACTICE: (
-        "settings",
-        "database",
-        "storage_quota_policy",
-        "redis",
-        "storage",
-        "soundfont",
-        "practice_alignment",
-    ),
 }
 ROLE_CHECK_NAMES[RuntimeRole.ALL] = tuple(
     dict.fromkeys(
@@ -580,7 +536,6 @@ ROLE_CHECK_NAMES[RuntimeRole.ALL] = tuple(
             RuntimeRole.OBSERVABILITY_EXPORTER,
             RuntimeRole.WORKER,
             RuntimeRole.BEAT,
-            RuntimeRole.PRACTICE,
         )
         for name in ROLE_CHECK_NAMES[role]
     )
@@ -595,8 +550,6 @@ CHECKS: dict[str, CheckSpec] = {
     "storage_quota_policy": CheckSpec("storage_quota_policy", check_storage_quota_policy),
     "redis": CheckSpec("redis", check_redis),
     "storage": CheckSpec("storage", check_api_storage),
-    "soundfont": CheckSpec("soundfont", check_soundfont),
-    "practice_alignment": CheckSpec("practice_alignment", check_practice_alignment),
     "playback_renderer": CheckSpec("playback_renderer", check_playback_renderer),
     "work_root": CheckSpec("work_root", check_work_root),
     "celery_tasks": CheckSpec("celery_tasks", check_celery_tasks),
