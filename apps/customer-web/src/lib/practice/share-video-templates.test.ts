@@ -5,14 +5,20 @@ import { resolveFloatingScoreRect } from './split-screen-frame-renderer';
 
 describe('share video templates', () => {
   it('keeps landscape output at 16:9 with separate full-frame panels', () => {
-    const layout = getShareVideoLayout({ kind: 'landscape' });
+    const layout = getShareVideoLayout({
+      orientation: 'landscape',
+      presentation: { kind: 'split' },
+    });
     expect([layout.width, layout.height]).toEqual([1280, 720]);
     expect(layout.scoreRect.x + layout.scoreRect.width).toBeLessThan(layout.videoRect.x);
     expect(layout.videoRect.width).toBeGreaterThan(0);
   });
 
   it('keeps portrait output at 9:16 with stacked panels', () => {
-    const layout = getShareVideoLayout({ kind: 'portrait' });
+    const layout = getShareVideoLayout({
+      orientation: 'portrait',
+      presentation: { kind: 'split' },
+    });
     expect([layout.width, layout.height]).toEqual([720, 1280]);
     expect(layout.scoreRect.y + layout.scoreRect.height).toBeLessThan(layout.videoRect.y);
   });
@@ -20,12 +26,10 @@ describe('share video templates', () => {
   it('leaves floating score geometry to the frame renderer instead of a fixed card', () => {
     for (const orientation of ['landscape', 'portrait'] as const) {
       for (const size of ['small', 'medium', 'large'] as const) {
-        for (const position of ['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const) {
+        for (const position of ['top', 'bottom'] as const) {
           const layout = getShareVideoLayout({
-            kind: 'floating',
             orientation,
-            position,
-            size,
+            presentation: { kind: 'floating', position, size },
           });
           expect(layout.scoreMode).toBe('floating');
           expect(layout.videoRect).toEqual({
@@ -42,16 +46,12 @@ describe('share video templates', () => {
 
   it('uses the actual contained video width for floating score size', () => {
     const small = getShareVideoLayout({
-      kind: 'floating',
       orientation: 'landscape',
-      position: 'top-right',
-      size: 'small',
+      presentation: { kind: 'floating', position: 'top', size: 'small' },
     });
     const large = getShareVideoLayout({
-      kind: 'floating',
       orientation: 'landscape',
-      position: 'top-right',
-      size: 'large',
+      presentation: { kind: 'floating', position: 'top', size: 'large' },
     });
     expect([small.width, small.height]).toEqual([1280, 720]);
     expect([large.width, large.height]).toEqual([1280, 720]);
@@ -69,10 +69,8 @@ describe('share video templates', () => {
     const viewport = { x: 0, y: 0, width: 1000, height: 200 };
     for (const position of ['top', 'bottom'] as const) {
       const layout = getShareVideoLayout({
-        kind: 'floating',
         orientation: 'portrait',
-        position,
-        size: 'medium',
+        presentation: { kind: 'floating', position, size: 'medium' },
       });
       const scoreRect = resolveFloatingScoreRect(layout, videoDrawRect, viewport);
       expect(layout.scoreBackground).toBeUndefined();

@@ -1,20 +1,15 @@
 import type { Rect } from './split-screen-score-camera';
 
-export type ShareVideoTemplate =
-  | { kind: 'landscape' }
-  | { kind: 'portrait' }
-  | {
-      kind: 'floating';
-      orientation: 'landscape' | 'portrait';
-      position:
-        | 'top'
-        | 'bottom'
-        | 'top-left'
-        | 'top-right'
-        | 'bottom-left'
-        | 'bottom-right';
-      size: 'small' | 'medium' | 'large';
-    };
+export type ShareVideoConfig = {
+  orientation: 'landscape' | 'portrait';
+  presentation:
+    | { kind: 'split' }
+    | {
+        kind: 'floating';
+        position: 'top' | 'bottom';
+        size: 'small' | 'medium' | 'large';
+      };
+};
 
 export type ShareVideoLayout = {
   width: number;
@@ -23,7 +18,7 @@ export type ShareVideoLayout = {
   videoRect: Rect;
   background: string;
   scoreMode: 'page' | 'floating';
-  floatingPosition?: 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  floatingPosition?: 'top' | 'bottom';
   floatingSize?: 'small' | 'medium' | 'large';
   scoreBackground?: string;
   scoreImageAlign?: 'center' | 'top' | 'bottom';
@@ -34,8 +29,8 @@ const GAP = 24;
 const BACKGROUND = '#0f172a';
 const SCORE_BACKGROUND = '#ffffff';
 
-export function getShareVideoLayout(template: ShareVideoTemplate): ShareVideoLayout {
-  if (template.kind === 'portrait') {
+export function getShareVideoLayout(config: ShareVideoConfig): ShareVideoLayout {
+  if (config.presentation.kind === 'split' && config.orientation === 'portrait') {
     const width = 720;
     const height = 1280;
     const scoreHeight = 660;
@@ -55,9 +50,9 @@ export function getShareVideoLayout(template: ShareVideoTemplate): ShareVideoLay
     };
   }
 
-  if (template.kind === 'floating') {
-    const width = template.orientation === 'portrait' ? 720 : 1280;
-    const height = template.orientation === 'portrait' ? 1280 : 720;
+  if (config.presentation.kind === 'floating') {
+    const width = config.orientation === 'portrait' ? 720 : 1280;
+    const height = config.orientation === 'portrait' ? 1280 : 720;
     const videoRect = { x: 0, y: 0, width, height };
     return {
       width,
@@ -68,8 +63,8 @@ export function getShareVideoLayout(template: ShareVideoTemplate): ShareVideoLay
       // video rectangle and the frozen system content bounds.
       scoreRect: { x: 0, y: 0, width: 0, height: 0 },
       videoRect,
-      floatingPosition: template.position,
-      floatingSize: template.size,
+      floatingPosition: config.presentation.position,
+      floatingSize: config.presentation.size,
       scoreBackground: undefined,
     };
   }

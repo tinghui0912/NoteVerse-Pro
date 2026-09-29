@@ -81,7 +81,7 @@ describe('ShareVideoPreview', () => {
         adapter={{} as never}
         scoreEndBeat={16}
         mediaTimeMs={1250}
-        template={{ kind: 'landscape' }}
+        config={{ orientation: 'landscape', presentation: { kind: 'split' } }}
         replayVideo={video}
       />
     );
@@ -98,7 +98,7 @@ describe('ShareVideoPreview', () => {
         adapter={{} as never}
         scoreEndBeat={16}
         mediaTimeMs={1250}
-        template={{ kind: 'portrait' }}
+        config={{ orientation: 'portrait', presentation: { kind: 'split' } }}
         replayVideo={video}
       />
     );
@@ -128,11 +128,9 @@ describe('ShareVideoPreview', () => {
         adapter={{} as never}
         scoreEndBeat={16}
         mediaTimeMs={1250}
-        template={{
-          kind: 'floating',
+        config={{
           orientation: 'portrait',
-          position: 'bottom-left',
-          size: 'large',
+          presentation: { kind: 'floating', position: 'bottom', size: 'large' },
         }}
         replayVideo={video}
       />
@@ -190,7 +188,7 @@ describe('ShareVideoPreview', () => {
         adapter={{} as never}
         scoreEndBeat={16}
         mediaTimeMs={1000}
-        template={{ kind: 'landscape' }}
+        config={{ orientation: 'landscape', presentation: { kind: 'split' } }}
         replayVideo={video}
         onFrameCommitted={onFrameCommitted}
       />

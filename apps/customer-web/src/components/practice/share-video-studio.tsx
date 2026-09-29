@@ -17,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShareVideoPreview } from '@/lib/practice/share-video-preview';
-import type { ShareVideoTemplate } from '@/lib/practice/share-video-templates';
+import type { ShareVideoConfig } from '@/lib/practice/share-video-templates';
 import {
   exportSplitScreenPerformanceVideo,
   getSplitScreenExportReadiness,
@@ -202,19 +202,24 @@ export function ShareVideoStudio({
       ? orientationPreference.value
       : initialShareVideoOrientation(replayVideo);
 
-  const shareTemplate = useMemo<ShareVideoTemplate>(() => {
+  const shareConfig = useMemo<ShareVideoConfig>(() => {
     if (scorePresentation === 'floating') {
       return {
-        kind: 'floating',
         orientation: videoOrientation,
-        position: floatingPosition,
-        size: floatingSize,
+        presentation: {
+          kind: 'floating',
+          position: floatingPosition,
+          size: floatingSize,
+        },
       };
     }
-    return { kind: videoOrientation };
+    return {
+      orientation: videoOrientation,
+      presentation: { kind: 'split' },
+    };
   }, [floatingPosition, floatingSize, scorePresentation, videoOrientation]);
 
-  const shareTemplateSummary = useMemo(() => {
+  const shareConfigSummary = useMemo(() => {
     const orientationLabel =
       videoOrientation === 'landscape'
         ? t('shareLandscapeTitle')
@@ -270,7 +275,7 @@ export function ShareVideoStudio({
         scoreEndBeat,
         signal: abortController.signal,
         onProgress: (progress) => setSplitExportProgress(progress.ratio),
-        template: shareTemplate,
+        config: shareConfig,
       });
       const url = URL.createObjectURL(result.blob);
       const anchor = document.createElement('a');
@@ -299,7 +304,7 @@ export function ShareVideoStudio({
     readiness.ok,
     scoreContainer,
     scoreEndBeat,
-    shareTemplate,
+    shareConfig,
     splitExportStatus,
     t,
     onExportingChange,
@@ -516,7 +521,7 @@ export function ShareVideoStudio({
             adapter={adapter}
             scoreEndBeat={scoreEndBeat}
             mediaTimeMs={mediaTimeMs}
-            template={shareTemplate}
+            config={shareConfig}
             isReplayPlaying={isReplayPlaying}
             replayVideo={replayVideo}
             onFrameCommitted={setPreviewFrameTimeMs}
@@ -526,7 +531,7 @@ export function ShareVideoStudio({
         <section className="space-y-3">
           <div>
             <h3 className="text-sm font-semibold">{t('shareExportTitle')}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">{shareTemplateSummary}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{shareConfigSummary}</p>
           </div>
           {!readiness.ok ? (
             <p className="text-xs text-amber-700 dark:text-amber-300">

@@ -770,10 +770,8 @@ describe('split-screen video export helpers', () => {
     const cache = await prepareScorePageCache(container, async () => makeImage());
     const outputCanvas = document.createElement('canvas');
     const layout = getShareVideoLayout({
-      kind: 'floating',
       orientation: 'landscape',
-      position: 'top-right',
-      size: 'medium',
+      presentation: { kind: 'floating', position: 'top', size: 'medium' },
     });
     outputCanvas.width = layout.width;
     outputCanvas.height = layout.height;

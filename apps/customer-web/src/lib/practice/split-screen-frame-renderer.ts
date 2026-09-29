@@ -24,7 +24,7 @@ export type SplitScreenOutputLayout = {
   videoRect: Rect;
   background: string;
   scoreMode?: 'page' | 'floating';
-  floatingPosition?: 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  floatingPosition?: 'top' | 'bottom';
   floatingSize?: 'small' | 'medium' | 'large';
   scoreBackground?: string;
   scoreImageAlign?: 'center' | 'top' | 'bottom';
@@ -161,11 +161,7 @@ export function resolveFloatingScoreRect(
   const width = Math.max(1, Math.min(maxWidth, maxHeight * aspectRatio));
   const height = width / aspectRatio;
   const centeredX = videoDrawRect.x + (videoDrawRect.width - width) / 2;
-  const x = layout.floatingPosition?.endsWith('right')
-    ? layout.width - FLOATING_SAFE_MARGIN - width
-    : layout.floatingPosition?.endsWith('left')
-      ? FLOATING_SAFE_MARGIN
-      : centeredX;
+  const x = centeredX;
   const topY = Math.max(
     FLOATING_SAFE_MARGIN,
     videoDrawRect.y - FLOATING_VIDEO_GAP - height

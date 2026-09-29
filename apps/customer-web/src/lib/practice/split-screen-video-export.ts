@@ -2,7 +2,7 @@ import { resolveSplitScreenScoreFrame } from './split-screen-playback-position';
 import { renderSplitScreenFrameAtTime } from './split-screen-frame-renderer';
 import {
   getShareVideoLayout,
-  type ShareVideoTemplate,
+  type ShareVideoConfig,
 } from './share-video-templates';
 import {
   findStablePageNumber,
@@ -68,7 +68,7 @@ export type SplitScreenExportOptions = {
   scoreEndBeat: number;
   signal?: AbortSignal;
   onProgress?: (progress: SplitScreenExportProgress) => void;
-  template?: ShareVideoTemplate;
+  config?: ShareVideoConfig;
 };
 
 type FrameRenderState = {
@@ -142,7 +142,7 @@ export async function exportSplitScreenPerformanceVideo({
   scoreEndBeat,
   signal,
   onProgress,
-  template = { kind: 'landscape' },
+  config = { orientation: 'landscape', presentation: { kind: 'split' } },
 }: SplitScreenExportOptions): Promise<SplitScreenExportResult> {
   const readiness = getSplitScreenExportReadiness({
     session,
@@ -157,7 +157,7 @@ export async function exportSplitScreenPerformanceVideo({
     throw new Error('split_screen_export_unavailable:video_not_ready');
   }
   const sourceVideo = session.video;
-  const layout = getShareVideoLayout(template);
+  const layout = getShareVideoLayout(config);
 
   const canvas = document.createElement('canvas');
   canvas.width = layout.width;
@@ -188,7 +188,7 @@ export async function exportSplitScreenPerformanceVideo({
     }
 
     const scorePages = await prepareScorePageCache(scoreContainer, undefined, {
-      visualMode: template.kind === 'floating' ? 'floating' : 'standard',
+      visualMode: config.presentation.kind === 'floating' ? 'floating' : 'standard',
     });
     const stagingCanvas = document.createElement('canvas');
     stagingCanvas.width = layout.width;
@@ -210,7 +210,7 @@ export async function exportSplitScreenPerformanceVideo({
       adapter,
       scoreEndBeat,
       frameState,
-      template,
+      config,
     });
     await prefetchUpcomingEventImage({
       mediaTimeMs: Math.max(0, video.currentTime * 1000) + 400,
@@ -306,7 +306,7 @@ export async function exportSplitScreenPerformanceVideo({
             adapter,
             scoreEndBeat,
             frameState,
-            template,
+            config,
           });
         } catch (err) {
           failExport(err);
@@ -330,7 +330,7 @@ export async function exportSplitScreenPerformanceVideo({
           adapter,
           scoreEndBeat,
           frameState,
-          template,
+          config,
         });
         const frameWaitMs = performance.now() - frameStartedAt;
         if (frameWaitMs > 250) {
@@ -420,7 +420,7 @@ export async function drawExportFrame({
   adapter,
   scoreEndBeat,
   frameState,
-  template = { kind: 'landscape' },
+  config = { orientation: 'landscape', presentation: { kind: 'split' } },
 }: {
   ctx: CanvasRenderingContext2D;
   video: HTMLVideoElement;
@@ -428,9 +428,9 @@ export async function drawExportFrame({
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
   frameState: FrameRenderState;
-  template?: ShareVideoTemplate;
+  config?: ShareVideoConfig;
 }): Promise<void> {
-  const layout = getShareVideoLayout(template);
+  const layout = getShareVideoLayout(config);
 
   await renderSplitScreenFrameAtTime({
     mediaTimeMs: Math.max(0, video.currentTime * 1000),

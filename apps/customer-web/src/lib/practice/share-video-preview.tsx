@@ -10,15 +10,15 @@ import {
   type ScorePageCache,
 } from './split-screen-score-model';
 import { resolveSplitScreenScoreFrame } from './split-screen-playback-position';
-import { getShareVideoLayout, type ShareVideoTemplate } from './share-video-templates';
+import { getShareVideoLayout, type ShareVideoConfig } from './share-video-templates';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 
 type PreviewStatus = 'idle' | 'preparing' | 'ready' | 'error';
 
 type PreviewRequest = {
   mediaTimeMs: number;
-  template: ShareVideoTemplate;
-  templateVersion: number;
+  config: ShareVideoConfig;
+  configVersion: number;
 };
 
 type RenderableVideo = HTMLVideoElement & {
@@ -38,7 +38,7 @@ export function ShareVideoPreview({
   adapter,
   scoreEndBeat,
   mediaTimeMs,
-  template,
+  config,
   isReplayPlaying = false,
   replayVideo,
   onFrameCommitted,
@@ -48,7 +48,7 @@ export function ShareVideoPreview({
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
   mediaTimeMs: number;
-  template: ShareVideoTemplate;
+  config: ShareVideoConfig;
   isReplayPlaying?: boolean;
   replayVideo: HTMLVideoElement | null;
   onFrameCommitted?: (mediaTimeMs: number) => void;
@@ -60,12 +60,12 @@ export function ShareVideoPreview({
   const pendingRequestRef = useRef<PreviewRequest | null>(null);
   const activeRenderRef = useRef(false);
   const initialPreviewQueuedRef = useRef(false);
-  const templateVersionRef = useRef(0);
+  const configVersionRef = useRef(0);
   const frameCallbackRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const disposedRef = useRef(false);
   const isPlayingRef = useRef(isReplayPlaying);
-  const templateRef = useRef(template);
+  const configRef = useRef(config);
   const mediaTimeRef = useRef(mediaTimeMs);
   const [status, setStatus] = useState<PreviewStatus>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -125,7 +125,7 @@ export function ShareVideoPreview({
         const stagingCanvas = stagingCanvasRef.current;
         if (!scorePages || !sourceVideo || !stagingCanvas) continue;
 
-        const layout = getShareVideoLayout(request.template);
+        const layout = getShareVideoLayout(request.config);
         if (stagingCanvas.width !== layout.width || stagingCanvas.height !== layout.height) {
           stagingCanvas.width = layout.width;
           stagingCanvas.height = layout.height;
@@ -164,7 +164,7 @@ export function ShareVideoPreview({
 
           const requestIsCurrent =
             !pendingRequestRef.current &&
-            request.templateVersion === templateVersionRef.current;
+            request.configVersion === configVersionRef.current;
           if (!requestIsCurrent || disposedRef.current) continue;
 
           commitStagingFrame(layout);
@@ -173,7 +173,7 @@ export function ShareVideoPreview({
           setStatus('ready');
         } catch (cause) {
           if (
-            request.templateVersion !== templateVersionRef.current ||
+            request.configVersion !== configVersionRef.current ||
             disposedRef.current ||
             pendingRequestRef.current
           ) {
@@ -193,8 +193,8 @@ export function ShareVideoPreview({
       if (disposedRef.current || !replayVideo || !scorePagesRef.current) return;
       pendingRequestRef.current = {
         mediaTimeMs: Math.max(0, nextTimeMs),
-        template: templateRef.current,
-        templateVersion: templateVersionRef.current,
+        config: configRef.current,
+        configVersion: configVersionRef.current,
       };
       void drainPreviewQueue();
     },
@@ -216,7 +216,7 @@ export function ShareVideoPreview({
       }
       try {
         const scorePages = await prepareScorePageCache(scoreContainer, undefined, {
-          visualMode: template.kind === 'floating' ? 'floating' : 'standard',
+          visualMode: config.presentation.kind === 'floating' ? 'floating' : 'standard',
         });
         if (cancelled || disposedRef.current) return;
         scorePagesRef.current = scorePages;
@@ -256,20 +256,20 @@ export function ShareVideoPreview({
     session,
     retryNonce,
     scoreContainer,
-    template.kind,
+    config.presentation.kind,
   ]);
 
   useEffect(() => {
-    if (JSON.stringify(templateRef.current) !== JSON.stringify(template)) {
-      templateVersionRef.current += 1;
+    if (JSON.stringify(configRef.current) !== JSON.stringify(config)) {
+      configVersionRef.current += 1;
     }
-    templateRef.current = template;
+    configRef.current = config;
     if (scorePagesRef.current) {
       enqueuePreview(
         replayVideo?.currentTime ? replayVideo.currentTime * 1000 : mediaTimeMs
       );
     }
-  }, [enqueuePreview, mediaTimeMs, replayVideo, template]);
+  }, [config, enqueuePreview, mediaTimeMs, replayVideo]);
 
   useEffect(() => {
     isPlayingRef.current = isReplayPlaying;
