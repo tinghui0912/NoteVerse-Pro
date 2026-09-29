@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.processing.practice_score.score_loader import practice_score_timeline_from_musicxml
-from app.processing.engines.practice_alignment.score_timeline import (
+from app.processing.practice_score.score_timeline import (
     ExpectedPracticeGroup,
     PracticeAttackStep,
     PracticeAttackTarget,

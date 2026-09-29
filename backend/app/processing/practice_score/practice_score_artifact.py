@@ -5,7 +5,7 @@ import hashlib
 import json
 from typing import Any, Sequence
 
-from app.processing.engines.practice_alignment.score_timeline import (
+from app.processing.practice_score.score_timeline import (
     PracticeScoreTimeline,
 )
 from app.processing.practice_score.tempo import PracticeTempoSegment

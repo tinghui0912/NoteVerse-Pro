@@ -89,7 +89,7 @@ class NotificationErrorCode:
 
 
 class PracticeErrorCode:
-    PRACTICE_ALIGNMENT_FAILED = "practice_alignment_failed"
+    PRACTICE_SOURCE_FAILED = "practice_source_failed"
     PRACTICE_SCOPE_INVALID = "practice_scope_invalid"
     NO_PRACTICE_ACCESS = "no_practice_access"
 

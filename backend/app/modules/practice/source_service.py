@@ -18,14 +18,14 @@ from app.modules.practice.source_schemas import (
 )
 from app.modules.score_access.policy import ScoreAccessContext, ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
-from app.processing.engines.practice_alignment.musicxml_stable_ids import (
+from app.processing.practice_score.musicxml_stable_ids import (
     prepare_musicxml_ids_for_practice,
 )
-from app.processing.engines.practice_alignment.score_timeline import (
+from app.processing.practice_score.score_timeline import (
     PracticeAttackTarget,
     PracticeStepNote,
 )
-from app.processing.engines.practice_alignment.target_catalog import (
+from app.processing.practice_score.target_catalog import (
     PracticeTargetCatalog,
     practice_target_catalog_from_musicxml,
 )
@@ -80,7 +80,7 @@ class PracticeSourceService:
             ).opt(exception=exc).warning("Practice target catalog generation failed")
             raise ExternalServiceException(
                 service="practice_target_catalog",
-                code=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
+                code=ErrorCode.PRACTICE_SOURCE_FAILED,
             ) from exc
 
         return self._target_catalog_read(
@@ -126,7 +126,7 @@ class PracticeSourceService:
             ).opt(exception=exc).warning("Practice score artifact generation failed")
             raise ExternalServiceException(
                 service="practice_score_artifact",
-                code=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
+                code=ErrorCode.PRACTICE_SOURCE_FAILED,
             ) from exc
 
         return PracticeScoreArtifactRead(**artifact)
@@ -155,7 +155,7 @@ class PracticeSourceService:
             ).opt(exception=exc).warning("Practice ready score content generation failed")
             raise ExternalServiceException(
                 service="practice_ready_score_content",
-                code=ErrorCode.PRACTICE_ALIGNMENT_FAILED,
+                code=ErrorCode.PRACTICE_SOURCE_FAILED,
             ) from exc
 
         return PracticeReadyScoreContentRead(

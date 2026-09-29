@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from app.processing.engines.practice_alignment.score_timeline import PracticeScoreTimeline
-from app.processing.engines.practice_alignment.target_catalog import practice_target_catalog_from_timeline
+from app.processing.practice_score.score_timeline import PracticeScoreTimeline
+from app.processing.practice_score.target_catalog import practice_target_catalog_from_timeline
 
 
 def _note_array(np, rows):

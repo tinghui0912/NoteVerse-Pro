@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 
-from app.processing.engines.practice_alignment.musicxml_stable_ids import (
+from app.processing.practice_score.musicxml_stable_ids import (
     prepare_musicxml_ids_for_practice,
 )
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.processing.engines.practice_alignment.score_timeline import PracticeScoreTimeline
+from app.processing.practice_score.score_timeline import PracticeScoreTimeline
 from app.processing.practice_score.practice_score_artifact import (
     practice_score_artifact_from_timeline,
 )
