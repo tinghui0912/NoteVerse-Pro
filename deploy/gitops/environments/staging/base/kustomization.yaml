@@ -9,8 +9,6 @@ resources:
   - control-plane-network-policy.yaml
   - observability-exporter-deployment.yaml
   - observability-exporter-service.yaml
-  - backend-practice-deployment.yaml
-  - backend-practice-service.yaml
   - model-cache-agent-daemonset.yaml
   - backend-worker-deployment.yaml
   - backend-beat-deployment.yaml

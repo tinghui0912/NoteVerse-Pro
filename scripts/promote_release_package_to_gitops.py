@@ -26,7 +26,6 @@ GITOPS_ENV_ROOT = REPO_ROOT / "deploy" / "gitops" / "environments"
 ALLOWED_FILES = {
     "README.md",
     "backend-config.env",
-    "backend-practice-config.env",
     "backend-worker-config.env",
     "control-plane-config.env",
     "customer-web-config.env",
@@ -34,7 +33,6 @@ ALLOWED_FILES = {
     "kustomization.yaml",
     "patch-backend-api-runtime-volumes.yaml",
     "patch-backend-beat-runtime-volumes.yaml",
-    "patch-backend-practice-runtime-volumes.yaml",
     "patch-backend-worker-runtime-volumes.yaml",
     "patch-backend-worker-scheduling.yaml",
     "release-metadata.json",

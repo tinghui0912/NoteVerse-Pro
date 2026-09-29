@@ -44,7 +44,7 @@ Main feature modules:
 ## Quick Start
 
 Local backend development runs through Docker so API, worker, beat, LEGATO,
-Verovio, PaddleOCR, and Matchmaker share the same Linux runtime shape as future
+Verovio, and PaddleOCR share the same Linux runtime shape as future
 deployments. Redis and the database can continue running on the Windows host.
 Host virtualenv or direct `pip install` workflows are not supported for backend
 development or testing.
@@ -109,27 +109,19 @@ Dependency files are split by purpose:
 - `requirements/fingering.txt`: API fingering generation, kept in API for now.
 - `requirements/render.txt`, `ocr.txt`, `worker-app.txt`, `worker.txt`:
   worker processing capabilities.
-- `requirements/practice-app.txt`, `practice-runtime.txt`, `practice.txt`:
-  realtime practice capabilities.
 - `requirements/quality-tools.txt`, `quality-core.txt`,
   `quality-practice.txt`: Docker quality-check dependencies.
 
 Runtime images do not install development or quality tools by default. The
 supported quality path is the dedicated Docker quality image, not installing
-tooling into API, practice, beat, or worker runtime images.
-The generic quality image intentionally does not use the ML base and does not
-install practice alignment, PaddleOCR, Legato, torch, or transformer
-dependencies. Practice tests run in a separate practice quality image because
-`pymatchmaker` is a Cython extension with a heavier build chain.
-The practice runtime and practice quality images share
-`docker/backend/Dockerfile.practice-deps`, so native matchmaker dependencies are
-built once per dependency base instead of duplicated in every practice image.
+tooling into API, beat, or worker runtime images. The generic quality image
+intentionally does not use the ML base and does not install PaddleOCR, Legato,
+torch, or transformer dependencies.
 
 Build normal runtime images with:
 
 ```powershell
 docker compose -f docker-compose.backend-dev.yml build api
-docker compose -f docker-compose.backend-dev.yml build practice
 docker compose -f docker-compose.backend-dev.yml build beat
 docker compose -f docker-compose.backend-dev.yml build worker
 ```
@@ -184,11 +176,9 @@ Targeted checks are available when a full run is not needed:
 ..\scripts\backend_quality_docker.ps1 -Check pytest
 ```
 
-`pytest` is split into `pytest-core` and `pytest-practice`. Core tests include
-worker contracts such as Celery configuration, import execution, rendering,
-playback, and runtime-check behavior. Practice realtime tests run in the
-practice quality image, including tests that require practice-only dependencies
-such as `partitura`, `pymatchmaker`, and the practice render/target catalog.
+`pytest` runs in the backend quality image and covers worker contracts such as
+Celery configuration, import execution, rendering, playback, Performance Take,
+and runtime-check behavior.
 
 The repository-wide quality wrapper delegates backend checks to the same
 quality image:

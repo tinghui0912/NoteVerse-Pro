@@ -12,8 +12,6 @@ The runtime contract is defined in:
 Planned workload boundaries:
 
 - `backend-api`: FastAPI HTTP API, `/health/*`, `/metrics`;
-- `backend-practice`: FastAPI HTTP/WebSocket realtime practice service,
-  `/api/v1/practice/*`, `/health/*`, `/metrics`;
 - `backend-worker`: Celery worker, no HTTP service;
 - `backend-beat`: singleton Celery beat scheduler, no HTTP service;
 - `frontend`: Next.js web application;
@@ -34,7 +32,9 @@ observability platform.
 They intentionally reference placeholder images and pre-existing
 ConfigMaps/Secrets. Environment-specific overlays must provide real images,
 resource classes, Gateway routing, storage, backend secrets, public origins,
-and role-specific backend ConfigMaps explicitly.
+and role-specific backend ConfigMaps explicitly. Browser practice runs in
+Customer Web and uses the main backend API only for exact practice source
+assets.
 
 The first environment overlay template lives under
 [`overlays/staging/`](overlays/staging/).

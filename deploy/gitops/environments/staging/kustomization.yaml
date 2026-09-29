@@ -18,9 +18,6 @@ images:
   - name: noteverse-backend-api
     newName: ghcr.io/tinghui0912/noteverse/backend-api
     digest: sha256:5e8775ae5f2221d9f5a7827c44a266a3611bde27fb814b5e670923f855880906
-  - name: noteverse-backend-practice
-    newName: ghcr.io/tinghui0912/noteverse/backend-practice
-    digest: sha256:cf58daa89cfe58b2b87c19f64ee285beab26ad3c82cbeecf1113fddb1cac8c5b
   - name: noteverse-backend-worker
     newName: ghcr.io/tinghui0912/noteverse/backend-worker
     digest: sha256:54112e287f4c6861a4e5b6d84ab35746a1ee9e0583fd034ece1d0811175742e2
@@ -45,9 +42,6 @@ configMapGenerator:
   - name: noteverse-backend-worker-config
     envs:
       - backend-worker-config.env
-  - name: noteverse-backend-practice-config
-    envs:
-      - backend-practice-config.env
   - name: noteverse-frontend-config
     envs:
       - customer-web-config.env
@@ -63,8 +57,6 @@ replicas:
     count: 1
   - name: noteverse-control-plane
     count: 1
-  - name: noteverse-backend-practice
-    count: 1
   - name: noteverse-backend-worker
     count: 0
   - name: noteverse-customer-web
@@ -75,6 +67,5 @@ replicas:
 patches:
   - path: patch-backend-worker-scheduling.yaml
   - path: patch-backend-api-runtime-volumes.yaml
-  - path: patch-backend-practice-runtime-volumes.yaml
   - path: patch-backend-worker-runtime-volumes.yaml
   - path: patch-backend-beat-runtime-volumes.yaml

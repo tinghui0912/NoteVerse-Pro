@@ -40,7 +40,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--backend-api-image", required=True)
     parser.add_argument("--backend-beat-image", required=True)
-    parser.add_argument("--backend-practice-image", required=True)
     parser.add_argument("--backend-worker-image", required=True)
     parser.add_argument("--customer-web-image", required=True)
     parser.add_argument("--platform-admin-image", required=True)
@@ -92,7 +91,6 @@ def require_nonblank_arguments(args: argparse.Namespace) -> None:
     required_fields = (
         "backend_api_image",
         "backend_beat_image",
-        "backend_practice_image",
         "backend_worker_image",
         "customer_web_image",
         "platform_admin_image",
@@ -181,9 +179,6 @@ def materialize_base_images(base: Path, images: dict[str, str]) -> None:
         "backend-beat-deployment.yaml": {
             "noteverse-backend-beat:replace-me": images["backend_beat"]
         },
-        "backend-practice-deployment.yaml": {
-            "noteverse-backend-practice:replace-me": images["backend_practice"]
-        },
         "backend-worker-deployment.yaml": {
             "noteverse-backend-worker:replace-me": images["backend_worker"]
         },
@@ -219,7 +214,6 @@ def render_overlay(args: argparse.Namespace) -> Path:
 
     backend_api_ref = parse_image_ref(args.backend_api_image)
     backend_beat_ref = parse_image_ref(args.backend_beat_image)
-    backend_practice_ref = parse_image_ref(args.backend_practice_image)
     backend_worker_ref = parse_image_ref(args.backend_worker_image)
     customer_web_ref = parse_image_ref(args.customer_web_image)
     platform_admin_ref = parse_image_ref(args.platform_admin_image)
@@ -233,7 +227,6 @@ def render_overlay(args: argparse.Namespace) -> Path:
     )
     kustomization = replace_image_block(kustomization, "noteverse-backend-api", backend_api_ref)
     kustomization = replace_image_block(kustomization, "noteverse-backend-beat", backend_beat_ref)
-    kustomization = replace_image_block(kustomization, "noteverse-backend-practice", backend_practice_ref)
     kustomization = replace_image_block(kustomization, "noteverse-backend-worker", backend_worker_ref)
     kustomization = replace_image_block(kustomization, "noteverse-customer-web", customer_web_ref)
     kustomization = replace_image_block(kustomization, "noteverse-platform-admin", platform_admin_ref)
@@ -244,7 +237,6 @@ def render_overlay(args: argparse.Namespace) -> Path:
         {
             "backend_api": args.backend_api_image,
             "backend_beat": args.backend_beat_image,
-            "backend_practice": args.backend_practice_image,
             "backend_worker": args.backend_worker_image,
             "customer_web": args.customer_web_image,
             "platform_admin": args.platform_admin_image,

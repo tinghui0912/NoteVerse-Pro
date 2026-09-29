@@ -55,7 +55,7 @@ back to the production issuer for browser-trusted TLS rehearsal.
 
 The checked-in staging ConfigMaps use repository test OSS bucket settings for
 production-shaped S3 storage and split backend runtime values into shared,
-Worker, Practice, and Control Plane ownership files. Keep credentials in
+Worker, and Control Plane ownership files. Keep credentials in
 `Secret/noteverse-backend-secret`; do not commit access keys.
 
 The overlay intentionally does not generate Secrets. Credentials should come
@@ -65,7 +65,5 @@ Frontend routing notes:
 
 - `NEXT_BACKEND_ORIGIN` points to the internal backend Service because it is used
   by Next.js rewrites on the server side.
-- Practice source requests are served by the main backend API; the separate
-  backend-practice service is no longer required by Customer Web server-side
-  rewrites.
+- Practice source requests are served by the main backend API.
 - Browser API and realtime requests use same-origin `/api/v1`.

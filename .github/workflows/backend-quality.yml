@@ -7,8 +7,6 @@ on:
       - "backend/**"
       - "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json"
       - "docker/backend/Dockerfile.quality"
-      - "docker/backend/Dockerfile.practice-deps"
-      - "docker/backend/Dockerfile.practice-quality"
       - "scripts/check_practice_score_artifact_contract.py"
       - "scripts/backend_quality_docker.ps1"
       - "scripts/quality.ps1"
@@ -18,8 +16,6 @@ on:
       - "backend/**"
       - "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json"
       - "docker/backend/Dockerfile.quality"
-      - "docker/backend/Dockerfile.practice-deps"
-      - "docker/backend/Dockerfile.practice-quality"
       - "scripts/check_practice_score_artifact_contract.py"
       - "scripts/backend_quality_docker.ps1"
       - "scripts/quality.ps1"
@@ -60,8 +56,6 @@ jobs:
         working-directory: backend
     env:
       QUALITY_IMAGE: noteverse-backend-quality:ci
-      PRACTICE_DEPS_IMAGE: noteverse-backend-practice-deps:ci
-      PRACTICE_QUALITY_IMAGE: noteverse-backend-practice-quality:ci
       QUALITY_ENV_FILE: /tmp/backend-quality.env
       SECRET_KEY: ci-test-secret-key-that-is-long-enough
       AUTH_COOKIE_NAME: noteverse_session
@@ -107,17 +101,6 @@ jobs:
       - name: Build backend quality image
         run: docker build -f ../docker/backend/Dockerfile.quality -t "$QUALITY_IMAGE" ..
 
-      - name: Build backend practice dependency image
-        run: docker build -f ../docker/backend/Dockerfile.practice-deps -t "$PRACTICE_DEPS_IMAGE" ..
-
-      - name: Build backend practice quality image
-        run: >-
-          docker build
-          -f ../docker/backend/Dockerfile.practice-quality
-          --build-arg PRACTICE_DEPS_IMAGE="$PRACTICE_DEPS_IMAGE"
-          -t "$PRACTICE_QUALITY_IMAGE"
-          ..
-
       - name: Write backend quality environment
         run: |
           cat > "$QUALITY_ENV_FILE" <<EOF
@@ -156,7 +139,7 @@ jobs:
         run: >-
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE"
           -v "$GITHUB_WORKSPACE:/repo:ro"
-          "$PRACTICE_QUALITY_IMAGE" bash -lc
+          "$QUALITY_IMAGE" bash -lc
           "cd /repo &&
           PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py &&
           PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py --self-test-missing-fixture"
@@ -174,8 +157,6 @@ jobs:
         run: |
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python scripts/export_openapi.py customer-api --check"
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python scripts/export_openapi.py control-plane-api --check"
-          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$PRACTICE_QUALITY_IMAGE" bash -lc "python scripts/export_openapi.py practice-api --check"
-          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$PRACTICE_QUALITY_IMAGE" bash -lc "python scripts/export_realtime_protocol.py --check"
 
       - name: Run database migrations
         run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc "python -m alembic upgrade head"
@@ -183,35 +164,4 @@ jobs:
       - name: Run core pytest
         run: >-
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -lc
-          "python -m pytest tests -q
-          --ignore=tests/test_practice_api_smoke.py
-          --ignore=tests/test_practice_audio_replay_evaluation.py
-          --ignore=tests/test_practice_render_identity_contract.py
-          --ignore=tests/test_practice_runtime_regressions.py
-          --ignore=tests/test_practice_websocket_flow.py"
-
-      - name: Run practice pytest
-        run: >-
-          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$PRACTICE_QUALITY_IMAGE" bash -lc
-          "python -m pytest
-          tests/test_practice_api_smoke.py
-          tests/test_practice_audio_replay_evaluation.py
-          tests/test_practice_render_identity_contract.py
-          tests/test_practice_runtime_regressions.py
-          tests/test_practice_websocket_flow.py
-          -q"
-
-      - name: Enforce Practice session-service coverage
-        run: >-
-          docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$PRACTICE_QUALITY_IMAGE" bash -lc
-          "python -m pytest
-          tests/test_practice_service_access.py
-          tests/test_practice_api_smoke.py
-          tests/test_practice_audio_replay_evaluation.py
-          tests/test_practice_render_identity_contract.py
-          tests/test_practice_runtime_regressions.py
-          tests/test_practice_websocket_flow.py
-          -q
-          --cov=app.modules.practice.service
-          --cov-report=term-missing
-          --cov-fail-under=80"
+          "python -m pytest tests -q"

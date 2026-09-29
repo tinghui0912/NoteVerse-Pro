@@ -19,14 +19,6 @@ case "${1:-api}" in
     fi
     exec python -m uvicorn "${uvicorn_args[@]}"
     ;;
-  practice)
-    python scripts/check_runtime.py --role practice
-    uvicorn_args=(app.practice_main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
-    if [ "${UVICORN_RELOAD:-false}" = "true" ]; then
-      enable_uvicorn_reload
-    fi
-    exec python -m uvicorn "${uvicorn_args[@]}"
-    ;;
   control)
     python scripts/check_runtime.py --role control
     uvicorn_args=(app.control_plane_main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
