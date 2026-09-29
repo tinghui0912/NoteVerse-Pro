@@ -5,13 +5,18 @@ import {
   parseSavedSyncMetadata,
   parseSavedTempoPlan,
 } from './share-video-session';
+import type {
+  PerformanceTakeRead,
+  PerformanceTakeSyncMetadata,
+  ResolvedTempoPlan,
+} from '@/lib/api/performance-takes';
 
-const tempoPlan = {
+const tempoPlan: ResolvedTempoPlan = {
   selection: { mode: 'SCORE' },
   segments: [{ startBeat: 0, bpm: 96, source: 'MUSICXML' }],
 };
 
-const syncMetadata = {
+const syncMetadata: PerformanceTakeSyncMetadata = {
   recordingTimebase: {
     recordingStartPerfTimeMs: 0,
     recordingEndPerfTimeMs: 4000,
@@ -26,7 +31,7 @@ const syncMetadata = {
   },
 };
 
-const take = {
+const take: PerformanceTakeRead = {
   take_id: 'take-1',
   score_id: 'score-1',
   revision_id: 'revision-1',
@@ -41,7 +46,7 @@ const take = {
   resolved_tempo_plan: tempoPlan,
   sync_metadata: syncMetadata,
   created_at: '2026-09-26T00:00:00.000Z',
-} as const;
+};
 
 const artifact = {
   schemaVersion: 1 as const,

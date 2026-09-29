@@ -1,95 +1,29 @@
 import { apiClient, apiUrl, type ApiResponse } from '@/lib/api-client';
+import type {
+  PerformanceTakeCreateRequest,
+  PerformanceTakeDeleteResponse,
+  PerformanceTakeListResponse,
+  PerformanceTakePlaybackRead,
+  PerformanceTakeRead,
+  PerformanceTakeSyncMetadata,
+  PerformanceTakeUploadAuthorizationRead,
+  PerformanceTakeUploadAuthorizationRequest,
+  ResolvedTempoPlan,
+} from '@/generated/api/types.gen';
 
 export const MAX_PERFORMANCE_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 
-export interface PerformanceTakeUploadAuthorizationRequest {
-  score_id: string;
-  client_request_id: string;
-  media_kind: 'AUDIO' | 'VIDEO';
-  media_byte_size: number;
-  media_mime_type: string;
-  duration_ms: number;
-  scope_type?: string;
-  scope_start_beat: number;
-  scope_terminal_beat: number;
-  revision_id: string;
-  artifact_id: string;
-  resolved_tempo_plan: Record<string, unknown>;
-  sync_metadata: Record<string, unknown>;
-}
-
-export interface PerformanceTakeUploadAuthorizationRead {
-  take_id: string;
-  status?: 'AUTHORIZED' | 'FINALIZING' | 'ARCHIVED';
-  upload_url?: string | null;
-  upload_method?: string | null;
-  upload_headers: Record<string, string>;
-  object_key?: string | null;
-  reservation_id?: string | null;
-  expires_in?: number;
-  take?: PerformanceTakeRead | null;
-}
-
-export interface PerformanceTakeCreateRequest {
-  take_id: string;
-  client_request_id: string;
-  reservation_id: string;
-  score_id: string;
-  media_kind: 'AUDIO' | 'VIDEO';
-  media_byte_size: number;
-  media_mime_type: string;
-  duration_ms: number;
-  scope_type?: string;
-  scope_start_beat: number;
-  scope_terminal_beat: number;
-  revision_id: string;
-  artifact_id: string;
-  resolved_tempo_plan: Record<string, unknown>;
-  sync_metadata: Record<string, unknown>;
-}
-
-export interface PerformanceTakeRead {
-  take_id: string;
-  score_id?: string | null;
-  score_title?: string | null;
-  revision_id: string;
-  artifact_id: string;
-  media_kind: string;
-  media_mime_type: string;
-  media_byte_size: number;
-  duration_ms: number;
-  scope_type?: string;
-  scope_start_beat: number;
-  scope_terminal_beat: number;
-  deletion_status?: 'ACTIVE' | 'DELETING';
-  resolved_tempo_plan: Record<string, unknown>;
-  sync_metadata: Record<string, unknown>;
-  created_at: string;
-}
-
-export interface PerformanceTakePlaybackRead {
-  take_id: string;
-  playback_url: string;
-  download_url: string;
-  media_kind: string;
-  media_mime_type: string;
-  media_byte_size: number;
-  duration_ms: number;
-  expires_in: number;
-}
-
-export interface PerformanceTakeListResponse {
-  items: PerformanceTakeRead[];
-  total: number;
-  limit?: number;
-  offset?: number;
-  has_more?: boolean;
-}
-
-export interface PerformanceTakeDeleteResponse {
-  status: string;
-  take_id: string;
-}
+export type {
+  PerformanceTakeCreateRequest,
+  PerformanceTakeDeleteResponse,
+  PerformanceTakeListResponse,
+  PerformanceTakePlaybackRead,
+  PerformanceTakeRead,
+  PerformanceTakeSyncMetadata,
+  PerformanceTakeUploadAuthorizationRead,
+  PerformanceTakeUploadAuthorizationRequest,
+  ResolvedTempoPlan,
+};
 
 export const performanceTakesApi = {
   authorizeUpload: (request: PerformanceTakeUploadAuthorizationRequest, signal?: AbortSignal) =>

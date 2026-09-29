@@ -6,7 +6,11 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import MyPerformancesPage from './page';
-import type { PerformanceTakeRead } from '@/lib/api/performance-takes';
+import type {
+  PerformanceTakeRead,
+  PerformanceTakeSyncMetadata,
+  ResolvedTempoPlan,
+} from '@/lib/api/performance-takes';
 
 const mockRouterPush = vi.fn();
 const mockToast = vi.fn();
@@ -136,12 +140,12 @@ const mockPlaybackQuery = vi.hoisted(() => ({
   refetch: vi.fn(),
 }));
 
-const resolvedTempoPlan = {
+const resolvedTempoPlan: ResolvedTempoPlan = {
   selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
   segments: [{ startBeat: 0, bpm: 120, source: 'CUSTOM' }],
 };
 
-const syncMetadata = {
+const syncMetadata: PerformanceTakeSyncMetadata = {
   recordingTimebase: {
     recordingStartPerfTimeMs: 0,
     recordingEndPerfTimeMs: 30000,

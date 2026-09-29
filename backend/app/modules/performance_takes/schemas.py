@@ -25,7 +25,7 @@ TempoPlanSelection = ScoreTempoPlanSelection | CustomFixedBpmTempoPlanSelection
 class ResolvedTempoPlanSegment(StrictPerformanceTakeModel):
     startBeat: float = Field(ge=0)
     bpm: float = Field(gt=0)
-    source: str = Field(pattern="^(MUSICXML|CUSTOM)$")
+    source: str = Field(pattern="^(MUSICXML|PRODUCT_DEFAULT|CUSTOM)$")
 
 
 class ResolvedTempoPlan(StrictPerformanceTakeModel):

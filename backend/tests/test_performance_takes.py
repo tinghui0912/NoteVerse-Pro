@@ -78,6 +78,31 @@ DEFAULT_TAKE_SYNC_METADATA = {
         ],
     }
 }
+
+
+def test_performance_take_schema_accepts_product_default_tempo_source() -> None:
+    request = PerformanceTakeUploadAuthorizationRequest(
+        score_id="score-uuid-10",
+        client_request_id="req-product-default-tempo",
+        media_kind="AUDIO",
+        media_byte_size=len(VALID_WEBM_BYTES),
+        media_mime_type="audio/webm",
+        duration_ms=5000,
+        scope_type="FULL",
+        scope_start_beat=0,
+        scope_terminal_beat=16,
+        revision_id=DEFAULT_TAKE_REVISION_ID,
+        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
+        resolved_tempo_plan={
+            "selection": {"mode": "SCORE"},
+            "segments": [{"startBeat": 0, "bpm": 80, "source": "PRODUCT_DEFAULT"}],
+        },
+        sync_metadata=DEFAULT_TAKE_SYNC_METADATA,
+    )
+
+    assert request.resolved_tempo_plan.segments[0].source == "PRODUCT_DEFAULT"
+
+
 POSTGRES_MIGRATION_EMPTY_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_EMPTY_URL"
 POSTGRES_MIGRATION_0053_SHORT_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_0053_SHORT_URL"
 POSTGRES_MIGRATION_0053_LONG_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_0053_LONG_URL"

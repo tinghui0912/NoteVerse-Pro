@@ -9,6 +9,8 @@ import {
   performanceTakesApi,
   uploadMediaToSignedUrl,
   type PerformanceTakeRead,
+  type PerformanceTakeSyncMetadata,
+  type ResolvedTempoPlan,
 } from '@/lib/api/performance-takes';
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
 
@@ -34,12 +36,12 @@ function createWrapper() {
   };
 }
 
-const resolvedTempoPlan = {
+const resolvedTempoPlan: ResolvedTempoPlan = {
   selection: { mode: 'SCORE' },
   segments: [{ startBeat: 0, bpm: 120, source: 'MUSICXML' }],
 };
 
-const syncMetadata = {
+const syncMetadata: PerformanceTakeSyncMetadata = {
   recordingTimebase: {
     recordingStartPerfTimeMs: 0,
     recordingEndPerfTimeMs: 1000,

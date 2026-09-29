@@ -5,6 +5,8 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import {
   performanceTakesApi,
   uploadMediaToSignedUrl,
+  type PerformanceTakeSyncMetadata,
+  type ResolvedTempoPlan,
   type PerformanceTakeCreateRequest,
   type PerformanceTakeUploadAuthorizationRequest,
 } from '@/lib/api/performance-takes';
@@ -85,8 +87,8 @@ export interface SavePerformanceTakeInput {
   scopeType?: string;
   scopeStartBeat: number;
   scopeTerminalBeat: number;
-  resolvedTempoPlan: Record<string, unknown>;
-  syncMetadata: Record<string, unknown>;
+  resolvedTempoPlan: ResolvedTempoPlan;
+  syncMetadata: PerformanceTakeSyncMetadata;
 }
 
 export function useSavePerformanceTake() {
@@ -158,7 +160,7 @@ export function useSavePerformanceTake() {
         await uploadMediaToSignedUrl(
           authData.upload_url,
           authData.upload_method,
-          authData.upload_headers,
+          authData.upload_headers ?? {},
           input.mediaBlob
         );
       } catch (uploadErr) {

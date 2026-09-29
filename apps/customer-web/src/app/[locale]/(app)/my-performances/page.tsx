@@ -70,15 +70,12 @@ function getTempoLabel(
   take: PerformanceTakeRead,
   t: (key: string, values?: Record<string, string | number>) => string
 ): string | null {
-  const plan = take.resolved_tempo_plan as {
-    selection?: { mode?: string; bpm?: number };
-    segments?: Array<{ startBeat?: number; bpm?: number }>;
-  } | null;
+  const plan = take.resolved_tempo_plan;
   const selection = plan?.selection;
   const mode = selection?.mode?.toUpperCase();
 
   if (mode === 'CUSTOM_FIXED_BPM') {
-    const bpm = selection?.bpm;
+    const bpm = 'bpm' in selection ? selection.bpm : undefined;
     if (typeof bpm === 'number') {
       return `♩ = ${bpm} BPM`;
     }

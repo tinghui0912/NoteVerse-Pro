@@ -1,4 +1,8 @@
-import type { PerformanceTakeRead } from '@/lib/api/performance-takes';
+import type {
+  PerformanceTakeRead,
+  PerformanceTakeSyncMetadata,
+  ResolvedTempoPlan,
+} from '@/lib/api/performance-takes';
 
 import type {
   CompletedPerformance,
@@ -209,17 +213,15 @@ export function createShareVideoSessionFromSavedTake(
   }
 }
 
-export function parseSavedTempoPlan(
-  raw: Record<string, unknown> | null | undefined
-): ResolvedPracticeTempoPlan {
-  if (!raw || typeof raw !== 'object') {
+export function parseSavedTempoPlan(raw: ResolvedTempoPlan | null | undefined): ResolvedPracticeTempoPlan {
+  if (!raw) {
     throw new Error('resolved_tempo_plan_missing');
   }
   const selection = raw.selection;
-  if (!selection || typeof selection !== 'object') {
+  if (!selection) {
     throw new Error('resolved_tempo_plan_selection_missing');
   }
-  const mode = (selection as Record<string, unknown>).mode;
+  const mode = selection.mode;
   if (mode !== 'SCORE' && mode !== 'CUSTOM_FIXED_BPM') {
     throw new Error('resolved_tempo_plan_selection_invalid');
   }
@@ -228,13 +230,9 @@ export function parseSavedTempoPlan(
     throw new Error('resolved_tempo_plan_segments_missing');
   }
   const segments = rawSegments.map((segment, index) => {
-    if (!segment || typeof segment !== 'object') {
-      throw new Error(`resolved_tempo_plan_segment_${index}_invalid`);
-    }
-    const candidate = segment as Record<string, unknown>;
-    const startBeat = requireFiniteNonNegative(candidate.startBeat, `tempo_segment_${index}_startBeat`);
-    const bpm = requireFinitePositive(candidate.bpm, `tempo_segment_${index}_bpm`);
-    const source = candidate.source;
+    const startBeat = requireFiniteNonNegative(segment.startBeat, `tempo_segment_${index}_startBeat`);
+    const bpm = requireFinitePositive(segment.bpm, `tempo_segment_${index}_bpm`);
+    const source = segment.source;
     if (source !== 'MUSICXML' && source !== 'PRODUCT_DEFAULT' && source !== 'CUSTOM') {
       throw new Error(`tempo_segment_${index}_source_invalid`);
     }
@@ -251,27 +249,27 @@ export function parseSavedTempoPlan(
   return {
     selection: mode === 'SCORE'
       ? { mode: 'SCORE' }
-      : { mode: 'CUSTOM_FIXED_BPM', bpm: requireFinitePositive((selection as Record<string, unknown>).bpm, 'tempo_plan_selection_bpm') },
+      : { mode: 'CUSTOM_FIXED_BPM', bpm: requireFinitePositive(selection.bpm, 'tempo_plan_selection_bpm') },
     segments,
   };
 }
 
 export function parseSavedSyncMetadata(
-  raw: Record<string, unknown> | null | undefined
+  raw: PerformanceTakeSyncMetadata | null | undefined
 ): {
   recordingTimebase: ParsedRecordingTimebase;
   scopeIdentity?: { startGroupId: string; endGroupId: string };
 } {
-  if (!raw || typeof raw !== 'object') {
+  if (!raw) {
     throw new Error('sync_metadata_missing');
   }
   const recordingTimebase = parseRecordingTimebase(raw.recordingTimebase);
   const rawIdentity = raw.scopeIdentity;
   const scopeIdentity =
-    rawIdentity && typeof rawIdentity === 'object'
+    rawIdentity
       ? {
-          startGroupId: String((rawIdentity as Record<string, unknown>).startGroupId ?? ''),
-          endGroupId: String((rawIdentity as Record<string, unknown>).endGroupId ?? ''),
+          startGroupId: rawIdentity.startGroupId,
+          endGroupId: rawIdentity.endGroupId,
         }
       : undefined;
   if (
@@ -283,25 +281,20 @@ export function parseSavedSyncMetadata(
   return { recordingTimebase, scopeIdentity };
 }
 
-function parseRecordingTimebase(raw: unknown): ParsedRecordingTimebase {
-  if (!raw || typeof raw !== 'object') {
+function parseRecordingTimebase(raw: PerformanceTakeSyncMetadata['recordingTimebase']): ParsedRecordingTimebase {
+  if (!raw) {
     throw new Error('recording_timebase_missing');
   }
-  const value = raw as Record<string, unknown>;
-  const activeSegments = value.activeSegments;
+  const activeSegments = raw.activeSegments;
   if (!Array.isArray(activeSegments) || activeSegments.length === 0) {
     throw new Error('recording_timebase_segments_missing');
   }
   const parsed = activeSegments.map((segment, index) => {
-    if (!segment || typeof segment !== 'object') {
-      throw new Error(`recording_timebase_segment_${index}_invalid`);
-    }
-    const candidate = segment as Record<string, unknown>;
     return {
-      perfStartMs: requireFiniteNonNegative(candidate.perfStartMs, `timebase_${index}_perfStartMs`),
-      perfEndMs: requireFinitePositive(candidate.perfEndMs, `timebase_${index}_perfEndMs`),
-      mediaStartMs: requireFiniteNonNegative(candidate.mediaStartMs, `timebase_${index}_mediaStartMs`),
-      mediaEndMs: requireFinitePositive(candidate.mediaEndMs, `timebase_${index}_mediaEndMs`),
+      perfStartMs: requireFiniteNonNegative(segment.perfStartMs, `timebase_${index}_perfStartMs`),
+      perfEndMs: requireFinitePositive(segment.perfEndMs, `timebase_${index}_perfEndMs`),
+      mediaStartMs: requireFiniteNonNegative(segment.mediaStartMs, `timebase_${index}_mediaStartMs`),
+      mediaEndMs: requireFinitePositive(segment.mediaEndMs, `timebase_${index}_mediaEndMs`),
     };
   });
   for (const segment of parsed) {
@@ -318,15 +311,15 @@ function parseRecordingTimebase(raw: unknown): ParsedRecordingTimebase {
     }
   }
   const recordingStartPerfTimeMs = requireFiniteNonNegative(
-    value.recordingStartPerfTimeMs,
+    raw.recordingStartPerfTimeMs,
     'recordingStartPerfTimeMs'
   );
   const recordingEndPerfTimeMs = requireFinitePositive(
-    value.recordingEndPerfTimeMs,
+    raw.recordingEndPerfTimeMs,
     'recordingEndPerfTimeMs'
   );
   const nominalMediaDurationMs = requireFinitePositive(
-    value.nominalMediaDurationMs,
+    raw.nominalMediaDurationMs,
     'nominalMediaDurationMs'
   );
   if (recordingEndPerfTimeMs <= recordingStartPerfTimeMs) {

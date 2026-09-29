@@ -49,6 +49,7 @@ import {
 import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
 import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-annotation-controller';
 import { PracticeTempoTimeline } from '@/lib/practice/local-core/practice-tempo';
+import type { ResolvedPracticeTempoPlan } from '@/lib/practice/local-core/practice-tempo';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/local-core/artifact';
 import type { CursorScope } from '@/lib/practice/local-core/cursor-scope';
 import { resolveScopeTiming } from '@/lib/practice/scope-timing';
@@ -56,6 +57,7 @@ import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
 import { ShareVideoStudio } from '@/components/practice/share-video-studio';
 import { createShareVideoSessionFromCompletedPerformance } from '@/lib/practice/share-video-session';
+import type { ResolvedTempoPlan } from '@/lib/api/performance-takes';
 
 const MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 
@@ -77,6 +79,17 @@ function extensionForMime(mimeType: string): string {
   if (cleaned === 'audio/ogg') return 'ogg';
   if (cleaned === 'audio/wav' || cleaned === 'audio/x-wav') return 'wav';
   return 'webm';
+}
+
+function toPerformanceTakeTempoPlan(plan: ResolvedPracticeTempoPlan): ResolvedTempoPlan {
+  return {
+    selection: plan.selection,
+    segments: plan.segments.map((segment) => ({
+      startBeat: segment.startBeat,
+      bpm: segment.bpm,
+      source: segment.source,
+    })),
+  };
 }
 
 export default function PracticeReviewPage({
@@ -443,7 +456,7 @@ export default function PracticeReviewPage({
         durationMs: saveMedia.durationMs,
         scopeStartBeat: draft.scope.startBeat,
         scopeTerminalBeat: draft.scope.terminalBeat,
-        resolvedTempoPlan: draft.tempoPlan as unknown as Record<string, unknown>,
+        resolvedTempoPlan: toPerformanceTakeTempoPlan(draft.tempoPlan),
         syncMetadata: {
           recordingTimebase: draft.recordingTimebase,
           scopeIdentity:

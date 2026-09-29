@@ -7454,7 +7454,7 @@
             "type": "number"
           },
           "source": {
-            "pattern": "^(MUSICXML|CUSTOM)$",
+            "pattern": "^(MUSICXML|PRODUCT_DEFAULT|CUSTOM)$",
             "title": "Source",
             "type": "string"
           },

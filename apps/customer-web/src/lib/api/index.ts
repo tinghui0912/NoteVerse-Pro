@@ -39,6 +39,13 @@ export { modelAssetsApi, type ModelAssetAccess } from './model-assets';
 export {
   performanceTakesApi,
   uploadMediaToSignedUrl,
+  type PerformanceTakeCreateRequest,
+  type PerformanceTakeDeleteResponse,
+  type PerformanceTakeListResponse,
   type PerformanceTakeRead,
   type PerformanceTakePlaybackRead,
+  type PerformanceTakeSyncMetadata,
+  type PerformanceTakeUploadAuthorizationRead,
+  type PerformanceTakeUploadAuthorizationRequest,
+  type ResolvedTempoPlan,
 } from './performance-takes';
