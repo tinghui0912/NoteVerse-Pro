@@ -1,5 +1,5 @@
 import type {
-  LocalPerformanceSessionSnapshot,
+  LocalPerformanceExpectedEventOutcomeRecord,
   ResolvedPracticeScope,
   ResolvedPracticeTempoPlan,
 } from './local-core';
@@ -96,7 +96,11 @@ export interface CompletedPerformance {
   artifactId: string;
   scope: ResolvedPracticeScope;
   tempoPlan: ResolvedPracticeTempoPlan;
-  performanceSnapshot: LocalPerformanceSessionSnapshot;
+  inputSource: 'MICROPHONE' | 'MIDI';
+  activeElapsedMs: number;
+  evaluation: {
+    outcomes: LocalPerformanceExpectedEventOutcomeRecord[];
+  };
   media: PerformanceMedia;
   recordingTimebase: RecordingTimebaseMapping;
   completedAt: string;

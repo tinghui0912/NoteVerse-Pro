@@ -206,10 +206,10 @@ export default function PracticeReviewPage({
   const [isShareExporting, setIsShareExporting] = useState(false);
 
   const confirmedCorrectNoteIds = useMemo(() => {
-    if (!isScoreIdentityConfirmed || !draft?.performanceSnapshot?.performance?.outcomes) {
+    if (!isScoreIdentityConfirmed || !draft?.evaluation) {
       return [];
     }
-    const outcomes = draft.performanceSnapshot.performance.outcomes;
+    const outcomes = draft.evaluation.outcomes;
     const ids: string[] = [];
     for (const o of outcomes) {
       if (o.expectedStrikeOutcomes && o.expectedStrikeOutcomes.length > 0) {
@@ -226,10 +226,10 @@ export default function PracticeReviewPage({
   }, [draft, isScoreIdentityConfirmed]);
 
   const confirmedErrorNoteIds = useMemo(() => {
-    if (!isScoreIdentityConfirmed || !draft?.performanceSnapshot?.performance?.outcomes) {
+    if (!isScoreIdentityConfirmed || !draft?.evaluation) {
       return [];
     }
-    const outcomes = draft.performanceSnapshot.performance.outcomes;
+    const outcomes = draft.evaluation.outcomes;
     const ids: string[] = [];
     for (const o of outcomes) {
       if (o.expectedStrikeOutcomes && o.expectedStrikeOutcomes.length > 0) {
@@ -526,7 +526,7 @@ export default function PracticeReviewPage({
     );
   }
 
-  const outcomes = draft.performanceSnapshot.performance.outcomes ?? [];
+  const outcomes = draft.evaluation.outcomes;
   const matchedCount = outcomes.filter((o) => o.result === 'MATCH').length;
   const partialCount = outcomes.filter((o) => o.result === 'PARTIAL').length;
   const mismatchCount = outcomes.filter((o) => o.result === 'MISMATCH').length;
@@ -544,7 +544,7 @@ export default function PracticeReviewPage({
     : `${t('scopeFull')} (${draft.scope.startBeat} - ${draft.scope.terminalBeat} 拍)`;
 
   const inputSourceText =
-    draft.performanceSnapshot.inputSource === 'MICROPHONE'
+    draft.inputSource === 'MICROPHONE'
       ? t('inputSourceMic')
       : t('inputSourceMidi');
 
@@ -628,7 +628,7 @@ export default function PracticeReviewPage({
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold">
-              {formatDuration(draft.performanceSnapshot.performance.activeElapsedMs)}
+              {formatDuration(draft.activeElapsedMs)}
             </div>
           </CardContent>
         </Card>
@@ -650,7 +650,7 @@ export default function PracticeReviewPage({
             <CardTitle className="text-xs font-medium text-muted-foreground">
               {t('performanceInput')}
             </CardTitle>
-            {draft.performanceSnapshot.inputSource === 'MICROPHONE' ? (
+            {draft.inputSource === 'MICROPHONE' ? (
               <Mic className="h-4 w-4 text-muted-foreground" />
             ) : (
               <Piano className="h-4 w-4 text-muted-foreground" />

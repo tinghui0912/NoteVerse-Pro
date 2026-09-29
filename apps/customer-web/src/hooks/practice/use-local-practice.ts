@@ -401,7 +401,11 @@ export function useLocalPractice({
             artifactId: sessionSnapshot.artifactId,
             scope: resolvedScope,
             tempoPlan: resolvedTempoPlan,
-            performanceSnapshot: sessionSnapshot,
+            inputSource: sessionSnapshot.inputSource,
+            activeElapsedMs: sessionSnapshot.performance.activeElapsedMs,
+            evaluation: {
+              outcomes: sessionSnapshot.performance.outcomes,
+            },
             media,
             recordingTimebase: structuredClone(recordingTimebaseRef.current),
             completedAt: new Date().toISOString(),
