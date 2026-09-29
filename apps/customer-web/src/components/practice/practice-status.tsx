@@ -28,7 +28,7 @@ type PracticeStatusMessageKey =
   | 'midiBrowserUnsupported'
   | 'midiNoConnectedInput';
 
-export type PracticeSessionStatusView = {
+export type PracticeStatusView = {
   messageKey?: PracticeStatusMessageKey;
   customMessage?: string;
   isError?: boolean;
@@ -36,7 +36,7 @@ export type PracticeSessionStatusView = {
   countInPulse: number | null;
 };
 
-export type PracticeSessionStatusProps = {
+export type PracticeStatusProps = {
   className?: string;
   lifecycle: LocalPracticeLifecycle;
   inputState?: LocalPracticeInputState;
@@ -44,7 +44,6 @@ export type PracticeSessionStatusProps = {
   inputSource?: PracticeInputSource;
   selectedInputCapability?: PracticeMicrophoneCapability | PracticeMidiCapability;
   rangePrompt?: string | null;
-  isLoading?: boolean;
   sessionMode: PracticeMode;
   practiceTime: number;
   performanceClock?: PerformanceClockSnapshot | null;
@@ -56,7 +55,7 @@ function formatTime(seconds: number) {
   return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
-export function resolvePracticeSessionStatusView({
+export function resolvePracticeStatusView({
   lifecycle,
   inputState = 'IDLE',
   inputError = null,
@@ -74,7 +73,7 @@ export function resolvePracticeSessionStatusView({
   rangePrompt?: string | null;
   sessionMode: PracticeMode;
   performanceClock?: PerformanceClockSnapshot | null;
-}): PracticeSessionStatusView {
+}): PracticeStatusView {
   if (inputState === 'ERROR') {
     if (inputError === 'NO_CONNECTED_INPUT') {
       return {
@@ -197,7 +196,7 @@ export function resolvePracticeSessionStatusView({
   };
 }
 
-export function PracticeSessionStatus({
+export function PracticeStatus({
   className,
   lifecycle,
   inputState = 'IDLE',
@@ -208,11 +207,11 @@ export function PracticeSessionStatus({
   sessionMode,
   practiceTime,
   performanceClock,
-}: PracticeSessionStatusProps) {
+}: PracticeStatusProps) {
   const t = useTranslations('practice');
   const resolvedView = useMemo(
     () =>
-      resolvePracticeSessionStatusView({
+      resolvePracticeStatusView({
         lifecycle,
         inputState,
         inputError,

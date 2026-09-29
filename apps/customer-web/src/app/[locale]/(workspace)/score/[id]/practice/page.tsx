@@ -12,7 +12,7 @@ import { PracticeScoreViewer } from '@/components/practice/practice-score-viewer
 import { PracticeControls } from '@/components/practice/practice-controls';
 import { PracticeCompletionDialog } from '@/components/practice/practice-completion-dialog';
 import { PracticeSettingsPanel } from '@/components/practice/practice-settings-panel';
-import { PracticeSessionStatus } from '@/components/practice/practice-session-status';
+import { PracticeStatus } from '@/components/practice/practice-status';
 import { PracticeSkipControl } from '@/components/practice/practice-skip-control';
 import { ResourceLoadError } from '@/components/states';
 import { ResourceLoading } from '@/components/loading';
@@ -265,15 +265,22 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   );
 
   useEffect(() => {
-    if (practiceMode === 'STEP_BY_STEP') {
+    if (practiceMode !== 'STEP_BY_STEP') {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
       releaseCameraPreview();
       setCameraStatusMessage(null);
-    }
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [practiceMode, releaseCameraPreview]);
 
   useEffect(() => {
-    releaseCameraPreview();
-    setCameraStatusMessage(null);
+    const timeoutId = window.setTimeout(() => {
+      releaseCameraPreview();
+      setCameraStatusMessage(null);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [inputSource, releaseCameraPreview]);
 
   useEffect(() => {
@@ -451,7 +458,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   );
 
   const practiceSessionStatus = (
-    <PracticeSessionStatus
+    <PracticeStatus
       className="border-0 bg-transparent px-0 py-0 shadow-none"
       lifecycle={localPractice.lifecycle}
       inputState={localPractice.inputState}
@@ -459,7 +466,6 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       inputSource={inputSource}
       selectedInputCapability={selectedInputCapability}
       rangePrompt={rangeSelectionPrompt}
-      isLoading={isLoadingXml}
       sessionMode={practiceMode}
       practiceTime={localPractice.elapsedSeconds}
       performanceClock={localPractice.performanceClock}

@@ -31,7 +31,7 @@ tests consume the checked JSON fixture it produces.
 Shared local concepts live here:
 
 - `PracticeScope` and scope resolution
-- local session snapshots and persistence interfaces
+- local session snapshots used for explicit runtime restore
 - deterministic clocks and capture-relative evidence time
 - normalized acoustic and MIDI evidence contracts
 - shared runtime/schema version identity
@@ -93,21 +93,15 @@ The real ByteDance/WebGPU model is not integrated here.
 
 ## Local Sessions
 
-`LocalPracticeSessionSnapshot` is the offline-first session boundary. It stores
-the local session id, score/revision identity, mode, input source, scope,
+`LocalPracticeSessionSnapshot` is the explicit runtime restore boundary. It
+stores the local session id, score/revision identity, mode, input source, scope,
 runtime/schema version, lifecycle state, mode-specific runtime snapshot, and
-history required for product behavior. Restores validate score/revision/artifact
-identity, runtime/schema version, input source, and scope. Performance restores
-use logical runtime position and resume interrupted active sessions as paused,
-so a new browser monotonic clock origin cannot silently advance musical time.
+history required for product behavior. Restore operations validate
+score/revision/artifact identity, runtime/schema version, input source, and
+scope. Performance restores use logical runtime position and resume interrupted
+active sessions as paused, so a new browser monotonic clock origin cannot
+silently advance musical time.
 
-`LocalPracticeSessionStore` keeps persistence outside runtime logic. The current
-implementation includes an in-memory store for deterministic domain tests.
-
-## Legacy Replacement Targets
-
-Backend active practice execution, Practice WebSocket progression, server-side
-STEP verifier provider negotiation, Matchmaker-era realtime alignment, and
-backend performance runtime are legacy replacement targets. They may remain
-temporarily while the browser-local foundation is proven, but they are not the
-target architecture for active practice execution.
+Snapshots are runtime values. They are created and consumed by the local
+runtime/controller; this module does not define a persistence store or a
+server execution protocol.

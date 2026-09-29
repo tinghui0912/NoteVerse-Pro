@@ -6,9 +6,9 @@ import { createElement } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
 import {
-  PracticeSessionStatus,
-  resolvePracticeSessionStatusView,
-} from './practice-session-status';
+  PracticeStatus,
+  resolvePracticeStatusView,
+} from './practice-status';
 import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/performance-runtime';
 import practiceMessages from '../../../messages/en/practice.json';
 
@@ -39,10 +39,10 @@ function makePerformanceClock(
   };
 }
 
-describe('resolvePracticeSessionStatusView', () => {
+describe('resolvePracticeStatusView', () => {
   it('shows preparingPractice during STARTING inputState', () => {
     expect(
-      resolvePracticeSessionStatusView({
+      resolvePracticeStatusView({
         lifecycle: 'READY',
         inputState: 'STARTING',
         sessionMode: 'STEP_BY_STEP',
@@ -55,7 +55,7 @@ describe('resolvePracticeSessionStatusView', () => {
 
   it('shows paused during PAUSED lifecycle', () => {
     expect(
-      resolvePracticeSessionStatusView({
+      resolvePracticeStatusView({
         lifecycle: 'PAUSED',
         sessionMode: 'STEP_BY_STEP',
       })
@@ -67,7 +67,7 @@ describe('resolvePracticeSessionStatusView', () => {
 
   it('shows waitingForFirstNote during ACTIVE STEP mode', () => {
     expect(
-      resolvePracticeSessionStatusView({
+      resolvePracticeStatusView({
         lifecycle: 'ACTIVE',
         sessionMode: 'STEP_BY_STEP',
       })
@@ -79,7 +79,7 @@ describe('resolvePracticeSessionStatusView', () => {
 
   it('shows performanceCountIn with countInPulse during CONTINUOUS count-in', () => {
     expect(
-      resolvePracticeSessionStatusView({
+      resolvePracticeStatusView({
         lifecycle: 'ACTIVE',
         sessionMode: 'CONTINUOUS_PLAY',
         performanceClock: makePerformanceClock({
@@ -98,7 +98,7 @@ describe('resolvePracticeSessionStatusView', () => {
 
   it('shows performanceRunning during CONTINUOUS playing', () => {
     expect(
-      resolvePracticeSessionStatusView({
+      resolvePracticeStatusView({
         lifecycle: 'ACTIVE',
         sessionMode: 'CONTINUOUS_PLAY',
         performanceClock: makePerformanceClock({
@@ -113,7 +113,7 @@ describe('resolvePracticeSessionStatusView', () => {
 
   it('shows error state when inputState is ERROR', () => {
     expect(
-      resolvePracticeSessionStatusView({
+      resolvePracticeStatusView({
         lifecycle: 'READY',
         inputState: 'ERROR',
         inputError: 'Model asset not configured',
@@ -128,7 +128,7 @@ describe('resolvePracticeSessionStatusView', () => {
     });
 
     expect(
-      resolvePracticeSessionStatusView({
+      resolvePracticeStatusView({
         lifecycle: 'READY',
         inputState: 'ERROR',
         inputError: 'MIDI access denied',
@@ -145,7 +145,7 @@ describe('resolvePracticeSessionStatusView', () => {
 
   it('maps NO_CONNECTED_INPUT error directly to midiNoConnectedInput', () => {
     expect(
-      resolvePracticeSessionStatusView({
+      resolvePracticeStatusView({
         lifecycle: 'READY',
         inputState: 'ERROR',
         inputError: 'NO_CONNECTED_INPUT',
@@ -162,7 +162,7 @@ describe('resolvePracticeSessionStatusView', () => {
   it('displays capability unavailability reasons before practice starts', () => {
     // Model access unavailable
     expect(
-      resolvePracticeSessionStatusView({
+      resolvePracticeStatusView({
         lifecycle: 'READY',
         inputState: 'IDLE',
         inputSource: 'MICROPHONE',
@@ -180,7 +180,7 @@ describe('resolvePracticeSessionStatusView', () => {
 
     // Model storage unavailable
     expect(
-      resolvePracticeSessionStatusView({
+      resolvePracticeStatusView({
         lifecycle: 'READY',
         inputState: 'IDLE',
         inputSource: 'MICROPHONE',
@@ -198,7 +198,7 @@ describe('resolvePracticeSessionStatusView', () => {
 
     // Mic browser unsupported
     expect(
-      resolvePracticeSessionStatusView({
+      resolvePracticeStatusView({
         lifecycle: 'READY',
         inputState: 'IDLE',
         inputSource: 'MICROPHONE',
@@ -216,7 +216,7 @@ describe('resolvePracticeSessionStatusView', () => {
 
     // MIDI browser unsupported
     expect(
-      resolvePracticeSessionStatusView({
+      resolvePracticeStatusView({
         lifecycle: 'READY',
         inputState: 'IDLE',
         inputSource: 'MIDI',
@@ -234,7 +234,7 @@ describe('resolvePracticeSessionStatusView', () => {
 
     // MIDI no connected input
     expect(
-      resolvePracticeSessionStatusView({
+      resolvePracticeStatusView({
         lifecycle: 'READY',
         inputState: 'IDLE',
         inputSource: 'MIDI',
@@ -252,7 +252,7 @@ describe('resolvePracticeSessionStatusView', () => {
   });
 });
 
-describe('PracticeSessionStatus rendering', () => {
+describe('PracticeStatus rendering', () => {
   it('renders status text and recording time', () => {
     render(
       createElement(
@@ -261,7 +261,7 @@ describe('PracticeSessionStatus rendering', () => {
           locale: 'en',
           messages: { practice: practiceMessages },
         },
-        createElement(PracticeSessionStatus, {
+        createElement(PracticeStatus, {
           lifecycle: 'ACTIVE',
           sessionMode: 'STEP_BY_STEP',
           practiceTime: 65, // 01:05
@@ -281,7 +281,7 @@ describe('PracticeSessionStatus rendering', () => {
           locale: 'en',
           messages: { practice: practiceMessages },
         },
-        createElement(PracticeSessionStatus, {
+        createElement(PracticeStatus, {
           lifecycle: 'READY',
           inputState: 'ERROR',
           inputError: 'Device disconnected',
@@ -303,7 +303,7 @@ describe('PracticeSessionStatus rendering', () => {
           locale: 'en',
           messages: { practice: practiceMessages },
         },
-        createElement(PracticeSessionStatus, {
+        createElement(PracticeStatus, {
           lifecycle: 'READY',
           inputState: 'IDLE',
           inputSource: 'MICROPHONE',
@@ -331,7 +331,7 @@ describe('PracticeSessionStatus rendering', () => {
           locale: 'en',
           messages: { practice: practiceMessages },
         },
-        createElement(PracticeSessionStatus, {
+        createElement(PracticeStatus, {
           lifecycle: 'READY',
           inputState: 'ERROR',
           inputError: 'NO_CONNECTED_INPUT',
