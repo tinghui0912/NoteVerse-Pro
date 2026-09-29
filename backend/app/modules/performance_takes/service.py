@@ -43,8 +43,10 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakeListResponse,
     PerformanceTakePlaybackRead,
     PerformanceTakeRead,
+    PerformanceTakeTempoPlan,
     PerformanceTakeUploadAuthorizationRead,
     PerformanceTakeUploadAuthorizationRequest,
+    RecordingTimebase,
 )
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.storage_usage.service import StorageUsageService
@@ -291,8 +293,8 @@ class PerformanceTakeService:
         score: Score,
         revision: ScoreRevision,
     ) -> PerformanceTakeRead:
-        tempo_plan = json.loads(take.tempo_plan)
-        recording_timebase = json.loads(take.recording_timebase)
+        tempo_plan = PerformanceTakeTempoPlan.model_validate(json.loads(take.tempo_plan))
+        recording_timebase = RecordingTimebase.model_validate(json.loads(take.recording_timebase))
 
         score_id_out = score.score_uuid
         score_title_out: Optional[str] = take.score_title
