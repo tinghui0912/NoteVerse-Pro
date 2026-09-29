@@ -107,7 +107,7 @@ export async function downloadPerformanceTakeMediaBlob(
       if (loaded + value.byteLength > MAX_PERFORMANCE_TAKE_MEDIA_BYTES) {
         throw new Error('historical_media_too_large');
       }
-      chunks.push(value as unknown as BlobPart);
+      chunks.push(value);
       loaded += value.byteLength;
       options?.onProgress?.(loaded, totalBytes);
     }

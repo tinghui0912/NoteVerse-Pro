@@ -153,7 +153,7 @@ class AsyncSessionAdapter:
 
 
 def _complete_take_request_payload(payload: object) -> object:
-    """Fill the shared valid context for legacy lifecycle fixtures."""
+    """Fill the shared valid context for focused lifecycle fixtures."""
     if not isinstance(payload, dict) or "score_id" not in payload:
         return payload
     completed = dict(payload)
