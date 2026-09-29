@@ -13,31 +13,22 @@ describe('PerformanceReplayPlayer', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders MIDI replay controls with seek', () => {
+  it('renders audio replay controls with seek', () => {
+    const blob = new Blob(['audio'], { type: 'audio/webm' });
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:audio-replay');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: practiceMessages }}>
         <PerformanceReplayPlayer
           replay={{
-            kind: 'MIDI_EVENTS',
+            kind: 'AUDIO_RECORDING',
+            blob,
+            contentType: 'audio/webm',
+            byteSize: blob.size,
             durationMs: 100,
-            timebase: {
-              version: 1,
-              speedRatio: 1,
-            },
-            events: [
-              {
-                event_type: 'note_on',
-                note_number: 60,
-                velocity: 96,
-                timestamp_ms: 0,
-              },
-              {
-                event_type: 'note_off',
-                note_number: 60,
-                velocity: 0,
-                timestamp_ms: 100,
-              },
-            ],
           }}
           onReplayTimeChange={vi.fn()}
         />
@@ -50,17 +41,21 @@ describe('PerformanceReplayPlayer', () => {
   });
 
   it('keeps secondary actions in the replay control row', () => {
+    const blob = new Blob(['audio'], { type: 'audio/webm' });
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:audio-replay');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: practiceMessages }}>
         <PerformanceReplayPlayer
           replay={{
-            kind: 'MIDI_EVENTS',
+            kind: 'AUDIO_RECORDING',
+            blob,
+            contentType: 'audio/webm',
+            byteSize: blob.size,
             durationMs: 100,
-            timebase: {
-              version: 1,
-              speedRatio: 1,
-            },
-            events: [],
           }}
           actions={<button type="button">Delete</button>}
         />

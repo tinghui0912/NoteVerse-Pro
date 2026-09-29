@@ -6,10 +6,7 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import type {
-  PerformanceReplayMidiEvent,
-  PlayablePerformanceReplay,
-} from '@/lib/practice/performance-replay';
+import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
 
 type PerformanceReplayPlayerProps = {
   replay: PlayablePerformanceReplay;
@@ -55,21 +52,11 @@ export function PerformanceReplayPlayer({
       />
     );
   }
-  return (
-    <MidiPerformanceReplayPlayer
-      replay={replay}
-      onReplayTimeChange={onReplayTimeChange}
-      onPlaybackStateChange={onPlaybackStateChange}
-      onReplaySeekCommitted={onReplaySeekCommitted}
-      autoStart={autoStart}
-      actions={actions}
-    />
-  );
+  return null;
 }
 
 type AudioPerformanceReplay = Extract<PlayablePerformanceReplay, { kind: 'AUDIO_RECORDING' }>;
 type VideoPerformanceReplay = Extract<PlayablePerformanceReplay, { kind: 'VIDEO_RECORDING' }>;
-type MidiPerformanceReplay = Extract<PlayablePerformanceReplay, { kind: 'MIDI_EVENTS' }>;
 
 function AudioPerformanceReplayPlayer({
   replay,
@@ -503,168 +490,6 @@ function VideoPerformanceReplayPlayer({
   );
 }
 
-function MidiPerformanceReplayPlayer({
-  replay,
-  onReplayTimeChange,
-  onPlaybackStateChange,
-  onReplaySeekCommitted,
-  autoStart,
-  actions,
-}: {
-  replay: MidiPerformanceReplay;
-  onReplayTimeChange?: (replayTimeMs: number | null) => void;
-  onPlaybackStateChange?: (playing: boolean) => void;
-  onReplaySeekCommitted?: (replayTimeMs: number) => void;
-  autoStart: boolean;
-  actions?: ReactNode;
-}) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentMs, setCurrentMs] = useState(0);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const timeoutsRef = useRef<number[]>([]);
-  const animationFrameRef = useRef<number | null>(null);
-  const activeNotesRef = useRef(new Map<number, OscillatorNode[]>());
-  const playbackStartedAtMsRef = useRef(0);
-  const playbackOffsetMsRef = useRef(0);
-  const autoStartedReplayRef = useRef<MidiPerformanceReplay | null>(null);
-
-  const stopScheduledPlayback = useCallback(() => {
-    if (animationFrameRef.current !== null) {
-      window.cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-    timeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
-    timeoutsRef.current = [];
-    activeNotesRef.current.forEach((oscillators) => {
-      oscillators.forEach((oscillator) => {
-        try {
-          oscillator.stop();
-        } catch {
-          // The oscillator may already have been stopped by a matching note-off event.
-        }
-      });
-    });
-    activeNotesRef.current.clear();
-    void audioContextRef.current?.close();
-    audioContextRef.current = null;
-  }, []);
-
-  const publishTime = useCallback(
-    (timeMs: number) => {
-      const boundedTimeMs = boundReplayTime(timeMs, replay.durationMs);
-      setCurrentMs(boundedTimeMs);
-      onReplayTimeChange?.(boundedTimeMs);
-      return boundedTimeMs;
-    },
-    [onReplayTimeChange, replay.durationMs]
-  );
-
-  const pause = useCallback(() => {
-    const pausedAtMs = currentMs;
-    stopScheduledPlayback();
-    playbackOffsetMsRef.current = pausedAtMs;
-    setIsPlaying(false);
-    onPlaybackStateChange?.(false);
-  }, [currentMs, onPlaybackStateChange, stopScheduledPlayback]);
-
-  const scheduleFrom = useCallback(
-    (offsetMs: number) => {
-      if (typeof AudioContext === 'undefined' || replay.events.length === 0) {
-        return;
-      }
-      stopScheduledPlayback();
-      const audioContext = new AudioContext();
-      audioContextRef.current = audioContext;
-      playbackOffsetMsRef.current = boundReplayTime(offsetMs, replay.durationMs);
-      playbackStartedAtMsRef.current = performance.now();
-      setIsPlaying(true);
-      onPlaybackStateChange?.(true);
-      publishTime(playbackOffsetMsRef.current);
-
-      const reportPlaybackTime = () => {
-        const elapsedMs = performance.now() - playbackStartedAtMsRef.current;
-        const nextTimeMs = publishTime(playbackOffsetMsRef.current + elapsedMs);
-        if (nextTimeMs < replay.durationMs) {
-          animationFrameRef.current = window.requestAnimationFrame(reportPlaybackTime);
-        }
-      };
-      animationFrameRef.current = window.requestAnimationFrame(reportPlaybackTime);
-
-      replay.events
-        .filter((event) => event.timestamp_ms >= playbackOffsetMsRef.current)
-        .forEach((event) => {
-          const timeoutId = window.setTimeout(() => {
-            playMidiEvent(audioContext, activeNotesRef.current, event);
-          }, event.timestamp_ms - playbackOffsetMsRef.current);
-          timeoutsRef.current.push(timeoutId);
-        });
-
-      const finishTimeoutId = window.setTimeout(() => {
-        stopScheduledPlayback();
-        setIsPlaying(false);
-        onPlaybackStateChange?.(false);
-        playbackOffsetMsRef.current = replay.durationMs;
-        publishTime(replay.durationMs);
-      }, replay.durationMs - playbackOffsetMsRef.current + 50);
-      timeoutsRef.current.push(finishTimeoutId);
-    },
-    [
-      onPlaybackStateChange,
-      publishTime,
-      replay.durationMs,
-      replay.events,
-      stopScheduledPlayback,
-    ]
-  );
-
-  const togglePlayback = useCallback(() => {
-    if (isPlaying) {
-      pause();
-      return;
-    }
-    scheduleFrom(currentMs >= replay.durationMs ? 0 : currentMs);
-  }, [currentMs, isPlaying, pause, replay.durationMs, scheduleFrom]);
-
-  const seek = useCallback(
-    (nextTimeMs: number) => {
-      const boundedTimeMs = publishTime(nextTimeMs);
-      playbackOffsetMsRef.current = boundedTimeMs;
-      if (isPlaying) {
-        scheduleFrom(boundedTimeMs);
-      }
-    },
-    [isPlaying, publishTime, scheduleFrom]
-  );
-
-  useEffect(() => {
-    if (!autoStart || autoStartedReplayRef.current === replay) {
-      return undefined;
-    }
-    autoStartedReplayRef.current = replay;
-    const timeoutId = window.setTimeout(() => scheduleFrom(0), 0);
-    return () => window.clearTimeout(timeoutId);
-  }, [autoStart, replay, scheduleFrom]);
-
-  useEffect(() => {
-    return () => {
-      stopScheduledPlayback();
-      onReplayTimeChange?.(null);
-    };
-  }, [onReplayTimeChange, stopScheduledPlayback]);
-
-  return (
-    <ReplayChrome
-      currentMs={currentMs}
-      durationMs={replay.durationMs}
-      isPlaying={isPlaying}
-      onTogglePlayback={togglePlayback}
-      onSeek={seek}
-      onSeekCommitted={onReplaySeekCommitted}
-      actions={actions}
-    />
-  );
-}
-
 function ReplayChrome({
   children,
   currentMs,
@@ -739,41 +564,6 @@ function ReplayChrome({
       </div>
     </div>
   );
-}
-
-function playMidiEvent(
-  audioContext: AudioContext,
-  activeNotes: Map<number, OscillatorNode[]>,
-  event: PerformanceReplayMidiEvent
-) {
-  if (event.event_type === 'note_on') {
-    const oscillator = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    oscillator.type = 'sine';
-    oscillator.frequency.value = midiNoteFrequency(event.note_number);
-    gain.gain.value = Math.max(0.05, Math.min(0.35, event.velocity / 360));
-    oscillator.connect(gain);
-    gain.connect(audioContext.destination);
-    oscillator.start();
-    const oscillators = activeNotes.get(event.note_number) ?? [];
-    oscillators.push(oscillator);
-    activeNotes.set(event.note_number, oscillators);
-    return;
-  }
-
-  const oscillators = activeNotes.get(event.note_number);
-  const oscillator = oscillators?.shift();
-  if (!oscillator) {
-    return;
-  }
-  oscillator.stop(audioContext.currentTime + 0.03);
-  if (!oscillators || oscillators.length === 0) {
-    activeNotes.delete(event.note_number);
-  }
-}
-
-function midiNoteFrequency(noteNumber: number) {
-  return 440 * 2 ** ((noteNumber - 69) / 12);
 }
 
 function boundReplayTime(timeMs: number, durationMs: number) {
