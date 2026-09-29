@@ -91,14 +91,14 @@ def test_performance_take_schema_accepts_product_default_tempo_source() -> None:
         scope_terminal_beat=16,
         revision_id=DEFAULT_TAKE_REVISION_ID,
         artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
-        resolved_tempo_plan={
+        tempo_plan={
             "selection": {"mode": "SCORE"},
             "segments": [{"startBeat": 0, "bpm": 80, "source": "PRODUCT_DEFAULT"}],
         },
         recording_timebase=DEFAULT_TAKE_RECORDING_TIMEBASE,
     )
 
-    assert request.resolved_tempo_plan.segments[0].source == "PRODUCT_DEFAULT"
+    assert request.tempo_plan.segments[0].source == "PRODUCT_DEFAULT"
 
 
 POSTGRES_MIGRATION_EMPTY_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_EMPTY_URL"
@@ -159,7 +159,7 @@ def _complete_take_request_payload(payload: object) -> object:
     completed = dict(payload)
     completed.setdefault("revision_id", DEFAULT_TAKE_REVISION_ID)
     completed.setdefault("artifact_id", DEFAULT_TAKE_ARTIFACT_ID)
-    completed.setdefault("resolved_tempo_plan", DEFAULT_TAKE_TEMPO_PLAN)
+    completed.setdefault("tempo_plan", DEFAULT_TAKE_TEMPO_PLAN)
     completed.setdefault("recording_timebase", DEFAULT_TAKE_RECORDING_TIMEBASE)
     return completed
 
@@ -378,7 +378,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
             "scope_type": "FULL",
             "scope_start_beat": 0.0,
             "scope_terminal_beat": 16.0,
-            "resolved_tempo_plan": {
+            "tempo_plan": {
                 "selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 120},
                 "segments": [{"startBeat": 0, "bpm": 120, "source": "CUSTOM"}],
             },
@@ -428,7 +428,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
             "scope_type": "FULL",
             "scope_start_beat": 0.0,
             "scope_terminal_beat": 16.0,
-            "resolved_tempo_plan": {
+            "tempo_plan": {
                 "selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 120},
                 "segments": [{"startBeat": 0, "bpm": 120, "source": "CUSTOM"}],
             },
@@ -1201,7 +1201,7 @@ def test_pagination(test_env):
                 "duration_ms": 5000,
                 "scope_start_beat": 0.0,
                 "scope_terminal_beat": 4.0,
-                "resolved_tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+                "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
                 "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
             }
             res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
@@ -1554,7 +1554,7 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
                 "mediaEndMs": 5000,
             }],
         }
-        resolved_tempo_plan = {
+        tempo_plan = {
             "selection": {"mode": "SCORE"},
             "segments": [{"startBeat": 0, "bpm": 96, "source": "MUSICXML"}],
         }
@@ -1572,7 +1572,7 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
             "scope_terminal_beat": 8,
             "scope_start_group_id": "group-2",
             "scope_end_group_id": "group-4",
-            "resolved_tempo_plan": resolved_tempo_plan,
+            "tempo_plan": tempo_plan,
             "recording_timebase": recording_timebase,
         }
         res_auth = client.post(
@@ -1603,7 +1603,7 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
         assert take_data["scope_start_group_id"] == "group-2"
         assert take_data["scope_end_group_id"] == "group-4"
         assert "scopeIdentity" not in take_data["recording_timebase"]
-        assert take_data["resolved_tempo_plan"] == resolved_tempo_plan
+        assert take_data["tempo_plan"] == tempo_plan
         assert session.execute(
             select(PerformanceTake).where(
                 PerformanceTake.client_request_id == "req-range-video-scope-identity"
@@ -1800,7 +1800,7 @@ def test_authorize_finalizing_snapshot_retries_without_new_put(test_env):
         duration_ms=1000,
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
-        resolved_tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+        tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
         storage_backend="local",
         staging_object_key="staging/performance-takes/1/finalizing-authorize/recording.webm",
@@ -2446,7 +2446,7 @@ def _expired_cleanup_auth(
         scope_type="FULL",
         scope_start_beat=0.0,
         scope_terminal_beat=4.0,
-        resolved_tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+        tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
         duration_ms=1000,
         media_mime_type="audio/webm",
@@ -2591,7 +2591,7 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
         scope_type="FULL",
         scope_start_beat=0.0,
         scope_terminal_beat=4.0,
-        resolved_tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+        tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
         duration_ms=1000,
         media_mime_type="audio/webm",
@@ -2887,7 +2887,7 @@ def test_authorization_cleanup_does_not_delete_orphan_key_referenced_by_take(tes
             scope_type="FULL",
             scope_start_beat=0.0,
             scope_terminal_beat=4.0,
-            resolved_tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+            tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
             recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
             deletion_status=PerformanceTakeDeletionStatus.ACTIVE,
         )
@@ -2924,7 +2924,7 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
         scope_type="FULL",
         scope_start_beat=0.0,
         scope_terminal_beat=4.0,
-        resolved_tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+        tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
         duration_ms=1000,
         media_mime_type="audio/webm",
@@ -3219,7 +3219,7 @@ def _assert_performance_take_upgrade_state(
 
     command.upgrade(
         _alembic_config(alembic_async_url),
-        "0065_promote_performance_take_recording_timebase",
+        "0066_promote_performance_take_tempo_plan",
     )
     engine_pg = create_engine(sqlalchemy_sync_url)
     try:
@@ -3234,7 +3234,8 @@ def _assert_performance_take_upgrade_state(
         assert cols["score_id"]["nullable"] is False
         assert cols["revision_id"]["nullable"] is False
         assert cols["artifact_id"]["nullable"] is False
-        assert cols["resolved_tempo_plan"]["nullable"] is False
+        assert cols["tempo_plan"]["nullable"] is False
+        assert "resolved_tempo_plan" not in cols
         assert cols["recording_timebase"]["nullable"] is False
         assert "sync_metadata" not in cols
         assert "score_title" in cols
@@ -3309,7 +3310,7 @@ def test_empty_postgresql_database_initializes_with_wide_alembic_version_table()
     _assert_postgres_database_empty(pg.psycopg_url)
     command.upgrade(
         _alembic_config(pg.alembic_async_url),
-        "0065_promote_performance_take_recording_timebase",
+        "0066_promote_performance_take_tempo_plan",
     )
     engine_pg = create_engine(pg.sqlalchemy_sync_url)
     try:
@@ -3363,5 +3364,5 @@ def test_postgresql_version_table_widening_permission_error_is_not_swallowed():
     with pytest.raises((DBAPIError, PermissionError, RuntimeError)):
         command.upgrade(
             _alembic_config(pg.alembic_async_url),
-            "0065_promote_performance_take_recording_timebase",
+            "0066_promote_performance_take_tempo_plan",
         )

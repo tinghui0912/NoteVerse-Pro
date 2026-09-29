@@ -9,7 +9,7 @@ import MyPerformancesPage from './page';
 import type {
   PerformanceTakeRead,
   RecordingTimebase,
-  ResolvedTempoPlan,
+  PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
 
 const mockRouterPush = vi.fn();
@@ -139,7 +139,7 @@ const mockPlaybackQuery = vi.hoisted(() => ({
   refetch: vi.fn(),
 }));
 
-const resolvedTempoPlan: ResolvedTempoPlan = {
+const tempoPlan: PerformanceTakeTempoPlan = {
   selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
   segments: [{ startBeat: 0, bpm: 120, source: 'CUSTOM' }],
 };
@@ -170,7 +170,7 @@ const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i
   scope_terminal_beat: i % 2 === 0 ? 0 : 16,
   scope_start_group_id: i % 2 === 0 ? null : 'group-1',
   scope_end_group_id: i % 2 === 0 ? null : 'group-2',
-  resolved_tempo_plan: resolvedTempoPlan,
+  tempo_plan: tempoPlan,
   recording_timebase: recordingTimebase,
   created_at: new Date(1700000000000 - i * 60000).toISOString(),
 }));
@@ -358,7 +358,7 @@ describe('MyPerformancesPage', () => {
               scope_terminal_beat: 0,
               revision_id: 'revision-1',
               artifact_id: 'artifact-1',
-              resolved_tempo_plan: resolvedTempoPlan,
+              tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
               created_at: new Date().toISOString(),
             },
@@ -400,7 +400,7 @@ describe('MyPerformancesPage', () => {
               scope_terminal_beat: 0,
               revision_id: 'revision-1',
               artifact_id: 'artifact-1',
-              resolved_tempo_plan: resolvedTempoPlan,
+              tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
               created_at: new Date().toISOString(),
             },
@@ -451,7 +451,7 @@ describe('MyPerformancesPage', () => {
               scope_terminal_beat: 0,
               revision_id: 'revision-1',
               artifact_id: 'artifact-1',
-              resolved_tempo_plan: resolvedTempoPlan,
+              tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
               created_at: new Date().toISOString(),
             },
@@ -496,7 +496,7 @@ describe('MyPerformancesPage', () => {
               scope_terminal_beat: 0,
               revision_id: 'revision-1',
               artifact_id: 'artifact-1',
-              resolved_tempo_plan: resolvedTempoPlan,
+              tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
               created_at: new Date().toISOString(),
             },
@@ -563,7 +563,7 @@ describe('MyPerformancesPage', () => {
               scope_terminal_beat: 0,
               revision_id: 'revision-1',
               artifact_id: 'artifact-1',
-              resolved_tempo_plan: resolvedTempoPlan,
+              tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
               created_at: new Date().toISOString(),
             },

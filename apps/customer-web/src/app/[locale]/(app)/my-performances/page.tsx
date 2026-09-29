@@ -70,7 +70,7 @@ function getTempoLabel(
   take: PerformanceTakeRead,
   t: (key: string, values?: Record<string, string | number>) => string
 ): string | null {
-  const plan = take.resolved_tempo_plan;
+  const plan = take.tempo_plan;
   const selection = plan?.selection;
   const mode = selection?.mode?.toUpperCase();
 

@@ -6,7 +6,7 @@ import {
   performanceTakesApi,
   uploadMediaToSignedUrl,
   type RecordingTimebase,
-  type ResolvedTempoPlan,
+  type PerformanceTakeTempoPlan,
   type PerformanceTakeCreateRequest,
   type PerformanceTakeUploadAuthorizationRequest,
 } from '@/lib/api/performance-takes';
@@ -89,7 +89,7 @@ export interface SavePerformanceTakeInput {
   scopeTerminalBeat: number;
   scopeStartGroupId?: string | null;
   scopeEndGroupId?: string | null;
-  resolvedTempoPlan: ResolvedTempoPlan;
+  tempoPlan: PerformanceTakeTempoPlan;
   recordingTimebase: RecordingTimebase;
 }
 
@@ -113,7 +113,7 @@ export function useSavePerformanceTake() {
         scope_terminal_beat: input.scopeTerminalBeat,
         scope_start_group_id: input.scopeStartGroupId ?? null,
         scope_end_group_id: input.scopeEndGroupId ?? null,
-        resolved_tempo_plan: input.resolvedTempoPlan,
+        tempo_plan: input.tempoPlan,
         recording_timebase: input.recordingTimebase,
       };
 
@@ -145,7 +145,7 @@ export function useSavePerformanceTake() {
         scope_terminal_beat: input.scopeTerminalBeat,
         scope_start_group_id: input.scopeStartGroupId ?? null,
         scope_end_group_id: input.scopeEndGroupId ?? null,
-        resolved_tempo_plan: input.resolvedTempoPlan,
+        tempo_plan: input.tempoPlan,
         recording_timebase: input.recordingTimebase,
       };
 

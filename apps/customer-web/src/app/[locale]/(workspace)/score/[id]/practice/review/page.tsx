@@ -57,7 +57,7 @@ import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
 import { ShareVideoStudio } from '@/components/practice/share-video-studio';
 import { createShareVideoSessionFromCompletedPerformance } from '@/lib/practice/share-video-session';
-import type { ResolvedTempoPlan } from '@/lib/api/performance-takes';
+import type { PerformanceTakeTempoPlan } from '@/lib/api/performance-takes';
 
 const MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
 
@@ -81,7 +81,7 @@ function extensionForMime(mimeType: string): string {
   return 'webm';
 }
 
-function toPerformanceTakeTempoPlan(plan: ResolvedPracticeTempoPlan): ResolvedTempoPlan {
+function toPerformanceTakeTempoPlan(plan: ResolvedPracticeTempoPlan): PerformanceTakeTempoPlan {
   return {
     selection: plan.selection,
     segments: plan.segments.map((segment) => ({
@@ -458,7 +458,7 @@ export default function PracticeReviewPage({
         scopeTerminalBeat: draft.scope.terminalBeat,
         scopeStartGroupId: draft.scope.kind === 'RANGE' ? draft.scope.startGroupId : null,
         scopeEndGroupId: draft.scope.kind === 'RANGE' ? draft.scope.endGroupId : null,
-        resolvedTempoPlan: toPerformanceTakeTempoPlan(draft.tempoPlan),
+        tempoPlan: toPerformanceTakeTempoPlan(draft.tempoPlan),
         recordingTimebase: draft.recordingTimebase,
       });
       setSaveStatus('saved');

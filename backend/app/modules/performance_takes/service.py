@@ -292,7 +292,7 @@ class PerformanceTakeService:
         revision: Optional[ScoreRevision] = None,
         has_score_view_access: bool = False,
     ) -> PerformanceTakeRead:
-        resolved_tempo_plan = json.loads(take.resolved_tempo_plan)
+        tempo_plan = json.loads(take.tempo_plan)
         recording_timebase = json.loads(take.recording_timebase)
 
         if score is None:
@@ -326,7 +326,7 @@ class PerformanceTakeService:
             scope_start_group_id=take.scope_start_group_id,
             scope_end_group_id=take.scope_end_group_id,
             deletion_status=deletion_status,
-            resolved_tempo_plan=resolved_tempo_plan,
+            tempo_plan=tempo_plan,
             recording_timebase=recording_timebase,
             created_at=take.created_at,
         )
@@ -392,7 +392,7 @@ class PerformanceTakeService:
             and auth.media_kind == media_kind
             and auth.media_mime_type == cleaned_mime
             and auth.media_byte_size == request.media_byte_size
-            and _json_equivalent(auth.resolved_tempo_plan, request.resolved_tempo_plan)
+            and _json_equivalent(auth.tempo_plan, request.tempo_plan)
             and _json_equivalent(auth.recording_timebase, request.recording_timebase)
         )
 
@@ -416,7 +416,7 @@ class PerformanceTakeService:
             and auth.media_kind == media_kind
             and auth.media_mime_type == cleaned_mime
             and auth.media_byte_size == request.media_byte_size
-            and _json_equivalent(auth.resolved_tempo_plan, request.resolved_tempo_plan)
+            and _json_equivalent(auth.tempo_plan, request.tempo_plan)
             and _json_equivalent(auth.recording_timebase, request.recording_timebase)
         )
 
@@ -441,7 +441,7 @@ class PerformanceTakeService:
             and take.scope_start_group_id == auth.scope_start_group_id
             and take.scope_end_group_id == auth.scope_end_group_id
             and take.artifact_id == auth.artifact_id
-            and take.resolved_tempo_plan == auth.resolved_tempo_plan
+            and take.tempo_plan == auth.tempo_plan
             and take.recording_timebase == auth.recording_timebase
         )
 
@@ -607,7 +607,7 @@ class PerformanceTakeService:
         if request.media_byte_size > MAX_TAKE_MEDIA_BYTES:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
 
-        _json_snapshot(request.resolved_tempo_plan)
+        _json_snapshot(request.tempo_plan)
         _json_snapshot(request.recording_timebase)
 
         if self.storage is None:
@@ -796,7 +796,7 @@ class PerformanceTakeService:
             scope_terminal_beat=request.scope_terminal_beat,
             scope_start_group_id=request.scope_start_group_id,
             scope_end_group_id=request.scope_end_group_id,
-            resolved_tempo_plan=_json_snapshot(request.resolved_tempo_plan),
+            tempo_plan=_json_snapshot(request.tempo_plan),
             recording_timebase=_json_snapshot(request.recording_timebase),
             duration_ms=request.duration_ms,
             media_kind=media_kind,
@@ -1017,7 +1017,7 @@ class PerformanceTakeService:
             "scope_terminal_beat": auth.scope_terminal_beat,
             "scope_start_group_id": auth.scope_start_group_id,
             "scope_end_group_id": auth.scope_end_group_id,
-            "resolved_tempo_plan": auth.resolved_tempo_plan,
+            "tempo_plan": auth.tempo_plan,
             "recording_timebase": auth.recording_timebase,
             "reservation_id": auth.reservation_id,
             "expires_at": auth.expires_at,
@@ -1309,7 +1309,7 @@ class PerformanceTakeService:
             scope_start_group_id=auth_snapshot["scope_start_group_id"],
             scope_end_group_id=auth_snapshot["scope_end_group_id"],
             deletion_status=PerformanceTakeDeletionStatus.ACTIVE.value,
-            resolved_tempo_plan=auth_snapshot["resolved_tempo_plan"],
+            tempo_plan=auth_snapshot["tempo_plan"],
             recording_timebase=auth_snapshot["recording_timebase"],
         )
         created = await self.repository.create_take(db, take, auto_commit=False)

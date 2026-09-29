@@ -3058,7 +3058,6 @@ export type PerformanceTakeCreateRequest = {
      * Reservation Id
      */
     reservation_id: string;
-    resolved_tempo_plan: ResolvedTempoPlan;
     /**
      * Revision Id
      */
@@ -3091,6 +3090,7 @@ export type PerformanceTakeCreateRequest = {
      * Take Id
      */
     take_id: string;
+    tempo_plan: PerformanceTakeTempoPlan;
 };
 
 /**
@@ -3204,7 +3204,6 @@ export type PerformanceTakeRead = {
      */
     media_mime_type: string;
     recording_timebase: RecordingTimebase;
-    resolved_tempo_plan: ResolvedTempoPlan;
     /**
      * Revision Id
      */
@@ -3241,6 +3240,43 @@ export type PerformanceTakeRead = {
      * Take Id
      */
     take_id: string;
+    tempo_plan: PerformanceTakeTempoPlan;
+};
+
+/**
+ * PerformanceTakeTempoPlan
+ */
+export type PerformanceTakeTempoPlan = {
+    /**
+     * Segments
+     */
+    segments: Array<PerformanceTakeTempoPlanSegment>;
+    /**
+     * Selection
+     */
+    selection: ({
+        mode: 'SCORE';
+    } & ScoreTempoPlanSelection) | ({
+        mode: 'CUSTOM_FIXED_BPM';
+    } & CustomFixedBpmTempoPlanSelection);
+};
+
+/**
+ * PerformanceTakeTempoPlanSegment
+ */
+export type PerformanceTakeTempoPlanSegment = {
+    /**
+     * Bpm
+     */
+    bpm: number;
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Startbeat
+     */
+    startBeat: number;
 };
 
 /**
@@ -3313,7 +3349,6 @@ export type PerformanceTakeUploadAuthorizationRequest = {
      */
     media_mime_type: string;
     recording_timebase: RecordingTimebase;
-    resolved_tempo_plan: ResolvedTempoPlan;
     /**
      * Revision Id
      */
@@ -3342,6 +3377,7 @@ export type PerformanceTakeUploadAuthorizationRequest = {
      * Score Id
      */
     score_id: string;
+    tempo_plan: PerformanceTakeTempoPlan;
 };
 
 /**
@@ -3848,42 +3884,6 @@ export type ResetPasswordRequest = {
      * Password reset token
      */
     token: string;
-};
-
-/**
- * ResolvedTempoPlan
- */
-export type ResolvedTempoPlan = {
-    /**
-     * Segments
-     */
-    segments: Array<ResolvedTempoPlanSegment>;
-    /**
-     * Selection
-     */
-    selection: ({
-        mode: 'SCORE';
-    } & ScoreTempoPlanSelection) | ({
-        mode: 'CUSTOM_FIXED_BPM';
-    } & CustomFixedBpmTempoPlanSelection);
-};
-
-/**
- * ResolvedTempoPlanSegment
- */
-export type ResolvedTempoPlanSegment = {
-    /**
-     * Bpm
-     */
-    bpm: number;
-    /**
-     * Source
-     */
-    source: string;
-    /**
-     * Startbeat
-     */
-    startBeat: number;
 };
 
 /**

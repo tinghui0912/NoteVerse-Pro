@@ -1,7 +1,7 @@
 import type {
   PerformanceTakeRead,
   RecordingTimebase,
-  ResolvedTempoPlan,
+  PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
 
 import type {
@@ -92,7 +92,7 @@ export function hasSavedTakeShareVideoMetadata(take: PerformanceTakeRead): boole
     if (scopeTerminalBeat <= scopeStartBeat) {
       return false;
     }
-    parseSavedTempoPlan(take.resolved_tempo_plan);
+    parseSavedTempoPlan(take.tempo_plan);
     if (
       take.scope_type === 'RANGE' &&
       (!take.scope_start_group_id || !take.scope_end_group_id)
@@ -140,7 +140,7 @@ export function createShareVideoSessionFromSavedTake(
     if (scopeTerminalBeat <= scopeStartBeat) {
       throw new Error('scope_terminal_beat_invalid');
     }
-    const tempoPlan = parseSavedTempoPlan(take.resolved_tempo_plan);
+    const tempoPlan = parseSavedTempoPlan(take.tempo_plan);
     const recordingTimebase = parseSavedRecordingTimebase(take.recording_timebase);
     const isRange = take.scope_type === 'RANGE';
     if (isRange && (!take.scope_start_group_id || !take.scope_end_group_id)) {
@@ -207,21 +207,21 @@ export function createShareVideoSessionFromSavedTake(
   }
 }
 
-export function parseSavedTempoPlan(raw: ResolvedTempoPlan | null | undefined): ResolvedPracticeTempoPlan {
+export function parseSavedTempoPlan(raw: PerformanceTakeTempoPlan | null | undefined): ResolvedPracticeTempoPlan {
   if (!raw) {
-    throw new Error('resolved_tempo_plan_missing');
+    throw new Error('tempo_plan_missing');
   }
   const selection = raw.selection;
   if (!selection) {
-    throw new Error('resolved_tempo_plan_selection_missing');
+    throw new Error('tempo_plan_selection_missing');
   }
   const mode = selection.mode;
   if (mode !== 'SCORE' && mode !== 'CUSTOM_FIXED_BPM') {
-    throw new Error('resolved_tempo_plan_selection_invalid');
+    throw new Error('tempo_plan_selection_invalid');
   }
   const rawSegments = raw.segments;
   if (!Array.isArray(rawSegments) || rawSegments.length === 0) {
-    throw new Error('resolved_tempo_plan_segments_missing');
+    throw new Error('tempo_plan_segments_missing');
   }
   const segments = rawSegments.map((segment, index) => {
     const startBeat = requireFiniteNonNegative(segment.startBeat, `tempo_segment_${index}_startBeat`);
@@ -233,11 +233,11 @@ export function parseSavedTempoPlan(raw: ResolvedTempoPlan | null | undefined): 
     return { startBeat, bpm, source: source as PracticeTempoSegmentSource };
   });
   if (segments[0].startBeat !== 0) {
-    throw new Error('resolved_tempo_plan_must_start_at_beat_zero');
+    throw new Error('tempo_plan_must_start_at_beat_zero');
   }
   for (let index = 1; index < segments.length; index += 1) {
     if (segments[index].startBeat <= segments[index - 1].startBeat) {
-      throw new Error('resolved_tempo_plan_segments_not_sorted');
+      throw new Error('tempo_plan_segments_not_sorted');
     }
   }
   return {

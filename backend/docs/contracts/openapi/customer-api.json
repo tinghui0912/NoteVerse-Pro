@@ -6151,9 +6151,6 @@
             "title": "Reservation Id",
             "type": "string"
           },
-          "resolved_tempo_plan": {
-            "$ref": "#/components/schemas/ResolvedTempoPlan"
-          },
           "revision_id": {
             "maxLength": 64,
             "minLength": 1,
@@ -6213,6 +6210,9 @@
             "minLength": 1,
             "title": "Take Id",
             "type": "string"
+          },
+          "tempo_plan": {
+            "$ref": "#/components/schemas/PerformanceTakeTempoPlan"
           }
         },
         "required": [
@@ -6227,7 +6227,7 @@
           "scope_terminal_beat",
           "revision_id",
           "artifact_id",
-          "resolved_tempo_plan",
+          "tempo_plan",
           "recording_timebase"
         ],
         "title": "PerformanceTakeCreateRequest",
@@ -6374,9 +6374,6 @@
           "recording_timebase": {
             "$ref": "#/components/schemas/RecordingTimebase"
           },
-          "resolved_tempo_plan": {
-            "$ref": "#/components/schemas/ResolvedTempoPlan"
-          },
           "revision_id": {
             "title": "Revision Id",
             "type": "string"
@@ -6434,6 +6431,9 @@
           "take_id": {
             "title": "Take Id",
             "type": "string"
+          },
+          "tempo_plan": {
+            "$ref": "#/components/schemas/PerformanceTakeTempoPlan"
           }
         },
         "required": [
@@ -6447,11 +6447,75 @@
           "duration_ms",
           "scope_start_beat",
           "scope_terminal_beat",
-          "resolved_tempo_plan",
+          "tempo_plan",
           "recording_timebase",
           "created_at"
         ],
         "title": "PerformanceTakeRead",
+        "type": "object"
+      },
+      "PerformanceTakeTempoPlan": {
+        "additionalProperties": false,
+        "properties": {
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/PerformanceTakeTempoPlanSegment"
+            },
+            "minItems": 1,
+            "title": "Segments",
+            "type": "array"
+          },
+          "selection": {
+            "discriminator": {
+              "mapping": {
+                "CUSTOM_FIXED_BPM": "#/components/schemas/CustomFixedBpmTempoPlanSelection",
+                "SCORE": "#/components/schemas/ScoreTempoPlanSelection"
+              },
+              "propertyName": "mode"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ScoreTempoPlanSelection"
+              },
+              {
+                "$ref": "#/components/schemas/CustomFixedBpmTempoPlanSelection"
+              }
+            ],
+            "title": "Selection"
+          }
+        },
+        "required": [
+          "selection",
+          "segments"
+        ],
+        "title": "PerformanceTakeTempoPlan",
+        "type": "object"
+      },
+      "PerformanceTakeTempoPlanSegment": {
+        "additionalProperties": false,
+        "properties": {
+          "bpm": {
+            "exclusiveMinimum": 0.0,
+            "title": "Bpm",
+            "type": "number"
+          },
+          "source": {
+            "pattern": "^(MUSICXML|PRODUCT_DEFAULT|CUSTOM)$",
+            "title": "Source",
+            "type": "string"
+          },
+          "startBeat": {
+            "minimum": 0.0,
+            "title": "Startbeat",
+            "type": "number"
+          }
+        },
+        "required": [
+          "startBeat",
+          "bpm",
+          "source"
+        ],
+        "title": "PerformanceTakeTempoPlanSegment",
         "type": "object"
       },
       "PerformanceTakeUploadAuthorizationRead": {
@@ -6579,9 +6643,6 @@
           "recording_timebase": {
             "$ref": "#/components/schemas/RecordingTimebase"
           },
-          "resolved_tempo_plan": {
-            "$ref": "#/components/schemas/ResolvedTempoPlan"
-          },
           "revision_id": {
             "maxLength": 64,
             "minLength": 1,
@@ -6635,6 +6696,9 @@
             "minLength": 1,
             "title": "Score Id",
             "type": "string"
+          },
+          "tempo_plan": {
+            "$ref": "#/components/schemas/PerformanceTakeTempoPlan"
           }
         },
         "required": [
@@ -6647,7 +6711,7 @@
           "scope_terminal_beat",
           "revision_id",
           "artifact_id",
-          "resolved_tempo_plan",
+          "tempo_plan",
           "recording_timebase"
         ],
         "title": "PerformanceTakeUploadAuthorizationRequest",
@@ -7439,70 +7503,6 @@
           "token"
         ],
         "title": "ResetPasswordRequest",
-        "type": "object"
-      },
-      "ResolvedTempoPlan": {
-        "additionalProperties": false,
-        "properties": {
-          "segments": {
-            "items": {
-              "$ref": "#/components/schemas/ResolvedTempoPlanSegment"
-            },
-            "minItems": 1,
-            "title": "Segments",
-            "type": "array"
-          },
-          "selection": {
-            "discriminator": {
-              "mapping": {
-                "CUSTOM_FIXED_BPM": "#/components/schemas/CustomFixedBpmTempoPlanSelection",
-                "SCORE": "#/components/schemas/ScoreTempoPlanSelection"
-              },
-              "propertyName": "mode"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ScoreTempoPlanSelection"
-              },
-              {
-                "$ref": "#/components/schemas/CustomFixedBpmTempoPlanSelection"
-              }
-            ],
-            "title": "Selection"
-          }
-        },
-        "required": [
-          "selection",
-          "segments"
-        ],
-        "title": "ResolvedTempoPlan",
-        "type": "object"
-      },
-      "ResolvedTempoPlanSegment": {
-        "additionalProperties": false,
-        "properties": {
-          "bpm": {
-            "exclusiveMinimum": 0.0,
-            "title": "Bpm",
-            "type": "number"
-          },
-          "source": {
-            "pattern": "^(MUSICXML|PRODUCT_DEFAULT|CUSTOM)$",
-            "title": "Source",
-            "type": "string"
-          },
-          "startBeat": {
-            "minimum": 0.0,
-            "title": "Startbeat",
-            "type": "number"
-          }
-        },
-        "required": [
-          "startBeat",
-          "bpm",
-          "source"
-        ],
-        "title": "ResolvedTempoPlanSegment",
         "type": "object"
       },
       "ReviewArtifactRead": {

@@ -22,18 +22,18 @@ class CustomFixedBpmTempoPlanSelection(StrictPerformanceTakeModel):
 TempoPlanSelection = ScoreTempoPlanSelection | CustomFixedBpmTempoPlanSelection
 
 
-class ResolvedTempoPlanSegment(StrictPerformanceTakeModel):
+class PerformanceTakeTempoPlanSegment(StrictPerformanceTakeModel):
     startBeat: float = Field(ge=0)
     bpm: float = Field(gt=0)
     source: str = Field(pattern="^(MUSICXML|PRODUCT_DEFAULT|CUSTOM)$")
 
 
-class ResolvedTempoPlan(StrictPerformanceTakeModel):
+class PerformanceTakeTempoPlan(StrictPerformanceTakeModel):
     selection: TempoPlanSelection = Field(discriminator="mode")
-    segments: list[ResolvedTempoPlanSegment] = Field(min_length=1)
+    segments: list[PerformanceTakeTempoPlanSegment] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_segments(self) -> "ResolvedTempoPlan":
+    def validate_segments(self) -> "PerformanceTakeTempoPlan":
         if self.segments[0].startBeat != 0:
             raise ValueError("tempo plan must start at beat zero")
         for previous, current in zip(self.segments, self.segments[1:]):
@@ -112,7 +112,7 @@ class PerformanceTakeUploadAuthorizationRequest(StrictPerformanceTakeModel):
     scope_end_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     revision_id: str = Field(min_length=1, max_length=64)
     artifact_id: str = Field(min_length=1, max_length=128)
-    resolved_tempo_plan: ResolvedTempoPlan
+    tempo_plan: PerformanceTakeTempoPlan
     recording_timebase: RecordingTimebase
 
     @model_validator(mode="after")
@@ -153,7 +153,7 @@ class PerformanceTakeCreateRequest(StrictPerformanceTakeModel):
     scope_end_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     revision_id: str = Field(min_length=1, max_length=64)
     artifact_id: str = Field(min_length=1, max_length=128)
-    resolved_tempo_plan: ResolvedTempoPlan
+    tempo_plan: PerformanceTakeTempoPlan
     recording_timebase: RecordingTimebase
 
     @model_validator(mode="after")
@@ -182,7 +182,7 @@ class PerformanceTakeRead(StrictPerformanceTakeModel):
     scope_start_group_id: Optional[str] = None
     scope_end_group_id: Optional[str] = None
     deletion_status: str = "ACTIVE"
-    resolved_tempo_plan: ResolvedTempoPlan
+    tempo_plan: PerformanceTakeTempoPlan
     recording_timebase: RecordingTimebase
     created_at: datetime
 

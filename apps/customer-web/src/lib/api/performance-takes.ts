@@ -8,7 +8,7 @@ import type {
   PerformanceTakeUploadAuthorizationRead,
   PerformanceTakeUploadAuthorizationRequest,
   RecordingTimebase,
-  ResolvedTempoPlan,
+  PerformanceTakeTempoPlan,
 } from '@/generated/api/types.gen';
 
 export const MAX_PERFORMANCE_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
@@ -22,7 +22,7 @@ export type {
   PerformanceTakeUploadAuthorizationRead,
   PerformanceTakeUploadAuthorizationRequest,
   RecordingTimebase,
-  ResolvedTempoPlan,
+  PerformanceTakeTempoPlan,
 };
 
 export const performanceTakesApi = {

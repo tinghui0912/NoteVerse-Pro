@@ -47,5 +47,5 @@ export {
   type PerformanceTakeUploadAuthorizationRead,
   type PerformanceTakeUploadAuthorizationRequest,
   type RecordingTimebase,
-  type ResolvedTempoPlan,
+  type PerformanceTakeTempoPlan,
 } from './performance-takes';

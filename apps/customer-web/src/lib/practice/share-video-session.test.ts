@@ -8,10 +8,10 @@ import {
 import type {
   PerformanceTakeRead,
   RecordingTimebase,
-  ResolvedTempoPlan,
+  PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
 
-const tempoPlan: ResolvedTempoPlan = {
+const tempoPlan: PerformanceTakeTempoPlan = {
   selection: { mode: 'SCORE' },
   segments: [{ startBeat: 0, bpm: 96, source: 'MUSICXML' }],
 };
@@ -37,7 +37,7 @@ const take: PerformanceTakeRead = {
   scope_start_beat: 0,
   scope_terminal_beat: 16,
   deletion_status: 'ACTIVE',
-  resolved_tempo_plan: tempoPlan,
+  tempo_plan: tempoPlan,
   recording_timebase: recordingTimebase,
   created_at: '2026-09-26T00:00:00.000Z',
 };

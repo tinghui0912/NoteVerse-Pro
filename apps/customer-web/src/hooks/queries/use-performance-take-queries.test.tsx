@@ -10,7 +10,7 @@ import {
   uploadMediaToSignedUrl,
   type PerformanceTakeRead,
   type RecordingTimebase,
-  type ResolvedTempoPlan,
+  type PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
 
@@ -36,7 +36,7 @@ function createWrapper() {
   };
 }
 
-const resolvedTempoPlan: ResolvedTempoPlan = {
+const tempoPlan: PerformanceTakeTempoPlan = {
   selection: { mode: 'SCORE' },
   segments: [{ startBeat: 0, bpm: 120, source: 'MUSICXML' }],
 };
@@ -63,7 +63,7 @@ function createInput() {
     scopeType: 'FULL',
     scopeStartBeat: 0,
     scopeTerminalBeat: 4,
-    resolvedTempoPlan,
+    tempoPlan,
     recordingTimebase,
   };
 }
@@ -82,7 +82,7 @@ const savedTake: PerformanceTakeRead = {
   scope_start_beat: 0,
   scope_terminal_beat: 4,
   deletion_status: 'ACTIVE',
-  resolved_tempo_plan: resolvedTempoPlan,
+  tempo_plan: tempoPlan,
   recording_timebase: recordingTimebase,
   created_at: '2026-09-21T00:00:00Z',
 };
@@ -144,12 +144,6 @@ describe('useSavePerformanceTake', () => {
     ).rejects.toThrow('network lost');
 
     expect(uploadMediaToSignedUrl).toHaveBeenCalledTimes(1);
-    expect(performanceTakesApi.authorizeUpload).toHaveBeenCalledWith(
-      expect.not.objectContaining({ tempo_selection: expect.anything() })
-    );
-    expect(performanceTakesApi.finalizeTake).toHaveBeenCalledWith(
-      expect.not.objectContaining({ tempo_selection: expect.anything() })
-    );
     expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
   });
 
