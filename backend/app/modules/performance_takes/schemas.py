@@ -85,14 +85,21 @@ class RecordingTimebase(StrictPerformanceTakeModel):
         return self
 
 
-class ScopeIdentity(StrictPerformanceTakeModel):
-    startGroupId: str = Field(min_length=1)
-    endGroupId: str = Field(min_length=1)
-
-
 class PerformanceTakeSyncMetadata(StrictPerformanceTakeModel):
     recordingTimebase: RecordingTimebase
-    scopeIdentity: Optional[ScopeIdentity] = None
+
+
+def _validate_scope_identity(
+    scope_type: str,
+    start_group_id: Optional[str],
+    end_group_id: Optional[str],
+) -> None:
+    if scope_type == "RANGE":
+        if not start_group_id or not end_group_id:
+            raise ValueError("RANGE scope requires start and end group ids")
+        return
+    if start_group_id is not None or end_group_id is not None:
+        raise ValueError("FULL scope must not include group ids")
 
 
 class PerformanceTakeUploadAuthorizationRequest(StrictPerformanceTakeModel):
@@ -105,10 +112,21 @@ class PerformanceTakeUploadAuthorizationRequest(StrictPerformanceTakeModel):
     scope_type: str = Field(default="FULL", pattern="^(FULL|RANGE)$")
     scope_start_beat: float = Field(ge=0.0)
     scope_terminal_beat: float = Field(gt=0.0)
+    scope_start_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    scope_end_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     revision_id: str = Field(min_length=1, max_length=64)
     artifact_id: str = Field(min_length=1, max_length=128)
     resolved_tempo_plan: ResolvedTempoPlan
     sync_metadata: PerformanceTakeSyncMetadata
+
+    @model_validator(mode="after")
+    def validate_scope_identity(self) -> "PerformanceTakeUploadAuthorizationRequest":
+        _validate_scope_identity(
+            self.scope_type,
+            self.scope_start_group_id,
+            self.scope_end_group_id,
+        )
+        return self
 
 
 class PerformanceTakeUploadAuthorizationRead(StrictPerformanceTakeModel):
@@ -135,10 +153,21 @@ class PerformanceTakeCreateRequest(StrictPerformanceTakeModel):
     scope_type: str = Field(default="FULL", pattern="^(FULL|RANGE)$")
     scope_start_beat: float = Field(ge=0.0)
     scope_terminal_beat: float = Field(gt=0.0)
+    scope_start_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    scope_end_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     revision_id: str = Field(min_length=1, max_length=64)
     artifact_id: str = Field(min_length=1, max_length=128)
     resolved_tempo_plan: ResolvedTempoPlan
     sync_metadata: PerformanceTakeSyncMetadata
+
+    @model_validator(mode="after")
+    def validate_scope_identity(self) -> "PerformanceTakeCreateRequest":
+        _validate_scope_identity(
+            self.scope_type,
+            self.scope_start_group_id,
+            self.scope_end_group_id,
+        )
+        return self
 
 
 class PerformanceTakeRead(StrictPerformanceTakeModel):
@@ -154,6 +183,8 @@ class PerformanceTakeRead(StrictPerformanceTakeModel):
     scope_type: str = "FULL"
     scope_start_beat: float
     scope_terminal_beat: float
+    scope_start_group_id: Optional[str] = None
+    scope_end_group_id: Optional[str] = None
     deletion_status: str = "ACTIVE"
     resolved_tempo_plan: ResolvedTempoPlan
     sync_metadata: PerformanceTakeSyncMetadata

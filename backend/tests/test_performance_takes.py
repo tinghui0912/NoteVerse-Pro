@@ -1561,10 +1561,6 @@ def test_finalize_range_video_preserves_scope_identity_and_sync_metadata(test_en
                     "mediaEndMs": 5000,
                 }],
             },
-            "scopeIdentity": {
-                "startGroupId": "group-2",
-                "endGroupId": "group-4",
-            },
         }
         resolved_tempo_plan = {
             "selection": {"mode": "SCORE"},
@@ -1582,6 +1578,8 @@ def test_finalize_range_video_preserves_scope_identity_and_sync_metadata(test_en
             "scope_type": "RANGE",
             "scope_start_beat": 4,
             "scope_terminal_beat": 8,
+            "scope_start_group_id": "group-2",
+            "scope_end_group_id": "group-4",
             "resolved_tempo_plan": resolved_tempo_plan,
             "sync_metadata": sync_metadata,
         }
@@ -1610,7 +1608,9 @@ def test_finalize_range_video_preserves_scope_identity_and_sync_metadata(test_en
         assert take_data["scope_type"] == "RANGE"
         assert take_data["scope_start_beat"] == 4
         assert take_data["scope_terminal_beat"] == 8
-        assert take_data["sync_metadata"]["scopeIdentity"] == sync_metadata["scopeIdentity"]
+        assert take_data["scope_start_group_id"] == "group-2"
+        assert take_data["scope_end_group_id"] == "group-4"
+        assert "scopeIdentity" not in take_data["sync_metadata"]
         assert take_data["resolved_tempo_plan"] == resolved_tempo_plan
         assert session.execute(
             select(PerformanceTake).where(

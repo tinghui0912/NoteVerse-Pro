@@ -87,6 +87,8 @@ export interface SavePerformanceTakeInput {
   scopeType?: string;
   scopeStartBeat: number;
   scopeTerminalBeat: number;
+  scopeStartGroupId?: string | null;
+  scopeEndGroupId?: string | null;
   resolvedTempoPlan: ResolvedTempoPlan;
   syncMetadata: PerformanceTakeSyncMetadata;
 }
@@ -109,6 +111,8 @@ export function useSavePerformanceTake() {
         scope_type: input.scopeType ?? 'FULL',
         scope_start_beat: input.scopeStartBeat,
         scope_terminal_beat: input.scopeTerminalBeat,
+        scope_start_group_id: input.scopeStartGroupId ?? null,
+        scope_end_group_id: input.scopeEndGroupId ?? null,
         resolved_tempo_plan: input.resolvedTempoPlan,
         sync_metadata: input.syncMetadata,
       };
@@ -139,6 +143,8 @@ export function useSavePerformanceTake() {
         scope_type: input.scopeType ?? 'FULL',
         scope_start_beat: input.scopeStartBeat,
         scope_terminal_beat: input.scopeTerminalBeat,
+        scope_start_group_id: input.scopeStartGroupId ?? null,
+        scope_end_group_id: input.scopeEndGroupId ?? null,
         resolved_tempo_plan: input.resolvedTempoPlan,
         sync_metadata: input.syncMetadata,
       };

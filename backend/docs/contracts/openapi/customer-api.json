@@ -6157,10 +6157,36 @@
             "title": "Revision Id",
             "type": "string"
           },
+          "scope_end_group_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope End Group Id"
+          },
           "scope_start_beat": {
             "minimum": 0.0,
             "title": "Scope Start Beat",
             "type": "number"
+          },
+          "scope_start_group_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Start Group Id"
           },
           "scope_terminal_beat": {
             "exclusiveMinimum": 0.0,
@@ -6352,9 +6378,31 @@
             "title": "Revision Id",
             "type": "string"
           },
+          "scope_end_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope End Group Id"
+          },
           "scope_start_beat": {
             "title": "Scope Start Beat",
             "type": "number"
+          },
+          "scope_start_group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Start Group Id"
           },
           "scope_terminal_beat": {
             "title": "Scope Terminal Beat",
@@ -6411,16 +6459,6 @@
         "properties": {
           "recordingTimebase": {
             "$ref": "#/components/schemas/RecordingTimebase"
-          },
-          "scopeIdentity": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ScopeIdentity"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "required": [
@@ -6560,10 +6598,36 @@
             "title": "Revision Id",
             "type": "string"
           },
+          "scope_end_group_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope End Group Id"
+          },
           "scope_start_beat": {
             "minimum": 0.0,
             "title": "Scope Start Beat",
             "type": "number"
+          },
+          "scope_start_group_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Start Group Id"
           },
           "scope_terminal_beat": {
             "exclusiveMinimum": 0.0,
@@ -8036,27 +8100,6 @@
           "available"
         ],
         "title": "RevisionSourceRead",
-        "type": "object"
-      },
-      "ScopeIdentity": {
-        "additionalProperties": false,
-        "properties": {
-          "endGroupId": {
-            "minLength": 1,
-            "title": "Endgroupid",
-            "type": "string"
-          },
-          "startGroupId": {
-            "minLength": 1,
-            "title": "Startgroupid",
-            "type": "string"
-          }
-        },
-        "required": [
-          "startGroupId",
-          "endGroupId"
-        ],
-        "title": "ScopeIdentity",
         "type": "object"
       },
       "ScoreBatchDeleteRequest": {

@@ -124,6 +124,14 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     scope_terminal_beat: float = Field(
         sa_column=Column(Float, nullable=False)
     )
+    scope_start_group_id: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String(128), nullable=True),
+    )
+    scope_end_group_id: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String(128), nullable=True),
+    )
     resolved_tempo_plan: str = Field(
         sa_column=Column(Text, nullable=False),
     )

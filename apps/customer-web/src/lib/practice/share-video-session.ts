@@ -93,13 +93,13 @@ export function hasSavedTakeShareVideoMetadata(take: PerformanceTakeRead): boole
       return false;
     }
     parseSavedTempoPlan(take.resolved_tempo_plan);
-    const syncMetadata = parseSavedSyncMetadata(take.sync_metadata);
     if (
       take.scope_type === 'RANGE' &&
-      !syncMetadata.scopeIdentity
+      (!take.scope_start_group_id || !take.scope_end_group_id)
     ) {
       return false;
     }
+    parseSavedSyncMetadata(take.sync_metadata);
     return true;
   } catch {
     return false;
@@ -143,14 +143,14 @@ export function createShareVideoSessionFromSavedTake(
     const tempoPlan = parseSavedTempoPlan(take.resolved_tempo_plan);
     const syncMetadata = parseSavedSyncMetadata(take.sync_metadata);
     const isRange = take.scope_type === 'RANGE';
-    if (isRange && !syncMetadata.scopeIdentity) {
+    if (isRange && (!take.scope_start_group_id || !take.scope_end_group_id)) {
       return { status: 'unsupported', reason: 'scope_identity_missing' };
     }
     const startGroup = artifact.expectedPracticeGroups.find(
-      (group) => group.groupId === syncMetadata.scopeIdentity?.startGroupId
+      (group) => group.groupId === take.scope_start_group_id
     );
     const endGroup = artifact.expectedPracticeGroups.find(
-      (group) => group.groupId === syncMetadata.scopeIdentity?.endGroupId
+      (group) => group.groupId === take.scope_end_group_id
     );
     if (isRange && (!startGroup || !endGroup)) {
       return { status: 'unsupported', reason: 'scope_identity_invalid' };
@@ -167,8 +167,8 @@ export function createShareVideoSessionFromSavedTake(
     const resolvedPracticeScope = isRange
       ? resolvePracticeScope(artifact, {
           kind: 'RANGE',
-          startGroupId: syncMetadata.scopeIdentity?.startGroupId ?? '',
-          endGroupId: syncMetadata.scopeIdentity?.endGroupId ?? '',
+          startGroupId: take.scope_start_group_id ?? '',
+          endGroupId: take.scope_end_group_id ?? '',
         })
       : resolvePracticeScope(artifact, { kind: 'FULL' });
     const resolvedScope = resolvePracticeScopeCursorNoteIds(
@@ -252,27 +252,12 @@ export function parseSavedSyncMetadata(
   raw: PerformanceTakeSyncMetadata | null | undefined
 ): {
   recordingTimebase: ParsedRecordingTimebase;
-  scopeIdentity?: { startGroupId: string; endGroupId: string };
 } {
   if (!raw) {
     throw new Error('sync_metadata_missing');
   }
   const recordingTimebase = parseRecordingTimebase(raw.recordingTimebase);
-  const rawIdentity = raw.scopeIdentity;
-  const scopeIdentity =
-    rawIdentity
-      ? {
-          startGroupId: rawIdentity.startGroupId,
-          endGroupId: rawIdentity.endGroupId,
-        }
-      : undefined;
-  if (
-    scopeIdentity &&
-    (!scopeIdentity.startGroupId || !scopeIdentity.endGroupId)
-  ) {
-    throw new Error('scope_identity_invalid');
-  }
-  return { recordingTimebase, scopeIdentity };
+  return { recordingTimebase };
 }
 
 function parseRecordingTimebase(raw: PerformanceTakeSyncMetadata['recordingTimebase']): ParsedRecordingTimebase {

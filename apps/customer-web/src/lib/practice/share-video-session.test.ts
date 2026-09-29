@@ -25,10 +25,6 @@ const syncMetadata: PerformanceTakeSyncMetadata = {
       { perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 },
     ],
   },
-  scopeIdentity: {
-    startGroupId: 'group-1',
-    endGroupId: 'group-2',
-  },
 };
 
 const take: PerformanceTakeRead = {
@@ -184,25 +180,19 @@ describe('share video session saved-take parsing', () => {
     expect(
       parseSavedSyncMetadata({
         recordingTimebase: syncMetadata.recordingTimebase,
-      }).scopeIdentity
-    ).toBeUndefined();
+      }).recordingTimebase
+    ).toEqual(syncMetadata.recordingTimebase);
   });
 
   it('requires the persisted range identity to agree with the saved range start', () => {
-    expect(
-      createShareVideoSessionFromSavedTake(
-        { ...take, scope_start_beat: 4, sync_metadata: syncMetadata },
-        new Blob(['video'], { type: 'video/webm' }),
-        artifact
-      ).status
-    ).toBe('supported');
     expect(
       createShareVideoSessionFromSavedTake(
         {
           ...take,
           scope_type: 'RANGE',
           scope_start_beat: 4,
-          sync_metadata: syncMetadata,
+          scope_start_group_id: 'group-1',
+          scope_end_group_id: 'group-2',
         },
         new Blob(['video'], { type: 'video/webm' }),
         artifact
@@ -226,9 +216,7 @@ describe('share video session saved-take parsing', () => {
   it('rejects a RANGE take without exact scope identity', () => {
     expect(
       createShareVideoSessionFromSavedTake(
-        { ...take, scope_type: 'RANGE', sync_metadata: {
-          recordingTimebase: syncMetadata.recordingTimebase,
-        } },
+        { ...take, scope_type: 'RANGE' },
       new Blob(['video'], { type: 'video/webm' }),
       artifact
       )
@@ -237,9 +225,7 @@ describe('share video session saved-take parsing', () => {
 
   it('does not require scope identity for FULL takes', () => {
     const result = createShareVideoSessionFromSavedTake(
-      { ...take, scope_type: 'FULL', sync_metadata: {
-        recordingTimebase: syncMetadata.recordingTimebase,
-      } },
+      { ...take, scope_type: 'FULL' },
       new Blob(['video'], { type: 'video/webm' }),
       artifact
     );
@@ -248,7 +234,12 @@ describe('share video session saved-take parsing', () => {
 
   it('resolves and validates exact scope identity for RANGE takes', () => {
     const result = createShareVideoSessionFromSavedTake(
-      { ...take, scope_type: 'RANGE' },
+      {
+        ...take,
+        scope_type: 'RANGE',
+        scope_start_group_id: 'group-1',
+        scope_end_group_id: 'group-2',
+      },
       new Blob(['video'], { type: 'video/webm' }),
       artifact
     );
@@ -266,10 +257,8 @@ describe('share video session saved-take parsing', () => {
       {
         ...take,
         scope_type: 'RANGE',
-        sync_metadata: {
-          ...syncMetadata,
-          scopeIdentity: { startGroupId: 'group-1', endGroupId: 'missing-group' },
-        },
+        scope_start_group_id: 'group-1',
+        scope_end_group_id: 'missing-group',
       },
       new Blob(['video'], { type: 'video/webm' }),
       artifact

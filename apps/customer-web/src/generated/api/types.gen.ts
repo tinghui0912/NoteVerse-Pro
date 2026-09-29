@@ -3063,9 +3063,17 @@ export type PerformanceTakeCreateRequest = {
      */
     revision_id: string;
     /**
+     * Scope End Group Id
+     */
+    scope_end_group_id?: string | null;
+    /**
      * Scope Start Beat
      */
     scope_start_beat: number;
+    /**
+     * Scope Start Group Id
+     */
+    scope_start_group_id?: string | null;
     /**
      * Scope Terminal Beat
      */
@@ -3201,9 +3209,17 @@ export type PerformanceTakeRead = {
      */
     revision_id: string;
     /**
+     * Scope End Group Id
+     */
+    scope_end_group_id?: string | null;
+    /**
      * Scope Start Beat
      */
     scope_start_beat: number;
+    /**
+     * Scope Start Group Id
+     */
+    scope_start_group_id?: string | null;
     /**
      * Scope Terminal Beat
      */
@@ -3232,7 +3248,6 @@ export type PerformanceTakeRead = {
  */
 export type PerformanceTakeSyncMetadata = {
     recordingTimebase: RecordingTimebase;
-    scopeIdentity?: ScopeIdentity | null;
 };
 
 /**
@@ -3310,9 +3325,17 @@ export type PerformanceTakeUploadAuthorizationRequest = {
      */
     revision_id: string;
     /**
+     * Scope End Group Id
+     */
+    scope_end_group_id?: string | null;
+    /**
      * Scope Start Beat
      */
     scope_start_beat: number;
+    /**
+     * Scope Start Group Id
+     */
+    scope_start_group_id?: string | null;
     /**
      * Scope Terminal Beat
      */
@@ -4156,20 +4179,6 @@ export type RevisionSourceRead = {
      * Source Id
      */
     source_id: string;
-};
-
-/**
- * ScopeIdentity
- */
-export type ScopeIdentity = {
-    /**
-     * Endgroupid
-     */
-    endGroupId: string;
-    /**
-     * Startgroupid
-     */
-    startGroupId: string;
 };
 
 /**

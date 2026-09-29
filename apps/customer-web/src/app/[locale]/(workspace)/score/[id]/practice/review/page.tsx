@@ -456,16 +456,11 @@ export default function PracticeReviewPage({
         durationMs: saveMedia.durationMs,
         scopeStartBeat: draft.scope.startBeat,
         scopeTerminalBeat: draft.scope.terminalBeat,
+        scopeStartGroupId: draft.scope.kind === 'RANGE' ? draft.scope.startGroupId : null,
+        scopeEndGroupId: draft.scope.kind === 'RANGE' ? draft.scope.endGroupId : null,
         resolvedTempoPlan: toPerformanceTakeTempoPlan(draft.tempoPlan),
         syncMetadata: {
           recordingTimebase: draft.recordingTimebase,
-          scopeIdentity:
-            draft.scope.kind === 'RANGE'
-              ? {
-                  startGroupId: draft.scope.startGroupId,
-                  endGroupId: draft.scope.endGroupId,
-                }
-              : null,
         },
       });
       setSaveStatus('saved');

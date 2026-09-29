@@ -157,7 +157,7 @@ const syncMetadata: PerformanceTakeSyncMetadata = {
 
 // 121 fixture items
 const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i) => ({
-    deletion_status: 'ACTIVE',
+  deletion_status: 'ACTIVE',
   take_id: `take-${i + 1}`,
   score_id: `score-uuid-${i + 1}`,
   score_title: `Score Title ${i + 1}`,
@@ -170,6 +170,8 @@ const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i
   scope_type: i % 2 === 0 ? 'FULL' : 'RANGE',
   scope_start_beat: i % 2 === 0 ? 0 : 4,
   scope_terminal_beat: i % 2 === 0 ? 0 : 16,
+  scope_start_group_id: i % 2 === 0 ? null : 'group-1',
+  scope_end_group_id: i % 2 === 0 ? null : 'group-2',
   resolved_tempo_plan: resolvedTempoPlan,
   sync_metadata: syncMetadata,
   created_at: new Date(1700000000000 - i * 60000).toISOString(),

@@ -323,6 +323,8 @@ class PerformanceTakeService:
             scope_type=scope_type,
             scope_start_beat=take.scope_start_beat,
             scope_terminal_beat=take.scope_terminal_beat,
+            scope_start_group_id=take.scope_start_group_id,
+            scope_end_group_id=take.scope_end_group_id,
             deletion_status=deletion_status,
             resolved_tempo_plan=resolved_tempo_plan,
             sync_metadata=sync_metadata,
@@ -384,6 +386,8 @@ class PerformanceTakeService:
             and auth.scope_type == request.scope_type
             and auth.scope_start_beat == request.scope_start_beat
             and auth.scope_terminal_beat == request.scope_terminal_beat
+            and auth.scope_start_group_id == request.scope_start_group_id
+            and auth.scope_end_group_id == request.scope_end_group_id
             and auth.duration_ms == request.duration_ms
             and auth.media_kind == media_kind
             and auth.media_mime_type == cleaned_mime
@@ -406,6 +410,8 @@ class PerformanceTakeService:
             and auth.scope_type == request.scope_type
             and auth.scope_start_beat == request.scope_start_beat
             and auth.scope_terminal_beat == request.scope_terminal_beat
+            and auth.scope_start_group_id == request.scope_start_group_id
+            and auth.scope_end_group_id == request.scope_end_group_id
             and auth.duration_ms == request.duration_ms
             and auth.media_kind == media_kind
             and auth.media_mime_type == cleaned_mime
@@ -432,6 +438,8 @@ class PerformanceTakeService:
             and take.scope_type == auth.scope_type
             and take.scope_start_beat == auth.scope_start_beat
             and take.scope_terminal_beat == auth.scope_terminal_beat
+            and take.scope_start_group_id == auth.scope_start_group_id
+            and take.scope_end_group_id == auth.scope_end_group_id
             and take.artifact_id == auth.artifact_id
             and take.resolved_tempo_plan == auth.resolved_tempo_plan
             and take.sync_metadata == auth.sync_metadata
@@ -780,12 +788,14 @@ class PerformanceTakeService:
             score_id=score.id,
             score_uuid=score.score_uuid,
             score_title=score.title,
-            revision_id=revision.id if revision else None,
-            revision_uuid=revision.revision_uuid if revision else None,
+            revision_id=revision.id,
+            revision_uuid=revision.revision_uuid,
             artifact_id=request.artifact_id,
             scope_type=request.scope_type,
             scope_start_beat=request.scope_start_beat,
             scope_terminal_beat=request.scope_terminal_beat,
+            scope_start_group_id=request.scope_start_group_id,
+            scope_end_group_id=request.scope_end_group_id,
             resolved_tempo_plan=_json_snapshot(request.resolved_tempo_plan),
             sync_metadata=_json_snapshot(request.sync_metadata),
             duration_ms=request.duration_ms,
@@ -1005,6 +1015,8 @@ class PerformanceTakeService:
             "scope_type": auth.scope_type,
             "scope_start_beat": auth.scope_start_beat,
             "scope_terminal_beat": auth.scope_terminal_beat,
+            "scope_start_group_id": auth.scope_start_group_id,
+            "scope_end_group_id": auth.scope_end_group_id,
             "resolved_tempo_plan": auth.resolved_tempo_plan,
             "sync_metadata": auth.sync_metadata,
             "reservation_id": auth.reservation_id,
@@ -1294,6 +1306,8 @@ class PerformanceTakeService:
             scope_type=auth_snapshot["scope_type"],
             scope_start_beat=auth_snapshot["scope_start_beat"],
             scope_terminal_beat=auth_snapshot["scope_terminal_beat"],
+            scope_start_group_id=auth_snapshot["scope_start_group_id"],
+            scope_end_group_id=auth_snapshot["scope_end_group_id"],
             deletion_status=PerformanceTakeDeletionStatus.ACTIVE.value,
             resolved_tempo_plan=auth_snapshot["resolved_tempo_plan"],
             sync_metadata=auth_snapshot["sync_metadata"],
