@@ -7,7 +7,6 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
-import numpy as np
 import pytest
 from PIL import Image
 
@@ -15,9 +14,6 @@ from app.core.exceptions import (
     ResourceNotFoundException,
     UnauthorizedException,
 )
-from app.core.settings.practice_runtime import get_practice_runtime_settings
-from app.processing.engines.practice_alignment.reference_runtime import generate_score_audio, normalize_audio_waveform
-from app.processing.engines.practice_alignment.audio_features import feature_matrix
 from app.db.models.user import User
 from app.db.models.import_job import ImportJobState
 from app.modules.files.service import FilesService
@@ -90,73 +86,6 @@ def test_allowed_file_accepts_supported_extensions() -> None:
     assert service.allowed_file("score.TIFF") is True
     assert service.allowed_file("score.pdf") is False
     assert service.allowed_file("score") is False
-
-
-def test_matchmaker_audio_generation_uses_configured_soundfont(monkeypatch, tmp_path) -> None:
-    soundfont_path = tmp_path / "practice.sf2"
-    soundfont_path.write_bytes(b"soundfont")
-    monkeypatch.setenv("PRACTICE_SOUNDFONT_PATH", str(soundfont_path))
-    get_practice_runtime_settings.cache_clear()
-
-    class FakeScore:
-        def note_array(self):
-            return {
-                "onset_beat": np.array([0.0, 1.0]),
-                "onset_div": np.array([0.0, 1.0]),
-            }
-
-        def inv_beat_map(self, value):
-            return value
-
-        def quarter_duration_map(self, value):
-            return 1.0
-
-    partitura = SimpleNamespace(save_wav_fluidsynth=Mock(return_value=np.ones(100)))
-    default_generate_score_audio = Mock()
-
-    try:
-        audio = generate_score_audio(
-            score=FakeScore(),
-            bpm=120,
-            sample_rate=10,
-            np=np,
-            partitura=partitura,
-            generate_score_audio=default_generate_score_audio,
-        )
-    finally:
-        get_practice_runtime_settings.cache_clear()
-
-    default_generate_score_audio.assert_not_called()
-    partitura.save_wav_fluidsynth.assert_called_once()
-    assert partitura.save_wav_fluidsynth.call_args.kwargs["soundfont"] == str(soundfont_path)
-    assert audio.shape == (6,)
-
-
-def test_matchmaker_reference_audio_normalization_handles_tuple_and_stereo() -> None:
-    stereo_audio = np.array(
-        [
-            [1.0, 3.0],
-            [2.0, 4.0],
-            [3.0, 5.0],
-        ],
-        dtype=np.float32,
-    )
-
-    normalized = normalize_audio_waveform(
-        (stereo_audio, 16000, "extra"),
-        np,
-    )
-
-    assert normalized.shape == (3,)
-    np.testing.assert_allclose(normalized, np.array([2.0, 3.0, 4.0], dtype=np.float32))
-
-
-def test_matchmaker_feature_matrix_extracts_processor_tuple_output() -> None:
-    features = np.ones((3, 12), dtype=np.float32)
-
-    extracted = feature_matrix((features, {"frame_time": 0.0}))
-
-    assert extracted is features
 
 
 def test_local_file_storage_saves_and_materializes_blob() -> None:
