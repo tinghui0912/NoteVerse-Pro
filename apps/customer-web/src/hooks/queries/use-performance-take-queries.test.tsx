@@ -42,8 +42,6 @@ const tempoPlan: PerformanceTakeTempoPlan = {
 };
 
 const recordingTimebase: RecordingTimebase = {
-  recordingStartPerfTimeMs: 0,
-  recordingEndPerfTimeMs: 1000,
   nominalMediaDurationMs: 1000,
   activeSegments: [
     { perfStartMs: 0, perfEndMs: 1000, mediaStartMs: 0, mediaEndMs: 1000 },

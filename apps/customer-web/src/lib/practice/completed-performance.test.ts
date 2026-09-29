@@ -44,8 +44,6 @@ describe('CompletedPerformanceStore', () => {
         durationMs: 4000,
       },
       recordingTimebase: {
-        recordingStartPerfTimeMs: 0,
-        recordingEndPerfTimeMs: 4000,
         activeSegments: [{ perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 }],
         nominalMediaDurationMs: 4000,
       },
@@ -67,8 +65,6 @@ describe('CompletedPerformanceStore', () => {
       expect(mediaTimeToPerformanceTimeMs(1000, null)).toBeNull();
       expect(
         mediaTimeToPerformanceTimeMs(1000, {
-          recordingStartPerfTimeMs: 0,
-          recordingEndPerfTimeMs: 0,
           activeSegments: [],
           nominalMediaDurationMs: 0,
         })
@@ -78,8 +74,6 @@ describe('CompletedPerformanceStore', () => {
     it('correctly maps time with start offset in a single active segment', () => {
       // Practice started recording at performanceTimeMs = 50ms
       const timebase = {
-        recordingStartPerfTimeMs: 50,
-        recordingEndPerfTimeMs: 5050,
         activeSegments: [{ perfStartMs: 50, perfEndMs: 5050, mediaStartMs: 0, mediaEndMs: 5000 }],
         nominalMediaDurationMs: 5000,
       };
@@ -97,8 +91,6 @@ describe('CompletedPerformanceStore', () => {
       // Paused for 10s (not in media)
       // Segment 2: media 3000-7000ms -> perf 3000-7000ms
       const timebase = {
-        recordingStartPerfTimeMs: 0,
-        recordingEndPerfTimeMs: 7000,
         activeSegments: [
           { perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 },
           { perfStartMs: 3000, perfEndMs: 7000, mediaStartMs: 3000, mediaEndMs: 7000 },
@@ -112,11 +104,21 @@ describe('CompletedPerformanceStore', () => {
       expect(mediaTimeToPerformanceTimeMs(7000, timebase)).toBe(7000);
     });
 
+    it('fails closed when media segments contain an undefined gap', () => {
+      const timebase = {
+        activeSegments: [
+          { perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 },
+          { perfStartMs: 5000, perfEndMs: 7000, mediaStartMs: 4000, mediaEndMs: 6000 },
+        ],
+        nominalMediaDurationMs: 6000,
+      };
+
+      expect(mediaTimeToPerformanceTimeMs(3500, timebase)).toBeNull();
+    });
+
     it('scales proportionally when actual decoded media duration differs slightly from nominal', () => {
       // Nominal duration 5000ms, but actual decoded media is 5050ms
       const timebase = {
-        recordingStartPerfTimeMs: 0,
-        recordingEndPerfTimeMs: 5000,
         activeSegments: [{ perfStartMs: 0, perfEndMs: 5000, mediaStartMs: 0, mediaEndMs: 5000 }],
         nominalMediaDurationMs: 5000,
       };

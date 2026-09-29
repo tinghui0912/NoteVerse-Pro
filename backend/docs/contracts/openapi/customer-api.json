@@ -7274,21 +7274,9 @@
             "exclusiveMinimum": 0.0,
             "title": "Nominalmediadurationms",
             "type": "number"
-          },
-          "recordingEndPerfTimeMs": {
-            "exclusiveMinimum": 0.0,
-            "title": "Recordingendperftimems",
-            "type": "number"
-          },
-          "recordingStartPerfTimeMs": {
-            "minimum": 0.0,
-            "title": "Recordingstartperftimems",
-            "type": "number"
           }
         },
         "required": [
-          "recordingStartPerfTimeMs",
-          "recordingEndPerfTimeMs",
           "nominalMediaDurationMs",
           "activeSegments"
         ],

@@ -3738,14 +3738,6 @@ export type RecordingTimebase = {
      * Nominalmediadurationms
      */
     nominalMediaDurationMs: number;
-    /**
-     * Recordingendperftimems
-     */
-    recordingEndPerfTimeMs: number;
-    /**
-     * Recordingstartperftimems
-     */
-    recordingStartPerfTimeMs: number;
 };
 
 /**

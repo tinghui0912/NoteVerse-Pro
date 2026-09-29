@@ -31,8 +31,6 @@ export interface RecordingActiveSegment {
 }
 
 export interface RecordingTimebaseMapping {
-  recordingStartPerfTimeMs: number;
-  recordingEndPerfTimeMs: number;
   activeSegments: RecordingActiveSegment[];
   nominalMediaDurationMs: number;
 }
@@ -78,15 +76,9 @@ export function mediaTimeToPerformanceTimeMs(
       const offsetInSeg = scaledMediaTimeMs - seg.mediaStartMs;
       return seg.perfStartMs + offsetInSeg;
     }
-    if (i < activeSegments.length - 1) {
-      const nextSeg = activeSegments[i + 1];
-      if (scaledMediaTimeMs > seg.mediaEndMs && scaledMediaTimeMs < nextSeg.mediaStartMs) {
-        return seg.perfEndMs;
-      }
-    }
   }
 
-  return lastSeg.perfEndMs;
+  return null;
 }
 
 export interface CompletedPerformance {

@@ -101,8 +101,6 @@ function session(allowedNoteIds: string[]): ShareVideoSession {
       segments: [{ startBeat: 0, bpm: 60, source: 'CUSTOM' }],
     },
     recordingTimebase: {
-      recordingStartPerfTimeMs: 0,
-      recordingEndPerfTimeMs: 2500,
       nominalMediaDurationMs: 2500,
       activeSegments: [{ perfStartMs: 0, perfEndMs: 2500, mediaStartMs: 0, mediaEndMs: 2500 }],
     },

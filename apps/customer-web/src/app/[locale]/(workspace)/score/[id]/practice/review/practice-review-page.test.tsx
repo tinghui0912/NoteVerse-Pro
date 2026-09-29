@@ -319,8 +319,6 @@ describe('PracticeReviewPage', () => {
       artifactId: 'art-1',
       media: { status: 'UNAVAILABLE', reason: 'NONE' },
       recordingTimebase: {
-        recordingStartPerfTimeMs: 0,
-        recordingEndPerfTimeMs: 6000,
         activeSegments: [{ perfStartMs: 0, perfEndMs: 6000, mediaStartMs: 0, mediaEndMs: 6000 }],
         nominalMediaDurationMs: 6000,
       },
@@ -376,8 +374,6 @@ describe('PracticeReviewPage', () => {
         durationMs: 9600,
       },
       recordingTimebase: {
-        recordingStartPerfTimeMs: 0,
-        recordingEndPerfTimeMs: 9600,
         activeSegments: [{ perfStartMs: 0, perfEndMs: 9600, mediaStartMs: 0, mediaEndMs: 9600 }],
         nominalMediaDurationMs: 9600,
       },
@@ -508,8 +504,6 @@ describe('PracticeReviewPage', () => {
         durationMs: 10000,
       },
       recordingTimebase: {
-        recordingStartPerfTimeMs: 0,
-        recordingEndPerfTimeMs: 10000,
         activeSegments: [{ perfStartMs: 0, perfEndMs: 10000, mediaStartMs: 0, mediaEndMs: 10000 }],
         nominalMediaDurationMs: 10000,
       },
@@ -590,8 +584,6 @@ describe('PracticeReviewPage', () => {
         durationMs: 3000,
       },
       recordingTimebase: {
-        recordingStartPerfTimeMs: 0,
-        recordingEndPerfTimeMs: 3000,
         activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
         nominalMediaDurationMs: 3000,
       },
@@ -640,8 +632,6 @@ describe('PracticeReviewPage', () => {
         reason: 'PERMISSION_DENIED',
       },
       recordingTimebase: {
-        recordingStartPerfTimeMs: 0,
-        recordingEndPerfTimeMs: 3000,
         activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
         nominalMediaDurationMs: 3000,
       },
@@ -691,8 +681,6 @@ describe('PracticeReviewPage', () => {
         durationMs: 3000,
       },
       recordingTimebase: {
-        recordingStartPerfTimeMs: 0,
-        recordingEndPerfTimeMs: 3000,
         activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
         nominalMediaDurationMs: 3000,
       },
@@ -757,8 +745,6 @@ describe('PracticeReviewPage', () => {
         durationMs: 3000,
       },
       recordingTimebase: {
-        recordingStartPerfTimeMs: 0,
-        recordingEndPerfTimeMs: 3000,
         activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
         nominalMediaDurationMs: 3000,
       },
@@ -1023,8 +1009,6 @@ function createVideoDraft({
       durationMs: 3000,
     },
     recordingTimebase: {
-      recordingStartPerfTimeMs: 0,
-      recordingEndPerfTimeMs: 3000,
       activeSegments: [{ perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 }],
       nominalMediaDurationMs: 3000,
     },

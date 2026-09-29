@@ -64,8 +64,6 @@ DEFAULT_TAKE_TEMPO_PLAN = {
     "segments": [{"startBeat": 0, "bpm": 120, "source": "CUSTOM"}],
 }
 DEFAULT_TAKE_RECORDING_TIMEBASE = {
-    "recordingStartPerfTimeMs": 0,
-    "recordingEndPerfTimeMs": 5000,
     "nominalMediaDurationMs": 5000,
     "activeSegments": [
         {
@@ -383,8 +381,6 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
                 "segments": [{"startBeat": 0, "bpm": 120, "source": "CUSTOM"}],
             },
             "recording_timebase": {
-                "recordingStartPerfTimeMs": 0,
-                "recordingEndPerfTimeMs": 15000,
                 "nominalMediaDurationMs": 15000,
                 "activeSegments": [
                     {
@@ -433,8 +429,6 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
                 "segments": [{"startBeat": 0, "bpm": 120, "source": "CUSTOM"}],
             },
             "recording_timebase": {
-                "recordingStartPerfTimeMs": 0,
-                "recordingEndPerfTimeMs": 15000,
                 "nominalMediaDurationMs": 15000,
                 "activeSegments": [
                     {
@@ -1544,8 +1538,6 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
     try:
         content = VALID_WEBM_BYTES
         recording_timebase = {
-            "recordingStartPerfTimeMs": 0,
-            "recordingEndPerfTimeMs": 5000,
             "nominalMediaDurationMs": 5000,
             "activeSegments": [{
                 "perfStartMs": 0,
@@ -3219,7 +3211,7 @@ def _assert_performance_take_upgrade_state(
 
     command.upgrade(
         _alembic_config(alembic_async_url),
-        "0066_promote_performance_take_tempo_plan",
+        "0067_simplify_recording_timebase",
     )
     engine_pg = create_engine(sqlalchemy_sync_url)
     try:
@@ -3284,6 +3276,17 @@ def _assert_performance_take_upgrade_state(
             assert row[6] == "FULL"
             assert row[7] == "ACTIVE"
 
+            recording_timebase = json.loads(
+                pconn.execute(
+                    sa.text("SELECT recording_timebase FROM performance_takes WHERE id = 1")
+                ).scalar_one()
+            )
+            assert set(recording_timebase) == {"nominalMediaDurationMs", "activeSegments"}
+            assert recording_timebase["nominalMediaDurationMs"] == 90000
+            assert recording_timebase["activeSegments"] == [
+                {"perfStartMs": 0, "perfEndMs": 90000, "mediaStartMs": 0, "mediaEndMs": 90000}
+            ]
+
             # Source identity is durable while a take exists.
             with pytest.raises(sa.exc.IntegrityError):
                 pconn.execute(sa.text("DELETE FROM scores WHERE id = 10;"))
@@ -3310,7 +3313,7 @@ def test_empty_postgresql_database_initializes_with_wide_alembic_version_table()
     _assert_postgres_database_empty(pg.psycopg_url)
     command.upgrade(
         _alembic_config(pg.alembic_async_url),
-        "0066_promote_performance_take_tempo_plan",
+        "0067_simplify_recording_timebase",
     )
     engine_pg = create_engine(pg.sqlalchemy_sync_url)
     try:
@@ -3322,8 +3325,8 @@ def test_empty_postgresql_database_initializes_with_wide_alembic_version_table()
         engine_pg.dispose()
 
 
-def test_constructed_0053_alembic_upgrade_to_0065_postgresql_short_version_table():
-    """Construct a 0053 PostgreSQL state with VARCHAR(32), then run real 0054 -> 0065."""
+def test_constructed_0053_alembic_upgrade_to_0067_postgresql_short_version_table():
+    """Construct a 0053 PostgreSQL state with VARCHAR(32), then run real 0054 -> 0067."""
 
     pg = _postgres_migration_test_database(POSTGRES_MIGRATION_0053_SHORT_URL_ENV)
     _assert_postgres_database_empty(pg.psycopg_url)
@@ -3334,7 +3337,7 @@ def test_constructed_0053_alembic_upgrade_to_0065_postgresql_short_version_table
     )
 
 
-def test_constructed_0053_alembic_upgrade_to_0065_postgresql_long_version_table():
+def test_constructed_0053_alembic_upgrade_to_0067_postgresql_long_version_table():
     """Construct a 0053 PostgreSQL state with pre-widened version table and upgrade."""
 
     import psycopg
@@ -3364,5 +3367,5 @@ def test_postgresql_version_table_widening_permission_error_is_not_swallowed():
     with pytest.raises((DBAPIError, PermissionError, RuntimeError)):
         command.upgrade(
             _alembic_config(pg.alembic_async_url),
-            "0066_promote_performance_take_tempo_plan",
+            "0067_simplify_recording_timebase",
         )

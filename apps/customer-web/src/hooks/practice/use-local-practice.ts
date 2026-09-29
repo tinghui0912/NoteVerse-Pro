@@ -195,8 +195,6 @@ export function useLocalPractice({
   );
 
   const recordingTimebaseRef = useRef<RecordingTimebaseMapping>({
-    recordingStartPerfTimeMs: 0,
-    recordingEndPerfTimeMs: 0,
     activeSegments: [],
     nominalMediaDurationMs: 0,
   });
@@ -329,13 +327,6 @@ export function useLocalPractice({
           });
           cumulativeMediaMsRef.current = mediaEndMs;
           currentSegmentStartPerfMsRef.current = null;
-          recordingTimebaseRef.current.recordingEndPerfTimeMs = perfEndMs;
-        } else if (recordingTimebaseRef.current.activeSegments.length > 0) {
-          const lastSeg =
-            recordingTimebaseRef.current.activeSegments[
-              recordingTimebaseRef.current.activeSegments.length - 1
-            ];
-          recordingTimebaseRef.current.recordingEndPerfTimeMs = lastSeg.perfEndMs;
         }
         recordingTimebaseRef.current.nominalMediaDurationMs = cumulativeMediaMsRef.current;
 
@@ -494,7 +485,6 @@ export function useLocalPractice({
         mediaRecorderRef.current.state === 'inactive'
       ) {
         const perfTimeMs = clockSnapshot.performanceTimeMs;
-        recordingTimebaseRef.current.recordingStartPerfTimeMs = perfTimeMs;
         currentSegmentStartPerfMsRef.current = perfTimeMs;
         currentSegmentStartMediaMsRef.current = 0;
         cumulativeMediaMsRef.current = 0;
@@ -559,8 +549,6 @@ export function useLocalPractice({
     recordingStateRef.current = 'NOT_STARTED';
     recordingMediaKindRef.current = 'AUDIO';
     recordingTimebaseRef.current = {
-      recordingStartPerfTimeMs: 0,
-      recordingEndPerfTimeMs: 0,
       activeSegments: [],
       nominalMediaDurationMs: 0,
     };

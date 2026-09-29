@@ -17,8 +17,6 @@ const tempoPlan: PerformanceTakeTempoPlan = {
 };
 
 const recordingTimebase: RecordingTimebase = {
-  recordingStartPerfTimeMs: 0,
-  recordingEndPerfTimeMs: 4000,
   nominalMediaDurationMs: 4000,
   activeSegments: [
     { perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 },
@@ -172,6 +170,16 @@ describe('share video session saved-take parsing', () => {
         segments: [{ startBeat: 1, bpm: 96, source: 'MUSICXML' }],
       })
     ).toThrow(/beat_zero/);
+    expect(() =>
+      parseSavedRecordingTimebase({
+        ...recordingTimebase,
+        nominalMediaDurationMs: 5000,
+        activeSegments: [
+          { perfStartMs: 0, perfEndMs: 2000, mediaStartMs: 0, mediaEndMs: 2000 },
+          { perfStartMs: 3000, perfEndMs: 5000, mediaStartMs: 2500, mediaEndMs: 5000 },
+        ],
+      })
+    ).toThrow(/media_segments_not_continuous/);
     expect(parseSavedRecordingTimebase(recordingTimebase)).toEqual(recordingTimebase);
   });
 

@@ -279,40 +279,24 @@ function parseRecordingTimebase(raw: RecordingTimebase): ParsedRecordingTimebase
     }
   }
   for (let index = 1; index < parsed.length; index += 1) {
-    if (
-      parsed[index].perfStartMs < parsed[index - 1].perfEndMs ||
-      parsed[index].mediaStartMs < parsed[index - 1].mediaEndMs
-    ) {
+    if (parsed[index].perfStartMs < parsed[index - 1].perfEndMs) {
       throw new Error('recording_timebase_segments_overlap');
     }
+    if (Math.abs(parsed[index].mediaStartMs - parsed[index - 1].mediaEndMs) > 1) {
+      throw new Error('recording_timebase_media_segments_not_continuous');
+    }
   }
-  const recordingStartPerfTimeMs = requireFiniteNonNegative(
-    raw.recordingStartPerfTimeMs,
-    'recordingStartPerfTimeMs'
-  );
-  const recordingEndPerfTimeMs = requireFinitePositive(
-    raw.recordingEndPerfTimeMs,
-    'recordingEndPerfTimeMs'
-  );
   const nominalMediaDurationMs = requireFinitePositive(
     raw.nominalMediaDurationMs,
     'nominalMediaDurationMs'
   );
-  if (recordingEndPerfTimeMs <= recordingStartPerfTimeMs) {
-    throw new Error('recording_timebase_range_invalid');
+  if (parsed[0].mediaStartMs !== 0) {
+    throw new Error('recording_timebase_first_media_segment_invalid');
   }
-  if (
-    parsed[0].perfStartMs < recordingStartPerfTimeMs ||
-    parsed[parsed.length - 1].perfEndMs > recordingEndPerfTimeMs
-  ) {
-    throw new Error('recording_timebase_segment_outside_recording_range');
-  }
-  if (parsed[parsed.length - 1].mediaEndMs > nominalMediaDurationMs) {
-    throw new Error('recording_timebase_media_outside_nominal_duration');
+  if (Math.abs(parsed[parsed.length - 1].mediaEndMs - nominalMediaDurationMs) > 1) {
+    throw new Error('recording_timebase_nominal_duration_mismatch');
   }
   return {
-    recordingStartPerfTimeMs,
-    recordingEndPerfTimeMs,
     nominalMediaDurationMs,
     activeSegments: parsed,
   };

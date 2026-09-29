@@ -35,8 +35,6 @@ const session: ShareVideoSession = {
     segments: [{ startBeat: 0, bpm: 96, source: 'MUSICXML' }],
   },
   recordingTimebase: {
-    recordingStartPerfTimeMs: 0,
-    recordingEndPerfTimeMs: 4000,
     nominalMediaDurationMs: 4000,
     activeSegments: [
       { perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 },

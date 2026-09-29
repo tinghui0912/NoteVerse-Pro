@@ -58,23 +58,15 @@ class RecordingTimebaseSegment(StrictPerformanceTakeModel):
 
 
 class RecordingTimebase(StrictPerformanceTakeModel):
-    recordingStartPerfTimeMs: float = Field(ge=0)
-    recordingEndPerfTimeMs: float = Field(gt=0)
     nominalMediaDurationMs: float = Field(gt=0)
     activeSegments: list[RecordingTimebaseSegment] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_timebase(self) -> "RecordingTimebase":
-        if self.recordingEndPerfTimeMs <= self.recordingStartPerfTimeMs:
-            raise ValueError("recordingEndPerfTimeMs must be greater than recordingStartPerfTimeMs")
         first = self.activeSegments[0]
         last = self.activeSegments[-1]
         if first.mediaStartMs != 0:
             raise ValueError("first media segment must start at zero")
-        if first.perfStartMs < self.recordingStartPerfTimeMs:
-            raise ValueError("first segment starts before recording range")
-        if last.perfEndMs > self.recordingEndPerfTimeMs:
-            raise ValueError("last segment ends after recording range")
         if abs(last.mediaEndMs - self.nominalMediaDurationMs) > 1:
             raise ValueError("nominal media duration must match final media segment")
         for previous, current in zip(self.activeSegments, self.activeSegments[1:]):

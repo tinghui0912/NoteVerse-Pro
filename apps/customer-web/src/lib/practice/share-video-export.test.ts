@@ -46,8 +46,6 @@ function createSession(
       durationMs: 6000,
     },
     recordingTimebase: {
-      recordingStartPerfTimeMs: 0,
-      recordingEndPerfTimeMs: 8000,
       nominalMediaDurationMs: 6000,
       activeSegments: [
         { perfStartMs: 0, perfEndMs: 3000, mediaStartMs: 0, mediaEndMs: 3000 },
@@ -233,8 +231,6 @@ describe('share-video video export helpers', () => {
       getShareVideoExportReadiness({
         session: createSession({
           recordingTimebase: {
-            recordingStartPerfTimeMs: 0,
-            recordingEndPerfTimeMs: 0,
             nominalMediaDurationMs: 0,
             activeSegments: [],
           },
@@ -596,8 +592,6 @@ describe('share-video video export helpers', () => {
     };
     const session = createSession({
       recordingTimebase: {
-        recordingStartPerfTimeMs: 0,
-        recordingEndPerfTimeMs: 5000,
         nominalMediaDurationMs: 5000,
         activeSegments: [{ perfStartMs: 0, perfEndMs: 5000, mediaStartMs: 0, mediaEndMs: 5000 }],
       },
