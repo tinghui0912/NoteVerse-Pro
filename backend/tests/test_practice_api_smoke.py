@@ -8,7 +8,10 @@ from fastapi.testclient import TestClient
 
 from app.api.deps import get_current_user
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
-from app.modules.practice.dependencies import get_practice_service
+from app.modules.practice.dependencies import (
+    get_practice_service,
+    get_practice_source_service,
+)
 from app.practice_main import app
 from app.shared.constants import ErrorCode
 
@@ -151,6 +154,10 @@ class FakePracticeService:
         }
 
 
+class FakePracticeSourceService(FakePracticeService):
+    pass
+
+
 @pytest.fixture(autouse=True)
 def clear_dependency_overrides():
     app.dependency_overrides.clear()
@@ -217,7 +224,7 @@ def test_get_practice_session_summary_returns_structured_payload(client: TestCli
 
 def test_get_practice_ready_score_content_returns_prepared_musicxml(client: TestClient) -> None:
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1, is_active=True)
-    app.dependency_overrides[get_practice_service] = lambda: FakePracticeService()
+    app.dependency_overrides[get_practice_source_service] = lambda: FakePracticeSourceService()
 
     response = client.get("/api/v1/practice/scores/score-1/revisions/revision-1/content")
 
@@ -335,7 +342,7 @@ def test_practice_openapi_keeps_session_response_contracts_explicit() -> None:
 
 def test_get_practice_score_artifact_endpoint(client: TestClient) -> None:
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1, is_active=True)
-    app.dependency_overrides[get_practice_service] = lambda: FakePracticeService()
+    app.dependency_overrides[get_practice_source_service] = lambda: FakePracticeSourceService()
 
     response = client.get("/api/v1/practice/scores/score-1/revisions/revision-1/artifact")
     assert response.status_code == 200
@@ -347,4 +354,3 @@ def test_get_practice_score_artifact_endpoint(client: TestClient) -> None:
     assert "expectedPracticeGroups" in data
     assert "practiceAttackSteps" in data
     assert "scoreTempoSegments" in data
-
