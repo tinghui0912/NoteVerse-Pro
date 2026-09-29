@@ -1,4 +1,4 @@
-import type { ResolvedPracticeScope } from './local-core/artifact';
+import type { ResolvedPracticeScope } from './artifact';
 
 /**
  * The renderer-facing projection of a resolved practice scope.

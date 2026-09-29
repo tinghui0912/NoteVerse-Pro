@@ -10,13 +10,11 @@ import { EmptyState } from '@/components/states';
 import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-viewer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { StepPlayheadController } from '@/lib/practice/step-playhead-controller';
-import {
-  PerformancePlayheadController,
-  type CursorScope,
-} from '@/lib/practice/performance-playhead-controller';
+import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import { cn } from '@/lib/utils';
 import type { ExpectedPracticeGroup, PracticeMode } from '@/lib/practice/local-core/artifact';
+import type { CursorScope } from '@/lib/practice/local-core/cursor-scope';
 
 import type { LocalPracticeLifecycle } from '@/lib/practice/local-core/session';
 

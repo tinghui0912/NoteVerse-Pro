@@ -14,7 +14,7 @@ import {
   resolvePracticeScope,
   resolvePracticeScopeCursorNoteIds,
 } from './local-core/artifact';
-import { cursorScopeFromResolvedPracticeScope, type CursorScope } from './cursor-scope';
+import { cursorScopeFromResolvedPracticeScope, type CursorScope } from './local-core/cursor-scope';
 
 export type ShareVideoSession = {
   sourceId: string;

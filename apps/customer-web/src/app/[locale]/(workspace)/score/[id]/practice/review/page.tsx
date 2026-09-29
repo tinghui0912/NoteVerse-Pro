@@ -46,13 +46,11 @@ import {
   type CompletedPerformance,
   mediaTimeToPerformanceTimeMs,
 } from '@/lib/practice/completed-performance';
-import {
-  PerformancePlayheadController,
-  type CursorScope,
-} from '@/lib/practice/performance-playhead-controller';
+import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
 import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-annotation-controller';
 import { PracticeTempoTimeline } from '@/lib/practice/local-core/practice-tempo';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/local-core/artifact';
+import type { CursorScope } from '@/lib/practice/local-core/cursor-scope';
 import { resolveScopeTiming } from '@/lib/practice/scope-timing';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';

@@ -6,3 +6,5 @@ export * from './practice-tempo';
 export * from './session';
 export * from './step-runtime';
 export * from './timebase';
+
+export * from './cursor-scope';
