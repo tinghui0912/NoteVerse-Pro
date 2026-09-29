@@ -13,7 +13,7 @@ contains:
 
 - score, revision, and artifact identity
 - playable note events
-- legacy expected practice groups
+- expected practice groups
 - canonical expected notes and physical strike targets
 - physical attack steps and continuation metadata
 - canonical expected-group sounding end beats for tied scope terminals

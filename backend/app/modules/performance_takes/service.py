@@ -288,17 +288,11 @@ class PerformanceTakeService:
         self,
         take: PerformanceTake,
         *,
-        score: Optional[Score] = None,
-        revision: Optional[ScoreRevision] = None,
-        has_score_view_access: bool = False,
+        score: Score,
+        revision: ScoreRevision,
     ) -> PerformanceTakeRead:
         tempo_plan = json.loads(take.tempo_plan)
         recording_timebase = json.loads(take.recording_timebase)
-
-        if score is None:
-            raise RuntimeError("performance take source score is missing")
-        if revision is None:
-            raise RuntimeError("performance take source revision is missing")
 
         score_id_out = score.score_uuid
         score_title_out: Optional[str] = take.score_title
@@ -331,36 +325,13 @@ class PerformanceTakeService:
             created_at=take.created_at,
         )
 
-    async def _has_view_access(
-        self,
-        db: AsyncSession,
-        score: Score,
-        user_id: int,
-    ) -> bool:
-        if score.deletion_status != ScoreDeletionStatus.ACTIVE:
-            return False
-        if score.owner_user_id == user_id:
-            return True
-        try:
-            await self.score_access_policy.authorize(
-                db,
-                score.score_uuid,
-                ScoreAction.VIEW,
-                user_id=user_id,
-            )
-            return True
-        except Exception:
-            return False
-
     async def _archived_authorization_response(
         self,
         db: AsyncSession,
-        user_id: int,
         take: PerformanceTake,
     ) -> PerformanceTakeUploadAuthorizationRead:
-        score = await db.get(Score, take.score_id) if take.score_id else None
-        revision = await db.get(ScoreRevision, take.revision_id) if take.revision_id else None
-        has_access = await self._has_view_access(db, score, user_id) if score else False
+        score = await db.get(Score, take.score_id)
+        revision = await db.get(ScoreRevision, take.revision_id)
         return PerformanceTakeUploadAuthorizationRead(
             take_id=take.take_uuid,
             status=PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
@@ -368,7 +339,6 @@ class PerformanceTakeService:
                 take,
                 score=score,
                 revision=revision,
-                has_score_view_access=has_access,
             ),
         )
 
@@ -630,7 +600,7 @@ class PerformanceTakeService:
                     field="client_request_id",
                     details={"reason": "client_request_id_reuse_conflict"},
                 )
-            return await self._archived_authorization_response(db, user_id, existing_take)
+            return await self._archived_authorization_response(db, existing_take)
 
         if existing_auth is not None:
             if _status_value(existing_auth.status) == PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value:
@@ -654,9 +624,7 @@ class PerformanceTakeService:
                             field="client_request_id",
                             details={"reason": "client_request_id_reuse_conflict"},
                         )
-                    return await self._archived_authorization_response(
-                        db, user_id, archived_take
-                    )
+                    return await self._archived_authorization_response(db, archived_take)
                 raise ValidationException(
                     ErrorCode.VALIDATION_ERROR,
                     field="client_request_id",
@@ -732,25 +700,21 @@ class PerformanceTakeService:
         if not score:
             raise ResourceNotFoundException("score", request.score_id, ErrorCode.SCORE_NOT_FOUND)
 
-        revision_uuid: str | None = None
-        revision: ScoreRevision | None = None
-        if request.revision_id is not None:
-            rev_stmt = select(ScoreRevision).where(
-                ScoreRevision.revision_uuid == request.revision_id,
-                ScoreRevision.score_id == score.id,
-            )
-            rev_res = await db.execute(rev_stmt)
-            revision = rev_res.scalars().first()
-            if not revision:
-                raise ValidationException(ErrorCode.VALIDATION_ERROR, field="revision_id")
-            revision_uuid = revision.revision_uuid
+        rev_stmt = select(ScoreRevision).where(
+            ScoreRevision.revision_uuid == request.revision_id,
+            ScoreRevision.score_id == score.id,
+        )
+        rev_res = await db.execute(rev_stmt)
+        revision = rev_res.scalars().first()
+        if not revision:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="revision_id")
 
         await self.score_access_policy.authorize(
             db,
             score.score_uuid,
             ScoreAction.PRACTICE,
             user_id=user_id,
-            revision_uuid=revision_uuid,
+            revision_uuid=revision.revision_uuid,
         )
 
         take_uuid = str(uuid4())
@@ -921,7 +885,7 @@ class PerformanceTakeService:
                     field="client_request_id",
                     details={"reason": "client_request_id_reuse_conflict"},
                 )
-            response = await self._archived_authorization_response(db, user_id, existing_take)
+            response = await self._archived_authorization_response(db, existing_take)
             if response.take is not None:
                 await db.commit()
                 return response.take
@@ -936,9 +900,7 @@ class PerformanceTakeService:
                         field="client_request_id",
                         details={"reason": "client_request_id_reuse_conflict"},
                     )
-                response = await self._archived_authorization_response(
-                    db, user_id, archived_take
-                )
+                response = await self._archived_authorization_response(db, archived_take)
                 if response.take is not None:
                     await db.commit()
                     return response.take
@@ -1235,7 +1197,7 @@ class PerformanceTakeService:
                     field="client_request_id",
                     details={"reason": "client_request_id_reuse_conflict"},
                 )
-            response = await self._archived_authorization_response(db, user_id, existing_take)
+            response = await self._archived_authorization_response(db, existing_take)
             if response.take is not None:
                 return response.take
         if (
@@ -1360,10 +1322,7 @@ class PerformanceTakeService:
             ) from error
         log_stage("db_finalize_committed", started_at=finalize_started)
 
-        has_access = await self._has_view_access(db, score, user_id) if score else False
-        return self._to_read_dto(
-            created, score=score, revision=rev, has_score_view_access=has_access
-        )
+        return self._to_read_dto(created, score=score, revision=rev)
 
     async def list_takes(
         self,
@@ -1387,20 +1346,15 @@ class PerformanceTakeService:
             db, user_id, score_id=score_db_id, limit=limit, offset=offset
         )
 
-        score_ids = {item.score_id for item in items if item.score_id is not None}
+        score_ids = {item.score_id for item in items}
         score_map: dict[int, Score] = {}
-        score_access_map: dict[int, bool] = {}
         if score_ids:
             scores_res = await db.execute(select(Score).where(Score.id.in_(score_ids)))
             for s in scores_res.scalars().all():
                 if s.id is not None:
                     score_map[s.id] = s
-                    if s.owner_user_id == user_id:
-                        score_access_map[s.id] = True
-                    else:
-                        score_access_map[s.id] = await self._has_view_access(db, s, user_id)
 
-        revision_ids = {item.revision_id for item in items if item.revision_id is not None}
+        revision_ids = {item.revision_id for item in items}
         revision_map: dict[int, ScoreRevision] = {}
         if revision_ids:
             revs_res = await db.execute(select(ScoreRevision).where(ScoreRevision.id.in_(revision_ids)))
@@ -1410,15 +1364,13 @@ class PerformanceTakeService:
 
         read_items: list[PerformanceTakeRead] = []
         for item in items:
-            score_obj = score_map.get(item.score_id) if item.score_id else None
-            rev_obj = revision_map.get(item.revision_id) if item.revision_id else None
-            has_acc = score_access_map.get(item.score_id, False) if item.score_id else False
+            score_obj = score_map.get(item.score_id)
+            rev_obj = revision_map.get(item.revision_id)
             read_items.append(
                 self._to_read_dto(
                     item,
                     score=score_obj,
                     revision=rev_obj,
-                    has_score_view_access=has_acc,
                 )
             )
 
@@ -1441,11 +1393,10 @@ class PerformanceTakeService:
         if take is None:
             raise ResourceNotFoundException("performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND)
 
-        score = await db.get(Score, take.score_id) if take.score_id else None
-        revision = await db.get(ScoreRevision, take.revision_id) if take.revision_id else None
-        has_access = await self._has_view_access(db, score, user_id) if score else False
+        score = await db.get(Score, take.score_id)
+        revision = await db.get(ScoreRevision, take.revision_id)
 
-        return self._to_read_dto(take, score=score, revision=revision, has_score_view_access=has_access)
+        return self._to_read_dto(take, score=score, revision=revision)
 
     async def get_playback_url(
         self,
