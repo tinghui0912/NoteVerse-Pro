@@ -1160,10 +1160,10 @@ def test_cancel_upload_authorization(test_env):
         assert cleaned_count == 1
         assert not storage.exists(staging_key)
 
-        # Idempotent cancel via legacy POST /cancel route
-        res_cancel_post = client.post(f"/api/v1/performance-takes/upload-authorizations/{res_id}/cancel")
-        assert res_cancel_post.status_code == 200
-        assert res_cancel_post.json()["data"]["cancelled"] is True
+        # Idempotent cancel via the canonical DELETE route.
+        res_cancel_delete_again = client.delete(f"/api/v1/performance-takes/upload-authorizations/{res_id}")
+        assert res_cancel_delete_again.status_code == 200
+        assert res_cancel_delete_again.json()["data"]["cancelled"] is True
 
     finally:
         app.dependency_overrides.clear()

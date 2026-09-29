@@ -12195,64 +12195,6 @@
         ]
       }
     },
-    "/api/v1/performance-takes/upload-authorizations/{reservation_id}/cancel": {
-      "post": {
-        "operationId": "cancel_take_upload_authorization_api_v1_performance_takes_upload_authorizations__reservation_id__cancel_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "reservation_id",
-            "required": true,
-            "schema": {
-              "title": "Reservation Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_dict_str__bool__"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Cancel Take Upload Authorization",
-        "tags": [
-          "Performance Takes"
-        ]
-      }
-    },
     "/api/v1/performance-takes/{take_id}": {
       "delete": {
         "operationId": "delete_take_api_v1_performance_takes__take_id__delete",

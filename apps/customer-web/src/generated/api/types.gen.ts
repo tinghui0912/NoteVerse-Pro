@@ -6213,36 +6213,6 @@ export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizatio
 
 export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponse = CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponses[keyof CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponses];
 
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostData = {
-    body?: never;
-    path: {
-        /**
-         * Reservation Id
-         */
-        reservation_id: string;
-    };
-    query?: never;
-    url: '/api/v1/performance-takes/upload-authorizations/{reservation_id}/cancel';
-};
-
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostError = CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostErrors[keyof CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostErrors];
-
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseDictStrBool;
-};
-
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostResponse = CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostResponses[keyof CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostResponses];
-
 export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteData = {
     body?: never;
     path: {

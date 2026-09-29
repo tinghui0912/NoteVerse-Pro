@@ -44,10 +44,6 @@ async def authorize_take_upload(
     "/upload-authorizations/{reservation_id}",
     response_model=APIResponse[dict[str, bool]],
 )
-@router.post(
-    "/upload-authorizations/{reservation_id}/cancel",
-    response_model=APIResponse[dict[str, bool]],
-)
 async def cancel_take_upload_authorization(
     reservation_id: str,
     current_user: User = Depends(get_current_user),
