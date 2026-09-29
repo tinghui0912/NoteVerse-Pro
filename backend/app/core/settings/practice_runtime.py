@@ -8,11 +8,9 @@ from pathlib import Path
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from .practice_diagnostics import PracticeDiagnosticsSettings
 
-
-class PracticeRuntimeSettings(PracticeDiagnosticsSettings, BaseSettings):
-    """Strict Practice-only audio alignment environment contract."""
+class PracticeRuntimeSettings(BaseSettings):
+    """Strict Practice score-audio environment contract."""
 
     PRACTICE_SOUNDFONT_PATH: str
 
