@@ -1,65 +1,6 @@
 {
   "components": {
     "schemas": {
-      "APIResponse_PracticeReadyScoreContentRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PracticeReadyScoreContentRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[PracticeReadyScoreContentRead]",
-        "type": "object"
-      },
       "APIResponse_PracticeReplayUploadAuthorizationRead_": {
         "examples": [
           {
@@ -294,65 +235,6 @@
           "success"
         ],
         "title": "APIResponse[PracticeSessionStartRead]",
-        "type": "object"
-      },
-      "APIResponse_PracticeTargetCatalogRead_": {
-        "examples": [
-          {
-            "data": {
-              "id": 1,
-              "name": "Example task"
-            },
-            "message": "Operation succeeded",
-            "success": true
-          }
-        ],
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Business code",
-            "title": "Code"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PracticeTargetCatalogRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Response payload"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Human-readable message",
-            "title": "Message"
-          },
-          "success": {
-            "description": "Whether the request succeeded",
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "APIResponse[PracticeTargetCatalogRead]",
         "type": "object"
       },
       "APIResponse_SavedPracticeReplayArtifactRead_": {
@@ -611,6 +493,13 @@
       },
       "CreatePracticeSessionRequest": {
         "properties": {
+          "browser_verifier_capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/PracticeBrowserVerifierCapability"
+            },
+            "title": "Browser Verifier Capabilities",
+            "type": "array"
+          },
           "channels": {
             "default": 1,
             "minimum": 1.0,
@@ -662,6 +551,16 @@
             "minLength": 1,
             "title": "Score Id",
             "type": "string"
+          },
+          "step_microphone_verification_provider": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeStepMicrophoneVerificationProvider"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -682,6 +581,13 @@
         },
         "title": "HTTPValidationError",
         "type": "object"
+      },
+      "PracticeBrowserVerifierCapability": {
+        "enum": [
+          "STEP_MICROPHONE_VERIFIER_V1"
+        ],
+        "title": "PracticeBrowserVerifierCapability",
+        "type": "string"
       },
       "PracticeEvaluationProfile": {
         "enum": [
@@ -779,34 +685,6 @@
         ],
         "title": "PracticeProgressionMode",
         "type": "string"
-      },
-      "PracticeReadyScoreContentRead": {
-        "properties": {
-          "content": {
-            "title": "Content",
-            "type": "string"
-          },
-          "mime_type": {
-            "default": "application/vnd.recordare.musicxml+xml",
-            "title": "Mime Type",
-            "type": "string"
-          },
-          "revision_id": {
-            "title": "Revision Id",
-            "type": "string"
-          },
-          "score_id": {
-            "title": "Score Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "score_id",
-          "revision_id",
-          "content"
-        ],
-        "title": "PracticeReadyScoreContentRead",
-        "type": "object"
       },
       "PracticeRealtimeGuidance": {
         "enum": [
@@ -1153,6 +1031,16 @@
           "state": {
             "$ref": "#/components/schemas/PracticeSessionState"
           },
+          "step_microphone_verification_provider": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeStepMicrophoneVerificationProvider"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "summary_status": {
             "$ref": "#/components/schemas/PracticeSessionSummaryStatus"
           }
@@ -1282,6 +1170,16 @@
           "state": {
             "$ref": "#/components/schemas/PracticeSessionState"
           },
+          "step_microphone_verification_provider": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeStepMicrophoneVerificationProvider"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "ws_url": {
             "title": "Ws Url",
             "type": "string"
@@ -1305,6 +1203,49 @@
         ],
         "title": "PracticeSessionState",
         "type": "string"
+      },
+      "PracticeSessionSummaryPayloadRead": {
+        "properties": {
+          "metrics": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Metrics",
+            "type": "object"
+          },
+          "problem_measures": {
+            "items": {
+              "$ref": "#/components/schemas/PracticeSessionSummaryProblemMeasureRead"
+            },
+            "title": "Problem Measures",
+            "type": "array"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/PracticeSessionSummaryTargetRead"
+            },
+            "title": "Targets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "metrics"
+        ],
+        "title": "PracticeSessionSummaryPayloadRead",
+        "type": "object"
       },
       "PracticeSessionSummaryProblemMeasureRead": {
         "properties": {
@@ -1373,49 +1314,6 @@
           "mismatch_attempt_count"
         ],
         "title": "PracticeSessionSummaryProblemMeasureRead",
-        "type": "object"
-      },
-      "PracticeSessionSummaryPayloadRead": {
-        "properties": {
-          "problem_measures": {
-            "items": {
-              "$ref": "#/components/schemas/PracticeSessionSummaryProblemMeasureRead"
-            },
-            "title": "Problem Measures",
-            "type": "array"
-          },
-          "metrics": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "title": "Metrics",
-            "type": "object"
-          },
-          "targets": {
-            "items": {
-              "$ref": "#/components/schemas/PracticeSessionSummaryTargetRead"
-            },
-            "title": "Targets",
-            "type": "array"
-          }
-        },
-        "required": [
-          "metrics"
-        ],
-        "title": "PracticeSessionSummaryPayloadRead",
         "type": "object"
       },
       "PracticeSessionSummaryStatus": {
@@ -1538,95 +1436,13 @@
         "title": "PracticeSessionSummaryTargetRead",
         "type": "object"
       },
-      "PracticeTargetCatalogRead": {
-        "properties": {
-          "revision_id": {
-            "title": "Revision Id",
-            "type": "string"
-          },
-          "score_id": {
-            "title": "Score Id",
-            "type": "string"
-          },
-          "targets": {
-            "items": {
-              "$ref": "#/components/schemas/PracticeTargetRead"
-            },
-            "title": "Targets",
-            "type": "array"
-          }
-        },
-        "required": [
-          "score_id",
-          "revision_id"
+      "PracticeStepMicrophoneVerificationProvider": {
+        "enum": [
+          "SERVER",
+          "BROWSER_LOCAL"
         ],
-        "title": "PracticeTargetCatalogRead",
-        "type": "object"
-      },
-      "PracticeTargetRead": {
-        "properties": {
-          "event_ids": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Event Ids",
-            "type": "array"
-          },
-          "group_id": {
-            "title": "Group Id",
-            "type": "string"
-          },
-          "index": {
-            "title": "Index",
-            "type": "integer"
-          },
-          "measure_numbers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Measure Numbers",
-            "type": "array"
-          },
-          "onset_beat": {
-            "title": "Onset Beat",
-            "type": "number"
-          },
-          "pitches": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Pitches",
-            "type": "array"
-          },
-          "render_note_ids": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Render Note Ids",
-            "type": "array"
-          },
-          "staff_ids": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Staff Ids",
-            "type": "array"
-          },
-          "voice_ids": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Voice Ids",
-            "type": "array"
-          }
-        },
-        "required": [
-          "index",
-          "group_id",
-          "onset_beat"
-        ],
-        "title": "PracticeTargetRead",
-        "type": "object"
+        "title": "PracticeStepMicrophoneVerificationProvider",
+        "type": "string"
       },
       "SavedPracticePerformanceRead": {
         "properties": {
@@ -1867,140 +1683,6 @@
           }
         },
         "summary": "Root"
-      }
-    },
-    "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/content": {
-      "get": {
-        "operationId": "get_practice_ready_score_content_api_v1_practice_scores__score_id__revisions__revision_id__content_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "score_id",
-            "required": true,
-            "schema": {
-              "title": "Score Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "revision_id",
-            "required": true,
-            "schema": {
-              "title": "Revision Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PracticeReadyScoreContentRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Practice Ready Score Content",
-        "tags": [
-          "Practice"
-        ]
-      }
-    },
-    "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/targets": {
-      "get": {
-        "operationId": "list_practice_targets_api_v1_practice_scores__score_id__revisions__revision_id__targets_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "score_id",
-            "required": true,
-            "schema": {
-              "title": "Score Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "revision_id",
-            "required": true,
-            "schema": {
-              "title": "Revision Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/APIResponse_PracticeTargetCatalogRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Practice Targets",
-        "tags": [
-          "Practice"
-        ]
       }
     },
     "/api/v1/practice/scores/{score_id}/saved-performances": {

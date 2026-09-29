@@ -8,10 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.api.deps import get_current_user
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
-from app.modules.practice.dependencies import (
-    get_practice_service,
-    get_practice_source_service,
-)
+from app.modules.practice.dependencies import get_practice_service
 from app.practice_main import app
 from app.shared.constants import ErrorCode
 
@@ -132,32 +129,6 @@ class FakePracticeService:
             }
         ]
 
-    async def get_practice_score_artifact(
-        self,
-        db,
-        score_uuid: str,
-        user_id: int,
-        revision_uuid: str | None,
-    ) -> dict[str, object]:
-        return {
-            "schemaVersion": 1,
-            "scoreId": score_uuid,
-            "revisionId": revision_uuid or "rev-1",
-            "artifactId": f"practice-score-artifact:{score_uuid}:{revision_uuid}",
-            "playableEvents": [],
-            "expectedPracticeGroups": [],
-            "practiceAttackSteps": [],
-            "meterSegments": [],
-            "scoreTempoSegments": [{"startBeat": 0.0, "bpm": 120.0}],
-            "firstPlayableBeat": None,
-            "scoreEndBeat": 0.0,
-        }
-
-
-class FakePracticeSourceService(FakePracticeService):
-    pass
-
-
 @pytest.fixture(autouse=True)
 def clear_dependency_overrides():
     app.dependency_overrides.clear()
@@ -180,8 +151,6 @@ def test_practice_feature_routes_require_authentication(client: TestClient) -> N
         ("post", "/api/v1/practice/sessions/session-1/finish", None),
         ("get", "/api/v1/practice/sessions/session-1/summary", None),
         ("get", "/api/v1/practice/scores/score-1/saved-performances", None),
-        ("get", "/api/v1/practice/scores/score-1/revisions/revision-1/content", None),
-        ("get", "/api/v1/practice/scores/score-1/revisions/revision-1/artifact", None),
     ]
 
     for method, path, payload in protected_requests:
@@ -220,20 +189,6 @@ def test_get_practice_session_summary_returns_structured_payload(client: TestCli
     assert payload["success"] is True
     assert payload["data"]["summary_status"] == "READY"
     assert payload["data"]["summary_payload"]["metrics"]["state"] == "FINISHED"
-
-
-def test_get_practice_ready_score_content_returns_prepared_musicxml(client: TestClient) -> None:
-    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1, is_active=True)
-    app.dependency_overrides[get_practice_source_service] = lambda: FakePracticeSourceService()
-
-    response = client.get("/api/v1/practice/scores/score-1/revisions/revision-1/content")
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["success"] is True
-    assert payload["data"]["score_id"] == "score-1"
-    assert payload["data"]["revision_id"] == "revision-1"
-    assert 'id="nv-p1-m1-note1"' in payload["data"]["content"]
 
 
 def test_list_saved_practice_performances_returns_saved_entries(
@@ -310,22 +265,9 @@ def test_practice_openapi_keeps_session_response_contracts_explicit() -> None:
             "evaluation_available",
         },
         "PracticeSessionResultSummaryRead": {"session_id", "summary_status", "summary_payload"},
-        "PracticeTargetRead": {
-            "index",
-            "group_id",
-            "onset_beat",
-            "step_id",
-        },
-        "PracticeAttackTargetRead": {"attack_id", "pitch"},
-        "PracticeStepNoteRead": {"step_note_id", "event_id", "pitch", "render_note_id"},
     }
     for schema_name, fields in expected_required_fields.items():
         assert fields.issubset(components[schema_name]["required"])
-
-    target_properties = components["PracticeTargetRead"]["properties"]
-    assert "attack_targets" in target_properties
-    assert "continuation" in target_properties
-    assert "attack_required" not in target_properties
 
     create_properties = components["CreatePracticeSessionRequest"]["properties"]
     assert "preset" in create_properties
@@ -340,17 +282,10 @@ def test_practice_openapi_keeps_session_response_contracts_explicit() -> None:
     assert "step_microphone_verification_provider" in detail_properties
 
 
-def test_get_practice_score_artifact_endpoint(client: TestClient) -> None:
-    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1, is_active=True)
-    app.dependency_overrides[get_practice_source_service] = lambda: FakePracticeSourceService()
+def test_practice_openapi_no_longer_serves_source_provider_routes() -> None:
+    schema = app.openapi()
+    paths = schema["paths"]
 
-    response = client.get("/api/v1/practice/scores/score-1/revisions/revision-1/artifact")
-    assert response.status_code == 200
-    data = response.json()["data"]
-    assert data["schemaVersion"] == 1
-    assert data["scoreId"] == "score-1"
-    assert data["revisionId"] == "revision-1"
-    assert "artifactId" in data
-    assert "expectedPracticeGroups" in data
-    assert "practiceAttackSteps" in data
-    assert "scoreTempoSegments" in data
+    assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/content" not in paths
+    assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/artifact" not in paths
+    assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/targets" not in paths

@@ -15,17 +15,11 @@ from app.core.token_constants import TOKEN_ALGORITHM
 from app.db.models import User
 from app.modules.auth.schemas import TokenPayload
 from app.modules.practice.service import PracticeService
-from app.modules.practice.source_service import PracticeSourceService
 
 
 def get_practice_service() -> PracticeService:
     """Provide the practice service from the practice module boundary."""
     return PracticeService()
-
-
-def get_practice_source_service() -> PracticeSourceService:
-    """Provide the revision-bound source provider for local practice."""
-    return PracticeSourceService()
 
 
 async def get_websocket_current_user(
@@ -95,6 +89,5 @@ async def get_websocket_current_user(
 
 __all__ = [
     "get_practice_service",
-    "get_practice_source_service",
     "get_websocket_current_user",
 ]
