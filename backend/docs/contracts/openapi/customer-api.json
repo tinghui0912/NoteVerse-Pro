@@ -6316,15 +6316,8 @@
         "additionalProperties": false,
         "properties": {
           "artifact_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Artifact Id"
+            "title": "Artifact Id",
+            "type": "string"
           },
           "created_at": {
             "format": "date-time",
@@ -6356,15 +6349,8 @@
             "$ref": "#/components/schemas/ResolvedTempoPlan"
           },
           "revision_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Revision Id"
+            "title": "Revision Id",
+            "type": "string"
           },
           "scope_start_beat": {
             "title": "Scope Start Beat",
@@ -6380,15 +6366,8 @@
             "type": "string"
           },
           "score_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score Id"
+            "title": "Score Id",
+            "type": "string"
           },
           "score_title": {
             "anyOf": [
@@ -6411,6 +6390,9 @@
         },
         "required": [
           "take_id",
+          "score_id",
+          "revision_id",
+          "artifact_id",
           "media_kind",
           "media_mime_type",
           "media_byte_size",

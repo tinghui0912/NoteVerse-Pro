@@ -143,10 +143,10 @@ class PerformanceTakeCreateRequest(StrictPerformanceTakeModel):
 
 class PerformanceTakeRead(StrictPerformanceTakeModel):
     take_id: str
-    score_id: Optional[str] = None
+    score_id: str
     score_title: Optional[str] = None
-    revision_id: Optional[str] = None
-    artifact_id: Optional[str] = None
+    revision_id: str
+    artifact_id: str
     media_kind: str
     media_mime_type: str
     media_byte_size: int

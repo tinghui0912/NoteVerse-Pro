@@ -3170,7 +3170,7 @@ export type PerformanceTakeRead = {
     /**
      * Artifact Id
      */
-    artifact_id?: string | null;
+    artifact_id: string;
     /**
      * Created At
      */
@@ -3199,7 +3199,7 @@ export type PerformanceTakeRead = {
     /**
      * Revision Id
      */
-    revision_id?: string | null;
+    revision_id: string;
     /**
      * Scope Start Beat
      */
@@ -3215,7 +3215,7 @@ export type PerformanceTakeRead = {
     /**
      * Score Id
      */
-    score_id?: string | null;
+    score_id: string;
     /**
      * Score Title
      */

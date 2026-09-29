@@ -292,7 +292,6 @@
   "savePerformanceMediaTooLarge": "本次媒体超过 100 MiB，暂不能保存到云端。你可以先导出原始视频。",
   "savePerformanceVideoFormatUnsupported": "当前服务端暂只支持保存 WebM 视频。你仍可以导出原始视频或乐谱＋视频文件。",
   "scoreFallback": "乐谱 #{id}",
-  "deletedScoreNotice": "原乐谱已删除",
   "loadMore": "加载更多",
   "noMorePerformances": "已加载全部演奏",
   "takeDurationSeconds": "{seconds} 秒",

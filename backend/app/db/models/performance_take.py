@@ -65,31 +65,28 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    score_id: Optional[int] = Field(
-        default=None,
+    score_id: int = Field(
         sa_column=Column(
             bigint_pk_type,
-            ForeignKey("scores.id", ondelete="SET NULL"),
+            ForeignKey("scores.id", ondelete="RESTRICT"),
             index=True,
-            nullable=True,
+            nullable=False,
         ),
     )
     score_title: Optional[str] = Field(
         default=None,
         sa_column=Column(String(255), nullable=True),
     )
-    revision_id: Optional[int] = Field(
-        default=None,
+    revision_id: int = Field(
         sa_column=Column(
             bigint_pk_type,
-            ForeignKey("score_revisions.id", ondelete="SET NULL"),
+            ForeignKey("score_revisions.id", ondelete="RESTRICT"),
             index=True,
-            nullable=True,
+            nullable=False,
         ),
     )
-    artifact_id: Optional[str] = Field(
-        default=None,
-        sa_column=Column(String(128), nullable=True),
+    artifact_id: str = Field(
+        sa_column=Column(String(128), nullable=False),
     )
     client_request_id: str = Field(
         sa_column=Column(String(128), index=True, nullable=False)
@@ -127,13 +124,11 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     scope_terminal_beat: float = Field(
         sa_column=Column(Float, nullable=False)
     )
-    resolved_tempo_plan: Optional[str] = Field(
-        default=None,
-        sa_column=Column(Text, nullable=True),
+    resolved_tempo_plan: str = Field(
+        sa_column=Column(Text, nullable=False),
     )
-    sync_metadata: Optional[str] = Field(
-        default=None,
-        sa_column=Column(Text, nullable=True),
+    sync_metadata: str = Field(
+        sa_column=Column(Text, nullable=False),
     )
     deletion_status: str = Field(
         default=PerformanceTakeDeletionStatus.ACTIVE.value,

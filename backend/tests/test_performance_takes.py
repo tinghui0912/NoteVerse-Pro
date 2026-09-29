@@ -892,12 +892,14 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         score_row = session.execute(select(Score).where(Score.id == 10)).scalar_one()
         assert score_row.deletion_status == ScoreDeletionStatus.DELETING
 
-        # Listing takes: score is DELETING, so score_id is None, score_title snapshot preserved
+        # Listing takes: source identity is retained even while the score is hidden/deleting.
         res_list_soft = client.get("/api/v1/performance-takes")
         assert res_list_soft.status_code == 200
         item_soft = res_list_soft.json()["data"]["items"][0]
         assert item_soft["take_id"] == take_id
-        assert item_soft["score_id"] is None
+        assert item_soft["score_id"] == "score-uuid-10"
+        assert item_soft["revision_id"] == "revision-uuid-100"
+        assert item_soft["artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
         assert item_soft["score_title"] == "Moonlight Sonata"
 
         # Playback still works during soft delete
@@ -913,14 +915,18 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         cleanup_res = lifecycle_svc.cleanup_deleting_scores(session)
         assert cleanup_res.scores_deleted == 1
 
-        # Verify in DB: score is deleted
-        assert session.execute(select(Score).where(Score.id == 10)).scalar_one_or_none() is None
+        # Verify in DB: score is logically deleted but immutable source rows remain because
+        # the take must be able to recover its exact historical score/revision/artifact.
+        retained_score = session.execute(select(Score).where(Score.id == 10)).scalar_one_or_none()
+        assert retained_score is not None
+        assert retained_score.deletion_status == ScoreDeletionStatus.DELETED
 
-        # Verify in DB: take row is preserved with score_id=None, revision_id=None, score_title="Moonlight Sonata"
+        # Verify in DB: take row is preserved with required source identity.
         take_in_db = session.execute(select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)).scalar_one_or_none()
         assert take_in_db is not None
-        assert take_in_db.score_id is None
-        assert take_in_db.revision_id is None
+        assert take_in_db.score_id == 10
+        assert take_in_db.revision_id == 100
+        assert take_in_db.artifact_id == DEFAULT_TAKE_ARTIFACT_ID
         assert take_in_db.score_title == "Moonlight Sonata"
 
         # Verify storage: media object is STILL PRESERVED!
@@ -930,12 +936,14 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         session.refresh(account)
         assert account.used_bytes == size
 
-        # Listing takes after hard delete: score_id is None, score_title preserved
+        # Listing takes after score cleanup: exact source identity remains recoverable.
         res_list_hard = client.get("/api/v1/performance-takes")
         assert res_list_hard.status_code == 200
         item_hard = res_list_hard.json()["data"]["items"][0]
         assert item_hard["take_id"] == take_id
-        assert item_hard["score_id"] is None
+        assert item_hard["score_id"] == "score-uuid-10"
+        assert item_hard["revision_id"] == "revision-uuid-100"
+        assert item_hard["artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
         assert item_hard["score_title"] == "Moonlight Sonata"
 
         # Playback and download still work after score hard delete
@@ -2093,7 +2101,7 @@ def test_archived_authorization_late_staging_put_is_cleaned_after_expiry(test_en
         app.dependency_overrides.clear()
 
 
-def test_score_deleted_between_auth_and_finalize(test_env):
+def test_score_deleted_between_auth_and_finalize_fails_closed(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = PerformanceTakeService(
@@ -2133,13 +2141,13 @@ def test_score_deleted_between_auth_and_finalize(test_env):
         staging_key = auth_data["object_key"]
         storage.put_bytes(key=staging_key, content=content, content_type="audio/webm")
 
-        # Simulate score being hard-deleted before client calls finalize
-        session.execute(text("UPDATE scores SET head_revision_id = NULL WHERE id = 10;"))
-        session.execute(text("DELETE FROM score_revisions WHERE score_id = 10;"))
-        session.execute(text("DELETE FROM scores WHERE id = 10;"))
+        # Simulate score becoming unavailable before client calls finalize. The source rows
+        # remain retained; finalize must fail closed instead of creating a take with null source.
+        session.execute(
+            text("UPDATE scores SET deletion_status = 'DELETED' WHERE id = 10;")
+        )
         session.commit()
 
-        # Client finalizes
         fin_req = {
             "take_id": take_id,
             "client_request_id": "req-score-del-midway",
@@ -2153,20 +2161,19 @@ def test_score_deleted_between_auth_and_finalize(test_env):
             "scope_terminal_beat": 4.0,
         }
         res_fin = client.post("/api/v1/performance-takes", json=fin_req)
-        assert res_fin.status_code == 200
-        take_data = res_fin.json()["data"]
-        # Score and revision are cleared, snapshot title is preserved
-        assert take_data["score_id"] is None
-        assert take_data["revision_id"] is None
-        assert take_data["score_title"] == "Moonlight Sonata"
+        assert res_fin.status_code == 422
 
-        # List takes returns the take with score_id=None
+        assert (
+            session.execute(
+                select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+            ).scalar_one_or_none()
+            is None
+        )
+
+        # List takes does not expose a partially finalized take.
         res_list = client.get("/api/v1/performance-takes")
         assert res_list.status_code == 200
-        item = res_list.json()["data"]["items"][0]
-        assert item["take_id"] == take_id
-        assert item["score_id"] is None
-        assert item["score_title"] == "Moonlight Sonata"
+        assert res_list.json()["data"]["items"] == []
 
     finally:
         app.dependency_overrides.clear()
@@ -2438,15 +2445,17 @@ def _expired_cleanup_auth(
         user_id=user_id,
         client_request_id=client_request_id,
         take_uuid=f"take-{client_request_id}",
-        score_id=None,
-        score_uuid=None,
+        score_id=10,
+        score_uuid="score-uuid-10",
         score_title="Cleanup test",
-        revision_id=None,
-        revision_uuid=None,
-        artifact_id=None,
+        revision_id=100,
+        revision_uuid=DEFAULT_TAKE_REVISION_ID,
+        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
         scope_type="FULL",
         scope_start_beat=0.0,
         scope_terminal_beat=4.0,
+        resolved_tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+        sync_metadata=json.dumps(DEFAULT_TAKE_SYNC_METADATA),
         duration_ms=1000,
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -2581,15 +2590,17 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
         user_id=user_1.id,
         client_request_id="lease-expired-before-copy",
         take_uuid="take-lease-expired-before-copy",
-        score_id=None,
-        score_uuid=None,
+        score_id=10,
+        score_uuid="score-uuid-10",
         score_title="Lease test",
-        revision_id=None,
-        revision_uuid=None,
-        artifact_id=None,
+        revision_id=100,
+        revision_uuid=DEFAULT_TAKE_REVISION_ID,
+        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
         scope_type="FULL",
         scope_start_beat=0.0,
         scope_terminal_beat=4.0,
+        resolved_tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+        sync_metadata=json.dumps(DEFAULT_TAKE_SYNC_METADATA),
         duration_ms=1000,
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -2870,10 +2881,10 @@ def test_authorization_cleanup_does_not_delete_orphan_key_referenced_by_take(tes
         PerformanceTake(
             take_uuid="take-referenced-orphan",
             user_id=user_1.id,
-            score_id=None,
+            score_id=10,
             score_title="Referenced orphan",
-            revision_id=None,
-            artifact_id=None,
+            revision_id=100,
+            artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
             client_request_id="referenced-orphan",
             media_kind=PerformanceTakeMediaKind.AUDIO,
             media_mime_type="audio/webm",
@@ -2884,6 +2895,8 @@ def test_authorization_cleanup_does_not_delete_orphan_key_referenced_by_take(tes
             scope_type="FULL",
             scope_start_beat=0.0,
             scope_terminal_beat=4.0,
+            resolved_tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+            sync_metadata=json.dumps(DEFAULT_TAKE_SYNC_METADATA),
             deletion_status=PerformanceTakeDeletionStatus.ACTIVE,
         )
     )
@@ -2910,15 +2923,17 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
         user_id=user_1.id,
         client_request_id="finalizing-expired-retry",
         take_uuid="finalizing-expired",
-        score_id=None,
-        score_uuid=None,
+        score_id=10,
+        score_uuid="score-uuid-10",
         score_title="Finalizing retry",
-        revision_id=None,
-        revision_uuid=None,
-        artifact_id=None,
+        revision_id=100,
+        revision_uuid=DEFAULT_TAKE_REVISION_ID,
+        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
         scope_type="FULL",
         scope_start_beat=0.0,
         scope_terminal_beat=4.0,
+        resolved_tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+        sync_metadata=json.dumps(DEFAULT_TAKE_SYNC_METADATA),
         duration_ms=1000,
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -3188,11 +3203,15 @@ def _setup_constructed_0053_performance_takes_state_postgresql(database_url: str
                 INSERT INTO performance_takes (
                     id, take_uuid, user_id, score_id, revision_id, artifact_id, client_request_id,
                     media_kind, media_mime_type, media_byte_size, media_object_key, storage_backend,
-                    duration_ms, scope_start_beat, scope_terminal_beat, created_at, updated_at
+                    duration_ms, scope_start_beat, scope_terminal_beat,
+                    resolved_tempo_plan, sync_metadata, created_at, updated_at
                 ) VALUES (
                     1, 'take-pg-001', 1, 10, 100, 'art-1', 'req-1',
                     'AUDIO', 'audio/webm', 2048, 'users/1/takes/take-pg-001.webm', 's3',
-                    90000, 0.0, 32.0, '2026-09-20 14:00:00', '2026-09-20 14:00:00'
+                    90000, 0.0, 32.0,
+                    '{"selection":{"mode":"CUSTOM_FIXED_BPM","bpm":120},"segments":[{"startBeat":0,"bpm":120,"source":"CUSTOM"}]}',
+                    '{"recordingTimebase":{"recordingStartPerfTimeMs":0,"recordingEndPerfTimeMs":90000,"nominalMediaDurationMs":90000,"activeSegments":[{"perfStartMs":0,"perfEndMs":90000,"mediaStartMs":0,"mediaEndMs":90000}]}}',
+                    '2026-09-20 14:00:00', '2026-09-20 14:00:00'
                 );
                 """
             )
@@ -3208,7 +3227,7 @@ def _assert_performance_take_upgrade_state(
 
     command.upgrade(
         _alembic_config(alembic_async_url),
-        "0056_take_auth_and_deletion_outbox",
+        "0063_require_performance_take_source_identity",
     )
     engine_pg = create_engine(sqlalchemy_sync_url)
     try:
@@ -3220,8 +3239,11 @@ def _assert_performance_take_upgrade_state(
         assert getattr(version_cols["version_num"]["type"], "length", None) == 128
 
         cols = {c["name"]: c for c in inspector.get_columns("performance_takes")}
-        assert cols["score_id"]["nullable"] is True
-        assert cols["revision_id"]["nullable"] is True
+        assert cols["score_id"]["nullable"] is False
+        assert cols["revision_id"]["nullable"] is False
+        assert cols["artifact_id"]["nullable"] is False
+        assert cols["resolved_tempo_plan"]["nullable"] is False
+        assert cols["sync_metadata"]["nullable"] is False
         assert "score_title" in cols
         assert cols["score_title"]["nullable"] is True
         assert "scope_type" in cols
@@ -3232,9 +3254,9 @@ def _assert_performance_take_upgrade_state(
         fks = inspector.get_foreign_keys("performance_takes")
         assert len([fk for fk in fks if fk["referred_table"] == "scores"]) == 1
         score_fk = next(f for f in fks if f["referred_table"] == "scores")
-        assert score_fk["options"].get("ondelete") == "SET NULL"
+        assert score_fk["options"].get("ondelete") == "RESTRICT"
         rev_fk = next(f for f in fks if f["referred_table"] == "score_revisions")
-        assert rev_fk["options"].get("ondelete") == "SET NULL"
+        assert rev_fk["options"].get("ondelete") == "RESTRICT"
         user_fk = next(f for f in fks if f["referred_table"] == "users")
         assert user_fk["options"].get("ondelete") == "CASCADE"
 
@@ -3268,14 +3290,16 @@ def _assert_performance_take_upgrade_state(
             assert row[6] == "FULL"
             assert row[7] == "ACTIVE"
 
-            # DELETE FROM scores on PG
-            pconn.execute(sa.text("DELETE FROM scores WHERE id = 10;"))
-            pconn.commit()
+            # Source identity is durable while a take exists.
+            with pytest.raises(sa.exc.IntegrityError):
+                pconn.execute(sa.text("DELETE FROM scores WHERE id = 10;"))
+                pconn.commit()
+            pconn.rollback()
 
             row_after = pconn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type, deletion_status FROM performance_takes WHERE id = 1")).fetchone()
             assert row_after is not None
-            assert row_after[3] is None  # score_id SET NULL
-            assert row_after[4] is None  # revision_id SET NULL
+            assert row_after[3] == 10
+            assert row_after[4] == 100
             assert row_after[5] == "PG Sonata Allegro"  # title preserved
             assert row_after[6] == "FULL"
             assert row_after[7] == "ACTIVE"
@@ -3292,7 +3316,7 @@ def test_empty_postgresql_database_initializes_with_wide_alembic_version_table()
     _assert_postgres_database_empty(pg.psycopg_url)
     command.upgrade(
         _alembic_config(pg.alembic_async_url),
-        "0056_take_auth_and_deletion_outbox",
+        "0063_require_performance_take_source_identity",
     )
     engine_pg = create_engine(pg.sqlalchemy_sync_url)
     try:
@@ -3304,8 +3328,8 @@ def test_empty_postgresql_database_initializes_with_wide_alembic_version_table()
         engine_pg.dispose()
 
 
-def test_constructed_0053_alembic_upgrade_to_0056_postgresql_short_version_table():
-    """Construct a 0053 PostgreSQL state with VARCHAR(32), then run real 0054 -> 0056."""
+def test_constructed_0053_alembic_upgrade_to_0063_postgresql_short_version_table():
+    """Construct a 0053 PostgreSQL state with VARCHAR(32), then run real 0054 -> 0063."""
 
     pg = _postgres_migration_test_database(POSTGRES_MIGRATION_0053_SHORT_URL_ENV)
     _assert_postgres_database_empty(pg.psycopg_url)
@@ -3316,7 +3340,7 @@ def test_constructed_0053_alembic_upgrade_to_0056_postgresql_short_version_table
     )
 
 
-def test_constructed_0053_alembic_upgrade_to_0056_postgresql_long_version_table():
+def test_constructed_0053_alembic_upgrade_to_0063_postgresql_long_version_table():
     """Construct a 0053 PostgreSQL state with pre-widened version table and upgrade."""
 
     import psycopg
@@ -3346,5 +3370,5 @@ def test_postgresql_version_table_widening_permission_error_is_not_swallowed():
     with pytest.raises((DBAPIError, PermissionError, RuntimeError)):
         command.upgrade(
             _alembic_config(pg.alembic_async_url),
-            "0056_take_auth_and_deletion_outbox",
+            "0063_require_performance_take_source_identity",
         )

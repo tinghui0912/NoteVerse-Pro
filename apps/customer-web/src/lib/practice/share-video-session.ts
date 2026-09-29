@@ -76,10 +76,7 @@ export type SavedTakeEligibility =
 export function hasSavedTakeShareVideoMetadata(take: PerformanceTakeRead): boolean {
   if (
     take.deletion_status === 'DELETING' ||
-    take.media_kind !== 'VIDEO' ||
-    !take.score_id ||
-    !take.revision_id ||
-    !take.artifact_id
+    take.media_kind !== 'VIDEO'
   ) {
     return false;
   }
@@ -122,9 +119,6 @@ export function createShareVideoSessionFromSavedTake(
   }
   if (!videoBlob.size) {
     return { status: 'temporarily_unavailable', reason: 'empty_media' };
-  }
-  if (!take.score_id || !take.revision_id || !take.artifact_id) {
-    return { status: 'unsupported', reason: 'score_revision_artifact_missing' };
   }
   if (
     artifact.scoreId !== take.score_id ||

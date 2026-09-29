@@ -136,7 +136,7 @@ describe('share video session saved-take parsing', () => {
     }
   });
 
-  it('classifies audio, deleting, and missing identity takes as unsupported', () => {
+  it('classifies audio and deleting takes as unsupported', () => {
     expect(
       createShareVideoSessionFromSavedTake(
         { ...take, media_kind: 'AUDIO' },
@@ -151,13 +151,6 @@ describe('share video session saved-take parsing', () => {
         artifact
       )
     ).toMatchObject({ status: 'unsupported', reason: 'take_deleting' });
-    expect(
-      createShareVideoSessionFromSavedTake(
-        { ...take, artifact_id: '' },
-        new Blob(['video']),
-        artifact
-      )
-    ).toMatchObject({ status: 'unsupported', reason: 'score_revision_artifact_missing' });
   });
 
   it('enforces exact artifact identity inside the saved-take adapter', () => {

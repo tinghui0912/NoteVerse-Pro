@@ -43,7 +43,6 @@ const translationMocks = vi.hoisted(() => {
     scopeFull: '全曲演奏',
     scopeSection: '选段演奏',
     scoreFallback: '乐谱 #{id}',
-    deletedScoreNotice: '原乐谱已删除',
     pagination: '第 {page} / {totalPages} 页',
     previousPage: '上一页',
     nextPage: '下一页',
@@ -341,14 +340,14 @@ describe('MyPerformancesPage', () => {
     expect(screen.getByText('暂无已保存的演奏')).toBeInTheDocument();
   });
 
-  it('renders snapshot title and deletedScoreNotice when score_id is null', () => {
+  it('renders retained source identity as a score link', () => {
     mockQueryOverride = {
       data: {
         data: {
           items: [
             {
               take_id: 'take-deleted-score',
-              score_id: null,
+              score_id: 'score-retained-source',
               score_title: 'Sonata Allegro Op. 57',
               media_kind: 'AUDIO',
               media_mime_type: 'audio/webm',
@@ -377,9 +376,10 @@ describe('MyPerformancesPage', () => {
     };
 
     render(<MyPerformancesPage />);
-    expect(screen.getByText('Sonata Allegro Op. 57')).toBeInTheDocument();
-    expect(screen.getByText('原乐谱已删除')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Sonata Allegro/ })).not.toBeInTheDocument();
+    const scoreLink = screen.getByRole('link', { name: /Sonata Allegro/ });
+    expect(scoreLink).toBeInTheDocument();
+    expect(scoreLink).toHaveAttribute('href', '/score/score-retained-source');
+    expect(screen.queryByText('原乐谱已删除')).not.toBeInTheDocument();
   });
 
   it('handles playback toggling and playback error retry', () => {

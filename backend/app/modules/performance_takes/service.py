@@ -292,21 +292,20 @@ class PerformanceTakeService:
         revision: Optional[ScoreRevision] = None,
         has_score_view_access: bool = False,
     ) -> PerformanceTakeRead:
-        resolved_tempo_plan = json.loads(take.resolved_tempo_plan) if take.resolved_tempo_plan else None
-        sync_metadata = json.loads(take.sync_metadata) if take.sync_metadata else None
+        resolved_tempo_plan = json.loads(take.resolved_tempo_plan)
+        sync_metadata = json.loads(take.sync_metadata)
 
-        score_id_out: Optional[str] = None
+        if score is None:
+            raise RuntimeError("performance take source score is missing")
+        if revision is None:
+            raise RuntimeError("performance take source revision is missing")
+
+        score_id_out = score.score_uuid
         score_title_out: Optional[str] = take.score_title
 
-        if score is not None:
-            if not score_title_out:
-                score_title_out = score.title
-            if score.deletion_status == ScoreDeletionStatus.ACTIVE and has_score_view_access:
-                score_id_out = score.score_uuid
-
-        revision_id_out: Optional[str] = None
-        if revision is not None and score_id_out is not None:
-            revision_id_out = revision.revision_uuid
+        if not score_title_out:
+            score_title_out = score.title
+        revision_id_out = revision.revision_uuid
 
         scope_type = getattr(take, "scope_type", "FULL") or "FULL"
         deletion_status = _status_value(take.deletion_status)
@@ -1151,7 +1150,9 @@ class PerformanceTakeService:
             raise
         log_stage("candidate_hash_complete", started_at=finalize_started)
 
-        # Resolve score/revision at finalize time; if score deleted, keep score_title snapshot
+        # Resolve the immutable source at finalize time. A completed performance
+        # must retain exact score/revision/artifact identity; do not finalize
+        # against a missing or deleted source.
         try:
             score = (
                 await db.get(Score, auth_snapshot["score_id"])
@@ -1180,18 +1181,32 @@ class PerformanceTakeService:
                 else None
             )
         log_stage("db_finalize_started", started_at=finalize_started)
-        score_db_id: int | None = None
+        if score is None or score.deletion_status != ScoreDeletionStatus.ACTIVE:
+            await self._record_failed_candidate_final(
+                db,
+                user_id=user_id,
+                take_uuid=request.take_id,
+                candidate_key=candidate_key,
+            )
+            await self._delete_candidate_final_async(candidate_key)
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="score_id")
+
+        score_db_id: int = score.id
         score_title_out = auth_snapshot["score_title"]
         revision_db_id: int | None = None
-        revision_obj: ScoreRevision | None = None
-        if score is not None and score.deletion_status == ScoreDeletionStatus.ACTIVE:
-            score_db_id = score.id
-            score_title_out = score.title
-            if auth_snapshot["revision_id"]:
-                rev = await db.get(ScoreRevision, auth_snapshot["revision_id"])
-                if rev is not None and rev.score_id == score.id:
-                    revision_db_id = rev.id
-                    revision_obj = rev
+        score_title_out = score.title
+        rev = await db.get(ScoreRevision, auth_snapshot["revision_id"])
+        if rev is not None and rev.score_id == score.id:
+            revision_db_id = rev.id
+        if revision_db_id is None:
+            await self._record_failed_candidate_final(
+                db,
+                user_id=user_id,
+                take_uuid=request.take_id,
+                candidate_key=candidate_key,
+            )
+            await self._delete_candidate_final_async(candidate_key)
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="revision_id")
 
         auth = await self.repository.get_authorization_by_take_uuid(
             db, user_id, request.take_id, lock=True
@@ -1333,7 +1348,7 @@ class PerformanceTakeService:
 
         has_access = await self._has_view_access(db, score, user_id) if score else False
         return self._to_read_dto(
-            created, score=score, revision=revision_obj, has_score_view_access=has_access
+            created, score=score, revision=rev, has_score_view_access=has_access
         )
 
     async def list_takes(

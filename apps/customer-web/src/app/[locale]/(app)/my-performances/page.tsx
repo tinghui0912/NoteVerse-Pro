@@ -120,9 +120,7 @@ function PerformanceTakeCard({
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  const scoreTitle = take.score_id
-    ? take.score_title || t('scoreFallback', { id: take.score_id })
-    : take.score_title || t('deletedScoreNotice');
+  const scoreTitle = take.score_title || t('scoreFallback', { id: take.score_id });
 
   const isDeleting = take.deletion_status === 'DELETING' || isDeletePending;
 
@@ -192,23 +190,12 @@ function PerformanceTakeCard({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <Music className="h-5 w-5 flex-shrink-0 text-primary" />
-                {take.score_id ? (
-                  <Link
-                    href={`/score/${take.score_id}`}
-                    className="truncate font-semibold text-gray-900 transition-colors hover:text-primary hover:underline"
-                  >
-                    {scoreTitle}
-                  </Link>
-                ) : (
-                  <span className="truncate font-semibold text-gray-700">
-                    {scoreTitle}
-                  </span>
-                )}
-                {!take.score_id ? (
-                  <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
-                    {t('deletedScoreNotice')}
-                  </span>
-                ) : null}
+                <Link
+                  href={`/score/${take.score_id}`}
+                  className="truncate font-semibold text-gray-900 transition-colors hover:text-primary hover:underline"
+                >
+                  {scoreTitle}
+                </Link>
                 {isDeleting ? (
                   <span
                     className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20"

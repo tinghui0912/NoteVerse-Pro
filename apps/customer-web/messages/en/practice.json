@@ -292,7 +292,6 @@
   "savePerformanceMediaTooLarge": "This media is larger than 100 MiB and cannot be saved to the cloud yet. You can export the original video instead.",
   "savePerformanceVideoFormatUnsupported": "Cloud video saves currently support WebM only. You can still export the original video or score + video file.",
   "scoreFallback": "Score #{id}",
-  "deletedScoreNotice": "Original score deleted",
   "loadMore": "Load More",
   "noMorePerformances": "All performances loaded",
   "takeDurationSeconds": "{seconds}s",

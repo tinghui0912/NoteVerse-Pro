@@ -65,39 +65,34 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
     take_uuid: str = Field(
         sa_column=Column(String(36), index=True, nullable=False)
     )
-    score_id: Optional[int] = Field(
-        default=None,
+    score_id: int = Field(
         sa_column=Column(
             bigint_pk_type,
-            ForeignKey("scores.id", ondelete="SET NULL"),
+            ForeignKey("scores.id", ondelete="RESTRICT"),
             index=True,
-            nullable=True,
+            nullable=False,
         ),
     )
-    score_uuid: Optional[str] = Field(
-        default=None,
-        sa_column=Column(String(36), nullable=True),
+    score_uuid: str = Field(
+        sa_column=Column(String(36), nullable=False),
     )
     score_title: Optional[str] = Field(
         default=None,
         sa_column=Column(String(255), nullable=True),
     )
-    revision_id: Optional[int] = Field(
-        default=None,
+    revision_id: int = Field(
         sa_column=Column(
             bigint_pk_type,
-            ForeignKey("score_revisions.id", ondelete="SET NULL"),
+            ForeignKey("score_revisions.id", ondelete="RESTRICT"),
             index=True,
-            nullable=True,
+            nullable=False,
         ),
     )
-    revision_uuid: Optional[str] = Field(
-        default=None,
-        sa_column=Column(String(36), nullable=True),
+    revision_uuid: str = Field(
+        sa_column=Column(String(36), nullable=False),
     )
-    artifact_id: Optional[str] = Field(
-        default=None,
-        sa_column=Column(String(128), nullable=True),
+    artifact_id: str = Field(
+        sa_column=Column(String(128), nullable=False),
     )
     scope_type: str = Field(
         default="FULL",
@@ -109,13 +104,11 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
     scope_terminal_beat: float = Field(
         sa_column=Column(Float, nullable=False)
     )
-    resolved_tempo_plan: Optional[str] = Field(
-        default=None,
-        sa_column=Column(Text, nullable=True),
+    resolved_tempo_plan: str = Field(
+        sa_column=Column(Text, nullable=False),
     )
-    sync_metadata: Optional[str] = Field(
-        default=None,
-        sa_column=Column(Text, nullable=True),
+    sync_metadata: str = Field(
+        sa_column=Column(Text, nullable=False),
     )
     duration_ms: int = Field(
         sa_column=Column(Integer, nullable=False)
