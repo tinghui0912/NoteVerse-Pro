@@ -4,6 +4,7 @@ import asyncio
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import json
 import os
 from collections.abc import Iterator
 from pathlib import Path
@@ -56,6 +57,27 @@ from app.storage.local import LocalFileStorage
 from app.worker.execution import performance_take_deletion
 
 VALID_WEBM_BYTES = b"\x1a\x45\xdf\xa3" + b"fake-webm-audio-binary-data-12345"
+DEFAULT_TAKE_REVISION_ID = "revision-uuid-100"
+DEFAULT_TAKE_ARTIFACT_ID = "art-1"
+DEFAULT_TAKE_TEMPO_PLAN = {
+    "selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 120},
+    "segments": [{"startBeat": 0, "bpm": 120, "source": "CUSTOM"}],
+}
+DEFAULT_TAKE_SYNC_METADATA = {
+    "recordingTimebase": {
+        "recordingStartPerfTimeMs": 0,
+        "recordingEndPerfTimeMs": 5000,
+        "nominalMediaDurationMs": 5000,
+        "activeSegments": [
+            {
+                "perfStartMs": 0,
+                "perfEndMs": 5000,
+                "mediaStartMs": 0,
+                "mediaEndMs": 5000,
+            }
+        ],
+    }
+}
 POSTGRES_MIGRATION_EMPTY_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_EMPTY_URL"
 POSTGRES_MIGRATION_0053_SHORT_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_0053_SHORT_URL"
 POSTGRES_MIGRATION_0053_LONG_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_0053_LONG_URL"
@@ -105,6 +127,27 @@ class AsyncSessionAdapter:
 
     def add(self, instance) -> None:  # type: ignore[no-untyped-def]
         self.session.add(instance)
+
+
+def _complete_take_request_payload(payload: object) -> object:
+    """Fill the shared valid context for legacy lifecycle fixtures."""
+    if not isinstance(payload, dict) or "score_id" not in payload:
+        return payload
+    completed = dict(payload)
+    completed.setdefault("revision_id", DEFAULT_TAKE_REVISION_ID)
+    completed.setdefault("artifact_id", DEFAULT_TAKE_ARTIFACT_ID)
+    completed.setdefault("resolved_tempo_plan", DEFAULT_TAKE_TEMPO_PLAN)
+    completed.setdefault("sync_metadata", DEFAULT_TAKE_SYNC_METADATA)
+    return completed
+
+
+class PerformanceTakeTestClient(TestClient):
+    def post(self, url, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if url.endswith(
+            ("/api/v1/performance-takes/upload-authorizations", "/api/v1/performance-takes")
+        ):
+            kwargs["json"] = _complete_take_request_payload(kwargs.get("json"))
+        return super().post(url, *args, **kwargs)
 
 
 def _run_async(awaitable):  # type: ignore[no-untyped-def]
@@ -253,7 +296,7 @@ def test_env(tmp_path) -> Iterator[tuple[Session, LocalFileStorage, User, User]]
 
 
 def test_unauthenticated_access_denied():
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     r1 = client.post("/api/v1/performance-takes/upload-authorizations", json={})
     assert r1.status_code == 401
@@ -294,7 +337,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         # 1. Authorize upload with external UUIDs
@@ -572,7 +615,7 @@ def test_score_access_and_validation(test_env):
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         # Invalid mime type rejected
@@ -635,7 +678,7 @@ def test_unrelated_revision_rejected(test_env):
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         # Create score 20 with revision 200
@@ -696,7 +739,7 @@ def test_cross_user_score_permission(test_env):
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         # User 2 owns a private score
@@ -728,6 +771,8 @@ def test_cross_user_score_permission(test_env):
         app.dependency_overrides[get_current_user] = lambda: user_1
         req_unauth = {
             "score_id": "score-uuid-user2",
+            "revision_id": "revision-uuid-user2",
+            "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
             "client_request_id": "req-cross-user-auth",
             "media_byte_size": 1024,
             "media_mime_type": "audio/webm",
@@ -759,7 +804,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         # 1. Create a take on score 10
@@ -911,7 +956,7 @@ def test_duplicate_deletion_idempotency(test_env, monkeypatch: pytest.MonkeyPatc
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         content = VALID_WEBM_BYTES
@@ -998,7 +1043,7 @@ def test_quota_rejection(test_env):
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         account = session.get(StorageUsageAccount, 1)
@@ -1038,7 +1083,7 @@ def test_cancel_upload_authorization(test_env):
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         auth_req = {
@@ -1114,7 +1159,7 @@ def test_pagination(test_env):
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         # Create 3 takes for User 1 with valid container bytes
@@ -1129,6 +1174,8 @@ def test_pagination(test_env):
                 "duration_ms": 5000,
                 "scope_start_beat": 0.0,
                 "scope_terminal_beat": 4.0,
+                "resolved_tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+                "sync_metadata": DEFAULT_TAKE_SYNC_METADATA,
             }
             res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
             assert res_auth.status_code == 200
@@ -1188,7 +1235,7 @@ def test_audio_container_magic_bytes_validation(test_env):
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         # 1. Invalid container header rejected with 422 media_mime_type
@@ -1307,7 +1354,7 @@ def test_finalize_safe_retry_idempotency(test_env):
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         content = VALID_WEBM_BYTES
@@ -1400,7 +1447,7 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         content = VALID_WEBM_BYTES
@@ -1466,7 +1513,7 @@ def test_finalize_range_video_preserves_scope_identity_and_sync_metadata(test_en
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
     try:
         content = VALID_WEBM_BYTES
         sync_metadata = {
@@ -1577,7 +1624,7 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         auth_req = {
@@ -1642,7 +1689,7 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         content = b"\x1a\x45\xdf\xa3" + b"fake-browser-video-with-audio"
@@ -1719,15 +1766,17 @@ def test_authorize_finalizing_snapshot_retries_without_new_put(test_env):
         score_id=10,
         score_uuid="score-uuid-10",
         score_title="Moonlight Sonata",
-        revision_id=None,
-        revision_uuid=None,
-        artifact_id=None,
+        revision_id=100,
+        revision_uuid=DEFAULT_TAKE_REVISION_ID,
+        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
         scope_type="FULL",
         scope_start_beat=0.0,
         scope_terminal_beat=4.0,
         duration_ms=1000,
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
+        resolved_tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+        sync_metadata=json.dumps(DEFAULT_TAKE_SYNC_METADATA),
         storage_backend="local",
         staging_object_key="staging/performance-takes/1/finalizing-authorize/recording.webm",
         final_object_key="performance-takes/1/finalizing-authorize/token.webm",
@@ -1749,13 +1798,17 @@ def test_authorize_finalizing_snapshot_retries_without_new_put(test_env):
             AsyncSessionAdapter(session),
             user_1.id,
             PerformanceTakeUploadAuthorizationRequest(
-                score_id="score-uuid-10",
-                client_request_id="req-finalizing-authorize",
-                media_byte_size=len(VALID_WEBM_BYTES),
-                media_mime_type="audio/webm",
-                duration_ms=1000,
-                scope_start_beat=0.0,
-                scope_terminal_beat=4.0,
+                **_complete_take_request_payload(
+                    {
+                        "score_id": "score-uuid-10",
+                        "client_request_id": "req-finalizing-authorize",
+                        "media_byte_size": len(VALID_WEBM_BYTES),
+                        "media_mime_type": "audio/webm",
+                        "duration_ms": 1000,
+                        "scope_start_beat": 0.0,
+                        "scope_terminal_beat": 4.0,
+                    }
+                )
             ),
         )
     )
@@ -1781,7 +1834,7 @@ def test_crash_abandoned_after_authorization(test_env):
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         content = VALID_WEBM_BYTES
@@ -1854,7 +1907,7 @@ def test_expired_authorization_staging_delete_failure_is_retryable(test_env, mon
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         size = len(VALID_WEBM_BYTES)
@@ -1941,7 +1994,7 @@ def test_archived_authorization_late_staging_put_is_cleaned_after_expiry(test_en
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         content = VALID_WEBM_BYTES
@@ -2032,7 +2085,7 @@ def test_score_deleted_between_auth_and_finalize(test_env):
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         content = VALID_WEBM_BYTES
@@ -2111,7 +2164,7 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         content = VALID_WEBM_BYTES
@@ -2288,7 +2341,7 @@ def test_expired_authorization_cleanup_releases_db_lock_before_storage_delete(te
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     class LockAssertingStorage(LocalFileStorage):
         backend_name = "local"
@@ -2890,7 +2943,7 @@ def test_worker_handles_already_absent_object_idempotently(test_env, monkeypatch
     app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
     app.dependency_overrides[get_performance_take_service] = lambda: take_svc
 
-    client = TestClient(app)
+    client = PerformanceTakeTestClient(app)
 
     try:
         content = VALID_WEBM_BYTES
