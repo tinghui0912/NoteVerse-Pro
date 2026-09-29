@@ -12,11 +12,10 @@ export interface PerformanceTakeUploadAuthorizationRequest {
   scope_type?: string;
   scope_start_beat: number;
   scope_terminal_beat: number;
-  revision_id?: string | null;
-  artifact_id?: string | null;
-  tempo_selection?: Record<string, unknown> | null;
-  resolved_tempo_plan?: Record<string, unknown> | null;
-  sync_metadata?: Record<string, unknown> | null;
+  revision_id: string;
+  artifact_id: string;
+  resolved_tempo_plan: Record<string, unknown>;
+  sync_metadata: Record<string, unknown>;
 }
 
 export interface PerformanceTakeUploadAuthorizationRead {
@@ -43,19 +42,18 @@ export interface PerformanceTakeCreateRequest {
   scope_type?: string;
   scope_start_beat: number;
   scope_terminal_beat: number;
-  revision_id?: string | null;
-  artifact_id?: string | null;
-  tempo_selection?: Record<string, unknown> | null;
-  resolved_tempo_plan?: Record<string, unknown> | null;
-  sync_metadata?: Record<string, unknown> | null;
+  revision_id: string;
+  artifact_id: string;
+  resolved_tempo_plan: Record<string, unknown>;
+  sync_metadata: Record<string, unknown>;
 }
 
 export interface PerformanceTakeRead {
   take_id: string;
   score_id?: string | null;
   score_title?: string | null;
-  revision_id?: string | null;
-  artifact_id?: string | null;
+  revision_id: string;
+  artifact_id: string;
   media_kind: string;
   media_mime_type: string;
   media_byte_size: number;
@@ -64,9 +62,8 @@ export interface PerformanceTakeRead {
   scope_start_beat: number;
   scope_terminal_beat: number;
   deletion_status?: 'ACTIVE' | 'DELETING';
-  tempo_selection?: Record<string, unknown> | null;
-  resolved_tempo_plan?: Record<string, unknown> | null;
-  sync_metadata?: Record<string, unknown> | null;
+  resolved_tempo_plan: Record<string, unknown>;
+  sync_metadata: Record<string, unknown>;
   created_at: string;
 }
 

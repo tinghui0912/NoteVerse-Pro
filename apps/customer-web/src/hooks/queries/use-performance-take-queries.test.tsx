@@ -34,6 +34,22 @@ function createWrapper() {
   };
 }
 
+const resolvedTempoPlan = {
+  selection: { mode: 'SCORE' },
+  segments: [{ startBeat: 0, bpm: 120, source: 'MUSICXML' }],
+};
+
+const syncMetadata = {
+  recordingTimebase: {
+    recordingStartPerfTimeMs: 0,
+    recordingEndPerfTimeMs: 1000,
+    nominalMediaDurationMs: 1000,
+    activeSegments: [
+      { perfStartMs: 0, perfEndMs: 1000, mediaStartMs: 0, mediaEndMs: 1000 },
+    ],
+  },
+};
+
 function createInput() {
   return {
     scoreId: 'score-1',
@@ -47,9 +63,8 @@ function createInput() {
     scopeType: 'FULL',
     scopeStartBeat: 0,
     scopeTerminalBeat: 4,
-    tempoSelection: null,
-    resolvedTempoPlan: null,
-    syncMetadata: null,
+    resolvedTempoPlan,
+    syncMetadata,
   };
 }
 
@@ -67,9 +82,8 @@ const savedTake: PerformanceTakeRead = {
   scope_start_beat: 0,
   scope_terminal_beat: 4,
   deletion_status: 'ACTIVE',
-  tempo_selection: null,
-  resolved_tempo_plan: null,
-  sync_metadata: null,
+  resolved_tempo_plan: resolvedTempoPlan,
+  sync_metadata: syncMetadata,
   created_at: '2026-09-21T00:00:00Z',
 };
 
@@ -130,6 +144,12 @@ describe('useSavePerformanceTake', () => {
     ).rejects.toThrow('network lost');
 
     expect(uploadMediaToSignedUrl).toHaveBeenCalledTimes(1);
+    expect(performanceTakesApi.authorizeUpload).toHaveBeenCalledWith(
+      expect.not.objectContaining({ tempo_selection: expect.anything() })
+    );
+    expect(performanceTakesApi.finalizeTake).toHaveBeenCalledWith(
+      expect.not.objectContaining({ tempo_selection: expect.anything() })
+    );
     expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
   });
 

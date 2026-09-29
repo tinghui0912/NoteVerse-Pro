@@ -312,9 +312,25 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
             "scope_type": "FULL",
             "scope_start_beat": 0.0,
             "scope_terminal_beat": 16.0,
-            "tempo_selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 120},
-            "resolved_tempo_plan": {"selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 120}, "segments": [{"startBeat": 0, "bpm": 120}]},
-            "sync_metadata": {"recordingTimebase": {"activeSegments": []}},
+            "resolved_tempo_plan": {
+                "selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 120},
+                "segments": [{"startBeat": 0, "bpm": 120, "source": "CUSTOM"}],
+            },
+            "sync_metadata": {
+                "recordingTimebase": {
+                    "recordingStartPerfTimeMs": 0,
+                    "recordingEndPerfTimeMs": 15000,
+                    "nominalMediaDurationMs": 15000,
+                    "activeSegments": [
+                        {
+                            "perfStartMs": 0,
+                            "perfEndMs": 15000,
+                            "mediaStartMs": 0,
+                            "mediaEndMs": 15000,
+                        }
+                    ],
+                }
+            },
         }
         res = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
         assert res.status_code == 200, res.text
@@ -348,9 +364,25 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
             "scope_type": "FULL",
             "scope_start_beat": 0.0,
             "scope_terminal_beat": 16.0,
-            "tempo_selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 120},
-            "resolved_tempo_plan": {"selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 120}, "segments": [{"startBeat": 0, "bpm": 120}]},
-            "sync_metadata": {"recordingTimebase": {"activeSegments": []}},
+            "resolved_tempo_plan": {
+                "selection": {"mode": "CUSTOM_FIXED_BPM", "bpm": 120},
+                "segments": [{"startBeat": 0, "bpm": 120, "source": "CUSTOM"}],
+            },
+            "sync_metadata": {
+                "recordingTimebase": {
+                    "recordingStartPerfTimeMs": 0,
+                    "recordingEndPerfTimeMs": 15000,
+                    "nominalMediaDurationMs": 15000,
+                    "activeSegments": [
+                        {
+                            "perfStartMs": 0,
+                            "perfEndMs": 15000,
+                            "mediaStartMs": 0,
+                            "mediaEndMs": 15000,
+                        }
+                    ],
+                }
+            },
         }
         res_fail = client.post("/api/v1/performance-takes", json=fin_req)
         assert res_fail.status_code == 404
@@ -1460,6 +1492,8 @@ def test_finalize_range_video_preserves_scope_identity_and_sync_metadata(test_en
         }
         request = {
             "score_id": "score-uuid-10",
+            "revision_id": "revision-uuid-100",
+            "artifact_id": "art-1",
             "client_request_id": "req-range-video-scope-identity",
             "media_kind": "VIDEO",
             "media_byte_size": len(content),
@@ -3058,7 +3092,6 @@ def _setup_constructed_0053_performance_takes_state_postgresql(database_url: str
                     duration_ms INTEGER NOT NULL,
                     scope_start_beat REAL NOT NULL,
                     scope_terminal_beat REAL NOT NULL,
-                    tempo_selection TEXT,
                     resolved_tempo_plan TEXT,
                     sync_metadata TEXT,
                     created_at TIMESTAMP NOT NULL,

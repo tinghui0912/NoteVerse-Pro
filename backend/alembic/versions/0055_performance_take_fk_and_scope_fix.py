@@ -98,7 +98,6 @@ def upgrade() -> None:
                 duration_ms INTEGER NOT NULL,
                 scope_start_beat FLOAT NOT NULL,
                 scope_terminal_beat FLOAT NOT NULL,
-                tempo_selection TEXT,
                 resolved_tempo_plan TEXT,
                 sync_metadata TEXT,
                 created_at TIMESTAMP NOT NULL,
@@ -130,13 +129,13 @@ def upgrade() -> None:
             INSERT INTO _new_performance_takes (
                 id, take_uuid, user_id, score_id, revision_id, artifact_id, client_request_id,
                 media_kind, media_mime_type, media_byte_size, media_object_key, storage_backend,
-                duration_ms, scope_start_beat, scope_terminal_beat, tempo_selection, resolved_tempo_plan,
+                duration_ms, scope_start_beat, scope_terminal_beat, resolved_tempo_plan,
                 sync_metadata, created_at, updated_at, score_title, scope_type
             )
             SELECT 
                 id, take_uuid, user_id, score_id, revision_id, artifact_id, client_request_id,
                 media_kind, media_mime_type, media_byte_size, media_object_key, storage_backend,
-                duration_ms, scope_start_beat, scope_terminal_beat, tempo_selection, resolved_tempo_plan,
+                duration_ms, scope_start_beat, scope_terminal_beat, resolved_tempo_plan,
                 sync_metadata, created_at, updated_at,
                 {score_title_expr},
                 {scope_type_expr}

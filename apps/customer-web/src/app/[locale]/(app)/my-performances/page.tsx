@@ -70,24 +70,19 @@ function getTempoLabel(
   take: PerformanceTakeRead,
   t: (key: string, values?: Record<string, string | number>) => string
 ): string | null {
-  const selection = take.tempo_selection as {
-    mode?: string;
-    bpm?: number;
-    customBpm?: number;
+  const plan = take.resolved_tempo_plan as {
+    selection?: { mode?: string; bpm?: number };
+    segments?: Array<{ startBeat?: number; bpm?: number }>;
   } | null;
+  const selection = plan?.selection;
   const mode = selection?.mode?.toUpperCase();
 
-  if (mode === 'CUSTOM_FIXED_BPM' || mode === 'CUSTOM') {
-    const bpm = selection?.bpm ?? selection?.customBpm;
-    if (bpm) {
+  if (mode === 'CUSTOM_FIXED_BPM') {
+    const bpm = selection?.bpm;
+    if (typeof bpm === 'number') {
       return `♩ = ${bpm} BPM`;
     }
   }
-
-  const plan = take.resolved_tempo_plan as {
-    segments?: Array<{ startBeat?: number; bpm?: number }>;
-    nominal_bpm?: number;
-  } | null;
 
   if (plan?.segments && plan.segments.length > 0) {
     const uniqueBpms = Array.from(
@@ -99,10 +94,6 @@ function getTempoLabel(
     if (uniqueBpms.length > 1) {
       return t('tempoScoreModeVariable');
     }
-  }
-
-  if (plan?.nominal_bpm) {
-    return t('tempoScoreModeWithBpm', { bpm: plan.nominal_bpm });
   }
 
   if (mode === 'SCORE') {
@@ -446,14 +437,11 @@ export default function MyPerformancesPage({
   // If query succeeded and rawPage is beyond totalPages, normalize URL to totalPages
   React.useEffect(() => {
     if (takesQuery.isSuccess && total > 0 && rawPage > totalPages) {
-      goToPage(totalPages);
+      const targetPage = Math.max(1, totalPages);
+      const search = targetPage > 1 ? `?page=${targetPage}` : '/my-performances';
+      router.push(search);
     }
-  }, [takesQuery.isSuccess, total, totalPages, rawPage, goToPage]);
-
-  // Reset active playback whenever page changes
-  React.useEffect(() => {
-    setActiveTakeId(null);
-  }, [rawPage]);
+  }, [takesQuery.isSuccess, total, totalPages, rawPage, router]);
 
   React.useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -472,37 +460,42 @@ export default function MyPerformancesPage({
 
     const listedTakeIds = new Set(takes.map((take) => take.take_id));
     const now = Date.now();
-    setDeleteAcceptedAtByTakeId((prev) => {
-      const next = Object.fromEntries(
-        Object.entries(prev).filter(([takeId]) => listedTakeIds.has(takeId))
-      );
-      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
-    });
-    setDeleteObservedAtByTakeId((prev) => {
-      const next = { ...prev };
-      let changed = false;
+    const timeoutId = window.setTimeout(() => {
+      setDeleteAcceptedAtByTakeId((prev) => {
+        const next = Object.fromEntries(
+          Object.entries(prev).filter(([takeId]) => listedTakeIds.has(takeId))
+        );
+        return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+      });
+      setDeleteObservedAtByTakeId((prev) => {
+        const next = { ...prev };
+        let changed = false;
 
-      for (const takeId of Object.keys(next)) {
-        if (!listedTakeIds.has(takeId) || !deletingTakeIds.has(takeId)) {
-          delete next[takeId];
-          changed = true;
+        for (const takeId of Object.keys(next)) {
+          if (!listedTakeIds.has(takeId) || !deletingTakeIds.has(takeId)) {
+            delete next[takeId];
+            changed = true;
+          }
         }
-      }
 
-      for (const takeId of deletingTakeIds) {
-        if (!next[takeId]) {
-          next[takeId] = now;
-          changed = true;
+        for (const takeId of deletingTakeIds) {
+          if (!next[takeId]) {
+            next[takeId] = now;
+            changed = true;
+          }
         }
-      }
 
-      return changed ? next : prev;
-    });
+        return changed ? next : prev;
+      });
 
-    if (activeTakeId && deletingTakeIds.has(activeTakeId)) {
-      setActiveTakeId(null);
-    }
-  }, [activeTakeId, deletingTakeIds, takes, takesQuery.isSuccess]);
+      setActiveTakeId((current) => (current && deletingTakeIds.has(current) ? null : current));
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [deletingTakeIds, takes, takesQuery.isSuccess]);
+
+  const effectiveActiveTakeId =
+    activeTakeId && deletingTakeIds.has(activeTakeId) ? null : activeTakeId;
 
   React.useEffect(() => {
     if (!hasPendingDeletion || !isPageVisible) return;
@@ -591,7 +584,7 @@ export default function MyPerformancesPage({
               key={take.take_id}
               take={take}
               isPlaying={
-                activeTakeId === take.take_id &&
+                effectiveActiveTakeId === take.take_id &&
                 take.deletion_status !== 'DELETING' &&
                 !acceptedDeleteIds.has(take.take_id)
               }

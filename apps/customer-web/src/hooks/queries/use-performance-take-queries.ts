@@ -75,8 +75,8 @@ export function useDeletePerformanceTake() {
 
 export interface SavePerformanceTakeInput {
   scoreId: string;
-  revisionId?: string | null;
-  artifactId?: string | null;
+  revisionId: string;
+  artifactId: string;
   clientRequestId: string;
   mediaKind: 'AUDIO' | 'VIDEO';
   mediaBlob: Blob;
@@ -85,9 +85,8 @@ export interface SavePerformanceTakeInput {
   scopeType?: string;
   scopeStartBeat: number;
   scopeTerminalBeat: number;
-  tempoSelection?: Record<string, unknown> | null;
-  resolvedTempoPlan?: Record<string, unknown> | null;
-  syncMetadata?: Record<string, unknown> | null;
+  resolvedTempoPlan: Record<string, unknown>;
+  syncMetadata: Record<string, unknown>;
 }
 
 export function useSavePerformanceTake() {
@@ -108,7 +107,6 @@ export function useSavePerformanceTake() {
         scope_type: input.scopeType ?? 'FULL',
         scope_start_beat: input.scopeStartBeat,
         scope_terminal_beat: input.scopeTerminalBeat,
-        tempo_selection: input.tempoSelection,
         resolved_tempo_plan: input.resolvedTempoPlan,
         sync_metadata: input.syncMetadata,
       };
@@ -139,7 +137,6 @@ export function useSavePerformanceTake() {
         scope_type: input.scopeType ?? 'FULL',
         scope_start_beat: input.scopeStartBeat,
         scope_terminal_beat: input.scopeTerminalBeat,
-        tempo_selection: input.tempoSelection,
         resolved_tempo_plan: input.resolvedTempoPlan,
         sync_metadata: input.syncMetadata,
       };
@@ -176,7 +173,7 @@ export function useSavePerformanceTake() {
       try {
         const finalizeRes = await performanceTakesApi.finalizeTake(finalizeReq);
         return finalizeRes.data;
-      } catch (finalizeErr: any) {
+      } catch (finalizeErr) {
         // Finalize may still be running after a timeout, disconnect, or masked
         // recoverable 4xx such as FINALIZING. Keep the authorization so the
         // same client_request_id can be retried safely.

@@ -136,6 +136,22 @@ const mockPlaybackQuery = vi.hoisted(() => ({
   refetch: vi.fn(),
 }));
 
+const resolvedTempoPlan = {
+  selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
+  segments: [{ startBeat: 0, bpm: 120, source: 'CUSTOM' }],
+};
+
+const syncMetadata = {
+  recordingTimebase: {
+    recordingStartPerfTimeMs: 0,
+    recordingEndPerfTimeMs: 30000,
+    nominalMediaDurationMs: 30000,
+    activeSegments: [
+      { perfStartMs: 0, perfEndMs: 30000, mediaStartMs: 0, mediaEndMs: 30000 },
+    ],
+  },
+};
+
 // 121 fixture items
 const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i) => ({
     deletion_status: 'ACTIVE',
@@ -143,6 +159,7 @@ const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i
   score_id: `score-uuid-${i + 1}`,
   score_title: `Score Title ${i + 1}`,
   revision_id: `rev-uuid-${i + 1}`,
+  artifact_id: `artifact-${i + 1}`,
   media_kind: 'AUDIO',
   media_mime_type: 'audio/webm',
   media_byte_size: 1024 * (i + 1),
@@ -150,7 +167,8 @@ const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i
   scope_type: i % 2 === 0 ? 'FULL' : 'RANGE',
   scope_start_beat: i % 2 === 0 ? 0 : 4,
   scope_terminal_beat: i % 2 === 0 ? 0 : 16,
-  tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
+  resolved_tempo_plan: resolvedTempoPlan,
+  sync_metadata: syncMetadata,
   created_at: new Date(1700000000000 - i * 60000).toISOString(),
 }));
 
@@ -335,7 +353,10 @@ describe('MyPerformancesPage', () => {
               scope_type: 'FULL',
               scope_start_beat: 0,
               scope_terminal_beat: 0,
-              tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
+              revision_id: 'revision-1',
+              artifact_id: 'artifact-1',
+              resolved_tempo_plan: resolvedTempoPlan,
+              sync_metadata: syncMetadata,
               created_at: new Date().toISOString(),
             },
           ],
@@ -373,7 +394,10 @@ describe('MyPerformancesPage', () => {
               scope_type: 'FULL',
               scope_start_beat: 0,
               scope_terminal_beat: 0,
-              tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
+              revision_id: 'revision-1',
+              artifact_id: 'artifact-1',
+              resolved_tempo_plan: resolvedTempoPlan,
+              sync_metadata: syncMetadata,
               created_at: new Date().toISOString(),
             },
           ],
@@ -421,7 +445,10 @@ describe('MyPerformancesPage', () => {
               scope_type: 'FULL',
               scope_start_beat: 0,
               scope_terminal_beat: 0,
-              tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
+              revision_id: 'revision-1',
+              artifact_id: 'artifact-1',
+              resolved_tempo_plan: resolvedTempoPlan,
+              sync_metadata: syncMetadata,
               created_at: new Date().toISOString(),
             },
           ],
@@ -463,7 +490,10 @@ describe('MyPerformancesPage', () => {
               scope_type: 'FULL',
               scope_start_beat: 0,
               scope_terminal_beat: 0,
-              tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
+              revision_id: 'revision-1',
+              artifact_id: 'artifact-1',
+              resolved_tempo_plan: resolvedTempoPlan,
+              sync_metadata: syncMetadata,
               created_at: new Date().toISOString(),
             },
           ],
@@ -527,7 +557,10 @@ describe('MyPerformancesPage', () => {
               scope_type: 'FULL',
               scope_start_beat: 0,
               scope_terminal_beat: 0,
-              tempo_selection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
+              revision_id: 'revision-1',
+              artifact_id: 'artifact-1',
+              resolved_tempo_plan: resolvedTempoPlan,
+              sync_metadata: syncMetadata,
               created_at: new Date().toISOString(),
             },
           ],

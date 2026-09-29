@@ -148,7 +148,7 @@ describe('share video session saved-take parsing', () => {
     ).toMatchObject({ status: 'unsupported', reason: 'take_deleting' });
     expect(
       createShareVideoSessionFromSavedTake(
-        { ...take, artifact_id: null },
+        { ...take, artifact_id: '' },
         new Blob(['video']),
         artifact
       )

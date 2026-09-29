@@ -251,7 +251,7 @@ export function parseSavedTempoPlan(
   return {
     selection: mode === 'SCORE'
       ? { mode: 'SCORE' }
-      : { mode: 'CUSTOM_FIXED_BPM', bpm: requireFinitePositive((selection as Record<string, unknown>).bpm, 'tempo_selection_bpm') },
+      : { mode: 'CUSTOM_FIXED_BPM', bpm: requireFinitePositive((selection as Record<string, unknown>).bpm, 'tempo_plan_selection_bpm') },
     segments,
   };
 }

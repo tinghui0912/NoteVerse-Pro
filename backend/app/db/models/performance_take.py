@@ -127,10 +127,6 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     scope_terminal_beat: float = Field(
         sa_column=Column(Float, nullable=False)
     )
-    tempo_selection: Optional[str] = Field(
-        default=None,
-        sa_column=Column(Text, nullable=True),
-    )
     resolved_tempo_plan: Optional[str] = Field(
         default=None,
         sa_column=Column(Text, nullable=True),

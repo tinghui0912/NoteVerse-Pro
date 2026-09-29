@@ -13,6 +13,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError, InterfaceError
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 
 from app.core.config import settings
 from app.core.exceptions import (
@@ -153,6 +154,8 @@ def _verify_container_magic_bytes(header_bytes: bytes, mime_type: str, media_kin
 def _json_snapshot(value: object | None) -> str | None:
     if value is None:
         return None
+    if isinstance(value, BaseModel):
+        value = value.model_dump(mode="json", exclude_none=True)
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":"))
     if len(encoded.encode("utf-8")) > MAX_TAKE_METADATA_JSON_BYTES:
         raise ValidationException(ErrorCode.VALIDATION_ERROR, field="metadata_size")
@@ -160,6 +163,8 @@ def _json_snapshot(value: object | None) -> str | None:
 
 
 def _json_equivalent(left: str | None, right: object | None) -> bool:
+    if isinstance(right, BaseModel):
+        right = right.model_dump(mode="json", exclude_none=True)
     if left is None and right is None:
         return True
     try:
@@ -287,7 +292,6 @@ class PerformanceTakeService:
         revision: Optional[ScoreRevision] = None,
         has_score_view_access: bool = False,
     ) -> PerformanceTakeRead:
-        tempo_selection = json.loads(take.tempo_selection) if take.tempo_selection else None
         resolved_tempo_plan = json.loads(take.resolved_tempo_plan) if take.resolved_tempo_plan else None
         sync_metadata = json.loads(take.sync_metadata) if take.sync_metadata else None
 
@@ -321,7 +325,6 @@ class PerformanceTakeService:
             scope_start_beat=take.scope_start_beat,
             scope_terminal_beat=take.scope_terminal_beat,
             deletion_status=deletion_status,
-            tempo_selection=tempo_selection,
             resolved_tempo_plan=resolved_tempo_plan,
             sync_metadata=sync_metadata,
             created_at=take.created_at,
@@ -386,7 +389,6 @@ class PerformanceTakeService:
             and auth.media_kind == media_kind
             and auth.media_mime_type == cleaned_mime
             and auth.media_byte_size == request.media_byte_size
-            and _json_equivalent(auth.tempo_selection, request.tempo_selection)
             and _json_equivalent(auth.resolved_tempo_plan, request.resolved_tempo_plan)
             and _json_equivalent(auth.sync_metadata, request.sync_metadata)
         )
@@ -409,7 +411,6 @@ class PerformanceTakeService:
             and auth.media_kind == media_kind
             and auth.media_mime_type == cleaned_mime
             and auth.media_byte_size == request.media_byte_size
-            and _json_equivalent(auth.tempo_selection, request.tempo_selection)
             and _json_equivalent(auth.resolved_tempo_plan, request.resolved_tempo_plan)
             and _json_equivalent(auth.sync_metadata, request.sync_metadata)
         )
@@ -433,7 +434,6 @@ class PerformanceTakeService:
             and take.scope_start_beat == auth.scope_start_beat
             and take.scope_terminal_beat == auth.scope_terminal_beat
             and take.artifact_id == auth.artifact_id
-            and take.tempo_selection == auth.tempo_selection
             and take.resolved_tempo_plan == auth.resolved_tempo_plan
             and take.sync_metadata == auth.sync_metadata
         )
@@ -600,7 +600,6 @@ class PerformanceTakeService:
         if request.media_byte_size > MAX_TAKE_MEDIA_BYTES:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="media_byte_size")
 
-        _json_snapshot(request.tempo_selection)
         _json_snapshot(request.resolved_tempo_plan)
         _json_snapshot(request.sync_metadata)
 
@@ -788,7 +787,6 @@ class PerformanceTakeService:
             scope_type=request.scope_type,
             scope_start_beat=request.scope_start_beat,
             scope_terminal_beat=request.scope_terminal_beat,
-            tempo_selection=_json_snapshot(request.tempo_selection),
             resolved_tempo_plan=_json_snapshot(request.resolved_tempo_plan),
             sync_metadata=_json_snapshot(request.sync_metadata),
             duration_ms=request.duration_ms,
@@ -1008,7 +1006,6 @@ class PerformanceTakeService:
             "scope_type": auth.scope_type,
             "scope_start_beat": auth.scope_start_beat,
             "scope_terminal_beat": auth.scope_terminal_beat,
-            "tempo_selection": auth.tempo_selection,
             "resolved_tempo_plan": auth.resolved_tempo_plan,
             "sync_metadata": auth.sync_metadata,
             "reservation_id": auth.reservation_id,
@@ -1283,7 +1280,6 @@ class PerformanceTakeService:
             scope_start_beat=auth_snapshot["scope_start_beat"],
             scope_terminal_beat=auth_snapshot["scope_terminal_beat"],
             deletion_status=PerformanceTakeDeletionStatus.ACTIVE.value,
-            tempo_selection=auth_snapshot["tempo_selection"],
             resolved_tempo_plan=auth_snapshot["resolved_tempo_plan"],
             sync_metadata=auth_snapshot["sync_metadata"],
         )

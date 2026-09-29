@@ -445,7 +445,6 @@ export default function PracticeReviewPage({
         durationMs: saveMedia.durationMs,
         scopeStartBeat: draft.scope.startBeat,
         scopeTerminalBeat: draft.scope.terminalBeat,
-        tempoSelection: draft.tempoPlan.selection as unknown as Record<string, unknown>,
         resolvedTempoPlan: draft.tempoPlan as unknown as Record<string, unknown>,
         syncMetadata: {
           recordingTimebase: draft.recordingTimebase,

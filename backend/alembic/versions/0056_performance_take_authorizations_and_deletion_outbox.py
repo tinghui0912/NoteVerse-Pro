@@ -38,7 +38,6 @@ def upgrade() -> None:
             sa.Column("scope_type", sa.String(length=16), nullable=False, server_default="FULL"),
             sa.Column("scope_start_beat", sa.Float(), nullable=False),
             sa.Column("scope_terminal_beat", sa.Float(), nullable=False),
-            sa.Column("tempo_selection", sa.Text(), nullable=True),
             sa.Column("resolved_tempo_plan", sa.Text(), nullable=True),
             sa.Column("sync_metadata", sa.Text(), nullable=True),
             sa.Column("duration_ms", sa.Integer(), nullable=False),
