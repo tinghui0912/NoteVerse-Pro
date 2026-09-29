@@ -6,7 +6,6 @@ on:
     paths:
       - "apps/customer-web/**"
       - "backend/docs/contracts/openapi/customer-api.json"
-      - "backend/docs/contracts/openapi/practice-api.json"
       - "backend/docs/contracts/realtime/practice-websocket-v1.json"
       - "backend/app/shared/error_codes.py"
       - ".github/workflows/customer-web-quality.yml"
@@ -14,7 +13,6 @@ on:
     paths:
       - "apps/customer-web/**"
       - "backend/docs/contracts/openapi/customer-api.json"
-      - "backend/docs/contracts/openapi/practice-api.json"
       - "backend/docs/contracts/realtime/practice-websocket-v1.json"
       - "backend/app/shared/error_codes.py"
       - ".github/workflows/customer-web-quality.yml"
@@ -31,7 +29,6 @@ jobs:
         working-directory: apps/customer-web
     env:
       NEXT_BACKEND_ORIGIN: http://127.0.0.1:8000
-      NEXT_PRACTICE_ORIGIN: http://127.0.0.1:8001
       AUTH_COOKIE_NAME: noteverse_session
       REFRESH_COOKIE_NAME: noteverse_refresh
 

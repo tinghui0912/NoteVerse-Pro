@@ -2,7 +2,6 @@ import { execFileSync } from 'node:child_process';
 
 const generatedContracts = [
   { path: 'src/generated/api' },
-  { config: 'openapi-practice-ts.config.ts', path: 'src/generated/practice-api' },
 ];
 
 function run(command, args) {

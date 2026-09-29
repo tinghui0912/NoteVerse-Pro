@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
-from app.api.deps import get_db
+from app.api.deps import get_current_user, get_db
 from app.core.config import settings
 from app.main import app
 from app.core.middleware import normalize_origin
 from app.modules.playback.router import get_playback_delivery_service
 from app.modules.playback.delivery import PlaybackDelivery
+from app.modules.practice.source_router import get_practice_source_service
 
 
 def _request(
@@ -154,11 +156,84 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
     assert public_response.content == audio_bytes
 
 
+def test_main_api_serves_practice_source_routes(client: TestClient) -> None:
+    class FakePracticeSourceService:
+        async def get_practice_ready_score_content(
+            self,
+            db,
+            score_uuid: str,
+            user_id: int,
+            revision_uuid: str,
+        ) -> dict[str, object]:
+            return {
+                "score_id": score_uuid,
+                "revision_id": revision_uuid,
+                "content": '<score-partwise><note id="nv-p1-m1-note1" /></score-partwise>',
+                "mime_type": "application/vnd.recordare.musicxml+xml",
+            }
+
+        async def get_practice_score_artifact(
+            self,
+            db,
+            score_uuid: str,
+            user_id: int,
+            revision_uuid: str,
+        ) -> dict[str, object]:
+            return {
+                "schemaVersion": 1,
+                "scoreId": score_uuid,
+                "revisionId": revision_uuid,
+                "artifactId": f"practice-score-artifact:{score_uuid}:{revision_uuid}",
+                "playableEvents": [],
+                "expectedPracticeGroups": [],
+                "practiceAttackSteps": [],
+                "meterSegments": [],
+                "scoreTempoSegments": [{"startBeat": 0.0, "bpm": 120.0}],
+                "firstPlayableBeat": None,
+                "scoreEndBeat": 0.0,
+            }
+
+    async def fake_get_db():
+        yield object()
+
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1, is_active=True)
+    app.dependency_overrides[get_db] = fake_get_db
+    app.dependency_overrides[get_practice_source_service] = lambda: FakePracticeSourceService()
+    try:
+        content_response = client.get(
+            "/api/v1/practice/scores/score-1/revisions/revision-1/content"
+        )
+        artifact_response = client.get(
+            "/api/v1/practice/scores/score-1/revisions/revision-1/artifact"
+        )
+    finally:
+        app.dependency_overrides.pop(get_practice_source_service, None)
+        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_db, None)
+
+    assert content_response.status_code == 200
+    assert content_response.json()["data"]["revision_id"] == "revision-1"
+    assert 'id="nv-p1-m1-note1"' in content_response.json()["data"]["content"]
+    assert artifact_response.status_code == 200
+    assert artifact_response.json()["data"]["scoreId"] == "score-1"
+
+
+def test_main_openapi_includes_practice_source_routes(client: TestClient) -> None:
+    schema = client.get("/api/v1/openapi.json").json()
+    paths = schema["paths"]
+
+    assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/content" in paths
+    assert "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/artifact" in paths
+    assert "/api/v1/practice/sessions" not in paths
+
+
 def test_protected_endpoints_require_authentication(client: TestClient) -> None:
     protected_paths = [
         "/api/v1/import-jobs/test-job",
         "/api/v1/scores/test-score",
         "/api/v1/me/profile",
+        "/api/v1/practice/scores/score-1/revisions/revision-1/content",
+        "/api/v1/practice/scores/score-1/revisions/revision-1/artifact",
     ]
 
     for path in protected_paths:

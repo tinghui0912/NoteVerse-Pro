@@ -1417,6 +1417,65 @@
         "title": "APIResponse[MemberRead]",
         "type": "object"
       },
+      "APIResponse_ModelAssetAccessRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelAssetAccessRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[ModelAssetAccessRead]",
+        "type": "object"
+      },
       "APIResponse_NoneType_": {
         "examples": [
           {
@@ -1645,6 +1704,478 @@
           "success"
         ],
         "title": "APIResponse[PendingInviteRead]",
+        "type": "object"
+      },
+      "APIResponse_PerformanceTakeDeleteResponse_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceTakeDeleteResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[PerformanceTakeDeleteResponse]",
+        "type": "object"
+      },
+      "APIResponse_PerformanceTakeListResponse_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceTakeListResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[PerformanceTakeListResponse]",
+        "type": "object"
+      },
+      "APIResponse_PerformanceTakePlaybackRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceTakePlaybackRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[PerformanceTakePlaybackRead]",
+        "type": "object"
+      },
+      "APIResponse_PerformanceTakeRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceTakeRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[PerformanceTakeRead]",
+        "type": "object"
+      },
+      "APIResponse_PerformanceTakeUploadAuthorizationRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceTakeUploadAuthorizationRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[PerformanceTakeUploadAuthorizationRead]",
+        "type": "object"
+      },
+      "APIResponse_PracticeReadyScoreContentRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeReadyScoreContentRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[PracticeReadyScoreContentRead]",
+        "type": "object"
+      },
+      "APIResponse_PracticeScoreArtifactRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeScoreArtifactRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[PracticeScoreArtifactRead]",
+        "type": "object"
+      },
+      "APIResponse_PracticeTargetCatalogRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeTargetCatalogRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[PracticeTargetCatalogRead]",
         "type": "object"
       },
       "APIResponse_ProfileRead_": {
@@ -3121,6 +3652,27 @@
           "token"
         ],
         "title": "ConfirmEmailChangeRequest",
+        "type": "object"
+      },
+      "CustomFixedBpmTempoPlanSelection": {
+        "additionalProperties": false,
+        "properties": {
+          "bpm": {
+            "exclusiveMinimum": 0.0,
+            "title": "Bpm",
+            "type": "number"
+          },
+          "mode": {
+            "const": "CUSTOM_FIXED_BPM",
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "bpm"
+        ],
+        "title": "CustomFixedBpmTempoPlanSelection",
         "type": "object"
       },
       "DeleteUploadedFileRead": {
@@ -5113,6 +5665,57 @@
         "title": "MetadataStatus",
         "type": "string"
       },
+      "ModelAssetAccessRead": {
+        "description": "Access descriptor for client direct download of model assets.",
+        "properties": {
+          "assetId": {
+            "default": "bytedance-piano-transcription-note-model",
+            "title": "Assetid",
+            "type": "string"
+          },
+          "assetVersion": {
+            "default": "CRNN_note_F1_0.9677_pedal_F1_0.9186",
+            "title": "Assetversion",
+            "type": "string"
+          },
+          "downloadUrl": {
+            "title": "Downloadurl",
+            "type": "string"
+          },
+          "downloadUrlExpiresAt": {
+            "title": "Downloadurlexpiresat",
+            "type": "string"
+          },
+          "expectedByteSize": {
+            "default": 98691493,
+            "title": "Expectedbytesize",
+            "type": "integer"
+          },
+          "mediaType": {
+            "const": "application/octet-stream",
+            "default": "application/octet-stream",
+            "title": "Mediatype",
+            "type": "string"
+          },
+          "schemaVersion": {
+            "const": 1,
+            "default": 1,
+            "title": "Schemaversion",
+            "type": "integer"
+          },
+          "sha256": {
+            "default": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "downloadUrl",
+          "downloadUrlExpiresAt"
+        ],
+        "title": "ModelAssetAccessRead",
+        "type": "object"
+      },
       "MyScoresSort": {
         "enum": [
           "updated_desc",
@@ -5502,6 +6105,838 @@
         "title": "PendingInviteRead",
         "type": "object"
       },
+      "PerformanceTakeCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "client_request_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "duration_ms": {
+            "minimum": 0.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "media_byte_size": {
+            "exclusiveMinimum": 0.0,
+            "title": "Media Byte Size",
+            "type": "integer"
+          },
+          "media_kind": {
+            "default": "AUDIO",
+            "pattern": "^(AUDIO|VIDEO)$",
+            "title": "Media Kind",
+            "type": "string"
+          },
+          "media_mime_type": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Media Mime Type",
+            "type": "string"
+          },
+          "reservation_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Reservation Id",
+            "type": "string"
+          },
+          "resolved_tempo_plan": {
+            "$ref": "#/components/schemas/ResolvedTempoPlan"
+          },
+          "revision_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "scope_start_beat": {
+            "minimum": 0.0,
+            "title": "Scope Start Beat",
+            "type": "number"
+          },
+          "scope_terminal_beat": {
+            "exclusiveMinimum": 0.0,
+            "title": "Scope Terminal Beat",
+            "type": "number"
+          },
+          "scope_type": {
+            "default": "FULL",
+            "pattern": "^(FULL|RANGE)$",
+            "title": "Scope Type",
+            "type": "string"
+          },
+          "score_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Score Id",
+            "type": "string"
+          },
+          "sync_metadata": {
+            "$ref": "#/components/schemas/PerformanceTakeSyncMetadata"
+          },
+          "take_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Take Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "take_id",
+          "client_request_id",
+          "reservation_id",
+          "score_id",
+          "media_byte_size",
+          "media_mime_type",
+          "duration_ms",
+          "scope_start_beat",
+          "scope_terminal_beat",
+          "revision_id",
+          "artifact_id",
+          "resolved_tempo_plan",
+          "sync_metadata"
+        ],
+        "title": "PerformanceTakeCreateRequest",
+        "type": "object"
+      },
+      "PerformanceTakeDeleteResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "take_id": {
+            "title": "Take Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "take_id"
+        ],
+        "title": "PerformanceTakeDeleteResponse",
+        "type": "object"
+      },
+      "PerformanceTakeListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PerformanceTakeRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "default": 50,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "PerformanceTakeListResponse",
+        "type": "object"
+      },
+      "PerformanceTakePlaybackRead": {
+        "additionalProperties": false,
+        "properties": {
+          "download_url": {
+            "title": "Download Url",
+            "type": "string"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "media_byte_size": {
+            "title": "Media Byte Size",
+            "type": "integer"
+          },
+          "media_kind": {
+            "title": "Media Kind",
+            "type": "string"
+          },
+          "media_mime_type": {
+            "title": "Media Mime Type",
+            "type": "string"
+          },
+          "playback_url": {
+            "title": "Playback Url",
+            "type": "string"
+          },
+          "take_id": {
+            "title": "Take Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "take_id",
+          "playback_url",
+          "download_url",
+          "media_kind",
+          "media_mime_type",
+          "media_byte_size",
+          "duration_ms",
+          "expires_in"
+        ],
+        "title": "PerformanceTakePlaybackRead",
+        "type": "object"
+      },
+      "PerformanceTakeRead": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deletion_status": {
+            "default": "ACTIVE",
+            "title": "Deletion Status",
+            "type": "string"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "media_byte_size": {
+            "title": "Media Byte Size",
+            "type": "integer"
+          },
+          "media_kind": {
+            "title": "Media Kind",
+            "type": "string"
+          },
+          "media_mime_type": {
+            "title": "Media Mime Type",
+            "type": "string"
+          },
+          "resolved_tempo_plan": {
+            "$ref": "#/components/schemas/ResolvedTempoPlan"
+          },
+          "revision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision Id"
+          },
+          "scope_start_beat": {
+            "title": "Scope Start Beat",
+            "type": "number"
+          },
+          "scope_terminal_beat": {
+            "title": "Scope Terminal Beat",
+            "type": "number"
+          },
+          "scope_type": {
+            "default": "FULL",
+            "title": "Scope Type",
+            "type": "string"
+          },
+          "score_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Id"
+          },
+          "score_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Title"
+          },
+          "sync_metadata": {
+            "$ref": "#/components/schemas/PerformanceTakeSyncMetadata"
+          },
+          "take_id": {
+            "title": "Take Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "take_id",
+          "media_kind",
+          "media_mime_type",
+          "media_byte_size",
+          "duration_ms",
+          "scope_start_beat",
+          "scope_terminal_beat",
+          "resolved_tempo_plan",
+          "sync_metadata",
+          "created_at"
+        ],
+        "title": "PerformanceTakeRead",
+        "type": "object"
+      },
+      "PerformanceTakeSyncMetadata": {
+        "additionalProperties": false,
+        "properties": {
+          "recordingTimebase": {
+            "$ref": "#/components/schemas/RecordingTimebase"
+          },
+          "scopeIdentity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScopeIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "recordingTimebase"
+        ],
+        "title": "PerformanceTakeSyncMetadata",
+        "type": "object"
+      },
+      "PerformanceTakeUploadAuthorizationRead": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_in": {
+            "default": 0,
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "object_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Key"
+          },
+          "reservation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reservation Id"
+          },
+          "status": {
+            "default": "AUTHORIZED",
+            "title": "Status",
+            "type": "string"
+          },
+          "take": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceTakeRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "take_id": {
+            "title": "Take Id",
+            "type": "string"
+          },
+          "upload_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Upload Headers",
+            "type": "object"
+          },
+          "upload_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upload Method"
+          },
+          "upload_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upload Url"
+          }
+        },
+        "required": [
+          "take_id"
+        ],
+        "title": "PerformanceTakeUploadAuthorizationRead",
+        "type": "object"
+      },
+      "PerformanceTakeUploadAuthorizationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "client_request_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "duration_ms": {
+            "minimum": 0.0,
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "media_byte_size": {
+            "exclusiveMinimum": 0.0,
+            "title": "Media Byte Size",
+            "type": "integer"
+          },
+          "media_kind": {
+            "default": "AUDIO",
+            "pattern": "^(AUDIO|VIDEO)$",
+            "title": "Media Kind",
+            "type": "string"
+          },
+          "media_mime_type": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Media Mime Type",
+            "type": "string"
+          },
+          "resolved_tempo_plan": {
+            "$ref": "#/components/schemas/ResolvedTempoPlan"
+          },
+          "revision_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "scope_start_beat": {
+            "minimum": 0.0,
+            "title": "Scope Start Beat",
+            "type": "number"
+          },
+          "scope_terminal_beat": {
+            "exclusiveMinimum": 0.0,
+            "title": "Scope Terminal Beat",
+            "type": "number"
+          },
+          "scope_type": {
+            "default": "FULL",
+            "pattern": "^(FULL|RANGE)$",
+            "title": "Scope Type",
+            "type": "string"
+          },
+          "score_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Score Id",
+            "type": "string"
+          },
+          "sync_metadata": {
+            "$ref": "#/components/schemas/PerformanceTakeSyncMetadata"
+          }
+        },
+        "required": [
+          "score_id",
+          "client_request_id",
+          "media_byte_size",
+          "media_mime_type",
+          "duration_ms",
+          "scope_start_beat",
+          "scope_terminal_beat",
+          "revision_id",
+          "artifact_id",
+          "resolved_tempo_plan",
+          "sync_metadata"
+        ],
+        "title": "PerformanceTakeUploadAuthorizationRequest",
+        "type": "object"
+      },
+      "PracticeAttackTargetRead": {
+        "properties": {
+          "attack_id": {
+            "title": "Attack Id",
+            "type": "string"
+          },
+          "event_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Event Ids",
+            "type": "array"
+          },
+          "measure_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Measure Numbers",
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/PracticeStepNoteRead"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "pitch": {
+            "title": "Pitch",
+            "type": "string"
+          },
+          "render_note_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Render Note Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "attack_id",
+          "pitch"
+        ],
+        "title": "PracticeAttackTargetRead",
+        "type": "object"
+      },
+      "PracticeReadyScoreContentRead": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "mime_type": {
+            "default": "application/vnd.recordare.musicxml+xml",
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "score_id": {
+            "title": "Score Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "score_id",
+          "revision_id",
+          "content"
+        ],
+        "title": "PracticeReadyScoreContentRead",
+        "type": "object"
+      },
+      "PracticeScoreArtifactRead": {
+        "properties": {
+          "artifactId": {
+            "title": "Artifactid",
+            "type": "string"
+          },
+          "expectedPracticeGroups": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Expectedpracticegroups",
+            "type": "array"
+          },
+          "firstPlayableBeat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firstplayablebeat"
+          },
+          "meterSegments": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Metersegments",
+            "type": "array"
+          },
+          "playableEvents": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Playableevents",
+            "type": "array"
+          },
+          "practiceAttackSteps": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Practiceattacksteps",
+            "type": "array"
+          },
+          "revisionId": {
+            "title": "Revisionid",
+            "type": "string"
+          },
+          "schemaVersion": {
+            "const": 1,
+            "default": 1,
+            "title": "Schemaversion",
+            "type": "integer"
+          },
+          "scoreEndBeat": {
+            "title": "Scoreendbeat",
+            "type": "number"
+          },
+          "scoreId": {
+            "title": "Scoreid",
+            "type": "string"
+          },
+          "scoreTempoSegments": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Scoretemposegments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scoreId",
+          "revisionId",
+          "artifactId",
+          "scoreEndBeat"
+        ],
+        "title": "PracticeScoreArtifactRead",
+        "type": "object"
+      },
+      "PracticeStepNoteRead": {
+        "properties": {
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "measure_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Measure Numbers",
+            "type": "array"
+          },
+          "pitch": {
+            "title": "Pitch",
+            "type": "string"
+          },
+          "render_note_id": {
+            "title": "Render Note Id",
+            "type": "string"
+          },
+          "staff_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Staff Ids",
+            "type": "array"
+          },
+          "step_note_id": {
+            "title": "Step Note Id",
+            "type": "string"
+          },
+          "voice_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Voice Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "step_note_id",
+          "event_id",
+          "pitch",
+          "render_note_id"
+        ],
+        "title": "PracticeStepNoteRead",
+        "type": "object"
+      },
+      "PracticeTargetCatalogRead": {
+        "properties": {
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "score_id": {
+            "title": "Score Id",
+            "type": "string"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/PracticeTargetRead"
+            },
+            "title": "Targets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "score_id",
+          "revision_id"
+        ],
+        "title": "PracticeTargetCatalogRead",
+        "type": "object"
+      },
+      "PracticeTargetRead": {
+        "properties": {
+          "attack_targets": {
+            "items": {
+              "$ref": "#/components/schemas/PracticeAttackTargetRead"
+            },
+            "title": "Attack Targets",
+            "type": "array"
+          },
+          "continuation": {
+            "items": {
+              "$ref": "#/components/schemas/PracticeStepNoteRead"
+            },
+            "title": "Continuation",
+            "type": "array"
+          },
+          "event_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Event Ids",
+            "type": "array"
+          },
+          "group_id": {
+            "title": "Group Id",
+            "type": "string"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "measure_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Measure Numbers",
+            "type": "array"
+          },
+          "onset_beat": {
+            "title": "Onset Beat",
+            "type": "number"
+          },
+          "pitches": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Pitches",
+            "type": "array"
+          },
+          "render_note_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Render Note Ids",
+            "type": "array"
+          },
+          "staff_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Staff Ids",
+            "type": "array"
+          },
+          "step_id": {
+            "title": "Step Id",
+            "type": "string"
+          },
+          "voice_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Voice Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "index",
+          "group_id",
+          "onset_beat",
+          "step_id"
+        ],
+        "title": "PracticeTargetRead",
+        "type": "object"
+      },
       "ProfileRead": {
         "properties": {
           "user": {
@@ -5727,6 +7162,75 @@
         "title": "PublicationUpsertRequest",
         "type": "object"
       },
+      "RecordingTimebase": {
+        "additionalProperties": false,
+        "properties": {
+          "activeSegments": {
+            "items": {
+              "$ref": "#/components/schemas/RecordingTimebaseSegment"
+            },
+            "minItems": 1,
+            "title": "Activesegments",
+            "type": "array"
+          },
+          "nominalMediaDurationMs": {
+            "exclusiveMinimum": 0.0,
+            "title": "Nominalmediadurationms",
+            "type": "number"
+          },
+          "recordingEndPerfTimeMs": {
+            "exclusiveMinimum": 0.0,
+            "title": "Recordingendperftimems",
+            "type": "number"
+          },
+          "recordingStartPerfTimeMs": {
+            "minimum": 0.0,
+            "title": "Recordingstartperftimems",
+            "type": "number"
+          }
+        },
+        "required": [
+          "recordingStartPerfTimeMs",
+          "recordingEndPerfTimeMs",
+          "nominalMediaDurationMs",
+          "activeSegments"
+        ],
+        "title": "RecordingTimebase",
+        "type": "object"
+      },
+      "RecordingTimebaseSegment": {
+        "additionalProperties": false,
+        "properties": {
+          "mediaEndMs": {
+            "exclusiveMinimum": 0.0,
+            "title": "Mediaendms",
+            "type": "number"
+          },
+          "mediaStartMs": {
+            "minimum": 0.0,
+            "title": "Mediastartms",
+            "type": "number"
+          },
+          "perfEndMs": {
+            "exclusiveMinimum": 0.0,
+            "title": "Perfendms",
+            "type": "number"
+          },
+          "perfStartMs": {
+            "minimum": 0.0,
+            "title": "Perfstartms",
+            "type": "number"
+          }
+        },
+        "required": [
+          "perfStartMs",
+          "perfEndMs",
+          "mediaStartMs",
+          "mediaEndMs"
+        ],
+        "title": "RecordingTimebaseSegment",
+        "type": "object"
+      },
       "RegisterRequest": {
         "properties": {
           "display_name": {
@@ -5902,6 +7406,70 @@
           "token"
         ],
         "title": "ResetPasswordRequest",
+        "type": "object"
+      },
+      "ResolvedTempoPlan": {
+        "additionalProperties": false,
+        "properties": {
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/ResolvedTempoPlanSegment"
+            },
+            "minItems": 1,
+            "title": "Segments",
+            "type": "array"
+          },
+          "selection": {
+            "discriminator": {
+              "mapping": {
+                "CUSTOM_FIXED_BPM": "#/components/schemas/CustomFixedBpmTempoPlanSelection",
+                "SCORE": "#/components/schemas/ScoreTempoPlanSelection"
+              },
+              "propertyName": "mode"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ScoreTempoPlanSelection"
+              },
+              {
+                "$ref": "#/components/schemas/CustomFixedBpmTempoPlanSelection"
+              }
+            ],
+            "title": "Selection"
+          }
+        },
+        "required": [
+          "selection",
+          "segments"
+        ],
+        "title": "ResolvedTempoPlan",
+        "type": "object"
+      },
+      "ResolvedTempoPlanSegment": {
+        "additionalProperties": false,
+        "properties": {
+          "bpm": {
+            "exclusiveMinimum": 0.0,
+            "title": "Bpm",
+            "type": "number"
+          },
+          "source": {
+            "pattern": "^(MUSICXML|CUSTOM)$",
+            "title": "Source",
+            "type": "string"
+          },
+          "startBeat": {
+            "minimum": 0.0,
+            "title": "Startbeat",
+            "type": "number"
+          }
+        },
+        "required": [
+          "startBeat",
+          "bpm",
+          "source"
+        ],
+        "title": "ResolvedTempoPlanSegment",
         "type": "object"
       },
       "ReviewArtifactRead": {
@@ -6488,6 +8056,27 @@
         "title": "RevisionSourceRead",
         "type": "object"
       },
+      "ScopeIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "endGroupId": {
+            "minLength": 1,
+            "title": "Endgroupid",
+            "type": "string"
+          },
+          "startGroupId": {
+            "minLength": 1,
+            "title": "Startgroupid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "startGroupId",
+          "endGroupId"
+        ],
+        "title": "ScopeIdentity",
+        "type": "object"
+      },
       "ScoreBatchDeleteRequest": {
         "properties": {
           "score_ids": {
@@ -6854,6 +8443,21 @@
           "confidence"
         ],
         "title": "ScoreTaxonomyTagRead",
+        "type": "object"
+      },
+      "ScoreTempoPlanSelection": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "const": "SCORE",
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "ScoreTempoPlanSelection",
         "type": "object"
       },
       "ScoreUpdateRequest": {
@@ -10161,6 +11765,56 @@
         ]
       }
     },
+    "/api/v1/model-assets/bytedance-note/access": {
+      "get": {
+        "description": "Return model asset descriptor with short-lived presigned download URL for authenticated users.",
+        "operationId": "get_bytedance_note_model_access_api_v1_model_assets_bytedance_note_access_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_ModelAssetAccessRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get short-lived presigned access for ByteDance note model",
+        "tags": [
+          "Model Assets"
+        ]
+      }
+    },
     "/api/v1/my-scores": {
       "get": {
         "operationId": "list_my_scores_api_v1_my_scores_get",
@@ -10264,6 +11918,755 @@
         "summary": "List My Scores",
         "tags": [
           "My Scores"
+        ]
+      }
+    },
+    "/api/v1/performance-takes": {
+      "get": {
+        "operationId": "list_takes_api_v1_performance_takes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "score_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Score Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PerformanceTakeListResponse_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Takes",
+        "tags": [
+          "Performance Takes"
+        ]
+      },
+      "post": {
+        "operationId": "finalize_take_api_v1_performance_takes_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerformanceTakeCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PerformanceTakeRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Finalize Take",
+        "tags": [
+          "Performance Takes"
+        ]
+      }
+    },
+    "/api/v1/performance-takes/upload-authorizations": {
+      "post": {
+        "operationId": "authorize_take_upload_api_v1_performance_takes_upload_authorizations_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerformanceTakeUploadAuthorizationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PerformanceTakeUploadAuthorizationRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Authorize Take Upload",
+        "tags": [
+          "Performance Takes"
+        ]
+      }
+    },
+    "/api/v1/performance-takes/upload-authorizations/{reservation_id}": {
+      "delete": {
+        "operationId": "cancel_take_upload_authorization_api_v1_performance_takes_upload_authorizations__reservation_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservation_id",
+            "required": true,
+            "schema": {
+              "title": "Reservation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_dict_str__bool__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Take Upload Authorization",
+        "tags": [
+          "Performance Takes"
+        ]
+      }
+    },
+    "/api/v1/performance-takes/upload-authorizations/{reservation_id}/cancel": {
+      "post": {
+        "operationId": "cancel_take_upload_authorization_api_v1_performance_takes_upload_authorizations__reservation_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservation_id",
+            "required": true,
+            "schema": {
+              "title": "Reservation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_dict_str__bool__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Take Upload Authorization",
+        "tags": [
+          "Performance Takes"
+        ]
+      }
+    },
+    "/api/v1/performance-takes/{take_id}": {
+      "delete": {
+        "operationId": "delete_take_api_v1_performance_takes__take_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "take_id",
+            "required": true,
+            "schema": {
+              "title": "Take Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PerformanceTakeDeleteResponse_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Take",
+        "tags": [
+          "Performance Takes"
+        ]
+      },
+      "get": {
+        "operationId": "get_take_api_v1_performance_takes__take_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "take_id",
+            "required": true,
+            "schema": {
+              "title": "Take Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PerformanceTakeRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Take",
+        "tags": [
+          "Performance Takes"
+        ]
+      }
+    },
+    "/api/v1/performance-takes/{take_id}/media": {
+      "get": {
+        "operationId": "stream_take_media_api_v1_performance_takes__take_id__media_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "take_id",
+            "required": true,
+            "schema": {
+              "title": "Take Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream Take Media",
+        "tags": [
+          "Performance Takes"
+        ]
+      }
+    },
+    "/api/v1/performance-takes/{take_id}/playback-url": {
+      "get": {
+        "operationId": "get_playback_url_api_v1_performance_takes__take_id__playback_url_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "take_id",
+            "required": true,
+            "schema": {
+              "title": "Take Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PerformanceTakePlaybackRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Playback Url",
+        "tags": [
+          "Performance Takes"
+        ]
+      }
+    },
+    "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/artifact": {
+      "get": {
+        "operationId": "get_practice_score_artifact_api_v1_practice_scores__score_id__revisions__revision_id__artifact_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "score_id",
+            "required": true,
+            "schema": {
+              "title": "Score Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PracticeScoreArtifactRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Practice Score Artifact",
+        "tags": [
+          "Practice Sources"
+        ]
+      }
+    },
+    "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/content": {
+      "get": {
+        "operationId": "get_practice_ready_score_content_api_v1_practice_scores__score_id__revisions__revision_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "score_id",
+            "required": true,
+            "schema": {
+              "title": "Score Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PracticeReadyScoreContentRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Practice Ready Score Content",
+        "tags": [
+          "Practice Sources"
+        ]
+      }
+    },
+    "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/targets": {
+      "get": {
+        "operationId": "list_practice_targets_api_v1_practice_scores__score_id__revisions__revision_id__targets_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "score_id",
+            "required": true,
+            "schema": {
+              "title": "Score Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PracticeTargetCatalogRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Practice Targets",
+        "tags": [
+          "Practice Sources"
         ]
       }
     },

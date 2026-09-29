@@ -11,7 +11,6 @@
     "inventory:editor-legacy": "node scripts/inventory-editor-legacy-dependencies.mjs",
     "check:editor-legacy-inventory": "node scripts/inventory-editor-legacy-dependencies.mjs --check",
     "generate:api-types": "openapi-ts",
-    "generate:practice-api-types": "openapi-ts -f openapi-practice-ts.config.ts",
     "check:api-types": "node scripts/check-api-types.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ExternalServiceException, ResourceNotFoundException
 from app.core.logger import logger
 from app.db.model_utils import require_persisted_id
-from app.modules.practice.schemas import (
+from app.modules.practice.source_schemas import (
     PracticeAttackTargetRead,
     PracticeReadyScoreContentRead,
     PracticeScoreArtifactRead,

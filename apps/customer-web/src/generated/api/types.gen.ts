@@ -677,6 +677,34 @@ export type ApiResponseMemberRead = {
 };
 
 /**
+ * APIResponse[ModelAssetAccessRead]
+ */
+export type ApiResponseModelAssetAccessRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: ModelAssetAccessRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
  * APIResponse[NoneType]
  */
 export type ApiResponseNoneType = {
@@ -776,6 +804,230 @@ export type ApiResponsePendingInviteRead = {
      * Response payload
      */
     data?: PendingInviteRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[PerformanceTakeDeleteResponse]
+ */
+export type ApiResponsePerformanceTakeDeleteResponse = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: PerformanceTakeDeleteResponse | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[PerformanceTakeListResponse]
+ */
+export type ApiResponsePerformanceTakeListResponse = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: PerformanceTakeListResponse | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[PerformanceTakePlaybackRead]
+ */
+export type ApiResponsePerformanceTakePlaybackRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: PerformanceTakePlaybackRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[PerformanceTakeRead]
+ */
+export type ApiResponsePerformanceTakeRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: PerformanceTakeRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[PerformanceTakeUploadAuthorizationRead]
+ */
+export type ApiResponsePerformanceTakeUploadAuthorizationRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: PerformanceTakeUploadAuthorizationRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[PracticeReadyScoreContentRead]
+ */
+export type ApiResponsePracticeReadyScoreContentRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: PracticeReadyScoreContentRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[PracticeScoreArtifactRead]
+ */
+export type ApiResponsePracticeScoreArtifactRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: PracticeScoreArtifactRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
+ * APIResponse[PracticeTargetCatalogRead]
+ */
+export type ApiResponsePracticeTargetCatalogRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: PracticeTargetCatalogRead | null;
     /**
      * Message
      *
@@ -1528,6 +1780,20 @@ export type ConfirmEmailChangeRequest = {
      * Email change confirmation token
      */
     token: string;
+};
+
+/**
+ * CustomFixedBpmTempoPlanSelection
+ */
+export type CustomFixedBpmTempoPlanSelection = {
+    /**
+     * Bpm
+     */
+    bpm: number;
+    /**
+     * Mode
+     */
+    mode: 'CUSTOM_FIXED_BPM';
 };
 
 /**
@@ -2530,6 +2796,46 @@ export type MetadataRead = {
 export type MetadataStatus = 'PENDING' | 'READY' | 'FAILED';
 
 /**
+ * ModelAssetAccessRead
+ *
+ * Access descriptor for client direct download of model assets.
+ */
+export type ModelAssetAccessRead = {
+    /**
+     * Assetid
+     */
+    assetId?: string;
+    /**
+     * Assetversion
+     */
+    assetVersion?: string;
+    /**
+     * Downloadurl
+     */
+    downloadUrl: string;
+    /**
+     * Downloadurlexpiresat
+     */
+    downloadUrlExpiresAt: string;
+    /**
+     * Expectedbytesize
+     */
+    expectedByteSize?: number;
+    /**
+     * Mediatype
+     */
+    mediaType?: 'application/octet-stream';
+    /**
+     * Schemaversion
+     */
+    schemaVersion?: 1;
+    /**
+     * Sha256
+     */
+    sha256?: string;
+};
+
+/**
  * MyScoresSort
  */
 export type MyScoresSort = 'updated_desc' | 'updated_asc' | 'name_asc' | 'name_desc';
@@ -2720,6 +3026,527 @@ export type PendingInviteRead = {
 };
 
 /**
+ * PerformanceTakeCreateRequest
+ */
+export type PerformanceTakeCreateRequest = {
+    /**
+     * Artifact Id
+     */
+    artifact_id: string;
+    /**
+     * Client Request Id
+     */
+    client_request_id: string;
+    /**
+     * Duration Ms
+     */
+    duration_ms: number;
+    /**
+     * Media Byte Size
+     */
+    media_byte_size: number;
+    /**
+     * Media Kind
+     */
+    media_kind?: string;
+    /**
+     * Media Mime Type
+     */
+    media_mime_type: string;
+    /**
+     * Reservation Id
+     */
+    reservation_id: string;
+    resolved_tempo_plan: ResolvedTempoPlan;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Scope Start Beat
+     */
+    scope_start_beat: number;
+    /**
+     * Scope Terminal Beat
+     */
+    scope_terminal_beat: number;
+    /**
+     * Scope Type
+     */
+    scope_type?: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
+    sync_metadata: PerformanceTakeSyncMetadata;
+    /**
+     * Take Id
+     */
+    take_id: string;
+};
+
+/**
+ * PerformanceTakeDeleteResponse
+ */
+export type PerformanceTakeDeleteResponse = {
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Take Id
+     */
+    take_id: string;
+};
+
+/**
+ * PerformanceTakeListResponse
+ */
+export type PerformanceTakeListResponse = {
+    /**
+     * Has More
+     */
+    has_more?: boolean;
+    /**
+     * Items
+     */
+    items: Array<PerformanceTakeRead>;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
+ * PerformanceTakePlaybackRead
+ */
+export type PerformanceTakePlaybackRead = {
+    /**
+     * Download Url
+     */
+    download_url: string;
+    /**
+     * Duration Ms
+     */
+    duration_ms: number;
+    /**
+     * Expires In
+     */
+    expires_in: number;
+    /**
+     * Media Byte Size
+     */
+    media_byte_size: number;
+    /**
+     * Media Kind
+     */
+    media_kind: string;
+    /**
+     * Media Mime Type
+     */
+    media_mime_type: string;
+    /**
+     * Playback Url
+     */
+    playback_url: string;
+    /**
+     * Take Id
+     */
+    take_id: string;
+};
+
+/**
+ * PerformanceTakeRead
+ */
+export type PerformanceTakeRead = {
+    /**
+     * Artifact Id
+     */
+    artifact_id?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Deletion Status
+     */
+    deletion_status?: string;
+    /**
+     * Duration Ms
+     */
+    duration_ms: number;
+    /**
+     * Media Byte Size
+     */
+    media_byte_size: number;
+    /**
+     * Media Kind
+     */
+    media_kind: string;
+    /**
+     * Media Mime Type
+     */
+    media_mime_type: string;
+    resolved_tempo_plan: ResolvedTempoPlan;
+    /**
+     * Revision Id
+     */
+    revision_id?: string | null;
+    /**
+     * Scope Start Beat
+     */
+    scope_start_beat: number;
+    /**
+     * Scope Terminal Beat
+     */
+    scope_terminal_beat: number;
+    /**
+     * Scope Type
+     */
+    scope_type?: string;
+    /**
+     * Score Id
+     */
+    score_id?: string | null;
+    /**
+     * Score Title
+     */
+    score_title?: string | null;
+    sync_metadata: PerformanceTakeSyncMetadata;
+    /**
+     * Take Id
+     */
+    take_id: string;
+};
+
+/**
+ * PerformanceTakeSyncMetadata
+ */
+export type PerformanceTakeSyncMetadata = {
+    recordingTimebase: RecordingTimebase;
+    scopeIdentity?: ScopeIdentity | null;
+};
+
+/**
+ * PerformanceTakeUploadAuthorizationRead
+ */
+export type PerformanceTakeUploadAuthorizationRead = {
+    /**
+     * Expires In
+     */
+    expires_in?: number;
+    /**
+     * Object Key
+     */
+    object_key?: string | null;
+    /**
+     * Reservation Id
+     */
+    reservation_id?: string | null;
+    /**
+     * Status
+     */
+    status?: string;
+    take?: PerformanceTakeRead | null;
+    /**
+     * Take Id
+     */
+    take_id: string;
+    /**
+     * Upload Headers
+     */
+    upload_headers?: {
+        [key: string]: string;
+    };
+    /**
+     * Upload Method
+     */
+    upload_method?: string | null;
+    /**
+     * Upload Url
+     */
+    upload_url?: string | null;
+};
+
+/**
+ * PerformanceTakeUploadAuthorizationRequest
+ */
+export type PerformanceTakeUploadAuthorizationRequest = {
+    /**
+     * Artifact Id
+     */
+    artifact_id: string;
+    /**
+     * Client Request Id
+     */
+    client_request_id: string;
+    /**
+     * Duration Ms
+     */
+    duration_ms: number;
+    /**
+     * Media Byte Size
+     */
+    media_byte_size: number;
+    /**
+     * Media Kind
+     */
+    media_kind?: string;
+    /**
+     * Media Mime Type
+     */
+    media_mime_type: string;
+    resolved_tempo_plan: ResolvedTempoPlan;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Scope Start Beat
+     */
+    scope_start_beat: number;
+    /**
+     * Scope Terminal Beat
+     */
+    scope_terminal_beat: number;
+    /**
+     * Scope Type
+     */
+    scope_type?: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
+    sync_metadata: PerformanceTakeSyncMetadata;
+};
+
+/**
+ * PracticeAttackTargetRead
+ */
+export type PracticeAttackTargetRead = {
+    /**
+     * Attack Id
+     */
+    attack_id: string;
+    /**
+     * Event Ids
+     */
+    event_ids?: Array<string>;
+    /**
+     * Measure Numbers
+     */
+    measure_numbers?: Array<string>;
+    /**
+     * Notes
+     */
+    notes?: Array<PracticeStepNoteRead>;
+    /**
+     * Pitch
+     */
+    pitch: string;
+    /**
+     * Render Note Ids
+     */
+    render_note_ids?: Array<string>;
+};
+
+/**
+ * PracticeReadyScoreContentRead
+ */
+export type PracticeReadyScoreContentRead = {
+    /**
+     * Content
+     */
+    content: string;
+    /**
+     * Mime Type
+     */
+    mime_type?: string;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
+};
+
+/**
+ * PracticeScoreArtifactRead
+ */
+export type PracticeScoreArtifactRead = {
+    /**
+     * Artifactid
+     */
+    artifactId: string;
+    /**
+     * Expectedpracticegroups
+     */
+    expectedPracticeGroups?: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Firstplayablebeat
+     */
+    firstPlayableBeat?: number | null;
+    /**
+     * Metersegments
+     */
+    meterSegments?: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Playableevents
+     */
+    playableEvents?: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Practiceattacksteps
+     */
+    practiceAttackSteps?: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Revisionid
+     */
+    revisionId: string;
+    /**
+     * Schemaversion
+     */
+    schemaVersion?: 1;
+    /**
+     * Scoreendbeat
+     */
+    scoreEndBeat: number;
+    /**
+     * Scoreid
+     */
+    scoreId: string;
+    /**
+     * Scoretemposegments
+     */
+    scoreTempoSegments?: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+/**
+ * PracticeStepNoteRead
+ */
+export type PracticeStepNoteRead = {
+    /**
+     * Event Id
+     */
+    event_id: string;
+    /**
+     * Measure Numbers
+     */
+    measure_numbers?: Array<string>;
+    /**
+     * Pitch
+     */
+    pitch: string;
+    /**
+     * Render Note Id
+     */
+    render_note_id: string;
+    /**
+     * Staff Ids
+     */
+    staff_ids?: Array<string>;
+    /**
+     * Step Note Id
+     */
+    step_note_id: string;
+    /**
+     * Voice Ids
+     */
+    voice_ids?: Array<string>;
+};
+
+/**
+ * PracticeTargetCatalogRead
+ */
+export type PracticeTargetCatalogRead = {
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
+    /**
+     * Targets
+     */
+    targets?: Array<PracticeTargetRead>;
+};
+
+/**
+ * PracticeTargetRead
+ */
+export type PracticeTargetRead = {
+    /**
+     * Attack Targets
+     */
+    attack_targets?: Array<PracticeAttackTargetRead>;
+    /**
+     * Continuation
+     */
+    continuation?: Array<PracticeStepNoteRead>;
+    /**
+     * Event Ids
+     */
+    event_ids?: Array<string>;
+    /**
+     * Group Id
+     */
+    group_id: string;
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Measure Numbers
+     */
+    measure_numbers?: Array<string>;
+    /**
+     * Onset Beat
+     */
+    onset_beat: number;
+    /**
+     * Pitches
+     */
+    pitches?: Array<string>;
+    /**
+     * Render Note Ids
+     */
+    render_note_ids?: Array<string>;
+    /**
+     * Staff Ids
+     */
+    staff_ids?: Array<string>;
+    /**
+     * Step Id
+     */
+    step_id: string;
+    /**
+     * Voice Ids
+     */
+    voice_ids?: Array<string>;
+};
+
+/**
  * ProfileRead
  */
 export type ProfileRead = {
@@ -2848,6 +3675,50 @@ export type PublicationUpsertRequest = {
 };
 
 /**
+ * RecordingTimebase
+ */
+export type RecordingTimebase = {
+    /**
+     * Activesegments
+     */
+    activeSegments: Array<RecordingTimebaseSegment>;
+    /**
+     * Nominalmediadurationms
+     */
+    nominalMediaDurationMs: number;
+    /**
+     * Recordingendperftimems
+     */
+    recordingEndPerfTimeMs: number;
+    /**
+     * Recordingstartperftimems
+     */
+    recordingStartPerfTimeMs: number;
+};
+
+/**
+ * RecordingTimebaseSegment
+ */
+export type RecordingTimebaseSegment = {
+    /**
+     * Mediaendms
+     */
+    mediaEndMs: number;
+    /**
+     * Mediastartms
+     */
+    mediaStartMs: number;
+    /**
+     * Perfendms
+     */
+    perfEndMs: number;
+    /**
+     * Perfstartms
+     */
+    perfStartMs: number;
+};
+
+/**
  * RegisterRequest
  */
 export type RegisterRequest = {
@@ -2961,6 +3832,42 @@ export type ResetPasswordRequest = {
      * Password reset token
      */
     token: string;
+};
+
+/**
+ * ResolvedTempoPlan
+ */
+export type ResolvedTempoPlan = {
+    /**
+     * Segments
+     */
+    segments: Array<ResolvedTempoPlanSegment>;
+    /**
+     * Selection
+     */
+    selection: ({
+        mode: 'SCORE';
+    } & ScoreTempoPlanSelection) | ({
+        mode: 'CUSTOM_FIXED_BPM';
+    } & CustomFixedBpmTempoPlanSelection);
+};
+
+/**
+ * ResolvedTempoPlanSegment
+ */
+export type ResolvedTempoPlanSegment = {
+    /**
+     * Bpm
+     */
+    bpm: number;
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Startbeat
+     */
+    startBeat: number;
 };
 
 /**
@@ -3252,6 +4159,20 @@ export type RevisionSourceRead = {
 };
 
 /**
+ * ScopeIdentity
+ */
+export type ScopeIdentity = {
+    /**
+     * Endgroupid
+     */
+    endGroupId: string;
+    /**
+     * Startgroupid
+     */
+    startGroupId: string;
+};
+
+/**
  * ScoreBatchDeleteRequest
  */
 export type ScoreBatchDeleteRequest = {
@@ -3464,6 +4385,16 @@ export type ScoreTaxonomyTagRead = {
      * Source
      */
     source: string;
+};
+
+/**
+ * ScoreTempoPlanSelection
+ */
+export type ScoreTempoPlanSelection = {
+    /**
+     * Mode
+     */
+    mode: 'SCORE';
 };
 
 /**
@@ -5097,6 +6028,31 @@ export type GetStorageUsageApiV1MeStorageUsageGetResponses = {
 
 export type GetStorageUsageApiV1MeStorageUsageGetResponse = GetStorageUsageApiV1MeStorageUsageGetResponses[keyof GetStorageUsageApiV1MeStorageUsageGetResponses];
 
+export type GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/model-assets/bytedance-note/access';
+};
+
+export type GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetError = GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetErrors[keyof GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetErrors];
+
+export type GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponseModelAssetAccessRead;
+};
+
+export type GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetResponse = GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetResponses[keyof GetBytedanceNoteModelAccessApiV1ModelAssetsBytedanceNoteAccessGetResponses];
+
 export type ListMyScoresApiV1MyScoresGetData = {
     body?: never;
     path?: never;
@@ -5136,6 +6092,374 @@ export type ListMyScoresApiV1MyScoresGetResponses = {
 };
 
 export type ListMyScoresApiV1MyScoresGetResponse = ListMyScoresApiV1MyScoresGetResponses[keyof ListMyScoresApiV1MyScoresGetResponses];
+
+export type ListTakesApiV1PerformanceTakesGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Score Id
+         */
+        score_id?: string | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+    };
+    url: '/api/v1/performance-takes';
+};
+
+export type ListTakesApiV1PerformanceTakesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListTakesApiV1PerformanceTakesGetError = ListTakesApiV1PerformanceTakesGetErrors[keyof ListTakesApiV1PerformanceTakesGetErrors];
+
+export type ListTakesApiV1PerformanceTakesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePerformanceTakeListResponse;
+};
+
+export type ListTakesApiV1PerformanceTakesGetResponse = ListTakesApiV1PerformanceTakesGetResponses[keyof ListTakesApiV1PerformanceTakesGetResponses];
+
+export type FinalizeTakeApiV1PerformanceTakesPostData = {
+    body: PerformanceTakeCreateRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/performance-takes';
+};
+
+export type FinalizeTakeApiV1PerformanceTakesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FinalizeTakeApiV1PerformanceTakesPostError = FinalizeTakeApiV1PerformanceTakesPostErrors[keyof FinalizeTakeApiV1PerformanceTakesPostErrors];
+
+export type FinalizeTakeApiV1PerformanceTakesPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePerformanceTakeRead;
+};
+
+export type FinalizeTakeApiV1PerformanceTakesPostResponse = FinalizeTakeApiV1PerformanceTakesPostResponses[keyof FinalizeTakeApiV1PerformanceTakesPostResponses];
+
+export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostData = {
+    body: PerformanceTakeUploadAuthorizationRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/performance-takes/upload-authorizations';
+};
+
+export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostError = AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostErrors[keyof AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostErrors];
+
+export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePerformanceTakeUploadAuthorizationRead;
+};
+
+export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostResponse = AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostResponses[keyof AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostResponses];
+
+export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Reservation Id
+         */
+        reservation_id: string;
+    };
+    query?: never;
+    url: '/api/v1/performance-takes/upload-authorizations/{reservation_id}';
+};
+
+export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteError = CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteErrors[keyof CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteErrors];
+
+export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponseDictStrBool;
+};
+
+export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponse = CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponses[keyof CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponses];
+
+export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostData = {
+    body?: never;
+    path: {
+        /**
+         * Reservation Id
+         */
+        reservation_id: string;
+    };
+    query?: never;
+    url: '/api/v1/performance-takes/upload-authorizations/{reservation_id}/cancel';
+};
+
+export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostError = CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostErrors[keyof CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostErrors];
+
+export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponseDictStrBool;
+};
+
+export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostResponse = CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostResponses[keyof CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdCancelPostResponses];
+
+export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Take Id
+         */
+        take_id: string;
+    };
+    query?: never;
+    url: '/api/v1/performance-takes/{take_id}';
+};
+
+export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteError = DeleteTakeApiV1PerformanceTakesTakeIdDeleteErrors[keyof DeleteTakeApiV1PerformanceTakesTakeIdDeleteErrors];
+
+export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    202: ApiResponsePerformanceTakeDeleteResponse;
+};
+
+export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponse = DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponses[keyof DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponses];
+
+export type GetTakeApiV1PerformanceTakesTakeIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Take Id
+         */
+        take_id: string;
+    };
+    query?: never;
+    url: '/api/v1/performance-takes/{take_id}';
+};
+
+export type GetTakeApiV1PerformanceTakesTakeIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetTakeApiV1PerformanceTakesTakeIdGetError = GetTakeApiV1PerformanceTakesTakeIdGetErrors[keyof GetTakeApiV1PerformanceTakesTakeIdGetErrors];
+
+export type GetTakeApiV1PerformanceTakesTakeIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePerformanceTakeRead;
+};
+
+export type GetTakeApiV1PerformanceTakesTakeIdGetResponse = GetTakeApiV1PerformanceTakesTakeIdGetResponses[keyof GetTakeApiV1PerformanceTakesTakeIdGetResponses];
+
+export type StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetData = {
+    body?: never;
+    path: {
+        /**
+         * Take Id
+         */
+        take_id: string;
+    };
+    query?: never;
+    url: '/api/v1/performance-takes/{take_id}/media';
+};
+
+export type StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetError = StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetErrors[keyof StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetErrors];
+
+export type StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetData = {
+    body?: never;
+    path: {
+        /**
+         * Take Id
+         */
+        take_id: string;
+    };
+    query?: never;
+    url: '/api/v1/performance-takes/{take_id}/playback-url';
+};
+
+export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetError = GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetErrors[keyof GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetErrors];
+
+export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePerformanceTakePlaybackRead;
+};
+
+export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponse = GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses[keyof GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses];
+
+export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetData = {
+    body?: never;
+    path: {
+        /**
+         * Score Id
+         */
+        score_id: string;
+        /**
+         * Revision Id
+         */
+        revision_id: string;
+    };
+    query?: never;
+    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/artifact';
+};
+
+export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetError = GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetErrors[keyof GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetErrors];
+
+export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePracticeScoreArtifactRead;
+};
+
+export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetResponse = GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetResponses[keyof GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetResponses];
+
+export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetData = {
+    body?: never;
+    path: {
+        /**
+         * Score Id
+         */
+        score_id: string;
+        /**
+         * Revision Id
+         */
+        revision_id: string;
+    };
+    query?: never;
+    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/content';
+};
+
+export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetError = GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetErrors[keyof GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetErrors];
+
+export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePracticeReadyScoreContentRead;
+};
+
+export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponse = GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponses[keyof GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponses];
+
+export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Score Id
+         */
+        score_id: string;
+        /**
+         * Revision Id
+         */
+        revision_id: string;
+    };
+    query?: never;
+    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/targets';
+};
+
+export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetError = ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetErrors[keyof ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetErrors];
+
+export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePracticeTargetCatalogRead;
+};
+
+export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponse = ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponses[keyof ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponses];
 
 export type GetPublicScoreApiV1PublicationsSlugGetData = {
     body?: never;
