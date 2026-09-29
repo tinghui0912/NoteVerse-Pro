@@ -19,10 +19,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShareVideoPreview } from '@/lib/practice/share-video-preview';
 import type { ShareVideoConfig } from '@/lib/practice/share-video-templates';
 import {
-  exportSplitScreenPerformanceVideo,
-  getSplitScreenExportReadiness,
-  type SplitScreenExportBlockReason,
-} from '@/lib/practice/split-screen-video-export';
+  exportShareVideo,
+  getShareVideoExportReadiness,
+  type ShareVideoExportBlockReason,
+} from '@/lib/practice/share-video-export';
 import type { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import type { ShareVideoSession } from '@/lib/practice/share-video-session';
 
@@ -54,9 +54,9 @@ function extensionForMime(mimeType: string): string {
   return cleaned === 'video/mp4' ? 'mp4' : 'webm';
 }
 
-function splitScreenBlockReasonToMessage(
+function shareVideoBlockReasonToMessage(
   t: (key: string) => string,
-  reason: SplitScreenExportBlockReason
+  reason: ShareVideoExportBlockReason
 ) {
   switch (reason) {
     case 'video_not_ready':
@@ -240,7 +240,7 @@ export function ShareVideoStudio({
 
   const readiness = useMemo(
     () =>
-      getSplitScreenExportReadiness({
+      getShareVideoExportReadiness({
         session,
         isScoreIdentityConfirmed,
         xmlContent,
@@ -268,7 +268,7 @@ export function ShareVideoStudio({
     setSplitExportError(null);
 
     try {
-      const result = await exportSplitScreenPerformanceVideo({
+      const result = await exportShareVideo({
         session,
         scoreContainer,
         adapter,
@@ -535,7 +535,7 @@ export function ShareVideoStudio({
           </div>
           {!readiness.ok ? (
             <p className="text-xs text-amber-700 dark:text-amber-300">
-              {splitScreenBlockReasonToMessage(t, readiness.reason)}
+              {shareVideoBlockReasonToMessage(t, readiness.reason)}
             </p>
           ) : null}
           <Button
@@ -554,7 +554,7 @@ export function ShareVideoStudio({
         </section>
 
         {splitExportStatus === 'exporting' ? (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100" data-testid="split-screen-export-progress">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100" data-testid="share-video-export-progress">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h4 className="text-sm font-semibold">{t('exportScoreVideoProgressTitle')}</h4>
@@ -572,13 +572,13 @@ export function ShareVideoStudio({
           </div>
         ) : null}
         {splitExportStatus === 'error' ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-100" data-testid="split-screen-export-error">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-100" data-testid="share-video-export-error">
             <h4 className="text-sm font-semibold">{t('exportScoreVideoFailedTitle')}</h4>
             <p className="mt-1 text-xs">{splitExportError ?? t('exportScoreVideoFailedDesc')}</p>
           </div>
         ) : null}
         {splitExportStatus === 'success' ? (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-100" data-testid="split-screen-export-success">
+          <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-900 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-100" data-testid="share-video-export-success">
             <p className="text-sm font-semibold">{t('exportScoreVideoSuccessTitle')}</p>
           </div>
         ) : null}

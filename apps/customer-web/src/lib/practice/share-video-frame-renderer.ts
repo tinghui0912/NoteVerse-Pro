@@ -4,10 +4,10 @@ import {
   resolveExportPlaybackGeometry,
   type ScorePageCache,
   type SvgViewBox,
-} from './split-screen-score-model';
-import { svgRectToCanvasRect, type Rect } from './split-screen-score-camera';
+} from './share-video-score-model';
+import { svgRectToCanvasRect, type Rect } from './share-video-score-camera';
 
-export type SplitScreenFramePosition = {
+export type ShareVideoFramePosition = {
   eventId?: string;
   pageNumber: number;
   noteIds: string[];
@@ -15,11 +15,11 @@ export type SplitScreenFramePosition = {
   perfTimeMs: number;
 };
 
-export type SplitScreenPlaybackTimeline = {
-  resolve(mediaTimeMs: number): SplitScreenFramePosition | null;
+export type ShareVideoPlaybackTimeline = {
+  resolve(mediaTimeMs: number): ShareVideoFramePosition | null;
 };
 
-export type SplitScreenOutputLayout = {
+export type ShareVideoOutputLayout = {
   scoreRect: Rect;
   videoRect: Rect;
   background: string;
@@ -30,8 +30,8 @@ export type SplitScreenOutputLayout = {
   scoreImageAlign?: 'center' | 'top' | 'bottom';
 };
 
-export type SplitScreenFrameDiagnostics = {
-  position: SplitScreenFramePosition;
+export type ShareVideoFrameDiagnostics = {
+  position: ShareVideoFramePosition;
   pageNumber: number;
   systemId: string;
   staffId: string;
@@ -55,7 +55,7 @@ const FLOATING_SAFE_MARGIN = 20;
 const FLOATING_VIDEO_GAP = 16;
 const FLOATING_MAX_HEIGHT_RATIO = 0.42;
 
-export async function renderSplitScreenFrameAtTime({
+export async function renderShareVideoFrameAtTime({
   mediaTimeMs,
   scoreModel,
   playbackTimeline,
@@ -66,26 +66,26 @@ export async function renderSplitScreenFrameAtTime({
 }: {
   mediaTimeMs: number;
   scoreModel: ScorePageCache;
-  playbackTimeline: SplitScreenPlaybackTimeline;
+  playbackTimeline: ShareVideoPlaybackTimeline;
   sourceVideoFrame: CanvasImageSource;
   outputCanvas: HTMLCanvasElement;
-  layout: SplitScreenOutputLayout;
+  layout: ShareVideoOutputLayout;
   context?: CanvasRenderingContext2D;
-}): Promise<SplitScreenFrameDiagnostics> {
+}): Promise<ShareVideoFrameDiagnostics> {
   const position = playbackTimeline.resolve(mediaTimeMs);
   if (!position) {
-    throw new Error('split_screen_export_failed:playback_position_unavailable');
+    throw new Error('share_video_export_failed:playback_position_unavailable');
   }
   const page = scoreModel.get(position.pageNumber);
   if (!page) {
-    throw new Error('split_screen_export_failed:playback_page_unavailable');
+    throw new Error('share_video_export_failed:playback_page_unavailable');
   }
   const playback = resolveExportPlaybackGeometry(page, position.noteIds);
   if (!playback) {
-    throw new Error('split_screen_export_failed:playback_event_geometry_unavailable');
+    throw new Error('share_video_export_failed:playback_event_geometry_unavailable');
   }
   const ctx = context ?? outputCanvas.getContext('2d');
-  if (!ctx) throw new Error('split_screen_export_failed:canvas_context');
+  if (!ctx) throw new Error('share_video_export_failed:canvas_context');
 
   const image = await getEventScoreImage(
     page,
@@ -141,15 +141,15 @@ export function resolveFloatingScoreRect(
   layout: {
     width: number;
     height: number;
-    floatingPosition?: SplitScreenOutputLayout['floatingPosition'];
-    floatingSize?: SplitScreenOutputLayout['floatingSize'];
+    floatingPosition?: ShareVideoOutputLayout['floatingPosition'];
+    floatingSize?: ShareVideoOutputLayout['floatingSize'];
   },
   videoDrawRect: Rect,
   viewport: SvgRect
 ): Rect {
   const aspectRatio = viewport.width / viewport.height;
   if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) {
-    throw new Error('split_screen_export_failed:floating_score_aspect_ratio');
+    throw new Error('share_video_export_failed:floating_score_aspect_ratio');
   }
 
   const sizeFactor = FLOATING_SCORE_WIDTH_FACTORS[layout.floatingSize ?? 'medium'];

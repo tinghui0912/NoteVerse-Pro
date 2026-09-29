@@ -6,7 +6,7 @@ import {
   type PracticeScoreArtifact,
 } from './local-core/artifact';
 import { PracticeVerovioAdapter } from './verovio-adapter';
-import { resolveSplitScreenScoreFrame } from './split-screen-playback-position';
+import { resolveShareVideoPlaybackPosition } from './share-video-playback-position';
 import type { ShareVideoSession } from './share-video-session';
 
 function artifact(): PracticeScoreArtifact {
@@ -148,7 +148,7 @@ describe('cursor selection scope', () => {
   });
 
   it('share frame resolution uses the cursor selection scope in terminal tail', () => {
-    const frame = resolveSplitScreenScoreFrame({
+    const frame = resolveShareVideoPlaybackPosition({
       session: session(['nA']),
       adapter: {
         getCursorTimelineEntryForBeatRange: adapter().getCursorTimelineEntryForBeatRange.bind(adapter()),

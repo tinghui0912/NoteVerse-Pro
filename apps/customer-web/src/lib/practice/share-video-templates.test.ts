@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { getShareVideoLayout } from './share-video-templates';
-import { resolveFloatingScoreRect } from './split-screen-frame-renderer';
+import { resolveFloatingScoreRect } from './share-video-frame-renderer';
 
 describe('share video templates', () => {
   it('keeps landscape output at 16:9 with separate full-frame panels', () => {

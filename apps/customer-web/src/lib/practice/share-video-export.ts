@@ -1,5 +1,5 @@
-import { resolveSplitScreenScoreFrame } from './split-screen-playback-position';
-import { renderSplitScreenFrameAtTime } from './split-screen-frame-renderer';
+import { resolveShareVideoPlaybackPosition } from './share-video-playback-position';
+import { renderShareVideoFrameAtTime } from './share-video-frame-renderer';
 import {
   getShareVideoLayout,
   type ShareVideoConfig,
@@ -10,7 +10,7 @@ import {
   prepareScorePageCache,
   resolveExportPlaybackGeometry,
   type ScorePageCache,
-} from './split-screen-score-model';
+} from './share-video-score-model';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 import type { ShareVideoSession } from './share-video-session';
 
@@ -19,28 +19,28 @@ export {
   firstScorePage,
   prepareScorePageCache,
   resolveExportPlaybackGeometry,
-} from './split-screen-score-model';
+} from './share-video-score-model';
 export type {
   ExportNoteGeometry,
   ScorePageCache,
   ScorePageCacheEntry,
   ScorePageImageLoader,
   SvgViewBox,
-} from './split-screen-score-model';
+} from './share-video-score-model';
 
 const EXPORT_FPS = 30;
 
-const SPLIT_SCREEN_MIME_CANDIDATES = [
+const SHARE_VIDEO_MIME_CANDIDATES = [
   'video/webm;codecs=vp9,opus',
   'video/webm;codecs=vp8,opus',
   'video/webm',
 ];
 
-export type SplitScreenExportReadiness =
+export type ShareVideoExportReadiness =
   | { ok: true; mimeType: string }
-  | { ok: false; reason: SplitScreenExportBlockReason };
+  | { ok: false; reason: ShareVideoExportBlockReason };
 
-export type SplitScreenExportBlockReason =
+export type ShareVideoExportBlockReason =
   | 'video_not_ready'
   | 'empty_video'
   | 'score_identity_mismatch'
@@ -49,25 +49,25 @@ export type SplitScreenExportBlockReason =
   | 'media_recorder_unsupported'
   | 'canvas_capture_unsupported';
 
-export type SplitScreenExportProgress = {
+export type ShareVideoExportProgress = {
   mediaTimeMs: number;
   durationMs: number;
   ratio: number;
 };
 
-export type SplitScreenExportResult = {
+export type ShareVideoExportResult = {
   blob: Blob;
   mimeType: string;
   durationMs: number;
 };
 
-export type SplitScreenExportOptions = {
+export type ShareVideoExportOptions = {
   session: ShareVideoSession;
   scoreContainer: HTMLElement;
   adapter: PracticeVerovioAdapter;
   scoreEndBeat: number;
   signal?: AbortSignal;
-  onProgress?: (progress: SplitScreenExportProgress) => void;
+  onProgress?: (progress: ShareVideoExportProgress) => void;
   config?: ShareVideoConfig;
 };
 
@@ -77,19 +77,19 @@ type FrameRenderState = {
   stagingCtx: CanvasRenderingContext2D;
 };
 
-export function selectSupportedSplitScreenMimeType(): string | null {
+export function selectSupportedShareVideoMimeType(): string | null {
   if (typeof MediaRecorder === 'undefined') {
     return null;
   }
   if (typeof MediaRecorder.isTypeSupported !== 'function') {
     return 'video/webm';
   }
-  return SPLIT_SCREEN_MIME_CANDIDATES.find((candidate) =>
+  return SHARE_VIDEO_MIME_CANDIDATES.find((candidate) =>
     MediaRecorder.isTypeSupported(candidate)
   ) ?? null;
 }
 
-export function getSplitScreenExportReadiness({
+export function getShareVideoExportReadiness({
   session,
   isScoreIdentityConfirmed,
   xmlContent,
@@ -99,7 +99,7 @@ export function getSplitScreenExportReadiness({
   isScoreIdentityConfirmed: boolean;
   xmlContent: string | null;
   scoreContainer: HTMLElement | null;
-}): SplitScreenExportReadiness {
+}): ShareVideoExportReadiness {
   if (!session?.video || session.video.status !== 'READY') {
     return { ok: false, reason: 'video_not_ready' };
   }
@@ -115,7 +115,7 @@ export function getSplitScreenExportReadiness({
   if (!session.recordingTimebase?.activeSegments?.length) {
     return { ok: false, reason: 'timebase_unavailable' };
   }
-  const mimeType = selectSupportedSplitScreenMimeType();
+  const mimeType = selectSupportedShareVideoMimeType();
   if (!mimeType) {
     return { ok: false, reason: 'media_recorder_unsupported' };
   }
@@ -125,7 +125,7 @@ export function getSplitScreenExportReadiness({
   return { ok: true, mimeType };
 }
 
-export function composeSplitScreenOutputStream(
+export function composeShareVideoOutputStream(
   canvasStream: MediaStream,
   audioStream: MediaStream
 ): MediaStream {
@@ -135,7 +135,7 @@ export function composeSplitScreenOutputStream(
   ]);
 }
 
-export async function exportSplitScreenPerformanceVideo({
+export async function exportShareVideo({
   session,
   scoreContainer,
   adapter,
@@ -143,18 +143,18 @@ export async function exportSplitScreenPerformanceVideo({
   signal,
   onProgress,
   config = { orientation: 'landscape', presentation: { kind: 'split' } },
-}: SplitScreenExportOptions): Promise<SplitScreenExportResult> {
-  const readiness = getSplitScreenExportReadiness({
+}: ShareVideoExportOptions): Promise<ShareVideoExportResult> {
+  const readiness = getShareVideoExportReadiness({
     session,
     isScoreIdentityConfirmed: true,
     xmlContent: 'ready',
     scoreContainer,
   });
   if (!readiness.ok) {
-    throw new Error(`split_screen_export_unavailable:${readiness.reason}`);
+    throw new Error(`share_video_export_unavailable:${readiness.reason}`);
   }
   if (session.video.status !== 'READY') {
-    throw new Error('split_screen_export_unavailable:video_not_ready');
+    throw new Error('share_video_export_unavailable:video_not_ready');
   }
   const sourceVideo = session.video;
   const layout = getShareVideoLayout(config);
@@ -164,7 +164,7 @@ export async function exportSplitScreenPerformanceVideo({
   canvas.height = layout.height;
   const ctx = canvas.getContext('2d');
   if (!ctx) {
-    throw new Error('split_screen_export_unavailable:canvas_context');
+    throw new Error('share_video_export_unavailable:canvas_context');
   }
 
   const video = document.createElement('video');
@@ -184,7 +184,7 @@ export async function exportSplitScreenPerformanceVideo({
     await waitForVideoMetadata(video, signal);
     await waitForVideoFrame(video, signal);
     if (!video.videoWidth || !video.videoHeight) {
-      throw new Error('split_screen_export_failed:video_decode');
+      throw new Error('share_video_export_failed:video_decode');
     }
 
     const scorePages = await prepareScorePageCache(scoreContainer, undefined, {
@@ -195,7 +195,7 @@ export async function exportSplitScreenPerformanceVideo({
     stagingCanvas.height = layout.height;
     const stagingCtx = stagingCanvas.getContext('2d');
     if (!stagingCtx) {
-      throw new Error('split_screen_export_unavailable:canvas_context');
+      throw new Error('share_video_export_unavailable:canvas_context');
     }
     const frameState: FrameRenderState = {
       scorePages,
@@ -223,34 +223,34 @@ export async function exportSplitScreenPerformanceVideo({
 
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextCtor) {
-      throw new Error('split_screen_export_failed:audio_context_unavailable');
+      throw new Error('share_video_export_failed:audio_context_unavailable');
     }
     audioContext = new AudioContextCtor();
     const source = audioContext.createMediaElementSource(video);
     const audioDestination = audioContext.createMediaStreamDestination();
     source.connect(audioDestination);
     if (audioDestination.stream.getAudioTracks().length === 0) {
-      throw new Error('split_screen_export_failed:audio_track_missing');
+      throw new Error('share_video_export_failed:audio_track_missing');
     }
 
     canvasStream = canvas.captureStream(EXPORT_FPS);
-    outputStream = composeSplitScreenOutputStream(canvasStream, audioDestination.stream);
+    outputStream = composeShareVideoOutputStream(canvasStream, audioDestination.stream);
     if (outputStream.getAudioTracks().length === 0) {
-      throw new Error('split_screen_export_failed:audio_track_missing');
+      throw new Error('share_video_export_failed:audio_track_missing');
     }
 
     const chunks: Blob[] = [];
     recorder = new MediaRecorder(outputStream, { mimeType: readiness.mimeType });
     let wasAborted = false;
     let rejectExport: ((reason?: unknown) => void) | null = null;
-    const result = new Promise<SplitScreenExportResult>((resolve, reject) => {
+    const result = new Promise<ShareVideoExportResult>((resolve, reject) => {
       rejectExport = reject;
       recorder!.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
           chunks.push(event.data);
         }
       };
-      recorder!.onerror = () => reject(new Error('split_screen_export_failed:encoding'));
+      recorder!.onerror = () => reject(new Error('share_video_export_failed:encoding'));
       recorder!.onstop = () => {
         if (wasAborted || signal?.aborted) {
           reject(new DOMException('Export cancelled', 'AbortError'));
@@ -258,7 +258,7 @@ export async function exportSplitScreenPerformanceVideo({
         }
         const blob = new Blob(chunks, { type: readiness.mimeType });
         if (blob.size <= 0) {
-          reject(new Error('split_screen_export_failed:empty_output'));
+          reject(new Error('share_video_export_failed:empty_output'));
           return;
         }
         resolve({
@@ -334,7 +334,7 @@ export async function exportSplitScreenPerformanceVideo({
         });
         const frameWaitMs = performance.now() - frameStartedAt;
         if (frameWaitMs > 250) {
-          failExport(new Error('split_screen_export_failed:frame_prepare_timeout'));
+          failExport(new Error('share_video_export_failed:frame_prepare_timeout'));
           return;
         }
         void prefetchUpcomingEventImage({
@@ -397,7 +397,7 @@ async function prefetchUpcomingEventImage({
   scoreEndBeat: number;
   scorePages: ScorePageCache;
 }) {
-  const position = resolveSplitScreenScoreFrame({
+  const position = resolveShareVideoPlaybackPosition({
     session,
     adapter,
     pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, scorePages),
@@ -432,11 +432,11 @@ export async function drawExportFrame({
 }): Promise<void> {
   const layout = getShareVideoLayout(config);
 
-  await renderSplitScreenFrameAtTime({
+  await renderShareVideoFrameAtTime({
     mediaTimeMs: Math.max(0, video.currentTime * 1000),
     scoreModel: frameState.scorePages,
     playbackTimeline: {
-      resolve: (mediaTimeMs) => resolveSplitScreenScoreFrame({
+      resolve: (mediaTimeMs) => resolveShareVideoPlaybackPosition({
         session,
         adapter,
         pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, frameState.scorePages),
@@ -478,7 +478,7 @@ function waitForVideoMetadata(video: HTMLVideoElement, signal?: AbortSignal): Pr
     };
     const onError = () => {
       cleanup();
-      reject(new Error('split_screen_export_failed:video_decode'));
+      reject(new Error('share_video_export_failed:video_decode'));
     };
     const onAbort = () => {
       cleanup();
@@ -507,7 +507,7 @@ function waitForVideoFrame(video: HTMLVideoElement, signal?: AbortSignal): Promi
     };
     const onError = () => {
       cleanup();
-      reject(new Error('split_screen_export_failed:video_decode'));
+      reject(new Error('share_video_export_failed:video_decode'));
     };
     const onAbort = () => {
       cleanup();

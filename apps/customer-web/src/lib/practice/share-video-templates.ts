@@ -1,4 +1,4 @@
-import type { Rect } from './split-screen-score-camera';
+import type { Rect } from './share-video-score-camera';
 
 export type ShareVideoConfig = {
   orientation: 'landscape' | 'portrait';

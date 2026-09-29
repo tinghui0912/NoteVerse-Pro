@@ -1,5 +1,5 @@
 import type { SvgRect } from './playhead-cursor';
-import type { ExportPlaybackGeometry, SvgViewBox } from './split-screen-score-model';
+import type { ExportPlaybackGeometry, SvgViewBox } from './share-video-score-model';
 
 export type Rect = { x: number; y: number; width: number; height: number };
 

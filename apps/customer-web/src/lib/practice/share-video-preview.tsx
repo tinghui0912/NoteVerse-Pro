@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { ShareVideoSession } from './share-video-session';
-import { renderSplitScreenFrameAtTime } from './split-screen-frame-renderer';
+import { renderShareVideoFrameAtTime } from './share-video-frame-renderer';
 import {
   findStablePageNumber,
   prepareScorePageCache,
   type ScorePageCache,
-} from './split-screen-score-model';
-import { resolveSplitScreenScoreFrame } from './split-screen-playback-position';
+} from './share-video-score-model';
+import { resolveShareVideoPlaybackPosition } from './share-video-playback-position';
 import { getShareVideoLayout, type ShareVideoConfig } from './share-video-templates';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 
@@ -140,12 +140,12 @@ export function ShareVideoPreview({
             sourceFrameCanvasRef
           );
           const renderMediaTimeMs = frozenSource.mediaTimeMs;
-          await renderSplitScreenFrameAtTime({
+          await renderShareVideoFrameAtTime({
             mediaTimeMs: renderMediaTimeMs,
             scoreModel: scorePages,
             playbackTimeline: {
               resolve: (timeMs) =>
-                resolveSplitScreenScoreFrame({
+                resolveShareVideoPlaybackPosition({
                   session,
                   adapter,
                   pageNumberResolver: (noteIds) => findStablePageNumber(noteIds, scorePages),

@@ -3,16 +3,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  composeSplitScreenOutputStream,
+  composeShareVideoOutputStream,
   drawExportFrame,
-  getSplitScreenExportReadiness,
+  getShareVideoExportReadiness,
   prepareScorePageCache,
-  selectSupportedSplitScreenMimeType,
-} from './split-screen-video-export';
-import { resolveSplitScreenScoreFrame } from './split-screen-playback-position';
-import { renderSplitScreenFrameAtTime } from './split-screen-frame-renderer';
+  selectSupportedShareVideoMimeType,
+} from './share-video-export';
+import { resolveShareVideoPlaybackPosition } from './share-video-playback-position';
+import { renderShareVideoFrameAtTime } from './share-video-frame-renderer';
 import { applyExportPlayheadCursor, getPlayheadCursorGeometry } from './playhead-cursor';
-import { getEventScoreImage } from './split-screen-score-model';
+import { getEventScoreImage } from './share-video-score-model';
 import { getShareVideoLayout } from './share-video-templates';
 import type { ShareVideoSession } from './share-video-session';
 
@@ -168,7 +168,7 @@ function installIdentitySvgGeometry(container: HTMLElement) {
   });
 }
 
-describe('split-screen video export helpers', () => {
+describe('share-video video export helpers', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -179,7 +179,7 @@ describe('split-screen video export helpers', () => {
     };
     vi.stubGlobal('MediaRecorder', FakeMediaRecorder);
 
-    expect(selectSupportedSplitScreenMimeType()).toBe('video/webm;codecs=vp8,opus');
+    expect(selectSupportedShareVideoMimeType()).toBe('video/webm;codecs=vp8,opus');
   });
 
   it('reports unsupported encoding when MediaRecorder cannot encode WebM', () => {
@@ -188,7 +188,7 @@ describe('split-screen video export helpers', () => {
     };
     vi.stubGlobal('MediaRecorder', FakeMediaRecorder);
 
-    expect(selectSupportedSplitScreenMimeType()).toBeNull();
+    expect(selectSupportedShareVideoMimeType()).toBeNull();
   });
 
   it('blocks export when video, score identity, score DOM, timebase, or encoder are unavailable', () => {
@@ -203,7 +203,7 @@ describe('split-screen video export helpers', () => {
     });
 
     expect(
-      getSplitScreenExportReadiness({
+      getShareVideoExportReadiness({
         session: null,
         isScoreIdentityConfirmed: true,
         xmlContent: '<score/>',
@@ -212,7 +212,7 @@ describe('split-screen video export helpers', () => {
     ).toEqual({ ok: false, reason: 'video_not_ready' });
 
     expect(
-      getSplitScreenExportReadiness({
+      getShareVideoExportReadiness({
         session: createSession(),
         isScoreIdentityConfirmed: false,
         xmlContent: '<score/>',
@@ -221,7 +221,7 @@ describe('split-screen video export helpers', () => {
     ).toEqual({ ok: false, reason: 'score_identity_mismatch' });
 
     expect(
-      getSplitScreenExportReadiness({
+      getShareVideoExportReadiness({
         session: createSession(),
         isScoreIdentityConfirmed: true,
         xmlContent: null,
@@ -230,7 +230,7 @@ describe('split-screen video export helpers', () => {
     ).toEqual({ ok: false, reason: 'score_not_ready' });
 
     expect(
-      getSplitScreenExportReadiness({
+      getShareVideoExportReadiness({
         session: createSession({
           recordingTimebase: {
             recordingStartPerfTimeMs: 0,
@@ -250,7 +250,7 @@ describe('split-screen video export helpers', () => {
     const session = createSession();
     const adapter = createAdapter();
 
-    const firstSegment = resolveSplitScreenScoreFrame({
+    const firstSegment = resolveShareVideoPlaybackPosition({
       session,
       adapter,
       mediaTimeMs: 1000,
@@ -261,7 +261,7 @@ describe('split-screen video export helpers', () => {
     expect(firstSegment?.pageNumber).toBe(1);
     expect(firstSegment?.noteIds).toEqual(['note-page-1']);
 
-    const afterPause = resolveSplitScreenScoreFrame({
+    const afterPause = resolveShareVideoPlaybackPosition({
       session,
       adapter,
       mediaTimeMs: 4000,
@@ -277,7 +277,7 @@ describe('split-screen video export helpers', () => {
     const session = createSession();
     const adapter = createAdapter();
 
-    const frame = resolveSplitScreenScoreFrame({
+    const frame = resolveShareVideoPlaybackPosition({
       session,
       adapter,
       mediaTimeMs: 5000,
@@ -306,7 +306,7 @@ describe('split-screen video export helpers', () => {
     });
     vi.stubGlobal('MediaStream', mediaStreamSpy);
 
-    const result = composeSplitScreenOutputStream(canvasStream, audioStream) as unknown as {
+    const result = composeShareVideoOutputStream(canvasStream, audioStream) as unknown as {
       tracks: MediaStreamTrack[];
     };
 
@@ -736,7 +736,7 @@ describe('split-screen video export helpers', () => {
       configurable: true,
       value: () => ctx,
     });
-    const diagnostics = await renderSplitScreenFrameAtTime({
+    const diagnostics = await renderShareVideoFrameAtTime({
       mediaTimeMs: 1000,
       scoreModel: cache,
       playbackTimeline: {
@@ -781,7 +781,7 @@ describe('split-screen video export helpers', () => {
       value: () => ctx,
     });
 
-    const diagnostics = await renderSplitScreenFrameAtTime({
+    const diagnostics = await renderShareVideoFrameAtTime({
       mediaTimeMs: 1000,
       scoreModel: cache,
       playbackTimeline: {
@@ -873,7 +873,7 @@ describe('split-screen video export helpers', () => {
         adapter: adapter as never,
         scoreEndBeat: 24,
         frameState: { scorePages: cache, stagingCanvas, stagingCtx },
-      })).rejects.toThrow('split_screen_export_failed:playback_event_geometry_unavailable');
+      })).rejects.toThrow('share_video_export_failed:playback_event_geometry_unavailable');
   });
 
   it('uses rendered SVG rectangles to keep visibly present transformed notes inside the export viewport', async () => {

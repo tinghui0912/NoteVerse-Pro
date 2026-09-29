@@ -4,7 +4,7 @@ import { resolveScopeTiming } from './scope-timing';
 import type { ShareVideoSession } from './share-video-session';
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 
-export type ResolveSplitScreenFrameInput = {
+export type ResolveShareVideoPlaybackPositionInput = {
   session: ShareVideoSession;
   adapter: Pick<
     PracticeVerovioAdapter,
@@ -16,21 +16,21 @@ export type ResolveSplitScreenFrameInput = {
   scoreEndBeat: number;
 };
 
-export type SplitScreenScoreFrame = {
+export type ShareVideoPlaybackPosition = {
   perfTimeMs: number;
   musicalBeat: number;
   pageNumber: number;
   noteIds: string[];
 };
 
-export function resolveSplitScreenScoreFrame({
+export function resolveShareVideoPlaybackPosition({
   session,
   adapter,
   pageNumberResolver,
   mediaTimeMs,
   actualMediaDurationMs,
   scoreEndBeat,
-}: ResolveSplitScreenFrameInput): SplitScreenScoreFrame | null {
+}: ResolveShareVideoPlaybackPositionInput): ShareVideoPlaybackPosition | null {
   const perfTimeMs = mediaTimeToPerformanceTimeMs(
     mediaTimeMs,
     session.recordingTimebase,

@@ -7,20 +7,20 @@ import type { ShareVideoSession } from './share-video-session';
 
 const mocks = vi.hoisted(() => ({
   prepareScorePageCache: vi.fn(async () => new Map()),
-  renderSplitScreenFrameAtTime: vi.fn(async (_options: unknown) => undefined),
+  renderShareVideoFrameAtTime: vi.fn(async (_options: unknown) => undefined),
 }));
 
-vi.mock('./split-screen-score-model', () => ({
+vi.mock('./share-video-score-model', () => ({
   findStablePageNumber: vi.fn(() => 1),
   prepareScorePageCache: mocks.prepareScorePageCache,
 }));
 
-vi.mock('./split-screen-frame-renderer', () => ({
-  renderSplitScreenFrameAtTime: mocks.renderSplitScreenFrameAtTime,
+vi.mock('./share-video-frame-renderer', () => ({
+  renderShareVideoFrameAtTime: mocks.renderShareVideoFrameAtTime,
 }));
 
-vi.mock('./split-screen-playback-position', () => ({
-  resolveSplitScreenScoreFrame: vi.fn(() => null),
+vi.mock('./share-video-playback-position', () => ({
+  resolveShareVideoPlaybackPosition: vi.fn(() => null),
 }));
 
 import { ShareVideoPreview } from './share-video-preview';
@@ -54,7 +54,7 @@ const session: ShareVideoSession = {
 describe('ShareVideoPreview', () => {
   beforeEach(() => {
     mocks.prepareScorePageCache.mockClear();
-    mocks.renderSplitScreenFrameAtTime.mockClear();
+    mocks.renderShareVideoFrameAtTime.mockClear();
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
       drawImage: vi.fn(),
     } as unknown as CanvasRenderingContext2D);
@@ -87,9 +87,9 @@ describe('ShareVideoPreview', () => {
     );
 
     await waitFor(() => {
-      expect(mocks.renderSplitScreenFrameAtTime).toHaveBeenCalled();
+      expect(mocks.renderShareVideoFrameAtTime).toHaveBeenCalled();
     });
-    const firstCallCount = mocks.renderSplitScreenFrameAtTime.mock.calls.length;
+    const firstCallCount = mocks.renderShareVideoFrameAtTime.mock.calls.length;
 
     rerender(
       <ShareVideoPreview
@@ -104,12 +104,12 @@ describe('ShareVideoPreview', () => {
     );
 
     await waitFor(() => {
-      expect(mocks.renderSplitScreenFrameAtTime.mock.calls.length).toBeGreaterThan(
+      expect(mocks.renderShareVideoFrameAtTime.mock.calls.length).toBeGreaterThan(
         firstCallCount
       );
     });
     expect(
-      mocks.renderSplitScreenFrameAtTime.mock.calls.at(-1)?.[0]
+      mocks.renderShareVideoFrameAtTime.mock.calls.at(-1)?.[0]
     ).toMatchObject({
       mediaTimeMs: 1250,
       sourceVideoFrame: expect.any(HTMLCanvasElement),
@@ -119,7 +119,7 @@ describe('ShareVideoPreview', () => {
       },
     });
 
-    const portraitCallCount = mocks.renderSplitScreenFrameAtTime.mock.calls.length;
+    const portraitCallCount = mocks.renderShareVideoFrameAtTime.mock.calls.length;
 
     rerender(
       <ShareVideoPreview
@@ -137,12 +137,12 @@ describe('ShareVideoPreview', () => {
     );
 
     await waitFor(() => {
-      expect(mocks.renderSplitScreenFrameAtTime.mock.calls.length).toBeGreaterThan(
+      expect(mocks.renderShareVideoFrameAtTime.mock.calls.length).toBeGreaterThan(
         portraitCallCount
       );
     });
     expect(
-      mocks.renderSplitScreenFrameAtTime.mock.calls.at(-1)?.[0]
+      mocks.renderShareVideoFrameAtTime.mock.calls.at(-1)?.[0]
     ).toMatchObject({
       sourceVideoFrame: expect.any(HTMLCanvasElement),
       layout: {
@@ -171,7 +171,7 @@ describe('ShareVideoPreview', () => {
     Object.defineProperty(video, 'seeking', { configurable: true, value: false });
 
     const renderGate: { resolve: (() => void) | null } = { resolve: null };
-    mocks.renderSplitScreenFrameAtTime.mockImplementationOnce(async (rawOptions: unknown) => {
+    mocks.renderShareVideoFrameAtTime.mockImplementationOnce(async (rawOptions: unknown) => {
       const options = rawOptions as { mediaTimeMs: number };
       expect(options.mediaTimeMs).toBe(1050);
       sourceAdvanced = true;
@@ -195,7 +195,7 @@ describe('ShareVideoPreview', () => {
     );
 
     await waitFor(() => {
-      expect(mocks.renderSplitScreenFrameAtTime).toHaveBeenCalled();
+      expect(mocks.renderShareVideoFrameAtTime).toHaveBeenCalled();
     });
     renderGate.resolve?.();
 

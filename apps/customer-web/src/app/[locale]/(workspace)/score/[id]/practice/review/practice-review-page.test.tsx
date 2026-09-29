@@ -239,14 +239,14 @@ vi.mock('@/components/practice/performance-replay-player', () => ({
   },
 }));
 
-const splitScreenMocks = vi.hoisted(() => ({
-  exportSplitScreenPerformanceVideo: vi.fn(),
-  getSplitScreenExportReadiness: vi.fn(),
+const shareVideoMocks = vi.hoisted(() => ({
+  exportShareVideo: vi.fn(),
+  getShareVideoExportReadiness: vi.fn(),
 }));
 
-vi.mock('@/lib/practice/split-screen-video-export', () => ({
-  exportSplitScreenPerformanceVideo: splitScreenMocks.exportSplitScreenPerformanceVideo,
-  getSplitScreenExportReadiness: splitScreenMocks.getSplitScreenExportReadiness,
+vi.mock('@/lib/practice/share-video-export', () => ({
+  exportShareVideo: shareVideoMocks.exportShareVideo,
+  getShareVideoExportReadiness: shareVideoMocks.getShareVideoExportReadiness,
 }));
 
 import PracticeReviewPage from './page';
@@ -263,13 +263,13 @@ describe('PracticeReviewPage', () => {
     currentMockArtifact = createMockArtifact();
     vi.restoreAllMocks();
     saveMutationMock.mutateAsync.mockReset();
-    splitScreenMocks.exportSplitScreenPerformanceVideo.mockReset();
-    splitScreenMocks.exportSplitScreenPerformanceVideo.mockResolvedValue({
-      blob: new Blob(['split-screen'], { type: 'video/webm' }),
+    shareVideoMocks.exportShareVideo.mockReset();
+    shareVideoMocks.exportShareVideo.mockResolvedValue({
+      blob: new Blob(['share-video'], { type: 'video/webm' }),
       mimeType: 'video/webm',
       durationMs: 3000,
     });
-    splitScreenMocks.getSplitScreenExportReadiness.mockImplementation(
+    shareVideoMocks.getShareVideoExportReadiness.mockImplementation(
       ({
         draft,
         session,
@@ -961,7 +961,7 @@ describe('PracticeReviewPage', () => {
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
       value: vi.fn((blob: Blob) =>
-        blob.type === 'video/webm' && blob.size === 12 ? 'blob:split-screen-export' : 'blob:raw-video'
+        blob.type === 'video/webm' && blob.size === 12 ? 'blob:share-video-export' : 'blob:raw-video'
       ),
     });
     Object.defineProperty(URL, 'revokeObjectURL', {
@@ -982,7 +982,7 @@ describe('PracticeReviewPage', () => {
     fireEvent.click(screen.getByTestId('generate-share-video'));
 
     await waitFor(() => {
-      expect(splitScreenMocks.exportSplitScreenPerformanceVideo).toHaveBeenCalled();
+      expect(shareVideoMocks.exportShareVideo).toHaveBeenCalled();
     });
     expect(createObjectURL).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'video/webm' })
@@ -1014,14 +1014,14 @@ describe('PracticeReviewPage', () => {
     expect(screen.queryByTestId('open-share-video-studio')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
     expect(URL.createObjectURL).toHaveBeenCalled();
-    expect(splitScreenMocks.exportSplitScreenPerformanceVideo).not.toHaveBeenCalled();
+    expect(shareVideoMocks.exportShareVideo).not.toHaveBeenCalled();
   });
 
   it('prevents parallel score-video exports and aborts the active export when cancelled', async () => {
     const resolveExportRef: Array<
       (value: { blob: Blob; mimeType: string; durationMs: number }) => void
     > = [];
-    splitScreenMocks.exportSplitScreenPerformanceVideo.mockImplementation(
+    shareVideoMocks.exportShareVideo.mockImplementation(
       (_options: { signal: AbortSignal; onProgress?: (progress: { ratio: number }) => void }) => {
         _options.onProgress?.({ ratio: 0.25 });
         return new Promise((resolve) => {
@@ -1038,16 +1038,16 @@ describe('PracticeReviewPage', () => {
     fireEvent.click(exportButton);
     fireEvent.click(exportButton);
 
-    await screen.findByTestId('split-screen-export-progress');
-    expect(splitScreenMocks.exportSplitScreenPerformanceVideo).toHaveBeenCalledTimes(1);
+    await screen.findByTestId('share-video-export-progress');
+    expect(shareVideoMocks.exportShareVideo).toHaveBeenCalledTimes(1);
     expect(exportButton).toBeDisabled();
 
-    const signal = splitScreenMocks.exportSplitScreenPerformanceVideo.mock.calls[0][0].signal as AbortSignal;
+    const signal = shareVideoMocks.exportShareVideo.mock.calls[0][0].signal as AbortSignal;
     fireEvent.click(screen.getByRole('button', { name: '取消合成' }));
     expect(signal.aborted).toBe(true);
 
     resolveExportRef[0]?.({
-      blob: new Blob(['split-screen'], { type: 'video/webm' }),
+      blob: new Blob(['share-video'], { type: 'video/webm' }),
       mimeType: 'video/webm',
       durationMs: 3000,
     });
@@ -1062,7 +1062,7 @@ describe('PracticeReviewPage', () => {
       configurable: true,
       value: vi.fn(),
     });
-    splitScreenMocks.exportSplitScreenPerformanceVideo.mockRejectedValueOnce(
+    shareVideoMocks.exportShareVideo.mockRejectedValueOnce(
       new Error('encoder failed')
     );
     completedPerformanceStore.setPerformance(createVideoDraft());
@@ -1072,7 +1072,7 @@ describe('PracticeReviewPage', () => {
     fireEvent.click(screen.getByTestId('open-share-video-studio'));
     fireEvent.click(screen.getByTestId('generate-share-video'));
 
-    await screen.findByTestId('split-screen-export-error');
+    await screen.findByTestId('share-video-export-error');
     expect(screen.getByText('encoder failed')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '导出原始视频' }));
@@ -1129,16 +1129,16 @@ describe('PracticeReviewPage', () => {
     expect(screen.getByTestId('share-floating-size-large')).toHaveAttribute('aria-pressed', 'true');
 
     fireEvent.click(screen.getByTestId('generate-share-video'));
-    await waitFor(() => expect(splitScreenMocks.exportSplitScreenPerformanceVideo).toHaveBeenCalled());
-    expect(splitScreenMocks.exportSplitScreenPerformanceVideo.mock.calls.at(-1)?.[0].config).toEqual({
+    await waitFor(() => expect(shareVideoMocks.exportShareVideo).toHaveBeenCalled());
+    expect(shareVideoMocks.exportShareVideo.mock.calls.at(-1)?.[0].config).toEqual({
       orientation: 'portrait',
       presentation: { kind: 'floating', position: 'bottom', size: 'large' },
     });
 
     fireEvent.click(screen.getByTestId('share-presentation-split'));
     fireEvent.click(screen.getByTestId('generate-share-video'));
-    await waitFor(() => expect(splitScreenMocks.exportSplitScreenPerformanceVideo).toHaveBeenCalledTimes(2));
-    expect(splitScreenMocks.exportSplitScreenPerformanceVideo.mock.calls.at(-1)?.[0].config).toEqual({
+    await waitFor(() => expect(shareVideoMocks.exportShareVideo).toHaveBeenCalledTimes(2));
+    expect(shareVideoMocks.exportShareVideo.mock.calls.at(-1)?.[0].config).toEqual({
       orientation: 'portrait',
       presentation: { kind: 'split' },
     });
