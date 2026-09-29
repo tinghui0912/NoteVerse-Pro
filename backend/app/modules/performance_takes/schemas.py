@@ -77,6 +77,30 @@ class RecordingTimebase(StrictPerformanceTakeModel):
         return self
 
 
+class PerformanceTakeExpectedStrikeOutcome(StrictPerformanceTakeModel):
+    strikeId: str = Field(min_length=1, max_length=128)
+    pitch: str = Field(min_length=1, max_length=32)
+    renderNoteIds: list[str]
+    result: Literal["MATCHED", "MISSING", "UNCONFIRMED"]
+
+
+class PerformanceTakeExpectedEventOutcome(StrictPerformanceTakeModel):
+    expectedGroupId: str = Field(min_length=1, max_length=128)
+    performanceTimeMs: float = Field(ge=0)
+    result: Literal["MATCH", "PARTIAL", "MISMATCH", "UNCERTAIN", "NOT_OBSERVED"]
+    confidence: float = Field(ge=0, le=1)
+    source: Literal["ACOUSTIC", "MIDI", "FAKE"]
+    expectedStrikeOutcomes: list[PerformanceTakeExpectedStrikeOutcome]
+    unexpectedPitches: list[str]
+    renderNoteIds: list[str]
+    measureNumbers: list[str]
+    timingOffsetMs: Optional[float] = None
+
+
+class PerformanceTakeEvaluation(StrictPerformanceTakeModel):
+    outcomes: list[PerformanceTakeExpectedEventOutcome]
+
+
 def _validate_scope_identity(
     scope_type: str,
     start_group_id: Optional[str],
@@ -106,6 +130,7 @@ class PerformanceTakeUploadAuthorizationRequest(StrictPerformanceTakeModel):
     artifact_id: str = Field(min_length=1, max_length=128)
     tempo_plan: PerformanceTakeTempoPlan
     recording_timebase: RecordingTimebase
+    evaluation: PerformanceTakeEvaluation
 
     @model_validator(mode="after")
     def validate_scope_identity(self) -> "PerformanceTakeUploadAuthorizationRequest":
@@ -147,6 +172,7 @@ class PerformanceTakeCreateRequest(StrictPerformanceTakeModel):
     artifact_id: str = Field(min_length=1, max_length=128)
     tempo_plan: PerformanceTakeTempoPlan
     recording_timebase: RecordingTimebase
+    evaluation: PerformanceTakeEvaluation
 
     @model_validator(mode="after")
     def validate_scope_identity(self) -> "PerformanceTakeCreateRequest":
@@ -176,6 +202,7 @@ class PerformanceTakeRead(StrictPerformanceTakeModel):
     deletion_status: str = "ACTIVE"
     tempo_plan: PerformanceTakeTempoPlan
     recording_timebase: RecordingTimebase
+    evaluation: PerformanceTakeEvaluation
     created_at: datetime
 
 

@@ -151,6 +151,9 @@ const recordingTimebase: RecordingTimebase = {
   ],
 };
 
+const evaluation = {
+  outcomes: [],
+};
 // 121 fixture items
 const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i) => ({
   deletion_status: 'ACTIVE',
@@ -170,6 +173,7 @@ const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i
   scope_end_group_id: i % 2 === 0 ? null : 'group-2',
   tempo_plan: tempoPlan,
   recording_timebase: recordingTimebase,
+  evaluation,
   created_at: new Date(1700000000000 - i * 60000).toISOString(),
 }));
 
@@ -358,6 +362,7 @@ describe('MyPerformancesPage', () => {
               artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
+              evaluation,
               created_at: new Date().toISOString(),
             },
           ],
@@ -400,6 +405,7 @@ describe('MyPerformancesPage', () => {
               artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
+              evaluation,
               created_at: new Date().toISOString(),
             },
           ],
@@ -451,6 +457,7 @@ describe('MyPerformancesPage', () => {
               artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
+              evaluation,
               created_at: new Date().toISOString(),
             },
           ],
@@ -496,6 +503,7 @@ describe('MyPerformancesPage', () => {
               artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
+              evaluation,
               created_at: new Date().toISOString(),
             },
           ],
@@ -563,6 +571,7 @@ describe('MyPerformancesPage', () => {
               artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
+              evaluation,
               created_at: new Date().toISOString(),
             },
           ],
@@ -1027,3 +1036,4 @@ describe('MyPerformancesPage', () => {
 
   });
 });
+

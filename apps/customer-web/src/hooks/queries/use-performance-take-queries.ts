@@ -6,6 +6,7 @@ import {
   performanceTakesApi,
   uploadMediaToSignedUrl,
   type RecordingTimebase,
+  type PerformanceTakeEvaluation,
   type PerformanceTakeTempoPlan,
   type PerformanceTakeCreateRequest,
   type PerformanceTakeUploadAuthorizationRequest,
@@ -91,6 +92,7 @@ export interface SavePerformanceTakeInput {
   scopeEndGroupId?: string | null;
   tempoPlan: PerformanceTakeTempoPlan;
   recordingTimebase: RecordingTimebase;
+  evaluation: PerformanceTakeEvaluation;
 }
 
 export function useSavePerformanceTake() {
@@ -115,6 +117,7 @@ export function useSavePerformanceTake() {
         scope_end_group_id: input.scopeEndGroupId ?? null,
         tempo_plan: input.tempoPlan,
         recording_timebase: input.recordingTimebase,
+        evaluation: input.evaluation,
       };
 
       const authRes = await performanceTakesApi.authorizeUpload(authReq);
@@ -147,6 +150,7 @@ export function useSavePerformanceTake() {
         scope_end_group_id: input.scopeEndGroupId ?? null,
         tempo_plan: input.tempoPlan,
         recording_timebase: input.recordingTimebase,
+        evaluation: input.evaluation,
       };
 
       if (authData.status === 'FINALIZING') {

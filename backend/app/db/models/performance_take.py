@@ -138,6 +138,9 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     recording_timebase: str = Field(
         sa_column=Column(Text, nullable=False),
     )
+    evaluation: str = Field(
+        sa_column=Column(Text, nullable=False),
+    )
     deletion_status: str = Field(
         default=PerformanceTakeDeletionStatus.ACTIVE.value,
         sa_column=Column(

@@ -40,6 +40,7 @@ from app.db.models.storage_usage import StorageUsageCategory
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import (
     PerformanceTakeCreateRequest,
+    PerformanceTakeEvaluation,
     PerformanceTakeListResponse,
     PerformanceTakePlaybackRead,
     PerformanceTakeRead,
@@ -67,6 +68,7 @@ SUPPORTED_VIDEO_MIMES = {
 MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024
 MAX_TAKE_DURATION_MS = 12 * 60 * 60 * 1000
 MAX_TAKE_METADATA_JSON_BYTES = 64 * 1024
+MAX_TAKE_EVALUATION_JSON_BYTES = 1024 * 1024
 TAKE_UPLOAD_AUTHORIZATION_SECONDS = 3600
 TAKE_FINALIZING_LEASE_SECONDS = 15 * 60
 TAKE_FINALIZING_UNKNOWN_OUTCOME_GRACE_SECONDS = TAKE_FINALIZING_LEASE_SECONDS * 2
@@ -153,13 +155,13 @@ def _verify_container_magic_bytes(header_bytes: bytes, mime_type: str, media_kin
     return False
 
 
-def _json_snapshot(value: object | None) -> str | None:
+def _json_snapshot(value: object | None, *, max_bytes: int = MAX_TAKE_METADATA_JSON_BYTES) -> str | None:
     if value is None:
         return None
     if isinstance(value, BaseModel):
         value = value.model_dump(mode="json", exclude_none=True)
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":"))
-    if len(encoded.encode("utf-8")) > MAX_TAKE_METADATA_JSON_BYTES:
+    if len(encoded.encode("utf-8")) > max_bytes:
         raise ValidationException(ErrorCode.VALIDATION_ERROR, field="metadata_size")
     return encoded
 
@@ -295,6 +297,7 @@ class PerformanceTakeService:
     ) -> PerformanceTakeRead:
         tempo_plan = PerformanceTakeTempoPlan.model_validate(json.loads(take.tempo_plan))
         recording_timebase = RecordingTimebase.model_validate(json.loads(take.recording_timebase))
+        evaluation = PerformanceTakeEvaluation.model_validate(json.loads(take.evaluation))
 
         score_id_out = score.score_uuid
         score_title_out: Optional[str] = take.score_title
@@ -324,6 +327,7 @@ class PerformanceTakeService:
             deletion_status=deletion_status,
             tempo_plan=tempo_plan,
             recording_timebase=recording_timebase,
+            evaluation=evaluation,
             created_at=take.created_at,
         )
 
@@ -366,6 +370,7 @@ class PerformanceTakeService:
             and auth.media_byte_size == request.media_byte_size
             and _json_equivalent(auth.tempo_plan, request.tempo_plan)
             and _json_equivalent(auth.recording_timebase, request.recording_timebase)
+            and _json_equivalent(auth.evaluation, request.evaluation)
         )
 
     def _authorization_matches_finalize_request(
@@ -390,6 +395,7 @@ class PerformanceTakeService:
             and auth.media_byte_size == request.media_byte_size
             and _json_equivalent(auth.tempo_plan, request.tempo_plan)
             and _json_equivalent(auth.recording_timebase, request.recording_timebase)
+            and _json_equivalent(auth.evaluation, request.evaluation)
         )
 
     def _take_matches_authorization(
@@ -415,6 +421,7 @@ class PerformanceTakeService:
             and take.artifact_id == auth.artifact_id
             and take.tempo_plan == auth.tempo_plan
             and take.recording_timebase == auth.recording_timebase
+            and take.evaluation == auth.evaluation
         )
 
     def _put_url_expires_at(self, now: datetime) -> datetime:
@@ -581,6 +588,7 @@ class PerformanceTakeService:
 
         _json_snapshot(request.tempo_plan)
         _json_snapshot(request.recording_timebase)
+        _json_snapshot(request.evaluation, max_bytes=MAX_TAKE_EVALUATION_JSON_BYTES)
 
         if self.storage is None:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
@@ -764,6 +772,10 @@ class PerformanceTakeService:
             scope_end_group_id=request.scope_end_group_id,
             tempo_plan=_json_snapshot(request.tempo_plan),
             recording_timebase=_json_snapshot(request.recording_timebase),
+            evaluation=_json_snapshot(
+                request.evaluation,
+                max_bytes=MAX_TAKE_EVALUATION_JSON_BYTES,
+            ),
             duration_ms=request.duration_ms,
             media_kind=media_kind,
             media_mime_type=cleaned_mime,
@@ -983,6 +995,7 @@ class PerformanceTakeService:
             "scope_end_group_id": auth.scope_end_group_id,
             "tempo_plan": auth.tempo_plan,
             "recording_timebase": auth.recording_timebase,
+            "evaluation": auth.evaluation,
             "reservation_id": auth.reservation_id,
             "expires_at": auth.expires_at,
             "staging_cleanup_after": auth.staging_cleanup_after,
@@ -1275,6 +1288,7 @@ class PerformanceTakeService:
             deletion_status=PerformanceTakeDeletionStatus.ACTIVE.value,
             tempo_plan=auth_snapshot["tempo_plan"],
             recording_timebase=auth_snapshot["recording_timebase"],
+            evaluation=auth_snapshot["evaluation"],
         )
         created = await self.repository.create_take(db, take, auto_commit=False)
         auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value

@@ -3041,6 +3041,7 @@ export type PerformanceTakeCreateRequest = {
      * Duration Ms
      */
     duration_ms: number;
+    evaluation: PerformanceTakeEvaluation;
     /**
      * Media Byte Size
      */
@@ -3105,6 +3106,84 @@ export type PerformanceTakeDeleteResponse = {
      * Take Id
      */
     take_id: string;
+};
+
+/**
+ * PerformanceTakeEvaluation
+ */
+export type PerformanceTakeEvaluation = {
+    /**
+     * Outcomes
+     */
+    outcomes: Array<PerformanceTakeExpectedEventOutcome>;
+};
+
+/**
+ * PerformanceTakeExpectedEventOutcome
+ */
+export type PerformanceTakeExpectedEventOutcome = {
+    /**
+     * Confidence
+     */
+    confidence: number;
+    /**
+     * Expectedgroupid
+     */
+    expectedGroupId: string;
+    /**
+     * Expectedstrikeoutcomes
+     */
+    expectedStrikeOutcomes: Array<PerformanceTakeExpectedStrikeOutcome>;
+    /**
+     * Measurenumbers
+     */
+    measureNumbers: Array<string>;
+    /**
+     * Performancetimems
+     */
+    performanceTimeMs: number;
+    /**
+     * Rendernoteids
+     */
+    renderNoteIds: Array<string>;
+    /**
+     * Result
+     */
+    result: 'MATCH' | 'PARTIAL' | 'MISMATCH' | 'UNCERTAIN' | 'NOT_OBSERVED';
+    /**
+     * Source
+     */
+    source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
+    /**
+     * Timingoffsetms
+     */
+    timingOffsetMs?: number | null;
+    /**
+     * Unexpectedpitches
+     */
+    unexpectedPitches: Array<string>;
+};
+
+/**
+ * PerformanceTakeExpectedStrikeOutcome
+ */
+export type PerformanceTakeExpectedStrikeOutcome = {
+    /**
+     * Pitch
+     */
+    pitch: string;
+    /**
+     * Rendernoteids
+     */
+    renderNoteIds: Array<string>;
+    /**
+     * Result
+     */
+    result: 'MATCHED' | 'MISSING' | 'UNCONFIRMED';
+    /**
+     * Strikeid
+     */
+    strikeId: string;
 };
 
 /**
@@ -3191,6 +3270,7 @@ export type PerformanceTakeRead = {
      * Duration Ms
      */
     duration_ms: number;
+    evaluation: PerformanceTakeEvaluation;
     /**
      * Media Byte Size
      */
@@ -3336,6 +3416,7 @@ export type PerformanceTakeUploadAuthorizationRequest = {
      * Duration Ms
      */
     duration_ms: number;
+    evaluation: PerformanceTakeEvaluation;
     /**
      * Media Byte Size
      */

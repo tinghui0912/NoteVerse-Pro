@@ -118,6 +118,9 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
     recording_timebase: str = Field(
         sa_column=Column(Text, nullable=False),
     )
+    evaluation: str = Field(
+        sa_column=Column(Text, nullable=False),
+    )
     duration_ms: int = Field(
         sa_column=Column(Integer, nullable=False)
     )

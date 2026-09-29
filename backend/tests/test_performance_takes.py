@@ -74,6 +74,29 @@ DEFAULT_TAKE_RECORDING_TIMEBASE = {
         }
     ],
 }
+DEFAULT_TAKE_EVALUATION = {
+    "outcomes": [
+        {
+            "expectedGroupId": "group-1",
+            "performanceTimeMs": 250,
+            "result": "MATCH",
+            "confidence": 0.98,
+            "source": "ACOUSTIC",
+            "expectedStrikeOutcomes": [
+                {
+                    "strikeId": "strike-1",
+                    "pitch": "C4",
+                    "renderNoteIds": ["note-1"],
+                    "result": "MATCHED",
+                }
+            ],
+            "unexpectedPitches": [],
+            "renderNoteIds": ["note-1"],
+            "measureNumbers": ["1"],
+            "timingOffsetMs": 12,
+        }
+    ],
+}
 
 
 def test_performance_take_schema_accepts_product_default_tempo_source() -> None:
@@ -94,9 +117,11 @@ def test_performance_take_schema_accepts_product_default_tempo_source() -> None:
             "segments": [{"startBeat": 0, "bpm": 80, "source": "PRODUCT_DEFAULT"}],
         },
         recording_timebase=DEFAULT_TAKE_RECORDING_TIMEBASE,
+        evaluation=DEFAULT_TAKE_EVALUATION,
     )
 
     assert request.tempo_plan.segments[0].source == "PRODUCT_DEFAULT"
+    assert request.evaluation.outcomes[0].expectedGroupId == "group-1"
 
 
 POSTGRES_MIGRATION_EMPTY_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_EMPTY_URL"
@@ -159,6 +184,7 @@ def _complete_take_request_payload(payload: object) -> object:
     completed.setdefault("artifact_id", DEFAULT_TAKE_ARTIFACT_ID)
     completed.setdefault("tempo_plan", DEFAULT_TAKE_TEMPO_PLAN)
     completed.setdefault("recording_timebase", DEFAULT_TAKE_RECORDING_TIMEBASE)
+    completed.setdefault("evaluation", DEFAULT_TAKE_EVALUATION)
     return completed
 
 
@@ -391,6 +417,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
                     }
                 ],
             },
+            "evaluation": DEFAULT_TAKE_EVALUATION,
         }
         res = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
         assert res.status_code == 200, res.text
@@ -439,6 +466,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
                     }
                 ],
             },
+            "evaluation": DEFAULT_TAKE_EVALUATION,
         }
         res_fail = client.post("/api/v1/performance-takes", json=fin_req)
         assert res_fail.status_code == 404
@@ -1566,6 +1594,7 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
             "scope_end_group_id": "group-4",
             "tempo_plan": tempo_plan,
             "recording_timebase": recording_timebase,
+            "evaluation": DEFAULT_TAKE_EVALUATION,
         }
         res_auth = client.post(
             "/api/v1/performance-takes/upload-authorizations",
@@ -1596,6 +1625,7 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
         assert take_data["scope_end_group_id"] == "group-4"
         assert "scopeIdentity" not in take_data["recording_timebase"]
         assert take_data["tempo_plan"] == tempo_plan
+        assert take_data["evaluation"] == DEFAULT_TAKE_EVALUATION
         assert session.execute(
             select(PerformanceTake).where(
                 PerformanceTake.client_request_id == "req-range-video-scope-identity"
@@ -1794,6 +1824,7 @@ def test_authorize_finalizing_snapshot_retries_without_new_put(test_env):
         media_byte_size=len(VALID_WEBM_BYTES),
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+        evaluation=json.dumps(DEFAULT_TAKE_EVALUATION),
         storage_backend="local",
         staging_object_key="staging/performance-takes/1/finalizing-authorize/recording.webm",
         final_object_key="performance-takes/1/finalizing-authorize/token.webm",
@@ -2440,6 +2471,7 @@ def _expired_cleanup_auth(
         scope_terminal_beat=4.0,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+        evaluation=json.dumps(DEFAULT_TAKE_EVALUATION),
         duration_ms=1000,
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -2585,6 +2617,7 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
         scope_terminal_beat=4.0,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+        evaluation=json.dumps(DEFAULT_TAKE_EVALUATION),
         duration_ms=1000,
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -2881,6 +2914,7 @@ def test_authorization_cleanup_does_not_delete_orphan_key_referenced_by_take(tes
             scope_terminal_beat=4.0,
             tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
             recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+            evaluation=json.dumps(DEFAULT_TAKE_EVALUATION),
             deletion_status=PerformanceTakeDeletionStatus.ACTIVE,
         )
     )
@@ -2918,6 +2952,7 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
         scope_terminal_beat=4.0,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+        evaluation=json.dumps(DEFAULT_TAKE_EVALUATION),
         duration_ms=1000,
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -3211,7 +3246,7 @@ def _assert_performance_take_upgrade_state(
 
     command.upgrade(
         _alembic_config(alembic_async_url),
-        "0067_simplify_recording_timebase",
+        "0068_add_performance_take_evaluation",
     )
     engine_pg = create_engine(sqlalchemy_sync_url)
     try:
@@ -3229,6 +3264,7 @@ def _assert_performance_take_upgrade_state(
         assert cols["tempo_plan"]["nullable"] is False
         assert "resolved_tempo_plan" not in cols
         assert cols["recording_timebase"]["nullable"] is False
+        assert cols["evaluation"]["nullable"] is False
         assert "sync_metadata" not in cols
         assert "score_title" in cols
         assert cols["score_title"]["nullable"] is True
@@ -3286,6 +3322,12 @@ def _assert_performance_take_upgrade_state(
             assert recording_timebase["activeSegments"] == [
                 {"perfStartMs": 0, "perfEndMs": 90000, "mediaStartMs": 0, "mediaEndMs": 90000}
             ]
+            evaluation = json.loads(
+                pconn.execute(
+                    sa.text("SELECT evaluation FROM performance_takes WHERE id = 1")
+                ).scalar_one()
+            )
+            assert evaluation == {"outcomes": []}
 
             # Source identity is durable while a take exists.
             with pytest.raises(sa.exc.IntegrityError):
@@ -3313,7 +3355,7 @@ def test_empty_postgresql_database_initializes_with_wide_alembic_version_table()
     _assert_postgres_database_empty(pg.psycopg_url)
     command.upgrade(
         _alembic_config(pg.alembic_async_url),
-        "0067_simplify_recording_timebase",
+        "0068_add_performance_take_evaluation",
     )
     engine_pg = create_engine(pg.sqlalchemy_sync_url)
     try:
@@ -3367,5 +3409,6 @@ def test_postgresql_version_table_widening_permission_error_is_not_swallowed():
     with pytest.raises((DBAPIError, PermissionError, RuntimeError)):
         command.upgrade(
             _alembic_config(pg.alembic_async_url),
-            "0067_simplify_recording_timebase",
+            "0068_add_performance_take_evaluation",
         )
+
