@@ -6,3 +6,4 @@
 -r auth.txt
 -r image.txt
 -r fingering.txt
+-r practice-score.txt

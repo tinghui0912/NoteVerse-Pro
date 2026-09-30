@@ -10,7 +10,8 @@ microphone UI, or production model delivery.
 - Model ID: `bytedance-piano-transcription-note-model`
 - Model version: `CRNN_note_F1_0.9677_pedal_F1_0.9186`
 - ONNX Runtime Web: `1.20.1`
-- Required execution provider: `webgpu`
+- Preferred execution provider: `webgpu`; falls back to `wasm` when WebGPU
+  session creation fails
 - Sample rate: 16 kHz mono PCM
 
 The production ONNX binary is not committed here. The runtime consumes a

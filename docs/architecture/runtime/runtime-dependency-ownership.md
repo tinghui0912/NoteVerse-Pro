@@ -62,6 +62,7 @@ purpose.
 | `auth.txt` | API, quality | JWT, password hashing, session helpers |
 | `image.txt` | API, worker, quality | Pillow image inspection and processing |
 | `fingering.txt` | API | bounded interactive fingering generation |
+| `practice-score.txt` | API, quality | MusicXML timeline parsing for practice source/artifact generation |
 | `render.txt` | worker, quality | Verovio score rendering |
 | `ocr.txt` | worker | PaddleOCR package only; PaddlePaddle is installed by the worker Dockerfile |
 | `quality-tools.txt` | quality image only | ruff, mypy, pytest, httpx, pre-commit |
@@ -72,7 +73,7 @@ Runtime composition files express deployable or checkable execution units.
 
 | File | Installed by | Includes |
 | --- | --- | --- |
-| `api.txt` | `Dockerfile.api` | HTTP, DB, migrations, storage, Celery, auth, image, fingering |
+| `api.txt` | `Dockerfile.api` | HTTP, DB, migrations, storage, Celery, auth, image, fingering, practice source generation |
 | `worker-app.txt` | `Dockerfile.worker-deps` | DB, storage, Celery, image, render |
 | `worker.txt` | aggregate worker runtime reference | worker app plus OCR package |
 | `beat.txt` | `Dockerfile.beat` | Celery only |

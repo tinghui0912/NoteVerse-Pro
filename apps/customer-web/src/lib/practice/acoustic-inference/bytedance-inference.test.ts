@@ -432,8 +432,35 @@ describe('ByteDance worker protocol', () => {
       .resolves.toMatchObject({ type: 'ERROR', error: expect.stringMatching(/not initialized/) });
   });
 
-  it('fails WebGPU provider initialization explicitly when WebGPU is unavailable', async () => {
-    await expect(loadOnnxRuntimeWeb()).rejects.toThrow(/WebGPU is unavailable/);
+  it('creates a browser runtime even when WebGPU availability is decided later by session creation', async () => {
+    await expect(loadOnnxRuntimeWeb()).resolves.toMatchObject({
+      createSession: expect.any(Function),
+      createTensor: expect.any(Function),
+    });
+  });
+
+  it('reports the actual ONNX execution provider and WebGPU fallback in load diagnostics', async () => {
+    const runtime = {
+      ...mockRuntime(rawOutput([])),
+      executionProvider: () => 'wasm' as const,
+      executionProviderFallback: () => ({
+        from: 'webgpu' as const,
+        error: 'no available backend found',
+      }),
+    };
+    const worker = new ByteDanceWorkerProtocolRuntime(runtime, passThroughModelLoader);
+
+    await expect(worker.handle({ type: 'LOAD', requestId: 'load', manifest: verifiedManifest() }))
+      .resolves.toMatchObject({
+        type: 'READY',
+        diagnostics: {
+          executionProvider: 'wasm',
+          executionProviderFallback: {
+            from: 'webgpu',
+            error: 'no available backend found',
+          },
+        },
+      });
   });
 
   it('exposes a bundler-visible worker factory without duplicating protocol logic', () => {

@@ -107,6 +107,7 @@ Dependency files are split by purpose:
 - `requirements/http.txt`, `auth.txt`, `image.txt`: API-facing runtime
   capabilities.
 - `requirements/fingering.txt`: API fingering generation, kept in API for now.
+- `requirements/practice-score.txt`: API practice source/artifact generation.
 - `requirements/render.txt`, `ocr.txt`, `worker-app.txt`, `worker.txt`:
   worker processing capabilities.
 - `requirements/quality-tools.txt`, `quality-core.txt`: Docker quality-check

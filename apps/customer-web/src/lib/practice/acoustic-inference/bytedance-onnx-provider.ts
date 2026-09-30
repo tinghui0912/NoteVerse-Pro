@@ -7,6 +7,7 @@ import {
   type ByteDanceModelManifest,
   type ByteDancePcmInferenceRequest,
   type ByteDanceRawOutputs,
+  type ByteDanceRuntimeExecutionProvider,
   validateByteDanceModelManifest,
 } from './bytedance-contract';
 import { createOpfsByteDanceModelLoader } from '../../model-assets/bytedance-model-loader';
@@ -28,6 +29,8 @@ export type ByteDanceOnnxSession = {
 export type ByteDanceOnnxRuntime = {
   createTensor(type: 'float32', data: Float32Array, dims: readonly number[]): unknown;
   createSession(manifest: ByteDanceModelManifest, modelBytes: Uint8Array): Promise<ByteDanceOnnxSession>;
+  executionProvider?(): ByteDanceRuntimeExecutionProvider | undefined;
+  executionProviderFallback?(): { from: ByteDanceRuntimeExecutionProvider; error: string } | undefined;
 };
 
 type OrtRuntimeModule = {
@@ -44,20 +47,48 @@ type OrtRuntimeModule = {
 };
 
 export async function loadOnnxRuntimeWeb(): Promise<ByteDanceOnnxRuntime> {
-  if (typeof navigator === 'undefined' || !('gpu' in navigator)) {
-    throw new Error('WebGPU is unavailable; ByteDance browser inference cannot initialize.');
-  }
   const ort = ortWebGpu as unknown as OrtRuntimeModule;
+  let activeProvider: ByteDanceRuntimeExecutionProvider | undefined;
+  let providerFallback: { from: ByteDanceRuntimeExecutionProvider; error: string } | undefined;
   return {
     createTensor(type, data, dims) {
       return new ort.Tensor(type, data, dims);
     },
     async createSession(manifest, modelBytes) {
       validateByteDanceModelManifest(manifest);
-      return ort.InferenceSession.create(modelBytes, {
-        executionProviders: ['webgpu'],
-        graphOptimizationLevel: 'disabled',
-      });
+      providerFallback = undefined;
+      const hasWebGpu = typeof navigator !== 'undefined' && 'gpu' in navigator;
+      if (hasWebGpu) {
+        try {
+          const session = await createOrtSession(ort, modelBytes, 'webgpu');
+          activeProvider = 'webgpu';
+          return session;
+        } catch (error) {
+          providerFallback = {
+            from: 'webgpu',
+            error: errorMessage(error),
+          };
+        }
+      }
+      try {
+        const session = await createOrtSession(ort, modelBytes, 'wasm');
+        activeProvider = 'wasm';
+        return session;
+      } catch (error) {
+        const wasmError = errorMessage(error);
+        const webGpuMessage = providerFallback
+          ? `WebGPU failed: ${providerFallback.error}`
+          : 'WebGPU unavailable in this browser context';
+        throw new Error(
+          `No available ONNX Runtime backend for ByteDance browser inference. ${webGpuMessage}; WASM failed: ${wasmError}`
+        );
+      }
+    },
+    executionProvider() {
+      return activeProvider;
+    },
+    executionProviderFallback() {
+      return providerFallback;
     },
   };
 }
@@ -109,6 +140,8 @@ export class ByteDanceOnnxInferenceCore {
       cacheReadMs: loaded.cacheReadMs,
       verificationMs: loaded.verificationMs,
       persistentStorageGranted: loaded.persistentStorageGranted,
+      executionProvider: this.runtime.executionProvider?.(),
+      executionProviderFallback: this.runtime.executionProviderFallback?.(),
     };
   }
 
@@ -161,4 +194,19 @@ function tensorDims(tensor: OrtTensorLike | undefined): readonly number[] {
     throw new Error('ByteDance ONNX output tensor is missing.');
   }
   return tensor.dims;
+}
+
+function createOrtSession(
+  ort: OrtRuntimeModule,
+  modelBytes: Uint8Array,
+  executionProvider: ByteDanceRuntimeExecutionProvider
+): Promise<ByteDanceOnnxSession> {
+  return ort.InferenceSession.create(modelBytes, {
+    executionProviders: [executionProvider],
+    graphOptimizationLevel: 'disabled',
+  });
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

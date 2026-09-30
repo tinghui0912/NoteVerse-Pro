@@ -236,6 +236,7 @@ service images:
 | `auth.txt` | JWT and password hashing |
 | `image.txt` | Pillow image processing |
 | `fingering.txt` | API fingering generation, kept in API for now |
+| `practice-score.txt` | MusicXML timeline parsing for practice source/artifact generation |
 | `render.txt` | Verovio score rendering |
 | `ocr.txt` | PaddleOCR package only |
 | `worker-app.txt` | worker dependencies that must install before PaddleOCR |

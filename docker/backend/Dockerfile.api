@@ -28,6 +28,7 @@ COPY backend/requirements/api.txt \
      backend/requirements/http.txt \
      backend/requirements/image.txt \
      backend/requirements/migrations.txt \
+     backend/requirements/practice-score.txt \
      backend/requirements/storage.txt \
      backend/requirements/tracing.txt \
      /tmp/requirements/

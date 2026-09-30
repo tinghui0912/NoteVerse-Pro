@@ -43,6 +43,7 @@ export const BYTEDANCE_INFERENCE_CONTRACT = {
 } as const;
 
 export type ByteDanceExecutionBackend = 'webgpu';
+export type ByteDanceRuntimeExecutionProvider = 'webgpu' | 'wasm';
 
 export type ByteDanceModelManifest = {
   schemaVersion: 1;
@@ -125,6 +126,11 @@ export type ByteDanceLoadDiagnostics = {
   cacheReadMs?: number;
   verificationMs?: number;
   persistentStorageGranted?: boolean | null;
+  executionProvider?: ByteDanceRuntimeExecutionProvider;
+  executionProviderFallback?: {
+    from: ByteDanceRuntimeExecutionProvider;
+    error: string;
+  };
 };
 
 export const BYTEDANCE_PRODUCTION_MODEL_BYTE_SIZE = 98_691_493;
