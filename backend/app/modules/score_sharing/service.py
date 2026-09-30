@@ -35,6 +35,7 @@ from app.modules.score_sharing.schemas import (
     GrantCreateRequest,
     GrantCreatedRead,
     GrantRead,
+    ShareAccessMode,
     ShareActorRead,
 )
 from app.modules.scores.schemas import ScoreTaxonomyTagRead
@@ -48,6 +49,10 @@ SHARE_GRANT_LIST_DEFAULT_LIMIT = 100
 
 def generate_share_token() -> str:
     return secrets.token_urlsafe(SHARE_TOKEN_BYTES)
+
+
+def _grant_access_mode(grant: ScoreShareGrant) -> ShareAccessMode:
+    return ShareAccessMode.PRACTICE if grant.allow_practice else ShareAccessMode.VIEW
 
 
 class ScoreSharingService:
@@ -90,7 +95,7 @@ class ScoreSharingService:
             score_id=require_persisted_id(access.score.id, entity="score"),
             token_hash=hash_share_token(token),
             allow_download=request.allow_download,
-            allow_practice=request.allow_practice,
+            allow_practice=request.access_mode == ShareAccessMode.PRACTICE,
             expires_at=expires_at,
             created_by_user_id=user_id,
             created_at=now,
@@ -100,8 +105,8 @@ class ScoreSharingService:
         return GrantCreatedRead(
             grant_id=grant.grant_uuid,
             token=token,
+            access_mode=_grant_access_mode(grant),
             allow_download=grant.allow_download,
-            allow_practice=grant.allow_practice,
             expires_at=grant.expires_at,
             created_at=grant.created_at,
         )
@@ -124,8 +129,8 @@ class ScoreSharingService:
                 GrantRead(
                     grant_id=grant.grant_uuid,
                     token=None,
+                    access_mode=_grant_access_mode(grant),
                     allow_download=grant.allow_download,
-                    allow_practice=grant.allow_practice,
                     expires_at=grant.expires_at,
                     revoked_at=grant.revoked_at,
                     created_at=grant.created_at,
@@ -165,8 +170,8 @@ class ScoreSharingService:
         return GrantRead(
             grant_id=grant.grant_uuid,
             token=None,
+            access_mode=_grant_access_mode(grant),
             allow_download=grant.allow_download,
-            allow_practice=grant.allow_practice,
             expires_at=grant.expires_at,
             revoked_at=grant.revoked_at,
             created_at=grant.created_at,

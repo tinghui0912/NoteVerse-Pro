@@ -121,6 +121,16 @@ function PerformanceTakeCard({
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const scoreTitle = take.score_title || t('scoreFallback', { id: take.score_id });
+  const scoreTitleNode = take.can_open_score && take.linked_score_id ? (
+    <Link
+      href={`/score/${take.linked_score_id}`}
+      className="truncate font-semibold text-gray-900 transition-colors hover:text-primary hover:underline"
+    >
+      {scoreTitle}
+    </Link>
+  ) : (
+    <span className="truncate font-semibold text-gray-900">{scoreTitle}</span>
+  );
 
   const isDeleting = take.deletion_status === 'DELETING' || isDeletePending;
 
@@ -190,12 +200,7 @@ function PerformanceTakeCard({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <Music className="h-5 w-5 flex-shrink-0 text-primary" />
-                <Link
-                  href={`/score/${take.score_id}`}
-                  className="truncate font-semibold text-gray-900 transition-colors hover:text-primary hover:underline"
-                >
-                  {scoreTitle}
-                </Link>
+                {scoreTitleNode}
                 {isDeleting ? (
                   <span
                     className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20"

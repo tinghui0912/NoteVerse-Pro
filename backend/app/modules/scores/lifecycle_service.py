@@ -13,7 +13,6 @@ from app.db.models import (
     ImportArtifact,
     ImportJob,
     ImportJobUpload,
-    PerformanceTake,
     Score,
     ScoreDeletionStatus,
     ScoreInputAsset,
@@ -121,23 +120,6 @@ class ScoreLifecycleService:
             return ScoreDeletionCleanupResult()
         score_id = require_persisted_id(score.id, entity="score")
         owner_user_id = score.owner_user_id
-        performance_take_refs = (
-            db.execute(
-                select(func.count(PerformanceTake.id)).where(
-                    PerformanceTake.score_id == score_id
-                )
-            )
-        ).scalar_one()
-        if performance_take_refs:
-            score.deletion_status = ScoreDeletionStatus.DELETED
-            score.cleanup_completed_at = utc_now_naive()
-            score.deletion_error = None
-            score.internal_error_code = None
-            score.internal_error_stage = None
-            score.internal_error_class = None
-            score.internal_error_retryable = None
-            db.commit()
-            return ScoreDeletionCleanupResult(scores_deleted=1)
         originating_job = self._single_score_originating_job(
             db,
             score_id=score_id,

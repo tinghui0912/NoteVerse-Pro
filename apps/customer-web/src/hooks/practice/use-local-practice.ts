@@ -62,7 +62,7 @@ export type { LocalPracticeLifecycle, LocalPracticeInputState };
 export type PracticeSetup = {
   mode: PracticeMode;
   inputSource: PracticeInputSource;
-  scope?: PracticeScope | null;
+  scope: PracticeScope;
   tempoSelection: PracticeTempoSelection;
   metronomeEnabled: boolean;
 };
@@ -71,7 +71,7 @@ export type UseLocalPracticeOptions = {
   artifact: PracticeScoreArtifact | null | undefined;
   mode: PracticeMode;
   inputSource: PracticeInputSource;
-  scope?: PracticeScope | null;
+  scope: PracticeScope;
   tempoSelection?: PracticeTempoSelection;
   metronomeEnabled?: boolean;
   cameraRecordingEnabled?: boolean;
@@ -384,7 +384,7 @@ export function useLocalPractice({
         }
 
         if (artifact && resolvedTempoPlan) {
-          const resolvedScope = resolvePracticeScope(artifact, scope ?? { kind: 'FULL' });
+          const resolvedScope = resolvePracticeScope(artifact, scope);
           const draft: CompletedPerformance = {
             localSessionId: sessionSnapshot.localSessionId,
             scoreId: sessionSnapshot.scoreId,
@@ -561,7 +561,7 @@ export function useLocalPractice({
     timebaseRef.current = timebase;
 
     const resolvedScope = artifact
-      ? resolvePracticeScope(artifact, scope ?? { kind: 'FULL' })
+      ? resolvePracticeScope(artifact, scope)
       : null;
     const scopeStartBeat = resolvedScope?.startBeat ?? 0;
     const scopeEndBeat = scope?.kind === 'RANGE'
@@ -690,7 +690,7 @@ export function useLocalPractice({
       if (mode === 'STEP_BY_STEP') {
         const runtime = new StepPracticeRuntime({
           artifact,
-          scope: scope ?? undefined,
+          scope,
           inputSource,
           localSessionId,
           clock: defaultClock,
@@ -707,7 +707,7 @@ export function useLocalPractice({
         const runtime = new PerformancePracticeRuntime({
           artifact,
           tempoPlan: resolvedTempoPlan,
-          scope: scope ?? undefined,
+          scope,
           inputSource,
           localSessionId,
           clock: defaultClock,

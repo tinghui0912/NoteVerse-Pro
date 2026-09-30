@@ -11,6 +11,7 @@ from typing import Optional
 from uuid import uuid4
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import DBAPIError, InterfaceError
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
@@ -27,6 +28,7 @@ from app.db.models.performance_take import (
     PerformanceTakeDeletionStatus,
     PerformanceTakeMediaKind,
 )
+from app.db.models.practice_source_snapshot import PracticeSourceSnapshot
 from app.db.models.performance_take_delete_outbox import (
     PerformanceTakeDeleteOutbox,
     PerformanceTakeDeleteOutboxStatus,
@@ -40,7 +42,6 @@ from app.db.models.storage_usage import StorageUsageCategory
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import (
     PerformanceTakeCreateRequest,
-    PerformanceTakeEvaluation,
     PerformanceTakeListResponse,
     PerformanceTakePlaybackRead,
     PerformanceTakeRead,
@@ -49,6 +50,11 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakeUploadAuthorizationRequest,
     RecordingTimebase,
 )
+from app.modules.practice.source_schemas import (
+    PracticeReadyScoreContentRead,
+    PracticeScoreArtifactRead,
+)
+from app.modules.practice.source_service import PracticeSourceService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.storage_usage.service import StorageUsageService
 from app.shared.constants import ErrorCode
@@ -68,7 +74,6 @@ SUPPORTED_VIDEO_MIMES = {
 MAX_TAKE_MEDIA_BYTES = 100 * 1024 * 1024
 MAX_TAKE_DURATION_MS = 12 * 60 * 60 * 1000
 MAX_TAKE_METADATA_JSON_BYTES = 64 * 1024
-MAX_TAKE_EVALUATION_JSON_BYTES = 1024 * 1024
 TAKE_UPLOAD_AUTHORIZATION_SECONDS = 3600
 TAKE_FINALIZING_LEASE_SECONDS = 15 * 60
 TAKE_FINALIZING_UNKNOWN_OUTCOME_GRACE_SECONDS = TAKE_FINALIZING_LEASE_SECONDS * 2
@@ -262,6 +267,10 @@ def _sha256_storage_object(storage: FileStorage, key: str) -> str:
     return digest.hexdigest()
 
 
+def _sha256_bytes(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
+
+
 def _safe_compare_digest(left: str, right: str) -> bool:
     return hmac.compare_digest(left.lower(), right.lower())
 
@@ -282,29 +291,39 @@ class PerformanceTakeService:
         storage: FileStorage | None = None,
         storage_usage_service: StorageUsageService | None = None,
         score_access_policy: ScoreAccessPolicy | None = None,
+        practice_source_service: PracticeSourceService | None = None,
     ) -> None:
         self.repository = repository or PerformanceTakeRepository()
         self.storage = storage  # type: ignore[assignment]
         self.storage_usage_service = storage_usage_service or StorageUsageService()
         self.score_access_policy = score_access_policy or ScoreAccessPolicy()
+        self.practice_source_service = practice_source_service or PracticeSourceService(
+            access_policy=self.score_access_policy,
+            storage=storage,
+        )
 
     def _to_read_dto(
         self,
         take: PerformanceTake,
         *,
-        score: Score,
-        revision: ScoreRevision,
+        snapshot: PracticeSourceSnapshot,
+        score: Score | None = None,
+        can_open_score: bool = False,
     ) -> PerformanceTakeRead:
         tempo_plan = PerformanceTakeTempoPlan.model_validate(json.loads(take.tempo_plan))
         recording_timebase = RecordingTimebase.model_validate(json.loads(take.recording_timebase))
-        evaluation = PerformanceTakeEvaluation.model_validate(json.loads(take.evaluation))
 
-        score_id_out = score.score_uuid
+        score_id_out = snapshot.source_score_uuid
         score_title_out: Optional[str] = take.score_title
 
-        if not score_title_out:
+        if not score_title_out and score is not None:
             score_title_out = score.title
-        revision_id_out = revision.revision_uuid
+        revision_id_out = snapshot.source_revision_uuid
+        linked_score_id = (
+            score.score_uuid
+            if can_open_score and score is not None and score.deletion_status == ScoreDeletionStatus.ACTIVE
+            else None
+        )
 
         scope_type = getattr(take, "scope_type", "FULL") or "FULL"
         deletion_status = _status_value(take.deletion_status)
@@ -315,6 +334,8 @@ class PerformanceTakeService:
             score_title=score_title_out,
             revision_id=revision_id_out,
             artifact_id=take.artifact_id,
+            linked_score_id=linked_score_id,
+            can_open_score=linked_score_id is not None,
             media_kind=_media_kind_value(take.media_kind),
             media_mime_type=take.media_mime_type,
             media_byte_size=take.media_byte_size,
@@ -327,7 +348,6 @@ class PerformanceTakeService:
             deletion_status=deletion_status,
             tempo_plan=tempo_plan,
             recording_timebase=recording_timebase,
-            evaluation=evaluation,
             created_at=take.created_at,
         )
 
@@ -336,17 +356,35 @@ class PerformanceTakeService:
         db: AsyncSession,
         take: PerformanceTake,
     ) -> PerformanceTakeUploadAuthorizationRead:
-        score = await db.get(Score, take.score_id)
-        revision = await db.get(ScoreRevision, take.revision_id)
+        snapshot = await db.get(PracticeSourceSnapshot, take.source_snapshot_id)
+        if snapshot is None:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
+        score = await db.get(Score, take.score_id) if take.score_id is not None else None
+        can_open_score = await self._can_open_score(db, take.user_id, score)
         return PerformanceTakeUploadAuthorizationRead(
             take_id=take.take_uuid,
             status=PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
             take=self._to_read_dto(
                 take,
+                snapshot=snapshot,
                 score=score,
-                revision=revision,
+                can_open_score=can_open_score,
             ),
         )
+
+    async def _can_open_score(self, db: AsyncSession, user_id: int, score: Score | None) -> bool:
+        if score is None or score.deletion_status != ScoreDeletionStatus.ACTIVE:
+            return False
+        try:
+            await self.score_access_policy.authorize(
+                db,
+                score.score_uuid,
+                ScoreAction.VIEW,
+                user_id=user_id,
+            )
+            return True
+        except Exception:
+            return False
 
     def _authorization_matches_request(
         self,
@@ -370,7 +408,6 @@ class PerformanceTakeService:
             and auth.media_byte_size == request.media_byte_size
             and _json_equivalent(auth.tempo_plan, request.tempo_plan)
             and _json_equivalent(auth.recording_timebase, request.recording_timebase)
-            and _json_equivalent(auth.evaluation, request.evaluation)
         )
 
     def _authorization_matches_finalize_request(
@@ -395,7 +432,6 @@ class PerformanceTakeService:
             and auth.media_byte_size == request.media_byte_size
             and _json_equivalent(auth.tempo_plan, request.tempo_plan)
             and _json_equivalent(auth.recording_timebase, request.recording_timebase)
-            and _json_equivalent(auth.evaluation, request.evaluation)
         )
 
     def _take_matches_authorization(
@@ -421,11 +457,116 @@ class PerformanceTakeService:
             and take.artifact_id == auth.artifact_id
             and take.tempo_plan == auth.tempo_plan
             and take.recording_timebase == auth.recording_timebase
-            and take.evaluation == auth.evaluation
         )
 
     def _put_url_expires_at(self, now: datetime) -> datetime:
         return now + timedelta(seconds=settings.S3_PRESIGN_EXPIRE_SECONDS)
+
+    async def _get_or_create_source_snapshot(
+        self,
+        db: AsyncSession,
+        *,
+        user_id: int,
+        score: Score,
+        revision: ScoreRevision,
+        artifact_id: str,
+    ) -> PracticeSourceSnapshot:
+        if self.storage is None:
+            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
+        ready_content = await self.practice_source_service.get_practice_ready_score_content(
+            db,
+            score.score_uuid,
+            user_id,
+            revision.revision_uuid,
+        )
+        artifact = await self.practice_source_service.get_practice_score_artifact(
+            db,
+            score.score_uuid,
+            user_id,
+            revision.revision_uuid,
+        )
+        if (
+            artifact.scoreId != score.score_uuid
+            or artifact.revisionId != revision.revision_uuid
+            or artifact.artifactId != artifact_id
+        ):
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="artifact_id",
+                details={"reason": "source_artifact_identity_mismatch"},
+            )
+
+        musicxml_bytes = ready_content.content.encode("utf-8")
+        artifact_bytes = artifact.model_dump_json(by_alias=True).encode("utf-8")
+        musicxml_sha = _sha256_bytes(musicxml_bytes)
+        artifact_sha = _sha256_bytes(artifact_bytes)
+        fingerprint = _sha256_bytes(
+            "|".join(
+                [
+                    score.score_uuid,
+                    revision.revision_uuid,
+                    artifact.artifactId,
+                    str(artifact.schemaVersion),
+                    musicxml_sha,
+                    artifact_sha,
+                ]
+            ).encode("utf-8")
+        )
+
+        existing = (
+            await db.execute(
+                select(PracticeSourceSnapshot).where(
+                    PracticeSourceSnapshot.source_fingerprint == fingerprint
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            return existing
+
+        musicxml_key = f"practice-source-snapshots/{fingerprint}/score.musicxml"
+        artifact_key = f"practice-source-snapshots/{fingerprint}/artifact.json"
+        await asyncio.to_thread(
+            self.storage.put_bytes,
+            key=musicxml_key,
+            content=musicxml_bytes,
+            content_type=ready_content.mime_type,
+        )
+        await asyncio.to_thread(
+            self.storage.put_bytes,
+            key=artifact_key,
+            content=artifact_bytes,
+            content_type="application/json",
+        )
+
+        snapshot = PracticeSourceSnapshot(
+            source_fingerprint=fingerprint,
+            source_score_uuid=score.score_uuid,
+            source_revision_uuid=revision.revision_uuid,
+            artifact_id=artifact.artifactId,
+            artifact_schema_version=artifact.schemaVersion,
+            prepared_musicxml_object_key=musicxml_key,
+            prepared_musicxml_sha256=musicxml_sha,
+            prepared_musicxml_byte_size=len(musicxml_bytes),
+            artifact_object_key=artifact_key,
+            artifact_sha256=artifact_sha,
+            artifact_byte_size=len(artifact_bytes),
+        )
+        try:
+            async with db.begin_nested():
+                db.add(snapshot)
+                await db.flush()
+        except IntegrityError:
+            existing = (
+                await db.execute(
+                    select(PracticeSourceSnapshot).where(
+                        PracticeSourceSnapshot.source_fingerprint == fingerprint
+                    )
+                )
+            ).scalar_one_or_none()
+            if existing is not None:
+                return existing
+            raise
+        return snapshot
 
     async def _ensure_finalize_copy_lease(
         self,
@@ -588,8 +729,6 @@ class PerformanceTakeService:
 
         _json_snapshot(request.tempo_plan)
         _json_snapshot(request.recording_timebase)
-        _json_snapshot(request.evaluation, max_bytes=MAX_TAKE_EVALUATION_JSON_BYTES)
-
         if self.storage is None:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
 
@@ -772,10 +911,6 @@ class PerformanceTakeService:
             scope_end_group_id=request.scope_end_group_id,
             tempo_plan=_json_snapshot(request.tempo_plan),
             recording_timebase=_json_snapshot(request.recording_timebase),
-            evaluation=_json_snapshot(
-                request.evaluation,
-                max_bytes=MAX_TAKE_EVALUATION_JSON_BYTES,
-            ),
             duration_ms=request.duration_ms,
             media_kind=media_kind,
             media_mime_type=cleaned_mime,
@@ -995,7 +1130,6 @@ class PerformanceTakeService:
             "scope_end_group_id": auth.scope_end_group_id,
             "tempo_plan": auth.tempo_plan,
             "recording_timebase": auth.recording_timebase,
-            "evaluation": auth.evaluation,
             "reservation_id": auth.reservation_id,
             "expires_at": auth.expires_at,
             "staging_cleanup_after": auth.staging_cleanup_after,
@@ -1196,6 +1330,13 @@ class PerformanceTakeService:
             )
             await self._delete_candidate_final_async(candidate_key)
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="revision_id")
+        snapshot = await self._get_or_create_source_snapshot(
+            db,
+            user_id=user_id,
+            score=score,
+            revision=rev,
+            artifact_id=auth_snapshot["artifact_id"],
+        )
 
         auth = await self.repository.get_authorization_by_take_uuid(
             db, user_id, request.take_id, lock=True
@@ -1269,6 +1410,7 @@ class PerformanceTakeService:
         take = PerformanceTake(
             take_uuid=auth_snapshot["take_uuid"],
             user_id=auth.user_id,
+            source_snapshot_id=snapshot.id,
             score_id=score_db_id,
             score_title=score_title_out,
             revision_id=revision_db_id,
@@ -1288,7 +1430,6 @@ class PerformanceTakeService:
             deletion_status=PerformanceTakeDeletionStatus.ACTIVE.value,
             tempo_plan=auth_snapshot["tempo_plan"],
             recording_timebase=auth_snapshot["recording_timebase"],
-            evaluation=auth_snapshot["evaluation"],
         )
         created = await self.repository.create_take(db, take, auto_commit=False)
         auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value
@@ -1338,7 +1479,12 @@ class PerformanceTakeService:
             ) from error
         log_stage("db_finalize_committed", started_at=finalize_started)
 
-        return self._to_read_dto(created, score=score, revision=rev)
+        return self._to_read_dto(
+            created,
+            snapshot=snapshot,
+            score=score,
+            can_open_score=True,
+        )
 
     async def list_takes(
         self,
@@ -1362,7 +1508,7 @@ class PerformanceTakeService:
             db, user_id, score_id=score_db_id, limit=limit, offset=offset
         )
 
-        score_ids = {item.score_id for item in items}
+        score_ids = {item.score_id for item in items if item.score_id is not None}
         score_map: dict[int, Score] = {}
         if score_ids:
             scores_res = await db.execute(select(Score).where(Score.id.in_(score_ids)))
@@ -1370,23 +1516,29 @@ class PerformanceTakeService:
                 if s.id is not None:
                     score_map[s.id] = s
 
-        revision_ids = {item.revision_id for item in items}
-        revision_map: dict[int, ScoreRevision] = {}
-        if revision_ids:
-            revs_res = await db.execute(select(ScoreRevision).where(ScoreRevision.id.in_(revision_ids)))
-            for r in revs_res.scalars().all():
-                if r.id is not None:
-                    revision_map[r.id] = r
+        snapshot_ids = {item.source_snapshot_id for item in items}
+        snapshot_map: dict[int, PracticeSourceSnapshot] = {}
+        if snapshot_ids:
+            snapshots_res = await db.execute(
+                select(PracticeSourceSnapshot).where(PracticeSourceSnapshot.id.in_(snapshot_ids))
+            )
+            for snapshot in snapshots_res.scalars().all():
+                if snapshot.id is not None:
+                    snapshot_map[snapshot.id] = snapshot
 
         read_items: list[PerformanceTakeRead] = []
         for item in items:
-            score_obj = score_map.get(item.score_id)
-            rev_obj = revision_map.get(item.revision_id)
+            score_obj = score_map.get(item.score_id) if item.score_id is not None else None
+            snapshot = snapshot_map.get(item.source_snapshot_id)
+            if snapshot is None:
+                continue
+            can_open_score = await self._can_open_score(db, user_id, score_obj)
             read_items.append(
                 self._to_read_dto(
                     item,
+                    snapshot=snapshot,
                     score=score_obj,
-                    revision=rev_obj,
+                    can_open_score=can_open_score,
                 )
             )
 
@@ -1409,10 +1561,13 @@ class PerformanceTakeService:
         if take is None:
             raise ResourceNotFoundException("performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND)
 
-        score = await db.get(Score, take.score_id)
-        revision = await db.get(ScoreRevision, take.revision_id)
+        snapshot = await db.get(PracticeSourceSnapshot, take.source_snapshot_id)
+        if snapshot is None:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
+        score = await db.get(Score, take.score_id) if take.score_id is not None else None
+        can_open_score = await self._can_open_score(db, user_id, score)
 
-        return self._to_read_dto(take, score=score, revision=revision)
+        return self._to_read_dto(take, snapshot=snapshot, score=score, can_open_score=can_open_score)
 
     async def get_playback_url(
         self,
@@ -1469,6 +1624,73 @@ class PerformanceTakeService:
             f"performance-{take.take_uuid}.{extension}",
             take.media_mime_type,
         )
+
+    async def get_practice_source_content(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        take_id: str,
+    ) -> PracticeReadyScoreContentRead:
+        take = await self.repository.get_by_uuid(db, user_id, take_id)
+        if take is None or _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value:
+            raise ResourceNotFoundException("performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND)
+        snapshot = await db.get(PracticeSourceSnapshot, take.source_snapshot_id)
+        if snapshot is None:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
+        if self.storage is None:
+            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
+        content_bytes = await asyncio.to_thread(
+            self.storage.read_bytes,
+            snapshot.prepared_musicxml_object_key,
+        )
+        if _sha256_bytes(content_bytes) != snapshot.prepared_musicxml_sha256:
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="source_snapshot",
+                details={"reason": "prepared_musicxml_checksum_mismatch"},
+            )
+        return PracticeReadyScoreContentRead(
+            score_id=snapshot.source_score_uuid,
+            revision_id=snapshot.source_revision_uuid,
+            content=content_bytes.decode("utf-8"),
+        )
+
+    async def get_practice_source_artifact(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        take_id: str,
+    ) -> PracticeScoreArtifactRead:
+        take = await self.repository.get_by_uuid(db, user_id, take_id)
+        if take is None or _status_value(take.deletion_status) == PerformanceTakeDeletionStatus.DELETING.value:
+            raise ResourceNotFoundException("performance_take", take_id, ErrorCode.RESOURCE_NOT_FOUND)
+        snapshot = await db.get(PracticeSourceSnapshot, take.source_snapshot_id)
+        if snapshot is None:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
+        if self.storage is None:
+            raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="storage")
+        artifact_bytes = await asyncio.to_thread(
+            self.storage.read_bytes,
+            snapshot.artifact_object_key,
+        )
+        if _sha256_bytes(artifact_bytes) != snapshot.artifact_sha256:
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="source_snapshot",
+                details={"reason": "artifact_checksum_mismatch"},
+            )
+        artifact = PracticeScoreArtifactRead.model_validate_json(artifact_bytes)
+        if (
+            artifact.scoreId != snapshot.source_score_uuid
+            or artifact.revisionId != snapshot.source_revision_uuid
+            or artifact.artifactId != snapshot.artifact_id
+        ):
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="source_snapshot",
+                details={"reason": "artifact_identity_mismatch"},
+            )
+        return artifact
 
     async def delete_take(
         self,

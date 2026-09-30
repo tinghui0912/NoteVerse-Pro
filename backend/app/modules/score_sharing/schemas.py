@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel
 
@@ -10,17 +11,22 @@ from app.modules.score_assets.schemas import ScoreDerivedAssetsRead, ScoreRevisi
 from app.modules.scores.schemas import ScoreTaxonomyTagRead
 
 
+class ShareAccessMode(str, Enum):
+    VIEW = "VIEW"
+    PRACTICE = "PRACTICE"
+
+
 class GrantCreateRequest(BaseModel):
+    access_mode: ShareAccessMode = ShareAccessMode.PRACTICE
     allow_download: bool = True
-    allow_practice: bool = True
     expires_at: datetime | None = None
 
 
 class GrantCreatedRead(BaseModel):
     grant_id: str
     token: str
+    access_mode: ShareAccessMode
     allow_download: bool
-    allow_practice: bool
     expires_at: datetime | None
     created_at: datetime
 
@@ -28,8 +34,8 @@ class GrantCreatedRead(BaseModel):
 class GrantRead(BaseModel):
     grant_id: str
     token: str | None = None
+    access_mode: ShareAccessMode
     allow_download: bool
-    allow_practice: bool
     expires_at: datetime | None
     revoked_at: datetime | None
     created_at: datetime

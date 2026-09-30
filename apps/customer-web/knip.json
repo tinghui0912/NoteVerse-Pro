@@ -1,0 +1,44 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/app/**/page.tsx",
+    "src/app/**/layout.tsx",
+    "src/app/**/loading.tsx",
+    "src/app/**/error.tsx",
+    "src/app/**/not-found.tsx",
+    "src/app/**/route.ts",
+    "src/middleware.ts",
+    "next.config.ts",
+    "postcss.config.mjs",
+    "eslint.config.mjs",
+    "vitest.config.ts",
+    "vitest.setup.ts"
+  ],
+  "project": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "scripts/**/*.mjs",
+    "messages/**/*.json"
+  ],
+  "ignore": [
+    "next-env.d.ts",
+    "playwright.config.ts",
+    "playwright.integration.config.ts",
+    "src/generated/api/**"
+  ],
+  "ignoreDependencies": [
+    "@hey-api/openapi-ts",
+    "@playwright/test",
+    "@vitest/coverage-v8",
+    "tailwindcss-animate"
+  ],
+  "ignoreBinaries": [
+    "next",
+    "eslint",
+    "openapi-ts",
+    "tsc",
+    "vitest"
+  ]
+}

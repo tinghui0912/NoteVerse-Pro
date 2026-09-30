@@ -135,7 +135,8 @@ describe('Architecture Guard: No Legacy Practice Realtime Files, Imports, or Pro
 
     expect(content).toContain('PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1');
     expect(content).not.toContain('PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 2');
-    expect(content).toContain('scoreTempoSegments: TempoSegment[]');
+    expect(content).toContain('PracticeScoreArtifactRead');
+    expect(content).toContain('candidate.scoreTempoSegments');
     expect(content).not.toMatch(/\btempoSegments\s*:\s*TempoSegment\[\]/);
   });
 

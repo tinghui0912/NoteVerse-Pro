@@ -151,9 +151,6 @@ const recordingTimebase: RecordingTimebase = {
   ],
 };
 
-const evaluation = {
-  outcomes: [],
-};
 // 121 fixture items
 const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i) => ({
   deletion_status: 'ACTIVE',
@@ -173,7 +170,6 @@ const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i
   scope_end_group_id: i % 2 === 0 ? null : 'group-2',
   tempo_plan: tempoPlan,
   recording_timebase: recordingTimebase,
-  evaluation,
   created_at: new Date(1700000000000 - i * 60000).toISOString(),
 }));
 
@@ -360,9 +356,10 @@ describe('MyPerformancesPage', () => {
               scope_terminal_beat: 0,
               revision_id: 'revision-1',
               artifact_id: 'artifact-1',
+              linked_score_id: 'score-retained-source',
+              can_open_score: true,
               tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
-              evaluation,
               created_at: new Date().toISOString(),
             },
           ],
@@ -385,6 +382,48 @@ describe('MyPerformancesPage', () => {
     expect(screen.queryByText('原乐谱已删除')).not.toBeInTheDocument();
   });
 
+  it('renders retained source identity as plain text when live score is no longer accessible', () => {
+    mockQueryOverride = {
+      data: {
+        data: {
+          items: [
+            {
+              take_id: 'take-deleted-score',
+              score_id: 'score-retained-source',
+              score_title: 'Sonata Allegro Op. 57',
+              media_kind: 'AUDIO',
+              media_mime_type: 'audio/webm',
+              media_byte_size: 1024,
+              duration_ms: 60000,
+              scope_type: 'FULL',
+              scope_start_beat: 0,
+              scope_terminal_beat: 0,
+              revision_id: 'revision-1',
+              artifact_id: 'artifact-1',
+              linked_score_id: null,
+              can_open_score: false,
+              tempo_plan: tempoPlan,
+              recording_timebase: recordingTimebase,
+              created_at: new Date().toISOString(),
+            },
+          ],
+          total: 1,
+          limit: 20,
+          offset: 0,
+          has_more: false,
+        },
+      },
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      refetch: vi.fn(),
+    };
+
+    render(<MyPerformancesPage />);
+    expect(screen.getByText('Sonata Allegro Op. 57')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Sonata Allegro/ })).not.toBeInTheDocument();
+  });
+
   it('handles playback toggling and playback error retry', () => {
     mockQueryOverride = {
       data: {
@@ -405,7 +444,6 @@ describe('MyPerformancesPage', () => {
               artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
-              evaluation,
               created_at: new Date().toISOString(),
             },
           ],
@@ -457,7 +495,6 @@ describe('MyPerformancesPage', () => {
               artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
-              evaluation,
               created_at: new Date().toISOString(),
             },
           ],
@@ -503,7 +540,6 @@ describe('MyPerformancesPage', () => {
               artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
-              evaluation,
               created_at: new Date().toISOString(),
             },
           ],
@@ -571,7 +607,6 @@ describe('MyPerformancesPage', () => {
               artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
-              evaluation,
               created_at: new Date().toISOString(),
             },
           ],
@@ -970,7 +1005,9 @@ describe('MyPerformancesPage', () => {
         expect(mockDeleteTakeMutation.mutateAsync).toHaveBeenCalledWith('take-audio-delete');
       });
       expect(screen.queryByTestId('performance-replay-player')).not.toBeInTheDocument();
-      expect(screen.getByTestId('play-take-take-audio-delete')).toBeDisabled();
+      await waitFor(() => {
+        expect(screen.getByTestId('play-take-take-audio-delete')).toBeDisabled();
+      });
 
       fireEvent.click(screen.getByTestId('play-take-take-other-active'));
       expect(screen.getByTestId('performance-replay-player')).toBeInTheDocument();
@@ -1012,7 +1049,9 @@ describe('MyPerformancesPage', () => {
         expect(mockDeleteTakeMutation.mutateAsync).toHaveBeenCalledWith('take-video-delete');
       });
       expect(screen.queryByTestId('performance-replay-player')).not.toBeInTheDocument();
-      expect(screen.getByTestId('play-take-take-video-delete')).toBeDisabled();
+      await waitFor(() => {
+        expect(screen.getByTestId('play-take-take-video-delete')).toBeDisabled();
+      });
     });
 
     it('shows accepted toast when take deletion is confirmed', async () => {
@@ -1033,7 +1072,6 @@ describe('MyPerformancesPage', () => {
         });
       });
     });
-
   });
 });
 

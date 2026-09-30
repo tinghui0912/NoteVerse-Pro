@@ -155,11 +155,16 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     () => practiceScopeFromRangeSelection(rangeSelection, expectedGroups),
     [expectedGroups, rangeSelection]
   );
+  const practiceScope: PracticeScope = useMemo(
+    () => selectedRangeScope ?? { kind: 'FULL' },
+    [selectedRangeScope]
+  );
+  const hasIncompleteRangeSelection = rangeSelection.kind === 'SELECTING_END';
 
   const resolvedScope = useMemo(() => {
     if (!artifact || expectedGroups.length === 0) return null;
-    return resolvePracticeScope(artifact, selectedRangeScope ?? { kind: 'FULL' });
-  }, [artifact, expectedGroups.length, selectedRangeScope]);
+    return resolvePracticeScope(artifact, practiceScope);
+  }, [artifact, expectedGroups.length, practiceScope]);
 
   const scopeStartBeat = resolvedScope?.startBeat ?? 0;
 
@@ -305,7 +310,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     artifact,
     mode: practiceMode,
     inputSource,
-    scope: selectedRangeScope,
+    scope: practiceScope,
     tempoSelection,
     metronomeEnabled,
     cameraRecordingEnabled: practiceMode === 'CONTINUOUS_PLAY' && cameraRecordingEnabled,
@@ -337,6 +342,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const canPreparePractice =
     canEnterPractice &&
     Boolean(selectedRevisionId && xmlContent && artifact) &&
+    !hasIncompleteRangeSelection &&
     !isResourceLoading &&
     !loadError;
 

@@ -9,7 +9,6 @@ import {
   performanceTakesApi,
   uploadMediaToSignedUrl,
   type PerformanceTakeRead,
-  type PerformanceTakeEvaluation,
   type RecordingTimebase,
   type PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
@@ -49,30 +48,6 @@ const recordingTimebase: RecordingTimebase = {
   ],
 };
 
-const evaluation: PerformanceTakeEvaluation = {
-  outcomes: [
-    {
-      expectedGroupId: 'group-1',
-      performanceTimeMs: 120,
-      result: 'MATCH',
-      confidence: 0.99,
-      source: 'ACOUSTIC',
-      expectedStrikeOutcomes: [
-        {
-          strikeId: 'strike-1',
-          pitch: 'C4',
-          renderNoteIds: ['note-1'],
-          result: 'MATCHED',
-        },
-      ],
-      unexpectedPitches: [],
-      renderNoteIds: ['note-1'],
-      measureNumbers: ['1'],
-      timingOffsetMs: 4,
-    },
-  ],
-};
-
 function createInput() {
   return {
     scoreId: 'score-1',
@@ -88,7 +63,6 @@ function createInput() {
     scopeTerminalBeat: 4,
     tempoPlan,
     recordingTimebase,
-    evaluation,
   };
 }
 
@@ -108,7 +82,6 @@ const savedTake: PerformanceTakeRead = {
   deletion_status: 'ACTIVE',
   tempo_plan: tempoPlan,
   recording_timebase: recordingTimebase,
-  evaluation,
   created_at: '2026-09-21T00:00:00Z',
 };
 
@@ -170,10 +143,10 @@ describe('useSavePerformanceTake', () => {
 
     expect(uploadMediaToSignedUrl).toHaveBeenCalledTimes(1);
     expect(performanceTakesApi.authorizeUpload).toHaveBeenCalledWith(
-      expect.objectContaining({ evaluation })
+      expect.not.objectContaining({ evaluation: expect.anything() })
     );
     expect(performanceTakesApi.finalizeTake).toHaveBeenCalledWith(
-      expect.objectContaining({ evaluation })
+      expect.not.objectContaining({ evaluation: expect.anything() })
     );
     expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
   });
@@ -205,7 +178,7 @@ describe('useSavePerformanceTake', () => {
     expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
     expect(performanceTakesApi.finalizeTake).toHaveBeenCalledTimes(1);
     expect(performanceTakesApi.finalizeTake).toHaveBeenCalledWith(
-      expect.objectContaining({ evaluation })
+      expect.not.objectContaining({ evaluation: expect.anything() })
     );
     expect(performanceTakesApi.cancelUploadAuthorization).not.toHaveBeenCalled();
   });

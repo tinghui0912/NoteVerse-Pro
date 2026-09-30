@@ -8,7 +8,6 @@ import {
 import type { PracticeScoreArtifact } from './local-core/artifact';
 import type {
   PerformanceTakeRead,
-  PerformanceTakeEvaluation,
   RecordingTimebase,
   PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
@@ -25,10 +24,6 @@ const recordingTimebase: RecordingTimebase = {
   ],
 };
 
-const evaluation: PerformanceTakeEvaluation = {
-  outcomes: [],
-};
-
 const take: PerformanceTakeRead = {
   take_id: 'take-1',
   score_id: 'score-1',
@@ -43,7 +38,6 @@ const take: PerformanceTakeRead = {
   deletion_status: 'ACTIVE',
   tempo_plan: tempoPlan,
   recording_timebase: recordingTimebase,
-  evaluation,
   created_at: '2026-09-26T00:00:00.000Z',
 };
 

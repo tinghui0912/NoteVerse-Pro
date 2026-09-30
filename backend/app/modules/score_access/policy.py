@@ -114,7 +114,7 @@ class ScoreAccessPolicy:
                         can_delete=False,
                         can_manage_sharing=False,
                         can_manage_members=False,
-                        can_download=True,
+                        can_download=editor,
                         can_practice=True,
                         can_publish=False,
                     ),

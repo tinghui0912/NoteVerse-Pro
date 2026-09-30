@@ -102,5 +102,9 @@ export const queryKeys = {
             ['performance-takes', 'list', params ?? {}] as const,
         detail: (takeId: string) => ['performance-takes', 'detail', { takeId }] as const,
         playbackUrl: (takeId: string) => ['performance-takes', 'playback-url', { takeId }] as const,
+        practiceSourceContent: (takeId: string) =>
+            ['performance-takes', 'practice-source-content', { takeId }] as const,
+        practiceSourceArtifact: (takeId: string) =>
+            ['performance-takes', 'practice-source-artifact', { takeId }] as const,
     },
 } as const;

@@ -460,7 +460,6 @@ export default function PracticeReviewPage({
         scopeEndGroupId: draft.scope.kind === 'RANGE' ? draft.scope.endGroupId : null,
         tempoPlan: toPerformanceTakeTempoPlan(draft.tempoPlan),
         recordingTimebase: draft.recordingTimebase,
-        evaluation: draft.evaluation,
       });
       setSaveStatus('saved');
     } catch (err: unknown) {

@@ -27,6 +27,7 @@ from app.db.models import (
     PerformanceTakeMediaKind,
     PerformanceTakeUploadAuthorization,
     PerformanceTakeUploadAuthorizationStatus,
+    PracticeSourceSnapshot,
     Score,
     ScoreRevision,
     StorageQuotaPolicy,
@@ -45,6 +46,10 @@ from app.modules.performance_takes.dependencies import (
 )
 from app.modules.performance_takes.service import PerformanceTakeService
 from app.modules.performance_takes.schemas import PerformanceTakeUploadAuthorizationRequest
+from app.modules.practice.source_schemas import (
+    PracticeReadyScoreContentRead,
+    PracticeScoreArtifactRead,
+)
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.scores.dependencies import get_score_service
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
@@ -74,29 +79,68 @@ DEFAULT_TAKE_RECORDING_TIMEBASE = {
         }
     ],
 }
-DEFAULT_TAKE_EVALUATION = {
-    "outcomes": [
-        {
-            "expectedGroupId": "group-1",
-            "performanceTimeMs": 250,
-            "result": "MATCH",
-            "confidence": 0.98,
-            "source": "ACOUSTIC",
-            "expectedStrikeOutcomes": [
+
+
+class _FakePracticeSourceService:
+    async def get_practice_ready_score_content(
+        self,
+        db,
+        score_uuid: str,
+        user_id: int,
+        revision_uuid: str,
+    ) -> PracticeReadyScoreContentRead:
+        del db, user_id
+        return PracticeReadyScoreContentRead(
+            score_id=score_uuid,
+            revision_id=revision_uuid,
+            content=(
+                '<?xml version="1.0" encoding="UTF-8"?>'
+                '<score-partwise version="4.0"><part-list /></score-partwise>'
+            ),
+        )
+
+    async def get_practice_score_artifact(
+        self,
+        db,
+        score_uuid: str,
+        user_id: int,
+        revision_uuid: str | None,
+    ) -> PracticeScoreArtifactRead:
+        del db, user_id
+        return PracticeScoreArtifactRead(
+            schemaVersion=1,
+            scoreId=score_uuid,
+            revisionId=revision_uuid or DEFAULT_TAKE_REVISION_ID,
+            artifactId=DEFAULT_TAKE_ARTIFACT_ID,
+            playableEvents=[],
+            expectedPracticeGroups=[],
+            practiceAttackSteps=[],
+            meterSegments=[
                 {
-                    "strikeId": "strike-1",
-                    "pitch": "C4",
-                    "renderNoteIds": ["note-1"],
-                    "result": "MATCHED",
+                    "startBeat": 0,
+                    "numerator": 4,
+                    "denominator": 4,
+                    "measureDurationBeats": 4,
+                    "countInPulses": 4,
+                    "source": "DEFAULT_4_4",
                 }
             ],
-            "unexpectedPitches": [],
-            "renderNoteIds": ["note-1"],
-            "measureNumbers": ["1"],
-            "timingOffsetMs": 12,
-        }
-    ],
-}
+            scoreTempoSegments=[{"startBeat": 0, "bpm": 120}],
+            firstPlayableBeat=0,
+            scoreEndBeat=16,
+        )
+
+
+def _performance_take_service(
+    *,
+    storage: LocalFileStorage,
+    storage_usage_service: StorageUsageService | None = None,
+) -> PerformanceTakeService:
+    return PerformanceTakeService(
+        storage=storage,
+        storage_usage_service=storage_usage_service,
+        practice_source_service=_FakePracticeSourceService(),
+    )
 
 
 def test_performance_take_schema_accepts_product_default_tempo_source() -> None:
@@ -117,11 +161,9 @@ def test_performance_take_schema_accepts_product_default_tempo_source() -> None:
             "segments": [{"startBeat": 0, "bpm": 80, "source": "PRODUCT_DEFAULT"}],
         },
         recording_timebase=DEFAULT_TAKE_RECORDING_TIMEBASE,
-        evaluation=DEFAULT_TAKE_EVALUATION,
     )
 
     assert request.tempo_plan.segments[0].source == "PRODUCT_DEFAULT"
-    assert request.evaluation.outcomes[0].expectedGroupId == "group-1"
 
 
 POSTGRES_MIGRATION_EMPTY_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_EMPTY_URL"
@@ -184,7 +226,6 @@ def _complete_take_request_payload(payload: object) -> object:
     completed.setdefault("artifact_id", DEFAULT_TAKE_ARTIFACT_ID)
     completed.setdefault("tempo_plan", DEFAULT_TAKE_TEMPO_PLAN)
     completed.setdefault("recording_timebase", DEFAULT_TAKE_RECORDING_TIMEBASE)
-    completed.setdefault("evaluation", DEFAULT_TAKE_EVALUATION)
     return completed
 
 
@@ -370,7 +411,7 @@ def test_unauthenticated_access_denied():
 def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.MonkeyPatch):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -417,7 +458,6 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
                     }
                 ],
             },
-            "evaluation": DEFAULT_TAKE_EVALUATION,
         }
         res = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
         assert res.status_code == 200, res.text
@@ -466,7 +506,6 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
                     }
                 ],
             },
-            "evaluation": DEFAULT_TAKE_EVALUATION,
         }
         res_fail = client.post("/api/v1/performance-takes", json=fin_req)
         assert res_fail.status_code == 404
@@ -495,6 +534,25 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         take_row = session.execute(
             select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
         ).scalar_one()
+        snapshot = session.get(PracticeSourceSnapshot, take_row.source_snapshot_id)
+        assert snapshot is not None
+        assert snapshot.source_score_uuid == "score-uuid-10"
+        assert snapshot.source_revision_uuid == "revision-uuid-100"
+        assert snapshot.artifact_id == "art-1"
+        assert storage.exists(snapshot.prepared_musicxml_object_key)
+        assert storage.exists(snapshot.artifact_object_key)
+
+        res_source_content = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/content")
+        assert res_source_content.status_code == 200, res_source_content.text
+        assert res_source_content.json()["data"]["revision_id"] == "revision-uuid-100"
+        assert "<score-partwise" in res_source_content.json()["data"]["content"]
+
+        res_source_artifact = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/artifact")
+        assert res_source_artifact.status_code == 200, res_source_artifact.text
+        artifact_data = res_source_artifact.json()["data"]
+        assert artifact_data["scoreId"] == "score-uuid-10"
+        assert artifact_data["revisionId"] == "revision-uuid-100"
+        assert artifact_data["artifactId"] == "art-1"
         final_object_key = take_row.media_object_key
         assert final_object_key.startswith(f"performance-takes/1/{take_id}/")
         assert final_object_key != staging_object_key
@@ -642,7 +700,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
 def test_score_access_and_validation(test_env):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -705,7 +763,7 @@ def test_score_access_and_validation(test_env):
 def test_unrelated_revision_rejected(test_env):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -767,7 +825,7 @@ def test_unrelated_revision_rejected(test_env):
 def test_cross_user_score_permission(test_env):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -830,7 +888,7 @@ def test_cross_user_score_permission(test_env):
 def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: pytest.MonkeyPatch):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -991,7 +1049,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
 def test_duplicate_deletion_idempotency(test_env, monkeypatch: pytest.MonkeyPatch):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -1078,7 +1136,7 @@ def test_duplicate_deletion_idempotency(test_env, monkeypatch: pytest.MonkeyPatc
 def test_quota_rejection(test_env):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -1118,7 +1176,7 @@ def test_quota_rejection(test_env):
 def test_cancel_upload_authorization(test_env):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -1194,7 +1252,7 @@ def test_cancel_upload_authorization(test_env):
 def test_pagination(test_env):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -1270,7 +1328,7 @@ def test_pagination(test_env):
 def test_audio_container_magic_bytes_validation(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -1389,7 +1447,7 @@ def test_audio_container_magic_bytes_validation(test_env):
 def test_finalize_safe_retry_idempotency(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -1467,7 +1525,7 @@ def test_finalize_safe_retry_idempotency(test_env):
 def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -1548,7 +1606,7 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
 def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -1594,7 +1652,6 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
             "scope_end_group_id": "group-4",
             "tempo_plan": tempo_plan,
             "recording_timebase": recording_timebase,
-            "evaluation": DEFAULT_TAKE_EVALUATION,
         }
         res_auth = client.post(
             "/api/v1/performance-takes/upload-authorizations",
@@ -1625,7 +1682,6 @@ def test_finalize_range_video_preserves_scope_identity_and_recording_timebase(te
         assert take_data["scope_end_group_id"] == "group-4"
         assert "scopeIdentity" not in take_data["recording_timebase"]
         assert take_data["tempo_plan"] == tempo_plan
-        assert take_data["evaluation"] == DEFAULT_TAKE_EVALUATION
         assert session.execute(
             select(PerformanceTake).where(
                 PerformanceTake.client_request_id == "req-range-video-scope-identity"
@@ -1657,7 +1713,7 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
 
     mutating_storage = MutatingCopyStorage(storage)
     mutating_storage.upload_url = storage.upload_url  # type: ignore[assignment]
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=mutating_storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -1722,7 +1778,7 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
 def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -1824,7 +1880,6 @@ def test_authorize_finalizing_snapshot_retries_without_new_put(test_env):
         media_byte_size=len(VALID_WEBM_BYTES),
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-        evaluation=json.dumps(DEFAULT_TAKE_EVALUATION),
         storage_backend="local",
         staging_object_key="staging/performance-takes/1/finalizing-authorize/recording.webm",
         final_object_key="performance-takes/1/finalizing-authorize/token.webm",
@@ -1840,7 +1895,7 @@ def test_authorize_finalizing_snapshot_retries_without_new_put(test_env):
     session.add(auth)
     session.commit()
 
-    take_svc = PerformanceTakeService(storage=_storage)
+    take_svc = _performance_take_service(storage=_storage)
     response = _run_async(
         take_svc.authorize_upload(
             AsyncSessionAdapter(session),
@@ -1868,7 +1923,7 @@ def test_authorize_finalizing_snapshot_retries_without_new_put(test_env):
 def test_crash_abandoned_after_authorization(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -1941,7 +1996,7 @@ def test_crash_abandoned_after_authorization(test_env):
 def test_expired_authorization_staging_delete_failure_is_retryable(test_env, monkeypatch):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -2028,7 +2083,7 @@ def test_expired_authorization_staging_delete_failure_is_retryable(test_env, mon
 def test_archived_authorization_late_staging_put_is_cleaned_after_expiry(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -2119,7 +2174,7 @@ def test_archived_authorization_late_staging_put_is_cleaned_after_expiry(test_en
 def test_score_deleted_between_auth_and_finalize_fails_closed(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -2197,7 +2252,7 @@ def test_score_deleted_between_auth_and_finalize_fails_closed(test_env):
 def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.MonkeyPatch):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -2374,7 +2429,7 @@ def test_delete_outbox_late_fail_cannot_overwrite_completed_attempt(test_env):
 def test_expired_authorization_cleanup_releases_db_lock_before_storage_delete(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -2471,7 +2526,6 @@ def _expired_cleanup_auth(
         scope_terminal_beat=4.0,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-        evaluation=json.dumps(DEFAULT_TAKE_EVALUATION),
         duration_ms=1000,
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -2600,7 +2654,7 @@ def test_authorization_cleanup_does_not_complete_when_final_head_fails(test_env)
 
 def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_env):
     session, _storage, user_1, _ = test_env
-    take_svc = PerformanceTakeService(storage=_storage)
+    take_svc = _performance_take_service(storage=_storage)
     expired = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
     auth = PerformanceTakeUploadAuthorization(
         user_id=user_1.id,
@@ -2617,7 +2671,6 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
         scope_terminal_beat=4.0,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-        evaluation=json.dumps(DEFAULT_TAKE_EVALUATION),
         duration_ms=1000,
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -2914,7 +2967,6 @@ def test_authorization_cleanup_does_not_delete_orphan_key_referenced_by_take(tes
             scope_terminal_beat=4.0,
             tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
             recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-            evaluation=json.dumps(DEFAULT_TAKE_EVALUATION),
             deletion_status=PerformanceTakeDeletionStatus.ACTIVE,
         )
     )
@@ -2952,7 +3004,6 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
         scope_terminal_beat=4.0,
         tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
         recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
-        evaluation=json.dumps(DEFAULT_TAKE_EVALUATION),
         duration_ms=1000,
         media_mime_type="audio/webm",
         media_byte_size=len(VALID_WEBM_BYTES),
@@ -2988,7 +3039,7 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
 def test_worker_handles_already_absent_object_idempotently(test_env, monkeypatch: pytest.MonkeyPatch):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
-    take_svc = PerformanceTakeService(
+    take_svc = _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_svc,
     )
@@ -3246,25 +3297,27 @@ def _assert_performance_take_upgrade_state(
 
     command.upgrade(
         _alembic_config(alembic_async_url),
-        "0068_add_performance_take_evaluation",
+        "0069_practice_source_snapshots",
     )
     engine_pg = create_engine(sqlalchemy_sync_url)
     try:
         inspector = inspect(engine_pg)
         tables = set(inspector.get_table_names())
+        assert "practice_source_snapshots" in tables
         assert "performance_take_upload_authorizations" in tables
         assert "performance_take_delete_outbox" in tables
         version_cols = {c["name"]: c for c in inspector.get_columns("alembic_version")}
         assert getattr(version_cols["version_num"]["type"], "length", None) == 128
 
         cols = {c["name"]: c for c in inspector.get_columns("performance_takes")}
-        assert cols["score_id"]["nullable"] is False
-        assert cols["revision_id"]["nullable"] is False
+        assert cols["source_snapshot_id"]["nullable"] is False
+        assert cols["score_id"]["nullable"] is True
+        assert cols["revision_id"]["nullable"] is True
         assert cols["artifact_id"]["nullable"] is False
         assert cols["tempo_plan"]["nullable"] is False
         assert "resolved_tempo_plan" not in cols
         assert cols["recording_timebase"]["nullable"] is False
-        assert cols["evaluation"]["nullable"] is False
+        assert "evaluation" not in cols
         assert "sync_metadata" not in cols
         assert "score_title" in cols
         assert cols["score_title"]["nullable"] is True
@@ -3276,9 +3329,11 @@ def _assert_performance_take_upgrade_state(
         fks = inspector.get_foreign_keys("performance_takes")
         assert len([fk for fk in fks if fk["referred_table"] == "scores"]) == 1
         score_fk = next(f for f in fks if f["referred_table"] == "scores")
-        assert score_fk["options"].get("ondelete") == "RESTRICT"
+        assert score_fk["options"].get("ondelete") == "SET NULL"
         rev_fk = next(f for f in fks if f["referred_table"] == "score_revisions")
-        assert rev_fk["options"].get("ondelete") == "RESTRICT"
+        assert rev_fk["options"].get("ondelete") == "SET NULL"
+        snapshot_fk = next(f for f in fks if f["referred_table"] == "practice_source_snapshots")
+        assert snapshot_fk["options"].get("ondelete") == "RESTRICT"
         user_fk = next(f for f in fks if f["referred_table"] == "users")
         assert user_fk["options"].get("ondelete") == "CASCADE"
 
@@ -3290,6 +3345,7 @@ def _assert_performance_take_upgrade_state(
             "ix_performance_takes_revision_id",
             "ix_performance_takes_client_request_id",
             "ix_performance_takes_user_deletion_status",
+            "ix_performance_takes_source_snapshot_id",
         }.issubset(indexes)
 
         unique_constraints = inspector.get_unique_constraints("performance_takes")
@@ -3301,47 +3357,16 @@ def _assert_performance_take_upgrade_state(
         assert len(uq_names) == 1, f"Expected 1 unique constraint, got: {unique_constraints}"
 
         with engine_pg.connect() as pconn:
-            row = pconn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type, deletion_status FROM performance_takes WHERE id = 1")).fetchone()
-            assert row is not None
-            assert row[0] == 1
-            assert row[1] == "take-pg-001"
-            assert row[2] == 1
-            assert row[3] == 10
-            assert row[4] == 100
-            assert row[5] == "PG Sonata Allegro"
-            assert row[6] == "FULL"
-            assert row[7] == "ACTIVE"
-
-            recording_timebase = json.loads(
-                pconn.execute(
-                    sa.text("SELECT recording_timebase FROM performance_takes WHERE id = 1")
-                ).scalar_one()
+            assert (
+                pconn.execute(sa.text("SELECT count(*) FROM performance_takes")).scalar_one()
+                == 0
             )
-            assert set(recording_timebase) == {"nominalMediaDurationMs", "activeSegments"}
-            assert recording_timebase["nominalMediaDurationMs"] == 90000
-            assert recording_timebase["activeSegments"] == [
-                {"perfStartMs": 0, "perfEndMs": 90000, "mediaStartMs": 0, "mediaEndMs": 90000}
-            ]
-            evaluation = json.loads(
+            assert (
                 pconn.execute(
-                    sa.text("SELECT evaluation FROM performance_takes WHERE id = 1")
+                    sa.text("SELECT count(*) FROM performance_take_upload_authorizations")
                 ).scalar_one()
+                == 0
             )
-            assert evaluation == {"outcomes": []}
-
-            # Source identity is durable while a take exists.
-            with pytest.raises(sa.exc.IntegrityError):
-                pconn.execute(sa.text("DELETE FROM scores WHERE id = 10;"))
-                pconn.commit()
-            pconn.rollback()
-
-            row_after = pconn.execute(sa.text("SELECT id, take_uuid, user_id, score_id, revision_id, score_title, scope_type, deletion_status FROM performance_takes WHERE id = 1")).fetchone()
-            assert row_after is not None
-            assert row_after[3] == 10
-            assert row_after[4] == 100
-            assert row_after[5] == "PG Sonata Allegro"  # title preserved
-            assert row_after[6] == "FULL"
-            assert row_after[7] == "ACTIVE"
     finally:
         engine_pg.dispose()
 
@@ -3355,7 +3380,7 @@ def test_empty_postgresql_database_initializes_with_wide_alembic_version_table()
     _assert_postgres_database_empty(pg.psycopg_url)
     command.upgrade(
         _alembic_config(pg.alembic_async_url),
-        "0068_add_performance_take_evaluation",
+        "0069_practice_source_snapshots",
     )
     engine_pg = create_engine(pg.sqlalchemy_sync_url)
     try:
@@ -3409,6 +3434,6 @@ def test_postgresql_version_table_widening_permission_error_is_not_swallowed():
     with pytest.raises((DBAPIError, PermissionError, RuntimeError)):
         command.upgrade(
             _alembic_config(pg.alembic_async_url),
-            "0068_add_performance_take_evaluation",
+            "0069_practice_source_snapshots",
         )
 

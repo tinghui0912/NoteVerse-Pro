@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.background_tracing import record_current_attempt_failure
 from app.db.models.performance_take import PerformanceTake
@@ -12,6 +12,7 @@ from app.db.models.performance_take_delete_outbox import (
     PerformanceTakeDeleteOutbox,
     PerformanceTakeDeleteOutboxStatus,
 )
+from app.db.models.practice_source_snapshot import PracticeSourceSnapshot
 from app.db.models.storage_usage import StorageUsageCategory
 from app.db.sync_session import get_worker_db
 from app.modules.performance_takes.delete_outbox_service import (
@@ -37,6 +38,7 @@ def execute_performance_take_deletion_task(
     bind_task_context(task)
     trace_scope = None
     try:
+        snapshot_storage_keys: tuple[str, str] | None = None
         with get_worker_db() as db:
             payload = performance_take_delete_outbox_service.claim(db, outbox_uuid)
             db.commit()
@@ -157,7 +159,20 @@ def execute_performance_take_deletion_task(
                         "performance take deletion payload does not match locked take: "
                         f"{payload.take_uuid}"
                     )
+                snapshot = db.get(PracticeSourceSnapshot, take.source_snapshot_id)
+                snapshot_ref_count = db.execute(
+                    select(func.count(PerformanceTake.id)).where(
+                        PerformanceTake.source_snapshot_id == take.source_snapshot_id
+                    )
+                ).scalar_one()
                 db.delete(take)
+                db.flush()
+                if snapshot is not None and snapshot_ref_count <= 1:
+                    snapshot_storage_keys = (
+                        snapshot.prepared_musicxml_object_key,
+                        snapshot.artifact_object_key,
+                    )
+                    db.delete(snapshot)
                 storage_usage_service.record_release_sync(
                     db,
                     user_id=payload.user_id,
@@ -179,6 +194,19 @@ def execute_performance_take_deletion_task(
                     f"{outbox_uuid}"
                 )
             db.commit()
+        if snapshot_storage_keys is not None:
+            for snapshot_key in snapshot_storage_keys:
+                try:
+                    if file_storage.exists(snapshot_key):
+                        file_storage.delete(snapshot_key)
+                except Exception:
+                    operation_logger(
+                        "performance_take_deletion.snapshot_storage_delete_failed",
+                        **context,
+                        snapshot_storage_key=snapshot_key,
+                    ).opt(exception=True).warning(
+                        "performance_take_deletion.snapshot_storage_delete_failed"
+                    )
 
         operation_logger(
             "performance_take_deletion.completed",

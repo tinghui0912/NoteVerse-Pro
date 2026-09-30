@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
@@ -14,12 +15,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   usePerformanceTakeDetail,
 } from '@/hooks/queries/use-performance-take-queries';
-import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
-import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-artifact';
 import {
   downloadPerformanceTakeMediaBlob,
+  performanceTakesApi,
 } from '@/lib/api/performance-takes';
 import { ApiError } from '@/lib/api-client';
+import { queryKeys } from '@/lib/query-client';
+import { assertPracticeScoreArtifact } from '@/lib/practice/local-core/artifact';
 import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
 import {
   createShareVideoSessionFromSavedTake,
@@ -79,16 +81,24 @@ export default function HistoricalPerformanceSharePage() {
   const take = takeQuery.data?.data ?? null;
   const isBaseEligible = Boolean(take && hasSavedTakeShareVideoMetadata(take));
 
-  const revisionQuery = usePracticeReadyScoreContent(
-    take?.score_id ?? '',
-    take?.revision_id,
-    isBaseEligible
-  );
-  const artifactQuery = usePracticeScoreArtifact(
-    take?.score_id ?? '',
-    take?.revision_id,
-    isBaseEligible
-  );
+  const revisionQuery = useQuery({
+    queryKey: queryKeys.performanceTakes.practiceSourceContent(takeId),
+    queryFn: ({ signal }) => performanceTakesApi.getPracticeSourceContent(takeId, signal),
+    enabled: isBaseEligible && Boolean(takeId),
+  });
+  const artifactQuery = useQuery({
+    queryKey: queryKeys.performanceTakes.practiceSourceArtifact(takeId),
+    queryFn: async ({ signal }) => {
+      const response = await performanceTakesApi.getPracticeSourceArtifact(takeId, signal);
+      if (!response.data) {
+        throw new Error('PracticeScoreArtifact response missing data');
+      }
+      assertPracticeScoreArtifact(response.data);
+      return response.data;
+    },
+    enabled: isBaseEligible && Boolean(takeId),
+    staleTime: Infinity,
+  });
 
   const [mediaBlob, setMediaBlob] = useState<Blob | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);

@@ -65,12 +65,13 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
     take_uuid: str = Field(
         sa_column=Column(String(36), index=True, nullable=False)
     )
-    score_id: int = Field(
+    score_id: Optional[int] = Field(
+        default=None,
         sa_column=Column(
             bigint_pk_type,
-            ForeignKey("scores.id", ondelete="RESTRICT"),
+            ForeignKey("scores.id", ondelete="SET NULL"),
             index=True,
-            nullable=False,
+            nullable=True,
         ),
     )
     score_uuid: str = Field(
@@ -80,12 +81,13 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
         default=None,
         sa_column=Column(String(255), nullable=True),
     )
-    revision_id: int = Field(
+    revision_id: Optional[int] = Field(
+        default=None,
         sa_column=Column(
             bigint_pk_type,
-            ForeignKey("score_revisions.id", ondelete="RESTRICT"),
+            ForeignKey("score_revisions.id", ondelete="SET NULL"),
             index=True,
-            nullable=False,
+            nullable=True,
         ),
     )
     revision_uuid: str = Field(
@@ -116,9 +118,6 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
         sa_column=Column(Text, nullable=False),
     )
     recording_timebase: str = Field(
-        sa_column=Column(Text, nullable=False),
-    )
-    evaluation: str = Field(
         sa_column=Column(Text, nullable=False),
     )
     duration_ms: int = Field(

@@ -79,6 +79,7 @@ describe('useLocalPractice', () => {
         artifact,
         mode: 'STEP_BY_STEP',
         inputSource: 'MICROPHONE',
+        scope: { kind: 'FULL' },
       })
     );
 
@@ -94,6 +95,7 @@ describe('useLocalPractice', () => {
         artifact,
         mode: 'STEP_BY_STEP',
         inputSource: 'MICROPHONE',
+        scope: { kind: 'FULL' },
       })
     );
 
@@ -117,6 +119,7 @@ describe('useLocalPractice', () => {
         artifact,
         mode: 'STEP_BY_STEP',
         inputSource: 'MICROPHONE',
+        scope: { kind: 'FULL' },
       })
     );
 
@@ -135,6 +138,7 @@ describe('useLocalPractice', () => {
         artifact,
         mode: 'STEP_BY_STEP',
         inputSource: 'MICROPHONE',
+        scope: { kind: 'FULL' },
       })
     );
 
@@ -165,6 +169,7 @@ describe('useLocalPractice', () => {
         artifact,
         mode: 'STEP_BY_STEP',
         inputSource: 'MICROPHONE',
+        scope: { kind: 'FULL' },
       })
     );
 
@@ -199,6 +204,7 @@ describe('useLocalPractice', () => {
         artifact,
         mode: 'STEP_BY_STEP',
         inputSource: 'MICROPHONE',
+        scope: { kind: 'FULL' },
       })
     );
 
@@ -220,6 +226,7 @@ describe('useLocalPractice', () => {
         artifact,
         mode: 'STEP_BY_STEP',
         inputSource: 'MICROPHONE',
+        scope: { kind: 'FULL' },
       })
     );
 
@@ -244,6 +251,7 @@ describe('useLocalPractice', () => {
         artifact,
         mode: 'STEP_BY_STEP',
         inputSource: 'MICROPHONE',
+        scope: { kind: 'FULL' },
       })
     );
 
@@ -271,6 +279,7 @@ describe('useLocalPractice', () => {
         artifact,
         mode: 'CONTINUOUS_PLAY',
         inputSource: 'MICROPHONE',
+        scope: { kind: 'FULL' },
         tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 },
         metronomeEnabled: true,
       })

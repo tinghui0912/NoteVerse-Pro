@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import {
   Copy,
   Download,
-  Dumbbell,
   Link2Off,
   LockKeyhole,
   MessageCircle,
@@ -35,6 +34,7 @@ import { formatApiDateTime, parseApiDate } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { getShareExpirationDays } from '@/lib/score-detail/share';
 import type { GrantRead } from '@/generated/api';
+import type { ShareAccessMode } from '@/generated/api';
 
 function absoluteShareUrl(token: string, locale: string) {
   const path = locale === routing.defaultLocale ? `/share/${token}` : `/${locale}/share/${token}`;
@@ -55,8 +55,8 @@ export function ScoreSharePanel({
   const { toast } = useToast();
   const [expiration, setExpiration] = useState('permanent');
   const [customDate, setCustomDate] = useState('');
+  const [accessMode, setAccessMode] = useState<ShareAccessMode>('PRACTICE');
   const [allowDownload, setAllowDownload] = useState(true);
-  const [allowPractice, setAllowPractice] = useState(true);
   const [created, setCreated] = useState<{ grantId: string; token: string } | null>(null);
   const [createdTokens, setCreatedTokens] = useState<Record<string, string>>({});
   const [now] = useState(() => Date.now());
@@ -95,8 +95,8 @@ export function ScoreSharePanel({
     }
     createGrant.mutate(
       {
+        access_mode: accessMode,
         allow_download: allowDownload,
-        allow_practice: allowPractice,
         expires_at: days === null ? null : new Date(Date.now() + days * 86_400_000).toISOString(),
       },
       {
@@ -202,9 +202,34 @@ export function ScoreSharePanel({
           <div className="rounded-lg border bg-muted/60 p-4 text-sm">
             <div className="mb-2 flex items-center gap-2 font-medium text-foreground">
               <LockKeyhole className="h-4 w-4" />
-              {t('viewOnly')}
+              {t('linkPermissions')}
             </div>
             <p className="text-muted-foreground">{t('viewDescription')}</p>
+          </div>
+          <div className="space-y-3">
+            <Label>{t('accessMode')}</Label>
+            <RadioGroup
+              value={accessMode}
+              onValueChange={(value) => setAccessMode(value as ShareAccessMode)}
+              className="grid gap-3 sm:grid-cols-2"
+            >
+              {[
+                ['VIEW', t('accessView'), t('accessViewDescription')],
+                ['PRACTICE', t('accessPractice'), t('accessPracticeDescription')],
+              ].map(([value, label, description]) => (
+                <Label
+                  key={value}
+                  htmlFor={`share-access-${value}`}
+                  className="flex cursor-pointer items-start gap-3 rounded-lg border p-4 font-normal has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
+                >
+                  <RadioGroupItem id={`share-access-${value}`} value={value} className="mt-1" />
+                  <span className="min-w-0">
+                    <span className="block font-medium text-foreground">{label}</span>
+                    <span className="mt-1 block text-sm text-muted-foreground">{description}</span>
+                  </span>
+                </Label>
+              ))}
+            </RadioGroup>
           </div>
           <div className="space-y-3">
             <Label>{t('permissions')}</Label>
@@ -221,20 +246,6 @@ export function ScoreSharePanel({
                   checked={allowDownload}
                   onCheckedChange={setAllowDownload}
                   aria-label={t('allowDownload')}
-                />
-              </div>
-              <div className="flex items-center justify-between gap-4 p-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 font-medium">
-                    <Dumbbell className="h-4 w-4" />
-                    {t('allowPractice')}
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{t('allowPracticeDescription')}</p>
-                </div>
-                <Switch
-                  checked={allowPractice}
-                  onCheckedChange={setAllowPractice}
-                  aria-label={t('allowPractice')}
                 />
               </div>
             </div>
@@ -272,9 +283,9 @@ export function ScoreSharePanel({
           </div>
           <Button className="w-full" onClick={create} disabled={createGrant.isPending}>
             {createGrant.isPending ? (
-              <InlineLoading label={t('generateViewOnly')} />
+              <InlineLoading label={t('generateLink')} />
             ) : (
-              t('generateViewOnly')
+              t('generateLink')
             )}
           </Button>
           {created ? (
@@ -335,7 +346,9 @@ export function ScoreSharePanel({
                         <div className="flex min-w-0 items-center gap-3">
                           <LockKeyhole className="h-4 w-4 shrink-0" />
                           <div className="min-w-0">
-                            <p className="font-medium">{t('viewOnly')}</p>
+                            <p className="font-medium">
+                              {grant.access_mode === 'PRACTICE' ? t('accessPractice') : t('accessView')}
+                            </p>
                           </div>
                         </div>
                         <div className="min-w-0 text-sm">
@@ -343,7 +356,7 @@ export function ScoreSharePanel({
                           <p className="truncate text-xs text-muted-foreground">
                             {[
                               grant.allow_download ? t('downloadAllowed') : t('downloadBlocked'),
-                              grant.allow_practice ? t('practiceAllowed') : t('practiceBlocked'),
+                              grant.access_mode === 'PRACTICE' ? t('practiceAllowed') : t('practiceBlocked'),
                             ].join(' · ')}
                           </p>
                           {expirationDetail ? (

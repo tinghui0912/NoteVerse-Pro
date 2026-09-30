@@ -24,6 +24,7 @@ from app.utils.timezone import utc_now_naive
 if TYPE_CHECKING:
     from .user import User
     from .score import Score, ScoreRevision
+    from .practice_source_snapshot import PracticeSourceSnapshot
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
@@ -65,24 +66,34 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    score_id: int = Field(
+    source_snapshot_id: int = Field(
         sa_column=Column(
             bigint_pk_type,
-            ForeignKey("scores.id", ondelete="RESTRICT"),
+            ForeignKey("practice_source_snapshots.id", ondelete="RESTRICT"),
             index=True,
             nullable=False,
+        ),
+    )
+    score_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(
+            bigint_pk_type,
+            ForeignKey("scores.id", ondelete="SET NULL"),
+            index=True,
+            nullable=True,
         ),
     )
     score_title: Optional[str] = Field(
         default=None,
         sa_column=Column(String(255), nullable=True),
     )
-    revision_id: int = Field(
+    revision_id: Optional[int] = Field(
+        default=None,
         sa_column=Column(
             bigint_pk_type,
-            ForeignKey("score_revisions.id", ondelete="RESTRICT"),
+            ForeignKey("score_revisions.id", ondelete="SET NULL"),
             index=True,
-            nullable=False,
+            nullable=True,
         ),
     )
     artifact_id: str = Field(
@@ -136,9 +147,6 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(Text, nullable=False),
     )
     recording_timebase: str = Field(
-        sa_column=Column(Text, nullable=False),
-    )
-    evaluation: str = Field(
         sa_column=Column(Text, nullable=False),
     )
     deletion_status: str = Field(

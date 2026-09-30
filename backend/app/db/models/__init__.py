@@ -82,6 +82,7 @@ from .performance_take import (
     PerformanceTakeDeletionStatus,
     PerformanceTakeMediaKind,
 )
+from .practice_source_snapshot import PracticeSourceSnapshot
 from .performance_take_upload_authorization import (
     PerformanceTakeUploadAuthorization,
     PerformanceTakeUploadAuthorizationStatus,
@@ -168,6 +169,7 @@ __all__ = [
     "PerformanceTake",
     "PerformanceTakeDeletionStatus",
     "PerformanceTakeMediaKind",
+    "PracticeSourceSnapshot",
     "PerformanceTakeUploadAuthorization",
     "PerformanceTakeUploadAuthorizationStatus",
     "PerformanceTakeDeleteOutbox",
