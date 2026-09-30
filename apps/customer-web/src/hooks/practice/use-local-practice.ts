@@ -419,14 +419,14 @@ export function useLocalPractice({
       setCompletionReason('SCOPE_COMPLETED');
       setLastSnapshot(snapshot);
       setLifecycle('ENDED');
-      if (mode === 'CONTINUOUS_PLAY') {
-        await finalizeRecordingAndBuildDraft(snapshot as LocalPerformanceSessionSnapshot);
+      if (snapshot.mode === 'CONTINUOUS_PLAY') {
+        await finalizeRecordingAndBuildDraft(snapshot);
       }
       onCompletion?.(snapshot);
       await teardownInputs();
       setInputState('IDLE');
     },
-    [finalizeRecordingAndBuildDraft, mode, onCompletion, stopAnimationLoop, stopTimer, teardownInputs]
+    [finalizeRecordingAndBuildDraft, onCompletion, stopAnimationLoop, stopTimer, teardownInputs]
   );
 
   // Step observation handler
@@ -929,8 +929,8 @@ export function useLocalPractice({
     }
     setLifecycle('ENDED');
 
-    if (mode === 'CONTINUOUS_PLAY' && snapshot) {
-      await finalizeRecordingAndBuildDraft(snapshot as LocalPerformanceSessionSnapshot);
+    if (snapshot?.mode === 'CONTINUOUS_PLAY') {
+      await finalizeRecordingAndBuildDraft(snapshot);
     }
 
     void teardownInputs().then(() => {
