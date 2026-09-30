@@ -376,7 +376,6 @@ Set immutable image references and S3 settings:
 
 ```powershell
 $env:NOTEVERSE_BACKEND_API_IMAGE = "ghcr.io/<owner>/noteverse/backend-api:<tag>"
-$env:NOTEVERSE_BACKEND_PRACTICE_IMAGE = "ghcr.io/<owner>/noteverse/backend-practice:<tag>"
 $env:NOTEVERSE_BACKEND_BEAT_IMAGE = "ghcr.io/<owner>/noteverse/backend-beat:<tag>"
 $env:NOTEVERSE_BACKEND_WORKER_IMAGE = "ghcr.io/<owner>/noteverse/backend-worker:<tag>"
 $env:NOTEVERSE_CUSTOMER_WEB_IMAGE = "ghcr.io/<owner>/noteverse/customer-web:<tag>"

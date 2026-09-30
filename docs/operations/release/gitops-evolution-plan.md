@@ -69,7 +69,6 @@ component:
 
 ```text
 backend-api
-backend-practice
 backend-beat
 backend-worker
 frontend

@@ -1227,8 +1227,9 @@ merely to eliminate small dispatch branches.
 - Moved model cache paths, PaddleOCR/LEGATO runtime locations, Hugging Face
   offline runtime flags, PaddleOCR timeout, and Worker concurrency out of the
   broad `backend-config.env` files into `backend-worker-config.env`.
-- Moved Practice soundfont path and Practice diagnostics toggles out of the
-  broad `backend-config.env` files into `backend-practice-config.env`.
+- Moved the then-server-side practice soundfont path and diagnostics toggles
+  out of the broad `backend-config.env` files into the role-specific practice
+  config file used at that time.
 - Kept the model-cache agent's online Hugging Face overrides inline because
   cache warming/download has different runtime semantics from normal offline
   Worker execution.

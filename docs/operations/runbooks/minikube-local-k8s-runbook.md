@@ -237,7 +237,6 @@ docker build `
 docker build `
   -f docker/customer-web/Dockerfile.runtime `
   --build-arg NEXT_BACKEND_ORIGIN=http://noteverse-backend-api:8000 `
-  --build-arg NEXT_PRACTICE_ORIGIN=http://noteverse-backend-practice:8000 `
   --build-arg SESSION_COOKIE_NAME=noteverse_session `
   --build-arg SESSION_REFRESH_COOKIE_NAME=noteverse_refresh `
   -t noteverse-customer-web:$imageTag `
@@ -828,7 +827,6 @@ Environment-rendered release package.
 $imageTag = "dev-$(git rev-parse --short HEAD)-$(Get-Date -Format yyyyMMddHHmmss)"
 
 $env:NOTEVERSE_BACKEND_API_IMAGE = "ghcr.io/<github-owner>/noteverse/backend-api:$imageTag"
-$env:NOTEVERSE_BACKEND_PRACTICE_IMAGE = "ghcr.io/<github-owner>/noteverse/backend-practice:$imageTag"
 $env:NOTEVERSE_BACKEND_BEAT_IMAGE = "ghcr.io/<github-owner>/noteverse/backend-beat:$imageTag"
 $env:NOTEVERSE_BACKEND_WORKER_IMAGE = "ghcr.io/<github-owner>/noteverse/backend-worker:$imageTag"
 $env:NOTEVERSE_CUSTOMER_WEB_IMAGE = "ghcr.io/<github-owner>/noteverse/customer-web:$imageTag"
@@ -902,7 +900,6 @@ If you need lower-level diagnostics, inspect rollouts directly:
 
 ```powershell
 kubectl -n noteverse-staging rollout status deployment/noteverse-backend-api
-kubectl -n noteverse-staging rollout status deployment/noteverse-backend-practice
 kubectl -n noteverse-staging rollout status deployment/noteverse-backend-beat
 kubectl -n noteverse-staging rollout status deployment/noteverse-backend-worker
 kubectl -n noteverse-staging rollout status deployment/noteverse-customer-web
@@ -966,7 +963,7 @@ is valid, treat it as a page security-state problem rather than a certificate
 issuance problem. Check DevTools Security and Console for mixed content,
 insecure form, stale service worker/cache, or resources loaded from an HTTP URL.
 The expected browser API path is same-origin `/api/v1`; `NEXT_BACKEND_ORIGIN`
-and `NEXT_PRACTICE_ORIGIN` are internal server-side Service origins.
+is the internal server-side Service origin.
 
 On Windows with the Docker minikube driver, do not confuse these addresses:
 

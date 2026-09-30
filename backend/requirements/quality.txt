@@ -1,5 +1,0 @@
-# Aggregate for full backend quality environments. Docker quality images use
-# quality-core.txt and quality-practice.txt to keep heavy practice dependencies
-# isolated.
--r quality-core.txt
--r quality-practice.txt

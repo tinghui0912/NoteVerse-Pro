@@ -1,7 +1,0 @@
-# Compatibility aggregate for scripts that still expect a shared backend
-# baseline. Service images should prefer explicit capability files.
--r core.txt
--r db.txt
--r migrations.txt
--r storage.txt
--r celery.txt

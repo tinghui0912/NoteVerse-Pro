@@ -377,11 +377,11 @@ kubectl port-forward -n observability svc/kube-prometheus-stack-prometheus 19090
 ```
 
 Then open `http://127.0.0.1:19090/targets` and confirm
-`noteverse-backend-api` and `noteverse-backend-practice` are `UP`.
+`noteverse-backend-api` is `UP`.
 
 The optional application monitoring package contains:
 
-- `ServiceMonitor` resources for `backend-api` and `backend-practice`;
+- `ServiceMonitor` resources for `backend-api`;
 - `PrometheusRule/noteverse-application` for target availability, 5xx ratio,
   and p95 latency alerts.
 

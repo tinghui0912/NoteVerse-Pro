@@ -20,7 +20,6 @@ Every release package must name all deployable application images:
 ```text
 backend-api
 backend-beat
-backend-practice
 backend-worker
 frontend
 platform-admin
@@ -93,8 +92,8 @@ backend_api_image=ghcr.io/<owner>/noteverse/backend-api:<new-sha-or-digest>
 Each image input must be a bare image reference. Do not paste a command copied
 from a registry UI, such as `docker pull ghcr.io/...` or `pull ghcr.io/...`.
 
-The release package will keep the current staging beat, practice, worker,
-frontend, and Platform Admin image digests.
+The release package will keep the current staging beat, worker, frontend, and
+Platform Admin image digests.
 
 If one or more components use different tags and you do not want to inherit
 from current staging, provide explicit image refs for every component:
@@ -102,7 +101,6 @@ from current staging, provide explicit image refs for every component:
 ```text
 backend_api_image=ghcr.io/<owner>/noteverse/backend-api:<sha-a>
 backend_beat_image=ghcr.io/<owner>/noteverse/backend-beat:<sha-a>
-backend_practice_image=ghcr.io/<owner>/noteverse/backend-practice:<sha-b>
 backend_worker_image=ghcr.io/<owner>/noteverse/backend-worker:<sha-c>
 customer_web_image=ghcr.io/<owner>/noteverse/customer-web:<sha-d>
 platform_admin_image=ghcr.io/<owner>/noteverse/platform-admin:<sha-e>

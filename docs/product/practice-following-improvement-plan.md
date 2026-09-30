@@ -2590,7 +2590,7 @@ Transkun V2 Aug benchmark status:
 
 ```text
 environment:
-- executed inside the long-lived practice-quality container
+- executed inside the then-current isolated backend quality container
 - transkun package = 2.0.1
 - model checkpoint = models/checkpointMSimplerAug/checkpoint.pt
 - model config = models/checkpointMSimplerAug/model.conf
@@ -2643,7 +2643,7 @@ Basic Pitch ONNX benchmark status:
 
 ```text
 environment:
-- executed inside the same long-lived practice-quality container
+- executed inside the same then-current isolated backend quality container
 - basic-pitch package = 0.4.0
 - model serialization = onnx
 - model path = bundled ICASSP 2022 ONNX model from the basic-pitch package

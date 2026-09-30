@@ -50,40 +50,6 @@ services:
       timeout: 3s
       retries: 20
 
-  practice:
-    image: noteverse-backend-practice:integration
-    build:
-      context: .
-      dockerfile: docker/backend/Dockerfile.practice
-    env_file:
-      - path: backend/.env.docker
-        required: true
-      - path: backend/.env.docker.practice
-        required: true
-    environment:
-      DEBUG: "false"
-      FRONTEND_BASE_URL: http://customer-web:3000
-      BACKEND_CORS_ORIGINS: '["http://localhost:3010"]'
-      AUTH_COOKIE_SECURE: "false"
-      AUTH_COOKIE_SAMESITE: lax
-      FILE_STORAGE_BACKEND: s3
-      STORAGE_ROOT: /tmp/noteverse-integration/storage
-      WORK_ROOT: /tmp/noteverse-integration/work
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - integration_storage:/tmp/noteverse-integration
-      - ./models/soundfonts:/opt/noteverse/models/soundfonts:ro
-    command: practice
-    depends_on:
-      seed:
-        condition: service_completed_successfully
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
   worker:
     <<: *backend-integration
     env_file:
@@ -121,7 +87,6 @@ services:
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
       NEXT_BACKEND_ORIGIN: http://api:8000
-      NEXT_PRACTICE_ORIGIN: http://practice:8000
       NEXT_ALLOWED_DEV_ORIGINS: http://localhost:3010
       AUTH_COOKIE_NAME: noteverse_session
       REFRESH_COOKIE_NAME: noteverse_refresh
@@ -134,8 +99,6 @@ services:
       - "3010:3000"
     depends_on:
       api:
-        condition: service_healthy
-      practice:
         condition: service_healthy
 
 volumes:

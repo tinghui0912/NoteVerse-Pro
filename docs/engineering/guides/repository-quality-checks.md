@@ -20,13 +20,12 @@ Available checks:
 | `backend-ruff` | Backend linting inside the dedicated backend quality image |
 | `backend-mypy` | Backend type checking inside the dedicated backend quality image |
 | `backend-mypy-model-layer` | Backend model-layer type boundary checks inside the dedicated backend quality image |
-| `backend-pytest` | Backend test suites through Docker quality images: core tests in `quality`, practice tests in `practice-quality` |
+| `backend-pytest` | Backend test suites through the dedicated backend quality image |
 | `backend-coverage` | Backend coverage baseline report through the same core and practice quality images |
 | `backend-critical-coverage` | Enforces the score-access policy's focused 80% coverage threshold |
 | `backend-critical-import-execution-coverage` | Enforces the import worker execution service's focused 80% coverage threshold |
 | `backend-critical-import-job-service-coverage` | Enforces the import-job API service's focused 70% coverage threshold |
 | `backend-critical-import-worker-service-coverage` | Enforces the import worker state coordinator's focused 80% coverage threshold |
-| `backend-critical-practice-service-coverage` | Enforces the Practice session service's focused 80% coverage threshold |
 | `backend-contracts` | Verifies that committed customer, practice, and control-plane OpenAPI documents match runtime routes and schemas |
 | `customer-web-lint` | Customer Web ESLint |
 | `customer-web-typecheck` | Customer Web TypeScript type checking |
@@ -115,7 +114,6 @@ Current GitHub Actions workflows:
 | `.github/workflows/backend-quality.yml` | `backend/**`, backend-quality wrappers, and quality Dockerfiles | Backend ruff, mypy, model-layer mypy, OpenAPI contract verification, pytest |
 | `.github/workflows/backend-api-image.yml` | backend API runtime files | Builds and scans the backend API image |
 | `.github/workflows/backend-beat-image.yml` | backend beat runtime files | Builds and scans the backend beat image |
-| `.github/workflows/backend-practice-image.yml` | backend practice runtime files | Builds and scans the backend practice image and its dependency base |
 | `.github/workflows/backend-worker-image.yml` | manual | Builds and scans the ML worker image from a pinned ML base |
 | `.github/workflows/customer-web-image.yml` | Customer Web runtime files | Builds and scans the Customer Web image |
 | `.github/workflows/ml-base-image.yml` | manual | Builds and scans the Python/PyTorch CUDA ML base image |
@@ -145,7 +143,6 @@ Backend checks are run through the unified entry point:
 .\scripts\quality.ps1 -Check backend-critical-import-execution-coverage
 .\scripts\quality.ps1 -Check backend-critical-import-job-service-coverage
 .\scripts\quality.ps1 -Check backend-critical-import-worker-service-coverage
-.\scripts\quality.ps1 -Check backend-critical-practice-service-coverage
 .\scripts\quality.ps1 -Check backend-contracts
 ```
 
@@ -153,19 +150,13 @@ Backend checks intentionally run inside Docker quality images:
 
 | Image | Dockerfile | Purpose |
 | --- | --- | --- |
-| `quality` | `docker/backend/Dockerfile.quality` | compile, ruff, mypy, model-layer mypy, and non-practice pytest |
-| `practice-deps` | `docker/backend/Dockerfile.practice-deps` | shared practice dependency base with the prebuilt `pymatchmaker` wheel |
-| `practice-quality` | `docker/backend/Dockerfile.practice-quality` | practice realtime tests that require `pymatchmaker` |
+| `quality` | `docker/backend/Dockerfile.quality` | compile, ruff, mypy, model-layer mypy, and backend pytest |
 
-`pymatchmaker` is an upstream Cython extension, so it is intentionally isolated
-from the generic backend quality image. This keeps ordinary lint, type checks,
-and most tests from depending on the fragile practice alignment build chain.
-
-Runtime images stay lean: API, practice, beat, and worker images do not install
+Runtime images stay lean: API, beat, and worker images do not install
 quality tooling by default.
 
-The backend quality GitHub Actions workflow builds the same two quality images
-and runs checks through `docker run --env-file ...`. CI should not install
+The backend quality GitHub Actions workflow builds the same quality image and
+runs checks through `docker run --env-file ...`. CI should not install
 backend quality dependencies directly on the runner Python environment.
 
 You can also call the backend quality image directly:
@@ -181,7 +172,6 @@ You can also call the backend quality image directly:
 .\scripts\backend_quality_docker.ps1 -Check critical-import-execution-coverage
 .\scripts\backend_quality_docker.ps1 -Check critical-import-job-service-coverage
 .\scripts\backend_quality_docker.ps1 -Check critical-import-worker-service-coverage
-.\scripts\backend_quality_docker.ps1 -Check critical-practice-service-coverage
 .\scripts\backend_quality_docker.ps1 -Check contracts
 ```
 
@@ -215,24 +205,8 @@ and failed terminal states, diagnostic fields, owner notifications, and named
 step creation or updates. Artifact replacement and public detail shaping remain
 covered by their owning service tests rather than being folded into this gate.
 
-`critical-practice-service-coverage` requires 80% coverage for the Practice
-session service. It runs in the isolated Practice quality image and covers
-session ownership, cached-runtime authorization, state transitions, reports,
-alignment persistence, session creation, and runtime registration. Remaining
-detail and report parsing paths need direct coverage before raising it again.
-
-`backend_quality_docker.ps1 -Check pytest` runs two suites:
-
-```text
-pytest-core
-  tests/* except practice realtime tests
-
-pytest-practice
-  tests/test_practice_api_smoke.py
-  tests/test_practice_audio_replay_evaluation.py
-  tests/test_practice_runtime_regressions.py
-  tests/test_practice_websocket_flow.py
-```
+`backend_quality_docker.ps1 -Check pytest` runs the backend pytest suite in the
+quality image.
 
 Worker-related tests are currently part of `pytest-core`. Examples include
 Celery runtime configuration, import job execution, pipeline deadlines,
@@ -243,8 +217,7 @@ tests do not require the full Legato/Paddle runtime.
 Do not add ruff, mypy, pytest, or pre-commit to runtime requirements only to
 make local checks work. Add quality-only tools to
 `backend/requirements/quality-tools.txt`, then reference them through
-`backend/requirements/quality-core.txt` or
-`backend/requirements/quality-practice.txt`.
+`backend/requirements/quality-core.txt`.
 
 ## Backend Dependency Files
 
@@ -265,20 +238,8 @@ service images:
 | `fingering.txt` | API fingering generation, kept in API for now |
 | `render.txt` | Verovio score rendering |
 | `ocr.txt` | PaddleOCR package only |
-| `practice-runtime.txt` | realtime alignment dependencies installed by `Dockerfile.practice-deps` |
-| `practice-runtime-constraints.txt` | locked transitive dependency set for practice alignment |
 | `worker-app.txt` | worker dependencies that must install before PaddleOCR |
-| `practice-app.txt` | practice service dependencies excluding Cython extension source |
 | `quality-core.txt` | generic backend quality dependencies |
-| `quality-practice.txt` | aggregate practice quality reference |
-
-`base.txt` remains only as a compatibility aggregate. New Dockerfiles and
-service requirements should prefer explicit capability files.
 
 The long-lived ownership rules live in
 [`docs/architecture/runtime/runtime-dependency-ownership.md`](../../architecture/runtime/runtime-dependency-ownership.md).
-
-When `practice-runtime.txt` changes, rebuild `practice-deps` and rerun practice
-tests. If pip resolves new versions for `librosa`, `partitura`, `parangonar`,
-`numba`, `scipy`, or related audio-science packages, update
-`practice-runtime-constraints.txt` in the same change.

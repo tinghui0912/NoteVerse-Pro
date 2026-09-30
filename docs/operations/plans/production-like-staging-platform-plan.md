@@ -43,7 +43,7 @@ DNS
   -> Gateway API
   -> Envoy Gateway
   -> HTTPRoute
-  -> frontend / backend-api / backend-practice
+  -> frontend / backend-api
 ```
 
 ### D2. Minikube equals staging
@@ -95,7 +95,6 @@ Tasks:
 - use Gateway API routing resources in the production overlay;
 - route `/` to `noteverse-customer-web`;
 - route `/api/v1/*` to `noteverse-backend-api`;
-- route practice realtime/WebSocket paths to `noteverse-backend-practice`;
 - update `scripts/render_k8s_release_overlay.py` to render host and TLS values
   into Gateway/HTTPRoute resources;
 - delete the old entrypoint platform manifests;

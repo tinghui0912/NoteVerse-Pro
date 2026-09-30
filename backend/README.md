@@ -109,8 +109,8 @@ Dependency files are split by purpose:
 - `requirements/fingering.txt`: API fingering generation, kept in API for now.
 - `requirements/render.txt`, `ocr.txt`, `worker-app.txt`, `worker.txt`:
   worker processing capabilities.
-- `requirements/quality-tools.txt`, `quality-core.txt`,
-  `quality-practice.txt`: Docker quality-check dependencies.
+- `requirements/quality-tools.txt`, `quality-core.txt`: Docker quality-check
+  dependencies.
 
 Runtime images do not install development or quality tools by default. The
 supported quality path is the dedicated Docker quality image, not installing

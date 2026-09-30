@@ -38,7 +38,6 @@ Current repository workflows:
 - `.github/workflows/backend-quality.yml`
 - `.github/workflows/backend-api-image.yml`
 - `.github/workflows/backend-beat-image.yml`
-- `.github/workflows/backend-practice-image.yml`
 - `.github/workflows/backend-worker-image.yml`
 - `.github/workflows/customer-web-image.yml`
 - `.github/workflows/customer-web-quality.yml`
@@ -337,8 +336,7 @@ Implemented:
 Implemented:
 
 - `.github/workflows/backend-api-image.yml`,
-  `.github/workflows/backend-beat-image.yml`,
-  `.github/workflows/backend-practice-image.yml`, and
+  `.github/workflows/backend-beat-image.yml`, and
   `.github/workflows/customer-web-image.yml` build runtime images only for their
   relevant path scopes;
 - those workflows push immutable GHCR images on `main` pushes and manual runs;
