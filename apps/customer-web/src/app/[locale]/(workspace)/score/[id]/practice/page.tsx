@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useScoreDetail } from '@/hooks/queries/use-score-queries';
 import { usePracticeReadyScoreContent } from '@/hooks/practice/use-practice-ready-score-content';
 import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-artifact';
@@ -91,6 +91,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const common = useTranslations('common');
   const errors = useTranslations('errors');
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   // Mode and settings
@@ -117,8 +118,17 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const scoreQuery = useScoreDetail(id);
   const scoreCapabilities = scoreQuery.data?.data?.capabilities;
   const canEnterPractice = scoreCapabilities?.can_practice !== false;
-  const selectedRevisionId =
-    searchParams.get('practiceRevisionId') ?? scoreQuery.data?.data?.head_revision_id ?? undefined;
+  const requestedRevisionId = searchParams.get('practiceRevisionId');
+  const headRevisionId = scoreQuery.data?.data?.head_revision_id ?? null;
+  useEffect(() => {
+    if (requestedRevisionId || !headRevisionId) {
+      return;
+    }
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set('practiceRevisionId', headRevisionId);
+    router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+  }, [headRevisionId, pathname, requestedRevisionId, router, searchParams]);
+  const selectedRevisionId = requestedRevisionId ?? headRevisionId ?? undefined;
 
   const revisionQuery = usePracticeReadyScoreContent(
     id,
