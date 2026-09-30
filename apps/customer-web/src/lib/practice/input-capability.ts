@@ -1,5 +1,10 @@
 import type { PracticeInputSource } from './local-core/artifact';
 
+type WindowWithWebKitAudioContext = Window & {
+  AudioContext?: typeof AudioContext;
+  webkitAudioContext?: typeof AudioContext;
+};
+
 export type PracticeMicrophoneStatus =
   | 'READY'
   | 'BROWSER_UNSUPPORTED'
@@ -52,8 +57,9 @@ export function evaluatePracticeInputCapabilities(
   }
 
   // Evaluate Microphone
+  const audioWindow = window as WindowWithWebKitAudioContext;
   const hasAudioContext =
-    typeof (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext) !==
+    typeof (audioWindow.AudioContext || audioWindow.webkitAudioContext) !==
     'undefined';
   const hasAudioWorklet = typeof AudioWorkletNode !== 'undefined';
   const hasGetUserMedia =

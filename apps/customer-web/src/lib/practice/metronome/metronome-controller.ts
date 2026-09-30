@@ -13,6 +13,11 @@ import {
   MetronomePulsePlanner,
 } from './metronome-pulse-planner';
 
+type WindowWithWebKitAudioContext = Window & {
+  AudioContext?: typeof AudioContext;
+  webkitAudioContext?: typeof AudioContext;
+};
+
 export type MetronomeMode = 'CONTINUOUS' | 'STEP';
 
 export interface MetronomeControllerOptions {
@@ -429,9 +434,12 @@ export class MetronomeController {
     }
 
     try {
+      const audioWindow = typeof window !== 'undefined'
+        ? window as WindowWithWebKitAudioContext
+        : null;
       const AudioContextClass =
-        typeof window !== 'undefined'
-          ? window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+        audioWindow
+          ? audioWindow.AudioContext || audioWindow.webkitAudioContext
           : null;
 
       if (!AudioContextClass) {
@@ -439,9 +447,10 @@ export class MetronomeController {
         return;
       }
 
-      this.audioContext = new AudioContextClass();
-      if (this.audioContext.state === 'suspended') {
-        this.audioContext.resume().catch(() => {});
+      const audioContext = new AudioContextClass();
+      this.audioContext = audioContext;
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(() => {});
       }
     } catch {
       this.audioAvailable = false;
