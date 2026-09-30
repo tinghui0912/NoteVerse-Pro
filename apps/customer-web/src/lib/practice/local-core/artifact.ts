@@ -1,111 +1,31 @@
+import type {
+  PracticeScoreArtifactRead,
+  PracticeScoreAttackStepRead,
+  PracticeScoreAttackTargetRead,
+  PracticeScoreEventRead,
+  PracticeScoreExpectedGroupRead,
+  PracticeScoreExpectedNoteRead,
+  PracticeScoreExpectedStrikeTargetRead,
+  PracticeScoreMeterSegmentRead,
+  PracticeScoreStepNoteRead,
+  PracticeScoreTempoSegmentRead,
+} from '@/generated/api/types.gen';
+
 export const PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1 as const;
 
 export type PracticeMode = 'STEP_BY_STEP' | 'CONTINUOUS_PLAY';
 export type PracticeInputSource = 'MICROPHONE' | 'MIDI';
 
-export type PracticeScoreArtifact = {
-  schemaVersion: typeof PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION;
-  scoreId: string;
-  revisionId: string;
-  artifactId: string;
-  playableEvents: PracticeScoreEvent[];
-  expectedPracticeGroups: ExpectedPracticeGroup[];
-  practiceAttackSteps: PracticeAttackStep[];
-  meterSegments: MeterSegment[];
-  scoreTempoSegments: TempoSegment[];
-  firstPlayableBeat: number | null;
-  scoreEndBeat: number;
-};
-
-export type PracticeScoreEvent = {
-  eventId: string;
-  onsetBeat: number;
-  durationBeats: number;
-  pitches: string[];
-  renderNoteIds: string[];
-  measureNumbers: string[];
-  staffIds: string[];
-  voiceIds: string[];
-  tieTypes: string[];
-  playable: boolean;
-  entryCandidate: boolean;
-};
-
-export type ExpectedPracticeGroup = {
-  groupId: string;
-  onsetBeat: number;
-  eventIds: string[];
-  expectedNotes: ExpectedPracticeNote[];
-  strikeTargets: ExpectedPracticeStrikeTarget[];
-  renderNoteIds: string[];
-  pitches: string[];
-  measureNumbers: string[];
-  staffIds: string[];
-  voiceIds: string[];
-  canonicalEndBeat: number;
-};
-
-export type ExpectedPracticeNote = {
-  expectedNoteId: string;
-  eventId: string;
-  pitch: string;
-  renderNoteId: string;
-  measureNumbers: string[];
-};
-
-export type ExpectedPracticeStrikeTarget = {
-  strikeId: string;
-  pitch: string;
-  expectedNotes: ExpectedPracticeNote[];
-  eventIds: string[];
-  renderNoteIds: string[];
-  measureNumbers: string[];
-};
-
-export type PracticeStepNote = {
-  stepNoteId: string;
-  eventId: string;
-  pitch: string;
-  renderNoteId: string;
-  measureNumbers: string[];
-  staffIds: string[];
-  voiceIds: string[];
-};
-
-export type PracticeAttackTarget = {
-  attackId: string;
-  pitch: string;
-  notes: PracticeStepNote[];
-  eventIds: string[];
-  renderNoteIds: string[];
-  measureNumbers: string[];
-};
-
-export type PracticeAttackStep = {
-  stepId: string;
-  onsetBeat: number;
-  eventIds: string[];
-  attackTargets: PracticeAttackTarget[];
-  continuation: PracticeStepNote[];
-  renderNoteIds: string[];
-  measureNumbers: string[];
-  staffIds: string[];
-  voiceIds: string[];
-};
-
-export type MeterSegment = {
-  startBeat: number;
-  numerator: number;
-  denominator: number;
-  measureDurationBeats: number;
-  countInPulses: number;
-  source?: 'MUSICXML' | 'DEFAULT_4_4';
-};
-
-export type TempoSegment = {
-  startBeat: number;
-  bpm: number;
-};
+export type PracticeScoreArtifact = PracticeScoreArtifactRead;
+export type PracticeScoreEvent = PracticeScoreEventRead;
+export type ExpectedPracticeGroup = PracticeScoreExpectedGroupRead;
+export type ExpectedPracticeNote = PracticeScoreExpectedNoteRead;
+export type ExpectedPracticeStrikeTarget = PracticeScoreExpectedStrikeTargetRead;
+export type PracticeStepNote = PracticeScoreStepNoteRead;
+export type PracticeAttackTarget = PracticeScoreAttackTargetRead;
+export type PracticeAttackStep = PracticeScoreAttackStepRead;
+export type MeterSegment = PracticeScoreMeterSegmentRead;
+export type TempoSegment = PracticeScoreTempoSegmentRead;
 
 export type PracticeScope =
   | { kind: 'FULL' }

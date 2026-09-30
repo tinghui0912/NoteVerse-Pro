@@ -46,6 +46,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
         denominator: 4,
         measureDurationBeats: 4,
         countInPulses: 4,
+          source: 'MUSICXML',
       };
       const meter34: MeterSegment = {
         startBeat: 0,
@@ -53,6 +54,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
         denominator: 4,
         measureDurationBeats: 3,
         countInPulses: 3,
+          source: 'MUSICXML',
       };
       const meter68: MeterSegment = {
         startBeat: 0,
@@ -60,6 +62,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
         denominator: 8,
         measureDurationBeats: 3,
         countInPulses: 6,
+          source: 'MUSICXML',
       };
       const meter22: MeterSegment = {
         startBeat: 0,
@@ -67,6 +70,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
         denominator: 2,
         measureDurationBeats: 4,
         countInPulses: 2,
+          source: 'MUSICXML',
       };
 
       // 4 / denominator
@@ -83,6 +87,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
         denominator: 8,
         measureDurationBeats: 3.0,
         countInPulses: 6,
+          source: 'MUSICXML',
       };
 
       // Measure 1: beats 0.0 to 2.5
@@ -114,6 +119,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
             denominator: 8,
             measureDurationBeats: 3.0,
             countInPulses: 6,
+          source: 'MUSICXML',
           },
         ],
       });
@@ -158,6 +164,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
             denominator: 4,
             measureDurationBeats: 4.0,
             countInPulses: 4,
+          source: 'MUSICXML',
           },
         ],
       });
@@ -231,6 +238,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
             denominator: 4,
             measureDurationBeats: 4.0,
             countInPulses: 4,
+          source: 'MUSICXML',
           },
           {
             startBeat: 12.0,
@@ -238,6 +246,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
             denominator: 8,
             measureDurationBeats: 3.0,
             countInPulses: 6,
+          source: 'MUSICXML',
           },
         ],
       });
@@ -356,6 +365,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
             denominator: 8,
             measureDurationBeats: 3.0,
             countInPulses: 6,
+          source: 'MUSICXML',
           },
         ],
       });
@@ -490,6 +500,7 @@ describe('MetronomePulsePlanner - Unit and Phase Tests', () => {
             denominator: 8,
             measureDurationBeats: 3.0,
             countInPulses: 6,
+          source: 'MUSICXML',
           },
         ],
       });

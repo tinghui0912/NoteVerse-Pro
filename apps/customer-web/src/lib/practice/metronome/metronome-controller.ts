@@ -80,6 +80,7 @@ export class MetronomeController {
           denominator: 4,
           measureDurationBeats: 4,
           countInPulses: 4,
+          source: 'DEFAULT_4_4',
         },
       ];
       this.meterSegments = meterSegments;

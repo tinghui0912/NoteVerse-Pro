@@ -446,7 +446,7 @@ export default function PracticeReviewPage({
     try {
       await saveMutation.mutateAsync({
         scoreId: id,
-        revisionId: draft.revisionId ?? null,
+        revisionId: draft.revisionId,
         scopeType,
         artifactId: draft.artifactId,
         clientRequestId: clientRequestIdRef.current ?? '',

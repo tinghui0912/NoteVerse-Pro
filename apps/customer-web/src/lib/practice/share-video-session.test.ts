@@ -5,6 +5,7 @@ import {
   parseSavedRecordingTimebase,
   parseSavedTempoPlan,
 } from './share-video-session';
+import type { PracticeScoreArtifact } from './local-core/artifact';
 import type {
   PerformanceTakeRead,
   PerformanceTakeEvaluation,
@@ -46,7 +47,7 @@ const take: PerformanceTakeRead = {
   created_at: '2026-09-26T00:00:00.000Z',
 };
 
-const artifact = {
+const artifact: PracticeScoreArtifact = {
   schemaVersion: 1 as const,
   scoreId: 'score-1',
   revisionId: 'revision-1',
@@ -59,6 +60,7 @@ const artifact = {
     denominator: 4,
     measureDurationBeats: 4,
     countInPulses: 0,
+    source: 'MUSICXML',
   }],
   firstPlayableBeat: 0,
   scoreEndBeat: 16,

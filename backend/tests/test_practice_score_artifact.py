@@ -326,6 +326,7 @@ def test_practice_score_artifact_read_schema_version_locked_to_1() -> None:
         "scoreId": "s-1",
         "revisionId": "r-1",
         "artifactId": "practice-score-artifact:abc",
+        "firstPlayableBeat": None,
         "scoreEndBeat": 10.0,
         "scoreTempoSegments": [],
         "meterSegments": [],
@@ -345,4 +346,3 @@ def test_practice_score_artifact_read_schema_version_locked_to_1() -> None:
     # schemaVersion 3 must be rejected
     with pytest.raises(ValidationError):
         PracticeScoreArtifactRead.model_validate({**base_payload, "schemaVersion": 3})
-

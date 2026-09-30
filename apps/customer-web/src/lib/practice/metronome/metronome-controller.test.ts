@@ -88,6 +88,7 @@ describe('MetronomeController', () => {
       denominator: 4,
       measureDurationBeats: 4,
       countInPulses: 4,
+          source: 'MUSICXML',
     },
   ];
 
@@ -143,6 +144,7 @@ describe('MetronomeController', () => {
         denominator: 4,
         measureDurationBeats: 3,
         countInPulses: 3,
+          source: 'MUSICXML',
       },
     ];
     const { ctx, scheduledClicks } = createMockAudioContext();
