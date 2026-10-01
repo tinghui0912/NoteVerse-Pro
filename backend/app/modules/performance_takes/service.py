@@ -10,7 +10,7 @@ from time import monotonic
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import DBAPIError, InterfaceError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +29,10 @@ from app.db.models.performance_take import (
     PerformanceTakeMediaKind,
 )
 from app.db.models.practice_source_snapshot import PracticeSourceSnapshot
+from app.db.models.practice_source_snapshot_delete_outbox import (
+    PracticeSourceSnapshotDeleteOutbox,
+    PracticeSourceSnapshotDeleteOutboxStatus,
+)
 from app.db.models.performance_take_delete_outbox import (
     PerformanceTakeDeleteOutbox,
     PerformanceTakeDeleteOutboxStatus,
@@ -78,6 +82,11 @@ TAKE_UPLOAD_AUTHORIZATION_SECONDS = 3600
 TAKE_FINALIZING_LEASE_SECONDS = 15 * 60
 TAKE_FINALIZING_UNKNOWN_OUTCOME_GRACE_SECONDS = TAKE_FINALIZING_LEASE_SECONDS * 2
 logger = logging.getLogger(__name__)
+TERMINAL_UPLOAD_AUTHORIZATION_STATUSES = {
+    PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
+    PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
+    PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
+}
 
 
 def _status_value(status: object) -> str:
@@ -447,10 +456,14 @@ class PerformanceTakeService:
         take: PerformanceTake,
         auth: PerformanceTakeUploadAuthorization,
     ) -> bool:
+        snapshot_matches = (
+            auth.source_snapshot_id is None
+            or take.source_snapshot_id == auth.source_snapshot_id
+        )
         return (
             take.take_uuid == auth.take_uuid
             and take.user_id == auth.user_id
-            and take.source_snapshot_id == auth.source_snapshot_id
+            and snapshot_matches
             and take.client_request_id == auth.client_request_id
             and _media_kind_value(take.media_kind) == auth.media_kind
             and take.media_mime_type == auth.media_mime_type
@@ -576,6 +589,59 @@ class PerformanceTakeService:
             raise
         return snapshot
 
+    async def _enqueue_snapshot_delete_if_unreferenced(
+        self,
+        db: AsyncSession,
+        snapshot_id: int | None,
+    ) -> None:
+        if snapshot_id is None or self.storage is None:
+            return
+        snapshot = await db.get(PracticeSourceSnapshot, snapshot_id)
+        if snapshot is None:
+            return
+        take_refs = (
+            await db.execute(
+                select(func.count(PerformanceTake.id)).where(
+                    PerformanceTake.source_snapshot_id == snapshot_id
+                )
+            )
+        ).scalar_one()
+        auth_refs = (
+            await db.execute(
+                select(func.count(PerformanceTakeUploadAuthorization.id)).where(
+                    PerformanceTakeUploadAuthorization.source_snapshot_id == snapshot_id,
+                    PerformanceTakeUploadAuthorization.status.notin_(
+                        list(TERMINAL_UPLOAD_AUTHORIZATION_STATUSES)
+                    ),
+                )
+            )
+        ).scalar_one()
+        if int(take_refs) + int(auth_refs) > 0:
+            return
+        existing = (
+            await db.execute(
+                select(PracticeSourceSnapshotDeleteOutbox).where(
+                    PracticeSourceSnapshotDeleteOutbox.snapshot_uuid
+                    == snapshot.snapshot_uuid,
+                    PracticeSourceSnapshotDeleteOutbox.status
+                    != PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED.value,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            return
+        db.add(
+            PracticeSourceSnapshotDeleteOutbox(
+                source_snapshot_id=snapshot.id,
+                snapshot_uuid=snapshot.snapshot_uuid,
+                storage_backend=self.storage.backend_name,
+                prepared_musicxml_object_key=snapshot.prepared_musicxml_object_key,
+                artifact_object_key=snapshot.artifact_object_key,
+                status=PracticeSourceSnapshotDeleteOutboxStatus.PENDING.value,
+                max_attempts=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS,
+            )
+        )
+
     async def _ensure_finalize_copy_lease(
         self,
         db: AsyncSession,
@@ -700,7 +766,9 @@ class PerformanceTakeService:
         auth: PerformanceTakeUploadAuthorization,
     ) -> str:
         now = utc_now_naive()
+        source_snapshot_id = auth.source_snapshot_id
         auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED.value
+        auth.source_snapshot_id = None
         auth.staging_cleanup_after = _max_datetime(
             auth.staging_cleanup_after,
             auth.last_put_url_expires_at,
@@ -710,6 +778,7 @@ class PerformanceTakeService:
         await self.storage_usage_service.release_reservation(
             db, auth.reservation_id, auto_commit=False
         )
+        await self._enqueue_snapshot_delete_if_unreferenced(db, source_snapshot_id)
         await db.commit()
         return auth.staging_object_key
 
@@ -973,7 +1042,9 @@ class PerformanceTakeService:
         staging_key: str | None = None
         if auth is not None and _status_value(auth.status) == PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value:
             now = utc_now_naive()
+            source_snapshot_id = auth.source_snapshot_id
             auth.status = PerformanceTakeUploadAuthorizationStatus.CANCELLED.value
+            auth.source_snapshot_id = None
             auth.staging_cleanup_after = _max_datetime(
                 auth.staging_cleanup_after,
                 auth.last_put_url_expires_at,
@@ -984,6 +1055,7 @@ class PerformanceTakeService:
             await self.storage_usage_service.release_reservation(
                 db, reservation_id, auto_commit=False
             )
+            await self._enqueue_snapshot_delete_if_unreferenced(db, source_snapshot_id)
             await db.commit()
         if (
             staging_key is not None
@@ -1168,7 +1240,9 @@ class PerformanceTakeService:
                 and _status_value(auth.status) == PerformanceTakeUploadAuthorizationStatus.FINALIZING.value
                 and auth.finalizing_token == finalizing_token
             ):
+                source_snapshot_id = auth.source_snapshot_id
                 auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED.value
+                auth.source_snapshot_id = None
                 auth.finalizing_token = None
                 auth.finalizing_expires_at = None
                 if auth.finalizing_object_key:
@@ -1188,6 +1262,9 @@ class PerformanceTakeService:
                     db,
                     auth.reservation_id,
                     auto_commit=False,
+                )
+                await self._enqueue_snapshot_delete_if_unreferenced(
+                    db, source_snapshot_id
                 )
             await db.commit()
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="authorization_expired")
@@ -1294,8 +1371,23 @@ class PerformanceTakeService:
         # consumes that pinned snapshot and must not require live Score access:
         # owner deletion, member removal, or grant expiry after authorization do
         # not invalidate this already-authorized save.
+        async def load_pinned_source_and_live_score() -> tuple[
+            PracticeSourceSnapshot | None,
+            Score | None,
+        ]:
+            pinned_snapshot = await db.get(
+                PracticeSourceSnapshot,
+                auth_snapshot["source_snapshot_id"],
+            )
+            linked_score = (
+                await db.get(Score, auth_snapshot["score_id"])
+                if auth_snapshot["score_id"]
+                else None
+            )
+            return pinned_snapshot, linked_score
+
         try:
-            snapshot = await db.get(PracticeSourceSnapshot, auth_snapshot["source_snapshot_id"])
+            snapshot, score = await load_pinned_source_and_live_score()
         except Exception as error:
             if not _is_transient_db_disconnect(error):
                 raise
@@ -1312,7 +1404,7 @@ class PerformanceTakeService:
                 "performance_take.finalize.db_reconnect_retry",
                 extra={"take_uuid": request.take_id, "stage": "db_finalize_started"},
             )
-            snapshot = await db.get(PracticeSourceSnapshot, auth_snapshot["source_snapshot_id"])
+            snapshot, score = await load_pinned_source_and_live_score()
         log_stage("db_finalize_started", started_at=finalize_started)
         if snapshot is None:
             await self._record_failed_candidate_final(
@@ -1324,11 +1416,6 @@ class PerformanceTakeService:
             await self._delete_candidate_final_async(candidate_key)
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
 
-        score = (
-            await db.get(Score, auth_snapshot["score_id"])
-            if auth_snapshot["score_id"]
-            else None
-        )
         can_open_score = await self._can_open_score(db, user_id, score)
         score_db_id: int | None = score.id if score is not None else None
         score_title_out = auth_snapshot["score_title"]
@@ -1378,12 +1465,14 @@ class PerformanceTakeService:
             )
         if auth.expires_at < utc_now_naive():
             await self._delete_candidate_final_async(candidate_key)
+            source_snapshot_id = auth.source_snapshot_id
             auth.orphan_final_object_keys = _append_orphan_final_key(
                 auth.orphan_final_object_keys,
                 candidate_key,
                 unknown_outcome=False,
             )
             auth.status = PerformanceTakeUploadAuthorizationStatus.EXPIRED.value
+            auth.source_snapshot_id = None
             auth.finalizing_token = None
             auth.finalizing_expires_at = None
             auth.finalizing_object_key = None
@@ -1398,6 +1487,7 @@ class PerformanceTakeService:
                 auth.reservation_id,
                 auto_commit=False,
             )
+            await self._enqueue_snapshot_delete_if_unreferenced(db, source_snapshot_id)
             await db.commit()
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="authorization_expired")
 
@@ -1426,6 +1516,7 @@ class PerformanceTakeService:
         )
         created = await self.repository.create_take(db, take, auto_commit=False)
         auth.status = PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value
+        auth.source_snapshot_id = None
         auth.finalizing_token = None
         auth.finalizing_expires_at = None
         auth.finalizing_object_key = None

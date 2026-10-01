@@ -59,12 +59,13 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
             nullable=False,
         )
     )
-    source_snapshot_id: int = Field(
+    source_snapshot_id: Optional[int] = Field(
+        default=None,
         sa_column=Column(
             bigint_pk_type,
             ForeignKey("practice_source_snapshots.id", ondelete="RESTRICT"),
             index=True,
-            nullable=False,
+            nullable=True,
         ),
     )
     client_request_id: str = Field(

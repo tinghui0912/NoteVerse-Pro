@@ -20,6 +20,9 @@ from app.modules.async_operations.delivery_policy import (
     delivery_lease_expired,
     exponential_retry_delay_seconds,
 )
+from app.modules.performance_takes.source_snapshot_delete_service import (
+    practice_source_snapshot_delete_service,
+)
 from app.modules.storage_usage.service import StorageUsageService
 from app.storage.base import FileStorage
 from app.utils.timezone import utc_now_naive
@@ -546,6 +549,25 @@ class PerformanceTakeDeleteOutboxService:
                 )
             ).first()
         )
+
+        if (
+            _status_value(auth.status)
+            in {
+                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
+                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
+                PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
+            }
+            and auth.source_snapshot_id is not None
+        ):
+            source_snapshot_id = auth.source_snapshot_id
+            auth.source_snapshot_id = None
+            auth.updated_at = now
+            practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+                db,
+                source_snapshot_id,
+                storage_backend=auth.storage_backend,
+            )
+            cleaned_auth = True
 
         return (
             AuthorizationCleanupTarget(

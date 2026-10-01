@@ -65,6 +65,45 @@ def upgrade() -> None:
             ["source_score_uuid", "source_revision_uuid"],
         )
 
+    if not _has_table("practice_source_snapshot_delete_outbox"):
+        op.create_table(
+            "practice_source_snapshot_delete_outbox",
+            sa.Column("id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), primary_key=True, autoincrement=True),
+            sa.Column("outbox_uuid", sa.String(length=36), nullable=False),
+            sa.Column("source_snapshot_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=True),
+            sa.Column("snapshot_uuid", sa.String(length=36), nullable=False),
+            sa.Column("storage_backend", sa.String(length=32), nullable=False),
+            sa.Column("prepared_musicxml_object_key", sa.String(length=768), nullable=False),
+            sa.Column("artifact_object_key", sa.String(length=768), nullable=False),
+            sa.Column("status", sa.String(length=24), nullable=False, server_default="PENDING"),
+            sa.Column("attempt_count", sa.Integer(), nullable=False, server_default="0"),
+            sa.Column("max_attempts", sa.Integer(), nullable=False, server_default="5"),
+            sa.Column("next_attempt_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+            sa.Column("started_at", sa.DateTime(), nullable=True),
+            sa.Column("dispatched_at", sa.DateTime(), nullable=True),
+            sa.Column("completed_at", sa.DateTime(), nullable=True),
+            sa.Column("last_error", sa.Text(), nullable=True),
+            sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+            sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+            sa.ForeignKeyConstraint(
+                ["source_snapshot_id"],
+                ["practice_source_snapshots.id"],
+                name="fk_source_snapshot_delete_outbox_snapshot_id",
+                ondelete="SET NULL",
+            ),
+            sa.UniqueConstraint("outbox_uuid", name="uq_source_snapshot_delete_outbox_uuid"),
+        )
+        op.create_index(
+            "ix_source_snapshot_delete_status_next",
+            "practice_source_snapshot_delete_outbox",
+            ["status", "next_attempt_at"],
+        )
+        op.create_index(
+            "ix_source_snapshot_delete_snapshot_uuid",
+            "practice_source_snapshot_delete_outbox",
+            ["snapshot_uuid"],
+        )
+
     if _has_table("performance_take_delete_outbox"):
         op.execute(sa.text("DELETE FROM performance_take_delete_outbox"))
     if _has_table("performance_take_upload_authorizations"):
@@ -149,7 +188,7 @@ def upgrade() -> None:
         with op.batch_alter_table("performance_take_upload_authorizations") as batch_op:
             batch_op.alter_column("score_id", existing_type=sa.BigInteger(), nullable=True)
             batch_op.alter_column("revision_id", existing_type=sa.BigInteger(), nullable=True)
-            batch_op.alter_column("source_snapshot_id", existing_type=sa.BigInteger(), nullable=False)
+            batch_op.alter_column("source_snapshot_id", existing_type=sa.BigInteger(), nullable=True)
             batch_op.alter_column(
                 "score_title",
                 existing_type=sa.String(length=255),

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import enum
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
@@ -17,14 +17,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, SQLModel
 
 from app.utils.timezone import utc_now_naive
-
-if TYPE_CHECKING:
-    from .user import User
-    from .score import Score
-    from .practice_source_snapshot import PracticeSourceSnapshot
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 

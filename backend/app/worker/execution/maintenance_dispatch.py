@@ -10,6 +10,9 @@ from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.performance_takes.delete_outbox_service import (
     performance_take_delete_outbox_service,
 )
+from app.modules.performance_takes.source_snapshot_delete_service import (
+    practice_source_snapshot_delete_service,
+)
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.score_assets.render_outbox_service import render_outbox_service
 from app.modules.storage_usage.service import storage_usage_service
@@ -85,6 +88,7 @@ def execute_performance_take_deletion_maintenance() -> dict[str, int]:
     def scan() -> dict[str, int]:
         with get_worker_db() as db:
             due = performance_take_delete_outbox_service.recover_and_list_due(db)
+            snapshot_due = practice_source_snapshot_delete_service.recover_and_list_due(db)
         cleanup_errors = 0
         try:
             with get_worker_db() as db:
@@ -100,15 +104,25 @@ def execute_performance_take_deletion_maintenance() -> dict[str, int]:
         from app.worker.dispatch.performance_take_deletion import (
             dispatch_performance_take_deletion,
         )
+        from app.worker.dispatch.practice_source_snapshot_deletion import (
+            dispatch_practice_source_snapshot_deletion,
+        )
 
         dispatched = sum(
             1
             for outbox_uuid in due
             if dispatch_performance_take_deletion(outbox_uuid)
         )
+        snapshot_dispatched = sum(
+            1
+            for outbox_uuid in snapshot_due
+            if dispatch_practice_source_snapshot_deletion(outbox_uuid)
+        )
         return {
             "due": len(due),
             "dispatched": dispatched,
+            "snapshot_due": len(snapshot_due),
+            "snapshot_dispatched": snapshot_dispatched,
             "cleaned_authorizations": cleaned,
             "cleanup_errors": cleanup_errors,
         }

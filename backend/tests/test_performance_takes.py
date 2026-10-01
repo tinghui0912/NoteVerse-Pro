@@ -4,6 +4,7 @@ import asyncio
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import hashlib
 import json
 import os
 from collections.abc import Iterator
@@ -28,6 +29,8 @@ from app.db.models import (
     PerformanceTakeUploadAuthorization,
     PerformanceTakeUploadAuthorizationStatus,
     PracticeSourceSnapshot,
+    PracticeSourceSnapshotDeleteOutbox,
+    PracticeSourceSnapshotDeleteOutboxStatus,
     Score,
     ScoreRevision,
     StorageQuotaPolicy,
@@ -41,6 +44,9 @@ from app.main import app
 from app.modules.performance_takes.delete_outbox_service import (
     performance_take_delete_outbox_service,
 )
+from app.modules.performance_takes.source_snapshot_delete_service import (
+    practice_source_snapshot_delete_service,
+)
 from app.modules.performance_takes.dependencies import (
     get_performance_take_service,
 )
@@ -50,7 +56,6 @@ from app.modules.practice.source_schemas import (
     PracticeReadyScoreContentRead,
     PracticeScoreArtifactRead,
 )
-from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.scores.dependencies import get_score_service
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.modules.scores.service import ScoreService
@@ -59,7 +64,7 @@ from app.modules.storage_usage.service import StorageUsageService
 from app.storage.base import DirectUploadTarget
 from app.storage.factory import get_file_storage
 from app.storage.local import LocalFileStorage
-from app.worker.execution import performance_take_deletion
+from app.worker.execution import performance_take_deletion, practice_source_snapshot_deletion
 
 VALID_WEBM_BYTES = b"\x1a\x45\xdf\xa3" + b"fake-webm-audio-binary-data-12345"
 DEFAULT_TAKE_REVISION_ID = "revision-uuid-100"
@@ -236,6 +241,7 @@ def test_performance_take_schema_accepts_product_default_tempo_source() -> None:
         scope_start_beat=0,
         scope_terminal_beat=16,
         revision_id=DEFAULT_TAKE_REVISION_ID,
+        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
         tempo_plan={
             "selection": {"mode": "SCORE"},
             "segments": [{"startBeat": 0, "bpm": 80, "source": "PRODUCT_DEFAULT"}],
@@ -296,12 +302,26 @@ class AsyncSessionAdapter:
     def add(self, instance) -> None:  # type: ignore[no-untyped-def]
         self.session.add(instance)
 
+    def begin_nested(self):  # type: ignore[no-untyped-def]
+        transaction = self.session.begin_nested()
+
+        class _NestedTransaction:
+            async def __aenter__(self):  # type: ignore[no-untyped-def]
+                transaction.__enter__()
+                return transaction
+
+            async def __aexit__(self, exc_type, exc, tb):  # type: ignore[no-untyped-def]
+                return transaction.__exit__(exc_type, exc, tb)
+
+        return _NestedTransaction()
+
 
 def _complete_take_request_payload(payload: object) -> object:
     """Fill the shared valid context for focused lifecycle fixtures."""
     if not isinstance(payload, dict) or "score_id" not in payload:
         return payload
     completed = dict(payload)
+    completed.setdefault("scope_type", "FULL")
     completed.setdefault("revision_id", DEFAULT_TAKE_REVISION_ID)
     completed.setdefault("artifact_id", DEFAULT_TAKE_ARTIFACT_ID)
     completed.setdefault("tempo_plan", DEFAULT_TAKE_TEMPO_PLAN)
@@ -349,6 +369,28 @@ def _run_worker_deletion(
         performance_take_deletion, "start_attempt_trace", lambda **_kwargs: _TraceScope()
     )
     return performance_take_deletion.execute_performance_take_deletion_task(None, outbox_uuid)
+
+
+def _run_snapshot_deletion(
+    monkeypatch: pytest.MonkeyPatch,
+    session: Session,
+    storage: LocalFileStorage,
+    outbox_uuid: str,
+) -> dict[str, str]:
+    monkeypatch.setattr(
+        practice_source_snapshot_deletion,
+        "get_worker_db",
+        lambda: _mock_worker_db(session),
+    )
+    monkeypatch.setattr(practice_source_snapshot_deletion, "file_storage", storage)
+    monkeypatch.setattr(
+        practice_source_snapshot_deletion,
+        "start_attempt_trace",
+        lambda **_kwargs: _TraceScope(),
+    )
+    return practice_source_snapshot_deletion.execute_practice_source_snapshot_deletion_task(
+        None, outbox_uuid
+    )
 
 
 @pytest.fixture
@@ -804,8 +846,13 @@ def test_score_access_and_validation(test_env):
             "media_byte_size": 1024,
             "media_mime_type": "video/mp4",
             "duration_ms": 5000,
+            "scope_type": "FULL",
             "scope_start_beat": 0.0,
             "scope_terminal_beat": 4.0,
+            "revision_id": DEFAULT_TAKE_REVISION_ID,
+            "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
+            "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+            "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
         }
         res = client.post("/api/v1/performance-takes/upload-authorizations", json=req_bad_mime)
         assert res.status_code == 422
@@ -830,8 +877,13 @@ def test_score_access_and_validation(test_env):
             "media_byte_size": 1024,
             "media_mime_type": "audio/webm",
             "duration_ms": 5000,
+            "scope_type": "FULL",
             "scope_start_beat": 0.0,
             "scope_terminal_beat": 4.0,
+            "revision_id": DEFAULT_TAKE_REVISION_ID,
+            "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
+            "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+            "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
         }
         res = client.post("/api/v1/performance-takes/upload-authorizations", json=req_bad_score)
         assert res.status_code == 404
@@ -1267,7 +1319,7 @@ def test_quota_rejection(test_env):
         app.dependency_overrides.clear()
 
 
-def test_cancel_upload_authorization(test_env):
+def test_cancel_upload_authorization(test_env, monkeypatch: pytest.MonkeyPatch):
     session, storage, user_1, user_2 = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
@@ -1293,14 +1345,29 @@ def test_cancel_upload_authorization(test_env):
             "media_byte_size": 5000,
             "media_mime_type": "audio/webm",
             "duration_ms": 5000,
+            "scope_type": "FULL",
             "scope_start_beat": 0.0,
             "scope_terminal_beat": 4.0,
+            "revision_id": DEFAULT_TAKE_REVISION_ID,
+            "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
+            "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+            "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
         }
         res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
         assert res_auth.status_code == 200
         res_id = res_auth.json()["data"]["reservation_id"]
         staging_key = res_auth.json()["data"]["object_key"]
         storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+        auth_before_cancel = session.execute(
+            select(PerformanceTakeUploadAuthorization).where(
+                PerformanceTakeUploadAuthorization.reservation_id == res_id
+            )
+        ).scalar_one()
+        snapshot_id = auth_before_cancel.source_snapshot_id
+        snapshot = session.get(PracticeSourceSnapshot, snapshot_id)
+        assert snapshot is not None
+        musicxml_key = snapshot.prepared_musicxml_object_key
+        artifact_key = snapshot.artifact_object_key
 
         account = session.get(StorageUsageAccount, 1)
         session.refresh(account)
@@ -1320,6 +1387,7 @@ def test_cancel_upload_authorization(test_env):
                 PerformanceTakeUploadAuthorization.reservation_id == res_id
             )
         ).scalar_one()
+        assert auth.source_snapshot_id is None
         auth.last_put_url_expires_at = (
             datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
         )
@@ -1333,6 +1401,21 @@ def test_cancel_upload_authorization(test_env):
         session.commit()
         assert cleaned_count == 1
         assert not storage.exists(staging_key)
+        snapshot_outbox = session.execute(
+            select(PracticeSourceSnapshotDeleteOutbox).where(
+                PracticeSourceSnapshotDeleteOutbox.source_snapshot_id == snapshot_id
+            )
+        ).scalar_one()
+        snapshot_res = _run_snapshot_deletion(
+            monkeypatch,
+            session,
+            storage,
+            snapshot_outbox.outbox_uuid,
+        )
+        assert snapshot_res["status"] == "deleted"
+        assert session.get(PracticeSourceSnapshot, snapshot_id) is None
+        assert not storage.exists(musicxml_key)
+        assert not storage.exists(artifact_key)
 
         # Idempotent cancel via the canonical DELETE route.
         res_cancel_delete_again = client.delete(f"/api/v1/performance-takes/upload-authorizations/{res_id}")
@@ -2016,7 +2099,7 @@ def test_authorize_finalizing_snapshot_retries_without_new_put(test_env):
     assert response.reservation_id == "reservation-finalizing-authorize"
 
 
-def test_crash_abandoned_after_authorization(test_env):
+def test_crash_abandoned_after_authorization(test_env, monkeypatch: pytest.MonkeyPatch):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
@@ -2044,8 +2127,13 @@ def test_crash_abandoned_after_authorization(test_env):
             "media_byte_size": size,
             "media_mime_type": "audio/webm",
             "duration_ms": 5000,
+            "scope_type": "FULL",
             "scope_start_beat": 0.0,
             "scope_terminal_beat": 4.0,
+            "revision_id": DEFAULT_TAKE_REVISION_ID,
+            "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
+            "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+            "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
         }
         res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
         assert res_auth.status_code == 200
@@ -2063,6 +2151,11 @@ def test_crash_abandoned_after_authorization(test_env):
                 PerformanceTakeUploadAuthorization.client_request_id == "req-abandoned-01"
             )
         ).scalar_one()
+        snapshot_id = auth.source_snapshot_id
+        snapshot = session.get(PracticeSourceSnapshot, snapshot_id)
+        assert snapshot is not None
+        musicxml_key = snapshot.prepared_musicxml_object_key
+        artifact_key = snapshot.artifact_object_key
         auth.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
         auth.last_put_url_expires_at = auth.expires_at
         auth.staging_cleanup_after = auth.expires_at
@@ -2084,6 +2177,22 @@ def test_crash_abandoned_after_authorization(test_env):
 
         session.refresh(auth)
         assert auth.status == PerformanceTakeUploadAuthorizationStatus.EXPIRED
+        assert auth.source_snapshot_id is None
+        snapshot_outbox = session.execute(
+            select(PracticeSourceSnapshotDeleteOutbox).where(
+                PracticeSourceSnapshotDeleteOutbox.source_snapshot_id == snapshot_id
+            )
+        ).scalar_one()
+        snapshot_res = _run_snapshot_deletion(
+            monkeypatch,
+            session,
+            storage,
+            snapshot_outbox.outbox_uuid,
+        )
+        assert snapshot_res["status"] == "deleted"
+        assert session.get(PracticeSourceSnapshot, snapshot_id) is None
+        assert not storage.exists(musicxml_key)
+        assert not storage.exists(artifact_key)
 
     finally:
         app.dependency_overrides.clear()
@@ -2393,8 +2502,13 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
             "media_byte_size": size,
             "media_mime_type": "audio/webm",
             "duration_ms": 5000,
+            "scope_type": "FULL",
             "scope_start_beat": 0.0,
             "scope_terminal_beat": 4.0,
+            "revision_id": DEFAULT_TAKE_REVISION_ID,
+            "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
+            "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+            "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
         }
         res_auth = client.post("/api/v1/performance-takes/upload-authorizations", json=auth_req)
         auth_data = res_auth.json()["data"]
@@ -2410,11 +2524,33 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
             "media_byte_size": size,
             "media_mime_type": "audio/webm",
             "duration_ms": 5000,
+            "scope_type": "FULL",
             "scope_start_beat": 0.0,
             "scope_terminal_beat": 4.0,
+            "revision_id": DEFAULT_TAKE_REVISION_ID,
+            "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
+            "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+            "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
         }
         res_fin = client.post("/api/v1/performance-takes", json=fin_req)
         assert res_fin.status_code == 200
+        auth_row = session.execute(
+            select(PerformanceTakeUploadAuthorization).where(
+                PerformanceTakeUploadAuthorization.take_uuid == take_id
+            )
+        ).scalar_one()
+        assert auth_row.status == PerformanceTakeUploadAuthorizationStatus.ARCHIVED
+        assert auth_row.source_snapshot_id is None
+        take_row = session.execute(
+            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+        ).scalar_one()
+        snapshot_id = take_row.source_snapshot_id
+        snapshot = session.get(PracticeSourceSnapshot, snapshot_id)
+        assert snapshot is not None
+        musicxml_key = snapshot.prepared_musicxml_object_key
+        artifact_key = snapshot.artifact_object_key
+        assert storage.exists(musicxml_key)
+        assert storage.exists(artifact_key)
 
         # Request deletion -> 202 Accepted
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
@@ -2469,9 +2605,86 @@ def test_deletion_lifecycle_and_worker_retry(test_env, monkeypatch: pytest.Monke
         ).scalar_one_or_none() is None
         session.refresh(account)
         assert account.used_bytes == 0
+        snapshot_outbox = session.execute(
+            select(PracticeSourceSnapshotDeleteOutbox).where(
+                PracticeSourceSnapshotDeleteOutbox.source_snapshot_id == snapshot_id
+            )
+        ).scalar_one()
+        assert snapshot_outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.PENDING
+
+        snapshot_res = _run_snapshot_deletion(
+            monkeypatch,
+            session,
+            storage,
+            snapshot_outbox.outbox_uuid,
+        )
+        assert snapshot_res["status"] == "deleted"
+        session.refresh(snapshot_outbox)
+        assert snapshot_outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED
+        assert session.get(PracticeSourceSnapshot, snapshot_id) is None
+        assert not storage.exists(musicxml_key)
+        assert not storage.exists(artifact_key)
 
     finally:
         app.dependency_overrides.clear()
+
+
+def test_snapshot_delete_outbox_retries_transient_storage_failure(
+    test_env,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    session, storage, _user_1, _ = test_env
+    snapshot = _create_default_source_snapshot(session, storage)
+    snapshot_id = snapshot.id
+    musicxml_key = snapshot.prepared_musicxml_object_key
+    artifact_key = snapshot.artifact_object_key
+    outbox = practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+        session,
+        snapshot_id,
+        storage_backend=storage.backend_name,
+    )
+    session.commit()
+    assert outbox is not None
+
+    class FailingSnapshotStorage(LocalFileStorage):
+        def __init__(self, wrapped: LocalFileStorage) -> None:
+            super().__init__(storage_root=wrapped.storage_root)
+
+        def delete(self, key: str) -> bool:
+            if key == musicxml_key:
+                raise ConnectionError("snapshot object store timeout")
+            return super().delete(key)
+
+    failed = _run_snapshot_deletion(
+        monkeypatch,
+        session,
+        FailingSnapshotStorage(storage),
+        outbox.outbox_uuid,
+    )
+    assert failed["status"] == "failed"
+    session.refresh(outbox)
+    assert outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.FAILED
+    assert "snapshot object store timeout" in (outbox.last_error or "")
+    assert session.get(PracticeSourceSnapshot, snapshot_id) is not None
+    assert storage.exists(musicxml_key)
+    assert storage.exists(artifact_key)
+
+    outbox.next_attempt_at = (
+        datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
+    )
+    session.commit()
+    succeeded = _run_snapshot_deletion(
+        monkeypatch,
+        session,
+        storage,
+        outbox.outbox_uuid,
+    )
+    assert succeeded["status"] == "deleted"
+    session.refresh(outbox)
+    assert outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED
+    assert session.get(PracticeSourceSnapshot, snapshot_id) is None
+    assert not storage.exists(musicxml_key)
+    assert not storage.exists(artifact_key)
 
 
 def test_delete_outbox_late_fail_cannot_overwrite_completed_attempt(test_env):
@@ -2689,7 +2902,7 @@ def test_authorization_cleanup_does_not_complete_when_delete_returns_false(test_
     )
     session.commit()
 
-    assert cleaned == 0
+    assert cleaned == 1
     assert storage.exists(staging_key)
     session.refresh(auth)
     assert auth.staging_cleanup_completed_at is None
@@ -2770,7 +2983,7 @@ def test_authorization_cleanup_does_not_complete_when_final_head_fails(test_env)
     )
     session.commit()
 
-    assert cleaned == 0
+    assert cleaned == 1
     assert not storage.exists(staging_key)
     session.refresh(auth)
     assert auth.staging_cleanup_completed_at is None
@@ -2937,7 +3150,7 @@ def test_authorization_cleanup_keeps_unknown_absent_orphan_until_grace_then_conv
         storage_usage_service=StorageUsageService(),
     )
     session.commit()
-    assert cleaned == 0
+    assert cleaned == 1
     session.refresh(auth)
     assert orphan_key in (auth.orphan_final_object_keys or "")
 
@@ -3118,7 +3331,7 @@ def test_authorization_cleanup_does_not_delete_orphan_key_referenced_by_take(tes
     )
     session.commit()
 
-    assert cleaned == 0
+    assert cleaned == 1
     assert storage.exists(referenced_key)
     session.refresh(auth)
     assert referenced_key in (auth.orphan_final_object_keys or "")
@@ -3447,6 +3660,7 @@ def _assert_performance_take_upgrade_state(
         assert "practice_source_snapshots" in tables
         assert "performance_take_upload_authorizations" in tables
         assert "performance_take_delete_outbox" in tables
+        assert "practice_source_snapshot_delete_outbox" in tables
         version_cols = {c["name"]: c for c in inspector.get_columns("alembic_version")}
         assert getattr(version_cols["version_num"]["type"], "length", None) == 128
 
@@ -3482,7 +3696,7 @@ def _assert_performance_take_upgrade_state(
         auth_cols = {
             c["name"]: c for c in inspector.get_columns("performance_take_upload_authorizations")
         }
-        assert auth_cols["source_snapshot_id"]["nullable"] is False
+        assert auth_cols["source_snapshot_id"]["nullable"] is True
         assert auth_cols["score_title"]["nullable"] is False
 
         fks = inspector.get_foreign_keys("performance_takes")
