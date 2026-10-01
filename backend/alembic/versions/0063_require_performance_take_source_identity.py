@@ -42,6 +42,16 @@ def _delete_incomplete_rows(table_name: str) -> None:
     )
 
 
+def _fk_name(table_name: str, column: str) -> str:
+    names = {
+        ("performance_takes", "score_id"): "fk_perf_takes_score",
+        ("performance_takes", "revision_id"): "fk_perf_takes_revision",
+        ("performance_take_upload_authorizations", "score_id"): "fk_take_upload_auth_score",
+        ("performance_take_upload_authorizations", "revision_id"): "fk_take_upload_auth_revision",
+    }
+    return names[(table_name, column)]
+
+
 def _harden_table_postgresql(table_name: str) -> None:
     bind = op.get_bind()
     _delete_incomplete_rows(table_name)
@@ -53,7 +63,7 @@ def _harden_table_postgresql(table_name: str) -> None:
     op.alter_column(table_name, "resolved_tempo_plan", nullable=False)
     op.alter_column(table_name, "sync_metadata", nullable=False)
     op.create_foreign_key(
-        f"fk_{table_name}_score_id_scores",
+        _fk_name(table_name, "score_id"),
         table_name,
         "scores",
         ["score_id"],
@@ -61,7 +71,7 @@ def _harden_table_postgresql(table_name: str) -> None:
         ondelete="RESTRICT",
     )
     op.create_foreign_key(
-        f"fk_{table_name}_revision_id_score_revisions",
+        _fk_name(table_name, "revision_id"),
         table_name,
         "score_revisions",
         ["revision_id"],
