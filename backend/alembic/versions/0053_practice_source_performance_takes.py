@@ -84,7 +84,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("source_fingerprint", name="uq_practice_source_snapshots_fingerprint"),
         sa.UniqueConstraint("prepared_musicxml_object_key", name="uq_practice_source_snapshots_musicxml_key"),
         sa.UniqueConstraint("artifact_object_key", name="uq_practice_source_snapshots_artifact_key"),
-        sa.CheckConstraint("status IN ('READY', 'DELETING')", name="ck_practice_source_snapshots_status"),
+        sa.CheckConstraint("status IN ('CREATING', 'READY', 'DELETING')", name="ck_practice_source_snapshots_status"),
     )
     op.create_index(
         "ix_practice_source_snapshots_source_score_revision",

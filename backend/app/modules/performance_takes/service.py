@@ -555,19 +555,6 @@ class PerformanceTakeService:
 
         musicxml_key = f"practice-source-snapshots/{fingerprint}/score.musicxml"
         artifact_key = f"practice-source-snapshots/{fingerprint}/artifact.json"
-        await asyncio.to_thread(
-            self.storage.put_bytes,
-            key=musicxml_key,
-            content=musicxml_bytes,
-            content_type=ready_content.mime_type,
-        )
-        await asyncio.to_thread(
-            self.storage.put_bytes,
-            key=artifact_key,
-            content=artifact_bytes,
-            content_type="application/json",
-        )
-
         snapshot = PracticeSourceSnapshot(
             source_fingerprint=fingerprint,
             source_score_uuid=score.score_uuid,
@@ -580,6 +567,7 @@ class PerformanceTakeService:
             artifact_object_key=artifact_key,
             artifact_sha256=artifact_sha,
             artifact_byte_size=len(artifact_bytes),
+            status=PracticeSourceSnapshotStatus.CREATING.value,
         )
         try:
             async with db.begin_nested():
@@ -602,7 +590,55 @@ class PerformanceTakeService:
                     )
                 return existing
             raise
+        await db.commit()
+        await db.refresh(snapshot)
+
+        try:
+            await asyncio.to_thread(
+                self.storage.put_bytes,
+                key=musicxml_key,
+                content=musicxml_bytes,
+                content_type=ready_content.mime_type,
+            )
+            await asyncio.to_thread(
+                self.storage.put_bytes,
+                key=artifact_key,
+                content=artifact_bytes,
+                content_type="application/json",
+            )
+        except Exception as error:
+            snapshot.status = PracticeSourceSnapshotStatus.DELETING.value
+            self._enqueue_snapshot_delete_outbox_for_snapshot(db, snapshot)
+            await db.commit()
+            raise ValidationException(
+                ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
+                field="source_snapshot",
+                details={"reason": "source_snapshot_storage_write_failed"},
+            ) from error
+
+        snapshot.status = PracticeSourceSnapshotStatus.READY.value
+        await db.commit()
+        await db.refresh(snapshot)
         return snapshot
+
+    def _enqueue_snapshot_delete_outbox_for_snapshot(
+        self,
+        db: AsyncSession,
+        snapshot: PracticeSourceSnapshot,
+    ) -> None:
+        if self.storage is None or snapshot.id is None:
+            return
+        db.add(
+            PracticeSourceSnapshotDeleteOutbox(
+                source_snapshot_id=snapshot.id,
+                snapshot_uuid=snapshot.snapshot_uuid,
+                storage_backend=self.storage.backend_name,
+                prepared_musicxml_object_key=snapshot.prepared_musicxml_object_key,
+                artifact_object_key=snapshot.artifact_object_key,
+                status=PracticeSourceSnapshotDeleteOutboxStatus.PENDING.value,
+                max_attempts=settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS,
+            )
+        )
 
     async def _enqueue_snapshot_delete_if_unreferenced(
         self,

@@ -14,6 +14,7 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 
 class PracticeSourceSnapshotStatus(str, enum.Enum):
+    CREATING = "CREATING"
     READY = "READY"
     DELETING = "DELETING"
 

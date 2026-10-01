@@ -2704,6 +2704,96 @@ def test_snapshot_gc_marks_snapshot_deleting_until_completed(test_env):
     assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
 
 
+def test_snapshot_creation_storage_failure_has_durable_cleanup(
+    test_env,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    session, storage, user_1, _ = test_env
+
+    class ArtifactWriteFailsStorage(LocalFileStorage):
+        def __init__(self, wrapped: LocalFileStorage) -> None:
+            super().__init__(storage_root=wrapped.storage_root)
+
+        def upload_url(
+            self,
+            key: str,
+            *,
+            content_type: str,
+            checksum_sha256: str = "",
+        ) -> DirectUploadTarget:
+            return DirectUploadTarget(
+                upload_url=f"https://oss.example.com/{key}",
+                upload_method="PUT",
+                upload_headers={"content-type": content_type},
+            )
+
+        def put_bytes(self, *, key: str, content: bytes, content_type: str) -> None:
+            if key.endswith("/artifact.json"):
+                raise ConnectionError("artifact snapshot write failed")
+            super().put_bytes(key=key, content=content, content_type=content_type)
+
+    failing_storage = ArtifactWriteFailsStorage(storage)
+    storage_usage_svc = StorageUsageService()
+    take_svc = _performance_take_service(
+        storage=failing_storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: failing_storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = PerformanceTakeTestClient(app)
+    try:
+        res_auth = client.post(
+            "/api/v1/performance-takes/upload-authorizations",
+            json={
+                "score_id": "score-uuid-10",
+                "client_request_id": "req-snapshot-create-storage-fail",
+                "media_byte_size": len(VALID_WEBM_BYTES),
+                "media_mime_type": "audio/webm",
+                "duration_ms": 5000,
+                "scope_type": "FULL",
+                "scope_start_beat": 0.0,
+                "scope_terminal_beat": 4.0,
+                "revision_id": DEFAULT_TAKE_REVISION_ID,
+                "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
+                "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+                "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
+            },
+        )
+        assert res_auth.status_code >= 400
+
+        snapshot = session.execute(select(PracticeSourceSnapshot)).scalar_one()
+        assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
+        assert storage.exists(snapshot.prepared_musicxml_object_key)
+        assert not storage.exists(snapshot.artifact_object_key)
+        outbox = session.execute(
+            select(PracticeSourceSnapshotDeleteOutbox).where(
+                PracticeSourceSnapshotDeleteOutbox.source_snapshot_id == snapshot.id
+            )
+        ).scalar_one()
+        assert outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.PENDING
+
+        result = _run_snapshot_deletion(
+            monkeypatch,
+            session,
+            storage,
+            outbox.outbox_uuid,
+        )
+        assert result["status"] == "deleted"
+        assert session.get(PracticeSourceSnapshot, snapshot.id) is None
+        assert not storage.exists(snapshot.prepared_musicxml_object_key)
+        assert not storage.exists(snapshot.artifact_object_key)
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_snapshot_gc_restores_ready_if_reference_appears_before_claim(test_env):
     session, storage, user_1, _ = test_env
     snapshot = _create_default_source_snapshot(session, storage)
