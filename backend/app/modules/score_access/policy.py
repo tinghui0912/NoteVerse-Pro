@@ -22,6 +22,7 @@ from app.db.models.score_access import (
     AccessOrigin,
     MembershipRole,
     PublicationStatus,
+    ScoreAudienceAccessMode,
 )
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.shared.constants import ErrorCode
@@ -140,7 +141,8 @@ class ScoreAccessPolicy:
                             can_manage_sharing=False,
                             can_manage_members=False,
                             can_download=redeemed.allow_download,
-                            can_practice=redeemed.access_mode == "PRACTICE",
+                            can_practice=redeemed.access_mode
+                            == ScoreAudienceAccessMode.PRACTICE.value,
                             can_publish=False,
                         ),
                     )
@@ -161,7 +163,8 @@ class ScoreAccessPolicy:
                             can_manage_sharing=False,
                             can_manage_members=False,
                             can_download=grant.allow_download,
-                            can_practice=grant.access_mode == "PRACTICE",
+                            can_practice=grant.access_mode
+                            == ScoreAudienceAccessMode.PRACTICE.value,
                             can_publish=False,
                         ),
                     )
@@ -197,7 +200,8 @@ class ScoreAccessPolicy:
                         can_manage_sharing=False,
                         can_manage_members=False,
                         can_download=publication.allow_download,
-                        can_practice=publication.access_mode == "PRACTICE",
+                        can_practice=publication.access_mode
+                        == ScoreAudienceAccessMode.PRACTICE.value,
                         can_publish=False,
                     ),
                 )

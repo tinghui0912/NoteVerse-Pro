@@ -4,11 +4,10 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.db.models.score_access import PublicationStatus
+from app.db.models.score_access import PublicationStatus, ScoreAudienceAccessMode
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_assets.schemas import ScoreDerivedAssetsRead, ScoreRevisionAssetsRead
-from app.modules.score_sharing.schemas import ShareAccessMode
 from app.modules.scores.schemas import ScoreTaxonomyTagRead
 
 
@@ -18,7 +17,7 @@ class PublicationUpsertRequest(BaseModel):
         default=None, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=128
     )
     allow_download: bool = False
-    access_mode: ShareAccessMode = ShareAccessMode.PRACTICE
+    access_mode: ScoreAudienceAccessMode = ScoreAudienceAccessMode.PRACTICE
 
 
 class PublicationRead(BaseModel):
@@ -27,7 +26,7 @@ class PublicationRead(BaseModel):
     revision_id: str
     status: PublicationStatus
     allow_download: bool
-    access_mode: ShareAccessMode
+    access_mode: ScoreAudienceAccessMode
     published_at: datetime
     updated_at: datetime
 

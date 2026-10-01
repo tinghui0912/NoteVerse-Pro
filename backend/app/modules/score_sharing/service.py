@@ -20,6 +20,7 @@ from app.db.models import (
     ShareGrantRedemption,
     User,
 )
+from app.db.models.score_access import ScoreAudienceAccessMode
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
 from app.modules.score_assets.derived_assets import score_derived_assets
 from app.modules.score_assets.repository import ScoreAssetRepository
@@ -35,7 +36,6 @@ from app.modules.score_sharing.schemas import (
     GrantCreateRequest,
     GrantCreatedRead,
     GrantRead,
-    ShareAccessMode,
     ShareActorRead,
 )
 from app.modules.scores.schemas import ScoreTaxonomyTagRead
@@ -101,7 +101,7 @@ class ScoreSharingService:
         return GrantCreatedRead(
             grant_id=grant.grant_uuid,
             token=token,
-            access_mode=ShareAccessMode(grant.access_mode),
+            access_mode=ScoreAudienceAccessMode(grant.access_mode),
             allow_download=grant.allow_download,
             expires_at=grant.expires_at,
             created_at=grant.created_at,
@@ -125,7 +125,7 @@ class ScoreSharingService:
                 GrantRead(
                     grant_id=grant.grant_uuid,
                     token=None,
-                    access_mode=ShareAccessMode(grant.access_mode),
+                    access_mode=ScoreAudienceAccessMode(grant.access_mode),
                     allow_download=grant.allow_download,
                     expires_at=grant.expires_at,
                     revoked_at=grant.revoked_at,
@@ -166,7 +166,7 @@ class ScoreSharingService:
         return GrantRead(
             grant_id=grant.grant_uuid,
             token=None,
-            access_mode=ShareAccessMode(grant.access_mode),
+            access_mode=ScoreAudienceAccessMode(grant.access_mode),
             allow_download=grant.allow_download,
             expires_at=grant.expires_at,
             revoked_at=grant.revoked_at,

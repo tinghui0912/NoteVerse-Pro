@@ -221,7 +221,7 @@ def upgrade() -> None:
         if "access_mode" not in columns:
             op.add_column(
                 "score_share_grants",
-                sa.Column("access_mode", sa.String(length=16), nullable=False, server_default="VIEW"),
+                sa.Column("access_mode", sa.String(length=16), nullable=False, server_default="PRACTICE"),
             )
             if "allow_practice" in columns:
                 op.execute(
@@ -231,6 +231,11 @@ def upgrade() -> None:
                 )
         if "allow_practice" in _columns("score_share_grants"):
             op.drop_column("score_share_grants", "allow_practice")
+        with op.batch_alter_table("score_share_grants") as batch_op:
+            batch_op.create_check_constraint(
+                "ck_score_share_grants_access_mode",
+                "access_mode IN ('VIEW', 'PRACTICE')",
+            )
 
     if _has_table("score_publications"):
         columns = _columns("score_publications")
@@ -247,6 +252,11 @@ def upgrade() -> None:
                 )
         if "allow_practice" in _columns("score_publications"):
             op.drop_column("score_publications", "allow_practice")
+        with op.batch_alter_table("score_publications") as batch_op:
+            batch_op.create_check_constraint(
+                "ck_score_publications_access_mode",
+                "access_mode IN ('VIEW', 'PRACTICE')",
+            )
 
 
 def downgrade() -> None:

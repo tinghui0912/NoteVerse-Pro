@@ -60,6 +60,7 @@ from app.db.models.score_access import (
     InviteStatus,
     MembershipRole,
     PublicationStatus,
+    ScoreAudienceAccessMode,
 )
 from app.modules.revisions.schemas import (
     RevisionCreateRequest,
@@ -84,7 +85,7 @@ from app.modules.scores.creation_service import SyncConfirmedScoreCreationServic
 from app.modules.import_jobs.worker_service import SyncImportJobService
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
-from app.modules.score_sharing.schemas import GrantCreateRequest, ShareAccessMode
+from app.modules.score_sharing.schemas import GrantCreateRequest
 from app.modules.score_sharing.service import ScoreSharingService
 from app.modules.score_invites.schemas import InviteCreateRequest
 from app.modules.score_invites.rules import hash_invite_token
@@ -2220,7 +2221,10 @@ async def test_share_detail_exposes_display_assets_without_musicxml_when_downloa
         db,  # type: ignore[arg-type]
         "share-derived-score",
         1,
-        GrantCreateRequest(allow_download=False, access_mode=ShareAccessMode.PRACTICE),
+        GrantCreateRequest(
+            allow_download=False,
+            access_mode=ScoreAudienceAccessMode.PRACTICE,
+        ),
     )
 
     detail = await sharing_service.access_grant(db, created.token, None)  # type: ignore[arg-type]
