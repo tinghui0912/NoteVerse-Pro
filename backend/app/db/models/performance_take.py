@@ -69,7 +69,7 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         ),
     )
-    score_id: Optional[int] = Field(
+    linked_score_id: Optional[int] = Field(
         default=None,
         sa_column=Column(
             bigint_pk_type,

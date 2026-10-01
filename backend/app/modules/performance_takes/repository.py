@@ -60,13 +60,13 @@ class PerformanceTakeRepository:
         self,
         db: AsyncSession,
         user_id: int,
-        score_id: Optional[int] = None,
+        linked_score_id: Optional[int] = None,
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[list[PerformanceTake], int]:
         filters = [PerformanceTake.user_id == user_id]
-        if score_id is not None:
-            filters.append(PerformanceTake.score_id == score_id)
+        if linked_score_id is not None:
+            filters.append(PerformanceTake.linked_score_id == linked_score_id)
 
         count_stmt = select(func.count(PerformanceTake.id)).where(*filters)
         count_res = await db.execute(count_stmt)

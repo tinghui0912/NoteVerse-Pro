@@ -379,7 +379,7 @@ class PerformanceTakeService:
         snapshot = await db.get(PracticeSourceSnapshot, take.source_snapshot_id)
         if snapshot is None:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
-        score = await db.get(Score, take.score_id) if take.score_id is not None else None
+        score = await db.get(Score, take.linked_score_id) if take.linked_score_id is not None else None
         can_open_score = await self._can_open_score(db, take.user_id, score)
         return PerformanceTakeUploadAuthorizationRead(
             take_id=take.take_uuid,
@@ -1511,7 +1511,7 @@ class PerformanceTakeService:
             take_uuid=auth_snapshot["take_uuid"],
             user_id=auth.user_id,
             source_snapshot_id=snapshot.id,
-            score_id=score_db_id,
+            linked_score_id=score_db_id,
             score_title_snapshot=score_title_out,
             client_request_id=auth_snapshot["client_request_id"],
             media_kind=PerformanceTakeMediaKind(auth_snapshot["media_kind"]),
@@ -1604,10 +1604,10 @@ class PerformanceTakeService:
             score_db_id = score_filter.id
 
         items, total = await self.repository.list_takes(
-            db, user_id, score_id=score_db_id, limit=limit, offset=offset
+            db, user_id, linked_score_id=score_db_id, limit=limit, offset=offset
         )
 
-        score_ids = {item.score_id for item in items if item.score_id is not None}
+        score_ids = {item.linked_score_id for item in items if item.linked_score_id is not None}
         score_map: dict[int, Score] = {}
         if score_ids:
             scores_res = await db.execute(select(Score).where(Score.id.in_(score_ids)))
@@ -1627,7 +1627,7 @@ class PerformanceTakeService:
 
         read_items: list[PerformanceTakeRead] = []
         for item in items:
-            score_obj = score_map.get(item.score_id) if item.score_id is not None else None
+            score_obj = score_map.get(item.linked_score_id) if item.linked_score_id is not None else None
             snapshot = snapshot_map.get(item.source_snapshot_id)
             if snapshot is None:
                 continue
@@ -1663,7 +1663,7 @@ class PerformanceTakeService:
         snapshot = await db.get(PracticeSourceSnapshot, take.source_snapshot_id)
         if snapshot is None:
             raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
-        score = await db.get(Score, take.score_id) if take.score_id is not None else None
+        score = await db.get(Score, take.linked_score_id) if take.linked_score_id is not None else None
         can_open_score = await self._can_open_score(db, user_id, score)
 
         return self._to_read_dto(take, snapshot=snapshot, score=score, can_open_score=can_open_score)

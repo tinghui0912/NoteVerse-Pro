@@ -98,7 +98,7 @@ def upgrade() -> None:
         sa.Column("take_uuid", sa.String(length=36), nullable=False),
         sa.Column("user_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False),
         sa.Column("source_snapshot_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False),
-        sa.Column("score_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=True),
+        sa.Column("linked_score_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=True),
         sa.Column("score_title_snapshot", sa.String(length=255), nullable=False),
         sa.Column("client_request_id", sa.String(length=128), nullable=False),
         sa.Column(
@@ -123,7 +123,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], name="fk_perf_takes_user", ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["source_snapshot_id"], ["practice_source_snapshots.id"], name="fk_perf_takes_snapshot", ondelete="RESTRICT"),
-        sa.ForeignKeyConstraint(["score_id"], ["scores.id"], name="fk_perf_takes_score", ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["linked_score_id"], ["scores.id"], name="fk_perf_takes_linked_score", ondelete="SET NULL"),
         sa.UniqueConstraint("user_id", "client_request_id", name="uq_performance_takes_user_client_request_id"),
         sa.CheckConstraint("deletion_status IN ('ACTIVE', 'DELETING')", name="ck_performance_takes_deletion_status"),
         sa.CheckConstraint("scope_type IN ('FULL', 'RANGE')", name="ck_performance_takes_scope_type"),
@@ -131,7 +131,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_performance_takes_take_uuid", "performance_takes", ["take_uuid"], unique=True)
     op.create_index("ix_performance_takes_user_id", "performance_takes", ["user_id"])
-    op.create_index("ix_performance_takes_score_id", "performance_takes", ["score_id"])
+    op.create_index("ix_performance_takes_linked_score_id", "performance_takes", ["linked_score_id"])
     op.create_index("ix_performance_takes_client_request_id", "performance_takes", ["client_request_id"])
     op.create_index("ix_performance_takes_media_object_key", "performance_takes", ["media_object_key"], unique=True)
     op.create_index("ix_performance_takes_user_created", "performance_takes", ["user_id", "created_at"])

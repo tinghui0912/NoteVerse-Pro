@@ -1131,7 +1131,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         # Verify in DB: take row is preserved with required source identity.
         take_in_db = session.execute(select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)).scalar_one_or_none()
         assert take_in_db is not None
-        assert take_in_db.score_id is None
+        assert take_in_db.linked_score_id is None
         assert take_in_db.score_title_snapshot == "Moonlight Sonata"
         snapshot = session.get(PracticeSourceSnapshot, take_in_db.source_snapshot_id)
         assert snapshot is not None
@@ -3457,7 +3457,7 @@ def test_authorization_cleanup_does_not_delete_orphan_key_referenced_by_take(tes
             take_uuid="take-referenced-orphan",
             user_id=user_1.id,
             source_snapshot_id=snapshot.id,
-            score_id=10,
+            linked_score_id=10,
             score_title_snapshot="Referenced orphan",
             client_request_id="referenced-orphan",
             media_kind=PerformanceTakeMediaKind.AUDIO,
@@ -3751,7 +3751,8 @@ def _assert_performance_take_upgrade_state(
 
         cols = {c["name"]: c for c in inspector.get_columns("performance_takes")}
         assert cols["source_snapshot_id"]["nullable"] is False
-        assert cols["score_id"]["nullable"] is True
+        assert "score_id" not in cols
+        assert cols["linked_score_id"]["nullable"] is True
         assert "revision_id" not in cols
         assert "artifact_id" not in cols
         assert cols["tempo_plan"]["nullable"] is False
@@ -3798,7 +3799,7 @@ def _assert_performance_take_upgrade_state(
         assert {
             "ix_performance_takes_take_uuid",
             "ix_performance_takes_user_id",
-            "ix_performance_takes_score_id",
+            "ix_performance_takes_linked_score_id",
             "ix_performance_takes_client_request_id",
             "ix_performance_takes_user_deletion_status",
             "ix_performance_takes_source_snapshot_id",
