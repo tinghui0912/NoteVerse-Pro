@@ -28,6 +28,9 @@
     "playwright.integration.config.ts",
     "src/generated/api/**"
   ],
+  "ignoreUnresolved": [
+    "@/generated/api"
+  ],
   "ignoreIssues": {
     "next.config.ts": ["exports"],
     "openapi-ts.config.ts": ["exports"],
