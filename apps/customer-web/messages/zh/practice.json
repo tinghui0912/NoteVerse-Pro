@@ -196,6 +196,7 @@
   "inputSourceMidi": "MIDI 键盘",
   "scopeFull": "全曲演奏",
   "scopeSection": "选段演奏",
+  "scopeUnavailable": "练习范围不可用",
   "performanceOutcomes": "音符匹配结果",
   "matchedGroupCount": "已匹配音符组",
   "partialGroupCount": "部分匹配音符组",

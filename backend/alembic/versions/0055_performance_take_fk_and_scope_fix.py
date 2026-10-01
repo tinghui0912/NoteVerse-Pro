@@ -30,7 +30,7 @@ def upgrade() -> None:
         if "scope_type" not in columns:
             op.add_column(
                 "performance_takes",
-                sa.Column("scope_type", sa.String(length=16), nullable=False, server_default="FULL"),
+                sa.Column("scope_type", sa.String(length=16), nullable=False),
             )
 
         # Backfill score_title for existing takes that have a score_id

@@ -196,6 +196,7 @@
   "inputSourceMidi": "MIDI Keyboard",
   "scopeFull": "Full Piece Performance",
   "scopeSection": "Section Performance",
+  "scopeUnavailable": "Scope unavailable",
   "performanceOutcomes": "Note Match Outcomes",
   "matchedGroupCount": "Matched Note Groups",
   "partialGroupCount": "Partially Matched",

@@ -177,18 +177,14 @@ function PerformanceTakeCard({
         }
     : null;
 
-  const isFullScope =
-    take.scope_type === 'FULL' ||
-    (!take.scope_type &&
-      ((take.scope_start_beat === 0 && take.scope_terminal_beat === 0) ||
-        take.scope_terminal_beat <= take.scope_start_beat));
-
-  const scopeLabel = isFullScope
+  const scopeLabel = take.scope_type === 'FULL'
     ? t('scopeFull')
-    : `${t('scopeSection')} (${t('takeScopeBeats', {
+    : take.scope_type === 'RANGE'
+      ? `${t('scopeSection')} (${t('takeScopeBeats', {
         start: take.scope_start_beat,
         end: take.scope_terminal_beat,
-      })})`;
+      })})`
+      : t('scopeUnavailable');
 
   const tempoLabel = getTempoLabel(take, t);
 

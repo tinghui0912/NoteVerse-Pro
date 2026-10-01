@@ -105,8 +105,7 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
         sa_column=Column(String(128), nullable=False),
     )
     scope_type: str = Field(
-        default="FULL",
-        sa_column=Column(String(16), nullable=False, default="FULL"),
+        sa_column=Column(String(16), nullable=False),
     )
     scope_start_beat: float = Field(
         sa_column=Column(Float, nullable=False)
@@ -132,8 +131,7 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
         sa_column=Column(Integer, nullable=False)
     )
     media_kind: str = Field(
-        default="AUDIO",
-        sa_column=Column(String(16), nullable=False, default="AUDIO"),
+        sa_column=Column(String(16), nullable=False),
     )
     media_mime_type: str = Field(
         sa_column=Column(String(64), nullable=False)

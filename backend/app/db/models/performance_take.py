@@ -85,11 +85,9 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(String(128), index=True, nullable=False)
     )
     media_kind: PerformanceTakeMediaKind = Field(
-        default=PerformanceTakeMediaKind.AUDIO,
         sa_column=Column(
             SAEnum(PerformanceTakeMediaKind, name="performancetakemediakind"),
             nullable=False,
-            default=PerformanceTakeMediaKind.AUDIO,
         ),
     )
     media_mime_type: str = Field(
@@ -108,8 +106,7 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(Integer, nullable=False)
     )
     scope_type: str = Field(
-        default="FULL",
-        sa_column=Column(String(16), nullable=False, default="FULL"),
+        sa_column=Column(String(16), nullable=False),
     )
     scope_start_beat: float = Field(
         sa_column=Column(Float, nullable=False)

@@ -36,7 +36,7 @@ def upgrade() -> None:
         sa.Column("revision_id", sa.BigInteger(), nullable=True),
         sa.Column("artifact_id", sa.String(length=128), nullable=True),
         sa.Column("client_request_id", sa.String(length=128), nullable=False),
-        sa.Column("media_kind", media_kind_enum, nullable=False, server_default="AUDIO"),
+        sa.Column("media_kind", media_kind_enum, nullable=False),
         sa.Column("media_mime_type", sa.String(length=64), nullable=False),
         sa.Column("media_byte_size", sa.BigInteger(), nullable=False),
         sa.Column("media_object_key", sa.String(length=768), nullable=False),
