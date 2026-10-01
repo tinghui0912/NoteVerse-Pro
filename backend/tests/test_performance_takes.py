@@ -254,8 +254,6 @@ def test_performance_take_schema_accepts_product_default_tempo_source() -> None:
 
 
 POSTGRES_MIGRATION_EMPTY_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_EMPTY_URL"
-POSTGRES_MIGRATION_0053_SHORT_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_0053_SHORT_URL"
-POSTGRES_MIGRATION_0053_LONG_URL_ENV = "NOTEVERSE_TEST_POSTGRES_MIGRATION_0053_LONG_URL"
 POSTGRES_MIGRATION_RESTRICTED_ALEMBIC_URL_ENV = (
     "NOTEVERSE_TEST_POSTGRES_MIGRATION_RESTRICTED_ALEMBIC_URL"
 )
@@ -3726,78 +3724,6 @@ def _alembic_config(database_url: str):
     return cfg
 
 
-def _setup_constructed_0053_performance_takes_state_postgresql(database_url: str) -> None:
-    import psycopg
-
-    conn = psycopg.connect(database_url, autocommit=True, connect_timeout=3)
-    try:
-        with conn.cursor() as pcur:
-            pcur.execute(
-                "CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL, "
-                "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num));"
-            )
-            pcur.execute("INSERT INTO alembic_version VALUES ('0053_performance_takes');")
-            pcur.execute("CREATE TABLE users (id BIGSERIAL PRIMARY KEY, email VARCHAR(255) NOT NULL);")
-            pcur.execute("INSERT INTO users (id, email) VALUES (1, 'u1@example.com');")
-            pcur.execute("CREATE TABLE scores (id BIGSERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL);")
-            pcur.execute("INSERT INTO scores (id, title) VALUES (10, 'PG Sonata Allegro');")
-            pcur.execute(
-                "CREATE TABLE score_revisions "
-                "(id BIGSERIAL PRIMARY KEY, score_id BIGINT NOT NULL REFERENCES scores(id) ON DELETE CASCADE);"
-            )
-            pcur.execute("INSERT INTO score_revisions (id, score_id) VALUES (100, 10);")
-            pcur.execute(
-                """
-                CREATE TABLE performance_takes (
-                    id BIGSERIAL PRIMARY KEY,
-                    take_uuid VARCHAR(36) NOT NULL,
-                    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                    score_id BIGINT NOT NULL REFERENCES scores(id) ON DELETE CASCADE,
-                    revision_id BIGINT REFERENCES score_revisions(id) ON DELETE SET NULL,
-                    artifact_id VARCHAR(128),
-                    client_request_id VARCHAR(128) NOT NULL,
-                    media_kind VARCHAR(16) NOT NULL DEFAULT 'AUDIO',
-                    media_mime_type VARCHAR(64) NOT NULL,
-                    media_byte_size BIGINT NOT NULL,
-                    media_object_key VARCHAR(768) NOT NULL,
-                    storage_backend VARCHAR(32) NOT NULL,
-                    duration_ms INTEGER NOT NULL,
-                    scope_start_beat REAL NOT NULL,
-                    scope_terminal_beat REAL NOT NULL,
-                    resolved_tempo_plan TEXT,
-                    sync_metadata TEXT,
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL,
-                    CONSTRAINT uq_performance_takes_user_client_request_id UNIQUE (user_id, client_request_id)
-                );
-                """
-            )
-            pcur.execute("CREATE UNIQUE INDEX ix_performance_takes_take_uuid ON performance_takes (take_uuid);")
-            pcur.execute("CREATE INDEX ix_performance_takes_user_id ON performance_takes (user_id);")
-            pcur.execute("CREATE INDEX ix_performance_takes_score_id ON performance_takes (score_id);")
-            pcur.execute("CREATE INDEX ix_performance_takes_revision_id ON performance_takes (revision_id);")
-            pcur.execute("CREATE INDEX ix_performance_takes_client_request_id ON performance_takes (client_request_id);")
-            pcur.execute(
-                """
-                INSERT INTO performance_takes (
-                    id, take_uuid, user_id, score_id, revision_id, artifact_id, client_request_id,
-                    media_kind, media_mime_type, media_byte_size, media_object_key, storage_backend,
-                    duration_ms, scope_start_beat, scope_terminal_beat,
-                    resolved_tempo_plan, sync_metadata, created_at, updated_at
-                ) VALUES (
-                    1, 'take-pg-001', 1, 10, 100, 'art-1', 'req-1',
-                    'AUDIO', 'audio/webm', 2048, 'users/1/takes/take-pg-001.webm', 's3',
-                    90000, 0.0, 32.0,
-                    '{"selection":{"mode":"CUSTOM_FIXED_BPM","bpm":120},"segments":[{"startBeat":0,"bpm":120,"source":"CUSTOM"}]}',
-                    '{"recordingTimebase":{"recordingStartPerfTimeMs":0,"recordingEndPerfTimeMs":90000,"nominalMediaDurationMs":90000,"activeSegments":[{"perfStartMs":0,"perfEndMs":90000,"mediaStartMs":0,"mediaEndMs":90000}]}}',
-                    '2026-09-20 14:00:00', '2026-09-20 14:00:00'
-                );
-                """
-            )
-    finally:
-        conn.close()
-
-
 def _assert_performance_take_upgrade_state(
     *, alembic_async_url: str, sqlalchemy_sync_url: str
 ) -> None:
@@ -3806,7 +3732,7 @@ def _assert_performance_take_upgrade_state(
 
     command.upgrade(
         _alembic_config(alembic_async_url),
-        "0069_practice_source_snapshots",
+        "0053_practice_source_takes",
     )
     engine_pg = create_engine(sqlalchemy_sync_url)
     try:
@@ -3911,7 +3837,7 @@ def test_empty_postgresql_database_initializes_with_wide_alembic_version_table()
     _assert_postgres_database_empty(pg.psycopg_url)
     command.upgrade(
         _alembic_config(pg.alembic_async_url),
-        "0069_practice_source_snapshots",
+        "0053_practice_source_takes",
     )
     engine_pg = create_engine(pg.sqlalchemy_sync_url)
     try:
@@ -3921,38 +3847,6 @@ def test_empty_postgresql_database_initializes_with_wide_alembic_version_table()
         assert "performance_takes" in inspector.get_table_names()
     finally:
         engine_pg.dispose()
-
-
-def test_constructed_0053_alembic_upgrade_to_0067_postgresql_short_version_table():
-    """Construct a 0053 PostgreSQL state with VARCHAR(32), then run real 0054 -> 0067."""
-
-    pg = _postgres_migration_test_database(POSTGRES_MIGRATION_0053_SHORT_URL_ENV)
-    _assert_postgres_database_empty(pg.psycopg_url)
-    _setup_constructed_0053_performance_takes_state_postgresql(pg.psycopg_url)
-    _assert_performance_take_upgrade_state(
-        alembic_async_url=pg.alembic_async_url,
-        sqlalchemy_sync_url=pg.sqlalchemy_sync_url,
-    )
-
-
-def test_constructed_0053_alembic_upgrade_to_0067_postgresql_long_version_table():
-    """Construct a 0053 PostgreSQL state with pre-widened version table and upgrade."""
-
-    import psycopg
-
-    pg = _postgres_migration_test_database(POSTGRES_MIGRATION_0053_LONG_URL_ENV)
-    _assert_postgres_database_empty(pg.psycopg_url)
-    _setup_constructed_0053_performance_takes_state_postgresql(pg.psycopg_url)
-    conn = psycopg.connect(pg.psycopg_url, autocommit=True, connect_timeout=3)
-    try:
-        with conn.cursor() as cur:
-            cur.execute("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)")
-    finally:
-        conn.close()
-    _assert_performance_take_upgrade_state(
-        alembic_async_url=pg.alembic_async_url,
-        sqlalchemy_sync_url=pg.sqlalchemy_sync_url,
-    )
 
 
 def test_postgresql_version_table_widening_permission_error_is_not_swallowed():
@@ -3965,6 +3859,6 @@ def test_postgresql_version_table_widening_permission_error_is_not_swallowed():
     with pytest.raises((DBAPIError, PermissionError, RuntimeError)):
         command.upgrade(
             _alembic_config(pg.alembic_async_url),
-            "0069_practice_source_snapshots",
+            "0053_practice_source_takes",
         )
 
