@@ -7,7 +7,11 @@ import sys
 from sqlalchemy import select
 
 from app.core.background_tracing import record_current_attempt_failure
-from app.db.models import PracticeSourceSnapshot, PracticeSourceSnapshotDeleteOutboxStatus
+from app.db.models import (
+    PracticeSourceSnapshot,
+    PracticeSourceSnapshotDeleteOutboxStatus,
+    PracticeSourceSnapshotStatus,
+)
 from app.db.sync_session import get_worker_db
 from app.modules.performance_takes.source_snapshot_delete_service import (
     practice_source_snapshot_delete_service,
@@ -122,6 +126,13 @@ def execute_practice_source_snapshot_deletion_task(
                     )
                     > 0
                 ):
+                    snapshot = db.execute(
+                        select(PracticeSourceSnapshot)
+                        .where(PracticeSourceSnapshot.id == payload.source_snapshot_id)
+                        .with_for_update()
+                    ).scalar_one_or_none()
+                    if snapshot is not None:
+                        snapshot.status = PracticeSourceSnapshotStatus.READY.value
                     practice_source_snapshot_delete_service.complete(
                         db, outbox_uuid, attempt=payload.attempt
                     )

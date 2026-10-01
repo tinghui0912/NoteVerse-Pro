@@ -12,6 +12,7 @@ from app.db.models import (
     PerformanceTakeUploadAuthorization,
     PerformanceTakeUploadAuthorizationStatus,
     PracticeSourceSnapshot,
+    PracticeSourceSnapshotStatus,
     PracticeSourceSnapshotDeleteOutbox,
     PracticeSourceSnapshotDeleteOutboxStatus,
 )
@@ -77,6 +78,7 @@ class PracticeSourceSnapshotDeleteService:
             return None
         if self.active_reference_count(db, snapshot_id) > 0:
             return None
+        snapshot.status = PracticeSourceSnapshotStatus.DELETING.value
         existing = db.execute(
             select(PracticeSourceSnapshotDeleteOutbox).where(
                 PracticeSourceSnapshotDeleteOutbox.snapshot_uuid == snapshot.snapshot_uuid,
@@ -122,6 +124,9 @@ class PracticeSourceSnapshotDeleteService:
         if outbox.source_snapshot_id is not None and self.active_reference_count(
             db, outbox.source_snapshot_id
         ) > 0:
+            snapshot = db.get(PracticeSourceSnapshot, outbox.source_snapshot_id)
+            if snapshot is not None:
+                snapshot.status = PracticeSourceSnapshotStatus.READY.value
             outbox.status = PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED.value
             outbox.completed_at = utc_now_naive()
             outbox.last_error = None

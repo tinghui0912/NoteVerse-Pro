@@ -53,17 +53,29 @@ def upgrade() -> None:
             sa.Column("artifact_object_key", sa.String(length=768), nullable=False),
             sa.Column("artifact_sha256", sa.String(length=64), nullable=False),
             sa.Column("artifact_byte_size", sa.BigInteger(), nullable=False),
+            sa.Column("status", sa.String(length=16), nullable=False, server_default="READY"),
             sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
             sa.UniqueConstraint("snapshot_uuid", name="uq_practice_source_snapshots_uuid"),
             sa.UniqueConstraint("source_fingerprint", name="uq_practice_source_snapshots_fingerprint"),
             sa.UniqueConstraint("prepared_musicxml_object_key", name="uq_practice_source_snapshots_musicxml_key"),
             sa.UniqueConstraint("artifact_object_key", name="uq_practice_source_snapshots_artifact_key"),
+            sa.CheckConstraint("status IN ('READY', 'DELETING')", name="ck_practice_source_snapshots_status"),
         )
         op.create_index(
             "ix_practice_source_snapshots_source_score_revision",
             "practice_source_snapshots",
             ["source_score_uuid", "source_revision_uuid"],
         )
+    elif "status" not in _columns("practice_source_snapshots"):
+        op.add_column(
+            "practice_source_snapshots",
+            sa.Column("status", sa.String(length=16), nullable=False, server_default="READY"),
+        )
+        with op.batch_alter_table("practice_source_snapshots") as batch_op:
+            batch_op.create_check_constraint(
+                "ck_practice_source_snapshots_status",
+                "status IN ('READY', 'DELETING')",
+            )
 
     if not _has_table("practice_source_snapshot_delete_outbox"):
         op.create_table(

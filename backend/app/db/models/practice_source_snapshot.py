@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import enum
 from typing import Optional
 from uuid import uuid4
 
@@ -10,6 +11,11 @@ from sqlmodel import Field, SQLModel
 from app.utils.timezone import utc_now_naive
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
+
+
+class PracticeSourceSnapshotStatus(str, enum.Enum):
+    READY = "READY"
+    DELETING = "DELETING"
 
 
 class PracticeSourceSnapshot(SQLModel, table=True):  # type: ignore[call-arg]
@@ -40,6 +46,14 @@ class PracticeSourceSnapshot(SQLModel, table=True):  # type: ignore[call-arg]
     artifact_object_key: str = Field(sa_column=Column(String(768), unique=True, nullable=False))
     artifact_sha256: str = Field(sa_column=Column(String(64), nullable=False))
     artifact_byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
+    status: str = Field(
+        default=PracticeSourceSnapshotStatus.READY.value,
+        sa_column=Column(
+            String(16),
+            nullable=False,
+            default=PracticeSourceSnapshotStatus.READY.value,
+        ),
+    )
     created_at: datetime = Field(
         default_factory=utc_now_naive,
         sa_column=Column(DateTime, default=utc_now_naive, nullable=False),

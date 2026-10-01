@@ -31,6 +31,7 @@ from app.db.models import (
     PracticeSourceSnapshot,
     PracticeSourceSnapshotDeleteOutbox,
     PracticeSourceSnapshotDeleteOutboxStatus,
+    PracticeSourceSnapshotStatus,
     Score,
     ScoreRevision,
     StorageQuotaPolicy,
@@ -2688,6 +2689,156 @@ def test_snapshot_delete_outbox_retries_transient_storage_failure(
     assert not storage.exists(artifact_key)
 
 
+def test_snapshot_gc_marks_snapshot_deleting_until_completed(test_env):
+    session, storage, _user_1, _ = test_env
+    snapshot = _create_default_source_snapshot(session, storage)
+    snapshot_id = snapshot.id
+
+    outbox = practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+        session,
+        snapshot_id,
+        storage_backend=storage.backend_name,
+    )
+    session.commit()
+
+    assert outbox is not None
+    session.refresh(snapshot)
+    assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
+
+
+def test_snapshot_gc_restores_ready_if_reference_appears_before_claim(test_env):
+    session, storage, user_1, _ = test_env
+    snapshot = _create_default_source_snapshot(session, storage)
+    snapshot_id = snapshot.id
+    outbox = practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+        session,
+        snapshot_id,
+        storage_backend=storage.backend_name,
+    )
+    assert outbox is not None
+    session.flush()
+
+    auth = PerformanceTakeUploadAuthorization(
+        user_id=user_1.id,
+        source_snapshot_id=snapshot_id,
+        client_request_id="req-snapshot-gc-race",
+        take_uuid="take-snapshot-gc-race",
+        score_id=None,
+        score_uuid="score-uuid-10",
+        score_title="Moonlight Sonata",
+        revision_id=None,
+        revision_uuid=DEFAULT_TAKE_REVISION_ID,
+        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
+        scope_type="FULL",
+        scope_start_beat=0.0,
+        scope_terminal_beat=4.0,
+        scope_start_group_id=None,
+        scope_end_group_id=None,
+        tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+        recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+        duration_ms=5000,
+        media_kind="AUDIO",
+        media_mime_type="audio/webm",
+        media_byte_size=len(VALID_WEBM_BYTES),
+        storage_backend=storage.backend_name,
+        staging_object_key="performance-takes/staging/gc-race.webm",
+        final_object_key="performance-takes/final/gc-race.webm",
+        reservation_id="reservation-gc-race",
+        status=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value,
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5),
+        last_put_url_expires_at=datetime.now(timezone.utc).replace(tzinfo=None)
+        + timedelta(minutes=5),
+        staging_cleanup_after=datetime.now(timezone.utc).replace(tzinfo=None)
+        + timedelta(minutes=5),
+    )
+    session.add(auth)
+    session.commit()
+
+    payload = practice_source_snapshot_delete_service.claim(session, outbox.outbox_uuid)
+    session.commit()
+
+    assert payload is None
+    session.refresh(snapshot)
+    session.refresh(outbox)
+    assert snapshot.status == PracticeSourceSnapshotStatus.READY.value
+    assert outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED.value
+    assert storage.exists(snapshot.prepared_musicxml_object_key)
+    assert storage.exists(snapshot.artifact_object_key)
+
+
+def test_authorize_does_not_reuse_snapshot_pending_gc(test_env):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    take_svc = _performance_take_service(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = PerformanceTakeTestClient(app)
+    try:
+        base_request = {
+            "score_id": "score-uuid-10",
+            "revision_id": DEFAULT_TAKE_REVISION_ID,
+            "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
+            "media_byte_size": len(VALID_WEBM_BYTES),
+            "media_mime_type": "audio/webm",
+            "duration_ms": 5000,
+            "scope_type": "FULL",
+            "scope_start_beat": 0.0,
+            "scope_terminal_beat": 4.0,
+            "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+            "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
+        }
+        first = client.post(
+            "/api/v1/performance-takes/upload-authorizations",
+            json={
+                **base_request,
+                "client_request_id": "req-source-snapshot-created",
+            },
+        )
+        assert first.status_code == 200, first.text
+        auth = session.execute(
+            select(PerformanceTakeUploadAuthorization).where(
+                PerformanceTakeUploadAuthorization.client_request_id
+                == "req-source-snapshot-created"
+            )
+        ).scalar_one()
+        snapshot = session.get(PracticeSourceSnapshot, auth.source_snapshot_id)
+        assert snapshot is not None
+        auth.status = PerformanceTakeUploadAuthorizationStatus.CANCELLED.value
+        auth.source_snapshot_id = None
+        snapshot.status = PracticeSourceSnapshotStatus.DELETING.value
+        session.commit()
+
+        res = client.post(
+            "/api/v1/performance-takes/upload-authorizations",
+            json={
+                **base_request,
+                "client_request_id": "req-source-snapshot-not-ready",
+            },
+        )
+        assert res.status_code != 200
+        assert session.execute(
+            select(PerformanceTakeUploadAuthorization).where(
+                PerformanceTakeUploadAuthorization.client_request_id
+                == "req-source-snapshot-not-ready"
+            )
+        ).scalar_one_or_none() is None
+        session.refresh(snapshot)
+        assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_delete_outbox_late_fail_cannot_overwrite_completed_attempt(test_env):
     session, _storage, user_1, _ = test_env
     now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -3667,6 +3818,10 @@ def _assert_performance_take_upgrade_state(
         assert "practice_source_snapshot_delete_outbox" in tables
         version_cols = {c["name"]: c for c in inspector.get_columns("alembic_version")}
         assert getattr(version_cols["version_num"]["type"], "length", None) == 128
+        snapshot_cols = {
+            c["name"]: c for c in inspector.get_columns("practice_source_snapshots")
+        }
+        assert snapshot_cols["status"]["nullable"] is False
 
         cols = {c["name"]: c for c in inspector.get_columns("performance_takes")}
         assert cols["source_snapshot_id"]["nullable"] is False

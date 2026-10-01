@@ -28,7 +28,10 @@ from app.db.models.performance_take import (
     PerformanceTakeDeletionStatus,
     PerformanceTakeMediaKind,
 )
-from app.db.models.practice_source_snapshot import PracticeSourceSnapshot
+from app.db.models.practice_source_snapshot import (
+    PracticeSourceSnapshot,
+    PracticeSourceSnapshotStatus,
+)
 from app.db.models.practice_source_snapshot_delete_outbox import (
     PracticeSourceSnapshotDeleteOutbox,
     PracticeSourceSnapshotDeleteOutboxStatus,
@@ -542,6 +545,12 @@ class PerformanceTakeService:
             )
         ).scalar_one_or_none()
         if existing is not None:
+            if existing.status != PracticeSourceSnapshotStatus.READY.value:
+                raise ValidationException(
+                    ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
+                    field="source_snapshot",
+                    details={"reason": "source_snapshot_not_ready"},
+                )
             return existing
 
         musicxml_key = f"practice-source-snapshots/{fingerprint}/score.musicxml"
@@ -585,6 +594,12 @@ class PerformanceTakeService:
                 )
             ).scalar_one_or_none()
             if existing is not None:
+                if existing.status != PracticeSourceSnapshotStatus.READY.value:
+                    raise ValidationException(
+                        ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
+                        field="source_snapshot",
+                        details={"reason": "source_snapshot_not_ready"},
+                    )
                 return existing
             raise
         return snapshot
