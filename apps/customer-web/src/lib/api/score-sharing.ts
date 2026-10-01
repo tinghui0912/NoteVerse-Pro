@@ -6,13 +6,8 @@ import type {
   GrantCreatedRead,
   GrantCreateRequest,
   GrantRead,
+  GrantRedeemRead,
 } from '@/generated/api';
-
-interface GrantRedeemRead {
-  score_id: string;
-  title: string;
-  can_practice: boolean;
-}
 
 export const scoreSharingApi = {
   listGrants: (scoreId: string, options?: { limit?: number; signal?: AbortSignal }) =>

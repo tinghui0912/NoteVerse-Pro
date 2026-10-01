@@ -33,8 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatApiDateTime, parseApiDate } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { getShareExpirationDays } from '@/lib/score-detail/share';
-import type { GrantRead } from '@/generated/api';
-import type { ShareAccessMode } from '@/generated/api';
+import type { GrantRead, ScoreAudienceAccessMode } from '@/generated/api';
 
 function absoluteShareUrl(token: string, locale: string) {
   const path = locale === routing.defaultLocale ? `/share/${token}` : `/${locale}/share/${token}`;
@@ -55,8 +54,8 @@ export function ScoreSharePanel({
   const { toast } = useToast();
   const [expiration, setExpiration] = useState('permanent');
   const [customDate, setCustomDate] = useState('');
-  const [accessMode, setAccessMode] = useState<ShareAccessMode>('PRACTICE');
-  const [allowDownload, setAllowDownload] = useState(true);
+  const [accessMode, setAccessMode] = useState<ScoreAudienceAccessMode>('PRACTICE');
+  const [allowDownload, setAllowDownload] = useState(false);
   const [created, setCreated] = useState<{ grantId: string; token: string } | null>(null);
   const [createdTokens, setCreatedTokens] = useState<Record<string, string>>({});
   const [now] = useState(() => Date.now());
@@ -210,7 +209,7 @@ export function ScoreSharePanel({
             <Label>{t('accessMode')}</Label>
             <RadioGroup
               value={accessMode}
-              onValueChange={(value) => setAccessMode(value as ShareAccessMode)}
+              onValueChange={(value) => setAccessMode(value as ScoreAudienceAccessMode)}
               className="grid gap-3 sm:grid-cols-2"
             >
               {[

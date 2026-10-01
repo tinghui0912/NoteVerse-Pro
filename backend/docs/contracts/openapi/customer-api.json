@@ -532,6 +532,65 @@
         "title": "APIResponse[GrantRead]",
         "type": "object"
       },
+      "APIResponse_GrantRedeemRead_": {
+        "examples": [
+          {
+            "data": {
+              "id": 1,
+              "name": "Example task"
+            },
+            "message": "Operation succeeded",
+            "success": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business code",
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GrantRedeemRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response payload"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether the request succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "APIResponse[GrantRedeemRead]",
+        "type": "object"
+      },
       "APIResponse_ImportJobBatchStatusRead_": {
         "examples": [
           {
@@ -3949,11 +4008,11 @@
       "GrantCreateRequest": {
         "properties": {
           "access_mode": {
-            "$ref": "#/components/schemas/ShareAccessMode",
+            "$ref": "#/components/schemas/ScoreAudienceAccessMode",
             "default": "PRACTICE"
           },
           "allow_download": {
-            "default": true,
+            "default": false,
             "title": "Allow Download",
             "type": "boolean"
           },
@@ -3976,7 +4035,7 @@
       "GrantCreatedRead": {
         "properties": {
           "access_mode": {
-            "$ref": "#/components/schemas/ShareAccessMode"
+            "$ref": "#/components/schemas/ScoreAudienceAccessMode"
           },
           "allow_download": {
             "title": "Allow Download",
@@ -4022,7 +4081,7 @@
       "GrantRead": {
         "properties": {
           "access_mode": {
-            "$ref": "#/components/schemas/ShareAccessMode"
+            "$ref": "#/components/schemas/ScoreAudienceAccessMode"
           },
           "allow_download": {
             "title": "Allow Download",
@@ -4082,6 +4141,29 @@
           "created_at"
         ],
         "title": "GrantRead",
+        "type": "object"
+      },
+      "GrantRedeemRead": {
+        "properties": {
+          "can_practice": {
+            "title": "Can Practice",
+            "type": "boolean"
+          },
+          "score_id": {
+            "title": "Score Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "score_id",
+          "title",
+          "can_practice"
+        ],
+        "title": "GrantRedeemRead",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -7679,7 +7761,7 @@
       "PublicationRead": {
         "properties": {
           "access_mode": {
-            "$ref": "#/components/schemas/ShareAccessMode"
+            "$ref": "#/components/schemas/ScoreAudienceAccessMode"
           },
           "allow_download": {
             "title": "Allow Download",
@@ -7735,7 +7817,7 @@
       "PublicationUpsertRequest": {
         "properties": {
           "access_mode": {
-            "$ref": "#/components/schemas/ShareAccessMode",
+            "$ref": "#/components/schemas/ScoreAudienceAccessMode",
             "default": "PRACTICE"
           },
           "allow_download": {
@@ -8589,6 +8671,14 @@
         "title": "RevisionSourceRead",
         "type": "object"
       },
+      "ScoreAudienceAccessMode": {
+        "enum": [
+          "VIEW",
+          "PRACTICE"
+        ],
+        "title": "ScoreAudienceAccessMode",
+        "type": "string"
+      },
       "ScoreBatchDeleteRequest": {
         "properties": {
           "score_ids": {
@@ -9164,14 +9254,6 @@
         ],
         "title": "SessionsRead",
         "type": "object"
-      },
-      "ShareAccessMode": {
-        "enum": [
-          "VIEW",
-          "PRACTICE"
-        ],
-        "title": "ShareAccessMode",
-        "type": "string"
       },
       "ShareActorRead": {
         "properties": {
@@ -14209,6 +14291,64 @@
         "summary": "Stream Score Grant Playback",
         "tags": [
           "Playback"
+        ]
+      }
+    },
+    "/api/v1/score-grants/{token}/redeem": {
+      "post": {
+        "operationId": "redeem_score_grant_api_v1_score_grants__token__redeem_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_GrantRedeemRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redeem Score Grant",
+        "tags": [
+          "Score Sharing"
         ]
       }
     },

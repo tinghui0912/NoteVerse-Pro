@@ -257,6 +257,34 @@ export type ApiResponseGrantRead = {
 };
 
 /**
+ * APIResponse[GrantRedeemRead]
+ */
+export type ApiResponseGrantRedeemRead = {
+    /**
+     * Code
+     *
+     * Business code
+     */
+    code?: string | null;
+    /**
+     * Response payload
+     */
+    data?: GrantRedeemRead | null;
+    /**
+     * Message
+     *
+     * Human-readable message
+     */
+    message?: string | null;
+    /**
+     * Success
+     *
+     * Whether the request succeeded
+     */
+    success: boolean;
+};
+
+/**
  * APIResponse[ImportJobBatchStatusRead]
  */
 export type ApiResponseImportJobBatchStatusRead = {
@@ -1956,7 +1984,7 @@ export type GrantBookmarkRead = {
  * GrantCreateRequest
  */
 export type GrantCreateRequest = {
-    access_mode?: ShareAccessMode;
+    access_mode?: ScoreAudienceAccessMode;
     /**
      * Allow Download
      */
@@ -1971,7 +1999,7 @@ export type GrantCreateRequest = {
  * GrantCreatedRead
  */
 export type GrantCreatedRead = {
-    access_mode: ShareAccessMode;
+    access_mode: ScoreAudienceAccessMode;
     /**
      * Allow Download
      */
@@ -1998,7 +2026,7 @@ export type GrantCreatedRead = {
  * GrantRead
  */
 export type GrantRead = {
-    access_mode: ShareAccessMode;
+    access_mode: ScoreAudienceAccessMode;
     /**
      * Allow Download
      */
@@ -2023,6 +2051,24 @@ export type GrantRead = {
      * Token
      */
     token?: string | null;
+};
+
+/**
+ * GrantRedeemRead
+ */
+export type GrantRedeemRead = {
+    /**
+     * Can Practice
+     */
+    can_practice: boolean;
+    /**
+     * Score Id
+     */
+    score_id: string;
+    /**
+     * Title
+     */
+    title: string;
 };
 
 /**
@@ -3963,7 +4009,7 @@ export type PublicScoreRead = {
  * PublicationRead
  */
 export type PublicationRead = {
-    access_mode: ShareAccessMode;
+    access_mode: ScoreAudienceAccessMode;
     /**
      * Allow Download
      */
@@ -4000,7 +4046,7 @@ export type PublicationStatus = 'PUBLISHED' | 'UNPUBLISHED';
  * PublicationUpsertRequest
  */
 export type PublicationUpsertRequest = {
-    access_mode?: ShareAccessMode;
+    access_mode?: ScoreAudienceAccessMode;
     /**
      * Allow Download
      */
@@ -4456,6 +4502,11 @@ export type RevisionSourceRead = {
 };
 
 /**
+ * ScoreAudienceAccessMode
+ */
+export type ScoreAudienceAccessMode = 'VIEW' | 'PRACTICE';
+
+/**
  * ScoreBatchDeleteRequest
  */
 export type ScoreBatchDeleteRequest = {
@@ -4778,11 +4829,6 @@ export type SessionsRead = {
      */
     sessions: Array<SessionSummary>;
 };
-
-/**
- * ShareAccessMode
- */
-export type ShareAccessMode = 'VIEW' | 'PRACTICE';
 
 /**
  * ShareActorRead
@@ -7255,6 +7301,36 @@ export type StreamScoreGrantPlaybackApiV1ScoreGrantsTokenPlaybackGetResponses = 
      */
     200: unknown;
 };
+
+export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostData = {
+    body?: never;
+    path: {
+        /**
+         * Token
+         */
+        token: string;
+    };
+    query?: never;
+    url: '/api/v1/score-grants/{token}/redeem';
+};
+
+export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostError = RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostErrors[keyof RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostErrors];
+
+export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponseGrantRedeemRead;
+};
+
+export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostResponse = RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostResponses[keyof RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostResponses];
 
 export type DownloadScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdDownloadGetData = {
     body?: never;
