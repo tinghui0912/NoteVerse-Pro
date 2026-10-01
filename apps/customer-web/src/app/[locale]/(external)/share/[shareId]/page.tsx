@@ -1,11 +1,12 @@
 'use client';
 
 import { useMutation } from '@tanstack/react-query';
-import { Ban, CircleAlert, Clock3, SearchX } from 'lucide-react';
+import { Ban, CircleAlert, Clock3, Play, SearchX } from 'lucide-react';
 import React from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResourceLoading } from '@/components/loading';
 import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
@@ -38,6 +39,7 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
   const errors = useTranslations('errors');
   const locale = useLocale();
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const page = useSharePageData(shareId);
@@ -47,6 +49,55 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
     assets: page.shareData?.revision_assets,
   });
   const bookmark = useMutation({ mutationFn: () => scoreSharingApi.bookmark(shareId) });
+  const redeem = useMutation({ mutationFn: () => scoreSharingApi.redeem(shareId) });
+  const autoPracticeRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (
+      autoPracticeRef.current ||
+      page.authLoading ||
+      page.loading ||
+      !page.isAuthenticated ||
+      !page.shareData?.capabilities.can_practice ||
+      searchParams.get('practice') !== '1'
+    ) {
+      return;
+    }
+    autoPracticeRef.current = true;
+    redeem.mutate(undefined, {
+      onSuccess: (response) => {
+        if (!response.data) {
+          autoPracticeRef.current = false;
+          toast({
+            title: t('practiceStartFailed'),
+            description: t('practiceStartFailedDesc'),
+            variant: 'destructive',
+          });
+          return;
+        }
+        router.replace(`/score/${response.data.score_id}/practice`);
+      },
+      onError: (error) => {
+        autoPracticeRef.current = false;
+        toast({
+          title: t('practiceStartFailed'),
+          description: userFacingErrorMessage(errors, error, t('practiceStartFailedDesc')),
+          variant: 'destructive',
+        });
+      },
+    });
+  }, [
+    errors,
+    page.authLoading,
+    page.isAuthenticated,
+    page.loading,
+    page.shareData?.capabilities.can_practice,
+    redeem,
+    router,
+    searchParams,
+    t,
+    toast,
+  ]);
 
   if (page.authLoading || page.loading) {
     return (
@@ -95,7 +146,31 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
     : `/${locale}/share/${shareId}`;
   const returnPath = `${pathname || localizedSharePath}${query ? `?${query}` : ''}`;
   const loginHref = `/auth/login?returnUrl=${encodeURIComponent(returnPath)}`;
+  const practiceReturnParams = new URLSearchParams(query);
+  practiceReturnParams.set('practice', '1');
+  const practiceReturnPath = `${pathname || localizedSharePath}?${practiceReturnParams.toString()}`;
+  const practiceLoginHref = `/auth/login?returnUrl=${encodeURIComponent(practiceReturnPath)}`;
   const sharedByName = data.shared_by?.display_name || t('anonymousUser');
+  const startPractice = () => {
+    redeem.mutate(undefined, {
+      onSuccess: (response) => {
+        if (!response.data) {
+          toast({
+            title: t('practiceStartFailed'),
+            description: t('practiceStartFailedDesc'),
+            variant: 'destructive',
+          });
+          return;
+        }
+        router.push(`/score/${response.data.score_id}/practice`);
+      },
+      onError: (error) => toast({
+        title: t('practiceStartFailed'),
+        description: userFacingErrorMessage(errors, error, t('practiceStartFailedDesc')),
+        variant: 'destructive',
+      }),
+    });
+  };
   const save = () => bookmark.mutate(undefined, {
     onSuccess: () => toast({
       title: t('saveSuccessTitle'),
@@ -124,15 +199,36 @@ export default function SharePage({ params }: { params: Promise<{ shareId: strin
             playbackVisible={data.capabilities.can_practice}
             playbackAudioSrc={scoreSharingApi.playbackUrl(shareId)}
             actions={(
-              <ExternalScoreActions
-                canSave={page.isAuthenticated}
-                imagePreparing={imagePreparing}
-                isSaving={bookmark.isPending}
-                onDownloadImage={downloads.canDownloadImage ? () => void handleDownload('image') : undefined}
-                onDownloadXml={downloads.canDownloadXml ? () => void handleDownload('xml') : undefined}
-                onSave={page.isAuthenticated ? save : undefined}
-                saveHref={page.isAuthenticated ? undefined : loginHref}
-              />
+              <>
+                {data.capabilities.can_practice ? (
+                  page.isAuthenticated ? (
+                    <Button
+                      className="bg-orange-500 text-white hover:bg-orange-600"
+                      disabled={redeem.isPending}
+                      onClick={startPractice}
+                    >
+                      <Play className="mr-2 h-4 w-4" />
+                      {redeem.isPending ? t('startingPractice') : t('startPractice')}
+                    </Button>
+                  ) : (
+                    <Button asChild className="bg-orange-500 text-white hover:bg-orange-600">
+                      <a href={practiceLoginHref}>
+                        <Play className="mr-2 h-4 w-4" />
+                        {t('startPractice')}
+                      </a>
+                    </Button>
+                  )
+                ) : null}
+                <ExternalScoreActions
+                  canSave={page.isAuthenticated}
+                  imagePreparing={imagePreparing}
+                  isSaving={bookmark.isPending}
+                  onDownloadImage={downloads.canDownloadImage ? () => void handleDownload('image') : undefined}
+                  onDownloadXml={downloads.canDownloadXml ? () => void handleDownload('xml') : undefined}
+                  onSave={page.isAuthenticated ? save : undefined}
+                  saveHref={page.isAuthenticated ? undefined : loginHref}
+                />
+              </>
             )}
             meta={(
               <>

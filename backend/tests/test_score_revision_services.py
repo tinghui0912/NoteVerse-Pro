@@ -2060,12 +2060,23 @@ async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
     listed_grants = await service.list_grants(db, "sharing-score", 1)  # type: ignore[arg-type]
     assert listed_grants[0].token is None
 
+    redeemed = await service.redeem_grant(
+        db,
+        created.token,
+        2,  # type: ignore[arg-type]
+    )
+    assert redeemed.score_id == "sharing-score"
+    assert redeemed.can_practice is True
+    assert count_rows(session, ShareGrantRedemption) == 1
+    assert count_rows(session, ScoreLibraryEntry) == 0
+
     bookmarked = await service.bookmark_grant(
         db,
         created.token,
         2,  # type: ignore[arg-type]
     )
     assert bookmarked.available is True
+    assert count_rows(session, ShareGrantRedemption) == 1
     access = await service.access_grant(db, created.token, None)  # type: ignore[arg-type]
     assert access.shared_by is not None
     assert access.shared_by.display_name == "owner"
@@ -2077,6 +2088,19 @@ async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
     assert library_entry.source_type == LibraryEntrySourceType.BOOKMARK
     assert library_entry.is_favorite is True
     assert library_entry.deleted_at is None
+
+    view_only = await service.create_grant(
+        db,  # type: ignore[arg-type]
+        "sharing-score",
+        1,
+        GrantCreateRequest(access_mode=ScoreAudienceAccessMode.VIEW),
+    )
+    with pytest.raises(ValidationException):
+        await service.redeem_grant(
+            db,
+            view_only.token,
+            3,  # type: ignore[arg-type]
+        )
 
 
 @pytest.mark.asyncio

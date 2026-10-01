@@ -11,6 +11,7 @@ from app.modules.score_sharing.schemas import (
     GrantBookmarkRead,
     GrantCreateRequest,
     GrantCreatedRead,
+    GrantRedeemRead,
     GrantRead,
 )
 from app.modules.score_sharing.service import ScoreSharingService
@@ -150,6 +151,18 @@ async def bookmark_score_grant(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     result = await service.bookmark_grant(db, token, user_id)
+    return success_response(data=result)
+
+
+@grant_router.post("/{token}/redeem", response_model=APIResponse[GrantRedeemRead])
+async def redeem_score_grant(
+    token: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: ScoreSharingService = Depends(get_score_sharing_service),
+):
+    user_id = require_persisted_id(current_user.id, entity="user")
+    result = await service.redeem_grant(db, token, user_id)
     return success_response(data=result)
 
 

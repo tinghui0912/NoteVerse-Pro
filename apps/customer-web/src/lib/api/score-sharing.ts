@@ -8,6 +8,12 @@ import type {
   GrantRead,
 } from '@/generated/api';
 
+interface GrantRedeemRead {
+  score_id: string;
+  title: string;
+  can_practice: boolean;
+}
+
 export const scoreSharingApi = {
   listGrants: (scoreId: string, options?: { limit?: number; signal?: AbortSignal }) =>
     apiClient.get<ApiResponse<GrantRead[]>>(
@@ -41,4 +47,6 @@ export const scoreSharingApi = {
     }),
   bookmark: (token: string) =>
     apiClient.post<ApiResponse<GrantBookmarkRead>>(`/score-grants/${token}/bookmark`),
+  redeem: (token: string) =>
+    apiClient.post<ApiResponse<GrantRedeemRead>>(`/score-grants/${token}/redeem`),
 };

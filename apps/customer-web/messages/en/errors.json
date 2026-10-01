@@ -59,7 +59,7 @@
   "no_file_selected": "Please select a file first.",
   "xml_not_found": "The score source file does not exist or has been deleted.",
   "no_download_access": "You do not have permission to download this score.",
-  "practice_alignment_failed": "Practice analysis failed. Please check your microphone input and try again.",
+  "practice_source_failed": "Practice source preparation failed. Please refresh and try again.",
   "practice_scope_invalid": "This practice range is no longer available. Choose another range.",
   "no_practice_access": "You do not have permission to practice this score.",
   "user_not_found": "This user does not exist or has been deleted.",

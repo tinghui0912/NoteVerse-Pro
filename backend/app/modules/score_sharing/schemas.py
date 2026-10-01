@@ -61,3 +61,9 @@ class GrantBookmarkRead(BaseModel):
     available: bool
     unavailable_reason: str | None
     created_at: datetime
+
+
+class GrantRedeemRead(BaseModel):
+    score_id: str
+    title: str
+    can_practice: bool
