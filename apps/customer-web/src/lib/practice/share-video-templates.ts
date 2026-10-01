@@ -88,7 +88,3 @@ export function getShareVideoLayout(config: ShareVideoConfig): ShareVideoLayout 
     scoreImageAlign: 'center',
   };
 }
-
-export function getScorePanelBackground(): string {
-  return SCORE_BACKGROUND;
-}

@@ -93,7 +93,7 @@ export async function loadOnnxRuntimeWeb(): Promise<ByteDanceOnnxRuntime> {
   };
 }
 
-export type ByteDanceModelLoaderResult = {
+type ByteDanceModelLoaderResult = {
   bytes: Uint8Array;
   source?: 'opfs-cache' | 'network';
   downloadMs?: number;

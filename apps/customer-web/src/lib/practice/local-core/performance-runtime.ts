@@ -50,7 +50,7 @@ export type PerformanceClockSnapshot = {
 export type PerformancePracticeRuntimeOptions = {
   artifact: PracticeScoreArtifact;
   tempoPlan?: ResolvedPracticeTempoPlan;
-  scope?: PracticeScope;
+  scope: PracticeScope;
   clock: LocalClock;
   timebase?: PracticeTimebase;
   metadataClock?: DurableClock;
@@ -105,7 +105,7 @@ export class PerformancePracticeRuntime {
       runtimeVersion: 'local-practice-core-v1',
     };
     if (options.snapshot) {
-      validatePerformanceSnapshot(options.artifact, options.snapshot, options.inputSource, options.scope);
+      validatePerformanceSnapshot(options.artifact, options.snapshot, options.scope, options.inputSource);
     }
     this.inputSource = options.snapshot?.inputSource ?? options.inputSource ?? 'MICROPHONE';
     this.tempoPlan = options.snapshot?.performance.resolvedTempoPlan
@@ -119,7 +119,7 @@ export class PerformancePracticeRuntime {
       ?? this.tempoPlan.selection;
     this.metronomeEnabled = options.snapshot?.metronomeEnabled ?? options.metronomeEnabled ?? false;
     this.timeline = new PerformanceTimeline(this.artifact, this.tempoPlan.segments);
-    this.scope = resolvePerformanceScope(this.artifact, this.timeline, options.snapshot?.practiceScope ?? options.scope);
+    this.scope = resolvePerformanceScope(this.artifact, this.timeline, options.scope);
     const countIn = countInContractAt(this.artifact, this.scope.startBeat);
     this.countInBeats = options.snapshot?.performance.countInBeats ?? options.countInBeats ?? countIn.durationBeats;
     this.countInPulses = options.snapshot?.performance.countInPulses ?? countIn.pulses;
@@ -420,9 +420,9 @@ export class PerformanceTimeline extends PracticeTempoTimeline {
 function resolvePerformanceScope(
   artifact: PracticeScoreArtifact,
   timeline: PerformanceTimeline,
-  scope?: PracticeScope
+  scope: PracticeScope
 ): PerformanceScope {
-  const resolved = resolvePracticeScope(artifact, scope ?? { kind: 'FULL' });
+  const resolved = resolvePracticeScope(artifact, scope);
   return {
     ...resolved,
     nominalStartTimeMs: timeline.beatToTimeMs(resolved.startBeat),
@@ -433,8 +433,8 @@ function resolvePerformanceScope(
 function validatePerformanceSnapshot(
   artifact: PracticeScoreArtifact,
   snapshot: LocalPerformanceSessionSnapshot,
-  inputSource?: PracticeInputSource,
-  scope?: PracticeScope
+  scope: PracticeScope,
+  inputSource?: PracticeInputSource
 ): void {
   if (snapshot.mode !== 'CONTINUOUS_PLAY') {
     throw new Error('Cannot restore non-performance snapshot into PerformancePracticeRuntime.');
@@ -450,7 +450,7 @@ function validatePerformanceSnapshot(
   if (inputSource && snapshot.inputSource !== inputSource) {
     throw new Error('Practice session snapshot input source mismatch.');
   }
-  if (scope && JSON.stringify(scope) !== JSON.stringify(snapshot.practiceScope)) {
+  if (JSON.stringify(scope) !== JSON.stringify(snapshot.practiceScope)) {
     throw new Error('Practice session snapshot scope mismatch.');
   }
   if (

@@ -459,5 +459,3 @@ export const apiClient = {
   download,
   postForm,
 };
-
-export default apiClient;

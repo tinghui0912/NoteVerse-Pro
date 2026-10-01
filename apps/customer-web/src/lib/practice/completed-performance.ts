@@ -16,14 +16,14 @@ export type PerformanceMediaReady =
   | (PerformanceMediaReadyBase & { kind: 'AUDIO' })
   | (PerformanceMediaReadyBase & { kind: 'VIDEO' });
 
-export interface PerformanceMediaUnavailable {
+interface PerformanceMediaUnavailable {
   status: 'UNAVAILABLE';
   reason: string;
 }
 
 export type PerformanceMedia = PerformanceMediaReady | PerformanceMediaUnavailable;
 
-export interface RecordingActiveSegment {
+interface RecordingActiveSegment {
   perfStartMs: number;
   perfEndMs: number;
   mediaStartMs: number;

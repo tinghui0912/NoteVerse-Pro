@@ -53,10 +53,10 @@ const groups: ExpectedPracticeGroup[] = [
 ];
 
 describe('practice range selection', () => {
-  it('does not create a scope for full-piece practice', () => {
+  it('creates an explicit full-piece scope for full-piece practice', () => {
     expect(
       practiceScopeFromRangeSelection(fullPiecePracticeRangeSelection, groups)
-    ).toBeNull();
+    ).toEqual({ status: 'ready', scope: { kind: 'FULL' } });
   });
 
   it('sets the first selected target as the pending start', () => {
@@ -71,7 +71,7 @@ describe('practice range selection', () => {
   it('does not create a scope until both range boundaries are selected', () => {
     expect(
       practiceScopeFromRangeSelection(selectedPracticeRangeSelection('g2'), groups)
-    ).toBeNull();
+    ).toEqual({ status: 'incomplete' });
   });
 
   it('creates an inclusive scope after the end target is selected', () => {
@@ -82,9 +82,12 @@ describe('practice range selection', () => {
     );
 
     expect(practiceScopeFromRangeSelection(selection, groups)).toEqual({
-      kind: 'RANGE',
-      startGroupId: 'g1',
-      endGroupId: 'g3',
+      status: 'ready',
+      scope: {
+        kind: 'RANGE',
+        startGroupId: 'g1',
+        endGroupId: 'g3',
+      },
     });
   });
 
@@ -96,9 +99,12 @@ describe('practice range selection', () => {
     );
 
     expect(practiceScopeFromRangeSelection(selection, groups)).toEqual({
-      kind: 'RANGE',
-      startGroupId: 'g1',
-      endGroupId: 'g3',
+      status: 'ready',
+      scope: {
+        kind: 'RANGE',
+        startGroupId: 'g1',
+        endGroupId: 'g3',
+      },
     });
   });
 
@@ -110,9 +116,12 @@ describe('practice range selection', () => {
     );
 
     expect(practiceScopeFromRangeSelection(selection, groups)).toEqual({
-      kind: 'RANGE',
-      startGroupId: 'g2',
-      endGroupId: 'g2',
+      status: 'ready',
+      scope: {
+        kind: 'RANGE',
+        startGroupId: 'g2',
+        endGroupId: 'g2',
+      },
     });
   });
 
@@ -163,7 +172,7 @@ describe('practice range selection', () => {
         },
         groups
       )
-    ).toBeNull();
+    ).toEqual({ status: 'incomplete' });
   });
 
   it('handles two-stage transitionPracticeRangeSelection and reports completion', () => {
@@ -205,4 +214,3 @@ describe('practice range selection', () => {
     });
   });
 });
-

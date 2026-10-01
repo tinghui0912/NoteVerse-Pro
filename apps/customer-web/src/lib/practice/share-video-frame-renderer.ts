@@ -7,7 +7,7 @@ import {
 } from './share-video-score-model';
 import { svgRectToCanvasRect, type Rect } from './share-video-score-camera';
 
-export type ShareVideoFramePosition = {
+type ShareVideoFramePosition = {
   eventId?: string;
   pageNumber: number;
   noteIds: string[];
@@ -186,7 +186,7 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-export function drawStableScoreImage(
+function drawStableScoreImage(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement,
   viewBox: SvgViewBox,
@@ -216,7 +216,7 @@ export function drawStableScoreImage(
   return { x: dx, y: dy, width: drawWidth, height: drawHeight };
 }
 
-export function drawSourceVideoContain(
+function drawSourceVideoContain(
   ctx: CanvasRenderingContext2D,
   source: CanvasImageSource,
   rect: Rect,

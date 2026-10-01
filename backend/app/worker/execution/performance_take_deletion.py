@@ -12,6 +12,10 @@ from app.db.models.performance_take_delete_outbox import (
     PerformanceTakeDeleteOutbox,
     PerformanceTakeDeleteOutboxStatus,
 )
+from app.db.models.performance_take_upload_authorization import (
+    PerformanceTakeUploadAuthorization,
+    PerformanceTakeUploadAuthorizationStatus,
+)
 from app.db.models.practice_source_snapshot import PracticeSourceSnapshot
 from app.db.models.storage_usage import StorageUsageCategory
 from app.db.sync_session import get_worker_db
@@ -102,7 +106,10 @@ def execute_performance_take_deletion_task(
             ).opt(exception=True).error("performance_take_deletion.failed")
             return {"status": "failed", "outbox_uuid": outbox_uuid}
 
-        # 2. In single database transaction: delete Take, release quota, complete outbox
+        # 2. In a database transaction: verify whether this outbox also owns
+        # the final reference to the immutable practice source snapshot. If it
+        # does, delete snapshot storage before removing the DB row so failures
+        # keep this outbox retryable instead of leaving orphan objects behind.
         with get_worker_db() as db:
             outbox = db.execute(
                 select(PerformanceTakeDeleteOutbox)
@@ -165,13 +172,54 @@ def execute_performance_take_deletion_task(
                         PerformanceTake.source_snapshot_id == take.source_snapshot_id
                     )
                 ).scalar_one()
-                db.delete(take)
-                db.flush()
-                if snapshot is not None and snapshot_ref_count <= 1:
+                active_auth_ref_count = db.execute(
+                    select(func.count(PerformanceTakeUploadAuthorization.id)).where(
+                        PerformanceTakeUploadAuthorization.source_snapshot_id
+                        == take.source_snapshot_id,
+                        PerformanceTakeUploadAuthorization.status.notin_(
+                            [
+                                PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
+                                PerformanceTakeUploadAuthorizationStatus.CANCELLED.value,
+                                PerformanceTakeUploadAuthorizationStatus.EXPIRED.value,
+                            ]
+                        ),
+                    )
+                ).scalar_one()
+                if (
+                    snapshot is not None
+                    and snapshot_ref_count <= 1
+                    and active_auth_ref_count == 0
+                ):
                     snapshot_storage_keys = (
                         snapshot.prepared_musicxml_object_key,
                         snapshot.artifact_object_key,
                     )
+                    try:
+                        for snapshot_key in snapshot_storage_keys:
+                            if file_storage.exists(snapshot_key):
+                                file_storage.delete(snapshot_key)
+                    except Exception as exc:
+                        handled_error = True
+                        record_current_attempt_failure(exc)
+                        performance_take_delete_outbox_service.fail(
+                            db,
+                            outbox_uuid,
+                            str(exc),
+                            attempt=payload.attempt,
+                        )
+                        db.commit()
+                        operation_logger(
+                            "performance_take_deletion.snapshot_storage_delete_failed",
+                            **context,
+                            status="failed",
+                            exception_type=type(exc).__name__,
+                        ).opt(exception=True).error(
+                            "performance_take_deletion.snapshot_storage_delete_failed"
+                        )
+                        return {"status": "failed", "outbox_uuid": outbox_uuid}
+                db.delete(take)
+                db.flush()
+                if snapshot is not None and snapshot_storage_keys is not None:
                     db.delete(snapshot)
                 storage_usage_service.record_release_sync(
                     db,
@@ -194,19 +242,6 @@ def execute_performance_take_deletion_task(
                     f"{outbox_uuid}"
                 )
             db.commit()
-        if snapshot_storage_keys is not None:
-            for snapshot_key in snapshot_storage_keys:
-                try:
-                    if file_storage.exists(snapshot_key):
-                        file_storage.delete(snapshot_key)
-                except Exception:
-                    operation_logger(
-                        "performance_take_deletion.snapshot_storage_delete_failed",
-                        **context,
-                        snapshot_storage_key=snapshot_key,
-                    ).opt(exception=True).warning(
-                        "performance_take_deletion.snapshot_storage_delete_failed"
-                    )
 
         operation_logger(
             "performance_take_deletion.completed",

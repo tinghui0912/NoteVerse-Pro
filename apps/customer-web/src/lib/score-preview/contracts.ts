@@ -20,7 +20,7 @@ export interface CursorSyncOptions extends CursorVisibilityOptions {
   scrollIntoView?: boolean;
 }
 
-export interface ScoreRenderer {
+interface ScoreRenderer {
   loadScore(xmlString: string): Promise<void>;
   fitToContainer(): Promise<void>;
   dispose(): void;
@@ -38,7 +38,7 @@ export interface ScorePlaybackController {
   onPlaybackStateChange(listener: (state: ScorePlaybackState) => void): void;
 }
 
-export interface ScoreCursorController {
+interface ScoreCursorController {
   resetCursor(options?: CursorSyncOptions): void;
   hideCursor(): void;
   syncCursorToStep(step: number, options?: CursorSyncOptions): void;

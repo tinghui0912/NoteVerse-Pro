@@ -6,13 +6,12 @@ import {
   composeShareVideoOutputStream,
   drawExportFrame,
   getShareVideoExportReadiness,
-  prepareScorePageCache,
   selectSupportedShareVideoMimeType,
 } from './share-video-export';
 import { resolveShareVideoPlaybackPosition } from './share-video-playback-position';
 import { renderShareVideoFrameAtTime } from './share-video-frame-renderer';
 import { applyExportPlayheadCursor, getPlayheadCursorGeometry } from './playhead-cursor';
-import { getEventScoreImage } from './share-video-score-model';
+import { getEventScoreImage, prepareScorePageCache } from './share-video-score-model';
 import { getShareVideoLayout } from './share-video-templates';
 import type { ShareVideoSession } from './share-video-session';
 

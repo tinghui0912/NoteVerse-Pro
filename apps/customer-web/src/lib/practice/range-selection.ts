@@ -16,6 +16,10 @@ export const fullPiecePracticeRangeSelection: PracticeRangeSelection = {
   kind: 'FULL_PIECE',
 };
 
+export type PracticeScopeResolution =
+  | { status: 'ready'; scope: PracticeScope }
+  | { status: 'incomplete' };
+
 export function selectedPracticeRangeSelection(
   startGroupId: string
 ): PracticeRangeSelection {
@@ -88,25 +92,28 @@ export function transitionPracticeRangeSelection(
 export function practiceScopeFromRangeSelection(
   selection: PracticeRangeSelection,
   groups: readonly ExpectedPracticeGroup[]
-): PracticeScope | null {
-  if (
-    selection.kind === 'FULL_PIECE' ||
-    selection.kind === 'SELECTING_END'
-  ) {
-    return null;
+): PracticeScopeResolution {
+  if (selection.kind === 'FULL_PIECE') {
+    return { status: 'ready', scope: { kind: 'FULL' } };
+  }
+  if (selection.kind === 'SELECTING_END') {
+    return { status: 'incomplete' };
   }
 
   const startGroup = groupById(groups, selection.startGroupId);
   const endGroup = groupById(groups, selection.endGroupId);
   if (!startGroup || !endGroup) {
-    return null;
+    return { status: 'incomplete' };
   }
 
   const [start, end] = orderedPracticeGroups(startGroup, endGroup, groups);
   return {
-    kind: 'RANGE',
-    startGroupId: start.groupId,
-    endGroupId: end.groupId,
+    status: 'ready',
+    scope: {
+      kind: 'RANGE',
+      startGroupId: start.groupId,
+      endGroupId: end.groupId,
+    },
   };
 }
 

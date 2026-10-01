@@ -18,7 +18,7 @@ export type ExpectedPerformanceEvent = {
 export type PerformanceEvaluatorOptions = {
   artifact: PracticeScoreArtifact;
   timeline: PerformanceTimeline;
-  scope?: PracticeScope;
+  scope: PracticeScope;
   assignmentWindowMs?: number;
   chordSimultaneityWindowMs?: number;
 };

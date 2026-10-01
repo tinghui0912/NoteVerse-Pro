@@ -12,8 +12,8 @@ import {
   sanitizeUrlForError,
 } from './types';
 
-export const MODEL_ASSET_STORAGE_ROOT = 'noteverse-model-assets';
-export const MODEL_ASSET_SCHEMA_VERSION_DIR = 'v1';
+const MODEL_ASSET_STORAGE_ROOT = 'noteverse-model-assets';
+const MODEL_ASSET_SCHEMA_VERSION_DIR = 'v1';
 
 export class ModelAssetStore {
   private readonly inFlight = new Map<string, Promise<ModelAssetLoadResult>>();
@@ -487,4 +487,3 @@ export function isNotFoundError(error: unknown): boolean {
     (error as { name?: string }).name === 'NotFoundError'
   );
 }
-

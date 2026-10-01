@@ -2,7 +2,7 @@ import { apiClient, ApiResponse } from '../api-client';
 import type { PracticeReadyScoreContentRead } from '@/generated/api/types.gen';
 import type { PracticeScoreArtifact } from '../practice/local-core/artifact';
 
-export async function getPracticeReadyScoreContent(
+async function getPracticeReadyScoreContent(
     scoreId: string,
     revisionId: string,
     signal?: AbortSignal
@@ -14,7 +14,7 @@ export async function getPracticeReadyScoreContent(
     );
 }
 
-export async function getPracticeScoreArtifact(
+async function getPracticeScoreArtifact(
     scoreId: string,
     revisionId: string,
     signal?: AbortSignal

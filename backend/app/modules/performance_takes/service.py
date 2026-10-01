@@ -313,27 +313,35 @@ class PerformanceTakeService:
         tempo_plan = PerformanceTakeTempoPlan.model_validate(json.loads(take.tempo_plan))
         recording_timebase = RecordingTimebase.model_validate(json.loads(take.recording_timebase))
 
-        score_id_out = snapshot.source_score_uuid
-        score_title_out: Optional[str] = take.score_title
-
-        if not score_title_out and score is not None:
-            score_title_out = score.title
-        revision_id_out = snapshot.source_revision_uuid
+        score_title_snapshot = take.score_title_snapshot
+        if not score_title_snapshot:
+            raise ValidationException(
+                ErrorCode.VALIDATION_ERROR,
+                field="score_title_snapshot",
+                details={"reason": "score_title_snapshot_required"},
+            )
         linked_score_id = (
             score.score_uuid
             if can_open_score and score is not None and score.deletion_status == ScoreDeletionStatus.ACTIVE
             else None
         )
 
-        scope_type = getattr(take, "scope_type", "FULL") or "FULL"
+        scope_type = take.scope_type
+        if scope_type not in {"FULL", "RANGE"}:
+            raise ValidationException(
+                "Performance take scope is invalid.",
+                ErrorCode.VALIDATION_ERROR,
+                field="scope_type",
+                details={"reason": "scope_type_invalid"},
+            )
         deletion_status = _status_value(take.deletion_status)
 
         return PerformanceTakeRead(
             take_id=take.take_uuid,
-            score_id=score_id_out,
-            score_title=score_title_out,
-            revision_id=revision_id_out,
-            artifact_id=take.artifact_id,
+            source_score_id=snapshot.source_score_uuid,
+            source_revision_id=snapshot.source_revision_uuid,
+            source_artifact_id=snapshot.artifact_id,
+            score_title_snapshot=score_title_snapshot,
             linked_score_id=linked_score_id,
             can_open_score=linked_score_id is not None,
             media_kind=_media_kind_value(take.media_kind),
@@ -442,6 +450,7 @@ class PerformanceTakeService:
         return (
             take.take_uuid == auth.take_uuid
             and take.user_id == auth.user_id
+            and take.source_snapshot_id == auth.source_snapshot_id
             and take.client_request_id == auth.client_request_id
             and _media_kind_value(take.media_kind) == auth.media_kind
             and take.media_mime_type == auth.media_mime_type
@@ -454,7 +463,6 @@ class PerformanceTakeService:
             and take.scope_terminal_beat == auth.scope_terminal_beat
             and take.scope_start_group_id == auth.scope_start_group_id
             and take.scope_end_group_id == auth.scope_end_group_id
-            and take.artifact_id == auth.artifact_id
             and take.tempo_plan == auth.tempo_plan
             and take.recording_timebase == auth.recording_timebase
         )
@@ -865,6 +873,13 @@ class PerformanceTakeService:
             user_id=user_id,
             revision_uuid=revision.revision_uuid,
         )
+        snapshot = await self._get_or_create_source_snapshot(
+            db,
+            user_id=user_id,
+            score=score,
+            revision=revision,
+            artifact_id=request.artifact_id,
+        )
 
         take_uuid = str(uuid4())
         staging_object_key = _build_staging_object_key(user_id, take_uuid, cleaned_mime)
@@ -896,6 +911,7 @@ class PerformanceTakeService:
 
         auth = PerformanceTakeUploadAuthorization(
             user_id=user_id,
+            source_snapshot_id=snapshot.id,
             client_request_id=request.client_request_id,
             take_uuid=take_uuid,
             score_id=score.id,
@@ -1108,6 +1124,7 @@ class PerformanceTakeService:
         auth_snapshot = {
             "take_uuid": auth.take_uuid,
             "user_id": auth.user_id,
+            "source_snapshot_id": auth.source_snapshot_id,
             "score_id": auth.score_id,
             "score_uuid": auth.score_uuid,
             "score_title": auth.score_title,
@@ -1273,15 +1290,12 @@ class PerformanceTakeService:
             raise
         log_stage("candidate_hash_complete", started_at=finalize_started)
 
-        # Resolve the immutable source at finalize time. A completed performance
-        # must retain exact score/revision/artifact identity; do not finalize
-        # against a missing or deleted source.
+        # Source durability was decided at upload authorization time. Finalize
+        # consumes that pinned snapshot and must not require live Score access:
+        # owner deletion, member removal, or grant expiry after authorization do
+        # not invalidate this already-authorized save.
         try:
-            score = (
-                await db.get(Score, auth_snapshot["score_id"])
-                if auth_snapshot["score_id"]
-                else None
-            )
+            snapshot = await db.get(PracticeSourceSnapshot, auth_snapshot["source_snapshot_id"])
         except Exception as error:
             if not _is_transient_db_disconnect(error):
                 raise
@@ -1298,13 +1312,9 @@ class PerformanceTakeService:
                 "performance_take.finalize.db_reconnect_retry",
                 extra={"take_uuid": request.take_id, "stage": "db_finalize_started"},
             )
-            score = (
-                await db.get(Score, auth_snapshot["score_id"])
-                if auth_snapshot["score_id"]
-                else None
-            )
+            snapshot = await db.get(PracticeSourceSnapshot, auth_snapshot["source_snapshot_id"])
         log_stage("db_finalize_started", started_at=finalize_started)
-        if score is None or score.deletion_status != ScoreDeletionStatus.ACTIVE:
+        if snapshot is None:
             await self._record_failed_candidate_final(
                 db,
                 user_id=user_id,
@@ -1312,31 +1322,16 @@ class PerformanceTakeService:
                 candidate_key=candidate_key,
             )
             await self._delete_candidate_final_async(candidate_key)
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="score_id")
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
 
-        score_db_id: int = score.id
-        score_title_out = auth_snapshot["score_title"]
-        revision_db_id: int | None = None
-        score_title_out = score.title
-        rev = await db.get(ScoreRevision, auth_snapshot["revision_id"])
-        if rev is not None and rev.score_id == score.id:
-            revision_db_id = rev.id
-        if revision_db_id is None:
-            await self._record_failed_candidate_final(
-                db,
-                user_id=user_id,
-                take_uuid=request.take_id,
-                candidate_key=candidate_key,
-            )
-            await self._delete_candidate_final_async(candidate_key)
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="revision_id")
-        snapshot = await self._get_or_create_source_snapshot(
-            db,
-            user_id=user_id,
-            score=score,
-            revision=rev,
-            artifact_id=auth_snapshot["artifact_id"],
+        score = (
+            await db.get(Score, auth_snapshot["score_id"])
+            if auth_snapshot["score_id"]
+            else None
         )
+        can_open_score = await self._can_open_score(db, user_id, score)
+        score_db_id: int | None = score.id if score is not None else None
+        score_title_out = auth_snapshot["score_title"]
 
         auth = await self.repository.get_authorization_by_take_uuid(
             db, user_id, request.take_id, lock=True
@@ -1412,9 +1407,7 @@ class PerformanceTakeService:
             user_id=auth.user_id,
             source_snapshot_id=snapshot.id,
             score_id=score_db_id,
-            score_title=score_title_out,
-            revision_id=revision_db_id,
-            artifact_id=auth_snapshot["artifact_id"],
+            score_title_snapshot=score_title_out,
             client_request_id=auth_snapshot["client_request_id"],
             media_kind=PerformanceTakeMediaKind(auth_snapshot["media_kind"]),
             media_mime_type=auth_snapshot["media_mime_type"],
@@ -1483,7 +1476,7 @@ class PerformanceTakeService:
             created,
             snapshot=snapshot,
             score=score,
-            can_open_score=True,
+            can_open_score=can_open_score,
         )
 
     async def list_takes(

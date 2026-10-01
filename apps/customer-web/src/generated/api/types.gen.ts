@@ -2026,11 +2026,6 @@ export type GrantRead = {
 };
 
 /**
- * ShareAccessMode
- */
-export type ShareAccessMode = 'VIEW' | 'PRACTICE';
-
-/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -3077,7 +3072,7 @@ export type PerformanceTakeCreateRequest = {
     /**
      * Scope Type
      */
-    scope_type?: string;
+    scope_type: string;
     /**
      * Score Id
      */
@@ -3172,17 +3167,13 @@ export type PerformanceTakePlaybackRead = {
  */
 export type PerformanceTakeRead = {
     /**
-     * Artifact Id
+     * Can Open Score
      */
-    artifact_id: string;
+    can_open_score?: boolean;
     /**
      * Created At
      */
     created_at: string;
-    /**
-     * Can Open Score
-     */
-    can_open_score?: boolean;
     /**
      * Deletion Status
      */
@@ -3209,10 +3200,6 @@ export type PerformanceTakeRead = {
     media_mime_type: string;
     recording_timebase: RecordingTimebase;
     /**
-     * Revision Id
-     */
-    revision_id: string;
-    /**
      * Scope End Group Id
      */
     scope_end_group_id?: string | null;
@@ -3231,15 +3218,23 @@ export type PerformanceTakeRead = {
     /**
      * Scope Type
      */
-    scope_type?: string;
+    scope_type: string;
     /**
-     * Score Id
+     * Score Title Snapshot
      */
-    score_id: string;
+    score_title_snapshot: string;
     /**
-     * Score Title
+     * Source Artifact Id
      */
-    score_title?: string | null;
+    source_artifact_id: string;
+    /**
+     * Source Revision Id
+     */
+    source_revision_id: string;
+    /**
+     * Source Score Id
+     */
+    source_score_id: string;
     /**
      * Take Id
      */
@@ -3376,7 +3371,7 @@ export type PerformanceTakeUploadAuthorizationRequest = {
     /**
      * Scope Type
      */
-    scope_type?: string;
+    scope_type: string;
     /**
      * Score Id
      */
@@ -3968,14 +3963,11 @@ export type PublicScoreRead = {
  * PublicationRead
  */
 export type PublicationRead = {
+    access_mode: ShareAccessMode;
     /**
      * Allow Download
      */
     allow_download: boolean;
-    /**
-     * Allow Practice
-     */
-    allow_practice: boolean;
     /**
      * Public Slug
      */
@@ -4008,14 +4000,11 @@ export type PublicationStatus = 'PUBLISHED' | 'UNPUBLISHED';
  * PublicationUpsertRequest
  */
 export type PublicationUpsertRequest = {
+    access_mode?: ShareAccessMode;
     /**
      * Allow Download
      */
     allow_download?: boolean;
-    /**
-     * Allow Practice
-     */
-    allow_practice?: boolean;
     /**
      * Public Slug
      */
@@ -4789,6 +4778,11 @@ export type SessionsRead = {
      */
     sessions: Array<SessionSummary>;
 };
+
+/**
+ * ShareAccessMode
+ */
+export type ShareAccessMode = 'VIEW' | 'PRACTICE';
 
 /**
  * ShareActorRead
@@ -6622,6 +6616,66 @@ export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses = {
 };
 
 export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponse = GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses[keyof GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses];
+
+export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetData = {
+    body?: never;
+    path: {
+        /**
+         * Take Id
+         */
+        take_id: string;
+    };
+    query?: never;
+    url: '/api/v1/performance-takes/{take_id}/practice-source/artifact';
+};
+
+export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetError = GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetErrors[keyof GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetErrors];
+
+export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePracticeScoreArtifactRead;
+};
+
+export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponse = GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponses[keyof GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponses];
+
+export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetData = {
+    body?: never;
+    path: {
+        /**
+         * Take Id
+         */
+        take_id: string;
+    };
+    query?: never;
+    url: '/api/v1/performance-takes/{take_id}/practice-source/content';
+};
+
+export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetError = GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetErrors[keyof GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetErrors];
+
+export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApiResponsePracticeReadyScoreContentRead;
+};
+
+export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponse = GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponses[keyof GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponses];
 
 export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetData = {
     body?: never;

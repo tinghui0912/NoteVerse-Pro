@@ -25,7 +25,7 @@ export type EditingDomainInspectorViewModelState = EditingDomainEventState & {
   viewModelSource: 'domainAnchor' | 'unavailable';
 };
 
-export function findDomainVoiceEventForAnchor(
+function findDomainVoiceEventForAnchor(
   document: ScoreDocument | null,
   anchor: DomainAnchor | null,
 ): VoiceEvent | null {

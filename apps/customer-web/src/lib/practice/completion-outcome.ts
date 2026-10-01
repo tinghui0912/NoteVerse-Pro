@@ -1,4 +1,4 @@
-export type PracticeCompletionOutcomeKind =
+type PracticeCompletionOutcomeKind =
   | 'full-piece-learning'
   | 'full-piece-performance'
   | 'selected-section';

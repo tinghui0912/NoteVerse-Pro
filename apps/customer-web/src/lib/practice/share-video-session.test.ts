@@ -26,13 +26,15 @@ const recordingTimebase: RecordingTimebase = {
 
 const take: PerformanceTakeRead = {
   take_id: 'take-1',
-  score_id: 'score-1',
-  revision_id: 'revision-1',
-  artifact_id: 'artifact-1',
+  source_score_id: 'score-1',
+  source_revision_id: 'revision-1',
+  source_artifact_id: 'artifact-1',
+  score_title_snapshot: 'Etude',
   media_kind: 'VIDEO',
   media_mime_type: 'video/webm',
   media_byte_size: 10,
   duration_ms: 4000,
+  scope_type: 'FULL',
   scope_start_beat: 0,
   scope_terminal_beat: 16,
   deletion_status: 'ACTIVE',

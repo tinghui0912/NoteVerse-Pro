@@ -28,6 +28,11 @@
     "playwright.integration.config.ts",
     "src/generated/api/**"
   ],
+  "ignoreIssues": {
+    "next.config.ts": ["exports"],
+    "openapi-ts.config.ts": ["exports"],
+    "vitest.config.ts": ["exports"]
+  },
   "ignoreDependencies": [
     "@hey-api/openapi-ts",
     "@playwright/test",

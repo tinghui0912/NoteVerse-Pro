@@ -441,23 +441,30 @@ export default function PracticeReviewPage({
     setSaveStatus('saving');
     setSaveErrorMessage(null);
 
-    const scopeType = draft.scope.kind === 'RANGE' ? 'RANGE' : 'FULL';
-
     try {
       await saveMutation.mutateAsync({
         scoreId: id,
         revisionId: draft.revisionId,
-        scopeType,
         artifactId: draft.artifactId,
         clientRequestId: clientRequestIdRef.current ?? '',
         mediaKind: saveMedia.kind,
         mediaBlob: saveMedia.blob,
         mimeType: saveMedia.mimeType,
         durationMs: saveMedia.durationMs,
-        scopeStartBeat: draft.scope.startBeat,
-        scopeTerminalBeat: draft.scope.terminalBeat,
-        scopeStartGroupId: draft.scope.kind === 'RANGE' ? draft.scope.startGroupId : null,
-        scopeEndGroupId: draft.scope.kind === 'RANGE' ? draft.scope.endGroupId : null,
+        scope:
+          draft.scope.kind === 'RANGE'
+            ? {
+                kind: 'RANGE',
+                startBeat: draft.scope.startBeat,
+                terminalBeat: draft.scope.terminalBeat,
+                startGroupId: draft.scope.startGroupId,
+                endGroupId: draft.scope.endGroupId,
+              }
+            : {
+                kind: 'FULL',
+                startBeat: draft.scope.startBeat,
+                terminalBeat: draft.scope.terminalBeat,
+              },
         tempoPlan: toPerformanceTakeTempoPlan(draft.tempoPlan),
         recordingTimebase: draft.recordingTimebase,
       });

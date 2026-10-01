@@ -1,13 +1,8 @@
 import type {
   PracticeScoreArtifactRead,
   PracticeScoreAttackStepRead,
-  PracticeScoreAttackTargetRead,
-  PracticeScoreEventRead,
   PracticeScoreExpectedGroupRead,
-  PracticeScoreExpectedNoteRead,
-  PracticeScoreExpectedStrikeTargetRead,
   PracticeScoreMeterSegmentRead,
-  PracticeScoreStepNoteRead,
   PracticeScoreTempoSegmentRead,
 } from '@/generated/api/types.gen';
 
@@ -17,12 +12,7 @@ export type PracticeMode = 'STEP_BY_STEP' | 'CONTINUOUS_PLAY';
 export type PracticeInputSource = 'MICROPHONE' | 'MIDI';
 
 export type PracticeScoreArtifact = PracticeScoreArtifactRead;
-export type PracticeScoreEvent = PracticeScoreEventRead;
 export type ExpectedPracticeGroup = PracticeScoreExpectedGroupRead;
-export type ExpectedPracticeNote = PracticeScoreExpectedNoteRead;
-export type ExpectedPracticeStrikeTarget = PracticeScoreExpectedStrikeTargetRead;
-export type PracticeStepNote = PracticeScoreStepNoteRead;
-export type PracticeAttackTarget = PracticeScoreAttackTargetRead;
 export type PracticeAttackStep = PracticeScoreAttackStepRead;
 export type MeterSegment = PracticeScoreMeterSegmentRead;
 export type TempoSegment = PracticeScoreTempoSegmentRead;
@@ -136,7 +126,7 @@ export function assertPracticeScoreArtifact(artifact: unknown): asserts artifact
 
 export function resolvePracticeScope(
   artifact: PracticeScoreArtifact,
-  scope: PracticeScope = { kind: 'FULL' }
+  scope: PracticeScope
 ): ResolvedPracticeScope {
   assertPracticeScoreArtifact(artifact);
   if (artifact.expectedPracticeGroups.length === 0) {
@@ -215,7 +205,7 @@ export function continuationPitchesForStep(step: PracticeAttackStep): string[] {
   return Array.from(new Set(step.continuation.map((note) => note.pitch)));
 }
 
-export function meterAt(artifact: PracticeScoreArtifact, beat: number): MeterSegment {
+function meterAt(artifact: PracticeScoreArtifact, beat: number): MeterSegment {
   const defaultMeter: MeterSegment = {
     startBeat: 0,
     numerator: 4,

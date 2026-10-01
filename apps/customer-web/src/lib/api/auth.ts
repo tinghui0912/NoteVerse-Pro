@@ -12,7 +12,7 @@ import type { EmailChangeConfirmedRead, RegisterRequest, User } from '@/generate
  * @param password User password.
  * @returns Login success response. Session cookies are managed by the backend.
  */
-export async function login(email: string, password: string): Promise<ApiResponse> {
+async function login(email: string, password: string): Promise<ApiResponse> {
     const response = await apiClient.postForm<ApiResponse>('/auth/login', {
         username: email,
         password: password,
@@ -21,7 +21,7 @@ export async function login(email: string, password: string): Promise<ApiRespons
     return response;
 }
 
-export async function logout(): Promise<ApiResponse> {
+async function logout(): Promise<ApiResponse> {
     return apiClient.post<ApiResponse>('/auth/logout');
 }
 
@@ -29,7 +29,7 @@ export async function logout(): Promise<ApiResponse> {
  * Register a user.
  * @param data Registration payload.
  */
-export async function register(data: RegisterRequest): Promise<ApiResponse> {
+async function register(data: RegisterRequest): Promise<ApiResponse> {
     return apiClient.post<ApiResponse>('/auth/register', {
         email: data.email,
         password: data.password,
@@ -38,15 +38,15 @@ export async function register(data: RegisterRequest): Promise<ApiResponse> {
     });
 }
 
-export async function verifyEmail(token: string): Promise<ApiResponse<User>> {
+async function verifyEmail(token: string): Promise<ApiResponse<User>> {
     return apiClient.post<ApiResponse<User>>('/auth/email/verify', { token });
 }
 
-export async function confirmEmailChange(token: string): Promise<ApiResponse<EmailChangeConfirmedRead>> {
+async function confirmEmailChange(token: string): Promise<ApiResponse<EmailChangeConfirmedRead>> {
     return apiClient.post<ApiResponse<EmailChangeConfirmedRead>>('/auth/email/change/confirm', { token });
 }
 
-export async function requestPasswordReset(
+async function requestPasswordReset(
     email: string,
     locale: 'en' | 'zh' = 'zh'
 ): Promise<ApiResponse> {
@@ -62,7 +62,7 @@ export async function requestPasswordReset(
  * @param token Password reset token.
  * @param locale Locale used for localized response messaging.
  */
-export async function resetPassword(
+async function resetPassword(
     newPassword: string,
     token: string,
     locale: 'en' | 'zh' = 'zh'
@@ -83,5 +83,3 @@ export const authApi = {
     resetPassword,
     logout,
 };
-
-export default authApi;

@@ -59,6 +59,14 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
             nullable=False,
         )
     )
+    source_snapshot_id: int = Field(
+        sa_column=Column(
+            bigint_pk_type,
+            ForeignKey("practice_source_snapshots.id", ondelete="RESTRICT"),
+            index=True,
+            nullable=False,
+        ),
+    )
     client_request_id: str = Field(
         sa_column=Column(String(128), index=True, nullable=False)
     )
@@ -77,9 +85,8 @@ class PerformanceTakeUploadAuthorization(SQLModel, table=True):  # type: ignore[
     score_uuid: str = Field(
         sa_column=Column(String(36), nullable=False),
     )
-    score_title: Optional[str] = Field(
-        default=None,
-        sa_column=Column(String(255), nullable=True),
+    score_title: str = Field(
+        sa_column=Column(String(255), nullable=False),
     )
     revision_id: Optional[int] = Field(
         default=None,

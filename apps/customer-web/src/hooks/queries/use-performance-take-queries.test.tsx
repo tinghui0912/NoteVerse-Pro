@@ -58,9 +58,11 @@ function createInput() {
     mediaBlob: new Blob(['RIFF....WAVE'], { type: 'audio/wav' }),
     mimeType: 'audio/wav',
     durationMs: 1000,
-    scopeType: 'FULL',
-    scopeStartBeat: 0,
-    scopeTerminalBeat: 4,
+    scope: {
+      kind: 'FULL' as const,
+      startBeat: 0,
+      terminalBeat: 4,
+    },
     tempoPlan,
     recordingTimebase,
   };
@@ -68,10 +70,10 @@ function createInput() {
 
 const savedTake: PerformanceTakeRead = {
   take_id: 'take-1',
-  score_id: 'score-1',
-  score_title: 'Etude',
-  revision_id: 'revision-1',
-  artifact_id: 'artifact-1',
+  source_score_id: 'score-1',
+  score_title_snapshot: 'Etude',
+  source_revision_id: 'revision-1',
+  source_artifact_id: 'artifact-1',
   media_kind: 'AUDIO',
   media_mime_type: 'audio/wav',
   media_byte_size: 12,

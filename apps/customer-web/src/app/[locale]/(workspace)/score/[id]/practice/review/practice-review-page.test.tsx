@@ -701,7 +701,7 @@ describe('PracticeReviewPage', () => {
     const saveCall = saveMutationMock.mutateAsync.mock.calls[0][0];
     expect(saveCall.scoreId).toBe('score-123');
     expect(saveCall.revisionId).toBe('rev-1');
-    expect(saveCall.scopeType).toBe('FULL');
+    expect(saveCall.scope).toMatchObject({ kind: 'FULL' });
     expect(saveCall.artifactId).toBe('art-1');
     expect(saveCall.mediaKind).toBe('AUDIO');
     expect(saveCall.mediaBlob).toBeDefined();

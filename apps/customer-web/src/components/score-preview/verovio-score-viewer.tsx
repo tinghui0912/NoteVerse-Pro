@@ -38,7 +38,7 @@ type VerovioScoreViewerProps = {
 const NON_NOTE_CONTAINER_SELECTOR =
   '.measure, [data-class="measure"], .staff, [data-class="staff"], .beam, [data-class="beam"], .system, [data-class="system"], .page, [data-class="page"], svg';
 
-export function findRenderNoteIdFromTarget(target: Element): string | null {
+function findRenderNoteIdFromTarget(target: Element): string | null {
   // 1. Direct note or child of note (notehead, accid, stem of single note, etc.)
   const noteElement = target.closest<SVGGraphicsElement>('.note, [data-class="note"]');
   if (noteElement) {

@@ -17,7 +17,7 @@ export type LocalPracticeInputState =
 export type PracticeLifecycleState = LocalPracticeLifecycle;
 export type LocalPracticeCompletionReason = 'SCOPE_COMPLETED' | 'STOPPED_BY_USER';
 
-export type LocalPracticeSessionBase = {
+type LocalPracticeSessionBase = {
   localSessionId: string;
   scoreId: string;
   revisionId: string;
@@ -74,7 +74,7 @@ export type LocalPracticeAttempt = {
   sessionTime: SessionTime;
 };
 
-export type LocalPerformanceObservationRecord = {
+type LocalPerformanceObservationRecord = {
   source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
   captureTime: SessionTime;
   inferenceCompletedAtMs?: number;

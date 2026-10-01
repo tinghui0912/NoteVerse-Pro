@@ -2,8 +2,6 @@
 export type Articulation = 'beam' | 'tie' | 'slur';
 export type AccidentalValue = 'flat-flat' | 'flat' | 'natural' | 'sharp';
 
-export type ParsedScoreEventType = 'note' | 'chord' | 'rest';
-
 export type Duration =
   | 'durationWhole'
   | 'durationHalf'
@@ -76,7 +74,7 @@ export type Measure = {
   staves: Stave[];
 };
 
-export type TieConnection = {
+type TieConnection = {
   /** Connected entity id at the other end of the tie. */
   partnerId: string;
   /** Whether this entity is the rendered tie start or stop. */
@@ -87,7 +85,7 @@ export type TieConnection = {
   partnerSourceId?: string;
 };
 
-export type SlurConnection = {
+type SlurConnection = {
   slurId: string;
   /** Whether this entity is the rendered slur start or stop. */
   type: 'start' | 'stop';
@@ -99,7 +97,7 @@ export type SlurConnection = {
   partnerSourceIds?: string[];
 };
 
-export type BeamConnection = {
+type BeamConnection = {
   beamId: string;
   /** All entity ids represented by this beam. */
   noteIds: string[];
@@ -145,7 +143,7 @@ export type ScoreData = {
   connections?: ConnectionData;
 };
 
-export type TimelineInsertLocation = {
+type TimelineInsertLocation = {
   measureIndex: number;
   staveIndex: number;
   /** 1-based MusicXML voice value from the source `voice` element. */
@@ -155,11 +153,3 @@ export type TimelineInsertLocation = {
 };
 
 export type AddLocation = TimelineInsertLocation;
-
-export type EntityLocation = {
-  measureIndex: number;
-  staveIndex: number;
-  /** 1-based MusicXML voice value from the source `voice` element. */
-  xmlVoice: number;
-  entityIndex: number;
-};

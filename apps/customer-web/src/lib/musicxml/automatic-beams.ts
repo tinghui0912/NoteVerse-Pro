@@ -309,22 +309,6 @@ export function rebuildAutomaticBeamsForMeasure(xmlDoc: XMLDocument, measure: El
   ));
 }
 
-export function rebuildAutomaticBeamsForVoice(
-  xmlDoc: XMLDocument,
-  measure: Element,
-  staff: number,
-  voice: number
-): void {
-  const divisions = getDivisions(xmlDoc);
-  rebuildVoiceBeams(
-    xmlDoc,
-    measure,
-    { staff, voice },
-    divisions,
-    getBeatGroupTicks(xmlDoc, measure, divisions)
-  );
-}
-
 export function repairAutomaticBeamsForVoice(
   xmlDoc: XMLDocument,
   measure: Element,

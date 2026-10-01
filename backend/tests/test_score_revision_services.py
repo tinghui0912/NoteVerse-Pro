@@ -1943,7 +1943,7 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
                 score_id=70,
                 token_hash=hash_share_token("view-token"),
                 allow_download=True,
-                allow_practice=False,
+                access_mode="VIEW",
                 created_by_user_id=1,
             ),
             ScoreShareGrant(
@@ -1958,7 +1958,7 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
                 published_revision_id=71,
                 status=PublicationStatus.PUBLISHED,
                 allow_download=False,
-                allow_practice=True,
+                access_mode="PRACTICE",
                 published_by_user_id=1,
             ),
         ]
@@ -2822,7 +2822,7 @@ async def test_public_detail_exposes_derived_fallback_without_musicxml_when_down
             revision_id="public-derived-revision-2",
             public_slug="public-derived-score",
             allow_download=False,
-            allow_practice=True,
+            access_mode="PRACTICE",
         ),
     )
 

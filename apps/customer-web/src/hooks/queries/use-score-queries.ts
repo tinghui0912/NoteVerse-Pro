@@ -332,7 +332,7 @@ export function usePublishScore(scoreId: string) {
     mutationFn: (revisionId: string) => publicationsApi.publish(scoreId, {
       revision_id: revisionId,
       allow_download: false,
-      allow_practice: true,
+      access_mode: 'PRACTICE',
     }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.scores.scorePublication(scoreId) }),
   });

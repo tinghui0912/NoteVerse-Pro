@@ -53,7 +53,7 @@ export function focusPageContainer(
   });
 }
 
-export function getVisibilityRatio(
+function getVisibilityRatio(
   container: HTMLElement,
   element: Element
 ) {

@@ -15,7 +15,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { LibraryFolderRead, LibraryView } from '@/generated/api';
 
-export interface LibraryVirtualNode {
+interface LibraryVirtualNode {
   view: LibraryView;
   label: string;
   count: number;

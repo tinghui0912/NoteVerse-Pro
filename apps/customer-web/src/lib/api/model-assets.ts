@@ -1,6 +1,6 @@
 import { apiClient, type ApiResponse } from '../api-client';
 
-export type ModelAssetAccess = {
+type ModelAssetAccess = {
   schemaVersion: 1;
   assetId: 'bytedance-piano-transcription-note-model';
   assetVersion: 'CRNN_note_F1_0.9677_pedal_F1_0.9186';
@@ -11,13 +11,13 @@ export type ModelAssetAccess = {
   downloadUrlExpiresAt: string;
 };
 
-export const EXPECTED_BYTEDANCE_MODEL_ASSET_ID = 'bytedance-piano-transcription-note-model';
-export const EXPECTED_BYTEDANCE_MODEL_ASSET_VERSION = 'CRNN_note_F1_0.9677_pedal_F1_0.9186';
-export const EXPECTED_BYTEDANCE_MODEL_BYTE_SIZE = 98_691_493;
-export const EXPECTED_BYTEDANCE_MODEL_SHA256 =
+const EXPECTED_BYTEDANCE_MODEL_ASSET_ID = 'bytedance-piano-transcription-note-model';
+const EXPECTED_BYTEDANCE_MODEL_ASSET_VERSION = 'CRNN_note_F1_0.9677_pedal_F1_0.9186';
+const EXPECTED_BYTEDANCE_MODEL_BYTE_SIZE = 98_691_493;
+const EXPECTED_BYTEDANCE_MODEL_SHA256 =
   '6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5';
 
-export function assertModelAssetAccess(data: unknown): asserts data is ModelAssetAccess {
+function assertModelAssetAccess(data: unknown): asserts data is ModelAssetAccess {
   if (!data || typeof data !== 'object') {
     throw new Error('ModelAssetAccess must be a non-null object');
   }
@@ -66,7 +66,7 @@ export function assertModelAssetAccess(data: unknown): asserts data is ModelAsse
   }
 }
 
-export async function getByteDanceNoteModelAccess(signal?: AbortSignal): Promise<ModelAssetAccess> {
+async function getByteDanceNoteModelAccess(signal?: AbortSignal): Promise<ModelAssetAccess> {
   const response = await apiClient.get<ApiResponse<ModelAssetAccess>>(
     '/model-assets/bytedance-note/access',
     undefined,

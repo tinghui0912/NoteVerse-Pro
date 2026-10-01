@@ -1,19 +1,5 @@
 import type { CaptureTime, SessionTime } from './timebase';
 
-export type NormalizedAcousticNoteEvidence = CaptureTime & {
-  pitch: string;
-  onsetScore: number;
-  frameScore?: number;
-  confidence: number;
-  source: 'ACOUSTIC';
-};
-
-export type LocalMidiNoteObservation = CaptureTime & {
-  pitch: string;
-  velocity: number;
-  source: 'MIDI';
-};
-
 export type StepVerifierTarget = {
   stepId: string;
   activationGeneration: number;
@@ -43,9 +29,9 @@ export type PerformanceEvaluationObservation = PerformanceEvidenceObservation & 
   musicalBeat: number;
 };
 
-export type PerformanceExpectedStrikeResult = 'MATCHED' | 'MISSING' | 'UNCONFIRMED';
+type PerformanceExpectedStrikeResult = 'MATCHED' | 'MISSING' | 'UNCONFIRMED';
 
-export type PerformanceExpectedEventResult =
+type PerformanceExpectedEventResult =
   | 'MATCH'
   | 'PARTIAL'
   | 'MISMATCH'
@@ -70,17 +56,6 @@ export type PerformanceExpectedEventOutcome = {
   renderNoteIds: string[];
   measureNumbers: string[];
   timingOffsetMs?: number;
-};
-
-export type LocalEvidencePipeline = {
-  pushAudioFrame?(frame: CapturedAudioFrame): void;
-  pushMidiObservation?(observation: LocalMidiNoteObservation): void;
-};
-
-export type CapturedAudioFrame = CaptureTime & {
-  sampleRate: number;
-  channelCount: number;
-  samples: Float32Array;
 };
 
 export function normalizePitchSet(pitches: readonly string[]): string[] {

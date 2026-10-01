@@ -25,6 +25,10 @@ def _columns(table_name: str) -> set[str]:
     return {column["name"] for column in sa.inspect(op.get_bind()).get_columns(table_name)}
 
 
+def _indexes(table_name: str) -> set[str]:
+    return {index["name"] for index in sa.inspect(op.get_bind()).get_indexes(table_name)}
+
+
 def _drop_fk_to(table_name: str, referred_table: str) -> None:
     inspector = sa.inspect(op.get_bind())
     for fk in inspector.get_foreign_keys(table_name):
@@ -82,25 +86,38 @@ def upgrade() -> None:
             )
         if "evaluation" in columns:
             op.drop_column("performance_takes", "evaluation")
+        if "artifact_id" in columns:
+            op.drop_column("performance_takes", "artifact_id")
+        if "revision_id" in columns:
+            _drop_fk_to("performance_takes", "score_revisions")
+            if "ix_performance_takes_revision_id" in _indexes("performance_takes"):
+                op.drop_index("ix_performance_takes_revision_id", table_name="performance_takes")
+            op.drop_column("performance_takes", "revision_id")
+        if "score_title_snapshot" not in columns:
+            if "score_title" in columns:
+                with op.batch_alter_table("performance_takes") as batch_op:
+                    batch_op.alter_column(
+                        "score_title",
+                        new_column_name="score_title_snapshot",
+                        existing_type=sa.String(length=255),
+                        nullable=False,
+                    )
+            else:
+                op.add_column(
+                    "performance_takes",
+                    sa.Column("score_title_snapshot", sa.String(length=255), nullable=False, server_default=""),
+                )
 
         _drop_fk_to("performance_takes", "scores")
         _drop_fk_to("performance_takes", "score_revisions")
         _drop_fk_to("performance_takes", "practice_source_snapshots")
         with op.batch_alter_table("performance_takes") as batch_op:
             batch_op.alter_column("score_id", existing_type=sa.BigInteger(), nullable=True)
-            batch_op.alter_column("revision_id", existing_type=sa.BigInteger(), nullable=True)
             batch_op.alter_column("source_snapshot_id", existing_type=sa.BigInteger(), nullable=False)
             batch_op.create_foreign_key(
                 "fk_performance_takes_score_id_scores",
                 "scores",
                 ["score_id"],
-                ["id"],
-                ondelete="SET NULL",
-            )
-            batch_op.create_foreign_key(
-                "fk_performance_takes_revision_id_score_revisions",
-                "score_revisions",
-                ["revision_id"],
                 ["id"],
                 ondelete="SET NULL",
             )
@@ -114,13 +131,30 @@ def upgrade() -> None:
 
     if _has_table("performance_take_upload_authorizations"):
         columns = _columns("performance_take_upload_authorizations")
+        if "source_snapshot_id" not in columns:
+            op.add_column(
+                "performance_take_upload_authorizations",
+                sa.Column("source_snapshot_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=True),
+            )
+            op.create_index(
+                "ix_take_upload_auth_source_snapshot_id",
+                "performance_take_upload_authorizations",
+                ["source_snapshot_id"],
+            )
         if "evaluation" in columns:
             op.drop_column("performance_take_upload_authorizations", "evaluation")
         _drop_fk_to("performance_take_upload_authorizations", "scores")
         _drop_fk_to("performance_take_upload_authorizations", "score_revisions")
+        _drop_fk_to("performance_take_upload_authorizations", "practice_source_snapshots")
         with op.batch_alter_table("performance_take_upload_authorizations") as batch_op:
             batch_op.alter_column("score_id", existing_type=sa.BigInteger(), nullable=True)
             batch_op.alter_column("revision_id", existing_type=sa.BigInteger(), nullable=True)
+            batch_op.alter_column("source_snapshot_id", existing_type=sa.BigInteger(), nullable=False)
+            batch_op.alter_column(
+                "score_title",
+                existing_type=sa.String(length=255),
+                nullable=False,
+            )
             batch_op.create_foreign_key(
                 "fk_take_upload_auth_score_id_scores",
                 "scores",
@@ -135,6 +169,45 @@ def upgrade() -> None:
                 ["id"],
                 ondelete="SET NULL",
             )
+            batch_op.create_foreign_key(
+                "fk_take_upload_auth_source_snapshot_id_snapshots",
+                "practice_source_snapshots",
+                ["source_snapshot_id"],
+                ["id"],
+                ondelete="RESTRICT",
+            )
+
+    if _has_table("score_share_grants"):
+        columns = _columns("score_share_grants")
+        if "access_mode" not in columns:
+            op.add_column(
+                "score_share_grants",
+                sa.Column("access_mode", sa.String(length=16), nullable=False, server_default="VIEW"),
+            )
+            if "allow_practice" in columns:
+                op.execute(
+                    sa.text(
+                        "UPDATE score_share_grants SET access_mode = CASE WHEN allow_practice THEN 'PRACTICE' ELSE 'VIEW' END"
+                    )
+                )
+        if "allow_practice" in _columns("score_share_grants"):
+            op.drop_column("score_share_grants", "allow_practice")
+
+    if _has_table("score_publications"):
+        columns = _columns("score_publications")
+        if "access_mode" not in columns:
+            op.add_column(
+                "score_publications",
+                sa.Column("access_mode", sa.String(length=16), nullable=False, server_default="PRACTICE"),
+            )
+            if "allow_practice" in columns:
+                op.execute(
+                    sa.text(
+                        "UPDATE score_publications SET access_mode = CASE WHEN allow_practice THEN 'PRACTICE' ELSE 'VIEW' END"
+                    )
+                )
+        if "allow_practice" in _columns("score_publications"):
+            op.drop_column("score_publications", "allow_practice")
 
 
 def downgrade() -> None:

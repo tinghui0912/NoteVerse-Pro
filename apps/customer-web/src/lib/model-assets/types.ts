@@ -19,14 +19,14 @@ export type ModelAssetVerificationMarker = {
   verifiedAt: string;
 };
 
-export type ModelAssetProgress = {
+type ModelAssetProgress = {
   bytesDownloaded: number;
   totalBytes: number | null;
 };
 
 export type ModelAssetProgressCallback = (progress: ModelAssetProgress) => void;
 
-export type ModelAssetLoadDiagnostics = {
+type ModelAssetLoadDiagnostics = {
   source: 'opfs-cache' | 'network';
   downloadMs?: number;
   cacheReadMs?: number;

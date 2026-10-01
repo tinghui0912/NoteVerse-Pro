@@ -158,9 +158,9 @@ class ScoreShareGrant(SQLModel, table=True):  # type: ignore[call-arg]
         default=False,
         sa_column=Column(Boolean, default=False, nullable=False),
     )
-    allow_practice: bool = Field(
-        default=False,
-        sa_column=Column(Boolean, default=False, nullable=False),
+    access_mode: str = Field(
+        default="VIEW",
+        sa_column=Column(String(16), default="VIEW", nullable=False),
     )
     expires_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
     revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
@@ -231,9 +231,9 @@ class ScorePublication(SQLModel, table=True):  # type: ignore[call-arg]
         default=False,
         sa_column=Column(Boolean, default=False, nullable=False),
     )
-    allow_practice: bool = Field(
-        default=False,
-        sa_column=Column(Boolean, default=False, nullable=False),
+    access_mode: str = Field(
+        default="PRACTICE",
+        sa_column=Column(String(16), default="PRACTICE", nullable=False),
     )
     published_by_user_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)

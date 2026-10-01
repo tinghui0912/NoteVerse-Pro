@@ -18,7 +18,7 @@ import type {
 /**
  * Get the current user profile.
  */
-export async function getProfile(options?: { suppressAuthRedirect?: boolean }): Promise<ApiResponse<ProfileRead>> {
+async function getProfile(options?: { suppressAuthRedirect?: boolean }): Promise<ApiResponse<ProfileRead>> {
     return apiClient.get<ApiResponse<ProfileRead>>('/me/profile', undefined, options);
 }
 
@@ -26,7 +26,7 @@ export async function getProfile(options?: { suppressAuthRedirect?: boolean }): 
  * Update the current user profile.
  * @param data Profile update payload.
  */
-export async function updateProfile(data: UpdateProfileRequest): Promise<ApiResponse<ProfileUpdateRead>> {
+async function updateProfile(data: UpdateProfileRequest): Promise<ApiResponse<ProfileUpdateRead>> {
     return apiClient.put<ApiResponse<ProfileUpdateRead>>('/me/profile', data);
 }
 
@@ -35,7 +35,7 @@ export async function updateProfile(data: UpdateProfileRequest): Promise<ApiResp
  * @param currentPassword Current password.
  * @param newPassword New password.
  */
-export async function changePassword(
+async function changePassword(
     currentPassword: string,
     newPassword: string
 ): Promise<ApiResponse> {
@@ -49,34 +49,34 @@ export async function changePassword(
  * Upload an avatar image.
  * @param file Avatar image file.
  */
-export async function uploadAvatar(file: File): Promise<ApiResponse<AvatarRead>> {
+async function uploadAvatar(file: File): Promise<ApiResponse<AvatarRead>> {
     return apiClient.upload<ApiResponse<AvatarRead>>('/me/avatar', file);
 }
 
 /**
  * Delete the current avatar.
  */
-export async function deleteAvatar(): Promise<ApiResponse> {
+async function deleteAvatar(): Promise<ApiResponse> {
     return apiClient.delete<ApiResponse>('/me/avatar');
 }
 
-export async function getSessions(params?: { limit?: number }): Promise<ApiResponse<SessionsRead>> {
+async function getSessions(params?: { limit?: number }): Promise<ApiResponse<SessionsRead>> {
     return apiClient.get<ApiResponse<SessionsRead>>('/me/sessions', params);
 }
 
-export async function getSecurityOverview(): Promise<ApiResponse<SecurityRead>> {
+async function getSecurityOverview(): Promise<ApiResponse<SecurityRead>> {
     return apiClient.get<ApiResponse<SecurityRead>>('/me/security');
 }
 
-export async function requestEmailChange(data: RequestEmailChangeRequest): Promise<ApiResponse> {
+async function requestEmailChange(data: RequestEmailChangeRequest): Promise<ApiResponse> {
     return apiClient.post<ApiResponse>('/me/email/change', data);
 }
 
-export async function revokeSession(sessionId: number): Promise<ApiResponse> {
+async function revokeSession(sessionId: number): Promise<ApiResponse> {
     return apiClient.delete<ApiResponse>(`/me/sessions/${sessionId}`);
 }
 
-export async function revokeOtherSessions(): Promise<ApiResponse> {
+async function revokeOtherSessions(): Promise<ApiResponse> {
     return apiClient.delete<ApiResponse>('/me/sessions');
 }
 
@@ -84,7 +84,7 @@ export async function revokeOtherSessions(): Promise<ApiResponse> {
  * Build the avatar image URL.
  * @param avatarUrl Avatar path or absolute URL.
  */
-export function getAvatarUrl(avatarUrl?: string): string {
+function getAvatarUrl(avatarUrl?: string): string {
     if (!avatarUrl) {
         return '/default-avatar.png'; // Default avatar.
     }
@@ -111,5 +111,3 @@ export const profileApi = {
     revokeOtherSessions,
     getAvatarUrl,
 };
-
-export default profileApi;

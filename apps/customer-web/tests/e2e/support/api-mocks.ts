@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 
-export const testUserProfile = {
+const testUserProfile = {
   user: {
     id: 1,
     email: 'owner@example.com',

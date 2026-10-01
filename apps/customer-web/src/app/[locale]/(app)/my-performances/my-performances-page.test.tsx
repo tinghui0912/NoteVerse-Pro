@@ -155,10 +155,10 @@ const recordingTimebase: RecordingTimebase = {
 const fixture121Takes: PerformanceTakeRead[] = Array.from({ length: 121 }, (_, i) => ({
   deletion_status: 'ACTIVE',
   take_id: `take-${i + 1}`,
-  score_id: `score-uuid-${i + 1}`,
-  score_title: `Score Title ${i + 1}`,
-  revision_id: `rev-uuid-${i + 1}`,
-  artifact_id: `artifact-${i + 1}`,
+  source_score_id: `score-uuid-${i + 1}`,
+  score_title_snapshot: `Score Title ${i + 1}`,
+  source_revision_id: `rev-uuid-${i + 1}`,
+  source_artifact_id: `artifact-${i + 1}`,
   media_kind: 'AUDIO',
   media_mime_type: 'audio/webm',
   media_byte_size: 1024 * (i + 1),
@@ -345,8 +345,8 @@ describe('MyPerformancesPage', () => {
           items: [
             {
               take_id: 'take-deleted-score',
-              score_id: 'score-retained-source',
-              score_title: 'Sonata Allegro Op. 57',
+              source_score_id: 'score-retained-source',
+              score_title_snapshot: 'Sonata Allegro Op. 57',
               media_kind: 'AUDIO',
               media_mime_type: 'audio/webm',
               media_byte_size: 1024,
@@ -354,8 +354,8 @@ describe('MyPerformancesPage', () => {
               scope_type: 'FULL',
               scope_start_beat: 0,
               scope_terminal_beat: 0,
-              revision_id: 'revision-1',
-              artifact_id: 'artifact-1',
+              source_revision_id: 'revision-1',
+              source_artifact_id: 'artifact-1',
               linked_score_id: 'score-retained-source',
               can_open_score: true,
               tempo_plan: tempoPlan,
@@ -389,8 +389,8 @@ describe('MyPerformancesPage', () => {
           items: [
             {
               take_id: 'take-deleted-score',
-              score_id: 'score-retained-source',
-              score_title: 'Sonata Allegro Op. 57',
+              source_score_id: 'score-retained-source',
+              score_title_snapshot: 'Sonata Allegro Op. 57',
               media_kind: 'AUDIO',
               media_mime_type: 'audio/webm',
               media_byte_size: 1024,
@@ -398,8 +398,8 @@ describe('MyPerformancesPage', () => {
               scope_type: 'FULL',
               scope_start_beat: 0,
               scope_terminal_beat: 0,
-              revision_id: 'revision-1',
-              artifact_id: 'artifact-1',
+              source_revision_id: 'revision-1',
+              source_artifact_id: 'artifact-1',
               linked_score_id: null,
               can_open_score: false,
               tempo_plan: tempoPlan,
@@ -431,8 +431,8 @@ describe('MyPerformancesPage', () => {
           items: [
             {
               take_id: 'take-1',
-              score_id: 'score-uuid-1',
-              score_title: 'Score Title 1',
+              source_score_id: 'score-uuid-1',
+              score_title_snapshot: 'Score Title 1',
               media_kind: 'AUDIO',
               media_mime_type: 'audio/webm',
               media_byte_size: 1024,
@@ -440,8 +440,8 @@ describe('MyPerformancesPage', () => {
               scope_type: 'FULL',
               scope_start_beat: 0,
               scope_terminal_beat: 0,
-              revision_id: 'revision-1',
-              artifact_id: 'artifact-1',
+              source_revision_id: 'revision-1',
+              source_artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
               created_at: new Date().toISOString(),
@@ -482,8 +482,8 @@ describe('MyPerformancesPage', () => {
           items: [
             {
               take_id: 'take-video-1',
-              score_id: 'score-uuid-1',
-              score_title: 'Score Title 1',
+              source_score_id: 'score-uuid-1',
+              score_title_snapshot: 'Score Title 1',
               media_kind: 'VIDEO',
               media_mime_type: 'video/webm',
               media_byte_size: 2048,
@@ -491,8 +491,8 @@ describe('MyPerformancesPage', () => {
               scope_type: 'FULL',
               scope_start_beat: 0,
               scope_terminal_beat: 0,
-              revision_id: 'revision-1',
-              artifact_id: 'artifact-1',
+              source_revision_id: 'revision-1',
+              source_artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
               created_at: new Date().toISOString(),
@@ -527,8 +527,8 @@ describe('MyPerformancesPage', () => {
           items: [
             {
               take_id: 'take-1',
-              score_id: 'score-uuid-1',
-              score_title: 'Score Title 1',
+              source_score_id: 'score-uuid-1',
+              score_title_snapshot: 'Score Title 1',
               media_kind: 'AUDIO',
               media_mime_type: 'audio/webm',
               media_byte_size: 1024,
@@ -536,8 +536,8 @@ describe('MyPerformancesPage', () => {
               scope_type: 'FULL',
               scope_start_beat: 0,
               scope_terminal_beat: 0,
-              revision_id: 'revision-1',
-              artifact_id: 'artifact-1',
+              source_revision_id: 'revision-1',
+              source_artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
               created_at: new Date().toISOString(),
@@ -594,8 +594,8 @@ describe('MyPerformancesPage', () => {
           items: [
             {
               take_id: 'take-1',
-              score_id: 'score-uuid-1',
-              score_title: 'Score Title 1',
+              source_score_id: 'score-uuid-1',
+              score_title_snapshot: 'Score Title 1',
               media_kind: 'AUDIO',
               media_mime_type: 'audio/webm',
               media_byte_size: 1024,
@@ -603,8 +603,8 @@ describe('MyPerformancesPage', () => {
               scope_type: 'FULL',
               scope_start_beat: 0,
               scope_terminal_beat: 0,
-              revision_id: 'revision-1',
-              artifact_id: 'artifact-1',
+              source_revision_id: 'revision-1',
+              source_artifact_id: 'artifact-1',
               tempo_plan: tempoPlan,
               recording_timebase: recordingTimebase,
               created_at: new Date().toISOString(),
@@ -840,7 +840,7 @@ describe('MyPerformancesPage', () => {
       const activeTake = {
         ...fixture121Takes[0],
         take_id: 'take-delete-flow',
-        score_title: 'Delete Flow',
+        score_title_snapshot: 'Delete Flow',
         deletion_status: 'ACTIVE' as const,
       };
       const deletingTake = {
@@ -925,7 +925,7 @@ describe('MyPerformancesPage', () => {
       const deletingTake = {
         ...fixture121Takes[0],
         take_id: 'take-slow-delete',
-        score_title: 'Slow Delete',
+        score_title_snapshot: 'Slow Delete',
         deletion_status: 'DELETING' as const,
       };
       const refetch = vi.fn(async () => undefined);
@@ -969,13 +969,13 @@ describe('MyPerformancesPage', () => {
       const audioTake = {
         ...fixture121Takes[0],
         take_id: 'take-audio-delete',
-        score_title: 'Deleting Audio',
+        score_title_snapshot: 'Deleting Audio',
         deletion_status: 'ACTIVE' as const,
       };
       const otherTake = {
         ...fixture121Takes[1],
         take_id: 'take-other-active',
-        score_title: 'Other Active',
+        score_title_snapshot: 'Other Active',
         deletion_status: 'ACTIVE' as const,
       };
       mockQueryOverride = {
@@ -1017,7 +1017,7 @@ describe('MyPerformancesPage', () => {
       const videoTake = {
         ...fixture121Takes[0],
         take_id: 'take-video-delete',
-        score_title: 'Deleting Video',
+        score_title_snapshot: 'Deleting Video',
         media_kind: 'VIDEO' as const,
         media_mime_type: 'video/webm',
         deletion_status: 'ACTIVE' as const,

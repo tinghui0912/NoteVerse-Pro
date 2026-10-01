@@ -141,7 +141,7 @@ function normalizeOutputMatrix(data: Float32Array, shape: readonly number[], nam
   };
 }
 
-export function midiPitchToPitchName(midiPitch: number): string {
+function midiPitchToPitchName(midiPitch: number): string {
   const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   const name = names[midiPitch % 12];
   const octave = Math.floor(midiPitch / 12) - 1;

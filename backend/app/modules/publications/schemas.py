@@ -8,6 +8,7 @@ from app.db.models.score_access import PublicationStatus
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_assets.schemas import ScoreDerivedAssetsRead, ScoreRevisionAssetsRead
+from app.modules.score_sharing.schemas import ShareAccessMode
 from app.modules.scores.schemas import ScoreTaxonomyTagRead
 
 
@@ -17,7 +18,7 @@ class PublicationUpsertRequest(BaseModel):
         default=None, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=128
     )
     allow_download: bool = False
-    allow_practice: bool = True
+    access_mode: ShareAccessMode = ShareAccessMode.PRACTICE
 
 
 class PublicationRead(BaseModel):
@@ -26,7 +27,7 @@ class PublicationRead(BaseModel):
     revision_id: str
     status: PublicationStatus
     allow_download: bool
-    allow_practice: bool
+    access_mode: ShareAccessMode
     published_at: datetime
     updated_at: datetime
 

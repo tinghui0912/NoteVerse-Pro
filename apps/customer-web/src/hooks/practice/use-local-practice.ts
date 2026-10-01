@@ -59,19 +59,11 @@ import {
 
 export type { LocalPracticeLifecycle, LocalPracticeInputState };
 
-export type PracticeSetup = {
-  mode: PracticeMode;
-  inputSource: PracticeInputSource;
-  scope: PracticeScope;
-  tempoSelection: PracticeTempoSelection;
-  metronomeEnabled: boolean;
-};
-
 export type UseLocalPracticeOptions = {
   artifact: PracticeScoreArtifact | null | undefined;
   mode: PracticeMode;
   inputSource: PracticeInputSource;
-  scope: PracticeScope;
+  scope: PracticeScope | null;
   tempoSelection?: PracticeTempoSelection;
   metronomeEnabled?: boolean;
   cameraRecordingEnabled?: boolean;
@@ -383,7 +375,7 @@ export function useLocalPractice({
           };
         }
 
-        if (artifact && resolvedTempoPlan) {
+        if (artifact && resolvedTempoPlan && scope) {
           const resolvedScope = resolvePracticeScope(artifact, scope);
           const draft: CompletedPerformance = {
             localSessionId: sessionSnapshot.localSessionId,
@@ -533,7 +525,7 @@ export function useLocalPractice({
 
   // Internal start session implementation
   const startSession = useCallback(async () => {
-    if (!artifact || !resolvedTempoPlan) {
+    if (!artifact || !resolvedTempoPlan || !scope) {
       throw new Error('Score artifact is not available yet.');
     }
 
@@ -560,11 +552,9 @@ export function useLocalPractice({
     const timebase = new PracticeTimebase({ domainId: localSessionId });
     timebaseRef.current = timebase;
 
-    const resolvedScope = artifact
-      ? resolvePracticeScope(artifact, scope)
-      : null;
+    const resolvedScope = resolvePracticeScope(artifact, scope);
     const scopeStartBeat = resolvedScope?.startBeat ?? 0;
-    const scopeEndBeat = scope?.kind === 'RANGE'
+    const scopeEndBeat = scope.kind === 'RANGE'
       ? entryGroupEndBeat(artifact, scope.endGroupId)
       : (resolvedScope?.terminalBeat ?? artifact.scoreEndBeat);
 

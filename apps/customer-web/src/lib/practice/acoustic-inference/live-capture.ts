@@ -29,14 +29,7 @@ const FUTURE_SAMPLES = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.future
 const TARGET_ANCHOR_SAMPLES = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.targetAnchorMs);
 const MODEL_WINDOW_SAMPLES = BYTEDANCE_INPUT_DESCRIPTOR.shape[1];
 
-export type LiveCaptureDomain = {
-  captureDomainId: string;
-  sourceSampleRateHz: number;
-  modelSampleRateHz: typeof MODEL_SAMPLE_RATE_HZ;
-  timebase: PracticeTimebase;
-};
-
-export type LiveCaptureStateName =
+type LiveCaptureStateName =
   | 'idle'
   | 'requesting-permission'
   | 'initializing-audio'
@@ -63,7 +56,7 @@ export type LiveCaptureState = {
   lastError?: string;
 };
 
-export type LiveByteDanceEvidenceSink = {
+type LiveByteDanceEvidenceSink = {
   onAcousticEvents?(events: readonly AcousticNoteEvent[]): void;
   onStepObservation?(observation: StepVerifierObservation): void;
   onPerformanceEvidence?(observations: readonly PerformanceEvidenceObservation[]): void;
@@ -909,7 +902,7 @@ export function monoFromChannels(channels: readonly Float32Array[]): Float32Arra
   return mono;
 }
 
-export function defaultLiveRingCapacitySamples(): number {
+function defaultLiveRingCapacitySamples(): number {
   return MODEL_WINDOW_SAMPLES
     + BYTEDANCE_ROLLING_ANCHOR_STEP_SAMPLES * 4
     + FUTURE_SAMPLES;
@@ -928,7 +921,7 @@ export function createLiveCaptureTimebase(input: {
   });
 }
 
-export function sampleIndexForSessionTime(time: SessionTime): number {
+function sampleIndexForSessionTime(time: SessionTime): number {
   if (time.sampleIndex !== undefined) {
     return time.sampleIndex;
   }

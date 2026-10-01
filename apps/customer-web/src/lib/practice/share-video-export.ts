@@ -14,20 +14,6 @@ import {
 import type { PracticeVerovioAdapter } from './verovio-adapter';
 import type { ShareVideoSession } from './share-video-session';
 
-export {
-  findStablePageNumber,
-  firstScorePage,
-  prepareScorePageCache,
-  resolveExportPlaybackGeometry,
-} from './share-video-score-model';
-export type {
-  ExportNoteGeometry,
-  ScorePageCache,
-  ScorePageCacheEntry,
-  ScorePageImageLoader,
-  SvgViewBox,
-} from './share-video-score-model';
-
 const EXPORT_FPS = 30;
 
 const SHARE_VIDEO_MIME_CANDIDATES = [
@@ -49,7 +35,7 @@ export type ShareVideoExportBlockReason =
   | 'media_recorder_unsupported'
   | 'canvas_capture_unsupported';
 
-export type ShareVideoExportProgress = {
+type ShareVideoExportProgress = {
   mediaTimeMs: number;
   durationMs: number;
   ratio: number;

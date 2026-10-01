@@ -14,7 +14,7 @@ import type {
 import { getPitchedEventDisplayKind } from './model';
 import { getEventStemDirectionOverride, type NotationControl, type StemDirectionOverride } from './notation-model';
 
-export type InspectorNoteAtomViewModel = {
+type InspectorNoteAtomViewModel = {
   readonly noteAtomId: NoteAtomId;
   readonly pitch: NoteAtom['pitch'];
   readonly accidental?: NoteAtom['accidental'];
@@ -109,7 +109,7 @@ export function getInspectorViewModelForSelection(
   }
 }
 
-export function getInspectorViewModelForEvent(
+function getInspectorViewModelForEvent(
   event: VoiceEvent,
   notationControls: readonly NotationControl[] = [],
 ): InspectorViewModel {
@@ -137,7 +137,7 @@ export function getInspectorViewModelForEvent(
   };
 }
 
-export function getInspectorViewModelForTimelineGap(
+function getInspectorViewModelForTimelineGap(
   gap: TimelineGap,
 ): TimelineGapInspectorViewModel {
   return {
@@ -149,7 +149,7 @@ export function getInspectorViewModelForTimelineGap(
   };
 }
 
-export function getInspectorViewModelForDerivedRest(
+function getInspectorViewModelForDerivedRest(
   rest: DerivedRest,
 ): DerivedRestInspectorViewModel {
   return {

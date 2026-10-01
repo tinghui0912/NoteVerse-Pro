@@ -5,26 +5,6 @@ type WindowWithWebKitAudioContext = Window & {
   webkitAudioContext?: typeof AudioContext;
 };
 
-export type PracticeMicrophoneStatus =
-  | 'READY'
-  | 'BROWSER_UNSUPPORTED'
-  | 'MODEL_ACCESS_UNAVAILABLE'
-  | 'MODEL_STORAGE_UNAVAILABLE';
-
-export type PracticeMidiStatus =
-  | 'READY'
-  | 'BROWSER_UNSUPPORTED'
-  | 'NO_CONNECTED_INPUT';
-
-export type MicrophoneUnavailableReason =
-  | 'BROWSER_UNSUPPORTED'
-  | 'MODEL_ACCESS_UNAVAILABLE'
-  | 'MODEL_STORAGE_UNAVAILABLE';
-
-export type MidiUnavailableReason =
-  | 'BROWSER_UNSUPPORTED'
-  | 'NO_CONNECTED_INPUT';
-
 export type PracticeMicrophoneCapability =
   | { supported: true; status: 'READY'; reason?: undefined }
   | { supported: false; status: 'BROWSER_UNSUPPORTED'; reason: 'BROWSER_UNSUPPORTED' }

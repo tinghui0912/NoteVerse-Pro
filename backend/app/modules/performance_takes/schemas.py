@@ -97,7 +97,7 @@ class PerformanceTakeUploadAuthorizationRequest(StrictPerformanceTakeModel):
     media_byte_size: int = Field(gt=0)
     media_mime_type: str = Field(min_length=1, max_length=64)
     duration_ms: int = Field(ge=0)
-    scope_type: str = Field(default="FULL", pattern="^(FULL|RANGE)$")
+    scope_type: str = Field(pattern="^(FULL|RANGE)$")
     scope_start_beat: float = Field(ge=0.0)
     scope_terminal_beat: float = Field(gt=0.0)
     scope_start_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
@@ -138,7 +138,7 @@ class PerformanceTakeCreateRequest(StrictPerformanceTakeModel):
     media_byte_size: int = Field(gt=0)
     media_mime_type: str = Field(min_length=1, max_length=64)
     duration_ms: int = Field(ge=0)
-    scope_type: str = Field(default="FULL", pattern="^(FULL|RANGE)$")
+    scope_type: str = Field(pattern="^(FULL|RANGE)$")
     scope_start_beat: float = Field(ge=0.0)
     scope_terminal_beat: float = Field(gt=0.0)
     scope_start_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
@@ -160,17 +160,17 @@ class PerformanceTakeCreateRequest(StrictPerformanceTakeModel):
 
 class PerformanceTakeRead(StrictPerformanceTakeModel):
     take_id: str
-    score_id: str
-    score_title: Optional[str] = None
-    revision_id: str
-    artifact_id: str
+    source_score_id: str
+    source_revision_id: str
+    source_artifact_id: str
+    score_title_snapshot: str = Field(min_length=1)
     linked_score_id: Optional[str] = None
     can_open_score: bool = False
     media_kind: str
     media_mime_type: str
     media_byte_size: int
     duration_ms: int
-    scope_type: str = "FULL"
+    scope_type: str
     scope_start_beat: float
     scope_terminal_beat: float
     scope_start_group_id: Optional[str] = None

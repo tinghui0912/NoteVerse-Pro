@@ -281,7 +281,6 @@ describe('live ByteDance capture primitives', () => {
     expect(timebase.sampleIndexToSessionTime(10_800).ms).toBe(5050);
   });
 });
-
 describe('live ByteDance rolling pipeline', () => {
   it('deduplicates one physical onset repeated by overlapping inference windows', async () => {
     const timebase = new PracticeTimebase({ domainId: 'capture-1', sampleRateHz: 16_000 });
@@ -406,7 +405,8 @@ describe('live ByteDance rolling pipeline', () => {
 
   it('does not let an old inference result after STEP advance satisfy the next repeated pitch', async () => {
     const clock = new ManualClock(0);
-    const runtime = new StepPracticeRuntime({ artifact, clock });
+    const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
+      clock });
     const first = runtime.currentTarget();
     expect(first?.attackPitches).toEqual(['C4']);
     const timebase = new PracticeTimebase({ domainId: first?.activationBoundary.domainId ?? 'step', sampleRateHz: 16_000 });
@@ -449,6 +449,7 @@ describe('live ByteDance rolling pipeline', () => {
     const clock = new ManualClock(0);
     const performance = new PerformancePracticeRuntime({
       artifact,
+      scope: { kind: 'FULL' },
       clock,
       countInBeats: 0,
       localSessionId: 'perf-capture',

@@ -3,11 +3,6 @@
  * Import transport primitives from `@/lib/api-client` and HTTP DTOs from generated contracts.
  */
 
-export {
-    apiClient,
-    ApiError,
-} from '../api-client';
-
 // Authentication API.
 export { authApi } from './auth';
 
@@ -35,17 +30,4 @@ export { libraryApi } from './library';
 export { myScoresApi } from './my-scores';
 export { reviewApi } from './review';
 export { storageUsageApi } from './storage-usage';
-export { modelAssetsApi, type ModelAssetAccess } from './model-assets';
-export {
-  performanceTakesApi,
-  uploadMediaToSignedUrl,
-  type PerformanceTakeCreateRequest,
-  type PerformanceTakeDeleteResponse,
-  type PerformanceTakeListResponse,
-  type PerformanceTakeRead,
-  type PerformanceTakePlaybackRead,
-  type PerformanceTakeUploadAuthorizationRead,
-  type PerformanceTakeUploadAuthorizationRequest,
-  type RecordingTimebase,
-  type PerformanceTakeTempoPlan,
-} from './performance-takes';
+export { modelAssetsApi } from './model-assets';

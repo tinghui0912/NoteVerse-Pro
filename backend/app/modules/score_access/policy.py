@@ -140,7 +140,7 @@ class ScoreAccessPolicy:
                             can_manage_sharing=False,
                             can_manage_members=False,
                             can_download=redeemed.allow_download,
-                            can_practice=redeemed.allow_practice,
+                            can_practice=redeemed.access_mode == "PRACTICE",
                             can_publish=False,
                         ),
                     )
@@ -161,7 +161,7 @@ class ScoreAccessPolicy:
                             can_manage_sharing=False,
                             can_manage_members=False,
                             can_download=grant.allow_download,
-                            can_practice=grant.allow_practice,
+                            can_practice=grant.access_mode == "PRACTICE",
                             can_publish=False,
                         ),
                     )
@@ -197,7 +197,7 @@ class ScoreAccessPolicy:
                         can_manage_sharing=False,
                         can_manage_members=False,
                         can_download=publication.allow_download,
-                        can_practice=publication.allow_practice,
+                        can_practice=publication.access_mode == "PRACTICE",
                         can_publish=False,
                     ),
                 )

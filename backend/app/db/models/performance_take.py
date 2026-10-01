@@ -23,7 +23,7 @@ from app.utils.timezone import utc_now_naive
 
 if TYPE_CHECKING:
     from .user import User
-    from .score import Score, ScoreRevision
+    from .score import Score
     from .practice_source_snapshot import PracticeSourceSnapshot
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
@@ -83,21 +83,8 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=True,
         ),
     )
-    score_title: Optional[str] = Field(
-        default=None,
-        sa_column=Column(String(255), nullable=True),
-    )
-    revision_id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(
-            bigint_pk_type,
-            ForeignKey("score_revisions.id", ondelete="SET NULL"),
-            index=True,
-            nullable=True,
-        ),
-    )
-    artifact_id: str = Field(
-        sa_column=Column(String(128), nullable=False),
+    score_title_snapshot: str = Field(
+        sa_column=Column(String(255), nullable=False),
     )
     client_request_id: str = Field(
         sa_column=Column(String(128), index=True, nullable=False)

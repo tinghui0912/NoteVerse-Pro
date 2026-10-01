@@ -177,7 +177,7 @@ export function beatsToMs(beats: number, bpm: number): number {
   return (beats * 60_000) / bpm;
 }
 
-export function msToBeats(milliseconds: number, bpm: number): number {
+function msToBeats(milliseconds: number, bpm: number): number {
   return (milliseconds * bpm) / 60_000;
 }
 

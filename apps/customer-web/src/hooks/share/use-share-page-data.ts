@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useGrantAccess } from '@/hooks/queries/use-score-queries';
 import { ApiError } from '@/lib/api-client';
 
-export type ShareAccessErrorType = 'not_found' | 'revoked' | 'expired' | 'unknown';
+type ShareAccessErrorType = 'not_found' | 'revoked' | 'expired' | 'unknown';
 
 export function useSharePageData(shareId: string) {
   const { isAuthenticated, isLoading: authLoading } = useAuth();

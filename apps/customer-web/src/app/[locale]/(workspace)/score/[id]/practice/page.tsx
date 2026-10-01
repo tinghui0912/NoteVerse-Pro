@@ -151,18 +151,19 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     [artifact]
   );
 
-  const selectedRangeScope: PracticeScope | null = useMemo(
+  const practiceScopeResolution = useMemo(
     () => practiceScopeFromRangeSelection(rangeSelection, expectedGroups),
     [expectedGroups, rangeSelection]
   );
-  const practiceScope: PracticeScope = useMemo(
-    () => selectedRangeScope ?? { kind: 'FULL' },
-    [selectedRangeScope]
-  );
+  const practiceScope: PracticeScope | null =
+    practiceScopeResolution.status === 'ready'
+      ? practiceScopeResolution.scope
+      : null;
   const hasIncompleteRangeSelection = rangeSelection.kind === 'SELECTING_END';
 
   const resolvedScope = useMemo(() => {
     if (!artifact || expectedGroups.length === 0) return null;
+    if (!practiceScope) return null;
     return resolvePracticeScope(artifact, practiceScope);
   }, [artifact, expectedGroups.length, practiceScope]);
 
@@ -342,6 +343,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const canPreparePractice =
     canEnterPractice &&
     Boolean(selectedRevisionId && xmlContent && artifact) &&
+    Boolean(practiceScope) &&
     !hasIncompleteRangeSelection &&
     !isResourceLoading &&
     !loadError;
@@ -398,7 +400,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   };
 
   const completionOutcome: PracticeCompletionOutcome = useMemo(() => {
-    if (selectedRangeScope) {
+    if (practiceScope?.kind === 'RANGE') {
       return {
         kind: 'selected-section',
       };
@@ -406,7 +408,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     return {
       kind: practiceMode === 'CONTINUOUS_PLAY' ? 'full-piece-performance' : 'full-piece-learning',
     };
-  }, [selectedRangeScope, practiceMode]);
+  }, [practiceMode, practiceScope]);
 
   const isStepMode = practiceMode === 'STEP_BY_STEP';
   const isActive =
@@ -612,7 +614,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             isLoading={localPractice.isFinalizingRecording}
             onOpenChange={setIsCompletionDialogOpen}
             onRestart={handleRestart}
-            onAdjustSection={selectedRangeScope ? handleAdjustSelectedSection : undefined}
+            onAdjustSection={practiceScope?.kind === 'RANGE' ? handleAdjustSelectedSection : undefined}
             onViewSummary={handleViewSummary}
           />
         </>

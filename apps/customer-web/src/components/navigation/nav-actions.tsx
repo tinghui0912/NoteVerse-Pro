@@ -62,7 +62,7 @@ export function UserMenu({ triggerClassName }: { triggerClassName?: string }) {
   );
 }
 
-export function ReturnToAppButton({ className }: { className?: string }) {
+function ReturnToAppButton({ className }: { className?: string }) {
   const t = useTranslations('common');
 
   return (

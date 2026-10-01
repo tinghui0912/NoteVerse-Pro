@@ -120,7 +120,7 @@ function PerformanceTakeCard({
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  const scoreTitle = take.score_title || t('scoreFallback', { id: take.score_id });
+  const scoreTitle = take.score_title_snapshot;
   const scoreTitleNode = take.can_open_score && take.linked_score_id ? (
     <Link
       href={`/score/${take.linked_score_id}`}

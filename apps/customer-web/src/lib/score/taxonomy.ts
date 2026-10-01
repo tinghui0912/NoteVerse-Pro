@@ -1,8 +1,8 @@
-export const SCORE_TAXONOMY_CATEGORY_GENRE = 'genre' as const;
+const SCORE_TAXONOMY_CATEGORY_GENRE = 'genre' as const;
 
-export type ScoreTaxonomyCategory = typeof SCORE_TAXONOMY_CATEGORY_GENRE;
+type ScoreTaxonomyCategory = typeof SCORE_TAXONOMY_CATEGORY_GENRE;
 
-export type ScoreGenreCode =
+type ScoreGenreCode =
   | 'classical'
   | 'pop'
   | 'jazz'

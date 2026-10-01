@@ -1,6 +1,6 @@
 'use client';
 
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   performanceTakesApi,
@@ -19,31 +19,6 @@ export function usePerformanceTakes(
   return useQuery({
     queryKey: queryKeys.performanceTakes.list(params),
     queryFn: ({ signal }) => performanceTakesApi.listTakes(params, signal),
-    enabled,
-  });
-}
-
-export function useInfinitePerformanceTakes(
-  params?: { score_id?: string },
-  enabled = true
-) {
-  return useInfiniteQuery({
-    queryKey: queryKeys.performanceTakes.list(params),
-    queryFn: ({ pageParam = 0, signal }) =>
-      performanceTakesApi.listTakes(
-        { ...params, limit: 50, offset: pageParam as number },
-        signal
-      ),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage, allPages) => {
-      const data = lastPage.data;
-      if (!data || !data.has_more) return undefined;
-      const loadedCount = allPages.reduce(
-        (acc, p) => acc + (p.data?.items.length ?? 0),
-        0
-      );
-      return loadedCount;
-    },
     enabled,
   });
 }
@@ -84,11 +59,19 @@ export interface SavePerformanceTakeInput {
   mediaBlob: Blob;
   mimeType: string;
   durationMs: number;
-  scopeType?: string;
-  scopeStartBeat: number;
-  scopeTerminalBeat: number;
-  scopeStartGroupId?: string | null;
-  scopeEndGroupId?: string | null;
+  scope:
+    | {
+        kind: 'FULL';
+        startBeat: number;
+        terminalBeat: number;
+      }
+    | {
+        kind: 'RANGE';
+        startBeat: number;
+        terminalBeat: number;
+        startGroupId: string;
+        endGroupId: string;
+      };
   tempoPlan: PerformanceTakeTempoPlan;
   recordingTimebase: RecordingTimebase;
 }
@@ -108,11 +91,13 @@ export function useSavePerformanceTake() {
         media_byte_size: input.mediaBlob.size,
         media_mime_type: input.mimeType,
         duration_ms: input.durationMs,
-        scope_type: input.scopeType ?? 'FULL',
-        scope_start_beat: input.scopeStartBeat,
-        scope_terminal_beat: input.scopeTerminalBeat,
-        scope_start_group_id: input.scopeStartGroupId ?? null,
-        scope_end_group_id: input.scopeEndGroupId ?? null,
+        scope_type: input.scope.kind,
+        scope_start_beat: input.scope.startBeat,
+        scope_terminal_beat: input.scope.terminalBeat,
+        scope_start_group_id:
+          input.scope.kind === 'RANGE' ? input.scope.startGroupId : null,
+        scope_end_group_id:
+          input.scope.kind === 'RANGE' ? input.scope.endGroupId : null,
         tempo_plan: input.tempoPlan,
         recording_timebase: input.recordingTimebase,
       };
@@ -140,11 +125,13 @@ export function useSavePerformanceTake() {
         media_byte_size: input.mediaBlob.size,
         media_mime_type: input.mimeType,
         duration_ms: input.durationMs,
-        scope_type: input.scopeType ?? 'FULL',
-        scope_start_beat: input.scopeStartBeat,
-        scope_terminal_beat: input.scopeTerminalBeat,
-        scope_start_group_id: input.scopeStartGroupId ?? null,
-        scope_end_group_id: input.scopeEndGroupId ?? null,
+        scope_type: input.scope.kind,
+        scope_start_beat: input.scope.startBeat,
+        scope_terminal_beat: input.scope.terminalBeat,
+        scope_start_group_id:
+          input.scope.kind === 'RANGE' ? input.scope.startGroupId : null,
+        scope_end_group_id:
+          input.scope.kind === 'RANGE' ? input.scope.endGroupId : null,
         tempo_plan: input.tempoPlan,
         recording_timebase: input.recordingTimebase,
       };

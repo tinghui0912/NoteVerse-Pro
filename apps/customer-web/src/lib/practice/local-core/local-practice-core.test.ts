@@ -112,10 +112,10 @@ describe('canonical PracticeScoreArtifact parity foundation', () => {
     });
   });
 });
-
 describe('local STEP practice runtime', () => {
   it('matches single notes and advances exactly once', () => {
-    const runtime = new StepPracticeRuntime({ artifact, clock: new ManualClock() });
+    const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
+      clock: new ManualClock() });
 
     const result = runtime.observe(observation(runtime));
 
@@ -127,7 +127,8 @@ describe('local STEP practice runtime', () => {
 
   it('keeps repeated-pitch stale attacks from satisfying the next activation', () => {
     const clock = new ManualClock(0);
-    const runtime = new StepPracticeRuntime({ artifact, clock });
+    const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
+      clock });
     const first = runtime.currentTarget();
 
     expect(runtime.observe(observation(runtime, ['C4'], {
@@ -179,7 +180,8 @@ describe('local STEP practice runtime', () => {
   });
 
   it('waits on wrong note, no evidence, stale activation, stale step, and continuation-only evidence', () => {
-    const runtime = new StepPracticeRuntime({ artifact, clock: new ManualClock() });
+    const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
+      clock: new ManualClock() });
     const first = runtime.currentTarget();
 
     expect(runtime.observe(null)).toMatchObject({ kind: 'WAIT', reason: 'no_observation' });
@@ -212,7 +214,8 @@ describe('local STEP practice runtime', () => {
   });
 
   it('skip and reset invalidate previous asynchronous evidence', () => {
-    const runtime = new StepPracticeRuntime({ artifact, clock: new ManualClock() });
+    const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
+      clock: new ManualClock() });
     const skipped = runtime.currentTarget();
 
     expect(runtime.skip()).toMatchObject({ kind: 'SKIP' });
@@ -257,18 +260,26 @@ describe('local STEP practice runtime', () => {
     runtime.observe(observation(runtime, ['G4']));
     const snapshot = runtime.snapshot();
 
-    const restored = new StepPracticeRuntime({ artifact, clock, inputSource: 'MIDI', snapshot });
+    const restored = new StepPracticeRuntime({
+      artifact,
+      scope: scoped,
+      clock,
+      inputSource: 'MIDI',
+      snapshot,
+    });
     expect(restored.currentTarget()?.stepId).toBe(artifact.practiceAttackSteps[3].stepId);
     expect(restored.snapshot().practiceScope).toEqual(scoped);
     expect(restored.snapshot().inputSource).toBe('MIDI');
 
     expect(() => new StepPracticeRuntime({
       artifact: cloneArtifact({ revisionId: 'other-revision' }),
+      scope: { kind: 'FULL' },
       clock,
       snapshot,
     })).toThrow(/snapshot does not belong/);
     expect(() => new StepPracticeRuntime({
       artifact,
+      scope: { kind: 'FULL' },
       clock,
       snapshot: {
         ...snapshot,
@@ -279,7 +290,8 @@ describe('local STEP practice runtime', () => {
 
   it('re-establishes STEP activation after restore under a new monotonic clock origin', () => {
     const oldClock = new ManualClock(100_000);
-    const runtime = new StepPracticeRuntime({ artifact, clock: oldClock });
+    const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
+      clock: oldClock });
     const firstTarget = runtime.currentTarget();
     runtime.observe(observation(runtime, ['C4'], {
       attackOnsetTime: { ...(firstTarget?.activationBoundary ?? sessionTime('', 0)), ms: 100_010 },
@@ -288,7 +300,8 @@ describe('local STEP practice runtime', () => {
     const snapshot = runtime.snapshot();
     expect(snapshot.step.activationGeneration).toBe(2);
 
-    const restored = new StepPracticeRuntime({ artifact, clock: new ManualClock(0), snapshot });
+    const restored = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
+      clock: new ManualClock(0), snapshot });
     const restoredTarget = restored.currentTarget();
     expect(restoredTarget).toMatchObject({
       stepId: artifact.practiceAttackSteps[1].stepId,
@@ -318,7 +331,7 @@ describe('local STEP practice runtime', () => {
 describe('local CONTINUOUS practice runtime', () => {
   it('runs READY -> COUNT_IN -> RUNNING and supports explicit zero count-in', () => {
     const clock = new ManualClock(0);
-    const runtime = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, clock });
+    const runtime = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, scope: { kind: 'FULL' }, clock });
 
     expect(runtime.snapshot().state).toBe('READY');
     expect(runtime.start()).toMatchObject({
@@ -330,7 +343,7 @@ describe('local CONTINUOUS practice runtime', () => {
     clock.advance(1_500);
     expect(runtime.snapshot().state).toBe('RUNNING');
 
-    const zero = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, clock: new ManualClock(0), countInBeats: 0 });
+    const zero = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, scope: { kind: 'FULL' }, clock: new ManualClock(0), countInBeats: 0 });
     expect(zero.start().state).toBe('RUNNING');
   });
 
@@ -363,6 +376,7 @@ describe('local CONTINUOUS practice runtime', () => {
     const runtime = new PerformancePracticeRuntime({
       artifact,
       tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
       clock,
       countInBeats: 0,
       localSessionId: 'performance-delayed',
@@ -395,6 +409,7 @@ describe('local CONTINUOUS practice runtime', () => {
     const runtime = new PerformancePracticeRuntime({
       artifact,
       tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
       clock,
       countInBeats: 0,
       localSessionId: 'performance-eval',
@@ -423,6 +438,7 @@ describe('local CONTINUOUS practice runtime', () => {
     const partial = new PerformancePracticeRuntime({
       artifact,
       tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
       clock: new ManualClock(0),
       countInBeats: 0,
       localSessionId: 'performance-partial',
@@ -441,17 +457,18 @@ describe('local CONTINUOUS practice runtime', () => {
 
   it('restores running/count-in sessions as paused logical state under a new clock origin', () => {
     const runningClock = new ManualClock(0);
+    const rangeScope = {
+      kind: 'RANGE' as const,
+      startGroupId: artifact.expectedPracticeGroups[1].groupId,
+      endGroupId: artifact.expectedPracticeGroups[3].groupId,
+    };
     const running = new PerformancePracticeRuntime({
       artifact,
       tempoPlan: defaultTempoPlan,
       clock: runningClock,
       inputSource: 'MIDI',
       countInBeats: 0,
-      scope: {
-        kind: 'RANGE',
-        startGroupId: artifact.expectedPracticeGroups[1].groupId,
-        endGroupId: artifact.expectedPracticeGroups[3].groupId,
-      },
+      scope: rangeScope,
     });
     running.start();
     runningClock.advance(500);
@@ -461,6 +478,7 @@ describe('local CONTINUOUS practice runtime', () => {
       artifact,
       clock: new ManualClock(100_000),
       inputSource: 'MIDI',
+      scope: rangeScope,
       snapshot,
     });
     expect(restored.snapshot()).toMatchObject({
@@ -474,12 +492,13 @@ describe('local CONTINUOUS practice runtime', () => {
     expect(restored.snapshot().state).toBe('RUNNING');
 
     const countInClock = new ManualClock(0);
-    const countIn = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, clock: countInClock });
+    const countIn = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, scope: { kind: 'FULL' }, clock: countInClock });
     countIn.start();
     countInClock.advance(250);
     const restoredCountIn = new PerformancePracticeRuntime({
       artifact,
       clock: new ManualClock(5_000),
+      scope: { kind: 'FULL' },
       snapshot: countIn.snapshotSession(),
     });
     expect(restoredCountIn.snapshot()).toMatchObject({
@@ -489,32 +508,35 @@ describe('local CONTINUOUS practice runtime', () => {
   });
 
   it('preserves READY PAUSED and ENDED restore states explicitly', () => {
-    const ready = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, clock: new ManualClock(0) });
+    const ready = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, scope: { kind: 'FULL' }, clock: new ManualClock(0) });
     expect(new PerformancePracticeRuntime({
       artifact,
       clock: new ManualClock(5_000),
+      scope: { kind: 'FULL' },
       snapshot: ready.snapshotSession(),
     }).snapshot().state).toBe('READY');
 
     const pausedClock = new ManualClock(0);
-    const paused = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, clock: pausedClock, countInBeats: 0 });
+    const paused = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, scope: { kind: 'FULL' }, clock: pausedClock, countInBeats: 0 });
     paused.start();
     pausedClock.advance(100);
     paused.pause();
     expect(new PerformancePracticeRuntime({
       artifact,
       clock: new ManualClock(10_000),
+      scope: { kind: 'FULL' },
       snapshot: paused.snapshotSession(),
     }).snapshot()).toMatchObject({ state: 'PAUSED', performanceTimeMs: 100 });
 
     const endedClock = new ManualClock(0);
-    const ended = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, clock: endedClock, countInBeats: 0 });
+    const ended = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, scope: { kind: 'FULL' }, clock: endedClock, countInBeats: 0 });
     ended.start();
     endedClock.advance(10_000);
     ended.snapshot();
     expect(new PerformancePracticeRuntime({
       artifact,
       clock: new ManualClock(20_000),
+      scope: { kind: 'FULL' },
       snapshot: ended.snapshotSession(),
     }).snapshot().state).toBe('ENDED');
   });
@@ -525,6 +547,7 @@ describe('local CONTINUOUS practice runtime', () => {
     const runtime = new PerformancePracticeRuntime({
       artifact,
       tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
       clock: runtimeClock,
       metadataClock,
       countInBeats: 0,
@@ -544,6 +567,7 @@ describe('local CONTINUOUS practice runtime', () => {
     const runtime = new PerformancePracticeRuntime({
       artifact,
       tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
       clock,
       inputSource: 'MIDI',
       countInBeats: 0,
@@ -557,6 +581,7 @@ describe('local CONTINUOUS practice runtime', () => {
       artifact,
       clock: new ManualClock(10_000),
       inputSource: 'MIDI',
+      scope: { kind: 'FULL' },
       snapshot: runtime.snapshotSession(),
     });
     expect(restored.evaluationObservations[0]?.source).toBe('MIDI');
@@ -567,18 +592,20 @@ describe('local CONTINUOUS practice runtime', () => {
   });
 
   it('rejects incompatible performance snapshots', () => {
-    const runtime = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, clock: new ManualClock(), inputSource: 'MIDI' });
+    const runtime = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, scope: { kind: 'FULL' }, clock: new ManualClock(), inputSource: 'MIDI' });
     const snapshot = runtime.snapshotSession();
 
     expect(() => new PerformancePracticeRuntime({
       artifact: cloneArtifact({ artifactId: 'other-artifact' }),
       clock: new ManualClock(),
+      scope: { kind: 'FULL' },
       snapshot,
     })).toThrow(/snapshot does not belong/);
     expect(() => new PerformancePracticeRuntime({
       artifact,
       clock: new ManualClock(),
       inputSource: 'MICROPHONE',
+      scope: { kind: 'FULL' },
       snapshot,
     })).toThrow(/input source mismatch/);
   });
@@ -623,6 +650,7 @@ describe('local session foundation', () => {
   it('rejects STEP evidence from the wrong session time domain even with the same numeric timestamp', () => {
     const runtime = new StepPracticeRuntime({
       artifact,
+      scope: { kind: 'FULL' },
       clock: new ManualClock(0),
       localSessionId: 'step-domain-a',
     });
@@ -649,6 +677,7 @@ describe('local session foundation', () => {
     });
     const runtime = new StepPracticeRuntime({
       artifact,
+      scope: { kind: 'FULL' },
       clock: new ManualClock(0),
       localSessionId: 'normalized-acoustic',
       timebase: acousticTimebase,
@@ -665,6 +694,7 @@ describe('local session foundation', () => {
     const performance = new PerformancePracticeRuntime({
       artifact,
       tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
       clock: new ManualClock(0),
       countInBeats: 0,
       localSessionId: 'normalized-midi',
@@ -693,13 +723,15 @@ describe('local session foundation', () => {
       expectedPracticeGroups: [],
       practiceAttackSteps: [],
     });
-    expect(() => new StepPracticeRuntime({ artifact: empty, clock: new ManualClock() })).toThrow(/at least one expected group/);
-    expect(() => new PerformancePracticeRuntime({ artifact: empty, tempoPlan: resolvePracticeTempoPlan(empty, { mode: 'SCORE' }), clock: new ManualClock() })).toThrow(/at least one expected group/);
+    expect(() => new StepPracticeRuntime({ artifact: empty, scope: { kind: 'FULL' },
+      clock: new ManualClock() })).toThrow(/at least one expected group/);
+    expect(() => new PerformancePracticeRuntime({ artifact: empty, tempoPlan: resolvePracticeTempoPlan(empty, { mode: 'SCORE' }), scope: { kind: 'FULL' }, clock: new ManualClock() })).toThrow(/at least one expected group/);
   });
 
   it('supports STEP pause, resume, and explicit user end with strict completion semantics', () => {
     const clock = new ManualClock(100);
-    const runtime = new StepPracticeRuntime({ artifact, clock });
+    const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
+      clock });
     const target1 = runtime.currentTarget();
     expect(target1).not.toBeNull();
     expect(runtime.state).toBe('ACTIVE');
@@ -770,7 +802,7 @@ describe('local session foundation', () => {
   it('supports CONTINUOUS user end vs SCOPE_COMPLETED natural completion', () => {
     const clock = new ManualClock(0);
     const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
-    const runtime = new PerformancePracticeRuntime({ artifact, tempoPlan, clock, countInBeats: 0 });
+    const runtime = new PerformancePracticeRuntime({ artifact, tempoPlan, scope: { kind: 'FULL' }, clock, countInBeats: 0 });
     runtime.start();
     expect(runtime.snapshot().state).toBe('RUNNING');
     expect(runtime.snapshot().scopeCompleted).toBe(false);
@@ -807,7 +839,7 @@ describe('local session foundation', () => {
   it('rejects observeEvidence when performance runtime is not RUNNING', () => {
     const clock = new ManualClock(0);
     const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
-    const runtime = new PerformancePracticeRuntime({ artifact, tempoPlan, clock, countInBeats: 3 });
+    const runtime = new PerformancePracticeRuntime({ artifact, tempoPlan, scope: { kind: 'FULL' }, clock, countInBeats: 3 });
     // Before start: state is READY
     const evidence = performanceEvidence(runtime.timebase.domainId, 100, ['C4']);
     expect(runtime.observeEvidence(evidence)).toBeNull();
@@ -846,6 +878,7 @@ describe('local session foundation', () => {
     const runtime = new PerformancePracticeRuntime({
       artifact: multiTempoArtifact,
       tempoPlan,
+      scope: { kind: 'FULL' },
       clock,
       countInBeats: 3,
     });
@@ -893,6 +926,7 @@ describe('local session foundation', () => {
     const stepRuntime = new StepPracticeRuntime({
       artifact: art,
       clock,
+      scope: { kind: 'FULL' },
       metronomeEnabled: false,
     });
     expect(stepRuntime.snapshot().metronomeEnabled).toBe(false);
@@ -904,6 +938,7 @@ describe('local session foundation', () => {
     const perfRuntime = new PerformancePracticeRuntime({
       artifact: art,
       clock,
+      scope: { kind: 'FULL' },
       metronomeEnabled: false,
     });
     expect(perfRuntime.snapshotSession().metronomeEnabled).toBe(false);
@@ -962,6 +997,7 @@ describe('local session foundation', () => {
     const clock = new ManualClock(0);
     const stepRuntime = new StepPracticeRuntime({
       artifact: leadingRestArtifact,
+      scope: { kind: 'FULL' },
       clock,
     });
     expect(stepRuntime.currentOnsetBeat).toBe(2.0);
@@ -972,6 +1008,7 @@ describe('local session foundation', () => {
     const perfRuntime = new PerformancePracticeRuntime({
       artifact: leadingRestArtifact,
       tempoPlan,
+      scope: { kind: 'FULL' },
       clock,
       countInBeats: 4,
     });
@@ -996,6 +1033,7 @@ describe('local session foundation', () => {
     const stepA = new StepPracticeRuntime({
       artifact: art,
       clock,
+      scope: { kind: 'FULL' },
       metronomeEnabled: false,
     });
     expect(stepA.snapshot().metronomeEnabled).toBe(false);
@@ -1009,6 +1047,7 @@ describe('local session foundation', () => {
     const perfA = new PerformancePracticeRuntime({
       artifact: art,
       clock,
+      scope: { kind: 'FULL' },
       metronomeEnabled: false,
     });
     perfA.start();
@@ -1024,6 +1063,7 @@ describe('local session foundation', () => {
     const stepB = new StepPracticeRuntime({
       artifact: art,
       clock,
+      scope: { kind: 'FULL' },
       metronomeEnabled: true,
     });
     expect(stepB.snapshot().metronomeEnabled).toBe(true);
@@ -1036,6 +1076,7 @@ describe('local session foundation', () => {
     const perfB = new PerformancePracticeRuntime({
       artifact: art,
       clock,
+      scope: { kind: 'FULL' },
       metronomeEnabled: true,
     });
     perfB.start();

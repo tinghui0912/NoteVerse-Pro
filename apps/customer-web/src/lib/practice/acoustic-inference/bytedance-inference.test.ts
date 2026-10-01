@@ -191,7 +191,6 @@ describe('ByteDance model manifest contract', () => {
     );
   });
 });
-
 describe('ByteDance preprocessing and decoding', () => {
   it('builds the validated fixed-anchor zero-padded input window', () => {
     const source = new Float32Array(goldenFixture.sourcePcmLength);
@@ -527,6 +526,7 @@ describe('ByteDance local practice adapters', () => {
     const clock = new ManualClock(0);
     const runtime = new StepPracticeRuntime({
       artifact,
+      scope: { kind: 'FULL' },
       clock,
       localSessionId: 'audio-domain',
     });
@@ -693,6 +693,7 @@ describe('ByteDance local practice adapters', () => {
     const clock = new ManualClock(0);
     const runtime = new StepPracticeRuntime({
       artifact,
+      scope: { kind: 'FULL' },
       clock,
       localSessionId: 'stale-window-domain',
     });
@@ -724,6 +725,7 @@ describe('ByteDance local practice adapters', () => {
     const clock = new ManualClock(0);
     const performance = new PerformancePracticeRuntime({
       artifact,
+      scope: { kind: 'FULL' },
       clock,
       countInBeats: 0,
       localSessionId: 'performance-acoustic',
@@ -749,6 +751,7 @@ describe('ByteDance local practice adapters', () => {
     const normalizer = new AcousticEventStreamNormalizer({ sampleRateHz: 16_000 });
     const performance = new PerformancePracticeRuntime({
       artifact,
+      scope: { kind: 'FULL' },
       clock: new ManualClock(0),
       countInBeats: 0,
       localSessionId: 'continuous-duplicate-regression',

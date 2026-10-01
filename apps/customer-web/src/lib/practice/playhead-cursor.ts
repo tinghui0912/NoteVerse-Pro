@@ -1,13 +1,13 @@
-export const PLAYHEAD_CURSOR_CLASS = 'practice-playhead-cursor';
-export const PLAYHEAD_CURSOR_DATA_ATTR = 'data-practice-playhead-cursor';
+const PLAYHEAD_CURSOR_CLASS = 'practice-playhead-cursor';
+const PLAYHEAD_CURSOR_DATA_ATTR = 'data-practice-playhead-cursor';
 
-export const PLAYHEAD_CURSOR_STYLE = {
+const PLAYHEAD_CURSOR_STYLE = {
   radius: 4,
 };
 
-export type PlayheadStaffRole = 'treble' | 'bass' | 'other';
+type PlayheadStaffRole = 'treble' | 'bass' | 'other';
 
-export const PLAYHEAD_CURSOR_STYLES: Record<
+const PLAYHEAD_CURSOR_STYLES: Record<
   PlayheadStaffRole,
   { fill: string; stroke: string; shadow: string }
 > = {
@@ -68,37 +68,37 @@ export type ExportPlayheadCursorGeometry = {
   staffBox: SvgRect;
 };
 
-export type ActivePlayheadStaffGroup = {
+type ActivePlayheadStaffGroup = {
   layer: SVGGraphicsElement;
   staff: SVGGraphicsElement;
   role: PlayheadStaffRole;
   noteIds: string[];
 };
 
-export type PlayheadRootCoordinateSource =
+type PlayheadRootCoordinateSource =
   | 'ctm_svg_viewport'
   | 'rendered_dom_rect'
   | 'matrix_to_root';
 
-export type PlayheadCursorGeometryFailureReason =
+type PlayheadCursorGeometryFailureReason =
   | 'root_svg_unavailable'
   | 'root_svg_disconnected'
   | 'matrix_unavailable'
   | 'matrix_not_invertible'
   | 'non_finite_root_rect';
 
-export function cssStringLiteral(value: string) {
+function cssStringLiteral(value: string) {
   return JSON.stringify(value);
 }
 
-export function escapeCssId(id: string) {
+function escapeCssId(id: string) {
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
     return CSS.escape(id);
   }
   return id.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
 }
 
-export function findElementByVerovioId(
+function findElementByVerovioId(
   container: ParentNode,
   verovioId: string
 ): SVGGraphicsElement | null {
@@ -170,7 +170,7 @@ export function applyExportPlayheadCursor(
   };
 }
 
-export function groupActiveNotesByStaff(
+function groupActiveNotesByStaff(
   container: ParentNode,
   noteIds: readonly string[]
 ): ActivePlayheadStaffGroup[] {
@@ -524,33 +524,6 @@ export function rootSvgRectForElement(
   return null;
 }
 
-export function mergePlayheadCursorGeometrySnapshots(
-  snapshots: readonly PlayheadCursorGeometrySnapshot[]
-): PlayheadCursorGeometrySnapshot | null {
-  if (snapshots.length === 0) {
-    return null;
-  }
-  const rootNoteBoxes = snapshots.map((snapshot) => snapshot.rootNoteBox).filter(isSvgRect);
-  const rootSystemBoxes = snapshots.map((snapshot) => snapshot.rootSystemBox).filter(isSvgRect);
-  if (rootNoteBoxes.length !== snapshots.length || rootSystemBoxes.length === 0) {
-    return null;
-  }
-  const rootNoteBox = rootNoteBoxes.reduce(mergeRects);
-  const rootSystemBox = rootSystemBoxes.reduce(mergeRects);
-  const rootBox = cursorBoxFor(rootNoteBox, rootSystemBox);
-  const first = snapshots[0];
-  return {
-    box: snapshots.map((snapshot) => snapshot.box).reduce(mergeRects),
-    noteBox: snapshots.map((snapshot) => snapshot.noteBox).reduce(mergeRects),
-    systemBox: snapshots.map((snapshot) => snapshot.systemBox).reduce(mergeRects),
-    rootBox,
-    rootNoteBox,
-    rootSystemBox,
-    rootCoordinateSource: first.rootCoordinateSource,
-    rootFailureReason: null,
-  };
-}
-
 function getCursorLayer(note: SVGGraphicsElement): SVGGraphicsElement | null {
   return note.closest<SVGGraphicsElement>('.system') ?? note.ownerSVGElement;
 }
@@ -835,10 +808,6 @@ function isFiniteRect(rect: SvgRect) {
     rect.width > 0 &&
     rect.height > 0
   );
-}
-
-function isSvgRect(rect: SvgRect | null): rect is SvgRect {
-  return rect !== null && isFiniteRect(rect);
 }
 
 function mergeRects(first: SvgRect, second: SvgRect): SvgRect {

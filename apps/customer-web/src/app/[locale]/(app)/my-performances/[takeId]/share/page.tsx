@@ -148,11 +148,11 @@ export default function HistoricalPerformanceSharePage() {
     take &&
       artifactQuery.data &&
       revisionQuery.data?.data &&
-      revisionQuery.data.data.score_id === take.score_id &&
-      revisionQuery.data.data.revision_id === take.revision_id &&
-      artifactQuery.data.scoreId === take.score_id &&
-      artifactQuery.data.revisionId === take.revision_id &&
-      artifactQuery.data.artifactId === take.artifact_id
+      revisionQuery.data.data.score_id === take.source_score_id &&
+      revisionQuery.data.data.revision_id === take.source_revision_id &&
+      artifactQuery.data.scoreId === take.source_score_id &&
+      artifactQuery.data.revisionId === take.source_revision_id &&
+      artifactQuery.data.artifactId === take.source_artifact_id
   );
   const sessionEligibility = useMemo(() => {
     if (!take || !mediaBlob || !artifactQuery.data || !exactIdentityMatches) return null;
@@ -331,7 +331,7 @@ export default function HistoricalPerformanceSharePage() {
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader
         title={t('historicalShareTitle')}
-        description={take.score_title ?? t('historicalShareRecording')}
+        description={take.score_title_snapshot}
         actions={
           <Button variant="outline" onClick={() => router.push('/my-performances')}>
             <ArrowLeft className="mr-2 h-4 w-4" />

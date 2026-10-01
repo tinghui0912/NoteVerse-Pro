@@ -8,14 +8,14 @@ import { applyFloatingScoreSvgStyle } from './floating-score-svg';
 
 export type SvgViewBox = { x: number; y: number; width: number; height: number };
 export type ScorePageImageLoader = (svgText: string) => Promise<HTMLImageElement>;
-export type ScoreVisualMode = 'standard' | 'floating';
+type ScoreVisualMode = 'standard' | 'floating';
 export type ScorePageCacheOptions = {
   eventImageLoader?: ScorePageImageLoader;
   eventSvgDecorator?: (svg: SVGSVGElement) => void;
   visualMode?: ScoreVisualMode;
 };
 
-export type ExportScoreSystem = {
+type ExportScoreSystem = {
   systemId: string;
   pageNumber: number;
   order: number;
@@ -26,7 +26,7 @@ export type ExportScoreSystem = {
   measureIds: string[];
 };
 
-export type ExportNoteGeometry = {
+type ExportNoteGeometry = {
   pageNumber: number;
   noteId: string;
   noteBox: SvgRect;
@@ -221,12 +221,6 @@ export function findStablePageNumber(noteIds: readonly string[], scorePages: Sco
     noteIds.every((noteId) => page.geometryByNoteId.get(noteId))
   );
   return matches.length === 1 ? matches[0].pageNumber : null;
-}
-
-export function firstScorePage(scorePages: ScorePageCache): ScorePageCacheEntry {
-  const first = scorePages.values().next().value as ScorePageCacheEntry | undefined;
-  if (!first) throw new Error('share_video_export_failed:score_page_unavailable');
-  return first;
 }
 
 export function resolveExportPlaybackGeometry(
@@ -456,7 +450,7 @@ function isLikelyNote(element: SVGGraphicsElement) {
   );
 }
 
-export function readSvgViewBox(svg: SVGSVGElement): SvgViewBox {
+function readSvgViewBox(svg: SVGSVGElement): SvgViewBox {
   const raw = svg.getAttribute('viewBox')?.trim();
   if (raw) {
     const [x, y, width, height] = raw.split(/[\s,]+/).map(Number.parseFloat);

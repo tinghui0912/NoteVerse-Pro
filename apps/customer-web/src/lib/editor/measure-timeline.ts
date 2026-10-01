@@ -21,8 +21,3 @@ export function getMeasureDurationTicks(timeSignature: string | undefined | null
   const { beats, beatType } = parseTimeSignature(timeSignature);
   return Math.max(1, Math.round(divisions * beats * (4 / beatType)));
 }
-
-export function getBeatDurationTicks(timeSignature: string | undefined | null, divisions: number): number {
-  const { beatType } = parseTimeSignature(timeSignature);
-  return Math.max(1, Math.round(divisions * (4 / beatType)));
-}

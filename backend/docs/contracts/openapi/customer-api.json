@@ -3948,14 +3948,13 @@
       },
       "GrantCreateRequest": {
         "properties": {
+          "access_mode": {
+            "$ref": "#/components/schemas/ShareAccessMode",
+            "default": "PRACTICE"
+          },
           "allow_download": {
             "default": true,
             "title": "Allow Download",
-            "type": "boolean"
-          },
-          "allow_practice": {
-            "default": true,
-            "title": "Allow Practice",
             "type": "boolean"
           },
           "expires_at": {
@@ -3976,12 +3975,11 @@
       },
       "GrantCreatedRead": {
         "properties": {
+          "access_mode": {
+            "$ref": "#/components/schemas/ShareAccessMode"
+          },
           "allow_download": {
             "title": "Allow Download",
-            "type": "boolean"
-          },
-          "allow_practice": {
-            "title": "Allow Practice",
             "type": "boolean"
           },
           "created_at": {
@@ -4013,8 +4011,8 @@
         "required": [
           "grant_id",
           "token",
+          "access_mode",
           "allow_download",
-          "allow_practice",
           "expires_at",
           "created_at"
         ],
@@ -4023,12 +4021,11 @@
       },
       "GrantRead": {
         "properties": {
+          "access_mode": {
+            "$ref": "#/components/schemas/ShareAccessMode"
+          },
           "allow_download": {
             "title": "Allow Download",
-            "type": "boolean"
-          },
-          "allow_practice": {
-            "title": "Allow Practice",
             "type": "boolean"
           },
           "created_at": {
@@ -4078,8 +4075,8 @@
         },
         "required": [
           "grant_id",
+          "access_mode",
           "allow_download",
-          "allow_practice",
           "expires_at",
           "revoked_at",
           "created_at"
@@ -6125,9 +6122,6 @@
             "title": "Duration Ms",
             "type": "integer"
           },
-          "evaluation": {
-            "$ref": "#/components/schemas/PerformanceTakeEvaluation"
-          },
           "media_byte_size": {
             "exclusiveMinimum": 0.0,
             "title": "Media Byte Size",
@@ -6197,7 +6191,6 @@
             "type": "number"
           },
           "scope_type": {
-            "default": "FULL",
             "pattern": "^(FULL|RANGE)$",
             "title": "Scope Type",
             "type": "string"
@@ -6226,13 +6219,13 @@
           "media_byte_size",
           "media_mime_type",
           "duration_ms",
+          "scope_type",
           "scope_start_beat",
           "scope_terminal_beat",
           "revision_id",
           "artifact_id",
           "tempo_plan",
-          "recording_timebase",
-          "evaluation"
+          "recording_timebase"
         ],
         "title": "PerformanceTakeCreateRequest",
         "type": "object"
@@ -6254,158 +6247,6 @@
           "take_id"
         ],
         "title": "PerformanceTakeDeleteResponse",
-        "type": "object"
-      },
-      "PerformanceTakeEvaluation": {
-        "additionalProperties": false,
-        "properties": {
-          "outcomes": {
-            "items": {
-              "$ref": "#/components/schemas/PerformanceTakeExpectedEventOutcome"
-            },
-            "title": "Outcomes",
-            "type": "array"
-          }
-        },
-        "required": [
-          "outcomes"
-        ],
-        "title": "PerformanceTakeEvaluation",
-        "type": "object"
-      },
-      "PerformanceTakeExpectedEventOutcome": {
-        "additionalProperties": false,
-        "properties": {
-          "confidence": {
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Confidence",
-            "type": "number"
-          },
-          "expectedGroupId": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Expectedgroupid",
-            "type": "string"
-          },
-          "expectedStrikeOutcomes": {
-            "items": {
-              "$ref": "#/components/schemas/PerformanceTakeExpectedStrikeOutcome"
-            },
-            "title": "Expectedstrikeoutcomes",
-            "type": "array"
-          },
-          "measureNumbers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Measurenumbers",
-            "type": "array"
-          },
-          "performanceTimeMs": {
-            "minimum": 0.0,
-            "title": "Performancetimems",
-            "type": "number"
-          },
-          "renderNoteIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Rendernoteids",
-            "type": "array"
-          },
-          "result": {
-            "enum": [
-              "MATCH",
-              "PARTIAL",
-              "MISMATCH",
-              "UNCERTAIN",
-              "NOT_OBSERVED"
-            ],
-            "title": "Result",
-            "type": "string"
-          },
-          "source": {
-            "enum": [
-              "ACOUSTIC",
-              "MIDI",
-              "FAKE"
-            ],
-            "title": "Source",
-            "type": "string"
-          },
-          "timingOffsetMs": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Timingoffsetms"
-          },
-          "unexpectedPitches": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Unexpectedpitches",
-            "type": "array"
-          }
-        },
-        "required": [
-          "expectedGroupId",
-          "performanceTimeMs",
-          "result",
-          "confidence",
-          "source",
-          "expectedStrikeOutcomes",
-          "unexpectedPitches",
-          "renderNoteIds",
-          "measureNumbers"
-        ],
-        "title": "PerformanceTakeExpectedEventOutcome",
-        "type": "object"
-      },
-      "PerformanceTakeExpectedStrikeOutcome": {
-        "additionalProperties": false,
-        "properties": {
-          "pitch": {
-            "maxLength": 32,
-            "minLength": 1,
-            "title": "Pitch",
-            "type": "string"
-          },
-          "renderNoteIds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Rendernoteids",
-            "type": "array"
-          },
-          "result": {
-            "enum": [
-              "MATCHED",
-              "MISSING",
-              "UNCONFIRMED"
-            ],
-            "title": "Result",
-            "type": "string"
-          },
-          "strikeId": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Strikeid",
-            "type": "string"
-          }
-        },
-        "required": [
-          "strikeId",
-          "pitch",
-          "renderNoteIds",
-          "result"
-        ],
-        "title": "PerformanceTakeExpectedStrikeOutcome",
         "type": "object"
       },
       "PerformanceTakeListResponse": {
@@ -6497,9 +6338,10 @@
       "PerformanceTakeRead": {
         "additionalProperties": false,
         "properties": {
-          "artifact_id": {
-            "title": "Artifact Id",
-            "type": "string"
+          "can_open_score": {
+            "default": false,
+            "title": "Can Open Score",
+            "type": "boolean"
           },
           "created_at": {
             "format": "date-time",
@@ -6515,8 +6357,16 @@
             "title": "Duration Ms",
             "type": "integer"
           },
-          "evaluation": {
-            "$ref": "#/components/schemas/PerformanceTakeEvaluation"
+          "linked_score_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked Score Id"
           },
           "media_byte_size": {
             "title": "Media Byte Size",
@@ -6532,10 +6382,6 @@
           },
           "recording_timebase": {
             "$ref": "#/components/schemas/RecordingTimebase"
-          },
-          "revision_id": {
-            "title": "Revision Id",
-            "type": "string"
           },
           "scope_end_group_id": {
             "anyOf": [
@@ -6568,24 +6414,25 @@
             "type": "number"
           },
           "scope_type": {
-            "default": "FULL",
             "title": "Scope Type",
             "type": "string"
           },
-          "score_id": {
-            "title": "Score Id",
+          "score_title_snapshot": {
+            "minLength": 1,
+            "title": "Score Title Snapshot",
             "type": "string"
           },
-          "score_title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score Title"
+          "source_artifact_id": {
+            "title": "Source Artifact Id",
+            "type": "string"
+          },
+          "source_revision_id": {
+            "title": "Source Revision Id",
+            "type": "string"
+          },
+          "source_score_id": {
+            "title": "Source Score Id",
+            "type": "string"
           },
           "take_id": {
             "title": "Take Id",
@@ -6597,18 +6444,19 @@
         },
         "required": [
           "take_id",
-          "score_id",
-          "revision_id",
-          "artifact_id",
+          "source_score_id",
+          "source_revision_id",
+          "source_artifact_id",
+          "score_title_snapshot",
           "media_kind",
           "media_mime_type",
           "media_byte_size",
           "duration_ms",
+          "scope_type",
           "scope_start_beat",
           "scope_terminal_beat",
           "tempo_plan",
           "recording_timebase",
-          "evaluation",
           "created_at"
         ],
         "title": "PerformanceTakeRead",
@@ -6783,9 +6631,6 @@
             "title": "Duration Ms",
             "type": "integer"
           },
-          "evaluation": {
-            "$ref": "#/components/schemas/PerformanceTakeEvaluation"
-          },
           "media_byte_size": {
             "exclusiveMinimum": 0.0,
             "title": "Media Byte Size",
@@ -6849,7 +6694,6 @@
             "type": "number"
           },
           "scope_type": {
-            "default": "FULL",
             "pattern": "^(FULL|RANGE)$",
             "title": "Scope Type",
             "type": "string"
@@ -6870,13 +6714,13 @@
           "media_byte_size",
           "media_mime_type",
           "duration_ms",
+          "scope_type",
           "scope_start_beat",
           "scope_terminal_beat",
           "revision_id",
           "artifact_id",
           "tempo_plan",
-          "recording_timebase",
-          "evaluation"
+          "recording_timebase"
         ],
         "title": "PerformanceTakeUploadAuthorizationRequest",
         "type": "object"
@@ -7834,12 +7678,11 @@
       },
       "PublicationRead": {
         "properties": {
+          "access_mode": {
+            "$ref": "#/components/schemas/ShareAccessMode"
+          },
           "allow_download": {
             "title": "Allow Download",
-            "type": "boolean"
-          },
-          "allow_practice": {
-            "title": "Allow Practice",
             "type": "boolean"
           },
           "public_slug": {
@@ -7874,7 +7717,7 @@
           "revision_id",
           "status",
           "allow_download",
-          "allow_practice",
+          "access_mode",
           "published_at",
           "updated_at"
         ],
@@ -7891,14 +7734,13 @@
       },
       "PublicationUpsertRequest": {
         "properties": {
+          "access_mode": {
+            "$ref": "#/components/schemas/ShareAccessMode",
+            "default": "PRACTICE"
+          },
           "allow_download": {
             "default": false,
             "title": "Allow Download",
-            "type": "boolean"
-          },
-          "allow_practice": {
-            "default": true,
-            "title": "Allow Practice",
             "type": "boolean"
           },
           "public_slug": {
@@ -9322,6 +9164,14 @@
         ],
         "title": "SessionsRead",
         "type": "object"
+      },
+      "ShareAccessMode": {
+        "enum": [
+          "VIEW",
+          "PRACTICE"
+        ],
+        "title": "ShareAccessMode",
+        "type": "string"
       },
       "ShareActorRead": {
         "properties": {
@@ -13076,6 +12926,122 @@
           }
         },
         "summary": "Get Playback Url",
+        "tags": [
+          "Performance Takes"
+        ]
+      }
+    },
+    "/api/v1/performance-takes/{take_id}/practice-source/artifact": {
+      "get": {
+        "operationId": "get_take_practice_source_artifact_api_v1_performance_takes__take_id__practice_source_artifact_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "take_id",
+            "required": true,
+            "schema": {
+              "title": "Take Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PracticeScoreArtifactRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Take Practice Source Artifact",
+        "tags": [
+          "Performance Takes"
+        ]
+      }
+    },
+    "/api/v1/performance-takes/{take_id}/practice-source/content": {
+      "get": {
+        "operationId": "get_take_practice_source_content_api_v1_performance_takes__take_id__practice_source_content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "take_id",
+            "required": true,
+            "schema": {
+              "title": "Take Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PracticeReadyScoreContentRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Take Practice Source Content",
         "tags": [
           "Performance Takes"
         ]

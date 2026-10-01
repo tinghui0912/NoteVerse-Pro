@@ -1,12 +1,12 @@
 import type { SessionTime } from '../local-core';
 
-export const BYTEDANCE_NOTE_MODEL_ID = 'bytedance-piano-transcription-note-model';
-export const BYTEDANCE_NOTE_MODEL_VERSION = 'CRNN_note_F1_0.9677_pedal_F1_0.9186';
-export const BYTEDANCE_PREPROCESSING_VERSION = 'fixed-anchor-16k-mono-v1';
-export const BYTEDANCE_DECODER_VERSION = 'temporally-bound-reg-onset-frame-v1';
+const BYTEDANCE_NOTE_MODEL_ID = 'bytedance-piano-transcription-note-model';
+const BYTEDANCE_NOTE_MODEL_VERSION = 'CRNN_note_F1_0.9677_pedal_F1_0.9186';
+const BYTEDANCE_PREPROCESSING_VERSION = 'fixed-anchor-16k-mono-v1';
+const BYTEDANCE_DECODER_VERSION = 'temporally-bound-reg-onset-frame-v1';
 // Frozen to 1.20.1 after a same-machine WebGPU A/B showed a severe 1.30.0
 // latency regression for this fixed ByteDance ONNX export.
-export const ONNX_RUNTIME_WEB_VERSION = '1.20.1';
+const ONNX_RUNTIME_WEB_VERSION = '1.20.1';
 
 export const BYTEDANCE_INPUT_DESCRIPTOR = {
   name: 'audio',
@@ -42,7 +42,7 @@ export const BYTEDANCE_INFERENCE_CONTRACT = {
   localPostMs: 120,
 } as const;
 
-export type ByteDanceExecutionBackend = 'webgpu';
+type ByteDanceExecutionBackend = 'webgpu';
 export type ByteDanceRuntimeExecutionProvider = 'webgpu' | 'wasm';
 
 export type ByteDanceModelManifest = {
@@ -96,13 +96,13 @@ export type ByteDanceInferenceResult = {
   diagnostics?: ByteDanceInferenceDiagnostics;
 };
 
-export type ByteDanceTensorDiagnostics = {
+type ByteDanceTensorDiagnostics = {
   name: string;
   dtype: 'float32';
   shape: readonly number[];
 };
 
-export type ByteDanceInferenceDiagnostics = {
+type ByteDanceInferenceDiagnostics = {
   inputTensor: ByteDanceTensorDiagnostics;
   outputTensors: {
     regOnset: ByteDanceTensorDiagnostics;
@@ -132,9 +132,6 @@ export type ByteDanceLoadDiagnostics = {
     error: string;
   };
 };
-
-export const BYTEDANCE_PRODUCTION_MODEL_BYTE_SIZE = 98_691_493;
-export const BYTEDANCE_PRODUCTION_MODEL_SHA256 = '6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5';
 
 export function createByteDanceManifestFromAccess(access: {
   downloadUrl: string;

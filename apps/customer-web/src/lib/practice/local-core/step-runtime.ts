@@ -23,7 +23,7 @@ export type StepRuntimeDecision =
   | { kind: 'MATCH'; reason: 'accepted_current_step'; advancedTo: StepVerifierTarget | null }
   | { kind: 'SKIP'; reason: 'user_skip'; advancedTo: StepVerifierTarget | null };
 
-export type StepWaitReason =
+type StepWaitReason =
   | 'no_observation'
   | 'scope_completed'
   | 'stale_step'
@@ -35,7 +35,7 @@ import type { PracticeTempoSelection } from './practice-tempo';
 
 export type StepPracticeRuntimeOptions = {
   artifact: PracticeScoreArtifact;
-  scope?: PracticeScope;
+  scope: PracticeScope;
   inputSource?: 'MICROPHONE' | 'MIDI';
   localSessionId?: string;
   clock: LocalClock;
@@ -79,12 +79,12 @@ export class StepPracticeRuntime {
       runtimeVersion: 'local-practice-core-v1',
     };
     if (options.snapshot) {
-      validateStepSnapshot(options.artifact, options.snapshot, options.inputSource, options.scope);
+      validateStepSnapshot(options.artifact, options.snapshot, options.scope, options.inputSource);
     }
     this.inputSource = options.snapshot?.inputSource ?? options.inputSource ?? 'MICROPHONE';
     this.tempoSelection = options.snapshot?.tempoSelection ?? options.tempoSelection ?? { mode: 'SCORE' };
     this.metronomeEnabled = options.snapshot?.metronomeEnabled ?? options.metronomeEnabled ?? false;
-    this.resolvedScope = this.scope(this.artifact, options.snapshot?.practiceScope ?? options.scope);
+    this.resolvedScope = this.scope(this.artifact, options.scope);
     this.localSessionId = options.snapshot?.localSessionId ?? options.localSessionId ?? createLocalSessionId();
     this.timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });
     this.createdAtMs = options.snapshot?.createdAtMs ?? this.metadataClock.nowEpochMs();
@@ -304,13 +304,13 @@ export function groupForCurrentStep(runtime: StepPracticeRuntime) {
 function validateStepSnapshot(
   artifact: PracticeScoreArtifact,
   snapshot: LocalStepSessionSnapshot,
-  inputSource?: 'MICROPHONE' | 'MIDI',
-  scope?: PracticeScope
+  scope: PracticeScope,
+  inputSource?: 'MICROPHONE' | 'MIDI'
 ): void {
   if (snapshot.mode !== 'STEP_BY_STEP') {
     throw new Error('Cannot restore non-STEP snapshot into StepPracticeRuntime.');
   }
-  validateCommonSnapshot(artifact, snapshot, inputSource, scope);
+  validateCommonSnapshot(artifact, snapshot, scope, inputSource);
   if (!Number.isInteger(snapshot.step.currentIndex) || snapshot.step.currentIndex < 0) {
     throw new Error('Invalid STEP snapshot current index.');
   }
@@ -325,8 +325,8 @@ function validateStepSnapshot(
 function validateCommonSnapshot(
   artifact: PracticeScoreArtifact,
   snapshot: LocalStepSessionSnapshot,
-  inputSource?: 'MICROPHONE' | 'MIDI',
-  scope?: PracticeScope
+  scope: PracticeScope,
+  inputSource?: 'MICROPHONE' | 'MIDI'
 ): void {
   if (snapshot.scoreId !== artifact.scoreId
     || snapshot.revisionId !== artifact.revisionId
@@ -339,7 +339,7 @@ function validateCommonSnapshot(
   if (inputSource && snapshot.inputSource !== inputSource) {
     throw new Error('Practice session snapshot input source mismatch.');
   }
-  if (scope && JSON.stringify(scope) !== JSON.stringify(snapshot.practiceScope)) {
+  if (JSON.stringify(scope) !== JSON.stringify(snapshot.practiceScope)) {
     throw new Error('Practice session snapshot scope mismatch.');
   }
 }

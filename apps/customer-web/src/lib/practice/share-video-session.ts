@@ -12,6 +12,7 @@ import type {
 import type {
   PracticeScoreArtifact,
   PracticeTempoSegmentSource,
+  ResolvedPracticeScope,
   ResolvedPracticeTempoPlan,
 } from './local-core';
 import {
@@ -121,9 +122,9 @@ export function createShareVideoSessionFromSavedTake(
     return { status: 'temporarily_unavailable', reason: 'empty_media' };
   }
   if (
-    artifact.scoreId !== take.score_id ||
-    artifact.revisionId !== take.revision_id ||
-    artifact.artifactId !== take.artifact_id
+    artifact.scoreId !== take.source_score_id ||
+    artifact.revisionId !== take.source_revision_id ||
+    artifact.artifactId !== take.source_artifact_id
   ) {
     return { status: 'unsupported', reason: 'artifact_identity_mismatch' };
   }
@@ -143,34 +144,36 @@ export function createShareVideoSessionFromSavedTake(
     const tempoPlan = parseSavedTempoPlan(take.tempo_plan);
     const recordingTimebase = parseSavedRecordingTimebase(take.recording_timebase);
     const isRange = take.scope_type === 'RANGE';
-    if (isRange && (!take.scope_start_group_id || !take.scope_end_group_id)) {
-      return { status: 'unsupported', reason: 'scope_identity_missing' };
-    }
-    const startGroup = artifact.expectedPracticeGroups.find(
-      (group) => group.groupId === take.scope_start_group_id
-    );
-    const endGroup = artifact.expectedPracticeGroups.find(
-      (group) => group.groupId === take.scope_end_group_id
-    );
-    if (isRange && (!startGroup || !endGroup)) {
-      return { status: 'unsupported', reason: 'scope_identity_invalid' };
-    }
-    if (
-      isRange &&
-      (!startGroup ||
-        !endGroup ||
+    let resolvedPracticeScope: ResolvedPracticeScope;
+    if (isRange) {
+      const scopeStartGroupId = take.scope_start_group_id;
+      const scopeEndGroupId = take.scope_end_group_id;
+      if (!scopeStartGroupId || !scopeEndGroupId) {
+        return { status: 'unsupported', reason: 'scope_identity_missing' };
+      }
+      const startGroup = artifact.expectedPracticeGroups.find(
+        (group) => group.groupId === scopeStartGroupId
+      );
+      const endGroup = artifact.expectedPracticeGroups.find(
+        (group) => group.groupId === scopeEndGroupId
+      );
+      if (!startGroup || !endGroup) {
+        return { status: 'unsupported', reason: 'scope_identity_invalid' };
+      }
+      if (
         Math.abs(startGroup.onsetBeat - scopeStartBeat) > 1e-6 ||
-        Math.abs(endGroup.canonicalEndBeat - scopeTerminalBeat) > 1e-6)
-    ) {
-      return { status: 'unsupported', reason: 'scope_identity_mismatch' };
+        Math.abs(endGroup.canonicalEndBeat - scopeTerminalBeat) > 1e-6
+      ) {
+        return { status: 'unsupported', reason: 'scope_identity_mismatch' };
+      }
+      resolvedPracticeScope = resolvePracticeScope(artifact, {
+        kind: 'RANGE',
+        startGroupId: scopeStartGroupId,
+        endGroupId: scopeEndGroupId,
+      });
+    } else {
+      resolvedPracticeScope = resolvePracticeScope(artifact, { kind: 'FULL' });
     }
-    const resolvedPracticeScope = isRange
-      ? resolvePracticeScope(artifact, {
-          kind: 'RANGE',
-          startGroupId: take.scope_start_group_id ?? '',
-          endGroupId: take.scope_end_group_id ?? '',
-        })
-      : resolvePracticeScope(artifact, { kind: 'FULL' });
     const resolvedScope = resolvePracticeScopeCursorNoteIds(
       artifact,
       resolvedPracticeScope
@@ -183,9 +186,9 @@ export function createShareVideoSessionFromSavedTake(
       session: {
         sourceId: take.take_id,
         scoreIdentity: {
-          scoreId: take.score_id,
-          revisionId: take.revision_id,
-          artifactId: take.artifact_id,
+          scoreId: take.source_score_id,
+          revisionId: take.source_revision_id,
+          artifactId: take.source_artifact_id,
         },
         video: {
           status: 'READY',

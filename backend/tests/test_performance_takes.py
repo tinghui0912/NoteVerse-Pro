@@ -143,6 +143,87 @@ def _performance_take_service(
     )
 
 
+def _create_default_source_snapshot(
+    session: Session,
+    storage: LocalFileStorage,
+    *,
+    source_score_uuid: str = "score-uuid-10",
+    source_revision_uuid: str = DEFAULT_TAKE_REVISION_ID,
+    artifact_id: str = DEFAULT_TAKE_ARTIFACT_ID,
+) -> PracticeSourceSnapshot:
+    musicxml_bytes = (
+        b'<?xml version="1.0" encoding="UTF-8"?>'
+        b'<score-partwise version="4.0"><part-list /></score-partwise>'
+    )
+    artifact_bytes = json.dumps(
+        {
+            "schemaVersion": 1,
+            "scoreId": source_score_uuid,
+            "revisionId": source_revision_uuid,
+            "artifactId": artifact_id,
+            "playableEvents": [],
+            "expectedPracticeGroups": [],
+            "practiceAttackSteps": [],
+            "meterSegments": [
+                {
+                    "startBeat": 0,
+                    "numerator": 4,
+                    "denominator": 4,
+                    "measureDurationBeats": 4,
+                    "countInPulses": 4,
+                    "source": "DEFAULT_4_4",
+                }
+            ],
+            "scoreTempoSegments": [{"startBeat": 0, "bpm": 120}],
+            "firstPlayableBeat": 0,
+            "scoreEndBeat": 16,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    musicxml_sha = hashlib.sha256(musicxml_bytes).hexdigest()
+    artifact_sha = hashlib.sha256(artifact_bytes).hexdigest()
+    fingerprint = hashlib.sha256(
+        "|".join(
+            [
+                source_score_uuid,
+                source_revision_uuid,
+                artifact_id,
+                "1",
+                musicxml_sha,
+                artifact_sha,
+            ]
+        ).encode("utf-8")
+    ).hexdigest()
+    existing = session.execute(
+        select(PracticeSourceSnapshot).where(
+            PracticeSourceSnapshot.source_fingerprint == fingerprint
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        return existing
+    musicxml_key = f"practice-source-snapshots/{fingerprint}/score.musicxml"
+    artifact_key = f"practice-source-snapshots/{fingerprint}/artifact.json"
+    storage.put_bytes(key=musicxml_key, content=musicxml_bytes, content_type="application/vnd.recordare.musicxml+xml")
+    storage.put_bytes(key=artifact_key, content=artifact_bytes, content_type="application/json")
+    snapshot = PracticeSourceSnapshot(
+        source_fingerprint=fingerprint,
+        source_score_uuid=source_score_uuid,
+        source_revision_uuid=source_revision_uuid,
+        artifact_id=artifact_id,
+        artifact_schema_version=1,
+        prepared_musicxml_object_key=musicxml_key,
+        prepared_musicxml_sha256=musicxml_sha,
+        prepared_musicxml_byte_size=len(musicxml_bytes),
+        artifact_object_key=artifact_key,
+        artifact_sha256=artifact_sha,
+        artifact_byte_size=len(artifact_bytes),
+    )
+    session.add(snapshot)
+    session.flush()
+    return snapshot
+
+
 def test_performance_take_schema_accepts_product_default_tempo_source() -> None:
     request = PerformanceTakeUploadAuthorizationRequest(
         score_id="score-uuid-10",
@@ -155,7 +236,6 @@ def test_performance_take_schema_accepts_product_default_tempo_source() -> None:
         scope_start_beat=0,
         scope_terminal_beat=16,
         revision_id=DEFAULT_TAKE_REVISION_ID,
-        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
         tempo_plan={
             "selection": {"mode": "SCORE"},
             "segments": [{"startBeat": 0, "bpm": 80, "source": "PRODUCT_DEFAULT"}],
@@ -522,9 +602,9 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert res_fin.status_code == 200, res_fin.text
         take_data = res_fin.json()["data"]
         assert take_data["take_id"] == take_id
-        assert take_data["score_id"] == "score-uuid-10"
-        assert take_data["revision_id"] == "revision-uuid-100"
-        assert take_data["score_title"] == "Moonlight Sonata"
+        assert take_data["source_score_id"] == "score-uuid-10"
+        assert take_data["source_revision_id"] == "revision-uuid-100"
+        assert take_data["score_title_snapshot"] == "Moonlight Sonata"
         assert take_data["scope_type"] == "FULL"
         assert take_data["media_byte_size"] == media_size
         assert take_data["deletion_status"] == "ACTIVE"
@@ -586,7 +666,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         res_idempotent = client.post("/api/v1/performance-takes", json=fin_req)
         assert res_idempotent.status_code == 200
         assert res_idempotent.json()["data"]["take_id"] == take_id
-        assert res_idempotent.json()["data"]["score_id"] == "score-uuid-10"
+        assert res_idempotent.json()["data"]["source_score_id"] == "score-uuid-10"
 
         conflicting_auth_req = {**auth_req, "media_byte_size": media_size + 1}
         res_conflict = client.post(
@@ -613,14 +693,14 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         items = res_list.json()["data"]["items"]
         assert len(items) == 1
         assert items[0]["take_id"] == take_id
-        assert items[0]["score_id"] == "score-uuid-10"
-        assert items[0]["score_title"] == "Moonlight Sonata"
+        assert items[0]["source_score_id"] == "score-uuid-10"
+        assert items[0]["score_title_snapshot"] == "Moonlight Sonata"
 
         # 8. Get take detail
         res_detail = client.get(f"/api/v1/performance-takes/{take_id}")
         assert res_detail.status_code == 200
         assert res_detail.json()["data"]["take_id"] == take_id
-        assert res_detail.json()["data"]["score_id"] == "score-uuid-10"
+        assert res_detail.json()["data"]["source_score_id"] == "score-uuid-10"
 
         # 9. Get playback URL
         res_play = client.get(f"/api/v1/performance-takes/{take_id}/playback-url")
@@ -941,7 +1021,7 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         }
         res_fin = client.post("/api/v1/performance-takes", json=fin_req)
         assert res_fin.status_code == 200
-        assert res_fin.json()["data"]["score_title"] == "Moonlight Sonata"
+        assert res_fin.json()["data"]["score_title_snapshot"] == "Moonlight Sonata"
 
         take_row = session.execute(
             select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
@@ -950,10 +1030,13 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert final_key.startswith(f"performance-takes/1/{take_id}/")
         assert storage.exists(final_key)
 
-        # Initial list check: score is active, so score_id is returned
+        # Initial list check: source identity is returned and live navigation is available.
         res_init_list = client.get("/api/v1/performance-takes")
         assert res_init_list.status_code == 200
-        assert res_init_list.json()["data"]["items"][0]["score_id"] == "score-uuid-10"
+        init_item = res_init_list.json()["data"]["items"][0]
+        assert init_item["source_score_id"] == "score-uuid-10"
+        assert init_item["linked_score_id"] == "score-uuid-10"
+        assert init_item["can_open_score"] is True
 
         # 2. REAL SOFT DELETE: invoke real ScoreService.batch_delete / HTTP POST /api/v1/scores/batch-delete
         score_svc = ScoreService(storage=storage)
@@ -971,10 +1054,10 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert res_list_soft.status_code == 200
         item_soft = res_list_soft.json()["data"]["items"][0]
         assert item_soft["take_id"] == take_id
-        assert item_soft["score_id"] == "score-uuid-10"
-        assert item_soft["revision_id"] == "revision-uuid-100"
-        assert item_soft["artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
-        assert item_soft["score_title"] == "Moonlight Sonata"
+        assert item_soft["source_score_id"] == "score-uuid-10"
+        assert item_soft["source_revision_id"] == "revision-uuid-100"
+        assert item_soft["source_artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
+        assert item_soft["score_title_snapshot"] == "Moonlight Sonata"
 
         # Playback still works during soft delete
         res_play_soft = client.get(f"/api/v1/performance-takes/{take_id}/playback-url")
@@ -989,19 +1072,22 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         cleanup_res = lifecycle_svc.cleanup_deleting_scores(session)
         assert cleanup_res.scores_deleted == 1
 
-        # Verify in DB: score is logically deleted but immutable source rows remain because
-        # the take must be able to recover its exact historical score/revision/artifact.
+        # Verify in DB: live score rows are physically deleted. The take no longer
+        # points at live score/revision rows; its historical source is the snapshot.
         retained_score = session.execute(select(Score).where(Score.id == 10)).scalar_one_or_none()
-        assert retained_score is not None
-        assert retained_score.deletion_status == ScoreDeletionStatus.DELETED
+        assert retained_score is None
 
         # Verify in DB: take row is preserved with required source identity.
         take_in_db = session.execute(select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)).scalar_one_or_none()
         assert take_in_db is not None
-        assert take_in_db.score_id == 10
-        assert take_in_db.revision_id == 100
-        assert take_in_db.artifact_id == DEFAULT_TAKE_ARTIFACT_ID
-        assert take_in_db.score_title == "Moonlight Sonata"
+        assert take_in_db.score_id is None
+        assert take_in_db.score_title_snapshot == "Moonlight Sonata"
+        snapshot = session.get(PracticeSourceSnapshot, take_in_db.source_snapshot_id)
+        assert snapshot is not None
+        assert snapshot.source_score_uuid == "score-uuid-10"
+        assert snapshot.source_revision_uuid == "revision-uuid-100"
+        assert storage.exists(snapshot.prepared_musicxml_object_key)
+        assert storage.exists(snapshot.artifact_object_key)
 
         # Verify storage: media object is STILL PRESERVED!
         assert storage.exists(final_key)
@@ -1015,15 +1101,23 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert res_list_hard.status_code == 200
         item_hard = res_list_hard.json()["data"]["items"][0]
         assert item_hard["take_id"] == take_id
-        assert item_hard["score_id"] == "score-uuid-10"
-        assert item_hard["revision_id"] == "revision-uuid-100"
-        assert item_hard["artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
-        assert item_hard["score_title"] == "Moonlight Sonata"
+        assert item_hard["source_score_id"] == "score-uuid-10"
+        assert item_hard["source_revision_id"] == "revision-uuid-100"
+        assert item_hard["source_artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
+        assert item_hard["score_title_snapshot"] == "Moonlight Sonata"
+        assert item_hard["linked_score_id"] is None
+        assert item_hard["can_open_score"] is False
 
         # Playback and download still work after score hard delete
         res_play_hard = client.get(f"/api/v1/performance-takes/{take_id}/playback-url")
         assert res_play_hard.status_code == 200
         assert "download_url" in res_play_hard.json()["data"]
+        res_source_content_hard = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/content")
+        assert res_source_content_hard.status_code == 200, res_source_content_hard.text
+        assert res_source_content_hard.json()["data"]["revision_id"] == "revision-uuid-100"
+        res_source_artifact_hard = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/artifact")
+        assert res_source_artifact_hard.status_code == 200, res_source_artifact_hard.text
+        assert res_source_artifact_hard.json()["data"]["artifactId"] == DEFAULT_TAKE_ARTIFACT_ID
 
         # Deleting take returns 202 Accepted
         res_del = client.delete(f"/api/v1/performance-takes/{take_id}")
@@ -1861,9 +1955,11 @@ def test_video_take_finalize_uses_video_media_kind_and_candidate(test_env):
 
 def test_authorize_finalizing_snapshot_retries_without_new_put(test_env):
     session, _storage, user_1, _ = test_env
+    snapshot = _create_default_source_snapshot(session, _storage)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     auth = PerformanceTakeUploadAuthorization(
         user_id=user_1.id,
+        source_snapshot_id=snapshot.id,
         client_request_id="req-finalizing-authorize",
         take_uuid="take-finalizing-authorize",
         score_id=10,
@@ -2171,7 +2267,7 @@ def test_archived_authorization_late_staging_put_is_cleaned_after_expiry(test_en
         app.dependency_overrides.clear()
 
 
-def test_score_deleted_between_auth_and_finalize_fails_closed(test_env):
+def test_score_deleted_between_auth_and_finalize_uses_pinned_snapshot(test_env):
     session, storage, user_1, _ = test_env
     storage_usage_svc = StorageUsageService()
     take_svc = _performance_take_service(
@@ -2211,8 +2307,9 @@ def test_score_deleted_between_auth_and_finalize_fails_closed(test_env):
         staging_key = auth_data["object_key"]
         storage.put_bytes(key=staging_key, content=content, content_type="audio/webm")
 
-        # Simulate score becoming unavailable before client calls finalize. The source rows
-        # remain retained; finalize must fail closed instead of creating a take with null source.
+        # Simulate score becoming unavailable before client calls finalize. The
+        # upload authorization already pinned a durable source snapshot, so this
+        # save must still finish without requiring live Score access.
         session.execute(
             text("UPDATE scores SET deletion_status = 'DELETED' WHERE id = 10;")
         )
@@ -2231,19 +2328,38 @@ def test_score_deleted_between_auth_and_finalize_fails_closed(test_env):
             "scope_terminal_beat": 4.0,
         }
         res_fin = client.post("/api/v1/performance-takes", json=fin_req)
-        assert res_fin.status_code == 422
+        assert res_fin.status_code == 200, res_fin.text
+        data = res_fin.json()["data"]
+        assert data["take_id"] == take_id
+        assert data["source_score_id"] == "score-uuid-10"
+        assert data["source_revision_id"] == "revision-uuid-100"
+        assert data["source_artifact_id"] == DEFAULT_TAKE_ARTIFACT_ID
+        assert data["linked_score_id"] is None
+        assert data["can_open_score"] is False
 
-        assert (
-            session.execute(
-                select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
-            ).scalar_one_or_none()
-            is None
-        )
+        take = session.execute(
+            select(PerformanceTake).where(PerformanceTake.take_uuid == take_id)
+        ).scalar_one()
+        snapshot = session.get(PracticeSourceSnapshot, take.source_snapshot_id)
+        assert snapshot is not None
+        assert snapshot.source_score_uuid == "score-uuid-10"
+        assert snapshot.source_revision_uuid == "revision-uuid-100"
+        assert storage.exists(snapshot.prepared_musicxml_object_key)
+        assert storage.exists(snapshot.artifact_object_key)
 
-        # List takes does not expose a partially finalized take.
+        res_source_content = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/content")
+        assert res_source_content.status_code == 200, res_source_content.text
+        assert res_source_content.json()["data"]["revision_id"] == "revision-uuid-100"
+        res_source_artifact = client.get(f"/api/v1/performance-takes/{take_id}/practice-source/artifact")
+        assert res_source_artifact.status_code == 200, res_source_artifact.text
+        assert res_source_artifact.json()["data"]["artifactId"] == DEFAULT_TAKE_ARTIFACT_ID
+
+        # List takes exposes the durable historical source, but no live score link.
         res_list = client.get("/api/v1/performance-takes")
         assert res_list.status_code == 200
-        assert res_list.json()["data"]["items"] == []
+        item = res_list.json()["data"]["items"][0]
+        assert item["source_score_id"] == "score-uuid-10"
+        assert item["linked_score_id"] is None
 
     finally:
         app.dependency_overrides.clear()
@@ -2505,6 +2621,7 @@ def test_expired_authorization_cleanup_releases_db_lock_before_storage_delete(te
 
 def _expired_cleanup_auth(
     *,
+    source_snapshot_id: int,
     user_id: int,
     client_request_id: str,
     staging_key: str,
@@ -2513,6 +2630,7 @@ def _expired_cleanup_auth(
     expired_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
     return PerformanceTakeUploadAuthorization(
         user_id=user_id,
+        source_snapshot_id=source_snapshot_id,
         client_request_id=client_request_id,
         take_uuid=f"take-{client_request_id}",
         score_id=10,
@@ -2545,7 +2663,9 @@ def test_authorization_cleanup_does_not_complete_when_delete_returns_false(test_
     staging_key = "staging/performance-takes/1/delete-false/recording.webm"
     final_key = "performance-takes/1/delete-false/recording.webm"
     storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    snapshot = _create_default_source_snapshot(session, storage)
     auth = _expired_cleanup_auth(
+        source_snapshot_id=snapshot.id,
         user_id=user_1.id,
         client_request_id="delete-false",
         staging_key=staging_key,
@@ -2580,7 +2700,9 @@ def test_authorization_cleanup_does_not_complete_when_head_still_exists(test_env
     staging_key = "staging/performance-takes/1/head-still-exists/recording.webm"
     final_key = "performance-takes/1/head-still-exists/recording.webm"
     storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    snapshot = _create_default_source_snapshot(session, storage)
     auth = _expired_cleanup_auth(
+        source_snapshot_id=snapshot.id,
         user_id=user_1.id,
         client_request_id="head-still-exists",
         staging_key=staging_key,
@@ -2615,7 +2737,9 @@ def test_authorization_cleanup_does_not_complete_when_final_head_fails(test_env)
     staging_key = "staging/performance-takes/1/head-fails/recording.webm"
     final_key = "performance-takes/1/head-fails/recording.webm"
     storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    snapshot = _create_default_source_snapshot(session, storage)
     auth = _expired_cleanup_auth(
+        source_snapshot_id=snapshot.id,
         user_id=user_1.id,
         client_request_id="head-fails",
         staging_key=staging_key,
@@ -2656,8 +2780,10 @@ def test_finalize_copy_lease_rejects_expired_executor_before_storage_copy(test_e
     session, _storage, user_1, _ = test_env
     take_svc = _performance_take_service(storage=_storage)
     expired = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+    snapshot = _create_default_source_snapshot(session, _storage)
     auth = PerformanceTakeUploadAuthorization(
         user_id=user_1.id,
+        source_snapshot_id=snapshot.id,
         client_request_id="lease-expired-before-copy",
         take_uuid="take-lease-expired-before-copy",
         score_id=10,
@@ -2703,7 +2829,9 @@ def test_completed_authorization_cleanup_does_not_touch_storage(test_env):
     session, _storage, user_1, _ = test_env
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     past = now - timedelta(hours=2)
+    snapshot = _create_default_source_snapshot(session, _storage)
     auth = _expired_cleanup_auth(
+        source_snapshot_id=snapshot.id,
         user_id=user_1.id,
         client_request_id="already-completed-cleanup",
         staging_key="staging/performance-takes/1/already-completed/recording.webm",
@@ -2735,7 +2863,9 @@ def test_authorization_cleanup_retries_orphan_final_without_touching_completed_s
     session, storage, user_1, _ = test_env
     orphan_key = "performance-takes/1/orphan-token/old-token.webm"
     storage.put_bytes(key=orphan_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    snapshot = _create_default_source_snapshot(session, storage)
     auth = _expired_cleanup_auth(
+        source_snapshot_id=snapshot.id,
         user_id=user_1.id,
         client_request_id="orphan-final-only",
         staging_key="staging/performance-takes/1/orphan-final-only/recording.webm",
@@ -2783,7 +2913,9 @@ def test_authorization_cleanup_keeps_unknown_absent_orphan_until_grace_then_conv
     session, storage, user_1, _ = test_env
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     orphan_key = "performance-takes/1/orphan-late/old-token.webm"
+    snapshot = _create_default_source_snapshot(session, storage)
     auth = _expired_cleanup_auth(
+        source_snapshot_id=snapshot.id,
         user_id=user_1.id,
         client_request_id="orphan-late-copy",
         staging_key="staging/performance-takes/1/orphan-late/recording.webm",
@@ -2833,7 +2965,9 @@ def test_authorization_cleanup_removes_absent_known_orphan(test_env):
     session, storage, user_1, _ = test_env
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     orphan_key = "performance-takes/1/absent-known/old-token.webm"
+    snapshot = _create_default_source_snapshot(session, storage)
     auth = _expired_cleanup_auth(
+        source_snapshot_id=snapshot.id,
         user_id=user_1.id,
         client_request_id="absent-known-orphan",
         staging_key="staging/performance-takes/1/absent-known/recording.webm",
@@ -2865,7 +2999,9 @@ def test_authorization_cleanup_preserves_remaining_orphan_remove_after(test_env)
     waiting_key = "performance-takes/1/two-orphans/waiting.webm"
     waiting_until = now + timedelta(minutes=15)
     storage.put_bytes(key=removable_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    snapshot = _create_default_source_snapshot(session, storage)
     auth = _expired_cleanup_auth(
+        source_snapshot_id=snapshot.id,
         user_id=user_1.id,
         client_request_id="two-orphans-preserve",
         staging_key="staging/performance-takes/1/two-orphans/recording.webm",
@@ -2902,7 +3038,9 @@ def test_authorization_cleanup_does_not_remove_orphan_when_remove_after_was_exte
     session, _storage, user_1, _ = test_env
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     orphan_key = "performance-takes/1/remove-after-extended/token.webm"
+    snapshot = _create_default_source_snapshot(session, _storage)
     auth = _expired_cleanup_auth(
+        source_snapshot_id=snapshot.id,
         user_id=user_1.id,
         client_request_id="remove-after-extended",
         staging_key="staging/performance-takes/1/remove-after-extended/recording.webm",
@@ -2936,7 +3074,9 @@ def test_authorization_cleanup_does_not_delete_orphan_key_referenced_by_take(tes
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     referenced_key = "performance-takes/1/referenced-orphan/token.webm"
     storage.put_bytes(key=referenced_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    snapshot = _create_default_source_snapshot(session, storage)
     auth = _expired_cleanup_auth(
+        source_snapshot_id=snapshot.id,
         user_id=user_1.id,
         client_request_id="referenced-orphan",
         staging_key="staging/performance-takes/1/referenced-orphan/recording.webm",
@@ -2951,10 +3091,9 @@ def test_authorization_cleanup_does_not_delete_orphan_key_referenced_by_take(tes
         PerformanceTake(
             take_uuid="take-referenced-orphan",
             user_id=user_1.id,
+            source_snapshot_id=snapshot.id,
             score_id=10,
-            score_title="Referenced orphan",
-            revision_id=100,
-            artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
+            score_title_snapshot="Referenced orphan",
             client_request_id="referenced-orphan",
             media_kind=PerformanceTakeMediaKind.AUDIO,
             media_mime_type="audio/webm",
@@ -2987,10 +3126,12 @@ def test_authorization_cleanup_does_not_delete_orphan_key_referenced_by_take(tes
 
 def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
     session, storage, user_1, _ = test_env
+    snapshot = _create_default_source_snapshot(session, storage)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     candidate_key = "performance-takes/1/finalizing-expired/old-token.webm"
     auth = PerformanceTakeUploadAuthorization(
         user_id=user_1.id,
+        source_snapshot_id=snapshot.id,
         client_request_id="finalizing-expired-retry",
         take_uuid="finalizing-expired",
         score_id=10,
@@ -3312,26 +3453,43 @@ def _assert_performance_take_upgrade_state(
         cols = {c["name"]: c for c in inspector.get_columns("performance_takes")}
         assert cols["source_snapshot_id"]["nullable"] is False
         assert cols["score_id"]["nullable"] is True
-        assert cols["revision_id"]["nullable"] is True
-        assert cols["artifact_id"]["nullable"] is False
+        assert "revision_id" not in cols
+        assert "artifact_id" not in cols
         assert cols["tempo_plan"]["nullable"] is False
         assert "resolved_tempo_plan" not in cols
         assert cols["recording_timebase"]["nullable"] is False
         assert "evaluation" not in cols
         assert "sync_metadata" not in cols
-        assert "score_title" in cols
-        assert cols["score_title"]["nullable"] is True
+        assert "score_title_snapshot" in cols
+        assert cols["score_title_snapshot"]["nullable"] is False
         assert "scope_type" in cols
         assert cols["scope_type"]["nullable"] is False
         assert "deletion_status" in cols
         assert cols["deletion_status"]["nullable"] is False
 
+        share_grant_cols = {
+            c["name"]: c for c in inspector.get_columns("score_share_grants")
+        }
+        assert "access_mode" in share_grant_cols
+        assert "allow_practice" not in share_grant_cols
+
+        publication_cols = {
+            c["name"]: c for c in inspector.get_columns("score_publications")
+        }
+        assert "access_mode" in publication_cols
+        assert "allow_practice" not in publication_cols
+
+        auth_cols = {
+            c["name"]: c for c in inspector.get_columns("performance_take_upload_authorizations")
+        }
+        assert auth_cols["source_snapshot_id"]["nullable"] is False
+        assert auth_cols["score_title"]["nullable"] is False
+
         fks = inspector.get_foreign_keys("performance_takes")
         assert len([fk for fk in fks if fk["referred_table"] == "scores"]) == 1
         score_fk = next(f for f in fks if f["referred_table"] == "scores")
         assert score_fk["options"].get("ondelete") == "SET NULL"
-        rev_fk = next(f for f in fks if f["referred_table"] == "score_revisions")
-        assert rev_fk["options"].get("ondelete") == "SET NULL"
+        assert not any(fk["referred_table"] == "score_revisions" for fk in fks)
         snapshot_fk = next(f for f in fks if f["referred_table"] == "practice_source_snapshots")
         assert snapshot_fk["options"].get("ondelete") == "RESTRICT"
         user_fk = next(f for f in fks if f["referred_table"] == "users")
@@ -3342,11 +3500,11 @@ def _assert_performance_take_upgrade_state(
             "ix_performance_takes_take_uuid",
             "ix_performance_takes_user_id",
             "ix_performance_takes_score_id",
-            "ix_performance_takes_revision_id",
             "ix_performance_takes_client_request_id",
             "ix_performance_takes_user_deletion_status",
             "ix_performance_takes_source_snapshot_id",
         }.issubset(indexes)
+        assert "ix_performance_takes_revision_id" not in indexes
 
         unique_constraints = inspector.get_unique_constraints("performance_takes")
         uq_names = [
