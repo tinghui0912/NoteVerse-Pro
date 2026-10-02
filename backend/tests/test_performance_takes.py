@@ -232,6 +232,61 @@ def _create_default_source_snapshot(
     return snapshot
 
 
+def _create_default_take(
+    session: Session,
+    *,
+    user_id: int,
+    source_snapshot_id: int,
+    client_request_id: str,
+    take_uuid: str,
+    media_object_key: str,
+    linked_score_id: int | None = 10,
+) -> PerformanceTake:
+    take = PerformanceTake(
+        take_uuid=take_uuid,
+        user_id=user_id,
+        source_snapshot_id=source_snapshot_id,
+        linked_score_id=linked_score_id,
+        score_title_snapshot="Moonlight Sonata",
+        client_request_id=client_request_id,
+        media_kind=PerformanceTakeMediaKind.AUDIO,
+        media_mime_type="audio/webm",
+        media_byte_size=len(VALID_WEBM_BYTES),
+        media_object_key=media_object_key,
+        storage_backend="local",
+        duration_ms=5000,
+        scope_type="FULL",
+        scope_start_beat=0.0,
+        scope_terminal_beat=4.0,
+        tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+        recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+        deletion_status=PerformanceTakeDeletionStatus.ACTIVE,
+    )
+    session.add(take)
+    session.flush()
+    return take
+
+
+def _create_take_delete_outbox(
+    session: Session,
+    take: PerformanceTake,
+) -> PerformanceTakeDeleteOutbox:
+    outbox = PerformanceTakeDeleteOutbox(
+        take_id=take.id,
+        take_uuid=take.take_uuid,
+        user_id=take.user_id,
+        storage_backend=take.storage_backend,
+        object_key=take.media_object_key,
+        media_byte_size=take.media_byte_size,
+        status=PerformanceTakeDeleteOutboxStatus.PENDING.value,
+        next_attempt_at=datetime.now(timezone.utc).replace(tzinfo=None),
+    )
+    take.deletion_status = PerformanceTakeDeletionStatus.DELETING
+    session.add(outbox)
+    session.flush()
+    return outbox
+
+
 def test_performance_take_schema_accepts_product_default_tempo_source() -> None:
     request = PerformanceTakeUploadAuthorizationRequest(
         score_id="score-uuid-10",
@@ -2990,6 +3045,156 @@ def test_snapshot_gc_restores_ready_if_reference_appears_before_claim(test_env):
     assert outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED.value
     assert storage.exists(snapshot.prepared_musicxml_object_key)
     assert storage.exists(snapshot.artifact_object_key)
+
+
+def test_snapshot_gc_enqueued_once_after_last_take_reference_deleted(test_env, monkeypatch):
+    session, storage, user_1, _ = test_env
+    snapshot = _create_default_source_snapshot(session, storage)
+    first_key = "performance-takes/final/gc-last-ref/first.webm"
+    second_key = "performance-takes/final/gc-last-ref/second.webm"
+    storage.put_bytes(key=first_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    storage.put_bytes(key=second_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    first_take = _create_default_take(
+        session,
+        user_id=user_1.id,
+        source_snapshot_id=snapshot.id,
+        client_request_id="gc-last-ref-first",
+        take_uuid="take-gc-last-ref-first",
+        media_object_key=first_key,
+    )
+    second_take = _create_default_take(
+        session,
+        user_id=user_1.id,
+        source_snapshot_id=snapshot.id,
+        client_request_id="gc-last-ref-second",
+        take_uuid="take-gc-last-ref-second",
+        media_object_key=second_key,
+    )
+    first_outbox = _create_take_delete_outbox(session, first_take)
+    second_outbox = _create_take_delete_outbox(session, second_take)
+    session.commit()
+
+    first_result = _run_worker_deletion(monkeypatch, session, storage, first_outbox.outbox_uuid)
+    assert first_result["status"] == "deleted"
+    assert session.get(PracticeSourceSnapshot, snapshot.id) is not None
+    assert (
+        session.execute(
+            select(PracticeSourceSnapshotDeleteOutbox).where(
+                PracticeSourceSnapshotDeleteOutbox.source_snapshot_id == snapshot.id
+            )
+        ).scalar_one_or_none()
+        is None
+    )
+
+    second_result = _run_worker_deletion(monkeypatch, session, storage, second_outbox.outbox_uuid)
+    assert second_result["status"] == "deleted"
+    session.refresh(snapshot)
+    assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
+    snapshot_outboxes = session.execute(
+        select(PracticeSourceSnapshotDeleteOutbox).where(
+            PracticeSourceSnapshotDeleteOutbox.source_snapshot_id == snapshot.id
+        )
+    ).scalars().all()
+    assert len(snapshot_outboxes) == 1
+
+    duplicate = practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+        session,
+        snapshot.id,
+        storage_backend=storage.backend_name,
+    )
+    assert duplicate is not None
+    assert duplicate.id == snapshot_outboxes[0].id
+    session.commit()
+
+    snapshot_result = _run_snapshot_deletion(
+        monkeypatch,
+        session,
+        storage,
+        snapshot_outboxes[0].outbox_uuid,
+    )
+    assert snapshot_result["status"] == "deleted"
+    assert session.get(PracticeSourceSnapshot, snapshot.id) is None
+    assert not storage.exists(snapshot.prepared_musicxml_object_key)
+    assert not storage.exists(snapshot.artifact_object_key)
+
+
+def test_snapshot_gc_waits_for_active_authorization_after_last_take_deleted(test_env, monkeypatch):
+    session, storage, user_1, _ = test_env
+    snapshot = _create_default_source_snapshot(session, storage)
+    media_key = "performance-takes/final/gc-active-auth/take.webm"
+    storage.put_bytes(key=media_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
+    take = _create_default_take(
+        session,
+        user_id=user_1.id,
+        source_snapshot_id=snapshot.id,
+        client_request_id="gc-active-auth-take",
+        take_uuid="take-gc-active-auth",
+        media_object_key=media_key,
+    )
+    auth = PerformanceTakeUploadAuthorization(
+        user_id=user_1.id,
+        source_snapshot_id=snapshot.id,
+        client_request_id="gc-active-auth",
+        take_uuid="take-gc-active-auth-pending",
+        score_id=None,
+        score_uuid="score-uuid-10",
+        score_title="Moonlight Sonata",
+        revision_id=None,
+        revision_uuid=DEFAULT_TAKE_REVISION_ID,
+        artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
+        scope_type="FULL",
+        scope_start_beat=0.0,
+        scope_terminal_beat=4.0,
+        scope_start_group_id=None,
+        scope_end_group_id=None,
+        tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+        recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+        duration_ms=5000,
+        media_kind="AUDIO",
+        media_mime_type="audio/webm",
+        media_byte_size=len(VALID_WEBM_BYTES),
+        storage_backend=storage.backend_name,
+        staging_object_key="performance-takes/staging/gc-active-auth.webm",
+        final_object_key="performance-takes/final/gc-active-auth.webm",
+        reservation_id="reservation-gc-active-auth",
+        status=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value,
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=5),
+        last_put_url_expires_at=datetime.now(timezone.utc).replace(tzinfo=None)
+        + timedelta(minutes=5),
+        staging_cleanup_after=datetime.now(timezone.utc).replace(tzinfo=None)
+        + timedelta(minutes=5),
+    )
+    session.add(auth)
+    take_outbox = _create_take_delete_outbox(session, take)
+    session.commit()
+
+    take_result = _run_worker_deletion(monkeypatch, session, storage, take_outbox.outbox_uuid)
+    assert take_result["status"] == "deleted"
+    session.refresh(snapshot)
+    assert snapshot.status == PracticeSourceSnapshotStatus.READY.value
+    assert (
+        session.execute(
+            select(PracticeSourceSnapshotDeleteOutbox).where(
+                PracticeSourceSnapshotDeleteOutbox.source_snapshot_id == snapshot.id
+            )
+        ).scalar_one_or_none()
+        is None
+    )
+
+    auth.status = PerformanceTakeUploadAuthorizationStatus.CANCELLED
+    auth.source_snapshot_id = None
+    session.flush()
+    outbox = practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+        session,
+        snapshot.id,
+        storage_backend=storage.backend_name,
+    )
+    assert outbox is not None
+    session.commit()
+
+    snapshot_result = _run_snapshot_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
+    assert snapshot_result["status"] == "deleted"
+    assert session.get(PracticeSourceSnapshot, snapshot.id) is None
 
 
 def test_authorize_does_not_reuse_snapshot_pending_gc(test_env):
