@@ -15,6 +15,27 @@ interface ImageViewerProps {
   onClose: () => void;
 }
 
+const defaultViewerSize = { width: 500, height: 600 };
+
+function getInitialViewerLayout() {
+  if (typeof window === 'undefined') {
+    return {
+      position: { x: 0, y: 0 },
+      size: defaultViewerSize,
+    };
+  }
+
+  const width = Math.min(defaultViewerSize.width, window.innerWidth - 40);
+  const height = Math.min(defaultViewerSize.height, window.innerHeight - 40);
+  return {
+    position: {
+      x: Math.max(20, (window.innerWidth - width) / 2),
+      y: Math.max(20, (window.innerHeight - height) / 2),
+    },
+    size: { width, height },
+  };
+}
+
 export function OriginalImageViewer({ images, isOpen, onClose }: ImageViewerProps) {
   const tReview = useTranslations('review');
   const scoreText = useTranslations('score');
@@ -25,63 +46,24 @@ export function OriginalImageViewer({ images, isOpen, onClose }: ImageViewerProp
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
 
-  const defaultSize = { width: 500, height: 600 };
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [size, setSize] = useState(defaultSize);
-
-  useEffect(() => {
-    if (isOpen) {
-      let cancelled = false;
-      queueMicrotask(() => {
-        if (cancelled) return;
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-
-        const newWidth = Math.min(size.width || defaultSize.width, vw - 40);
-        const newHeight = Math.min(size.height || defaultSize.height, vh - 40);
-
-        // Only set initial position if it's the very first open
-        if (position.x === 0 && position.y === 0) {
-          setPosition({
-            x: Math.max(20, (vw - newWidth) / 2),
-            y: Math.max(20, (vh - newHeight) / 2),
-          });
-        }
-
-        if (size.width === defaultSize.width && size.height === defaultSize.height) {
-          setSize({ width: newWidth, height: newHeight });
-        }
-      });
-      return () => {
-        cancelled = true;
-      };
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
-
+  const [{ position: initialPosition, size: initialSize }] = useState(getInitialViewerLayout);
+  const [position, setPosition] = useState(initialPosition);
+  const [size, setSize] = useState(initialSize);
 
   const resetView = () => {
     setScale(1);
     setPanPosition({ x: 0, y: 0 });
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (!cancelled) resetView();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [currentIndex]);
-
   const goToPrevious = (e: React.MouseEvent) => {
     e.stopPropagation();
+    resetView();
     setCurrentIndex((prevIndex) => (prevIndex === 0 ? images.length - 1 : prevIndex - 1));
   };
 
   const goToNext = (e: React.MouseEvent) => {
     e.stopPropagation();
+    resetView();
     setCurrentIndex((prevIndex) => (prevIndex === images.length - 1 ? 0 : prevIndex + 1));
   };
 

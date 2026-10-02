@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useQueryClient } from '@tanstack/react-query';
@@ -15,6 +15,94 @@ import { getCompletedJobRoute, type UploadableFile } from '@/lib/upload/upload-w
 
 const TASK_POLL_INTERVAL_MS = 2_000;
 const TASK_WAIT_TIMEOUT_MS = 18 * 60 * 1_000;
+
+type UploadTaskState = {
+  currentJobId: string | null;
+  isSubmitting: boolean;
+  pollInterval: number | false;
+  pollStartTime: number;
+  taskError: string | null;
+  taskProgress: number;
+};
+
+type UploadTaskAction =
+  | { type: 'reset' }
+  | { type: 'submit_started' }
+  | { type: 'track_job'; jobId: string; progress?: number; pollStartTime: number }
+  | { type: 'progress'; progress: number }
+  | { type: 'completed' }
+  | { type: 'failed'; message: string }
+  | { type: 'submit_failed' }
+  | { type: 'restored_failure'; message: string }
+  | { type: 'timeout'; message: string };
+
+const initialTaskState: UploadTaskState = {
+  currentJobId: null,
+  isSubmitting: false,
+  pollInterval: false,
+  pollStartTime: 0,
+  taskError: null,
+  taskProgress: 0,
+};
+
+function uploadTaskReducer(state: UploadTaskState, action: UploadTaskAction): UploadTaskState {
+  switch (action.type) {
+    case 'reset':
+      return initialTaskState;
+    case 'submit_started':
+      return {
+        ...state,
+        currentJobId: null,
+        isSubmitting: true,
+        pollInterval: false,
+        taskError: null,
+        taskProgress: 0,
+      };
+    case 'track_job':
+      return {
+        ...state,
+        currentJobId: action.jobId,
+        isSubmitting: true,
+        pollInterval: TASK_POLL_INTERVAL_MS,
+        pollStartTime: action.pollStartTime,
+        taskError: null,
+        taskProgress: action.progress ?? 0,
+      };
+    case 'progress':
+      return { ...state, taskProgress: action.progress };
+    case 'completed':
+      return {
+        ...state,
+        currentJobId: null,
+        isSubmitting: false,
+        pollInterval: false,
+        taskError: null,
+        taskProgress: 0,
+      };
+    case 'failed':
+    case 'timeout':
+      return {
+        ...state,
+        currentJobId: null,
+        isSubmitting: false,
+        pollInterval: false,
+        taskError: action.message,
+      };
+    case 'submit_failed':
+      return {
+        ...state,
+        isSubmitting: false,
+      };
+    case 'restored_failure':
+      return {
+        ...state,
+        taskError: action.message,
+        taskProgress: 0,
+      };
+    default:
+      return state;
+  }
+}
 
 function createSubmissionIdempotencyKey() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
@@ -44,12 +132,8 @@ export function useUploadWorkflow() {
   const [scoreName, setScoreName] = useState('');
   const [taxonomyTags, setTaxonomyTags] = useState<ScoreTaxonomyTagValue[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
-  const [taskProgress, setTaskProgress] = useState(0);
-  const [taskError, setTaskError] = useState<string | null>(null);
-  const [pollInterval, setPollInterval] = useState<number | false>(false);
-  const [pollStartTime, setPollStartTime] = useState(0);
+  const [taskState, dispatchTask] = useReducer(uploadTaskReducer, initialTaskState);
+  const { currentJobId, isSubmitting, pollInterval, pollStartTime, taskError, taskProgress } = taskState;
   const urlJobId = searchParams.get('job_id');
   const translateTaskError = useCallback((codeOrMessage: string | null | undefined, fallback: string) => {
     if (!codeOrMessage) return fallback;
@@ -101,47 +185,30 @@ export function useUploadWorkflow() {
     const job = statusResponse?.data;
     if (!job || !currentJobId) return;
 
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
+    if (Date.now() - pollStartTime > TASK_WAIT_TIMEOUT_MS) {
+      const description = t('processingTimeoutDesc');
+      toast({ title: t('processingTimeout'), description, variant: 'destructive' });
+      dispatchTask({ type: 'timeout', message: description });
+      return;
+    }
 
-      if (Date.now() - pollStartTime > TASK_WAIT_TIMEOUT_MS) {
-        const description = t('processingTimeoutDesc');
-        toast({ title: t('processingTimeout'), description, variant: 'destructive' });
-        setTaskError(description);
-        setIsSubmitting(false);
-        setCurrentJobId(null);
-        setPollInterval(false);
+    dispatchTask({ type: 'progress', progress: job.progress || 0 });
+    const state = String(job.state).toUpperCase();
+    if (state === 'PENDING_REVIEW' || state === 'CONFIRMED') {
+      const completedScoreId = job.score_id;
+      if (state === 'CONFIRMED' && !completedScoreId) {
+        dispatchTask({ type: 'failed', message: t('taskProcessingFailed') });
         return;
       }
-
-      setTaskProgress(job.progress || 0);
-      const state = String(job.state).toUpperCase();
-      if (state === 'PENDING_REVIEW' || state === 'CONFIRMED') {
-        const completedScoreId = job.score_id;
-        if (state === 'CONFIRMED' && !completedScoreId) {
-          setTaskError(t('taskProcessingFailed'));
-          setIsSubmitting(false);
-          setCurrentJobId(null);
-          setPollInterval(false);
-          return;
-        }
-        setIsSubmitting(false);
-        setCurrentJobId(null);
-        setPollInterval(false);
-        setTaskProgress(0);
-        clearFiles();
-        router.push(getCompletedJobRoute(job.job_id, completedScoreId, state));
-      } else if (state === 'FAILURE') {
-        setTaskError(translateTaskError(job.public_code, t('taskProcessingFailed')));
-        setIsSubmitting(false);
-        setCurrentJobId(null);
-        setPollInterval(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
+      dispatchTask({ type: 'completed' });
+      clearFiles();
+      router.push(getCompletedJobRoute(job.job_id, completedScoreId, state));
+    } else if (state === 'FAILURE') {
+      dispatchTask({
+        type: 'failed',
+        message: translateTaskError(job.public_code, t('taskProcessingFailed')),
+      });
+    }
   }, [clearFiles, currentJobId, pollStartTime, router, statusResponse?.data, t, toast, translateTaskError]);
 
   useEffect(() => {
@@ -186,14 +253,17 @@ export function useUploadWorkflow() {
 
         const state = String(data.state).toUpperCase();
         if (state === 'PENDING' || state === 'RUNNING') {
-          setCurrentJobId(urlJobId);
-          setIsSubmitting(true);
-          setTaskProgress(data.progress || 0);
-          setPollStartTime(Date.now());
-          setPollInterval(TASK_POLL_INTERVAL_MS);
+          dispatchTask({
+            type: 'track_job',
+            jobId: urlJobId,
+            progress: data.progress || 0,
+            pollStartTime: Date.now(),
+          });
         } else if (state === 'FAILURE') {
-          setTaskError(translateTaskError(data.public_code, t('processingFailed')));
-          setTaskProgress(0);
+          dispatchTask({
+            type: 'restored_failure',
+            message: translateTaskError(data.public_code, t('processingFailed')),
+          });
         }
       } catch (error) {
         reportUnexpectedClientError(error, {
@@ -216,9 +286,7 @@ export function useUploadWorkflow() {
 
   const startRecognition = useCallback(async () => {
     if (filesRef.current.length === 0) return;
-    setCurrentJobId(null);
-    setTaskProgress(0);
-    setTaskError(null);
+    dispatchTask({ type: 'reset' });
     setIsUploading(true);
 
     try {
@@ -265,7 +333,7 @@ export function useUploadWorkflow() {
       }
 
       setIsUploading(false);
-      setIsSubmitting(true);
+      dispatchTask({ type: 'submit_started' });
       submissionKeyRef.current ??= createSubmissionIdempotencyKey();
       const response = await submitJobMutation.mutateAsync({
         fileIds: uploadedFileIds,
@@ -278,10 +346,7 @@ export function useUploadWorkflow() {
       const jobId = response.data?.job_id;
       if (!jobId) throw new UserFacingUploadError(tCommon('operationFailed'));
       submissionKeyRef.current = null;
-      setCurrentJobId(jobId);
-      setTaskProgress(0);
-      setPollStartTime(Date.now());
-      setPollInterval(TASK_POLL_INTERVAL_MS);
+      dispatchTask({ type: 'track_job', jobId, pollStartTime: Date.now() });
       toast({ title: t('taskStarted'), description: t('taskStartedDesc') });
     } catch (error) {
       reportUnexpectedClientError(error, {
@@ -294,7 +359,7 @@ export function useUploadWorkflow() {
           : userFacingErrorMessage(errors, error, t('processingFailed'));
       toast({ title: t('submitFailed'), description: message, variant: 'destructive' });
       setIsUploading(false);
-      setIsSubmitting(false);
+      dispatchTask({ type: 'submit_failed' });
     }
   }, [errors, queryClient, scoreName, setTrackedFiles, submitJobMutation, t, taxonomyTags, tCommon, toast]);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Cropper, { type Area } from 'react-easy-crop';
 import { X } from 'lucide-react';
@@ -32,6 +32,44 @@ export function AvatarCropperModal({
 }) {
   const t = useTranslations('common');
   const tSettings = useTranslations('settings');
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl gap-0 overflow-hidden p-0 data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100">
+        <DialogHeader className="border-b p-4">
+          <DialogTitle>{tSettings('cropAvatar')}</DialogTitle>
+          <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </DialogClose>
+        </DialogHeader>
+
+        <AvatarCropperBody
+          key={`${isOpen ? 'open' : 'closed'}:${imageSrc}`}
+          imageSrc={imageSrc}
+          onClose={onClose}
+          onSave={onSave}
+          cancelLabel={t('cancel')}
+          saveLabel={tSettings('saveAvatar')}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AvatarCropperBody({
+  imageSrc,
+  onClose,
+  onSave,
+  cancelLabel,
+  saveLabel,
+}: {
+  imageSrc: string;
+  onClose: () => void;
+  onSave: (image: File) => void;
+  cancelLabel: string;
+  saveLabel: string;
+}) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
@@ -40,23 +78,6 @@ export function AvatarCropperModal({
   const handleCropComplete = useCallback((_: Area, croppedArea: Area) => {
     setCroppedAreaPixels(croppedArea);
   }, []);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setCroppedAreaPixels(null);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [imageSrc, isOpen]);
 
   const handleSave = async () => {
     if (!croppedAreaPixels || isSaving) {
@@ -75,16 +96,7 @@ export function AvatarCropperModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl gap-0 overflow-hidden p-0 data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100">
-        <DialogHeader className="border-b p-4">
-          <DialogTitle>{tSettings('cropAvatar')}</DialogTitle>
-          <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-            <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
-          </DialogClose>
-        </DialogHeader>
-
+    <>
         <div className="space-y-4 p-4">
           <div className="relative h-[56vh] min-h-[320px] max-h-[560px] overflow-hidden rounded-md bg-gray-950">
             <Cropper
@@ -105,13 +117,12 @@ export function AvatarCropperModal({
 
         <DialogFooter className="border-t bg-gray-50/80 p-4">
           <Button variant="outline" onClick={onClose}>
-            {t('cancel')}
+            {cancelLabel}
           </Button>
           <Button onClick={handleSave} disabled={!croppedAreaPixels || isSaving}>
-            {tSettings('saveAvatar')}
+            {saveLabel}
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }

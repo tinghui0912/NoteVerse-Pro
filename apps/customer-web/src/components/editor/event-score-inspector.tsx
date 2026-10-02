@@ -1,7 +1,7 @@
 'use client';
 
 import { Check, ChevronRight, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -244,19 +244,17 @@ function TempoPicker({
   initialShowMark: boolean;
 }) {
   const [beatUnit, setBeatUnit] = useState('quarter');
-  const [showMark, setShowMark] = useState(initialShowMark);
+  const [showMarkState, setShowMarkState] = useState(() => ({
+    initialShowMark,
+    value: initialShowMark,
+  }));
+  const showMark =
+    showMarkState.initialShowMark === initialShowMark ? showMarkState.value : initialShowMark;
   const tempo = Number.parseInt(value || '120', 10);
   const safeTempo = Number.isFinite(tempo) && tempo > 0 ? tempo : 120;
-
-  useEffect(() => {
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (!cancelled) setShowMark(initialShowMark);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [initialShowMark]);
+  const setShowMark = (value: boolean) => {
+    setShowMarkState({ initialShowMark, value });
+  };
 
   const commit = (nextTempo = safeTempo, nextBeatUnit = beatUnit, nextShowMark = showMark) => {
     onChange(String(Math.max(1, nextTempo)), { beatUnit: nextBeatUnit, showMark: nextShowMark });

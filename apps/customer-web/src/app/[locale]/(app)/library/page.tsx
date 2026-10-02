@@ -74,6 +74,12 @@ type EntryActionState =
   | { type: 'delete'; entry: LibraryEntryRead | null }
   | null;
 
+type LibrarySelectionState = {
+  scopeKey: string;
+  batchMode: boolean;
+  selectedEntryIds: string[];
+};
+
 export default function LibraryPage({
   searchParams,
 }: {
@@ -89,8 +95,28 @@ export default function LibraryPage({
   const t = useTranslations('library');
   const errors = useTranslations('errors');
   const router = useRouter();
-  const [batchMode, setBatchMode] = useState(false);
-  const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
+  const view = normalizeLibraryView(params.view);
+  const folderId = params.folder;
+  const page = normalizePage(params.page);
+  const pageSize = 20;
+  const selectionScopeKey = [
+    view,
+    folderId ?? '',
+    params.search ?? '',
+    normalizeLibrarySort(params.sort),
+    page,
+  ].join('\u0000');
+  const [selectionState, setSelectionState] = useState<LibrarySelectionState>(() => ({
+    scopeKey: selectionScopeKey,
+    batchMode: false,
+    selectedEntryIds: [],
+  }));
+  const activeSelectionState =
+    selectionState.scopeKey === selectionScopeKey
+      ? selectionState
+      : { scopeKey: selectionScopeKey, batchMode: false, selectedEntryIds: [] };
+  const batchMode = activeSelectionState.batchMode;
+  const selectedEntryIds = activeSelectionState.selectedEntryIds;
   const [moveTargetFolderId, setMoveTargetFolderId] = useState<string>(ROOT_FOLDER_VALUE);
   const [folderForm, setFolderForm] = useState<FolderFormState | null>(null);
   const [folderName, setFolderName] = useState('');
@@ -106,10 +132,6 @@ export default function LibraryPage({
   const moveEntries = useMoveLibraryEntries();
   const setEntriesPracticeState = useSetLibraryEntriesPracticeState();
   const trashEntries = useTrashLibraryEntries();
-  const view = normalizeLibraryView(params.view);
-  const folderId = params.folder;
-  const page = normalizePage(params.page);
-  const pageSize = 20;
   const foldersQuery = useLibraryFolders();
   const entriesQuery = useLibraryEntries({
     view,
@@ -277,6 +299,27 @@ export default function LibraryPage({
       }
     );
   };
+  const updateSelectionState = (updater: (current: LibrarySelectionState) => LibrarySelectionState) => {
+    setSelectionState((current) =>
+      updater(
+        current.scopeKey === selectionScopeKey
+          ? current
+          : { scopeKey: selectionScopeKey, batchMode: false, selectedEntryIds: [] }
+      )
+    );
+  };
+  const setSelectedEntryIds = (next: string[] | ((current: string[]) => string[])) => {
+    updateSelectionState((current) => ({
+      ...current,
+      selectedEntryIds: typeof next === 'function' ? next(current.selectedEntryIds) : next,
+    }));
+  };
+  const setBatchMode = (next: boolean | ((current: boolean) => boolean)) => {
+    updateSelectionState((current) => ({
+      ...current,
+      batchMode: typeof next === 'function' ? next(current.batchMode) : next,
+    }));
+  };
   const toggleEntrySelection = (entryId: string, checked: boolean) => {
     setSelectedEntryIds((current) =>
       checked ? [...current, entryId] : current.filter((id) => id !== entryId)
@@ -358,18 +401,6 @@ export default function LibraryPage({
     : folderId
       ? t('emptyFolder')
       : (emptyMessages[view] ?? t('empty'));
-
-  React.useEffect(() => {
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setSelectedEntryIds([]);
-      setBatchMode(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [view, folderId, params.search, params.sort, page]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

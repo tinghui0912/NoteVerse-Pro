@@ -55,6 +55,13 @@ type DeleteTarget = {
   jobIds: string[];
 } | null;
 
+type MyScoresSelectionState = {
+  scopeKey: string;
+  batchMode: boolean;
+  selectedScoreIds: Set<string>;
+  selectedJobIds: Set<string>;
+};
+
 export default function MyScoresPage({
   searchParams,
 }: {
@@ -94,9 +101,25 @@ export default function MyScoresPage({
   const unpublishScores = useUnpublishMyScores();
   const scores = React.useMemo(() => scoresQuery.data?.data ?? [], [scoresQuery.data?.data]);
   const jobs = React.useMemo(() => jobsQuery.data?.data ?? [], [jobsQuery.data?.data]);
-  const [batchMode, setBatchMode] = React.useState(false);
-  const [selectedScoreIds, setSelectedScoreIds] = React.useState<Set<string>>(new Set());
-  const [selectedJobIds, setSelectedJobIds] = React.useState<Set<string>>(new Set());
+  const selectionScopeKey = [view, params.search ?? '', sort, page].join('\u0000');
+  const [selectionState, setSelectionState] = React.useState<MyScoresSelectionState>(() => ({
+    scopeKey: selectionScopeKey,
+    batchMode: false,
+    selectedScoreIds: new Set(),
+    selectedJobIds: new Set(),
+  }));
+  const activeSelectionState =
+    selectionState.scopeKey === selectionScopeKey
+      ? selectionState
+      : {
+          scopeKey: selectionScopeKey,
+          batchMode: false,
+          selectedScoreIds: new Set<string>(),
+          selectedJobIds: new Set<string>(),
+        };
+  const batchMode = activeSelectionState.batchMode;
+  const selectedScoreIds = activeSelectionState.selectedScoreIds;
+  const selectedJobIds = activeSelectionState.selectedJobIds;
   const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget>(null);
   const selectedCount = selectedScoreIds.size;
   const selectedJobCount = selectedJobIds.size;
@@ -130,18 +153,40 @@ export default function MyScoresPage({
     ? scorePagination.page < scorePagination.total_pages
     : false;
 
-  React.useEffect(() => {
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setSelectedScoreIds(new Set());
-      setSelectedJobIds(new Set());
-      setBatchMode(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [view, params.search, sort, page]);
+  const updateSelectionState = (
+    updater: (current: MyScoresSelectionState) => MyScoresSelectionState
+  ) => {
+    setSelectionState((current) =>
+      updater(
+        current.scopeKey === selectionScopeKey
+          ? current
+          : {
+              scopeKey: selectionScopeKey,
+              batchMode: false,
+              selectedScoreIds: new Set(),
+              selectedJobIds: new Set(),
+            }
+      )
+    );
+  };
+  const setSelectedScoreIds = (next: Set<string> | ((current: Set<string>) => Set<string>)) => {
+    updateSelectionState((current) => ({
+      ...current,
+      selectedScoreIds: typeof next === 'function' ? next(current.selectedScoreIds) : next,
+    }));
+  };
+  const setSelectedJobIds = (next: Set<string> | ((current: Set<string>) => Set<string>)) => {
+    updateSelectionState((current) => ({
+      ...current,
+      selectedJobIds: typeof next === 'function' ? next(current.selectedJobIds) : next,
+    }));
+  };
+  const setBatchMode = (next: boolean | ((current: boolean) => boolean)) => {
+    updateSelectionState((current) => ({
+      ...current,
+      batchMode: typeof next === 'function' ? next(current.batchMode) : next,
+    }));
+  };
 
   const toggleScoreSelection = (scoreId: string) => {
     setSelectedScoreIds((current) => {
