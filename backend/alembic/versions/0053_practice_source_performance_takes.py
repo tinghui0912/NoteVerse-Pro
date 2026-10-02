@@ -78,7 +78,8 @@ def upgrade() -> None:
         sa.Column("artifact_object_key", sa.String(length=768), nullable=False),
         sa.Column("artifact_sha256", sa.String(length=64), nullable=False),
         sa.Column("artifact_byte_size", sa.BigInteger(), nullable=False),
-        sa.Column("status", sa.String(length=16), nullable=False, server_default="READY"),
+        sa.Column("status", sa.String(length=16), nullable=False, server_default="CREATING"),
+        sa.Column("creation_expires_at", sa.DateTime(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.UniqueConstraint("snapshot_uuid", name="uq_practice_source_snapshots_uuid"),
         sa.UniqueConstraint("source_fingerprint", name="uq_practice_source_snapshots_fingerprint"),
@@ -90,6 +91,11 @@ def upgrade() -> None:
         "ix_practice_source_snapshots_source_score_revision",
         "practice_source_snapshots",
         ["source_score_uuid", "source_revision_uuid"],
+    )
+    op.create_index(
+        "ix_practice_source_snapshots_status_creation",
+        "practice_source_snapshots",
+        ["status", "creation_expires_at"],
     )
 
     op.create_table(

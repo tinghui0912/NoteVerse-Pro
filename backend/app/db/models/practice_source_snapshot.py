@@ -24,6 +24,7 @@ class PracticeSourceSnapshot(SQLModel, table=True):  # type: ignore[call-arg]
     __table_args__ = (
         UniqueConstraint("source_fingerprint", name="uq_practice_source_snapshots_fingerprint"),
         Index("ix_practice_source_snapshots_source_score_revision", "source_score_uuid", "source_revision_uuid"),
+        Index("ix_practice_source_snapshots_status_creation", "status", "creation_expires_at"),
     )
 
     id: Optional[int] = Field(
@@ -48,12 +49,16 @@ class PracticeSourceSnapshot(SQLModel, table=True):  # type: ignore[call-arg]
     artifact_sha256: str = Field(sa_column=Column(String(64), nullable=False))
     artifact_byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
     status: str = Field(
-        default=PracticeSourceSnapshotStatus.READY.value,
+        default=PracticeSourceSnapshotStatus.CREATING.value,
         sa_column=Column(
             String(16),
             nullable=False,
-            default=PracticeSourceSnapshotStatus.READY.value,
+            default=PracticeSourceSnapshotStatus.CREATING.value,
         ),
+    )
+    creation_expires_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime, nullable=True),
     )
     created_at: datetime = Field(
         default_factory=utc_now_naive,

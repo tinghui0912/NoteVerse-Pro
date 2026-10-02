@@ -84,6 +84,7 @@ MAX_TAKE_METADATA_JSON_BYTES = 64 * 1024
 TAKE_UPLOAD_AUTHORIZATION_SECONDS = 3600
 TAKE_FINALIZING_LEASE_SECONDS = 15 * 60
 TAKE_FINALIZING_UNKNOWN_OUTCOME_GRACE_SECONDS = TAKE_FINALIZING_LEASE_SECONDS * 2
+SOURCE_SNAPSHOT_CREATION_LEASE_SECONDS = 15 * 60
 logger = logging.getLogger(__name__)
 TERMINAL_UPLOAD_AUTHORIZATION_STATUSES = {
     PerformanceTakeUploadAuthorizationStatus.ARCHIVED.value,
@@ -568,6 +569,8 @@ class PerformanceTakeService:
             artifact_sha256=artifact_sha,
             artifact_byte_size=len(artifact_bytes),
             status=PracticeSourceSnapshotStatus.CREATING.value,
+            creation_expires_at=utc_now_naive()
+            + timedelta(seconds=SOURCE_SNAPSHOT_CREATION_LEASE_SECONDS),
         )
         try:
             async with db.begin_nested():
@@ -608,6 +611,7 @@ class PerformanceTakeService:
             )
         except Exception as error:
             snapshot.status = PracticeSourceSnapshotStatus.DELETING.value
+            snapshot.creation_expires_at = None
             self._enqueue_snapshot_delete_outbox_for_snapshot(db, snapshot)
             await db.commit()
             raise ValidationException(
@@ -617,8 +621,31 @@ class PerformanceTakeService:
             ) from error
 
         snapshot.status = PracticeSourceSnapshotStatus.READY.value
+        snapshot.creation_expires_at = None
         await db.commit()
         await db.refresh(snapshot)
+        return snapshot
+
+    async def _lock_ready_source_snapshot(
+        self,
+        db: AsyncSession,
+        snapshot_id: int | None,
+    ) -> PracticeSourceSnapshot:
+        if snapshot_id is None:
+            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="source_snapshot_id")
+        snapshot = (
+            await db.execute(
+                select(PracticeSourceSnapshot)
+                .where(PracticeSourceSnapshot.id == snapshot_id)
+                .with_for_update()
+            )
+        ).scalar_one_or_none()
+        if snapshot is None or snapshot.status != PracticeSourceSnapshotStatus.READY.value:
+            raise ValidationException(
+                ErrorCode.STORAGE_BACKEND_UNAVAILABLE,
+                field="source_snapshot",
+                details={"reason": "source_snapshot_not_ready"},
+            )
         return snapshot
 
     def _enqueue_snapshot_delete_outbox_for_snapshot(
@@ -647,7 +674,13 @@ class PerformanceTakeService:
     ) -> None:
         if snapshot_id is None or self.storage is None:
             return
-        snapshot = await db.get(PracticeSourceSnapshot, snapshot_id)
+        snapshot = (
+            await db.execute(
+                select(PracticeSourceSnapshot)
+                .where(PracticeSourceSnapshot.id == snapshot_id)
+                .with_for_update()
+            )
+        ).scalar_one_or_none()
         if snapshot is None:
             return
         take_refs = (
@@ -668,7 +701,11 @@ class PerformanceTakeService:
             )
         ).scalar_one()
         if int(take_refs) + int(auth_refs) > 0:
+            if snapshot.status == PracticeSourceSnapshotStatus.DELETING.value:
+                snapshot.status = PracticeSourceSnapshotStatus.READY.value
             return
+        snapshot.status = PracticeSourceSnapshotStatus.DELETING.value
+        snapshot.creation_expires_at = None
         existing = (
             await db.execute(
                 select(PracticeSourceSnapshotDeleteOutbox).where(
@@ -1012,6 +1049,8 @@ class PerformanceTakeService:
         )
         if upload_target is None:
             raise ValidationException(ErrorCode.STORAGE_BACKEND_UNAVAILABLE, field="upload_target")
+
+        snapshot = await self._lock_ready_source_snapshot(db, snapshot.id)
 
         reservation_handle = await self.storage_usage_service.reserve(
             db,

@@ -224,6 +224,8 @@ def _create_default_source_snapshot(
         artifact_object_key=artifact_key,
         artifact_sha256=artifact_sha,
         artifact_byte_size=len(artifact_bytes),
+        status=PracticeSourceSnapshotStatus.READY.value,
+        creation_expires_at=None,
     )
     session.add(snapshot)
     session.flush()
@@ -2794,6 +2796,142 @@ def test_snapshot_creation_storage_failure_has_durable_cleanup(
         app.dependency_overrides.clear()
 
 
+def test_stale_creating_snapshot_recovery_cleans_partial_objects(
+    test_env,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    session, storage, _user_1, _ = test_env
+    expired_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+    variants = [
+        ("none", False, False),
+        ("musicxml", True, False),
+        ("both", True, True),
+    ]
+    for label, has_musicxml, has_artifact in variants:
+        musicxml_key = f"practice-source-snapshots/stale-{label}/score.musicxml"
+        artifact_key = f"practice-source-snapshots/stale-{label}/artifact.json"
+        if has_musicxml:
+            storage.put_bytes(
+                key=musicxml_key,
+                content=b"<score-partwise />",
+                content_type="application/vnd.recordare.musicxml+xml",
+            )
+        if has_artifact:
+            storage.put_bytes(
+                key=artifact_key,
+                content=b"{}",
+                content_type="application/json",
+            )
+        snapshot = PracticeSourceSnapshot(
+            source_fingerprint=f"stale-{label}",
+            source_score_uuid="score-uuid-10",
+            source_revision_uuid=DEFAULT_TAKE_REVISION_ID,
+            artifact_id=f"{DEFAULT_TAKE_ARTIFACT_ID}-{label}",
+            artifact_schema_version=1,
+            prepared_musicxml_object_key=musicxml_key,
+            prepared_musicxml_sha256=hashlib.sha256(b"<score-partwise />").hexdigest(),
+            prepared_musicxml_byte_size=len(b"<score-partwise />"),
+            artifact_object_key=artifact_key,
+            artifact_sha256=hashlib.sha256(b"{}").hexdigest(),
+            artifact_byte_size=len(b"{}"),
+            status=PracticeSourceSnapshotStatus.CREATING.value,
+            creation_expires_at=expired_at,
+        )
+        session.add(snapshot)
+        session.flush()
+
+    due = practice_source_snapshot_delete_service.recover_stale_creating(
+        session,
+        storage_backend=storage.backend_name,
+    )
+    session.commit()
+    assert len(due) == len(variants)
+
+    for outbox_uuid in due:
+        result = _run_snapshot_deletion(monkeypatch, session, storage, outbox_uuid)
+        assert result["status"] == "deleted"
+
+    assert session.execute(select(PracticeSourceSnapshot)).scalars().all() == []
+    for label, _has_musicxml, _has_artifact in variants:
+        assert not storage.exists(f"practice-source-snapshots/stale-{label}/score.musicxml")
+        assert not storage.exists(f"practice-source-snapshots/stale-{label}/artifact.json")
+
+
+def test_authorization_rejects_snapshot_pending_gc(test_env):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    take_svc = _performance_take_service(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = PerformanceTakeTestClient(app)
+    try:
+        first_response = client.post(
+            "/api/v1/performance-takes/upload-authorizations",
+            json={
+                "score_id": "score-uuid-10",
+                "client_request_id": "req-snapshot-pending-gc-first",
+                "media_byte_size": len(VALID_WEBM_BYTES),
+                "media_mime_type": "audio/webm",
+                "duration_ms": 5000,
+                "scope_type": "FULL",
+                "scope_start_beat": 0.0,
+                "scope_terminal_beat": 4.0,
+                "revision_id": DEFAULT_TAKE_REVISION_ID,
+                "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
+                "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+                "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
+            },
+        )
+        assert first_response.status_code == 200
+        reservation_id = first_response.json()["data"]["reservation_id"]
+        cancel_response = client.delete(
+            f"/api/v1/performance-takes/upload-authorizations/{reservation_id}"
+        )
+        assert cancel_response.status_code == 200
+        snapshot = session.execute(select(PracticeSourceSnapshot)).scalar_one()
+        session.refresh(snapshot)
+        assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
+
+        response = client.post(
+            "/api/v1/performance-takes/upload-authorizations",
+            json={
+                "score_id": "score-uuid-10",
+                "client_request_id": "req-snapshot-pending-gc",
+                "media_byte_size": len(VALID_WEBM_BYTES),
+                "media_mime_type": "audio/webm",
+                "duration_ms": 5000,
+                "scope_type": "FULL",
+                "scope_start_beat": 0.0,
+                "scope_terminal_beat": 4.0,
+                "revision_id": DEFAULT_TAKE_REVISION_ID,
+                "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
+                "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+                "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
+            },
+        )
+        assert response.status_code >= 400
+        rejected_auth = session.execute(
+            select(PerformanceTakeUploadAuthorization).where(
+                PerformanceTakeUploadAuthorization.client_request_id
+                == "req-snapshot-pending-gc"
+            )
+        ).scalar_one_or_none()
+        assert rejected_auth is None
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_snapshot_gc_restores_ready_if_reference_appears_before_claim(test_env):
     session, storage, user_1, _ = test_env
     snapshot = _create_default_source_snapshot(session, storage)
@@ -3838,6 +3976,12 @@ def _assert_performance_take_upgrade_state(
             c["name"]: c for c in inspector.get_columns("practice_source_snapshots")
         }
         assert snapshot_cols["status"]["nullable"] is False
+        assert str(snapshot_cols["status"].get("default") or "").find("CREATING") >= 0
+        assert snapshot_cols["creation_expires_at"]["nullable"] is True
+        snapshot_indexes = {
+            idx["name"] for idx in inspector.get_indexes("practice_source_snapshots")
+        }
+        assert "ix_practice_source_snapshots_status_creation" in snapshot_indexes
 
         cols = {c["name"]: c for c in inspector.get_columns("performance_takes")}
         assert cols["source_snapshot_id"]["nullable"] is False

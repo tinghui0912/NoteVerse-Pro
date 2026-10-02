@@ -73,7 +73,11 @@ class PracticeSourceSnapshotDeleteService:
     ) -> PracticeSourceSnapshotDeleteOutbox | None:
         if snapshot_id is None:
             return None
-        snapshot = db.get(PracticeSourceSnapshot, snapshot_id)
+        snapshot = db.execute(
+            select(PracticeSourceSnapshot)
+            .where(PracticeSourceSnapshot.id == snapshot_id)
+            .with_for_update()
+        ).scalar_one_or_none()
         if snapshot is None:
             return None
         if self.active_reference_count(db, snapshot_id) > 0:
@@ -101,6 +105,36 @@ class PracticeSourceSnapshotDeleteService:
         db.flush()
         return outbox
 
+    def recover_stale_creating(
+        self,
+        db: Session,
+        *,
+        storage_backend: str,
+    ) -> list[str]:
+        now = utc_now_naive()
+        stale_snapshots = list(
+            db.execute(
+                select(PracticeSourceSnapshot)
+                .where(
+                    PracticeSourceSnapshot.status
+                    == PracticeSourceSnapshotStatus.CREATING.value,
+                    PracticeSourceSnapshot.creation_expires_at.is_not(None),
+                    PracticeSourceSnapshot.creation_expires_at <= now,
+                )
+                .with_for_update()
+            ).scalars()
+        )
+        outbox_ids: list[str] = []
+        for snapshot in stale_snapshots:
+            outbox = self.enqueue_if_unreferenced(
+                db,
+                snapshot.id,
+                storage_backend=storage_backend,
+            )
+            if outbox is not None:
+                outbox_ids.append(outbox.outbox_uuid)
+        return outbox_ids
+
     def claim(
         self,
         db: Session,
@@ -121,12 +155,21 @@ class PracticeSourceSnapshotDeleteService:
         if outbox.attempt_count >= settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS:
             return None
 
-        if outbox.source_snapshot_id is not None and self.active_reference_count(
-            db, outbox.source_snapshot_id
-        ) > 0:
-            snapshot = db.get(PracticeSourceSnapshot, outbox.source_snapshot_id)
+        locked_snapshot: PracticeSourceSnapshot | None = None
+        if outbox.source_snapshot_id is not None:
+            locked_snapshot = db.execute(
+                select(PracticeSourceSnapshot)
+                .where(PracticeSourceSnapshot.id == outbox.source_snapshot_id)
+                .with_for_update()
+            ).scalar_one_or_none()
+        if (
+            outbox.source_snapshot_id is not None
+            and self.active_reference_count(db, outbox.source_snapshot_id) > 0
+        ):
+            snapshot = locked_snapshot
             if snapshot is not None:
                 snapshot.status = PracticeSourceSnapshotStatus.READY.value
+                snapshot.creation_expires_at = None
             outbox.status = PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED.value
             outbox.completed_at = utc_now_naive()
             outbox.last_error = None
@@ -216,6 +259,7 @@ class PracticeSourceSnapshotDeleteService:
 
     def recover_and_list_due(self, db: Session) -> list[str]:
         now = utc_now_naive()
+        self.recover_stale_creating(db, storage_backend=settings.FILE_STORAGE_BACKEND)
         stale = db.execute(
             select(PracticeSourceSnapshotDeleteOutbox).where(
                 or_(

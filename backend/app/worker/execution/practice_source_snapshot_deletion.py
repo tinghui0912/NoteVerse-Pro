@@ -120,29 +120,25 @@ def execute_practice_source_snapshot_deletion_task(
                     f"{outbox_uuid}"
                 )
             if payload.source_snapshot_id is not None:
+                snapshot = db.execute(
+                    select(PracticeSourceSnapshot)
+                    .where(PracticeSourceSnapshot.id == payload.source_snapshot_id)
+                    .with_for_update()
+                ).scalar_one_or_none()
                 if (
                     practice_source_snapshot_delete_service.active_reference_count(
                         db, payload.source_snapshot_id
                     )
                     > 0
                 ):
-                    snapshot = db.execute(
-                        select(PracticeSourceSnapshot)
-                        .where(PracticeSourceSnapshot.id == payload.source_snapshot_id)
-                        .with_for_update()
-                    ).scalar_one_or_none()
                     if snapshot is not None:
                         snapshot.status = PracticeSourceSnapshotStatus.READY.value
+                        snapshot.creation_expires_at = None
                     practice_source_snapshot_delete_service.complete(
                         db, outbox_uuid, attempt=payload.attempt
                     )
                     db.commit()
                     return {"status": "ignored", "outbox_uuid": outbox_uuid}
-                snapshot = db.execute(
-                    select(PracticeSourceSnapshot)
-                    .where(PracticeSourceSnapshot.id == payload.source_snapshot_id)
-                    .with_for_update()
-                ).scalar_one_or_none()
                 if snapshot is not None:
                     db.delete(snapshot)
             if not practice_source_snapshot_delete_service.complete(
