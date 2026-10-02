@@ -97,7 +97,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
    * Check the existing session on initialization.
    */
   useEffect(() => {
-    refreshUser();
+    queueMicrotask(() => {
+      void refreshUser();
+    });
   }, [refreshUser]);
 
   /**

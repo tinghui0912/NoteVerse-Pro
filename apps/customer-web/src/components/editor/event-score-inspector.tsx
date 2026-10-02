@@ -249,7 +249,13 @@ function TempoPicker({
   const safeTempo = Number.isFinite(tempo) && tempo > 0 ? tempo : 120;
 
   useEffect(() => {
-    setShowMark(initialShowMark);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setShowMark(initialShowMark);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [initialShowMark]);
 
   const commit = (nextTempo = safeTempo, nextBeatUnit = beatUnit, nextShowMark = showMark) => {

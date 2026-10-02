@@ -46,9 +46,16 @@ export function AvatarCropperModal({
       return;
     }
 
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-    setCroppedAreaPixels(null);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [imageSrc, isOpen]);
 
   const handleSave = async () => {

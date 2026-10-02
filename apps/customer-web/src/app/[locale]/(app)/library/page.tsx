@@ -360,8 +360,15 @@ export default function LibraryPage({
       : (emptyMessages[view] ?? t('empty'));
 
   React.useEffect(() => {
-    setSelectedEntryIds([]);
-    setBatchMode(false);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setSelectedEntryIds([]);
+      setBatchMode(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [view, folderId, params.search, params.sort, page]);
 
   return (

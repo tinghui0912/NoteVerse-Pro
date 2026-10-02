@@ -68,11 +68,6 @@ export function useEditorDocument({ scoreId, returnUrl }: { scoreId: string; ret
   });
 
   useEffect(() => {
-    if (!score?.head_revision_id || baseRevisionId) return;
-    setBaseRevisionId(score.head_revision_id);
-  }, [baseRevisionId, score?.head_revision_id]);
-
-  useEffect(() => {
     if (!xmlContent || !revisionId || initialized) return;
     let cancelled = false;
     void (async () => {

@@ -101,39 +101,47 @@ export function useUploadWorkflow() {
     const job = statusResponse?.data;
     if (!job || !currentJobId) return;
 
-    if (Date.now() - pollStartTime > TASK_WAIT_TIMEOUT_MS) {
-      const description = t('processingTimeoutDesc');
-      toast({ title: t('processingTimeout'), description, variant: 'destructive' });
-      setTaskError(description);
-      setIsSubmitting(false);
-      setCurrentJobId(null);
-      setPollInterval(false);
-      return;
-    }
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
 
-    setTaskProgress(job.progress || 0);
-    const state = String(job.state).toUpperCase();
-    if (state === 'PENDING_REVIEW' || state === 'CONFIRMED') {
-      const completedScoreId = job.score_id;
-      if (state === 'CONFIRMED' && !completedScoreId) {
-        setTaskError(t('taskProcessingFailed'));
+      if (Date.now() - pollStartTime > TASK_WAIT_TIMEOUT_MS) {
+        const description = t('processingTimeoutDesc');
+        toast({ title: t('processingTimeout'), description, variant: 'destructive' });
+        setTaskError(description);
         setIsSubmitting(false);
         setCurrentJobId(null);
         setPollInterval(false);
         return;
       }
-      setIsSubmitting(false);
-      setCurrentJobId(null);
-      setPollInterval(false);
-      setTaskProgress(0);
-      clearFiles();
-      router.push(getCompletedJobRoute(job.job_id, completedScoreId, state));
-    } else if (state === 'FAILURE') {
-      setTaskError(translateTaskError(job.public_code, t('taskProcessingFailed')));
-      setIsSubmitting(false);
-      setCurrentJobId(null);
-      setPollInterval(false);
-    }
+
+      setTaskProgress(job.progress || 0);
+      const state = String(job.state).toUpperCase();
+      if (state === 'PENDING_REVIEW' || state === 'CONFIRMED') {
+        const completedScoreId = job.score_id;
+        if (state === 'CONFIRMED' && !completedScoreId) {
+          setTaskError(t('taskProcessingFailed'));
+          setIsSubmitting(false);
+          setCurrentJobId(null);
+          setPollInterval(false);
+          return;
+        }
+        setIsSubmitting(false);
+        setCurrentJobId(null);
+        setPollInterval(false);
+        setTaskProgress(0);
+        clearFiles();
+        router.push(getCompletedJobRoute(job.job_id, completedScoreId, state));
+      } else if (state === 'FAILURE') {
+        setTaskError(translateTaskError(job.public_code, t('taskProcessingFailed')));
+        setIsSubmitting(false);
+        setCurrentJobId(null);
+        setPollInterval(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [clearFiles, currentJobId, pollStartTime, router, statusResponse?.data, t, toast, translateTaskError]);
 
   useEffect(() => {

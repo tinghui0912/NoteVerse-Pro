@@ -131,9 +131,16 @@ export default function MyScoresPage({
     : false;
 
   React.useEffect(() => {
-    setSelectedScoreIds(new Set());
-    setSelectedJobIds(new Set());
-    setBatchMode(false);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setSelectedScoreIds(new Set());
+      setSelectedJobIds(new Set());
+      setBatchMode(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [view, params.search, sort, page]);
 
   const toggleScoreSelection = (scoreId: string) => {

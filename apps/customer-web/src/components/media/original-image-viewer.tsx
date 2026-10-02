@@ -31,23 +31,30 @@ export function OriginalImageViewer({ images, isOpen, onClose }: ImageViewerProp
 
   useEffect(() => {
     if (isOpen) {
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (cancelled) return;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
 
-      const newWidth = Math.min(size.width || defaultSize.width, vw - 40);
-      const newHeight = Math.min(size.height || defaultSize.height, vh - 40);
+        const newWidth = Math.min(size.width || defaultSize.width, vw - 40);
+        const newHeight = Math.min(size.height || defaultSize.height, vh - 40);
 
-      // Only set initial position if it's the very first open
-      if (position.x === 0 && position.y === 0) {
-        setPosition({
-          x: Math.max(20, (vw - newWidth) / 2),
-          y: Math.max(20, (vh - newHeight) / 2),
-        });
-      }
+        // Only set initial position if it's the very first open
+        if (position.x === 0 && position.y === 0) {
+          setPosition({
+            x: Math.max(20, (vw - newWidth) / 2),
+            y: Math.max(20, (vh - newHeight) / 2),
+          });
+        }
 
-      if (size.width === defaultSize.width && size.height === defaultSize.height) {
-        setSize({ width: newWidth, height: newHeight });
-      }
+        if (size.width === defaultSize.width && size.height === defaultSize.height) {
+          setSize({ width: newWidth, height: newHeight });
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -59,7 +66,13 @@ export function OriginalImageViewer({ images, isOpen, onClose }: ImageViewerProp
   };
 
   useEffect(() => {
-    resetView();
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) resetView();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [currentIndex]);
 
   const goToPrevious = (e: React.MouseEvent) => {
