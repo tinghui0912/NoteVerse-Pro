@@ -37,7 +37,7 @@ type PerformanceExpectedEventResult =
   | 'MISMATCH'
   | 'NOT_OBSERVED';
 
-export type PerformanceExpectedStrikeOutcome = {
+type PerformanceExpectedStrikeOutcome = {
   strikeId: string;
   pitch: string;
   renderNoteIds: string[];

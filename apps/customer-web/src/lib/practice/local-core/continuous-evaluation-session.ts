@@ -18,7 +18,7 @@ export type PerformanceCoverageInterval = {
   endMs: number;
 };
 
-export type ContinuousEvaluationClock = {
+type ContinuousEvaluationClock = {
   beatToTimeMs(beat: number): number;
 };
 

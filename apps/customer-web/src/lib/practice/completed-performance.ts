@@ -5,9 +5,9 @@ import type {
   ResolvedPracticeTempoPlan,
 } from './local-core';
 
-export type CompletedStrikeResult = 'MATCHED' | 'MISSING' | 'NOT_REACHED';
+type CompletedStrikeResult = 'MATCHED' | 'MISSING' | 'NOT_REACHED';
 
-export type CompletedObservedAttackRecord = {
+type CompletedObservedAttackRecord = {
   observationId: string;
   pitch: string;
   performanceTimeMs: number;
@@ -16,7 +16,7 @@ export type CompletedObservedAttackRecord = {
   expectedGroupId?: string;
 };
 
-export type CompletedStrikeRecord = {
+type CompletedStrikeRecord = {
   strikeId: string;
   expectedGroupId: string;
   pitch: string;
@@ -28,7 +28,7 @@ export type CompletedStrikeRecord = {
   timingOffsetMs?: number;
 };
 
-export type ContinuousEvaluationUnavailableReason =
+type ContinuousEvaluationUnavailableReason =
   | 'CONTINUOUS_ANALYSIS_UNAVAILABLE'
   | 'INCOMPLETE_ANALYSIS'
   | 'CORRUPT_TRANSIENT_DRAFT';
@@ -190,7 +190,7 @@ export function completedEvaluationFromPerformanceOutcomes(
   return { status: 'COMPLETE', strikes, extras };
 }
 
-export function assertCompletedPerformance(performance: CompletedPerformance): void {
+function assertCompletedPerformance(performance: CompletedPerformance): void {
   if (performance.evaluation.status === 'UNAVAILABLE') {
     return;
   }
