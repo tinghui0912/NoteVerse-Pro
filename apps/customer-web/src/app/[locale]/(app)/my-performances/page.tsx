@@ -336,16 +336,24 @@ function PerformanceTakeCard({
 export default function MyPerformancesPage({
   searchParams,
 }: {
-  searchParams?: Promise<{
-    page?: string;
-  }>;
+  searchParams?: Promise<{ page?: string }>;
+}) {
+  const synchronousPageParam = readSynchronousPageParam(searchParams);
+  const resolvedParams = synchronousPageParam !== undefined
+    ? { page: synchronousPageParam }
+    : searchParams
+      ? React.use(searchParams)
+      : undefined;
+  return <MyPerformancesPageContent searchParams={resolvedParams} />;
+}
+
+function MyPerformancesPageContent({
+  searchParams,
+}: {
+  searchParams?: { page?: string };
 }) {
   const routerSearchParams = useSearchParams();
-  const resolvedParams =
-    searchParams && typeof (searchParams as Promise<unknown>).then === 'function'
-      ? React.use(searchParams)
-      : (searchParams as { page?: string } | undefined);
-  const pageParam = resolvedParams?.page ?? routerSearchParams?.get('page') ?? undefined;
+  const pageParam = searchParams?.page ?? routerSearchParams?.get('page') ?? undefined;
   const rawPage = normalizePage(pageParam);
 
   const t = useTranslations('practice');
@@ -632,4 +640,12 @@ export default function MyPerformancesPage({
       </AlertDialog>
     </div>
   );
+}
+
+function readSynchronousPageParam(searchParams: Promise<{ page?: string }> | undefined): string | undefined {
+  if (!searchParams || typeof searchParams !== 'object' || !('page' in searchParams)) {
+    return undefined;
+  }
+  const page = searchParams.page;
+  return typeof page === 'string' ? page : undefined;
 }

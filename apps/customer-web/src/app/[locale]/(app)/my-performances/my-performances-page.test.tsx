@@ -12,6 +12,10 @@ import type {
   PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
 
+function pageParams(page: string): Promise<{ page: string }> & { page: string } {
+  return Object.assign(Promise.resolve({ page }), { page });
+}
+
 const mockRouterPush = vi.fn();
 const mockToast = vi.fn();
 vi.mock('@/hooks/use-toast', () => ({
@@ -656,7 +660,7 @@ describe('MyPerformancesPage', () => {
 
   describe('121+ Items Pagination Verification (Pages 1, 2, and 7)', () => {
     it('verifies Page 1: limit=20, offset=0, items 1-20, canGoPrevious=false, canGoNext=true', () => {
-      render(<MyPerformancesPage searchParams={{ page: '1' } as never} />);
+      render(<MyPerformancesPage searchParams={pageParams('1')} />);
 
       expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
         limit: 20,
@@ -681,7 +685,7 @@ describe('MyPerformancesPage', () => {
     });
 
     it('verifies Page 2: limit=20, offset=20, items 21-40, canGoPrevious=true, canGoNext=true', () => {
-      render(<MyPerformancesPage searchParams={{ page: '2' } as never} />);
+      render(<MyPerformancesPage searchParams={pageParams('2')} />);
 
       expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
         limit: 20,
@@ -709,7 +713,7 @@ describe('MyPerformancesPage', () => {
     });
 
     it('verifies Page 7: limit=20, offset=120, item 121 (last item), canGoPrevious=true, canGoNext=false', () => {
-      render(<MyPerformancesPage searchParams={{ page: '7' } as never} />);
+      render(<MyPerformancesPage searchParams={pageParams('7')} />);
 
       expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
         limit: 20,
@@ -732,13 +736,13 @@ describe('MyPerformancesPage', () => {
     });
 
     it('normalizes illegal and negative query parameters to Page 1', () => {
-      render(<MyPerformancesPage searchParams={{ page: 'invalid' } as never} />);
+      render(<MyPerformancesPage searchParams={pageParams('invalid')} />);
       expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
         limit: 20,
         offset: 0,
       });
 
-      render(<MyPerformancesPage searchParams={{ page: '-5' } as never} />);
+      render(<MyPerformancesPage searchParams={pageParams('-5')} />);
       expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
         limit: 20,
         offset: 0,
@@ -746,7 +750,7 @@ describe('MyPerformancesPage', () => {
     });
 
     it('redirects to max valid page when URL page exceeds total pages', async () => {
-      render(<MyPerformancesPage searchParams={{ page: '99' } as never} />);
+      render(<MyPerformancesPage searchParams={pageParams('99')} />);
 
       await waitFor(() => {
         expect(mockRouterPush).toHaveBeenCalledWith('?page=7');
@@ -755,7 +759,7 @@ describe('MyPerformancesPage', () => {
 
     it('adjusts total and page when last item on page is deleted', async () => {
       currentTakesTotal = 121;
-      const { rerender } = render(<MyPerformancesPage searchParams={{ page: '7' } as never} />);
+      const { rerender } = render(<MyPerformancesPage searchParams={pageParams('7')} />);
 
       expect(screen.getByText('Score Title 121')).toBeInTheDocument();
       const deleteBtn = screen.getByTestId('delete-take-take-121');
@@ -770,7 +774,7 @@ describe('MyPerformancesPage', () => {
 
       // Total drops to 120 (6 pages)
       currentTakesTotal = 120;
-      rerender(<MyPerformancesPage searchParams={{ page: '7' } as never} />);
+      rerender(<MyPerformancesPage searchParams={pageParams('7')} />);
 
       await waitFor(() => {
         expect(mockRouterPush).toHaveBeenCalledWith('?page=6');
@@ -778,19 +782,19 @@ describe('MyPerformancesPage', () => {
     });
 
     it('resets playing audio when changing page', () => {
-      const { rerender } = render(<MyPerformancesPage searchParams={{ page: '1' } as never} />);
+      const { rerender } = render(<MyPerformancesPage searchParams={pageParams('1')} />);
 
       const playBtn = screen.getByTestId('play-take-take-1');
       fireEvent.click(playBtn);
       expect(screen.getByTestId('performance-replay-player')).toBeInTheDocument();
 
       // Page change stops playback
-      rerender(<MyPerformancesPage searchParams={{ page: '2' } as never} />);
+      rerender(<MyPerformancesPage searchParams={pageParams('2')} />);
       expect(screen.queryByTestId('performance-replay-player')).not.toBeInTheDocument();
     });
 
     it('renders scope as beat range (takeScopeBeats) instead of measure/bar numbers', () => {
-      render(<MyPerformancesPage searchParams={{ page: '1' } as never} />);
+      render(<MyPerformancesPage searchParams={pageParams('1')} />);
 
       // Range item: scope_start_beat = 4, scope_terminal_beat = 16
       expect(screen.getAllByText('选段演奏 (第 4 - 16 拍)').length).toBeGreaterThan(0);
@@ -821,7 +825,7 @@ describe('MyPerformancesPage', () => {
         refetch: vi.fn(),
       };
 
-      render(<MyPerformancesPage searchParams={{ page: '1' } as never} />);
+      render(<MyPerformancesPage searchParams={pageParams('1')} />);
 
       // Badge visible
       expect(screen.getByTestId('deleting-badge-take-deleting-1')).toBeInTheDocument();
@@ -895,7 +899,7 @@ describe('MyPerformancesPage', () => {
         },
       ]);
 
-      render(<MyPerformancesPage searchParams={{ page: '1' } as never} />);
+      render(<MyPerformancesPage searchParams={pageParams('1')} />);
       fireEvent.click(screen.getByTestId('delete-take-take-delete-flow'));
       fireEvent.click(screen.getByTestId('confirm-delete-take-button'));
 
@@ -945,7 +949,7 @@ describe('MyPerformancesPage', () => {
         refetch,
       };
 
-      const rendered = render(<MyPerformancesPage searchParams={{ page: '1' } as never} />);
+      const rendered = render(<MyPerformancesPage searchParams={pageParams('1')} />);
       expect(screen.getByText('Slow Delete')).toBeInTheDocument();
 
       await act(async () => {
@@ -994,7 +998,7 @@ describe('MyPerformancesPage', () => {
         refetch: vi.fn(),
       };
 
-      render(<MyPerformancesPage searchParams={{ page: '1' } as never} />);
+      render(<MyPerformancesPage searchParams={pageParams('1')} />);
       fireEvent.click(screen.getByTestId('play-take-take-audio-delete'));
       expect(screen.getByTestId('performance-replay-player')).toBeInTheDocument();
 
@@ -1038,7 +1042,7 @@ describe('MyPerformancesPage', () => {
         refetch: vi.fn(),
       };
 
-      render(<MyPerformancesPage searchParams={{ page: '1' } as never} />);
+      render(<MyPerformancesPage searchParams={pageParams('1')} />);
       fireEvent.click(screen.getByTestId('play-take-take-video-delete'));
       expect(screen.getByText('Kind: VIDEO_RECORDING')).toBeInTheDocument();
 
@@ -1056,7 +1060,7 @@ describe('MyPerformancesPage', () => {
 
     it('shows accepted toast when take deletion is confirmed', async () => {
       mockToast.mockClear();
-      render(<MyPerformancesPage searchParams={{ page: '1' } as never} />);
+      render(<MyPerformancesPage searchParams={pageParams('1')} />);
 
       const deleteBtn = screen.getByTestId('delete-take-take-1');
       fireEvent.click(deleteBtn);
