@@ -87,7 +87,7 @@ type LocalPerformanceObservationRecord = {
 export type LocalPerformanceExpectedEventOutcomeRecord = {
   expectedGroupId: string;
   performanceTimeMs: number;
-  result: 'MATCH' | 'PARTIAL' | 'MISMATCH' | 'UNCERTAIN' | 'NOT_OBSERVED';
+  result: 'MATCH' | 'PARTIAL' | 'MISMATCH' | 'NOT_OBSERVED';
   confidence: number;
   source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
   expectedStrikeOutcomes: {

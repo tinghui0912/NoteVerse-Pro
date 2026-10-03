@@ -35,7 +35,6 @@ type PerformanceExpectedEventResult =
   | 'MATCH'
   | 'PARTIAL'
   | 'MISMATCH'
-  | 'UNCERTAIN'
   | 'NOT_OBSERVED';
 
 export type PerformanceExpectedStrikeOutcome = {

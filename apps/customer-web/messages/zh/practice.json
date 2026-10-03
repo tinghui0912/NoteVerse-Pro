@@ -201,7 +201,6 @@
   "matchedGroupCount": "已匹配音符组",
   "partialGroupCount": "部分匹配音符组",
   "mismatchGroupCount": "错音音符组",
-  "uncertainGroupCount": "不确定音符组",
   "unobservedGroupCount": "未观察到音符组",
   "totalGroupCount": "总目标音符组",
   "scoreRevisionMismatchTitle": "乐谱版本不一致",

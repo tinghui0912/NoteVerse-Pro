@@ -543,7 +543,6 @@ export default function PracticeReviewPage({
   const matchedCount = outcomes.filter((o) => o.result === 'MATCH').length;
   const partialCount = outcomes.filter((o) => o.result === 'PARTIAL').length;
   const mismatchCount = outcomes.filter((o) => o.result === 'MISMATCH').length;
-  const uncertainCount = outcomes.filter((o) => o.result === 'UNCERTAIN').length;
   const unobservedCount = outcomes.filter((o) => o.result === 'NOT_OBSERVED').length;
   const totalCount = outcomes.length;
 
@@ -699,7 +698,7 @@ export default function PracticeReviewPage({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 text-center">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 text-center">
               <div className="rounded-md border bg-slate-50 dark:bg-slate-900 p-3">
                 <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
@@ -725,15 +724,6 @@ export default function PracticeReviewPage({
                 </div>
                 <div className="mt-1 text-lg font-bold text-red-600">
                   {mismatchCount}
-                </div>
-              </div>
-              <div className="rounded-md border bg-slate-50 dark:bg-slate-900 p-3">
-                <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                  <HelpCircle className="h-3.5 w-3.5 text-purple-400" />
-                  <span>{t('uncertainGroupCount')}</span>
-                </div>
-                <div className="mt-1 text-lg font-bold text-purple-600">
-                  {uncertainCount}
                 </div>
               </div>
               <div className="rounded-md border bg-slate-50 dark:bg-slate-900 p-3">

@@ -201,7 +201,6 @@
   "matchedGroupCount": "Matched Note Groups",
   "partialGroupCount": "Partially Matched",
   "mismatchGroupCount": "Mismatched",
-  "uncertainGroupCount": "Uncertain",
   "unobservedGroupCount": "Unobserved",
   "totalGroupCount": "Total Expected Groups",
   "scoreRevisionMismatchTitle": "Score Revision Mismatch",

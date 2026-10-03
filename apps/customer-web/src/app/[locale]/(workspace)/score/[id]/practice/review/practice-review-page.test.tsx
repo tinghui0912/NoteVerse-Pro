@@ -30,7 +30,6 @@ const translationMocks = vi.hoisted(() => {
     matchedGroupCount: '已匹配音符组',
     partialGroupCount: '部分匹配音符组',
     mismatchGroupCount: '错音音符组',
-    uncertainGroupCount: '不确定音符组',
     unobservedGroupCount: '未观察到音符组',
     totalGroupCount: '总目标音符组',
     scoreRevisionMismatchTitle: '乐谱版本不一致',
@@ -467,11 +466,11 @@ describe('PracticeReviewPage', () => {
               renderNoteIds: ['note-c5', 'note-e5'],
               measureNumbers: ['2'],
             },
-            // 4. UNCERTAIN group with unconfirmed strike
+            // 4. NOT_OBSERVED group with unconfirmed strike
             {
               expectedGroupId: 'g-4',
               performanceTimeMs: 3000,
-              result: 'UNCERTAIN',
+              result: 'NOT_OBSERVED',
               confidence: 0.4,
               source: 'ACOUSTIC',
               expectedStrikeOutcomes: [
@@ -514,16 +513,16 @@ describe('PracticeReviewPage', () => {
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
-    // Check all 5 categories + total
+    // Check all 4 event categories + total
     expect(screen.getByText('已匹配音符组')).toBeDefined();
     expect(screen.getByText('部分匹配音符组')).toBeDefined();
     expect(screen.getByText('错音音符组')).toBeDefined();
-    expect(screen.getByText('不确定音符组')).toBeDefined();
     expect(screen.getByText('未观察到音符组')).toBeDefined();
     expect(screen.getByText('总目标音符组')).toBeDefined();
 
     expect(screen.getByText('1 / 5')).toBeDefined(); // matched
-    expect(screen.getAllByText('1')).toHaveLength(4); // partial, mismatch, uncertain, unobserved each have 1
+    expect(screen.getAllByText('1')).toHaveLength(2); // partial and mismatch each have 1
+    expect(screen.getByText('2')).toBeDefined(); // unobserved
     expect(screen.getByText('5')).toBeDefined(); // total
 
     // Verify note-by-note strike annotation:
