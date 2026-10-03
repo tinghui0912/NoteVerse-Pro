@@ -150,14 +150,11 @@ export class PerformancePracticeRuntime {
       this.observations = options.snapshot.performance.observations.map((observation) => ({
         ...observation,
       }));
-      this.outcomes = options.snapshot.performance.outcomes.map((outcome) => ({
-        ...outcome,
-        source: outcome.source,
-      }));
       this.evaluationCoverageIntervals = mergePerformanceCoverageIntervals(
         options.snapshot.performance.evaluationCoverageIntervals
       );
     }
+    this.updateEvaluationOutcomes();
   }
 
   start(): PerformanceClockSnapshot {
@@ -363,13 +360,21 @@ export class PerformancePracticeRuntime {
     if (this.state === 'PAUSED' || this.state === 'ENDED') {
       return activeElapsedMs;
     }
-    if (activeElapsedMs < this.countInMs) {
-      this.state = 'COUNT_IN';
-    } else if (this.performanceElapsedMs(activeElapsedMs) >= this.scopeDurationMs()) {
-      this.activeElapsedMs = activeElapsedMs;
-      this.finishCurrentSegment(this.nowSessionMs());
+    if (this.state === 'COUNT_IN' && activeElapsedMs >= this.countInMs) {
+      const boundarySessionMs = this.sessionMsForActiveElapsed(this.countInMs);
+      this.finishCurrentSegment(boundarySessionMs);
+      this.state = 'RUNNING';
+      this.currentSegment = this.startClockSegmentAt('RUNNING', this.countInMs, boundarySessionMs);
+    }
+    const terminalActiveElapsedMs = this.countInMs + this.scopeDurationMs();
+    if (this.state === 'RUNNING' && activeElapsedMs >= terminalActiveElapsedMs) {
+      const boundarySessionMs = this.sessionMsForActiveElapsed(terminalActiveElapsedMs);
+      this.activeElapsedMs = terminalActiveElapsedMs;
+      this.finishCurrentSegment(boundarySessionMs);
       this.state = 'ENDED';
       this.completionReason = 'SCOPE_COMPLETED';
+    } else if (activeElapsedMs < this.countInMs) {
+      this.state = 'COUNT_IN';
     } else {
       this.state = 'RUNNING';
     }
@@ -469,9 +474,17 @@ export class PerformancePracticeRuntime {
   }
 
   private startClockSegment(state: PerformanceRuntimeState, activeElapsedStartMs: number): ClockSegment {
+    return this.startClockSegmentAt(state, activeElapsedStartMs, this.nowSessionMs());
+  }
+
+  private startClockSegmentAt(
+    state: PerformanceRuntimeState,
+    activeElapsedStartMs: number,
+    clockStartMs: number
+  ): ClockSegment {
     const segment = {
       state,
-      clockStartMs: this.nowSessionMs(),
+      clockStartMs,
       activeElapsedStartMs,
     };
     this.clockSegments.push(segment);

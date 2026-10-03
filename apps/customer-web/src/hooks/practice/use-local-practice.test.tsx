@@ -3,7 +3,9 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import canonicalArtifactJson from '@/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json';
+import { completedPerformanceStore } from '@/lib/practice/completed-performance';
 import type { PracticeScoreArtifact } from '@/lib/practice/local-core/artifact';
+import { noteAnnotationsFromPerformanceOutcomes } from '@/lib/practice/performance-annotation-controller';
 import { useLocalPractice } from './use-local-practice';
 
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
@@ -24,13 +26,34 @@ const micMock = vi.hoisted(() => ({
   })),
   inferenceCoverageTime: vi.fn(() => null),
   onFatalError: null as ((err: Error) => void) | null,
+  onPerformanceCoverage: null as null | ((coverage: {
+    intervals: {
+      startSampleIndex: number;
+      endSampleIndex: number;
+      startSessionTimeMs: number;
+      endSessionTimeMs: number;
+    }[];
+  }) => void),
 }));
 
 vi.mock('@/lib/practice/acoustic-inference/live-capture', () => {
   return {
     BrowserMicrophoneCaptureController: class MockMicController {
-      constructor(options: { onFatalError?: (err: Error) => void }) {
+      constructor(options: {
+        onFatalError?: (err: Error) => void;
+        evidenceSink?: {
+          onPerformanceCoverage?: (coverage: {
+            intervals: {
+              startSampleIndex: number;
+              endSampleIndex: number;
+              startSessionTimeMs: number;
+              endSessionTimeMs: number;
+            }[];
+          }) => void;
+        };
+      }) {
         micMock.onFatalError = options.onFatalError ?? null;
+        micMock.onPerformanceCoverage = options.evidenceSink?.onPerformanceCoverage ?? null;
       }
       async start() {
         return micMock.start();
@@ -97,7 +120,15 @@ describe('useLocalPractice', () => {
     micMock.stop.mockReset().mockImplementation(async () => {
       recorderEvents.events.push('INPUT_TEARDOWN');
     });
+    micMock.drainThrough.mockReset().mockImplementation(async (cutoff) => ({
+      status: 'covered' as const,
+      requestedThrough: cutoff,
+      coverage: { intervals: [] },
+    }));
+    micMock.inferenceCoverageTime.mockReset().mockReturnValue(null);
     micMock.onFatalError = null;
+    micMock.onPerformanceCoverage = null;
+    completedPerformanceStore.clearPerformance();
     class MockMediaRecorder {
       state: 'inactive' | 'recording' | 'paused' = 'inactive';
       mimeType = 'audio/webm';
@@ -489,6 +520,66 @@ describe('useLocalPractice', () => {
         'MIC_DRAIN_COMPLETED',
         'INPUT_TEARDOWN',
       ]);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it('settles no-input microphone outcomes after default count-in coverage', async () => {
+    let nowMs = 0;
+    const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => nowMs);
+    const onCompletion = vi.fn();
+    const { result } = renderHook(() =>
+      useLocalPractice({
+        artifact,
+        mode: 'CONTINUOUS_PLAY',
+        inputSource: 'MICROPHONE',
+        scope: { kind: 'FULL' },
+        onCompletion,
+      })
+    );
+
+    try {
+      await act(async () => {
+        await result.current.start();
+      });
+      expect(result.current.performanceOutcomes).toHaveLength(artifact.expectedPracticeGroups.length);
+      expect(
+        result.current.performanceOutcomes[0]?.expectedStrikeOutcomes.map((strike) => strike.result)
+      ).toEqual(['UNCONFIRMED']);
+
+      nowMs = 1_800;
+      await waitFor(() => {
+        expect(result.current.performanceClock?.state).toBe('RUNNING');
+      });
+
+      act(() => {
+        micMock.onPerformanceCoverage?.({
+          intervals: [
+            {
+              startSampleIndex: 72_000,
+              endSampleIndex: 86_400,
+              startSessionTimeMs: 1_500,
+              endSessionTimeMs: 1_800,
+            },
+          ],
+        });
+      });
+
+      expect(
+        result.current.performanceOutcomes[0]?.expectedStrikeOutcomes.map((strike) => strike.result)
+      ).toEqual(['MISSING']);
+      expect(
+        noteAnnotationsFromPerformanceOutcomes(result.current.performanceOutcomes).confirmedErrorNoteIds
+      ).toEqual(expect.arrayContaining(artifact.expectedPracticeGroups[0].renderNoteIds));
+
+      await act(async () => {
+        await result.current.finish();
+      });
+      expect(onCompletion).toHaveBeenCalledTimes(1);
+      expect(completedPerformanceStore.getPerformance()?.evaluation.outcomes).toHaveLength(
+        artifact.expectedPracticeGroups.length
+      );
     } finally {
       nowSpy.mockRestore();
     }

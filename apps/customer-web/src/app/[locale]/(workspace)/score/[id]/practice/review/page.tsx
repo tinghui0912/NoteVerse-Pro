@@ -49,7 +49,10 @@ import {
 } from '@/lib/practice/performance-annotation-controller';
 import { PracticeTempoTimeline } from '@/lib/practice/local-core/practice-tempo';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/local-core/practice-tempo';
-import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/local-core/artifact';
+import {
+  resolvePracticeScopeCursorNoteIds,
+  type PracticeScoreArtifact,
+} from '@/lib/practice/local-core/artifact';
 import type { CursorScope } from '@/lib/practice/local-core/cursor-scope';
 import { resolveScopeTiming } from '@/lib/practice/scope-timing';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
@@ -78,6 +81,79 @@ function extensionForMime(mimeType: string): string {
   if (cleaned === 'audio/ogg') return 'ogg';
   if (cleaned === 'audio/wav' || cleaned === 'audio/x-wav') return 'wav';
   return 'webm';
+}
+
+function buildFeedbackSummary({
+  artifact,
+  scope,
+  outcomes,
+}: {
+  artifact: PracticeScoreArtifact | null | undefined;
+  scope: CompletedPerformance['scope'];
+  outcomes: CompletedPerformance['evaluation']['outcomes'];
+}) {
+  const byGroupId = new Map(outcomes.map((outcome) => [outcome.expectedGroupId, outcome]));
+  const summary = {
+    targetStrikeCount: 0,
+    correctStrikeCount: 0,
+    missingStrikeCount: 0,
+    unconfirmedStrikeCount: 0,
+    extraPitchCount: outcomes.reduce((sum, outcome) => sum + outcome.unexpectedPitches.length, 0),
+  };
+
+  const expectedGroups = artifact
+    ? artifact.expectedPracticeGroups.slice(scope.startIndex, scope.endIndex + 1)
+    : [];
+  const expectedStrikeCount = expectedGroups.reduce(
+    (count, group) => count + group.strikeTargets.length,
+    0
+  );
+  if (expectedStrikeCount === 0) {
+    applyOutcomeUniverseToSummary(summary, outcomes);
+    return summary;
+  }
+
+  for (const group of expectedGroups) {
+    const outcome = byGroupId.get(group.groupId);
+    const byStrikeId = new Map(
+      outcome?.expectedStrikeOutcomes.map((strike) => [strike.strikeId, strike]) ?? []
+    );
+    for (const strikeTarget of group.strikeTargets) {
+      summary.targetStrikeCount += 1;
+      const result = byStrikeId.get(strikeTarget.strikeId)?.result ?? 'UNCONFIRMED';
+      if (result === 'MATCHED') {
+        summary.correctStrikeCount += 1;
+      } else if (result === 'MISSING') {
+        summary.missingStrikeCount += 1;
+      } else {
+        summary.unconfirmedStrikeCount += 1;
+      }
+    }
+  }
+  return summary;
+}
+
+function applyOutcomeUniverseToSummary(
+  summary: {
+    targetStrikeCount: number;
+    correctStrikeCount: number;
+    missingStrikeCount: number;
+    unconfirmedStrikeCount: number;
+  },
+  outcomes: CompletedPerformance['evaluation']['outcomes']
+) {
+  for (const outcome of outcomes) {
+    for (const strike of outcome.expectedStrikeOutcomes) {
+      summary.targetStrikeCount += 1;
+      if (strike.result === 'MATCHED') {
+        summary.correctStrikeCount += 1;
+      } else if (strike.result === 'MISSING') {
+        summary.missingStrikeCount += 1;
+      } else {
+        summary.unconfirmedStrikeCount += 1;
+      }
+    }
+  }
 }
 
 function toPerformanceTakeTempoPlan(plan: ResolvedPracticeTempoPlan): PerformanceTakeTempoPlan {
@@ -523,29 +599,11 @@ export default function PracticeReviewPage({
   }
 
   const outcomes = draft.evaluation.outcomes;
-  const strikeSummary = outcomes.reduce(
-    (summary, outcome) => {
-      summary.extraPitchCount += outcome.unexpectedPitches.length;
-      for (const strike of outcome.expectedStrikeOutcomes) {
-        summary.targetStrikeCount += 1;
-        if (strike.result === 'MATCHED') {
-          summary.correctStrikeCount += 1;
-        } else if (strike.result === 'MISSING') {
-          summary.missingStrikeCount += 1;
-        } else if (strike.result === 'UNCONFIRMED') {
-          summary.unconfirmedStrikeCount += 1;
-        }
-      }
-      return summary;
-    },
-    {
-      targetStrikeCount: 0,
-      correctStrikeCount: 0,
-      missingStrikeCount: 0,
-      unconfirmedStrikeCount: 0,
-      extraPitchCount: 0,
-    }
-  );
+  const strikeSummary = buildFeedbackSummary({
+    artifact: isScoreIdentityConfirmed ? artifact : null,
+    scope: draft.scope,
+    outcomes,
+  });
 
   const tempoText =
     draft.tempoPlan.selection.mode === 'CUSTOM_FIXED_BPM'

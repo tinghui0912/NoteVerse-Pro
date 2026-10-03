@@ -347,6 +347,96 @@ describe('local CONTINUOUS practice runtime', () => {
     expect(zero.start().state).toBe('RUNNING');
   });
 
+  it('projects a complete unconfirmed outcome universe immediately for non-empty scopes', () => {
+    const runtime = new PerformancePracticeRuntime({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock: new ManualClock(0),
+      localSessionId: 'performance-total-outcomes',
+    });
+
+    expect(runtime.evaluationOutcomes).toHaveLength(artifact.expectedPracticeGroups.length);
+    expect(
+      runtime.evaluationOutcomes.flatMap((outcome) =>
+        outcome.expectedStrikeOutcomes.map((strike) => strike.result)
+      )
+    ).toEqual(
+      artifact.expectedPracticeGroups.flatMap((group) =>
+        group.strikeTargets.map(() => 'UNCONFIRMED')
+      )
+    );
+
+    runtime.start();
+    expect(runtime.evaluationOutcomes).toHaveLength(artifact.expectedPracticeGroups.length);
+  });
+
+  it('maps acoustic coverage after default count-in into running performance time', () => {
+    const clock = new ManualClock(0);
+    const runtime = new PerformancePracticeRuntime({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock,
+      localSessionId: 'performance-default-count-in',
+    });
+    runtime.start();
+    const countInMs = runtime.snapshotSession().performance.countInMs;
+
+    runtime.markEvaluationCoverageIntervals([
+      {
+        start: runtime.timebase.atSessionMs(Math.max(0, countInMs - 50)),
+        end: runtime.timebase.atSessionMs(countInMs + 300),
+      },
+    ]);
+    expect(runtime.evaluationOutcomes[0]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
+      'UNCONFIRMED',
+    ]);
+
+    clock.advance(countInMs + 300);
+    expect(runtime.snapshot().state).toBe('RUNNING');
+    runtime.markEvaluationCoverageIntervals([
+      {
+        start: runtime.timebase.atSessionMs(Math.max(0, countInMs - 50)),
+        end: runtime.timebase.atSessionMs(countInMs + 300),
+      },
+    ]);
+
+    expect(runtime.evaluationOutcomes[0]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
+      'MISSING',
+    ]);
+  });
+
+  it('excludes pause gaps from performance coverage mapping', () => {
+    const clock = new ManualClock(0);
+    const runtime = new PerformancePracticeRuntime({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock,
+      countInBeats: 0,
+      localSessionId: 'performance-pause-gap-coverage',
+    });
+    runtime.start();
+    clock.advance(1_000);
+    runtime.pause();
+    clock.advance(5_000);
+    runtime.resume();
+    clock.advance(500);
+    runtime.snapshot();
+    runtime.markEvaluationCoverageIntervals([
+      {
+        start: runtime.timebase.atSessionMs(500),
+        end: runtime.timebase.atSessionMs(6_500),
+      },
+    ]);
+
+    expect(runtime.evaluationOutcomes[3]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
+      'UNCONFIRMED',
+      'UNCONFIRMED',
+    ]);
+  });
+
   it('converts beat/time across tempo changes and ends at tied scope terminal beats', () => {
     const clock = new ManualClock(0);
     const runtime = new PerformancePracticeRuntime({
