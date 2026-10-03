@@ -566,6 +566,57 @@ describe('local CONTINUOUS practice runtime', () => {
     }).snapshot().state).toBe('ENDED');
   });
 
+  it('preserves explicit evaluation coverage when restoring ended performance snapshots', () => {
+    const clock = new ManualClock(0);
+    const runtime = new PerformancePracticeRuntime({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock,
+      countInBeats: 0,
+    });
+    runtime.start();
+    clock.advance(10_000);
+    runtime.snapshot();
+    const incompleteSnapshot = runtime.snapshotSession();
+    expect(incompleteSnapshot.performance.state).toBe('ENDED');
+    expect(incompleteSnapshot.performance.evaluationCoverageThroughPerformanceTimeMs).toBeNull();
+
+    const restoredIncomplete = new PerformancePracticeRuntime({
+      artifact,
+      clock: new ManualClock(20_000),
+      scope: { kind: 'FULL' },
+      snapshot: incompleteSnapshot,
+    });
+    expect(
+      restoredIncomplete.snapshotSession().performance.evaluationCoverageThroughPerformanceTimeMs
+    ).toBeNull();
+
+    const covered = new PerformancePracticeRuntime({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock: new ManualClock(0),
+      countInBeats: 0,
+    });
+    covered.start();
+    (covered as unknown as { clock: ManualClock }).clock.advance(10_000);
+    covered.snapshot();
+    covered.markEvaluationCoverageThrough(covered.completionCaptureTime());
+    const coveredSnapshot = covered.snapshotSession();
+    expect(coveredSnapshot.performance.evaluationCoverageThroughPerformanceTimeMs).toBeGreaterThan(0);
+
+    const restoredCovered = new PerformancePracticeRuntime({
+      artifact,
+      clock: new ManualClock(20_000),
+      scope: { kind: 'FULL' },
+      snapshot: coveredSnapshot,
+    });
+    expect(
+      restoredCovered.snapshotSession().performance.evaluationCoverageThroughPerformanceTimeMs
+    ).toBe(coveredSnapshot.performance.evaluationCoverageThroughPerformanceTimeMs);
+  });
+
   it('keeps durable metadata time separate from runtime monotonic time', () => {
     const runtimeClock = new ManualClock(10_000);
     const metadataClock = new ManualDurableClock(1_000_000);

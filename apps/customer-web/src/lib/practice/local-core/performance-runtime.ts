@@ -151,11 +151,8 @@ export class PerformancePracticeRuntime {
         ...outcome,
         source: outcome.source,
       }));
-      if (this.state === 'ENDED') {
-        this.evaluationCoverageThroughPerformanceTimeMs = this.performanceElapsedMs(
-          this.activeElapsedMs
-        );
-      }
+      this.evaluationCoverageThroughPerformanceTimeMs =
+        options.snapshot.performance.evaluationCoverageThroughPerformanceTimeMs;
     }
   }
 
@@ -305,6 +302,7 @@ export class PerformancePracticeRuntime {
         countInMs: this.countInMs,
         countInBeats: this.countInBeats,
         countInPulses: this.countInPulses,
+        evaluationCoverageThroughPerformanceTimeMs: this.evaluationCoverageThroughPerformanceTimeMs,
         observations: this.observations.map((observation) => ({
           source: observation.source,
           captureTime: observation.captureTime,

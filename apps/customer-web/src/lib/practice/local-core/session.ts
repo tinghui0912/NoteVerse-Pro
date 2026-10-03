@@ -56,6 +56,7 @@ export type LocalPerformanceSessionSnapshot = LocalPracticeSessionBase & {
     countInMs: number;
     countInBeats: number;
     countInPulses: number;
+    evaluationCoverageThroughPerformanceTimeMs: number | null;
     observations: LocalPerformanceObservationRecord[];
     outcomes: LocalPerformanceExpectedEventOutcomeRecord[];
   };
