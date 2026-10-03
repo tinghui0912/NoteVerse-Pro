@@ -2,7 +2,10 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { PerformanceAnnotationController } from './performance-annotation-controller';
+import {
+  PerformanceAnnotationController,
+  noteAnnotationsFromPerformanceOutcomes,
+} from './performance-annotation-controller';
 
 describe('PerformanceAnnotationController', () => {
   it('applies performance annotations and replaces stale annotations', () => {
@@ -56,5 +59,45 @@ describe('PerformanceAnnotationController', () => {
     expect(container.querySelector('[data-id="n1"]')).not.toHaveClass(
       'practice-summary-note-confirmed-correct'
     );
+  });
+
+  it('derives strike-level note annotations without coloring unconfirmed notes', () => {
+    const annotations = noteAnnotationsFromPerformanceOutcomes([
+      {
+        expectedGroupId: 'g-1',
+        performanceTimeMs: 1000,
+        result: 'PARTIAL',
+        confidence: 0.95,
+        source: 'ACOUSTIC',
+        expectedStrikeOutcomes: [
+          {
+            strikeId: 'c',
+            pitch: 'C4',
+            renderNoteIds: ['note-c'],
+            result: 'MATCHED',
+          },
+          {
+            strikeId: 'e',
+            pitch: 'E4',
+            renderNoteIds: ['note-e'],
+            result: 'MISSING',
+          },
+          {
+            strikeId: 'g',
+            pitch: 'G4',
+            renderNoteIds: ['note-g'],
+            result: 'UNCONFIRMED',
+          },
+        ],
+        unexpectedPitches: ['F#4'],
+        renderNoteIds: ['note-c', 'note-e', 'note-g'],
+        measureNumbers: ['1'],
+      },
+    ]);
+
+    expect(annotations.confirmedCorrectNoteIds).toEqual(['note-c']);
+    expect(annotations.confirmedErrorNoteIds).toEqual(['note-e']);
+    expect(annotations.confirmedCorrectNoteIds).not.toContain('note-g');
+    expect(annotations.confirmedErrorNoteIds).not.toContain('note-g');
   });
 });

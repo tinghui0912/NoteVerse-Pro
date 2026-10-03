@@ -11,10 +11,15 @@ import { VerovioScoreViewer } from '@/components/score-preview/verovio-score-vie
 import { useIsMobile } from '@/hooks/use-mobile';
 import { StepPlayheadController } from '@/lib/practice/step-playhead-controller';
 import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
+import {
+  PerformanceAnnotationController,
+  noteAnnotationsFromPerformanceOutcomes,
+} from '@/lib/practice/performance-annotation-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import { cn } from '@/lib/utils';
 import type { ExpectedPracticeGroup, PracticeMode } from '@/lib/practice/local-core/artifact';
 import type { CursorScope } from '@/lib/practice/local-core/cursor-scope';
+import type { PerformanceExpectedEventOutcome } from '@/lib/practice/local-core/evidence';
 
 import type { LocalPracticeLifecycle } from '@/lib/practice/local-core/session';
 
@@ -28,6 +33,7 @@ type PracticeScoreViewerProps = {
   activeStepGroup?: ExpectedPracticeGroup | null;
   performanceMusicalBeat?: number | null;
   performanceScope?: CursorScope | null;
+  performanceOutcomes?: readonly PerformanceExpectedEventOutcome[];
   selectedRangeRenderNoteIds?: readonly string[];
   onRenderNoteClick?: (renderNoteId: string) => void;
 };
@@ -42,6 +48,7 @@ export function PracticeScoreViewer({
   activeStepGroup = null,
   performanceMusicalBeat = null,
   performanceScope = null,
+  performanceOutcomes = [],
   selectedRangeRenderNoteIds = [],
   onRenderNoteClick,
 }: PracticeScoreViewerProps) {
@@ -51,10 +58,24 @@ export function PracticeScoreViewer({
   const adapterFactory = useCallback(() => adapter, [adapter]);
   const stepPlayheadController = useMemo(() => new StepPlayheadController(), []);
   const performancePlayheadController = useMemo(() => new PerformancePlayheadController(), []);
+  const annotationController = useMemo(() => new PerformanceAnnotationController(), []);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [renderRevision, setRenderRevision] = useState(0);
   const selectedRangeRenderNoteIdSignature = selectedRangeRenderNoteIds.join('\u001f');
+  const performanceAnnotationSignature = useMemo(
+    () =>
+      performanceOutcomes
+        .map((outcome) => [
+          outcome.expectedGroupId,
+          outcome.result,
+          outcome.expectedStrikeOutcomes
+            .map((strike) => `${strike.strikeId}:${strike.result}`)
+            .join(','),
+        ].join(':'))
+        .join('\u001f'),
+    [performanceOutcomes]
+  );
   const handleRendered = useCallback(
     (_adapter: unknown, container: HTMLDivElement) => {
       containerRef.current = container;
@@ -91,6 +112,33 @@ export function PracticeScoreViewer({
     activeStepGroup,
     stepPlayheadController,
     lifecycle,
+    renderRevision,
+    sessionMode,
+    xmlContent,
+  ]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (
+      !container ||
+      sessionMode !== 'CONTINUOUS_PLAY' ||
+      !xmlContent ||
+      renderRevision === 0
+    ) {
+      if (container) {
+        annotationController.clear(container);
+      }
+      return;
+    }
+
+    annotationController.apply(
+      container,
+      noteAnnotationsFromPerformanceOutcomes(performanceOutcomes)
+    );
+  }, [
+    annotationController,
+    performanceAnnotationSignature,
+    performanceOutcomes,
     renderRevision,
     sessionMode,
     xmlContent,
@@ -265,6 +313,16 @@ export function PracticeScoreViewer({
           fill: rgb(148 163 184 / 20%);
           stroke: rgb(100 116 139 / 44%);
           filter: drop-shadow(0 0 4px rgb(100 116 139 / 18%));
+        }
+        .practice-score-svg .practice-summary-note-confirmed-correct {
+          fill: #16a34a !important;
+          stroke: #15803d !important;
+          opacity: 1 !important;
+        }
+        .practice-score-svg .practice-summary-note-confirmed-error {
+          fill: #dc2626 !important;
+          stroke: #b91c1c !important;
+          opacity: 1 !important;
         }
         .practice-score-svg svg {
           display: block;

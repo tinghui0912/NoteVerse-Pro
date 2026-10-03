@@ -47,7 +47,10 @@ import {
   mediaTimeToPerformanceTimeMs,
 } from '@/lib/practice/completed-performance';
 import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
-import { PerformanceAnnotationController } from '@/lib/practice/performance-annotation-controller';
+import {
+  PerformanceAnnotationController,
+  noteAnnotationsFromPerformanceOutcomes,
+} from '@/lib/practice/performance-annotation-controller';
 import { PracticeTempoTimeline } from '@/lib/practice/local-core/practice-tempo';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/local-core/practice-tempo';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/local-core/artifact';
@@ -218,44 +221,14 @@ export default function PracticeReviewPage({
   const [isShareStudioOpen, setIsShareStudioOpen] = useState(false);
   const [isShareExporting, setIsShareExporting] = useState(false);
 
-  const confirmedCorrectNoteIds = useMemo(() => {
+  const scoreNoteAnnotations = useMemo(() => {
     if (!isScoreIdentityConfirmed || !draft?.evaluation) {
-      return [];
+      return {
+        confirmedCorrectNoteIds: [],
+        confirmedErrorNoteIds: [],
+      };
     }
-    const outcomes = draft.evaluation.outcomes;
-    const ids: string[] = [];
-    for (const o of outcomes) {
-      if (o.expectedStrikeOutcomes && o.expectedStrikeOutcomes.length > 0) {
-        for (const s of o.expectedStrikeOutcomes) {
-          if (s.result === 'MATCHED' && s.renderNoteIds) {
-            ids.push(...s.renderNoteIds);
-          }
-        }
-      } else if (o.result === 'MATCH' && o.renderNoteIds) {
-        ids.push(...o.renderNoteIds);
-      }
-    }
-    return ids;
-  }, [draft, isScoreIdentityConfirmed]);
-
-  const confirmedErrorNoteIds = useMemo(() => {
-    if (!isScoreIdentityConfirmed || !draft?.evaluation) {
-      return [];
-    }
-    const outcomes = draft.evaluation.outcomes;
-    const ids: string[] = [];
-    for (const o of outcomes) {
-      if (o.expectedStrikeOutcomes && o.expectedStrikeOutcomes.length > 0) {
-        for (const s of o.expectedStrikeOutcomes) {
-          if (s.result === 'MISSING' && s.renderNoteIds) {
-            ids.push(...s.renderNoteIds);
-          }
-        }
-      } else if (o.result === 'MISMATCH' && o.renderNoteIds) {
-        ids.push(...o.renderNoteIds);
-      }
-    }
-    return ids;
+    return noteAnnotationsFromPerformanceOutcomes(draft.evaluation.outcomes);
   }, [draft, isScoreIdentityConfirmed]);
 
   const handleScoreRendered = useCallback(
@@ -273,11 +246,11 @@ export default function PracticeReviewPage({
         return;
       }
       annotationController.apply(container, {
-        confirmedCorrectNoteIds,
-        confirmedErrorNoteIds,
+        confirmedCorrectNoteIds: scoreNoteAnnotations.confirmedCorrectNoteIds,
+        confirmedErrorNoteIds: scoreNoteAnnotations.confirmedErrorNoteIds,
       });
     },
-    [annotationController, confirmedCorrectNoteIds, confirmedErrorNoteIds, isScoreIdentityConfirmed]
+    [annotationController, isScoreIdentityConfirmed, scoreNoteAnnotations]
   );
 
   const handleReplayTimeChange = useCallback(
@@ -349,8 +322,13 @@ export default function PracticeReviewPage({
         confirmedErrorNoteIds: [],
       });
       playheadController.clear(container);
+      return;
     }
-  }, [annotationController, isScoreIdentityConfirmed, playheadController]);
+    annotationController.apply(container, {
+      confirmedCorrectNoteIds: scoreNoteAnnotations.confirmedCorrectNoteIds,
+      confirmedErrorNoteIds: scoreNoteAnnotations.confirmedErrorNoteIds,
+    });
+  }, [annotationController, isScoreIdentityConfirmed, playheadController, scoreNoteAnnotations]);
 
   const replay = useMemo<PlayablePerformanceReplay | null>(() => {
     if (!draft) {

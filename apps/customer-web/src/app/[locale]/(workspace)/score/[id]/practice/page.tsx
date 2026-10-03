@@ -537,6 +537,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                     sessionMode={practiceMode}
                     activeStepGroup={localPractice.activeStepGroup}
                     performanceMusicalBeat={localPractice.performanceClock?.musicalBeat ?? null}
+                    performanceOutcomes={localPractice.performanceOutcomes}
                     performanceScope={
                       localPractice.performanceClock
                         ? rangeSelection.kind === 'RANGE' || rangeSelection.kind === 'SELECTING_END'

@@ -1,3 +1,5 @@
+import type { PerformanceExpectedEventOutcome } from './local-core/evidence';
+
 function escapeCssId(id: string) {
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
     return CSS.escape(id);
@@ -58,4 +60,33 @@ export class PerformanceAnnotationController {
       this.annotatedNoteIds.push(noteId);
     }
   }
+}
+
+export function noteAnnotationsFromPerformanceOutcomes(
+  outcomes: readonly PerformanceExpectedEventOutcome[]
+): {
+  confirmedCorrectNoteIds: string[];
+  confirmedErrorNoteIds: string[];
+} {
+  const confirmedCorrectNoteIds: string[] = [];
+  const confirmedErrorNoteIds: string[] = [];
+  for (const outcome of outcomes) {
+    if (outcome.expectedStrikeOutcomes.length > 0) {
+      for (const strike of outcome.expectedStrikeOutcomes) {
+        if (strike.result === 'MATCHED') {
+          confirmedCorrectNoteIds.push(...strike.renderNoteIds);
+        } else if (strike.result === 'MISSING') {
+          confirmedErrorNoteIds.push(...strike.renderNoteIds);
+        }
+      }
+      continue;
+    }
+
+    if (outcome.result === 'MATCH') {
+      confirmedCorrectNoteIds.push(...outcome.renderNoteIds);
+    } else if (outcome.result === 'MISMATCH') {
+      confirmedErrorNoteIds.push(...outcome.renderNoteIds);
+    }
+  }
+  return { confirmedCorrectNoteIds, confirmedErrorNoteIds };
 }
