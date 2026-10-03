@@ -358,9 +358,88 @@ describe('live ByteDance rolling pipeline', () => {
 
     await expect(drainPromise).resolves.toMatchObject({
       status: 'covered',
+      requestedThrough: { domainId: 'capture-domain', sampleIndex: 2400 },
     });
     expect(worker.requests.map((request) => request.captureStartSampleIndex)).toEqual([-25_600, -23_200]);
     expect(emitted.map((item) => item.pitch)).toContain('D4');
+  });
+
+  it('reports the requested cutoff as covered when drain requires a post-roll anchor', async () => {
+    const timebase = new PracticeTimebase({ domainId: 'capture-domain', sampleRateHz: 16_000 });
+    const worker = new FakeWorker();
+    worker.inferImpl = async (request) => ({
+      requestId: request.requestId,
+      events: [],
+    });
+    const pipeline = new LiveByteDanceRollingPipeline({
+      ...pipelineOptions({
+        sessionTimebase: timebase,
+        workerClient: workerCast(worker),
+      }),
+    });
+
+    await pipeline.start();
+    pipeline.appendNormalizedPcm(fill(5920), 0);
+    const cutoff = anchor('capture-domain', 156.3125, 2501);
+
+    await expect(pipeline.drainThrough(cutoff)).resolves.toMatchObject({
+      status: 'covered',
+      requestedThrough: cutoff,
+    });
+    expect(worker.requests.map((request) => request.captureStartSampleIndex)).toEqual([-23_200]);
+  });
+
+  it('publishes trusted coverage after evidence for the same inference result', async () => {
+    const timebase = new PracticeTimebase({ domainId: 'capture-domain', sampleRateHz: 16_000 });
+    const worker = new FakeWorker();
+    const calls: string[] = [];
+    worker.inferImpl = async (request) => ({
+      requestId: request.requestId,
+      events: [event({ pitch: 'C4', midiPitch: 60, sampleIndex: 2400, timebase })],
+    });
+    const pipeline = new LiveByteDanceRollingPipeline({
+      ...pipelineOptions({
+        sessionTimebase: timebase,
+        workerClient: workerCast(worker),
+        evidenceSink: {
+          onPerformanceEvidence: () => calls.push('evidence'),
+          onPerformanceCoverage: (coverage) => calls.push(`coverage:${coverage.intervals.length}`),
+        },
+      }),
+    });
+
+    await pipeline.start();
+    pipeline.appendNormalizedPcm(fill(5920), 0);
+    await pipeline.drainThrough(anchor('capture-domain', 150, 2400));
+
+    expect(calls[0]).toBe('evidence');
+    expect(calls).toContain('coverage:1');
+  });
+
+  it('publishes trusted coverage for empty inference results', async () => {
+    const timebase = new PracticeTimebase({ domainId: 'capture-domain', sampleRateHz: 16_000 });
+    const worker = new FakeWorker();
+    const calls: string[] = [];
+    worker.inferImpl = async (request) => ({
+      requestId: request.requestId,
+      events: [],
+    });
+    const pipeline = new LiveByteDanceRollingPipeline({
+      ...pipelineOptions({
+        sessionTimebase: timebase,
+        workerClient: workerCast(worker),
+        evidenceSink: {
+          onPerformanceEvidence: () => calls.push('evidence'),
+          onPerformanceCoverage: (coverage) => calls.push(`coverage:${coverage.intervals.length}`),
+        },
+      }),
+    });
+
+    await pipeline.start();
+    pipeline.appendNormalizedPcm(fill(5920), 0);
+    await pipeline.drainThrough(anchor('capture-domain', 150, 2400));
+
+    expect(calls).toEqual(['coverage:1']);
   });
 
   it('reports incomplete drain without pretending the requested cutoff was covered', async () => {
@@ -387,7 +466,14 @@ describe('live ByteDance rolling pipeline', () => {
     ).resolves.toMatchObject({
       status: 'incomplete',
       reason: 'TIMEOUT',
-      coveredThrough: { domainId: 'capture-domain', sampleIndex: 0 },
+      coverage: {
+        intervals: [
+          {
+            startSampleIndex: -800,
+            endSampleIndex: 1920,
+          },
+        ],
+      },
     });
   });
 

@@ -13,7 +13,8 @@ const micMock = vi.hoisted(() => ({
   stop: vi.fn(async () => {}),
   drainThrough: vi.fn(async (cutoff) => ({
     status: 'covered' as const,
-    coveredThrough: cutoff,
+    requestedThrough: cutoff,
+    coverage: { intervals: [] },
   })),
   inferenceCoverageTime: vi.fn(() => null),
   onFatalError: null as ((err: Error) => void) | null,

@@ -27,6 +27,8 @@ export const BYTEDANCE_ROLLING_ANCHOR_STEP_SAMPLES = 2400;
 const MODEL_SAMPLE_RATE_HZ = BYTEDANCE_INFERENCE_CONTRACT.sampleRateHz;
 const FUTURE_SAMPLES = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.futureMs);
 const TARGET_ANCHOR_SAMPLES = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.targetAnchorMs);
+const TRUSTED_ABSENCE_PRE_SAMPLES = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.localPreMs);
+const TRUSTED_ABSENCE_POST_SAMPLES = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.localPostMs);
 const MODEL_WINDOW_SAMPLES = BYTEDANCE_INPUT_DESCRIPTOR.shape[1];
 const DEFAULT_DRAIN_TIMEOUT_MS = 5_000;
 
@@ -62,6 +64,7 @@ type LiveByteDanceEvidenceSink = {
   onAcousticEvents?(events: readonly AcousticNoteEvent[]): void;
   onStepObservation?(observation: StepVerifierObservation): void;
   onPerformanceEvidence?(observations: readonly PerformanceEvidenceObservation[]): void;
+  onPerformanceCoverage?(coverage: AcousticCoverageSnapshot): void;
   currentStepTarget?(): StepVerifierTarget | null;
 };
 
@@ -353,13 +356,72 @@ export class RollingInferenceScheduler {
 export type InferenceDrainResult =
   | {
       status: 'covered';
-      coveredThrough: SessionTime;
+      requestedThrough: SessionTime;
+      coverage: AcousticCoverageSnapshot;
     }
   | {
       status: 'incomplete';
-      coveredThrough: SessionTime | null;
+      requestedThrough: SessionTime;
+      coverage: AcousticCoverageSnapshot;
       reason: 'TIMEOUT' | 'INFERENCE_ERROR' | 'CAPTURE_ENDED';
     };
+
+export type CaptureCoverageInterval = {
+  startSampleIndex: number;
+  endSampleIndex: number;
+};
+
+export type AcousticCoverageSnapshot = {
+  intervals: readonly CaptureCoverageInterval[];
+};
+
+class AcousticCoverageAccumulator {
+  private intervals: CaptureCoverageInterval[] = [];
+
+  snapshot(): AcousticCoverageSnapshot {
+    return {
+      intervals: this.intervals.map((interval) => ({ ...interval })),
+    };
+  }
+
+  reset(): void {
+    this.intervals = [];
+  }
+
+  add(interval: CaptureCoverageInterval): AcousticCoverageSnapshot {
+    if (
+      !Number.isFinite(interval.startSampleIndex)
+      || !Number.isFinite(interval.endSampleIndex)
+      || interval.endSampleIndex < interval.startSampleIndex
+    ) {
+      throw new Error('Trusted acoustic coverage interval must be finite and ordered.');
+    }
+    const ordered = [...this.intervals, { ...interval }]
+      .sort((a, b) => a.startSampleIndex - b.startSampleIndex);
+    const merged: CaptureCoverageInterval[] = [];
+    for (const item of ordered) {
+      const previous = merged[merged.length - 1];
+      if (!previous || item.startSampleIndex > previous.endSampleIndex) {
+        merged.push({ ...item });
+        continue;
+      }
+      previous.endSampleIndex = Math.max(previous.endSampleIndex, item.endSampleIndex);
+    }
+    this.intervals = merged;
+    return this.snapshot();
+  }
+
+  coversSample(sampleIndex: number): boolean {
+    return this.intervals.some((interval) =>
+      interval.startSampleIndex <= sampleIndex && sampleIndex <= interval.endSampleIndex
+    );
+  }
+
+  latestCoveredSampleIndex(): number | null {
+    const last = this.intervals[this.intervals.length - 1];
+    return last ? last.endSampleIndex : null;
+  }
+}
 
 export class LiveByteDanceRollingPipeline {
   private readonly ring: BoundedPcmSampleRing;
@@ -370,7 +432,7 @@ export class LiveByteDanceRollingPipeline {
   private worker: ByteDanceBrowserWorkerClient | null = null;
   private lifecycleTimebase: PracticeTimebase;
   private lifecycleStartSampleIndex = 0;
-  private completedCoverageAnchorSampleIndex: number | null = null;
+  private readonly coverage = new AcousticCoverageAccumulator();
   private generation = 0;
   private fixedWorkerConsumed = false;
   private fatalErrorNotified = false;
@@ -436,12 +498,17 @@ export class LiveByteDanceRollingPipeline {
   }
 
   inferenceCoverageSessionTime(): SessionTime | null {
-    if (this.completedCoverageAnchorSampleIndex === null) {
+    const latestCoveredSampleIndex = this.coverage.latestCoveredSampleIndex();
+    if (latestCoveredSampleIndex === null) {
       return null;
     }
     return this.lifecycleTimebase.sampleIndexToSessionTime(
-      this.completedCoverageAnchorSampleIndex
+      latestCoveredSampleIndex
     );
+  }
+
+  acousticCoverageSnapshot(): AcousticCoverageSnapshot {
+    return this.coverage.snapshot();
   }
 
   appendNormalizedPcm(samples: Float32Array, startSampleIndex = this.ring.endSampleIndex): void {
@@ -469,28 +536,30 @@ export class LiveByteDanceRollingPipeline {
       this.lifecycleTimebase.sampleIndexToSessionTime(this.lifecycleStartSampleIndex)
     );
     const cutoffSampleIndex = sampleIndexForSessionTime(cutoff);
-    const targetAnchorSampleIndex =
-      Math.ceil(cutoffSampleIndex / this.scheduler.anchorStepSamples)
-      * this.scheduler.anchorStepSamples;
+    const targetAnchorSampleIndex = this.anchorNeededToCover(cutoffSampleIndex);
     const startedAt = this.options.nowMs?.() ?? globalThis.performance?.now?.() ?? Date.now();
 
-    while ((this.completedCoverageAnchorSampleIndex ?? -Infinity) < targetAnchorSampleIndex) {
+    while (!this.coverage.coversSample(cutoffSampleIndex)) {
       if (this.state.state === 'error') {
         return {
           status: 'incomplete',
-          coveredThrough: this.inferenceCoverageSessionTime(),
+          requestedThrough: cutoff,
+          coverage: this.coverage.snapshot(),
           reason: 'INFERENCE_ERROR',
         };
       }
-      const ready = this.scheduler.nextReadyAnchor(this.ring.endSampleIndex);
-      if (ready !== null) {
+      const ready = this.coverage.coversSample(targetAnchorSampleIndex)
+        ? this.scheduler.nextReadyAnchor(this.ring.endSampleIndex)
+        : targetAnchorSampleIndex;
+      if (ready !== null && this.canSubmitAnchor(ready)) {
         void this.submitAnchor(ready);
       }
       const now = this.options.nowMs?.() ?? globalThis.performance?.now?.() ?? Date.now();
       if (now - startedAt > timeoutMs) {
         return {
           status: 'incomplete',
-          coveredThrough: this.inferenceCoverageSessionTime(),
+          requestedThrough: cutoff,
+          coverage: this.coverage.snapshot(),
           reason: 'TIMEOUT',
         };
       }
@@ -498,7 +567,8 @@ export class LiveByteDanceRollingPipeline {
     }
     return {
       status: 'covered',
-      coveredThrough: this.inferenceCoverageSessionTime() ?? cutoff,
+      requestedThrough: cutoff,
+      coverage: this.coverage.snapshot(),
     };
   }
 
@@ -543,10 +613,8 @@ export class LiveByteDanceRollingPipeline {
         return;
       }
       this.emitResult(result);
-      this.completedCoverageAnchorSampleIndex = Math.max(
-        this.completedCoverageAnchorSampleIndex ?? anchorSampleIndex,
-        anchorSampleIndex
-      );
+      const coverage = this.coverage.add(trustedAbsenceCoverageIntervalForAnchor(anchorSampleIndex));
+      this.options.evidenceSink?.onPerformanceCoverage?.(coverage);
     } catch (error) {
       if (generation === this.generation) {
         await this.failLifecycle(error);
@@ -607,6 +675,24 @@ export class LiveByteDanceRollingPipeline {
     }
   }
 
+  private anchorNeededToCover(sampleIndex: number): number {
+    const earliestAnchor = sampleIndex - TRUSTED_ABSENCE_POST_SAMPLES;
+    return Math.max(
+      this.lifecycleStartSampleIndex,
+      Math.ceil(earliestAnchor / this.scheduler.anchorStepSamples)
+        * this.scheduler.anchorStepSamples
+    );
+  }
+
+  private canSubmitAnchor(anchorSampleIndex: number): boolean {
+    if (this.scheduler.activeAnchorSampleIndex !== null) {
+      return false;
+    }
+    const windowStart = anchorSampleIndex - TARGET_ANCHOR_SAMPLES;
+    const windowEnd = windowStart + MODEL_WINDOW_SAMPLES;
+    return this.ring.hasRange(windowStart, windowEnd);
+  }
+
   private createWorker(): ByteDanceBrowserWorkerClient {
     if (this.options.workerClient) {
       if (this.fixedWorkerConsumed) {
@@ -648,7 +734,7 @@ export class LiveByteDanceRollingPipeline {
 
   private async cleanupResources(activeInferenceReason: string): Promise<void> {
     this.scheduler.reset();
-    this.completedCoverageAnchorSampleIndex = null;
+    this.coverage.reset();
     this.normalizer.reset();
     this.ring.reset(this.lifecycleStartSampleIndex);
     const worker = this.worker;
@@ -767,7 +853,8 @@ export class BrowserMicrophoneCaptureController {
     if (!lc?.pipeline || lc.cancelled || this.state.state !== 'running') {
       return {
         status: 'incomplete',
-        coveredThrough: null,
+        requestedThrough: cutoff,
+        coverage: lc?.pipeline?.acousticCoverageSnapshot() ?? { intervals: [] },
         reason: 'CAPTURE_ENDED',
       };
     }
@@ -1020,6 +1107,13 @@ function sampleIndexForSessionTime(time: SessionTime): number {
 
 function millisecondsToSamples(milliseconds: number): number {
   return Math.round(milliseconds / 1000 * MODEL_SAMPLE_RATE_HZ);
+}
+
+function trustedAbsenceCoverageIntervalForAnchor(anchorSampleIndex: number): CaptureCoverageInterval {
+  return {
+    startSampleIndex: anchorSampleIndex - TRUSTED_ABSENCE_PRE_SAMPLES,
+    endSampleIndex: anchorSampleIndex + TRUSTED_ABSENCE_POST_SAMPLES,
+  };
 }
 
 function waitForDrainTick(): Promise<void> {

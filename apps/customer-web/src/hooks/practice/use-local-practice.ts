@@ -406,16 +406,21 @@ export function useLocalPractice({
 
   const drainPerformanceInference = useCallback(async (runtime: PerformancePracticeRuntime) => {
     setIsFinalizingRecording(true);
-    const mic = micControllerRef.current;
     const completionCaptureTime = runtime.completionCaptureTime();
-    if (!mic) {
+    const sessionSnapshot = runtime.snapshotSession();
+    if (sessionSnapshot.inputSource === 'MIDI') {
       runtime.markEvaluationCoverageThrough(completionCaptureTime);
       setPerformanceOutcomes(runtime.evaluationOutcomes);
       return;
     }
+    const mic = micControllerRef.current;
+    if (!mic) {
+      setPerformanceOutcomes(runtime.evaluationOutcomes);
+      return;
+    }
     const drainResult = await mic.drainThrough(completionCaptureTime);
-    if (drainResult.coveredThrough) {
-      runtime.markEvaluationCoverageThrough(drainResult.coveredThrough);
+    if (drainResult.status === 'covered') {
+      runtime.markEvaluationCoverageThrough(drainResult.requestedThrough);
     }
     setPerformanceOutcomes(runtime.evaluationOutcomes);
   }, []);
@@ -471,30 +476,20 @@ export function useLocalPractice({
       for (const obs of observations) {
         runtime.observeEvidence(obs);
       }
-      const micCoverageTime = micControllerRef.current?.inferenceCoverageTime() ?? null;
-      if (micCoverageTime) {
-        runtime.markEvaluationCoverageThrough(micCoverageTime);
-      } else if (
-        observations.length > 0 &&
-        observations.every((obs) => obs.source === 'MIDI')
-      ) {
-        let latestMidiCaptureTime = observations[0]?.captureTime ?? null;
-        for (const observation of observations) {
-          if (
-            !latestMidiCaptureTime ||
-            observation.captureTime.ms > latestMidiCaptureTime.ms
-          ) {
-            latestMidiCaptureTime = observation.captureTime;
-          }
-        }
-        if (latestMidiCaptureTime) {
-          runtime.markEvaluationCoverageThrough(latestMidiCaptureTime);
-        }
-      }
       setPerformanceOutcomes(runtime.evaluationOutcomes);
     },
     []
   );
+
+  const handlePerformanceCoverage = useCallback(() => {
+    const runtime = performanceRuntimeRef.current;
+    const micCoverageTime = micControllerRef.current?.inferenceCoverageTime() ?? null;
+    if (!runtime || !micCoverageTime) {
+      return;
+    }
+    runtime.markEvaluationCoverageThrough(micCoverageTime);
+    setPerformanceOutcomes(runtime.evaluationOutcomes);
+  }, []);
 
   // Performance continuous animation loop
   const runPerformanceLoop = useCallback(() => {
@@ -508,6 +503,10 @@ export function useLocalPractice({
 
       const clockSnapshot = runtime.snapshot();
       setPerformanceClock(clockSnapshot);
+      if (inputSource === 'MIDI' && clockSnapshot.state === 'RUNNING') {
+        runtime.markEvaluationCoverageThrough(runtime.timebase.atSessionMs(clockSnapshot.nowMs));
+        setPerformanceOutcomes(runtime.evaluationOutcomes);
+      }
 
       if (
         clockSnapshot.state === 'RUNNING' &&
@@ -544,7 +543,7 @@ export function useLocalPractice({
     };
 
     animationFrameRef.current = requestAnimationFrame(loop);
-  }, [drainPerformanceInference, handleNaturalCompletion, stopAnimationLoop]);
+  }, [drainPerformanceInference, handleNaturalCompletion, inputSource, stopAnimationLoop]);
 
   // Fatal input error handler
   const handleFatalInputError = useCallback((errorMessage: string) => {
@@ -631,6 +630,7 @@ export function useLocalPractice({
             currentStepTarget: () => stepRuntimeRef.current?.currentTarget() ?? null,
             onStepObservation: (obs) => handleStepObservation(obs),
             onPerformanceEvidence: (evidences) => handlePerformanceEvidence(evidences),
+            onPerformanceCoverage: () => handlePerformanceCoverage(),
           },
           onFatalError: (fatalError) => {
             handleFatalInputError(fatalError.message);
@@ -779,6 +779,7 @@ export function useLocalPractice({
     cameraMediaStream,
     cameraRecordingEnabled,
     handleFatalInputError,
+    handlePerformanceCoverage,
     handlePerformanceEvidence,
     handleStepObservation,
     installRecorderHandlers,
