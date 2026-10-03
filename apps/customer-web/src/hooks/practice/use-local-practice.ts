@@ -402,6 +402,14 @@ export function useLocalPractice({
     [artifact, resolvedTempoPlan, scope]
   );
 
+  const drainPerformanceInference = useCallback(async (runtime: PerformancePracticeRuntime) => {
+    const mic = micControllerRef.current;
+    if (!mic) {
+      return;
+    }
+    await mic.drainThrough(runtime.completionCaptureTime());
+  }, []);
+
   // Handle natural completion
   const handleNaturalCompletion = useCallback(
     async (snapshot: LocalPracticeSessionSnapshot) => {
@@ -447,7 +455,7 @@ export function useLocalPractice({
   const handlePerformanceEvidence = useCallback(
     (observations: readonly PerformanceEvidenceObservation[]) => {
       const runtime = performanceRuntimeRef.current;
-      if (!runtime || runtime.snapshot().state !== 'RUNNING') {
+      if (!runtime) {
         return;
       }
       for (const obs of observations) {
@@ -491,8 +499,11 @@ export function useLocalPractice({
       }
 
       if (clockSnapshot.state === 'ENDED') {
-        const sessionSnapshot = runtime.snapshotSession();
-        void handleNaturalCompletion(sessionSnapshot);
+        void (async () => {
+          await drainPerformanceInference(runtime);
+          const sessionSnapshot = runtime.snapshotSession();
+          await handleNaturalCompletion(sessionSnapshot);
+        })();
         return;
       }
 
@@ -502,7 +513,7 @@ export function useLocalPractice({
     };
 
     animationFrameRef.current = requestAnimationFrame(loop);
-  }, [handleNaturalCompletion, stopAnimationLoop]);
+  }, [drainPerformanceInference, handleNaturalCompletion, stopAnimationLoop]);
 
   // Fatal input error handler
   const handleFatalInputError = useCallback((errorMessage: string) => {
@@ -909,6 +920,7 @@ export function useLocalPractice({
       const runtime = performanceRuntimeRef.current;
       if (runtime) {
         runtime.end('STOPPED_BY_USER');
+        await drainPerformanceInference(runtime);
         snapshot = runtime.snapshotSession();
       }
     }
@@ -926,7 +938,7 @@ export function useLocalPractice({
     void teardownInputs().then(() => {
       setInputState('IDLE');
     });
-  }, [finalizeRecordingAndBuildDraft, mode, stopAnimationLoop, stopTimer, teardownInputs]);
+  }, [drainPerformanceInference, finalizeRecordingAndBuildDraft, mode, stopAnimationLoop, stopTimer, teardownInputs]);
 
   // Skip (for STEP mode)
   const skip = useCallback(() => {

@@ -28,6 +28,7 @@ const MODEL_SAMPLE_RATE_HZ = BYTEDANCE_INFERENCE_CONTRACT.sampleRateHz;
 const FUTURE_SAMPLES = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.futureMs);
 const TARGET_ANCHOR_SAMPLES = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.targetAnchorMs);
 const MODEL_WINDOW_SAMPLES = BYTEDANCE_INPUT_DESCRIPTOR.shape[1];
+const DEFAULT_DRAIN_TIMEOUT_MS = 5_000;
 
 type LiveCaptureStateName =
   | 'idle'
@@ -357,6 +358,7 @@ export class LiveByteDanceRollingPipeline {
   private worker: ByteDanceBrowserWorkerClient | null = null;
   private lifecycleTimebase: PracticeTimebase;
   private lifecycleStartSampleIndex = 0;
+  private completedCoverageAnchorSampleIndex: number | null = null;
   private generation = 0;
   private fixedWorkerConsumed = false;
   private fatalErrorNotified = false;
@@ -436,6 +438,35 @@ export class LiveByteDanceRollingPipeline {
     }
   }
 
+  async drainThrough(cutoff: SessionTime, timeoutMs = DEFAULT_DRAIN_TIMEOUT_MS): Promise<boolean> {
+    this.assertRunning();
+    this.lifecycleTimebase.assertSameSessionTimeDomain(
+      cutoff,
+      this.lifecycleTimebase.sampleIndexToSessionTime(this.lifecycleStartSampleIndex)
+    );
+    const cutoffSampleIndex = sampleIndexForSessionTime(cutoff);
+    const targetAnchorSampleIndex =
+      Math.ceil(cutoffSampleIndex / this.scheduler.anchorStepSamples)
+      * this.scheduler.anchorStepSamples;
+    const startedAt = this.options.nowMs?.() ?? globalThis.performance?.now?.() ?? Date.now();
+
+    while ((this.completedCoverageAnchorSampleIndex ?? -Infinity) < targetAnchorSampleIndex) {
+      if (this.state.state === 'error') {
+        return false;
+      }
+      const ready = this.scheduler.nextReadyAnchor(this.ring.endSampleIndex);
+      if (ready !== null) {
+        void this.submitAnchor(ready);
+      }
+      const now = this.options.nowMs?.() ?? globalThis.performance?.now?.() ?? Date.now();
+      if (now - startedAt > timeoutMs) {
+        return false;
+      }
+      await waitForDrainTick();
+    }
+    return true;
+  }
+
   async stop(): Promise<void> {
     if (this.state.state === 'disposed') {
       return;
@@ -477,6 +508,10 @@ export class LiveByteDanceRollingPipeline {
         return;
       }
       this.emitResult(result);
+      this.completedCoverageAnchorSampleIndex = Math.max(
+        this.completedCoverageAnchorSampleIndex ?? anchorSampleIndex,
+        anchorSampleIndex
+      );
     } catch (error) {
       if (generation === this.generation) {
         await this.failLifecycle(error);
@@ -578,6 +613,7 @@ export class LiveByteDanceRollingPipeline {
 
   private async cleanupResources(activeInferenceReason: string): Promise<void> {
     this.scheduler.reset();
+    this.completedCoverageAnchorSampleIndex = null;
     this.normalizer.reset();
     this.ring.reset(this.lifecycleStartSampleIndex);
     const worker = this.worker;
@@ -689,6 +725,14 @@ export class BrowserMicrophoneCaptureController {
 
   get mediaStream(): MediaStream | null {
     return this.currentLifecycle?.mediaStream ?? null;
+  }
+
+  async drainThrough(cutoff: SessionTime): Promise<boolean> {
+    const lc = this.currentLifecycle;
+    if (!lc?.pipeline || lc.cancelled || this.state.state !== 'running') {
+      return false;
+    }
+    return lc.pipeline.drainThrough(cutoff);
   }
 
   async start(): Promise<void> {
@@ -933,4 +977,10 @@ function sampleIndexForSessionTime(time: SessionTime): number {
 
 function millisecondsToSamples(milliseconds: number): number {
   return Math.round(milliseconds / 1000 * MODEL_SAMPLE_RATE_HZ);
+}
+
+function waitForDrainTick(): Promise<void> {
+  return new Promise((resolve) => {
+    globalThis.setTimeout(resolve, 0);
+  });
 }

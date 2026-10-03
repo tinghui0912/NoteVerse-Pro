@@ -416,9 +416,13 @@ describe('local CONTINUOUS practice runtime', () => {
     });
     runtime.start();
     runtime.observeEvidence(performanceEvidence('performance-eval', 0, ['C4']));
+    clock.advance(500);
     runtime.observeEvidence(performanceEvidence('performance-eval', 500, ['C4']));
+    clock.advance(500);
     runtime.observeEvidence(performanceEvidence('performance-eval', 1_000, ['G4']));
+    clock.advance(500);
     runtime.observeEvidence(performanceEvidence('performance-eval', 1_500, ['A4'], 'MIDI', { confidence: 0.8 }));
+    clock.advance(200);
     runtime.observeEvidence(performanceEvidence('performance-eval', 1_700, ['D#5'], 'MIDI', { confidence: 0.7 }));
 
     const outcomes = runtime.evaluationOutcomes;
@@ -444,6 +448,7 @@ describe('local CONTINUOUS practice runtime', () => {
       localSessionId: 'performance-partial',
     });
     partial.start();
+    (partial as unknown as { clock: ManualClock }).clock.advance(1_500);
     partial.observeEvidence(performanceEvidence('performance-partial', 1_500, ['A4']));
     expect(partial.evaluationOutcomes[3]).toMatchObject({
       result: 'PARTIAL',
@@ -587,6 +592,7 @@ describe('local CONTINUOUS practice runtime', () => {
     expect(restored.evaluationObservations[0]?.source).toBe('MIDI');
     expect(restored.evaluationOutcomes).toEqual(uninterruptedOutcomes);
     restored.resume();
+    (restored as unknown as { clock: ManualClock }).clock.advance(500);
     restored.observeEvidence(performanceEvidence('performance-persist-midi', 10_500, ['C4']));
     expect(restored.evaluationObservations.map((item) => item.source)).toEqual(['MIDI', 'MIDI']);
   });
@@ -702,6 +708,7 @@ describe('local session foundation', () => {
       timebase: midiTimebase,
     });
     performance.start();
+    (performance as unknown as { clock: ManualClock }).clock.advance(500);
     const evaluated = performance.observeEvidence({
       captureTime: midiTimebase.midiEventToSessionTime(500),
       pitches: ['C4'],
@@ -836,7 +843,7 @@ describe('local session foundation', () => {
     expect(naturalSnapshot.completionReason).toBe('SCOPE_COMPLETED');
   });
 
-  it('rejects observeEvidence when performance runtime is not RUNNING', () => {
+  it('accepts evidence by capture-time performance membership rather than callback-time runtime state', () => {
     const clock = new ManualClock(0);
     const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
     const runtime = new PerformancePracticeRuntime({ artifact, tempoPlan, scope: { kind: 'FULL' }, clock, countInBeats: 3 });
@@ -850,19 +857,26 @@ describe('local session foundation', () => {
     expect(runtime.observeEvidence(evidence)).toBeNull();
 
     // Advance past count-in into RUNNING
-    clock.advance(runtime.snapshot().countInTotalMs + 10);
+    const countInTotalMs = runtime.snapshot().countInTotalMs;
+    clock.advance(countInTotalMs + 10);
     expect(runtime.snapshot().state).toBe('RUNNING');
-    expect(runtime.observeEvidence(evidence)).not.toBeNull();
+    clock.advance(90);
+    const runningEvidence = performanceEvidence(runtime.timebase.domainId, countInTotalMs + 100, ['C4']);
+    expect(runtime.observeEvidence(runningEvidence)).not.toBeNull();
 
     // Pause: state is PAUSED
     runtime.pause();
     expect(runtime.snapshot().state).toBe('PAUSED');
-    expect(runtime.observeEvidence(evidence)).toBeNull();
+    expect(runtime.observeEvidence(performanceEvidence(runtime.timebase.domainId, countInTotalMs + 200, ['C4']))).toBeNull();
+    runtime.resume();
+    clock.advance(500);
+    const lateRunningEvidence = performanceEvidence(runtime.timebase.domainId, countInTotalMs + 250, ['C4']);
 
     // End: state is ENDED
     runtime.end('STOPPED_BY_USER');
     expect(runtime.snapshot().state).toBe('ENDED');
-    expect(runtime.observeEvidence(evidence)).toBeNull();
+    expect(runtime.observeEvidence(lateRunningEvidence)).not.toBeNull();
+    expect(runtime.observeEvidence(performanceEvidence(runtime.timebase.domainId, clock.nowMs() + 100, ['C4']))).toBeNull();
   });
 
   it('provides deterministic countInPulse and handles multi-tempo segments correctly', () => {

@@ -13,7 +13,7 @@ import type {
   PerformanceEvidenceObservation,
   PerformanceExpectedEventOutcome,
 } from './evidence';
-import { PracticeTimebase, type DurableClock, type LocalClock, type RuntimeVersionIdentity } from './timebase';
+import { PracticeTimebase, type DurableClock, type LocalClock, type RuntimeVersionIdentity, type SessionTime } from './timebase';
 import {
   createLocalSessionId,
   type LocalPerformanceSessionSnapshot,
@@ -229,11 +229,11 @@ export class PerformancePracticeRuntime {
   }
 
   observeEvidence(observation: PerformanceEvidenceObservation): PerformanceEvaluationObservation | null {
-    if (this.state !== 'RUNNING') {
-      return null;
-    }
     this.timebase.assertSameSessionTimeDomain(observation.captureTime, this.timebase.atSessionMs(0));
     const performanceTimeMs = this.performanceTimeAtCapture(observation.captureTime.ms);
+    if (performanceTimeMs === null) {
+      return null;
+    }
     const evaluated: PerformanceEvaluationObservation = {
       ...observation,
       performanceTimeMs,
@@ -242,6 +242,14 @@ export class PerformancePracticeRuntime {
     this.observations.push(evaluated);
     this.outcomes = this.evaluator.evaluate(this.observations);
     return evaluated;
+  }
+
+  completionCaptureTime(): SessionTime {
+    const targetActiveElapsedMs = Math.min(
+      this.activeElapsedMs,
+      this.countInMs + this.scopeDurationMs()
+    );
+    return this.timebase.atSessionMs(this.sessionMsForActiveElapsed(targetActiveElapsedMs));
   }
 
   snapshotSession(): LocalPerformanceSessionSnapshot {
@@ -332,7 +340,7 @@ export class PerformancePracticeRuntime {
     return Math.max(0, this.currentSegment.activeElapsedStartMs + nowMs - this.currentSegment.clockStartMs);
   }
 
-  private activeElapsedForCapture(captureTimeMs: number): number {
+  private activeElapsedForCapture(captureTimeMs: number): number | null {
     for (const segment of this.clockSegments) {
       const end = segment.clockEndMs ?? (
         this.currentSegment === segment ? this.nowSessionMs() : segment.clockStartMs
@@ -346,12 +354,36 @@ export class PerformancePracticeRuntime {
       && captureTimeMs <= this.nowSessionMs()) {
       return Math.max(0, this.currentSegment.activeElapsedStartMs + captureTimeMs - this.currentSegment.clockStartMs);
     }
-    return this.activeElapsedAt(captureTimeMs);
+    return null;
   }
 
-  private performanceTimeAtCapture(captureTimeMs: number): number {
+  private performanceTimeAtCapture(captureTimeMs: number): number | null {
     const activeElapsedMs = this.activeElapsedForCapture(captureTimeMs);
+    if (activeElapsedMs === null) {
+      return null;
+    }
+    if (
+      activeElapsedMs < this.countInMs
+      || activeElapsedMs > this.countInMs + this.scopeDurationMs()
+    ) {
+      return null;
+    }
     return this.performanceElapsedMs(activeElapsedMs);
+  }
+
+  private sessionMsForActiveElapsed(activeElapsedMs: number): number {
+    for (const segment of this.clockSegments) {
+      const segmentEndActiveElapsed = segment.clockEndMs === undefined
+        ? this.activeElapsedAt(this.nowSessionMs())
+        : segment.activeElapsedStartMs + segment.clockEndMs - segment.clockStartMs;
+      if (
+        segment.activeElapsedStartMs <= activeElapsedMs
+        && activeElapsedMs <= segmentEndActiveElapsed
+      ) {
+        return segment.clockStartMs + activeElapsedMs - segment.activeElapsedStartMs;
+      }
+    }
+    return this.nowSessionMs();
   }
 
   private startClockSegment(state: PerformanceRuntimeState, activeElapsedStartMs: number): ClockSegment {

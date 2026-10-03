@@ -330,6 +330,37 @@ describe('live ByteDance rolling pipeline', () => {
     expect(emitted.map((item) => item.onsetTime.sampleIndex)).toEqual([1600, 2401]);
   });
 
+  it('drains inference coverage through a requested capture cutoff without using a fixed sleep', async () => {
+    const timebase = new PracticeTimebase({ domainId: 'capture-domain', sampleRateHz: 16_000 });
+    const worker = new FakeWorker();
+    const emitted: AcousticNoteEvent[] = [];
+    worker.inferImpl = async (request) => ({
+      requestId: request.requestId,
+      events: [event({
+        pitch: request.captureStartSampleIndex === -23_200 ? 'D4' : 'C4',
+        midiPitch: request.captureStartSampleIndex === -23_200 ? 62 : 60,
+        sampleIndex: request.captureStartSampleIndex === -23_200 ? 2400 : 0,
+        timebase,
+      })],
+    });
+    const pipeline = new LiveByteDanceRollingPipeline({
+      ...pipelineOptions({
+        sessionTimebase: timebase,
+        workerClient: workerCast(worker),
+        evidenceSink: { onAcousticEvents: (events) => emitted.push(...events) },
+      }),
+    });
+
+    await pipeline.start();
+    pipeline.appendNormalizedPcm(fill(3520), 0);
+    const drainPromise = pipeline.drainThrough(anchor('capture-domain', 150, 2400));
+    pipeline.appendNormalizedPcm(fill(2400), 3520);
+
+    await expect(drainPromise).resolves.toBe(true);
+    expect(worker.requests.map((request) => request.captureStartSampleIndex)).toEqual([-25_600, -23_200]);
+    expect(emitted.map((item) => item.pitch)).toContain('D4');
+  });
+
   it('ignores late worker results after stop or capture-domain replacement', async () => {
     const timebase = new PracticeTimebase({ domainId: 'capture-3', sampleRateHz: 16_000 });
     const worker = new FakeWorker();
