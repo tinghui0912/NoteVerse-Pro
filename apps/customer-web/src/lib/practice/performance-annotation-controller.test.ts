@@ -2,9 +2,9 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { PracticeSummaryAnnotationController } from './summary-annotation-controller';
+import { PerformanceAnnotationController } from './performance-annotation-controller';
 
-describe('PracticeSummaryAnnotationController', () => {
+describe('PerformanceAnnotationController', () => {
   it('applies performance annotations and replaces stale annotations', () => {
     const container = document.createElement('div');
     container.innerHTML = `
@@ -12,7 +12,7 @@ describe('PracticeSummaryAnnotationController', () => {
       <span data-id="n2"></span>
       <span id="n3"></span>
     `;
-    const controller = new PracticeSummaryAnnotationController();
+    const controller = new PerformanceAnnotationController();
 
     controller.apply(container, {
       confirmedCorrectNoteIds: ['n1'],
@@ -45,7 +45,7 @@ describe('PracticeSummaryAnnotationController', () => {
   it('clears annotations from the current container', () => {
     const container = document.createElement('div');
     container.innerHTML = '<span data-id="n1"></span>';
-    const controller = new PracticeSummaryAnnotationController();
+    const controller = new PerformanceAnnotationController();
 
     controller.apply(container, {
       confirmedCorrectNoteIds: ['n1'],

@@ -47,7 +47,7 @@ import {
   mediaTimeToPerformanceTimeMs,
 } from '@/lib/practice/completed-performance';
 import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
-import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-annotation-controller';
+import { PerformanceAnnotationController } from '@/lib/practice/performance-annotation-controller';
 import { PracticeTempoTimeline } from '@/lib/practice/local-core/practice-tempo';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/local-core/practice-tempo';
 import { resolvePracticeScopeCursorNoteIds } from '@/lib/practice/local-core/artifact';
@@ -205,7 +205,7 @@ export default function PracticeReviewPage({
   const adapter = useMemo(() => new PracticeVerovioAdapter(), []);
   const adapterFactory = useCallback(() => adapter, [adapter]);
   const playheadController = useMemo(() => new PerformancePlayheadController(), []);
-  const annotationController = useMemo(() => new PracticeSummaryAnnotationController(), []);
+  const annotationController = useMemo(() => new PerformanceAnnotationController(), []);
 
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
   const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);

@@ -12,7 +12,7 @@ function findElementByVerovioId(container: HTMLElement, verovioId: string) {
   );
 }
 
-export class PracticeSummaryAnnotationController {
+export class PerformanceAnnotationController {
   private readonly annotationClasses = [
     'practice-summary-note-confirmed-correct',
     'practice-summary-note-confirmed-error',

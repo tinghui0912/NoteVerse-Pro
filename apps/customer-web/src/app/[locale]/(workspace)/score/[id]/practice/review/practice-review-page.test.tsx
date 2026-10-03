@@ -253,7 +253,7 @@ import {
   completedPerformanceStore,
   type CompletedPerformance,
 } from '@/lib/practice/completed-performance';
-import { PracticeSummaryAnnotationController } from '@/lib/practice/summary-annotation-controller';
+import { PerformanceAnnotationController } from '@/lib/practice/performance-annotation-controller';
 
 describe('PracticeReviewPage', () => {
   beforeEach(() => {
@@ -406,7 +406,7 @@ describe('PracticeReviewPage', () => {
   });
 
   it('correctly categorizes note-by-note strike colors and all 5 outcome counters', () => {
-    const applySpy = vi.spyOn(PracticeSummaryAnnotationController.prototype, 'apply');
+    const applySpy = vi.spyOn(PerformanceAnnotationController.prototype, 'apply');
 
     const draftWithChordsAndOutcomes: CompletedPerformance = {
       localSessionId: 'sess-1',
@@ -545,7 +545,7 @@ describe('PracticeReviewPage', () => {
   });
 
   it('guards against score revision mismatch by disabling annotations and displaying notice', () => {
-    const applySpy = vi.spyOn(PracticeSummaryAnnotationController.prototype, 'apply');
+    const applySpy = vi.spyOn(PerformanceAnnotationController.prototype, 'apply');
 
     // Artifact has revision 'rev-2', while draft has revision 'rev-1'
     currentMockArtifact = createMockArtifact({ revisionId: 'rev-2' });
