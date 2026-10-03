@@ -4289,6 +4289,80 @@ def test_empty_postgresql_database_initializes_with_wide_alembic_version_table()
         engine_pg.dispose()
 
 
+def test_unpublished_practice_migration_marker_repair_updates_known_removed_revision(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from scripts import repair_unpublished_practice_migration_state as repair
+
+    db_url = f"sqlite:///{tmp_path / 'alembic-marker.db'}"
+    engine = create_engine(db_url)
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(128))"))
+            conn.execute(
+                text("INSERT INTO alembic_version (version_num) VALUES (:version)"),
+                {"version": "0069_practice_source_snapshots"},
+            )
+
+        monkeypatch.setattr(repair.settings, "DATABASE_URL", db_url)
+        repair.main()
+
+        with engine.connect() as conn:
+            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == (
+                "0052_practice_step_verifier_provider"
+            )
+    finally:
+        engine.dispose()
+
+
+def test_unpublished_practice_migration_marker_is_repaired_before_upgrade(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A dev DB left on a removed feature-branch revision can run final 0053."""
+
+    from alembic import command
+    from scripts import repair_unpublished_practice_migration_state as repair
+
+    pg = _postgres_migration_test_database(POSTGRES_MIGRATION_EMPTY_URL_ENV)
+    _assert_postgres_database_empty(pg.psycopg_url)
+    command.upgrade(
+        _alembic_config(pg.alembic_async_url),
+        "0052_practice_step_verifier_provider",
+    )
+
+    engine_pg = create_engine(pg.sqlalchemy_sync_url)
+    try:
+        with engine_pg.begin() as conn:
+            conn.execute(
+                text(
+                    "UPDATE alembic_version "
+                    "SET version_num = '0069_practice_source_snapshots'"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE TABLE practice_source_snapshots "
+                    "(id BIGSERIAL PRIMARY KEY)"
+                )
+            )
+
+        monkeypatch.setattr(repair.settings, "DATABASE_URL", pg.alembic_async_url)
+        repair.main()
+
+        with engine_pg.connect() as conn:
+            assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == (
+                "0052_practice_step_verifier_provider"
+            )
+    finally:
+        engine_pg.dispose()
+
+    _assert_performance_take_upgrade_state(
+        alembic_async_url=pg.alembic_async_url,
+        sqlalchemy_sync_url=pg.sqlalchemy_sync_url,
+    )
+
+
 def test_postgresql_version_table_widening_permission_error_is_not_swallowed():
     """A permission failure while widening alembic_version must abort before migrations."""
 

@@ -56,6 +56,12 @@ def upgrade() -> None:
     if bind.dialect.name == "postgresql":
         media_kind_enum.create(bind, checkfirst=True)
 
+    op.drop_table("practice_source_snapshot_delete_outbox", if_exists=True)
+    op.drop_table("performance_take_delete_outbox", if_exists=True)
+    op.drop_table("performance_take_upload_authorizations", if_exists=True)
+    op.drop_table("performance_takes", if_exists=True)
+    op.drop_table("practice_source_snapshots", if_exists=True)
+
     op.drop_table("practice_replay_object_deletion_outbox", if_exists=True)
     op.drop_table("practice_replay_artifacts", if_exists=True)
     op.drop_table("practice_attempts", if_exists=True)
