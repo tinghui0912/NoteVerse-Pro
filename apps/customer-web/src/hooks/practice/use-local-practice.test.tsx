@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import canonicalArtifactJson from '@/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json';
 import { completedPerformanceStore } from '@/lib/practice/completed-performance';

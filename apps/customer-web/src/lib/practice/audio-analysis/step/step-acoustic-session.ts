@@ -17,11 +17,6 @@ import {
 import { createByteDanceBrowserWorkerClient } from '../../acoustic-inference/bytedance-worker-factory';
 import type { ByteDanceBrowserWorkerClient } from '../../acoustic-inference/bytedance-worker-protocol';
 import { BrowserPcmCaptureController } from '../capture/browser-pcm-capture';
-import {
-  monoFromChannels,
-  StreamingLinearResampler,
-  type NormalizedPcmChunk,
-} from '../capture/streaming-resampler';
 import type {
   StepVerifierObservation,
   StepVerifierTarget,

@@ -11,7 +11,7 @@ describe('PerformancePcmTimeline', () => {
     timeline.appendRunningPcm(Float32Array.from([1, 2, 3]));
     const sealedFirst = timeline.sealRunningSegment();
 
-    const second = timeline.beginRunningSegment(1000);
+    timeline.beginRunningSegment(1000);
     timeline.appendRunningPcm(Float32Array.from([4, 5]));
     const sealedSecond = timeline.sealRunningSegment();
 
