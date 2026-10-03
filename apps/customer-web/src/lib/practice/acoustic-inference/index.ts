@@ -6,4 +6,3 @@ export * from './bytedance-onnx-provider';
 export * from './bytedance-preprocess';
 export * from './bytedance-worker-factory';
 export * from './bytedance-worker-protocol';
-export * from './live-capture';

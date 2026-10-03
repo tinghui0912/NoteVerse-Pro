@@ -42,8 +42,8 @@ import type {
   StepVerifierObservation,
 } from '@/lib/practice/local-core/evidence';
 import {
-  BrowserMicrophoneCaptureController,
-} from '@/lib/practice/acoustic-inference/live-capture';
+  StepMicrophoneCaptureController,
+} from '@/lib/practice/audio-analysis/step/step-acoustic-session';
 import {
   createByteDanceManifestFromAccess,
 } from '@/lib/practice/acoustic-inference/bytedance-contract';
@@ -126,7 +126,7 @@ export function useLocalPractice({
   const stepRuntimeRef = useRef<StepPracticeRuntime | null>(null);
   const performanceRuntimeRef = useRef<PerformancePracticeRuntime | null>(null);
   const metronomeRef = useRef<MetronomeController | null>(null);
-  const micControllerRef = useRef<BrowserMicrophoneCaptureController | null>(null);
+  const micControllerRef = useRef<StepMicrophoneCaptureController | null>(null);
   const midiControllerRef = useRef<BrowserMidiController | null>(null);
   const timebaseRef = useRef<PracticeTimebase | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -686,7 +686,7 @@ export function useLocalPractice({
         }
         const manifest = createByteDanceManifestFromAccess(modelAccess);
 
-        const micController = new BrowserMicrophoneCaptureController({
+        const micController = new StepMicrophoneCaptureController({
           manifest,
           sessionTimebase: timebase,
           sourceSampleRateHz: 48000,

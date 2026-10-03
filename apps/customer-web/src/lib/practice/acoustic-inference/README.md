@@ -168,19 +168,12 @@ older `backend/research/browser_runtime/bytedance_onnx_browser_harness.mjs`
 remains useful as a direct ORT feasibility comparator, but it does not prove the
 production Worker boundary.
 
-## Live capture smoke
+## Continuous microphone feasibility
 
-The AudioWorklet smoke uses a deterministic oscillator source instead of a
-physical microphone so it can run without device permission:
-
-```bash
-node apps/customer-web/scripts/bytedance-live-capture-smoke.mjs \
-  --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx \
-  --browser-channel chrome \
-  --headed \
-  --output backend/research/reports/bytedance_live_capture_smoke_latest.json
-```
-
-It loads the real AudioWorklet module, checks source sample continuity, streams
-through the live resampler/ring/scheduler, and sends at least one assembled
-fixed-anchor window through `createByteDanceBrowserWorkerClient()`.
+The previous rolling live-capture smoke exercised an architecture that is not
+the product path anymore: 150 ms anchors, one active Worker inference, latest
+pending coalescing, and skipped-anchor coverage holes. Its final evidence is
+kept as a research artifact in
+`backend/research/reports/bytedance_rolling_anchor_feasibility_2026-10-03.json`.
+See `docs/architecture/continuous-performance-analysis.md` for the accepted
+Continuous transcription boundary.

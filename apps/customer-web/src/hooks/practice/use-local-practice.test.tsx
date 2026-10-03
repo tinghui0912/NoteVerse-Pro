@@ -21,9 +21,9 @@ const micMock = vi.hoisted(() => ({
   onFatalError: null as ((err: Error) => void) | null,
 }));
 
-vi.mock('@/lib/practice/acoustic-inference/live-capture', () => {
+vi.mock('@/lib/practice/audio-analysis/step/step-acoustic-session', () => {
   return {
-    BrowserMicrophoneCaptureController: class MockMicController {
+    StepMicrophoneCaptureController: class MockMicController {
       constructor(options: {
         onFatalError?: (err: Error) => void;
       }) {
