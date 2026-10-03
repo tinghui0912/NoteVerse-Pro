@@ -70,7 +70,7 @@ export function PracticeScoreViewer({
           outcome.expectedGroupId,
           outcome.result,
           outcome.expectedStrikeOutcomes
-            .map((strike) => `${strike.strikeId}:${strike.result}`)
+            .map((strike) => `${strike.strikeId}:${strike.result}:${strike.renderNoteIds.join(',')}`)
             .join(','),
         ].join(':'))
         .join('\u001f'),
@@ -133,7 +133,8 @@ export function PracticeScoreViewer({
 
     annotationController.apply(
       container,
-      noteAnnotationsFromPerformanceOutcomes(performanceOutcomes)
+      noteAnnotationsFromPerformanceOutcomes(performanceOutcomes),
+      { renderRevision }
     );
   }, [
     annotationController,

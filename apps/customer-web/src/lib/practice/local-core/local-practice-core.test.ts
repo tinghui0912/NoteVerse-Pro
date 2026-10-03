@@ -480,6 +480,66 @@ describe('local CONTINUOUS practice runtime', () => {
     });
   });
 
+  it('settles missing strikes only when the full assignment window is covered', () => {
+    const clock = new ManualClock(0);
+    const runtime = new PerformancePracticeRuntime({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock,
+      countInBeats: 0,
+      localSessionId: 'performance-coverage-hole',
+    });
+    runtime.start();
+    clock.advance(3_000);
+    runtime.markEvaluationCoverageIntervals([
+      {
+        start: runtime.timebase.atSessionMs(0),
+        end: runtime.timebase.atSessionMs(1_400),
+      },
+      {
+        start: runtime.timebase.atSessionMs(1_600),
+        end: runtime.timebase.atSessionMs(3_000),
+      },
+    ]);
+
+    expect(runtime.evaluationOutcomes[3]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
+      'UNCONFIRMED',
+      'UNCONFIRMED',
+    ]);
+
+    runtime.markEvaluationCoverageIntervals([
+      {
+        start: runtime.timebase.atSessionMs(1_400),
+        end: runtime.timebase.atSessionMs(1_600),
+      },
+    ]);
+    expect(runtime.evaluationOutcomes[3]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
+      'MISSING',
+      'MISSING',
+    ]);
+  });
+
+  it('does not truncate manual stop assignment windows into missing strikes', () => {
+    const clock = new ManualClock(0);
+    const runtime = new PerformancePracticeRuntime({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock,
+      countInBeats: 0,
+      localSessionId: 'performance-manual-stop',
+    });
+    runtime.start();
+    clock.advance(2_100);
+    runtime.end('STOPPED_BY_USER');
+    runtime.markEvaluationCoverageThrough(runtime.completionCaptureTime());
+
+    expect(runtime.evaluationOutcomes[4]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
+      'UNCONFIRMED',
+    ]);
+  });
+
   it('restores running/count-in sessions as paused logical state under a new clock origin', () => {
     const runningClock = new ManualClock(0);
     const rangeScope = {
@@ -580,7 +640,7 @@ describe('local CONTINUOUS practice runtime', () => {
     runtime.snapshot();
     const incompleteSnapshot = runtime.snapshotSession();
     expect(incompleteSnapshot.performance.state).toBe('ENDED');
-    expect(incompleteSnapshot.performance.evaluationCoverageThroughPerformanceTimeMs).toBeNull();
+    expect(incompleteSnapshot.performance.evaluationCoverageIntervals).toEqual([]);
 
     const restoredIncomplete = new PerformancePracticeRuntime({
       artifact,
@@ -589,8 +649,8 @@ describe('local CONTINUOUS practice runtime', () => {
       snapshot: incompleteSnapshot,
     });
     expect(
-      restoredIncomplete.snapshotSession().performance.evaluationCoverageThroughPerformanceTimeMs
-    ).toBeNull();
+      restoredIncomplete.snapshotSession().performance.evaluationCoverageIntervals
+    ).toEqual([]);
 
     const covered = new PerformancePracticeRuntime({
       artifact,
@@ -604,7 +664,9 @@ describe('local CONTINUOUS practice runtime', () => {
     covered.snapshot();
     covered.markEvaluationCoverageThrough(covered.completionCaptureTime());
     const coveredSnapshot = covered.snapshotSession();
-    expect(coveredSnapshot.performance.evaluationCoverageThroughPerformanceTimeMs).toBeGreaterThan(0);
+    expect(coveredSnapshot.performance.evaluationCoverageIntervals).toEqual([
+      expect.objectContaining({ startMs: 0 }),
+    ]);
 
     const restoredCovered = new PerformancePracticeRuntime({
       artifact,
@@ -613,8 +675,8 @@ describe('local CONTINUOUS practice runtime', () => {
       snapshot: coveredSnapshot,
     });
     expect(
-      restoredCovered.snapshotSession().performance.evaluationCoverageThroughPerformanceTimeMs
-    ).toBe(coveredSnapshot.performance.evaluationCoverageThroughPerformanceTimeMs);
+      restoredCovered.snapshotSession().performance.evaluationCoverageIntervals
+    ).toEqual(coveredSnapshot.performance.evaluationCoverageIntervals);
   });
 
   it('keeps durable metadata time separate from runtime monotonic time', () => {

@@ -19,13 +19,23 @@ export class PerformanceAnnotationController {
     'practice-summary-note-confirmed-correct',
     'practice-summary-note-confirmed-error',
   ];
-  private annotatedNoteIds: string[] = [];
+  private confirmedCorrectNoteIds = new Set<string>();
+  private confirmedErrorNoteIds = new Set<string>();
+  private currentContainer: HTMLElement | null = null;
+  private renderRevision: number | string | null = null;
 
   clear(container: HTMLElement) {
-    for (const noteId of this.annotatedNoteIds) {
+    const annotatedNoteIds = new Set([
+      ...this.confirmedCorrectNoteIds,
+      ...this.confirmedErrorNoteIds,
+    ]);
+    for (const noteId of annotatedNoteIds) {
       findElementByVerovioId(container, noteId)?.classList.remove(...this.annotationClasses);
     }
-    this.annotatedNoteIds = [];
+    this.confirmedCorrectNoteIds = new Set();
+    this.confirmedErrorNoteIds = new Set();
+    this.currentContainer = null;
+    this.renderRevision = null;
   }
 
   apply(
@@ -33,33 +43,104 @@ export class PerformanceAnnotationController {
     annotations: {
       confirmedCorrectNoteIds: string[];
       confirmedErrorNoteIds: string[];
-    }
+    },
+    options: {
+      renderRevision?: number | string;
+    } = {}
   ) {
-    this.clear(container);
-    this.applyClass(
-      container,
-      annotations.confirmedCorrectNoteIds,
-      'practice-summary-note-confirmed-correct'
-    );
-    this.applyClass(
-      container,
-      annotations.confirmedErrorNoteIds,
-      'practice-summary-note-confirmed-error'
-    );
+    const nextErrorSet = uniqueNoteIds(annotations.confirmedErrorNoteIds);
+    const nextCorrectSet = uniqueNoteIds(annotations.confirmedCorrectNoteIds);
+    for (const noteId of nextErrorSet) {
+      nextCorrectSet.delete(noteId);
+    }
+    const shouldRehydrate =
+      this.currentContainer !== container ||
+      this.renderRevision !== (options.renderRevision ?? null);
+
+    if (shouldRehydrate) {
+      this.rehydrate(container, nextCorrectSet, nextErrorSet);
+    } else {
+      this.syncClassDiff(
+        container,
+        this.confirmedCorrectNoteIds,
+        nextCorrectSet,
+        'practice-summary-note-confirmed-correct'
+      );
+      this.syncClassDiff(
+        container,
+        this.confirmedErrorNoteIds,
+        nextErrorSet,
+        'practice-summary-note-confirmed-error'
+      );
+    }
+    this.confirmedCorrectNoteIds = nextCorrectSet;
+    this.confirmedErrorNoteIds = nextErrorSet;
+    this.currentContainer = container;
+    this.renderRevision = options.renderRevision ?? null;
   }
 
-  private applyClass(container: HTMLElement, noteIds: string[], className: string) {
-    const uniqueNoteIds = Array.from(new Set(noteIds.filter(Boolean)));
-    for (const noteId of uniqueNoteIds) {
+  private rehydrate(
+    container: HTMLElement,
+    nextCorrectIds: ReadonlySet<string>,
+    nextErrorIds: ReadonlySet<string>
+  ) {
+    const noteIds = new Set([
+      ...this.confirmedCorrectNoteIds,
+      ...this.confirmedErrorNoteIds,
+      ...nextCorrectIds,
+      ...nextErrorIds,
+    ]);
+    for (const noteId of noteIds) {
+      findElementByVerovioId(container, noteId)?.classList.remove(...this.annotationClasses);
+    }
+    for (const noteId of nextCorrectIds) {
+      findElementByVerovioId(container, noteId)?.classList.add(
+        'practice-summary-note-confirmed-correct'
+      );
+    }
+    for (const noteId of nextErrorIds) {
+      findElementByVerovioId(container, noteId)?.classList.add(
+        'practice-summary-note-confirmed-error'
+      );
+    }
+  }
+
+  private syncClassDiff(
+    container: HTMLElement,
+    previousIds: ReadonlySet<string>,
+    nextIds: ReadonlySet<string>,
+    className: string
+  ) {
+    for (const noteId of previousIds) {
+      if (nextIds.has(noteId)) {
+        continue;
+      }
       const node = findElementByVerovioId(container, noteId);
       if (!node) {
         continue;
       }
-      node.classList.remove(...this.annotationClasses);
+      node.classList.remove(className);
+    }
+    for (const noteId of nextIds) {
+      if (previousIds.has(noteId)) {
+        continue;
+      }
+      const node = findElementByVerovioId(container, noteId);
+      if (!node) {
+        continue;
+      }
+      node.classList.remove(
+        className === 'practice-summary-note-confirmed-correct'
+          ? 'practice-summary-note-confirmed-error'
+          : 'practice-summary-note-confirmed-correct'
+      );
       node.classList.add(className);
-      this.annotatedNoteIds.push(noteId);
     }
   }
+}
+
+function uniqueNoteIds(noteIds: readonly string[]) {
+  return new Set(noteIds.filter(Boolean));
 }
 
 export function noteAnnotationsFromPerformanceOutcomes(

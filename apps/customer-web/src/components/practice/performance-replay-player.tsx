@@ -97,16 +97,38 @@ function AudioPerformanceReplayPlayer({
   const effectiveDurationMs = actualDurationMs ?? replay.durationMs;
 
   const publishTime = useCallback(
-    (timeMs: number) => {
-      const boundedTimeMs = boundReplayTime(timeMs, effectiveDurationMs);
+    (timeMs: number, durationOverrideMs?: number | null) => {
+      const durationMs = durationOverrideMs ?? effectiveDurationMs;
+      const boundedTimeMs = boundReplayTime(timeMs, durationMs);
       setCurrentMs(boundedTimeMs);
-      if (actualDurationMs !== null) {
-        onReplayTimeChange?.(boundedTimeMs, actualDurationMs);
+      if (durationOverrideMs !== undefined && durationOverrideMs !== actualDurationMs) {
+        setActualDurationMs(durationOverrideMs);
+      }
+      const reportedDurationMs = durationOverrideMs ?? actualDurationMs;
+      if (reportedDurationMs !== null) {
+        onReplayTimeChange?.(boundedTimeMs, reportedDurationMs);
       } else {
         onReplayTimeChange?.(boundedTimeMs);
       }
     },
     [actualDurationMs, effectiveDurationMs, onReplayTimeChange]
+  );
+
+  const updateActualDuration = useCallback((audio: HTMLAudioElement) => {
+    const durationMs = finiteMediaDurationMs(audio);
+    if (durationMs === null) {
+      return null;
+    }
+    setActualDurationMs(durationMs);
+    return durationMs;
+  }, []);
+
+  const publishElementTime = useCallback(
+    (audio: HTMLAudioElement) => {
+      const durationMs = updateActualDuration(audio) ?? actualDurationMs;
+      publishTime(audio.currentTime * 1000, durationMs);
+    },
+    [actualDurationMs, publishTime, updateActualDuration]
   );
 
   const stopRenderTicker = useCallback(() => {
@@ -229,10 +251,10 @@ function AudioPerformanceReplayPlayer({
         preload="metadata"
         className="hidden"
         onLoadedMetadata={(event) => {
-          const dur = event.currentTarget.duration;
-          if (Number.isFinite(dur) && dur > 0) {
-            setActualDurationMs(dur * 1000);
-          }
+          updateActualDuration(event.currentTarget);
+        }}
+        onDurationChange={(event) => {
+          updateActualDuration(event.currentTarget);
         }}
         onPlay={() => {
           setIsPlaying(true);
@@ -242,7 +264,7 @@ function AudioPerformanceReplayPlayer({
         onPause={(event) => {
           stopRenderTicker();
           setIsPlaying(false);
-          publishTime(event.currentTarget.currentTime * 1000);
+          publishElementTime(event.currentTarget);
           onPlaybackStateChange?.(false);
         }}
         onError={() => {
@@ -250,7 +272,7 @@ function AudioPerformanceReplayPlayer({
           setIsPlaying(false);
           setHasPlaybackError(true);
         }}
-        onSeeked={(event) => publishTime(event.currentTarget.currentTime * 1000)}
+        onSeeked={(event) => publishElementTime(event.currentTarget)}
         onCanPlay={() => {
           if (pendingAutoPlaySourceRef.current !== mediaSource) {
             return;
@@ -261,7 +283,12 @@ function AudioPerformanceReplayPlayer({
         onEnded={() => {
           stopRenderTicker();
           setIsPlaying(false);
-          publishTime(effectiveDurationMs);
+          const audio = audioRef.current;
+          if (audio) {
+            publishElementTime(audio);
+          } else {
+            publishTime(effectiveDurationMs);
+          }
           onPlaybackStateChange?.(false);
         }}
       />
@@ -317,16 +344,38 @@ function VideoPerformanceReplayPlayer({
   const effectiveDurationMs = actualDurationMs ?? replay.durationMs;
 
   const publishTime = useCallback(
-    (timeMs: number) => {
-      const boundedTimeMs = boundReplayTime(timeMs, effectiveDurationMs);
+    (timeMs: number, durationOverrideMs?: number | null) => {
+      const durationMs = durationOverrideMs ?? effectiveDurationMs;
+      const boundedTimeMs = boundReplayTime(timeMs, durationMs);
       setCurrentMs(boundedTimeMs);
-      if (actualDurationMs !== null) {
-        onReplayTimeChange?.(boundedTimeMs, actualDurationMs);
+      if (durationOverrideMs !== undefined && durationOverrideMs !== actualDurationMs) {
+        setActualDurationMs(durationOverrideMs);
+      }
+      const reportedDurationMs = durationOverrideMs ?? actualDurationMs;
+      if (reportedDurationMs !== null) {
+        onReplayTimeChange?.(boundedTimeMs, reportedDurationMs);
       } else {
         onReplayTimeChange?.(boundedTimeMs);
       }
     },
     [actualDurationMs, effectiveDurationMs, onReplayTimeChange]
+  );
+
+  const updateActualDuration = useCallback((video: HTMLVideoElement) => {
+    const durationMs = finiteMediaDurationMs(video);
+    if (durationMs === null) {
+      return null;
+    }
+    setActualDurationMs(durationMs);
+    return durationMs;
+  }, []);
+
+  const publishElementTime = useCallback(
+    (video: HTMLVideoElement) => {
+      const durationMs = updateActualDuration(video) ?? actualDurationMs;
+      publishTime(video.currentTime * 1000, durationMs);
+    },
+    [actualDurationMs, publishTime, updateActualDuration]
   );
 
   const stopRenderTicker = useCallback(() => {
@@ -450,10 +499,10 @@ function VideoPerformanceReplayPlayer({
         playsInline
         className="aspect-video w-full rounded-md bg-black object-contain"
         onLoadedMetadata={(event) => {
-          const dur = event.currentTarget.duration;
-          if (Number.isFinite(dur) && dur > 0) {
-            setActualDurationMs(dur * 1000);
-          }
+          updateActualDuration(event.currentTarget);
+        }}
+        onDurationChange={(event) => {
+          updateActualDuration(event.currentTarget);
         }}
         onPlay={() => {
           setIsPlaying(true);
@@ -463,7 +512,7 @@ function VideoPerformanceReplayPlayer({
         onPause={(event) => {
           stopRenderTicker();
           setIsPlaying(false);
-          publishTime(event.currentTarget.currentTime * 1000);
+          publishElementTime(event.currentTarget);
           onPlaybackStateChange?.(false);
         }}
         onError={() => {
@@ -471,7 +520,7 @@ function VideoPerformanceReplayPlayer({
           setIsPlaying(false);
           setHasPlaybackError(true);
         }}
-        onSeeked={(event) => publishTime(event.currentTarget.currentTime * 1000)}
+        onSeeked={(event) => publishElementTime(event.currentTarget)}
         onCanPlay={() => {
           if (pendingAutoPlaySourceRef.current !== mediaSource) {
             return;
@@ -482,7 +531,12 @@ function VideoPerformanceReplayPlayer({
         onEnded={() => {
           stopRenderTicker();
           setIsPlaying(false);
-          publishTime(effectiveDurationMs);
+          const video = videoRef.current;
+          if (video) {
+            publishElementTime(video);
+          } else {
+            publishTime(effectiveDurationMs);
+          }
           onPlaybackStateChange?.(false);
         }}
       />
@@ -568,6 +622,10 @@ function ReplayChrome({
 
 function boundReplayTime(timeMs: number, durationMs: number) {
   return Math.min(Math.max(Number.isFinite(timeMs) ? timeMs : 0, 0), Math.max(0, durationMs));
+}
+
+function finiteMediaDurationMs(media: HTMLMediaElement) {
+  return Number.isFinite(media.duration) && media.duration > 0 ? media.duration * 1000 : null;
 }
 
 function formatReplayTime(timeMs: number) {

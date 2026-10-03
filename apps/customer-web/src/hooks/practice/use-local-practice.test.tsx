@@ -8,9 +8,15 @@ import { useLocalPractice } from './use-local-practice';
 
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
 
+const recorderEvents = vi.hoisted(() => ({
+  events: [] as string[],
+}));
+
 const micMock = vi.hoisted(() => ({
   start: vi.fn(async () => {}),
-  stop: vi.fn(async () => {}),
+  stop: vi.fn(async () => {
+    recorderEvents.events.push('INPUT_TEARDOWN');
+  }),
   drainThrough: vi.fn(async (cutoff) => ({
     status: 'covered' as const,
     requestedThrough: cutoff,
@@ -37,6 +43,12 @@ vi.mock('@/lib/practice/acoustic-inference/live-capture', () => {
       }
       inferenceCoverageTime() {
         return micMock.inferenceCoverageTime();
+      }
+      get mediaStream() {
+        return {
+          getAudioTracks: () => [{ kind: 'audio', readyState: 'live', addEventListener: vi.fn(), stop: vi.fn() }],
+          getTracks: () => [{ kind: 'audio', readyState: 'live', addEventListener: vi.fn(), stop: vi.fn() }],
+        };
       }
       snapshot() {
         return { state: 'running' };
@@ -80,9 +92,48 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
 describe('useLocalPractice', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    recorderEvents.events = [];
     micMock.start.mockReset().mockResolvedValue(undefined);
-    micMock.stop.mockReset().mockResolvedValue(undefined);
+    micMock.stop.mockReset().mockImplementation(async () => {
+      recorderEvents.events.push('INPUT_TEARDOWN');
+    });
     micMock.onFatalError = null;
+    class MockMediaRecorder {
+      state: 'inactive' | 'recording' | 'paused' = 'inactive';
+      mimeType = 'audio/webm';
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+
+      constructor() {}
+
+      start() {
+        this.state = 'recording';
+      }
+
+      requestData() {
+        this.ondataavailable?.({ data: new Blob(['audio'], { type: 'audio/webm' }) });
+      }
+
+      stop() {
+        recorderEvents.events.push('MEDIA_RECORDER_STOP_INVOKED');
+        this.state = 'inactive';
+        this.onstop?.();
+      }
+
+      pause() {
+        this.state = 'paused';
+      }
+
+      resume() {
+        this.state = 'recording';
+      }
+    }
+    Object.defineProperty(globalThis, 'MediaRecorder', {
+      configurable: true,
+      writable: true,
+      value: MockMediaRecorder,
+    });
   });
 
   it('initializes in READY lifecycle and IDLE inputState', () => {
@@ -329,9 +380,11 @@ describe('useLocalPractice', () => {
   it('serializes duplicate CONTINUOUS finish requests through one completion transaction', async () => {
     const drain = { resolve: null as null | (() => void) };
     micMock.drainThrough.mockImplementation(async (cutoff) => {
+      recorderEvents.events.push('MIC_DRAIN_STARTED');
       await new Promise<void>((resolve) => {
         drain.resolve = resolve;
       });
+      recorderEvents.events.push('MIC_DRAIN_COMPLETED');
       return {
         status: 'covered' as const,
         requestedThrough: cutoff,
@@ -373,5 +426,71 @@ describe('useLocalPractice', () => {
     expect(result.current.isFinalizingPerformance).toBe(false);
     expect(onCompletion).toHaveBeenCalledTimes(1);
     expect(micMock.drainThrough).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops performance media before draining microphone inference', async () => {
+    let nowMs = 0;
+    const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => nowMs);
+    const drain = { resolve: null as null | (() => void) };
+    micMock.drainThrough.mockImplementation(async (cutoff) => {
+      recorderEvents.events.push('MIC_DRAIN_STARTED');
+      await new Promise<void>((resolve) => {
+        drain.resolve = resolve;
+      });
+      recorderEvents.events.push('MIC_DRAIN_COMPLETED');
+      return {
+        status: 'covered' as const,
+        requestedThrough: cutoff,
+        coverage: { intervals: [] },
+      };
+    });
+    const onCompletion = vi.fn();
+    const { result } = renderHook(() =>
+      useLocalPractice({
+        artifact,
+        mode: 'CONTINUOUS_PLAY',
+        inputSource: 'MICROPHONE',
+        scope: { kind: 'FULL' },
+        onCompletion,
+      })
+    );
+
+    try {
+      await act(async () => {
+        await result.current.start();
+      });
+
+      nowMs = 3_000;
+      await waitFor(() => {
+        expect(result.current.performanceClock?.state).toBe('RUNNING');
+      });
+
+      let completion!: Promise<void>;
+      act(() => {
+        completion = result.current.finish();
+      });
+      await waitFor(() => {
+        expect(result.current.isFinalizingPerformance).toBe(true);
+      });
+      expect(recorderEvents.events.slice(0, 2)).toEqual([
+        'MEDIA_RECORDER_STOP_INVOKED',
+        'MIC_DRAIN_STARTED',
+      ]);
+
+      drain.resolve?.();
+      await act(async () => {
+        await completion;
+      });
+
+      expect(onCompletion).toHaveBeenCalledTimes(1);
+      expect(recorderEvents.events).toEqual([
+        'MEDIA_RECORDER_STOP_INVOKED',
+        'MIC_DRAIN_STARTED',
+        'MIC_DRAIN_COMPLETED',
+        'INPUT_TEARDOWN',
+      ]);
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 });

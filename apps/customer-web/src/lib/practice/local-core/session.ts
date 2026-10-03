@@ -56,7 +56,7 @@ export type LocalPerformanceSessionSnapshot = LocalPracticeSessionBase & {
     countInMs: number;
     countInBeats: number;
     countInPulses: number;
-    evaluationCoverageThroughPerformanceTimeMs: number | null;
+    evaluationCoverageIntervals: LocalPerformanceCoverageIntervalRecord[];
     observations: LocalPerformanceObservationRecord[];
     outcomes: LocalPerformanceExpectedEventOutcomeRecord[];
   };
@@ -83,6 +83,11 @@ type LocalPerformanceObservationRecord = {
   confidence: number;
   performanceTimeMs: number;
   musicalBeat: number;
+};
+
+type LocalPerformanceCoverageIntervalRecord = {
+  startMs: number;
+  endMs: number;
 };
 
 export type LocalPerformanceExpectedEventOutcomeRecord = {

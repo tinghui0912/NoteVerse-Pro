@@ -15,6 +15,11 @@ export type ExpectedPerformanceEvent = {
   performanceTimeMs: number;
 };
 
+export type PerformanceCoverageInterval = {
+  startMs: number;
+  endMs: number;
+};
+
 export type PerformanceEvaluatorOptions = {
   artifact: PracticeScoreArtifact;
   timeline: PerformanceTimeline;
@@ -43,7 +48,8 @@ export class LocalPerformanceEvaluator {
   evaluate(
     observations: readonly PerformanceEvaluationObservation[],
     options: {
-      settledThroughPerformanceTimeMs?: number | null;
+      coveredPerformanceIntervals?: readonly PerformanceCoverageInterval[];
+      naturalTerminalPerformanceTimeMs?: number | null;
     } = {}
   ): PerformanceExpectedEventOutcome[] {
     const assignments = new Map<string, PerformanceEvaluationObservation[]>();
@@ -64,11 +70,18 @@ export class LocalPerformanceEvaluator {
       }
     }
     return this.expectedEvents.map((event) => {
-      const settledThrough = options.settledThroughPerformanceTimeMs;
-      const isSettled =
-        typeof settledThrough === 'number' &&
-        Number.isFinite(settledThrough) &&
-        settledThrough >= event.performanceTimeMs + this.assignmentWindowMs;
+      const windowStartMs = Math.max(0, event.performanceTimeMs - this.assignmentWindowMs);
+      const unclippedWindowEndMs = event.performanceTimeMs + this.assignmentWindowMs;
+      const windowEndMs =
+        typeof options.naturalTerminalPerformanceTimeMs === 'number' &&
+        Number.isFinite(options.naturalTerminalPerformanceTimeMs)
+          ? Math.min(unclippedWindowEndMs, options.naturalTerminalPerformanceTimeMs)
+          : unclippedWindowEndMs;
+      const isSettled = isIntervalFullyCovered(
+        options.coveredPerformanceIntervals ?? [],
+        windowStartMs,
+        windowEndMs
+      );
       return outcomeForEvent(
         event,
         assignments.get(event.expectedGroup.groupId) ?? [],
@@ -77,6 +90,30 @@ export class LocalPerformanceEvaluator {
       );
     });
   }
+}
+
+function isIntervalFullyCovered(
+  intervals: readonly PerformanceCoverageInterval[],
+  startMs: number,
+  endMs: number
+) {
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) {
+    return false;
+  }
+  let cursor = startMs;
+  for (const interval of intervals) {
+    if (interval.endMs < cursor) {
+      continue;
+    }
+    if (interval.startMs > cursor) {
+      return false;
+    }
+    cursor = Math.max(cursor, interval.endMs);
+    if (cursor >= endMs) {
+      return true;
+    }
+  }
+  return cursor >= endMs;
 }
 
 function outcomeForEvent(

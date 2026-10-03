@@ -43,6 +43,7 @@ import type {
 } from '@/lib/practice/local-core/evidence';
 import {
   BrowserMicrophoneCaptureController,
+  type AcousticCoverageSnapshot,
 } from '@/lib/practice/acoustic-inference/live-capture';
 import {
   createByteDanceManifestFromAccess,
@@ -140,6 +141,7 @@ export function useLocalPractice({
   const recordingStateRef = useRef<
     'NOT_STARTED' | 'RECORDING' | 'PAUSED' | 'FINALIZING' | 'READY' | 'UNAVAILABLE'
   >('NOT_STARTED');
+  const recorderStopPromiseRef = useRef<Promise<void> | null>(null);
   const sessionGenerationRef = useRef<number>(0);
   const hasFinalizedRef = useRef<boolean>(false);
   const continuousCompletionRef = useRef<Promise<void> | null>(null);
@@ -305,42 +307,10 @@ export function useLocalPractice({
       hasFinalizedRef.current = true;
 
       try {
-        if (currentSegmentStartPerfMsRef.current !== null) {
-          const perfEndMs = Math.max(
-            currentSegmentStartPerfMsRef.current,
-            sessionSnapshot.performance.activeElapsedMs - sessionSnapshot.performance.countInMs
-          );
-          const segmentDuration = Math.max(0, perfEndMs - currentSegmentStartPerfMsRef.current);
-          const mediaEndMs = currentSegmentStartMediaMsRef.current + segmentDuration;
-          recordingTimebaseRef.current.activeSegments.push({
-            perfStartMs: currentSegmentStartPerfMsRef.current,
-            perfEndMs,
-            mediaStartMs: currentSegmentStartMediaMsRef.current,
-            mediaEndMs,
-          });
-          cumulativeMediaMsRef.current = mediaEndMs;
-          currentSegmentStartPerfMsRef.current = null;
-        }
-        recordingTimebaseRef.current.nominalMediaDurationMs = cumulativeMediaMsRef.current;
-
         const recorder = mediaRecorderRef.current;
-        recordingStateRef.current = 'FINALIZING';
-
-        if (recorder && recorder.state !== 'inactive') {
-          await Promise.race([
-            new Promise<void>((resolve) => {
-              recorder.onstop = () => resolve();
-              try {
-                if (typeof recorder.requestData === 'function') {
-                  recorder.requestData();
-                }
-                recorder.stop();
-              } catch {
-                resolve();
-              }
-            }),
-            new Promise<void>((resolve) => setTimeout(resolve, 1500)),
-          ]);
+        const stopPromise = recorderStopPromiseRef.current;
+        if (stopPromise) {
+          await stopPromise;
         }
 
         // Stale session generation check
@@ -403,6 +373,51 @@ export function useLocalPractice({
     [artifact, resolvedTempoPlan, scope]
   );
 
+  const freezePerformanceRecording = useCallback((sessionSnapshot: LocalPerformanceSessionSnapshot) => {
+    if (recorderStopPromiseRef.current) {
+      return recorderStopPromiseRef.current;
+    }
+    if (currentSegmentStartPerfMsRef.current !== null) {
+      const perfEndMs = Math.max(
+        currentSegmentStartPerfMsRef.current,
+        sessionSnapshot.performance.activeElapsedMs - sessionSnapshot.performance.countInMs
+      );
+      const segmentDuration = Math.max(0, perfEndMs - currentSegmentStartPerfMsRef.current);
+      const mediaEndMs = currentSegmentStartMediaMsRef.current + segmentDuration;
+      recordingTimebaseRef.current.activeSegments.push({
+        perfStartMs: currentSegmentStartPerfMsRef.current,
+        perfEndMs,
+        mediaStartMs: currentSegmentStartMediaMsRef.current,
+        mediaEndMs,
+      });
+      cumulativeMediaMsRef.current = mediaEndMs;
+      currentSegmentStartPerfMsRef.current = null;
+    }
+    recordingTimebaseRef.current.nominalMediaDurationMs = cumulativeMediaMsRef.current;
+
+    const recorder = mediaRecorderRef.current;
+    recordingStateRef.current = 'FINALIZING';
+    if (!recorder || recorder.state === 'inactive') {
+      recorderStopPromiseRef.current = Promise.resolve();
+      return recorderStopPromiseRef.current;
+    }
+    recorderStopPromiseRef.current = Promise.race([
+      new Promise<void>((resolve) => {
+        recorder.onstop = () => resolve();
+        try {
+          if (typeof recorder.requestData === 'function') {
+            recorder.requestData();
+          }
+          recorder.stop();
+        } catch {
+          resolve();
+        }
+      }),
+      new Promise<void>((resolve) => setTimeout(resolve, 1500)),
+    ]);
+    return recorderStopPromiseRef.current;
+  }, []);
+
   const drainPerformanceInference = useCallback(async (runtime: PerformancePracticeRuntime) => {
     const completionCaptureTime = runtime.completionCaptureTime();
     const sessionSnapshot = runtime.snapshotSession();
@@ -417,9 +432,12 @@ export function useLocalPractice({
       return;
     }
     const drainResult = await mic.drainThrough(completionCaptureTime);
-    if (drainResult.status === 'covered') {
-      runtime.markEvaluationCoverageThrough(drainResult.requestedThrough);
-    }
+    runtime.markEvaluationCoverageIntervals(
+      drainResult.coverage.intervals.map((interval) => ({
+        start: runtime.timebase.atSessionMs(interval.startSessionTimeMs, interval.startSampleIndex),
+        end: runtime.timebase.atSessionMs(interval.endSessionTimeMs, interval.endSampleIndex),
+      }))
+    );
     setPerformanceOutcomes(runtime.evaluationOutcomes);
   }, []);
 
@@ -447,10 +465,13 @@ export function useLocalPractice({
         setCompletionReason(terminalReason);
         setLifecycle('ENDED');
 
+        const frozenSnapshot = runtime.snapshotSession();
+        const mediaFinalization = freezePerformanceRecording(frozenSnapshot);
         await drainPerformanceInference(runtime);
         if (completionGeneration !== sessionGenerationRef.current) {
           return;
         }
+        await mediaFinalization;
 
         const sessionSnapshot = runtime.snapshotSession();
         setLastSnapshot(sessionSnapshot);
@@ -478,6 +499,7 @@ export function useLocalPractice({
     [
       drainPerformanceInference,
       finalizeRecordingAndBuildDraft,
+      freezePerformanceRecording,
       onCompletion,
       stopAnimationLoop,
       stopTimer,
@@ -541,13 +563,17 @@ export function useLocalPractice({
     []
   );
 
-  const handlePerformanceCoverage = useCallback(() => {
+  const handlePerformanceCoverage = useCallback((coverage: AcousticCoverageSnapshot) => {
     const runtime = performanceRuntimeRef.current;
-    const micCoverageTime = micControllerRef.current?.inferenceCoverageTime() ?? null;
-    if (!runtime || !micCoverageTime) {
+    if (!runtime) {
       return;
     }
-    runtime.markEvaluationCoverageThrough(micCoverageTime);
+    runtime.markEvaluationCoverageIntervals(
+      coverage.intervals.map((interval) => ({
+        start: runtime.timebase.atSessionMs(interval.startSessionTimeMs, interval.startSampleIndex),
+        end: runtime.timebase.atSessionMs(interval.endSessionTimeMs, interval.endSampleIndex),
+      }))
+    );
     setPerformanceOutcomes(runtime.evaluationOutcomes);
   }, []);
 
@@ -636,6 +662,7 @@ export function useLocalPractice({
     continuousCompletionRef.current = null;
     mediaRecorderRef.current = null;
     recordingChunksRef.current = [];
+    recorderStopPromiseRef.current = null;
     recordingUnavailableReasonRef.current = null;
     recordingStateRef.current = 'NOT_STARTED';
     recordingMediaKindRef.current = 'AUDIO';
@@ -687,7 +714,7 @@ export function useLocalPractice({
             currentStepTarget: () => stepRuntimeRef.current?.currentTarget() ?? null,
             onStepObservation: (obs) => handleStepObservation(obs),
             onPerformanceEvidence: (evidences) => handlePerformanceEvidence(evidences),
-            onPerformanceCoverage: () => handlePerformanceCoverage(),
+            onPerformanceCoverage: (coverage) => handlePerformanceCoverage(coverage),
           },
           onFatalError: (fatalError) => {
             handleFatalInputError(fatalError.message);
@@ -1043,6 +1070,7 @@ export function useLocalPractice({
     sessionGenerationRef.current += 1;
     hasFinalizedRef.current = false;
     continuousCompletionRef.current = null;
+    recorderStopPromiseRef.current = null;
     metronomeRef.current?.stop();
     metronomeRef.current?.destroy();
     metronomeRef.current = null;

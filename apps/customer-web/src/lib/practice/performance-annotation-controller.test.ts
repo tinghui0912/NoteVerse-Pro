@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   PerformanceAnnotationController,
@@ -58,6 +58,79 @@ describe('PerformanceAnnotationController', () => {
 
     expect(container.querySelector('[data-id="n1"]')).not.toHaveClass(
       'practice-summary-note-confirmed-correct'
+    );
+  });
+
+  it('does not remove and re-add unchanged settled annotations', () => {
+    const container = document.createElement('div');
+    container.innerHTML = `
+      <span data-id="n1"></span>
+      <span data-id="n2"></span>
+    `;
+    const controller = new PerformanceAnnotationController();
+    controller.apply(
+      container,
+      {
+        confirmedCorrectNoteIds: [],
+        confirmedErrorNoteIds: ['n1'],
+      },
+      { renderRevision: 1 }
+    );
+    const addSpy = vi.spyOn(DOMTokenList.prototype, 'add');
+    const removeSpy = vi.spyOn(DOMTokenList.prototype, 'remove');
+
+    controller.apply(
+      container,
+      {
+        confirmedCorrectNoteIds: [],
+        confirmedErrorNoteIds: ['n1', 'n2'],
+      },
+      { renderRevision: 1 }
+    );
+
+    expect(container.querySelector('[data-id="n1"]')).toHaveClass(
+      'practice-summary-note-confirmed-error'
+    );
+    expect(container.querySelector('[data-id="n2"]')).toHaveClass(
+      'practice-summary-note-confirmed-error'
+    );
+    expect(
+      removeSpy.mock.calls.some((call) =>
+        call.includes('practice-summary-note-confirmed-error')
+      )
+    ).toBe(false);
+    expect(addSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('rehydrates settled annotations when the score DOM render revision changes', () => {
+    const container = document.createElement('div');
+    container.innerHTML = '<span data-id="n1"></span>';
+    const controller = new PerformanceAnnotationController();
+    controller.apply(
+      container,
+      {
+        confirmedCorrectNoteIds: [],
+        confirmedErrorNoteIds: ['n1'],
+      },
+      { renderRevision: 1 }
+    );
+
+    container.innerHTML = '<span data-id="n1"></span>';
+    expect(container.querySelector('[data-id="n1"]')).not.toHaveClass(
+      'practice-summary-note-confirmed-error'
+    );
+
+    controller.apply(
+      container,
+      {
+        confirmedCorrectNoteIds: [],
+        confirmedErrorNoteIds: ['n1'],
+      },
+      { renderRevision: 2 }
+    );
+
+    expect(container.querySelector('[data-id="n1"]')).toHaveClass(
+      'practice-summary-note-confirmed-error'
     );
   });
 

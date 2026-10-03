@@ -19,7 +19,10 @@ import {
   type LocalPerformanceSessionSnapshot,
   type LocalPracticeCompletionReason,
 } from './session';
-import { LocalPerformanceEvaluator } from './performance-evaluator';
+import {
+  LocalPerformanceEvaluator,
+  type PerformanceCoverageInterval,
+} from './performance-evaluator';
 import {
   beatsToMs,
   PracticeTempoTimeline,
@@ -94,7 +97,7 @@ export class PerformancePracticeRuntime {
   private clockSegments: ClockSegment[] = [];
   private observations: PerformanceEvaluationObservation[] = [];
   private outcomes: PerformanceExpectedEventOutcome[] = [];
-  private evaluationCoverageThroughPerformanceTimeMs: number | null = null;
+  private evaluationCoverageIntervals: PerformanceCoverageInterval[] = [];
 
   constructor(options: PerformancePracticeRuntimeOptions) {
     assertPracticeScoreArtifact(options.artifact);
@@ -151,8 +154,9 @@ export class PerformancePracticeRuntime {
         ...outcome,
         source: outcome.source,
       }));
-      this.evaluationCoverageThroughPerformanceTimeMs =
-        options.snapshot.performance.evaluationCoverageThroughPerformanceTimeMs;
+      this.evaluationCoverageIntervals = mergePerformanceCoverageIntervals(
+        options.snapshot.performance.evaluationCoverageIntervals
+      );
     }
   }
 
@@ -253,10 +257,32 @@ export class PerformancePracticeRuntime {
     if (performanceTimeMs === null) {
       return;
     }
-    this.evaluationCoverageThroughPerformanceTimeMs = Math.max(
-      this.evaluationCoverageThroughPerformanceTimeMs ?? performanceTimeMs,
-      performanceTimeMs
-    );
+    this.evaluationCoverageIntervals = mergePerformanceCoverageIntervals([
+      ...this.evaluationCoverageIntervals,
+      { startMs: 0, endMs: performanceTimeMs },
+    ]);
+    this.updateEvaluationOutcomes();
+  }
+
+  markEvaluationCoverageIntervals(
+    intervals: readonly {
+      start: SessionTime;
+      end: SessionTime;
+    }[]
+  ): void {
+    const performanceIntervals: PerformanceCoverageInterval[] = [];
+    for (const interval of intervals) {
+      this.timebase.assertSameSessionTimeDomain(interval.start, this.timebase.atSessionMs(0));
+      this.timebase.assertSameSessionTimeDomain(interval.end, this.timebase.atSessionMs(0));
+      performanceIntervals.push(...this.captureIntervalToPerformanceIntervals(interval.start.ms, interval.end.ms));
+    }
+    if (!performanceIntervals.length) {
+      return;
+    }
+    this.evaluationCoverageIntervals = mergePerformanceCoverageIntervals([
+      ...this.evaluationCoverageIntervals,
+      ...performanceIntervals,
+    ]);
     this.updateEvaluationOutcomes();
   }
 
@@ -302,7 +328,7 @@ export class PerformancePracticeRuntime {
         countInMs: this.countInMs,
         countInBeats: this.countInBeats,
         countInPulses: this.countInPulses,
-        evaluationCoverageThroughPerformanceTimeMs: this.evaluationCoverageThroughPerformanceTimeMs,
+        evaluationCoverageIntervals: this.evaluationCoverageIntervals.map((interval) => ({ ...interval })),
         observations: this.observations.map((observation) => ({
           source: observation.source,
           captureTime: observation.captureTime,
@@ -352,8 +378,41 @@ export class PerformancePracticeRuntime {
 
   private updateEvaluationOutcomes(): void {
     this.outcomes = this.evaluator.evaluate(this.observations, {
-      settledThroughPerformanceTimeMs: this.evaluationCoverageThroughPerformanceTimeMs,
+      coveredPerformanceIntervals: this.evaluationCoverageIntervals,
+      naturalTerminalPerformanceTimeMs:
+        this.completionReason === 'SCOPE_COMPLETED' ? this.scopeDurationMs() : null,
     });
+  }
+
+  private captureIntervalToPerformanceIntervals(
+    captureStartMs: number,
+    captureEndMs: number
+  ): PerformanceCoverageInterval[] {
+    if (!Number.isFinite(captureStartMs) || !Number.isFinite(captureEndMs) || captureEndMs <= captureStartMs) {
+      return [];
+    }
+    const intervals: PerformanceCoverageInterval[] = [];
+    for (const segment of this.clockSegments) {
+      if (segment.state !== 'RUNNING') {
+        continue;
+      }
+      const segmentClockEndMs = segment.clockEndMs ?? (
+        this.currentSegment === segment ? this.nowSessionMs() : segment.clockStartMs
+      );
+      const startMs = Math.max(captureStartMs, segment.clockStartMs);
+      const endMs = Math.min(captureEndMs, segmentClockEndMs);
+      if (endMs <= startMs) {
+        continue;
+      }
+      const activeStartMs = segment.activeElapsedStartMs + startMs - segment.clockStartMs;
+      const activeEndMs = segment.activeElapsedStartMs + endMs - segment.clockStartMs;
+      const perfStartMs = this.performanceElapsedMs(activeStartMs);
+      const perfEndMs = this.performanceElapsedMs(activeEndMs);
+      if (perfEndMs > perfStartMs) {
+        intervals.push({ startMs: perfStartMs, endMs: perfEndMs });
+      }
+    }
+    return intervals;
   }
 
   private activeElapsedAt(nowMs: number): number {
@@ -523,4 +582,27 @@ function validatePerformanceSnapshot(
     || snapshot.performance.countInPulses < 0) {
     throw new Error('Invalid performance snapshot count-in state.');
   }
+}
+
+function mergePerformanceCoverageIntervals(
+  intervals: readonly PerformanceCoverageInterval[]
+): PerformanceCoverageInterval[] {
+  const ordered = intervals
+    .filter((interval) =>
+      Number.isFinite(interval.startMs) &&
+      Number.isFinite(interval.endMs) &&
+      interval.endMs > interval.startMs
+    )
+    .map((interval) => ({ ...interval }))
+    .sort((left, right) => left.startMs - right.startMs);
+  const merged: PerformanceCoverageInterval[] = [];
+  for (const interval of ordered) {
+    const previous = merged[merged.length - 1];
+    if (!previous || interval.startMs > previous.endMs) {
+      merged.push(interval);
+      continue;
+    }
+    previous.endMs = Math.max(previous.endMs, interval.endMs);
+  }
+  return merged;
 }

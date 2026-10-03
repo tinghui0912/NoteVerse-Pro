@@ -371,16 +371,25 @@ type CaptureCoverageInterval = {
   endSampleIndex: number;
 };
 
+type AcousticCoverageInterval = CaptureCoverageInterval & {
+  startSessionTimeMs: number;
+  endSessionTimeMs: number;
+};
+
 export type AcousticCoverageSnapshot = {
-  intervals: readonly CaptureCoverageInterval[];
+  intervals: readonly AcousticCoverageInterval[];
 };
 
 class AcousticCoverageAccumulator {
   private intervals: CaptureCoverageInterval[] = [];
 
-  snapshot(): AcousticCoverageSnapshot {
+  snapshot(timebase?: PracticeTimebase): AcousticCoverageSnapshot {
     return {
-      intervals: this.intervals.map((interval) => ({ ...interval })),
+      intervals: this.intervals.map((interval) => ({
+        ...interval,
+        startSessionTimeMs: timebase?.sampleIndexToSessionTime(interval.startSampleIndex).ms ?? 0,
+        endSessionTimeMs: timebase?.sampleIndexToSessionTime(interval.endSampleIndex).ms ?? 0,
+      })),
     };
   }
 
@@ -388,7 +397,7 @@ class AcousticCoverageAccumulator {
     this.intervals = [];
   }
 
-  add(interval: CaptureCoverageInterval): AcousticCoverageSnapshot {
+  add(interval: CaptureCoverageInterval, timebase?: PracticeTimebase): AcousticCoverageSnapshot {
     if (
       !Number.isFinite(interval.startSampleIndex)
       || !Number.isFinite(interval.endSampleIndex)
@@ -408,7 +417,7 @@ class AcousticCoverageAccumulator {
       previous.endSampleIndex = Math.max(previous.endSampleIndex, item.endSampleIndex);
     }
     this.intervals = merged;
-    return this.snapshot();
+    return this.snapshot(timebase);
   }
 
   coversSample(sampleIndex: number): boolean {
@@ -508,7 +517,7 @@ export class LiveByteDanceRollingPipeline {
   }
 
   acousticCoverageSnapshot(): AcousticCoverageSnapshot {
-    return this.coverage.snapshot();
+    return this.coverage.snapshot(this.lifecycleTimebase);
   }
 
   appendNormalizedPcm(samples: Float32Array, startSampleIndex = this.ring.endSampleIndex): void {
@@ -544,7 +553,7 @@ export class LiveByteDanceRollingPipeline {
         return {
           status: 'incomplete',
           requestedThrough: cutoff,
-          coverage: this.coverage.snapshot(),
+          coverage: this.coverage.snapshot(this.lifecycleTimebase),
           reason: 'INFERENCE_ERROR',
         };
       }
@@ -559,7 +568,7 @@ export class LiveByteDanceRollingPipeline {
         return {
           status: 'incomplete',
           requestedThrough: cutoff,
-          coverage: this.coverage.snapshot(),
+          coverage: this.coverage.snapshot(this.lifecycleTimebase),
           reason: 'TIMEOUT',
         };
       }
@@ -568,7 +577,7 @@ export class LiveByteDanceRollingPipeline {
     return {
       status: 'covered',
       requestedThrough: cutoff,
-      coverage: this.coverage.snapshot(),
+      coverage: this.coverage.snapshot(this.lifecycleTimebase),
     };
   }
 
@@ -613,7 +622,10 @@ export class LiveByteDanceRollingPipeline {
         return;
       }
       this.emitResult(result);
-      const coverage = this.coverage.add(trustedAbsenceCoverageIntervalForAnchor(anchorSampleIndex));
+      const coverage = this.coverage.add(
+        trustedAbsenceCoverageIntervalForAnchor(anchorSampleIndex),
+        this.lifecycleTimebase
+      );
       this.options.evidenceSink?.onPerformanceCoverage?.(coverage);
     } catch (error) {
       if (generation === this.generation) {

@@ -206,6 +206,7 @@ export default function PracticeReviewPage({
   const annotationController = useMemo(() => new PerformanceAnnotationController(), []);
 
   const scoreContainerRef = useRef<HTMLDivElement | null>(null);
+  const scoreRenderRevisionRef = useRef(0);
   const [scoreContainer, setScoreContainer] = useState<HTMLDivElement | null>(null);
   const [sharePreviewTimeMs, setSharePreviewTimeMs] = useState(0);
   const [isReplayPlaying, setIsReplayPlaying] = useState(false);
@@ -228,6 +229,7 @@ export default function PracticeReviewPage({
 
   const handleScoreRendered = useCallback(
     (_adapter: unknown, container: HTMLDivElement) => {
+      scoreRenderRevisionRef.current += 1;
       const isNewContainer = scoreContainerRef.current !== container;
       scoreContainerRef.current = container;
       if (isNewContainer) {
@@ -237,12 +239,16 @@ export default function PracticeReviewPage({
         annotationController.apply(container, {
           confirmedCorrectNoteIds: [],
           confirmedErrorNoteIds: [],
+        }, {
+          renderRevision: scoreRenderRevisionRef.current,
         });
         return;
       }
       annotationController.apply(container, {
         confirmedCorrectNoteIds: scoreNoteAnnotations.confirmedCorrectNoteIds,
         confirmedErrorNoteIds: scoreNoteAnnotations.confirmedErrorNoteIds,
+      }, {
+        renderRevision: scoreRenderRevisionRef.current,
       });
     },
     [annotationController, isScoreIdentityConfirmed, scoreNoteAnnotations]
@@ -315,6 +321,8 @@ export default function PracticeReviewPage({
       annotationController.apply(container, {
         confirmedCorrectNoteIds: [],
         confirmedErrorNoteIds: [],
+      }, {
+        renderRevision: scoreRenderRevisionRef.current,
       });
       playheadController.clear(container);
       return;
@@ -322,6 +330,8 @@ export default function PracticeReviewPage({
     annotationController.apply(container, {
       confirmedCorrectNoteIds: scoreNoteAnnotations.confirmedCorrectNoteIds,
       confirmedErrorNoteIds: scoreNoteAnnotations.confirmedErrorNoteIds,
+    }, {
+      renderRevision: scoreRenderRevisionRef.current,
     });
   }, [annotationController, isScoreIdentityConfirmed, playheadController, scoreNoteAnnotations]);
 
