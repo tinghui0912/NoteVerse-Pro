@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import { PerformancePcmTimeline, type PerformancePcmSegment } from '../capture/performance-pcm-timeline';
 import { batchTranscriptionWindows, ContinuousChunkPlanner } from './chunk-planner';
-import { stitchObservedAttacks } from './event-stitcher';
 import { reconcilePerformance, type ExpectedStrike } from './performance-reconciler';
 import { ContinuousTranscriptionQueue } from './transcription-queue';
 import type { ContinuousTranscriptionContract } from './transcription-contract';
@@ -112,19 +111,6 @@ describe('continuous transcription foundation', () => {
     const tail = timeline.extract(sealed.segmentId, sealed.sampleEnd - 512, sealed.sampleEnd);
     expect(tail.length).toBe(512);
     expect(timeline.debugLastExtractVisitedBlockCount()).toBeLessThanOrEqual(2);
-  });
-
-  it('deduplicates overlapping transcription attacks while preserving real retriggers', () => {
-    const stitched = stitchObservedAttacks({
-      previous: [{ observationId: 'a', pitch: 'C4', performanceTimeMs: 100, confidence: 0.7, source: 'ACOUSTIC' }],
-      incoming: [
-        { observationId: 'b', pitch: 'C4', performanceTimeMs: 105, confidence: 0.9, source: 'ACOUSTIC' },
-        { observationId: 'c', pitch: 'C4', performanceTimeMs: 300, confidence: 0.8, source: 'ACOUSTIC' },
-      ],
-      duplicateWindowMs: 20,
-    });
-
-    expect(stitched.map((attack) => attack.observationId)).toEqual(['b', 'c']);
   });
 
   it('assigns dense repeated pitches one-to-one by minimum timing error', () => {

@@ -1,4 +1,4 @@
-import type { ObservedAttack } from './event-stitcher';
+import type { ObservedAttack } from './observed-attack';
 
 export type ExpectedStrike = {
   strikeId: string;

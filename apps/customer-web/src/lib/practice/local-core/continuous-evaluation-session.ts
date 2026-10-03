@@ -9,7 +9,7 @@ import {
   type ExpectedStrike,
   type ReconciledStrike,
 } from '../audio-analysis/continuous/performance-reconciler';
-import type { ObservedAttack } from '../audio-analysis/continuous/event-stitcher';
+import type { ObservedAttack } from '../audio-analysis/continuous/observed-attack';
 
 const DEFAULT_ASSIGNMENT_WINDOW_MS = 250;
 
