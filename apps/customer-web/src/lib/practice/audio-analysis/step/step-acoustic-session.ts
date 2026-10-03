@@ -16,6 +16,7 @@ import {
 } from '../../acoustic-inference/acoustic-evidence-adapters';
 import { createByteDanceBrowserWorkerClient } from '../../acoustic-inference/bytedance-worker-factory';
 import type { ByteDanceBrowserWorkerClient } from '../../acoustic-inference/bytedance-worker-protocol';
+import { BrowserPcmCaptureController } from '../capture/browser-pcm-capture';
 import {
   monoFromChannels,
   StreamingLinearResampler,
@@ -615,69 +616,10 @@ export class StepByteDanceAnalysisPipeline {
     this.options.onFatalError?.(error);
   }
 }
-/**
- * Lifecycle contract:
- *
- * start()
- *   - only valid when idle/error
- *   - creates one BrowserCaptureLifecycle
- *   - stale/cancelled startup can never publish running
- *
- * stop()
- *   - invalidates current startup/runtime immediately
- *   - eventually releases all lifecycle-owned resources
- *   - resolves with state idle
- *
- * fatal
- *   - invalidates its own lifecycle
- *   - releases only its own resources
- *   - final state error unless superseded by explicit stop/newer lifecycle
- *
- * retry start()
- *   - only begins after old resource ownership is safely detached
- */
-type BrowserCaptureLifecycle = {
-  readonly generation: number;
-  cancelled: boolean;
-  stoppedByStop: boolean;
-
-  mediaStream: MediaStream | null;
-  audioContext: AudioContext | null;
-  sourceNode: MediaStreamAudioSourceNode | null;
-  workletNode: AudioWorkletNode | null;
-  sinkNode: GainNode | null;
-
-  resampler: StreamingLinearResampler | null;
-  pipeline: StepByteDanceAnalysisPipeline | null;
-
-  workletChunkCount: number;
-  sourceContinuityOk: boolean;
-  expectedSourceSampleIndex: number;
-};
-
-function releaseLifecycleResources(lc: BrowserCaptureLifecycle): Promise<void> {
-  lc.workletNode?.port.close();
-  lc.workletNode?.disconnect();
-  lc.sinkNode?.disconnect();
-  lc.sourceNode?.disconnect();
-  for (const track of lc.mediaStream?.getTracks() ?? []) {
-    track.stop();
-  }
-  const audioClosePromise = lc.audioContext?.close().catch(() => undefined) ?? Promise.resolve();
-  const pipelineStopPromise = lc.pipeline?.stop().catch(() => undefined) ?? Promise.resolve();
-  lc.mediaStream = null;
-  lc.audioContext = null;
-  lc.sourceNode = null;
-  lc.workletNode = null;
-  lc.sinkNode = null;
-  lc.resampler = null;
-  lc.pipeline = null;
-  return Promise.all([audioClosePromise, pipelineStopPromise]).then(() => undefined);
-}
-
 export class StepMicrophoneCaptureController {
   private generation = 0;
-  private currentLifecycle: BrowserCaptureLifecycle | null = null;
+  private capture: BrowserPcmCaptureController | null = null;
+  private pipeline: StepByteDanceAnalysisPipeline | null = null;
   private state: StepAcousticSessionState = {
     state: 'idle',
     normalizedEndSampleIndex: 0,
@@ -688,18 +630,18 @@ export class StepMicrophoneCaptureController {
   }
 
   snapshot(): StepAcousticSessionState {
-    const lc = this.currentLifecycle;
+    const capture = this.capture?.snapshot();
     return {
       ...this.state,
-      ...(lc?.pipeline?.snapshot() ?? {}),
-      workletChunkCount: lc?.workletChunkCount ?? 0,
-      sourceContinuityOk: lc?.sourceContinuityOk ?? true,
-      lastSourceSampleIndex: lc?.expectedSourceSampleIndex ?? 0,
+      ...(this.pipeline?.snapshot() ?? {}),
+      workletChunkCount: capture?.workletChunkCount ?? 0,
+      sourceContinuityOk: capture?.sourceContinuityOk ?? true,
+      lastSourceSampleIndex: capture?.lastSourceSampleIndex ?? 0,
     };
   }
 
   get mediaStream(): MediaStream | null {
-    return this.currentLifecycle?.mediaStream ?? null;
+    return this.capture?.mediaStream ?? null;
   }
 
   async start(): Promise<void> {
@@ -716,128 +658,74 @@ export class StepMicrophoneCaptureController {
       );
     }
     this.generation += 1;
-    const lc: BrowserCaptureLifecycle = {
-      generation: this.generation,
-      cancelled: false,
-      stoppedByStop: false,
-      mediaStream: null,
-      audioContext: null,
-      sourceNode: null,
-      workletNode: null,
-      sinkNode: null,
-      resampler: null,
-      pipeline: null,
-      workletChunkCount: 0,
-      sourceContinuityOk: true,
-      expectedSourceSampleIndex: 0,
-    };
-    this.currentLifecycle = lc;
+    const generation = this.generation;
     this.state = { ...this.state, state: 'requesting-permission' };
+    let pipeline: StepByteDanceAnalysisPipeline | null = null;
+    const capture = new BrowserPcmCaptureController({
+      targetSampleRateHz: MODEL_SAMPLE_RATE_HZ,
+      workletModuleUrl: new URL('../../acoustic-inference/bytedance-capture.worklet.js', import.meta.url),
+      workletProcessorName: 'noteverse-bytedance-capture',
+      onBeforeRunning: async (sourceSampleRateHz) => {
+        if (generation !== this.generation) {
+          return;
+        }
+        this.state = { ...this.state, state: 'initializing-model' };
+        pipeline = new StepByteDanceAnalysisPipeline({
+          ...this.options,
+          sourceSampleRateHz,
+          onFatalError: (error) => {
+            if (generation !== this.generation) {
+              return;
+            }
+            this.handleFatalError(error);
+          },
+        });
+        this.pipeline = pipeline;
+        await pipeline.start();
+        return { initialOutputSampleIndex: pipeline.currentLifecycleStartSampleIndex };
+      },
+      onPcmChunk: (chunk) => {
+        if (generation !== this.generation) {
+          return;
+        }
+        this.pipeline?.appendNormalizedPcm(chunk.samples, chunk.startSampleIndex);
+      },
+      onFatalError: (error) => {
+        if (generation !== this.generation) {
+          return;
+        }
+        this.handleFatalError(error);
+      },
+    });
+    this.capture = capture;
     try {
-      const mediaDevices = globalThis.navigator?.mediaDevices;
-      if (!mediaDevices?.getUserMedia) {
-        throw new Error('Browser microphone capture requires getUserMedia.');
-      }
-      lc.mediaStream = await mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-        },
-      });
-      if (lc.cancelled) {
-        void releaseLifecycleResources(lc);
-        return;
-      }
-
       this.state = { ...this.state, state: 'initializing-audio' };
-      lc.audioContext = new AudioContext();
-      await lc.audioContext.audioWorklet.addModule(
-        new URL('../../acoustic-inference/bytedance-capture.worklet.js', import.meta.url)
-      );
-      if (lc.cancelled) {
-        void releaseLifecycleResources(lc);
+      await capture.start();
+      if (generation !== this.generation) {
+        await this.pipeline?.stop().catch(() => undefined);
         return;
       }
-
-      this.state = { ...this.state, state: 'initializing-model' };
-      lc.pipeline = new StepByteDanceAnalysisPipeline({
-        ...this.options,
-        sourceSampleRateHz: lc.audioContext.sampleRate,
-        onFatalError: (error) => {
-          if (this.currentLifecycle !== lc || lc.cancelled) {
-            return;
-          }
-          this.handleFatalError(error, lc);
-        },
-      });
-      await lc.pipeline.start();
-      if (lc.cancelled) {
-        void releaseLifecycleResources(lc);
-        return;
-      }
-
-      lc.resampler = new StreamingLinearResampler(
-        lc.audioContext.sampleRate,
-        MODEL_SAMPLE_RATE_HZ,
-        lc.pipeline.currentLifecycleStartSampleIndex
-      );
-      lc.workletNode = new AudioWorkletNode(lc.audioContext, 'noteverse-bytedance-capture');
-      lc.workletNode.addEventListener('processorerror', (event) => {
-        if (this.currentLifecycle !== lc || lc.cancelled) {
-          return;
-        }
-        this.handleFatalError(
-          new Error(`AudioWorklet processor failed: ${event.type}`),
-          lc
-        );
-      });
-      lc.workletNode.port.onmessage = (event: MessageEvent<WorkletPcmChunkMessage>) => {
-        if (this.currentLifecycle !== lc || lc.cancelled) {
-          return;
-        }
-        try {
-          if (event.data.type !== 'pcm-chunk' || !lc.resampler || !lc.pipeline) {
-            return;
-          }
-          lc.workletChunkCount += 1;
-          if (event.data.sourceStartSampleIndex !== lc.expectedSourceSampleIndex) {
-            lc.sourceContinuityOk = false;
-          }
-          lc.expectedSourceSampleIndex = event.data.sourceEndSampleIndex;
-          const chunk = lc.resampler.append({
-            samples: event.data.samples,
-            sourceStartSampleIndex: event.data.sourceStartSampleIndex,
-          });
-          lc.pipeline.appendNormalizedPcm(chunk.samples, chunk.startSampleIndex);
-        } catch (error) {
-          this.handleFatalError(error, lc);
-        }
-      };
-      lc.sourceNode = lc.audioContext.createMediaStreamSource(lc.mediaStream);
-      lc.sinkNode = lc.audioContext.createGain();
-      lc.sinkNode.gain.value = 0;
-      lc.sourceNode.connect(lc.workletNode);
-      lc.workletNode.connect(lc.sinkNode);
-      lc.sinkNode.connect(lc.audioContext.destination);
       this.state = {
-        ...lc.pipeline.snapshot(),
+        ...(this.pipeline?.snapshot() ?? this.state),
         state: 'running',
-        sourceSampleRateHz: lc.audioContext.sampleRate,
+        sourceSampleRateHz: capture.snapshot().sourceSampleRateHz,
       };
     } catch (error) {
-      if (!lc.stoppedByStop) {
+      if (generation === this.generation) {
         this.state = {
           ...this.state,
           state: 'error',
           lastError: error instanceof Error ? error.message : String(error),
         };
-        if (this.currentLifecycle === lc) {
-          this.currentLifecycle = null;
-        }
+        this.capture = null;
+        this.pipeline = null;
       }
-      await releaseLifecycleResources(lc);
-      if (!lc.stoppedByStop) {
+      const pipelineToStop = this.pipeline;
+      await Promise.all([
+        capture.stop().catch(() => undefined),
+        pipelineToStop?.stop().catch(() => undefined) ?? Promise.resolve(),
+      ]);
+      if (generation === this.generation) {
         throw error;
       }
     }
@@ -849,17 +737,18 @@ export class StepMicrophoneCaptureController {
       return;
     }
     this.generation += 1;
-    const lc = this.currentLifecycle;
-    this.currentLifecycle = null;
+    const capture = this.capture;
+    const pipeline = this.pipeline;
+    this.capture = null;
+    this.pipeline = null;
     this.state = {
       ...this.state,
       state: 'stopping',
     };
-    if (lc) {
-      lc.cancelled = true;
-      lc.stoppedByStop = true;
-      await releaseLifecycleResources(lc);
-    }
+    await Promise.all([
+      capture?.stop().catch(() => undefined) ?? Promise.resolve(),
+      pipeline?.stop().catch(() => undefined) ?? Promise.resolve(),
+    ]);
     this.state = {
       state: 'idle',
       normalizedEndSampleIndex: 0,
@@ -867,30 +756,24 @@ export class StepMicrophoneCaptureController {
     };
   }
 
-  private handleFatalError(error: unknown, lc: BrowserCaptureLifecycle): void {
-    if (this.currentLifecycle !== lc || lc.cancelled) {
-      return;
-    }
+  private handleFatalError(error: unknown): void {
     const fatalError = error instanceof Error ? error : new Error(String(error));
     this.generation += 1;
-    lc.cancelled = true;
-    this.currentLifecycle = null;
+    const capture = this.capture;
+    const pipeline = this.pipeline;
+    this.capture = null;
+    this.pipeline = null;
     this.state = {
       ...this.state,
       state: 'error',
       lastError: fatalError.message,
     };
-    void releaseLifecycleResources(lc);
+    void Promise.all([
+      capture?.stop().catch(() => undefined) ?? Promise.resolve(),
+      pipeline?.stop().catch(() => undefined) ?? Promise.resolve(),
+    ]);
   }
 }
-
-type WorkletPcmChunkMessage = {
-  type: 'pcm-chunk';
-  sourceSampleRateHz: number;
-  sourceStartSampleIndex: number;
-  sourceEndSampleIndex: number;
-  samples: Float32Array;
-};
 
 function defaultStepRingCapacitySamples(): number {
   return MODEL_WINDOW_SAMPLES
