@@ -83,6 +83,7 @@ class PracticeSourceSnapshotDeleteService:
         if self.active_reference_count(db, snapshot_id) > 0:
             return None
         snapshot.status = PracticeSourceSnapshotStatus.DELETING.value
+        snapshot.creation_expires_at = None
         existing = db.execute(
             select(PracticeSourceSnapshotDeleteOutbox).where(
                 PracticeSourceSnapshotDeleteOutbox.snapshot_uuid == snapshot.snapshot_uuid,
@@ -155,9 +156,8 @@ class PracticeSourceSnapshotDeleteService:
         if outbox.attempt_count >= settings.PERFORMANCE_TAKE_DELETE_OUTBOX_MAX_ATTEMPTS:
             return None
 
-        locked_snapshot: PracticeSourceSnapshot | None = None
         if outbox.source_snapshot_id is not None:
-            locked_snapshot = db.execute(
+            db.execute(
                 select(PracticeSourceSnapshot)
                 .where(PracticeSourceSnapshot.id == outbox.source_snapshot_id)
                 .with_for_update()
@@ -166,10 +166,6 @@ class PracticeSourceSnapshotDeleteService:
             outbox.source_snapshot_id is not None
             and self.active_reference_count(db, outbox.source_snapshot_id) > 0
         ):
-            snapshot = locked_snapshot
-            if snapshot is not None:
-                snapshot.status = PracticeSourceSnapshotStatus.READY.value
-                snapshot.creation_expires_at = None
             outbox.status = PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED.value
             outbox.completed_at = utc_now_naive()
             outbox.last_error = None

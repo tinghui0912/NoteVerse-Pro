@@ -92,6 +92,14 @@ def upgrade() -> None:
         sa.UniqueConstraint("prepared_musicxml_object_key", name="uq_practice_source_snapshots_musicxml_key"),
         sa.UniqueConstraint("artifact_object_key", name="uq_practice_source_snapshots_artifact_key"),
         sa.CheckConstraint("status IN ('CREATING', 'READY', 'DELETING')", name="ck_practice_source_snapshots_status"),
+        sa.CheckConstraint(
+            "("
+            "status = 'CREATING' AND creation_expires_at IS NOT NULL"
+            ") OR ("
+            "status IN ('READY', 'DELETING') AND creation_expires_at IS NULL"
+            ")",
+            name="ck_practice_source_snapshots_creation_lease",
+        ),
     )
     op.create_index(
         "ix_practice_source_snapshots_source_score_revision",

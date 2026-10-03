@@ -5,7 +5,16 @@ import enum
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import BigInteger, Column, DateTime, Index, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Column,
+    DateTime,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlmodel import Field, SQLModel
 
 from app.utils.timezone import utc_now_naive
@@ -25,6 +34,14 @@ class PracticeSourceSnapshot(SQLModel, table=True):  # type: ignore[call-arg]
         UniqueConstraint("source_fingerprint", name="uq_practice_source_snapshots_fingerprint"),
         Index("ix_practice_source_snapshots_source_score_revision", "source_score_uuid", "source_revision_uuid"),
         Index("ix_practice_source_snapshots_status_creation", "status", "creation_expires_at"),
+        CheckConstraint(
+            "("
+            "status = 'CREATING' AND creation_expires_at IS NOT NULL"
+            ") OR ("
+            "status IN ('READY', 'DELETING') AND creation_expires_at IS NULL"
+            ")",
+            name="ck_practice_source_snapshots_creation_lease",
+        ),
     )
 
     id: Optional[int] = Field(

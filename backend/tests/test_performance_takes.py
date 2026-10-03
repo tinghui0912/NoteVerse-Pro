@@ -2987,7 +2987,90 @@ def test_authorization_rejects_snapshot_pending_gc(test_env):
         app.dependency_overrides.clear()
 
 
-def test_snapshot_gc_restores_ready_if_reference_appears_before_claim(test_env):
+def test_authorization_creator_cannot_ready_snapshot_after_stale_recovery(test_env):
+    session, storage, user_1, _ = test_env
+    storage_usage_svc = StorageUsageService()
+    original_put_bytes = storage.put_bytes
+    put_count = 0
+
+    def put_bytes_with_stale_recovery(*, key: str, content: bytes, content_type: str | None = None):
+        nonlocal put_count
+        stored = original_put_bytes(key=key, content=content, content_type=content_type)
+        if key.startswith("practice-source-snapshots/"):
+            put_count += 1
+        if put_count == 2:
+            snapshot = session.execute(select(PracticeSourceSnapshot)).scalar_one()
+            snapshot.status = PracticeSourceSnapshotStatus.DELETING.value
+            snapshot.creation_expires_at = None
+            session.add(
+                PracticeSourceSnapshotDeleteOutbox(
+                    source_snapshot_id=snapshot.id,
+                    snapshot_uuid=snapshot.snapshot_uuid,
+                    storage_backend=storage.backend_name,
+                    prepared_musicxml_object_key=snapshot.prepared_musicxml_object_key,
+                    artifact_object_key=snapshot.artifact_object_key,
+                    status=PracticeSourceSnapshotDeleteOutboxStatus.PENDING.value,
+                    max_attempts=5,
+                )
+            )
+            session.commit()
+        return stored
+
+    storage.put_bytes = put_bytes_with_stale_recovery  # type: ignore[assignment]
+    take_svc = _performance_take_service(
+        storage=storage,
+        storage_usage_service=storage_usage_svc,
+    )
+
+    async def override_db():
+        yield AsyncSessionAdapter(session)
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: user_1
+    app.dependency_overrides[get_file_storage] = lambda: storage
+    app.dependency_overrides[get_storage_usage_service] = lambda: storage_usage_svc
+    app.dependency_overrides[get_performance_take_service] = lambda: take_svc
+
+    client = PerformanceTakeTestClient(app)
+    try:
+        response = client.post(
+            "/api/v1/performance-takes/upload-authorizations",
+            json={
+                "score_id": "score-uuid-10",
+                "client_request_id": "req-snapshot-stale-creator",
+                "media_byte_size": len(VALID_WEBM_BYTES),
+                "media_mime_type": "audio/webm",
+                "duration_ms": 5000,
+                "scope_type": "FULL",
+                "scope_start_beat": 0.0,
+                "scope_terminal_beat": 4.0,
+                "revision_id": DEFAULT_TAKE_REVISION_ID,
+                "artifact_id": DEFAULT_TAKE_ARTIFACT_ID,
+                "tempo_plan": DEFAULT_TAKE_TEMPO_PLAN,
+                "recording_timebase": DEFAULT_TAKE_RECORDING_TIMEBASE,
+            },
+        )
+        assert response.status_code >= 400
+        snapshot = session.execute(select(PracticeSourceSnapshot)).scalar_one()
+        assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
+        assert snapshot.creation_expires_at is None
+        assert (
+            session.execute(
+                select(PerformanceTakeUploadAuthorization).where(
+                    PerformanceTakeUploadAuthorization.client_request_id
+                    == "req-snapshot-stale-creator"
+                )
+            ).scalar_one_or_none()
+            is None
+        )
+        outboxes = session.execute(select(PracticeSourceSnapshotDeleteOutbox)).scalars().all()
+        assert len(outboxes) == 1
+    finally:
+        storage.put_bytes = original_put_bytes  # type: ignore[assignment]
+        app.dependency_overrides.clear()
+
+
+def test_snapshot_gc_does_not_restore_ready_if_reference_appears_before_claim(test_env):
     session, storage, user_1, _ = test_env
     snapshot = _create_default_source_snapshot(session, storage)
     snapshot_id = snapshot.id
@@ -3041,7 +3124,7 @@ def test_snapshot_gc_restores_ready_if_reference_appears_before_claim(test_env):
     assert payload is None
     session.refresh(snapshot)
     session.refresh(outbox)
-    assert snapshot.status == PracticeSourceSnapshotStatus.READY.value
+    assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
     assert outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.COMPLETED.value
     assert storage.exists(snapshot.prepared_musicxml_object_key)
     assert storage.exists(snapshot.artifact_object_key)
@@ -4183,6 +4266,11 @@ def _assert_performance_take_upgrade_state(
         assert snapshot_cols["status"]["nullable"] is False
         assert str(snapshot_cols["status"].get("default") or "").find("CREATING") >= 0
         assert snapshot_cols["creation_expires_at"]["nullable"] is True
+        snapshot_checks = {
+            check["name"]
+            for check in inspector.get_check_constraints("practice_source_snapshots")
+        }
+        assert "ck_practice_source_snapshots_creation_lease" in snapshot_checks
         snapshot_indexes = {
             idx["name"] for idx in inspector.get_indexes("practice_source_snapshots")
         }
