@@ -975,23 +975,6 @@ export class BrowserMicrophoneCaptureController {
     return this.currentLifecycle?.mediaStream ?? null;
   }
 
-  async drainThrough(cutoff: SessionTime): Promise<InferenceDrainResult> {
-    const lc = this.currentLifecycle;
-    if (!lc?.pipeline || lc.cancelled || this.state.state !== 'running') {
-      return {
-        status: 'incomplete',
-        requestedThrough: cutoff,
-        coverage: lc?.pipeline?.acousticCoverageSnapshot() ?? { intervals: [] },
-        reason: 'CAPTURE_ENDED',
-      };
-    }
-    return lc.pipeline.drainThrough(cutoff);
-  }
-
-  inferenceCoverageTime(): SessionTime | null {
-    return this.currentLifecycle?.pipeline?.inferenceCoverageSessionTime() ?? null;
-  }
-
   async start(): Promise<void> {
     const currentState = this.state.state;
     if (

@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import canonicalArtifactJson from '@/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json';
 import { completedPerformanceStore } from '@/lib/practice/completed-performance';
 import type { PracticeScoreArtifact } from '@/lib/practice/local-core/artifact';
-import { noteAnnotationsFromPerformanceOutcomes } from '@/lib/practice/performance-annotation-controller';
 import { useLocalPractice } from './use-local-practice';
 
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
@@ -19,21 +18,7 @@ const micMock = vi.hoisted(() => ({
   stop: vi.fn(async () => {
     recorderEvents.events.push('INPUT_TEARDOWN');
   }),
-  drainThrough: vi.fn(async (cutoff) => ({
-    status: 'covered' as const,
-    requestedThrough: cutoff,
-    coverage: { intervals: [] },
-  })),
-  inferenceCoverageTime: vi.fn(() => null),
   onFatalError: null as ((err: Error) => void) | null,
-  onPerformanceCoverage: null as null | ((coverage: {
-    intervals: {
-      startSampleIndex: number;
-      endSampleIndex: number;
-      startSessionTimeMs: number;
-      endSessionTimeMs: number;
-    }[];
-  }) => void),
 }));
 
 vi.mock('@/lib/practice/acoustic-inference/live-capture', () => {
@@ -41,31 +26,14 @@ vi.mock('@/lib/practice/acoustic-inference/live-capture', () => {
     BrowserMicrophoneCaptureController: class MockMicController {
       constructor(options: {
         onFatalError?: (err: Error) => void;
-        evidenceSink?: {
-          onPerformanceCoverage?: (coverage: {
-            intervals: {
-              startSampleIndex: number;
-              endSampleIndex: number;
-              startSessionTimeMs: number;
-              endSessionTimeMs: number;
-            }[];
-          }) => void;
-        };
       }) {
         micMock.onFatalError = options.onFatalError ?? null;
-        micMock.onPerformanceCoverage = options.evidenceSink?.onPerformanceCoverage ?? null;
       }
       async start() {
         return micMock.start();
       }
       async stop() {
         return micMock.stop();
-      }
-      async drainThrough(cutoff: { domainId: string; ms: number; sampleIndex: number }) {
-        return micMock.drainThrough(cutoff);
-      }
-      inferenceCoverageTime() {
-        return micMock.inferenceCoverageTime();
       }
       get mediaStream() {
         return {
@@ -120,14 +88,7 @@ describe('useLocalPractice', () => {
     micMock.stop.mockReset().mockImplementation(async () => {
       recorderEvents.events.push('INPUT_TEARDOWN');
     });
-    micMock.drainThrough.mockReset().mockImplementation(async (cutoff) => ({
-      status: 'covered' as const,
-      requestedThrough: cutoff,
-      coverage: { intervals: [] },
-    }));
-    micMock.inferenceCoverageTime.mockReset().mockReturnValue(null);
     micMock.onFatalError = null;
-    micMock.onPerformanceCoverage = null;
     completedPerformanceStore.clearPerformance();
     class MockMediaRecorder {
       state: 'inactive' | 'recording' | 'paused' = 'inactive';
@@ -458,7 +419,6 @@ describe('useLocalPractice', () => {
     expect(result.current.inputState).toBe('ERROR');
     expect(result.current.inputError).toBe('CONTINUOUS_ANALYSIS_UNAVAILABLE');
     expect(result.current.performanceOutcomes).toEqual([]);
-    expect(micMock.drainThrough).not.toHaveBeenCalled();
     expect(recorderEvents.events).toEqual([]);
     expect(completedPerformanceStore.getPerformance()).toBeNull();
   });
