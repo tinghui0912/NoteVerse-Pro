@@ -116,7 +116,7 @@ function buildFeedbackSummary({
   for (const group of expectedGroups) {
     const outcome = byGroupId.get(group.groupId);
     const byStrikeId = new Map(
-      outcome?.expectedStrikeOutcomes.map((strike) => [strike.strikeId, strike]) ?? []
+      outcome ? outcome.expectedStrikeOutcomes.map((strike) => [strike.strikeId, strike]) : []
     );
     for (const strikeTarget of group.strikeTargets) {
       summary.targetStrikeCount += 1;
@@ -143,7 +143,7 @@ function applyOutcomeUniverseToSummary(
   outcomes: CompletedPerformance['evaluation']['outcomes']
 ) {
   for (const outcome of outcomes) {
-    for (const strike of outcome.expectedStrikeOutcomes ?? []) {
+    for (const strike of outcome.expectedStrikeOutcomes) {
       summary.targetStrikeCount += 1;
       if (strike.result === 'MATCHED') {
         summary.correctStrikeCount += 1;

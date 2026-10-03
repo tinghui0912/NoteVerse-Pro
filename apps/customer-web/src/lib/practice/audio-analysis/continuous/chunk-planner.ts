@@ -4,57 +4,77 @@ import { assertContinuousTranscriptionContract, type ContinuousTranscriptionCont
 export type TranscriptionWindow = {
   windowId: string;
   segmentId: string;
-  inputStartSample: number;
-  inputEndSample: number;
-  trustedStartSample: number;
-  trustedEndSample: number;
+  ownedTrustedStartSample: number;
+  ownedTrustedEndSample: number;
+  modelAnchorSample: number;
+  logicalInputStartSample: number;
+  logicalInputEndSample: number;
+  realInputStartSample: number;
+  realInputEndSample: number;
+  leftZeroPaddingSamples: number;
+  futureContextEndSample: number;
 };
 
 export type TranscriptionBatchJob = {
   sequence: number;
+  ownedTrustedStartSample: number;
+  ownedTrustedEndSample: number;
   windows: readonly TranscriptionWindow[];
 };
 
-export function planTranscriptionWindows(input: {
-  segment: PerformancePcmSegment;
-  contract: ContinuousTranscriptionContract;
-  sealed: boolean;
-}): TranscriptionWindow[] {
-  assertContinuousTranscriptionContract(input.contract);
-  const windows: TranscriptionWindow[] = [];
-  const {
-    inputSamplesPerWindow,
-    windowStrideSamples,
-    trustedOutputStartSamples,
-    trustedOutputEndSamples,
-    futureContextSamples,
-  } = input.contract;
-  const availableEnd = input.sealed ? input.segment.contextTailEnd : input.segment.sampleEnd;
-  for (
-    let inputStartSample = input.segment.sampleStart;
-    inputStartSample + inputSamplesPerWindow <= availableEnd;
-    inputStartSample += windowStrideSamples
-  ) {
-    const inputEndSample = inputStartSample + inputSamplesPerWindow;
-    const trustedStartSample = inputStartSample + trustedOutputStartSamples;
-    const trustedEndSample = inputStartSample + trustedOutputEndSamples;
-    const requiresFutureThrough = trustedEndSample + futureContextSamples;
-    if (requiresFutureThrough > availableEnd) {
-      break;
-    }
-    if (trustedStartSample >= input.segment.sampleEnd) {
-      break;
-    }
-    windows.push({
-      windowId: `${input.segment.segmentId}:${inputStartSample}`,
-      segmentId: input.segment.segmentId,
-      inputStartSample,
-      inputEndSample,
-      trustedStartSample,
-      trustedEndSample: Math.min(trustedEndSample, input.segment.sampleEnd),
-    });
+export class ContinuousChunkPlanner {
+  private readonly cursors = new Map<string, number>();
+
+  constructor(private readonly contract: ContinuousTranscriptionContract) {
+    assertContinuousTranscriptionContract(contract);
   }
-  return windows;
+
+  planReadyWindows(input: {
+    segment: PerformancePcmSegment;
+    sealed: boolean;
+  }): TranscriptionWindow[] {
+    const windows: TranscriptionWindow[] = [];
+    const segmentStart = input.segment.sampleStart;
+    const availableEnd = input.sealed ? input.segment.contextTailEnd : input.segment.sampleEnd;
+    const trustedWidth =
+      this.contract.trustedOutputEndSamples - this.contract.trustedOutputStartSamples;
+    let ownedTrustedStartSample = this.cursors.get(input.segment.segmentId) ?? segmentStart;
+
+    while (ownedTrustedStartSample < input.segment.sampleEnd) {
+      const ownedTrustedEndSample = Math.min(
+        ownedTrustedStartSample + trustedWidth,
+        input.segment.sampleEnd
+      );
+      const futureContextEndSample = ownedTrustedEndSample + this.contract.futureContextSamples;
+      if (futureContextEndSample > availableEnd) {
+        break;
+      }
+      const logicalInputStartSample = ownedTrustedStartSample - this.contract.trustedOutputStartSamples;
+      const logicalInputEndSample = logicalInputStartSample + this.contract.inputSamplesPerWindow;
+      if (logicalInputEndSample > availableEnd) {
+        break;
+      }
+      const realInputStartSample = Math.max(segmentStart, logicalInputStartSample);
+      const realInputEndSample = Math.min(logicalInputEndSample, availableEnd);
+      windows.push({
+        windowId: `${input.segment.segmentId}:${ownedTrustedStartSample}`,
+        segmentId: input.segment.segmentId,
+        ownedTrustedStartSample,
+        ownedTrustedEndSample,
+        modelAnchorSample: logicalInputStartSample + this.contract.trustedOutputStartSamples,
+        logicalInputStartSample,
+        logicalInputEndSample,
+        realInputStartSample,
+        realInputEndSample,
+        leftZeroPaddingSamples: realInputStartSample - logicalInputStartSample,
+        futureContextEndSample,
+      });
+      ownedTrustedStartSample = ownedTrustedEndSample;
+    }
+
+    this.cursors.set(input.segment.segmentId, ownedTrustedStartSample);
+    return windows;
+  }
 }
 
 export function batchTranscriptionWindows(input: {
@@ -66,9 +86,15 @@ export function batchTranscriptionWindows(input: {
   }
   const batches: TranscriptionBatchJob[] = [];
   for (let index = 0; index < input.windows.length; index += input.batchSize) {
+    const windows = input.windows.slice(index, index + input.batchSize);
+    if (windows.length === 0) {
+      continue;
+    }
     batches.push({
       sequence: batches.length,
-      windows: input.windows.slice(index, index + input.batchSize),
+      ownedTrustedStartSample: windows[0].ownedTrustedStartSample,
+      ownedTrustedEndSample: windows[windows.length - 1].ownedTrustedEndSample,
+      windows,
     });
   }
   return batches;

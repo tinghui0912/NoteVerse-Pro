@@ -62,10 +62,6 @@ export type StepAcousticSessionState = {
 
 export type StepByteDanceDiagnosticsSnapshot = {
   executionProvider?: ByteDanceRuntimeExecutionProvider;
-  providerFallback?: {
-    from: ByteDanceRuntimeExecutionProvider;
-    error: string;
-  };
   inferenceCount: number;
   submittedAnchorCount: number;
   workerTotalMedianMs?: number;
@@ -321,7 +317,6 @@ export class StepByteDanceAnalysisPipeline {
   private submittedAnchorCount = 0;
   private readonly workerTotalMs = new BoundedNumberRing(128);
   private loadExecutionProvider: ByteDanceRuntimeExecutionProvider | undefined;
-  private loadExecutionProviderFallback: StepByteDanceDiagnosticsSnapshot['providerFallback'];
   private generation = 0;
   private fixedWorkerConsumed = false;
   private fatalErrorNotified = false;
@@ -374,7 +369,6 @@ export class StepByteDanceAnalysisPipeline {
     try {
       const loadDiagnostics = await worker.load(this.options.manifest);
       this.loadExecutionProvider = loadDiagnostics?.executionProvider;
-      this.loadExecutionProviderFallback = loadDiagnostics?.executionProviderFallback;
       this.state = {
         ...this.state,
         state: 'running',
@@ -493,7 +487,6 @@ export class StepByteDanceAnalysisPipeline {
     const workerTotals = this.workerTotalMs.values();
     return {
       executionProvider: this.loadExecutionProvider,
-      providerFallback: this.loadExecutionProviderFallback,
       inferenceCount: this.inferenceCount,
       submittedAnchorCount: this.submittedAnchorCount,
       workerTotalMedianMs: percentile(workerTotals, 0.5),
@@ -519,7 +512,6 @@ export class StepByteDanceAnalysisPipeline {
     this.submittedAnchorCount = 0;
     this.workerTotalMs.reset();
     this.loadExecutionProvider = undefined;
-    this.loadExecutionProviderFallback = undefined;
   }
 
   private emitResult(result: ByteDanceInferenceResult): void {

@@ -125,10 +125,6 @@ export type ByteDanceLoadDiagnostics = {
   verificationMs?: number;
   persistentStorageGranted?: boolean | null;
   executionProvider?: ByteDanceRuntimeExecutionProvider;
-  executionProviderFallback?: {
-    from: ByteDanceRuntimeExecutionProvider;
-    error: string;
-  };
 };
 
 export function createByteDanceManifestFromAccess(access: {

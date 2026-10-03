@@ -10,8 +10,9 @@ microphone UI, or production model delivery.
 - Model ID: `bytedance-piano-transcription-note-model`
 - Model version: `CRNN_note_F1_0.9677_pedal_F1_0.9186`
 - ONNX Runtime Web: `1.20.1`
-- Preferred execution provider: `webgpu`; falls back to `wasm` when WebGPU
-  session creation fails
+- Execution provider: explicit per session. The production browser worker
+  currently selects `webgpu`; session creation failure is an error, not an
+  automatic provider fallback.
 - Sample rate: 16 kHz mono PCM
 
 The production ONNX binary is not committed here. The runtime consumes a
@@ -85,7 +86,7 @@ AudioWorklet capture
 -> production ByteDance Worker
 -> decoder
 -> AcousticEventStreamNormalizer
--> STEP / CONTINUOUS adapters
+-> STEP adapter
 ```
 
 The AudioWorklet only captures audio and posts PCM chunks. It does not run
@@ -100,15 +101,15 @@ resets the stream normalizer so late results and old per-pitch dedupe state
 cannot cross into the new domain.
 
 The rolling scheduler uses the frozen 150 ms grid (`2400` samples at 16 kHz).
-Because current warm WebGPU inference is slower than the grid, the live
-controller permits one active inference and at most one coalesced latest-ready
-anchor. It never builds an unbounded FIFO backlog and never submits an anchor
-until the full `+220 ms` future context is present.
+Because current warm WebGPU inference is slower than the grid, the old rolling
+CONTINUOUS microphone path is not a product path. STEP still uses the bounded
+single-inference scheduler and never submits an anchor until the full `+220 ms`
+future context is present.
 
 ## Event stream normalization
 
 Per-window decoded events pass through `AcousticEventStreamNormalizer` before
-STEP or CONTINUOUS consumption. It reuses the validated rolling verifier
+STEP consumption. It reuses the validated rolling verifier
 identity rule:
 
 - event identity is pitch + capture sample index;
@@ -126,9 +127,9 @@ The STEP adapter converts generic acoustic events into a
 fresh coherent post-activation gesture for the current target. STEP progression
 remains owned by `StepPracticeRuntime`.
 
-The CONTINUOUS adapter forwards the same generic acoustic evidence into the
-existing Performance evaluator. The local Performance clock remains
-authoritative.
+MICROPHONE + CONTINUOUS_PLAY remains unavailable until a separate Continuous
+transcription gate proves model contract, browser throughput, and reconciler
+correctness. Do not reconnect the old rolling adapter as a fallback.
 
 ## Reference fixtures
 

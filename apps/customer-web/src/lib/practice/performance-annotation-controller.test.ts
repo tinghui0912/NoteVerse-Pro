@@ -173,25 +173,4 @@ describe('PerformanceAnnotationController', () => {
     expect(annotations.confirmedCorrectNoteIds).not.toContain('note-g');
     expect(annotations.confirmedErrorNoteIds).not.toContain('note-g');
   });
-
-  it('ignores incomplete outcome records instead of crashing annotation projection', () => {
-    const annotations = noteAnnotationsFromPerformanceOutcomes([
-      {
-        expectedGroupId: 'legacy-incomplete',
-        performanceTimeMs: 0,
-        result: 'MISMATCH',
-        confidence: 0,
-        source: 'MIDI',
-        unexpectedPitches: [],
-        measureNumbers: [],
-        expectedStrikeOutcomes: undefined as never,
-        renderNoteIds: undefined as never,
-      },
-    ]);
-
-    expect(annotations).toEqual({
-      confirmedCorrectNoteIds: [],
-      confirmedErrorNoteIds: [],
-    });
-  });
 });

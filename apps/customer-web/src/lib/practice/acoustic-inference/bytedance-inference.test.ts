@@ -431,21 +431,17 @@ describe('ByteDance worker protocol', () => {
       .resolves.toMatchObject({ type: 'ERROR', error: expect.stringMatching(/not initialized/) });
   });
 
-  it('creates a browser runtime even when WebGPU availability is decided later by session creation', async () => {
-    await expect(loadOnnxRuntimeWeb()).resolves.toMatchObject({
+  it('creates a browser runtime with an explicit execution provider', async () => {
+    await expect(loadOnnxRuntimeWeb({ executionProvider: 'webgpu' })).resolves.toMatchObject({
       createSession: expect.any(Function),
       createTensor: expect.any(Function),
     });
   });
 
-  it('reports the actual ONNX execution provider and WebGPU fallback in load diagnostics', async () => {
+  it('reports the explicitly selected ONNX execution provider in load diagnostics', async () => {
     const runtime = {
       ...mockRuntime(rawOutput([])),
-      executionProvider: () => 'wasm' as const,
-      executionProviderFallback: () => ({
-        from: 'webgpu' as const,
-        error: 'no available backend found',
-      }),
+      executionProvider: () => 'webgpu' as const,
     };
     const worker = new ByteDanceWorkerProtocolRuntime(runtime, passThroughModelLoader);
 
@@ -453,11 +449,7 @@ describe('ByteDance worker protocol', () => {
       .resolves.toMatchObject({
         type: 'READY',
         diagnostics: {
-          executionProvider: 'wasm',
-          executionProviderFallback: {
-            from: 'webgpu',
-            error: 'no available backend found',
-          },
+          executionProvider: 'webgpu',
         },
       });
   });

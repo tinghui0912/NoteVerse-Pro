@@ -8,9 +8,9 @@ export type ExpectedStrike = {
   renderNoteIds: readonly string[];
 };
 
-type StrikeVerdict = 'PENDING' | 'MATCHED' | 'MISSING' | 'NOT_REACHED';
+export type StrikeVerdict = 'PENDING' | 'MATCHED' | 'MISSING' | 'NOT_REACHED';
 
-type ReconciledStrike = ExpectedStrike & {
+export type ReconciledStrike = ExpectedStrike & {
   verdict: StrikeVerdict;
   matchedObservationId?: string;
   timingOffsetMs?: number;
@@ -19,12 +19,6 @@ type ReconciledStrike = ExpectedStrike & {
 export type ReconciliationResult = {
   strikes: readonly ReconciledStrike[];
   extras: readonly ObservedAttack[];
-};
-
-type CandidateEdge = {
-  strikeIndex: number;
-  observationIndex: number;
-  absoluteTimingErrorMs: number;
 };
 
 export function reconcilePerformance(input: {
@@ -40,16 +34,8 @@ export function reconcilePerformance(input: {
   if (input.assignmentWindowMs < 0) {
     throw new Error('Assignment window must be non-negative.');
   }
-  const edges = buildCandidateEdges(input);
-  const assignedStrikes = new Map<number, number>();
-  const assignedObservations = new Set<number>();
-  for (const edge of edges) {
-    if (assignedStrikes.has(edge.strikeIndex) || assignedObservations.has(edge.observationIndex)) {
-      continue;
-    }
-    assignedStrikes.set(edge.strikeIndex, edge.observationIndex);
-    assignedObservations.add(edge.observationIndex);
-  }
+  const assignedStrikes = buildOptimalAssignments(input);
+  const assignedObservations = new Set(assignedStrikes.values());
 
   const strikes = input.expectedStrikes.map((strike, strikeIndex): ReconciledStrike => {
     const observationIndex = assignedStrikes.get(strikeIndex);
@@ -79,28 +65,133 @@ export function reconcilePerformance(input: {
   return { strikes, extras };
 }
 
-function buildCandidateEdges(input: {
+function buildOptimalAssignments(input: {
   expectedStrikes: readonly ExpectedStrike[];
   observedAttacks: readonly ObservedAttack[];
   assignmentWindowMs: number;
-}): CandidateEdge[] {
-  const edges: CandidateEdge[] = [];
+}): Map<number, number> {
+  const assignments = new Map<number, number>();
+  const expectedByPitch = new Map<string, number[]>();
+  const observedByPitch = new Map<string, number[]>();
   input.expectedStrikes.forEach((strike, strikeIndex) => {
-    input.observedAttacks.forEach((observation, observationIndex) => {
-      if (observation.pitch !== strike.pitch) {
-        return;
-      }
-      const timingError = observation.performanceTimeMs - strike.expectedPerformanceTimeMs;
-      const absoluteTimingErrorMs = Math.abs(timingError);
-      if (absoluteTimingErrorMs > input.assignmentWindowMs) {
-        return;
-      }
-      edges.push({ strikeIndex, observationIndex, absoluteTimingErrorMs });
-    });
+    const list = expectedByPitch.get(strike.pitch) ?? [];
+    list.push(strikeIndex);
+    expectedByPitch.set(strike.pitch, list);
   });
-  return edges.sort((left, right) => (
-    left.absoluteTimingErrorMs - right.absoluteTimingErrorMs
-      || left.strikeIndex - right.strikeIndex
-      || left.observationIndex - right.observationIndex
-  ));
+  input.observedAttacks.forEach((attack, observationIndex) => {
+    const list = observedByPitch.get(attack.pitch) ?? [];
+    list.push(observationIndex);
+    observedByPitch.set(attack.pitch, list);
+  });
+  for (const [pitch, strikeIndices] of expectedByPitch) {
+    const observationIndices = observedByPitch.get(pitch) ?? [];
+    if (observationIndices.length === 0) {
+      continue;
+    }
+    const pitchAssignments = solvePitchAssignments({
+      strikeIndices: strikeIndices.slice().sort((left, right) =>
+        input.expectedStrikes[left].expectedPerformanceTimeMs - input.expectedStrikes[right].expectedPerformanceTimeMs
+          || left - right
+      ),
+      observationIndices: observationIndices.slice().sort((left, right) =>
+        input.observedAttacks[left].performanceTimeMs - input.observedAttacks[right].performanceTimeMs
+          || left - right
+      ),
+      expectedStrikes: input.expectedStrikes,
+      observedAttacks: input.observedAttacks,
+      assignmentWindowMs: input.assignmentWindowMs,
+    });
+    for (const [strikeIndex, observationIndex] of pitchAssignments) {
+      assignments.set(strikeIndex, observationIndex);
+    }
+  }
+  return assignments;
+}
+
+type PitchAssignmentInput = {
+  strikeIndices: readonly number[];
+  observationIndices: readonly number[];
+  expectedStrikes: readonly ExpectedStrike[];
+  observedAttacks: readonly ObservedAttack[];
+  assignmentWindowMs: number;
+};
+
+type AssignmentScore = {
+  matchCount: number;
+  totalTimingErrorMs: number;
+  pairs: readonly (readonly [number, number])[];
+};
+
+function solvePitchAssignments(input: PitchAssignmentInput): readonly (readonly [number, number])[] {
+  const rows = input.strikeIndices.length;
+  const columns = input.observationIndices.length;
+  const table: AssignmentScore[][] = Array.from({ length: rows + 1 }, () =>
+    Array.from({ length: columns + 1 }, () => emptyScore())
+  );
+  for (let strikeOffset = rows - 1; strikeOffset >= 0; strikeOffset -= 1) {
+    for (let observationOffset = columns - 1; observationOffset >= 0; observationOffset -= 1) {
+      const skipStrike = table[strikeOffset + 1][observationOffset];
+      const skipObservation = table[strikeOffset][observationOffset + 1];
+      const candidates = [skipStrike, skipObservation];
+      const match = matchScore(input, strikeOffset, observationOffset, table[strikeOffset + 1][observationOffset + 1]);
+      if (match) {
+        candidates.push(match);
+      }
+      table[strikeOffset][observationOffset] = candidates.reduce(bestScore);
+    }
+  }
+  return table[0][0].pairs;
+}
+
+function matchScore(
+  input: PitchAssignmentInput,
+  strikeOffset: number,
+  observationOffset: number,
+  tail: AssignmentScore
+): AssignmentScore | null {
+  const strikeIndex = input.strikeIndices[strikeOffset];
+  const observationIndex = input.observationIndices[observationOffset];
+  const strike = input.expectedStrikes[strikeIndex];
+  const observation = input.observedAttacks[observationIndex];
+  const timingError = Math.abs(observation.performanceTimeMs - strike.expectedPerformanceTimeMs);
+  if (timingError > input.assignmentWindowMs) {
+    return null;
+  }
+  return {
+    matchCount: tail.matchCount + 1,
+    totalTimingErrorMs: tail.totalTimingErrorMs + timingError,
+    pairs: [[strikeIndex, observationIndex], ...tail.pairs],
+  };
+}
+
+function emptyScore(): AssignmentScore {
+  return { matchCount: 0, totalTimingErrorMs: 0, pairs: [] };
+}
+
+function bestScore(left: AssignmentScore, right: AssignmentScore): AssignmentScore {
+  if (right.matchCount !== left.matchCount) {
+    return right.matchCount > left.matchCount ? right : left;
+  }
+  if (right.totalTimingErrorMs !== left.totalTimingErrorMs) {
+    return right.totalTimingErrorMs < left.totalTimingErrorMs ? right : left;
+  }
+  return comparePairs(right.pairs, left.pairs) < 0 ? right : left;
+}
+
+function comparePairs(
+  left: readonly (readonly [number, number])[],
+  right: readonly (readonly [number, number])[]
+): number {
+  const length = Math.min(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const [leftStrike, leftObservation] = left[index];
+    const [rightStrike, rightObservation] = right[index];
+    if (leftStrike !== rightStrike) {
+      return leftStrike - rightStrike;
+    }
+    if (leftObservation !== rightObservation) {
+      return leftObservation - rightObservation;
+    }
+  }
+  return left.length - right.length;
 }

@@ -152,19 +152,19 @@ export function noteAnnotationsFromPerformanceOutcomes(
   const confirmedCorrectNoteIds: string[] = [];
   const confirmedErrorNoteIds: string[] = [];
   for (const outcome of outcomes) {
-    const strikeOutcomes = outcome.expectedStrikeOutcomes ?? [];
+    const strikeOutcomes = outcome.expectedStrikeOutcomes;
     if (strikeOutcomes.length > 0) {
       for (const strike of strikeOutcomes) {
         if (strike.result === 'MATCHED') {
-          confirmedCorrectNoteIds.push(...(strike.renderNoteIds ?? []));
+          confirmedCorrectNoteIds.push(...strike.renderNoteIds);
         } else if (strike.result === 'MISSING') {
-          confirmedErrorNoteIds.push(...(strike.renderNoteIds ?? []));
+          confirmedErrorNoteIds.push(...strike.renderNoteIds);
         }
       }
       continue;
     }
 
-    const renderNoteIds = outcome.renderNoteIds ?? [];
+    const renderNoteIds = outcome.renderNoteIds;
     if (outcome.result === 'MATCH') {
       confirmedCorrectNoteIds.push(...renderNoteIds);
     } else if (outcome.result === 'MISMATCH') {

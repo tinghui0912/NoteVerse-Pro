@@ -5,7 +5,10 @@ import {
   type ByteDanceWorkerRequest,
 } from './bytedance-worker-protocol';
 
-const host = new ByteDanceWorkerHost(loadOnnxRuntimeWeb, createOpfsByteDanceModelLoader());
+const host = new ByteDanceWorkerHost(
+  () => loadOnnxRuntimeWeb({ executionProvider: 'webgpu' }),
+  createOpfsByteDanceModelLoader()
+);
 
 self.addEventListener('message', (event: MessageEvent<ByteDanceWorkerRequest>) => {
   void host.handle(event.data).then((response) => self.postMessage(response));
