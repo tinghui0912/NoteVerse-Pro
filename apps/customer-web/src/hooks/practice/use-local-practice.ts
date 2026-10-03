@@ -55,6 +55,7 @@ import {
   BrowserMidiController,
 } from '@/lib/practice/midi/browser-midi-controller';
 import {
+  completedEvaluationFromPerformanceOutcomes,
   completedPerformanceStore,
   type CompletedPerformance,
   type PerformanceMedia,
@@ -359,9 +360,10 @@ export function useLocalPractice({
             tempoPlan: resolvedTempoPlan,
             inputSource: sessionSnapshot.inputSource,
             activeElapsedMs: sessionSnapshot.performance.activeElapsedMs,
-            evaluation: {
-              outcomes: sessionSnapshot.performance.outcomes,
-            },
+            evaluation: completedEvaluationFromPerformanceOutcomes(
+              sessionSnapshot.performance.outcomes,
+              sessionSnapshot.completionReason
+            ),
             media,
             recordingTimebase: structuredClone(recordingTimebaseRef.current),
             completedAt: new Date().toISOString(),

@@ -1,4 +1,5 @@
 import type { PerformanceExpectedEventOutcome } from './local-core/evidence';
+import type { CompletedContinuousEvaluation } from './completed-performance';
 
 function escapeCssId(id: string) {
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
@@ -169,6 +170,30 @@ export function noteAnnotationsFromPerformanceOutcomes(
       confirmedCorrectNoteIds.push(...renderNoteIds);
     } else if (outcome.result === 'MISMATCH') {
       confirmedErrorNoteIds.push(...renderNoteIds);
+    }
+  }
+  return { confirmedCorrectNoteIds, confirmedErrorNoteIds };
+}
+
+export function noteAnnotationsFromCompletedEvaluation(
+  evaluation: CompletedContinuousEvaluation
+): {
+  confirmedCorrectNoteIds: string[];
+  confirmedErrorNoteIds: string[];
+} {
+  if (evaluation.status === 'UNAVAILABLE') {
+    return {
+      confirmedCorrectNoteIds: [],
+      confirmedErrorNoteIds: [],
+    };
+  }
+  const confirmedCorrectNoteIds: string[] = [];
+  const confirmedErrorNoteIds: string[] = [];
+  for (const strike of evaluation.strikes) {
+    if (strike.result === 'MATCHED') {
+      confirmedCorrectNoteIds.push(...strike.renderNoteIds);
+    } else if (strike.result === 'MISSING') {
+      confirmedErrorNoteIds.push(...strike.renderNoteIds);
     }
   }
   return { confirmedCorrectNoteIds, confirmedErrorNoteIds };

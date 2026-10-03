@@ -1,8 +1,48 @@
 import type {
   LocalPerformanceExpectedEventOutcomeRecord,
+  LocalPracticeCompletionReason,
   ResolvedPracticeScope,
   ResolvedPracticeTempoPlan,
 } from './local-core';
+
+export type CompletedStrikeResult = 'MATCHED' | 'MISSING' | 'NOT_REACHED';
+
+export type CompletedObservedAttackRecord = {
+  observationId: string;
+  pitch: string;
+  performanceTimeMs: number;
+  confidence: number;
+  source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
+  expectedGroupId?: string;
+};
+
+export type CompletedStrikeRecord = {
+  strikeId: string;
+  expectedGroupId: string;
+  pitch: string;
+  performanceTimeMs: number;
+  renderNoteIds: string[];
+  result: CompletedStrikeResult;
+  confidence: number;
+  source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
+  timingOffsetMs?: number;
+};
+
+export type ContinuousEvaluationUnavailableReason =
+  | 'CONTINUOUS_ANALYSIS_UNAVAILABLE'
+  | 'INCOMPLETE_ANALYSIS'
+  | 'CORRUPT_TRANSIENT_DRAFT';
+
+export type CompletedContinuousEvaluation =
+  | {
+      status: 'COMPLETE';
+      strikes: CompletedStrikeRecord[];
+      extras: CompletedObservedAttackRecord[];
+    }
+  | {
+      status: 'UNAVAILABLE';
+      reason: ContinuousEvaluationUnavailableReason;
+    };
 
 interface PerformanceMediaReadyBase {
   status: 'READY';
@@ -90,12 +130,89 @@ export interface CompletedPerformance {
   tempoPlan: ResolvedPracticeTempoPlan;
   inputSource: 'MICROPHONE' | 'MIDI';
   activeElapsedMs: number;
-  evaluation: {
-    outcomes: LocalPerformanceExpectedEventOutcomeRecord[];
-  };
+  evaluation: CompletedContinuousEvaluation;
   media: PerformanceMedia;
   recordingTimebase: RecordingTimebaseMapping;
   completedAt: string;
+}
+
+export function completedEvaluationFromPerformanceOutcomes(
+  outcomes: readonly LocalPerformanceExpectedEventOutcomeRecord[],
+  completionReason: LocalPracticeCompletionReason | null
+): CompletedContinuousEvaluation {
+  const strikes: CompletedStrikeRecord[] = [];
+  const extras: CompletedObservedAttackRecord[] = [];
+
+  for (const outcome of outcomes) {
+    assertOutcomeShape(outcome);
+    for (const strike of outcome.expectedStrikeOutcomes) {
+      if (strike.result === 'UNCONFIRMED') {
+        if (completionReason === 'STOPPED_BY_USER') {
+          strikes.push({
+            strikeId: strike.strikeId,
+            expectedGroupId: outcome.expectedGroupId,
+            pitch: strike.pitch,
+            performanceTimeMs: outcome.performanceTimeMs,
+            renderNoteIds: [...strike.renderNoteIds],
+            result: 'NOT_REACHED',
+            confidence: outcome.confidence,
+            source: outcome.source,
+            timingOffsetMs: outcome.timingOffsetMs,
+          });
+          continue;
+        }
+        return { status: 'UNAVAILABLE', reason: 'INCOMPLETE_ANALYSIS' };
+      }
+      strikes.push({
+        strikeId: strike.strikeId,
+        expectedGroupId: outcome.expectedGroupId,
+        pitch: strike.pitch,
+        performanceTimeMs: outcome.performanceTimeMs,
+        renderNoteIds: [...strike.renderNoteIds],
+        result: strike.result,
+        confidence: outcome.confidence,
+        source: outcome.source,
+        timingOffsetMs: outcome.timingOffsetMs,
+      });
+    }
+    outcome.unexpectedPitches.forEach((pitch, index) => {
+      extras.push({
+        observationId: `${outcome.expectedGroupId}:extra:${index}:${pitch}`,
+        pitch,
+        performanceTimeMs: outcome.performanceTimeMs,
+        confidence: outcome.confidence,
+        source: outcome.source,
+        expectedGroupId: outcome.expectedGroupId,
+      });
+    });
+  }
+
+  return { status: 'COMPLETE', strikes, extras };
+}
+
+export function assertCompletedPerformance(performance: CompletedPerformance): void {
+  if (performance.evaluation.status === 'UNAVAILABLE') {
+    return;
+  }
+  if (!Array.isArray(performance.evaluation.strikes) || !Array.isArray(performance.evaluation.extras)) {
+    throw new Error('CompletedPerformance evaluation is corrupt.');
+  }
+  for (const strike of performance.evaluation.strikes) {
+    if (!Array.isArray(strike.renderNoteIds)) {
+      throw new Error('CompletedPerformance strike renderNoteIds are required.');
+    }
+  }
+}
+
+function assertOutcomeShape(outcome: LocalPerformanceExpectedEventOutcomeRecord): void {
+  if (!Array.isArray(outcome.expectedStrikeOutcomes) || !Array.isArray(outcome.unexpectedPitches)) {
+    throw new Error('Local performance outcome is corrupt.');
+  }
+  for (const strike of outcome.expectedStrikeOutcomes) {
+    if (!Array.isArray(strike.renderNoteIds)) {
+      throw new Error('Local performance strike renderNoteIds are required.');
+    }
+  }
 }
 
 class CompletedPerformanceStore {
@@ -107,6 +224,7 @@ class CompletedPerformanceStore {
   }
 
   setPerformance(performance: CompletedPerformance): void {
+    assertCompletedPerformance(performance);
     this.performance = performance;
     this.notify();
   }

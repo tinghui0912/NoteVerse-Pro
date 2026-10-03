@@ -34,7 +34,9 @@ describe('CompletedPerformanceStore', () => {
       inputSource: 'MICROPHONE',
       activeElapsedMs: 4000,
       evaluation: {
-        outcomes: [],
+        status: 'COMPLETE',
+        strikes: [],
+        extras: [],
       },
       media: {
         status: 'READY',
@@ -58,6 +60,52 @@ describe('CompletedPerformanceStore', () => {
 
     unsubscribe();
     expect(notifications).toEqual([null, mockDraft, null]);
+  });
+
+  it('rejects corrupt completed strike records instead of treating them as empty feedback', () => {
+    const corruptStrike = JSON.parse(JSON.stringify({
+      strikeId: 'strike-1',
+      expectedGroupId: 'group-1',
+      pitch: 'C4',
+      performanceTimeMs: 0,
+      result: 'MATCHED',
+      confidence: 1,
+      source: 'MIDI',
+    }));
+    const mockDraft: CompletedPerformance = {
+      localSessionId: 'sess-123',
+      scoreId: 'score-abc',
+      revisionId: 'rev-1',
+      artifactId: 'art-1',
+      scope: {
+        kind: 'FULL',
+        startIndex: 0,
+        endIndex: 0,
+        startBeat: 0,
+        terminalBeat: 4,
+      },
+      tempoPlan: {
+        selection: { mode: 'SCORE' },
+        segments: [{ startBeat: 0, bpm: 90, source: 'CUSTOM' }],
+      },
+      inputSource: 'MIDI',
+      activeElapsedMs: 4000,
+      evaluation: {
+        status: 'COMPLETE',
+        strikes: [corruptStrike],
+        extras: [],
+      },
+      media: { status: 'UNAVAILABLE', reason: 'NONE' },
+      recordingTimebase: {
+        activeSegments: [{ perfStartMs: 0, perfEndMs: 4000, mediaStartMs: 0, mediaEndMs: 4000 }],
+        nominalMediaDurationMs: 4000,
+      },
+      completedAt: '2026-09-20T12:00:00.000Z',
+    };
+
+    expect(() => completedPerformanceStore.setPerformance(mockDraft)).toThrow(
+      'CompletedPerformance strike renderNoteIds are required.'
+    );
   });
 
   describe('mediaTimeToPerformanceTimeMs', () => {

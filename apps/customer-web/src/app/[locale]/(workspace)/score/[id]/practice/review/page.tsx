@@ -39,13 +39,14 @@ import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-ar
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
 import {
   completedPerformanceStore,
+  type CompletedContinuousEvaluation,
   type CompletedPerformance,
   mediaTimeToPerformanceTimeMs,
 } from '@/lib/practice/completed-performance';
 import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
 import {
   PerformanceAnnotationController,
-  noteAnnotationsFromPerformanceOutcomes,
+  noteAnnotationsFromCompletedEvaluation,
 } from '@/lib/practice/performance-annotation-controller';
 import { PracticeTempoTimeline } from '@/lib/practice/local-core/practice-tempo';
 import type { ResolvedPracticeTempoPlan } from '@/lib/practice/local-core/practice-tempo';
@@ -86,19 +87,18 @@ function extensionForMime(mimeType: string): string {
 function buildFeedbackSummary({
   artifact,
   scope,
-  outcomes,
+  evaluation,
 }: {
   artifact: PracticeScoreArtifact | null | undefined;
   scope: CompletedPerformance['scope'];
-  outcomes: CompletedPerformance['evaluation']['outcomes'];
+  evaluation: CompletedContinuousEvaluation;
 }) {
-  const byGroupId = new Map(outcomes.map((outcome) => [outcome.expectedGroupId, outcome]));
   const summary = {
     targetStrikeCount: 0,
     correctStrikeCount: 0,
     missingStrikeCount: 0,
     unconfirmedStrikeCount: 0,
-    extraPitchCount: outcomes.reduce((sum, outcome) => sum + outcome.unexpectedPitches.length, 0),
+    extraPitchCount: evaluation.status === 'COMPLETE' ? evaluation.extras.length : 0,
   };
 
   const expectedGroups = artifact
@@ -109,15 +109,16 @@ function buildFeedbackSummary({
     0
   );
   if (expectedStrikeCount === 0) {
-    applyOutcomeUniverseToSummary(summary, outcomes);
+    applyCompletedEvaluationToSummary(summary, evaluation);
     return summary;
   }
 
+  const byStrikeId = new Map(
+    evaluation.status === 'COMPLETE'
+      ? evaluation.strikes.map((strike) => [strike.strikeId, strike])
+      : []
+  );
   for (const group of expectedGroups) {
-    const outcome = byGroupId.get(group.groupId);
-    const byStrikeId = new Map(
-      outcome ? outcome.expectedStrikeOutcomes.map((strike) => [strike.strikeId, strike]) : []
-    );
     for (const strikeTarget of group.strikeTargets) {
       summary.targetStrikeCount += 1;
       const result = byStrikeId.get(strikeTarget.strikeId)?.result ?? 'UNCONFIRMED';
@@ -133,25 +134,26 @@ function buildFeedbackSummary({
   return summary;
 }
 
-function applyOutcomeUniverseToSummary(
+function applyCompletedEvaluationToSummary(
   summary: {
     targetStrikeCount: number;
     correctStrikeCount: number;
     missingStrikeCount: number;
     unconfirmedStrikeCount: number;
   },
-  outcomes: CompletedPerformance['evaluation']['outcomes']
+  evaluation: CompletedContinuousEvaluation
 ) {
-  for (const outcome of outcomes) {
-    for (const strike of outcome.expectedStrikeOutcomes) {
-      summary.targetStrikeCount += 1;
-      if (strike.result === 'MATCHED') {
-        summary.correctStrikeCount += 1;
-      } else if (strike.result === 'MISSING') {
-        summary.missingStrikeCount += 1;
-      } else {
-        summary.unconfirmedStrikeCount += 1;
-      }
+  if (evaluation.status === 'UNAVAILABLE') {
+    return;
+  }
+  for (const strike of evaluation.strikes) {
+    summary.targetStrikeCount += 1;
+    if (strike.result === 'MATCHED') {
+      summary.correctStrikeCount += 1;
+    } else if (strike.result === 'MISSING') {
+      summary.missingStrikeCount += 1;
+    } else {
+      summary.unconfirmedStrikeCount += 1;
     }
   }
 }
@@ -300,7 +302,7 @@ export default function PracticeReviewPage({
         confirmedErrorNoteIds: [],
       };
     }
-    return noteAnnotationsFromPerformanceOutcomes(draft.evaluation.outcomes);
+    return noteAnnotationsFromCompletedEvaluation(draft.evaluation);
   }, [draft, isScoreIdentityConfirmed]);
 
   const handleScoreRendered = useCallback(
@@ -598,11 +600,10 @@ export default function PracticeReviewPage({
     );
   }
 
-  const outcomes = draft.evaluation.outcomes;
   const strikeSummary = buildFeedbackSummary({
     artifact: isScoreIdentityConfirmed ? artifact : null,
     scope: draft.scope,
-    outcomes,
+    evaluation: draft.evaluation,
   });
 
   const tempoText =

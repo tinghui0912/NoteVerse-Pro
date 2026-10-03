@@ -257,10 +257,19 @@ vi.mock('@/lib/practice/share-video-export', () => ({
 
 import PracticeReviewPage from './page';
 import {
+  completedEvaluationFromPerformanceOutcomes,
   completedPerformanceStore,
   type CompletedPerformance,
 } from '@/lib/practice/completed-performance';
 import { PerformanceAnnotationController } from '@/lib/practice/performance-annotation-controller';
+import type { LocalPerformanceExpectedEventOutcomeRecord, LocalPracticeCompletionReason } from '@/lib/practice/local-core';
+
+function completeEvaluation(
+  outcomes: LocalPerformanceExpectedEventOutcomeRecord[] = [],
+  completionReason: LocalPracticeCompletionReason = 'SCOPE_COMPLETED'
+) {
+  return completedEvaluationFromPerformanceOutcomes(outcomes, completionReason);
+}
 
 describe('PracticeReviewPage', () => {
   beforeEach(() => {
@@ -320,7 +329,7 @@ describe('PracticeReviewPage', () => {
       tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 80, source: 'CUSTOM' }] },
       inputSource: 'MICROPHONE',
       activeElapsedMs: 0,
-      evaluation: { outcomes: [] },
+      evaluation: completeEvaluation(),
       revisionId: 'rev-1',
       artifactId: 'art-1',
       media: { status: 'UNAVAILABLE', reason: 'NONE' },
@@ -348,7 +357,7 @@ describe('PracticeReviewPage', () => {
       },
       inputSource: 'MICROPHONE',
       activeElapsedMs: 9600,
-      evaluation: { outcomes: [
+      evaluation: completeEvaluation([
             {
               expectedGroupId: 'g-1',
               performanceTimeMs: 0,
@@ -371,7 +380,7 @@ describe('PracticeReviewPage', () => {
               renderNoteIds: ['n-2'],
               measureNumbers: ['1'],
             },
-          ] },
+          ], 'STOPPED_BY_USER'),
       media: {
         status: 'READY',
         kind: 'AUDIO',
@@ -429,7 +438,7 @@ describe('PracticeReviewPage', () => {
       },
       inputSource: 'MICROPHONE',
       activeElapsedMs: 10000,
-      evaluation: { outcomes: [
+      evaluation: completeEvaluation([
             // 1. MATCH group with 2 matched strikes in a chord
             {
               expectedGroupId: 'g-1',
@@ -503,7 +512,7 @@ describe('PracticeReviewPage', () => {
               renderNoteIds: ['note-a4'],
               measureNumbers: ['3'],
             },
-          ] },
+          ], 'STOPPED_BY_USER'),
       media: {
         status: 'READY',
         kind: 'AUDIO',
@@ -570,7 +579,7 @@ describe('PracticeReviewPage', () => {
       },
       inputSource: 'MICROPHONE',
       activeElapsedMs: 3000,
-      evaluation: { outcomes: [
+      evaluation: completeEvaluation([
             {
               expectedGroupId: 'g-1',
               performanceTimeMs: 0,
@@ -582,7 +591,7 @@ describe('PracticeReviewPage', () => {
               renderNoteIds: ['n-1'],
               measureNumbers: ['1'],
             },
-          ] },
+          ]),
       media: {
         status: 'READY',
         kind: 'AUDIO',
@@ -633,7 +642,7 @@ describe('PracticeReviewPage', () => {
       },
       inputSource: 'MIDI',
       activeElapsedMs: 3000,
-      evaluation: { outcomes: [] },
+      evaluation: completeEvaluation(),
       media: {
         status: 'UNAVAILABLE',
         reason: 'PERMISSION_DENIED',
@@ -679,7 +688,7 @@ describe('PracticeReviewPage', () => {
       },
       inputSource: 'MIDI',
       activeElapsedMs: 3000,
-      evaluation: { outcomes: [] },
+      evaluation: completeEvaluation(),
       media: {
         status: 'READY',
         kind: 'AUDIO',
@@ -743,7 +752,7 @@ describe('PracticeReviewPage', () => {
       },
       inputSource: 'MICROPHONE',
       activeElapsedMs: 3000,
-      evaluation: { outcomes: [] },
+      evaluation: completeEvaluation(),
       media: {
         status: 'READY',
         kind: 'VIDEO',
@@ -1007,7 +1016,7 @@ function createVideoDraft({
     },
     inputSource: 'MICROPHONE',
       activeElapsedMs: 3000,
-      evaluation: { outcomes: [] },
+      evaluation: completeEvaluation(),
     media: {
       status: 'READY',
       kind: 'VIDEO',
