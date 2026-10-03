@@ -405,13 +405,18 @@ export function useLocalPractice({
   );
 
   const drainPerformanceInference = useCallback(async (runtime: PerformancePracticeRuntime) => {
+    setIsFinalizingRecording(true);
     const mic = micControllerRef.current;
+    const completionCaptureTime = runtime.completionCaptureTime();
     if (!mic) {
+      runtime.markEvaluationCoverageThrough(completionCaptureTime);
+      setPerformanceOutcomes(runtime.evaluationOutcomes);
       return;
     }
-    const completionCaptureTime = runtime.completionCaptureTime();
-    await mic.drainThrough(completionCaptureTime);
-    runtime.markEvaluationCoverageThrough(completionCaptureTime);
+    const drainResult = await mic.drainThrough(completionCaptureTime);
+    if (drainResult.coveredThrough) {
+      runtime.markEvaluationCoverageThrough(drainResult.coveredThrough);
+    }
     setPerformanceOutcomes(runtime.evaluationOutcomes);
   }, []);
 

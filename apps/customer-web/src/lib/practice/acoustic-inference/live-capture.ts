@@ -350,6 +350,17 @@ export class RollingInferenceScheduler {
   }
 }
 
+export type InferenceDrainResult =
+  | {
+      status: 'covered';
+      coveredThrough: SessionTime;
+    }
+  | {
+      status: 'incomplete';
+      coveredThrough: SessionTime | null;
+      reason: 'TIMEOUT' | 'INFERENCE_ERROR' | 'CAPTURE_ENDED';
+    };
+
 export class LiveByteDanceRollingPipeline {
   private readonly ring: BoundedPcmSampleRing;
   private readonly scheduler = new RollingInferenceScheduler();
@@ -451,7 +462,7 @@ export class LiveByteDanceRollingPipeline {
     }
   }
 
-  async drainThrough(cutoff: SessionTime, timeoutMs = DEFAULT_DRAIN_TIMEOUT_MS): Promise<boolean> {
+  async drainThrough(cutoff: SessionTime, timeoutMs = DEFAULT_DRAIN_TIMEOUT_MS): Promise<InferenceDrainResult> {
     this.assertRunning();
     this.lifecycleTimebase.assertSameSessionTimeDomain(
       cutoff,
@@ -465,7 +476,11 @@ export class LiveByteDanceRollingPipeline {
 
     while ((this.completedCoverageAnchorSampleIndex ?? -Infinity) < targetAnchorSampleIndex) {
       if (this.state.state === 'error') {
-        return false;
+        return {
+          status: 'incomplete',
+          coveredThrough: this.inferenceCoverageSessionTime(),
+          reason: 'INFERENCE_ERROR',
+        };
       }
       const ready = this.scheduler.nextReadyAnchor(this.ring.endSampleIndex);
       if (ready !== null) {
@@ -473,11 +488,18 @@ export class LiveByteDanceRollingPipeline {
       }
       const now = this.options.nowMs?.() ?? globalThis.performance?.now?.() ?? Date.now();
       if (now - startedAt > timeoutMs) {
-        return false;
+        return {
+          status: 'incomplete',
+          coveredThrough: this.inferenceCoverageSessionTime(),
+          reason: 'TIMEOUT',
+        };
       }
       await waitForDrainTick();
     }
-    return true;
+    return {
+      status: 'covered',
+      coveredThrough: this.inferenceCoverageSessionTime() ?? cutoff,
+    };
   }
 
   async stop(): Promise<void> {
@@ -740,10 +762,14 @@ export class BrowserMicrophoneCaptureController {
     return this.currentLifecycle?.mediaStream ?? null;
   }
 
-  async drainThrough(cutoff: SessionTime): Promise<boolean> {
+  async drainThrough(cutoff: SessionTime): Promise<InferenceDrainResult> {
     const lc = this.currentLifecycle;
     if (!lc?.pipeline || lc.cancelled || this.state.state !== 'running') {
-      return false;
+      return {
+        status: 'incomplete',
+        coveredThrough: null,
+        reason: 'CAPTURE_ENDED',
+      };
     }
     return lc.pipeline.drainThrough(cutoff);
   }

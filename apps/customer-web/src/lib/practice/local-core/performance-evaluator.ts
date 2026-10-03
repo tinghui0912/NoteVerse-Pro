@@ -114,7 +114,8 @@ function outcomeForEvent(
   const expectedStrikeOutcomes = expectedStrikeOutcomesFor(
     event.expectedGroup,
     observedPitches,
-    nonGestureClassification.unconfirmedExpectedPitches
+    nonGestureClassification.unconfirmedExpectedPitches,
+    isSettled
   );
   const unexpectedPitches = [
     ...unexpectedPitchesFor(event.expectedGroup, observedPitches),
@@ -189,7 +190,8 @@ function splitChordGestureObservations(
 function expectedStrikeOutcomesFor(
   group: ExpectedPracticeGroup,
   observedPitches: readonly string[],
-  unconfirmedExpectedPitches: readonly string[]
+  unconfirmedExpectedPitches: readonly string[],
+  isSettled: boolean
 ): PerformanceExpectedStrikeOutcome[] {
   const observed = new Set(observedPitches);
   const unconfirmed = new Set(unconfirmedExpectedPitches);
@@ -201,7 +203,9 @@ function expectedStrikeOutcomesFor(
       ? 'MATCHED'
       : unconfirmed.has(strike.pitch)
         ? 'UNCONFIRMED'
-        : 'MISSING',
+        : isSettled
+          ? 'MISSING'
+          : 'UNCONFIRMED',
   }));
 }
 

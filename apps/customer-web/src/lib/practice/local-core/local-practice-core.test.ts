@@ -464,6 +464,16 @@ describe('local CONTINUOUS practice runtime', () => {
       result: 'PARTIAL',
       expectedStrikeOutcomes: [
         { pitch: 'A4', result: 'MATCHED' },
+        { pitch: 'C5', result: 'UNCONFIRMED' },
+      ],
+      timingOffsetMs: 0,
+    });
+    (partial as unknown as { clock: ManualClock }).clock.advance(500);
+    partial.markEvaluationCoverageThrough(partial.timebase.atSessionMs(2_000));
+    expect(partial.evaluationOutcomes[3]).toMatchObject({
+      result: 'PARTIAL',
+      expectedStrikeOutcomes: [
+        { pitch: 'A4', result: 'MATCHED' },
         { pitch: 'C5', result: 'MISSING' },
       ],
       timingOffsetMs: 0,

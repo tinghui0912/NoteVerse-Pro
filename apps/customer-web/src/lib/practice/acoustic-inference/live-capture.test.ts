@@ -356,9 +356,39 @@ describe('live ByteDance rolling pipeline', () => {
     const drainPromise = pipeline.drainThrough(anchor('capture-domain', 150, 2400));
     pipeline.appendNormalizedPcm(fill(2400), 3520);
 
-    await expect(drainPromise).resolves.toBe(true);
+    await expect(drainPromise).resolves.toMatchObject({
+      status: 'covered',
+    });
     expect(worker.requests.map((request) => request.captureStartSampleIndex)).toEqual([-25_600, -23_200]);
     expect(emitted.map((item) => item.pitch)).toContain('D4');
+  });
+
+  it('reports incomplete drain without pretending the requested cutoff was covered', async () => {
+    const timebase = new PracticeTimebase({ domainId: 'capture-domain', sampleRateHz: 16_000 });
+    const worker = new FakeWorker();
+    let nowMs = 0;
+    const pipeline = new LiveByteDanceRollingPipeline({
+      ...pipelineOptions({
+        sessionTimebase: timebase,
+        workerClient: workerCast(worker),
+        nowMs: () => {
+          nowMs += 10;
+          return nowMs;
+        },
+      }),
+    });
+
+    await pipeline.start();
+    pipeline.appendNormalizedPcm(fill(3520), 0);
+    await tick();
+
+    await expect(
+      pipeline.drainThrough(anchor('capture-domain', 150, 2400), 1)
+    ).resolves.toMatchObject({
+      status: 'incomplete',
+      reason: 'TIMEOUT',
+      coveredThrough: { domainId: 'capture-domain', sampleIndex: 0 },
+    });
   });
 
   it('ignores late worker results after stop or capture-domain replacement', async () => {

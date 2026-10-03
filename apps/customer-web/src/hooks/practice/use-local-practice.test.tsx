@@ -11,7 +11,10 @@ const artifact = canonicalArtifactJson as PracticeScoreArtifact;
 const micMock = vi.hoisted(() => ({
   start: vi.fn(async () => {}),
   stop: vi.fn(async () => {}),
-  drainThrough: vi.fn(async () => true),
+  drainThrough: vi.fn(async (cutoff) => ({
+    status: 'covered' as const,
+    coveredThrough: cutoff,
+  })),
   inferenceCoverageTime: vi.fn(() => null),
   onFatalError: null as ((err: Error) => void) | null,
 }));
@@ -28,8 +31,8 @@ vi.mock('@/lib/practice/acoustic-inference/live-capture', () => {
       async stop() {
         return micMock.stop();
       }
-      async drainThrough() {
-        return micMock.drainThrough();
+      async drainThrough(cutoff: { domainId: string; ms: number; sampleIndex: number }) {
+        return micMock.drainThrough(cutoff);
       }
       inferenceCoverageTime() {
         return micMock.inferenceCoverageTime();
