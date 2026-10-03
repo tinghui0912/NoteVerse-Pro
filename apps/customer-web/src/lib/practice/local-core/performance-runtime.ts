@@ -20,9 +20,9 @@ import {
   type LocalPracticeCompletionReason,
 } from './session';
 import {
-  LocalPerformanceEvaluator,
+  ContinuousEvaluationSession,
   type PerformanceCoverageInterval,
-} from './performance-evaluator';
+} from './continuous-evaluation-session';
 import {
   beatsToMs,
   PracticeTempoTimeline,
@@ -76,7 +76,7 @@ export class PerformancePracticeRuntime {
   readonly localSessionId: string;
   readonly timebase: PracticeTimebase;
   private readonly timeline: PerformanceTimeline;
-  private readonly evaluator: LocalPerformanceEvaluator;
+  private readonly evaluator: ContinuousEvaluationSession;
   private readonly clock: LocalClock;
   private readonly metadataClock: DurableClock;
   private readonly version: RuntimeVersionIdentity;
@@ -129,7 +129,7 @@ export class PerformancePracticeRuntime {
     this.countInPulses = options.snapshot?.performance.countInPulses ?? countIn.pulses;
     this.countInMs = options.snapshot?.performance.countInMs
       ?? beatsToMs(this.countInBeats, this.timeline.bpmAtBeat(this.scope.startBeat));
-    this.evaluator = new LocalPerformanceEvaluator({
+    this.evaluator = new ContinuousEvaluationSession({
       artifact: this.artifact,
       timeline: this.timeline,
       scope: this.scope,
@@ -207,6 +207,9 @@ export class PerformancePracticeRuntime {
   snapshot(): PerformanceClockSnapshot {
     const activeElapsedMs = this.advanceState();
     const performanceTimeMs = this.performanceElapsedMs(activeElapsedMs);
+    if (this.inputSource === 'MIDI') {
+      this.updateEvaluationOutcomes();
+    }
     const countInTotalMs = this.countInMs;
     const countInRemainingMs = Math.max(0, this.countInMs - activeElapsedMs);
     const countInPulse = this.countInPulses > 0 && countInTotalMs > 0 && this.state === 'COUNT_IN'
@@ -345,6 +348,9 @@ export class PerformancePracticeRuntime {
   }
 
   get evaluationOutcomes(): PerformanceExpectedEventOutcome[] {
+    if (this.inputSource === 'MIDI') {
+      this.updateEvaluationOutcomes();
+    }
     return [...this.outcomes];
   }
 
@@ -382,10 +388,22 @@ export class PerformancePracticeRuntime {
   }
 
   private updateEvaluationOutcomes(): void {
-    this.outcomes = this.evaluator.evaluate(this.observations, {
-      coveredPerformanceIntervals: this.evaluationCoverageIntervals,
-      naturalTerminalPerformanceTimeMs:
-        this.completionReason === 'SCOPE_COMPLETED' ? this.scopeDurationMs() : null,
+    const currentPerformanceTimeMs = this.performanceElapsedMs(this.activeElapsedAt(this.nowSessionMs()));
+    const analyzedThroughPerformanceMs = this.inputSource === 'MIDI'
+      ? currentPerformanceTimeMs
+      : maxCoveredPerformanceMs(this.evaluationCoverageIntervals);
+    const coveredPerformanceIntervals = this.inputSource === 'MIDI'
+      ? [{ startMs: 0, endMs: currentPerformanceTimeMs }]
+      : this.evaluationCoverageIntervals;
+    this.outcomes = this.evaluator.evaluate({
+      observations: this.observations,
+      analyzedThroughPerformanceMs,
+      coveredPerformanceIntervals,
+      completion: this.completionReason === 'SCOPE_COMPLETED'
+        ? { kind: 'NATURAL', terminalPerformanceMs: this.scopeDurationMs() }
+        : this.completionReason === 'STOPPED_BY_USER'
+          ? { kind: 'MANUAL', stoppedAtPerformanceMs: currentPerformanceTimeMs }
+          : { kind: 'LIVE' },
     });
   }
 
@@ -618,4 +636,8 @@ function mergePerformanceCoverageIntervals(
     previous.endMs = Math.max(previous.endMs, interval.endMs);
   }
   return merged;
+}
+
+function maxCoveredPerformanceMs(intervals: readonly PerformanceCoverageInterval[]): number {
+  return intervals.reduce((max, interval) => Math.max(max, interval.endMs), 0);
 }

@@ -1,6 +1,6 @@
 export * from './artifact';
+export * from './continuous-evaluation-session';
 export * from './evidence';
-export * from './performance-evaluator';
 export * from './performance-runtime';
 export * from './practice-tempo';
 export * from './session';
