@@ -23,7 +23,6 @@ import type {
 } from '../../local-core';
 
 export { monoFromChannels, StreamingLinearResampler } from '../capture/streaming-resampler';
-export type { NormalizedPcmChunk } from '../capture/streaming-resampler';
 
 export const STEP_BYTEDANCE_ANCHOR_STEP_SAMPLES = 2400;
 

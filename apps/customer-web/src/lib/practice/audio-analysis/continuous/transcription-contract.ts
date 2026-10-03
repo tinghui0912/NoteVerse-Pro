@@ -1,4 +1,4 @@
-export type ContinuousTranscriptionCapability =
+type ContinuousTranscriptionCapability =
   | {
       status: 'UNAVAILABLE';
       reason: 'BYTE_DANCE_CONTINUOUS_TRANSCRIPTION_NOT_VIABLE';

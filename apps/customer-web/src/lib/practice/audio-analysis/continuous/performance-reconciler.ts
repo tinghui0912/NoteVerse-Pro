@@ -8,9 +8,9 @@ export type ExpectedStrike = {
   renderNoteIds: readonly string[];
 };
 
-export type StrikeVerdict = 'PENDING' | 'MATCHED' | 'MISSING' | 'NOT_REACHED';
+type StrikeVerdict = 'PENDING' | 'MATCHED' | 'MISSING' | 'NOT_REACHED';
 
-export type ReconciledStrike = ExpectedStrike & {
+type ReconciledStrike = ExpectedStrike & {
   verdict: StrikeVerdict;
   matchedObservationId?: string;
   timingOffsetMs?: number;
