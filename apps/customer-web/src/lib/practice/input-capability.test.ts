@@ -58,6 +58,22 @@ describe('evaluatePracticeInputCapabilities', () => {
     expect(getSelectedInputCapability('MIDI', caps).status).toBe('READY');
   });
 
+  it('keeps STEP microphone available but disables Continuous microphone until transcription is supported', () => {
+    const caps = evaluatePracticeInputCapabilities();
+
+    expect(getSelectedInputCapability('MICROPHONE', caps, 'STEP_BY_STEP')).toMatchObject({
+      supported: true,
+      status: 'READY',
+    });
+    expect(getSelectedInputCapability('MICROPHONE', caps, 'CONTINUOUS_PLAY')).toMatchObject({
+      supported: false,
+      status: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
+      reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
+    });
+    expect(isInputSourceSupported('MICROPHONE', caps, 'CONTINUOUS_PLAY')).toBe(false);
+    expect(isInputSourceSupported('MIDI', caps, 'CONTINUOUS_PLAY')).toBe(true);
+  });
+
   it('reports MODEL_ACCESS_UNAVAILABLE when model access is unavailable, but MIDI remains READY', () => {
     const caps = evaluatePracticeInputCapabilities({ modelAccessAvailable: false });
     expect(caps.microphone.supported).toBe(false);

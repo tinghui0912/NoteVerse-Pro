@@ -177,6 +177,7 @@
   "midiStartFailed": "无法启动 MIDI",
   "micModelAccessUnavailable": "模型资源暂时不可用",
   "micModelStorageUnavailable": "本地模型存储不可用",
+  "micContinuousUnavailable": "连贯演奏的麦克风分析暂不可用",
   "micModelNotConfigured": "麦克风练习当前不可用：模型资源未配置",
   "micBrowserUnsupported": "当前浏览器不支持麦克风练习所需功能",
   "midiBrowserUnsupported": "当前浏览器不支持 Web MIDI",

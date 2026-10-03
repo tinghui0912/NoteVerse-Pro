@@ -24,6 +24,7 @@ type PracticeStatusMessageKey =
   | 'midiStartFailed'
   | 'micModelAccessUnavailable'
   | 'micModelStorageUnavailable'
+  | 'micContinuousUnavailable'
   | 'micBrowserUnsupported'
   | 'midiBrowserUnsupported'
   | 'midiNoConnectedInput';
@@ -99,6 +100,14 @@ export function resolvePracticeStatusView({
         countInPulse: null,
       };
     }
+    if (inputError === 'CONTINUOUS_ANALYSIS_UNAVAILABLE') {
+      return {
+        messageKey: 'micContinuousUnavailable',
+        isError: true,
+        pending: false,
+        countInPulse: null,
+      };
+    }
     return {
       messageKey: inputSource === 'MIDI' ? 'midiStartFailed' : 'micStartFailed',
       customMessage: inputError ?? undefined,
@@ -144,6 +153,14 @@ export function resolvePracticeStatusView({
       if (selectedInputCapability.status === 'MODEL_STORAGE_UNAVAILABLE') {
         return {
           messageKey: 'micModelStorageUnavailable',
+          isError: true,
+          pending: false,
+          countInPulse: null,
+        };
+      }
+      if (selectedInputCapability.status === 'CONTINUOUS_ANALYSIS_UNAVAILABLE') {
+        return {
+          messageKey: 'micContinuousUnavailable',
           isError: true,
           pending: false,
           countInPulse: null,
@@ -243,6 +260,7 @@ export function PracticeStatus({
       resolvedView.messageKey === 'midiNoConnectedInput' ||
       resolvedView.messageKey === 'micModelAccessUnavailable' ||
       resolvedView.messageKey === 'micModelStorageUnavailable' ||
+      resolvedView.messageKey === 'micContinuousUnavailable' ||
       resolvedView.messageKey === 'micBrowserUnsupported' ||
       resolvedView.messageKey === 'midiBrowserUnsupported'
     ) {

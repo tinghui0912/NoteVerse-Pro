@@ -196,6 +196,23 @@ describe('resolvePracticeStatusView', () => {
       isError: true,
     });
 
+    expect(
+      resolvePracticeStatusView({
+        lifecycle: 'READY',
+        inputState: 'IDLE',
+        inputSource: 'MICROPHONE',
+        selectedInputCapability: {
+          supported: false,
+          status: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
+          reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
+        },
+        sessionMode: 'CONTINUOUS_PLAY',
+      })
+    ).toMatchObject({
+      messageKey: 'micContinuousUnavailable',
+      isError: true,
+    });
+
     // Mic browser unsupported
     expect(
       resolvePracticeStatusView({

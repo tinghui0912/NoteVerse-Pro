@@ -417,8 +417,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   const inputCapabilities = useMemo(() => evaluatePracticeInputCapabilities(), []);
   const selectedInputCapability = useMemo(
-    () => getSelectedInputCapability(inputSource, inputCapabilities),
-    [inputCapabilities, inputSource]
+    () => getSelectedInputCapability(inputSource, inputCapabilities, practiceMode),
+    [inputCapabilities, inputSource, practiceMode]
   );
 
   const rangeSelectionPrompt = useMemo(() => {

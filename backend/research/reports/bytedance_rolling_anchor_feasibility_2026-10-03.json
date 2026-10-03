@@ -1,7 +1,7 @@
 {
   "generatedAt": "2026-10-03T11:57:11.973Z",
   "gitHead": "cb9311d7258980234e5ef2833581a1445bed231d",
-  "command": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\scripts\\bytedance-live-capture-smoke.mjs --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx --browser-channel chrome --headed --duration-ms 15000 --timeout 90000 --output backend/research/reports/bytedance_live_capture_smoke_current_head.json",
+  "command": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\scripts\\bytedance-live-capture-smoke.mjs --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx --browser-channel chrome --headed --duration-ms 15000 --timeout 90000 --output backend/research/reports/bytedance_rolling_anchor_feasibility_2026-10-03.json",
   "harness": "apps/customer-web/scripts/bytedance-live-capture-smoke.mjs",
   "model": {
     "filename": "bytedance_note_model_fixed_anchor.onnx",

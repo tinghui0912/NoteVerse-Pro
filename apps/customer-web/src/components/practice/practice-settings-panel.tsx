@@ -66,13 +66,15 @@ export function PracticeSettingsPanel({
       ? t('micModelAccessUnavailable')
       : microphoneCapability.status === 'MODEL_STORAGE_UNAVAILABLE'
         ? t('micModelStorageUnavailable')
-        : microphoneCapability.status === 'BROWSER_UNSUPPORTED'
-          ? t('settingMicrophoneUnsupported')
-          : hasMicPermission === false
-            ? t('settingMicrophoneNeedsPermission')
-            : inputState === 'RUNNING' && inputSource === 'MICROPHONE'
-              ? t('settingMicrophoneConnected')
-              : t('settingMicrophoneBrowser')
+        : microphoneCapability.status === 'CONTINUOUS_ANALYSIS_UNAVAILABLE'
+          ? t('micContinuousUnavailable')
+          : microphoneCapability.status === 'BROWSER_UNSUPPORTED'
+            ? t('settingMicrophoneUnsupported')
+            : hasMicPermission === false
+              ? t('settingMicrophoneNeedsPermission')
+              : inputState === 'RUNNING' && inputSource === 'MICROPHONE'
+                ? t('settingMicrophoneConnected')
+                : t('settingMicrophoneBrowser')
     : audioWorkletSupported === false
       ? t('settingMicrophoneUnsupported')
       : hasMicPermission === false

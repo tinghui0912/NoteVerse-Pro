@@ -43,7 +43,6 @@ import type {
 } from '@/lib/practice/local-core/evidence';
 import {
   BrowserMicrophoneCaptureController,
-  type AcousticCoverageSnapshot,
 } from '@/lib/practice/acoustic-inference/live-capture';
 import {
   createByteDanceManifestFromAccess,
@@ -426,20 +425,13 @@ export function useLocalPractice({
       setPerformanceOutcomes(runtime.evaluationOutcomes);
       return;
     }
-    const mic = micControllerRef.current;
-    if (!mic) {
-      setPerformanceOutcomes(runtime.evaluationOutcomes);
-      return;
-    }
-    const drainResult = await mic.drainThrough(completionCaptureTime);
-    runtime.markEvaluationCoverageIntervals(
-      drainResult.coverage.intervals.map((interval) => ({
-        start: runtime.timebase.atSessionMs(interval.startSessionTimeMs, interval.startSampleIndex),
-        end: runtime.timebase.atSessionMs(interval.endSessionTimeMs, interval.endSampleIndex),
-      }))
-    );
-    setPerformanceOutcomes(runtime.evaluationOutcomes);
+    throw new Error('Continuous microphone analysis is unavailable.');
   }, []);
+
+  const finalizeContinuousEvaluation = useCallback(async (runtime: PerformancePracticeRuntime) => {
+    await drainPerformanceInference(runtime);
+    setPerformanceOutcomes(runtime.evaluationOutcomes);
+  }, [drainPerformanceInference]);
 
   const completeContinuousPerformance = useCallback(
     async (requestedReason: LocalPracticeCompletionReason) => {
@@ -467,7 +459,7 @@ export function useLocalPractice({
 
         const frozenSnapshot = runtime.snapshotSession();
         const mediaFinalization = freezePerformanceRecording(frozenSnapshot);
-        await drainPerformanceInference(runtime);
+        await finalizeContinuousEvaluation(runtime);
         if (completionGeneration !== sessionGenerationRef.current) {
           return;
         }
@@ -497,7 +489,7 @@ export function useLocalPractice({
       return completionPromise;
     },
     [
-      drainPerformanceInference,
+      finalizeContinuousEvaluation,
       finalizeRecordingAndBuildDraft,
       freezePerformanceRecording,
       onCompletion,
@@ -562,20 +554,6 @@ export function useLocalPractice({
     },
     []
   );
-
-  const handlePerformanceCoverage = useCallback((coverage: AcousticCoverageSnapshot) => {
-    const runtime = performanceRuntimeRef.current;
-    if (!runtime) {
-      return;
-    }
-    runtime.markEvaluationCoverageIntervals(
-      coverage.intervals.map((interval) => ({
-        start: runtime.timebase.atSessionMs(interval.startSessionTimeMs, interval.startSampleIndex),
-        end: runtime.timebase.atSessionMs(interval.endSessionTimeMs, interval.endSampleIndex),
-      }))
-    );
-    setPerformanceOutcomes(runtime.evaluationOutcomes);
-  }, []);
 
   // Performance continuous animation loop
   const runPerformanceLoop = useCallback(() => {
@@ -651,6 +629,9 @@ export function useLocalPractice({
     if (!artifact || !resolvedTempoPlan || !scope) {
       throw new Error('Score artifact is not available yet.');
     }
+    if (mode === 'CONTINUOUS_PLAY' && inputSource === 'MICROPHONE') {
+      throw new Error('CONTINUOUS_ANALYSIS_UNAVAILABLE');
+    }
 
     setErrorInputSource(null);
     setInputError(null);
@@ -713,8 +694,6 @@ export function useLocalPractice({
           evidenceSink: {
             currentStepTarget: () => stepRuntimeRef.current?.currentTarget() ?? null,
             onStepObservation: (obs) => handleStepObservation(obs),
-            onPerformanceEvidence: (evidences) => handlePerformanceEvidence(evidences),
-            onPerformanceCoverage: (coverage) => handlePerformanceCoverage(coverage),
           },
           onFatalError: (fatalError) => {
             handleFatalInputError(fatalError.message);
@@ -863,7 +842,6 @@ export function useLocalPractice({
     cameraMediaStream,
     cameraRecordingEnabled,
     handleFatalInputError,
-    handlePerformanceCoverage,
     handlePerformanceEvidence,
     handleStepObservation,
     installRecorderHandlers,

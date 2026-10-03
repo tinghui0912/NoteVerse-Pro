@@ -372,7 +372,7 @@ describe('useLocalPractice', () => {
       useLocalPractice({
         artifact,
         mode: 'CONTINUOUS_PLAY',
-        inputSource: 'MICROPHONE',
+        inputSource: 'MIDI',
         scope: { kind: 'FULL' },
         tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 100 },
         metronomeEnabled: true,
@@ -409,25 +409,12 @@ describe('useLocalPractice', () => {
   });
 
   it('serializes duplicate CONTINUOUS finish requests through one completion transaction', async () => {
-    const drain = { resolve: null as null | (() => void) };
-    micMock.drainThrough.mockImplementation(async (cutoff) => {
-      recorderEvents.events.push('MIC_DRAIN_STARTED');
-      await new Promise<void>((resolve) => {
-        drain.resolve = resolve;
-      });
-      recorderEvents.events.push('MIC_DRAIN_COMPLETED');
-      return {
-        status: 'covered' as const,
-        requestedThrough: cutoff,
-        coverage: { intervals: [] },
-      };
-    });
     const onCompletion = vi.fn();
     const { result } = renderHook(() =>
       useLocalPractice({
         artifact,
         mode: 'CONTINUOUS_PLAY',
-        inputSource: 'MICROPHONE',
+        inputSource: 'MIDI',
         scope: { kind: 'FULL' },
         onCompletion,
       })
@@ -443,11 +430,6 @@ describe('useLocalPractice', () => {
       first = result.current.finish();
       second = result.current.finish();
     });
-    await waitFor(() => {
-      expect(result.current.isFinalizingPerformance).toBe(true);
-    });
-    expect(micMock.drainThrough).toHaveBeenCalledTimes(1);
-    drain.resolve?.();
     await act(async () => {
       await first;
       await second;
@@ -456,132 +438,28 @@ describe('useLocalPractice', () => {
     expect(result.current.lifecycle).toBe('ENDED');
     expect(result.current.isFinalizingPerformance).toBe(false);
     expect(onCompletion).toHaveBeenCalledTimes(1);
-    expect(micMock.drainThrough).toHaveBeenCalledTimes(1);
   });
 
-  it('stops performance media before draining microphone inference', async () => {
-    let nowMs = 0;
-    const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => nowMs);
-    const drain = { resolve: null as null | (() => void) };
-    micMock.drainThrough.mockImplementation(async (cutoff) => {
-      recorderEvents.events.push('MIC_DRAIN_STARTED');
-      await new Promise<void>((resolve) => {
-        drain.resolve = resolve;
-      });
-      recorderEvents.events.push('MIC_DRAIN_COMPLETED');
-      return {
-        status: 'covered' as const,
-        requestedThrough: cutoff,
-        coverage: { intervals: [] },
-      };
+  it('does not start legacy rolling microphone analysis for CONTINUOUS practice', async () => {
+    const { result } = renderHook(() =>
+      useLocalPractice({
+        artifact,
+        mode: 'CONTINUOUS_PLAY',
+        inputSource: 'MICROPHONE',
+        scope: { kind: 'FULL' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.start();
     });
-    const onCompletion = vi.fn();
-    const { result } = renderHook(() =>
-      useLocalPractice({
-        artifact,
-        mode: 'CONTINUOUS_PLAY',
-        inputSource: 'MICROPHONE',
-        scope: { kind: 'FULL' },
-        onCompletion,
-      })
-    );
 
-    try {
-      await act(async () => {
-        await result.current.start();
-      });
-
-      nowMs = 3_000;
-      await waitFor(() => {
-        expect(result.current.performanceClock?.state).toBe('RUNNING');
-      });
-
-      let completion!: Promise<void>;
-      act(() => {
-        completion = result.current.finish();
-      });
-      await waitFor(() => {
-        expect(result.current.isFinalizingPerformance).toBe(true);
-      });
-      expect(recorderEvents.events.slice(0, 2)).toEqual([
-        'MEDIA_RECORDER_STOP_INVOKED',
-        'MIC_DRAIN_STARTED',
-      ]);
-
-      drain.resolve?.();
-      await act(async () => {
-        await completion;
-      });
-
-      expect(onCompletion).toHaveBeenCalledTimes(1);
-      expect(recorderEvents.events).toEqual([
-        'MEDIA_RECORDER_STOP_INVOKED',
-        'MIC_DRAIN_STARTED',
-        'MIC_DRAIN_COMPLETED',
-        'INPUT_TEARDOWN',
-      ]);
-    } finally {
-      nowSpy.mockRestore();
-    }
-  });
-
-  it('settles no-input microphone outcomes after default count-in coverage', async () => {
-    let nowMs = 0;
-    const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => nowMs);
-    const onCompletion = vi.fn();
-    const { result } = renderHook(() =>
-      useLocalPractice({
-        artifact,
-        mode: 'CONTINUOUS_PLAY',
-        inputSource: 'MICROPHONE',
-        scope: { kind: 'FULL' },
-        onCompletion,
-      })
-    );
-
-    try {
-      await act(async () => {
-        await result.current.start();
-      });
-      expect(result.current.performanceOutcomes).toHaveLength(artifact.expectedPracticeGroups.length);
-      expect(
-        result.current.performanceOutcomes[0]?.expectedStrikeOutcomes.map((strike) => strike.result)
-      ).toEqual(['UNCONFIRMED']);
-
-      nowMs = 1_800;
-      await waitFor(() => {
-        expect(result.current.performanceClock?.state).toBe('RUNNING');
-      });
-
-      act(() => {
-        micMock.onPerformanceCoverage?.({
-          intervals: [
-            {
-              startSampleIndex: 72_000,
-              endSampleIndex: 86_400,
-              startSessionTimeMs: 1_500,
-              endSessionTimeMs: 1_800,
-            },
-          ],
-        });
-      });
-
-      expect(
-        result.current.performanceOutcomes[0]?.expectedStrikeOutcomes.map((strike) => strike.result)
-      ).toEqual(['MISSING']);
-      expect(
-        noteAnnotationsFromPerformanceOutcomes(result.current.performanceOutcomes).confirmedErrorNoteIds
-      ).toEqual(expect.arrayContaining(artifact.expectedPracticeGroups[0].renderNoteIds));
-
-      await act(async () => {
-        await result.current.finish();
-      });
-      expect(onCompletion).toHaveBeenCalledTimes(1);
-      expect(completedPerformanceStore.getPerformance()?.evaluation.outcomes).toHaveLength(
-        artifact.expectedPracticeGroups.length
-      );
-    } finally {
-      nowSpy.mockRestore();
-    }
+    expect(result.current.lifecycle).toBe('READY');
+    expect(result.current.inputState).toBe('ERROR');
+    expect(result.current.inputError).toBe('CONTINUOUS_ANALYSIS_UNAVAILABLE');
+    expect(result.current.performanceOutcomes).toEqual([]);
+    expect(micMock.drainThrough).not.toHaveBeenCalled();
+    expect(recorderEvents.events).toEqual([]);
+    expect(completedPerformanceStore.getPerformance()).toBeNull();
   });
 });

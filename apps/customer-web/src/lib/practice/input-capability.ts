@@ -1,4 +1,4 @@
-import type { PracticeInputSource } from './local-core/artifact';
+import type { PracticeInputSource, PracticeMode } from './local-core/artifact';
 
 type WindowWithWebKitAudioContext = Window & {
   AudioContext?: typeof AudioContext;
@@ -9,7 +9,12 @@ export type PracticeMicrophoneCapability =
   | { supported: true; status: 'READY'; reason?: undefined }
   | { supported: false; status: 'BROWSER_UNSUPPORTED'; reason: 'BROWSER_UNSUPPORTED' }
   | { supported: false; status: 'MODEL_ACCESS_UNAVAILABLE'; reason: 'MODEL_ACCESS_UNAVAILABLE' }
-  | { supported: false; status: 'MODEL_STORAGE_UNAVAILABLE'; reason: 'MODEL_STORAGE_UNAVAILABLE' };
+  | { supported: false; status: 'MODEL_STORAGE_UNAVAILABLE'; reason: 'MODEL_STORAGE_UNAVAILABLE' }
+  | {
+      supported: false;
+      status: 'CONTINUOUS_ANALYSIS_UNAVAILABLE';
+      reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE';
+    };
 
 export type PracticeMidiCapability =
   | { supported: true; status: 'READY'; reason?: undefined }
@@ -79,14 +84,26 @@ export function evaluatePracticeInputCapabilities(
 
 export function getSelectedInputCapability(
   inputSource: PracticeInputSource,
-  capabilities: PracticeInputCapabilities
+  capabilities: PracticeInputCapabilities,
+  mode?: PracticeMode
 ): PracticeMicrophoneCapability | PracticeMidiCapability {
-  return inputSource === 'MICROPHONE' ? capabilities.microphone : capabilities.midi;
+  if (inputSource !== 'MICROPHONE') {
+    return capabilities.midi;
+  }
+  if (mode === 'CONTINUOUS_PLAY' && capabilities.microphone.supported) {
+    return {
+      supported: false,
+      status: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
+      reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
+    };
+  }
+  return capabilities.microphone;
 }
 
 export function isInputSourceSupported(
   inputSource: PracticeInputSource,
-  capabilities: PracticeInputCapabilities
+  capabilities: PracticeInputCapabilities,
+  mode?: PracticeMode
 ): boolean {
-  return getSelectedInputCapability(inputSource, capabilities).supported;
+  return getSelectedInputCapability(inputSource, capabilities, mode).supported;
 }
