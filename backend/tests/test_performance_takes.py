@@ -3130,6 +3130,86 @@ def test_snapshot_gc_does_not_restore_ready_if_reference_appears_before_claim(te
     assert storage.exists(snapshot.artifact_object_key)
 
 
+def test_snapshot_worker_fails_if_active_reference_appears_after_storage_deletion(
+    test_env,
+    monkeypatch,
+):
+    session, storage, user_1, _ = test_env
+    snapshot = _create_default_source_snapshot(session, storage)
+    outbox = practice_source_snapshot_delete_service.enqueue_if_unreferenced(
+        session,
+        snapshot.id,
+        storage_backend=storage.backend_name,
+    )
+    assert outbox is not None
+    session.commit()
+
+    original_delete = storage.delete
+    deleted_count = 0
+
+    def delete_and_create_invalid_ref(key: str) -> bool:
+        nonlocal deleted_count
+        result = original_delete(key)
+        if key in {
+            snapshot.prepared_musicxml_object_key,
+            snapshot.artifact_object_key,
+        }:
+            deleted_count += 1
+        if deleted_count == 2:
+            auth = PerformanceTakeUploadAuthorization(
+                user_id=user_1.id,
+                source_snapshot_id=snapshot.id,
+                client_request_id="req-snapshot-active-ref-after-delete",
+                take_uuid="take-snapshot-active-ref-after-delete",
+                score_id=None,
+                score_uuid="score-uuid-10",
+                score_title="Moonlight Sonata",
+                revision_id=None,
+                revision_uuid=DEFAULT_TAKE_REVISION_ID,
+                artifact_id=DEFAULT_TAKE_ARTIFACT_ID,
+                scope_type="FULL",
+                scope_start_beat=0.0,
+                scope_terminal_beat=4.0,
+                scope_start_group_id=None,
+                scope_end_group_id=None,
+                tempo_plan=json.dumps(DEFAULT_TAKE_TEMPO_PLAN),
+                recording_timebase=json.dumps(DEFAULT_TAKE_RECORDING_TIMEBASE),
+                duration_ms=5000,
+                media_kind="AUDIO",
+                media_mime_type="audio/webm",
+                media_byte_size=len(VALID_WEBM_BYTES),
+                storage_backend=storage.backend_name,
+                staging_object_key="performance-takes/staging/active-ref-after-delete.webm",
+                final_object_key="performance-takes/final/active-ref-after-delete.webm",
+                reservation_id="reservation-active-ref-after-delete",
+                status=PerformanceTakeUploadAuthorizationStatus.AUTHORIZED.value,
+                expires_at=datetime.now(timezone.utc).replace(tzinfo=None)
+                + timedelta(minutes=5),
+                last_put_url_expires_at=datetime.now(timezone.utc).replace(tzinfo=None)
+                + timedelta(minutes=5),
+                staging_cleanup_after=datetime.now(timezone.utc).replace(tzinfo=None)
+                + timedelta(minutes=5),
+            )
+            session.add(auth)
+            session.commit()
+        return result
+
+    storage.delete = delete_and_create_invalid_ref  # type: ignore[assignment]
+
+    try:
+        result = _run_snapshot_deletion(monkeypatch, session, storage, outbox.outbox_uuid)
+    finally:
+        storage.delete = original_delete  # type: ignore[assignment]
+    assert result["status"] == "failed"
+    session.refresh(snapshot)
+    session.refresh(outbox)
+    assert snapshot.status == PracticeSourceSnapshotStatus.DELETING.value
+    assert outbox.status == PracticeSourceSnapshotDeleteOutboxStatus.FAILED.value
+    assert "invariant violation" in (outbox.last_error or "")
+    assert not storage.exists(snapshot.prepared_musicxml_object_key)
+    assert not storage.exists(snapshot.artifact_object_key)
+
+
 def test_snapshot_gc_enqueued_once_after_last_take_reference_deleted(test_env, monkeypatch):
     session, storage, user_1, _ = test_env
     snapshot = _create_default_source_snapshot(session, storage)
@@ -4264,7 +4344,7 @@ def _assert_performance_take_upgrade_state(
             c["name"]: c for c in inspector.get_columns("practice_source_snapshots")
         }
         assert snapshot_cols["status"]["nullable"] is False
-        assert str(snapshot_cols["status"].get("default") or "").find("CREATING") >= 0
+        assert snapshot_cols["status"].get("default") is None
         assert snapshot_cols["creation_expires_at"]["nullable"] is True
         snapshot_checks = {
             check["name"]

@@ -65,14 +65,7 @@ class PracticeSourceSnapshot(SQLModel, table=True):  # type: ignore[call-arg]
     artifact_object_key: str = Field(sa_column=Column(String(768), unique=True, nullable=False))
     artifact_sha256: str = Field(sa_column=Column(String(64), nullable=False))
     artifact_byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
-    status: str = Field(
-        default=PracticeSourceSnapshotStatus.CREATING.value,
-        sa_column=Column(
-            String(16),
-            nullable=False,
-            default=PracticeSourceSnapshotStatus.CREATING.value,
-        ),
-    )
+    status: str = Field(sa_column=Column(String(16), nullable=False))
     creation_expires_at: Optional[datetime] = Field(
         default=None,
         sa_column=Column(DateTime, nullable=True),

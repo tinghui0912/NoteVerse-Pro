@@ -84,7 +84,7 @@ def upgrade() -> None:
         sa.Column("artifact_object_key", sa.String(length=768), nullable=False),
         sa.Column("artifact_sha256", sa.String(length=64), nullable=False),
         sa.Column("artifact_byte_size", sa.BigInteger(), nullable=False),
-        sa.Column("status", sa.String(length=16), nullable=False, server_default="CREATING"),
+        sa.Column("status", sa.String(length=16), nullable=False),
         sa.Column("creation_expires_at", sa.DateTime(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.UniqueConstraint("snapshot_uuid", name="uq_practice_source_snapshots_uuid"),

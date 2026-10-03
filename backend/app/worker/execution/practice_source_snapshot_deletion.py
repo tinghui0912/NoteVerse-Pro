@@ -10,7 +10,6 @@ from app.core.background_tracing import record_current_attempt_failure
 from app.db.models import (
     PracticeSourceSnapshot,
     PracticeSourceSnapshotDeleteOutboxStatus,
-    PracticeSourceSnapshotStatus,
 )
 from app.db.sync_session import get_worker_db
 from app.modules.performance_takes.source_snapshot_delete_service import (
@@ -131,14 +130,23 @@ def execute_practice_source_snapshot_deletion_task(
                     )
                     > 0
                 ):
-                    if snapshot is not None:
-                        snapshot.status = PracticeSourceSnapshotStatus.READY.value
-                        snapshot.creation_expires_at = None
-                    practice_source_snapshot_delete_service.complete(
-                        db, outbox_uuid, attempt=payload.attempt
+                    invariant_error = (
+                        "practice source snapshot deletion invariant violation: "
+                        "DELETING snapshot has active durable references"
+                    )
+                    practice_source_snapshot_delete_service.fail(
+                        db,
+                        outbox_uuid,
+                        invariant_error,
+                        attempt=payload.attempt,
                     )
                     db.commit()
-                    return {"status": "ignored", "outbox_uuid": outbox_uuid}
+                    operation_logger(
+                        "practice_source_snapshot_deletion.invariant_failed",
+                        **context,
+                        status="failed",
+                    ).error("practice_source_snapshot_deletion.invariant_failed")
+                    return {"status": "failed", "outbox_uuid": outbox_uuid}
                 if snapshot is not None:
                     db.delete(snapshot)
             if not practice_source_snapshot_delete_service.complete(
