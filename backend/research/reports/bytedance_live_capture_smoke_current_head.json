@@ -1,0 +1,2149 @@
+{
+  "generatedAt": "2026-10-03T11:57:11.973Z",
+  "gitHead": "cb9311d7258980234e5ef2833581a1445bed231d",
+  "command": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web\\scripts\\bytedance-live-capture-smoke.mjs --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx --browser-channel chrome --headed --duration-ms 15000 --timeout 90000 --output backend/research/reports/bytedance_live_capture_smoke_current_head.json",
+  "harness": "apps/customer-web/scripts/bytedance-live-capture-smoke.mjs",
+  "model": {
+    "filename": "bytedance_note_model_fixed_anchor.onnx",
+    "byteSize": 98691493,
+    "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5"
+  },
+  "browser": {
+    "channel": "chrome",
+    "headed": true
+  },
+  "os": {
+    "platform": "win32",
+    "release": "10.0.26200",
+    "arch": "x64"
+  },
+  "result": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+    "webgpu": {
+      "available": true,
+      "adapterAcquired": true,
+      "adapter": {
+        "isFallbackAdapter": null,
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "bgra8unorm-storage",
+          "texture-formats-tier1",
+          "chromium-experimental-multi-draw-indirect",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "chromium-experimental-sampling-resource-table",
+          "chromium-experimental-timestamp-query-inside-passes",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "texture-compression-unaligned",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier2",
+          "clip-distances",
+          "timestamp-query",
+          "shader-f16",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "limits": {
+          "maxBufferSize": 2147483648,
+          "maxStorageBufferBindingSize": 2147483644,
+          "maxComputeWorkgroupStorageSize": 32768
+        },
+        "info": null
+      }
+    },
+    "controllerPathUsed": true,
+    "getUserMediaSubstitutedWithRealMediaStream": true,
+    "workerCreations": 2,
+    "lifecycleSnapshots": [
+      {
+        "label": "before-first-start",
+        "snapshot": {
+          "state": "idle",
+          "normalizedEndSampleIndex": 0,
+          "skippedAnchorCount": 0,
+          "workletChunkCount": 0,
+          "sourceContinuityOk": true,
+          "lastSourceSampleIndex": 0
+        }
+      },
+      {
+        "label": "after-first-start",
+        "snapshot": {
+          "state": "running",
+          "captureDomainId": "live-smoke-domain",
+          "sourceSampleRateHz": 48000,
+          "captureStartSampleIndex": 0,
+          "captureAnchorSessionTimeMs": 0,
+          "normalizedEndSampleIndex": 0,
+          "skippedAnchorCount": 0,
+          "diagnostics": {
+            "executionProvider": "webgpu",
+            "inferenceCount": 0,
+            "submittedAnchorCount": 0,
+            "captureDurationMs": 0,
+            "trustedCoverageIntervalCount": 0,
+            "trustedCoverageDurationMs": 0,
+            "coverageRatio": 0,
+            "maximumCoverageGapMs": 0
+          },
+          "workletChunkCount": 0,
+          "sourceContinuityOk": true,
+          "lastSourceSampleIndex": 0
+        }
+      },
+      {
+        "label": "before-first-stop",
+        "snapshot": {
+          "state": "running",
+          "captureDomainId": "live-smoke-domain",
+          "sourceSampleRateHz": 48000,
+          "captureStartSampleIndex": 0,
+          "captureAnchorSessionTimeMs": 0,
+          "normalizedEndSampleIndex": 240000,
+          "skippedAnchorCount": 69,
+          "inferenceCoverageSessionTimeMs": 14070,
+          "diagnostics": {
+            "executionProvider": "webgpu",
+            "inferenceCount": 28,
+            "submittedAnchorCount": 29,
+            "workerTotalMedianMs": 521.7000000476837,
+            "workerTotalP95Ms": 728.2000000476837,
+            "lastInferenceWorkerTotalMs": 517.4000000953674,
+            "latestSubmittedAnchorSampleIndex": 230400,
+            "activeAnchorSampleIndex": 230400,
+            "pendingAnchorSampleIndex": 235200,
+            "captureDurationMs": 15000,
+            "trustedCoverageIntervalCount": 27,
+            "trustedCoverageDurationMs": 4740,
+            "coverageRatio": 0.316,
+            "maximumCoverageGapMs": 1030
+          },
+          "coalescedAnchorSampleIndex": 235200,
+          "activeAnchorSampleIndex": 230400,
+          "latestSubmittedAnchorSampleIndex": 230400,
+          "workletChunkCount": 5625,
+          "sourceContinuityOk": true,
+          "lastSourceSampleIndex": 720000
+        }
+      },
+      {
+        "label": "after-first-stop",
+        "snapshot": {
+          "state": "idle",
+          "normalizedEndSampleIndex": 0,
+          "skippedAnchorCount": 0,
+          "workletChunkCount": 0,
+          "sourceContinuityOk": true,
+          "lastSourceSampleIndex": 0
+        }
+      },
+      {
+        "label": "after-second-start",
+        "snapshot": {
+          "state": "running",
+          "captureDomainId": "live-smoke-domain",
+          "sourceSampleRateHz": 48000,
+          "captureStartSampleIndex": 80000,
+          "captureAnchorSessionTimeMs": 5000,
+          "normalizedEndSampleIndex": 80000,
+          "skippedAnchorCount": 0,
+          "diagnostics": {
+            "executionProvider": "webgpu",
+            "inferenceCount": 0,
+            "submittedAnchorCount": 0,
+            "captureDurationMs": 0,
+            "trustedCoverageIntervalCount": 0,
+            "trustedCoverageDurationMs": 0,
+            "coverageRatio": 0,
+            "maximumCoverageGapMs": 0
+          },
+          "workletChunkCount": 0,
+          "sourceContinuityOk": true,
+          "lastSourceSampleIndex": 0
+        }
+      },
+      {
+        "label": "before-second-stop",
+        "snapshot": {
+          "state": "running",
+          "captureDomainId": "live-smoke-domain",
+          "sourceSampleRateHz": 48000,
+          "captureStartSampleIndex": 80000,
+          "captureAnchorSessionTimeMs": 5000,
+          "normalizedEndSampleIndex": 80000,
+          "skippedAnchorCount": 0,
+          "diagnostics": {
+            "executionProvider": "webgpu",
+            "inferenceCount": 0,
+            "submittedAnchorCount": 0,
+            "captureDurationMs": 0,
+            "trustedCoverageIntervalCount": 0,
+            "trustedCoverageDurationMs": 0,
+            "coverageRatio": 0,
+            "maximumCoverageGapMs": 0
+          },
+          "workletChunkCount": 0,
+          "sourceContinuityOk": true,
+          "lastSourceSampleIndex": 0
+        }
+      },
+      {
+        "label": "after-second-stop",
+        "snapshot": {
+          "state": "idle",
+          "normalizedEndSampleIndex": 0,
+          "skippedAnchorCount": 0,
+          "workletChunkCount": 0,
+          "sourceContinuityOk": true,
+          "lastSourceSampleIndex": 0
+        }
+      }
+    ],
+    "firstLifecycle": {
+      "snapshotBeforeStop": {
+        "state": "running",
+        "captureDomainId": "live-smoke-domain",
+        "sourceSampleRateHz": 48000,
+        "captureStartSampleIndex": 0,
+        "captureAnchorSessionTimeMs": 0,
+        "normalizedEndSampleIndex": 240000,
+        "skippedAnchorCount": 69,
+        "inferenceCoverageSessionTimeMs": 14070,
+        "diagnostics": {
+          "executionProvider": "webgpu",
+          "inferenceCount": 28,
+          "submittedAnchorCount": 29,
+          "workerTotalMedianMs": 521.7000000476837,
+          "workerTotalP95Ms": 728.2000000476837,
+          "lastInferenceWorkerTotalMs": 517.4000000953674,
+          "latestSubmittedAnchorSampleIndex": 230400,
+          "activeAnchorSampleIndex": 230400,
+          "pendingAnchorSampleIndex": 235200,
+          "captureDurationMs": 15000,
+          "trustedCoverageIntervalCount": 27,
+          "trustedCoverageDurationMs": 4740,
+          "coverageRatio": 0.316,
+          "maximumCoverageGapMs": 1030
+        },
+        "coalescedAnchorSampleIndex": 235200,
+        "activeAnchorSampleIndex": 230400,
+        "latestSubmittedAnchorSampleIndex": 230400,
+        "workletChunkCount": 5625,
+        "sourceContinuityOk": true,
+        "lastSourceSampleIndex": 720000
+      },
+      "event": {
+        "pitch": "A4",
+        "midiPitch": 69,
+        "onsetTime": {
+          "domainId": "live-smoke-domain",
+          "ms": 20,
+          "sampleIndex": 320
+        },
+        "confidence": 0.717139482498169,
+        "onsetScore": 0.7498812079429626,
+        "frameScore": 0.717139482498169,
+        "source": "ACOUSTIC",
+        "inferenceCompletedAtMs": 2946.2999999523163
+      }
+    },
+    "secondLifecycle": {
+      "snapshotBeforeStop": {
+        "state": "running",
+        "captureDomainId": "live-smoke-domain",
+        "sourceSampleRateHz": 48000,
+        "captureStartSampleIndex": 80000,
+        "captureAnchorSessionTimeMs": 5000,
+        "normalizedEndSampleIndex": 80000,
+        "skippedAnchorCount": 0,
+        "diagnostics": {
+          "executionProvider": "webgpu",
+          "inferenceCount": 0,
+          "submittedAnchorCount": 0,
+          "captureDurationMs": 0,
+          "trustedCoverageIntervalCount": 0,
+          "trustedCoverageDurationMs": 0,
+          "coverageRatio": 0,
+          "maximumCoverageGapMs": 0
+        },
+        "workletChunkCount": 0,
+        "sourceContinuityOk": true,
+        "lastSourceSampleIndex": 0
+      },
+      "event": {
+        "pitch": "A4",
+        "midiPitch": 69,
+        "onsetTime": {
+          "domainId": "live-smoke-domain",
+          "ms": 210,
+          "sampleIndex": 3360
+        },
+        "confidence": 0.7800026535987854,
+        "onsetScore": 0.7800026535987854,
+        "frameScore": 0.9420867562294006,
+        "source": "ACOUSTIC",
+        "inferenceCompletedAtMs": 3260
+      }
+    },
+    "timeDidNotRewind": true,
+    "timings": {
+      "loads": [
+        {
+          "workerIndex": 1,
+          "loadMs": 1510,
+          "diagnostics": {
+            "modelFetchAndVerifyMs": 860.6999998092651,
+            "sessionCreateMs": 514.4000000953674,
+            "totalLoadMs": 1375.0999999046326,
+            "modelByteSize": 98691493,
+            "modelSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+            "source": "network",
+            "downloadMs": 704,
+            "cacheReadMs": 45.200000047683716,
+            "verificationMs": 93.70000004768372,
+            "persistentStorageGranted": null,
+            "executionProvider": "webgpu"
+          }
+        },
+        {
+          "workerIndex": 2,
+          "loadMs": 1722.1999998092651,
+          "diagnostics": {
+            "modelFetchAndVerifyMs": 286.89999985694885,
+            "sessionCreateMs": 1360.9000000953674,
+            "totalLoadMs": 1647.9000000953674,
+            "modelByteSize": 98691493,
+            "modelSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+            "source": "opfs-cache",
+            "cacheReadMs": 114.79999995231628,
+            "verificationMs": 162,
+            "persistentStorageGranted": null,
+            "executionProvider": "webgpu"
+          }
+        }
+      ],
+      "inferences": [
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:0",
+          "anchorStartSample": -25600,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": -1600,
+            "sampleIndex": -25600
+          },
+          "endToEndMs": 1223.0999999046326,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 1222.5,
+              "decode": 0.40000009536743164,
+              "workerTotal": 1222.9000000953674
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 20,
+                "sampleIndex": 320
+              },
+              "confidence": 0.717139482498169,
+              "onsetScore": 0.7498812079429626,
+              "frameScore": 0.717139482498169,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 2946.2999999523163
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:19200",
+          "anchorStartSample": -6400,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": -400,
+            "sampleIndex": -6400
+          },
+          "endToEndMs": 313.2999999523163,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 312.7000000476837,
+              "decode": 0.2999999523162842,
+              "workerTotal": 313
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 210,
+                "sampleIndex": 3360
+              },
+              "confidence": 0.7800026535987854,
+              "onsetScore": 0.7800026535987854,
+              "frameScore": 0.9420867562294006,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 3260
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:24000",
+          "anchorStartSample": -1600,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": -100,
+            "sampleIndex": -1600
+          },
+          "endToEndMs": 306.09999990463257,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 305.59999990463257,
+              "decode": 0.10000014305114746,
+              "workerTotal": 305.7000000476837
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 510,
+                "sampleIndex": 8160
+              },
+              "confidence": 0.7799854874610901,
+              "onsetScore": 0.7799854874610901,
+              "frameScore": 0.9423308968544006,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 3566.5999999046326
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:28800",
+          "anchorStartSample": 3200,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 200,
+            "sampleIndex": 3200
+          },
+          "endToEndMs": 300.59999990463257,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 300.2000000476837,
+              "decode": 0.09999990463256836,
+              "workerTotal": 300.2999999523163
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 810,
+                "sampleIndex": 12960
+              },
+              "confidence": 0.7800208330154419,
+              "onsetScore": 0.7800208330154419,
+              "frameScore": 0.9421333074569702,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 3867.4000000953674
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:33600",
+          "anchorStartSample": 8000,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 500,
+            "sampleIndex": 8000
+          },
+          "endToEndMs": 319.90000009536743,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 319.69999980926514,
+              "decode": 0.10000014305114746,
+              "workerTotal": 319.7999999523163
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 1110,
+                "sampleIndex": 17760
+              },
+              "confidence": 0.7798653244972229,
+              "onsetScore": 0.7798653244972229,
+              "frameScore": 0.9423409700393677,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 4187.599999904633
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:38400",
+          "anchorStartSample": 12800,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 800,
+            "sampleIndex": 12800
+          },
+          "endToEndMs": 276.69999980926514,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 276.5,
+              "decode": 0,
+              "workerTotal": 276.5
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 1410,
+                "sampleIndex": 22560
+              },
+              "confidence": 0.7800464630126953,
+              "onsetScore": 0.7800464630126953,
+              "frameScore": 0.942107081413269,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 4464.5
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:43200",
+          "anchorStartSample": 17600,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 1100,
+            "sampleIndex": 17600
+          },
+          "endToEndMs": 264,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 263.59999990463257,
+              "decode": 0.09999990463256836,
+              "workerTotal": 263.69999980926514
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 1710,
+                "sampleIndex": 27360
+              },
+              "confidence": 0.7799597978591919,
+              "onsetScore": 0.7799597978591919,
+              "frameScore": 0.9422398805618286,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 4728.5
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:48000",
+          "anchorStartSample": 22400,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 1400,
+            "sampleIndex": 22400
+          },
+          "endToEndMs": 269.60000014305115,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 269.40000009536743,
+              "decode": 0.09999990463256836,
+              "workerTotal": 269.5
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 2010,
+                "sampleIndex": 32160
+              },
+              "confidence": 0.7800435423851013,
+              "onsetScore": 0.7800435423851013,
+              "frameScore": 0.9420172572135925,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 4998.200000047684
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:50400",
+          "anchorStartSample": 24800,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 1550,
+            "sampleIndex": 24800
+          },
+          "endToEndMs": 309.2000000476837,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 308.80000019073486,
+              "decode": 0.19999980926513672,
+              "workerTotal": 309
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 2160,
+                "sampleIndex": 34560
+              },
+              "confidence": 0.7800540328025818,
+              "onsetScore": 0.7800540328025818,
+              "frameScore": 0.9420633316040039,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 5307.400000095367
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:55200",
+          "anchorStartSample": 29600,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 1850,
+            "sampleIndex": 29600
+          },
+          "endToEndMs": 487.40000009536743,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 486.7999999523163,
+              "decode": 0.20000004768371582,
+              "workerTotal": 487
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 2460,
+                "sampleIndex": 39360
+              },
+              "confidence": 0.7799457907676697,
+              "onsetScore": 0.7799457907676697,
+              "frameScore": 0.9421777129173279,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 5795.099999904633
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:64800",
+          "anchorStartSample": 39200,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 2450,
+            "sampleIndex": 39200
+          },
+          "endToEndMs": 538.2999999523163,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 538,
+              "decode": 0.10000014305114746,
+              "workerTotal": 538.1000001430511
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 3060,
+                "sampleIndex": 48960
+              },
+              "confidence": 0.7799780964851379,
+              "onsetScore": 0.7799780964851379,
+              "frameScore": 0.942188024520874,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 6333.799999952316
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:72000",
+          "anchorStartSample": 46400,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 2900,
+            "sampleIndex": 46400
+          },
+          "endToEndMs": 535.5,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 534.7000000476837,
+              "decode": 0,
+              "workerTotal": 534.7000000476837
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 3510,
+                "sampleIndex": 56160
+              },
+              "confidence": 0.7799766063690186,
+              "onsetScore": 0.7799766063690186,
+              "frameScore": 0.9423189163208008,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 6869.5
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:81600",
+          "anchorStartSample": 56000,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 3500,
+            "sampleIndex": 56000
+          },
+          "endToEndMs": 522,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 521.7000000476837,
+              "decode": 0,
+              "workerTotal": 521.7000000476837
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 4110,
+                "sampleIndex": 65760
+              },
+              "confidence": 0.7800062894821167,
+              "onsetScore": 0.7800062894821167,
+              "frameScore": 0.9422422051429749,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 7391.799999952316
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:88800",
+          "anchorStartSample": 63200,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 3950,
+            "sampleIndex": 63200
+          },
+          "endToEndMs": 568.8999998569489,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 568.5,
+              "decode": 0.09999990463256836,
+              "workerTotal": 568.5999999046326
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 4560,
+                "sampleIndex": 72960
+              },
+              "confidence": 0.7799698114395142,
+              "onsetScore": 0.7799698114395142,
+              "frameScore": 0.9420902132987976,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 7960.900000095367
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:98400",
+          "anchorStartSample": 72800,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 4550,
+            "sampleIndex": 72800
+          },
+          "endToEndMs": 489.5,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 489.2000000476837,
+              "decode": 0,
+              "workerTotal": 489.2000000476837
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 5160,
+                "sampleIndex": 82560
+              },
+              "confidence": 0.7799708247184753,
+              "onsetScore": 0.7799708247184753,
+              "frameScore": 0.9421229362487793,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 8450.900000095367
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:105600",
+          "anchorStartSample": 80000,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 5000,
+            "sampleIndex": 80000
+          },
+          "endToEndMs": 675.5,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 675.4000000953674,
+              "decode": 0,
+              "workerTotal": 675.4000000953674
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 5610,
+                "sampleIndex": 89760
+              },
+              "confidence": 0.7800011038780212,
+              "onsetScore": 0.7800011038780212,
+              "frameScore": 0.9421050548553467,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 9126.5
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:117600",
+          "anchorStartSample": 92000,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 5750,
+            "sampleIndex": 92000
+          },
+          "endToEndMs": 579.7999999523163,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 579.2000000476837,
+              "decode": 0,
+              "workerTotal": 579.2000000476837
+            }
+          },
+          "eventCount": 3,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 6350,
+                "sampleIndex": 101600
+              },
+              "confidence": 0.7672056555747986,
+              "onsetScore": 0.7702210545539856,
+              "frameScore": 0.7672056555747986,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 9706.400000095367
+            },
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 6450,
+                "sampleIndex": 103200
+              },
+              "confidence": 0.21416932344436646,
+              "onsetScore": 0.21416932344436646,
+              "frameScore": 0.9007478356361389,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 9706.400000095367
+            },
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 7050,
+                "sampleIndex": 112800
+              },
+              "confidence": 0.7951022386550903,
+              "onsetScore": 0.7951022386550903,
+              "frameScore": 0.9371044635772705,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 9706.400000095367
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:127200",
+          "anchorStartSample": 101600,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 6350,
+            "sampleIndex": 101600
+          },
+          "endToEndMs": 553.1999998092651,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 552.5999999046326,
+              "decode": 0.10000014305114746,
+              "workerTotal": 552.7000000476837
+            }
+          },
+          "eventCount": 2,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 6950,
+                "sampleIndex": 111200
+              },
+              "confidence": 0.3236766457557678,
+              "onsetScore": 0.4984162151813507,
+              "frameScore": 0.3236766457557678,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 10259.799999952316
+            },
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 7050,
+                "sampleIndex": 112800
+              },
+              "confidence": 0.8301879167556763,
+              "onsetScore": 0.8301879167556763,
+              "frameScore": 0.9679534435272217,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 10259.799999952316
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:134400",
+          "anchorStartSample": 108800,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 6800,
+            "sampleIndex": 108800
+          },
+          "endToEndMs": 599.1000001430511,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 598.2999999523163,
+              "decode": 0.10000014305114746,
+              "workerTotal": 598.4000000953674
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 7400,
+                "sampleIndex": 118400
+              },
+              "confidence": 0.7986170053482056,
+              "onsetScore": 0.7986170053482056,
+              "frameScore": 0.9025172591209412,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 10859.099999904633
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:144000",
+          "anchorStartSample": 118400,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 7400,
+            "sampleIndex": 118400
+          },
+          "endToEndMs": 639.7000000476837,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 638.7000000476837,
+              "decode": 0.10000014305114746,
+              "workerTotal": 638.8000001907349
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 8000,
+                "sampleIndex": 128000
+              },
+              "confidence": 0.798624575138092,
+              "onsetScore": 0.798624575138092,
+              "frameScore": 0.9026104807853699,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 11498.799999952316
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:156000",
+          "anchorStartSample": 130400,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 8150,
+            "sampleIndex": 130400
+          },
+          "endToEndMs": 654.8000001907349,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 653.7999999523163,
+              "decode": 0.09999990463256836,
+              "workerTotal": 653.8999998569489
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 8750,
+                "sampleIndex": 140000
+              },
+              "confidence": 0.7985367774963379,
+              "onsetScore": 0.7985367774963379,
+              "frameScore": 0.9024680256843567,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 12153.700000047684
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:165600",
+          "anchorStartSample": 140000,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 8750,
+            "sampleIndex": 140000
+          },
+          "endToEndMs": 728.7000000476837,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 728.0999999046326,
+              "decode": 0.10000014305114746,
+              "workerTotal": 728.2000000476837
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 9350,
+                "sampleIndex": 149600
+              },
+              "confidence": 0.798563539981842,
+              "onsetScore": 0.798563539981842,
+              "frameScore": 0.9025460481643677,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 12883.099999904633
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:177600",
+          "anchorStartSample": 152000,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 9500,
+            "sampleIndex": 152000
+          },
+          "endToEndMs": 501,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 500.39999985694885,
+              "decode": 0.10000014305114746,
+              "workerTotal": 500.5
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 10100,
+                "sampleIndex": 161600
+              },
+              "confidence": 0.7985669374465942,
+              "onsetScore": 0.7985669374465942,
+              "frameScore": 0.9024694561958313,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 13384.299999952316
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:184800",
+          "anchorStartSample": 159200,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 9950,
+            "sampleIndex": 159200
+          },
+          "endToEndMs": 712.2000000476837,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 712,
+              "decode": 0,
+              "workerTotal": 712
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 10550,
+                "sampleIndex": 168800
+              },
+              "confidence": 0.7985278964042664,
+              "onsetScore": 0.7985278964042664,
+              "frameScore": 0.9024472236633301,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 14096.700000047684
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:196800",
+          "anchorStartSample": 171200,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 10700,
+            "sampleIndex": 171200
+          },
+          "endToEndMs": 567.3999998569489,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 566.3999998569489,
+              "decode": 0,
+              "workerTotal": 566.3999998569489
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 11300,
+                "sampleIndex": 180800
+              },
+              "confidence": 0.798541784286499,
+              "onsetScore": 0.798541784286499,
+              "frameScore": 0.9023959636688232,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 14663.799999952316
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:206400",
+          "anchorStartSample": 180800,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 11300,
+            "sampleIndex": 180800
+          },
+          "endToEndMs": 446.90000009536743,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 446.39999985694885,
+              "decode": 0.10000014305114746,
+              "workerTotal": 446.5
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 11900,
+                "sampleIndex": 190400
+              },
+              "confidence": 0.7985547184944153,
+              "onsetScore": 0.7985547184944153,
+              "frameScore": 0.902541995048523,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 15111.099999904633
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:213600",
+          "anchorStartSample": 188000,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 11750,
+            "sampleIndex": 188000
+          },
+          "endToEndMs": 577.2000000476837,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 576.6000001430511,
+              "decode": 0,
+              "workerTotal": 576.6000001430511
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 12350,
+                "sampleIndex": 197600
+              },
+              "confidence": 0.7985759973526001,
+              "onsetScore": 0.7985759973526001,
+              "frameScore": 0.9025517106056213,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 15688.700000047684
+            }
+          ]
+        },
+        {
+          "workerIndex": 1,
+          "requestId": "live-bytedance:1:223200",
+          "anchorStartSample": 197600,
+          "captureStartTime": {
+            "domainId": "live-smoke-domain",
+            "ms": 12350,
+            "sampleIndex": 197600
+          },
+          "endToEndMs": 518.2000000476837,
+          "diagnostics": {
+            "inputTensor": {
+              "name": "audio",
+              "dtype": "float32",
+              "shape": [
+                1,
+                29120
+              ]
+            },
+            "outputTensors": {
+              "regOnset": {
+                "name": "reg_onset_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              },
+              "frame": {
+                "name": "frame_output",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "timingMs": {
+              "onnxInference": 517.4000000953674,
+              "decode": 0,
+              "workerTotal": 517.4000000953674
+            }
+          },
+          "eventCount": 1,
+          "events": [
+            {
+              "pitch": "A4",
+              "midiPitch": 69,
+              "onsetTime": {
+                "domainId": "live-smoke-domain",
+                "ms": 12950,
+                "sampleIndex": 207200
+              },
+              "confidence": 0.7985849976539612,
+              "onsetScore": 0.7985849976539612,
+              "frameScore": 0.9026355147361755,
+              "source": "ACOUSTIC",
+              "inferenceCompletedAtMs": 16207
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "browserErrors": [
+    "error: \u001b[0;93m2026-10-03 19:56:52.674199 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "error: \u001b[0;93m2026-10-03 19:56:52.677000 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+    "error: \u001b[0;93m2026-10-03 19:57:09.300599 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "error: \u001b[0;93m2026-10-03 19:57:09.305199 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+  ],
+  "browserWarnings": []
+}

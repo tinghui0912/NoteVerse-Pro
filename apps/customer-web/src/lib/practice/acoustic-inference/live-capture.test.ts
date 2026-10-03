@@ -13,13 +13,16 @@ import {
   BoundedPcmSampleRing,
   buildLiveFixedAnchorWindow,
   BrowserMicrophoneCaptureController,
+  BYTEDANCE_INFERENCE_CONTRACT,
   BYTEDANCE_ROLLING_ANCHOR_STEP_SAMPLES,
+  buildByteDanceFixedAnchorWindow,
   createLiveCaptureTimebase,
   defaultByteDanceModelManifest,
   LiveByteDanceRollingPipeline,
   monoFromChannels,
   RollingInferenceScheduler,
   StreamingLinearResampler,
+  trustedAbsenceCoverageIntervalForAnchor,
   type ByteDanceBrowserWorkerClient,
   type ByteDanceInferenceResult,
   type ByteDanceModelManifest,
@@ -95,6 +98,20 @@ function fill(length: number, value = 0.25): Float32Array {
   return Float32Array.from({ length }, () => value);
 }
 
+function deterministicPcm(length: number): Float32Array {
+  return Float32Array.from({ length }, (_, index) => ((index % 997) - 498) / 997);
+}
+
+function fnv1aFloat32Hash(data: Float32Array): string {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < view.byteLength; index += 1) {
+    hash ^= view.getUint8(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
 function anchor(domainId = 'capture-domain', ms = 0, sampleIndex = 0) {
   return { domainId, ms, sampleIndex };
 }
@@ -121,6 +138,119 @@ async function settleAsyncWork(): Promise<void> {
   await new Promise((resolve) => {
     setTimeout(resolve, 0);
   });
+}
+
+function simulateRollingTrustedCoverage(input: {
+  durationMs: number;
+  inferenceLatencyMs: number;
+}) {
+  const scheduler = new RollingInferenceScheduler();
+  const submittedAnchors: number[] = [];
+  const coverageIntervals: { startMs: number; endMs: number }[] = [];
+  let activeAnchor: number | null = null;
+  let completionAtMs = Number.POSITIVE_INFINITY;
+  let nextAnchorReadyAtMs = BYTEDANCE_INFERENCE_CONTRACT.futureMs;
+  let nowMs = 0;
+
+  const startInference = (anchorSampleIndex: number) => {
+    scheduler.markStarted(anchorSampleIndex);
+    submittedAnchors.push(anchorSampleIndex);
+    activeAnchor = anchorSampleIndex;
+    completionAtMs = nowMs + input.inferenceLatencyMs;
+  };
+
+  const maybeSubmitReadyAnchor = () => {
+    const capturedEndSampleIndex = Math.floor(nowMs / 1000 * 16_000);
+    const ready = scheduler.nextReadyAnchor(capturedEndSampleIndex);
+    if (ready !== null) {
+      startInference(ready);
+    }
+  };
+
+  const completeActiveInference = () => {
+    if (activeAnchor === null) {
+      return;
+    }
+    const interval = trustedAbsenceCoverageIntervalForAnchor(activeAnchor);
+    coverageIntervals.push({
+      startMs: interval.startSampleIndex / 16_000 * 1000,
+      endMs: interval.endSampleIndex / 16_000 * 1000,
+    });
+    activeAnchor = null;
+    completionAtMs = Number.POSITIVE_INFINITY;
+    const next = scheduler.markCompleted();
+    if (next !== null) {
+      startInference(next);
+    }
+  };
+
+  while (nowMs <= input.durationMs + input.inferenceLatencyMs * 2) {
+    const nextMs = Math.min(nextAnchorReadyAtMs, completionAtMs);
+    nowMs = Number.isFinite(nextMs) ? nextMs : input.durationMs;
+    if (nowMs === completionAtMs) {
+      completeActiveInference();
+      continue;
+    }
+    if (nowMs === nextAnchorReadyAtMs && nowMs <= input.durationMs) {
+      maybeSubmitReadyAnchor();
+      nextAnchorReadyAtMs += 150;
+      continue;
+    }
+    if (completionAtMs <= input.durationMs + input.inferenceLatencyMs * 2) {
+      nowMs = completionAtMs;
+      completeActiveInference();
+      continue;
+    }
+    break;
+  }
+
+  const mergedCoverage = mergeCoverageIntervals(coverageIntervals);
+  const assignmentWindows = [500, 1_000, 1_500, 2_000, 2_500].map((centerMs) => ({
+    startMs: centerMs - 250,
+    endMs: centerMs + 250,
+  }));
+  const fullyCoveredAssignmentWindowCount = assignmentWindows.filter((window) =>
+    intervalIsCovered(mergedCoverage, window)
+  ).length;
+  return {
+    submittedAnchors,
+    skippedAnchorCount: scheduler.skippedAnchorCount,
+    coverageIntervals: mergedCoverage,
+    maxCoverageGapMs: maxCoverageGapMs(mergedCoverage),
+    assignmentWindowCount: assignmentWindows.length,
+    fullyCoveredAssignmentWindowCount,
+  };
+}
+
+function mergeCoverageIntervals(
+  intervals: readonly { startMs: number; endMs: number }[]
+): { startMs: number; endMs: number }[] {
+  const ordered = [...intervals].sort((left, right) => left.startMs - right.startMs);
+  const merged: { startMs: number; endMs: number }[] = [];
+  for (const interval of ordered) {
+    const previous = merged[merged.length - 1];
+    if (!previous || interval.startMs > previous.endMs) {
+      merged.push({ ...interval });
+      continue;
+    }
+    previous.endMs = Math.max(previous.endMs, interval.endMs);
+  }
+  return merged;
+}
+
+function intervalIsCovered(
+  coverage: readonly { startMs: number; endMs: number }[],
+  target: { startMs: number; endMs: number }
+): boolean {
+  return coverage.some((interval) => interval.startMs <= target.startMs && interval.endMs >= target.endMs);
+}
+
+function maxCoverageGapMs(coverage: readonly { startMs: number; endMs: number }[]): number {
+  let maxGap = 0;
+  for (let index = 1; index < coverage.length; index += 1) {
+    maxGap = Math.max(maxGap, coverage[index].startMs - coverage[index - 1].endMs);
+  }
+  return maxGap;
 }
 
 afterEach(() => {
@@ -255,6 +385,28 @@ describe('live ByteDance capture primitives', () => {
       .toThrow(/future context|beyond captured/);
   });
 
+  it('matches the canonical fixed-anchor tensor layout byte-for-byte for early and mature anchors', () => {
+    const sourcePcm = deterministicPcm(80_000);
+    const ring = new BoundedPcmSampleRing(90_000);
+    ring.append(sourcePcm, 0);
+
+    for (const anchorSampleIndex of [0, 8_000, 40_000]) {
+      const canonical = buildByteDanceFixedAnchorWindow({
+        sourcePcm,
+        sampleRateHz: 16_000,
+        anchorSampleIndex,
+      });
+      const live = buildLiveFixedAnchorWindow({ ring, anchorSampleIndex });
+
+      expect(live.leftPaddingSamples).toBe(canonical.zeroPaddingSamples);
+      expect(live.captureStartSampleIndex).toBe(canonical.clipStartSampleIndex);
+      expect(live.realStartSampleIndex).toBe(canonical.realStartSampleIndex);
+      expect(live.realEndSampleIndex).toBe(canonical.realEndSampleIndex);
+      expect(fnv1aFloat32Hash(live.pcm)).toBe(fnv1aFloat32Hash(canonical.pcm));
+      expect(Array.from(live.pcm)).toEqual(Array.from(canonical.pcm));
+    }
+  });
+
   it('uses a 2400-sample grid with one active inference and latest-ready coalescing', () => {
     const scheduler = new RollingInferenceScheduler();
     expect(scheduler.nextReadyAnchor(3519)).toBeNull();
@@ -265,6 +417,29 @@ describe('live ByteDance capture primitives', () => {
     expect(scheduler.nextReadyAnchor(3520 + BYTEDANCE_ROLLING_ANCHOR_STEP_SAMPLES * 3)).toBeNull();
     expect(scheduler.pendingAnchorSampleIndex).toBe(7200);
     expect(scheduler.markCompleted()).toBe(7200);
+  });
+
+  it('shows 400 ms worker latency cannot provide contiguous 150 ms trusted absence coverage', () => {
+    const result = simulateRollingTrustedCoverage({
+      durationMs: 3_000,
+      inferenceLatencyMs: 400,
+    });
+
+    expect(result.submittedAnchors.length).toBeGreaterThan(0);
+    expect(result.skippedAnchorCount).toBeGreaterThan(0);
+    expect(result.maxCoverageGapMs).toBeGreaterThan(0);
+    expect(result.fullyCoveredAssignmentWindowCount).toBeLessThan(result.assignmentWindowCount);
+  });
+
+  it('keeps assignment windows fully covered when inference latency stays below anchor cadence', () => {
+    const result = simulateRollingTrustedCoverage({
+      durationMs: 3_000,
+      inferenceLatencyMs: 75,
+    });
+
+    expect(result.skippedAnchorCount).toBe(0);
+    expect(result.maxCoverageGapMs).toBe(0);
+    expect(result.fullyCoveredAssignmentWindowCount).toBe(result.assignmentWindowCount);
   });
 
   it('maps non-zero sample anchors into one explicit PracticeTimebase domain', () => {

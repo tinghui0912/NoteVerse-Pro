@@ -9,6 +9,7 @@ import {
   type ByteDanceInferenceResult,
   type ByteDanceModelManifest,
   type ByteDancePcmInferenceRequest,
+  type ByteDanceRuntimeExecutionProvider,
 } from './bytedance-contract';
 import {
   acousticEventsToPerformanceEvidence,
@@ -26,6 +27,7 @@ export const BYTEDANCE_ROLLING_ANCHOR_STEP_SAMPLES = 2400;
 
 const MODEL_SAMPLE_RATE_HZ = BYTEDANCE_INFERENCE_CONTRACT.sampleRateHz;
 const FUTURE_SAMPLES = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.futureMs);
+const LOOKBACK_SAMPLES = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.lookbackMs);
 const TARGET_ANCHOR_SAMPLES = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.targetAnchorMs);
 const TRUSTED_ABSENCE_PRE_SAMPLES = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.localPreMs);
 const TRUSTED_ABSENCE_POST_SAMPLES = millisecondsToSamples(BYTEDANCE_INFERENCE_CONTRACT.localPostMs);
@@ -57,7 +59,29 @@ export type LiveCaptureState = {
   activeAnchorSampleIndex?: number;
   coalescedAnchorSampleIndex?: number;
   skippedAnchorCount: number;
+  diagnostics?: LiveByteDanceDiagnosticsSnapshot;
   lastError?: string;
+};
+
+export type LiveByteDanceDiagnosticsSnapshot = {
+  executionProvider?: ByteDanceRuntimeExecutionProvider;
+  providerFallback?: {
+    from: ByteDanceRuntimeExecutionProvider;
+    error: string;
+  };
+  inferenceCount: number;
+  submittedAnchorCount: number;
+  workerTotalMedianMs?: number;
+  workerTotalP95Ms?: number;
+  lastInferenceWorkerTotalMs?: number;
+  latestSubmittedAnchorSampleIndex?: number;
+  activeAnchorSampleIndex?: number;
+  pendingAnchorSampleIndex?: number;
+  captureDurationMs: number;
+  trustedCoverageIntervalCount: number;
+  trustedCoverageDurationMs: number;
+  coverageRatio: number;
+  maximumCoverageGapMs: number;
 };
 
 type LiveByteDanceEvidenceSink = {
@@ -252,7 +276,6 @@ export function buildLiveFixedAnchorWindow(input: {
   captureDomainStartSampleIndex?: number;
 }): LiveFixedAnchorWindow {
   const captureStartSampleIndex = input.anchorSampleIndex - TARGET_ANCHOR_SAMPLES;
-  const requiredEndSampleIndex = captureStartSampleIndex + MODEL_WINDOW_SAMPLES;
   const domainStartSampleIndex = input.captureDomainStartSampleIndex ?? 0;
   if (input.anchorSampleIndex < 0 || !Number.isInteger(input.anchorSampleIndex)) {
     throw new Error('Live fixed-anchor window requires a non-negative integer anchor sample.');
@@ -263,14 +286,18 @@ export function buildLiveFixedAnchorWindow(input: {
   if (input.anchorSampleIndex > input.ring.endSampleIndex) {
     throw new Error('Live fixed-anchor anchor is beyond captured PCM.');
   }
-  const realStartSampleIndex = Math.max(domainStartSampleIndex, captureStartSampleIndex);
-  const realEndSampleIndex = requiredEndSampleIndex;
+  const availableRealLookback = Math.min(
+    LOOKBACK_SAMPLES,
+    Math.max(0, input.anchorSampleIndex - domainStartSampleIndex)
+  );
+  const realStartSampleIndex = input.anchorSampleIndex - availableRealLookback;
+  const realEndSampleIndex = input.anchorSampleIndex + FUTURE_SAMPLES;
   if (!input.ring.hasRange(realStartSampleIndex, realEndSampleIndex)) {
     throw new Error('Live fixed-anchor window range is no longer present in the bounded ring.');
   }
   const pcm = new Float32Array(MODEL_WINDOW_SAMPLES);
   const realAudio = input.ring.extractRange(realStartSampleIndex, realEndSampleIndex);
-  const leftPaddingSamples = realStartSampleIndex - captureStartSampleIndex;
+  const leftPaddingSamples = TARGET_ANCHOR_SAMPLES - availableRealLookback;
   pcm.set(realAudio, leftPaddingSamples);
   return {
     pcm,
@@ -432,6 +459,34 @@ class AcousticCoverageAccumulator {
   }
 }
 
+class BoundedNumberRing {
+  private readonly buffer: number[] = [];
+
+  constructor(private readonly capacity: number) {
+    if (!Number.isInteger(capacity) || capacity <= 0) {
+      throw new Error('Bounded number ring capacity must be a positive integer.');
+    }
+  }
+
+  push(value: number): void {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    this.buffer.push(value);
+    if (this.buffer.length > this.capacity) {
+      this.buffer.splice(0, this.buffer.length - this.capacity);
+    }
+  }
+
+  reset(): void {
+    this.buffer.length = 0;
+  }
+
+  values(): readonly number[] {
+    return this.buffer;
+  }
+}
+
 export class LiveByteDanceRollingPipeline {
   private readonly ring: BoundedPcmSampleRing;
   private readonly scheduler = new RollingInferenceScheduler();
@@ -442,6 +497,11 @@ export class LiveByteDanceRollingPipeline {
   private lifecycleTimebase: PracticeTimebase;
   private lifecycleStartSampleIndex = 0;
   private readonly coverage = new AcousticCoverageAccumulator();
+  private inferenceCount = 0;
+  private submittedAnchorCount = 0;
+  private readonly workerTotalMs = new BoundedNumberRing(128);
+  private loadExecutionProvider: ByteDanceRuntimeExecutionProvider | undefined;
+  private loadExecutionProviderFallback: LiveByteDanceDiagnosticsSnapshot['providerFallback'];
   private generation = 0;
   private fixedWorkerConsumed = false;
   private fatalErrorNotified = false;
@@ -462,6 +522,7 @@ export class LiveByteDanceRollingPipeline {
     return {
       ...this.state,
       inferenceCoverageSessionTimeMs: this.inferenceCoverageSessionTime()?.ms,
+      diagnostics: this.diagnosticsSnapshot(),
     };
   }
 
@@ -481,6 +542,7 @@ export class LiveByteDanceRollingPipeline {
     this.normalizer.reset();
     this.ring.reset(startSampleIndex);
     this.scheduler.reset(startSampleIndex);
+    this.resetDiagnostics();
     this.state = {
       state: 'initializing-model',
       captureDomainId: anchor.domainId,
@@ -491,7 +553,9 @@ export class LiveByteDanceRollingPipeline {
       skippedAnchorCount: 0,
     };
     try {
-      await worker.load(this.options.manifest);
+      const loadDiagnostics = await worker.load(this.options.manifest);
+      this.loadExecutionProvider = loadDiagnostics?.executionProvider;
+      this.loadExecutionProviderFallback = loadDiagnostics?.executionProviderFallback;
       this.state = {
         ...this.state,
         state: 'running',
@@ -603,6 +667,7 @@ export class LiveByteDanceRollingPipeline {
   private async submitAnchor(anchorSampleIndex: number): Promise<void> {
     const generation = this.generation;
     this.scheduler.markStarted(anchorSampleIndex);
+    this.submittedAnchorCount += 1;
     this.state = {
       ...this.state,
       activeAnchorSampleIndex: anchorSampleIndex,
@@ -621,6 +686,7 @@ export class LiveByteDanceRollingPipeline {
       if (generation !== this.generation) {
         return;
       }
+      this.recordInferenceDiagnostics(result);
       this.emitResult(result);
       const coverage = this.coverage.add(
         trustedAbsenceCoverageIntervalForAnchor(anchorSampleIndex),
@@ -662,6 +728,51 @@ export class LiveByteDanceRollingPipeline {
     };
   }
 
+  private diagnosticsSnapshot(): LiveByteDanceDiagnosticsSnapshot {
+    const coverageSnapshot = this.coverage.snapshot();
+    const trustedCoverageDurationMs = coverageSnapshot.intervals.reduce((total, interval) =>
+      total + (interval.endSampleIndex - interval.startSampleIndex) / MODEL_SAMPLE_RATE_HZ * 1000, 0
+    );
+    const captureDurationMs = Math.max(
+      0,
+      (this.ring.endSampleIndex - this.lifecycleStartSampleIndex) / MODEL_SAMPLE_RATE_HZ * 1000
+    );
+    const workerTotals = this.workerTotalMs.values();
+    return {
+      executionProvider: this.loadExecutionProvider,
+      providerFallback: this.loadExecutionProviderFallback,
+      inferenceCount: this.inferenceCount,
+      submittedAnchorCount: this.submittedAnchorCount,
+      workerTotalMedianMs: percentile(workerTotals, 0.5),
+      workerTotalP95Ms: percentile(workerTotals, 0.95),
+      lastInferenceWorkerTotalMs: workerTotals[workerTotals.length - 1],
+      latestSubmittedAnchorSampleIndex: this.state.latestSubmittedAnchorSampleIndex,
+      activeAnchorSampleIndex: this.scheduler.activeAnchorSampleIndex,
+      pendingAnchorSampleIndex: this.scheduler.pendingAnchorSampleIndex,
+      captureDurationMs,
+      trustedCoverageIntervalCount: coverageSnapshot.intervals.length,
+      trustedCoverageDurationMs,
+      coverageRatio: captureDurationMs > 0 ? Math.min(1, trustedCoverageDurationMs / captureDurationMs) : 0,
+      maximumCoverageGapMs: maximumCoverageGapMs(coverageSnapshot.intervals),
+    };
+  }
+
+  private recordInferenceDiagnostics(result: ByteDanceInferenceResult): void {
+    this.inferenceCount += 1;
+    const workerTotal = result.diagnostics?.timingMs.workerTotal;
+    if (typeof workerTotal === 'number' && Number.isFinite(workerTotal)) {
+      this.workerTotalMs.push(workerTotal);
+    }
+  }
+
+  private resetDiagnostics(): void {
+    this.inferenceCount = 0;
+    this.submittedAnchorCount = 0;
+    this.workerTotalMs.reset();
+    this.loadExecutionProvider = undefined;
+    this.loadExecutionProviderFallback = undefined;
+  }
+
   private emitResult(result: ByteDanceInferenceResult): void {
     const events = this.normalizer.normalizeWindow(result.events);
     if (events.length === 0) {
@@ -697,12 +808,16 @@ export class LiveByteDanceRollingPipeline {
   }
 
   private canSubmitAnchor(anchorSampleIndex: number): boolean {
-    if (this.scheduler.activeAnchorSampleIndex !== null) {
+    if (this.scheduler.activeAnchorSampleIndex !== undefined) {
       return false;
     }
-    const windowStart = anchorSampleIndex - TARGET_ANCHOR_SAMPLES;
-    const windowEnd = windowStart + MODEL_WINDOW_SAMPLES;
-    return this.ring.hasRange(windowStart, windowEnd);
+    const availableRealLookback = Math.min(
+      LOOKBACK_SAMPLES,
+      Math.max(0, anchorSampleIndex - this.lifecycleStartSampleIndex)
+    );
+    const realStartSampleIndex = anchorSampleIndex - availableRealLookback;
+    const realEndSampleIndex = anchorSampleIndex + FUTURE_SAMPLES;
+    return this.ring.hasRange(realStartSampleIndex, realEndSampleIndex);
   }
 
   private createWorker(): ByteDanceBrowserWorkerClient {
@@ -1121,7 +1236,28 @@ function millisecondsToSamples(milliseconds: number): number {
   return Math.round(milliseconds / 1000 * MODEL_SAMPLE_RATE_HZ);
 }
 
-function trustedAbsenceCoverageIntervalForAnchor(anchorSampleIndex: number): CaptureCoverageInterval {
+function percentile(values: readonly number[], quantile: number): number | undefined {
+  if (values.length === 0) {
+    return undefined;
+  }
+  const ordered = [...values].sort((left, right) => left - right);
+  const index = Math.min(
+    ordered.length - 1,
+    Math.max(0, Math.ceil(quantile * ordered.length) - 1)
+  );
+  return ordered[index];
+}
+
+function maximumCoverageGapMs(intervals: readonly CaptureCoverageInterval[]): number {
+  let maximumGapMs = 0;
+  for (let index = 1; index < intervals.length; index += 1) {
+    const gapSamples = intervals[index].startSampleIndex - intervals[index - 1].endSampleIndex;
+    maximumGapMs = Math.max(maximumGapMs, gapSamples / MODEL_SAMPLE_RATE_HZ * 1000);
+  }
+  return maximumGapMs;
+}
+
+export function trustedAbsenceCoverageIntervalForAnchor(anchorSampleIndex: number): CaptureCoverageInterval {
   return {
     startSampleIndex: anchorSampleIndex - TRUSTED_ABSENCE_PRE_SAMPLES,
     endSampleIndex: anchorSampleIndex + TRUSTED_ABSENCE_POST_SAMPLES,

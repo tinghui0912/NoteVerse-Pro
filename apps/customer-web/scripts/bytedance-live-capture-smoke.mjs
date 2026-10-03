@@ -46,6 +46,7 @@ const outputPath = args.output ? path.resolve(args.output) : null;
 const browserChannel = typeof args['browser-channel'] === 'string' ? args['browser-channel'] : 'chrome';
 const headed = Object.prototype.hasOwnProperty.call(args, 'headed');
 const timeoutMs = Number(args.timeout ?? 30_000);
+const durationMs = Number(args['duration-ms'] ?? 0);
 
 if (!existsSync(modelPath)) throw new Error(`Missing --model: ${modelPath}`);
 
@@ -73,6 +74,7 @@ try {
     worklet: viteFsPath(path.join(repoRoot, 'apps/customer-web/src/lib/practice/acoustic-inference/bytedance-capture.worklet.js')),
     modelSize: modelStats.byteSize,
     modelSha256: modelStats.sha256,
+    durationMs: Number.isFinite(durationMs) && durationMs > 0 ? durationMs : 0,
   }), 'utf8');
 
   const vite = await createViteServer({
@@ -312,7 +314,11 @@ async function main() {
   lifecycleSnapshots.push({ label: 'before-first-start', snapshot: controller.snapshot() });
   await controller.start();
   lifecycleSnapshots.push({ label: 'after-first-start', snapshot: controller.snapshot() });
-  await waitForInferenceCount(timings, 1);
+  if (CONFIG.durationMs > 0) {
+    await waitMs(CONFIG.durationMs);
+  } else {
+    await waitForInferenceCount(timings, 1);
+  }
   const firstBeforeStop = controller.snapshot();
   lifecycleSnapshots.push({ label: 'before-first-stop', snapshot: firstBeforeStop });
   await controller.stop();
@@ -372,6 +378,12 @@ function waitForInferenceCount(timings, count) {
       setTimeout(poll, 50);
     };
     poll();
+  });
+}
+
+function waitMs(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
   });
 }
 
