@@ -92,6 +92,8 @@
   "confirmedCorrectStrikes": "Correct strikes",
   "targetStrikes": "Target notes",
   "missingStrikes": "Missing strikes",
+  "unconfirmedStrikes": "Unconfirmed",
+  "unconfirmedStrikesDesc": "Some notes could not be confirmed reliably, so they were not counted as missing.",
   "extraPitchCount": "Extra playing",
   "problemMeasureCount": "{count} measures needing attention",
   "missingPitchesLabel": "Missing",

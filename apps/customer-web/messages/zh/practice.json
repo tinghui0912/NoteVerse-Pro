@@ -92,6 +92,8 @@
   "confirmedCorrectStrikes": "正确击键",
   "targetStrikes": "目标音",
   "missingStrikes": "漏弹",
+  "unconfirmedStrikes": "未确认",
+  "unconfirmedStrikesDesc": "部分音符未能可靠确认，因此没有计为漏弹。",
   "extraPitchCount": "额外演奏",
   "problemMeasureCount": "{count} 个需关注小节",
   "missingPitchesLabel": "漏弹",

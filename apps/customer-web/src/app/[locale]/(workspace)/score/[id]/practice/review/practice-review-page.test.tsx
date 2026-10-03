@@ -31,6 +31,8 @@ const translationMocks = vi.hoisted(() => {
     targetStrikes: '目标音',
     confirmedCorrectStrikes: '正确击键',
     missingStrikes: '漏弹',
+    unconfirmedStrikes: '未确认',
+    unconfirmedStrikesDesc: '部分音符未能可靠确认，因此没有计为漏弹。',
     extraPitchCount: '额外演奏',
     matchedGroupCount: '已匹配音符组',
     partialGroupCount: '部分匹配音符组',
@@ -520,14 +522,16 @@ describe('PracticeReviewPage', () => {
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
-    // Check strike-level summary: 8 target notes, 4 correct, 2 missing, 1 extra.
+    // Check strike-level summary: 8 target notes, 4 correct, 2 missing, 2 unconfirmed, 1 extra.
     expect(screen.getByText('目标音')).toBeDefined();
     expect(screen.getByText('正确击键')).toBeDefined();
     expect(screen.getByText('漏弹')).toBeDefined();
+    expect(screen.getByText('未确认')).toBeDefined();
     expect(screen.getByText('额外演奏')).toBeDefined();
     expect(screen.getByText('8')).toBeDefined();
     expect(screen.getByText('4')).toBeDefined();
-    expect(screen.getByText('2')).toBeDefined();
+    expect(screen.getAllByText('2')).toHaveLength(2);
+    expect(screen.getByText('部分音符未能可靠确认，因此没有计为漏弹。')).toBeDefined();
 
     // Verify note-by-note strike annotation:
     // Green (matched): note-c4, note-e4, note-g4, note-c5

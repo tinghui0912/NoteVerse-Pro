@@ -523,6 +523,8 @@ export default function PracticeReviewPage({
           summary.correctStrikeCount += 1;
         } else if (strike.result === 'MISSING') {
           summary.missingStrikeCount += 1;
+        } else if (strike.result === 'UNCONFIRMED') {
+          summary.unconfirmedStrikeCount += 1;
         }
       }
       return summary;
@@ -531,6 +533,7 @@ export default function PracticeReviewPage({
       targetStrikeCount: 0,
       correctStrikeCount: 0,
       missingStrikeCount: 0,
+      unconfirmedStrikeCount: 0,
       extraPitchCount: 0,
     }
   );
@@ -619,7 +622,9 @@ export default function PracticeReviewPage({
       )}
 
       {/* Strike-level performance summary */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className={strikeSummary.unconfirmedStrikeCount > 0
+        ? 'grid grid-cols-2 gap-4 sm:grid-cols-5'
+        : 'grid grid-cols-2 gap-4 sm:grid-cols-4'}>
         <Card className="rounded-lg bg-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs font-medium text-muted-foreground">
@@ -675,7 +680,29 @@ export default function PracticeReviewPage({
             </div>
           </CardContent>
         </Card>
+
+        {strikeSummary.unconfirmedStrikeCount > 0 ? (
+          <Card className="rounded-lg bg-card">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-xs font-medium text-muted-foreground">
+                {t('unconfirmedStrikes')}
+              </CardTitle>
+              <Clock className="h-4 w-4 text-slate-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-slate-600">
+                {strikeSummary.unconfirmedStrikeCount}
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
+
+      {strikeSummary.unconfirmedStrikeCount > 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {t('unconfirmedStrikesDesc')}
+        </p>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         {/* Synchronized Replay Player / Recording Status */}
