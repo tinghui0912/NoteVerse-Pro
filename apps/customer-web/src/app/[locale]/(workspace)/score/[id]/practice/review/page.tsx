@@ -11,12 +11,8 @@ import {
   CheckCircle2,
   Clock,
   Download,
-  Gauge,
-  HelpCircle,
   Loader2,
-  Mic,
   Music,
-  Piano,
   Repeat,
   Target,
 } from 'lucide-react';
@@ -518,11 +514,26 @@ export default function PracticeReviewPage({
   }
 
   const outcomes = draft.evaluation.outcomes;
-  const matchedCount = outcomes.filter((o) => o.result === 'MATCH').length;
-  const partialCount = outcomes.filter((o) => o.result === 'PARTIAL').length;
-  const mismatchCount = outcomes.filter((o) => o.result === 'MISMATCH').length;
-  const unobservedCount = outcomes.filter((o) => o.result === 'NOT_OBSERVED').length;
-  const totalCount = outcomes.length;
+  const strikeSummary = outcomes.reduce(
+    (summary, outcome) => {
+      summary.extraPitchCount += outcome.unexpectedPitches.length;
+      for (const strike of outcome.expectedStrikeOutcomes) {
+        summary.targetStrikeCount += 1;
+        if (strike.result === 'MATCHED') {
+          summary.correctStrikeCount += 1;
+        } else if (strike.result === 'MISSING') {
+          summary.missingStrikeCount += 1;
+        }
+      }
+      return summary;
+    },
+    {
+      targetStrikeCount: 0,
+      correctStrikeCount: 0,
+      missingStrikeCount: 0,
+      extraPitchCount: 0,
+    }
+  );
 
   const tempoText =
     draft.tempoPlan.selection.mode === 'CUSTOM_FIXED_BPM'
@@ -607,125 +618,64 @@ export default function PracticeReviewPage({
         </div>
       )}
 
-      {/* Factual Performance Evidence Stats */}
+      {/* Strike-level performance summary */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Card className="rounded-lg bg-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs font-medium text-muted-foreground">
-              {t('performanceDuration')}
-            </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold">
-              {formatDuration(draft.activeElapsedMs)}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-lg bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
-              {t('performanceTempo')}
-            </CardTitle>
-            <Gauge className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold">{tempoText}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-lg bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
-              {t('performanceInput')}
-            </CardTitle>
-            {draft.inputSource === 'MICROPHONE' ? (
-              <Mic className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <Piano className="h-4 w-4 text-muted-foreground" />
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold">{inputSourceText}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-lg bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
-              {t('performanceScope')}
+              {t('targetStrikes')}
             </CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-sm font-semibold truncate" title={scopeText}>
-              {scopeText}
+            <div className="text-xl font-bold">
+              {strikeSummary.targetStrikeCount}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-lg bg-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
+              {t('confirmedCorrectStrikes')}
+            </CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-green-600">
+              {strikeSummary.correctStrikeCount}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-lg bg-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
+              {t('missingStrikes')}
+            </CardTitle>
+            <AlertCircle className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-red-600">
+              {strikeSummary.missingStrikeCount}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-lg bg-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
+              {t('extraPitchCount')}
+            </CardTitle>
+            <Music className="h-4 w-4 text-amber-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-amber-600">
+              {strikeSummary.extraPitchCount}
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Note Match Outcomes Summary */}
-      {totalCount > 0 && (
-        <Card className="rounded-lg bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Target className="h-4 w-4 text-orange-500" />
-              {t('performanceOutcomes')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 text-center">
-              <div className="rounded-md border bg-slate-50 dark:bg-slate-900 p-3">
-                <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-                  <span>{t('matchedGroupCount')}</span>
-                </div>
-                <div className="mt-1 text-lg font-bold text-green-600">
-                  {matchedCount} / {totalCount}
-                </div>
-              </div>
-              <div className="rounded-md border bg-slate-50 dark:bg-slate-900 p-3">
-                <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                  <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
-                  <span>{t('partialGroupCount')}</span>
-                </div>
-                <div className="mt-1 text-lg font-bold text-amber-600">
-                  {partialCount}
-                </div>
-              </div>
-              <div className="rounded-md border bg-slate-50 dark:bg-slate-900 p-3">
-                <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                  <AlertCircle className="h-3.5 w-3.5 text-red-500" />
-                  <span>{t('mismatchGroupCount')}</span>
-                </div>
-                <div className="mt-1 text-lg font-bold text-red-600">
-                  {mismatchCount}
-                </div>
-              </div>
-              <div className="rounded-md border bg-slate-50 dark:bg-slate-900 p-3">
-                <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                  <HelpCircle className="h-3.5 w-3.5 text-slate-400" />
-                  <span>{t('unobservedGroupCount')}</span>
-                </div>
-                <div className="mt-1 text-lg font-bold text-slate-600">
-                  {unobservedCount}
-                </div>
-              </div>
-              <div className="rounded-md border bg-slate-50 dark:bg-slate-900 p-3">
-                <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                  <Music className="h-3.5 w-3.5 text-primary" />
-                  <span>{t('totalGroupCount')}</span>
-                </div>
-                <div className="mt-1 text-lg font-bold">
-                  {totalCount}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         {/* Synchronized Replay Player / Recording Status */}
@@ -791,6 +741,35 @@ export default function PracticeReviewPage({
           </CardContent>
         </Card>
       </div>
+
+      <Card className="rounded-lg bg-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            {t('performanceDetails')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <div className="text-xs text-muted-foreground">{t('performanceDuration')}</div>
+              <div className="font-semibold">{formatDuration(draft.activeElapsedMs)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">{t('performanceTempo')}</div>
+              <div className="font-semibold">{tempoText}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">{t('performanceInput')}</div>
+              <div className="font-semibold">{inputSourceText}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">{t('performanceScope')}</div>
+              <div className="font-semibold">{scopeText}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="rounded-lg bg-card" data-testid="original-performance-card">
         <CardHeader className="pb-2">

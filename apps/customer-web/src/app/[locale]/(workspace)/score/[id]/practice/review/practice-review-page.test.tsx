@@ -27,6 +27,11 @@ const translationMocks = vi.hoisted(() => {
     scopeFull: '全曲演奏',
     scopeSection: '选段演奏',
     performanceOutcomes: '音符匹配结果',
+    performanceDetails: '演奏详情',
+    targetStrikes: '目标音',
+    confirmedCorrectStrikes: '正确击键',
+    missingStrikes: '漏弹',
+    extraPitchCount: '额外演奏',
     matchedGroupCount: '已匹配音符组',
     partialGroupCount: '部分匹配音符组',
     mismatchGroupCount: '错音音符组',
@@ -389,9 +394,11 @@ describe('PracticeReviewPage', () => {
     expect(screen.getByText('麦克风 (Acoustic)')).toBeDefined();
     expect(screen.getByText('全曲演奏 (0 - 16 拍)')).toBeDefined();
 
-    // Outcomes
-    expect(screen.getByText('1 / 2')).toBeDefined(); // matched count
-    expect(screen.getByText('1')).toBeDefined(); // partial count
+    // Strike-level summary
+    expect(screen.getByText('目标音')).toBeDefined();
+    expect(screen.getByText('正确击键')).toBeDefined();
+    expect(screen.getByText('漏弹')).toBeDefined();
+    expect(screen.getByText('额外演奏')).toBeDefined();
 
     // Player should be rendered
     expect(screen.getByTestId('mock-replay-player')).toBeDefined();
@@ -513,17 +520,14 @@ describe('PracticeReviewPage', () => {
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
-    // Check all 4 event categories + total
-    expect(screen.getByText('已匹配音符组')).toBeDefined();
-    expect(screen.getByText('部分匹配音符组')).toBeDefined();
-    expect(screen.getByText('错音音符组')).toBeDefined();
-    expect(screen.getByText('未观察到音符组')).toBeDefined();
-    expect(screen.getByText('总目标音符组')).toBeDefined();
-
-    expect(screen.getByText('1 / 5')).toBeDefined(); // matched
-    expect(screen.getAllByText('1')).toHaveLength(2); // partial and mismatch each have 1
-    expect(screen.getByText('2')).toBeDefined(); // unobserved
-    expect(screen.getByText('5')).toBeDefined(); // total
+    // Check strike-level summary: 8 target notes, 4 correct, 2 missing, 1 extra.
+    expect(screen.getByText('目标音')).toBeDefined();
+    expect(screen.getByText('正确击键')).toBeDefined();
+    expect(screen.getByText('漏弹')).toBeDefined();
+    expect(screen.getByText('额外演奏')).toBeDefined();
+    expect(screen.getByText('8')).toBeDefined();
+    expect(screen.getByText('4')).toBeDefined();
+    expect(screen.getByText('2')).toBeDefined();
 
     // Verify note-by-note strike annotation:
     // Green (matched): note-c4, note-e4, note-g4, note-c5
