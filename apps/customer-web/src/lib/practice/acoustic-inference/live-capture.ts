@@ -366,7 +366,7 @@ export type InferenceDrainResult =
       reason: 'TIMEOUT' | 'INFERENCE_ERROR' | 'CAPTURE_ENDED';
     };
 
-export type CaptureCoverageInterval = {
+type CaptureCoverageInterval = {
   startSampleIndex: number;
   endSampleIndex: number;
 };
