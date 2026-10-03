@@ -184,11 +184,9 @@ export default function PracticeReviewPage({
 
   const isRevisionMismatched = useMemo(() => {
     if (!isValidDraft || !draft || !artifact) return false;
+    if (artifact.scoreId !== draft.scoreId) return true;
     if (artifact.artifactId !== draft.artifactId) return true;
-    if (draft.revisionId && artifact.revisionId && draft.revisionId !== artifact.revisionId) {
-      return true;
-    }
-    return false;
+    return artifact.revisionId !== draft.revisionId;
   }, [artifact, draft, isValidDraft]);
 
   const isScoreIdentityConfirmed = useMemo(() => {
@@ -196,8 +194,9 @@ export default function PracticeReviewPage({
       return false;
     }
     return (
+      artifact.scoreId === draft.scoreId &&
       artifact.artifactId === draft.artifactId &&
-      (!draft.revisionId || !artifact.revisionId || draft.revisionId === artifact.revisionId)
+      artifact.revisionId === draft.revisionId
     );
   }, [artifact, draft, isRevisionMismatched, isValidDraft, xmlContent]);
 
