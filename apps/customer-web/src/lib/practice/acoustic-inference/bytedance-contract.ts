@@ -42,8 +42,11 @@ export const BYTEDANCE_INFERENCE_CONTRACT = {
   localPostMs: 120,
 } as const;
 
-type ByteDanceExecutionBackend = 'webgpu';
 export type ByteDanceRuntimeExecutionProvider = 'webgpu' | 'wasm';
+export type ByteDanceRuntimeProviderPolicy = {
+  preferred: ByteDanceRuntimeExecutionProvider;
+  fallback: ByteDanceRuntimeExecutionProvider;
+};
 
 export type ByteDanceModelManifest = {
   schemaVersion: 1;
@@ -52,7 +55,7 @@ export type ByteDanceModelManifest = {
   modelUrl: string;
   expectedByteSize: number;
   sha256: string;
-  requiredExecutionBackend: ByteDanceExecutionBackend;
+  runtimeProviderPolicy: ByteDanceRuntimeProviderPolicy;
   onnxRuntimeWebVersion: typeof ONNX_RUNTIME_WEB_VERSION;
   sampleRateHz: typeof BYTEDANCE_INFERENCE_CONTRACT.sampleRateHz;
   input: typeof BYTEDANCE_INPUT_DESCRIPTOR;
@@ -157,7 +160,10 @@ export function defaultByteDanceModelManifest(input: {
     modelUrl: input.modelUrl,
     expectedByteSize: input.expectedByteSize,
     sha256: input.sha256,
-    requiredExecutionBackend: 'webgpu',
+    runtimeProviderPolicy: {
+      preferred: 'webgpu',
+      fallback: 'wasm',
+    },
     onnxRuntimeWebVersion: ONNX_RUNTIME_WEB_VERSION,
     sampleRateHz: BYTEDANCE_INFERENCE_CONTRACT.sampleRateHz,
     input: BYTEDANCE_INPUT_DESCRIPTOR,
@@ -175,8 +181,11 @@ export function validateByteDanceModelManifest(manifest: ByteDanceModelManifest)
     || manifest.modelVersion !== BYTEDANCE_NOTE_MODEL_VERSION) {
     throw new Error('Unexpected ByteDance model identity.');
   }
-  if (manifest.requiredExecutionBackend !== 'webgpu') {
-    throw new Error('ByteDance browser verifier requires the WebGPU execution backend.');
+  if (
+    manifest.runtimeProviderPolicy.preferred !== 'webgpu'
+    || manifest.runtimeProviderPolicy.fallback !== 'wasm'
+  ) {
+    throw new Error('Unexpected ByteDance runtime provider policy.');
   }
   if (manifest.onnxRuntimeWebVersion !== ONNX_RUNTIME_WEB_VERSION) {
     throw new Error('Unexpected ONNX Runtime Web version.');

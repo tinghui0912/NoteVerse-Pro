@@ -749,10 +749,11 @@ describe('ByteDance local practice adapters', () => {
 
   it('does not turn adjacent model-frame activation from one attack into a CONTINUOUS duplicate', () => {
     const normalizer = new AcousticEventStreamNormalizer({ sampleRateHz: 16_000 });
+    const clock = new ManualClock(0);
     const performance = new PerformancePracticeRuntime({
       artifact,
       scope: { kind: 'FULL' },
-      clock: new ManualClock(0),
+      clock,
       countInBeats: 0,
       localSessionId: 'continuous-duplicate-regression',
     });
@@ -771,6 +772,7 @@ describe('ByteDance local practice adapters', () => {
     );
     expect(decoded).toHaveLength(1);
     for (const observation of acousticEventsToPerformanceEvidence(normalizer.normalizeWindow(decoded))) {
+      clock.advance(Math.max(0, observation.captureTime.ms - clock.nowMs()));
       performance.observeEvidence(observation);
     }
     expect(performance.evaluationOutcomes[0]).toMatchObject({
@@ -780,9 +782,10 @@ describe('ByteDance local practice adapters', () => {
   });
 
   it('preserves simultaneous chord evidence for CONTINUOUS evaluation', () => {
+    const clock = new ManualClock(0);
     const performance = new PerformancePracticeRuntime({
       artifact,
-      clock: new ManualClock(0),
+      clock,
       countInBeats: 0,
       localSessionId: 'continuous-chord',
       scope: {
@@ -803,6 +806,7 @@ describe('ByteDance local practice adapters', () => {
       })
     );
     for (const observation of acousticEventsToPerformanceEvidence(decoded)) {
+      clock.advance(Math.max(0, observation.captureTime.ms - clock.nowMs()));
       performance.observeEvidence(observation);
     }
     expect(performance.evaluationOutcomes[0]).toMatchObject({
