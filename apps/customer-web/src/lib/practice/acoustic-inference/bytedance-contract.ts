@@ -43,7 +43,7 @@ export const BYTEDANCE_INFERENCE_CONTRACT = {
 } as const;
 
 export type ByteDanceRuntimeExecutionProvider = 'webgpu' | 'wasm';
-export type ByteDanceRuntimeProviderPolicy = {
+type ByteDanceRuntimeProviderPolicy = {
   preferred: ByteDanceRuntimeExecutionProvider;
   fallback: ByteDanceRuntimeExecutionProvider;
 };
