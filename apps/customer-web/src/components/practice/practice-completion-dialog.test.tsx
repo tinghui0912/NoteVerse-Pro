@@ -87,5 +87,6 @@ describe('PracticeCompletionDialog', () => {
     );
 
     expect(screen.getByRole('button', { name: 'View Report' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Try Again' })).toBeDisabled();
   });
 });

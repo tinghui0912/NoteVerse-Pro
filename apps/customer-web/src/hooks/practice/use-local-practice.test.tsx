@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import canonicalArtifactJson from '@/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json';
 import type { PracticeScoreArtifact } from '@/lib/practice/local-core/artifact';
@@ -324,5 +324,54 @@ describe('useLocalPractice', () => {
       await result.current.finish();
     });
     expect(result.current.lifecycle).toBe('ENDED');
+  });
+
+  it('serializes duplicate CONTINUOUS finish requests through one completion transaction', async () => {
+    const drain = { resolve: null as null | (() => void) };
+    micMock.drainThrough.mockImplementation(async (cutoff) => {
+      await new Promise<void>((resolve) => {
+        drain.resolve = resolve;
+      });
+      return {
+        status: 'covered' as const,
+        requestedThrough: cutoff,
+        coverage: { intervals: [] },
+      };
+    });
+    const onCompletion = vi.fn();
+    const { result } = renderHook(() =>
+      useLocalPractice({
+        artifact,
+        mode: 'CONTINUOUS_PLAY',
+        inputSource: 'MICROPHONE',
+        scope: { kind: 'FULL' },
+        onCompletion,
+      })
+    );
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.finish();
+      second = result.current.finish();
+    });
+    await waitFor(() => {
+      expect(result.current.isFinalizingPerformance).toBe(true);
+    });
+    expect(micMock.drainThrough).toHaveBeenCalledTimes(1);
+    drain.resolve?.();
+    await act(async () => {
+      await first;
+      await second;
+    });
+
+    expect(result.current.lifecycle).toBe('ENDED');
+    expect(result.current.isFinalizingPerformance).toBe(false);
+    expect(onCompletion).toHaveBeenCalledTimes(1);
+    expect(micMock.drainThrough).toHaveBeenCalledTimes(1);
   });
 });

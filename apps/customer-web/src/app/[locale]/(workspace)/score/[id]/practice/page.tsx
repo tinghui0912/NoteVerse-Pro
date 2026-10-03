@@ -612,7 +612,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             open={isCompletionDialogOpen}
             outcome={completionOutcome}
             sessionMode={practiceMode}
-            isLoading={localPractice.isFinalizingRecording}
+            isLoading={localPractice.isFinalizingPerformance}
             onOpenChange={setIsCompletionDialogOpen}
             onRestart={handleRestart}
             onAdjustSection={practiceScope?.kind === 'RANGE' ? handleAdjustSelectedSection : undefined}

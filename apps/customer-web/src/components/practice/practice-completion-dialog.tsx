@@ -55,8 +55,15 @@ export function PracticeCompletionDialog({
       ? t('selectedSectionCompletionDialogDesc')
       : t('learningCompletionDialogDesc');
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (isLoading && !nextOpen) {
+      return;
+    }
+    onOpenChange(nextOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -64,7 +71,7 @@ export function PracticeCompletionDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button type="button" variant="outline" onClick={onRestart}>
+            <Button type="button" variant="outline" onClick={onRestart} disabled={isLoading}>
               <Repeat className="mr-2 h-4 w-4" />
               {t('retryPractice')}
             </Button>
@@ -72,7 +79,7 @@ export function PracticeCompletionDialog({
               <Button
                 type="button"
                 onClick={onAdjustSection}
-                disabled={!onAdjustSection}
+                disabled={!onAdjustSection || isLoading}
               >
                 <PencilLine className="mr-2 h-4 w-4" />
                 {sectionPracticeLabel}

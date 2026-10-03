@@ -121,7 +121,7 @@ export function useLocalPractice({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [completionReason, setCompletionReason] = useState<LocalPracticeCompletionReason | null>(null);
   const [lastSnapshot, setLastSnapshot] = useState<LocalPracticeSessionSnapshot | null>(null);
-  const [isFinalizingRecording, setIsFinalizingRecording] = useState(false);
+  const [isFinalizingPerformance, setIsFinalizingPerformance] = useState(false);
 
   const stepRuntimeRef = useRef<StepPracticeRuntime | null>(null);
   const performanceRuntimeRef = useRef<PerformancePracticeRuntime | null>(null);
@@ -142,6 +142,7 @@ export function useLocalPractice({
   >('NOT_STARTED');
   const sessionGenerationRef = useRef<number>(0);
   const hasFinalizedRef = useRef<boolean>(false);
+  const continuousCompletionRef = useRef<Promise<void> | null>(null);
 
   const installRecorderHandlers = useCallback(
     (recorder: MediaRecorder, stream: MediaStream, mediaKind: 'AUDIO' | 'VIDEO') => {
@@ -297,14 +298,12 @@ export function useLocalPractice({
   }, []);
 
   const finalizeRecordingAndBuildDraft = useCallback(
-    async (sessionSnapshot: LocalPerformanceSessionSnapshot) => {
+    async (sessionSnapshot: LocalPerformanceSessionSnapshot, completionGeneration: number) => {
       if (hasFinalizedRef.current) {
         return;
       }
       hasFinalizedRef.current = true;
-      const sessionGen = sessionGenerationRef.current;
 
-      setIsFinalizingRecording(true);
       try {
         if (currentSegmentStartPerfMsRef.current !== null) {
           const perfEndMs = Math.max(
@@ -345,7 +344,7 @@ export function useLocalPractice({
         }
 
         // Stale session generation check
-        if (sessionGen !== sessionGenerationRef.current) {
+        if (completionGeneration !== sessionGenerationRef.current) {
           return;
         }
 
@@ -398,14 +397,13 @@ export function useLocalPractice({
           completedPerformanceStore.setPerformance(draft);
         }
       } finally {
-        setIsFinalizingRecording(false);
+        // The enclosing completion transaction owns isFinalizingPerformance.
       }
     },
     [artifact, resolvedTempoPlan, scope]
   );
 
   const drainPerformanceInference = useCallback(async (runtime: PerformancePracticeRuntime) => {
-    setIsFinalizingRecording(true);
     const completionCaptureTime = runtime.completionCaptureTime();
     const sessionSnapshot = runtime.snapshotSession();
     if (sessionSnapshot.inputSource === 'MIDI') {
@@ -425,6 +423,68 @@ export function useLocalPractice({
     setPerformanceOutcomes(runtime.evaluationOutcomes);
   }, []);
 
+  const completeContinuousPerformance = useCallback(
+    async (requestedReason: LocalPracticeCompletionReason) => {
+      if (continuousCompletionRef.current) {
+        return continuousCompletionRef.current;
+      }
+      const runtime = performanceRuntimeRef.current;
+      if (!runtime) {
+        return;
+      }
+      const completionGeneration = sessionGenerationRef.current;
+      const completionPromise = (async () => {
+        setIsFinalizingPerformance(true);
+        stopAnimationLoop();
+        stopTimer();
+        metronomeRef.current?.stop();
+
+        const currentClock = runtime.snapshot();
+        if (currentClock.state !== 'ENDED') {
+          runtime.end(requestedReason);
+        }
+        const terminalReason = runtime.sessionCompletionReason ?? requestedReason;
+        setCompletionReason(terminalReason);
+        setLifecycle('ENDED');
+
+        await drainPerformanceInference(runtime);
+        if (completionGeneration !== sessionGenerationRef.current) {
+          return;
+        }
+
+        const sessionSnapshot = runtime.snapshotSession();
+        setLastSnapshot(sessionSnapshot);
+        setPerformanceOutcomes(runtime.evaluationOutcomes);
+        await finalizeRecordingAndBuildDraft(sessionSnapshot, completionGeneration);
+        if (completionGeneration !== sessionGenerationRef.current) {
+          return;
+        }
+        onCompletion?.(sessionSnapshot);
+        await teardownInputs();
+        if (completionGeneration === sessionGenerationRef.current) {
+          setInputState('IDLE');
+        }
+      })().finally(() => {
+        if (completionGeneration === sessionGenerationRef.current) {
+          setIsFinalizingPerformance(false);
+        }
+        if (continuousCompletionRef.current === completionPromise) {
+          continuousCompletionRef.current = null;
+        }
+      });
+      continuousCompletionRef.current = completionPromise;
+      return completionPromise;
+    },
+    [
+      drainPerformanceInference,
+      finalizeRecordingAndBuildDraft,
+      onCompletion,
+      stopAnimationLoop,
+      stopTimer,
+      teardownInputs,
+    ]
+  );
+
   // Handle natural completion
   const handleNaturalCompletion = useCallback(
     async (snapshot: LocalPracticeSessionSnapshot) => {
@@ -435,7 +495,7 @@ export function useLocalPractice({
       setLastSnapshot(snapshot);
       setLifecycle('ENDED');
       if (snapshot.mode === 'CONTINUOUS_PLAY') {
-        await finalizeRecordingAndBuildDraft(snapshot);
+        await finalizeRecordingAndBuildDraft(snapshot, sessionGenerationRef.current);
       }
       onCompletion?.(snapshot);
       await teardownInputs();
@@ -529,11 +589,7 @@ export function useLocalPractice({
       }
 
       if (clockSnapshot.state === 'ENDED') {
-        void (async () => {
-          await drainPerformanceInference(runtime);
-          const sessionSnapshot = runtime.snapshotSession();
-          await handleNaturalCompletion(sessionSnapshot);
-        })();
+        void completeContinuousPerformance('SCOPE_COMPLETED');
         return;
       }
 
@@ -543,7 +599,7 @@ export function useLocalPractice({
     };
 
     animationFrameRef.current = requestAnimationFrame(loop);
-  }, [drainPerformanceInference, handleNaturalCompletion, inputSource, stopAnimationLoop]);
+  }, [completeContinuousPerformance, inputSource, stopAnimationLoop]);
 
   // Fatal input error handler
   const handleFatalInputError = useCallback((errorMessage: string) => {
@@ -577,6 +633,7 @@ export function useLocalPractice({
 
     sessionGenerationRef.current += 1;
     hasFinalizedRef.current = false;
+    continuousCompletionRef.current = null;
     mediaRecorderRef.current = null;
     recordingChunksRef.current = [];
     recordingUnavailableReasonRef.current = null;
@@ -941,41 +998,29 @@ export function useLocalPractice({
 
   // Finish practice session (user stopped)
   const finish = useCallback(async () => {
-    stopTimer();
-    stopAnimationLoop();
-    metronomeRef.current?.stop();
-
     let snapshot: LocalPracticeSessionSnapshot | null = null;
     if (mode === 'STEP_BY_STEP') {
+      stopTimer();
+      stopAnimationLoop();
+      metronomeRef.current?.stop();
       const runtime = stepRuntimeRef.current;
       if (runtime) {
         runtime.end('STOPPED_BY_USER');
         snapshot = runtime.snapshot();
       }
     } else {
-      const runtime = performanceRuntimeRef.current;
-      if (runtime) {
-        runtime.end('STOPPED_BY_USER');
-        await drainPerformanceInference(runtime);
-        snapshot = runtime.snapshotSession();
-        setPerformanceOutcomes(runtime.evaluationOutcomes);
-      }
+      await completeContinuousPerformance('STOPPED_BY_USER');
+      return;
     }
 
     setCompletionReason('STOPPED_BY_USER');
-    if (snapshot) {
-      setLastSnapshot(snapshot);
-    }
+    if (snapshot) setLastSnapshot(snapshot);
     setLifecycle('ENDED');
-
-    if (snapshot?.mode === 'CONTINUOUS_PLAY') {
-      await finalizeRecordingAndBuildDraft(snapshot);
-    }
 
     void teardownInputs().then(() => {
       setInputState('IDLE');
     });
-  }, [drainPerformanceInference, finalizeRecordingAndBuildDraft, mode, stopAnimationLoop, stopTimer, teardownInputs]);
+  }, [completeContinuousPerformance, mode, stopAnimationLoop, stopTimer, teardownInputs]);
 
   // Skip (for STEP mode)
   const skip = useCallback(() => {
@@ -997,6 +1042,7 @@ export function useLocalPractice({
   const restart = useCallback(async () => {
     sessionGenerationRef.current += 1;
     hasFinalizedRef.current = false;
+    continuousCompletionRef.current = null;
     metronomeRef.current?.stop();
     metronomeRef.current?.destroy();
     metronomeRef.current = null;
@@ -1066,7 +1112,8 @@ export function useLocalPractice({
     completionReason,
     lastSnapshot,
     resolvedTempoPlan,
-    isFinalizingRecording,
+    isFinalizingRecording: isFinalizingPerformance,
+    isFinalizingPerformance,
     setMetronomeEnabled,
     start,
     pause,
