@@ -51,6 +51,7 @@ export type LiveCaptureState = {
   sourceContinuityOk?: boolean;
   lastSourceSampleIndex?: number;
   latestSubmittedAnchorSampleIndex?: number;
+  inferenceCoverageSessionTimeMs?: number;
   activeAnchorSampleIndex?: number;
   coalescedAnchorSampleIndex?: number;
   skippedAnchorCount: number;
@@ -376,7 +377,10 @@ export class LiveByteDanceRollingPipeline {
   }
 
   snapshot(): LiveCaptureState {
-    return { ...this.state };
+    return {
+      ...this.state,
+      inferenceCoverageSessionTimeMs: this.inferenceCoverageSessionTime()?.ms,
+    };
   }
 
   async start(): Promise<void> {
@@ -418,6 +422,15 @@ export class LiveByteDanceRollingPipeline {
 
   get currentLifecycleStartSampleIndex(): number {
     return this.lifecycleStartSampleIndex;
+  }
+
+  inferenceCoverageSessionTime(): SessionTime | null {
+    if (this.completedCoverageAnchorSampleIndex === null) {
+      return null;
+    }
+    return this.lifecycleTimebase.sampleIndexToSessionTime(
+      this.completedCoverageAnchorSampleIndex
+    );
   }
 
   appendNormalizedPcm(samples: Float32Array, startSampleIndex = this.ring.endSampleIndex): void {
@@ -733,6 +746,10 @@ export class BrowserMicrophoneCaptureController {
       return false;
     }
     return lc.pipeline.drainThrough(cutoff);
+  }
+
+  inferenceCoverageTime(): SessionTime | null {
+    return this.currentLifecycle?.pipeline?.inferenceCoverageSessionTime() ?? null;
   }
 
   async start(): Promise<void> {

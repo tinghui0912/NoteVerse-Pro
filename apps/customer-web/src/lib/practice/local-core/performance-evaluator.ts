@@ -41,7 +41,10 @@ export class LocalPerformanceEvaluator {
   }
 
   evaluate(
-    observations: readonly PerformanceEvaluationObservation[]
+    observations: readonly PerformanceEvaluationObservation[],
+    options: {
+      settledThroughPerformanceTimeMs?: number | null;
+    } = {}
   ): PerformanceExpectedEventOutcome[] {
     const assignments = new Map<string, PerformanceEvaluationObservation[]>();
     for (const event of this.expectedEvents) {
@@ -60,18 +63,27 @@ export class LocalPerformanceEvaluator {
         assignments.get(nearest.expectedGroup.groupId)?.push(observation);
       }
     }
-    return this.expectedEvents.map((event) => outcomeForEvent(
-      event,
-      assignments.get(event.expectedGroup.groupId) ?? [],
-      this.chordSimultaneityWindowMs
-    ));
+    return this.expectedEvents.map((event) => {
+      const settledThrough = options.settledThroughPerformanceTimeMs;
+      const isSettled =
+        typeof settledThrough === 'number' &&
+        Number.isFinite(settledThrough) &&
+        settledThrough >= event.performanceTimeMs + this.assignmentWindowMs;
+      return outcomeForEvent(
+        event,
+        assignments.get(event.expectedGroup.groupId) ?? [],
+        this.chordSimultaneityWindowMs,
+        isSettled
+      );
+    });
   }
 }
 
 function outcomeForEvent(
   event: ExpectedPerformanceEvent,
   observations: readonly PerformanceEvaluationObservation[],
-  chordSimultaneityWindowMs: number
+  chordSimultaneityWindowMs: number,
+  isSettled: boolean
 ): PerformanceExpectedEventOutcome {
   if (!observations.length) {
     return {
@@ -84,7 +96,7 @@ function outcomeForEvent(
         strikeId: strike.strikeId,
         pitch: strike.pitch,
         renderNoteIds: strike.renderNoteIds,
-        result: 'UNCONFIRMED',
+        result: isSettled ? 'MISSING' : 'UNCONFIRMED',
       })),
       unexpectedPitches: [],
       renderNoteIds: event.expectedGroup.renderNoteIds,

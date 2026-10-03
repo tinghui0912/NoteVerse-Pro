@@ -94,6 +94,7 @@ export class PerformancePracticeRuntime {
   private clockSegments: ClockSegment[] = [];
   private observations: PerformanceEvaluationObservation[] = [];
   private outcomes: PerformanceExpectedEventOutcome[] = [];
+  private evaluationCoverageThroughPerformanceTimeMs: number | null = null;
 
   constructor(options: PerformancePracticeRuntimeOptions) {
     assertPracticeScoreArtifact(options.artifact);
@@ -150,6 +151,11 @@ export class PerformancePracticeRuntime {
         ...outcome,
         source: outcome.source,
       }));
+      if (this.state === 'ENDED') {
+        this.evaluationCoverageThroughPerformanceTimeMs = this.performanceElapsedMs(
+          this.activeElapsedMs
+        );
+      }
     }
   }
 
@@ -240,8 +246,21 @@ export class PerformancePracticeRuntime {
       musicalBeat: this.musicalBeat(performanceTimeMs),
     };
     this.observations.push(evaluated);
-    this.outcomes = this.evaluator.evaluate(this.observations);
+    this.updateEvaluationOutcomes();
     return evaluated;
+  }
+
+  markEvaluationCoverageThrough(captureTime: SessionTime): void {
+    this.timebase.assertSameSessionTimeDomain(captureTime, this.timebase.atSessionMs(0));
+    const performanceTimeMs = this.performanceTimeAtCapture(captureTime.ms);
+    if (performanceTimeMs === null) {
+      return;
+    }
+    this.evaluationCoverageThroughPerformanceTimeMs = Math.max(
+      this.evaluationCoverageThroughPerformanceTimeMs ?? performanceTimeMs,
+      performanceTimeMs
+    );
+    this.updateEvaluationOutcomes();
   }
 
   completionCaptureTime(): SessionTime {
@@ -331,6 +350,12 @@ export class PerformancePracticeRuntime {
       this.state = 'RUNNING';
     }
     return activeElapsedMs;
+  }
+
+  private updateEvaluationOutcomes(): void {
+    this.outcomes = this.evaluator.evaluate(this.observations, {
+      settledThroughPerformanceTimeMs: this.evaluationCoverageThroughPerformanceTimeMs,
+    });
   }
 
   private activeElapsedAt(nowMs: number): number {

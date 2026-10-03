@@ -409,7 +409,9 @@ export function useLocalPractice({
     if (!mic) {
       return;
     }
-    await mic.drainThrough(runtime.completionCaptureTime());
+    const completionCaptureTime = runtime.completionCaptureTime();
+    await mic.drainThrough(completionCaptureTime);
+    runtime.markEvaluationCoverageThrough(completionCaptureTime);
     setPerformanceOutcomes(runtime.evaluationOutcomes);
   }, []);
 
@@ -463,6 +465,26 @@ export function useLocalPractice({
       }
       for (const obs of observations) {
         runtime.observeEvidence(obs);
+      }
+      const micCoverageTime = micControllerRef.current?.inferenceCoverageTime() ?? null;
+      if (micCoverageTime) {
+        runtime.markEvaluationCoverageThrough(micCoverageTime);
+      } else if (
+        observations.length > 0 &&
+        observations.every((obs) => obs.source === 'MIDI')
+      ) {
+        let latestMidiCaptureTime = observations[0]?.captureTime ?? null;
+        for (const observation of observations) {
+          if (
+            !latestMidiCaptureTime ||
+            observation.captureTime.ms > latestMidiCaptureTime.ms
+          ) {
+            latestMidiCaptureTime = observation.captureTime;
+          }
+        }
+        if (latestMidiCaptureTime) {
+          runtime.markEvaluationCoverageThrough(latestMidiCaptureTime);
+        }
       }
       setPerformanceOutcomes(runtime.evaluationOutcomes);
     },

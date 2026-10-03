@@ -433,11 +433,21 @@ describe('local CONTINUOUS practice runtime', () => {
       'MISMATCH',
       'NOT_OBSERVED',
     ]);
+    expect(outcomes[4]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
+      'UNCONFIRMED',
+    ]);
     expect(outcomes[3]).toMatchObject({
       unexpectedPitches: ['D#5'],
       timingOffsetMs: 0,
     });
     expect(runtime.snapshot().state).toBe('RUNNING');
+
+    clock.advance(10_000);
+    runtime.snapshot();
+    runtime.markEvaluationCoverageThrough(runtime.completionCaptureTime());
+    expect(runtime.evaluationOutcomes[4]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
+      'MISSING',
+    ]);
 
     const partial = new PerformancePracticeRuntime({
       artifact,
@@ -876,6 +886,9 @@ describe('local session foundation', () => {
     runtime.end('STOPPED_BY_USER');
     expect(runtime.snapshot().state).toBe('ENDED');
     expect(runtime.observeEvidence(lateRunningEvidence)).not.toBeNull();
+    expect(runtime.evaluationOutcomes[0]?.expectedStrikeOutcomes[0]).toMatchObject({
+      result: 'MATCHED',
+    });
     expect(runtime.observeEvidence(performanceEvidence(runtime.timebase.domainId, clock.nowMs() + 100, ['C4']))).toBeNull();
   });
 
