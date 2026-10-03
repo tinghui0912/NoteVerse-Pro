@@ -1,3 +1,4 @@
+import { CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON } from './audio-analysis/continuous/transcription-contract';
 import type { PracticeInputSource, PracticeMode } from './local-core/artifact';
 
 type WindowWithWebKitAudioContext = Window & {
@@ -93,8 +94,8 @@ export function getSelectedInputCapability(
   if (mode === 'CONTINUOUS_PLAY' && capabilities.microphone.supported) {
     return {
       supported: false,
-      status: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
-      reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
+      status: CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON,
+      reason: CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON,
     };
   }
   return capabilities.microphone;

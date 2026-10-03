@@ -45,6 +45,9 @@ import {
   StepMicrophoneCaptureController,
 } from '@/lib/practice/audio-analysis/step/step-acoustic-session';
 import {
+  CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON,
+} from '@/lib/practice/audio-analysis/continuous/transcription-contract';
+import {
   createByteDanceManifestFromAccess,
 } from '@/lib/practice/acoustic-inference/bytedance-contract';
 import { modelAssetsApi } from '@/lib/api';
@@ -630,7 +633,7 @@ export function useLocalPractice({
       throw new Error('Score artifact is not available yet.');
     }
     if (mode === 'CONTINUOUS_PLAY' && inputSource === 'MICROPHONE') {
-      throw new Error('CONTINUOUS_ANALYSIS_UNAVAILABLE');
+      throw new Error(CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON);
     }
 
     setErrorInputSource(null);

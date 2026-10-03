@@ -8,6 +8,8 @@ export type ContinuousTranscriptionCapability =
       contract: ContinuousTranscriptionContract;
     };
 
+export const CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON = 'CONTINUOUS_ANALYSIS_UNAVAILABLE' as const;
+
 export type ContinuousTranscriptionContract = {
   contractId: string;
   sampleRateHz: 16_000;
