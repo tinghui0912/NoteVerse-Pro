@@ -69,9 +69,10 @@ export function PracticeScoreViewer({
         .map((outcome) => [
           outcome.expectedGroupId,
           outcome.result,
-          outcome.expectedStrikeOutcomes
-            .map((strike) => `${strike.strikeId}:${strike.result}:${strike.renderNoteIds.join(',')}`)
+          (outcome.expectedStrikeOutcomes ?? [])
+            .map((strike) => `${strike.strikeId}:${strike.result}:${(strike.renderNoteIds ?? []).join(',')}`)
             .join(','),
+          (outcome.renderNoteIds ?? []).join(','),
         ].join(':'))
         .join('\u001f'),
     [performanceOutcomes]

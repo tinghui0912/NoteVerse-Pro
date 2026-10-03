@@ -36,7 +36,7 @@ import { useToast } from '@/hooks/use-toast';
 const DELETE_POLL_INTERVAL_MS = 2500;
 const DELETE_SLOW_NOTICE_MS = 30000;
 
-export function normalizePage(value?: string | number): number {
+function normalizePage(value?: string | number): number {
   const page = Math.floor(Number(value ?? 1));
   return Number.isFinite(page) ? Math.max(1, page) : 1;
 }
@@ -336,22 +336,15 @@ function PerformanceTakeCard({
 export default function MyPerformancesPage({
   searchParams,
 }: {
-  searchParams?:
-    | Promise<{
-        page?: string;
-      }>
-    | {
-        page?: string;
-      };
+  searchParams?: Promise<{
+    page?: string;
+  }>;
 }) {
   const routerSearchParams = useSearchParams();
-  const isPromise = Boolean(
+  const resolvedParams =
     searchParams && typeof (searchParams as Promise<unknown>).then === 'function'
-  );
-  const resolvedParams = isPromise
-    ? React.use(searchParams as Promise<{ page?: string }>)
-    : (searchParams as { page?: string } | undefined);
-
+      ? React.use(searchParams)
+      : (searchParams as { page?: string } | undefined);
   const pageParam = resolvedParams?.page ?? routerSearchParams?.get('page') ?? undefined;
   const rawPage = normalizePage(pageParam);
 

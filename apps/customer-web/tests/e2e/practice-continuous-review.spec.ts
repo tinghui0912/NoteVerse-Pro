@@ -537,9 +537,11 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(page.getByText('演奏速度')).toBeVisible();
     await expect(page.getByText('练习范围')).toBeVisible();
     await expect(page.getByText('输入方式')).toBeVisible();
-    await expect(page.getByText('音符匹配结果')).toBeVisible();
-    await expect(page.getByText('已匹配音符组')).toBeVisible();
-    await expect(page.getByText('总目标音符组')).toBeVisible();
+    await expect(page.getByText('目标音')).toBeVisible();
+    await expect(page.getByText('正确击键')).toBeVisible();
+    await expect(page.getByText('漏弹', { exact: true })).toBeVisible();
+    await expect(page.getByText('额外演奏')).toBeVisible();
+    await expect(page.getByText('未确认')).toBeVisible();
     await expect(page.getByRole('button', { name: '回放' })).toBeVisible();
 
     // Zero backend session or take requests

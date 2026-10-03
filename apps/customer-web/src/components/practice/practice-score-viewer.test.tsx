@@ -103,6 +103,26 @@ const mockStepGroup: ExpectedPracticeGroup = {
 };
 
 describe('PracticeScoreViewer', () => {
+  it('tolerates incomplete performance outcome records while computing annotation signatures', async () => {
+    renderViewer({
+      performanceOutcomes: [
+        {
+          expectedGroupId: 'legacy-incomplete',
+          performanceTimeMs: 0,
+          result: 'MISMATCH',
+          confidence: 0,
+          source: 'MIDI',
+          unexpectedPitches: [],
+          measureNumbers: [],
+          expectedStrikeOutcomes: undefined as never,
+          renderNoteIds: undefined as never,
+        },
+      ],
+    });
+
+    expect(await screen.findByTestId('score-system')).toBeInTheDocument();
+  });
+
   it('renders selected section as note backgrounds without recoloring note shapes', async () => {
     const getBBox = vi.fn(function getBBox(this: SVGElement) {
       if (this.classList.contains('system')) {

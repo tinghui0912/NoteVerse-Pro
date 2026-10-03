@@ -143,7 +143,7 @@ function applyOutcomeUniverseToSummary(
   outcomes: CompletedPerformance['evaluation']['outcomes']
 ) {
   for (const outcome of outcomes) {
-    for (const strike of outcome.expectedStrikeOutcomes) {
+    for (const strike of outcome.expectedStrikeOutcomes ?? []) {
       summary.targetStrikeCount += 1;
       if (strike.result === 'MATCHED') {
         summary.correctStrikeCount += 1;
@@ -170,8 +170,8 @@ function toPerformanceTakeTempoPlan(plan: ResolvedPracticeTempoPlan): Performanc
 export default function PracticeReviewPage({
   params: _paramsProp,
 }: {
-  params?: Promise<{ id: string }>;
-} = {}) {
+  params: Promise<{ id: string }>;
+}) {
   const urlParams = useParams();
   const id = scoreIdFromParams(urlParams);
   const t = useTranslations('practice');
