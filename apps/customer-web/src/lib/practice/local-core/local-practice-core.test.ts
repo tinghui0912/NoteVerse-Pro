@@ -499,6 +499,7 @@ describe('local CONTINUOUS practice runtime', () => {
     expect(session.evaluationSnapshot.strikes.some((strike) => strike.verdict === 'PENDING')).toBe(true);
 
     session.publishAnalysis({
+      sessionDomainId: session.timebase.domainId,
       attacks: [],
       analyzedThroughPerformanceMs: 1000,
     });
@@ -519,11 +520,88 @@ describe('local CONTINUOUS practice runtime', () => {
     clock.advance(1000);
     session.end('STOPPED_BY_USER');
 
-    session.publishAnalysis({ attacks: [], analyzedThroughPerformanceMs: 1000 });
+    session.publishAnalysis({
+      sessionDomainId: session.timebase.domainId,
+      attacks: [],
+      analyzedThroughPerformanceMs: 1000,
+    });
     const afterForward = session.evaluationSnapshot;
-    session.publishAnalysis({ attacks: [], analyzedThroughPerformanceMs: 100 });
+    session.publishAnalysis({
+      sessionDomainId: session.timebase.domainId,
+      attacks: [],
+      analyzedThroughPerformanceMs: 100,
+    });
 
     expect(session.evaluationSnapshot).toEqual(afterForward);
+  });
+
+  it('rejects cross-session analysis publication without mutating evaluation', () => {
+    const clockA = new ManualClock(0);
+    const sessionA = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock: clockA,
+      inputSource: 'MICROPHONE',
+      countInBeats: 0,
+      localSessionId: 'analysis-session-a',
+    });
+    const clockB = new ManualClock(0);
+    const sessionB = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock: clockB,
+      inputSource: 'MICROPHONE',
+      countInBeats: 0,
+      localSessionId: 'analysis-session-b',
+    });
+    sessionA.start();
+    sessionB.start();
+    clockB.advance(1000);
+    const before = sessionB.evaluationSnapshot;
+
+    expect(() => sessionB.publishAnalysis({
+      sessionDomainId: sessionA.timebase.domainId,
+      attacks: [{
+        captureTime: sessionA.timebase.atSessionMs(100),
+        pitch: 'C4',
+        confidence: 1,
+        source: 'ACOUSTIC',
+      }],
+      analyzedThroughPerformanceMs: 1000,
+    })).toThrow(/different session domain/);
+
+    expect(sessionB.evaluationSnapshot).toEqual(before);
+  });
+
+  it('rejects attacks from the wrong capture domain before advancing analysis', () => {
+    const clock = new ManualClock(0);
+    const session = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock,
+      inputSource: 'MICROPHONE',
+      countInBeats: 0,
+      localSessionId: 'analysis-session',
+    });
+    session.start();
+    clock.advance(1000);
+    const before = session.evaluationSnapshot;
+
+    expect(() => session.publishAnalysis({
+      sessionDomainId: session.timebase.domainId,
+      attacks: [{
+        captureTime: { domainId: 'wrong-domain', ms: 100 },
+        pitch: 'C4',
+        confidence: 1,
+        source: 'ACOUSTIC',
+      }],
+      analyzedThroughPerformanceMs: 1000,
+    })).toThrow(/different session domain/);
+
+    expect(session.evaluationSnapshot).toEqual(before);
   });
 });
 describe('local session foundation', () => {

@@ -164,6 +164,19 @@ describe('PerformanceRecorder', () => {
     expect(result.media).toEqual({ status: 'UNAVAILABLE', reason: 'NotAllowedError' });
   });
 
+  it('preserves the original prepare failure reason across freeze/finalize', async () => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: vi.fn(async () => { throw new DOMException('denied', 'NotAllowedError'); }) },
+    });
+    const recorder = new PerformanceRecorder('AUDIO');
+    await recorder.prepare({ inputSource: 'MIDI' });
+    await recorder.freeze(1000);
+    const result = await recorder.finalize();
+
+    expect(result.media).toEqual({ status: 'UNAVAILABLE', reason: 'NotAllowedError' });
+  });
+
   it('fails closed when recorder stop times out', async () => {
     vi.useFakeTimers();
     behavior.emitStop = false;

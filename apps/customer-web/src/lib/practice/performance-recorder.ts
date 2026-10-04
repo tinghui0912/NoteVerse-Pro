@@ -172,7 +172,7 @@ export class PerformanceRecorder {
     const recorder = this.recorder;
     this.state = 'FINALIZING';
     if (!recorder || recorder.state === 'inactive') {
-      this.markUnavailable('RECORDER_NOT_ACTIVE');
+      this.markUnavailable(this.unavailableReason ?? 'RECORDER_NOT_ACTIVE');
       this.stopPromise = Promise.resolve('FAILED');
       return this.stopPromise;
     }
@@ -354,7 +354,7 @@ export class PerformanceRecorder {
   }
 
   private markUnavailable(reason: string): void {
-    this.unavailableReason = reason;
+    this.unavailableReason = this.unavailableReason ?? reason;
     this.state = 'UNAVAILABLE';
   }
 }

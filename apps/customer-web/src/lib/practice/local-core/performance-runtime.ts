@@ -65,9 +65,19 @@ export type PerformanceClockRuntimeOptions = {
 export type ContinuousPracticeSessionOptions = PerformanceClockRuntimeOptions;
 
 export type ContinuousAnalysisPublication = {
+  sessionDomainId: string;
   attacks: readonly CapturedAttack[];
   analyzedThroughPerformanceMs: number;
 };
+
+class ContinuousAnalysisPublicationDomainError extends Error {
+  readonly code = 'CONTINUOUS_ANALYSIS_PUBLICATION_DOMAIN_MISMATCH' as const;
+
+  constructor(message = 'Continuous analysis publication belongs to a different session domain.') {
+    super(message);
+    this.name = 'ContinuousAnalysisPublicationDomainError';
+  }
+}
 
 type PerformanceScope = ResolvedPracticeScope & {
   nominalStartTimeMs: number;
@@ -446,7 +456,15 @@ export class ContinuousPracticeSession {
   }
 
   publishAnalysis(publication: ContinuousAnalysisPublication): void {
+    if (publication.sessionDomainId !== this.clock.timebase.domainId) {
+      throw new ContinuousAnalysisPublicationDomainError();
+    }
     for (const attack of publication.attacks) {
+      if (attack.captureTime.domainId !== this.clock.timebase.domainId) {
+        throw new ContinuousAnalysisPublicationDomainError(
+          'Continuous analysis attack belongs to a different session domain.'
+        );
+      }
       if (attack.source === 'MIDI') {
         this.observeCapturedAttack(attack);
         continue;
