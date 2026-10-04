@@ -19,7 +19,7 @@ import {
   groupForCurrentStep,
 } from '@/lib/practice/local-core/step-runtime';
 import {
-  PerformancePracticeRuntime,
+  ContinuousPracticeSession,
   type PerformanceClockSnapshot,
 } from '@/lib/practice/local-core/performance-runtime';
 import {
@@ -38,9 +38,9 @@ import {
 import { MetronomeController } from '@/lib/practice/metronome/metronome-controller';
 import type {
   PerformanceEvidenceObservation,
-  PerformanceExpectedEventOutcome,
   StepVerifierObservation,
 } from '@/lib/practice/local-core/evidence';
+import type { ContinuousEvaluationSnapshot } from '@/lib/practice/local-core/continuous-evaluation-session';
 import {
   StepMicrophoneCaptureController,
 } from '@/lib/practice/audio-analysis/step/step-acoustic-session';
@@ -55,7 +55,6 @@ import {
   BrowserMidiController,
 } from '@/lib/practice/midi/browser-midi-controller';
 import {
-  completedEvaluationFromPerformanceOutcomes,
   completedPerformanceStore,
   type CompletedPerformance,
   type PerformanceMedia,
@@ -121,14 +120,14 @@ export function useLocalPractice({
   const [inputError, setInputError] = useState<string | null>(null);
   const [activeStepGroup, setActiveStepGroup] = useState<ExpectedPracticeGroup | null>(null);
   const [performanceClock, setPerformanceClock] = useState<PerformanceClockSnapshot | null>(null);
-  const [performanceOutcomes, setPerformanceOutcomes] = useState<PerformanceExpectedEventOutcome[]>([]);
+  const [performanceEvaluation, setPerformanceEvaluation] = useState<ContinuousEvaluationSnapshot | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [completionReason, setCompletionReason] = useState<LocalPracticeCompletionReason | null>(null);
   const [lastSnapshot, setLastSnapshot] = useState<LocalPracticeSessionSnapshot | null>(null);
   const [isFinalizingPerformance, setIsFinalizingPerformance] = useState(false);
 
   const stepRuntimeRef = useRef<StepPracticeRuntime | null>(null);
-  const performanceRuntimeRef = useRef<PerformancePracticeRuntime | null>(null);
+  const performanceRuntimeRef = useRef<ContinuousPracticeSession | null>(null);
   const metronomeRef = useRef<MetronomeController | null>(null);
   const micControllerRef = useRef<StepMicrophoneCaptureController | null>(null);
   const midiControllerRef = useRef<BrowserMidiController | null>(null);
@@ -349,7 +348,8 @@ export function useLocalPractice({
           };
         }
 
-        if (artifact && resolvedTempoPlan && scope) {
+        const runtime = performanceRuntimeRef.current;
+        if (artifact && resolvedTempoPlan && scope && runtime) {
           const resolvedScope = resolvePracticeScope(artifact, scope);
           const draft: CompletedPerformance = {
             localSessionId: sessionSnapshot.localSessionId,
@@ -360,10 +360,7 @@ export function useLocalPractice({
             tempoPlan: resolvedTempoPlan,
             inputSource: sessionSnapshot.inputSource,
             activeElapsedMs: sessionSnapshot.performance.activeElapsedMs,
-            evaluation: completedEvaluationFromPerformanceOutcomes(
-              sessionSnapshot.performance.outcomes,
-              sessionSnapshot.completionReason
-            ),
+            evaluation: runtime.completedEvaluation(),
             media,
             recordingTimebase: structuredClone(recordingTimebaseRef.current),
             completedAt: new Date().toISOString(),
@@ -422,20 +419,20 @@ export function useLocalPractice({
     return recorderStopPromiseRef.current;
   }, []);
 
-  const drainPerformanceInference = useCallback(async (runtime: PerformancePracticeRuntime) => {
+  const drainPerformanceInference = useCallback(async (runtime: ContinuousPracticeSession) => {
     const completionCaptureTime = runtime.completionCaptureTime();
     const sessionSnapshot = runtime.snapshotSession();
     if (sessionSnapshot.inputSource === 'MIDI') {
-      runtime.markEvaluationCoverageThrough(completionCaptureTime);
-      setPerformanceOutcomes(runtime.evaluationOutcomes);
+      runtime.advanceAnalysisThrough(completionCaptureTime);
+      setPerformanceEvaluation(runtime.evaluationSnapshot);
       return;
     }
     throw new Error('Continuous microphone analysis is unavailable.');
   }, []);
 
-  const finalizeContinuousEvaluation = useCallback(async (runtime: PerformancePracticeRuntime) => {
+  const finalizeContinuousEvaluation = useCallback(async (runtime: ContinuousPracticeSession) => {
     await drainPerformanceInference(runtime);
-    setPerformanceOutcomes(runtime.evaluationOutcomes);
+    setPerformanceEvaluation(runtime.evaluationSnapshot);
   }, [drainPerformanceInference]);
 
   const completeContinuousPerformance = useCallback(
@@ -472,7 +469,7 @@ export function useLocalPractice({
 
         const sessionSnapshot = runtime.snapshotSession();
         setLastSnapshot(sessionSnapshot);
-        setPerformanceOutcomes(runtime.evaluationOutcomes);
+        setPerformanceEvaluation(runtime.evaluationSnapshot);
         await finalizeRecordingAndBuildDraft(sessionSnapshot, completionGeneration);
         if (completionGeneration !== sessionGenerationRef.current) {
           return;
@@ -555,7 +552,7 @@ export function useLocalPractice({
       for (const obs of observations) {
         runtime.observeEvidence(obs);
       }
-      setPerformanceOutcomes(runtime.evaluationOutcomes);
+      setPerformanceEvaluation(runtime.evaluationSnapshot);
     },
     []
   );
@@ -573,8 +570,8 @@ export function useLocalPractice({
       const clockSnapshot = runtime.snapshot();
       setPerformanceClock(clockSnapshot);
       if (inputSource === 'MIDI' && clockSnapshot.state === 'RUNNING') {
-        runtime.markEvaluationCoverageThrough(runtime.timebase.atSessionMs(clockSnapshot.nowMs));
-        setPerformanceOutcomes(runtime.evaluationOutcomes);
+        runtime.advanceAnalysisThrough(runtime.timebase.atSessionMs(clockSnapshot.nowMs));
+        setPerformanceEvaluation(runtime.evaluationSnapshot);
       }
 
       if (
@@ -641,7 +638,7 @@ export function useLocalPractice({
     setErrorInputSource(null);
     setInputError(null);
     setInputState('STARTING');
-    setPerformanceOutcomes([]);
+    setPerformanceEvaluation(null);
 
     sessionGenerationRef.current += 1;
     hasFinalizedRef.current = false;
@@ -805,7 +802,7 @@ export function useLocalPractice({
         metronome.setStepContext(initialOnsetBeat);
         metronome.start(initialOnsetBeat);
       } else {
-        const runtime = new PerformancePracticeRuntime({
+        const runtime = new ContinuousPracticeSession({
           artifact,
           tempoPlan: resolvedTempoPlan,
           scope,
@@ -819,7 +816,7 @@ export function useLocalPractice({
         performanceRuntimeRef.current = runtime;
         const initialClock = runtime.start();
         setPerformanceClock(initialClock);
-        setPerformanceOutcomes(runtime.evaluationOutcomes);
+        setPerformanceEvaluation(runtime.evaluationSnapshot);
         metronome.start(initialClock);
         runPerformanceLoop();
       }
@@ -905,7 +902,7 @@ export function useLocalPractice({
       const clock = performanceRuntimeRef.current?.pause();
       if (clock) {
         setPerformanceClock(clock);
-        setPerformanceOutcomes(performanceRuntimeRef.current?.evaluationOutcomes ?? []);
+        setPerformanceEvaluation(performanceRuntimeRef.current?.evaluationSnapshot ?? null);
       }
       if (mediaRecorderRef.current?.state === 'recording') {
         if (currentSegmentStartPerfMsRef.current !== null) {
@@ -970,7 +967,7 @@ export function useLocalPractice({
         const clock = performanceRuntimeRef.current?.resume();
         if (clock) {
           setPerformanceClock(clock);
-          setPerformanceOutcomes(performanceRuntimeRef.current?.evaluationOutcomes ?? []);
+          setPerformanceEvaluation(performanceRuntimeRef.current?.evaluationSnapshot ?? null);
           metronomeRef.current?.resume(clock);
         } else {
           metronomeRef.current?.resume(0);
@@ -1071,7 +1068,7 @@ export function useLocalPractice({
     setLastSnapshot(null);
     setActiveStepGroup(null);
     setPerformanceClock(null);
-    setPerformanceOutcomes([]);
+    setPerformanceEvaluation(null);
     await startSession();
   }, [startSession, teardownInputs]);
 
@@ -1118,7 +1115,7 @@ export function useLocalPractice({
     error: effectiveInputError,
     activeStepGroup,
     performanceClock,
-    performanceOutcomes,
+    performanceEvaluation,
     elapsedSeconds,
     completionReason,
     lastSnapshot,

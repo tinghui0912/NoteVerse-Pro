@@ -1,5 +1,5 @@
-import type { PerformanceExpectedEventOutcome } from './local-core/evidence';
 import type { CompletedContinuousEvaluation } from './completed-performance';
+import type { ContinuousEvaluationSnapshot } from './local-core/continuous-evaluation-session';
 
 function escapeCssId(id: string) {
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
@@ -144,32 +144,19 @@ function uniqueNoteIds(noteIds: readonly string[]) {
   return new Set(noteIds.filter(Boolean));
 }
 
-export function noteAnnotationsFromPerformanceOutcomes(
-  outcomes: readonly PerformanceExpectedEventOutcome[]
+export function noteAnnotationsFromContinuousEvaluation(
+  evaluation: ContinuousEvaluationSnapshot
 ): {
   confirmedCorrectNoteIds: string[];
   confirmedErrorNoteIds: string[];
 } {
   const confirmedCorrectNoteIds: string[] = [];
   const confirmedErrorNoteIds: string[] = [];
-  for (const outcome of outcomes) {
-    const strikeOutcomes = outcome.expectedStrikeOutcomes;
-    if (strikeOutcomes.length > 0) {
-      for (const strike of strikeOutcomes) {
-        if (strike.result === 'MATCHED') {
-          confirmedCorrectNoteIds.push(...strike.renderNoteIds);
-        } else if (strike.result === 'MISSING') {
-          confirmedErrorNoteIds.push(...strike.renderNoteIds);
-        }
-      }
-      continue;
-    }
-
-    const renderNoteIds = outcome.renderNoteIds;
-    if (outcome.result === 'MATCH') {
-      confirmedCorrectNoteIds.push(...renderNoteIds);
-    } else if (outcome.result === 'MISMATCH') {
-      confirmedErrorNoteIds.push(...renderNoteIds);
+  for (const strike of evaluation.strikes) {
+    if (strike.verdict === 'MATCHED') {
+      confirmedCorrectNoteIds.push(...strike.renderNoteIds);
+    } else if (strike.verdict === 'MISSING') {
+      confirmedErrorNoteIds.push(...strike.renderNoteIds);
     }
   }
   return { confirmedCorrectNoteIds, confirmedErrorNoteIds };

@@ -56,9 +56,6 @@ export type LocalPerformanceSessionSnapshot = LocalPracticeSessionBase & {
     countInMs: number;
     countInBeats: number;
     countInPulses: number;
-    evaluationCoverageIntervals: LocalPerformanceCoverageIntervalRecord[];
-    observations: LocalPerformanceObservationRecord[];
-    outcomes: LocalPerformanceExpectedEventOutcomeRecord[];
   };
 };
 
@@ -73,39 +70,6 @@ export type LocalPracticeAttempt = {
   observedAttackPitches: string[];
   confidence: number;
   sessionTime: SessionTime;
-};
-
-type LocalPerformanceObservationRecord = {
-  source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
-  captureTime: SessionTime;
-  inferenceCompletedAtMs?: number;
-  pitches: string[];
-  confidence: number;
-  performanceTimeMs: number;
-  musicalBeat: number;
-};
-
-type LocalPerformanceCoverageIntervalRecord = {
-  startMs: number;
-  endMs: number;
-};
-
-export type LocalPerformanceExpectedEventOutcomeRecord = {
-  expectedGroupId: string;
-  performanceTimeMs: number;
-  result: 'MATCH' | 'PARTIAL' | 'MISMATCH' | 'NOT_OBSERVED';
-  confidence: number;
-  source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
-  expectedStrikeOutcomes: {
-    strikeId: string;
-    pitch: string;
-    renderNoteIds: string[];
-    result: 'MATCHED' | 'MISSING' | 'UNCONFIRMED';
-  }[];
-  unexpectedPitches: string[];
-  renderNoteIds: string[];
-  measureNumbers: string[];
-  timingOffsetMs?: number;
 };
 
 export function createLocalSessionId(prefix = 'local-practice'): string {

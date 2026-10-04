@@ -10,11 +10,15 @@ export type ExpectedStrike = {
 
 type StrikeVerdict = 'PENDING' | 'MATCHED' | 'MISSING' | 'NOT_REACHED';
 
-export type ReconciledStrike = ExpectedStrike & {
-  verdict: StrikeVerdict;
-  matchedObservationId?: string;
-  timingOffsetMs?: number;
-};
+export type ReconciledStrike =
+  | (ExpectedStrike & {
+      verdict: 'MATCHED';
+      matchedObservationId: string;
+      timingOffsetMs: number;
+    })
+  | (ExpectedStrike & {
+      verdict: Exclude<StrikeVerdict, 'MATCHED'>;
+    });
 
 export type ReconciliationResult = {
   strikes: readonly ReconciledStrike[];
@@ -44,7 +48,7 @@ export function reconcilePerformance(input: {
       return {
         ...strike,
         verdict: 'MATCHED',
-        matchedObservationId: observation.observationId,
+          matchedObservationId: observation.observationId,
         timingOffsetMs: observation.performanceTimeMs - strike.expectedPerformanceTimeMs,
       };
     }

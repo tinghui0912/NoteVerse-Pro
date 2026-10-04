@@ -1,32 +1,36 @@
 import type {
-  LocalPerformanceExpectedEventOutcomeRecord,
-  LocalPracticeCompletionReason,
   ResolvedPracticeScope,
   ResolvedPracticeTempoPlan,
 } from './local-core';
-
-type CompletedStrikeResult = 'MATCHED' | 'MISSING' | 'NOT_REACHED';
 
 type CompletedObservedAttackRecord = {
   observationId: string;
   pitch: string;
   performanceTimeMs: number;
   confidence: number;
-  source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
+  source: 'ACOUSTIC' | 'MIDI';
   expectedGroupId?: string;
 };
 
-type CompletedStrikeRecord = {
+type CompletedStrikeRecordBase = {
   strikeId: string;
   expectedGroupId: string;
   pitch: string;
   performanceTimeMs: number;
   renderNoteIds: string[];
-  result: CompletedStrikeResult;
-  confidence: number;
-  source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
-  timingOffsetMs?: number;
 };
+
+type CompletedMatchedStrikeRecord = CompletedStrikeRecordBase & {
+  result: 'MATCHED';
+  matchedObservationId: string;
+  confidence: number;
+  source: 'ACOUSTIC' | 'MIDI';
+  timingOffsetMs: number;
+};
+
+type CompletedStrikeRecord =
+  | CompletedMatchedStrikeRecord
+  | (CompletedStrikeRecordBase & { result: 'MISSING' | 'NOT_REACHED' });
 
 type ContinuousEvaluationUnavailableReason =
   | 'CONTINUOUS_ANALYSIS_UNAVAILABLE'
@@ -136,60 +140,6 @@ export interface CompletedPerformance {
   completedAt: string;
 }
 
-export function completedEvaluationFromPerformanceOutcomes(
-  outcomes: readonly LocalPerformanceExpectedEventOutcomeRecord[],
-  completionReason: LocalPracticeCompletionReason | null
-): CompletedContinuousEvaluation {
-  const strikes: CompletedStrikeRecord[] = [];
-  const extras: CompletedObservedAttackRecord[] = [];
-
-  for (const outcome of outcomes) {
-    assertOutcomeShape(outcome);
-    for (const strike of outcome.expectedStrikeOutcomes) {
-      if (strike.result === 'UNCONFIRMED') {
-        if (completionReason === 'STOPPED_BY_USER') {
-          strikes.push({
-            strikeId: strike.strikeId,
-            expectedGroupId: outcome.expectedGroupId,
-            pitch: strike.pitch,
-            performanceTimeMs: outcome.performanceTimeMs,
-            renderNoteIds: [...strike.renderNoteIds],
-            result: 'NOT_REACHED',
-            confidence: outcome.confidence,
-            source: outcome.source,
-            timingOffsetMs: outcome.timingOffsetMs,
-          });
-          continue;
-        }
-        return { status: 'UNAVAILABLE', reason: 'INCOMPLETE_ANALYSIS' };
-      }
-      strikes.push({
-        strikeId: strike.strikeId,
-        expectedGroupId: outcome.expectedGroupId,
-        pitch: strike.pitch,
-        performanceTimeMs: outcome.performanceTimeMs,
-        renderNoteIds: [...strike.renderNoteIds],
-        result: strike.result,
-        confidence: outcome.confidence,
-        source: outcome.source,
-        timingOffsetMs: outcome.timingOffsetMs,
-      });
-    }
-    outcome.unexpectedPitches.forEach((pitch, index) => {
-      extras.push({
-        observationId: `${outcome.expectedGroupId}:extra:${index}:${pitch}`,
-        pitch,
-        performanceTimeMs: outcome.performanceTimeMs,
-        confidence: outcome.confidence,
-        source: outcome.source,
-        expectedGroupId: outcome.expectedGroupId,
-      });
-    });
-  }
-
-  return { status: 'COMPLETE', strikes, extras };
-}
-
 function assertCompletedPerformance(performance: CompletedPerformance): void {
   if (performance.evaluation.status === 'UNAVAILABLE') {
     return;
@@ -201,16 +151,14 @@ function assertCompletedPerformance(performance: CompletedPerformance): void {
     if (!Array.isArray(strike.renderNoteIds)) {
       throw new Error('CompletedPerformance strike renderNoteIds are required.');
     }
-  }
-}
-
-function assertOutcomeShape(outcome: LocalPerformanceExpectedEventOutcomeRecord): void {
-  if (!Array.isArray(outcome.expectedStrikeOutcomes) || !Array.isArray(outcome.unexpectedPitches)) {
-    throw new Error('Local performance outcome is corrupt.');
-  }
-  for (const strike of outcome.expectedStrikeOutcomes) {
-    if (!Array.isArray(strike.renderNoteIds)) {
-      throw new Error('Local performance strike renderNoteIds are required.');
+    if (strike.result === 'MATCHED') {
+      if (
+        !strike.matchedObservationId ||
+        !Number.isFinite(strike.confidence) ||
+        !Number.isFinite(strike.timingOffsetMs)
+      ) {
+        throw new Error('CompletedPerformance matched strike metadata is required.');
+      }
     }
   }
 }

@@ -3,5 +3,5 @@ export type ObservedAttack = {
   pitch: string;
   performanceTimeMs: number;
   confidence: number;
-  source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
+  source: 'ACOUSTIC' | 'MIDI';
 };

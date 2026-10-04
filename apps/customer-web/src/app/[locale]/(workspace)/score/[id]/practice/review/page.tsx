@@ -97,7 +97,7 @@ function buildFeedbackSummary({
     targetStrikeCount: 0,
     correctStrikeCount: 0,
     missingStrikeCount: 0,
-    unconfirmedStrikeCount: 0,
+    notReachedStrikeCount: 0,
     extraPitchCount: evaluation.status === 'COMPLETE' ? evaluation.extras.length : 0,
   };
 
@@ -121,13 +121,13 @@ function buildFeedbackSummary({
   for (const group of expectedGroups) {
     for (const strikeTarget of group.strikeTargets) {
       summary.targetStrikeCount += 1;
-      const result = byStrikeId.get(strikeTarget.strikeId)?.result ?? 'UNCONFIRMED';
+      const result = byStrikeId.get(strikeTarget.strikeId)?.result ?? 'NOT_REACHED';
       if (result === 'MATCHED') {
         summary.correctStrikeCount += 1;
       } else if (result === 'MISSING') {
         summary.missingStrikeCount += 1;
       } else {
-        summary.unconfirmedStrikeCount += 1;
+        summary.notReachedStrikeCount += 1;
       }
     }
   }
@@ -139,7 +139,7 @@ function applyCompletedEvaluationToSummary(
     targetStrikeCount: number;
     correctStrikeCount: number;
     missingStrikeCount: number;
-    unconfirmedStrikeCount: number;
+    notReachedStrikeCount: number;
   },
   evaluation: CompletedContinuousEvaluation
 ) {
@@ -153,7 +153,7 @@ function applyCompletedEvaluationToSummary(
     } else if (strike.result === 'MISSING') {
       summary.missingStrikeCount += 1;
     } else {
-      summary.unconfirmedStrikeCount += 1;
+      summary.notReachedStrikeCount += 1;
     }
   }
 }
@@ -690,7 +690,7 @@ export default function PracticeReviewPage({
       )}
 
       {/* Strike-level performance summary */}
-      <div className={strikeSummary.unconfirmedStrikeCount > 0
+      <div className={strikeSummary.notReachedStrikeCount > 0
         ? 'grid grid-cols-2 gap-4 sm:grid-cols-5'
         : 'grid grid-cols-2 gap-4 sm:grid-cols-4'}>
         <Card className="rounded-lg bg-card">
@@ -749,26 +749,26 @@ export default function PracticeReviewPage({
           </CardContent>
         </Card>
 
-        {strikeSummary.unconfirmedStrikeCount > 0 ? (
+        {strikeSummary.notReachedStrikeCount > 0 ? (
           <Card className="rounded-lg bg-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
               <CardTitle className="text-xs font-medium text-muted-foreground">
-                {t('unconfirmedStrikes')}
+                {t('notReachedStrikes')}
               </CardTitle>
               <Clock className="h-4 w-4 text-slate-500" />
             </CardHeader>
             <CardContent>
               <div className="text-xl font-bold text-slate-600">
-                {strikeSummary.unconfirmedStrikeCount}
+                {strikeSummary.notReachedStrikeCount}
               </div>
             </CardContent>
           </Card>
         ) : null}
       </div>
 
-      {strikeSummary.unconfirmedStrikeCount > 0 ? (
+      {strikeSummary.notReachedStrikeCount > 0 ? (
         <p className="text-sm text-muted-foreground">
-          {t('unconfirmedStrikesDesc')}
+          {t('notReachedStrikesDesc')}
         </p>
       ) : null}
 

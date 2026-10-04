@@ -418,7 +418,7 @@ describe('useLocalPractice', () => {
     expect(result.current.lifecycle).toBe('READY');
     expect(result.current.inputState).toBe('ERROR');
     expect(result.current.inputError).toBe('CONTINUOUS_ANALYSIS_UNAVAILABLE');
-    expect(result.current.performanceOutcomes).toEqual([]);
+    expect(result.current.performanceEvaluation).toBeNull();
     expect(recorderEvents.events).toEqual([]);
     expect(completedPerformanceStore.getPerformance()).toBeNull();
   });

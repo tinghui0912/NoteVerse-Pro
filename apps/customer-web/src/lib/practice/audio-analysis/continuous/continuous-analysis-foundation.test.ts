@@ -10,7 +10,6 @@ const contract: ContinuousTranscriptionContract = {
   contractId: 'test-contract',
   sampleRateHz: 16_000,
   inputSamplesPerWindow: 16_000,
-  windowStrideSamples: 4_000,
   trustedOutputStartSamples: 4_000,
   trustedOutputEndSamples: 8_000,
   futureContextSamples: 1_600,
@@ -96,6 +95,32 @@ describe('continuous transcription foundation', () => {
     expect(queue.snapshot().queuedBatchCount).toBe(0);
   });
 
+  it('assigns global queue sequences across multiple planner enqueue calls', () => {
+    const planner = new ContinuousChunkPlanner(contract);
+    const firstWindows = planner.planReadyWindows({
+      segment: { ...segment, sampleEnd: 16_000, contextTailEnd: 16_000 },
+      sealed: false,
+    });
+    const secondWindows = planner.planReadyWindows({
+      segment: { ...segment, sampleEnd: 24_000, contextTailEnd: 24_000 },
+      sealed: false,
+    });
+    const queue = new ContinuousTranscriptionQueue<string>();
+    for (const batch of batchTranscriptionWindows({ windows: firstWindows, batchSize: 1 })) {
+      queue.enqueue(batch);
+    }
+    for (const batch of batchTranscriptionWindows({ windows: secondWindows, batchSize: 1 })) {
+      queue.enqueue(batch);
+    }
+
+    expect([
+      queue.claimNext()?.sequence,
+      queue.claimNext()?.sequence,
+      queue.claimNext()?.sequence,
+      queue.claimNext()?.sequence,
+    ]).toEqual([0, 1, 2, 3]);
+  });
+
   it('stores tiny capture chunks in coarse PCM blocks and extracts from the tail without scanning all chunks', () => {
     const timeline = new PerformancePcmTimeline(16_000, 8_192);
     const active = timeline.beginRunningSegment(0);
@@ -129,7 +154,11 @@ describe('continuous transcription foundation', () => {
       completion: { kind: 'NATURAL', terminalPerformanceMs: 600 },
     });
 
-    expect(result.strikes.map((item) => [item.strikeId, item.verdict, item.matchedObservationId])).toEqual([
+    expect(result.strikes.map((item) => [
+      item.strikeId,
+      item.verdict,
+      item.verdict === 'MATCHED' ? item.matchedObservationId : null,
+    ])).toEqual([
       ['s1', 'MATCHED', 'o1'],
       ['s2', 'MATCHED', 'o2'],
     ]);
@@ -152,7 +181,11 @@ describe('continuous transcription foundation', () => {
       completion: { kind: 'NATURAL', terminalPerformanceMs: 200 },
     });
 
-    expect(result.strikes.map((item) => [item.strikeId, item.verdict, item.matchedObservationId])).toEqual([
+    expect(result.strikes.map((item) => [
+      item.strikeId,
+      item.verdict,
+      item.verdict === 'MATCHED' ? item.matchedObservationId : null,
+    ])).toEqual([
       ['first', 'MATCHED', 'early-for-first'],
       ['second', 'MATCHED', 'late-for-first'],
     ]);

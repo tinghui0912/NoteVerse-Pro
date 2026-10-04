@@ -20,41 +20,8 @@ export type StepVerifierObservation = CaptureTime & {
 export type PerformanceEvidenceObservation = CaptureTime & {
   pitches: string[];
   confidence: number;
-  source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
+  source: 'ACOUSTIC' | 'MIDI';
   inferenceCompletedAtMs?: number;
-};
-
-export type PerformanceEvaluationObservation = PerformanceEvidenceObservation & {
-  performanceTimeMs: number;
-  musicalBeat: number;
-};
-
-type PerformanceExpectedStrikeResult = 'MATCHED' | 'MISSING' | 'UNCONFIRMED';
-
-type PerformanceExpectedEventResult =
-  | 'MATCH'
-  | 'PARTIAL'
-  | 'MISMATCH'
-  | 'NOT_OBSERVED';
-
-type PerformanceExpectedStrikeOutcome = {
-  strikeId: string;
-  pitch: string;
-  renderNoteIds: string[];
-  result: PerformanceExpectedStrikeResult;
-};
-
-export type PerformanceExpectedEventOutcome = {
-  expectedGroupId: string;
-  performanceTimeMs: number;
-  result: PerformanceExpectedEventResult;
-  confidence: number;
-  source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
-  expectedStrikeOutcomes: PerformanceExpectedStrikeOutcome[];
-  unexpectedPitches: string[];
-  renderNoteIds: string[];
-  measureNumbers: string[];
-  timingOffsetMs?: number;
 };
 
 export function normalizePitchSet(pitches: readonly string[]): string[] {

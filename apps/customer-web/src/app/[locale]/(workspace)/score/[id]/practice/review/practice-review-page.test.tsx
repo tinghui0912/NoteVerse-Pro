@@ -31,8 +31,8 @@ const translationMocks = vi.hoisted(() => {
     targetStrikes: '目标音',
     confirmedCorrectStrikes: '正确击键',
     missingStrikes: '漏弹',
-    unconfirmedStrikes: '未确认',
-    unconfirmedStrikesDesc: '部分音符未能可靠确认，因此没有计为漏弹。',
+    notReachedStrikes: '未完成',
+    notReachedStrikesDesc: '这些目标音位于本次已完成演奏范围之外，因此没有计为漏弹。',
     extraPitchCount: '额外演奏',
     matchedGroupCount: '已匹配音符组',
     partialGroupCount: '部分匹配音符组',
@@ -257,18 +257,69 @@ vi.mock('@/lib/practice/share-video-export', () => ({
 
 import PracticeReviewPage from './page';
 import {
-  completedEvaluationFromPerformanceOutcomes,
   completedPerformanceStore,
+  type CompletedContinuousEvaluation,
   type CompletedPerformance,
 } from '@/lib/practice/completed-performance';
 import { PerformanceAnnotationController } from '@/lib/practice/performance-annotation-controller';
-import type { LocalPerformanceExpectedEventOutcomeRecord, LocalPracticeCompletionReason } from '@/lib/practice/local-core';
+
+type TestOutcome = {
+  expectedGroupId: string;
+  performanceTimeMs: number;
+  confidence: number;
+  source: 'ACOUSTIC' | 'MIDI';
+  expectedStrikeOutcomes: {
+    strikeId: string;
+    pitch: string;
+    renderNoteIds: string[];
+    result: 'MATCHED' | 'MISSING' | 'NOT_REACHED';
+  }[];
+  unexpectedPitches: string[];
+  timingOffsetMs?: number;
+  renderNoteIds?: string[];
+  measureNumbers?: string[];
+};
 
 function completeEvaluation(
-  outcomes: LocalPerformanceExpectedEventOutcomeRecord[] = [],
-  completionReason: LocalPracticeCompletionReason = 'SCOPE_COMPLETED'
-) {
-  return completedEvaluationFromPerformanceOutcomes(outcomes, completionReason);
+  outcomes: TestOutcome[] = []
+): CompletedContinuousEvaluation {
+  return {
+    status: 'COMPLETE',
+    strikes: outcomes.flatMap((outcome) =>
+      outcome.expectedStrikeOutcomes.map((strike) => {
+        const base = {
+          strikeId: strike.strikeId,
+          expectedGroupId: outcome.expectedGroupId,
+          pitch: strike.pitch,
+          performanceTimeMs: outcome.performanceTimeMs,
+          renderNoteIds: strike.renderNoteIds,
+        };
+        if (strike.result === 'MATCHED') {
+          return {
+            ...base,
+            result: 'MATCHED' as const,
+            matchedObservationId: `${strike.strikeId}:matched`,
+            confidence: outcome.confidence,
+            source: outcome.source,
+            timingOffsetMs: outcome.timingOffsetMs ?? 0,
+          };
+        }
+        return {
+          ...base,
+          result: strike.result,
+        };
+      })
+    ),
+    extras: outcomes.flatMap((outcome) =>
+      outcome.unexpectedPitches.map((pitch, index) => ({
+        observationId: `${outcome.expectedGroupId}:${index}:${pitch}`,
+        pitch,
+        performanceTimeMs: outcome.performanceTimeMs,
+        confidence: outcome.confidence,
+        source: outcome.source,
+      }))
+    ),
+  };
 }
 
 describe('PracticeReviewPage', () => {
@@ -361,7 +412,6 @@ describe('PracticeReviewPage', () => {
             {
               expectedGroupId: 'g-1',
               performanceTimeMs: 0,
-              result: 'MATCH',
               confidence: 0.9,
               source: 'ACOUSTIC',
               expectedStrikeOutcomes: [{ strikeId: 's-1', pitch: 'C4', renderNoteIds: ['n-1'], result: 'MATCHED' }],
@@ -372,15 +422,14 @@ describe('PracticeReviewPage', () => {
             {
               expectedGroupId: 'g-2',
               performanceTimeMs: 600,
-              result: 'PARTIAL',
               confidence: 0.7,
               source: 'ACOUSTIC',
-              expectedStrikeOutcomes: [{ strikeId: 's-2', pitch: 'D4', renderNoteIds: ['n-2'], result: 'UNCONFIRMED' }],
+              expectedStrikeOutcomes: [{ strikeId: 's-2', pitch: 'D4', renderNoteIds: ['n-2'], result: 'NOT_REACHED' }],
               unexpectedPitches: [],
               renderNoteIds: ['n-2'],
               measureNumbers: ['1'],
             },
-          ], 'STOPPED_BY_USER'),
+          ]),
       media: {
         status: 'READY',
         kind: 'AUDIO',
@@ -443,7 +492,6 @@ describe('PracticeReviewPage', () => {
             {
               expectedGroupId: 'g-1',
               performanceTimeMs: 0,
-              result: 'MATCH',
               confidence: 0.95,
               source: 'ACOUSTIC',
               expectedStrikeOutcomes: [
@@ -458,7 +506,6 @@ describe('PracticeReviewPage', () => {
             {
               expectedGroupId: 'g-2',
               performanceTimeMs: 1000,
-              result: 'PARTIAL',
               confidence: 0.7,
               source: 'ACOUSTIC',
               expectedStrikeOutcomes: [
@@ -473,7 +520,6 @@ describe('PracticeReviewPage', () => {
             {
               expectedGroupId: 'g-3',
               performanceTimeMs: 2000,
-              result: 'MISMATCH',
               confidence: 0.3,
               source: 'ACOUSTIC',
               expectedStrikeOutcomes: [
@@ -484,15 +530,14 @@ describe('PracticeReviewPage', () => {
               renderNoteIds: ['note-c5', 'note-e5'],
               measureNumbers: ['2'],
             },
-            // 4. NOT_OBSERVED group with unconfirmed strike
+            // 4. Manual-stop tail group with a not-reached strike
             {
               expectedGroupId: 'g-4',
               performanceTimeMs: 3000,
-              result: 'NOT_OBSERVED',
               confidence: 0.4,
               source: 'ACOUSTIC',
               expectedStrikeOutcomes: [
-                { strikeId: 's-f4', pitch: 'F4', renderNoteIds: ['note-f4'], result: 'UNCONFIRMED' },
+                { strikeId: 's-f4', pitch: 'F4', renderNoteIds: ['note-f4'], result: 'NOT_REACHED' },
               ],
               unexpectedPitches: [],
               renderNoteIds: ['note-f4'],
@@ -502,17 +547,16 @@ describe('PracticeReviewPage', () => {
             {
               expectedGroupId: 'g-5',
               performanceTimeMs: 4000,
-              result: 'NOT_OBSERVED',
               confidence: 0,
               source: 'ACOUSTIC',
               expectedStrikeOutcomes: [
-                { strikeId: 's-a4', pitch: 'A4', renderNoteIds: ['note-a4'], result: 'UNCONFIRMED' },
+                { strikeId: 's-a4', pitch: 'A4', renderNoteIds: ['note-a4'], result: 'NOT_REACHED' },
               ],
               unexpectedPitches: [],
               renderNoteIds: ['note-a4'],
               measureNumbers: ['3'],
             },
-          ], 'STOPPED_BY_USER'),
+          ]),
       media: {
         status: 'READY',
         kind: 'AUDIO',
@@ -531,21 +575,21 @@ describe('PracticeReviewPage', () => {
 
     render(<PracticeReviewPage params={Promise.resolve({ id: 'score-123' })} />);
 
-    // Check strike-level summary: 8 target notes, 4 correct, 2 missing, 2 unconfirmed, 1 extra.
+    // Check strike-level summary: 8 target notes, 4 correct, 2 missing, 2 not reached, 1 extra.
     expect(screen.getByText('目标音')).toBeDefined();
     expect(screen.getByText('正确击键')).toBeDefined();
     expect(screen.getByText('漏弹')).toBeDefined();
-    expect(screen.getByText('未确认')).toBeDefined();
+    expect(screen.getByText('未完成')).toBeDefined();
     expect(screen.getByText('额外演奏')).toBeDefined();
     expect(screen.getByText('8')).toBeDefined();
     expect(screen.getByText('4')).toBeDefined();
     expect(screen.getAllByText('2')).toHaveLength(2);
-    expect(screen.getByText('部分音符未能可靠确认，因此没有计为漏弹。')).toBeDefined();
+    expect(screen.getByText('这些目标音位于本次已完成演奏范围之外，因此没有计为漏弹。')).toBeDefined();
 
     // Verify note-by-note strike annotation:
     // Green (matched): note-c4, note-e4, note-g4, note-c5
     // Red (missing): note-b4, note-e5
-    // Neutral (unconfirmed/not_observed): note-f4, note-a4 should NOT be in either
+    // Neutral (not reached): note-f4, note-a4 should NOT be in either
     expect(applySpy).toHaveBeenCalled();
     const lastCall = applySpy.mock.calls[applySpy.mock.calls.length - 1];
     const annotations = lastCall[1];
@@ -583,7 +627,6 @@ describe('PracticeReviewPage', () => {
             {
               expectedGroupId: 'g-1',
               performanceTimeMs: 0,
-              result: 'MATCH',
               confidence: 0.9,
               source: 'ACOUSTIC',
               expectedStrikeOutcomes: [{ strikeId: 's-1', pitch: 'C4', renderNoteIds: ['n-1'], result: 'MATCHED' }],

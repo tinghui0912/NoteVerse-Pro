@@ -541,7 +541,7 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(page.getByText('正确击键')).toBeVisible();
     await expect(page.getByText('漏弹', { exact: true })).toBeVisible();
     await expect(page.getByText('额外演奏')).toBeVisible();
-    await expect(page.getByText('未确认')).toBeVisible();
+    await expect(page.getByText('未完成')).toBeVisible();
     await expect(page.getByRole('button', { name: '回放' })).toBeVisible();
 
     // Zero backend session or take requests

@@ -26,26 +26,6 @@ export class ManualClock implements LocalClock {
   }
 }
 
-export class ManualDurableClock implements DurableClock {
-  private currentEpochMs: number;
-
-  constructor(initialEpochMs = 0) {
-    this.currentEpochMs = initialEpochMs;
-  }
-
-  nowEpochMs(): number {
-    return this.currentEpochMs;
-  }
-
-  set(epochMs: number): void {
-    this.currentEpochMs = epochMs;
-  }
-
-  advance(ms: number): void {
-    this.currentEpochMs += ms;
-  }
-}
-
 export type SessionTime = {
   domainId: string;
   ms: number;

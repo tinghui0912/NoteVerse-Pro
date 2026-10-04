@@ -3,8 +3,7 @@ import { describe, expect, it } from 'vitest';
 import canonicalArtifactJson from './__fixtures__/canonical-practice-score-artifact.json';
 import {
   ManualClock,
-  ManualDurableClock,
-  PerformancePracticeRuntime,
+  ContinuousPracticeSession,
   PracticeTimebase,
   StepPracticeRuntime,
   countInContractAt,
@@ -61,7 +60,7 @@ function performanceEvidence(
   domainId: string,
   ms: number,
   pitches: string[],
-  source: 'ACOUSTIC' | 'MIDI' | 'FAKE' = 'MIDI',
+  source: 'ACOUSTIC' | 'MIDI' = 'MIDI',
   overrides: Record<string, unknown> = {}
 ) {
   return {
@@ -329,517 +328,137 @@ describe('local STEP practice runtime', () => {
 });
 
 describe('local CONTINUOUS practice runtime', () => {
-  it('runs READY -> COUNT_IN -> RUNNING and supports explicit zero count-in', () => {
+  it('keeps clock state separate from continuous evaluation state', () => {
     const clock = new ManualClock(0);
-    const runtime = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, scope: { kind: 'FULL' }, clock });
-
-    expect(runtime.snapshot().state).toBe('READY');
-    expect(runtime.start()).toMatchObject({
-      state: 'COUNT_IN',
-      countInBeats: 3,
-      countInPulses: 3,
-      countInRemainingMs: 1500,
-    });
-    clock.advance(1_500);
-    expect(runtime.snapshot().state).toBe('RUNNING');
-
-    const zero = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, scope: { kind: 'FULL' }, clock: new ManualClock(0), countInBeats: 0 });
-    expect(zero.start().state).toBe('RUNNING');
-  });
-
-  it('projects a complete unconfirmed outcome universe immediately for non-empty scopes', () => {
-    const runtime = new PerformancePracticeRuntime({
+    const session = new ContinuousPracticeSession({
       artifact,
       tempoPlan: defaultTempoPlan,
       scope: { kind: 'FULL' },
-      clock: new ManualClock(0),
-      localSessionId: 'performance-total-outcomes',
+      clock,
+      inputSource: 'MIDI',
+      countInBeats: 0,
+      localSessionId: 'continuous-clock-separate',
     });
 
-    expect(runtime.evaluationOutcomes).toHaveLength(artifact.expectedPracticeGroups.length);
-    expect(
-      runtime.evaluationOutcomes.flatMap((outcome) =>
-        outcome.expectedStrikeOutcomes.map((strike) => strike.result)
-      )
-    ).toEqual(
-      artifact.expectedPracticeGroups.flatMap((group) =>
-        group.strikeTargets.map(() => 'UNCONFIRMED')
-      )
+    expect(session.snapshot().state).toBe('READY');
+    expect(session.evaluationSnapshot.strikes).toHaveLength(
+      artifact.expectedPracticeGroups.reduce((sum, group) => sum + group.strikeTargets.length, 0)
     );
+    expect(session.evaluationSnapshot.strikes.every((strike) => strike.verdict === 'PENDING')).toBe(true);
 
-    runtime.start();
-    expect(runtime.evaluationOutcomes).toHaveLength(artifact.expectedPracticeGroups.length);
-  });
-
-  it('maps acoustic coverage after default count-in into running performance time', () => {
-    const clock = new ManualClock(0);
-    const runtime = new PerformancePracticeRuntime({
-      artifact,
-      tempoPlan: defaultTempoPlan,
-      scope: { kind: 'FULL' },
-      clock,
-      localSessionId: 'performance-default-count-in',
-    });
-    runtime.start();
-    const countInMs = runtime.snapshotSession().performance.countInMs;
-
-    runtime.markEvaluationCoverageIntervals([
-      {
-        start: runtime.timebase.atSessionMs(Math.max(0, countInMs - 50)),
-        end: runtime.timebase.atSessionMs(countInMs + 300),
-      },
-    ]);
-    expect(runtime.evaluationOutcomes[0]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
-      'UNCONFIRMED',
-    ]);
-
-    clock.advance(countInMs + 300);
-    expect(runtime.snapshot().state).toBe('RUNNING');
-    runtime.markEvaluationCoverageIntervals([
-      {
-        start: runtime.timebase.atSessionMs(Math.max(0, countInMs - 50)),
-        end: runtime.timebase.atSessionMs(countInMs + 300),
-      },
-    ]);
-
-    expect(runtime.evaluationOutcomes[0]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
-      'MISSING',
-    ]);
-  });
-
-  it('excludes pause gaps from performance coverage mapping', () => {
-    const clock = new ManualClock(0);
-    const runtime = new PerformancePracticeRuntime({
-      artifact,
-      tempoPlan: defaultTempoPlan,
-      scope: { kind: 'FULL' },
-      clock,
-      countInBeats: 0,
-      localSessionId: 'performance-pause-gap-coverage',
-    });
-    runtime.start();
-    clock.advance(1_000);
-    runtime.pause();
-    clock.advance(5_000);
-    runtime.resume();
+    session.start();
     clock.advance(500);
-    runtime.snapshot();
-    runtime.markEvaluationCoverageIntervals([
-      {
-        start: runtime.timebase.atSessionMs(500),
-        end: runtime.timebase.atSessionMs(6_500),
-      },
-    ]);
-
-    expect(runtime.evaluationOutcomes[3]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
-      'UNCONFIRMED',
-      'UNCONFIRMED',
-    ]);
+    const before = session.snapshot();
+    expect(session.observeEvidence(performanceEvidence('continuous-clock-separate', 0, ['C4'], 'MIDI'))).toBe(true);
+    expect(session.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
+    expect(session.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MATCHED' });
   });
 
-  it('converts beat/time across tempo changes and ends at tied scope terminal beats', () => {
+  it('advances MIDI analysis from performance clock time', () => {
     const clock = new ManualClock(0);
-    const runtime = new PerformancePracticeRuntime({
-      artifact,
-      tempoPlan: defaultTempoPlan,
-      clock,
-      countInBeats: 0,
-      scope: {
-        kind: 'RANGE',
-        startGroupId: artifact.expectedPracticeGroups[2].groupId,
-        endGroupId: artifact.expectedPracticeGroups[2].groupId,
-      },
-    });
-
-    expect(runtime.start()).toMatchObject({
-      scopeStartBeat: 2,
-      scopeTerminalBeat: 4.5,
-    });
-    clock.advance(500);
-    expect(runtime.snapshot().musicalBeat).toBe(3);
-    clock.advance(1_000);
-    expect(runtime.snapshot()).toMatchObject({ state: 'ENDED', musicalBeat: 4.5 });
-  });
-
-  it('pauses, resumes, and maps delayed pre-pause evidence to original capture position', () => {
-    const clock = new ManualClock(0);
-    const runtime = new PerformancePracticeRuntime({
+    const session = new ContinuousPracticeSession({
       artifact,
       tempoPlan: defaultTempoPlan,
       scope: { kind: 'FULL' },
       clock,
+      inputSource: 'MIDI',
       countInBeats: 0,
-      localSessionId: 'performance-delayed',
+      localSessionId: 'continuous-midi-frontier',
     });
-    runtime.start();
-    clock.advance(200);
-    const capturedAt = clock.nowMs();
+
+    session.start();
+    clock.advance(300);
+    expect(session.snapshot().state).toBe('RUNNING');
+    expect(session.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MISSING' });
+  });
+
+  it('does not advance MIDI frontier while paused', () => {
+    const clock = new ManualClock(0);
+    const session = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock,
+      inputSource: 'MIDI',
+      countInBeats: 0,
+      localSessionId: 'continuous-midi-pause',
+    });
+
+    session.start();
     clock.advance(100);
-    const paused = runtime.pause();
+    session.pause();
     clock.advance(5_000);
-    expect(runtime.snapshot().musicalBeat).toBe(paused.musicalBeat);
-    runtime.resume();
-    clock.advance(500);
-
-    const evaluated = runtime.observeEvidence({
-      captureTime: sessionTime('performance-delayed', capturedAt),
-      inferenceCompletedAtMs: clock.nowMs(),
-      pitches: ['C4'],
-      confidence: 1,
-      source: 'FAKE',
-    });
-    expect(evaluated).not.toBeNull();
-    expect(evaluated!.performanceTimeMs).toBe(200);
-    expect(evaluated!.musicalBeat).toBe(0.4);
-    expect(runtime.snapshot().musicalBeat).toBeGreaterThan(evaluated!.musicalBeat);
+    expect(session.evaluationSnapshot.strikes[1]).toMatchObject({ verdict: 'PENDING' });
   });
 
-  it('evaluates single notes, chords, missing notes, extra notes, partial chords, and timing offsets downstream of the clock', () => {
-    const clock = new ManualClock(0);
-    const runtime = new PerformancePracticeRuntime({
-      artifact,
-      tempoPlan: defaultTempoPlan,
-      scope: { kind: 'FULL' },
-      clock,
-      countInBeats: 0,
-      localSessionId: 'performance-eval',
-    });
-    runtime.start();
-    runtime.observeEvidence(performanceEvidence('performance-eval', 0, ['C4']));
-    clock.advance(500);
-    runtime.observeEvidence(performanceEvidence('performance-eval', 500, ['C4']));
-    clock.advance(500);
-    runtime.observeEvidence(performanceEvidence('performance-eval', 1_000, ['G4']));
-    clock.advance(500);
-    runtime.observeEvidence(performanceEvidence('performance-eval', 1_500, ['A4'], 'MIDI', { confidence: 0.8 }));
-    clock.advance(200);
-    runtime.observeEvidence(performanceEvidence('performance-eval', 1_700, ['D#5'], 'MIDI', { confidence: 0.7 }));
-
-    const outcomes = runtime.evaluationOutcomes;
-    expect(outcomes.map((outcome) => outcome.result)).toEqual([
-      'MATCH',
-      'MATCH',
-      'MATCH',
-      'MISMATCH',
-      'NOT_OBSERVED',
-    ]);
-    expect(outcomes[4]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
-      'UNCONFIRMED',
-    ]);
-    expect(outcomes[3]).toMatchObject({
-      unexpectedPitches: ['D#5'],
-      timingOffsetMs: 0,
-    });
-    expect(runtime.snapshot().state).toBe('RUNNING');
-
-    clock.advance(10_000);
-    runtime.snapshot();
-    runtime.markEvaluationCoverageThrough(runtime.completionCaptureTime());
-    expect(runtime.evaluationOutcomes[4]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
-      'MISSING',
-    ]);
-
-    const partial = new PerformancePracticeRuntime({
-      artifact,
-      tempoPlan: defaultTempoPlan,
-      scope: { kind: 'FULL' },
-      clock: new ManualClock(0),
-      countInBeats: 0,
-      localSessionId: 'performance-partial',
-    });
-    partial.start();
-    (partial as unknown as { clock: ManualClock }).clock.advance(1_500);
-    partial.observeEvidence(performanceEvidence('performance-partial', 1_500, ['A4']));
-    expect(partial.evaluationOutcomes[3]).toMatchObject({
-      result: 'PARTIAL',
-      expectedStrikeOutcomes: [
-        { pitch: 'A4', result: 'MATCHED' },
-        { pitch: 'C5', result: 'UNCONFIRMED' },
-      ],
-      timingOffsetMs: 0,
-    });
-    (partial as unknown as { clock: ManualClock }).clock.advance(500);
-    partial.markEvaluationCoverageThrough(partial.timebase.atSessionMs(2_000));
-    expect(partial.evaluationOutcomes[3]).toMatchObject({
-      result: 'PARTIAL',
-      expectedStrikeOutcomes: [
-        { pitch: 'A4', result: 'MATCHED' },
-        { pitch: 'C5', result: 'MISSING' },
-      ],
-      timingOffsetMs: 0,
-    });
-  });
-
-  it('settles missing strikes only when the full assignment window is covered', () => {
-    const clock = new ManualClock(0);
-    const runtime = new PerformancePracticeRuntime({
-      artifact,
-      tempoPlan: defaultTempoPlan,
-      scope: { kind: 'FULL' },
-      clock,
-      countInBeats: 0,
-      localSessionId: 'performance-coverage-hole',
-    });
-    runtime.start();
-    clock.advance(3_000);
-    runtime.markEvaluationCoverageIntervals([
-      {
-        start: runtime.timebase.atSessionMs(0),
-        end: runtime.timebase.atSessionMs(1_400),
-      },
-      {
-        start: runtime.timebase.atSessionMs(1_600),
-        end: runtime.timebase.atSessionMs(3_000),
-      },
-    ]);
-
-    expect(runtime.evaluationOutcomes[3]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
-      'UNCONFIRMED',
-      'UNCONFIRMED',
-    ]);
-
-    runtime.markEvaluationCoverageIntervals([
-      {
-        start: runtime.timebase.atSessionMs(1_400),
-        end: runtime.timebase.atSessionMs(1_600),
-      },
-    ]);
-    expect(runtime.evaluationOutcomes[3]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
-      'MISSING',
-      'MISSING',
-    ]);
-  });
-
-  it('does not truncate manual stop assignment windows into missing strikes', () => {
-    const clock = new ManualClock(0);
-    const runtime = new PerformancePracticeRuntime({
-      artifact,
-      tempoPlan: defaultTempoPlan,
-      scope: { kind: 'FULL' },
-      clock,
-      countInBeats: 0,
-      localSessionId: 'performance-manual-stop',
-    });
-    runtime.start();
-    clock.advance(2_100);
-    runtime.end('STOPPED_BY_USER');
-    runtime.markEvaluationCoverageThrough(runtime.completionCaptureTime());
-
-    expect(runtime.evaluationOutcomes[4]?.expectedStrikeOutcomes.map((strike) => strike.result)).toEqual([
-      'UNCONFIRMED',
-    ]);
-  });
-
-  it('restores running/count-in sessions as paused logical state under a new clock origin', () => {
-    const runningClock = new ManualClock(0);
-    const rangeScope = {
-      kind: 'RANGE' as const,
-      startGroupId: artifact.expectedPracticeGroups[1].groupId,
-      endGroupId: artifact.expectedPracticeGroups[3].groupId,
+  it('keeps extra attacks globally unique', () => {
+    const twoGroupArtifact = {
+      ...artifact,
+      expectedPracticeGroups: artifact.expectedPracticeGroups.slice(0, 2).map((group, index) => ({
+        ...group,
+        onsetBeat: index === 0 ? 0 : 0.6,
+      })),
+      practiceAttackSteps: artifact.practiceAttackSteps.slice(0, 2).map((step, index) => ({
+        ...step,
+        onsetBeat: index === 0 ? 0 : 0.6,
+      })),
     };
-    const running = new PerformancePracticeRuntime({
-      artifact,
+    const extraClock = new ManualClock(0);
+    const session = new ContinuousPracticeSession({
+      artifact: twoGroupArtifact,
       tempoPlan: defaultTempoPlan,
-      clock: runningClock,
+      scope: { kind: 'FULL' },
+      clock: extraClock,
       inputSource: 'MIDI',
       countInBeats: 0,
-      scope: rangeScope,
+      localSessionId: 'continuous-global-extra',
     });
-    running.start();
-    runningClock.advance(500);
-    const snapshot = running.snapshotSession();
 
-    const restored = new PerformancePracticeRuntime({
-      artifact,
-      clock: new ManualClock(100_000),
-      inputSource: 'MIDI',
-      scope: rangeScope,
-      snapshot,
-    });
-    expect(restored.snapshot()).toMatchObject({
-      state: 'PAUSED',
-      performanceTimeMs: 500,
-      scopeStartBeat: 1,
-      scopeTerminalBeat: 4.5,
-    });
-    expect(restored.snapshotSession().inputSource).toBe('MIDI');
-    restored.resume();
-    expect(restored.snapshot().state).toBe('RUNNING');
-
-    const countInClock = new ManualClock(0);
-    const countIn = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, scope: { kind: 'FULL' }, clock: countInClock });
-    countIn.start();
-    countInClock.advance(250);
-    const restoredCountIn = new PerformancePracticeRuntime({
-      artifact,
-      clock: new ManualClock(5_000),
-      scope: { kind: 'FULL' },
-      snapshot: countIn.snapshotSession(),
-    });
-    expect(restoredCountIn.snapshot()).toMatchObject({
-      state: 'PAUSED',
-      countInRemainingMs: 1250,
-    });
+    session.start();
+    extraClock.advance(150);
+    expect(session.observeEvidence(performanceEvidence(session.timebase.domainId, 150, ['F#4'], 'MIDI'))).toBe(true);
+    expect(session.evaluationSnapshot.extras).toHaveLength(1);
   });
 
-  it('preserves READY PAUSED and ENDED restore states explicitly', () => {
-    const ready = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, scope: { kind: 'FULL' }, clock: new ManualClock(0) });
-    expect(new PerformancePracticeRuntime({
-      artifact,
-      clock: new ManualClock(5_000),
-      scope: { kind: 'FULL' },
-      snapshot: ready.snapshotSession(),
-    }).snapshot().state).toBe('READY');
-
-    const pausedClock = new ManualClock(0);
-    const paused = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, scope: { kind: 'FULL' }, clock: pausedClock, countInBeats: 0 });
-    paused.start();
-    pausedClock.advance(100);
-    paused.pause();
-    expect(new PerformancePracticeRuntime({
-      artifact,
-      clock: new ManualClock(10_000),
-      scope: { kind: 'FULL' },
-      snapshot: paused.snapshotSession(),
-    }).snapshot()).toMatchObject({ state: 'PAUSED', performanceTimeMs: 100 });
-
-    const endedClock = new ManualClock(0);
-    const ended = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, scope: { kind: 'FULL' }, clock: endedClock, countInBeats: 0 });
-    ended.start();
-    endedClock.advance(10_000);
-    ended.snapshot();
-    expect(new PerformancePracticeRuntime({
-      artifact,
-      clock: new ManualClock(20_000),
-      scope: { kind: 'FULL' },
-      snapshot: ended.snapshotSession(),
-    }).snapshot().state).toBe('ENDED');
-  });
-
-  it('preserves explicit evaluation coverage when restoring ended performance snapshots', () => {
-    const clock = new ManualClock(0);
-    const runtime = new PerformancePracticeRuntime({
+  it('finalizes natural completion without pending strikes and manual stop with not-reached tail', () => {
+    const naturalClock = new ManualClock(0);
+    const natural = new ContinuousPracticeSession({
       artifact,
       tempoPlan: defaultTempoPlan,
       scope: { kind: 'FULL' },
-      clock,
-      countInBeats: 0,
-    });
-    runtime.start();
-    clock.advance(10_000);
-    runtime.snapshot();
-    const incompleteSnapshot = runtime.snapshotSession();
-    expect(incompleteSnapshot.performance.state).toBe('ENDED');
-    expect(incompleteSnapshot.performance.evaluationCoverageIntervals).toEqual([]);
-
-    const restoredIncomplete = new PerformancePracticeRuntime({
-      artifact,
-      clock: new ManualClock(20_000),
-      scope: { kind: 'FULL' },
-      snapshot: incompleteSnapshot,
-    });
-    expect(
-      restoredIncomplete.snapshotSession().performance.evaluationCoverageIntervals
-    ).toEqual([]);
-
-    const covered = new PerformancePracticeRuntime({
-      artifact,
-      tempoPlan: defaultTempoPlan,
-      scope: { kind: 'FULL' },
-      clock: new ManualClock(0),
-      countInBeats: 0,
-    });
-    covered.start();
-    (covered as unknown as { clock: ManualClock }).clock.advance(10_000);
-    covered.snapshot();
-    covered.markEvaluationCoverageThrough(covered.completionCaptureTime());
-    const coveredSnapshot = covered.snapshotSession();
-    expect(coveredSnapshot.performance.evaluationCoverageIntervals).toEqual([
-      expect.objectContaining({ startMs: 0 }),
-    ]);
-
-    const restoredCovered = new PerformancePracticeRuntime({
-      artifact,
-      clock: new ManualClock(20_000),
-      scope: { kind: 'FULL' },
-      snapshot: coveredSnapshot,
-    });
-    expect(
-      restoredCovered.snapshotSession().performance.evaluationCoverageIntervals
-    ).toEqual(coveredSnapshot.performance.evaluationCoverageIntervals);
-  });
-
-  it('keeps durable metadata time separate from runtime monotonic time', () => {
-    const runtimeClock = new ManualClock(10_000);
-    const metadataClock = new ManualDurableClock(1_000_000);
-    const runtime = new PerformancePracticeRuntime({
-      artifact,
-      tempoPlan: defaultTempoPlan,
-      scope: { kind: 'FULL' },
-      clock: runtimeClock,
-      metadataClock,
-      countInBeats: 0,
-    });
-    const first = runtime.snapshotSession();
-    metadataClock.advance(5_000);
-    runtimeClock.advance(100);
-    const second = runtime.snapshotSession();
-
-    expect(second.createdAtMs).toBe(first.createdAtMs);
-    expect(second.updatedAtMs).toBe(1_005_000);
-    expect(second.performance.activeElapsedMs).toBe(0);
-  });
-
-  it('preserves observation source and outcomes across persistence', () => {
-    const clock = new ManualClock(0);
-    const runtime = new PerformancePracticeRuntime({
-      artifact,
-      tempoPlan: defaultTempoPlan,
-      scope: { kind: 'FULL' },
-      clock,
+      clock: naturalClock,
       inputSource: 'MIDI',
       countInBeats: 0,
-      localSessionId: 'performance-persist-midi',
     });
-    runtime.start();
-    runtime.observeEvidence(performanceEvidence('performance-persist-midi', 0, ['C4']));
-    const uninterruptedOutcomes = runtime.evaluationOutcomes;
+    natural.start();
+    naturalClock.advance(20_000);
+    natural.snapshot();
+    natural.end('SCOPE_COMPLETED');
+    const naturalEvaluation = natural.completedEvaluation();
+    expect(naturalEvaluation.status).toBe('COMPLETE');
+    if (naturalEvaluation.status === 'COMPLETE') {
+      expect(naturalEvaluation.strikes.some((strike) => strike.result === 'NOT_REACHED')).toBe(false);
+    }
 
-    const restored = new PerformancePracticeRuntime({
+    const manualClock = new ManualClock(0);
+    const manual = new ContinuousPracticeSession({
       artifact,
-      clock: new ManualClock(10_000),
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock: manualClock,
       inputSource: 'MIDI',
-      scope: { kind: 'FULL' },
-      snapshot: runtime.snapshotSession(),
+      countInBeats: 0,
     });
-    expect(restored.evaluationObservations[0]?.source).toBe('MIDI');
-    expect(restored.evaluationOutcomes).toEqual(uninterruptedOutcomes);
-    restored.resume();
-    (restored as unknown as { clock: ManualClock }).clock.advance(500);
-    restored.observeEvidence(performanceEvidence('performance-persist-midi', 10_500, ['C4']));
-    expect(restored.evaluationObservations.map((item) => item.source)).toEqual(['MIDI', 'MIDI']);
-  });
-
-  it('rejects incompatible performance snapshots', () => {
-    const runtime = new PerformancePracticeRuntime({ artifact, tempoPlan: defaultTempoPlan, scope: { kind: 'FULL' }, clock: new ManualClock(), inputSource: 'MIDI' });
-    const snapshot = runtime.snapshotSession();
-
-    expect(() => new PerformancePracticeRuntime({
-      artifact: cloneArtifact({ artifactId: 'other-artifact' }),
-      clock: new ManualClock(),
-      scope: { kind: 'FULL' },
-      snapshot,
-    })).toThrow(/snapshot does not belong/);
-    expect(() => new PerformancePracticeRuntime({
-      artifact,
-      clock: new ManualClock(),
-      inputSource: 'MICROPHONE',
-      scope: { kind: 'FULL' },
-      snapshot,
-    })).toThrow(/input source mismatch/);
+    manual.start();
+    manualClock.advance(100);
+    manual.end('STOPPED_BY_USER');
+    const manualEvaluation = manual.completedEvaluation();
+    expect(manualEvaluation.status).toBe('COMPLETE');
+    if (manualEvaluation.status === 'COMPLETE') {
+      expect(manualEvaluation.strikes.some((strike) => strike.result === 'NOT_REACHED')).toBe(true);
+    }
   });
 });
-
 describe('local session foundation', () => {
   it('defines one comparable local session timebase for runtime and sample-index evidence', () => {
     const timebase = new PracticeTimebase({
@@ -920,28 +539,31 @@ describe('local session foundation', () => {
     }))).toMatchObject({ kind: 'MATCH' });
 
     const midiTimebase = new PracticeTimebase({ domainId: 'normalized-midi' });
-    const performance = new PerformancePracticeRuntime({
+    const performanceClock = new ManualClock(0);
+    const performance = new ContinuousPracticeSession({
       artifact,
       tempoPlan: defaultTempoPlan,
       scope: { kind: 'FULL' },
-      clock: new ManualClock(0),
+      clock: performanceClock,
       countInBeats: 0,
       localSessionId: 'normalized-midi',
       inputSource: 'MIDI',
       timebase: midiTimebase,
     });
     performance.start();
-    (performance as unknown as { clock: ManualClock }).clock.advance(500);
+    performanceClock.advance(100);
     const evaluated = performance.observeEvidence({
-      captureTime: midiTimebase.midiEventToSessionTime(500),
+      captureTime: midiTimebase.midiEventToSessionTime(0),
       pitches: ['C4'],
       confidence: 1,
       source: 'MIDI',
       inferenceCompletedAtMs: 5_000,
     });
-    expect(evaluated).not.toBeNull();
-    expect(evaluated!.performanceTimeMs).toBe(500);
-    expect(evaluated!.source).toBe('MIDI');
+    expect(evaluated).toBe(true);
+    expect(performance.evaluationSnapshot.strikes[0]).toMatchObject({
+      verdict: 'MATCHED',
+      timingOffsetMs: 0,
+    });
   });
 
   it('rejects empty artifacts before local practice instead of inventing playable state', () => {
@@ -955,7 +577,7 @@ describe('local session foundation', () => {
     });
     expect(() => new StepPracticeRuntime({ artifact: empty, scope: { kind: 'FULL' },
       clock: new ManualClock() })).toThrow(/at least one expected group/);
-    expect(() => new PerformancePracticeRuntime({ artifact: empty, tempoPlan: resolvePracticeTempoPlan(empty, { mode: 'SCORE' }), scope: { kind: 'FULL' }, clock: new ManualClock() })).toThrow(/at least one expected group/);
+    expect(() => new ContinuousPracticeSession({ artifact: empty, tempoPlan: resolvePracticeTempoPlan(empty, { mode: 'SCORE' }), scope: { kind: 'FULL' }, clock: new ManualClock() })).toThrow(/at least one expected group/);
   });
 
   it('supports STEP pause, resume, and explicit user end with strict completion semantics', () => {
@@ -1032,7 +654,7 @@ describe('local session foundation', () => {
   it('supports CONTINUOUS user end vs SCOPE_COMPLETED natural completion', () => {
     const clock = new ManualClock(0);
     const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
-    const runtime = new PerformancePracticeRuntime({ artifact, tempoPlan, scope: { kind: 'FULL' }, clock, countInBeats: 0 });
+    const runtime = new ContinuousPracticeSession({ artifact, tempoPlan, scope: { kind: 'FULL' }, clock, countInBeats: 0 });
     runtime.start();
     expect(runtime.snapshot().state).toBe('RUNNING');
     expect(runtime.snapshot().scopeCompleted).toBe(false);
@@ -1046,10 +668,11 @@ describe('local session foundation', () => {
     expect(runtime.sessionCompletionReason).toBe('STOPPED_BY_USER');
 
     // Natural scope completion
-    const naturalRuntime = new PerformancePracticeRuntime({
+    const rangeClock = new ManualClock(0);
+    const naturalRuntime = new ContinuousPracticeSession({
       artifact,
       tempoPlan,
-      clock: new ManualClock(0),
+      clock: rangeClock,
       countInBeats: 0,
       scope: {
         kind: 'RANGE',
@@ -1058,8 +681,7 @@ describe('local session foundation', () => {
       },
     });
     naturalRuntime.start();
-    const naturalClock = (naturalRuntime as unknown as { clock: ManualClock }).clock;
-    naturalClock.advance(10_000);
+    rangeClock.advance(10_000);
     const naturalSnapshot = naturalRuntime.snapshot();
     expect(naturalSnapshot.state).toBe('ENDED');
     expect(naturalSnapshot.scopeCompleted).toBe(true);
@@ -1069,15 +691,15 @@ describe('local session foundation', () => {
   it('accepts evidence by capture-time performance membership rather than callback-time runtime state', () => {
     const clock = new ManualClock(0);
     const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
-    const runtime = new PerformancePracticeRuntime({ artifact, tempoPlan, scope: { kind: 'FULL' }, clock, countInBeats: 3 });
+    const runtime = new ContinuousPracticeSession({ artifact, tempoPlan, scope: { kind: 'FULL' }, clock, countInBeats: 3 });
     // Before start: state is READY
     const evidence = performanceEvidence(runtime.timebase.domainId, 100, ['C4']);
-    expect(runtime.observeEvidence(evidence)).toBeNull();
+    expect(runtime.observeEvidence(evidence)).toBe(false);
 
     // Start with count-in: state is COUNT_IN
     runtime.start();
     expect(runtime.snapshot().state).toBe('COUNT_IN');
-    expect(runtime.observeEvidence(evidence)).toBeNull();
+    expect(runtime.observeEvidence(evidence)).toBe(false);
 
     // Advance past count-in into RUNNING
     const countInTotalMs = runtime.snapshot().countInTotalMs;
@@ -1085,12 +707,12 @@ describe('local session foundation', () => {
     expect(runtime.snapshot().state).toBe('RUNNING');
     clock.advance(90);
     const runningEvidence = performanceEvidence(runtime.timebase.domainId, countInTotalMs + 100, ['C4']);
-    expect(runtime.observeEvidence(runningEvidence)).not.toBeNull();
+    expect(runtime.observeEvidence(runningEvidence)).toBe(true);
 
     // Pause: state is PAUSED
     runtime.pause();
     expect(runtime.snapshot().state).toBe('PAUSED');
-    expect(runtime.observeEvidence(performanceEvidence(runtime.timebase.domainId, countInTotalMs + 200, ['C4']))).toBeNull();
+    expect(runtime.observeEvidence(performanceEvidence(runtime.timebase.domainId, countInTotalMs + 200, ['C4']))).toBe(false);
     runtime.resume();
     clock.advance(500);
     const lateRunningEvidence = performanceEvidence(runtime.timebase.domainId, countInTotalMs + 250, ['C4']);
@@ -1098,11 +720,11 @@ describe('local session foundation', () => {
     // End: state is ENDED
     runtime.end('STOPPED_BY_USER');
     expect(runtime.snapshot().state).toBe('ENDED');
-    expect(runtime.observeEvidence(lateRunningEvidence)).not.toBeNull();
-    expect(runtime.evaluationOutcomes[0]?.expectedStrikeOutcomes[0]).toMatchObject({
-      result: 'MATCHED',
+    expect(runtime.observeEvidence(lateRunningEvidence)).toBe(true);
+    expect(runtime.evaluationSnapshot.strikes[0]).toMatchObject({
+      verdict: 'MATCHED',
     });
-    expect(runtime.observeEvidence(performanceEvidence(runtime.timebase.domainId, clock.nowMs() + 100, ['C4']))).toBeNull();
+    expect(runtime.observeEvidence(performanceEvidence(runtime.timebase.domainId, clock.nowMs() + 100, ['C4']))).toBe(false);
   });
 
   it('provides deterministic countInPulse and handles multi-tempo segments correctly', () => {
@@ -1115,7 +737,7 @@ describe('local session foundation', () => {
 
     const clock = new ManualClock(0);
     const tempoPlan = resolvePracticeTempoPlan(multiTempoArtifact, { mode: 'SCORE' });
-    const runtime = new PerformancePracticeRuntime({
+    const runtime = new ContinuousPracticeSession({
       artifact: multiTempoArtifact,
       tempoPlan,
       scope: { kind: 'FULL' },
@@ -1159,7 +781,7 @@ describe('local session foundation', () => {
     expect(snapshot.musicalBeat).toBeCloseTo(5.0, 2);
   });
 
-  it('allows live metronome toggle on StepPracticeRuntime and PerformancePracticeRuntime snapshots', () => {
+  it('allows live metronome toggle on StepPracticeRuntime and ContinuousPracticeSession snapshots', () => {
     const art = cloneArtifact();
     const clock = new ManualClock(100);
 
@@ -1175,7 +797,7 @@ describe('local session foundation', () => {
     stepRuntime.setMetronomeEnabled(true);
     expect(stepRuntime.snapshot().metronomeEnabled).toBe(true);
 
-    const perfRuntime = new PerformancePracticeRuntime({
+    const perfRuntime = new ContinuousPracticeSession({
       artifact: art,
       clock,
       scope: { kind: 'FULL' },
@@ -1243,9 +865,9 @@ describe('local session foundation', () => {
     expect(stepRuntime.currentOnsetBeat).toBe(2.0);
     expect(stepRuntime.currentTarget()?.stepId).toBe('s-rest-1');
 
-    // PerformancePracticeRuntime initialized with resolved scope:
+    // ContinuousPracticeSession initialized with resolved scope:
     const tempoPlan = resolvePracticeTempoPlan(leadingRestArtifact, { mode: 'SCORE' });
-    const perfRuntime = new PerformancePracticeRuntime({
+    const perfRuntime = new ContinuousPracticeSession({
       artifact: leadingRestArtifact,
       tempoPlan,
       scope: { kind: 'FULL' },
@@ -1284,7 +906,7 @@ describe('local session foundation', () => {
     expect(finalStepA.lifecycleState).toBe('ENDED');
     expect(finalStepA.metronomeEnabled).toBe(true);
 
-    const perfA = new PerformancePracticeRuntime({
+    const perfA = new ContinuousPracticeSession({
       artifact: art,
       clock,
       scope: { kind: 'FULL' },
@@ -1313,7 +935,7 @@ describe('local session foundation', () => {
     expect(finalStepB.lifecycleState).toBe('ENDED');
     expect(finalStepB.metronomeEnabled).toBe(false);
 
-    const perfB = new PerformancePracticeRuntime({
+    const perfB = new ContinuousPracticeSession({
       artifact: art,
       clock,
       scope: { kind: 'FULL' },
@@ -1328,3 +950,4 @@ describe('local session foundation', () => {
     expect(finalPerfB.metronomeEnabled).toBe(false);
   });
 });
+

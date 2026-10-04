@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   PerformanceAnnotationController,
-  noteAnnotationsFromPerformanceOutcomes,
+  noteAnnotationsFromContinuousEvaluation,
 } from './performance-annotation-controller';
 
 describe('PerformanceAnnotationController', () => {
@@ -134,39 +134,38 @@ describe('PerformanceAnnotationController', () => {
     );
   });
 
-  it('derives strike-level note annotations without coloring unconfirmed notes', () => {
-    const annotations = noteAnnotationsFromPerformanceOutcomes([
-      {
-        expectedGroupId: 'g-1',
-        performanceTimeMs: 1000,
-        result: 'PARTIAL',
-        confidence: 0.95,
-        source: 'ACOUSTIC',
-        expectedStrikeOutcomes: [
-          {
-            strikeId: 'c',
-            pitch: 'C4',
-            renderNoteIds: ['note-c'],
-            result: 'MATCHED',
-          },
-          {
-            strikeId: 'e',
-            pitch: 'E4',
-            renderNoteIds: ['note-e'],
-            result: 'MISSING',
-          },
-          {
-            strikeId: 'g',
-            pitch: 'G4',
-            renderNoteIds: ['note-g'],
-            result: 'UNCONFIRMED',
-          },
-        ],
-        unexpectedPitches: ['F#4'],
-        renderNoteIds: ['note-c', 'note-e', 'note-g'],
-        measureNumbers: ['1'],
-      },
-    ]);
+  it('derives strike-level note annotations without coloring pending notes', () => {
+    const annotations = noteAnnotationsFromContinuousEvaluation({
+      strikes: [
+        {
+          strikeId: 'c',
+          groupId: 'g-1',
+          pitch: 'C4',
+          expectedPerformanceTimeMs: 1000,
+          renderNoteIds: ['note-c'],
+          verdict: 'MATCHED',
+          matchedObservationId: 'obs-c',
+          timingOffsetMs: 0,
+        },
+        {
+          strikeId: 'e',
+          groupId: 'g-1',
+          pitch: 'E4',
+          expectedPerformanceTimeMs: 1000,
+          renderNoteIds: ['note-e'],
+          verdict: 'MISSING',
+        },
+        {
+          strikeId: 'g',
+          groupId: 'g-1',
+          pitch: 'G4',
+          expectedPerformanceTimeMs: 1000,
+          renderNoteIds: ['note-g'],
+          verdict: 'PENDING',
+        },
+      ],
+      extras: [{ observationId: 'extra', pitch: 'F#4', performanceTimeMs: 1000, confidence: 0.8, source: 'ACOUSTIC' }],
+    });
 
     expect(annotations.confirmedCorrectNoteIds).toEqual(['note-c']);
     expect(annotations.confirmedErrorNoteIds).toEqual(['note-e']);

@@ -13,13 +13,13 @@ import { StepPlayheadController } from '@/lib/practice/step-playhead-controller'
 import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
 import {
   PerformanceAnnotationController,
-  noteAnnotationsFromPerformanceOutcomes,
+  noteAnnotationsFromContinuousEvaluation,
 } from '@/lib/practice/performance-annotation-controller';
 import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import { cn } from '@/lib/utils';
 import type { ExpectedPracticeGroup, PracticeMode } from '@/lib/practice/local-core/artifact';
 import type { CursorScope } from '@/lib/practice/local-core/cursor-scope';
-import type { PerformanceExpectedEventOutcome } from '@/lib/practice/local-core/evidence';
+import type { ContinuousEvaluationSnapshot } from '@/lib/practice/local-core/continuous-evaluation-session';
 
 import type { LocalPracticeLifecycle } from '@/lib/practice/local-core/session';
 
@@ -33,7 +33,7 @@ type PracticeScoreViewerProps = {
   activeStepGroup?: ExpectedPracticeGroup | null;
   performanceMusicalBeat?: number | null;
   performanceScope?: CursorScope | null;
-  performanceOutcomes?: readonly PerformanceExpectedEventOutcome[];
+  performanceEvaluation?: ContinuousEvaluationSnapshot | null;
   selectedRangeRenderNoteIds?: readonly string[];
   onRenderNoteClick?: (renderNoteId: string) => void;
 };
@@ -48,7 +48,7 @@ export function PracticeScoreViewer({
   activeStepGroup = null,
   performanceMusicalBeat = null,
   performanceScope = null,
-  performanceOutcomes = [],
+  performanceEvaluation = null,
   selectedRangeRenderNoteIds = [],
   onRenderNoteClick,
 }: PracticeScoreViewerProps) {
@@ -65,17 +65,14 @@ export function PracticeScoreViewer({
   const selectedRangeRenderNoteIdSignature = selectedRangeRenderNoteIds.join('\u001f');
   const performanceAnnotationSignature = useMemo(
     () =>
-      performanceOutcomes
-        .map((outcome) => [
-          outcome.expectedGroupId,
-          outcome.result,
-          outcome.expectedStrikeOutcomes
-            .map((strike) => `${strike.strikeId}:${strike.result}:${strike.renderNoteIds.join(',')}`)
-            .join(','),
-          outcome.renderNoteIds.join(','),
+      (performanceEvaluation?.strikes ?? [])
+        .map((strike) => [
+          strike.strikeId,
+          strike.verdict,
+          strike.renderNoteIds.join(','),
         ].join(':'))
         .join('\u001f'),
-    [performanceOutcomes]
+    [performanceEvaluation]
   );
   const handleRendered = useCallback(
     (_adapter: unknown, container: HTMLDivElement) => {
@@ -134,13 +131,15 @@ export function PracticeScoreViewer({
 
     annotationController.apply(
       container,
-      noteAnnotationsFromPerformanceOutcomes(performanceOutcomes),
+      performanceEvaluation
+        ? noteAnnotationsFromContinuousEvaluation(performanceEvaluation)
+        : { confirmedCorrectNoteIds: [], confirmedErrorNoteIds: [] },
       { renderRevision }
     );
   }, [
     annotationController,
     performanceAnnotationSignature,
-    performanceOutcomes,
+    performanceEvaluation,
     renderRevision,
     sessionMode,
     xmlContent,

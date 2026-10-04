@@ -5,7 +5,7 @@ import goldenFixture from './__fixtures__/bytedance-golden-contract.json';
 import canonicalArtifactJson from '../local-core/__fixtures__/canonical-practice-score-artifact.json';
 import {
   ManualClock,
-  PerformancePracticeRuntime,
+  ContinuousPracticeSession,
   PracticeTimebase,
   StepPracticeRuntime,
   type PracticeScoreArtifact,
@@ -715,7 +715,7 @@ describe('ByteDance local practice adapters', () => {
 
   it('feeds the same generic acoustic evidence into Performance evaluation without moving the clock', () => {
     const clock = new ManualClock(0);
-    const performance = new PerformancePracticeRuntime({
+    const performance = new ContinuousPracticeSession({
       artifact,
       scope: { kind: 'FULL' },
       clock,
@@ -735,14 +735,14 @@ describe('ByteDance local practice adapters', () => {
     );
     const [observation] = acousticEventsToPerformanceEvidence(event);
     performance.observeEvidence(observation);
-    expect(performance.evaluationOutcomes[0]).toMatchObject({ result: 'MATCH', source: 'ACOUSTIC' });
+    expect(performance.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MATCHED' });
     expect(performance.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
   });
 
   it('does not turn adjacent model-frame activation from one attack into a CONTINUOUS duplicate', () => {
     const normalizer = new AcousticEventStreamNormalizer({ sampleRateHz: 16_000 });
     const clock = new ManualClock(0);
-    const performance = new PerformancePracticeRuntime({
+    const performance = new ContinuousPracticeSession({
       artifact,
       scope: { kind: 'FULL' },
       clock,
@@ -767,15 +767,13 @@ describe('ByteDance local practice adapters', () => {
       clock.advance(Math.max(0, observation.captureTime.ms - clock.nowMs()));
       performance.observeEvidence(observation);
     }
-    expect(performance.evaluationOutcomes[0]).toMatchObject({
-      result: 'MATCH',
-      unexpectedPitches: [],
-    });
+    expect(performance.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MATCHED' });
+    expect(performance.evaluationSnapshot.extras).toEqual([]);
   });
 
   it('preserves simultaneous chord evidence for CONTINUOUS evaluation', () => {
     const clock = new ManualClock(0);
-    const performance = new PerformancePracticeRuntime({
+    const performance = new ContinuousPracticeSession({
       artifact,
       clock,
       countInBeats: 0,
@@ -801,9 +799,7 @@ describe('ByteDance local practice adapters', () => {
       clock.advance(Math.max(0, observation.captureTime.ms - clock.nowMs()));
       performance.observeEvidence(observation);
     }
-    expect(performance.evaluationOutcomes[0]).toMatchObject({
-      result: 'MATCH',
-      unexpectedPitches: [],
-    });
+    expect(performance.evaluationSnapshot.strikes.every((strike) => strike.verdict === 'MATCHED')).toBe(true);
+    expect(performance.evaluationSnapshot.extras).toEqual([]);
   });
 });
