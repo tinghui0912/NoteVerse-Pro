@@ -16,7 +16,6 @@ export type TranscriptionWindow = {
 };
 
 export type TranscriptionBatchJob = {
-  sequence: number;
   ownedTrustedStartSample: number;
   ownedTrustedEndSample: number;
   windows: readonly TranscriptionWindow[];
@@ -91,7 +90,6 @@ export function batchTranscriptionWindows(input: {
       continue;
     }
     batches.push({
-      sequence: batches.length,
       ownedTrustedStartSample: windows[0].ownedTrustedStartSample,
       ownedTrustedEndSample: windows[windows.length - 1].ownedTrustedEndSample,
       windows,

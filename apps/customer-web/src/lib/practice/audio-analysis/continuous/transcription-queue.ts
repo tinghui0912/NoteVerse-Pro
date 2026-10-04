@@ -4,14 +4,14 @@ type QueueState = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
 type QueueLifecycle = 'OPEN' | 'SEALED' | 'FAILED' | 'DRAINED';
 
 type QueueEntry<T> = {
-  job: TranscriptionBatchJob;
+  job: SequencedTranscriptionBatchJob;
   state: QueueState;
   result?: T;
   error?: Error;
 };
 
 export type PublishedTranscriptionResult<T> = {
-  job: TranscriptionBatchJob;
+  job: SequencedTranscriptionBatchJob;
   result: T;
   ownedTrustedStartSample: number;
   ownedTrustedEndSample: number;
@@ -25,19 +25,19 @@ export class ContinuousTranscriptionQueue<T> {
   private pendingCount = 0;
   private runningCount = 0;
   private completedCount = 0;
+  private nextSequence = 0;
 
   enqueue(job: TranscriptionBatchJob): void {
     if (this.lifecycle !== 'OPEN') {
       throw new Error('Cannot enqueue transcription work unless the queue is OPEN.');
     }
-    if (job.sequence !== this.entries.length) {
-      throw new Error('Transcription jobs must be enqueued in contiguous FIFO sequence.');
-    }
-    this.entries.push({ job, state: 'PENDING' });
+    const sequencedJob = { ...job, sequence: this.nextSequence };
+    this.nextSequence += 1;
+    this.entries.push({ job: sequencedJob, state: 'PENDING' });
     this.pendingCount += 1;
   }
 
-  claimNext(): TranscriptionBatchJob | null {
+  claimNext(): SequencedTranscriptionBatchJob | null {
     if (this.lifecycle === 'FAILED' || this.lifecycle === 'DRAINED') {
       return null;
     }
@@ -143,3 +143,7 @@ export class ContinuousTranscriptionQueue<T> {
     return ready;
   }
 }
+
+export type SequencedTranscriptionBatchJob = TranscriptionBatchJob & {
+  sequence: number;
+};

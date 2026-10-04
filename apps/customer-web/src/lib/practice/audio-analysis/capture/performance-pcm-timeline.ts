@@ -98,7 +98,13 @@ export class PerformancePcmTimeline {
     const output = new Float32Array(endSample - startSample);
     let writeOffset = 0;
     this.lastExtractVisitedBlockCount = 0;
-    for (const block of segment.blocks) {
+    const firstBlockIndex = Math.max(
+      0,
+      Math.floor((startSample - segment.sampleStart) / this.storageBlockSizeSamples)
+    );
+    for (let blockIndex = firstBlockIndex; blockIndex < segment.blocks.length; blockIndex += 1) {
+      const block = segment.blocks[blockIndex];
+      this.lastExtractVisitedBlockCount += 1;
       const blockStart = block.startSample;
       const blockEnd = block.startSample + block.length;
       if (blockEnd <= startSample) {
@@ -107,7 +113,6 @@ export class PerformancePcmTimeline {
       if (blockStart >= endSample) {
         break;
       }
-      this.lastExtractVisitedBlockCount += 1;
       const overlapStart = Math.max(startSample, blockStart);
       const overlapEnd = Math.min(endSample, blockEnd);
       if (overlapEnd <= overlapStart) {

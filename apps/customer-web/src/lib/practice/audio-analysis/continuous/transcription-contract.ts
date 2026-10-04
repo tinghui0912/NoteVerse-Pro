@@ -1,7 +1,7 @@
 type ContinuousTranscriptionCapability =
   | {
       status: 'UNAVAILABLE';
-      reason: 'BYTE_DANCE_CONTINUOUS_TRANSCRIPTION_NOT_VIABLE';
+      reason: 'CONTINUOUS_MODEL_NOT_VALIDATED';
     }
   | {
       status: 'READY';
@@ -14,7 +14,6 @@ export type ContinuousTranscriptionContract = {
   contractId: string;
   sampleRateHz: 16_000;
   inputSamplesPerWindow: number;
-  windowStrideSamples: number;
   trustedOutputStartSamples: number;
   trustedOutputEndSamples: number;
   futureContextSamples: number;
@@ -23,7 +22,7 @@ export type ContinuousTranscriptionContract = {
 
 export const BYTE_DANCE_CONTINUOUS_TRANSCRIPTION_CAPABILITY: ContinuousTranscriptionCapability = {
   status: 'UNAVAILABLE',
-  reason: 'BYTE_DANCE_CONTINUOUS_TRANSCRIPTION_NOT_VIABLE',
+  reason: 'CONTINUOUS_MODEL_NOT_VALIDATED',
 };
 
 export function assertContinuousTranscriptionContract(
@@ -34,7 +33,6 @@ export function assertContinuousTranscriptionContract(
   }
   if (
     contract.inputSamplesPerWindow <= 0
-    || contract.windowStrideSamples <= 0
     || contract.futureContextSamples < 0
     || contract.batchSize <= 0
   ) {
