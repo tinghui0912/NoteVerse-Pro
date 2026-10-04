@@ -65,7 +65,7 @@ function performanceEvidence(
 ) {
   return {
     captureTime: sessionTime(domainId, ms),
-    pitches,
+    pitch: pitches[0] ?? 'C4',
     confidence: 1,
     source,
     ...overrides,
@@ -349,7 +349,7 @@ describe('local CONTINUOUS practice runtime', () => {
     session.start();
     clock.advance(500);
     const before = session.snapshot();
-    expect(session.observeEvidence(performanceEvidence('continuous-clock-separate', 0, ['C4'], 'MIDI'))).toBe(true);
+    expect(session.observeCapturedAttack(performanceEvidence('continuous-clock-separate', 0, ['C4'], 'MIDI'))).toBe(true);
     expect(session.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
     expect(session.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MATCHED' });
   });
@@ -416,7 +416,7 @@ describe('local CONTINUOUS practice runtime', () => {
 
     session.start();
     extraClock.advance(150);
-    expect(session.observeEvidence(performanceEvidence(session.timebase.domainId, 150, ['F#4'], 'MIDI'))).toBe(true);
+    expect(session.observeCapturedAttack(performanceEvidence(session.timebase.domainId, 150, ['F#4'], 'MIDI'))).toBe(true);
     expect(session.evaluationSnapshot.extras).toHaveLength(1);
   });
 
@@ -498,8 +498,32 @@ describe('local CONTINUOUS practice runtime', () => {
     session.end('STOPPED_BY_USER');
     expect(session.evaluationSnapshot.strikes.some((strike) => strike.verdict === 'PENDING')).toBe(true);
 
-    session.advanceAnalysisThrough(session.timebase.atSessionMs(1000));
+    session.publishAnalysis({
+      attacks: [],
+      analyzedThroughPerformanceMs: 1000,
+    });
     expect(session.evaluationSnapshot.strikes.some((strike) => strike.verdict === 'MISSING')).toBe(true);
+  });
+
+  it('accepts post-terminal analysis publication through a monotonic performance frontier', () => {
+    const clock = new ManualClock(0);
+    const session = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock,
+      inputSource: 'MICROPHONE',
+      countInBeats: 0,
+    });
+    session.start();
+    clock.advance(1000);
+    session.end('STOPPED_BY_USER');
+
+    session.publishAnalysis({ attacks: [], analyzedThroughPerformanceMs: 1000 });
+    const afterForward = session.evaluationSnapshot;
+    session.publishAnalysis({ attacks: [], analyzedThroughPerformanceMs: 100 });
+
+    expect(session.evaluationSnapshot).toEqual(afterForward);
   });
 });
 describe('local session foundation', () => {
@@ -595,9 +619,9 @@ describe('local session foundation', () => {
     });
     performance.start();
     performanceClock.advance(100);
-    const evaluated = performance.observeEvidence({
+    const evaluated = performance.observeCapturedAttack({
       captureTime: midiTimebase.midiEventToSessionTime(0),
-      pitches: ['C4'],
+      pitch: 'C4',
       confidence: 1,
       source: 'MIDI',
       inferenceCompletedAtMs: 5_000,
@@ -737,12 +761,12 @@ describe('local session foundation', () => {
     const runtime = new ContinuousPracticeSession({ artifact, tempoPlan, scope: { kind: 'FULL' }, clock, countInBeats: 3 });
     // Before start: state is READY
     const evidence = performanceEvidence(runtime.timebase.domainId, 100, ['C4']);
-    expect(runtime.observeEvidence(evidence)).toBe(false);
+    expect(runtime.observeCapturedAttack(evidence)).toBe(false);
 
     // Start with count-in: state is COUNT_IN
     runtime.start();
     expect(runtime.snapshot().state).toBe('COUNT_IN');
-    expect(runtime.observeEvidence(evidence)).toBe(false);
+    expect(runtime.observeCapturedAttack(evidence)).toBe(false);
 
     // Advance past count-in into RUNNING
     const countInTotalMs = runtime.snapshot().countInTotalMs;
@@ -750,12 +774,12 @@ describe('local session foundation', () => {
     expect(runtime.snapshot().state).toBe('RUNNING');
     clock.advance(90);
     const runningEvidence = performanceEvidence(runtime.timebase.domainId, countInTotalMs + 100, ['C4']);
-    expect(runtime.observeEvidence(runningEvidence)).toBe(true);
+    expect(runtime.observeCapturedAttack(runningEvidence)).toBe(true);
 
     // Pause: state is PAUSED
     runtime.pause();
     expect(runtime.snapshot().state).toBe('PAUSED');
-    expect(runtime.observeEvidence(performanceEvidence(runtime.timebase.domainId, countInTotalMs + 200, ['C4']))).toBe(false);
+    expect(runtime.observeCapturedAttack(performanceEvidence(runtime.timebase.domainId, countInTotalMs + 200, ['C4']))).toBe(false);
     runtime.resume();
     clock.advance(500);
     const lateRunningEvidence = performanceEvidence(runtime.timebase.domainId, countInTotalMs + 250, ['C4']);
@@ -763,11 +787,11 @@ describe('local session foundation', () => {
     // End: state is ENDED
     runtime.end('STOPPED_BY_USER');
     expect(runtime.snapshot().state).toBe('ENDED');
-    expect(runtime.observeEvidence(lateRunningEvidence)).toBe(true);
+    expect(runtime.observeCapturedAttack(lateRunningEvidence)).toBe(true);
     expect(runtime.evaluationSnapshot.strikes[0]).toMatchObject({
       verdict: 'MATCHED',
     });
-    expect(runtime.observeEvidence(performanceEvidence(runtime.timebase.domainId, clock.nowMs() + 100, ['C4']))).toBe(false);
+    expect(runtime.observeCapturedAttack(performanceEvidence(runtime.timebase.domainId, clock.nowMs() + 100, ['C4']))).toBe(false);
   });
 
   it('provides deterministic countInPulse and handles multi-tempo segments correctly', () => {

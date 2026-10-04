@@ -1,7 +1,4 @@
-import {
-  BYTE_DANCE_CONTINUOUS_TRANSCRIPTION_CAPABILITY,
-  CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON,
-} from './audio-analysis/continuous/transcription-contract';
+import { CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON } from './audio-analysis/continuous/transcription-contract';
 import type { PracticeInputSource, PracticeMode } from './local-core/artifact';
 
 type WindowWithWebKitAudioContext = Window & {
@@ -29,6 +26,14 @@ export type PracticeMidiCapability =
 export type PracticeInputCapabilities = {
   microphone: PracticeMicrophoneCapability;
   midi: PracticeMidiCapability;
+};
+
+type ContinuousAcousticAnalysisCapability =
+  | { status: 'MODEL_NOT_VALIDATED' }
+  | { status: 'AVAILABLE' };
+
+const CONTINUOUS_ACOUSTIC_ANALYSIS_CAPABILITY: ContinuousAcousticAnalysisCapability = {
+  status: 'MODEL_NOT_VALIDATED',
 };
 
 export type EvaluatePracticeInputOptions = {
@@ -101,7 +106,7 @@ export function getSelectedInputCapability(
   if (
     mode === 'CONTINUOUS_PLAY'
     && capabilities.microphone.supported
-    && BYTE_DANCE_CONTINUOUS_TRANSCRIPTION_CAPABILITY.status === 'UNAVAILABLE'
+    && CONTINUOUS_ACOUSTIC_ANALYSIS_CAPABILITY.status !== 'AVAILABLE'
   ) {
     return {
       supported: false,

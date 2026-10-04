@@ -3,9 +3,9 @@ import type {
   SessionTime,
 } from '../local-core/timebase';
 import type {
+  CapturedAttack,
   StepVerifierObservation,
   StepVerifierTarget,
-  PerformanceEvidenceObservation,
 } from '../local-core/evidence';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
@@ -54,7 +54,7 @@ export type BrowserMidiControllerOptions = {
   timebase: PracticeTimebase;
   getCurrentStepTarget?: () => StepVerifierTarget | null;
   onStepObservation?: (observation: StepVerifierObservation) => void;
-  onPerformanceObservation?: (observation: PerformanceEvidenceObservation) => void;
+  onCapturedAttack?: (attack: CapturedAttack) => void;
   onMidiNote?: (note: {
     type: 'NOTE_ON' | 'NOTE_OFF';
     noteNumber: number;
@@ -89,7 +89,7 @@ export class BrowserMidiController {
   private readonly timebase: PracticeTimebase;
   private getCurrentStepTarget?: () => StepVerifierTarget | null;
   private readonly onStepObservation?: (observation: StepVerifierObservation) => void;
-  private readonly onPerformanceObservation?: (observation: PerformanceEvidenceObservation) => void;
+  private readonly onCapturedAttack?: (attack: CapturedAttack) => void;
   private readonly onMidiNote?: (note: {
     type: 'NOTE_ON' | 'NOTE_OFF';
     noteNumber: number;
@@ -116,7 +116,7 @@ export class BrowserMidiController {
     this.timebase = options.timebase;
     this.getCurrentStepTarget = options.getCurrentStepTarget;
     this.onStepObservation = options.onStepObservation;
-    this.onPerformanceObservation = options.onPerformanceObservation;
+    this.onCapturedAttack = options.onCapturedAttack;
     this.onMidiNote = options.onMidiNote;
     this.onStateChange = options.onStateChange;
     this.chordCoalesceWindowMs = options.chordCoalesceWindowMs ?? 35;
@@ -219,10 +219,10 @@ export class BrowserMidiController {
   }
 
   private handleNoteOn(pitch: string, sessionTime: SessionTime): void {
-    // 1. Emit CONTINUOUS performance evidence observation
-    this.onPerformanceObservation?.({
+    // 1. Emit CONTINUOUS captured attack
+    this.onCapturedAttack?.({
       captureTime: sessionTime,
-      pitches: [pitch],
+      pitch,
       confidence: 1,
       source: 'MIDI',
     });

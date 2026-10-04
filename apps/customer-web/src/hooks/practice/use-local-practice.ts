@@ -37,7 +37,7 @@ import {
 } from '@/lib/practice/local-core/practice-tempo';
 import { MetronomeController } from '@/lib/practice/metronome/metronome-controller';
 import type {
-  PerformanceEvidenceObservation,
+  CapturedAttack,
   StepVerifierObservation,
 } from '@/lib/practice/local-core/evidence';
 import type { ContinuousEvaluationSnapshot } from '@/lib/practice/local-core/continuous-evaluation-session';
@@ -267,10 +267,8 @@ export function useLocalPractice({
   }, []);
 
   const drainPerformanceInference = useCallback(async (runtime: ContinuousPracticeSession) => {
-    const completionCaptureTime = runtime.completionCaptureTime();
     const sessionSnapshot = runtime.snapshotSession();
     if (sessionSnapshot.inputSource === 'MIDI') {
-      runtime.advanceAnalysisThrough(completionCaptureTime);
       setPerformanceEvaluation(runtime.evaluationSnapshot);
       return;
     }
@@ -387,14 +385,14 @@ export function useLocalPractice({
   );
 
   // Performance evidence observation handler
-  const handlePerformanceEvidence = useCallback(
-    (observations: readonly PerformanceEvidenceObservation[]) => {
+  const handleCapturedAttacks = useCallback(
+    (attacks: readonly CapturedAttack[]) => {
       const runtime = performanceRuntimeRef.current;
       if (!runtime) {
         return;
       }
-      for (const obs of observations) {
-        runtime.observeEvidence(obs);
+      for (const attack of attacks) {
+        runtime.observeCapturedAttack(attack);
       }
       setPerformanceEvaluation(runtime.evaluationSnapshot);
     },
@@ -413,8 +411,7 @@ export function useLocalPractice({
 
       const clockSnapshot = runtime.snapshot();
       setPerformanceClock(clockSnapshot);
-      if (inputSource === 'MIDI' && clockSnapshot.state === 'RUNNING') {
-        runtime.advanceAnalysisThrough(runtime.timebase.atSessionMs(clockSnapshot.nowMs));
+      if (inputSource === 'MIDI') {
         setPerformanceEvaluation(runtime.evaluationSnapshot);
       }
 
@@ -459,6 +456,9 @@ export function useLocalPractice({
   const handleMidiStateChange = useCallback((state: BrowserMidiState) => {
     if (state.connectedInputCount > 0) {
       if (errorInputSourceRef.current === 'MIDI' && inputErrorRef.current === 'NO_CONNECTED_INPUT') {
+        inputErrorRef.current = null;
+        errorInputSourceRef.current = null;
+        inputStateRef.current = lifecycleRef.current === 'PAUSED' ? 'IDLE' : inputStateRef.current;
         setInputError(null);
         setErrorInputSource(null);
         setInputState(
@@ -479,19 +479,24 @@ export function useLocalPractice({
     stopTimer();
     stopAnimationLoop();
     metronomeRef.current?.pause();
-    if (mode === 'STEP_BY_STEP') {
+    if (lifecycleRef.current === 'ACTIVE' && mode === 'STEP_BY_STEP') {
       stepRuntimeRef.current?.pause();
-    } else {
+    } else if (lifecycleRef.current === 'ACTIVE') {
       const clock = performanceRuntimeRef.current?.pause();
       if (clock) {
         setPerformanceClock(clock);
         setPerformanceEvaluation(performanceRuntimeRef.current?.evaluationSnapshot ?? null);
+        performanceRecorderRef.current?.pause(clock.performanceTimeMs);
       }
     }
+    errorInputSourceRef.current = 'MIDI';
+    inputErrorRef.current = 'NO_CONNECTED_INPUT';
+    inputStateRef.current = 'ERROR';
     setErrorInputSource('MIDI');
     setInputError('NO_CONNECTED_INPUT');
     setInputState('ERROR');
     if (lifecycleRef.current === 'ACTIVE') {
+      lifecycleRef.current = 'PAUSED';
       setLifecycle('PAUSED');
     }
   }, [
@@ -579,7 +584,7 @@ export function useLocalPractice({
           timebase,
           getCurrentStepTarget: () => stepRuntimeRef.current?.currentTarget() ?? null,
           onStepObservation: (obs) => handleStepObservation(obs),
-          onPerformanceObservation: (obs) => handlePerformanceEvidence([obs]),
+          onCapturedAttack: (attack) => handleCapturedAttacks([attack]),
           onStateChange: handleMidiStateChange,
         });
         midiControllerRef.current = midiController;
@@ -652,7 +657,7 @@ export function useLocalPractice({
     cameraMediaStream,
     handleFatalInputError,
     handleMidiStateChange,
-    handlePerformanceEvidence,
+    handleCapturedAttacks,
     handleStepObservation,
     inputSource,
     metronomeEnabled,

@@ -17,8 +17,8 @@ export type StepVerifierObservation = CaptureTime & {
   source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
 };
 
-export type PerformanceEvidenceObservation = CaptureTime & {
-  pitches: string[];
+export type CapturedAttack = CaptureTime & {
+  pitch: string;
   confidence: number;
   source: 'ACOUSTIC' | 'MIDI';
   inferenceCompletedAtMs?: number;

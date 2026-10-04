@@ -8,7 +8,7 @@ import {
   type ResolvedPracticeScope,
   type TempoSegment,
 } from './artifact';
-import type { PerformanceEvidenceObservation } from './evidence';
+import type { CapturedAttack } from './evidence';
 import { PracticeTimebase, type DurableClock, type LocalClock, type RuntimeVersionIdentity, type SessionTime } from './timebase';
 import {
   createLocalSessionId,
@@ -63,6 +63,11 @@ export type PerformanceClockRuntimeOptions = {
 };
 
 export type ContinuousPracticeSessionOptions = PerformanceClockRuntimeOptions;
+
+export type ContinuousAnalysisPublication = {
+  attacks: readonly CapturedAttack[];
+  analyzedThroughPerformanceMs: number;
+};
 
 type PerformanceScope = ResolvedPracticeScope & {
   nominalStartTimeMs: number;
@@ -423,31 +428,42 @@ export class ContinuousPracticeSession {
     return this.syncFromClockSnapshot(snapshot);
   }
 
-  observeEvidence(observation: PerformanceEvidenceObservation): boolean {
-    this.clock.timebase.assertSameSessionTimeDomain(observation.captureTime, this.clock.timebase.atSessionMs(0));
-    const performanceTimeMs = this.clock.performanceTimeAtCapture(observation.captureTime.ms);
+  observeCapturedAttack(attack: CapturedAttack): boolean {
+    this.clock.timebase.assertSameSessionTimeDomain(attack.captureTime, this.clock.timebase.atSessionMs(0));
+    const performanceTimeMs = this.clock.performanceTimeAtCapture(attack.captureTime.ms);
     if (performanceTimeMs === null) {
       return false;
     }
-    observation.pitches.forEach((pitch, index) => {
-      this.evaluator.observeAttack({
-        observationId: `${observation.captureTime.domainId}:${observation.captureTime.ms}:${index}:${pitch}`,
-        pitch,
-        performanceTimeMs,
-        confidence: observation.confidence,
-        source: observation.source,
-      });
+    this.evaluator.observeAttack({
+      observationId: `${attack.captureTime.domainId}:${attack.captureTime.ms}:${attack.pitch}`,
+      pitch: attack.pitch,
+      performanceTimeMs,
+      confidence: attack.confidence,
+      source: attack.source,
     });
     this.advanceMidiFrontier(this.clock.snapshot());
     return true;
   }
 
-  advanceAnalysisThrough(captureTime: SessionTime): void {
-    this.clock.timebase.assertSameSessionTimeDomain(captureTime, this.clock.timebase.atSessionMs(0));
-    const performanceTimeMs = this.clock.performanceTimeAtCapture(captureTime.ms);
-    if (performanceTimeMs !== null) {
-      this.evaluator.advanceAnalysisThrough(performanceTimeMs);
+  publishAnalysis(publication: ContinuousAnalysisPublication): void {
+    for (const attack of publication.attacks) {
+      if (attack.source === 'MIDI') {
+        this.observeCapturedAttack(attack);
+        continue;
+      }
+      const performanceTimeMs = this.clock.performanceTimeAtCapture(attack.captureTime.ms);
+      if (performanceTimeMs === null) {
+        continue;
+      }
+      this.evaluator.observeAttack({
+        observationId: `${attack.captureTime.domainId}:${attack.captureTime.ms}:${attack.pitch}`,
+        pitch: attack.pitch,
+        performanceTimeMs,
+        confidence: attack.confidence,
+        source: attack.source,
+      });
     }
+    this.evaluator.advanceAnalysisThrough(publication.analyzedThroughPerformanceMs);
   }
 
   snapshotSession(): LocalPerformanceSessionSnapshot {

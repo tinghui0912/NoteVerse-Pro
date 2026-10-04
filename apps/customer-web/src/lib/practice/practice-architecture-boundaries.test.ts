@@ -22,6 +22,7 @@ const forbiddenProductionTokens = [
   'executionProviderFallback',
   'providerFallback',
   'cameraRecordingEnabled',
+  'PerformanceEvidenceObservation',
   'follow-controller',
   'Practice WebSocket',
 ];
@@ -47,7 +48,15 @@ describe('practice architecture boundaries', () => {
     expect(content).not.toContain('new MediaRecorder');
     expect(content).not.toContain('recordingChunks');
     expect(content).not.toContain('cameraRecordingEnabled');
+    expect(content).not.toContain('advanceAnalysisThrough(');
     expect(content).toContain('PerformanceRecorder');
+  });
+
+  it('keeps product input capability independent from ByteDance Continuous candidates', () => {
+    const capabilityFile = path.resolve(__dirname, 'input-capability.ts');
+    const content = readFileSync(capabilityFile, 'utf8');
+
+    expect(content).not.toContain('BYTE_DANCE_CONTINUOUS_TRANSCRIPTION_CAPABILITY');
   });
 
   it('keeps Continuous completion separate from analysis frontier advancement', () => {

@@ -319,6 +319,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     recordingMode: practiceMode === 'CONTINUOUS_PLAY' ? recordingMode : 'OFF',
     cameraMediaStream: cameraPreviewStream,
     onCompletion: () => {
+      releaseCameraPreview();
       setIsCompletionDialogOpen(true);
     },
   });

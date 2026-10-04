@@ -734,7 +734,7 @@ describe('ByteDance local practice adapters', () => {
       { inferenceCompletedAtMs: 10_000 }
     );
     const [observation] = acousticEventsToPerformanceEvidence(event);
-    performance.observeEvidence(observation);
+    performance.observeCapturedAttack(observation);
     expect(performance.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MATCHED' });
     expect(performance.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
   });
@@ -765,7 +765,7 @@ describe('ByteDance local practice adapters', () => {
     expect(decoded).toHaveLength(1);
     for (const observation of acousticEventsToPerformanceEvidence(normalizer.normalizeWindow(decoded))) {
       clock.advance(Math.max(0, observation.captureTime.ms - clock.nowMs()));
-      performance.observeEvidence(observation);
+      performance.observeCapturedAttack(observation);
     }
     expect(performance.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MATCHED' });
     expect(performance.evaluationSnapshot.extras).toEqual([]);
@@ -797,7 +797,7 @@ describe('ByteDance local practice adapters', () => {
     );
     for (const observation of acousticEventsToPerformanceEvidence(decoded)) {
       clock.advance(Math.max(0, observation.captureTime.ms - clock.nowMs()));
-      performance.observeEvidence(observation);
+      performance.observeCapturedAttack(observation);
     }
     expect(performance.evaluationSnapshot.strikes.every((strike) => strike.verdict === 'MATCHED')).toBe(true);
     expect(performance.evaluationSnapshot.extras).toEqual([]);

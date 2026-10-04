@@ -1,13 +1,3 @@
-type ContinuousTranscriptionCapability =
-  | {
-      status: 'UNAVAILABLE';
-      reason: 'CONTINUOUS_MODEL_NOT_VALIDATED';
-    }
-  | {
-      status: 'READY';
-      contract: ContinuousTranscriptionContract;
-    };
-
 export const CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON = 'CONTINUOUS_ANALYSIS_UNAVAILABLE' as const;
 
 export type ContinuousTranscriptionContract = {
@@ -18,11 +8,6 @@ export type ContinuousTranscriptionContract = {
   trustedOutputEndSamples: number;
   futureContextSamples: number;
   batchSize: number;
-};
-
-export const BYTE_DANCE_CONTINUOUS_TRANSCRIPTION_CAPABILITY: ContinuousTranscriptionCapability = {
-  status: 'UNAVAILABLE',
-  reason: 'CONTINUOUS_MODEL_NOT_VALIDATED',
 };
 
 export function assertContinuousTranscriptionContract(

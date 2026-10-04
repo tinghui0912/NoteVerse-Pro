@@ -31,7 +31,8 @@ tests consume the checked JSON fixture it produces.
 Shared local concepts live here:
 
 - `PracticeScope` and scope resolution
-- local session snapshots used for explicit runtime restore
+- STEP local session snapshots used for explicit runtime restore
+- Continuous local session records used for completion and Review handoff
 - deterministic clocks and capture-relative evidence time
 - normalized acoustic and MIDI evidence contracts
 - shared runtime/schema version identity
@@ -102,15 +103,14 @@ contract and runtime throughput gate are validated.
 
 ## Local Sessions
 
-`LocalPracticeSessionSnapshot` is the explicit runtime restore boundary. It
-stores the local session id, score/revision identity, mode, input source, scope,
-runtime/schema version, lifecycle state, mode-specific runtime snapshot, and
-history required for product behavior. Restore operations validate
-score/revision/artifact identity, runtime/schema version, input source, and
-scope. Performance restores use logical runtime position and resume interrupted
-active sessions as paused, so a new browser monotonic clock origin cannot
-silently advance musical time.
-
-Snapshots are runtime values. They are created and consumed by the local
-runtime/controller; this module does not define a persistence store or a
+`LocalPracticeSessionSnapshot` is a local runtime/application boundary, not a
 server execution protocol.
+
+STEP snapshots support explicit runtime restore where production code invokes
+the STEP restore constructor. Restore operations validate score/revision/artifact
+identity, runtime/schema version, input source, and scope.
+
+Continuous snapshots are completion/application records used to build immediate
+Review state. Continuous does not currently expose a production resumable
+runtime restore path; the clock and evaluation state live in the active
+`ContinuousPracticeSession` until completion.

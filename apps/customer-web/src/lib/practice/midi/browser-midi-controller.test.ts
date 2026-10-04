@@ -45,7 +45,7 @@ describe('browser MIDI controller', () => {
     vi.useFakeTimers();
     const timebase = new PracticeTimebase({ domainId: 'midi-session' });
     const stepObservations: unknown[] = [];
-    const performanceObservations: unknown[] = [];
+    const capturedAttacks: unknown[] = [];
 
     const controller = new BrowserMidiController({
       timebase,
@@ -58,7 +58,7 @@ describe('browser MIDI controller', () => {
         continuationPitches: [],
       }),
       onStepObservation: (obs) => stepObservations.push(obs),
-      onPerformanceObservation: (obs) => performanceObservations.push(obs),
+      onCapturedAttack: (attack) => capturedAttacks.push(attack),
     });
 
     // Mark as running by simulating dispatch
@@ -79,10 +79,10 @@ describe('browser MIDI controller', () => {
       source: 'MIDI',
     });
 
-    expect(performanceObservations).toHaveLength(3);
-    expect(performanceObservations[0]).toMatchObject({
+    expect(capturedAttacks).toHaveLength(3);
+    expect(capturedAttacks[0]).toMatchObject({
       captureTime: { domainId: 'midi-session', ms: 100 },
-      pitches: ['C4'],
+      pitch: 'C4',
       source: 'MIDI',
     });
 

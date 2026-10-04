@@ -1,7 +1,7 @@
 import {
   normalizePitchSet,
   pitchSetsEqual,
-  type PerformanceEvidenceObservation,
+  type CapturedAttack,
   type StepVerifierObservation,
   type StepVerifierTarget,
 } from '../local-core';
@@ -35,10 +35,10 @@ export function acousticEventsToStepObservation(
 
 export function acousticEventsToPerformanceEvidence(
   events: readonly AcousticNoteEvent[]
-): PerformanceEvidenceObservation[] {
+): CapturedAttack[] {
   return events.map((event) => ({
     captureTime: event.onsetTime,
-    pitches: [event.pitch],
+    pitch: event.pitch,
     confidence: event.confidence,
     source: 'ACOUSTIC',
     inferenceCompletedAtMs: event.inferenceCompletedAtMs,

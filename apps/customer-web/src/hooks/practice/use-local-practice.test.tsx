@@ -487,6 +487,129 @@ describe('useLocalPractice', () => {
     expect(result.current.lifecycle).toBe('ACTIVE');
   });
 
+  it('does not double-pause continuous MIDI when already paused before disconnect', async () => {
+    const { result } = renderHook(() =>
+      useLocalPractice({
+        artifact,
+        mode: 'CONTINUOUS_PLAY',
+        inputSource: 'MIDI',
+        scope: { kind: 'FULL' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.start();
+    });
+    await act(async () => {
+      await result.current.pause();
+    });
+
+    expect(result.current.lifecycle).toBe('PAUSED');
+
+    expect(() => {
+      act(() => {
+        midiMock.connectedInputCount = 0;
+        midiMock.onStateChange?.({
+          isSupported: true,
+          hasPermission: true,
+          connectedInputCount: 0,
+          isRunning: true,
+        });
+        midiMock.onStateChange?.({
+          isSupported: true,
+          hasPermission: true,
+          connectedInputCount: 0,
+          isRunning: true,
+        });
+      });
+    }).not.toThrow();
+
+    expect(result.current.lifecycle).toBe('PAUSED');
+    expect(result.current.inputState).toBe('ERROR');
+    expect(result.current.inputError).toBe('NO_CONNECTED_INPUT');
+  });
+
+  it('keeps continuous MIDI paused after reconnect until explicit resume', async () => {
+    const { result } = renderHook(() =>
+      useLocalPractice({
+        artifact,
+        mode: 'CONTINUOUS_PLAY',
+        inputSource: 'MIDI',
+        scope: { kind: 'FULL' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.start();
+    });
+    await act(async () => {
+      await result.current.pause();
+    });
+
+    act(() => {
+      midiMock.connectedInputCount = 0;
+      midiMock.onStateChange?.({
+        isSupported: true,
+        hasPermission: true,
+        connectedInputCount: 0,
+        isRunning: true,
+      });
+    });
+
+    act(() => {
+      midiMock.connectedInputCount = 1;
+      midiMock.onStateChange?.({
+        isSupported: true,
+        hasPermission: true,
+        connectedInputCount: 1,
+        isRunning: true,
+      });
+    });
+
+    expect(result.current.lifecycle).toBe('PAUSED');
+    expect(result.current.inputState).toBe('IDLE');
+
+    await act(async () => {
+      await result.current.resume();
+    });
+
+    expect(result.current.lifecycle).toBe('ACTIVE');
+  });
+
+  it('records STEP paused MIDI disconnect as device error without a second domain transition', async () => {
+    const { result } = renderHook(() =>
+      useLocalPractice({
+        artifact,
+        mode: 'STEP_BY_STEP',
+        inputSource: 'MIDI',
+        scope: { kind: 'FULL' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.start();
+    });
+    await act(async () => {
+      await result.current.pause();
+    });
+
+    expect(() => {
+      act(() => {
+        midiMock.connectedInputCount = 0;
+        midiMock.onStateChange?.({
+          isSupported: true,
+          hasPermission: true,
+          connectedInputCount: 0,
+          isRunning: true,
+        });
+      });
+    }).not.toThrow();
+
+    expect(result.current.lifecycle).toBe('PAUSED');
+    expect(result.current.inputState).toBe('ERROR');
+    expect(result.current.inputError).toBe('NO_CONNECTED_INPUT');
+  });
+
   it('serializes duplicate CONTINUOUS finish requests through one completion transaction', async () => {
     const onCompletion = vi.fn();
     const { result } = renderHook(() =>

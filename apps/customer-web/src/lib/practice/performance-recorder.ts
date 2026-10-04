@@ -25,6 +25,8 @@ type FinalizedRecording = {
   timebase: RecordingTimebaseMapping;
 };
 
+type RecorderStopResult = 'STOPPED' | 'TIMEOUT' | 'FAILED';
+
 function preferredVideoRecorderMimeType(): string | undefined {
   if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
     return undefined;
@@ -65,7 +67,7 @@ export class PerformanceRecorder {
   private mediaKind: 'AUDIO' | 'VIDEO' = 'AUDIO';
   private unavailableReason: string | null = null;
   private state: RecorderState = 'NOT_STARTED';
-  private stopPromise: Promise<void> | null = null;
+  private stopPromise: Promise<RecorderStopResult> | null = null;
   private timebase: RecordingTimebaseMapping = createEmptyTimebase();
   private currentSegmentStartPerfMs: number | null = null;
   private currentSegmentStartMediaMs = 0;
@@ -155,7 +157,7 @@ export class PerformanceRecorder {
     }
   }
 
-  freeze(performanceEndMs: number): Promise<void> {
+  freeze(performanceEndMs: number): Promise<RecorderStopResult> {
     if (this.stopPromise) {
       return this.stopPromise;
     }
@@ -163,36 +165,48 @@ export class PerformanceRecorder {
     this.timebase.nominalMediaDurationMs = this.cumulativeMediaMs;
 
     if (this.mode === 'OFF') {
-      this.stopPromise = Promise.resolve();
+      this.stopPromise = Promise.resolve('STOPPED');
       return this.stopPromise;
     }
 
     const recorder = this.recorder;
     this.state = 'FINALIZING';
     if (!recorder || recorder.state === 'inactive') {
-      this.stopPromise = Promise.resolve();
+      this.markUnavailable('RECORDER_NOT_ACTIVE');
+      this.stopPromise = Promise.resolve('FAILED');
       return this.stopPromise;
     }
-    this.stopPromise = Promise.race([
-      new Promise<void>((resolve) => {
-        recorder.onstop = () => resolve();
-        try {
-          if (typeof recorder.requestData === 'function') {
-            recorder.requestData();
-          }
-          recorder.stop();
-        } catch {
-          resolve();
+    this.stopPromise = new Promise<RecorderStopResult>((resolve) => {
+      const timeoutId = setTimeout(() => {
+        this.markUnavailable('RECORDER_STOP_TIMEOUT');
+        resolve('TIMEOUT');
+      }, 1500);
+      const settle = (result: RecorderStopResult) => {
+        clearTimeout(timeoutId);
+        resolve(result);
+      };
+      recorder.onstop = () => settle('STOPPED');
+      recorder.onerror = () => {
+        this.markUnavailable('MEDIA_RECORDER_ERROR');
+        settle('FAILED');
+      };
+      try {
+        if (typeof recorder.requestData === 'function') {
+          recorder.requestData();
         }
-      }),
-      new Promise<void>((resolve) => setTimeout(resolve, 1500)),
-    ]);
+        recorder.stop();
+      } catch {
+        this.markUnavailable('RECORDER_STOP_FAILED');
+        settle('FAILED');
+      }
+    });
     return this.stopPromise;
   }
 
   async finalize(): Promise<FinalizedRecording> {
+    let stopResult: RecorderStopResult | null = null;
     if (this.stopPromise) {
-      await this.stopPromise;
+      stopResult = await this.stopPromise;
     }
 
     if (this.mode === 'OFF') {
@@ -203,12 +217,22 @@ export class PerformanceRecorder {
     }
 
     const totalBytes = this.chunks.reduce((acc, chunk) => acc + (chunk?.size ?? 0), 0);
-    if (totalBytes === 0 || this.unavailableReason !== null || this.state === 'UNAVAILABLE') {
+    if (
+      stopResult !== 'STOPPED'
+      || totalBytes === 0
+      || this.unavailableReason !== null
+      || this.state === 'UNAVAILABLE'
+    ) {
       this.state = 'UNAVAILABLE';
       return {
         media: {
           status: 'UNAVAILABLE',
-          reason: this.unavailableReason ?? (totalBytes === 0 ? 'EMPTY_RECORDING_BLOB' : 'RECORDING_NOT_AVAILABLE'),
+          reason: this.unavailableReason
+            ?? (stopResult && stopResult !== 'STOPPED'
+              ? 'RECORDER_STOP_FAILED'
+              : totalBytes === 0
+                ? 'EMPTY_RECORDING_BLOB'
+                : 'RECORDING_NOT_AVAILABLE'),
         },
         timebase: structuredClone(this.timebase),
       };
@@ -298,7 +322,7 @@ export class PerformanceRecorder {
       track.addEventListener(
         'ended',
         () => {
-          if (this.state === 'RECORDING' || this.state === 'PAUSED') {
+          if (this.state === 'RECORDING' || this.state === 'PAUSED' || this.state === 'FINALIZING') {
             this.markUnavailable(
               mediaKind === 'VIDEO' && track.kind === 'video'
                 ? 'VIDEO_TRACK_ENDED'
