@@ -60,19 +60,27 @@ evidence.
 
 ## CONTINUOUS_PLAY Runtime
 
-`PerformancePracticeRuntime` owns clock-driven performance behavior locally:
+Continuous is a clock-driven performance mode, not score following. The
+expected timeline is fully determined by the score artifact, resolved scope,
+and resolved tempo plan before the performance begins.
 
-- resolved performance scope
-- tempo timeline and speed ratio
-- meter-derived count-in, start, pause, resume, and end state
+`PerformanceClockRuntime` owns only transport behavior:
+
+- resolved performance scope and tempo timeline
+- meter-derived count-in
+- start, pause, resume, and end state
+- exact clock segments and terminal boundaries
 - local musical position from an injected monotonic clock
-- capture-aligned evidence evaluation records
+- capture/session time to performance time mapping
 
-Acoustic or MIDI evidence never starts, stops, accelerates, or delays the
-performance clock. Evidence is downstream evaluation only. Local performance
-evaluation is implemented separately from the clock and produces expected-event
-and expected-strike outcomes such as `MATCH`, `PARTIAL`, `MISMATCH`, and
-`NOT_OBSERVED`.
+MIDI and acoustic evidence never starts, stops, accelerates, delays, or
+relocates the performance clock. Evidence is downstream evaluation only.
+
+`ContinuousEvaluationSession` owns the expected strikes, observed attacks,
+analysis frontier, and reconciled strike/extra verdicts. `ContinuousPracticeSession`
+composes the clock and evaluator for the application layer. MIDI Continuous uses
+this path today; future microphone Continuous must also publish observed attacks
+into the same evaluator instead of creating a second evaluation architecture.
 
 ## Evidence and Timebase
 
@@ -87,9 +95,10 @@ The future shared microphone path is:
 Mode adapters then consume the same normalized evidence:
 
 - STEP adapter: target-conditioned `StepVerifierObservation`
-- CONTINUOUS adapter: performance observations for evaluation
+- CONTINUOUS adapter: timestamped observed attacks for reconciliation
 
-The real ByteDance/WebGPU model is not integrated here.
+Continuous microphone analysis is intentionally unavailable until a model
+contract and runtime throughput gate are validated.
 
 ## Local Sessions
 

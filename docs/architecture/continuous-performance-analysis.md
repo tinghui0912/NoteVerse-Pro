@@ -98,8 +98,7 @@ Browser microphone
   -> ContinuousChunkPlanner
   -> ContinuousTranscriptionQueue
   -> ContinuousTranscriptionModel
-  -> timestamped attack events
-  -> ContinuousEventStitcher
+  -> owned timestamped ObservedAttack events
   -> PerformanceReconciler
   -> live feedback projection
   -> CompletedPerformance
@@ -131,12 +130,15 @@ Continuous requires an explicit `ContinuousTranscriptionContract` that centraliz
 ```text
 sampleRateHz
 inputSamplesPerWindow
-windowStrideSamples
 trustedOutputStartSamples
 trustedOutputEndSamples
 futureContextSamples
 batchSize
 ```
+
+The planner owns window sequencing. The contract does not declare an unused
+stride field; if future model research proves a separate ownership geometry is
+needed, the contract must add that field with matching runtime use and tests.
 
 The contract must pass two gates:
 
