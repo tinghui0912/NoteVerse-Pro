@@ -1,0 +1,53 @@
+{
+  "reportType": "headed_browser_batch_benchmark",
+  "generatedAt": "2026-10-04T18:04:10.879070+00:00",
+  "gitHead": "e321e7296989b5262342e48c4a904bdadaf7556b",
+  "command": "python backend/scripts/evaluate_bytedance_continuous_feasibility_gate.py --date 2026-10-05",
+  "os": {
+    "platform": "Windows",
+    "release": "11",
+    "machine": "AMD64"
+  },
+  "model": {
+    "path": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\bytedance_browser_runtime_feasibility\\bytedance_note_model_fixed_anchor.onnx",
+    "exists": true,
+    "byteSize": 98691493,
+    "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "expectedByteSize": 98691493,
+    "expectedSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "inputShape": [
+      1,
+      29120
+    ]
+  },
+  "checkpoint": {
+    "path": "C:\\app\\models\\bytedance_piano_transcription\\CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
+    "exists": false,
+    "sha256": null,
+    "byteSize": null
+  },
+  "status": "BLOCKED",
+  "reason": "Batch benchmark requires a batch-capable ONNX export with raw parity first.",
+  "provider": "webgpu",
+  "ortVersion": "1.20.1",
+  "requestedBatchSizes": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "measurements": {
+    "1": null,
+    "2": null,
+    "4": null,
+    "8": null
+  },
+  "historicalSingleWindowSmokeSummary": {
+    "source": "backend/research/reports/bytedance_worker_webgpu_smoke_ort_1_20_1.json",
+    "browserVersion": "152.0.7977.75",
+    "medianEndToEndMs": 388.69999980926514,
+    "p95EndToEndMs": 440,
+    "medianWorkerOnnxMs": 388.2999999523163,
+    "productionWorkerFactoryUsed": true
+  }
+}

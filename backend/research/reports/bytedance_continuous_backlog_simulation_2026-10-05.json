@@ -1,0 +1,45 @@
+{
+  "reportType": "queue_backlog_simulation",
+  "generatedAt": "2026-10-04T18:04:10.879070+00:00",
+  "gitHead": "e321e7296989b5262342e48c4a904bdadaf7556b",
+  "command": "python backend/scripts/evaluate_bytedance_continuous_feasibility_gate.py --date 2026-10-05",
+  "os": {
+    "platform": "Windows",
+    "release": "11",
+    "machine": "AMD64"
+  },
+  "model": {
+    "path": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\bytedance_browser_runtime_feasibility\\bytedance_note_model_fixed_anchor.onnx",
+    "exists": true,
+    "byteSize": 98691493,
+    "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "expectedByteSize": 98691493,
+    "expectedSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "inputShape": [
+      1,
+      29120
+    ]
+  },
+  "checkpoint": {
+    "path": "C:\\app\\models\\bytedance_piano_transcription\\CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
+    "exists": false,
+    "sha256": null,
+    "byteSize": null
+  },
+  "status": "BLOCKED",
+  "reason": "Backlog simulation requires measured batch latency sequence and selected unique trusted-output duration.",
+  "durations": {
+    "60s": null,
+    "5min": null,
+    "10min": null
+  },
+  "historicalRollingSummary": {
+    "source": "backend/research/reports/bytedance_rolling_anchor_feasibility_2026-10-03.json",
+    "durationMs": null,
+    "submittedAnchorCount": null,
+    "skippedAnchorCount": null,
+    "coverageRatio": null,
+    "maximumCoverageGapMs": null,
+    "note": "Historical rolling path evidence only; not reused as a batch feasibility result."
+  }
+}
