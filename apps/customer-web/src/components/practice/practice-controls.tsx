@@ -70,7 +70,7 @@ export function PracticeControls({
   const isActive = lifecycle === 'ACTIVE' || lifecycle === 'PAUSED';
   const isPaused = lifecycle === 'PAUSED';
   const isSelectedInputReady = selectedInputCapability
-    ? selectedInputCapability.status === 'READY'
+    ? selectedInputCapability.supported
     : (selectedInputSupported ?? audioWorkletSupported ?? true);
   const canStart =
     (lifecycle === 'READY' || lifecycle === 'ENDED') &&

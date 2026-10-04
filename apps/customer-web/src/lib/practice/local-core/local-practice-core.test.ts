@@ -420,7 +420,7 @@ describe('local CONTINUOUS practice runtime', () => {
     expect(session.evaluationSnapshot.extras).toHaveLength(1);
   });
 
-  it('finalizes natural completion without pending strikes and manual stop with not-reached tail', () => {
+  it('syncs natural clock auto-end into final continuous evaluation without explicit end', () => {
     const naturalClock = new ManualClock(0);
     const natural = new ContinuousPracticeSession({
       artifact,
@@ -432,14 +432,18 @@ describe('local CONTINUOUS practice runtime', () => {
     });
     natural.start();
     naturalClock.advance(20_000);
-    natural.snapshot();
-    natural.end('SCOPE_COMPLETED');
+    const snapshot = natural.snapshot();
+    expect(snapshot.state).toBe('ENDED');
+    expect(snapshot.completionReason).toBe('SCOPE_COMPLETED');
     const naturalEvaluation = natural.completedEvaluation();
     expect(naturalEvaluation.status).toBe('COMPLETE');
     if (naturalEvaluation.status === 'COMPLETE') {
       expect(naturalEvaluation.strikes.some((strike) => strike.result === 'NOT_REACHED')).toBe(false);
+      expect(naturalEvaluation.strikes.some((strike) => strike.result === 'MISSING')).toBe(true);
     }
+  });
 
+  it('uses NOT_REACHED only for manual stop tails', () => {
     const manualClock = new ManualClock(0);
     const manual = new ContinuousPracticeSession({
       artifact,
@@ -457,6 +461,45 @@ describe('local CONTINUOUS practice runtime', () => {
     if (manualEvaluation.status === 'COMPLETE') {
       expect(manualEvaluation.strikes.some((strike) => strike.result === 'NOT_REACHED')).toBe(true);
     }
+  });
+
+  it('fails closed when final evaluation still contains pending strikes', () => {
+    const clock = new ManualClock(0);
+    const session = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock,
+      inputSource: 'MICROPHONE',
+      countInBeats: 0,
+    });
+    session.start();
+    clock.advance(1000);
+    session.end('STOPPED_BY_USER');
+
+    expect(session.completedEvaluation()).toEqual({
+      status: 'UNAVAILABLE',
+      reason: 'INCOMPLETE_ANALYSIS',
+    });
+  });
+
+  it('keeps completion separate from future asynchronous analysis frontier', () => {
+    const clock = new ManualClock(0);
+    const session = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock,
+      inputSource: 'MICROPHONE',
+      countInBeats: 0,
+    });
+    session.start();
+    clock.advance(1000);
+    session.end('STOPPED_BY_USER');
+    expect(session.evaluationSnapshot.strikes.some((strike) => strike.verdict === 'PENDING')).toBe(true);
+
+    session.advanceAnalysisThrough(session.timebase.atSessionMs(1000));
+    expect(session.evaluationSnapshot.strikes.some((strike) => strike.verdict === 'MISSING')).toBe(true);
   });
 });
 describe('local session foundation', () => {

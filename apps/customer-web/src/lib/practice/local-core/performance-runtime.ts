@@ -380,6 +380,7 @@ export class ContinuousPracticeSession {
   readonly clock: PerformanceClockRuntime;
   private readonly evaluator: ContinuousEvaluationSession;
   private readonly inputSource: PracticeInputSource;
+  private syncedCompletionReason: LocalPracticeCompletionReason | null = null;
 
   constructor(options: ContinuousPracticeSessionOptions) {
     this.clock = new PerformanceClockRuntime(options);
@@ -395,30 +396,22 @@ export class ContinuousPracticeSession {
 
   start(): PerformanceClockSnapshot {
     const snapshot = this.clock.start();
-    this.advanceMidiFrontier(snapshot);
-    return snapshot;
+    return this.syncFromClockSnapshot(snapshot);
   }
 
   pause(): PerformanceClockSnapshot {
     const snapshot = this.clock.pause();
-    this.advanceMidiFrontier(snapshot);
-    return snapshot;
+    return this.syncFromClockSnapshot(snapshot);
   }
 
   resume(): PerformanceClockSnapshot {
     const snapshot = this.clock.resume();
-    this.advanceMidiFrontier(snapshot);
-    return snapshot;
+    return this.syncFromClockSnapshot(snapshot);
   }
 
   end(reason: LocalPracticeCompletionReason = 'STOPPED_BY_USER'): PerformanceClockSnapshot {
     const snapshot = this.clock.end(reason);
-    this.evaluator.complete({
-      reason: snapshot.completionReason ?? reason,
-      performanceTimeMs: snapshot.performanceTimeMs,
-      terminalPerformanceMs: this.clock.scopeDurationMs(),
-    });
-    return snapshot;
+    return this.syncFromClockSnapshot(snapshot);
   }
 
   setMetronomeEnabled(enabled: boolean): void {
@@ -427,8 +420,7 @@ export class ContinuousPracticeSession {
 
   snapshot(): PerformanceClockSnapshot {
     const snapshot = this.clock.snapshot();
-    this.advanceMidiFrontier(snapshot);
-    return snapshot;
+    return this.syncFromClockSnapshot(snapshot);
   }
 
   observeEvidence(observation: PerformanceEvidenceObservation): boolean {
@@ -479,8 +471,21 @@ export class ContinuousPracticeSession {
   }
 
   get evaluationSnapshot(): ContinuousEvaluationSnapshot {
-    this.advanceMidiFrontier(this.clock.snapshot());
+    this.syncFromClockSnapshot(this.clock.snapshot());
     return this.evaluator.snapshot();
+  }
+
+  private syncFromClockSnapshot(snapshot: PerformanceClockSnapshot): PerformanceClockSnapshot {
+    this.advanceMidiFrontier(snapshot);
+    if (snapshot.state === 'ENDED' && snapshot.completionReason && this.syncedCompletionReason === null) {
+      this.evaluator.complete({
+        reason: snapshot.completionReason,
+        performanceTimeMs: snapshot.performanceTimeMs,
+        terminalPerformanceMs: this.clock.scopeDurationMs(),
+      });
+      this.syncedCompletionReason = snapshot.completionReason;
+    }
+    return snapshot;
   }
 
   private advanceMidiFrontier(snapshot: PerformanceClockSnapshot): void {

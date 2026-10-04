@@ -24,6 +24,7 @@ type PracticeStatusMessageKey =
   | 'midiStartFailed'
   | 'micModelAccessUnavailable'
   | 'micModelStorageUnavailable'
+  | 'micWebGpuUnavailable'
   | 'micContinuousUnavailable'
   | 'micBrowserUnsupported'
   | 'midiBrowserUnsupported'
@@ -141,7 +142,7 @@ export function resolvePracticeStatusView({
         countInPulse: null,
       };
     }
-    if (selectedInputCapability && selectedInputCapability.status !== 'READY') {
+    if (selectedInputCapability && !selectedInputCapability.supported) {
       if (selectedInputCapability.status === 'MODEL_ACCESS_UNAVAILABLE') {
         return {
           messageKey: 'micModelAccessUnavailable',
@@ -161,6 +162,14 @@ export function resolvePracticeStatusView({
       if (selectedInputCapability.status === 'CONTINUOUS_ANALYSIS_UNAVAILABLE') {
         return {
           messageKey: 'micContinuousUnavailable',
+          isError: true,
+          pending: false,
+          countInPulse: null,
+        };
+      }
+      if (selectedInputCapability.status === 'WEBGPU_UNAVAILABLE') {
+        return {
+          messageKey: 'micWebGpuUnavailable',
           isError: true,
           pending: false,
           countInPulse: null,

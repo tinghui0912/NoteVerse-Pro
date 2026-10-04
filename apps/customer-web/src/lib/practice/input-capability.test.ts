@@ -12,6 +12,7 @@ describe('evaluatePracticeInputCapabilities', () => {
   const originalAudioWorkletNode = window.AudioWorkletNode;
   const originalMediaDevices = navigator.mediaDevices;
   const originalStorage = navigator.storage;
+  const originalGpu = (navigator as Navigator & { gpu?: unknown }).gpu;
   const originalRequestMIDIAccess = (navigator as unknown as { requestMIDIAccess?: unknown }).requestMIDIAccess;
 
   beforeEach(() => {
@@ -23,6 +24,10 @@ describe('evaluatePracticeInputCapabilities', () => {
     });
     Object.defineProperty(navigator, 'storage', {
       value: { getDirectory: async () => ({}) },
+      configurable: true,
+    });
+    Object.defineProperty(navigator, 'gpu', {
+      value: {},
       configurable: true,
     });
     Object.defineProperty(navigator, 'requestMIDIAccess', {
@@ -46,16 +51,20 @@ describe('evaluatePracticeInputCapabilities', () => {
       value: originalRequestMIDIAccess,
       configurable: true,
     });
+    Object.defineProperty(navigator, 'gpu', {
+      value: originalGpu,
+      configurable: true,
+    });
   });
 
-  it('reports both READY when all browser APIs, OPFS, and model access are present', () => {
+  it('reports both AVAILABLE when all browser APIs, OPFS, and model access are present', () => {
     const caps = evaluatePracticeInputCapabilities();
     expect(caps.microphone.supported).toBe(true);
-    expect(caps.microphone.status).toBe('READY');
+    expect(caps.microphone.status).toBe('AVAILABLE');
     expect(caps.midi.supported).toBe(true);
-    expect(caps.midi.status).toBe('READY');
-    expect(getSelectedInputCapability('MICROPHONE', caps).status).toBe('READY');
-    expect(getSelectedInputCapability('MIDI', caps).status).toBe('READY');
+    expect(caps.midi.status).toBe('AVAILABLE');
+    expect(getSelectedInputCapability('MICROPHONE', caps).status).toBe('AVAILABLE');
+    expect(getSelectedInputCapability('MIDI', caps).status).toBe('AVAILABLE');
   });
 
   it('keeps STEP microphone available but disables Continuous microphone until transcription is supported', () => {
@@ -63,7 +72,7 @@ describe('evaluatePracticeInputCapabilities', () => {
 
     expect(getSelectedInputCapability('MICROPHONE', caps, 'STEP_BY_STEP')).toMatchObject({
       supported: true,
-      status: 'READY',
+      status: 'AVAILABLE',
     });
     expect(getSelectedInputCapability('MICROPHONE', caps, 'CONTINUOUS_PLAY')).toMatchObject({
       supported: false,
@@ -74,7 +83,7 @@ describe('evaluatePracticeInputCapabilities', () => {
     expect(isInputSourceSupported('MIDI', caps, 'CONTINUOUS_PLAY')).toBe(true);
   });
 
-  it('reports MODEL_ACCESS_UNAVAILABLE when model access is unavailable, but MIDI remains READY', () => {
+  it('reports MODEL_ACCESS_UNAVAILABLE when model access is unavailable, but MIDI remains AVAILABLE', () => {
     const caps = evaluatePracticeInputCapabilities({ modelAccessAvailable: false });
     expect(caps.microphone.supported).toBe(false);
     expect(caps.microphone.status).toBe('MODEL_ACCESS_UNAVAILABLE');
@@ -82,12 +91,12 @@ describe('evaluatePracticeInputCapabilities', () => {
 
     // Crucial: MIDI MUST NOT be affected by missing microphone model access!
     expect(caps.midi.supported).toBe(true);
-    expect(caps.midi.status).toBe('READY');
+    expect(caps.midi.status).toBe('AVAILABLE');
     expect(isInputSourceSupported('MIDI', caps)).toBe(true);
     expect(isInputSourceSupported('MICROPHONE', caps)).toBe(false);
   });
 
-  it('reports MODEL_STORAGE_UNAVAILABLE when OPFS is missing, but MIDI remains READY', () => {
+  it('reports MODEL_STORAGE_UNAVAILABLE when OPFS is missing, but MIDI remains AVAILABLE', () => {
     Object.defineProperty(navigator, 'storage', {
       value: undefined,
       configurable: true,
@@ -102,7 +111,7 @@ describe('evaluatePracticeInputCapabilities', () => {
     expect(isInputSourceSupported('MIDI', caps)).toBe(true);
   });
 
-  it('reports BROWSER_UNSUPPORTED when AudioWorklet is missing, but MIDI remains READY', () => {
+  it('reports BROWSER_UNSUPPORTED when AudioWorklet is missing, but MIDI remains AVAILABLE', () => {
     delete (window as unknown as { AudioWorkletNode?: unknown }).AudioWorkletNode;
     const caps = evaluatePracticeInputCapabilities();
     expect(caps.microphone.supported).toBe(false);
@@ -114,7 +123,7 @@ describe('evaluatePracticeInputCapabilities', () => {
     expect(isInputSourceSupported('MIDI', caps)).toBe(true);
   });
 
-  it('reports BROWSER_UNSUPPORTED for MIDI when requestMIDIAccess is missing, but microphone remains READY', () => {
+  it('reports BROWSER_UNSUPPORTED for MIDI when requestMIDIAccess is missing, but microphone remains AVAILABLE', () => {
     delete (navigator as unknown as { requestMIDIAccess?: unknown }).requestMIDIAccess;
     const caps = evaluatePracticeInputCapabilities();
     expect(caps.microphone.supported).toBe(true);

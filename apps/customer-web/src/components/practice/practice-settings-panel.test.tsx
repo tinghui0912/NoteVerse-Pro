@@ -30,7 +30,7 @@ describe('PracticeSettingsPanel', () => {
       </NextIntlClientProvider>
     );
 
-    const micBtn = screen.getByRole('button', { name: /microphone/i });
+    const micBtn = screen.getByRole('button', { name: /^microphone/i });
     const midiBtn = screen.getByRole('button', { name: /midi keyboard/i });
     expect(micBtn).toBeEnabled();
     expect(midiBtn).toBeEnabled();
@@ -61,7 +61,7 @@ describe('PracticeSettingsPanel', () => {
       </NextIntlClientProvider>
     );
 
-    expect(screen.getByRole('button', { name: /microphone/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /^microphone/i })).toBeEnabled();
     expect(screen.getByRole('button', { name: /midi keyboard/i })).toBeEnabled();
 
     const stepBtn = screen.getByRole('button', { name: /step-by-step/i });
@@ -88,7 +88,7 @@ describe('PracticeSettingsPanel', () => {
 
     expect(screen.getByRole('button', { name: /step-by-step/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /continuous play/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /microphone/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^microphone/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /midi keyboard/i })).toBeDisabled();
   });
 
@@ -127,7 +127,7 @@ describe('PracticeSettingsPanel', () => {
           }}
           midiCapability={{
             supported: true,
-            status: 'READY',
+            status: 'AVAILABLE',
           }}
           practiceMode="STEP_BY_STEP"
           practiceModeLocked={false}
@@ -151,7 +151,7 @@ describe('PracticeSettingsPanel', () => {
         <PracticeSettingsPanel
           microphoneCapability={{
             supported: true,
-            status: 'READY',
+            status: 'AVAILABLE',
           }}
           midiCapability={{
             supported: false,

@@ -18,6 +18,8 @@ const translationMocks = vi.hoisted(() => {
     audioRecordingUnavailable: '本次录音不可用',
     audioRecordingUnavailableMicDenied: '未授予麦克风权限',
     audioRecordingUnavailableDesc: '由于未授予录音权限或设备不支持，本次演奏未录制音频。',
+    performanceNotRecorded: '本次演奏未录制',
+    performanceNotRecordedDesc: '本次练习已完成，但没有录制音频或视频。',
     performanceDuration: '演奏时长',
     performanceScope: '练习范围',
     performanceTempo: '演奏速度',

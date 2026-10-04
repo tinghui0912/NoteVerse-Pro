@@ -42,6 +42,7 @@ import {
   type PracticeRangeSelection,
 } from '@/lib/practice/range-selection';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
+import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
 
 function stopMediaStream(stream: MediaStream | null) {
   if (!stream) return;
@@ -99,7 +100,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [inputSource, setInputSource] = useState<PracticeInputSource>('MICROPHONE');
   const [tempoSelection, setTempoSelection] = useState<PracticeTempoSelection>({ mode: 'SCORE' });
   const [metronomeEnabled, setMetronomeEnabled] = useState(false);
-  const [cameraRecordingEnabled, setCameraRecordingEnabled] = useState(false);
+  const [recordingMode, setRecordingMode] = useState<PracticeRecordingMode>('OFF');
   const [cameraPreviewStream, setCameraPreviewStream] = useState<MediaStream | null>(null);
   const [cameraStatusMessage, setCameraStatusMessage] = useState<string | null>(null);
   const [isPreparingCamera, setIsPreparingCamera] = useState(false);
@@ -197,14 +198,15 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       stopMediaStream(current);
       return null;
     });
-    setCameraRecordingEnabled(false);
+    setRecordingMode('OFF');
     setIsPreparingCamera(false);
   }, []);
 
-  const handleCameraRecordingEnabledChange = useCallback(
-    async (enabled: boolean) => {
-      if (!enabled) {
+  const handleRecordingModeChange = useCallback(
+    async (nextMode: PracticeRecordingMode) => {
+      if (nextMode !== 'VIDEO') {
         releaseCameraPreview();
+        setRecordingMode(nextMode);
         setCameraStatusMessage(null);
         return;
       }
@@ -258,7 +260,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
           stopMediaStream(current);
           return stream;
         });
-        setCameraRecordingEnabled(true);
+        setRecordingMode('VIDEO');
         setCameraStatusMessage(t('settingCameraReady'));
       } catch (error) {
         if (cameraRequestGenerationRef.current !== requestGeneration) {
@@ -270,7 +272,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             ? t('settingCameraPermissionDenied')
             : t('settingCameraUnavailable')
         );
-        setCameraRecordingEnabled(false);
+        setRecordingMode('OFF');
       } finally {
         if (cameraRequestGenerationRef.current === requestGeneration) {
           setIsPreparingCamera(false);
@@ -314,7 +316,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     scope: practiceScope,
     tempoSelection,
     metronomeEnabled,
-    cameraRecordingEnabled: practiceMode === 'CONTINUOUS_PLAY' && cameraRecordingEnabled,
+    recordingMode: practiceMode === 'CONTINUOUS_PLAY' ? recordingMode : 'OFF',
     cameraMediaStream: cameraPreviewStream,
     onCompletion: () => {
       setIsCompletionDialogOpen(true);
@@ -569,7 +571,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                   </div>
                 ) : null}
 
-                {!isStepMode && cameraRecordingEnabled && cameraPreviewStream ? (
+                {!isStepMode && recordingMode === 'VIDEO' && cameraPreviewStream ? (
                   <CameraPreview stream={cameraPreviewStream} label={t('settingCameraPreview')} />
                 ) : null}
 
@@ -596,13 +598,13 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                 inputSource={inputSource}
                 microphoneInputLocked={isActive}
                 midiInputLocked={isActive}
-                cameraRecordingEnabled={cameraRecordingEnabled}
-                cameraRecordingLocked={isActive || isPreparingCamera}
-                cameraRecordingStatus={cameraStatusMessage}
+                recordingMode={recordingMode}
+                recordingModeLocked={isActive || isPreparingCamera}
+                recordingStatus={cameraStatusMessage}
                 onPracticeModeChange={setPracticeMode}
                 onInputSourceChange={setInputSource}
-                onCameraRecordingEnabledChange={(enabled) => {
-                  void handleCameraRecordingEnabledChange(enabled);
+                onRecordingModeChange={(mode) => {
+                  void handleRecordingModeChange(mode);
                 }}
               />
             </SheetContent>

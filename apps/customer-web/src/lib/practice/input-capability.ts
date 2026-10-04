@@ -10,8 +10,9 @@ type WindowWithWebKitAudioContext = Window & {
 };
 
 export type PracticeMicrophoneCapability =
-  | { supported: true; status: 'READY'; reason?: undefined }
+  | { supported: true; status: 'AVAILABLE'; reason?: undefined }
   | { supported: false; status: 'BROWSER_UNSUPPORTED'; reason: 'BROWSER_UNSUPPORTED' }
+  | { supported: false; status: 'WEBGPU_UNAVAILABLE'; reason: 'WEBGPU_UNAVAILABLE' }
   | { supported: false; status: 'MODEL_ACCESS_UNAVAILABLE'; reason: 'MODEL_ACCESS_UNAVAILABLE' }
   | { supported: false; status: 'MODEL_STORAGE_UNAVAILABLE'; reason: 'MODEL_STORAGE_UNAVAILABLE' }
   | {
@@ -21,7 +22,7 @@ export type PracticeMicrophoneCapability =
     };
 
 export type PracticeMidiCapability =
-  | { supported: true; status: 'READY'; reason?: undefined }
+  | { supported: true; status: 'AVAILABLE'; reason?: undefined }
   | { supported: false; status: 'BROWSER_UNSUPPORTED'; reason: 'BROWSER_UNSUPPORTED' }
   | { supported: false; status: 'NO_CONNECTED_INPUT'; reason: 'NO_CONNECTED_INPUT' };
 
@@ -54,6 +55,7 @@ export function evaluatePracticeInputCapabilities(
   const hasGetUserMedia =
     typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
   const isBrowserAudioSupported = hasAudioContext && hasAudioWorklet && hasGetUserMedia;
+  const hasWebGpu = typeof navigator !== 'undefined' && Boolean((navigator as Navigator & { gpu?: unknown }).gpu);
 
   const hasOpfs = typeof navigator !== 'undefined' && Boolean(navigator.storage?.getDirectory);
   const isModelAccessAvailable = options?.modelAccessAvailable !== false;
@@ -61,12 +63,14 @@ export function evaluatePracticeInputCapabilities(
   let microphone: PracticeMicrophoneCapability;
   if (!isBrowserAudioSupported) {
     microphone = { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' };
+  } else if (!hasWebGpu) {
+    microphone = { supported: false, status: 'WEBGPU_UNAVAILABLE', reason: 'WEBGPU_UNAVAILABLE' };
   } else if (!hasOpfs) {
     microphone = { supported: false, status: 'MODEL_STORAGE_UNAVAILABLE', reason: 'MODEL_STORAGE_UNAVAILABLE' };
   } else if (!isModelAccessAvailable) {
     microphone = { supported: false, status: 'MODEL_ACCESS_UNAVAILABLE', reason: 'MODEL_ACCESS_UNAVAILABLE' };
   } else {
-    microphone = { supported: true, status: 'READY' };
+    microphone = { supported: true, status: 'AVAILABLE' };
   }
 
   // Evaluate MIDI (completely independent of AudioWorklet, OPFS, or microphone model)
@@ -80,7 +84,7 @@ export function evaluatePracticeInputCapabilities(
   } else if (options?.connectedMidiInputs !== undefined && options.connectedMidiInputs === 0) {
     midi = { supported: false, status: 'NO_CONNECTED_INPUT', reason: 'NO_CONNECTED_INPUT' };
   } else {
-    midi = { supported: true, status: 'READY' };
+    midi = { supported: true, status: 'AVAILABLE' };
   }
 
   return { microphone, midi };

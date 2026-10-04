@@ -21,6 +21,16 @@ const micMock = vi.hoisted(() => ({
   onFatalError: null as ((err: Error) => void) | null,
 }));
 
+const midiMock = vi.hoisted(() => ({
+  connectedInputCount: 1,
+  onStateChange: null as ((state: {
+    isSupported: boolean;
+    hasPermission: boolean | null;
+    connectedInputCount: number;
+    isRunning: boolean;
+  }) => void) | null,
+}));
+
 vi.mock('@/lib/practice/audio-analysis/step/step-acoustic-session', () => {
   return {
     StepMicrophoneCaptureController: class MockMicController {
@@ -70,11 +80,32 @@ vi.mock('@/lib/api', () => ({
 vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
   return {
     BrowserMidiController: class MockMidiController {
-      async start() {}
+      constructor(options?: {
+        onStateChange?: (state: {
+          isSupported: boolean;
+          hasPermission: boolean | null;
+          connectedInputCount: number;
+          isRunning: boolean;
+        }) => void;
+      }) {
+        midiMock.onStateChange = options?.onStateChange ?? null;
+      }
+      async start() {
+        if (midiMock.connectedInputCount === 0) {
+          midiMock.onStateChange?.(this.getState());
+          throw new Error('NO_CONNECTED_INPUT');
+        }
+        midiMock.onStateChange?.(this.getState());
+      }
       stop() {}
       dispose() {}
       getState() {
-        return { isRunning: true };
+        return {
+          isSupported: true,
+          hasPermission: true,
+          connectedInputCount: midiMock.connectedInputCount,
+          isRunning: true,
+        };
       }
     },
   };
@@ -89,6 +120,8 @@ describe('useLocalPractice', () => {
       recorderEvents.events.push('INPUT_TEARDOWN');
     });
     micMock.onFatalError = null;
+    midiMock.connectedInputCount = 1;
+    midiMock.onStateChange = null;
     completedPerformanceStore.clearPerformance();
     class MockMediaRecorder {
       state: 'inactive' | 'recording' | 'paused' = 'inactive';
@@ -367,6 +400,91 @@ describe('useLocalPractice', () => {
       await result.current.finish();
     });
     expect(result.current.lifecycle).toBe('ENDED');
+  });
+
+  it('keeps MIDI continuous recording OFF from requesting microphone media', async () => {
+    const getUserMedia = vi.fn(async () => {
+      throw new Error('getUserMedia should not be called');
+    });
+    Object.defineProperty(globalThis.navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia },
+    });
+
+    const { result } = renderHook(() =>
+      useLocalPractice({
+        artifact,
+        mode: 'CONTINUOUS_PLAY',
+        inputSource: 'MIDI',
+        scope: { kind: 'FULL' },
+        recordingMode: 'OFF',
+      })
+    );
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    expect(result.current.lifecycle).toBe('ACTIVE');
+    expect(getUserMedia).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.finish();
+    });
+
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(completedPerformanceStore.getPerformance()?.media.status).toBe('NOT_RECORDED');
+    expect(recorderEvents.events).not.toContain('MEDIA_RECORDER_STOP_INVOKED');
+  });
+
+  it('pauses continuous MIDI when every input disconnects and waits for explicit resume', async () => {
+    const { result } = renderHook(() =>
+      useLocalPractice({
+        artifact,
+        mode: 'CONTINUOUS_PLAY',
+        inputSource: 'MIDI',
+        scope: { kind: 'FULL' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    expect(result.current.lifecycle).toBe('ACTIVE');
+
+    act(() => {
+      midiMock.connectedInputCount = 0;
+      midiMock.onStateChange?.({
+        isSupported: true,
+        hasPermission: true,
+        connectedInputCount: 0,
+        isRunning: true,
+      });
+    });
+
+    expect(result.current.lifecycle).toBe('PAUSED');
+    expect(result.current.inputState).toBe('ERROR');
+    expect(result.current.inputError).toBe('NO_CONNECTED_INPUT');
+
+    act(() => {
+      midiMock.connectedInputCount = 1;
+      midiMock.onStateChange?.({
+        isSupported: true,
+        hasPermission: true,
+        connectedInputCount: 1,
+        isRunning: true,
+      });
+    });
+
+    expect(result.current.lifecycle).toBe('PAUSED');
+    expect(result.current.inputState).toBe('IDLE');
+
+    await act(async () => {
+      await result.current.resume();
+    });
+
+    expect(result.current.lifecycle).toBe('ACTIVE');
   });
 
   it('serializes duplicate CONTINUOUS finish requests through one completion transaction', async () => {

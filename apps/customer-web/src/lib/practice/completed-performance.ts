@@ -65,7 +65,14 @@ interface PerformanceMediaUnavailable {
   reason: string;
 }
 
-export type PerformanceMedia = PerformanceMediaReady | PerformanceMediaUnavailable;
+interface PerformanceMediaNotRecorded {
+  status: 'NOT_RECORDED';
+}
+
+export type PerformanceMedia =
+  | PerformanceMediaReady
+  | PerformanceMediaNotRecorded
+  | PerformanceMediaUnavailable;
 
 interface RecordingActiveSegment {
   perfStartMs: number;

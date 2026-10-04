@@ -48,7 +48,7 @@ export function reconcilePerformance(input: {
       return {
         ...strike,
         verdict: 'MATCHED',
-          matchedObservationId: observation.observationId,
+        matchedObservationId: observation.observationId,
         timingOffsetMs: observation.performanceTimeMs - strike.expectedPerformanceTimeMs,
       };
     }

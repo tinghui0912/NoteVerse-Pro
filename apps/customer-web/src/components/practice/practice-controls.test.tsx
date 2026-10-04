@@ -220,7 +220,7 @@ describe('PracticeControls', () => {
           canPrepareSession
           selectedInputCapability={{
             supported: true,
-            status: 'READY',
+            status: 'AVAILABLE',
           }}
           rangeSelectionActive={false}
           canSelectRange

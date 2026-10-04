@@ -53,13 +53,16 @@ import {
 import { modelAssetsApi } from '@/lib/api';
 import {
   BrowserMidiController,
+  type BrowserMidiState,
 } from '@/lib/practice/midi/browser-midi-controller';
 import {
   completedPerformanceStore,
   type CompletedPerformance,
-  type PerformanceMedia,
-  type RecordingTimebaseMapping,
 } from '@/lib/practice/completed-performance';
+import {
+  PerformanceRecorder,
+  type PracticeRecordingMode,
+} from '@/lib/practice/performance-recorder';
 
 export type { LocalPracticeLifecycle, LocalPracticeInputState };
 
@@ -70,7 +73,7 @@ export type UseLocalPracticeOptions = {
   scope: PracticeScope | null;
   tempoSelection?: PracticeTempoSelection;
   metronomeEnabled?: boolean;
-  cameraRecordingEnabled?: boolean;
+  recordingMode?: PracticeRecordingMode;
   cameraMediaStream?: MediaStream | null;
   onCompletion?: (snapshot: LocalPracticeSessionSnapshot) => void;
 };
@@ -79,31 +82,6 @@ const defaultClock: LocalClock = {
   nowMs: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
 };
 
-function preferredVideoRecorderMimeType(): string | undefined {
-  if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
-    return undefined;
-  }
-  const candidates = [
-    'video/webm;codecs=vp9,opus',
-    'video/webm;codecs=vp8,opus',
-    'video/webm',
-    'video/mp4',
-  ];
-  return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
-}
-
-function createContinuousVideoStream(
-  cameraStream: MediaStream | null,
-  audioStream?: MediaStream | null
-): MediaStream | null {
-  const videoTracks = cameraStream?.getVideoTracks() ?? [];
-  const audioTracks = audioStream?.getAudioTracks() ?? cameraStream?.getAudioTracks() ?? [];
-  if (videoTracks.length === 0 || audioTracks.length === 0) {
-    return null;
-  }
-  return new MediaStream([videoTracks[0], audioTracks[0]]);
-}
-
 export function useLocalPractice({
   artifact,
   mode,
@@ -111,13 +89,14 @@ export function useLocalPractice({
   scope,
   tempoSelection = { mode: 'SCORE' },
   metronomeEnabled = false,
-  cameraRecordingEnabled = false,
+  recordingMode,
   cameraMediaStream = null,
   onCompletion,
 }: UseLocalPracticeOptions) {
   const [lifecycle, setLifecycle] = useState<LocalPracticeLifecycle>('READY');
   const [inputState, setInputState] = useState<LocalPracticeInputState>('IDLE');
   const [inputError, setInputError] = useState<string | null>(null);
+  const [errorInputSource, setErrorInputSource] = useState<PracticeInputSource | null>(null);
   const [activeStepGroup, setActiveStepGroup] = useState<ExpectedPracticeGroup | null>(null);
   const [performanceClock, setPerformanceClock] = useState<PerformanceClockSnapshot | null>(null);
   const [performanceEvaluation, setPerformanceEvaluation] = useState<ContinuousEvaluationSnapshot | null>(null);
@@ -125,6 +104,10 @@ export function useLocalPractice({
   const [completionReason, setCompletionReason] = useState<LocalPracticeCompletionReason | null>(null);
   const [lastSnapshot, setLastSnapshot] = useState<LocalPracticeSessionSnapshot | null>(null);
   const [isFinalizingPerformance, setIsFinalizingPerformance] = useState(false);
+  const lifecycleRef = useRef<LocalPracticeLifecycle>('READY');
+  const inputStateRef = useRef<LocalPracticeInputState>('IDLE');
+  const errorInputSourceRef = useRef<PracticeInputSource | null>(null);
+  const inputErrorRef = useRef<string | null>(null);
 
   const stepRuntimeRef = useRef<StepPracticeRuntime | null>(null);
   const performanceRuntimeRef = useRef<ContinuousPracticeSession | null>(null);
@@ -134,72 +117,10 @@ export function useLocalPractice({
   const timebaseRef = useRef<PracticeTimebase | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordingChunksRef = useRef<Blob[]>([]);
-  const midiRecordingStreamRef = useRef<MediaStream | null>(null);
-  const recordingMediaKindRef = useRef<'AUDIO' | 'VIDEO'>('AUDIO');
-  const recordingUnavailableReasonRef = useRef<string | null>(null);
-  const recordingStateRef = useRef<
-    'NOT_STARTED' | 'RECORDING' | 'PAUSED' | 'FINALIZING' | 'READY' | 'UNAVAILABLE'
-  >('NOT_STARTED');
-  const recorderStopPromiseRef = useRef<Promise<void> | null>(null);
+  const performanceRecorderRef = useRef<PerformanceRecorder | null>(null);
   const sessionGenerationRef = useRef<number>(0);
   const hasFinalizedRef = useRef<boolean>(false);
   const continuousCompletionRef = useRef<Promise<void> | null>(null);
-
-  const installRecorderHandlers = useCallback(
-    (recorder: MediaRecorder, stream: MediaStream, mediaKind: 'AUDIO' | 'VIDEO') => {
-      const tracks = stream.getTracks();
-      const deadTrack = tracks.find((track) => track.readyState !== 'live');
-      if (deadTrack) {
-        recordingUnavailableReasonRef.current =
-          mediaKind === 'VIDEO' && deadTrack.kind === 'video'
-            ? 'VIDEO_TRACK_NOT_LIVE'
-            : 'AUDIO_TRACK_NOT_LIVE';
-        recordingStateRef.current = 'UNAVAILABLE';
-        return;
-      }
-      recordingMediaKindRef.current = mediaKind;
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          recordingChunksRef.current.push(event.data);
-        }
-      };
-      recorder.onerror = () => {
-        recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_ERROR';
-        recordingStateRef.current = 'UNAVAILABLE';
-      };
-      for (const track of tracks) {
-        track.addEventListener(
-          'ended',
-          () => {
-            if (
-              recordingStateRef.current === 'RECORDING' ||
-              recordingStateRef.current === 'PAUSED'
-            ) {
-              recordingUnavailableReasonRef.current =
-                mediaKind === 'VIDEO' && track.kind === 'video'
-                  ? 'VIDEO_TRACK_ENDED'
-                  : 'AUDIO_TRACK_ENDED';
-              recordingStateRef.current = 'UNAVAILABLE';
-            }
-          },
-          { once: true }
-        );
-      }
-      mediaRecorderRef.current = recorder;
-    },
-    []
-  );
-
-  const recordingTimebaseRef = useRef<RecordingTimebaseMapping>({
-    activeSegments: [],
-    nominalMediaDurationMs: 0,
-  });
-  const currentSegmentStartPerfMsRef = useRef<number | null>(null);
-  const currentSegmentStartMediaMsRef = useRef<number>(0);
-  const cumulativeMediaMsRef = useRef<number>(0);
 
   const resolvedTempoPlan: ResolvedPracticeTempoPlan | null = useMemo(
     () => (artifact ? resolvePracticeTempoPlan(artifact, tempoSelection) : null),
@@ -233,7 +154,12 @@ export function useLocalPractice({
     }
   }, [resolvedTempoPlan]);
 
-  const [errorInputSource, setErrorInputSource] = useState<PracticeInputSource | null>(null);
+  useEffect(() => {
+    lifecycleRef.current = lifecycle;
+    inputStateRef.current = inputState;
+    errorInputSourceRef.current = errorInputSource;
+    inputErrorRef.current = inputError;
+  }, [errorInputSource, inputError, inputState, lifecycle]);
 
   // Stop performance animation loop
   const stopAnimationLoop = useCallback(() => {
@@ -261,23 +187,8 @@ export function useLocalPractice({
 
   // Teardown inputs completely
   const teardownInputs = useCallback(async () => {
-    const recorder = mediaRecorderRef.current;
-    mediaRecorderRef.current = null;
-    if (recorder && recorder.state !== 'inactive') {
-      try {
-        recorder.stop();
-      } catch {
-        // Ignore stop errors
-      }
-    }
-
-    const midiStream = midiRecordingStreamRef.current;
-    midiRecordingStreamRef.current = null;
-    if (midiStream) {
-      for (const track of midiStream.getTracks()) {
-        track.stop();
-      }
-    }
+    performanceRecorderRef.current?.stopAndCleanup();
+    performanceRecorderRef.current = null;
 
     const mic = micControllerRef.current;
     micControllerRef.current = null;
@@ -309,44 +220,17 @@ export function useLocalPractice({
       hasFinalizedRef.current = true;
 
       try {
-        const recorder = mediaRecorderRef.current;
-        const stopPromise = recorderStopPromiseRef.current;
-        if (stopPromise) {
-          await stopPromise;
-        }
-
         // Stale session generation check
         if (completionGeneration !== sessionGenerationRef.current) {
           return;
         }
 
-        const totalBytes = recordingChunksRef.current.reduce((acc, chunk) => acc + (chunk?.size ?? 0), 0);
-        let media: PerformanceMedia;
-
-        if (
-          totalBytes === 0 ||
-          recordingUnavailableReasonRef.current !== null ||
-          (recordingStateRef.current as string) === 'UNAVAILABLE'
-        ) {
-          recordingStateRef.current = 'UNAVAILABLE';
-          const unavailableReason =
-            recordingUnavailableReasonRef.current ??
-            (totalBytes === 0 ? 'EMPTY_RECORDING_BLOB' : 'RECORDING_NOT_AVAILABLE');
-          media = { status: 'UNAVAILABLE', reason: unavailableReason };
-        } else {
-          recordingStateRef.current = 'READY';
-          const fallbackMimeType =
-            recordingMediaKindRef.current === 'VIDEO' ? 'video/webm' : 'audio/webm';
-          const mimeType = recorder?.mimeType || fallbackMimeType;
-          const blob = new Blob(recordingChunksRef.current, { type: mimeType });
-          media = {
-            status: 'READY',
-            kind: recordingMediaKindRef.current,
-            blob,
-            mimeType,
-            durationMs: Math.max(0, Math.round(recordingTimebaseRef.current.nominalMediaDurationMs)),
-          };
-        }
+        const finalizedRecording = performanceRecorderRef.current
+          ? await performanceRecorderRef.current.finalize()
+          : {
+              media: { status: 'NOT_RECORDED' as const },
+              timebase: { activeSegments: [], nominalMediaDurationMs: 0 },
+            };
 
         const runtime = performanceRuntimeRef.current;
         if (artifact && resolvedTempoPlan && scope && runtime) {
@@ -361,8 +245,8 @@ export function useLocalPractice({
             inputSource: sessionSnapshot.inputSource,
             activeElapsedMs: sessionSnapshot.performance.activeElapsedMs,
             evaluation: runtime.completedEvaluation(),
-            media,
-            recordingTimebase: structuredClone(recordingTimebaseRef.current),
+            media: finalizedRecording.media,
+            recordingTimebase: finalizedRecording.timebase,
             completedAt: new Date().toISOString(),
           };
           completedPerformanceStore.setPerformance(draft);
@@ -375,48 +259,11 @@ export function useLocalPractice({
   );
 
   const freezePerformanceRecording = useCallback((sessionSnapshot: LocalPerformanceSessionSnapshot) => {
-    if (recorderStopPromiseRef.current) {
-      return recorderStopPromiseRef.current;
-    }
-    if (currentSegmentStartPerfMsRef.current !== null) {
-      const perfEndMs = Math.max(
-        currentSegmentStartPerfMsRef.current,
-        sessionSnapshot.performance.activeElapsedMs - sessionSnapshot.performance.countInMs
-      );
-      const segmentDuration = Math.max(0, perfEndMs - currentSegmentStartPerfMsRef.current);
-      const mediaEndMs = currentSegmentStartMediaMsRef.current + segmentDuration;
-      recordingTimebaseRef.current.activeSegments.push({
-        perfStartMs: currentSegmentStartPerfMsRef.current,
-        perfEndMs,
-        mediaStartMs: currentSegmentStartMediaMsRef.current,
-        mediaEndMs,
-      });
-      cumulativeMediaMsRef.current = mediaEndMs;
-      currentSegmentStartPerfMsRef.current = null;
-    }
-    recordingTimebaseRef.current.nominalMediaDurationMs = cumulativeMediaMsRef.current;
-
-    const recorder = mediaRecorderRef.current;
-    recordingStateRef.current = 'FINALIZING';
-    if (!recorder || recorder.state === 'inactive') {
-      recorderStopPromiseRef.current = Promise.resolve();
-      return recorderStopPromiseRef.current;
-    }
-    recorderStopPromiseRef.current = Promise.race([
-      new Promise<void>((resolve) => {
-        recorder.onstop = () => resolve();
-        try {
-          if (typeof recorder.requestData === 'function') {
-            recorder.requestData();
-          }
-          recorder.stop();
-        } catch {
-          resolve();
-        }
-      }),
-      new Promise<void>((resolve) => setTimeout(resolve, 1500)),
-    ]);
-    return recorderStopPromiseRef.current;
+    const performanceEndMs = Math.max(
+      0,
+      sessionSnapshot.performance.activeElapsedMs - sessionSnapshot.performance.countInMs
+    );
+    return performanceRecorderRef.current?.freeze(performanceEndMs) ?? Promise.resolve();
   }, []);
 
   const drainPerformanceInference = useCallback(async (runtime: ContinuousPracticeSession) => {
@@ -510,14 +357,11 @@ export function useLocalPractice({
       setCompletionReason('SCOPE_COMPLETED');
       setLastSnapshot(snapshot);
       setLifecycle('ENDED');
-      if (snapshot.mode === 'CONTINUOUS_PLAY') {
-        await finalizeRecordingAndBuildDraft(snapshot, sessionGenerationRef.current);
-      }
       onCompletion?.(snapshot);
       await teardownInputs();
       setInputState('IDLE');
     },
-    [finalizeRecordingAndBuildDraft, onCompletion, stopAnimationLoop, stopTimer, teardownInputs]
+    [onCompletion, stopAnimationLoop, stopTimer, teardownInputs]
   );
 
   // Step observation handler
@@ -575,23 +419,9 @@ export function useLocalPractice({
       }
 
       if (
-        clockSnapshot.state === 'RUNNING' &&
-        recordingStateRef.current === 'NOT_STARTED' &&
-        mediaRecorderRef.current &&
-        mediaRecorderRef.current.state === 'inactive'
+        clockSnapshot.state === 'RUNNING'
       ) {
-        const perfTimeMs = clockSnapshot.performanceTimeMs;
-        currentSegmentStartPerfMsRef.current = perfTimeMs;
-        currentSegmentStartMediaMsRef.current = 0;
-        cumulativeMediaMsRef.current = 0;
-        try {
-          mediaRecorderRef.current.start(250);
-          recordingStateRef.current = 'RECORDING';
-        } catch (err) {
-          recordingUnavailableReasonRef.current =
-            err instanceof Error ? err.message : 'RECORDING_START_FAILED';
-          recordingStateRef.current = 'UNAVAILABLE';
-        }
+        performanceRecorderRef.current?.startIfReady(clockSnapshot.performanceTimeMs);
       }
 
       if (clockSnapshot.state === 'ENDED') {
@@ -626,6 +456,50 @@ export function useLocalPractice({
     setInputError(errorMessage);
   }, [inputSource, mode, stopAnimationLoop, stopTimer]);
 
+  const handleMidiStateChange = useCallback((state: BrowserMidiState) => {
+    if (state.connectedInputCount > 0) {
+      if (errorInputSourceRef.current === 'MIDI' && inputErrorRef.current === 'NO_CONNECTED_INPUT') {
+        setInputError(null);
+        setErrorInputSource(null);
+        setInputState(
+          lifecycleRef.current === 'PAUSED'
+            ? 'IDLE'
+            : inputStateRef.current === 'ERROR'
+              ? 'IDLE'
+              : inputStateRef.current
+        );
+      }
+      return;
+    }
+
+    if (lifecycleRef.current !== 'ACTIVE' && lifecycleRef.current !== 'PAUSED') {
+      return;
+    }
+
+    stopTimer();
+    stopAnimationLoop();
+    metronomeRef.current?.pause();
+    if (mode === 'STEP_BY_STEP') {
+      stepRuntimeRef.current?.pause();
+    } else {
+      const clock = performanceRuntimeRef.current?.pause();
+      if (clock) {
+        setPerformanceClock(clock);
+        setPerformanceEvaluation(performanceRuntimeRef.current?.evaluationSnapshot ?? null);
+      }
+    }
+    setErrorInputSource('MIDI');
+    setInputError('NO_CONNECTED_INPUT');
+    setInputState('ERROR');
+    if (lifecycleRef.current === 'ACTIVE') {
+      setLifecycle('PAUSED');
+    }
+  }, [
+    mode,
+    stopAnimationLoop,
+    stopTimer,
+  ]);
+
   // Internal start session implementation
   const startSession = useCallback(async () => {
     if (!artifact || !resolvedTempoPlan || !scope) {
@@ -643,19 +517,10 @@ export function useLocalPractice({
     sessionGenerationRef.current += 1;
     hasFinalizedRef.current = false;
     continuousCompletionRef.current = null;
-    mediaRecorderRef.current = null;
-    recordingChunksRef.current = [];
-    recorderStopPromiseRef.current = null;
-    recordingUnavailableReasonRef.current = null;
-    recordingStateRef.current = 'NOT_STARTED';
-    recordingMediaKindRef.current = 'AUDIO';
-    recordingTimebaseRef.current = {
-      activeSegments: [],
-      nominalMediaDurationMs: 0,
-    };
-    currentSegmentStartPerfMsRef.current = null;
-    currentSegmentStartMediaMsRef.current = 0;
-    cumulativeMediaMsRef.current = 0;
+    performanceRecorderRef.current?.stopAndCleanup();
+    performanceRecorderRef.current = new PerformanceRecorder(
+      mode === 'CONTINUOUS_PLAY' ? (recordingMode ?? 'OFF') : 'OFF'
+    );
 
     const localSessionId = createLocalSessionId();
     const timebase = new PracticeTimebase({ domainId: localSessionId });
@@ -704,83 +569,26 @@ export function useLocalPractice({
         micControllerRef.current = micController;
         await micController.start();
 
-        if (mode === 'CONTINUOUS_PLAY') {
-          const micStream = micController.mediaStream;
-          const recorderStream =
-            cameraRecordingEnabled
-              ? createContinuousVideoStream(cameraMediaStream, micStream)
-              : micStream;
-          if (recorderStream && typeof MediaRecorder !== 'undefined') {
-            try {
-              const recorderOptions =
-                cameraRecordingEnabled && preferredVideoRecorderMimeType()
-                  ? { mimeType: preferredVideoRecorderMimeType() }
-                  : undefined;
-              const recorder = new MediaRecorder(recorderStream, recorderOptions);
-              installRecorderHandlers(recorder, recorderStream, cameraRecordingEnabled ? 'VIDEO' : 'AUDIO');
-            } catch (recErr) {
-              recordingUnavailableReasonRef.current =
-                recErr instanceof Error ? recErr.message : 'RECORDER_INIT_FAILED';
-            }
-          } else if (!recorderStream) {
-            recordingUnavailableReasonRef.current = cameraRecordingEnabled
-              ? 'CAMERA_AUDIO_VIDEO_STREAM_UNAVAILABLE'
-              : 'MIC_STREAM_UNAVAILABLE';
-          } else {
-            recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_UNSUPPORTED';
-          }
-        }
+        await performanceRecorderRef.current?.prepare({
+          inputSource,
+          analysisStream: micController.mediaStream,
+          cameraStream: cameraMediaStream,
+        });
       } else {
         const midiController = new BrowserMidiController({
           timebase,
           getCurrentStepTarget: () => stepRuntimeRef.current?.currentTarget() ?? null,
           onStepObservation: (obs) => handleStepObservation(obs),
           onPerformanceObservation: (obs) => handlePerformanceEvidence([obs]),
+          onStateChange: handleMidiStateChange,
         });
         midiControllerRef.current = midiController;
         await midiController.start();
 
-        if (mode === 'CONTINUOUS_PLAY') {
-          try {
-            if (cameraRecordingEnabled) {
-              const videoRecorderStream = createContinuousVideoStream(cameraMediaStream);
-              if (!videoRecorderStream) {
-                recordingUnavailableReasonRef.current = 'CAMERA_AUDIO_VIDEO_STREAM_UNAVAILABLE';
-              } else if (typeof MediaRecorder !== 'undefined') {
-                const recorderOptions = preferredVideoRecorderMimeType()
-                  ? { mimeType: preferredVideoRecorderMimeType() }
-                  : undefined;
-                const recorder = new MediaRecorder(videoRecorderStream, recorderOptions);
-                installRecorderHandlers(recorder, videoRecorderStream, 'VIDEO');
-              } else {
-                recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_UNSUPPORTED';
-              }
-            } else {
-              const mediaDevices = globalThis.navigator?.mediaDevices;
-              if (mediaDevices?.getUserMedia) {
-                const audioStream = await mediaDevices.getUserMedia({
-                  audio: {
-                    echoCancellation: false,
-                    noiseSuppression: false,
-                    autoGainControl: false,
-                  },
-                });
-                midiRecordingStreamRef.current = audioStream;
-                if (typeof MediaRecorder !== 'undefined') {
-                  const recorder = new MediaRecorder(audioStream);
-                  installRecorderHandlers(recorder, audioStream, 'AUDIO');
-                } else {
-                  recordingUnavailableReasonRef.current = 'MEDIA_RECORDER_UNSUPPORTED';
-                }
-              } else {
-                recordingUnavailableReasonRef.current = 'MEDIA_DEVICES_UNAVAILABLE';
-              }
-            }
-          } catch (permErr) {
-            recordingUnavailableReasonRef.current =
-              permErr instanceof Error ? permErr.name : 'PERMISSION_DENIED';
-          }
-        }
+        await performanceRecorderRef.current?.prepare({
+          inputSource,
+          cameraStream: cameraMediaStream,
+        });
       }
 
       setInputState('RUNNING');
@@ -842,14 +650,14 @@ export function useLocalPractice({
   }, [
     artifact,
     cameraMediaStream,
-    cameraRecordingEnabled,
     handleFatalInputError,
+    handleMidiStateChange,
     handlePerformanceEvidence,
     handleStepObservation,
-    installRecorderHandlers,
     inputSource,
     metronomeEnabled,
     mode,
+    recordingMode,
     resolvedTempoPlan,
     runPerformanceLoop,
     scope,
@@ -904,29 +712,8 @@ export function useLocalPractice({
         setPerformanceClock(clock);
         setPerformanceEvaluation(performanceRuntimeRef.current?.evaluationSnapshot ?? null);
       }
-      if (mediaRecorderRef.current?.state === 'recording') {
-        if (currentSegmentStartPerfMsRef.current !== null) {
-          const perfEndMs = Math.max(
-            currentSegmentStartPerfMsRef.current,
-            clock ? clock.performanceTimeMs : currentSegmentStartPerfMsRef.current
-          );
-          const segmentDuration = Math.max(0, perfEndMs - currentSegmentStartPerfMsRef.current);
-          const mediaEndMs = currentSegmentStartMediaMsRef.current + segmentDuration;
-          recordingTimebaseRef.current.activeSegments.push({
-            perfStartMs: currentSegmentStartPerfMsRef.current,
-            perfEndMs,
-            mediaStartMs: currentSegmentStartMediaMsRef.current,
-            mediaEndMs,
-          });
-          cumulativeMediaMsRef.current = mediaEndMs;
-          currentSegmentStartPerfMsRef.current = null;
-        }
-        try {
-          mediaRecorderRef.current.pause();
-        } catch {
-          // ignore
-        }
-        recordingStateRef.current = 'PAUSED';
+      if (clock) {
+        performanceRecorderRef.current?.pause(clock.performanceTimeMs);
       }
     }
     setLifecycle('PAUSED');
@@ -954,6 +741,9 @@ export function useLocalPractice({
           if (!midiControllerRef.current) {
             throw new Error('MIDI session lost. Please restart practice.');
           }
+          if (midiControllerRef.current.getState().connectedInputCount === 0) {
+            throw new Error('NO_CONNECTED_INPUT');
+          }
           await midiControllerRef.current.start();
         }
 
@@ -963,6 +753,12 @@ export function useLocalPractice({
         metronomeRef.current?.setStepContext(targetOnsetBeat);
         metronomeRef.current?.resume(targetOnsetBeat);
       } else {
+        if (
+          inputSource === 'MIDI' &&
+          midiControllerRef.current?.getState().connectedInputCount === 0
+        ) {
+          throw new Error('NO_CONNECTED_INPUT');
+        }
         setInputState('RUNNING');
         const clock = performanceRuntimeRef.current?.resume();
         if (clock) {
@@ -972,16 +768,8 @@ export function useLocalPractice({
         } else {
           metronomeRef.current?.resume(0);
         }
-        if (mediaRecorderRef.current?.state === 'paused') {
-          try {
-            mediaRecorderRef.current.resume();
-            recordingStateRef.current = 'RECORDING';
-            currentSegmentStartPerfMsRef.current = clock ? clock.performanceTimeMs : 0;
-            currentSegmentStartMediaMsRef.current = cumulativeMediaMsRef.current;
-          } catch {
-            recordingUnavailableReasonRef.current = 'RECORDER_RESUME_FAILED';
-            recordingStateRef.current = 'UNAVAILABLE';
-          }
+        if (clock) {
+          performanceRecorderRef.current?.resume(clock.performanceTimeMs);
         }
         runPerformanceLoop();
       }
@@ -1050,7 +838,6 @@ export function useLocalPractice({
     sessionGenerationRef.current += 1;
     hasFinalizedRef.current = false;
     continuousCompletionRef.current = null;
-    recorderStopPromiseRef.current = null;
     metronomeRef.current?.stop();
     metronomeRef.current?.destroy();
     metronomeRef.current = null;

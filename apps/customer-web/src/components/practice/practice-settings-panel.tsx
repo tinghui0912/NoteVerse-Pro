@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Cable, ListChecks, Mic, Music2, Sparkles, Video } from 'lucide-react';
+import { Cable, ListChecks, Mic, Music2, Sparkles, Video, VolumeX } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils';
@@ -14,6 +14,7 @@ import type {
   PracticeMicrophoneCapability,
   PracticeMidiCapability,
 } from '@/lib/practice/input-capability';
+import type { PracticeRecordingMode } from '@/lib/practice/performance-recorder';
 
 type PracticeSettingsPanelProps = {
   className?: string;
@@ -30,12 +31,12 @@ type PracticeSettingsPanelProps = {
   inputSource: PracticeInputSource;
   microphoneInputLocked: boolean;
   midiInputLocked: boolean;
-  cameraRecordingEnabled?: boolean;
-  cameraRecordingLocked?: boolean;
-  cameraRecordingStatus?: string | null;
+  recordingMode?: PracticeRecordingMode;
+  recordingModeLocked?: boolean;
+  recordingStatus?: string | null;
   onPracticeModeChange: (practiceMode: PracticeMode) => void;
   onInputSourceChange: (inputSource: PracticeInputSource) => void;
-  onCameraRecordingEnabledChange?: (enabled: boolean) => void;
+  onRecordingModeChange?: (mode: PracticeRecordingMode) => void;
 };
 
 export function PracticeSettingsPanel({
@@ -53,12 +54,12 @@ export function PracticeSettingsPanel({
   inputSource,
   microphoneInputLocked,
   midiInputLocked,
-  cameraRecordingEnabled = false,
-  cameraRecordingLocked = false,
-  cameraRecordingStatus = null,
+  recordingMode = 'OFF',
+  recordingModeLocked = false,
+  recordingStatus = null,
   onPracticeModeChange,
   onInputSourceChange,
-  onCameraRecordingEnabledChange,
+  onRecordingModeChange,
 }: PracticeSettingsPanelProps) {
   const t = useTranslations('practice');
   const microphoneState = microphoneCapability
@@ -66,6 +67,8 @@ export function PracticeSettingsPanel({
       ? t('micModelAccessUnavailable')
       : microphoneCapability.status === 'MODEL_STORAGE_UNAVAILABLE'
         ? t('micModelStorageUnavailable')
+        : microphoneCapability.status === 'WEBGPU_UNAVAILABLE'
+          ? t('micWebGpuUnavailable')
         : microphoneCapability.status === 'CONTINUOUS_ANALYSIS_UNAVAILABLE'
           ? t('micContinuousUnavailable')
           : microphoneCapability.status === 'BROWSER_UNSUPPORTED'
@@ -211,34 +214,39 @@ export function PracticeSettingsPanel({
         </section>
 
         {practiceMode === 'CONTINUOUS_PLAY' ? (
-          <section className="px-5 py-5" aria-labelledby="practice-camera-heading">
-            <h3 id="practice-camera-heading" className="text-sm font-semibold text-slate-900">
-              {t('settingsCamera')}
+          <section className="px-5 py-5" aria-labelledby="practice-recording-heading">
+            <h3 id="practice-recording-heading" className="text-sm font-semibold text-slate-900">
+              {t('settingsRecording')}
             </h3>
-            <button
-              type="button"
-              className={cn(
-                'mt-3 flex min-h-14 w-full items-center gap-3 rounded-md border px-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60',
-                cameraRecordingEnabled
-                  ? 'border-sky-200 bg-sky-50 text-slate-950'
-                  : 'border-slate-200 hover:bg-slate-50'
-              )}
-              disabled={cameraRecordingLocked || !onCameraRecordingEnabledChange}
-              onClick={() => onCameraRecordingEnabledChange?.(!cameraRecordingEnabled)}
-              aria-pressed={cameraRecordingEnabled}
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sky-600">
-                <Video className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-medium text-slate-900">
-                  {cameraRecordingEnabled ? t('settingCameraOn') : t('settingCameraOff')}
-                </span>
-                <span className="mt-0.5 block text-xs text-slate-500">
-                  {cameraRecordingStatus ?? t('settingCameraDesc')}
-                </span>
-              </span>
-            </button>
+            <div className="mt-3 grid gap-2">
+              {([
+                ['OFF', VolumeX, t('settingRecordingOff'), t('settingRecordingOffDesc')],
+                ['AUDIO', Mic, t('settingRecordingAudio'), t('settingRecordingAudioDesc')],
+                ['VIDEO', Video, t('settingRecordingVideo'), recordingStatus ?? t('settingCameraDesc')],
+              ] as const).map(([mode, Icon, label, description]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={cn(
+                    'flex min-h-14 w-full items-center gap-3 rounded-md border px-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+                    recordingMode === mode
+                      ? 'border-sky-200 bg-sky-50 text-slate-950'
+                      : 'border-slate-200 hover:bg-slate-50'
+                  )}
+                  disabled={recordingModeLocked || !onRecordingModeChange}
+                  onClick={() => onRecordingModeChange?.(mode)}
+                  aria-pressed={recordingMode === mode}
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sky-600">
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-slate-900">{label}</span>
+                    <span className="mt-0.5 block text-xs text-slate-500">{description}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
           </section>
         ) : null}
       </div>

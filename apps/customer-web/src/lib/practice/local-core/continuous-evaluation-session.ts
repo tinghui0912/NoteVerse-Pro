@@ -58,7 +58,6 @@ export class ContinuousEvaluationSession {
     performanceTimeMs: number;
     terminalPerformanceMs: number;
   }): void {
-    this.advanceAnalysisThrough(input.performanceTimeMs);
     this.completion = input.reason === 'SCOPE_COMPLETED'
       ? { kind: 'NATURAL', terminalPerformanceMs: input.terminalPerformanceMs }
       : { kind: 'MANUAL', stoppedAtPerformanceMs: input.performanceTimeMs };
@@ -76,25 +75,12 @@ export class ContinuousEvaluationSession {
 
   completedEvaluation(): CompletedContinuousEvaluation {
     const snapshot = this.snapshot();
-    if (
-      this.completion.kind === 'NATURAL' &&
-      snapshot.strikes.some((strike) => strike.verdict === 'PENDING')
-    ) {
+    if (snapshot.strikes.some((strike) => strike.verdict === 'PENDING')) {
       return { status: 'UNAVAILABLE', reason: 'INCOMPLETE_ANALYSIS' };
     }
     return {
       status: 'COMPLETE',
       strikes: snapshot.strikes.map((strike) => {
-        if (strike.verdict === 'PENDING') {
-          return {
-            strikeId: strike.strikeId,
-            expectedGroupId: strike.groupId,
-            pitch: strike.pitch,
-            performanceTimeMs: strike.expectedPerformanceTimeMs,
-            renderNoteIds: [...strike.renderNoteIds],
-            result: 'NOT_REACHED',
-          };
-        }
         if (strike.verdict === 'MATCHED') {
           const attack = this.observedAttacks.find((item) => item.observationId === strike.matchedObservationId);
           if (!attack) {
@@ -113,14 +99,17 @@ export class ContinuousEvaluationSession {
             timingOffsetMs: strike.timingOffsetMs,
           };
         }
-        return {
-          strikeId: strike.strikeId,
-          expectedGroupId: strike.groupId,
-          pitch: strike.pitch,
-          performanceTimeMs: strike.expectedPerformanceTimeMs,
-          renderNoteIds: [...strike.renderNoteIds],
-          result: strike.verdict,
-        };
+        if (strike.verdict === 'MISSING' || strike.verdict === 'NOT_REACHED') {
+          return {
+            strikeId: strike.strikeId,
+            expectedGroupId: strike.groupId,
+            pitch: strike.pitch,
+            performanceTimeMs: strike.expectedPerformanceTimeMs,
+            renderNoteIds: [...strike.renderNoteIds],
+            result: strike.verdict,
+          };
+        }
+        throw new Error('Pending strikes cannot be converted to completed evaluation.');
       }),
       extras: snapshot.extras.map((attack) => ({ ...attack })),
     };

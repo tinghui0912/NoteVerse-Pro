@@ -792,6 +792,16 @@ export default function PracticeReviewPage({
               />
             </CardContent>
           </Card>
+        ) : draft.media.status === 'NOT_RECORDED' ? (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-700 dark:border-slate-800 dark:bg-slate-950/20 dark:text-slate-300">
+            <div className="flex items-center gap-2">
+              <Music className="h-4 w-4 flex-shrink-0" />
+              <span className="text-sm font-semibold">{t('performanceNotRecorded')}</span>
+            </div>
+            <p className="mt-1 pl-6 text-xs text-slate-600 dark:text-slate-400">
+              {t('performanceNotRecordedDesc')}
+            </p>
+          </div>
         ) : (
           <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-4 text-amber-800 dark:text-amber-300">
             <div className="flex items-center gap-2">
@@ -908,7 +918,16 @@ export default function PracticeReviewPage({
               </Button>
             )
           ) : (
-            <Button size="sm" variant="outline" disabled title={t('audioRecordingUnavailable')}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled
+              title={
+                draft.media.status === 'NOT_RECORDED'
+                  ? t('performanceNotRecorded')
+                  : t('audioRecordingUnavailable')
+              }
+            >
               <Bookmark className="mr-1.5 h-4 w-4" />
               {t('savePerformance')}
             </Button>

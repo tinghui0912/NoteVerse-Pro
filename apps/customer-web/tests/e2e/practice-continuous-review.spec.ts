@@ -68,7 +68,7 @@ const testArtifact = {
       measureNumbers: ['1'],
       eventIds: ['e-0'],
       expectedNotes: [{ pitch: 'C4', midiPitch: 60 }],
-      strikeTargets: [{ pitch: 'C4', midiPitch: 60 }],
+      strikeTargets: [{ pitch: 'C4', midiPitch: 60, renderNoteIds: ['note-c4'] }],
       staffIds: ['1'],
       voiceIds: ['1'],
     },
@@ -81,7 +81,7 @@ const testArtifact = {
       measureNumbers: ['1'],
       eventIds: ['e-1'],
       expectedNotes: [{ pitch: 'D4', midiPitch: 62 }],
-      strikeTargets: [{ pitch: 'D4', midiPitch: 62 }],
+      strikeTargets: [{ pitch: 'D4', midiPitch: 62, renderNoteIds: ['note-d4'] }],
       staffIds: ['1'],
       voiceIds: ['1'],
     },
@@ -94,7 +94,7 @@ const testArtifact = {
       measureNumbers: ['1'],
       eventIds: ['e-2'],
       expectedNotes: [{ pitch: 'E4', midiPitch: 64 }],
-      strikeTargets: [{ pitch: 'E4', midiPitch: 64 }],
+      strikeTargets: [{ pitch: 'E4', midiPitch: 64, renderNoteIds: ['note-e4'] }],
       staffIds: ['1'],
       voiceIds: ['1'],
     },
@@ -537,12 +537,12 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(page.getByText('演奏速度')).toBeVisible();
     await expect(page.getByText('练习范围')).toBeVisible();
     await expect(page.getByText('输入方式')).toBeVisible();
-    await expect(page.getByText('目标音')).toBeVisible();
+    await expect(page.getByText('目标音', { exact: true })).toBeVisible();
     await expect(page.getByText('正确击键')).toBeVisible();
     await expect(page.getByText('漏弹', { exact: true })).toBeVisible();
     await expect(page.getByText('额外演奏')).toBeVisible();
     await expect(page.getByText('未完成')).toBeVisible();
-    await expect(page.getByRole('button', { name: '回放' })).toBeVisible();
+    await expect(page.getByText('本次演奏未录制')).toBeVisible();
 
     // Zero backend session or take requests
     expect(disallowedRequests).toEqual([]);
@@ -566,6 +566,10 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     const midiInputOption = page.getByRole('button', { name: /MIDI/i });
     await expect(midiInputOption).toBeEnabled();
     await midiInputOption.click();
+
+    const audioRecordingOption = page.getByRole('button', { name: /录制音频/i });
+    await expect(audioRecordingOption).toBeEnabled();
+    await audioRecordingOption.click();
 
     const sheetClose = page.getByRole('button', { name: /close/i });
     await expect(sheetClose).toBeVisible();
@@ -629,6 +633,10 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     const midiInputOption = page.getByRole('button', { name: /MIDI/i });
     await expect(midiInputOption).toBeEnabled();
     await midiInputOption.click();
+
+    const audioRecordingOption = page.getByRole('button', { name: /录制音频/i });
+    await expect(audioRecordingOption).toBeEnabled();
+    await audioRecordingOption.click();
 
     const sheetClose = page.getByRole('button', { name: /close/i });
     await expect(sheetClose).toBeVisible();
@@ -711,6 +719,10 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     const midiInputOption = page.getByRole('button', { name: /MIDI/i });
     await expect(midiInputOption).toBeEnabled();
     await midiInputOption.click();
+
+    const audioRecordingOption = page.getByRole('button', { name: /录制音频/i });
+    await expect(audioRecordingOption).toBeEnabled();
+    await audioRecordingOption.click();
 
     const sheetClose = page.getByRole('button', { name: /close/i });
     await expect(sheetClose).toBeVisible();
