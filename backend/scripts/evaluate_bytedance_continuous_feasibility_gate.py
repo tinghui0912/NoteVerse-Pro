@@ -250,7 +250,11 @@ def _model_disposition(verdict: str) -> str:
     if verdict == "PASS":
         return "ByteDance may proceed to a later Continuous microphone integration phase; production remains disabled."
     if verdict == "FAIL":
-        return "ByteDance remains STEP-only for now; current note_model is rejected for Continuous microphone under this gate."
+        return (
+            "ByteDance is rejected for Continuous microphone. Its target-local "
+            "STEP classifier remains a candidate, but the current live STEP "
+            "scheduling path requires revalidation."
+        )
     return "ByteDance Continuous feasibility remains inconclusive because required evidence is missing."
 
 

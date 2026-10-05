@@ -1,7 +1,7 @@
 {
   "reportType": "final_decision",
-  "generatedAt": "2026-10-05T02:05:11.482543+00:00",
-  "gitHead": "4423bbd9d2bd353c3ba61b61655b565678d96f00",
+  "generatedAt": "2026-10-05T03:11:55.233365+00:00",
+  "gitHead": "bc34a49bbafa43cf3995d4578ac65d3b64692df2",
   "command": "python backend/scripts/evaluate_bytedance_continuous_feasibility_gate.py --reports-dir backend/research/reports --date 2026-10-05",
   "os": {
     "platform": "Windows",
@@ -98,5 +98,5 @@
     "ownedWidthMs": null
   },
   "productionState": "CONTINUOUS_ANALYSIS_UNAVAILABLE",
-  "modelDisposition": "ByteDance remains STEP-only for now; current note_model is rejected for Continuous microphone under this gate."
+  "modelDisposition": "ByteDance is rejected for Continuous microphone. Its target-local STEP classifier remains a candidate, but the current live STEP scheduling path requires revalidation."
 }

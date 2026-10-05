@@ -75,16 +75,15 @@ Continuous analysis must not permanently discard unanalyzed performance audio fo
 
 ### STEP Versus Continuous
 
-STEP and Continuous are different product semantics. They may share browser PCM capture, resampling, model session, fixed-window preprocessing, decoder, and timebase primitives, but they must not share a high-level controller that mixes:
+STEP and Continuous are different product semantics. They may share browser PCM capture, resampling, fixed-window preprocessing, decoder, and timebase primitives, but they must not share a high-level controller or acoustic model adapter that mixes:
 
 ```text
-currentStepTarget
-onStepObservation
-onPerformanceEvidence
-onPerformanceCoverage
+STEP target-local verification
+Continuous performance-time transcription
+Continuous reconciliation
 ```
 
-STEP may keep a target-local verifier. Continuous requires a transcription pipeline over performance-aligned PCM.
+STEP may use a target-local verifier only behind a validated event-time attack trigger. Continuous requires a transcription pipeline over performance-aligned PCM. ByteDance is rejected for Continuous microphone; its target-local STEP classifier remains only a candidate until the live STEP trigger and scheduling path are revalidated.
 
 ## Target Pipeline
 
