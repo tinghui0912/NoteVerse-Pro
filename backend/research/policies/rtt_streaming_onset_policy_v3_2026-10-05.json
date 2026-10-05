@@ -1,0 +1,75 @@
+{
+  "artifact": "rtt_streaming_onset_policy_v3",
+  "generatedAt": "2026-10-05T00:00:00+08:00",
+  "phase": "7C",
+  "candidate": {
+    "repo": "https://github.com/huispaty/rtt",
+    "commit": "b3197cfa538cc6f7698042b87ecee709223fc58e",
+    "checkpointRelativePath": "ckpts/CustomAMT.ckpt",
+    "expectedCheckpointBytes": 67843364,
+    "expectedCheckpointSha256": "901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1",
+    "expectedResultsCsvSha256": "b8e4293b5763c5a3d87fd617ba63afec17be75f91cace1edc72c095983867c1c"
+  },
+  "upstreamMetricReproduction": {
+    "cohortRule": "Intersection of frozen NoteVerse Development source recordings and pinned RTT results.csv rows, sorted in results.csv order.",
+    "frozenBasenames": [
+      "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1",
+      "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2",
+      "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1",
+      "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1",
+      "MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_06_R1_2015_wav--6",
+      "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav",
+      "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5",
+      "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav"
+    ],
+    "perFileF1Tolerance": 0.01,
+    "aggregateMeanF1Tolerance": 0.005,
+    "tolerancesSeconds": [0.01, 0.02, 0.03],
+    "compareMetrics": ["note-on-p", "note-on-r", "note-on-f"]
+  },
+  "runtime": {
+    "inputScaling": "OFFICIAL_RUNTIME",
+    "loader": "librosa.load(source_path, sr=16000, mono=True)",
+    "sampleRateHz": 16000,
+    "framesPerSecond": 100,
+    "officialOnsetThreshold": 0.5,
+    "officialOffsetThreshold": 0.3,
+    "officialFrameThreshold": 0.3,
+    "officialSegmentSamples": 48000,
+    "officialOverlap": "50%",
+    "thresholdSweep": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
+    "eventRule": "RTTPostProcessor-compatible onset_output >= threshold per-pitch rising edge.",
+    "frozenEvaluationUsed": false
+  },
+  "streamGeometry": {
+    "authoritative": "Prefer full source recording inference when practical. Source timestamps are scored once from the shared source-level raw stream.",
+    "startupColdSeconds": 10,
+    "steadyStateHistorySeconds": 10,
+    "targetWindowMs": 50
+  },
+  "diagnosticTolerancesMs": [10, 20, 30, 50],
+  "gates": {
+    "correct_single": {"minRecall": 0.95},
+    "complete_chord": {"minRecall": 0.9},
+    "same_note_retrigger_second": {"minRecall": 0.9},
+    "dense_repeated_pitch": {"minRecall": 0.9},
+    "fast_adjacent_pitch": {"minRecall": 0.9},
+    "partial_overlapping_notes": {"minRecall": 0.9},
+    "soft_attack": {"minRecall": 0.9},
+    "loud_attack": {"minRecall": 0.9},
+    "wrong_semitone": {"maxFalseTargetAccepts": 0},
+    "wrong_octave": {"maxFalseTargetAccepts": 0},
+    "missing_chord_tone": {"maxFalseTargetAccepts": 0},
+    "long_held_no_retrigger": {"maxFalseRetriggerEvents": 0},
+    "pedal_sustain_no_retrigger": {"maxFalseRetriggerEvents": 0}
+  },
+  "thresholdSelection": {
+    "eligibility": "Every required hard criterion evaluated and PASS.",
+    "tieBreak": [
+      "maximize minimum margin above all positive hard recall gates",
+      "all safety gates must be zero-error",
+      "choose threshold closest to upstream 0.5",
+      "exact tie chooses higher threshold"
+    ]
+  }
+}
