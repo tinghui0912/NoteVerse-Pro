@@ -119,6 +119,9 @@ export class StepEvidenceSession {
       if (!Number.isFinite(event.onsetTime.ms) || event.onsetTime.ms < 0) {
         throw new Error('STEP evidence event time must be finite and non-negative.');
       }
+      if (event.onsetTime.ms > publication.analyzedThroughSessionTimeMs) {
+        throw new Error('STEP evidence event time cannot be after the analyzed frontier.');
+      }
     }
   }
 }

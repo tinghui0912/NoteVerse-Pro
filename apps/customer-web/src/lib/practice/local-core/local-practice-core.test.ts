@@ -257,6 +257,35 @@ describe('local STEP practice runtime', () => {
     }).decisions.map((decision) => decision.kind)).toEqual(['MATCH']);
   });
 
+  it('rejects STEP acoustic publications atomically when any event is after the analyzed frontier', () => {
+    const runtime = new StepPracticeRuntime({
+      artifact,
+      scope: { kind: 'FULL' },
+      clock: new ManualClock(0),
+      localSessionId: 'atomic-step-frontier',
+    });
+    const evidence = new StepEvidenceSession(runtime, testTargetVerificationPolicy);
+    const beforeAttempts = runtime.attemptHistory.length;
+    const beforeTarget = runtime.currentTarget();
+
+    expect(() => evidence.publishAcousticEvents({
+      sessionDomainId: 'atomic-step-frontier',
+      events: [
+        acousticEvent('atomic-step-frontier', 100, 'C4'),
+        acousticEvent('atomic-step-frontier', 250, 'C4'),
+      ],
+      analyzedThroughSessionTimeMs: 200,
+    })).toThrow(/after the analyzed frontier/);
+
+    expect(runtime.attemptHistory).toHaveLength(beforeAttempts);
+    expect(runtime.currentTarget()).toEqual(beforeTarget);
+    expect(evidence.publishAcousticEvents({
+      sessionDomainId: 'atomic-step-frontier',
+      events: [acousticEvent('atomic-step-frontier', 100, 'C4')],
+      analyzedThroughSessionTimeMs: 200,
+    }).decisions.map((decision) => decision.kind)).toEqual(['MATCH']);
+  });
+
   it('prunes impossible unmatched STEP evidence by analysis frontier without dropping viable partial chords', () => {
     const runtime = new StepPracticeRuntime({
       artifact,
