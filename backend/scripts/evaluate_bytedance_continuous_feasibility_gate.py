@@ -1,9 +1,9 @@
-"""Research-only ByteDance Continuous microphone feasibility gate.
+"""Finalize the ByteDance Continuous feasibility decision from evidence reports.
 
-This harness records the Phase 4 gate state without modifying production model
-manifests or customer-web runtime code. It intentionally fails closed when the
-PyTorch checkpoint/export source required for a batch-capable ONNX export is not
-available.
+This research-only gate intentionally reads immutable reports produced by the
+export/parity, browser benchmark, trusted-region, and online-scheduling harnesses.
+It does not regenerate prerequisite evidence, and it fails closed when required
+reports are absent.
 """
 
 from __future__ import annotations
@@ -12,207 +12,264 @@ import argparse
 import datetime as dt
 import hashlib
 import json
-import os
 import platform
 import subprocess
 from pathlib import Path
 from typing import Any
 
 
-MODEL_SHA256 = "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5"
-MODEL_SIZE_BYTES = 98_691_493
-DEFAULT_MODEL = Path("backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx")
-DEFAULT_FIXTURES = Path("backend/data/work/bytedance_browser_runtime_feasibility/golden_fixtures")
-DEFAULT_CHECKPOINT = Path("/app/models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth")
-ROLLING_REPORT = Path("backend/research/reports/bytedance_rolling_anchor_feasibility_2026-10-03.json")
-WEBGPU_REPORT = Path("backend/research/reports/bytedance_worker_webgpu_smoke_ort_1_20_1.json")
+REQUIRED_REPORTS = {
+    "batch_export_parity": "bytedance_continuous_batch_export_parity_{date}.json",
+    "batch_invariance": "bytedance_continuous_batch_invariance_{date}.json",
+    "browser_batch_benchmark": "bytedance_continuous_browser_batch_benchmark_{date}.json",
+    "trusted_region_dataset": "bytedance_continuous_trusted_region_dataset_{date}.json",
+    "trusted_region": "bytedance_continuous_trusted_region_{date}.json",
+    "online_schedule": "bytedance_continuous_online_schedule_{date}.json",
+    "end_to_end_browser": "bytedance_continuous_end_to_end_browser_{date}.json",
+}
+
+MAX_PARITY_DELTA = 0.02
+MIN_P95_EFFECTIVE_REALTIME = 1.20
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default=str(DEFAULT_MODEL))
-    parser.add_argument("--fixture-dir", default=str(DEFAULT_FIXTURES))
-    parser.add_argument("--checkpoint", default=os.environ.get("NOTEVERSE_BYTEDANCE_CHECKPOINT", str(DEFAULT_CHECKPOINT)))
-    parser.add_argument("--output-dir", default="backend/research/reports")
+    parser.add_argument("--reports-dir", default="backend/research/reports")
     parser.add_argument("--date", default="2026-10-05")
+    parser.add_argument("--output-json", default=None)
+    parser.add_argument("--output-md", default=None)
     args = parser.parse_args()
 
     repo = _repo_root()
-    output_dir = (repo / args.output_dir).resolve()
-    output_dir.mkdir(parents=True, exist_ok=True)
-    model_path = (repo / args.model).resolve()
-    fixture_dir = (repo / args.fixture_dir).resolve()
-    checkpoint_path = Path(args.checkpoint)
-    if not checkpoint_path.is_absolute():
-      checkpoint_path = (repo / checkpoint_path).resolve()
+    reports_dir = (repo / args.reports_dir).resolve()
+    loaded: dict[str, dict[str, Any]] = {}
+    evidence: dict[str, dict[str, str | None]] = {}
+    blockers: list[str] = []
 
-    context = {
+    for key, pattern in REQUIRED_REPORTS.items():
+        path = reports_dir / pattern.format(date=args.date)
+        evidence[path.name] = {
+            "path": str(path.relative_to(repo)),
+            "sha256": _sha256(path) if path.exists() else None,
+        }
+        if not path.exists():
+            blockers.append(f"Missing evidence report: {path.relative_to(repo)}")
+            continue
+        loaded[key] = _read_json(path)
+
+    gates = _evaluate_gates(loaded)
+    blockers.extend(gates.pop("blockers"))
+    verdict = _decision(gates, blockers)
+
+    decision = {
+        "reportType": "final_decision",
         "generatedAt": dt.datetime.now(dt.UTC).isoformat(),
         "gitHead": _git_head(repo),
-        "command": " ".join(["python", "backend/scripts/evaluate_bytedance_continuous_feasibility_gate.py", *os.sys.argv[1:]]),
+        "command": " ".join(["python", "backend/scripts/evaluate_bytedance_continuous_feasibility_gate.py", *args_to_list(args)]),
         "os": {
             "platform": platform.system(),
             "release": platform.release(),
             "machine": platform.machine(),
         },
-        "gateCriteria": {
-            "correctness": [
-                "B=1 batch export raw parity must pass.",
-                "B>1 per-item raw parity must pass.",
-                "Trusted region must preserve event identity and timing, including repeated notes.",
-                "No systematic edge event loss inside selected owned region.",
-            ],
-            "throughput": [
-                "Headed Chrome WebGPU effective unique trusted-audio throughput must be sustainably > realtime.",
-                "10-minute queue simulation must not create unbounded backlog.",
-                "Post-performance drain must be bounded and product-acceptable.",
-            ],
-            "browser": [
-                "Headed Chrome must acquire WebGPU adapter.",
-                "Production-compatible ORT Web runtime must execute selected contract.",
-                "No WASM/provider fallback is allowed.",
-            ],
-        },
-        "model": _model_info(model_path),
-        "fixtures": _fixture_info(fixture_dir),
-        "checkpoint": {
-            "path": str(checkpoint_path),
-            "exists": checkpoint_path.exists(),
-            "sha256": _sha256(checkpoint_path) if checkpoint_path.exists() else None,
-            "byteSize": checkpoint_path.stat().st_size if checkpoint_path.exists() else None,
-        },
-        "historicalEvidence": {
-            "rollingAnchor": _read_json(repo / ROLLING_REPORT),
-            "webgpuSmoke": _read_json(repo / WEBGPU_REPORT),
-        },
-    }
-
-    checkpoint_missing = not checkpoint_path.exists()
-    model_ok = (
-        context["model"]["exists"]
-        and context["model"]["sha256"] == MODEL_SHA256
-        and context["model"]["byteSize"] == MODEL_SIZE_BYTES
-    )
-    fixture_count = len(context["fixtures"]["fixtures"])
-
-    batch_status = "BLOCKED" if checkpoint_missing else "NOT_EXECUTED"
-    batch_reason = (
-        "PyTorch checkpoint/export source is not available in this workspace; "
-        "cannot generate a research-only [B,29120] ONNX export."
-        if checkpoint_missing
-        else "Batch export support has not been executed by this harness."
-    )
-
-    batch_report = {
-        **_base(context, "batch_export_parity"),
-        "status": batch_status,
-        "reason": batch_reason,
-        "productionOnnxVerified": model_ok,
-        "requestedBatchSizes": [1, 2, 4, 8],
-        "b1Parity": None,
-        "b2Parity": None,
-        "b4Parity": None,
-        "b8Parity": None,
-    }
-
-    benchmark_report = {
-        **_base(context, "headed_browser_batch_benchmark"),
-        "status": "BLOCKED" if batch_status == "BLOCKED" else "NOT_EXECUTED",
-        "reason": "Batch benchmark requires a batch-capable ONNX export with raw parity first.",
-        "provider": "webgpu",
-        "ortVersion": "1.20.1",
-        "requestedBatchSizes": [1, 2, 4, 8],
-        "measurements": {str(size): None for size in [1, 2, 4, 8]},
-        "historicalSingleWindowSmokeSummary": _summarize_webgpu_smoke(context["historicalEvidence"]["webgpuSmoke"]),
-    }
-
-    trusted_report = {
-        **_base(context, "trusted_region"),
-        "status": "BLOCKED" if batch_status == "BLOCKED" else "NOT_EXECUTED",
-        "reason": (
-            "Trusted-region experiment requires batch export parity and enough dev/cal audio windows "
-            "covering positions across the model input."
-        ),
-        "candidateDatasetCoverage": {
-            "availableGoldenFixtureCount": fixture_count,
-            "requiredCategories": [
-                "single note",
-                "chord",
-                "same-note retrigger",
-                "dense repeated pitch",
-                "fast scale / adjacent pitches",
-                "partial overlapping notes",
-                "soft attack",
-                "loud attack",
-            ],
-            "availableFixtureIds": [item["fixtureId"] for item in context["fixtures"]["fixtures"]],
-        },
-        "selectedTrustedOutputRegion": None,
-    }
-
-    backlog_report = {
-        **_base(context, "queue_backlog_simulation"),
-        "status": "BLOCKED" if batch_status == "BLOCKED" else "NOT_EXECUTED",
-        "reason": "Backlog simulation requires measured batch latency sequence and selected unique trusted-output duration.",
-        "durations": {
-            "60s": None,
-            "5min": None,
-            "10min": None,
-        },
-        "historicalRollingSummary": _summarize_rolling(context["historicalEvidence"]["rollingAnchor"]),
-    }
-
-    verdict = "INCONCLUSIVE"
-    blockers = []
-    if not model_ok:
-        blockers.append("Production ONNX asset is missing or does not match expected SHA/size.")
-    if checkpoint_missing:
-        blockers.append("PyTorch checkpoint/export source is unavailable, so batch export parity cannot be executed.")
-    if fixture_count < 8:
-        blockers.append("Available golden fixtures do not cover the required trusted-region dataset categories.")
-
-    decision_report = {
-        **_base(context, "final_decision"),
         "verdict": verdict,
-        "decisionRule": "INCONCLUSIVE is allowed only when critical environment or fixture inputs are missing.",
+        "decisionRule": (
+            "PASS requires every prerequisite gate. FAIL is used for completed "
+            "evidence that violates correctness, trusted-region, or throughput "
+            "criteria. INCONCLUSIVE is reserved for missing external evidence."
+        ),
+        "evidenceReports": evidence,
+        "gates": gates,
         "blockers": blockers,
-        "passCriteriaSatisfied": False,
-        "failCriteriaSatisfied": False,
-        "continuousMicProductionState": "CONTINUOUS_ANALYSIS_UNAVAILABLE",
-        "requiredNextInputs": [
-            "Provide the ByteDance PyTorch checkpoint/export source in the research environment.",
-            "Generate a research-only dynamic batch ONNX export.",
-            "Run raw B=1/B=2/B=4/B=8 parity against golden windows.",
-            "Create or identify dev/cal fixtures covering all trusted-region categories.",
-            "Run headed Chrome WebGPU batch throughput and backlog simulation after parity passes.",
-        ],
+        "browserThroughput": _browser_throughput(loaded.get("browser_batch_benchmark")),
+        "trustedRegion": _trusted_region_summary(loaded.get("trusted_region"), loaded.get("trusted_region_dataset")),
+        "productionState": "CONTINUOUS_ANALYSIS_UNAVAILABLE",
+        "modelDisposition": _model_disposition(verdict),
     }
 
-    outputs = {
-        f"bytedance_continuous_batch_export_parity_{args.date}.json": batch_report,
-        f"bytedance_continuous_browser_batch_benchmark_{args.date}.json": benchmark_report,
-        f"bytedance_continuous_trusted_region_{args.date}.json": trusted_report,
-        f"bytedance_continuous_backlog_simulation_{args.date}.json": backlog_report,
-        f"bytedance_continuous_feasibility_decision_{args.date}.json": decision_report,
-    }
-    for name, payload in outputs.items():
-        (output_dir / name).write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-
-    md_path = output_dir / f"bytedance_continuous_feasibility_decision_{args.date}.md"
-    md_path.write_text(_markdown(decision_report, batch_report, benchmark_report, trusted_report, backlog_report), encoding="utf-8")
-    print(json.dumps({"status": "written", "verdict": verdict, "outputs": sorted(outputs) + [md_path.name]}, indent=2))
+    output_json = Path(args.output_json) if args.output_json else reports_dir / f"bytedance_continuous_feasibility_decision_{args.date}.json"
+    output_md = Path(args.output_md) if args.output_md else reports_dir / f"bytedance_continuous_feasibility_decision_{args.date}.md"
+    if not output_json.is_absolute():
+        output_json = (repo / output_json).resolve()
+    if not output_md.is_absolute():
+        output_md = (repo / output_md).resolve()
+    output_json.write_text(json.dumps(decision, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    output_md.write_text(_markdown(decision), encoding="utf-8")
+    print(json.dumps({"verdict": verdict, "output": str(output_json)}, indent=2))
 
 
-def _base(context: dict[str, Any], report_type: str) -> dict[str, Any]:
+def args_to_list(args: argparse.Namespace) -> list[str]:
+    rendered = ["--reports-dir", str(args.reports_dir), "--date", str(args.date)]
+    if args.output_json:
+        rendered.extend(["--output-json", str(args.output_json)])
+    if args.output_md:
+        rendered.extend(["--output-md", str(args.output_md)])
+    return rendered
+
+
+def _evaluate_gates(loaded: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    blockers: list[str] = []
+
+    export_report = loaded.get("batch_export_parity")
+    invariance_report = loaded.get("batch_invariance")
+    browser_report = loaded.get("browser_batch_benchmark")
+    trusted_report = loaded.get("trusted_region")
+    online_report = loaded.get("online_schedule")
+    e2e_report = loaded.get("end_to_end_browser")
+
+    fixed_dynamic = _pass_fail(_max_fixed_dynamic_delta(invariance_report) <= MAX_PARITY_DELTA if invariance_report else None)
+    batch_invariance = _pass_fail(_max_batch_invariance_delta(invariance_report) <= MAX_PARITY_DELTA if invariance_report else None)
+    export_parity = _pass_fail(_max_export_delta(export_report) <= MAX_PARITY_DELTA if export_report else None)
+    browser_raw = _pass_fail(_max_browser_raw_delta(browser_report) <= MAX_PARITY_DELTA if browser_report else None)
+
+    trusted_status = trusted_report.get("candidate", {}).get("status") if trusted_report else None
+    trusted_region = "PASS" if trusted_status == "PASS" else "FAIL" if trusted_status == "FAIL" else "BLOCKED"
+    selected_width = trusted_report.get("candidate", {}).get("ownedWidthMs") if trusted_report else None
+
+    online_status = online_report.get("status") if online_report else None
+    online_schedule = _status_from_report(online_status)
+    e2e_status = e2e_report.get("status") if e2e_report else None
+    production_like = _status_from_report(e2e_status)
+
+    if trusted_region == "PASS" and not selected_width:
+        blockers.append("Trusted-region report passed without an owned width.")
+    if trusted_region == "FAIL":
+        blockers.append("Trusted-region gate failed; no one-owner geometry can be selected.")
+
+    p95_effective = _selected_p95_effective(online_report)
+    throughput = "PASS" if p95_effective is not None and p95_effective >= MIN_P95_EFFECTIVE_REALTIME else "BLOCKED"
+    if online_schedule == "FAIL":
+        throughput = "FAIL"
+
     return {
-        "reportType": report_type,
-        "generatedAt": context["generatedAt"],
-        "gitHead": context["gitHead"],
-        "command": context["command"],
-        "os": context["os"],
-        "model": context["model"],
-        "checkpoint": context["checkpoint"],
+        "fixedVsDynamicB1Parity": fixed_dynamic,
+        "dynamicBatchExportParity": export_parity,
+        "dynamicBatchInvariance": batch_invariance,
+        "chromeWebgpuRawParity": browser_raw,
+        "trustedRegion": trusted_region,
+        "onlineSchedule": online_schedule,
+        "productionLikeEndToEnd": production_like,
+        "p95EffectiveRealtime": throughput,
+        "blockers": blockers,
     }
+
+
+def _decision(gates: dict[str, Any], blockers: list[str]) -> str:
+    if any(value == "FAIL" for value in gates.values()):
+        return "FAIL"
+    if blockers:
+        return "FAIL" if gates.get("trustedRegion") == "FAIL" else "INCONCLUSIVE"
+    return "PASS" if all(value == "PASS" for value in gates.values()) else "INCONCLUSIVE"
+
+
+def _status_from_report(status: Any) -> str:
+    if status in {"PASS", "FAIL"}:
+        return status
+    if isinstance(status, str) and status.startswith("NOT_RUN"):
+        return status
+    return "BLOCKED"
+
+
+def _max_export_delta(report: dict[str, Any] | None) -> float:
+    max_delta = 0.0
+    for batch in (report or {}).get("parity", {}).values():
+        for item in batch.get("items", []):
+            max_delta = max(max_delta, float(item.get("onsetMaxAbsDelta", 0.0)), float(item.get("frameMaxAbsDelta", 0.0)))
+    return max_delta
+
+
+def _max_fixed_dynamic_delta(report: dict[str, Any] | None) -> float:
+    max_delta = 0.0
+    for item in (report or {}).get("fixedVsDynamicB1", []):
+        max_delta = max(max_delta, float(item.get("regOnset", {}).get("maxAbsDelta", 0.0)), float(item.get("frame", {}).get("maxAbsDelta", 0.0)))
+    return max_delta
+
+
+def _max_batch_invariance_delta(report: dict[str, Any] | None) -> float:
+    max_delta = 0.0
+    for batch in (report or {}).get("dynamicBatchInvariance", {}).values():
+        for item in batch.get("items", []):
+            max_delta = max(max_delta, float(item.get("regOnset", {}).get("maxAbsDelta", 0.0)), float(item.get("frame", {}).get("maxAbsDelta", 0.0)))
+    return max_delta
+
+
+def _max_browser_raw_delta(report: dict[str, Any] | None) -> float:
+    max_delta = 0.0
+    for result in (report or {}).get("results", []):
+        for item in result.get("rawParity", []):
+            max_delta = max(max_delta, float(item.get("regOnset", {}).get("maxAbsDelta", 0.0)), float(item.get("frame", {}).get("maxAbsDelta", 0.0)))
+    return max_delta
+
+
+def _selected_p95_effective(report: dict[str, Any] | None) -> float | None:
+    value = (report or {}).get("selectedContract", {}).get("p95EffectiveRealtimeFactor")
+    return float(value) if isinstance(value, int | float) else None
+
+
+def _browser_throughput(report: dict[str, Any] | None) -> dict[str, Any]:
+    summary: dict[str, Any] = {}
+    for result in (report or {}).get("results", []):
+        batch = result.get("batchSize")
+        warm = result.get("warm", {})
+        if batch is None:
+            continue
+        summary[f"b{batch}MedianWindowsPerSecond"] = warm.get("medianWindowsPerSecond")
+        summary[f"b{batch}P95WindowsPerSecond"] = warm.get("p95WindowsPerSecond")
+    if report:
+        summary["browserVersion"] = report.get("browser", {}).get("version")
+        summary["ortVersion"] = report.get("ortVersion")
+    return summary
+
+
+def _trusted_region_summary(region: dict[str, Any] | None, dataset: dict[str, Any] | None) -> dict[str, Any]:
+    candidate = (region or {}).get("candidate", {})
+    dataset_info = (region or {}).get("dataset") or (dataset or {}).get("dataset") or {}
+    return {
+        "datasetCategoryCounts": dataset_info.get("categoryCounts"),
+        "positionGridMs": dataset_info.get("positionGridMs"),
+        "status": candidate.get("status"),
+        "reason": candidate.get("reason"),
+        "selectedTrustedStartMs": candidate.get("selectedTrustedStartMs"),
+        "selectedTrustedEndMs": candidate.get("selectedTrustedEndMs"),
+        "ownedWidthMs": candidate.get("ownedWidthMs"),
+    }
+
+
+def _model_disposition(verdict: str) -> str:
+    if verdict == "PASS":
+        return "ByteDance may proceed to a later Continuous microphone integration phase; production remains disabled."
+    if verdict == "FAIL":
+        return "ByteDance remains STEP-only for now; current note_model is rejected for Continuous microphone under this gate."
+    return "ByteDance Continuous feasibility remains inconclusive because required evidence is missing."
+
+
+def _markdown(decision: dict[str, Any]) -> str:
+    lines = [
+        "# ByteDance Continuous Feasibility Decision",
+        "",
+        f"- Verdict: `{decision['verdict']}`",
+        f"- Git HEAD: `{decision['gitHead']}`",
+        f"- Production state: `{decision['productionState']}`",
+        f"- Model disposition: {decision['modelDisposition']}",
+        "",
+        "## Gates",
+    ]
+    for key, value in decision["gates"].items():
+        lines.append(f"- {key}: `{value}`")
+    lines.extend(["", "## Trusted Region"])
+    trusted = decision["trustedRegion"]
+    lines.append(f"- Status: `{trusted.get('status')}`")
+    lines.append(f"- Reason: {trusted.get('reason')}")
+    lines.append(f"- Position grid ms: `{trusted.get('positionGridMs')}`")
+    lines.append(f"- Category counts: `{trusted.get('datasetCategoryCounts')}`")
+    lines.extend(["", "## Evidence"])
+    for name, info in decision["evidenceReports"].items():
+        lines.append(f"- `{name}`: `{info.get('sha256')}`")
+    if decision["blockers"]:
+        lines.extend(["", "## Blockers"])
+        for blocker in decision["blockers"]:
+            lines.append(f"- {blocker}")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _repo_root() -> Path:
@@ -226,6 +283,10 @@ def _git_head(repo: Path) -> str | None:
         return None
 
 
+def _read_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def _sha256(path: Path) -> str:
     hasher = hashlib.sha256()
     with path.open("rb") as handle:
@@ -234,144 +295,10 @@ def _sha256(path: Path) -> str:
     return hasher.hexdigest()
 
 
-def _model_info(path: Path) -> dict[str, Any]:
-    return {
-        "path": str(path),
-        "exists": path.exists(),
-        "byteSize": path.stat().st_size if path.exists() else None,
-        "sha256": _sha256(path) if path.exists() else None,
-        "expectedByteSize": MODEL_SIZE_BYTES,
-        "expectedSha256": MODEL_SHA256,
-        "inputShape": [1, 29120],
-    }
-
-
-def _fixture_info(fixture_dir: Path) -> dict[str, Any]:
-    manifest_path = fixture_dir / "manifest.json"
-    manifest = _read_json(manifest_path)
-    fixtures = []
-    if isinstance(manifest, dict):
-        for item in manifest.get("fixtures", []):
-            fixtures.append({
-                "fixtureId": item.get("fixture_id"),
-                "input": item.get("input_tensor_npy"),
-                "regOnset": item.get("reg_onset_output_npy"),
-                "frame": item.get("frame_output_npy"),
-                "expectedPitches": item.get("expected_pitches"),
-            })
-    return {
-        "path": str(fixture_dir),
-        "manifestExists": manifest_path.exists(),
-        "fixtures": fixtures,
-    }
-
-
-def _read_json(path: Path) -> Any:
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        return {"error": str(exc), "path": str(path)}
-
-
-def _summarize_webgpu_smoke(report: Any) -> dict[str, Any] | None:
-    if not isinstance(report, dict):
-        return None
-    smoke = report.get("workerSmoke") or {}
-    warm = smoke.get("warmInference") or {}
-    runtime = report.get("runtime") or {}
-    return {
-        "source": "backend/research/reports/bytedance_worker_webgpu_smoke_ort_1_20_1.json",
-        "browserVersion": runtime.get("browserVersion"),
-        "medianEndToEndMs": warm.get("medianEndToEndMs"),
-        "p95EndToEndMs": warm.get("p95EndToEndMs"),
-        "medianWorkerOnnxMs": warm.get("medianWorkerOnnxMs"),
-        "productionWorkerFactoryUsed": report.get("productionWorkerFactoryUsed"),
-    }
-
-
-def _summarize_rolling(report: Any) -> dict[str, Any] | None:
-    if not isinstance(report, dict):
-        return None
-    result = report.get("result") or {}
-    diagnostics = result.get("diagnostics") or result
-    return {
-        "source": "backend/research/reports/bytedance_rolling_anchor_feasibility_2026-10-03.json",
-        "durationMs": result.get("durationMs") or diagnostics.get("durationMs"),
-        "submittedAnchorCount": diagnostics.get("submittedAnchorCount"),
-        "skippedAnchorCount": diagnostics.get("skippedAnchorCount"),
-        "coverageRatio": diagnostics.get("coverageRatio"),
-        "maximumCoverageGapMs": diagnostics.get("maximumCoverageGapMs"),
-        "note": "Historical rolling path evidence only; not reused as a batch feasibility result.",
-    }
-
-
-def _markdown(
-    decision: dict[str, Any],
-    batch: dict[str, Any],
-    benchmark: dict[str, Any],
-    trusted: dict[str, Any],
-    backlog: dict[str, Any],
-) -> str:
-    blockers = "\n".join(f"- {item}" for item in decision["blockers"]) or "- None"
-    return f"""# ByteDance Continuous Microphone Feasibility Decision
-
-Date: {decision['generatedAt']}
-
-Git HEAD: `{decision['gitHead']}`
-
-Verdict: `{decision['verdict']}`
-
-Production state: `{decision['continuousMicProductionState']}`
-
-## Gate Criteria
-
-The decision gate was defined before accepting any result as a PASS:
-
-- Raw B=1 batch export parity must pass.
-- Raw B=2/B=4/B=8 per-item parity must pass.
-- A trusted output region must be demonstrated with stable event identity/timing, including repeated notes.
-- Headed Chrome WebGPU effective unique trusted-audio throughput must be sustainably above realtime.
-- 10-minute backlog simulation must not grow unbounded.
-- No WASM or provider fallback is allowed.
-
-## Blocking Evidence
-
-{blockers}
-
-## Batch Export Parity
-
-Status: `{batch['status']}`
-
-Reason: {batch['reason']}
-
-## Headed Browser Batch Benchmark
-
-Status: `{benchmark['status']}`
-
-Reason: {benchmark['reason']}
-
-Historical single-window smoke summary is included in the JSON report for context only; it is not a batch benchmark.
-
-## Trusted Region
-
-Status: `{trusted['status']}`
-
-Reason: {trusted['reason']}
-
-Available golden fixture count: {trusted['candidateDatasetCoverage']['availableGoldenFixtureCount']}
-
-## Backlog Simulation
-
-Status: `{backlog['status']}`
-
-Reason: {backlog['reason']}
-
-## Decision
-
-`INCONCLUSIVE` is the only defensible result because the batch export/parity gate could not be executed in this workspace. This does not pass ByteDance for Continuous microphone production, and it does not fail the model mathematically; it blocks production integration until the missing research inputs are provided and the gate is rerun.
-"""
+def _pass_fail(result: bool | None) -> str:
+    if result is None:
+        return "BLOCKED"
+    return "PASS" if result else "FAIL"
 
 
 if __name__ == "__main__":

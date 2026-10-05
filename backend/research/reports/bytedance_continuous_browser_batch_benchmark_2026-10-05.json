@@ -24,11 +24,11 @@
   "browserConsole": [
     {
       "type": "error",
-      "text": "\u001b[0;93m2026-10-05 09:18:51.233699 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m"
+      "text": "\u001b[0;93m2026-10-05 09:49:02.072800 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m"
     },
     {
       "type": "error",
-      "text": "\u001b[0;93m2026-10-05 09:18:51.235100 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+      "text": "\u001b[0;93m2026-10-05 09:49:02.074300 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
     }
   ],
   "result": {
@@ -58,10 +58,10 @@
           "texture-compression-unaligned",
           "depth-clip-control",
           "texture-compression-bc-sliced-3d",
-          "shader-f16",
+          "texture-formats-tier2",
           "clip-distances",
           "timestamp-query",
-          "texture-formats-tier2",
+          "shader-f16",
           "primitive-index",
           "texture-component-swizzle",
           "subgroups"
@@ -69,7 +69,7 @@
         "info": {}
       }
     },
-    "modelLoadMs": 880.5999999046326,
+    "modelLoadMs": 911.9000000953674,
     "warmRuns": 12,
     "results": {
       "1": {
@@ -78,7 +78,7 @@
           1,
           29120
         ],
-        "firstInferenceMs": 1429.5,
+        "firstInferenceMs": 872.7999999523163,
         "outputShapes": {
           "regOnset": [
             1,
@@ -91,29 +91,43 @@
             88
           ]
         },
+        "rawParity": [
+          {
+            "index": 0,
+            "fixtureInputIndex": 0,
+            "regOnset": {
+              "meanAbsDelta": 0.000001024708357755595,
+              "maxAbsDelta": 0.001582324504852295
+            },
+            "frame": {
+              "meanAbsDelta": 0.0000011263208362420406,
+              "maxAbsDelta": 0.002139836549758911
+            }
+          }
+        ],
         "warm": {
           "samples": [
-            370.40000009536743,
-            407,
-            426,
-            408,
-            436,
-            509.59999990463257,
-            449.90000009536743,
-            484.7999999523163,
-            505.90000009536743,
-            515.3999998569489,
-            493.2999999523163,
-            499.90000009536743
+            358,
+            359.59999990463257,
+            378.7000000476837,
+            357.89999985694885,
+            357.5,
+            345.40000009536743,
+            346,
+            358,
+            373.7000000476837,
+            365.09999990463257,
+            374.90000009536743,
+            391.2999999523163
           ],
-          "minMs": 370.40000009536743,
-          "medianMs": 449.90000009536743,
-          "p95Ms": 515.3999998569489,
-          "maxMs": 515.3999998569489,
-          "medianMsPerWindow": 449.90000009536743,
-          "p95MsPerWindow": 515.3999998569489,
-          "medianWindowsPerSecond": 2.222716158675317,
-          "p95WindowsPerSecond": 1.9402405903716602
+          "minMs": 345.40000009536743,
+          "medianMs": 358,
+          "p95Ms": 391.2999999523163,
+          "maxMs": 391.2999999523163,
+          "medianMsPerWindow": 358,
+          "p95MsPerWindow": 391.2999999523163,
+          "medianWindowsPerSecond": 2.793296089385475,
+          "p95WindowsPerSecond": 2.555583951244211
         }
       },
       "2": {
@@ -122,7 +136,7 @@
           2,
           29120
         ],
-        "firstInferenceMs": 693.0999999046326,
+        "firstInferenceMs": 504.2000000476837,
         "outputShapes": {
           "regOnset": [
             2,
@@ -135,29 +149,55 @@
             88
           ]
         },
+        "rawParity": [
+          {
+            "index": 0,
+            "fixtureInputIndex": 0,
+            "regOnset": {
+              "meanAbsDelta": 0.000001024708357755595,
+              "maxAbsDelta": 0.001582324504852295
+            },
+            "frame": {
+              "meanAbsDelta": 0.0000011263208362420406,
+              "maxAbsDelta": 0.002139836549758911
+            }
+          },
+          {
+            "index": 1,
+            "fixtureInputIndex": 1,
+            "regOnset": {
+              "meanAbsDelta": 0.00001036606193877042,
+              "maxAbsDelta": 0.005934819579124451
+            },
+            "frame": {
+              "meanAbsDelta": 0.000013486707447335743,
+              "maxAbsDelta": 0.011323615908622742
+            }
+          }
+        ],
         "warm": {
           "samples": [
-            691.2000000476837,
-            665.7999999523163,
-            683.5,
-            642.7999999523163,
-            646.2000000476837,
-            622.5,
-            650.6000001430511,
-            653.8999998569489,
-            646.7999999523163,
-            648,
-            644.6000001430511,
-            670
+            526,
+            493.59999990463257,
+            476.7999999523163,
+            467,
+            491.90000009536743,
+            527.5,
+            527.3999998569489,
+            531.6000001430511,
+            570.0999999046326,
+            629.2000000476837,
+            591.5,
+            563.7999999523163
           ],
-          "minMs": 622.5,
-          "medianMs": 648,
-          "p95Ms": 691.2000000476837,
-          "maxMs": 691.2000000476837,
-          "medianMsPerWindow": 324,
-          "p95MsPerWindow": 345.60000002384186,
-          "medianWindowsPerSecond": 3.0864197530864197,
-          "p95WindowsPerSecond": 2.893518518318904
+          "minMs": 467,
+          "medianMs": 527.3999998569489,
+          "p95Ms": 629.2000000476837,
+          "maxMs": 629.2000000476837,
+          "medianMsPerWindow": 263.6999999284744,
+          "p95MsPerWindow": 314.60000002384186,
+          "medianWindowsPerSecond": 3.792188093557977,
+          "p95WindowsPerSecond": 3.1786395420350138
         }
       },
       "4": {
@@ -166,7 +206,7 @@
           4,
           29120
         ],
-        "firstInferenceMs": 985.9000000953674,
+        "firstInferenceMs": 904.7999999523163,
         "outputShapes": {
           "regOnset": [
             4,
@@ -179,29 +219,79 @@
             88
           ]
         },
+        "rawParity": [
+          {
+            "index": 0,
+            "fixtureInputIndex": 0,
+            "regOnset": {
+              "meanAbsDelta": 0.000001024708357755595,
+              "maxAbsDelta": 0.001582324504852295
+            },
+            "frame": {
+              "meanAbsDelta": 0.0000011263208362420406,
+              "maxAbsDelta": 0.002139836549758911
+            }
+          },
+          {
+            "index": 1,
+            "fixtureInputIndex": 1,
+            "regOnset": {
+              "meanAbsDelta": 0.00001036606193877042,
+              "maxAbsDelta": 0.005934819579124451
+            },
+            "frame": {
+              "meanAbsDelta": 0.000013486707447335743,
+              "maxAbsDelta": 0.011323615908622742
+            }
+          },
+          {
+            "index": 2,
+            "fixtureInputIndex": 2,
+            "regOnset": {
+              "meanAbsDelta": 0.000009596421613875317,
+              "maxAbsDelta": 0.010011598467826843
+            },
+            "frame": {
+              "meanAbsDelta": 0.000014070068221466758,
+              "maxAbsDelta": 0.01808685064315796
+            }
+          },
+          {
+            "index": 3,
+            "fixtureInputIndex": 0,
+            "regOnset": {
+              "meanAbsDelta": 0.000001024708357755595,
+              "maxAbsDelta": 0.001582324504852295
+            },
+            "frame": {
+              "meanAbsDelta": 0.0000011263208362420406,
+              "maxAbsDelta": 0.002139836549758911
+            }
+          }
+        ],
         "warm": {
           "samples": [
-            905.2000000476837,
-            975.3999998569489,
-            936.2999999523163,
-            934.4000000953674,
-            1043.2000000476837,
-            1024.8999998569489,
-            959.6000001430511,
-            933.2999999523163,
-            992.0999999046326,
-            1049.8000001907349,
-            1037.3999998569489,
-            1017.4000000953674
+            930.2000000476837,
+            898.4000000953674,
+            938,
+            896.5,
+            898.3999998569489,
+            809.7000000476837,
+            715.7000000476837,
+            722.1000001430511,
+            701.8999998569489,
+            727.2999999523163,
+            768.9000000953674,
+            817.2000000476837
           ],
-          "minMs": 905.2000000476837,
-          "medianMs": 975.3999998569489,
-          "p95Ms": 1049.8000001907349,
-          "maxMs": 1049.8000001907349,
-          "medianMsPerWindow": 243.8499999642372,
-          "p95MsPerWindow": 262.4500000476837,
-          "medianWindowsPerSecond": 4.100881690164687,
-          "p95WindowsPerSecond": 3.810249570654651
+          "minMs": 701.8999998569489,
+          "medianMs": 809.7000000476837,
+          "p95Ms": 938,
+          "maxMs": 938,
+          "medianMsPerWindow": 202.42500001192093,
+          "p95MsPerWindow": 234.5,
+          "medianWindowsPerSecond": 4.940101271785152,
+          "p95WindowsPerSecond": 4.264392324093817
         }
       },
       "8": {
@@ -210,7 +300,7 @@
           8,
           29120
         ],
-        "firstInferenceMs": 1440.1999998092651,
+        "firstInferenceMs": 1328.8999998569489,
         "outputShapes": {
           "regOnset": [
             8,
@@ -223,29 +313,127 @@
             88
           ]
         },
+        "rawParity": [
+          {
+            "index": 0,
+            "fixtureInputIndex": 0,
+            "regOnset": {
+              "meanAbsDelta": 0.000001024708357755595,
+              "maxAbsDelta": 0.001582324504852295
+            },
+            "frame": {
+              "meanAbsDelta": 0.0000011263208362420406,
+              "maxAbsDelta": 0.002139836549758911
+            }
+          },
+          {
+            "index": 1,
+            "fixtureInputIndex": 1,
+            "regOnset": {
+              "meanAbsDelta": 0.00001036606193877042,
+              "maxAbsDelta": 0.005934819579124451
+            },
+            "frame": {
+              "meanAbsDelta": 0.000013486707447335743,
+              "maxAbsDelta": 0.011323615908622742
+            }
+          },
+          {
+            "index": 2,
+            "fixtureInputIndex": 2,
+            "regOnset": {
+              "meanAbsDelta": 0.000009596421613875317,
+              "maxAbsDelta": 0.010011598467826843
+            },
+            "frame": {
+              "meanAbsDelta": 0.000014070068221466758,
+              "maxAbsDelta": 0.01808685064315796
+            }
+          },
+          {
+            "index": 3,
+            "fixtureInputIndex": 0,
+            "regOnset": {
+              "meanAbsDelta": 0.000001024708357755595,
+              "maxAbsDelta": 0.001582324504852295
+            },
+            "frame": {
+              "meanAbsDelta": 0.0000011263208362420406,
+              "maxAbsDelta": 0.002139836549758911
+            }
+          },
+          {
+            "index": 4,
+            "fixtureInputIndex": 1,
+            "regOnset": {
+              "meanAbsDelta": 0.00001036606193877042,
+              "maxAbsDelta": 0.005934819579124451
+            },
+            "frame": {
+              "meanAbsDelta": 0.000013486707447335743,
+              "maxAbsDelta": 0.011323615908622742
+            }
+          },
+          {
+            "index": 5,
+            "fixtureInputIndex": 2,
+            "regOnset": {
+              "meanAbsDelta": 0.000009596421613875317,
+              "maxAbsDelta": 0.010011598467826843
+            },
+            "frame": {
+              "meanAbsDelta": 0.000014070068221466758,
+              "maxAbsDelta": 0.01808685064315796
+            }
+          },
+          {
+            "index": 6,
+            "fixtureInputIndex": 0,
+            "regOnset": {
+              "meanAbsDelta": 0.000001024708357755595,
+              "maxAbsDelta": 0.001582324504852295
+            },
+            "frame": {
+              "meanAbsDelta": 0.0000011263208362420406,
+              "maxAbsDelta": 0.002139836549758911
+            }
+          },
+          {
+            "index": 7,
+            "fixtureInputIndex": 1,
+            "regOnset": {
+              "meanAbsDelta": 0.00001036606193877042,
+              "maxAbsDelta": 0.005934819579124451
+            },
+            "frame": {
+              "meanAbsDelta": 0.000013486707447335743,
+              "maxAbsDelta": 0.011323615908622742
+            }
+          }
+        ],
         "warm": {
           "samples": [
-            1300,
-            1483.5,
-            1557,
-            1461.7000000476837,
-            1446.6000001430511,
-            1465,
-            1453.5,
-            1411.2999999523163,
-            1426,
-            1408.5999999046326,
-            1380.5,
-            1356
+            1287.3999998569489,
+            1490,
+            1414.6000001430511,
+            1399.0999999046326,
+            1420.7999999523163,
+            1405.4000000953674,
+            1398.9000000953674,
+            1424.8999998569489,
+            1412,
+            1384.9000000953674,
+            1401.3999998569489,
+            1237
           ],
-          "minMs": 1300,
-          "medianMs": 1426,
-          "p95Ms": 1557,
-          "maxMs": 1557,
-          "medianMsPerWindow": 178.25,
-          "p95MsPerWindow": 194.625,
-          "medianWindowsPerSecond": 5.610098176718092,
-          "p95WindowsPerSecond": 5.138086062941555
+          "minMs": 1237,
+          "medianMs": 1401.3999998569489,
+          "p95Ms": 1490,
+          "maxMs": 1490,
+          "medianMsPerWindow": 175.1749999821186,
+          "p95MsPerWindow": 186.25,
+          "medianWindowsPerSecond": 5.7085771377312815,
+          "p95WindowsPerSecond": 5.369127516778524
         }
       }
     }

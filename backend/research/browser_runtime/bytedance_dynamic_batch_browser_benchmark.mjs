@@ -110,6 +110,21 @@ function summarize(samples, batchSize) {
   };
 }
 
+function compareFloatArrays(actual, expected) {
+  if (actual.length !== expected.length) throw new Error('raw tensor length mismatch');
+  let sum = 0;
+  let max = 0;
+  for (let index = 0; index < actual.length; index += 1) {
+    const delta = Math.abs(actual[index] - expected[index]);
+    sum += delta;
+    max = Math.max(max, delta);
+  }
+  return {
+    meanAbsDelta: sum / actual.length,
+    maxAbsDelta: max,
+  };
+}
+
 async function main() {
   if (!navigator.gpu) throw new Error('WebGPU unavailable');
   const adapter = await navigator.gpu.requestAdapter();
@@ -133,8 +148,13 @@ async function main() {
 
   const manifest = await (await fetch('/fixtures/manifest.json')).json();
   const inputs = [];
+  const references = [];
   for (const fixture of manifest.fixtures) {
     inputs.push(await fetchNpy('/fixtures/' + fixture.input_tensor_npy));
+    references.push({
+      onset: await fetchNpy('/fixtures/' + fixture.reg_onset_output_npy),
+      frame: await fetchNpy('/fixtures/' + fixture.frame_output_npy),
+    });
   }
   const inputSamples = inputs[0].shape[0];
   const results = {};
@@ -147,6 +167,26 @@ async function main() {
     const firstStarted = performance.now();
     const firstOutput = await session.run({ audio: tensor });
     const firstInferenceMs = performance.now() - firstStarted;
+    const rawParity = [];
+    const onsetDims = Array.from(firstOutput.reg_onset_output.dims);
+    const frameDims = Array.from(firstOutput.frame_output.dims);
+    const onsetItemLength = onsetDims.slice(1).reduce((product, value) => product * value, 1);
+    const frameItemLength = frameDims.slice(1).reduce((product, value) => product * value, 1);
+    for (let index = 0; index < batchSize; index += 1) {
+      const fixtureIndex = index % inputs.length;
+      rawParity.push({
+        index,
+        fixtureInputIndex: fixtureIndex,
+        regOnset: compareFloatArrays(
+          firstOutput.reg_onset_output.data.subarray(index * onsetItemLength, (index + 1) * onsetItemLength),
+          references[fixtureIndex].onset.data,
+        ),
+        frame: compareFloatArrays(
+          firstOutput.frame_output.data.subarray(index * frameItemLength, (index + 1) * frameItemLength),
+          references[fixtureIndex].frame.data,
+        ),
+      });
+    }
     const samples = [];
     for (let run = 0; run < WARM_RUNS; run += 1) {
       const started = performance.now();
@@ -161,6 +201,7 @@ async function main() {
         regOnset: Array.from(firstOutput.reg_onset_output.dims),
         frame: Array.from(firstOutput.frame_output.dims),
       },
+      rawParity,
       warm: summarize(samples, batchSize),
     };
   }

@@ -1,81 +1,93 @@
 {
   "reportType": "final_decision",
-  "generatedAt": "2026-10-05T01:20:49.342414+00:00",
-  "gitHead": "732243620be923567c8e061f42697ae1c52c611b",
-  "verdict": "INCONCLUSIVE",
-  "decisionRule": "PASS requires batch parity, trusted-region evidence, browser throughput, and backlog simulation all passing. INCONCLUSIVE is required when a critical trusted-region experiment is blocked by missing dev/cal fixture coverage.",
-  "batchExportParity": {
-    "status": "PASS",
-    "maxRawAbsDelta": 9.328126907348633e-06,
-    "onnxSha256": "f9969549357194838dc8c0d6de37a0e555df2ca691385bfbfaf6ce7979985b3a",
-    "opset": 18,
-    "batchSizes": [
-      1,
-      2,
-      4,
-      8
-    ]
+  "generatedAt": "2026-10-05T01:58:18.198812+00:00",
+  "gitHead": "c89f0ffd2cf3646fd8ebd0df26d30c21971174d7",
+  "command": "python backend/scripts/evaluate_bytedance_continuous_feasibility_gate.py --reports-dir backend/research/reports --date 2026-10-05",
+  "os": {
+    "platform": "Windows",
+    "release": "11",
+    "machine": "AMD64"
   },
-  "browserBatchBenchmark": {
-    "status": "PASS",
-    "browserVersion": "154.0.8037.95",
-    "ortVersion": "1.20.1",
-    "webgpu": {
-      "available": true,
-      "adapterAcquired": true,
-      "adapter": {
-        "isFallbackAdapter": null,
-        "features": [
-          "depth32float-stencil8",
-          "rg11b10ufloat-renderable",
-          "bgra8unorm-storage",
-          "texture-formats-tier1",
-          "chromium-experimental-multi-draw-indirect",
-          "texture-compression-bc",
-          "dual-source-blending",
-          "core-features-and-limits",
-          "chromium-experimental-sampling-resource-table",
-          "chromium-experimental-timestamp-query-inside-passes",
-          "float32-filterable",
-          "indirect-first-instance",
-          "float32-blendable",
-          "subgroup-size-control",
-          "texture-compression-unaligned",
-          "depth-clip-control",
-          "texture-compression-bc-sliced-3d",
-          "shader-f16",
-          "clip-distances",
-          "timestamp-query",
-          "texture-formats-tier2",
-          "primitive-index",
-          "texture-component-swizzle",
-          "subgroups"
-        ],
-        "info": {}
-      }
+  "verdict": "FAIL",
+  "decisionRule": "PASS requires every prerequisite gate. FAIL is used for completed evidence that violates correctness, trusted-region, or throughput criteria. INCONCLUSIVE is reserved for missing external evidence.",
+  "evidenceReports": {
+    "bytedance_continuous_batch_export_parity_2026-10-05.json": {
+      "path": "backend\\research\\reports\\bytedance_continuous_batch_export_parity_2026-10-05.json",
+      "sha256": "bbc82865f935aa211b45515e1ad59102ffe44ebd1f702dc363e94ac746e39139"
     },
-    "b8MedianMs": 1426,
-    "b8P95Ms": 1557,
-    "b8MedianWindowsPerSecond": 5.610098176718092,
-    "b8P95WindowsPerSecond": 5.138086062941555
+    "bytedance_continuous_batch_invariance_2026-10-05.json": {
+      "path": "backend\\research\\reports\\bytedance_continuous_batch_invariance_2026-10-05.json",
+      "sha256": "68d2aa9d19b1e16db7aeaddf1d09458bc14459d942d1a20c1f41e398eebb80a5"
+    },
+    "bytedance_continuous_browser_batch_benchmark_2026-10-05.json": {
+      "path": "backend\\research\\reports\\bytedance_continuous_browser_batch_benchmark_2026-10-05.json",
+      "sha256": "2c9fddb3b13540d5c29a468250742f38fbdfa0c7f3dd601d20b03663251aad83"
+    },
+    "bytedance_continuous_trusted_region_dataset_2026-10-05.json": {
+      "path": "backend\\research\\reports\\bytedance_continuous_trusted_region_dataset_2026-10-05.json",
+      "sha256": "66523dace2604dccca7985dbd8f3b15d07f01efdc9f6b275da47c65fa9cb5fad"
+    },
+    "bytedance_continuous_trusted_region_2026-10-05.json": {
+      "path": "backend\\research\\reports\\bytedance_continuous_trusted_region_2026-10-05.json",
+      "sha256": "52888bde797591c2ccd97f6456f9aee168f639940ae51581521d9aefbacc87f6"
+    },
+    "bytedance_continuous_online_schedule_2026-10-05.json": {
+      "path": "backend\\research\\reports\\bytedance_continuous_online_schedule_2026-10-05.json",
+      "sha256": "382aff3d2a7ee762f6312e412ebce4063a765485ca48d79c20a9b29138c72a9c"
+    },
+    "bytedance_continuous_end_to_end_browser_2026-10-05.json": {
+      "path": "backend\\research\\reports\\bytedance_continuous_end_to_end_browser_2026-10-05.json",
+      "sha256": "704b2a7da29329f3205a96722c80607c4e7c1cb99669813e3281646853c6b7f0"
+    }
   },
-  "trustedRegion": {
-    "status": "BLOCKED",
-    "selectedTrustedOutputRegion": null
-  },
-  "backlogSimulation": {
-    "status": "CANDIDATE_ONLY",
-    "selectedContractSimulation": null
+  "gates": {
+    "fixedVsDynamicB1Parity": "PASS",
+    "dynamicBatchExportParity": "PASS",
+    "dynamicBatchInvariance": "PASS",
+    "chromeWebgpuRawParity": "PASS",
+    "trustedRegion": "FAIL",
+    "onlineSchedule": "NOT_RUN_NO_TRUSTED_REGION",
+    "productionLikeEndToEnd": "NOT_RUN_NO_TRUSTED_REGION",
+    "p95EffectiveRealtime": "BLOCKED"
   },
   "blockers": [
-    "Trusted output region has not been established on required dev/cal categories and window positions.",
-    "No one-owner publication geometry can be selected without trusted-region evidence.",
-    "Effective trusted-audio throughput cannot be judged until unique owned trusted duration is selected."
+    "Trusted-region gate failed; no one-owner geometry can be selected."
   ],
-  "continuousMicProductionState": "CONTINUOUS_ANALYSIS_UNAVAILABLE",
-  "requiredNextInputs": [
-    "Create/identify dev/cal fixtures covering required trusted-region categories across window positions.",
-    "Run trusted-region stability experiment and select or reject an owned output span.",
-    "Recompute effective unique trusted-audio throughput and 10-minute backlog using the selected span."
-  ]
+  "browserThroughput": {
+    "browserVersion": null,
+    "ortVersion": null
+  },
+  "trustedRegion": {
+    "datasetCategoryCounts": {
+      "single_note": 32,
+      "chord": 32,
+      "same_note_retrigger": 32,
+      "dense_repeated_pitch": 32,
+      "fast_scale_adjacent_pitches": 32,
+      "partial_overlapping_notes": 32,
+      "soft_attack": 32,
+      "loud_attack": 32
+    },
+    "positionGridMs": [
+      120,
+      240,
+      360,
+      480,
+      600,
+      760,
+      920,
+      1080,
+      1240,
+      1400,
+      1560,
+      1700
+    ],
+    "status": "FAIL",
+    "reason": "No grid position passed every required category.",
+    "selectedTrustedStartMs": null,
+    "selectedTrustedEndMs": null,
+    "ownedWidthMs": null
+  },
+  "productionState": "CONTINUOUS_ANALYSIS_UNAVAILABLE",
+  "modelDisposition": "ByteDance remains STEP-only for now; current note_model is rejected for Continuous microphone under this gate."
 }

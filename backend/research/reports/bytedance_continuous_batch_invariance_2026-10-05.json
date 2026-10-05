@@ -1,0 +1,309 @@
+{
+  "reportType": "continuous_batch_invariance",
+  "generatedAt": "2026-10-05T01:50:16.782616+00:00",
+  "fixedProductionOnnx": {
+    "path": "/app/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx",
+    "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "byteSize": 98691493
+  },
+  "dynamicResearchOnnx": {
+    "path": "/tmp/bytedance_note_model_dynamic_batch_research_2026-10-05.onnx",
+    "sha256": "f9969549357194838dc8c0d6de37a0e555df2ca691385bfbfaf6ce7979985b3a",
+    "byteSize": 99749746
+  },
+  "fixtureManifest": {
+    "path": "/app/data/work/bytedance_browser_runtime_feasibility/golden_fixtures/manifest.json",
+    "sha256": "33f847655c2ac8f81afc5ef1a79a7a0f729dbab61bec77639f772b3a9eb041c4"
+  },
+  "fixedVsDynamicB1": [
+    {
+      "fixtureId": "s01_correct_strike_001_g01",
+      "regOnset": {
+        "meanAbsDelta": 1.3822251787587447e-08,
+        "maxAbsDelta": 1.7881393432617188e-07
+      },
+      "frame": {
+        "meanAbsDelta": 2.0303110304098482e-08,
+        "maxAbsDelta": 2.980232238769531e-07
+      },
+      "fixedShape": [
+        1,
+        183,
+        88
+      ],
+      "dynamicShape": [
+        1,
+        183,
+        88
+      ]
+    },
+    {
+      "fixtureId": "s01_correct_chord_001_g01",
+      "regOnset": {
+        "meanAbsDelta": 1.894845880201501e-08,
+        "maxAbsDelta": 1.7881393432617188e-07
+      },
+      "frame": {
+        "meanAbsDelta": 2.1406076911034688e-08,
+        "maxAbsDelta": 3.5762786865234375e-07
+      },
+      "fixedShape": [
+        1,
+        183,
+        88
+      ],
+      "dynamicShape": [
+        1,
+        183,
+        88
+      ]
+    },
+    {
+      "fixtureId": "s01_same_note_retrigger_001_g02",
+      "regOnset": {
+        "meanAbsDelta": 1.765487844807012e-08,
+        "maxAbsDelta": 1.7881393432617188e-07
+      },
+      "frame": {
+        "meanAbsDelta": 2.0932318989252963e-08,
+        "maxAbsDelta": 3.5762786865234375e-07
+      },
+      "fixedShape": [
+        1,
+        183,
+        88
+      ],
+      "dynamicShape": [
+        1,
+        183,
+        88
+      ]
+    }
+  ],
+  "dynamicBatchInvariance": {
+    "2": {
+      "inputShape": [
+        2,
+        29120
+      ],
+      "outputShape": [
+        2,
+        183,
+        88
+      ],
+      "items": [
+        {
+          "slot": 0,
+          "fixtureInputIndex": 0,
+          "fixtureId": "s01_correct_strike_001_g01",
+          "regOnset": {
+            "meanAbsDelta": 1.2863632825599325e-08,
+            "maxAbsDelta": 1.7881393432617188e-07
+          },
+          "frame": {
+            "meanAbsDelta": 1.9733120026899087e-08,
+            "maxAbsDelta": 3.5762786865234375e-07
+          }
+        },
+        {
+          "slot": 1,
+          "fixtureInputIndex": 1,
+          "fixtureId": "s01_correct_chord_001_g01",
+          "regOnset": {
+            "meanAbsDelta": 2.0924916910303182e-08,
+            "maxAbsDelta": 2.980232238769531e-07
+          },
+          "frame": {
+            "meanAbsDelta": 2.033827151137757e-08,
+            "maxAbsDelta": 5.364418029785156e-07
+          }
+        }
+      ]
+    },
+    "4": {
+      "inputShape": [
+        4,
+        29120
+      ],
+      "outputShape": [
+        4,
+        183,
+        88
+      ],
+      "items": [
+        {
+          "slot": 0,
+          "fixtureInputIndex": 0,
+          "fixtureId": "s01_correct_strike_001_g01",
+          "regOnset": {
+            "meanAbsDelta": 0.0,
+            "maxAbsDelta": 0.0
+          },
+          "frame": {
+            "meanAbsDelta": 0.0,
+            "maxAbsDelta": 0.0
+          }
+        },
+        {
+          "slot": 1,
+          "fixtureInputIndex": 1,
+          "fixtureId": "s01_correct_chord_001_g01",
+          "regOnset": {
+            "meanAbsDelta": 2.07491090975509e-08,
+            "maxAbsDelta": 2.384185791015625e-07
+          },
+          "frame": {
+            "meanAbsDelta": 2.0673233791512757e-08,
+            "maxAbsDelta": 2.980232238769531e-07
+          }
+        },
+        {
+          "slot": 2,
+          "fixtureInputIndex": 2,
+          "fixtureId": "s01_same_note_retrigger_001_g02",
+          "regOnset": {
+            "meanAbsDelta": 1.7708545740902082e-08,
+            "maxAbsDelta": 2.384185791015625e-07
+          },
+          "frame": {
+            "meanAbsDelta": 2.084163952531526e-08,
+            "maxAbsDelta": 2.682209014892578e-07
+          }
+        },
+        {
+          "slot": 3,
+          "fixtureInputIndex": 0,
+          "fixtureId": "s01_correct_strike_001_g01",
+          "regOnset": {
+            "meanAbsDelta": 1.301538343767561e-08,
+            "maxAbsDelta": 1.4901161193847656e-07
+          },
+          "frame": {
+            "meanAbsDelta": 1.9531402273287313e-08,
+            "maxAbsDelta": 2.384185791015625e-07
+          }
+        }
+      ]
+    },
+    "8": {
+      "inputShape": [
+        8,
+        29120
+      ],
+      "outputShape": [
+        8,
+        183,
+        88
+      ],
+      "items": [
+        {
+          "slot": 0,
+          "fixtureInputIndex": 0,
+          "fixtureId": "s01_correct_strike_001_g01",
+          "regOnset": {
+            "meanAbsDelta": 1.3098660822663533e-08,
+            "maxAbsDelta": 1.7881393432617188e-07
+          },
+          "frame": {
+            "meanAbsDelta": 1.85838882060807e-08,
+            "maxAbsDelta": 2.980232238769531e-07
+          }
+        },
+        {
+          "slot": 1,
+          "fixtureInputIndex": 1,
+          "fixtureId": "s01_correct_chord_001_g01",
+          "regOnset": {
+            "meanAbsDelta": 2.08638457621646e-08,
+            "maxAbsDelta": 5.364418029785156e-07
+          },
+          "frame": {
+            "meanAbsDelta": 2.0164312886095104e-08,
+            "maxAbsDelta": 5.364418029785156e-07
+          }
+        },
+        {
+          "slot": 2,
+          "fixtureInputIndex": 2,
+          "fixtureId": "s01_same_note_retrigger_001_g02",
+          "regOnset": {
+            "meanAbsDelta": 1.8028702086780868e-08,
+            "maxAbsDelta": 2.384185791015625e-07
+          },
+          "frame": {
+            "meanAbsDelta": 2.0819431512109077e-08,
+            "maxAbsDelta": 4.172325134277344e-07
+          }
+        },
+        {
+          "slot": 3,
+          "fixtureInputIndex": 0,
+          "fixtureId": "s01_correct_strike_001_g01",
+          "regOnset": {
+            "meanAbsDelta": 1.301538343767561e-08,
+            "maxAbsDelta": 1.4901161193847656e-07
+          },
+          "frame": {
+            "meanAbsDelta": 1.9531402273287313e-08,
+            "maxAbsDelta": 2.384185791015625e-07
+          }
+        },
+        {
+          "slot": 4,
+          "fixtureInputIndex": 1,
+          "fixtureId": "s01_correct_chord_001_g01",
+          "regOnset": {
+            "meanAbsDelta": 1.936669846713812e-08,
+            "maxAbsDelta": 2.980232238769531e-07
+          },
+          "frame": {
+            "meanAbsDelta": 2.0612162643374177e-08,
+            "maxAbsDelta": 3.5762786865234375e-07
+          }
+        },
+        {
+          "slot": 5,
+          "fixtureInputIndex": 2,
+          "fixtureId": "s01_same_note_retrigger_001_g02",
+          "regOnset": {
+            "meanAbsDelta": 0.0,
+            "maxAbsDelta": 0.0
+          },
+          "frame": {
+            "meanAbsDelta": 0.0,
+            "maxAbsDelta": 0.0
+          }
+        },
+        {
+          "slot": 6,
+          "fixtureInputIndex": 0,
+          "fixtureId": "s01_correct_strike_001_g01",
+          "regOnset": {
+            "meanAbsDelta": 1.3007980470547409e-08,
+            "maxAbsDelta": 2.384185791015625e-07
+          },
+          "frame": {
+            "meanAbsDelta": 1.8541323143494992e-08,
+            "maxAbsDelta": 2.682209014892578e-07
+          }
+        },
+        {
+          "slot": 7,
+          "fixtureInputIndex": 1,
+          "fixtureId": "s01_correct_chord_001_g01",
+          "regOnset": {
+            "meanAbsDelta": 2.08638457621646e-08,
+            "maxAbsDelta": 5.364418029785156e-07
+          },
+          "frame": {
+            "meanAbsDelta": 2.0164312886095104e-08,
+            "maxAbsDelta": 5.364418029785156e-07
+          }
+        }
+      ]
+    }
+  },
+  "verdict": "PASS",
+  "maxRawAbsDelta": 5.364418029785156e-07,
+  "maxAbsDeltaTolerance": 0.0001
+}
