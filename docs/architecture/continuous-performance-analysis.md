@@ -1,6 +1,6 @@
 # Continuous Performance Analysis
 
-Status: Accepted for the pre-release continuous microphone rewrite.
+Status: Accepted for the pre-release shared target-verification research gate.
 
 Date: 2026-10-03
 
@@ -16,7 +16,7 @@ Continuous microphone feedback previously used a rolling ByteDance fixed-anchor 
 + 170 ms trusted absence interval
 ```
 
-That design is rejected for Continuous absence analysis. The current headed Chrome WebGPU production-path evidence is committed at:
+That design is rejected only for the old generic sliding-window transcription / trusted-region / one-owner Continuous architecture. The current headed Chrome WebGPU production-path evidence is committed at:
 
 ```text
 backend/research/reports/bytedance_rolling_anchor_feasibility_2026-10-03.json
@@ -36,7 +36,18 @@ max coverage gap         1030 ms
 500 ms fully covered     0 / 29 proxy windows
 ```
 
-With that throughput, the old rolling path cannot provide gap-free trusted coverage for missing-note verdicts. Keeping it as a fallback would make inference speed change musical correctness, which is not acceptable.
+With that throughput, the old rolling path cannot provide gap-free generic transcription coverage for missing-note verdicts. Keeping that path as a fallback would make inference speed change musical correctness, which is not acceptable.
+
+This historical verdict did not evaluate the newer score-aware target-verification question:
+
+```text
+known expected pitch set
++ known or candidate target time
++ PCM
+-> target-local verifier decision
+```
+
+Current production microphone state remains unavailable until that shared target-verification gate is completed.
 
 ## Invariants
 
@@ -69,47 +80,59 @@ finalization duration
 
 It must not affect the final matched/missing/extra result for the same analyzed PCM.
 
-### No Dropped Analysis
-
-Continuous analysis must not permanently discard unanalyzed performance audio for low latency. If analysis is slower than capture, queue lag grows and feedback appears later. Audio regions do not become unconfirmed merely because an old scheduler skipped them.
-
 ### STEP Versus Continuous
 
-STEP and Continuous are different product semantics. They may share browser PCM capture, resampling, fixed-window preprocessing, decoder, and timebase primitives, but they must not share a high-level controller or acoustic model adapter that mixes:
+STEP and Continuous are different product semantics but both have known expected pitches:
 
 ```text
-STEP target-local verification
-Continuous performance-time transcription
-Continuous reconciliation
+STEP:
+known current target
++ unknown physical performance time
++ candidate attack trigger time
+-> target-local verification
+
+Continuous:
+known expected score targets
++ known expected performance times
+-> scheduled target-local verification
 ```
 
-STEP may use a target-local verifier only behind a validated event-time attack trigger. Continuous requires a transcription pipeline over performance-aligned PCM. ByteDance is rejected for Continuous microphone; its target-local STEP classifier remains only a candidate until the live STEP trigger and scheduling path are revalidated.
-
-## Target Pipeline
-
-Continuous microphone analysis is:
+The neural model remains score-independent:
 
 ```text
-Browser microphone
-  -> BrowserPcmCapture
-  -> 16 kHz mono normalized PCM
-  -> PerformancePcmTimeline
-  -> ContinuousChunkPlanner
-  -> ContinuousTranscriptionQueue
-  -> ContinuousTranscriptionModel
-  -> owned timestamped ObservedAttack events
-  -> PerformanceReconciler
-  -> live feedback projection
-  -> CompletedPerformance
+PCM -> raw acoustic evidence
 ```
 
-The production tree must not contain a second rolling Continuous path after this rewrite.
+The verifier layer reads score information:
+
+```text
+expected pitch set
+target time
+legal timing policy
+```
+
+STEP still needs a validated high-recall attack trigger before microphone production can be enabled. Continuous still needs a scheduled target-verification gate before microphone production can be enabled. Neither mode may use score following, OLTW, location estimation, or the old rolling scheduler.
+
+## Intended Acoustic Pipeline
+
+The intended shared architecture is:
+
+```text
+Browser microphone PCM
+  -> shared acoustic model raw evidence
+  -> SharedAcousticTargetVerifier
+       /                                \
+STEP candidate attack time        Continuous expected score time
+  -> StepEvidenceSession           -> ContinuousEvaluationSession
+```
+
+The production tree must not contain a second rolling Continuous path after this rewrite. Production microphone entry points remain disabled until their respective gates pass.
 
 ## PCM Boundaries
 
-`BrowserPcmCapture` is model-agnostic. It owns getUserMedia, AudioContext, AudioWorklet, source continuity, resampling, lifecycle, and capture errors. It does not know about ByteDance, scores, STEP targets, Continuous evaluation, coverage, annotation, or MediaRecorder.
+Production browser PCM capture is intentionally absent while microphone practice is disabled. A future integration phase should reintroduce a model-agnostic shared PCM capture boundary for STEP and Continuous together, not restore the old STEP-only or generic-transcription capture path.
 
-`PerformancePcmTimeline` accepts normalized PCM only while the performance runtime is RUNNING. COUNT_IN and PAUSED audio are ignored. Pause/resume creates separate analysis segments, so pre-pause and post-resume audio are not stitched into a single model context.
+For Continuous, normalized PCM is only valid while the performance runtime is RUNNING. COUNT_IN and PAUSED audio are ignored. Pause/resume creates separate analysis segments, so pre-pause and post-resume audio are not stitched into a single model context.
 
 Performance media remains separate from analysis PCM:
 
@@ -122,44 +145,37 @@ performance terminal
 
 Analysis post-roll is context-only. It never extends Performance media duration, PerformanceTake duration, replay duration, or recording timebase.
 
-## Continuous Model Contract
+## Shared Target-Verifier Contract
 
-Continuous requires an explicit `ContinuousTranscriptionContract` that centralizes:
-
-```text
-sampleRateHz
-inputSamplesPerWindow
-trustedOutputStartSamples
-trustedOutputEndSamples
-futureContextSamples
-batchSize
-```
-
-The planner owns window sequencing. The contract does not declare an unused
-stride field; if future model research proves a separate ownership geometry is
-needed, the contract must add that field with matching runtime use and tests.
-
-The contract must pass two gates:
+The research contract should be shaped around target verification, not generic transcription:
 
 ```text
-model gate: trusted output semantics are supported by dev/cal evidence
-runtime gate: selected provider and batch throughput exceed capture production rate with headroom
+TargetVerificationRequest {
+  expectedPitches
+  targetTimeWithinInput
+  legalEarlyMs
+  legalLateMs
+  pcm
+}
+
+TargetVerificationResult {
+  expectedPitchEvidence
+  completeExpectedSetPresent
+  detectedOnsetOffsets
+  confidence
+}
 ```
 
-If ByteDance cannot pass both gates, microphone Continuous is explicitly unavailable. The old rolling path must not return as a fallback.
+The model input context, future context, and product timing tolerance are separate concepts. Long input context may add past musical context without increasing required user-facing future latency. Product assignment tolerance is an evaluation policy, not a model magic number.
 
-## Queue Semantics
-
-The Continuous planner must not drop windows. Slow inference creates backlog:
+The contract must pass:
 
 ```text
-capturedThroughPerformanceMs
-analyzedThroughPerformanceMs
-analysisLagMs
-queuedBatchCount
+model gate: target-local correctness over dev/cal families
+runtime gate: browser target-verification latency and throughput for score-target workload
 ```
 
-Jobs are published in performance order. A later completed job cannot advance analyzed frontier past an earlier pending job.
+If ByteDance cannot pass both gates, microphone STEP and Continuous remain unavailable for acoustic input. The old rolling path must not return as a fallback.
 
 ## Evaluation Semantics
 

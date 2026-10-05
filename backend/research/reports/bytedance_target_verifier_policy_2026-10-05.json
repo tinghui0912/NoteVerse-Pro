@@ -1,0 +1,68 @@
+{
+  "artifact": "bytedance_shared_target_verifier_policy",
+  "generatedAt": "2026-10-05T00:00:00+08:00",
+  "gitHead": "a443e929148afbbff6894bff1e4d0760b0fc3141",
+  "command": "manual policy registration during Practice Phase 6",
+  "os": "Windows",
+  "checkpoint": {
+    "path": "models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
+    "sha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+    "byteSize": 171966578
+  },
+  "modelVersion": "CRNN_note_F1_0.9677_pedal_F1_0.9186",
+  "sourcePolicy": {
+    "path": "backend/research/policies/step_microphone_bytedance_v1.json",
+    "sha256": "15be0bda261e388fa97ec39edd785e2aee4bc7eb097b7b8a95ae49072f738e49"
+  },
+  "frozenEvaluationUsed": false,
+  "researchQuestion": "Can ByteDance serve as a shared target-local verifier for STEP candidate-time verification and Continuous score-scheduled verification?",
+  "targetVerificationRequest": {
+    "expectedPitches": "required",
+    "targetTimeWithinInput": "required",
+    "legalEarlyMs": "product policy, not model context",
+    "legalLateMs": "product policy, not model context",
+    "pcm": "16kHz mono"
+  },
+  "contextDurationsMs": [1820, 3000, 5000, 10000],
+  "futureContextMs": [220, 350],
+  "continuousTimingOffsetsMs": [-250, -200, -150, -100, -50, 0, 50, 100, 150, 200, 250],
+  "stepCandidateTimeRobustnessMs": {
+    "start": -120,
+    "end": 50,
+    "source": "historical trigger-compatible handoff band; not a final trigger requirement"
+  },
+  "families": [
+    "correct_single",
+    "correct_chord",
+    "same_note_retrigger",
+    "dense_repeated_pitch",
+    "fast_adjacent_pitch",
+    "partial_overlapping_notes",
+    "soft_attack",
+    "loud_attack",
+    "wrong_semitone",
+    "wrong_octave",
+    "missing_chord_tone",
+    "long_held_no_retrigger",
+    "pedal_sustain_no_retrigger"
+  ],
+  "acceptanceCriteria": {
+    "positiveTargetRecall": "must be reported per family before PASS",
+    "completeChordRecall": "must be reported before PASS",
+    "wrongNoteFalseMatch": "must be low enough to avoid false advance",
+    "missingChordFalseMatch": "must be low enough to avoid false complete chord",
+    "heldPedalFalseRetrigger": "must not reintroduce false second advance risk",
+    "sameNoteRetrigger": "must remain usable",
+    "timingOffsetRobustness": "must pass the fixed offset matrix",
+    "crossModeDecisionAgreement": "STEP-style and Continuous-style callers must agree for identical PCM, expected pitch set, target time, and timing policy"
+  },
+  "developmentCalibrationDiscipline": {
+    "developmentSet": "select context/future candidate",
+    "calibrationSet": "confirm selected contract once",
+    "frozenEvaluationSet": "forbidden in this phase"
+  },
+  "productionState": {
+    "stepMicrophone": "STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED",
+    "continuousMicrophone": "CONTINUOUS_ANALYSIS_UNAVAILABLE"
+  }
+}

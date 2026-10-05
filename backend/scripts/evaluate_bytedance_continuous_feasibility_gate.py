@@ -251,9 +251,11 @@ def _model_disposition(verdict: str) -> str:
         return "ByteDance may proceed to a later Continuous microphone integration phase; production remains disabled."
     if verdict == "FAIL":
         return (
-            "ByteDance is rejected for Continuous microphone. Its target-local "
-            "STEP classifier remains a candidate, but the current live STEP "
-            "scheduling path requires revalidation."
+            "ByteDance is rejected for the 1.82s generic sliding-window "
+            "Continuous transcription architecture. Scheduled score-aware target "
+            "verification was not evaluated. Its target-local STEP classifier "
+            "remains a candidate, but the current live STEP scheduling path "
+            "requires revalidation."
         )
     return "ByteDance Continuous feasibility remains inconclusive because required evidence is missing."
 
@@ -319,3 +321,4 @@ def _pass_fail(result: bool | None) -> str:
 
 if __name__ == "__main__":
     main()
+

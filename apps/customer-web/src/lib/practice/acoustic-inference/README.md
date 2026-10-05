@@ -177,13 +177,16 @@ pending coalescing, and skipped-anchor coverage holes. Its final evidence is
 kept as a research artifact in
 `backend/research/reports/bytedance_rolling_anchor_feasibility_2026-10-03.json`.
 See `docs/architecture/continuous-performance-analysis.md` for the accepted
-Continuous transcription boundary.
+shared target-verification boundary.
 
 ## STEP microphone status
 
-ByteDance is rejected for Continuous microphone. Its fixed-anchor target-local
-classifier remains a possible STEP verifier, but the previous production STEP
-microphone path used blind fixed-cadence polling and may silently lose relevant
-physical attacks under backpressure. STEP microphone therefore stays disabled
-until a high-recall attack trigger and ordered event-time verification queue are
-validated. MIDI STEP remains the supported correctness-driven learning path.
+ByteDance is rejected for the old generic Continuous transcription architecture;
+scheduled score-aware target verification has not yet been evaluated. Its
+fixed-anchor target-local classifier remains a possible shared verifier, but the
+previous production STEP microphone path used blind fixed-cadence polling and
+may silently lose relevant physical attacks under backpressure. STEP microphone
+therefore stays disabled until a high-recall attack trigger and ordered
+event-time verification queue are validated. MIDI STEP remains the supported
+correctness-driven learning path.
+

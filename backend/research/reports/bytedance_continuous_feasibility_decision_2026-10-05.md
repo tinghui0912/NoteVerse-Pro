@@ -3,7 +3,7 @@
 - Verdict: `FAIL`
 - Git HEAD: `bc34a49bbafa43cf3995d4578ac65d3b64692df2`
 - Production state: `CONTINUOUS_ANALYSIS_UNAVAILABLE`
-- Model disposition: ByteDance is rejected for Continuous microphone. Its target-local STEP classifier remains a candidate, but the current live STEP scheduling path requires revalidation.
+- Model disposition: ByteDance is rejected for the 1.82s generic sliding-window Continuous transcription architecture. Scheduled score-aware target verification was not evaluated. Its target-local STEP classifier remains a candidate, but the current live STEP scheduling path requires revalidation.
 
 ## Gates
 - fixedVsDynamicB1Parity: `PASS`
@@ -32,3 +32,4 @@
 
 ## Blockers
 - Trusted-region gate failed; no one-owner geometry can be selected.
+

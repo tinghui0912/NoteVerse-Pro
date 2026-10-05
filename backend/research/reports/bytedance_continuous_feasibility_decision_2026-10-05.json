@@ -98,5 +98,6 @@
     "ownedWidthMs": null
   },
   "productionState": "CONTINUOUS_ANALYSIS_UNAVAILABLE",
-  "modelDisposition": "ByteDance is rejected for Continuous microphone. Its target-local STEP classifier remains a candidate, but the current live STEP scheduling path requires revalidation."
+  "modelDisposition": "ByteDance is rejected for the 1.82s generic sliding-window Continuous transcription architecture. Scheduled score-aware target verification was not evaluated. Its target-local STEP classifier remains a candidate, but the current live STEP scheduling path requires revalidation."
 }
+
