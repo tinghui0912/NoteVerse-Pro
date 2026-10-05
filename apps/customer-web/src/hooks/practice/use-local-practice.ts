@@ -42,15 +42,8 @@ import type {
 } from '@/lib/practice/local-core/evidence';
 import type { ContinuousEvaluationSnapshot } from '@/lib/practice/local-core/continuous-evaluation-session';
 import {
-  StepMicrophoneCaptureController,
-} from '@/lib/practice/audio-analysis/step/step-acoustic-session';
-import {
   CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON,
 } from '@/lib/practice/audio-analysis/continuous/transcription-contract';
-import {
-  createByteDanceManifestFromAccess,
-} from '@/lib/practice/acoustic-inference/bytedance-contract';
-import { modelAssetsApi } from '@/lib/api';
 import {
   BrowserMidiController,
   type BrowserMidiState,
@@ -112,7 +105,6 @@ export function useLocalPractice({
   const stepRuntimeRef = useRef<StepPracticeRuntime | null>(null);
   const performanceRuntimeRef = useRef<ContinuousPracticeSession | null>(null);
   const metronomeRef = useRef<MetronomeController | null>(null);
-  const micControllerRef = useRef<StepMicrophoneCaptureController | null>(null);
   const midiControllerRef = useRef<BrowserMidiController | null>(null);
   const timebaseRef = useRef<PracticeTimebase | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -189,16 +181,6 @@ export function useLocalPractice({
   const teardownInputs = useCallback(async () => {
     performanceRecorderRef.current?.stopAndCleanup();
     performanceRecorderRef.current = null;
-
-    const mic = micControllerRef.current;
-    micControllerRef.current = null;
-    if (mic) {
-      try {
-        await mic.stop();
-      } catch {
-        // Ignore stop errors during teardown
-      }
-    }
 
     const midi = midiControllerRef.current;
     midiControllerRef.current = null;
@@ -434,25 +416,6 @@ export function useLocalPractice({
     animationFrameRef.current = requestAnimationFrame(loop);
   }, [completeContinuousPerformance, inputSource, stopAnimationLoop]);
 
-  // Fatal input error handler
-  const handleFatalInputError = useCallback((errorMessage: string) => {
-    stopTimer();
-    stopAnimationLoop();
-    metronomeRef.current?.pause();
-    if (mode === 'STEP_BY_STEP') {
-      stepRuntimeRef.current?.pause();
-    } else {
-      const clock = performanceRuntimeRef.current?.pause();
-      if (clock) {
-        setPerformanceClock(clock);
-      }
-    }
-    setErrorInputSource(inputSource);
-    setLifecycle('PAUSED');
-    setInputState('ERROR');
-    setInputError(errorMessage);
-  }, [inputSource, mode, stopAnimationLoop, stopTimer]);
-
   const handleMidiStateChange = useCallback((state: BrowserMidiState) => {
     if (state.connectedInputCount > 0) {
       if (errorInputSourceRef.current === 'MIDI' && inputErrorRef.current === 'NO_CONNECTED_INPUT') {
@@ -513,6 +476,9 @@ export function useLocalPractice({
     if (mode === 'CONTINUOUS_PLAY' && inputSource === 'MICROPHONE') {
       throw new Error(CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON);
     }
+    if (mode === 'STEP_BY_STEP' && inputSource === 'MICROPHONE') {
+      throw new Error('STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED');
+    }
 
     setErrorInputSource(null);
     setInputError(null);
@@ -550,35 +516,7 @@ export function useLocalPractice({
 
     try {
       if (inputSource === 'MICROPHONE') {
-        let modelAccess;
-        try {
-          modelAccess = await modelAssetsApi.getByteDanceNoteModelAccess();
-        } catch {
-          throw new Error('MODEL_ACCESS_UNAVAILABLE');
-        }
-        const manifest = createByteDanceManifestFromAccess(modelAccess);
-
-        const micController = new StepMicrophoneCaptureController({
-          manifest,
-          sessionTimebase: timebase,
-          sourceSampleRateHz: 48000,
-          captureDomainId: localSessionId,
-          evidenceSink: {
-            currentStepTarget: () => stepRuntimeRef.current?.currentTarget() ?? null,
-            onStepObservation: (obs) => handleStepObservation(obs),
-          },
-          onFatalError: (fatalError) => {
-            handleFatalInputError(fatalError.message);
-          },
-        });
-        micControllerRef.current = micController;
-        await micController.start();
-
-        await performanceRecorderRef.current?.prepare({
-          inputSource,
-          analysisStream: micController.mediaStream,
-          cameraStream: cameraMediaStream,
-        });
+        throw new Error('STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED');
       } else {
         const midiController = new BrowserMidiController({
           timebase,
@@ -655,7 +593,6 @@ export function useLocalPractice({
   }, [
     artifact,
     cameraMediaStream,
-    handleFatalInputError,
     handleMidiStateChange,
     handleCapturedAttacks,
     handleStepObservation,
@@ -698,13 +635,7 @@ export function useLocalPractice({
     if (mode === 'STEP_BY_STEP') {
       stepRuntimeRef.current?.pause();
       // Stop inputs without teardown for step mode
-      if (inputSource === 'MICROPHONE' && micControllerRef.current) {
-        try {
-          await micControllerRef.current.stop();
-        } catch {
-          // ignore
-        }
-      } else if (midiControllerRef.current) {
+      if (midiControllerRef.current) {
         try {
           midiControllerRef.current.stop();
         } catch {
@@ -723,7 +654,7 @@ export function useLocalPractice({
     }
     setLifecycle('PAUSED');
     setInputState('IDLE');
-  }, [inputSource, lifecycle, mode, stopAnimationLoop, stopTimer]);
+  }, [lifecycle, mode, stopAnimationLoop, stopTimer]);
 
   // Resume practice session (requires PAUSED)
   const resume = useCallback(async () => {
@@ -738,10 +669,7 @@ export function useLocalPractice({
     try {
       if (mode === 'STEP_BY_STEP') {
         if (inputSource === 'MICROPHONE') {
-          if (!micControllerRef.current) {
-            throw new Error('Microphone session lost. Please restart practice.');
-          }
-          await micControllerRef.current.start();
+          throw new Error('STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED');
         } else {
           if (!midiControllerRef.current) {
             throw new Error('MIDI session lost. Please restart practice.');

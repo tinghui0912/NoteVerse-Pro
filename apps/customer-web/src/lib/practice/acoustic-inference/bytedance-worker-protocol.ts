@@ -150,8 +150,6 @@ export class ByteDanceWorkerProtocolRuntime {
   }
 }
 
-export { ByteDanceBrowserWorkerClient } from './bytedance-worker-client';
-
 function nowMs(): number {
   return globalThis.performance?.now?.() ?? Date.now();
 }

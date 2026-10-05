@@ -213,6 +213,23 @@ describe('resolvePracticeStatusView', () => {
       isError: true,
     });
 
+    expect(
+      resolvePracticeStatusView({
+        lifecycle: 'READY',
+        inputState: 'IDLE',
+        inputSource: 'MICROPHONE',
+        selectedInputCapability: {
+          supported: false,
+          status: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
+          reason: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
+        },
+        sessionMode: 'STEP_BY_STEP',
+      })
+    ).toMatchObject({
+      messageKey: 'micStepTriggerNotValidated',
+      isError: true,
+    });
+
     // Mic browser unsupported
     expect(
       resolvePracticeStatusView({

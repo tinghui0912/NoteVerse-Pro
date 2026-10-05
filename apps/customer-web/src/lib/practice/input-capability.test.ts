@@ -67,13 +67,20 @@ describe('evaluatePracticeInputCapabilities', () => {
     expect(getSelectedInputCapability('MIDI', caps).status).toBe('AVAILABLE');
   });
 
-  it('keeps STEP microphone available but disables Continuous microphone until transcription is supported', () => {
+  it('disables STEP microphone until acoustic attack triggering is validated', () => {
     const caps = evaluatePracticeInputCapabilities();
 
     expect(getSelectedInputCapability('MICROPHONE', caps, 'STEP_BY_STEP')).toMatchObject({
-      supported: true,
-      status: 'AVAILABLE',
+      supported: false,
+      status: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
+      reason: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
     });
+    expect(isInputSourceSupported('MICROPHONE', caps, 'STEP_BY_STEP')).toBe(false);
+  });
+
+  it('disables Continuous microphone until transcription is supported', () => {
+    const caps = evaluatePracticeInputCapabilities();
+
     expect(getSelectedInputCapability('MICROPHONE', caps, 'CONTINUOUS_PLAY')).toMatchObject({
       supported: false,
       status: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',

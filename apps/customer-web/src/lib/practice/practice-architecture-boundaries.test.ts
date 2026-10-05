@@ -23,6 +23,11 @@ const forbiddenProductionTokens = [
   'providerFallback',
   'cameraRecordingEnabled',
   'PerformanceEvidenceObservation',
+  'STEP_BYTEDANCE_ANCHOR_STEP_SAMPLES',
+  'StepInferenceScheduler',
+  'skippedAnchorCount',
+  'pendingAnchor',
+  'activeAnchor',
   'follow-controller',
   'Practice WebSocket',
 ];
@@ -57,6 +62,27 @@ describe('practice architecture boundaries', () => {
     const content = readFileSync(capabilityFile, 'utf8');
 
     expect(content).not.toContain('BYTE_DANCE_CONTINUOUS_TRANSCRIPTION_CAPABILITY');
+  });
+
+  it('keeps acoustic inference independent from STEP score state', () => {
+    const acousticRoots = [
+      path.resolve(__dirname, 'acoustic-inference'),
+      path.resolve(__dirname, 'audio-analysis'),
+    ];
+    const violations = acousticRoots
+      .flatMap((root) => collectProductionSourceFiles(root))
+      .flatMap((file) => {
+        const content = readFileSync(file, 'utf8');
+        return [
+          'currentStepTarget',
+          'StepPracticeRuntime',
+          'groupForCurrentStep',
+        ]
+          .filter((token) => content.includes(token))
+          .map((token) => `${path.relative(process.cwd(), file)} contains ${token}`);
+      });
+
+    expect(violations).toEqual([]);
   });
 
   it('keeps Continuous completion separate from analysis frontier advancement', () => {

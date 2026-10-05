@@ -25,6 +25,7 @@ type PracticeStatusMessageKey =
   | 'micModelAccessUnavailable'
   | 'micModelStorageUnavailable'
   | 'micWebGpuUnavailable'
+  | 'micStepTriggerNotValidated'
   | 'micContinuousUnavailable'
   | 'micBrowserUnsupported'
   | 'midiBrowserUnsupported'
@@ -109,6 +110,14 @@ export function resolvePracticeStatusView({
         countInPulse: null,
       };
     }
+    if (inputError === 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED') {
+      return {
+        messageKey: 'micStepTriggerNotValidated',
+        isError: true,
+        pending: false,
+        countInPulse: null,
+      };
+    }
     return {
       messageKey: inputSource === 'MIDI' ? 'midiStartFailed' : 'micStartFailed',
       customMessage: inputError ?? undefined,
@@ -162,6 +171,14 @@ export function resolvePracticeStatusView({
       if (selectedInputCapability.status === 'CONTINUOUS_ANALYSIS_UNAVAILABLE') {
         return {
           messageKey: 'micContinuousUnavailable',
+          isError: true,
+          pending: false,
+          countInPulse: null,
+        };
+      }
+      if (selectedInputCapability.status === 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED') {
+        return {
+          messageKey: 'micStepTriggerNotValidated',
           isError: true,
           pending: false,
           countInPulse: null,
@@ -269,6 +286,7 @@ export function PracticeStatus({
       resolvedView.messageKey === 'midiNoConnectedInput' ||
       resolvedView.messageKey === 'micModelAccessUnavailable' ||
       resolvedView.messageKey === 'micModelStorageUnavailable' ||
+      resolvedView.messageKey === 'micStepTriggerNotValidated' ||
       resolvedView.messageKey === 'micContinuousUnavailable' ||
       resolvedView.messageKey === 'micBrowserUnsupported' ||
       resolvedView.messageKey === 'midiBrowserUnsupported'

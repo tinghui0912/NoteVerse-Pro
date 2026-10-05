@@ -71,6 +71,8 @@ export function PracticeSettingsPanel({
           ? t('micWebGpuUnavailable')
         : microphoneCapability.status === 'CONTINUOUS_ANALYSIS_UNAVAILABLE'
           ? t('micContinuousUnavailable')
+          : microphoneCapability.status === 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED'
+            ? t('micStepTriggerNotValidated')
           : microphoneCapability.status === 'BROWSER_UNSUPPORTED'
             ? t('settingMicrophoneUnsupported')
             : hasMicPermission === false

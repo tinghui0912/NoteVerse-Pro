@@ -127,18 +127,6 @@ export type ByteDanceLoadDiagnostics = {
   executionProvider?: ByteDanceRuntimeExecutionProvider;
 };
 
-export function createByteDanceManifestFromAccess(access: {
-  downloadUrl: string;
-  expectedByteSize: number;
-  sha256: string;
-}): ByteDanceModelManifest {
-  return defaultByteDanceModelManifest({
-    modelUrl: access.downloadUrl,
-    expectedByteSize: access.expectedByteSize,
-    sha256: access.sha256,
-  });
-}
-
 export function defaultByteDanceModelManifest(input: {
   modelUrl: string;
   expectedByteSize: number;

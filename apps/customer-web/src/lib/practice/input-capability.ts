@@ -14,6 +14,11 @@ export type PracticeMicrophoneCapability =
   | { supported: false; status: 'MODEL_STORAGE_UNAVAILABLE'; reason: 'MODEL_STORAGE_UNAVAILABLE' }
   | {
       supported: false;
+      status: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED';
+      reason: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED';
+    }
+  | {
+      supported: false;
       status: 'CONTINUOUS_ANALYSIS_UNAVAILABLE';
       reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE';
     };
@@ -32,8 +37,16 @@ type ContinuousAcousticAnalysisCapability =
   | { status: 'MODEL_NOT_VALIDATED' }
   | { status: 'AVAILABLE' };
 
+type StepAcousticAnalysisCapability =
+  | { status: 'TRIGGER_NOT_VALIDATED' }
+  | { status: 'AVAILABLE' };
+
 const CONTINUOUS_ACOUSTIC_ANALYSIS_CAPABILITY: ContinuousAcousticAnalysisCapability = {
   status: 'MODEL_NOT_VALIDATED',
+};
+
+const STEP_ACOUSTIC_ANALYSIS_CAPABILITY: StepAcousticAnalysisCapability = {
+  status: 'TRIGGER_NOT_VALIDATED',
 };
 
 export type EvaluatePracticeInputOptions = {
@@ -112,6 +125,17 @@ export function getSelectedInputCapability(
       supported: false,
       status: CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON,
       reason: CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON,
+    };
+  }
+  if (
+    mode === 'STEP_BY_STEP'
+    && capabilities.microphone.supported
+    && STEP_ACOUSTIC_ANALYSIS_CAPABILITY.status !== 'AVAILABLE'
+  ) {
+    return {
+      supported: false,
+      status: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
+      reason: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
     };
   }
   return capabilities.microphone;

@@ -13,14 +13,6 @@ const recorderEvents = vi.hoisted(() => ({
   events: [] as string[],
 }));
 
-const micMock = vi.hoisted(() => ({
-  start: vi.fn(async () => {}),
-  stop: vi.fn(async () => {
-    recorderEvents.events.push('INPUT_TEARDOWN');
-  }),
-  onFatalError: null as ((err: Error) => void) | null,
-}));
-
 const midiMock = vi.hoisted(() => ({
   connectedInputCount: 1,
   onStateChange: null as ((state: {
@@ -29,52 +21,6 @@ const midiMock = vi.hoisted(() => ({
     connectedInputCount: number;
     isRunning: boolean;
   }) => void) | null,
-}));
-
-vi.mock('@/lib/practice/audio-analysis/step/step-acoustic-session', () => {
-  return {
-    StepMicrophoneCaptureController: class MockMicController {
-      constructor(options: {
-        onFatalError?: (err: Error) => void;
-      }) {
-        micMock.onFatalError = options.onFatalError ?? null;
-      }
-      async start() {
-        return micMock.start();
-      }
-      async stop() {
-        return micMock.stop();
-      }
-      get mediaStream() {
-        return {
-          getAudioTracks: () => [{ kind: 'audio', readyState: 'live', addEventListener: vi.fn(), stop: vi.fn() }],
-          getTracks: () => [{ kind: 'audio', readyState: 'live', addEventListener: vi.fn(), stop: vi.fn() }],
-        };
-      }
-      snapshot() {
-        return { state: 'running' };
-      }
-    },
-  };
-});
-
-vi.mock('@/lib/practice/acoustic-inference/bytedance-contract', () => ({
-  createByteDanceManifestFromAccess: vi.fn(() => ({})),
-}));
-
-vi.mock('@/lib/api', () => ({
-  modelAssetsApi: {
-    getByteDanceNoteModelAccess: vi.fn(async () => ({
-      schemaVersion: 1,
-      assetId: 'bytedance-piano-transcription-note-model',
-      assetVersion: 'CRNN_note_F1_0.9677_pedal_F1_0.9186',
-      expectedByteSize: 98_691_493,
-      sha256: '6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5',
-      mediaType: 'application/octet-stream',
-      downloadUrl: 'https://test-bucket/model.onnx',
-      downloadUrlExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
-    })),
-  },
 }));
 
 vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
@@ -115,11 +61,6 @@ describe('useLocalPractice', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     recorderEvents.events = [];
-    micMock.start.mockReset().mockResolvedValue(undefined);
-    micMock.stop.mockReset().mockImplementation(async () => {
-      recorderEvents.events.push('INPUT_TEARDOWN');
-    });
-    micMock.onFatalError = null;
     midiMock.connectedInputCount = 1;
     midiMock.onStateChange = null;
     completedPerformanceStore.clearPerformance();
@@ -182,7 +123,7 @@ describe('useLocalPractice', () => {
       useLocalPractice({
         artifact,
         mode: 'STEP_BY_STEP',
-        inputSource: 'MICROPHONE',
+        inputSource: 'MIDI',
         scope: { kind: 'FULL' },
       })
     );
@@ -193,15 +134,12 @@ describe('useLocalPractice', () => {
 
     expect(result.current.lifecycle).toBe('ACTIVE');
     expect(result.current.inputState).toBe('RUNNING');
-    expect(micMock.start).toHaveBeenCalledTimes(1);
     expect(result.current.activeStepGroup?.groupId).toBe(
       artifact.expectedPracticeGroups[0].groupId
     );
   });
 
-  it('handles input start failure by keeping READY lifecycle and setting ERROR inputState', async () => {
-    micMock.start.mockRejectedValueOnce(new Error('Microphone permission denied'));
-
+  it('fails STEP microphone closed until acoustic attack triggering is validated', async () => {
     const { result } = renderHook(() =>
       useLocalPractice({
         artifact,
@@ -217,7 +155,28 @@ describe('useLocalPractice', () => {
 
     expect(result.current.lifecycle).toBe('READY');
     expect(result.current.inputState).toBe('ERROR');
-    expect(result.current.inputError).toBe('Microphone permission denied');
+    expect(result.current.inputError).toBe('STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED');
+  });
+
+  it('handles MIDI input start failure by keeping READY lifecycle and setting ERROR inputState', async () => {
+    midiMock.connectedInputCount = 0;
+
+    const { result } = renderHook(() =>
+      useLocalPractice({
+        artifact,
+        mode: 'STEP_BY_STEP',
+        inputSource: 'MIDI',
+        scope: { kind: 'FULL' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    expect(result.current.lifecycle).toBe('READY');
+    expect(result.current.inputState).toBe('ERROR');
+    expect(result.current.inputError).toBe('NO_CONNECTED_INPUT');
   });
 
   it('allows pause and resume, properly stopping and restarting input', async () => {
@@ -225,7 +184,7 @@ describe('useLocalPractice', () => {
       useLocalPractice({
         artifact,
         mode: 'STEP_BY_STEP',
-        inputSource: 'MICROPHONE',
+        inputSource: 'MIDI',
         scope: { kind: 'FULL' },
       })
     );
@@ -241,22 +200,20 @@ describe('useLocalPractice', () => {
     });
     expect(result.current.lifecycle).toBe('PAUSED');
     expect(result.current.inputState).toBe('IDLE');
-    expect(micMock.stop).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       await result.current.resume();
     });
     expect(result.current.lifecycle).toBe('ACTIVE');
     expect(result.current.inputState).toBe('RUNNING');
-    expect(micMock.start).toHaveBeenCalledTimes(2);
   });
 
-  it('handles fatal input error by transitioning to PAUSED and ERROR while preserving progress', async () => {
+  it('handles MIDI disconnect by transitioning to PAUSED and ERROR while preserving progress', async () => {
     const { result } = renderHook(() =>
       useLocalPractice({
         artifact,
         mode: 'STEP_BY_STEP',
-        inputSource: 'MICROPHONE',
+        inputSource: 'MIDI',
         scope: { kind: 'FULL' },
       })
     );
@@ -267,17 +224,23 @@ describe('useLocalPractice', () => {
     expect(result.current.lifecycle).toBe('ACTIVE');
 
     act(() => {
-      micMock.onFatalError?.(new Error('AudioContext crashed'));
+      midiMock.connectedInputCount = 0;
+      midiMock.onStateChange?.({
+        isSupported: true,
+        hasPermission: true,
+        connectedInputCount: 0,
+        isRunning: true,
+      });
     });
 
     expect(result.current.lifecycle).toBe('PAUSED');
     expect(result.current.inputState).toBe('ERROR');
-    expect(result.current.inputError).toBe('AudioContext crashed');
+    expect(result.current.inputError).toBe('NO_CONNECTED_INPUT');
     expect(result.current.activeStepGroup?.groupId).toBe(
       artifact.expectedPracticeGroups[0].groupId
     );
 
-    // Resuming retries input start
+    midiMock.connectedInputCount = 1;
     await act(async () => {
       await result.current.resume();
     });
@@ -291,7 +254,7 @@ describe('useLocalPractice', () => {
       useLocalPractice({
         artifact,
         mode: 'STEP_BY_STEP',
-        inputSource: 'MICROPHONE',
+        inputSource: 'MIDI',
         scope: { kind: 'FULL' },
       })
     );
@@ -313,7 +276,7 @@ describe('useLocalPractice', () => {
       useLocalPractice({
         artifact,
         mode: 'STEP_BY_STEP',
-        inputSource: 'MICROPHONE',
+        inputSource: 'MIDI',
         scope: { kind: 'FULL' },
       })
     );
@@ -338,7 +301,7 @@ describe('useLocalPractice', () => {
       useLocalPractice({
         artifact,
         mode: 'STEP_BY_STEP',
-        inputSource: 'MICROPHONE',
+        inputSource: 'MIDI',
         scope: { kind: 'FULL' },
       })
     );

@@ -181,6 +181,7 @@
   "micModelAccessUnavailable": "模型资源暂时不可用",
   "micModelStorageUnavailable": "本地模型存储不可用",
   "micWebGpuUnavailable": "麦克风练习需要 WebGPU 支持",
+  "micStepTriggerNotValidated": "逐步练习的麦克风分析暂不可用，正在重新验证触发检测",
   "micContinuousUnavailable": "连贯演奏的麦克风分析暂不可用",
   "micModelNotConfigured": "麦克风练习当前不可用：模型资源未配置",
   "micBrowserUnsupported": "当前浏览器不支持麦克风练习所需功能",
