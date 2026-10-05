@@ -1,0 +1,176 @@
+{
+  "metadata": {
+    "generatedAt": "2026-10-05T00:00:00+08:00",
+    "researchHarnessGitHead": "a0bddcb518fb653b890ccae2da4fd2fc46fa6318",
+    "harnessSha256": "a1230deb37ecc36960e1093b9da012df39ca3e4ac6a9d64ad5746c50d2ff921a",
+    "policy": {
+      "path": "backend/research/policies/rtt_streaming_onset_policy_v2_2026-10-05.json",
+      "sha256": "7a66ab8c37572269e3e8ae68c711f2f541f24b8a8d951ffb034d28ce1ec95ea5"
+    },
+    "exactCommand": "backend/scripts/evaluate_rtt_streaming_onset_frontend_v2.py --repo-root /tmp/noteverse-phase7b-harness --policy backend/research/policies/rtt_streaming_onset_policy_v2_2026-10-05.json --rtt-repo /tmp/noteverse-phase7/rtt --checkpoint /tmp/noteverse-phase7/rtt/ckpts/CustomAMT.ckpt --maestro-root /app/backend/data/work/datasets/maestro-v3.0.0 --development-targets backend/research/reports/bytedance_target_verifier_dev_targets_v4_2026-10-05.json --development-output backend/research/reports/rtt_streaming_development_v2_2026-10-05.json --decision-json backend/research/reports/rtt_streaming_decision_v2_2026-10-05.json --decision-md backend/research/reports/rtt_streaming_decision_v2_2026-10-05.md --research-harness-git-head a0bddcb518fb653b890ccae2da4fd2fc46fa6318 --require-clean-tree --device cuda",
+    "dirtyTree": false,
+    "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+    "python": "3.11.16",
+    "torch": "2.5.0+cu124",
+    "torchaudio": "2.5.0+cu124",
+    "cuda": "12.4",
+    "cudaAvailable": true,
+    "device": "cuda",
+    "rttUpstreamCommit": "b3197cfa538cc6f7698042b87ecee709223fc58e",
+    "checkpointSha256": "901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1",
+    "checkpointBytes": 67843364,
+    "upstreamResultsCsvSha256": "b8e4293b5763c5a3d87fd617ba63afec17be75f91cace1edc72c095983867c1c",
+    "developmentManifestSha256": "4019633352aa471763b27fc2d380ce3bc87a3095543e5a4ecac62e0dd4da9597",
+    "frozenEvaluationUsed": false
+  },
+  "upstreamIdentityAudit": {
+    "verdict": "PASS",
+    "failures": [],
+    "repo": "https://github.com/huispaty/rtt",
+    "commit": "b3197cfa538cc6f7698042b87ecee709223fc58e",
+    "checkpointSha256": "901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1",
+    "checkpointBytes": 67843364,
+    "checkpointGitBlob": "100644 blob 92dc0018d4e5b13807bf00057e12a711627f6f1f\tckpts/CustomAMT.ckpt",
+    "python": "3.11.16",
+    "torch": "2.5.0+cu124",
+    "torchaudio": "2.5.0+cu124",
+    "sampleRateHz": 16000,
+    "nFft": 2048,
+    "hopSamples": 160,
+    "fftDelaySamples": 160,
+    "framesPerSecond": 100,
+    "classes": 88,
+    "pitchRange": "MIDI 21..108",
+    "officialThresholds": {
+      "onset": 0.5,
+      "offset": 0.3,
+      "frame": 0.3
+    },
+    "officialSegmentSamples": 48000,
+    "officialOverlap": "50%",
+    "inputScaling": "OFFICIAL_RUNTIME"
+  },
+  "upstreamMetricReproduction": {
+    "verdict": "INCONCLUSIVE",
+    "selectedRows": [
+      {
+        "file": "MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_07_WAV",
+        "audio": "/app/backend/data/work/datasets/maestro-v3.0.0/2009/MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_07_WAV.wav",
+        "midi": "/app/backend/data/work/datasets/maestro-v3.0.0/2009/MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_07_WAV.midi"
+      },
+      {
+        "file": "MIDI-Unprocessed_02_R1_2009_03-06_ORIG_MID--AUDIO_02_R1_2009_02_R1_2009_04_WAV",
+        "audio": "/app/backend/data/work/datasets/maestro-v3.0.0/2009/MIDI-Unprocessed_02_R1_2009_03-06_ORIG_MID--AUDIO_02_R1_2009_02_R1_2009_04_WAV.wav",
+        "midi": "/app/backend/data/work/datasets/maestro-v3.0.0/2009/MIDI-Unprocessed_02_R1_2009_03-06_ORIG_MID--AUDIO_02_R1_2009_02_R1_2009_04_WAV.midi"
+      },
+      {
+        "file": "MIDI-Unprocessed_01_R1_2006_01-09_ORIG_MID--AUDIO_01_R1_2006_04_Track04_wav",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-Unprocessed_24_R1_2006_01-05_ORIG_MID--AUDIO_24_R1_2006_03_Track03_wav",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_08_WAV",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-Unprocessed_Recital13-15_MID--AUDIO_15_R1_2018_wav--1",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-UNPROCESSED_09-10_R1_2014_MID--AUDIO_09_R1_2014_wav--4",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-Unprocessed_11_R1_2009_01-05_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_04_WAV",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1",
+        "audio": "/app/backend/data/work/datasets/maestro-v3.0.0/2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.wav",
+        "midi": "/app/backend/data/work/datasets/maestro-v3.0.0/2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.midi"
+      },
+      {
+        "file": "MIDI-Unprocessed_04_R3_2011_MID--AUDIO_R3-D2_05_Track05_wav",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-Unprocessed_05_R1_2008_01-04_ORIG_MID--AUDIO_05_R1_2008_wav--3",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-Unprocessed_R2_D2-12-13-15_mid--AUDIO-from_mp3_12_R2_2015_wav--3",
+        "audio": null,
+        "midi": null
+      }
+    ],
+    "missingRows": [
+      {
+        "file": "MIDI-Unprocessed_01_R1_2006_01-09_ORIG_MID--AUDIO_01_R1_2006_04_Track04_wav",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-Unprocessed_24_R1_2006_01-05_ORIG_MID--AUDIO_24_R1_2006_03_Track03_wav",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_08_WAV",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-Unprocessed_Recital13-15_MID--AUDIO_15_R1_2018_wav--1",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-UNPROCESSED_09-10_R1_2014_MID--AUDIO_09_R1_2014_wav--4",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-Unprocessed_11_R1_2009_01-05_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_04_WAV",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-Unprocessed_04_R3_2011_MID--AUDIO_R3-D2_05_Track05_wav",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-Unprocessed_05_R1_2008_01-04_ORIG_MID--AUDIO_05_R1_2008_wav--3",
+        "audio": null,
+        "midi": null
+      },
+      {
+        "file": "MIDI-Unprocessed_R2_D2-12-13-15_mid--AUDIO-from_mp3_12_R2_2015_wav--3",
+        "audio": null,
+        "midi": null
+      }
+    ],
+    "reason": "Required upstream MAESTRO test files were not available locally; official results.csv rows were not reproduced."
+  },
+  "final": {
+    "development": "INCONCLUSIVE",
+    "calibration": "NOT RUN",
+    "stepReplay": "NOT RUN",
+    "continuousReplay": "NOT RUN",
+    "browser": "NOT RUN",
+    "verdict": "RTT Shared Streaming Onset Frontend = INCONCLUSIVE",
+    "reason": "upstream metric reproduction did not pass",
+    "productionMicrophone": "DISABLED"
+  }
+}
