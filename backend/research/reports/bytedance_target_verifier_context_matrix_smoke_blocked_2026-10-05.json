@@ -1,0 +1,37 @@
+{
+  "artifact": "bytedance_shared_target_verifier_context_matrix_smoke",
+  "generatedAt": "2026-10-05T00:00:00+08:00",
+  "gitHead": "fbf0ec9deea362fa563ee551d5d3e5cffb4b4545",
+  "command": "python backend/scripts/evaluate_bytedance_shared_target_verifier.py --policy backend/research/policies/step_microphone_bytedance_v1.json --case-manifest backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json --checkpoint models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth --output backend/research/reports/bytedance_target_verifier_context_matrix_smoke_2026-10-05.json --device cpu --max-cases-per-kind 1 --context-ms 1820 --future-ms 220 --continuous-offset-ms 0 --step-candidate-offset-ms 0",
+  "os": "Windows",
+  "checkpoint": {
+    "path": "models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
+    "sha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+    "byteSize": 171966578
+  },
+  "script": {
+    "path": "backend/scripts/evaluate_bytedance_shared_target_verifier.py",
+    "sha256": "f5a283999b7fc0b91ad96d5f978c4e95d4e56edc58e27bf72c8249bde10bfe86"
+  },
+  "policy": {
+    "path": "backend/research/policies/step_microphone_bytedance_v1.json",
+    "sha256": "15be0bda261e388fa97ec39edd785e2aee4bc7eb097b7b8a95ae49072f738e49"
+  },
+  "caseManifest": {
+    "path": "backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json",
+    "sha256": "42a0ac14282ca3b9ed678ac5bcfa49322fc6c8cf3edfd89dc7fa18c576848cc1"
+  },
+  "frozenEvaluationUsed": false,
+  "status": "BLOCKED",
+  "blocker": {
+    "type": "MISSING_PYTHON_RESEARCH_DEPENDENCY",
+    "module": "numpy",
+    "error": "ModuleNotFoundError: No module named 'numpy'",
+    "phase": "import",
+    "notes": "The harness compiled successfully with py_compile, but the default Python interpreter in this workspace does not provide the PyTorch/numpy research environment required to execute the model matrix."
+  },
+  "executed": {
+    "pyCompile": "PASS",
+    "smokeMatrix": "NOT_EXECUTED"
+  }
+}
