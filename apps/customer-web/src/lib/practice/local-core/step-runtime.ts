@@ -172,8 +172,9 @@ export class StepPracticeRuntime {
       result: 'MATCH',
       observedAttackPitches: observation.observedAttackPitches,
       confidence: observation.confidence,
+      sessionTime: observation.attackOnsetTime,
     });
-    this.advanceOne();
+    this.advanceOne(observation.attackOnsetTime);
     return {
       kind: 'MATCH',
       reason: 'accepted_current_step',
@@ -194,8 +195,9 @@ export class StepPracticeRuntime {
       result: 'SKIPPED',
       observedAttackPitches: [],
       confidence: 1,
+      sessionTime: this.timebase.runtimeToSessionTime(this.clock.nowMs()),
     });
-    this.advanceOne();
+    this.advanceOne(this.timebase.runtimeToSessionTime(this.clock.nowMs()));
     return { kind: 'SKIP', reason: 'user_skip', advancedTo: this.currentTarget() };
   }
 
@@ -277,10 +279,10 @@ export class StepPracticeRuntime {
     return this.artifact.practiceAttackSteps[this.currentIndex] ?? null;
   }
 
-  private advanceOne(): void {
+  private advanceOne(nextActivationBoundary: SessionTime): void {
     this.currentIndex += 1;
     this.activationGeneration += 1;
-    this.activationBoundary = this.timebase.runtimeToSessionTime(this.clock.nowMs());
+    this.activationBoundary = nextActivationBoundary;
     if (this.currentIndex > this.resolvedScope.endIndex) {
       this.completed = true;
       this.lifecycleState = 'ENDED';
@@ -288,10 +290,9 @@ export class StepPracticeRuntime {
     }
   }
 
-  private recordAttempt(input: Omit<LocalPracticeAttempt, 'attemptId' | 'sessionTime'>): void {
+  private recordAttempt(input: Omit<LocalPracticeAttempt, 'attemptId'>): void {
     this.attempts.push({
       attemptId: `${this.localSessionId}:attempt:${this.attempts.length + 1}`,
-      sessionTime: this.timebase.runtimeToSessionTime(this.clock.nowMs()),
       ...input,
     });
   }

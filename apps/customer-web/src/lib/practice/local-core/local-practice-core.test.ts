@@ -5,6 +5,7 @@ import {
   ManualClock,
   ContinuousPracticeSession,
   PracticeTimebase,
+  StepEvidenceSession,
   StepPracticeRuntime,
   countInContractAt,
   entryGroupEndBeat,
@@ -15,6 +16,7 @@ import {
   type SessionTime,
   type StepVerifierObservation,
 } from './index';
+import type { AcousticNoteEvent } from '../acoustic-inference';
 
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
 const defaultTempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
@@ -72,6 +74,18 @@ function performanceEvidence(
   };
 }
 
+function acousticEvent(domainId: string, ms: number, pitch: string): AcousticNoteEvent {
+  return {
+    pitch,
+    midiPitch: 60,
+    onsetTime: sessionTime(domainId, ms),
+    confidence: 0.95,
+    onsetScore: 0.9,
+    frameScore: 0.9,
+    source: 'ACOUSTIC',
+  };
+}
+
 describe('canonical PracticeScoreArtifact parity foundation', () => {
   it('uses the backend-produced artifact for STEP and CONTINUOUS from the same score domain', () => {
     expect(artifact.schemaVersion).toBe(1);
@@ -122,6 +136,105 @@ describe('local STEP practice runtime', () => {
     expect(runtime.currentTarget()?.attackPitches).toEqual(['C4']);
     expect(runtime.currentTarget()?.stepId).toBe(artifact.practiceAttackSteps[1].stepId);
     expect(runtime.attemptHistory).toHaveLength(1);
+  });
+
+  it('uses accepted evidence time for MATCH attempts and next activation boundaries', () => {
+    const clock = new ManualClock(10_000);
+    const runtime = new StepPracticeRuntime({
+      artifact,
+      scope: { kind: 'FULL' },
+      clock,
+      localSessionId: 'event-time-step',
+    });
+
+    expect(runtime.observe(observation(runtime, ['C4'], {
+      attackOnsetTime: sessionTime('event-time-step', 1_000),
+      captureTime: sessionTime('event-time-step', 1_000),
+    }))).toMatchObject({ kind: 'MATCH' });
+
+    expect(runtime.attemptHistory[0].sessionTime).toEqual(sessionTime('event-time-step', 1_000));
+    expect(runtime.currentTarget()?.activationBoundary).toEqual(sessionTime('event-time-step', 1_000));
+  });
+
+  it('lets the user wait arbitrarily before a correct STEP microphone event', () => {
+    const clock = new ManualClock(0);
+    const runtime = new StepPracticeRuntime({
+      artifact,
+      scope: { kind: 'FULL' },
+      clock,
+      localSessionId: 'long-wait-step',
+    });
+    const evidence = new StepEvidenceSession(runtime);
+    clock.advance(10_000);
+
+    const result = evidence.publishAcousticEvents([
+      acousticEvent('long-wait-step', 10_000, 'C4'),
+    ]);
+
+    expect(result.decisions).toHaveLength(1);
+    expect(result.decisions[0]).toMatchObject({ kind: 'MATCH' });
+    expect(runtime.currentTarget()?.stepId).toBe(artifact.practiceAttackSteps[1].stepId);
+  });
+
+  it('advances multiple STEP targets from one delayed acoustic publication by event time', () => {
+    const runtime = new StepPracticeRuntime({
+      artifact,
+      scope: { kind: 'FULL' },
+      clock: new ManualClock(50_000),
+      localSessionId: 'delayed-step-events',
+    });
+    const evidence = new StepEvidenceSession(runtime);
+
+    const result = evidence.publishAcousticEvents([
+      acousticEvent('delayed-step-events', 1_000, 'C4'),
+      acousticEvent('delayed-step-events', 1_300, 'C4'),
+      acousticEvent('delayed-step-events', 1_600, 'G4'),
+    ]);
+
+    expect(result.decisions.map((decision) => decision.kind)).toEqual(['MATCH', 'MATCH', 'MATCH']);
+    expect(runtime.currentTarget()?.attackPitches).toEqual(['A4', 'C5']);
+    expect(runtime.attemptHistory.map((attempt) => attempt.sessionTime.ms)).toEqual([1_000, 1_300, 1_600]);
+  });
+
+  it('recognizes same-note retrigger across consecutive STEP targets before earlier inference would complete', () => {
+    const runtime = new StepPracticeRuntime({
+      artifact,
+      scope: { kind: 'FULL' },
+      clock: new ManualClock(2_100),
+      localSessionId: 'same-note-retrigger-step',
+    });
+    const evidence = new StepEvidenceSession(runtime);
+
+    const result = evidence.publishAcousticEvents([
+      acousticEvent('same-note-retrigger-step', 1_000, 'C4'),
+      acousticEvent('same-note-retrigger-step', 1_400, 'C4'),
+    ]);
+
+    expect(result.decisions.map((decision) => decision.kind)).toEqual(['MATCH', 'MATCH']);
+    expect(runtime.currentTarget()?.attackPitches).toEqual(['G4']);
+  });
+
+  it('rejects previous-generation delayed evidence after pause and resume', () => {
+    const runtime = new StepPracticeRuntime({
+      artifact,
+      scope: { kind: 'FULL' },
+      clock: new ManualClock(0),
+      localSessionId: 'pause-generation-step',
+    });
+    const staleTarget = runtime.currentTarget();
+
+    runtime.pause();
+    runtime.resume();
+
+    expect(runtime.observe({
+      stepId: staleTarget?.stepId ?? '',
+      activationGeneration: staleTarget?.activationGeneration ?? 1,
+      attackOnsetTime: sessionTime('pause-generation-step', 100),
+      captureTime: sessionTime('pause-generation-step', 100),
+      observedAttackPitches: staleTarget?.attackPitches ?? ['C4'],
+      confidence: 1,
+      source: 'ACOUSTIC',
+    })).toMatchObject({ kind: 'WAIT', reason: 'stale_activation' });
   });
 
   it('keeps repeated-pitch stale attacks from satisfying the next activation', () => {

@@ -6,13 +6,13 @@ import canonicalArtifactJson from '../local-core/__fixtures__/canonical-practice
 import {
   ManualClock,
   ContinuousPracticeSession,
+  observationForCurrentTarget,
   PracticeTimebase,
   StepPracticeRuntime,
   type PracticeScoreArtifact,
 } from '../local-core';
 import {
   acousticEventsToPerformanceEvidence,
-  acousticEventsToStepObservation,
   AcousticEventStreamNormalizer,
   BYTEDANCE_INPUT_DESCRIPTOR,
   BYTEDANCE_OUTPUT_DESCRIPTORS,
@@ -530,26 +530,26 @@ describe('ByteDance local practice adapters', () => {
       rawOutput([{ frame: 0, midiPitch: 60, onset: 0.9, frameScore: 0.8 }]),
       request({ captureStartSampleIndex: 0, captureStartTime: target.activationBoundary })
     );
-    expect(acousticEventsToStepObservation(target, stale)).toBeNull();
+    expect(observationForCurrentTarget(stale, target)).toBeNull();
 
     const fresh = decodeByteDanceRawOutputs(
       rawOutput([{ frame: 1, midiPitch: 60, onset: 0.9, frameScore: 0.8 }]),
       request({ captureStartSampleIndex: 0, captureStartTime: target.activationBoundary })
     );
     clock.advance(20);
-    expect(runtime.observe(acousticEventsToStepObservation(target, fresh))).toMatchObject({ kind: 'MATCH' });
+    expect(runtime.observe(observationForCurrentTarget(fresh, target))).toMatchObject({ kind: 'MATCH' });
 
     const second = runtime.currentTarget();
     if (!second) {
       throw new Error('missing second target');
     }
-    expect(acousticEventsToStepObservation(second, fresh)).toBeNull();
+    expect(observationForCurrentTarget(fresh, second)).toBeNull();
 
     const repeatedFresh = [{
       ...fresh[0],
       onsetTime: { ...second.activationBoundary, ms: second.activationBoundary.ms + 20 },
     }];
-    expect(runtime.observe(acousticEventsToStepObservation(second, repeatedFresh))).toMatchObject({ kind: 'MATCH' });
+    expect(runtime.observe(observationForCurrentTarget(repeatedFresh, second))).toMatchObject({ kind: 'MATCH' });
   });
 
   it('requires complete chord pitch evidence and waits on wrong pitches', () => {
@@ -576,7 +576,7 @@ describe('ByteDance local practice adapters', () => {
       frameScore: 0.8,
       source: 'ACOUSTIC' as const,
     }];
-    expect(runtime.observe(acousticEventsToStepObservation(target, partial))).toMatchObject({
+    expect(runtime.observe(observationForCurrentTarget(partial, target))).toMatchObject({
       kind: 'WAIT',
       reason: 'no_observation',
     });
@@ -584,7 +584,7 @@ describe('ByteDance local practice adapters', () => {
       partial[0],
       { ...partial[0], pitch: 'C5', midiPitch: 72, onsetTime: { ...target.activationBoundary, ms: 12 } },
     ];
-    expect(runtime.observe(acousticEventsToStepObservation(target, complete))).toMatchObject({ kind: 'MATCH' });
+    expect(runtime.observe(observationForCurrentTarget(complete, target))).toMatchObject({ kind: 'MATCH' });
   });
 
   it('requires expected chord pitches to belong to one coherent fresh attack gesture', () => {
@@ -623,13 +623,13 @@ describe('ByteDance local practice adapters', () => {
         source: 'ACOUSTIC' as const,
       },
     ];
-    expect(acousticEventsToStepObservation(target, farApart)).toBeNull();
+    expect(observationForCurrentTarget(farApart, target)).toBeNull();
 
     const coherent = [
       farApart[0],
       { ...farApart[1], onsetTime: { ...base, ms: base.ms + 30 } },
     ];
-    expect(runtime.observe(acousticEventsToStepObservation(target, coherent))).toMatchObject({ kind: 'MATCH' });
+    expect(runtime.observe(observationForCurrentTarget(coherent, target))).toMatchObject({ kind: 'MATCH' });
   });
 
   it('can match a later coherent chord after an earlier unrelated same-pitch event', () => {
@@ -677,7 +677,7 @@ describe('ByteDance local practice adapters', () => {
         source: 'ACOUSTIC' as const,
       },
     ];
-    expect(runtime.observe(acousticEventsToStepObservation(target, events))).toMatchObject({ kind: 'MATCH' });
+    expect(runtime.observe(observationForCurrentTarget(events, target))).toMatchObject({ kind: 'MATCH' });
   });
 
   it('does not reuse a previous-window onset after a new STEP activation', () => {
@@ -703,14 +703,14 @@ describe('ByteDance local practice adapters', () => {
       source: 'ACOUSTIC' as const,
     }];
     clock.advance(20);
-    expect(runtime.observe(acousticEventsToStepObservation(first, normalizer.normalizeWindow(firstEvent))))
+    expect(runtime.observe(observationForCurrentTarget(normalizer.normalizeWindow(firstEvent), first)))
       .toMatchObject({ kind: 'MATCH' });
     const second = runtime.currentTarget();
     if (!second) {
       throw new Error('missing second target');
     }
     const repeatedPreviousWindow = [{ ...firstEvent[0], inferenceCompletedAtMs: 2000 }];
-    expect(acousticEventsToStepObservation(second, normalizer.normalizeWindow(repeatedPreviousWindow))).toBeNull();
+    expect(observationForCurrentTarget(normalizer.normalizeWindow(repeatedPreviousWindow), second)).toBeNull();
   });
 
   it('feeds the same generic acoustic evidence into Performance evaluation without moving the clock', () => {
