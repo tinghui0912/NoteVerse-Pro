@@ -1,0 +1,57 @@
+{
+  "artifact": "rtt_streaming_onset_policy_v2",
+  "generatedAt": "2026-10-05T00:00:00+08:00",
+  "candidate": {
+    "repo": "https://github.com/huispaty/rtt",
+    "commit": "b3197cfa538cc6f7698042b87ecee709223fc58e",
+    "checkpointRelativePath": "ckpts/CustomAMT.ckpt",
+    "expectedCheckpointBytes": 67843364,
+    "expectedCheckpointSha256": "901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1"
+  },
+  "upstreamMetricReproduction": {
+    "selectedRows": "first 12 data rows after results.csv header, in upstream file order",
+    "perFileF1Tolerance": 0.01,
+    "aggregateMeanF1Tolerance": 0.005,
+    "tolerancesSeconds": [0.01, 0.02, 0.03]
+  },
+  "runtime": {
+    "inputScaling": "OFFICIAL_RUNTIME",
+    "inputScalingReason": "Use pinned upstream inference.py semantics: librosa float PCM is passed to CustomAMT.forward(), which divides by int16 range.",
+    "sampleRateHz": 16000,
+    "framesPerSecond": 100,
+    "officialOnsetThreshold": 0.5,
+    "thresholdSweep": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
+    "frozenEvaluationUsed": false
+  },
+  "sourceChunkPlan": {
+    "scoredSpanSeconds": 10,
+    "warmupSeconds": 10,
+    "ownership": "Each source timestamp belongs to exactly one [T,T+10) scored interval; input is [max(0,T-10),T+10), with silence before source start."
+  },
+  "diagnosticTolerancesMs": [10, 20, 30, 50],
+  "productTargetWindowMs": 50,
+  "gates": {
+    "correct_single": {"minRecall": 0.95},
+    "complete_chord": {"minRecall": 0.9},
+    "same_note_retrigger_second": {"minRecall": 0.9},
+    "dense_repeated_pitch": {"minRecall": 0.9},
+    "fast_adjacent_pitch": {"minRecall": 0.9},
+    "partial_overlapping_notes": {"minRecall": 0.9},
+    "soft_attack": {"minRecall": 0.9},
+    "loud_attack": {"minRecall": 0.9},
+    "wrong_semitone": {"maxFalseTargetAccepts": 0},
+    "wrong_octave": {"maxFalseTargetAccepts": 0},
+    "missing_chord_tone": {"maxFalseTargetAccepts": 0},
+    "long_held_no_retrigger": {"maxFalseRetriggerEvents": 0},
+    "pedal_sustain_no_retrigger": {"maxFalseRetriggerEvents": 0}
+  },
+  "thresholdSelection": {
+    "eligibility": "Every required hard criterion PASS and sampleCount > 0.",
+    "tieBreak": [
+      "maximize minimum margin above positive recall gates",
+      "all safety gates remain zero-error",
+      "choose threshold closest to upstream 0.5",
+      "exact tie chooses higher threshold"
+    ]
+  }
+}
