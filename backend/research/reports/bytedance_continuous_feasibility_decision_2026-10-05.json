@@ -1,7 +1,7 @@
 {
   "reportType": "final_decision",
-  "generatedAt": "2026-10-05T01:58:18.198812+00:00",
-  "gitHead": "c89f0ffd2cf3646fd8ebd0df26d30c21971174d7",
+  "generatedAt": "2026-10-05T02:05:11.482543+00:00",
+  "gitHead": "4423bbd9d2bd353c3ba61b61655b565678d96f00",
   "command": "python backend/scripts/evaluate_bytedance_continuous_feasibility_gate.py --reports-dir backend/research/reports --date 2026-10-05",
   "os": {
     "platform": "Windows",
@@ -54,8 +54,17 @@
     "Trusted-region gate failed; no one-owner geometry can be selected."
   ],
   "browserThroughput": {
-    "browserVersion": null,
-    "ortVersion": null
+    "b1MedianWindowsPerSecond": 2.793296089385475,
+    "b1P95WindowsPerSecond": 2.555583951244211,
+    "b2MedianWindowsPerSecond": 3.792188093557977,
+    "b2P95WindowsPerSecond": 3.1786395420350138,
+    "b4MedianWindowsPerSecond": 4.940101271785152,
+    "b4P95WindowsPerSecond": 4.264392324093817,
+    "b8MedianWindowsPerSecond": 5.7085771377312815,
+    "b8P95WindowsPerSecond": 5.369127516778524,
+    "browserVersion": "154.0.8037.95",
+    "ortVersion": "1.20.1",
+    "maxRawAbsDelta": 0.01808685064315796
   },
   "trustedRegion": {
     "datasetCategoryCounts": {

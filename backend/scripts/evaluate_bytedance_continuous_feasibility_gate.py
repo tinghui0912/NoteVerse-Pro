@@ -194,7 +194,7 @@ def _max_batch_invariance_delta(report: dict[str, Any] | None) -> float:
 
 def _max_browser_raw_delta(report: dict[str, Any] | None) -> float:
     max_delta = 0.0
-    for result in (report or {}).get("results", []):
+    for result in _browser_results(report):
         for item in result.get("rawParity", []):
             max_delta = max(max_delta, float(item.get("regOnset", {}).get("maxAbsDelta", 0.0)), float(item.get("frame", {}).get("maxAbsDelta", 0.0)))
     return max_delta
@@ -207,7 +207,7 @@ def _selected_p95_effective(report: dict[str, Any] | None) -> float | None:
 
 def _browser_throughput(report: dict[str, Any] | None) -> dict[str, Any]:
     summary: dict[str, Any] = {}
-    for result in (report or {}).get("results", []):
+    for result in _browser_results(report):
         batch = result.get("batchSize")
         warm = result.get("warm", {})
         if batch is None:
@@ -215,9 +215,21 @@ def _browser_throughput(report: dict[str, Any] | None) -> dict[str, Any]:
         summary[f"b{batch}MedianWindowsPerSecond"] = warm.get("medianWindowsPerSecond")
         summary[f"b{batch}P95WindowsPerSecond"] = warm.get("p95WindowsPerSecond")
     if report:
-        summary["browserVersion"] = report.get("browser", {}).get("version")
-        summary["ortVersion"] = report.get("ortVersion")
+        summary["browserVersion"] = report.get("runtime", {}).get("browserVersion")
+        summary["ortVersion"] = report.get("ortAsset", {}).get("version")
+        summary["maxRawAbsDelta"] = _max_browser_raw_delta(report)
     return summary
+
+
+def _browser_results(report: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not report:
+        return []
+    if isinstance(report.get("results"), list):
+        return list(report["results"])
+    nested = report.get("result", {}).get("results", {})
+    if isinstance(nested, dict):
+        return [value for value in nested.values() if isinstance(value, dict)]
+    return []
 
 
 def _trusted_region_summary(region: dict[str, Any] | None, dataset: dict[str, Any] | None) -> dict[str, Any]:

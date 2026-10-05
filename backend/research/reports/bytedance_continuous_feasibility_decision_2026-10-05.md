@@ -1,7 +1,7 @@
 # ByteDance Continuous Feasibility Decision
 
 - Verdict: `FAIL`
-- Git HEAD: `c89f0ffd2cf3646fd8ebd0df26d30c21971174d7`
+- Git HEAD: `4423bbd9d2bd353c3ba61b61655b565678d96f00`
 - Production state: `CONTINUOUS_ANALYSIS_UNAVAILABLE`
 - Model disposition: ByteDance remains STEP-only for now; current note_model is rejected for Continuous microphone under this gate.
 
