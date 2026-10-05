@@ -1,0 +1,243 @@
+{
+  "artifact": "bytedance_target_verifier_dev_full_gate_v3",
+  "generatedAt": "2026-10-05T00:00:00+08:00",
+  "gitHead": "1054615c1491818baff3803e9dda95b7077b2171",
+  "command": "scripts/evaluate_bytedance_shared_target_verifier_v3.py gate-full-dev --policy research/policies/bytedance_target_verifier_policy_v3_2026-10-05.json --full-development research/reports/bytedance_target_verifier_dev_full_v4_2026-10-05.json --output research/reports/bytedance_target_verifier_dev_full_gate_v4_2026-10-05.json --git-head 1054615c1491818baff3803e9dda95b7077b2171",
+  "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+  "frozenEvaluationUsed": false,
+  "policy": {
+    "path": "research/policies/bytedance_target_verifier_policy_v3_2026-10-05.json",
+    "sha256": "1d26d176b6a95877175e130c11b287a40499e09a2b73c13f9991a5473aae7c1f"
+  },
+  "fullDevelopment": {
+    "path": "research/reports/bytedance_target_verifier_dev_full_v4_2026-10-05.json",
+    "sha256": "66a1eb79b4159f48f5c38f1d356cfbfd696e287605d2a6afe4ac39186c76918e"
+  },
+  "postContextResults": [
+    {
+      "postAttackContextMs": 220,
+      "checks": [
+        {
+          "criterion": "correct_single.recall",
+          "value": 1.0,
+          "operator": ">=",
+          "threshold": 0.95,
+          "sampleCount": 4,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "complete_chord.recall",
+          "value": 1.0,
+          "operator": ">=",
+          "threshold": 0.9,
+          "sampleCount": 12,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "same_note_retrigger_second.recall",
+          "value": 0.8,
+          "operator": ">=",
+          "threshold": 0.9,
+          "sampleCount": 15,
+          "verdict": "FAIL"
+        },
+        {
+          "criterion": "dense_repeated_pitch.recall",
+          "value": 1.0,
+          "operator": ">=",
+          "threshold": 0.9,
+          "sampleCount": 11,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "fast_adjacent_pitch.recall",
+          "value": 1.0,
+          "operator": ">=",
+          "threshold": 0.9,
+          "sampleCount": 14,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "partial_overlapping_notes.recall",
+          "value": 1.0,
+          "operator": ">=",
+          "threshold": 0.9,
+          "sampleCount": 11,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "soft_attack.recall",
+          "value": 0.7,
+          "operator": ">=",
+          "threshold": 0.9,
+          "sampleCount": 10,
+          "verdict": "FAIL"
+        },
+        {
+          "criterion": "loud_attack.recall",
+          "value": 1.0,
+          "operator": ">=",
+          "threshold": 0.9,
+          "sampleCount": 16,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "wrong_semitone.falseAcceptCount",
+          "value": 0,
+          "operator": "<=",
+          "threshold": 0,
+          "sampleCount": 1,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "wrong_octave.falseAcceptCount",
+          "value": 0,
+          "operator": "<=",
+          "threshold": 0,
+          "sampleCount": 1,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "missing_chord_tone.falseAcceptCount",
+          "value": 0,
+          "operator": "<=",
+          "threshold": 0,
+          "sampleCount": 1,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "long_held_no_retrigger.falseAcceptCount",
+          "value": 1,
+          "operator": "<=",
+          "threshold": 0,
+          "sampleCount": 48,
+          "verdict": "FAIL"
+        },
+        {
+          "criterion": "pedal_sustain_no_retrigger.falseAcceptCount",
+          "value": 2,
+          "operator": "<=",
+          "threshold": 0,
+          "sampleCount": 47,
+          "verdict": "FAIL"
+        }
+      ],
+      "verdict": "FAIL"
+    },
+    {
+      "postAttackContextMs": 350,
+      "checks": [
+        {
+          "criterion": "correct_single.recall",
+          "value": 1.0,
+          "operator": ">=",
+          "threshold": 0.95,
+          "sampleCount": 4,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "complete_chord.recall",
+          "value": 1.0,
+          "operator": ">=",
+          "threshold": 0.9,
+          "sampleCount": 12,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "same_note_retrigger_second.recall",
+          "value": 0.866667,
+          "operator": ">=",
+          "threshold": 0.9,
+          "sampleCount": 15,
+          "verdict": "FAIL"
+        },
+        {
+          "criterion": "dense_repeated_pitch.recall",
+          "value": 1.0,
+          "operator": ">=",
+          "threshold": 0.9,
+          "sampleCount": 11,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "fast_adjacent_pitch.recall",
+          "value": 1.0,
+          "operator": ">=",
+          "threshold": 0.9,
+          "sampleCount": 14,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "partial_overlapping_notes.recall",
+          "value": 1.0,
+          "operator": ">=",
+          "threshold": 0.9,
+          "sampleCount": 11,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "soft_attack.recall",
+          "value": 0.7,
+          "operator": ">=",
+          "threshold": 0.9,
+          "sampleCount": 10,
+          "verdict": "FAIL"
+        },
+        {
+          "criterion": "loud_attack.recall",
+          "value": 1.0,
+          "operator": ">=",
+          "threshold": 0.9,
+          "sampleCount": 16,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "wrong_semitone.falseAcceptCount",
+          "value": 0,
+          "operator": "<=",
+          "threshold": 0,
+          "sampleCount": 1,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "wrong_octave.falseAcceptCount",
+          "value": 0,
+          "operator": "<=",
+          "threshold": 0,
+          "sampleCount": 1,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "missing_chord_tone.falseAcceptCount",
+          "value": 0,
+          "operator": "<=",
+          "threshold": 0,
+          "sampleCount": 1,
+          "verdict": "PASS"
+        },
+        {
+          "criterion": "long_held_no_retrigger.falseAcceptCount",
+          "value": 2,
+          "operator": "<=",
+          "threshold": 0,
+          "sampleCount": 48,
+          "verdict": "FAIL"
+        },
+        {
+          "criterion": "pedal_sustain_no_retrigger.falseAcceptCount",
+          "value": 2,
+          "operator": "<=",
+          "threshold": 0,
+          "sampleCount": 47,
+          "verdict": "FAIL"
+        }
+      ],
+      "verdict": "FAIL"
+    }
+  ],
+  "selectedPostAttackContextMs": null,
+  "developmentVerdict": "FAIL",
+  "stopReason": "At least one valid hard criterion failed for every post-attack context candidate; calibration and browser gates must not run.",
+  "calibration": "NOT RUN",
+  "browser": "NOT RUN"
+}
