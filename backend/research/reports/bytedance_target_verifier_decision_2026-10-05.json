@@ -1,5 +1,6 @@
 {
   "artifact": "bytedance_shared_target_verifier_decision",
+  "phase6BStatus": "SUPERSEDED_INVALID_FINAL_GATE",
   "generatedAt": "2026-10-05T00:00:00+08:00",
   "gitHead": "905c9c138dd524d347b52fb42f19defae948fbcd",
   "command": "manual decision artifact after running bounded dev shared target-verifier matrix in the Docker research container",
@@ -31,6 +32,16 @@
     }
   ],
   "frozenEvaluationUsed": false,
+  "invalidationReasons": [
+    "case-level positive/negative classification polluted group-level semantics",
+    "no-retrigger cases synthesized missing target timestamps",
+    "Continuous legalEarly/legalLate policy was not used by the verifier",
+    "requested 3s/5s/10s context was not proven to be physically present",
+    "required families were missing",
+    "only max 2 cases per kind were run",
+    "offset results were aggregated away",
+    "numeric acceptance criteria were not frozen"
+  ],
   "historicalResearchReuse": {
     "oldContinuousFailScope": "FAIL for ByteDance 1.82s generic sliding-window transcription / trusted-region / one-owner Continuous architecture",
     "scheduledScoreAwareTargetVerification": "NOT_EVALUATED",

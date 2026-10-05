@@ -2,8 +2,22 @@
 
 - Verdict: `FAIL`
 - Git HEAD: `905c9c138dd524d347b52fb42f19defae948fbcd`
+- Phase 6B status: `SUPERSEDED / INVALID FINAL GATE`
 - Frozen evaluation used: `false`
 - Production state: STEP Mic remains `STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED`; Continuous Mic remains `CONTINUOUS_ANALYSIS_UNAVAILABLE`.
+
+## Phase 6B Invalidation
+
+This bounded Phase 6 decision is retained as historical raw evidence, but it is no longer a valid final gate. It is superseded by the Phase 6B corrected benchmark because:
+
+- case-level positive/negative classification polluted group-level semantics;
+- no-retrigger cases synthesized missing target timestamps;
+- Continuous legalEarly/legalLate policy was not used by the verifier;
+- requested 3s/5s/10s context was not proven to be physically present;
+- required families were missing;
+- only max 2 cases per kind were run;
+- offset results were aggregated away;
+- numeric acceptance criteria were not frozen.
 
 ## Historical Scope Correction
 

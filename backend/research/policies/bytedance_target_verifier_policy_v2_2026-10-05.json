@@ -1,0 +1,55 @@
+{
+  "artifact": "bytedance_target_verifier_policy_v2",
+  "generatedAt": "2026-10-05T00:00:00+08:00",
+  "frozenEvaluationUsed": false,
+  "model": {
+    "checkpointPath": "models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
+    "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+    "sampleRate": 16000
+  },
+  "contextsMs": [1820, 3000, 5000, 10000],
+  "futureContextMs": [220, 350],
+  "continuousOffsetsMs": [-250, -200, -150, -100, -50, 0, 50, 100, 150, 200, 250],
+  "stepCandidateOffsetsMs": [-120, -80, -40, 0, 50],
+  "timingPolicy": {
+    "continuousLegalEarlyMs": 250,
+    "continuousLegalLateMs": 250,
+    "stepCandidateLegalEarlyMs": 120,
+    "stepCandidateLegalLateMs": 50
+  },
+  "thresholds": {
+    "targetOnsetMin": 0.2,
+    "targetFrameMin": 0.2
+  },
+  "stressProbes": {
+    "noRetriggerProbeAfterPreviousPhysicalAttackMs": 700
+  },
+  "acceptanceCriteria": {
+    "correctSingleRecallMin": 0.95,
+    "completeChordRecallMin": 0.9,
+    "sameNoteRetriggerRecallMin": 0.9,
+    "wrongSemitoneFalseMatchMax": 0,
+    "wrongOctaveFalseMatchMax": 0,
+    "missingChordCompleteFalseMatchMax": 0,
+    "heldNoteNoRetriggerFalseAcceptMax": 0,
+    "pedalNoRetriggerFalseAcceptMax": 0,
+    "continuousCorrectSingleRecallMinAtEveryOffset": 0.9,
+    "continuousCompleteChordRecallMinAtEveryOffset": 0.85,
+    "crossModeDecisionAgreementMin": 1.0
+  },
+  "requiredFamilies": [
+    "correct_single",
+    "correct_chord",
+    "same_note_retrigger",
+    "dense_repeated_pitch",
+    "fast_adjacent_pitch",
+    "partial_overlapping_notes",
+    "soft_attack",
+    "loud_attack",
+    "wrong_semitone",
+    "wrong_octave",
+    "missing_chord_tone",
+    "long_held_no_retrigger",
+    "pedal_sustain_no_retrigger"
+  ]
+}
