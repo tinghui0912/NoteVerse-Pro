@@ -1,53 +1,254 @@
 {
-  "reportType": "headed_browser_batch_benchmark",
-  "generatedAt": "2026-10-04T18:04:10.879070+00:00",
-  "gitHead": "e321e7296989b5262342e48c4a904bdadaf7556b",
-  "command": "python backend/scripts/evaluate_bytedance_continuous_feasibility_gate.py --date 2026-10-05",
-  "os": {
-    "platform": "Windows",
-    "release": "11",
-    "machine": "AMD64"
+  "reportType": "continuous_dynamic_batch_browser_benchmark",
+  "command": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\browser_runtime\\bytedance_dynamic_batch_browser_benchmark.mjs --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_dynamic_batch_research_2026-10-05.onnx --fixture-dir backend/data/work/bytedance_browser_runtime_feasibility/golden_fixtures --ort-dir backend/data/work/ort-ab/1.20.1/node_modules/onnxruntime-web/dist --browser-channel chrome --headed --warm-runs 12 --output backend/research/reports/bytedance_continuous_browser_batch_benchmark_2026-10-05.json",
+  "runtime": {
+    "browserChannel": "chrome",
+    "headed": true,
+    "browserVersion": "154.0.8037.95",
+    "os": {
+      "platform": "win32",
+      "release": "10.0.26200",
+      "arch": "x64"
+    }
+  },
+  "ortAsset": {
+    "version": "1.20.1",
+    "packagePath": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\ort-ab\\1.20.1\\node_modules\\onnxruntime-web\\package.json",
+    "distDirectory": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\ort-ab\\1.20.1\\node_modules\\onnxruntime-web\\dist"
   },
   "model": {
-    "path": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\bytedance_browser_runtime_feasibility\\bytedance_note_model_fixed_anchor.onnx",
-    "exists": true,
-    "byteSize": 98691493,
-    "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
-    "expectedByteSize": 98691493,
-    "expectedSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
-    "inputShape": [
-      1,
-      29120
-    ]
+    "path": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\bytedance_browser_runtime_feasibility\\bytedance_note_model_dynamic_batch_research_2026-10-05.onnx",
+    "byteSize": 99749746,
+    "sha256": "f9969549357194838dc8c0d6de37a0e555df2ca691385bfbfaf6ce7979985b3a"
   },
-  "checkpoint": {
-    "path": "C:\\app\\models\\bytedance_piano_transcription\\CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
-    "exists": false,
-    "sha256": null,
-    "byteSize": null
-  },
-  "status": "BLOCKED",
-  "reason": "Batch benchmark requires a batch-capable ONNX export with raw parity first.",
-  "provider": "webgpu",
-  "ortVersion": "1.20.1",
-  "requestedBatchSizes": [
-    1,
-    2,
-    4,
-    8
+  "browserConsole": [
+    {
+      "type": "error",
+      "text": "\u001b[0;93m2026-10-05 09:18:51.233699 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m"
+    },
+    {
+      "type": "error",
+      "text": "\u001b[0;93m2026-10-05 09:18:51.235100 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+    }
   ],
-  "measurements": {
-    "1": null,
-    "2": null,
-    "4": null,
-    "8": null
+  "result": {
+    "backend": "webgpu",
+    "ortVersion": null,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+    "webgpu": {
+      "available": true,
+      "adapterAcquired": true,
+      "adapter": {
+        "isFallbackAdapter": null,
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "bgra8unorm-storage",
+          "texture-formats-tier1",
+          "chromium-experimental-multi-draw-indirect",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "chromium-experimental-sampling-resource-table",
+          "chromium-experimental-timestamp-query-inside-passes",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "texture-compression-unaligned",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "shader-f16",
+          "clip-distances",
+          "timestamp-query",
+          "texture-formats-tier2",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {}
+      }
+    },
+    "modelLoadMs": 880.5999999046326,
+    "warmRuns": 12,
+    "results": {
+      "1": {
+        "batchSize": 1,
+        "inputShape": [
+          1,
+          29120
+        ],
+        "firstInferenceMs": 1429.5,
+        "outputShapes": {
+          "regOnset": [
+            1,
+            183,
+            88
+          ],
+          "frame": [
+            1,
+            183,
+            88
+          ]
+        },
+        "warm": {
+          "samples": [
+            370.40000009536743,
+            407,
+            426,
+            408,
+            436,
+            509.59999990463257,
+            449.90000009536743,
+            484.7999999523163,
+            505.90000009536743,
+            515.3999998569489,
+            493.2999999523163,
+            499.90000009536743
+          ],
+          "minMs": 370.40000009536743,
+          "medianMs": 449.90000009536743,
+          "p95Ms": 515.3999998569489,
+          "maxMs": 515.3999998569489,
+          "medianMsPerWindow": 449.90000009536743,
+          "p95MsPerWindow": 515.3999998569489,
+          "medianWindowsPerSecond": 2.222716158675317,
+          "p95WindowsPerSecond": 1.9402405903716602
+        }
+      },
+      "2": {
+        "batchSize": 2,
+        "inputShape": [
+          2,
+          29120
+        ],
+        "firstInferenceMs": 693.0999999046326,
+        "outputShapes": {
+          "regOnset": [
+            2,
+            183,
+            88
+          ],
+          "frame": [
+            2,
+            183,
+            88
+          ]
+        },
+        "warm": {
+          "samples": [
+            691.2000000476837,
+            665.7999999523163,
+            683.5,
+            642.7999999523163,
+            646.2000000476837,
+            622.5,
+            650.6000001430511,
+            653.8999998569489,
+            646.7999999523163,
+            648,
+            644.6000001430511,
+            670
+          ],
+          "minMs": 622.5,
+          "medianMs": 648,
+          "p95Ms": 691.2000000476837,
+          "maxMs": 691.2000000476837,
+          "medianMsPerWindow": 324,
+          "p95MsPerWindow": 345.60000002384186,
+          "medianWindowsPerSecond": 3.0864197530864197,
+          "p95WindowsPerSecond": 2.893518518318904
+        }
+      },
+      "4": {
+        "batchSize": 4,
+        "inputShape": [
+          4,
+          29120
+        ],
+        "firstInferenceMs": 985.9000000953674,
+        "outputShapes": {
+          "regOnset": [
+            4,
+            183,
+            88
+          ],
+          "frame": [
+            4,
+            183,
+            88
+          ]
+        },
+        "warm": {
+          "samples": [
+            905.2000000476837,
+            975.3999998569489,
+            936.2999999523163,
+            934.4000000953674,
+            1043.2000000476837,
+            1024.8999998569489,
+            959.6000001430511,
+            933.2999999523163,
+            992.0999999046326,
+            1049.8000001907349,
+            1037.3999998569489,
+            1017.4000000953674
+          ],
+          "minMs": 905.2000000476837,
+          "medianMs": 975.3999998569489,
+          "p95Ms": 1049.8000001907349,
+          "maxMs": 1049.8000001907349,
+          "medianMsPerWindow": 243.8499999642372,
+          "p95MsPerWindow": 262.4500000476837,
+          "medianWindowsPerSecond": 4.100881690164687,
+          "p95WindowsPerSecond": 3.810249570654651
+        }
+      },
+      "8": {
+        "batchSize": 8,
+        "inputShape": [
+          8,
+          29120
+        ],
+        "firstInferenceMs": 1440.1999998092651,
+        "outputShapes": {
+          "regOnset": [
+            8,
+            183,
+            88
+          ],
+          "frame": [
+            8,
+            183,
+            88
+          ]
+        },
+        "warm": {
+          "samples": [
+            1300,
+            1483.5,
+            1557,
+            1461.7000000476837,
+            1446.6000001430511,
+            1465,
+            1453.5,
+            1411.2999999523163,
+            1426,
+            1408.5999999046326,
+            1380.5,
+            1356
+          ],
+          "minMs": 1300,
+          "medianMs": 1426,
+          "p95Ms": 1557,
+          "maxMs": 1557,
+          "medianMsPerWindow": 178.25,
+          "p95MsPerWindow": 194.625,
+          "medianWindowsPerSecond": 5.610098176718092,
+          "p95WindowsPerSecond": 5.138086062941555
+        }
+      }
+    }
   },
-  "historicalSingleWindowSmokeSummary": {
-    "source": "backend/research/reports/bytedance_worker_webgpu_smoke_ort_1_20_1.json",
-    "browserVersion": "152.0.7977.75",
-    "medianEndToEndMs": 388.69999980926514,
-    "p95EndToEndMs": 440,
-    "medianWorkerOnnxMs": 388.2999999523163,
-    "productionWorkerFactoryUsed": true
-  }
+  "error": null
 }

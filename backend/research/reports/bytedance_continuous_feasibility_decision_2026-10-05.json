@@ -1,45 +1,81 @@
 {
   "reportType": "final_decision",
-  "generatedAt": "2026-10-04T18:04:10.879070+00:00",
-  "gitHead": "e321e7296989b5262342e48c4a904bdadaf7556b",
-  "command": "python backend/scripts/evaluate_bytedance_continuous_feasibility_gate.py --date 2026-10-05",
-  "os": {
-    "platform": "Windows",
-    "release": "11",
-    "machine": "AMD64"
-  },
-  "model": {
-    "path": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\bytedance_browser_runtime_feasibility\\bytedance_note_model_fixed_anchor.onnx",
-    "exists": true,
-    "byteSize": 98691493,
-    "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
-    "expectedByteSize": 98691493,
-    "expectedSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
-    "inputShape": [
+  "generatedAt": "2026-10-05T01:20:49.342414+00:00",
+  "gitHead": "732243620be923567c8e061f42697ae1c52c611b",
+  "verdict": "INCONCLUSIVE",
+  "decisionRule": "PASS requires batch parity, trusted-region evidence, browser throughput, and backlog simulation all passing. INCONCLUSIVE is required when a critical trusted-region experiment is blocked by missing dev/cal fixture coverage.",
+  "batchExportParity": {
+    "status": "PASS",
+    "maxRawAbsDelta": 9.328126907348633e-06,
+    "onnxSha256": "f9969549357194838dc8c0d6de37a0e555df2ca691385bfbfaf6ce7979985b3a",
+    "opset": 18,
+    "batchSizes": [
       1,
-      29120
+      2,
+      4,
+      8
     ]
   },
-  "checkpoint": {
-    "path": "C:\\app\\models\\bytedance_piano_transcription\\CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
-    "exists": false,
-    "sha256": null,
-    "byteSize": null
+  "browserBatchBenchmark": {
+    "status": "PASS",
+    "browserVersion": "154.0.8037.95",
+    "ortVersion": "1.20.1",
+    "webgpu": {
+      "available": true,
+      "adapterAcquired": true,
+      "adapter": {
+        "isFallbackAdapter": null,
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "bgra8unorm-storage",
+          "texture-formats-tier1",
+          "chromium-experimental-multi-draw-indirect",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "chromium-experimental-sampling-resource-table",
+          "chromium-experimental-timestamp-query-inside-passes",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "texture-compression-unaligned",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "shader-f16",
+          "clip-distances",
+          "timestamp-query",
+          "texture-formats-tier2",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {}
+      }
+    },
+    "b8MedianMs": 1426,
+    "b8P95Ms": 1557,
+    "b8MedianWindowsPerSecond": 5.610098176718092,
+    "b8P95WindowsPerSecond": 5.138086062941555
   },
-  "verdict": "INCONCLUSIVE",
-  "decisionRule": "INCONCLUSIVE is allowed only when critical environment or fixture inputs are missing.",
+  "trustedRegion": {
+    "status": "BLOCKED",
+    "selectedTrustedOutputRegion": null
+  },
+  "backlogSimulation": {
+    "status": "CANDIDATE_ONLY",
+    "selectedContractSimulation": null
+  },
   "blockers": [
-    "PyTorch checkpoint/export source is unavailable, so batch export parity cannot be executed.",
-    "Available golden fixtures do not cover the required trusted-region dataset categories."
+    "Trusted output region has not been established on required dev/cal categories and window positions.",
+    "No one-owner publication geometry can be selected without trusted-region evidence.",
+    "Effective trusted-audio throughput cannot be judged until unique owned trusted duration is selected."
   ],
-  "passCriteriaSatisfied": false,
-  "failCriteriaSatisfied": false,
   "continuousMicProductionState": "CONTINUOUS_ANALYSIS_UNAVAILABLE",
   "requiredNextInputs": [
-    "Provide the ByteDance PyTorch checkpoint/export source in the research environment.",
-    "Generate a research-only dynamic batch ONNX export.",
-    "Run raw B=1/B=2/B=4/B=8 parity against golden windows.",
-    "Create or identify dev/cal fixtures covering all trusted-region categories.",
-    "Run headed Chrome WebGPU batch throughput and backlog simulation after parity passes."
+    "Create/identify dev/cal fixtures covering required trusted-region categories across window positions.",
+    "Run trusted-region stability experiment and select or reject an owned output span.",
+    "Recompute effective unique trusted-audio throughput and 10-minute backlog using the selected span."
   ]
 }

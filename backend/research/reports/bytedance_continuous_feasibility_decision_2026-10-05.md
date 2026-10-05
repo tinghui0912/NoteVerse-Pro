@@ -1,57 +1,26 @@
 # ByteDance Continuous Microphone Feasibility Decision
 
-Date: 2026-10-04T18:04:10.879070+00:00
+Generated: 2026-10-05T01:20:49.342414+00:00
 
-Git HEAD: `e321e7296989b5262342e48c4a904bdadaf7556b`
+Verdict: INCONCLUSIVE
 
-Verdict: `INCONCLUSIVE`
+Production state: CONTINUOUS_ANALYSIS_UNAVAILABLE
 
-Production state: `CONTINUOUS_ANALYSIS_UNAVAILABLE`
+## Completed Gates
 
-## Gate Criteria
+- Batch-capable dynamic ONNX export: PASS
+- Raw B=1/B=2/B=4/B=8 parity: PASS
+- Max raw tensor abs delta: 9.328126907348633e-06
+- Headed Chrome WebGPU batch benchmark: PASS
+- Chrome: 154.0.8037.95
+- ORT Web: 1.20.1
+- B=8 warm median: 1426 ms/batch, 5.610098176718092 windows/sec
+- B=8 warm p95: 1557 ms/batch, 5.138086062941555 windows/sec
 
-The decision gate was defined before accepting any result as a PASS:
+## Blocking Gate
 
-- Raw B=1 batch export parity must pass.
-- Raw B=2/B=4/B=8 per-item parity must pass.
-- A trusted output region must be demonstrated with stable event identity/timing, including repeated notes.
-- Headed Chrome WebGPU effective unique trusted-audio throughput must be sustainably above realtime.
-- 10-minute backlog simulation must not grow unbounded.
-- No WASM or provider fallback is allowed.
-
-## Blocking Evidence
-
-- PyTorch checkpoint/export source is unavailable, so batch export parity cannot be executed.
-- Available golden fixtures do not cover the required trusted-region dataset categories.
-
-## Batch Export Parity
-
-Status: `BLOCKED`
-
-Reason: PyTorch checkpoint/export source is not available in this workspace; cannot generate a research-only [B,29120] ONNX export.
-
-## Headed Browser Batch Benchmark
-
-Status: `BLOCKED`
-
-Reason: Batch benchmark requires a batch-capable ONNX export with raw parity first.
-
-Historical single-window smoke summary is included in the JSON report for context only; it is not a batch benchmark.
-
-## Trusted Region
-
-Status: `BLOCKED`
-
-Reason: Trusted-region experiment requires batch export parity and enough dev/cal audio windows covering positions across the model input.
-
-Available golden fixture count: 3
-
-## Backlog Simulation
-
-Status: `BLOCKED`
-
-Reason: Backlog simulation requires measured batch latency sequence and selected unique trusted-output duration.
+Trusted output region is BLOCKED. Available fixtures do not cover the required dev/cal categories and window positions, so no one-owner publication region can be selected.
 
 ## Decision
 
-`INCONCLUSIVE` is the only defensible result because the batch export/parity gate could not be executed in this workspace. This does not pass ByteDance for Continuous microphone production, and it does not fail the model mathematically; it blocks production integration until the missing research inputs are provided and the gate is rerun.
+INCONCLUSIVE is the only valid result. ByteDance has now passed the batch export/parity and headed WebGPU throughput prerequisites, but it has not passed the trusted-region correctness gate. Therefore Continuous microphone remains disabled and must not be integrated into production.

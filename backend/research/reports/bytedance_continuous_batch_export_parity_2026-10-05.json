@@ -1,42 +1,268 @@
 {
-  "reportType": "batch_export_parity",
-  "generatedAt": "2026-10-04T18:04:10.879070+00:00",
-  "gitHead": "e321e7296989b5262342e48c4a904bdadaf7556b",
-  "command": "python backend/scripts/evaluate_bytedance_continuous_feasibility_gate.py --date 2026-10-05",
-  "os": {
-    "platform": "Windows",
-    "release": "11",
-    "machine": "AMD64"
-  },
-  "model": {
-    "path": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\bytedance_browser_runtime_feasibility\\bytedance_note_model_fixed_anchor.onnx",
-    "exists": true,
-    "byteSize": 98691493,
-    "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
-    "expectedByteSize": 98691493,
-    "expectedSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
-    "inputShape": [
-      1,
-      29120
-    ]
-  },
+  "reportType": "continuous_dynamic_batch_export_parity",
+  "generatedAt": "2026-10-05T01:15:38.064564+00:00",
+  "command": "python backend/scripts/evaluate_bytedance_continuous_batch_export.py --checkpoint /tmp/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth --fixture-dir data/work/bytedance_browser_runtime_feasibility/golden_fixtures --output-dir /tmp/bd_continuous_batch --date 2026-10-05 --device cpu --opset 18",
   "checkpoint": {
-    "path": "C:\\app\\models\\bytedance_piano_transcription\\CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
-    "exists": false,
-    "sha256": null,
-    "byteSize": null
+    "path": "/tmp/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
+    "exists": true,
+    "sha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+    "byteSize": 171966578
   },
-  "status": "BLOCKED",
-  "reason": "PyTorch checkpoint/export source is not available in this workspace; cannot generate a research-only [B,29120] ONNX export.",
-  "productionOnnxVerified": true,
+  "fixtureManifest": "data/work/bytedance_browser_runtime_feasibility/golden_fixtures/manifest.json",
+  "fixtureCount": 3,
   "requestedBatchSizes": [
     1,
     2,
     4,
     8
   ],
-  "b1Parity": null,
-  "b2Parity": null,
-  "b4Parity": null,
-  "b8Parity": null
+  "export": {
+    "status": "exported",
+    "onnxPath": "/tmp/bd_continuous_batch/bytedance_note_model_dynamic_batch_2026-10-05.onnx",
+    "onnxSizeBytes": 99749746,
+    "onnxSha256": "f9969549357194838dc8c0d6de37a0e555df2ca691385bfbfaf6ce7979985b3a",
+    "opset": 18,
+    "inputShape": [
+      "batch",
+      29120
+    ],
+    "requestedBatchSymbol": "batch"
+  },
+  "parity": {
+    "1": {
+      "inputShape": [
+        1,
+        29120
+      ],
+      "torchOnsetShape": [
+        1,
+        183,
+        88
+      ],
+      "ortOnsetShape": [
+        1,
+        183,
+        88
+      ],
+      "torchFrameShape": [
+        1,
+        183,
+        88
+      ],
+      "ortFrameShape": [
+        1,
+        183,
+        88
+      ],
+      "items": [
+        {
+          "index": 0,
+          "fixtureInputIndex": 0,
+          "onsetMeanAbsDelta": 2.0469197892225566e-08,
+          "onsetMaxAbsDelta": 4.76837158203125e-07,
+          "frameMeanAbsDelta": 2.3600414067459496e-08,
+          "frameMaxAbsDelta": 5.364418029785156e-07
+        }
+      ]
+    },
+    "2": {
+      "inputShape": [
+        2,
+        29120
+      ],
+      "torchOnsetShape": [
+        2,
+        183,
+        88
+      ],
+      "ortOnsetShape": [
+        2,
+        183,
+        88
+      ],
+      "torchFrameShape": [
+        2,
+        183,
+        88
+      ],
+      "ortFrameShape": [
+        2,
+        183,
+        88
+      ],
+      "items": [
+        {
+          "index": 0,
+          "fixtureInputIndex": 0,
+          "onsetMeanAbsDelta": 2.02032435225874e-08,
+          "onsetMaxAbsDelta": 5.066394805908203e-07,
+          "frameMeanAbsDelta": 2.3577673147201494e-08,
+          "frameMaxAbsDelta": 4.917383193969727e-07
+        },
+        {
+          "index": 1,
+          "fixtureInputIndex": 1,
+          "onsetMeanAbsDelta": 2.809987087459831e-08,
+          "onsetMaxAbsDelta": 5.781650543212891e-06,
+          "frameMeanAbsDelta": 2.6928869800713073e-08,
+          "frameMaxAbsDelta": 9.328126907348633e-06
+        }
+      ]
+    },
+    "4": {
+      "inputShape": [
+        4,
+        29120
+      ],
+      "torchOnsetShape": [
+        4,
+        183,
+        88
+      ],
+      "ortOnsetShape": [
+        4,
+        183,
+        88
+      ],
+      "torchFrameShape": [
+        4,
+        183,
+        88
+      ],
+      "ortFrameShape": [
+        4,
+        183,
+        88
+      ],
+      "items": [
+        {
+          "index": 0,
+          "fixtureInputIndex": 0,
+          "onsetMeanAbsDelta": 2.0431347280691625e-08,
+          "onsetMaxAbsDelta": 4.172325134277344e-07,
+          "frameMeanAbsDelta": 2.3599461940193578e-08,
+          "frameMaxAbsDelta": 5.662441253662109e-07
+        },
+        {
+          "index": 1,
+          "fixtureInputIndex": 1,
+          "onsetMeanAbsDelta": 2.7787894651964962e-08,
+          "onsetMaxAbsDelta": 5.245208740234375e-06,
+          "frameMeanAbsDelta": 2.676574162308043e-08,
+          "frameMaxAbsDelta": 8.538365364074707e-06
+        },
+        {
+          "index": 2,
+          "fixtureInputIndex": 2,
+          "onsetMeanAbsDelta": 2.5204810683021606e-08,
+          "onsetMaxAbsDelta": 7.748603820800781e-07,
+          "frameMeanAbsDelta": 2.4900423056806176e-08,
+          "frameMaxAbsDelta": 9.5367431640625e-07
+        },
+        {
+          "index": 3,
+          "fixtureInputIndex": 0,
+          "onsetMeanAbsDelta": 2.0119681920505172e-08,
+          "onsetMaxAbsDelta": 3.5762786865234375e-07,
+          "frameMeanAbsDelta": 2.3561998574450627e-08,
+          "frameMaxAbsDelta": 8.046627044677734e-07
+        }
+      ]
+    },
+    "8": {
+      "inputShape": [
+        8,
+        29120
+      ],
+      "torchOnsetShape": [
+        8,
+        183,
+        88
+      ],
+      "ortOnsetShape": [
+        8,
+        183,
+        88
+      ],
+      "torchFrameShape": [
+        8,
+        183,
+        88
+      ],
+      "ortFrameShape": [
+        8,
+        183,
+        88
+      ],
+      "items": [
+        {
+          "index": 0,
+          "fixtureInputIndex": 0,
+          "onsetMeanAbsDelta": 2.008589738977662e-08,
+          "onsetMaxAbsDelta": 3.5762786865234375e-07,
+          "frameMeanAbsDelta": 2.358710027294819e-08,
+          "frameMaxAbsDelta": 5.662441253662109e-07
+        },
+        {
+          "index": 1,
+          "fixtureInputIndex": 1,
+          "onsetMeanAbsDelta": 2.769558093973501e-08,
+          "onsetMaxAbsDelta": 4.76837158203125e-06,
+          "frameMeanAbsDelta": 2.6689688681358348e-08,
+          "frameMaxAbsDelta": 8.150935173034668e-06
+        },
+        {
+          "index": 2,
+          "fixtureInputIndex": 2,
+          "onsetMeanAbsDelta": 2.5422442817557567e-08,
+          "onsetMaxAbsDelta": 8.642673492431641e-07,
+          "frameMeanAbsDelta": 2.489072237210621e-08,
+          "frameMaxAbsDelta": 1.0132789611816406e-06
+        },
+        {
+          "index": 3,
+          "fixtureInputIndex": 0,
+          "onsetMeanAbsDelta": 2.013070776740733e-08,
+          "onsetMaxAbsDelta": 3.5762786865234375e-07,
+          "frameMeanAbsDelta": 2.3533342385917422e-08,
+          "frameMaxAbsDelta": 6.556510925292969e-07
+        },
+        {
+          "index": 4,
+          "fixtureInputIndex": 1,
+          "onsetMeanAbsDelta": 2.7846150274513093e-08,
+          "onsetMaxAbsDelta": 5.0961971282958984e-06,
+          "frameMeanAbsDelta": 2.6677188458279488e-08,
+          "frameMaxAbsDelta": 8.538365364074707e-06
+        },
+        {
+          "index": 5,
+          "fixtureInputIndex": 2,
+          "onsetMeanAbsDelta": 2.5453937624320133e-08,
+          "onsetMaxAbsDelta": 8.195638656616211e-07,
+          "frameMeanAbsDelta": 2.52385881083228e-08,
+          "frameMaxAbsDelta": 1.1324882507324219e-06
+        },
+        {
+          "index": 6,
+          "fixtureInputIndex": 0,
+          "onsetMeanAbsDelta": 2.0401460076868716e-08,
+          "onsetMaxAbsDelta": 5.066394805908203e-07,
+          "frameMeanAbsDelta": 2.377388241825429e-08,
+          "frameMaxAbsDelta": 6.705522537231445e-07
+        },
+        {
+          "index": 7,
+          "fixtureInputIndex": 1,
+          "onsetMeanAbsDelta": 2.8007129060370062e-08,
+          "onsetMaxAbsDelta": 5.0067901611328125e-06,
+          "frameMeanAbsDelta": 2.664460652113121e-08,
+          "frameMaxAbsDelta": 8.285045623779297e-06
+        }
+      ]
+    }
+  },
+  "verdict": "PASS",
+  "maxRawAbsDelta": 9.328126907348633e-06,
+  "maxAbsDeltaTolerance": 0.0001
 }
