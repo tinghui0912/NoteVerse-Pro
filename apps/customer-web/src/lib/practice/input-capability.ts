@@ -1,4 +1,4 @@
-import { CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON } from './audio-analysis/continuous/transcription-contract';
+import { CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON } from './input-capability-reasons';
 import type { PracticeInputSource, PracticeMode } from './local-core/artifact';
 
 type WindowWithWebKitAudioContext = Window & {
