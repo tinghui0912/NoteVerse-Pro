@@ -1,0 +1,228 @@
+{
+  "artifact": "bytedance_shared_target_verifier_context_matrix",
+  "generatedAt": "2026-10-05T00:00:00+08:00",
+  "gitHead": null,
+  "command": "scripts/evaluate_bytedance_shared_target_verifier.py --policy research/policies/step_microphone_bytedance_v1.json --case-manifest data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json --checkpoint /opt/noteverse/models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth --output research/reports/bytedance_target_verifier_context_matrix_smoke_2026-10-05.json --device cpu --max-cases-per-kind 1 --context-ms 1820 --future-ms 220 --continuous-offset-ms 0 --step-candidate-offset-ms 0",
+  "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+  "checkpoint": {
+    "path": "/opt/noteverse/models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
+    "sha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+    "byteSize": 171966578
+  },
+  "policy": {
+    "path": "research/policies/step_microphone_bytedance_v1.json",
+    "sha256": "15be0bda261e388fa97ec39edd785e2aee4bc7eb097b7b8a95ae49072f738e49"
+  },
+  "caseManifests": [
+    {
+      "path": "data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json",
+      "sha256": "42a0ac14282ca3b9ed678ac5bcfa49322fc6c8cf3edfd89dc7fa18c576848cc1"
+    }
+  ],
+  "frozenEvaluationUsed": false,
+  "device": "cpu",
+  "contextMs": [
+    1820
+  ],
+  "futureMs": [
+    220
+  ],
+  "continuousOffsetsMs": [
+    0
+  ],
+  "stepCandidateOffsetsMs": [
+    0
+  ],
+  "caseCount": 8,
+  "caseKindCounts": {
+    "correct_strike": 1,
+    "wrong_semitone": 1,
+    "wrong_octave": 1,
+    "long_held_note_without_retrigger": 1,
+    "pedal_sustain_tail_without_retrigger": 1,
+    "same_note_retrigger": 1,
+    "correct_chord": 1,
+    "missing_chord_tone": 1
+  },
+  "summary": {
+    "buckets": [
+      {
+        "mode": "CONTINUOUS",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "correct_chord",
+        "okCount": 1,
+        "positiveRecall": 1.0,
+        "negativeFalseMatchRate": null,
+        "medianForwardMs": 186.752,
+        "p95ForwardMs": 186.752
+      },
+      {
+        "mode": "CONTINUOUS",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "correct_strike",
+        "okCount": 1,
+        "positiveRecall": 1.0,
+        "negativeFalseMatchRate": null,
+        "medianForwardMs": 633.225,
+        "p95ForwardMs": 633.225
+      },
+      {
+        "mode": "CONTINUOUS",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "long_held_note_without_retrigger",
+        "okCount": 2,
+        "positiveRecall": null,
+        "negativeFalseMatchRate": 1.0,
+        "medianForwardMs": 149.397,
+        "p95ForwardMs": 153.553
+      },
+      {
+        "mode": "CONTINUOUS",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "missing_chord_tone",
+        "okCount": 1,
+        "positiveRecall": null,
+        "negativeFalseMatchRate": 0.0,
+        "medianForwardMs": 143.65,
+        "p95ForwardMs": 143.65
+      },
+      {
+        "mode": "CONTINUOUS",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "pedal_sustain_tail_without_retrigger",
+        "okCount": 2,
+        "positiveRecall": null,
+        "negativeFalseMatchRate": 1.0,
+        "medianForwardMs": 140.186,
+        "p95ForwardMs": 170.929
+      },
+      {
+        "mode": "CONTINUOUS",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "same_note_retrigger",
+        "okCount": 2,
+        "positiveRecall": 1.0,
+        "negativeFalseMatchRate": null,
+        "medianForwardMs": 181.003,
+        "p95ForwardMs": 236.162
+      },
+      {
+        "mode": "CONTINUOUS",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "wrong_octave",
+        "okCount": 1,
+        "positiveRecall": null,
+        "negativeFalseMatchRate": 0.0,
+        "medianForwardMs": 162.721,
+        "p95ForwardMs": 162.721
+      },
+      {
+        "mode": "CONTINUOUS",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "wrong_semitone",
+        "okCount": 1,
+        "positiveRecall": null,
+        "negativeFalseMatchRate": 0.0,
+        "medianForwardMs": 148.834,
+        "p95ForwardMs": 148.834
+      },
+      {
+        "mode": "STEP",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "correct_chord",
+        "okCount": 1,
+        "positiveRecall": 1.0,
+        "negativeFalseMatchRate": null,
+        "medianForwardMs": 149.33,
+        "p95ForwardMs": 149.33
+      },
+      {
+        "mode": "STEP",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "correct_strike",
+        "okCount": 1,
+        "positiveRecall": 1.0,
+        "negativeFalseMatchRate": null,
+        "medianForwardMs": 150.465,
+        "p95ForwardMs": 150.465
+      },
+      {
+        "mode": "STEP",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "long_held_note_without_retrigger",
+        "okCount": 2,
+        "positiveRecall": null,
+        "negativeFalseMatchRate": 1.0,
+        "medianForwardMs": 139.418,
+        "p95ForwardMs": 152.66
+      },
+      {
+        "mode": "STEP",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "missing_chord_tone",
+        "okCount": 1,
+        "positiveRecall": null,
+        "negativeFalseMatchRate": 0.0,
+        "medianForwardMs": 134.153,
+        "p95ForwardMs": 134.153
+      },
+      {
+        "mode": "STEP",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "pedal_sustain_tail_without_retrigger",
+        "okCount": 2,
+        "positiveRecall": null,
+        "negativeFalseMatchRate": 1.0,
+        "medianForwardMs": 155.428,
+        "p95ForwardMs": 170.776
+      },
+      {
+        "mode": "STEP",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "same_note_retrigger",
+        "okCount": 2,
+        "positiveRecall": 1.0,
+        "negativeFalseMatchRate": null,
+        "medianForwardMs": 159.513,
+        "p95ForwardMs": 207.386
+      },
+      {
+        "mode": "STEP",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "wrong_octave",
+        "okCount": 1,
+        "positiveRecall": null,
+        "negativeFalseMatchRate": 0.0,
+        "medianForwardMs": 154.916,
+        "p95ForwardMs": 154.916
+      },
+      {
+        "mode": "STEP",
+        "contextMs": 1820,
+        "futureMs": 220,
+        "caseKind": "wrong_semitone",
+        "okCount": 1,
+        "positiveRecall": null,
+        "negativeFalseMatchRate": 0.0,
+        "medianForwardMs": 153.541,
+        "p95ForwardMs": 153.541
+      }
+    ]
+  },
+  "evaluations": []
+}

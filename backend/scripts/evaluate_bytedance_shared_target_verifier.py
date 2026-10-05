@@ -134,6 +134,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--step-candidate-offset-ms", type=int, action="append", default=None)
     parser.add_argument("--include-evaluations", action="store_true")
     parser.add_argument("--generated-at", default="2026-10-05T00:00:00+08:00")
+    parser.add_argument("--git-head", default=None)
     args = parser.parse_args()
     args.raw_argv = sys.argv
     return args

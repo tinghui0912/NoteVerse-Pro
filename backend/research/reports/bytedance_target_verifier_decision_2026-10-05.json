@@ -1,9 +1,9 @@
 {
   "artifact": "bytedance_shared_target_verifier_decision",
   "generatedAt": "2026-10-05T00:00:00+08:00",
-  "gitHead": "fbf0ec9deea362fa563ee551d5d3e5cffb4b4545",
-  "command": "manual decision artifact after adding shared target-verifier harness; smoke execution blocked by missing Python research dependencies",
-  "os": "Windows",
+  "gitHead": "905c9c138dd524d347b52fb42f19defae948fbcd",
+  "command": "manual decision artifact after running bounded dev shared target-verifier matrix in the Docker research container",
+  "os": "Windows host with Linux Docker research container",
   "checkpoint": {
     "path": "models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
     "sha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
@@ -14,14 +14,20 @@
   },
   "harness": {
     "path": "backend/scripts/evaluate_bytedance_shared_target_verifier.py",
-    "sha256": "f5a283999b7fc0b91ad96d5f978c4e95d4e56edc58e27bf72c8249bde10bfe86",
+    "sha256": "0e2c1a4bff282a84b4e866a0bb5135268bfbdb5e5aba3926ff98e43a648a8e58",
     "pyCompile": "PASS"
   },
   "evidenceReports": [
     {
-      "path": "backend/research/reports/bytedance_target_verifier_context_matrix_smoke_blocked_2026-10-05.json",
-      "status": "BLOCKED",
-      "reason": "Default Python interpreter lacks numpy, so the PyTorch shared target-verifier smoke could not execute."
+      "path": "backend/research/reports/bytedance_target_verifier_context_matrix_smoke_2026-10-05.json",
+      "sha256": "404847962881cf67e2c9050c2f4ee75a8b4be3f060f7472bca302960bc0e339b",
+      "status": "EXECUTED"
+    },
+    {
+      "path": "backend/research/reports/bytedance_target_verifier_context_matrix_dev_bounded_2026-10-05.json",
+      "sha256": "8a7ffa5df45603a68b2d81b48d268e5480f6bc246883dc284c62414ccfb6c741",
+      "status": "EXECUTED",
+      "scope": "development split, max 2 cases per family, full context/future/offset axes"
     }
   ],
   "frozenEvaluationUsed": false,
@@ -31,28 +37,61 @@
     "stepTargetLocalEvidence": "Historical STEP policy suggests target-local wrong-note false MATCH was low; held/pedal no-retrigger and retrigger/chord recall remain required Phase 6 checks."
   },
   "contextMatrix": {
-    "1820ms": "NOT_EXECUTED",
-    "3000ms": "NOT_EXECUTED",
-    "5000ms": "NOT_EXECUTED",
-    "10000ms": "NOT_EXECUTED"
+    "1820ms": "EXECUTED_DEV_BOUNDED",
+    "3000ms": "EXECUTED_DEV_BOUNDED",
+    "5000ms": "EXECUTED_DEV_BOUNDED",
+    "10000ms": "EXECUTED_DEV_BOUNDED"
   },
   "futureContextComparison": {
-    "220ms": "NOT_EXECUTED",
-    "350ms": "NOT_EXECUTED"
+    "220ms": "EXECUTED_DEV_BOUNDED",
+    "350ms": "EXECUTED_DEV_BOUNDED"
   },
-  "timingOffsetMatrix": "NOT_EXECUTED",
-  "stepCandidateTimeRobustness": "NOT_EXECUTED",
-  "crossModeDecisionAgreement": "NOT_EXECUTED",
+  "timingOffsetMatrix": "EXECUTED_DEV_BOUNDED",
+  "stepCandidateTimeRobustness": "EXECUTED_DEV_BOUNDED",
+  "crossModeDecisionAgreement": "IMPLEMENTATION_SHARED_HARNESS_NOT_SEPARATE_MODE_IMPLEMENTATIONS",
+  "qualityGateFailures": [
+    {
+      "family": "long_held_note_without_retrigger",
+      "mode": "STEP",
+      "contextsMs": [1820, 3000, 5000, 10000],
+      "futureMs": [220, 350],
+      "falseMatchRate": 1.0,
+      "reason": "Held-note no-retrigger false advance risk is explicitly forbidden by the Phase 6 policy."
+    },
+    {
+      "family": "pedal_sustain_tail_without_retrigger",
+      "mode": "STEP",
+      "contextsMs": [1820, 3000, 5000, 10000],
+      "futureMs": [220, 350],
+      "falseMatchRate": 0.6,
+      "reason": "Pedal sustain tail false retrigger remains materially unsafe."
+    },
+    {
+      "family": "wrong_semitone",
+      "mode": "STEP",
+      "contextsMs": [1820, 3000, 5000, 10000],
+      "futureMs": [220, 350],
+      "falseMatchRate": 0.1,
+      "reason": "Wrong-note false match is non-zero on the bounded development matrix."
+    },
+    {
+      "family": "correct_chord",
+      "mode": "CONTINUOUS",
+      "contextsMs": [1820, 3000, 5000, 10000],
+      "futureMs": [220, 350],
+      "positiveRecall": 0.363636,
+      "reason": "Score-scheduled chord recall is far below a credible shared verifier gate."
+    }
+  ],
   "browser": {
     "executed": false,
-    "reason": "PyTorch quality gate was not executed, so browser gate was intentionally not run."
+    "reason": "PyTorch bounded development quality gate failed, so browser gate was intentionally not run."
   },
-  "decision": "INCONCLUSIVE",
-  "blockingInputs": [
-    "The shared target-verifier harness now exists, but the current Python execution environment is missing numpy and cannot run the PyTorch model smoke.",
-    "No generated dev/cal target-verifier report exists yet for the 1.82s/3s/5s/10s context matrix with 220ms/350ms future context.",
-    "No generated dev/cal report exists yet for continuous scheduled timing offsets.",
-    "No generated cross-mode agreement report exists yet to prove STEP-style and Continuous-style callers share the exact same verifier."
+  "decision": "FAIL",
+  "failureEvidence": [
+    "Development-bounded matrix fails held/pedal no-retrigger safety across every tested context and future-context combination.",
+    "Extending input context to 3s/5s/10s and future context to 350ms did not remove the false retrigger risk.",
+    "Because the PyTorch quality gate fails, calibration confirmation and browser WebGPU export are not justified in this phase."
   ],
   "productionState": {
     "stepMicrophone": "STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED",

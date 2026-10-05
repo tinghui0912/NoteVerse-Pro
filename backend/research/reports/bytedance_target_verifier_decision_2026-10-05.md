@@ -1,7 +1,7 @@
 # ByteDance Shared Target Verifier Decision
 
-- Verdict: `INCONCLUSIVE`
-- Git HEAD: `fbf0ec9deea362fa563ee551d5d3e5cffb4b4545`
+- Verdict: `FAIL`
+- Git HEAD: `905c9c138dd524d347b52fb42f19defae948fbcd`
 - Frozen evaluation used: `false`
 - Production state: STEP Mic remains `STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED`; Continuous Mic remains `CONTINUOUS_ANALYSIS_UNAVAILABLE`.
 
@@ -12,38 +12,42 @@ The previous ByteDance Continuous `FAIL` applies to the 1.82s generic sliding-wi
 ## Harness Status
 
 - Shared target-verifier harness: `backend/scripts/evaluate_bytedance_shared_target_verifier.py`
-- Harness SHA256: `f5a283999b7fc0b91ad96d5f978c4e95d4e56edc58e27bf72c8249bde10bfe86`
+- Harness SHA256: `0e2c1a4bff282a84b4e866a0bb5135268bfbdb5e5aba3926ff98e43a648a8e58`
 - `python -m py_compile`: `PASS`
-- Smoke execution: `BLOCKED`
-- Blocker report: `backend/research/reports/bytedance_target_verifier_context_matrix_smoke_blocked_2026-10-05.json`
+- Smoke execution: `PASS`
+- Development bounded matrix: `PASS`
+- Smoke report: `backend/research/reports/bytedance_target_verifier_context_matrix_smoke_2026-10-05.json`
+- Development bounded report: `backend/research/reports/bytedance_target_verifier_context_matrix_dev_bounded_2026-10-05.json`
 
 ## Phase 6 Gate Status
 
-- 1.82s context: `NOT_EXECUTED`
-- 3s context: `NOT_EXECUTED`
-- 5s context: `NOT_EXECUTED`
-- 10s context: `NOT_EXECUTED`
-- 220ms future context: `NOT_EXECUTED`
-- 350ms future context: `NOT_EXECUTED`
-- Continuous timing-offset matrix: `NOT_EXECUTED`
-- STEP candidate-time robustness: `NOT_EXECUTED`
-- Cross-mode decision agreement: `NOT_EXECUTED`
-- Browser WebGPU gate: `NOT_EXECUTED`
+- 1.82s context: `EXECUTED_DEV_BOUNDED`
+- 3s context: `EXECUTED_DEV_BOUNDED`
+- 5s context: `EXECUTED_DEV_BOUNDED`
+- 10s context: `EXECUTED_DEV_BOUNDED`
+- 220ms future context: `EXECUTED_DEV_BOUNDED`
+- 350ms future context: `EXECUTED_DEV_BOUNDED`
+- Continuous timing-offset matrix: `EXECUTED_DEV_BOUNDED`
+- STEP candidate-time robustness: `EXECUTED_DEV_BOUNDED`
+- Cross-mode decision agreement: `SHARED_HARNESS`
+- Browser WebGPU gate: `NOT_EXECUTED_AFTER_PYTORCH_QUALITY_FAIL`
 
-## Blockers
+## Evidence
 
 The checkpoint is available at `models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth` with SHA256 `c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141`.
 
-The missing item is not the model file and no longer the harness itself. The harness now exists, but the default Python interpreter in this workspace lacks the research dependencies required to execute it:
+The Docker research container `noteverse-backend-dev-practice-quality-run-6abcabbb9028` executed the shared target-verifier harness over a bounded development matrix: max 2 cases per family, all 1.82s/3s/5s/10s contexts, both 220ms/350ms future contexts, all scheduled Continuous offsets, and all STEP candidate-time offsets.
 
-```text
-ModuleNotFoundError: No module named 'numpy'
-```
+Hard safety failures:
 
-Therefore the required 1.82s/3s/5s/10s context matrix, 220ms/350ms future comparison, score-scheduled timing-offset matrix, and cross-mode agreement report remain unexecuted.
+- STEP `long_held_note_without_retrigger`: false match rate `1.0` for every tested context/future combination.
+- STEP `pedal_sustain_tail_without_retrigger`: false match rate `0.6` for every tested context/future combination.
+- STEP `wrong_semitone`: false match rate `0.1` for every tested context/future combination.
+- CONTINUOUS `correct_chord`: positive recall `0.363636` for every tested context/future combination.
+- CONTINUOUS `long_held_note_without_retrigger`: false match rate `0.363636` for every tested context/future combination.
 
 ## Decision
 
-`ByteDance Shared Target Verifier = INCONCLUSIVE`
+`ByteDance Shared Target Verifier = FAIL`
 
-This is a research execution blocker, not a PASS and not a model-quality FAIL. Production microphone remains disabled after this phase.
+The PyTorch quality gate fails before browser export or production integration. Production microphone remains disabled after this phase.
