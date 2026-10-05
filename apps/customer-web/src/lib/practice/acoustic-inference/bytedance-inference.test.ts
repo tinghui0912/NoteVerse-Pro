@@ -34,6 +34,10 @@ import {
 } from './index';
 
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
+const testTargetVerificationPolicy = {
+  gestureCoherenceMs: 170,
+  requiredGestureLookbackMs: 170,
+};
 
 function manifest(overrides: Partial<ByteDanceModelManifest> = {}): ByteDanceModelManifest {
   return {
@@ -530,26 +534,26 @@ describe('ByteDance local practice adapters', () => {
       rawOutput([{ frame: 0, midiPitch: 60, onset: 0.9, frameScore: 0.8 }]),
       request({ captureStartSampleIndex: 0, captureStartTime: target.activationBoundary })
     );
-    expect(observationForCurrentTarget(stale, target)).toBeNull();
+    expect(observationForCurrentTarget(stale, target, testTargetVerificationPolicy)).toBeNull();
 
     const fresh = decodeByteDanceRawOutputs(
       rawOutput([{ frame: 1, midiPitch: 60, onset: 0.9, frameScore: 0.8 }]),
       request({ captureStartSampleIndex: 0, captureStartTime: target.activationBoundary })
     );
     clock.advance(20);
-    expect(runtime.observe(observationForCurrentTarget(fresh, target))).toMatchObject({ kind: 'MATCH' });
+    expect(runtime.observe(observationForCurrentTarget(fresh, target, testTargetVerificationPolicy))).toMatchObject({ kind: 'MATCH' });
 
     const second = runtime.currentTarget();
     if (!second) {
       throw new Error('missing second target');
     }
-    expect(observationForCurrentTarget(fresh, second)).toBeNull();
+    expect(observationForCurrentTarget(fresh, second, testTargetVerificationPolicy)).toBeNull();
 
     const repeatedFresh = [{
       ...fresh[0],
       onsetTime: { ...second.activationBoundary, ms: second.activationBoundary.ms + 20 },
     }];
-    expect(runtime.observe(observationForCurrentTarget(repeatedFresh, second))).toMatchObject({ kind: 'MATCH' });
+    expect(runtime.observe(observationForCurrentTarget(repeatedFresh, second, testTargetVerificationPolicy))).toMatchObject({ kind: 'MATCH' });
   });
 
   it('requires complete chord pitch evidence and waits on wrong pitches', () => {
@@ -576,7 +580,7 @@ describe('ByteDance local practice adapters', () => {
       frameScore: 0.8,
       source: 'ACOUSTIC' as const,
     }];
-    expect(runtime.observe(observationForCurrentTarget(partial, target))).toMatchObject({
+    expect(runtime.observe(observationForCurrentTarget(partial, target, testTargetVerificationPolicy))).toMatchObject({
       kind: 'WAIT',
       reason: 'no_observation',
     });
@@ -584,7 +588,7 @@ describe('ByteDance local practice adapters', () => {
       partial[0],
       { ...partial[0], pitch: 'C5', midiPitch: 72, onsetTime: { ...target.activationBoundary, ms: 12 } },
     ];
-    expect(runtime.observe(observationForCurrentTarget(complete, target))).toMatchObject({ kind: 'MATCH' });
+    expect(runtime.observe(observationForCurrentTarget(complete, target, testTargetVerificationPolicy))).toMatchObject({ kind: 'MATCH' });
   });
 
   it('requires expected chord pitches to belong to one coherent fresh attack gesture', () => {
@@ -623,13 +627,13 @@ describe('ByteDance local practice adapters', () => {
         source: 'ACOUSTIC' as const,
       },
     ];
-    expect(observationForCurrentTarget(farApart, target)).toBeNull();
+    expect(observationForCurrentTarget(farApart, target, testTargetVerificationPolicy)).toBeNull();
 
     const coherent = [
       farApart[0],
       { ...farApart[1], onsetTime: { ...base, ms: base.ms + 30 } },
     ];
-    expect(runtime.observe(observationForCurrentTarget(coherent, target))).toMatchObject({ kind: 'MATCH' });
+    expect(runtime.observe(observationForCurrentTarget(coherent, target, testTargetVerificationPolicy))).toMatchObject({ kind: 'MATCH' });
   });
 
   it('can match a later coherent chord after an earlier unrelated same-pitch event', () => {
@@ -677,7 +681,7 @@ describe('ByteDance local practice adapters', () => {
         source: 'ACOUSTIC' as const,
       },
     ];
-    expect(runtime.observe(observationForCurrentTarget(events, target))).toMatchObject({ kind: 'MATCH' });
+    expect(runtime.observe(observationForCurrentTarget(events, target, testTargetVerificationPolicy))).toMatchObject({ kind: 'MATCH' });
   });
 
   it('does not reuse a previous-window onset after a new STEP activation', () => {
@@ -703,14 +707,14 @@ describe('ByteDance local practice adapters', () => {
       source: 'ACOUSTIC' as const,
     }];
     clock.advance(20);
-    expect(runtime.observe(observationForCurrentTarget(normalizer.normalizeWindow(firstEvent), first)))
+    expect(runtime.observe(observationForCurrentTarget(normalizer.normalizeWindow(firstEvent), first, testTargetVerificationPolicy)))
       .toMatchObject({ kind: 'MATCH' });
     const second = runtime.currentTarget();
     if (!second) {
       throw new Error('missing second target');
     }
     const repeatedPreviousWindow = [{ ...firstEvent[0], inferenceCompletedAtMs: 2000 }];
-    expect(observationForCurrentTarget(normalizer.normalizeWindow(repeatedPreviousWindow), second)).toBeNull();
+    expect(observationForCurrentTarget(normalizer.normalizeWindow(repeatedPreviousWindow), second, testTargetVerificationPolicy)).toBeNull();
   });
 
   it('feeds the same generic acoustic evidence into Performance evaluation without moving the clock', () => {
@@ -803,3 +807,4 @@ describe('ByteDance local practice adapters', () => {
     expect(performance.evaluationSnapshot.extras).toEqual([]);
   });
 });
+

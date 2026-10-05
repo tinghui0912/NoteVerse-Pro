@@ -20,6 +20,10 @@ import type { AcousticNoteEvent } from '../acoustic-inference';
 
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
 const defaultTempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
+const testTargetVerificationPolicy = {
+  gestureCoherenceMs: 170,
+  requiredGestureLookbackMs: 170,
+};
 
 function cloneArtifact(overrides: Partial<PracticeScoreArtifact> = {}): PracticeScoreArtifact {
   return structuredClone({ ...artifact, ...overrides });
@@ -164,12 +168,14 @@ describe('local STEP practice runtime', () => {
       clock,
       localSessionId: 'long-wait-step',
     });
-    const evidence = new StepEvidenceSession(runtime);
+    const evidence = new StepEvidenceSession(runtime, testTargetVerificationPolicy);
     clock.advance(10_000);
 
-    const result = evidence.publishAcousticEvents([
-      acousticEvent('long-wait-step', 10_000, 'C4'),
-    ]);
+    const result = evidence.publishAcousticEvents({
+      sessionDomainId: 'long-wait-step',
+      events: [acousticEvent('long-wait-step', 10_000, 'C4')],
+      analyzedThroughSessionTimeMs: 10_200,
+    });
 
     expect(result.decisions).toHaveLength(1);
     expect(result.decisions[0]).toMatchObject({ kind: 'MATCH' });
@@ -183,13 +189,17 @@ describe('local STEP practice runtime', () => {
       clock: new ManualClock(50_000),
       localSessionId: 'delayed-step-events',
     });
-    const evidence = new StepEvidenceSession(runtime);
+    const evidence = new StepEvidenceSession(runtime, testTargetVerificationPolicy);
 
-    const result = evidence.publishAcousticEvents([
-      acousticEvent('delayed-step-events', 1_000, 'C4'),
-      acousticEvent('delayed-step-events', 1_300, 'C4'),
-      acousticEvent('delayed-step-events', 1_600, 'G4'),
-    ]);
+    const result = evidence.publishAcousticEvents({
+      sessionDomainId: 'delayed-step-events',
+      events: [
+        acousticEvent('delayed-step-events', 1_000, 'C4'),
+        acousticEvent('delayed-step-events', 1_300, 'C4'),
+        acousticEvent('delayed-step-events', 1_600, 'G4'),
+      ],
+      analyzedThroughSessionTimeMs: 1_800,
+    });
 
     expect(result.decisions.map((decision) => decision.kind)).toEqual(['MATCH', 'MATCH', 'MATCH']);
     expect(runtime.currentTarget()?.attackPitches).toEqual(['A4', 'C5']);
@@ -203,15 +213,81 @@ describe('local STEP practice runtime', () => {
       clock: new ManualClock(2_100),
       localSessionId: 'same-note-retrigger-step',
     });
-    const evidence = new StepEvidenceSession(runtime);
+    const evidence = new StepEvidenceSession(runtime, testTargetVerificationPolicy);
 
-    const result = evidence.publishAcousticEvents([
-      acousticEvent('same-note-retrigger-step', 1_000, 'C4'),
-      acousticEvent('same-note-retrigger-step', 1_400, 'C4'),
-    ]);
+    const result = evidence.publishAcousticEvents({
+      sessionDomainId: 'same-note-retrigger-step',
+      events: [
+        acousticEvent('same-note-retrigger-step', 1_000, 'C4'),
+        acousticEvent('same-note-retrigger-step', 1_400, 'C4'),
+      ],
+      analyzedThroughSessionTimeMs: 1_600,
+    });
 
     expect(result.decisions.map((decision) => decision.kind)).toEqual(['MATCH', 'MATCH']);
     expect(runtime.currentTarget()?.attackPitches).toEqual(['G4']);
+  });
+
+  it('rejects STEP acoustic publications atomically when any event uses the wrong domain', () => {
+    const runtime = new StepPracticeRuntime({
+      artifact,
+      scope: { kind: 'FULL' },
+      clock: new ManualClock(0),
+      localSessionId: 'atomic-step-domain',
+    });
+    const evidence = new StepEvidenceSession(runtime, testTargetVerificationPolicy);
+    const beforeAttempts = runtime.attemptHistory.length;
+    const beforeTarget = runtime.currentTarget();
+
+    expect(() => evidence.publishAcousticEvents({
+      sessionDomainId: 'atomic-step-domain',
+      events: [
+        acousticEvent('atomic-step-domain', 100, 'C4'),
+        acousticEvent('other-step-domain', 120, 'C4'),
+      ],
+      analyzedThroughSessionTimeMs: 200,
+    })).toThrow(/different session domain/);
+
+    expect(runtime.attemptHistory).toHaveLength(beforeAttempts);
+    expect(runtime.currentTarget()).toEqual(beforeTarget);
+    expect(evidence.publishAcousticEvents({
+      sessionDomainId: 'atomic-step-domain',
+      events: [acousticEvent('atomic-step-domain', 100, 'C4')],
+      analyzedThroughSessionTimeMs: 200,
+    }).decisions.map((decision) => decision.kind)).toEqual(['MATCH']);
+  });
+
+  it('prunes impossible unmatched STEP evidence by analysis frontier without dropping viable partial chords', () => {
+    const runtime = new StepPracticeRuntime({
+      artifact,
+      clock: new ManualClock(0),
+      localSessionId: 'frontier-step-domain',
+      scope: {
+        kind: 'RANGE',
+        startGroupId: artifact.expectedPracticeGroups[3].groupId,
+        endGroupId: artifact.expectedPracticeGroups[3].groupId,
+      },
+    });
+    const evidence = new StepEvidenceSession(runtime, testTargetVerificationPolicy);
+
+    const early = evidence.publishAcousticEvents({
+      sessionDomainId: 'frontier-step-domain',
+      events: [
+        acousticEvent('frontier-step-domain', 100, 'F#4'),
+        acousticEvent('frontier-step-domain', 250, 'A4'),
+      ],
+      analyzedThroughSessionTimeMs: 300,
+    });
+    expect(early.decisions).toEqual([]);
+    expect(early.pendingEventCount).toBe(1);
+
+    const later = evidence.publishAcousticEvents({
+      sessionDomainId: 'frontier-step-domain',
+      events: [],
+      analyzedThroughSessionTimeMs: 500,
+    });
+    expect(later.pendingEventCount).toBe(0);
+    expect(later.prunedEventCount).toBe(1);
   });
 
   it('rejects previous-generation delayed evidence after pause and resume', () => {

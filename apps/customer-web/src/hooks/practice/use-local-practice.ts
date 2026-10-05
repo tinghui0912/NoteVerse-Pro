@@ -43,7 +43,7 @@ import type {
 import type { ContinuousEvaluationSnapshot } from '@/lib/practice/local-core/continuous-evaluation-session';
 import {
   CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON,
-} from '@/lib/practice/audio-analysis/continuous/transcription-contract';
+} from '@/lib/practice/input-capability-reasons';
 import {
   BrowserMidiController,
   type BrowserMidiState,
@@ -514,6 +514,33 @@ export function useLocalPractice({
     });
     metronomeRef.current = metronome;
 
+    if (mode === 'STEP_BY_STEP') {
+      const runtime = new StepPracticeRuntime({
+        artifact,
+        scope,
+        inputSource,
+        localSessionId,
+        clock: defaultClock,
+        timebase,
+        tempoSelection,
+        metronomeEnabled,
+      });
+      stepRuntimeRef.current = runtime;
+    } else {
+      const runtime = new ContinuousPracticeSession({
+        artifact,
+        tempoPlan: resolvedTempoPlan,
+        scope,
+        inputSource,
+        localSessionId,
+        clock: defaultClock,
+        timebase,
+        tempoSelection,
+        metronomeEnabled,
+      });
+      performanceRuntimeRef.current = runtime;
+    }
+
     try {
       if (inputSource === 'MICROPHONE') {
         throw new Error('STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED');
@@ -537,34 +564,19 @@ export function useLocalPractice({
       setInputState('RUNNING');
 
       if (mode === 'STEP_BY_STEP') {
-        const runtime = new StepPracticeRuntime({
-          artifact,
-          scope,
-          inputSource,
-          localSessionId,
-          clock: defaultClock,
-          timebase,
-          tempoSelection,
-          metronomeEnabled,
-        });
-        stepRuntimeRef.current = runtime;
+        const runtime = stepRuntimeRef.current;
+        if (!runtime) {
+          throw new Error('STEP runtime was not initialized before input start.');
+        }
         setActiveStepGroup(groupForCurrentStep(runtime));
         const initialOnsetBeat = runtime.currentOnsetBeat;
         metronome.setStepContext(initialOnsetBeat);
         metronome.start(initialOnsetBeat);
       } else {
-        const runtime = new ContinuousPracticeSession({
-          artifact,
-          tempoPlan: resolvedTempoPlan,
-          scope,
-          inputSource,
-          localSessionId,
-          clock: defaultClock,
-          timebase,
-          tempoSelection,
-          metronomeEnabled,
-        });
-        performanceRuntimeRef.current = runtime;
+        const runtime = performanceRuntimeRef.current;
+        if (!runtime) {
+          throw new Error('Continuous runtime was not initialized before input start.');
+        }
         const initialClock = runtime.start();
         setPerformanceClock(initialClock);
         setPerformanceEvaluation(runtime.evaluationSnapshot);

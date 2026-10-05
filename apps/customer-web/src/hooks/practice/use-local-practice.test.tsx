@@ -15,6 +15,8 @@ const recorderEvents = vi.hoisted(() => ({
 
 const midiMock = vi.hoisted(() => ({
   connectedInputCount: 1,
+  sawStepTargetDuringStart: false,
+  emitCapturedAttackDuringStart: false,
   onStateChange: null as ((state: {
     isSupported: boolean;
     hasPermission: boolean | null;
@@ -33,13 +35,47 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
           connectedInputCount: number;
           isRunning: boolean;
         }) => void;
+        getCurrentStepTarget?: () => unknown;
+        onCapturedAttack?: (attack: {
+          captureTime: { domainId: string; ms: number };
+          pitch: string;
+          confidence: number;
+          source: 'MIDI';
+        }) => void;
+        timebase?: {
+          domainId: string;
+          runtimeToSessionTime: (runtimeMs: number) => { domainId: string; ms: number };
+        };
       }) {
         midiMock.onStateChange = options?.onStateChange ?? null;
+        this.options = options ?? {};
       }
+      private readonly options: {
+        getCurrentStepTarget?: () => unknown;
+        onCapturedAttack?: (attack: {
+          captureTime: { domainId: string; ms: number };
+          pitch: string;
+          confidence: number;
+          source: 'MIDI';
+        }) => void;
+        timebase?: {
+          domainId: string;
+          runtimeToSessionTime: (runtimeMs: number) => { domainId: string; ms: number };
+        };
+      };
       async start() {
         if (midiMock.connectedInputCount === 0) {
           midiMock.onStateChange?.(this.getState());
           throw new Error('NO_CONNECTED_INPUT');
+        }
+        midiMock.sawStepTargetDuringStart = Boolean(this.options.getCurrentStepTarget?.());
+        if (midiMock.emitCapturedAttackDuringStart && this.options.timebase) {
+          this.options.onCapturedAttack?.({
+            captureTime: this.options.timebase.runtimeToSessionTime(0),
+            pitch: 'C4',
+            confidence: 1,
+            source: 'MIDI',
+          });
         }
         midiMock.onStateChange?.(this.getState());
       }
@@ -62,6 +98,8 @@ describe('useLocalPractice', () => {
     vi.clearAllMocks();
     recorderEvents.events = [];
     midiMock.connectedInputCount = 1;
+    midiMock.sawStepTargetDuringStart = false;
+    midiMock.emitCapturedAttackDuringStart = false;
     midiMock.onStateChange = null;
     completedPerformanceStore.clearPerformance();
     class MockMediaRecorder {
@@ -137,6 +175,24 @@ describe('useLocalPractice', () => {
     expect(result.current.activeStepGroup?.groupId).toBe(
       artifact.expectedPracticeGroups[0].groupId
     );
+  });
+
+  it('creates STEP runtime before starting MIDI input', async () => {
+    const { result } = renderHook(() =>
+      useLocalPractice({
+        artifact,
+        mode: 'STEP_BY_STEP',
+        inputSource: 'MIDI',
+        scope: { kind: 'FULL' },
+      })
+    );
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    expect(midiMock.sawStepTargetDuringStart).toBe(true);
+    expect(result.current.activeStepGroup?.groupId).toBe(artifact.expectedPracticeGroups[0].groupId);
   });
 
   it('fails STEP microphone closed until acoustic attack triggering is validated', async () => {
@@ -363,6 +419,26 @@ describe('useLocalPractice', () => {
       await result.current.finish();
     });
     expect(result.current.lifecycle).toBe('ENDED');
+  });
+
+  it('creates Continuous runtime before MIDI start without accepting pre-performance NOTE_ON evidence', async () => {
+    midiMock.emitCapturedAttackDuringStart = true;
+    const { result } = renderHook(() =>
+      useLocalPractice({
+        artifact,
+        mode: 'CONTINUOUS_PLAY',
+        inputSource: 'MIDI',
+        scope: { kind: 'FULL' },
+        tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 },
+      })
+    );
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    expect(result.current.lifecycle).toBe('ACTIVE');
+    expect(result.current.performanceEvaluation?.strikes.every((strike) => strike.verdict === 'PENDING')).toBe(true);
   });
 
   it('keeps MIDI continuous recording OFF from requesting microphone media', async () => {
