@@ -1,0 +1,76 @@
+{
+  "artifact": "bytedance_target_verifier_policy_v3",
+  "generatedAt": "2026-10-05T00:00:00+08:00",
+  "frozenEvaluationUsed": false,
+  "model": {
+    "checkpointPath": "models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
+    "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+    "sampleRate": 16000
+  },
+  "totalInputContextMs": [1820, 3000, 5000, 10000],
+  "stageA": {
+    "modelPostAttackContextMs": 220,
+    "targetOffsetMs": 0,
+    "selectionRule": "eligible contexts must pass all core on-time gates; choose the shortest eligible context"
+  },
+  "stageB": {
+    "modelPostAttackContextMsCandidates": [220, 350],
+    "selectionRule": "hold historical past context constant from Stage A and choose the smaller post-attack context if all gates pass"
+  },
+  "continuousOffsetsMs": [-250, -200, -150, -100, -50, 0, 50, 100, 150, 200, 250],
+  "stepCandidateDeltasMs": [-120, -80, -40, 0, 50],
+  "timingPolicy": {
+    "continuousEvidenceBeforeExpectedMs": 250,
+    "continuousEvidenceAfterExpectedMs": 250,
+    "continuousLegalEarlyMs": 250,
+    "continuousLegalLateMs": 250,
+    "stepEvidenceBeforeCandidateMs": 50,
+    "stepEvidenceAfterCandidateMs": 120
+  },
+  "thresholds": {
+    "targetOnsetMin": 0.2,
+    "targetFrameMin": 0.2
+  },
+  "stressProbes": {
+    "noRetriggerProbeAfterPreviousPhysicalAttackMs": [400, 700, 1000]
+  },
+  "acceptanceCriteria": {
+    "correctSingleRecallMin": 0.95,
+    "completeChordRecallMin": 0.9,
+    "secondSameNoteRetriggerRecallMin": 0.9,
+    "denseRepeatedPitchRecallMin": 0.9,
+    "fastAdjacentPitchRecallMin": 0.9,
+    "partialOverlapRecallMin": 0.9,
+    "softAttackRecallMin": 0.9,
+    "loudAttackRecallMin": 0.9,
+    "wrongSemitoneFalseAcceptMax": 0,
+    "wrongOctaveFalseAcceptMax": 0,
+    "missingChordCompleteFalseAcceptMax": 0,
+    "heldNoteNoRetriggerFalseAcceptMax": 0,
+    "pedalNoRetriggerFalseAcceptMax": 0,
+    "continuousCorrectSingleRecallMinAtEveryOffset": 0.9,
+    "continuousCompleteChordRecallMinAtEveryOffset": 0.85,
+    "crossModeDecisionAgreementMin": 1.0
+  },
+  "requiredFamilies": [
+    "correct_single",
+    "complete_chord",
+    "same_note_retrigger_first",
+    "same_note_retrigger_second",
+    "dense_repeated_pitch",
+    "fast_adjacent_pitch",
+    "partial_overlapping_notes",
+    "soft_attack",
+    "loud_attack",
+    "wrong_semitone",
+    "wrong_octave",
+    "missing_chord_tone",
+    "long_held_first_strike",
+    "long_held_no_retrigger",
+    "pedal_first_strike",
+    "pedal_sustain_no_retrigger"
+  ],
+  "diagnosticFamilies": [
+    "chord_pitch_member"
+  ]
+}
