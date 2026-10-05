@@ -2,7 +2,10 @@
   "artifact": "bytedance_target_verifier_decision_v3",
   "generatedAt": "2026-10-05T00:00:00+08:00",
   "gitHead": "0f1f9207d0d13ec883dee4c3879bfe50cf9ebfc3",
-  "verdict": "FAIL",
+  "verdict": "SUPERSEDED_AS_FINAL_MODEL_VERDICT",
+  "supersededBy": "Phase 6D full selected-contract Development gate",
+  "stageAContextEvidenceStatus": "VALID",
+  "correctedCurrentVerdictBeforePhase6D": "ByteDance Shared Target Verifier = INCONCLUSIVE",
   "productionMicrophoneState": {
     "step": "STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED",
     "continuous": "CONTINUOUS_ANALYSIS_UNAVAILABLE"
@@ -173,6 +176,6 @@
     "No context passed the frozen per-family hard gates.",
     "Per policy, Development FAIL stops Calibration and Browser gates."
   ],
-  "finalDecision": "ByteDance Shared Target Verifier = FAIL",
+  "finalDecision": "SUPERSEDED AS FINAL MODEL VERDICT; Stage A context evidence remains valid.",
   "microphoneExtraNoteDetectionParity": "OUT OF SCOPE / NOT VERIFIED"
 }

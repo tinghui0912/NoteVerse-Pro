@@ -4,10 +4,16 @@ Generated: 2026-10-05
 
 Harness git HEAD: `0f1f9207d0d13ec883dee4c3879bfe50cf9ebfc3`
 
-Final decision:
+Phase 6D status:
 
 ```text
-ByteDance Shared Target Verifier = FAIL
+SUPERSEDED AS FINAL MODEL VERDICT
+```
+
+Stage A context evidence remains valid. The defensible model verdict before the Phase 6D full selected-contract gate is:
+
+```text
+ByteDance Shared Target Verifier = INCONCLUSIVE
 ```
 
 Production microphone remains disabled after Phase 6C:
@@ -163,10 +169,10 @@ Microphone extra-note detection parity is:
 OUT OF SCOPE / NOT VERIFIED
 ```
 
-## Final Decision
+## Superseded Final Decision
 
 ```text
-ByteDance Shared Target Verifier = FAIL
+SUPERSEDED AS FINAL MODEL VERDICT
 ```
 
 Production microphone remains disabled after Phase 6C.

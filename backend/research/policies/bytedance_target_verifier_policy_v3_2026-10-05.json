@@ -11,6 +11,7 @@
   "stageA": {
     "modelPostAttackContextMs": 220,
     "targetOffsetMs": 0,
+    "selectedTotalInputContextMs": 1820,
     "selectionRule": "eligible contexts must pass all core on-time gates; choose the shortest eligible context"
   },
   "stageB": {

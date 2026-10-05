@@ -22,6 +22,7 @@ import sys
 from time import perf_counter
 from typing import Any
 
+import mido
 import numpy as np
 
 from compare_step_microphone_frontends_causal_cases import (
@@ -75,8 +76,17 @@ def main() -> int:
         report = run_stage_a(args=args, policy=policy)
         write_report(args.output, report)
         return 0
+    if args.command == "full-development":
+        report = run_full_development(args=args, policy=policy)
+        write_report(args.output, report)
+        return 0
     if args.command == "gate-dev":
         report = run_gate(args=args, policy=policy)
+        write_report(args.output, report)
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0 if report["developmentVerdict"] == "PASS" else 2
+    if args.command == "gate-full-dev":
+        report = run_full_gate(args=args, policy=policy)
         write_report(args.output, report)
         print(json.dumps(report, ensure_ascii=False, indent=2))
         return 0 if report["developmentVerdict"] == "PASS" else 2
@@ -105,9 +115,19 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--checkpoint", type=Path, default=None)
     p.add_argument("--device", default="cpu")
 
+    p = sub.add_parser("full-development")
+    add_common(p)
+    p.add_argument("--targets", type=Path, required=True)
+    p.add_argument("--checkpoint", type=Path, default=None)
+    p.add_argument("--device", default="cpu")
+
     p = sub.add_parser("gate-dev")
     add_common(p)
     p.add_argument("--stage-a", type=Path, required=True)
+
+    p = sub.add_parser("gate-full-dev")
+    add_common(p)
+    p.add_argument("--full-development", type=Path, required=True)
 
     sub.add_parser("self-test")
     args = parser.parse_args()
@@ -150,6 +170,8 @@ def build_target_manifest(*, args: argparse.Namespace, policy: dict[str, Any]) -
             "actualPitches": [target["pitch"]],
             "sourceFile": target["sourceFile"],
             "sourceAudioSha256": target.get("sourceAudioSha256"),
+            "sourceMidi": target.get("sourceMidi"),
+            "sourceMidiSha256": target.get("sourceMidiSha256"),
             "manifestPath": normal_path(target.get("manifestPath")),
             "physicalAttackTime": float(target["startSeconds"]),
             "scheduledExpectedTime": float(target["startSeconds"]),
@@ -263,9 +285,11 @@ def causal_target(
         "shouldMatch": should_match,
         "expectedPitches": list(expected_pitches),
         "actualPitches": list(actual_pitches),
-        "sourceFile": case.get("source_file"),
-        "sourceAudioSha256": case.get("source_audio_sha256"),
-        "manifestPath": normal_path(manifest_path),
+            "sourceFile": case.get("source_file"),
+            "sourceAudioSha256": case.get("source_audio_sha256"),
+            "sourceMidi": case.get("source_midi"),
+            "sourceMidiSha256": case.get("source_midi_sha256"),
+            "manifestPath": normal_path(manifest_path),
         "physicalAttackTime": physical_time,
         "scheduledExpectedTime": scheduled_time,
         "candidateTime": candidate_time,
@@ -351,6 +375,108 @@ def run_stage_a(*, args: argparse.Namespace, policy: dict[str, Any]) -> dict[str
     return report
 
 
+def run_full_development(*, args: argparse.Namespace, policy: dict[str, Any]) -> dict[str, Any]:
+    targets_report = load_json(args.targets)
+    targets = targets_report["targets"]
+    checkpoint_path = args.checkpoint or resolve_checkpoint_path(policy)
+    checkpoint_sha = _sha256(checkpoint_path)
+    if checkpoint_sha != policy["model"]["checkpointSha256"]:
+        raise ValueError(f"checkpoint SHA mismatch: expected {policy['model']['checkpointSha256']}, got {checkpoint_sha}")
+    provider = ByteDancePianoTranscriptionProvider(checkpoint_path=checkpoint_path, device=args.device)
+    _warm_up_note_model(provider, device=args.device)
+    audio_cache: dict[str, tuple[np.ndarray, int]] = {}
+    midi_cache: dict[str, list[dict[str, Any]]] = {}
+    rows: list[dict[str, Any]] = []
+    selected_total = int(policy["stageA"]["selectedTotalInputContextMs"])
+    baseline_post = int(policy["stageA"]["modelPostAttackContextMs"])
+    historical_past = selected_total - baseline_post
+    for target in targets:
+        try:
+            audio, sample_rate = load_audio(target, policy, audio_cache)
+        except FileNotFoundError:
+            for post_ms in policy["stageB"]["modelPostAttackContextMsCandidates"]:
+                rows.append(base_row(target) | {
+                    "status": "SOURCE_AUDIO_MISSING",
+                    "modelPostAttackContextMs": post_ms,
+                })
+            continue
+        for post_ms in policy["stageB"]["modelPostAttackContextMsCandidates"]:
+            rows.append(evaluate_full_development_row(
+                target,
+                audio,
+                sample_rate,
+                provider=provider,
+                device=args.device,
+                policy=policy,
+                historical_past_ms=historical_past,
+                post_attack_context_ms=int(post_ms),
+                midi_cache=midi_cache,
+            ))
+    report = base_report(args, "bytedance_target_verifier_dev_full_v3") | {
+        "split": targets_report["split"],
+        "stage": "FULL_DEVELOPMENT_ON_TIME",
+        "policy": metadata_for_path(args.policy),
+        "targets": metadata_for_path(args.targets),
+        "checkpoint": {"path": str(checkpoint_path), "sha256": checkpoint_sha, "byteSize": checkpoint_path.stat().st_size},
+        "selectedTotalInputContextMs": selected_total,
+        "historicalPastContextMs": historical_past,
+        "postAttackCandidatesMs": policy["stageB"]["modelPostAttackContextMsCandidates"],
+        "targetCount": len(targets),
+        "familyCounts": dict(Counter(target["metricFamily"] for target in targets)),
+        "rows": rows,
+        "postContextTables": full_post_context_tables(rows),
+        "failureDiagnostics": hard_failure_diagnostics(rows),
+    }
+    return report
+
+
+def evaluate_full_development_row(
+    target: dict[str, Any],
+    audio: np.ndarray,
+    sample_rate: int,
+    *,
+    provider: ByteDancePianoTranscriptionProvider,
+    device: str,
+    policy: dict[str, Any],
+    historical_past_ms: int,
+    post_attack_context_ms: int,
+    midi_cache: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    target_time = float(target["scheduledExpectedTime"])
+    evidence_before_ms = int(policy["timingPolicy"]["continuousEvidenceBeforeExpectedMs"])
+    evidence_after_ms = int(policy["timingPolicy"]["continuousEvidenceAfterExpectedMs"])
+    probe = None
+    if target["metricFamily"] in {"long_held_no_retrigger", "pedal_sustain_no_retrigger"}:
+        probe = verify_no_retrigger_probe(
+            target,
+            evidence_before_ms=evidence_before_ms,
+            evidence_after_ms=evidence_after_ms,
+            midi_cache=midi_cache,
+        )
+        if not probe["verifiedNoRetrigger"]:
+            return base_row(target) | {
+                "stage": "FULL_DEVELOPMENT_ON_TIME",
+                "status": "INVALID_NEGATIVE_PROBE",
+                "historicalPastContextMs": historical_past_ms,
+                "modelPostAttackContextMs": post_attack_context_ms,
+                "probeVerification": probe,
+            }
+    return evaluate_target_request(
+        target,
+        audio,
+        sample_rate,
+        provider=provider,
+        device=device,
+        policy=policy,
+        total_context_ms=historical_past_ms + post_attack_context_ms,
+        post_attack_context_ms=post_attack_context_ms,
+        target_time=target_time,
+        evidence_before_ms=evidence_before_ms,
+        evidence_after_ms=evidence_after_ms,
+        stage="FULL_DEVELOPMENT_ON_TIME",
+    ) | ({"probeVerification": probe} if probe is not None else {})
+
+
 def build_paired_context_cohort(targets: list[dict[str, Any]], *, policy: dict[str, Any], audio_cache: dict[str, tuple[np.ndarray, int]]) -> tuple[list[dict[str, Any]], dict[str, int]]:
     paired: list[dict[str, Any]] = []
     excluded = Counter()
@@ -386,6 +512,71 @@ def context_status(target: dict[str, Any], audio: np.ndarray, sample_rate: int, 
         if attack_to_clip_end_ms + 1e-6 < post_attack_context_ms:
             return "INSUFFICIENT_POST_ATTACK_CONTEXT"
     return "OK"
+
+
+def verify_no_retrigger_probe(
+    target: dict[str, Any],
+    *,
+    evidence_before_ms: int,
+    evidence_after_ms: int,
+    midi_cache: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    source_midi = target.get("sourceMidi")
+    if not source_midi:
+        return {"verifiedNoRetrigger": False, "reason": "SOURCE_MIDI_MISSING"}
+    if str(source_midi) not in midi_cache:
+        midi_cache[str(source_midi)] = parse_midi_note_ons(Path(str(source_midi)))
+    midi_events = midi_cache[str(source_midi)]
+    probe_time = float(target["stressProbeTime"])
+    pitch = str(target["expectedPitches"][0])
+    midi_note = pitch_to_midi_note(pitch)
+    window_start = probe_time - evidence_before_ms / 1000.0
+    window_end = probe_time + evidence_after_ms / 1000.0
+    same_pitch = [event for event in midi_events if int(event["midiNote"]) == midi_note]
+    in_window = [event for event in same_pitch if window_start <= float(event["timeSeconds"]) <= window_end]
+    before = [event for event in same_pitch if float(event["timeSeconds"]) < probe_time]
+    after = [event for event in same_pitch if float(event["timeSeconds"]) > probe_time]
+    nearest_before = max(before, key=lambda event: float(event["timeSeconds"]), default=None)
+    nearest_after = min(after, key=lambda event: float(event["timeSeconds"]), default=None)
+    return {
+        "sourceMidi": source_midi,
+        "sourceMidiSha256": target.get("sourceMidiSha256"),
+        "probeTime": round(probe_time, 6),
+        "expectedPitch": pitch,
+        "evidenceWindowStart": round(window_start, 6),
+        "evidenceWindowEnd": round(window_end, 6),
+        "nearestPreviousSamePitchAttack": round(float(nearest_before["timeSeconds"]), 6) if nearest_before else None,
+        "nearestNextSamePitchAttack": round(float(nearest_after["timeSeconds"]), 6) if nearest_after else None,
+        "samePitchAttacksInsideEvidenceWindow": [round(float(event["timeSeconds"]), 6) for event in in_window],
+        "verifiedNoRetrigger": len(in_window) == 0,
+    }
+
+
+def parse_midi_note_ons(path: Path) -> list[dict[str, Any]]:
+    midi = mido.MidiFile(path)
+    current_seconds = 0.0
+    current_tempo = 500000
+    events: list[dict[str, Any]] = []
+    for message in mido.merge_tracks(midi.tracks):
+        current_seconds += mido.tick2second(message.time, midi.ticks_per_beat, current_tempo)
+        if message.type == "set_tempo":
+            current_tempo = message.tempo
+        if message.type == "note_on" and getattr(message, "velocity", 0) > 0:
+            events.append({
+                "timeSeconds": current_seconds,
+                "midiNote": int(message.note),
+                "velocity": int(message.velocity),
+            })
+    return events
+
+
+def pitch_to_midi_note(pitch: str) -> int:
+    names = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5, "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+    for name in ("C#", "D#", "F#", "G#", "A#", "C", "D", "E", "F", "G", "A", "B"):
+        if pitch.startswith(name):
+            octave = int(pitch[len(name):])
+            return 12 * (octave + 1) + names[name]
+    raise ValueError(f"unsupported pitch {pitch}")
 
 
 def evaluate_target_request(
@@ -451,7 +642,7 @@ def evaluate_target_request(
         "matchedExpected": list(matched),
         "missingExpected": list(missing),
         "extraObserved": list(extra),
-        "pitchEvidence": compact_pitch_evidence(prediction["expected_evidence"]),
+        "pitchEvidence": compact_pitch_evidence(prediction["expected_evidence"], target_time=target_time),
         "forwardMs": round(float(forward_latency["forward_ms"]), 3),
         "endToEndMs": round(elapsed_ms, 3),
     }
@@ -475,6 +666,91 @@ def run_gate(*, args: argparse.Namespace, policy: dict[str, Any]) -> dict[str, A
         "stopReason": None if selected is not None else "No Stage A context passed the frozen per-family gates; calibration and browser gates must not run.",
     }
     return report
+
+
+def run_full_gate(*, args: argparse.Namespace, policy: dict[str, Any]) -> dict[str, Any]:
+    full = load_json(args.full_development)
+    criteria = policy["acceptanceCriteria"]
+    post_results = []
+    for post_ms in policy["stageB"]["modelPostAttackContextMsCandidates"]:
+        checks = evaluate_full_contract(full["rows"], post_ms=int(post_ms), criteria=criteria)
+        post_results.append({
+            "postAttackContextMs": post_ms,
+            "checks": checks,
+            "verdict": aggregate_check_verdict(checks),
+        })
+    pass_posts = [item["postAttackContextMs"] for item in post_results if item["verdict"] == "PASS"]
+    selected_post = min(pass_posts, default=None)
+    if selected_post is not None:
+        verdict = "PASS"
+        stop_reason = None
+    elif any(item["verdict"] == "FAIL" for item in post_results):
+        verdict = "FAIL"
+        stop_reason = "At least one valid hard criterion failed for every post-attack context candidate; calibration and browser gates must not run."
+    else:
+        verdict = "INCONCLUSIVE"
+        stop_reason = "No valid hard criterion failed, but at least one required criterion was not evaluated."
+    return base_report(args, "bytedance_target_verifier_dev_full_gate_v3") | {
+        "policy": metadata_for_path(args.policy),
+        "fullDevelopment": metadata_for_path(args.full_development),
+        "postContextResults": post_results,
+        "selectedPostAttackContextMs": selected_post,
+        "developmentVerdict": verdict,
+        "stopReason": stop_reason,
+        "calibration": "NOT RUN" if verdict != "PASS" else "REQUIRED_NEXT",
+        "browser": "NOT RUN",
+    }
+
+
+def evaluate_full_contract(rows: list[dict[str, Any]], *, post_ms: int, criteria: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = [row for row in rows if row.get("modelPostAttackContextMs") == post_ms and row.get("status") == "OK"]
+    checks = []
+    recall_map = {
+        "correct_single": criteria["correctSingleRecallMin"],
+        "complete_chord": criteria["completeChordRecallMin"],
+        "same_note_retrigger_second": criteria["secondSameNoteRetriggerRecallMin"],
+        "dense_repeated_pitch": criteria["denseRepeatedPitchRecallMin"],
+        "fast_adjacent_pitch": criteria["fastAdjacentPitchRecallMin"],
+        "partial_overlapping_notes": criteria["partialOverlapRecallMin"],
+        "soft_attack": criteria["softAttackRecallMin"],
+        "loud_attack": criteria["loudAttackRecallMin"],
+    }
+    for family, minimum in recall_map.items():
+        fam = [row for row in rows if row.get("metricFamily") == family and row.get("shouldMatch")]
+        value = ratio(sum(1 for row in fam if row.get("accepted")), len(fam))
+        checks.append(check_tristate(f"{family}.recall", value, ">=", minimum, len(fam)))
+    false_map = {
+        "wrong_semitone": criteria["wrongSemitoneFalseAcceptMax"],
+        "wrong_octave": criteria["wrongOctaveFalseAcceptMax"],
+        "missing_chord_tone": criteria["missingChordCompleteFalseAcceptMax"],
+        "long_held_no_retrigger": criteria["heldNoteNoRetriggerFalseAcceptMax"],
+        "pedal_sustain_no_retrigger": criteria["pedalNoRetriggerFalseAcceptMax"],
+    }
+    for family, maximum in false_map.items():
+        fam = [row for row in rows if row.get("metricFamily") == family and not row.get("shouldMatch")]
+        false_count = sum(1 for row in fam if row.get("accepted"))
+        checks.append(check_tristate(f"{family}.falseAcceptCount", false_count if fam else None, "<=", maximum, len(fam)))
+    return checks
+
+
+def check_tristate(name: str, value: float | int | None, op: str, threshold: float | int, count: int) -> dict[str, Any]:
+    if count == 0 or value is None:
+        verdict = "NOT_EVALUATED"
+    elif op == ">=":
+        verdict = "PASS" if value >= threshold else "FAIL"
+    elif op == "<=":
+        verdict = "PASS" if value <= threshold else "FAIL"
+    else:
+        raise ValueError(op)
+    return {"criterion": name, "value": value, "operator": op, "threshold": threshold, "sampleCount": count, "verdict": verdict}
+
+
+def aggregate_check_verdict(checks: list[dict[str, Any]]) -> str:
+    if any(check["verdict"] == "FAIL" for check in checks):
+        return "FAIL"
+    if any(check["verdict"] == "NOT_EVALUATED" for check in checks):
+        return "INCONCLUSIVE"
+    return "PASS"
 
 
 def evaluate_stage_a_context(rows: list[dict[str, Any]], *, context_ms: int, criteria: dict[str, Any]) -> list[dict[str, Any]]:
@@ -538,27 +814,42 @@ def load_audio(target: dict[str, Any], policy: dict[str, Any], audio_cache: dict
 def verify_source_hashes(targets: list[dict[str, Any]]) -> None:
     checked: dict[str, str] = {}
     for target in targets:
-        expected = target.get("sourceAudioSha256")
-        if not expected:
-            continue
-        source = str(target["sourceFile"])
-        if source not in checked:
-            checked[source] = _sha256(Path(source))
-        if checked[source] != expected:
-            raise ValueError(f"source SHA mismatch for {source}: expected {expected}, got {checked[source]}")
+        for source_key, hash_key in (("sourceFile", "sourceAudioSha256"), ("sourceMidi", "sourceMidiSha256")):
+            expected = target.get(hash_key)
+            source_value = target.get(source_key)
+            if not expected or not source_value:
+                continue
+            source = str(source_value)
+            if source not in checked:
+                checked[source] = _sha256(Path(source))
+            if checked[source] != expected:
+                raise ValueError(f"source SHA mismatch for {source}: expected {expected}, got {checked[source]}")
 
 
 def source_hash_summary(targets: list[dict[str, Any]]) -> dict[str, int]:
-    sources = {}
-    missing = set()
+    audio_sources = {}
+    audio_missing = set()
+    midi_sources = {}
+    midi_missing = set()
     for target in targets:
-        source = str(target["sourceFile"])
-        expected = target.get("sourceAudioSha256")
-        if expected:
-            sources[source] = expected
+        audio_source = str(target["sourceFile"])
+        audio_expected = target.get("sourceAudioSha256")
+        if audio_expected:
+            audio_sources[audio_source] = audio_expected
         else:
-            missing.add(source)
-    return {"verifiedSourceCount": len(sources), "missingHashSourceCount": len(missing)}
+            audio_missing.add(audio_source)
+        midi_source = target.get("sourceMidi")
+        midi_expected = target.get("sourceMidiSha256")
+        if midi_source and midi_expected:
+            midi_sources[str(midi_source)] = str(midi_expected)
+        else:
+            midi_missing.add(str(midi_source))
+    return {
+        "verifiedAudioSourceCount": len(audio_sources),
+        "missingAudioHashSourceCount": len(audio_missing),
+        "verifiedMidiSourceCount": len(midi_sources),
+        "missingMidiHashSourceCount": len(midi_missing),
+    }
 
 
 def validate_split_isolation(targets: list[dict[str, Any]], split: str) -> None:
@@ -618,15 +909,71 @@ def family_context_table(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return table
 
 
-def compact_pitch_evidence(evidence: dict[str, Any]) -> dict[str, Any]:
-    return {
-        pitch: {
-            key: values.get(key)
-            for key in ("accepted", "onset_score", "frame_score", "best_onset_time", "target_time_delta")
-            if key in values
+def full_post_context_tables(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    tables = []
+    for post_ms in sorted({row.get("modelPostAttackContextMs") for row in rows if row.get("modelPostAttackContextMs") is not None}):
+        ok = [row for row in rows if row.get("modelPostAttackContextMs") == post_ms and row.get("status") == "OK"]
+        positives = [row for row in ok if row.get("shouldMatch")]
+        negatives = [row for row in ok if not row.get("shouldMatch")]
+        tables.append({
+            "modelPostAttackContextMs": post_ms,
+            "okCount": len(ok),
+            "invalidNegativeProbeCount": sum(1 for row in rows if row.get("modelPostAttackContextMs") == post_ms and row.get("status") == "INVALID_NEGATIVE_PROBE"),
+            "recallDiagnostic": ratio(sum(1 for row in positives if row.get("accepted")), len(positives)),
+            "falseAcceptDiagnostic": ratio(sum(1 for row in negatives if row.get("accepted")), len(negatives)),
+            "medianForwardMs": percentile([float(row["forwardMs"]) for row in ok], 50),
+            "p95ForwardMs": percentile([float(row["forwardMs"]) for row in ok], 95),
+        })
+    return tables
+
+
+def hard_failure_diagnostics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    diagnostics = []
+    for row in rows:
+        if row.get("status") != "OK":
+            continue
+        if row.get("shouldMatch") and not row.get("accepted"):
+            diagnostics.append({
+                "targetId": row.get("targetId"),
+                "metricFamily": row.get("metricFamily"),
+                "modelPostAttackContextMs": row.get("modelPostAttackContextMs"),
+                "expectedPitches": row.get("expectedPitches"),
+                "observedExpectedPitches": row.get("observedExpectedPitches"),
+                "missingExpected": row.get("missingExpected"),
+                "pitchEvidence": row.get("pitchEvidence"),
+            })
+        if not row.get("shouldMatch") and row.get("accepted"):
+            diagnostics.append({
+                "targetId": row.get("targetId"),
+                "metricFamily": row.get("metricFamily"),
+                "groundTruthClass": row.get("groundTruthClass"),
+                "modelPostAttackContextMs": row.get("modelPostAttackContextMs"),
+                "expectedPitches": row.get("expectedPitches"),
+                "observedExpectedPitches": row.get("observedExpectedPitches"),
+                "pitchEvidence": row.get("pitchEvidence"),
+                "probeVerification": row.get("probeVerification"),
+            })
+    return diagnostics
+
+
+def compact_pitch_evidence(evidence: dict[str, Any], *, target_time: float) -> dict[str, Any]:
+    compact: dict[str, Any] = {}
+    for pitch, values in evidence.items():
+        relative_ms = values.get("onset_peak_time_relative_ms")
+        absolute = None
+        if isinstance(relative_ms, (int, float)):
+            absolute = round(target_time + float(relative_ms) / 1000.0, 6)
+        compact[pitch] = {
+            "accepted": values.get("accepted"),
+            "localEvidenceStatus": values.get("local_evidence_status"),
+            "onsetActivation": values.get("onset_activation"),
+            "frameActivation": values.get("frame_activation"),
+            "onsetPeakTimeRelativeMs": relative_ms,
+            "frameAtOnsetPeak": values.get("frame_at_onset_peak"),
+            "frameMaxNearOnsetPeak": values.get("frame_max_near_onset_peak"),
+            "absoluteOnsetPeakTime": absolute,
         }
-        for pitch, values in evidence.items()
-    }
+    return compact
 
 
 def base_row(target: dict[str, Any]) -> dict[str, Any]:
@@ -641,6 +988,7 @@ def base_row(target: dict[str, Any]) -> dict[str, Any]:
         "expectedPitches": target.get("expectedPitches"),
         "actualPitches": target.get("actualPitches"),
         "sourceFile": target.get("sourceFile"),
+        "sourceMidi": target.get("sourceMidi"),
         "physicalAttackTime": target.get("physicalAttackTime"),
         "scheduledExpectedTime": target.get("scheduledExpectedTime"),
         "candidateTime": target.get("candidateTime"),
@@ -739,6 +1087,21 @@ def run_self_tests() -> None:
     target["scheduledExpectedTime"] = 0.5
     target["physicalAttackTime"] = 0.5
     assert context_status(target, audio, 16000, total_context_ms=1820, post_attack_context_ms=220, target_time=0.5) == "INSUFFICIENT_REAL_CONTEXT"
+    evidence = compact_pitch_evidence({
+        "C4": {
+            "accepted": True,
+            "local_evidence_status": "AVAILABLE",
+            "onset_activation": 0.7,
+            "frame_activation": 0.8,
+            "onset_peak_time_relative_ms": -12,
+            "frame_at_onset_peak": 0.6,
+            "frame_max_near_onset_peak": 0.9,
+        }
+    }, target_time=10.0)
+    assert evidence["C4"]["localEvidenceStatus"] == "AVAILABLE"
+    assert evidence["C4"]["onsetActivation"] == 0.7
+    assert evidence["C4"]["frameActivation"] == 0.8
+    assert evidence["C4"]["absoluteOnsetPeakTime"] == 9.988
 
 
 if __name__ == "__main__":
