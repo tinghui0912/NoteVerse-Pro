@@ -603,6 +603,78 @@ describe('local CONTINUOUS practice runtime', () => {
 
     expect(session.evaluationSnapshot).toEqual(before);
   });
+
+  it('rejects mixed-domain analysis publications atomically before observing valid attacks', () => {
+    const clock = new ManualClock(0);
+    const session = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock,
+      inputSource: 'MICROPHONE',
+      countInBeats: 0,
+      localSessionId: 'analysis-session',
+    });
+    session.start();
+    clock.advance(1000);
+    const before = session.evaluationSnapshot;
+
+    expect(() => session.publishAnalysis({
+      sessionDomainId: session.timebase.domainId,
+      attacks: [
+        {
+          captureTime: session.timebase.atSessionMs(100),
+          pitch: 'C4',
+          confidence: 1,
+          source: 'ACOUSTIC',
+        },
+        {
+          captureTime: session.timebase.atSessionMs(200),
+          pitch: 'E4',
+          confidence: 1,
+          source: 'ACOUSTIC',
+        },
+        {
+          captureTime: { domainId: 'wrong-domain', ms: 300 },
+          pitch: 'G4',
+          confidence: 1,
+          source: 'ACOUSTIC',
+        },
+      ],
+      analyzedThroughPerformanceMs: 1000,
+    })).toThrow(/different session domain/);
+
+    expect(session.evaluationSnapshot).toEqual(before);
+  });
+
+  it('rejects invalid analysis frontiers atomically before observing attacks', () => {
+    const clock = new ManualClock(0);
+    const session = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock,
+      inputSource: 'MICROPHONE',
+      countInBeats: 0,
+      localSessionId: 'analysis-session',
+    });
+    session.start();
+    clock.advance(1000);
+    const before = session.evaluationSnapshot;
+
+    expect(() => session.publishAnalysis({
+      sessionDomainId: session.timebase.domainId,
+      attacks: [{
+        captureTime: session.timebase.atSessionMs(100),
+        pitch: 'C4',
+        confidence: 1,
+        source: 'ACOUSTIC',
+      }],
+      analyzedThroughPerformanceMs: Number.POSITIVE_INFINITY,
+    })).toThrow(/analysis frontier/);
+
+    expect(session.evaluationSnapshot).toEqual(before);
+  });
 });
 describe('local session foundation', () => {
   it('defines one comparable local session timebase for runtime and sample-index evidence', () => {

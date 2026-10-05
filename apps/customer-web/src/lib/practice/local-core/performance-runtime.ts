@@ -459,27 +459,37 @@ export class ContinuousPracticeSession {
     if (publication.sessionDomainId !== this.clock.timebase.domainId) {
       throw new ContinuousAnalysisPublicationDomainError();
     }
+    if (
+      !Number.isFinite(publication.analyzedThroughPerformanceMs)
+      || publication.analyzedThroughPerformanceMs < 0
+      || publication.analyzedThroughPerformanceMs > this.clock.scopeDurationMs()
+    ) {
+      throw new Error('Continuous analysis frontier must be finite, non-negative, and within the resolved scope.');
+    }
     for (const attack of publication.attacks) {
       if (attack.captureTime.domainId !== this.clock.timebase.domainId) {
         throw new ContinuousAnalysisPublicationDomainError(
           'Continuous analysis attack belongs to a different session domain.'
         );
       }
-      if (attack.source === 'MIDI') {
-        this.observeCapturedAttack(attack);
-        continue;
-      }
+    }
+
+    const observedAttacks = publication.attacks.flatMap((attack) => {
       const performanceTimeMs = this.clock.performanceTimeAtCapture(attack.captureTime.ms);
       if (performanceTimeMs === null) {
-        continue;
+        return [];
       }
-      this.evaluator.observeAttack({
+      return [{
         observationId: `${attack.captureTime.domainId}:${attack.captureTime.ms}:${attack.pitch}`,
         pitch: attack.pitch,
         performanceTimeMs,
         confidence: attack.confidence,
         source: attack.source,
-      });
+      }];
+    });
+
+    for (const attack of observedAttacks) {
+      this.evaluator.observeAttack(attack);
     }
     this.evaluator.advanceAnalysisThrough(publication.analyzedThroughPerformanceMs);
   }
