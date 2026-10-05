@@ -1,0 +1,185 @@
+{
+  "artifact": "bytedance_target_verifier_decision_v2",
+  "generatedAt": "2026-10-05T00:00:00+08:00",
+  "gitHead": "34d898014834d9589400d46eed7f69a79e234fda",
+  "verdict": "INCONCLUSIVE",
+  "productionMicrophoneState": {
+    "step": "STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED",
+    "continuous": "CONTINUOUS_ANALYSIS_UNAVAILABLE"
+  },
+  "oldPhase6Decision": {
+    "status": "SUPERSEDED_INVALID_FINAL_GATE",
+    "rawBoundedReportPreserved": "backend/research/reports/bytedance_target_verifier_context_matrix_dev_bounded_2026-10-05.json",
+    "decisionReportsMarkedInvalid": [
+      "backend/research/reports/bytedance_target_verifier_decision_2026-10-05.json",
+      "backend/research/reports/bytedance_target_verifier_decision_2026-10-05.md"
+    ],
+    "invalidationReasons": [
+      "case-level positive/negative classification polluted group-level semantics",
+      "no-retrigger cases synthesized missing target timestamps",
+      "Continuous legalEarly/legalLate policy was not used by the verifier",
+      "requested 3s/5s/10s context was not proven to be physically present",
+      "required families were missing",
+      "only max 2 cases per kind were run",
+      "offset results were aggregated away",
+      "numeric acceptance criteria were not frozen"
+    ]
+  },
+  "phase6BRepairStatus": {
+    "groupLevelGroundTruthClassificationRemoved": "COMPLETED",
+    "instanceLevelShouldMatch": "COMPLETED",
+    "syntheticPhysicalTargetTimestampFallbackRemoved": "COMPLETED",
+    "continuousLegalEarlyLegalLateUsed": "COMPLETED",
+    "realContextDurationRecorded": "COMPLETED",
+    "requestedFutureDurationRecorded": "COMPLETED",
+    "requiredFamiliesRepresentedInBoundedSamples": "COMPLETED",
+    "numericGatesFrozenBeforeRun": "COMPLETED",
+    "perOffsetResultsPreserved": "COMPLETED",
+    "crossModeAgreementActuallyMeasured": "NOT COMPLETED",
+    "completeDevelopmentGate": "NOT COMPLETED",
+    "calibrationGate": "NOT COMPLETED",
+    "browserGate": "NOT COMPLETED"
+  },
+  "policy": {
+    "path": "backend/research/policies/bytedance_target_verifier_policy_v2_2026-10-05.json",
+    "sha256": "6c5ba1633f4d4593d504682a9e8243b14e584deb3269b3cc3960da88242c613e",
+    "continuousTimingPolicy": {
+      "legalEarlyMs": 250,
+      "legalLateMs": 250
+    },
+    "stepCandidateTimingPolicy": {
+      "legalEarlyMs": 120,
+      "legalLateMs": 50
+    },
+    "contextsMs": [
+      1820,
+      3000,
+      5000,
+      10000
+    ],
+    "futureContextMs": [
+      220,
+      350
+    ]
+  },
+  "harness": {
+    "path": "backend/scripts/evaluate_bytedance_shared_target_verifier_v2.py",
+    "sha256": "716e3fd592d72b66640daf2d79049e2aa6cc9933e262a610a4fa813b15b63b0a"
+  },
+  "evidenceReports": [
+    {
+      "path": "backend/research/reports/bytedance_target_verifier_dev_v2_smoke_2026-10-05.json",
+      "sha256": "e4323ffea1e745b56bc76d94bd2eb87c29423ca47955e7238c9fd38109311646",
+      "purpose": "smoke run proving v2 row semantics and report shape"
+    },
+    {
+      "path": "backend/research/reports/bytedance_target_verifier_dev_v2_context_sample_2026-10-05.json",
+      "sha256": "7e2f62ed0e6eb45433c7588ad20c16ac38c1617cd770ed8be24116c6b0ea5d29",
+      "purpose": "bounded context/future sample across all required families"
+    },
+    {
+      "path": "backend/research/reports/bytedance_target_verifier_dev_v2_offset_sample_2026-10-05.json",
+      "sha256": "7b989e3f5d8575f04bc52822b63b097724f194d237e70e6b94f8f1350baf6ff5",
+      "purpose": "bounded per-offset sample preserving Continuous and STEP timing buckets"
+    }
+  ],
+  "boundedContextSample": {
+    "targetInstanceCount": 52,
+    "familiesRepresented": {
+      "correct_single": 4,
+      "correct_chord": 4,
+      "same_note_retrigger": 4,
+      "dense_repeated_pitch": 4,
+      "fast_adjacent_pitch": 4,
+      "partial_overlapping_notes": 4,
+      "soft_attack": 4,
+      "loud_attack": 4,
+      "wrong_semitone": 4,
+      "wrong_octave": 4,
+      "missing_chord_tone": 4,
+      "long_held_no_retrigger": 4,
+      "pedal_sustain_no_retrigger": 4
+    },
+    "contextTable": [
+      {
+        "contextMs": 1820,
+        "okCount": 110,
+        "actualInputDurationMedianMs": 1820.0,
+        "actualInputDurationMinMs": 1820.0,
+        "recall": 0.939024,
+        "falseAcceptRate": 0.0,
+        "medianForwardMs": 271.889,
+        "p95ForwardMs": 482.104
+      },
+      {
+        "contextMs": 3000,
+        "okCount": 66,
+        "actualInputDurationMedianMs": 3000.0,
+        "actualInputDurationMinMs": 3000.0,
+        "recall": 0.92,
+        "falseAcceptRate": 0.0,
+        "medianForwardMs": 422.503,
+        "p95ForwardMs": 957.772
+      },
+      {
+        "contextMs": 5000,
+        "okCount": 52,
+        "actualInputDurationMedianMs": 5000.0,
+        "actualInputDurationMinMs": 5000.0,
+        "recall": 0.888889,
+        "falseAcceptRate": 0.0,
+        "medianForwardMs": 685.373,
+        "p95ForwardMs": 1706.301
+      },
+      {
+        "contextMs": 10000,
+        "okCount": 52,
+        "actualInputDurationMedianMs": 10000.0,
+        "actualInputDurationMinMs": 10000.0,
+        "recall": 0.888889,
+        "falseAcceptRate": 0.0,
+        "medianForwardMs": 1476.527,
+        "p95ForwardMs": 3591.781
+      }
+    ],
+    "futureContextTable": [
+      {
+        "futureMs": 220,
+        "okCount": 138,
+        "actualFutureMedianMs": 220.0,
+        "actualFutureMinMs": 220.0
+      },
+      {
+        "futureMs": 350,
+        "okCount": 142,
+        "actualFutureMedianMs": 350.0,
+        "actualFutureMinMs": 350.0
+      }
+    ]
+  },
+  "boundedOffsetSampleFindings": {
+    "continuous1820Future220": {
+      "lateOffsetWeaknessObserved": "At +200ms and +250ms, bounded samples showed reduced or zero recall for several positive families including correct_chord, same_note_retrigger, partial_overlapping_notes, soft_attack, and loud_attack.",
+      "denseRepeatedPitchAtEarlyOffsets": "At -250ms/-200ms/-150ms, dense_repeated_pitch recall was 0.666667 in the bounded sample."
+    },
+    "step1820Future220": {
+      "candidateEarlyOffsetWeaknessObserved": "At -120ms and -80ms, bounded samples showed zero recall for several positive families including correct_chord, same_note_retrigger, partial_overlapping_notes, soft_attack, and loud_attack.",
+      "candidateOnTimeAndLatePositive": "At 0ms and +50ms, bounded positive samples generally matched except families with no OK rows."
+    },
+    "noRetriggerSafety": {
+      "continuousLongHeldFalseAcceptRate": 0.0,
+      "continuousPedalFalseAcceptRate": 0.0,
+      "stepLongHeldFalseAcceptRate": 0.0,
+      "stepPedalFalseAcceptRate": 0.0
+    }
+  },
+  "decisionRationale": [
+    "The Phase 6 FAIL is invalidated because its benchmark semantics did not match shared target verification.",
+    "The v2 harness repairs the major semantic errors and committed bounded samples demonstrate that the old no-retrigger failure was not valid as a group-level conclusion.",
+    "The complete development gate was not executed; only bounded samples were run.",
+    "Calibration was not executed.",
+    "Cross-mode agreement was not actually measured with equivalent STEP and Continuous request builders; current evidence has comparedCount 0 when mode policies differ.",
+    "Browser WebGPU was not run because the corrected PyTorch development gate was not completed."
+  ],
+  "finalDecision": "ByteDance Shared Target Verifier = INCONCLUSIVE"
+}
