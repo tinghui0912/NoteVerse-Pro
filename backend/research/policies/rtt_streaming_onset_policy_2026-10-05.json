@@ -1,0 +1,45 @@
+{
+  "artifact": "rtt_streaming_onset_policy",
+  "generatedAt": "2026-10-05T00:00:00+08:00",
+  "candidate": {
+    "repo": "https://github.com/huispaty/rtt",
+    "commit": "b3197cfa538cc6f7698042b87ecee709223fc58e",
+    "checkpointRelativePath": "ckpts/CustomAMT.ckpt",
+    "expectedCheckpointBytes": 67843364,
+    "expectedCheckpointSha256": "901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1"
+  },
+  "runtime": {
+    "inputScaling": "OFFICIAL_RUNTIME",
+    "inputScalingReason": "Use upstream inference.py semantics: librosa/float PCM is passed directly to CustomAMT.forward(), which divides by int16 range. This policy is chosen from upstream code, not NoteVerse metrics.",
+    "sampleRateHz": 16000,
+    "framesPerSecond": 100,
+    "onsetThreshold": 0.5,
+    "eventRule": "per-pitch onset probability threshold crossing/rising edge",
+    "frozenEvaluationUsed": false
+  },
+  "diagnosticTolerancesMs": [10, 20, 30, 50],
+  "gtChordGroupingMs": 30,
+  "productTargetWindowMs": 50,
+  "gates": {
+    "correct_single": {"minRecall": 0.95},
+    "complete_chord": {"minRecall": 0.9},
+    "same_note_retrigger_second": {"minRecall": 0.9},
+    "dense_repeated_pitch": {"minRecall": 0.9},
+    "fast_adjacent_pitch": {"minRecall": 0.9},
+    "partial_overlapping_notes": {"minRecall": 0.9},
+    "soft_attack": {"minRecall": 0.9},
+    "loud_attack": {"minRecall": 0.9},
+    "long_held_no_retrigger": {"maxFalseOnsets": 0},
+    "pedal_sustain_no_retrigger": {"maxFalseOnsets": 0},
+    "wrong_semitone": {"maxFalseTargetAccepts": 0},
+    "wrong_octave": {"maxFalseTargetAccepts": 0},
+    "missing_chord_tone": {"maxFalseTargetAccepts": 0}
+  },
+  "stageStopRules": {
+    "GateA": "If upstream identity/runtime audit fails, stop.",
+    "GateB": "If causal prefix invariance fails, stop.",
+    "GateC": "If acoustic onset stream hard criteria fail, stop before STEP/Continuous replay.",
+    "GateD": "Only run STEP/Continuous consumers after Gate C passes.",
+    "GateE": "Only attempt incremental runtime after product replay passes."
+  }
+}
