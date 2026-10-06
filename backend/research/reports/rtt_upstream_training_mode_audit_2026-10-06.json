@@ -1,0 +1,38 @@
+{
+  "artifact": "rtt_upstream_training_mode_audit",
+  "trainingState": {
+    "modelTraining": true,
+    "dropoutCount": 18,
+    "dropoutTrainingCount": 18,
+    "batchNormCount": 38,
+    "batchNormTrainingCount": 38
+  },
+  "inferenceModeState": {
+    "beforeInferenceMode": true,
+    "insideInferenceMode": true
+  },
+  "unmodifiedRepeatedRuns": {
+    "runCount": 3,
+    "pairwise": [
+      {
+        "leftRun": 0,
+        "rightRun": 1,
+        "maxDelta": 0.025865127485503958,
+        "meanDelta": 0.014418052554068042
+      },
+      {
+        "leftRun": 0,
+        "rightRun": 2,
+        "maxDelta": 0.02242931462439146,
+        "meanDelta": 0.007701357756114333
+      },
+      {
+        "leftRun": 1,
+        "rightRun": 2,
+        "maxDelta": 0.027906976744186074,
+        "meanDelta": 0.012753049573681416
+      }
+    ],
+    "diagnostic": "non-zero deltas indicate published runtime nondeterminism"
+  }
+}

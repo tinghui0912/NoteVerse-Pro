@@ -1,0 +1,3110 @@
+{
+  "artifact": "rtt_deterministic_development",
+  "sourceCount": 8,
+  "targetCount": 421,
+  "streamGeometry": {
+    "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1": {
+      "mode": "FULL_SOURCE",
+      "startupCold": "[0,10) seconds uses model initial state and real source audio from t=0.",
+      "steadyState": "Targets at t>=10s have at least 10s real musical history in the full-source stream.",
+      "ownership": "Each source timestamp is decoded once from the source-level stream."
+    },
+    "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2": {
+      "mode": "FULL_SOURCE",
+      "startupCold": "[0,10) seconds uses model initial state and real source audio from t=0.",
+      "steadyState": "Targets at t>=10s have at least 10s real musical history in the full-source stream.",
+      "ownership": "Each source timestamp is decoded once from the source-level stream."
+    },
+    "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1": {
+      "mode": "FULL_SOURCE",
+      "startupCold": "[0,10) seconds uses model initial state and real source audio from t=0.",
+      "steadyState": "Targets at t>=10s have at least 10s real musical history in the full-source stream.",
+      "ownership": "Each source timestamp is decoded once from the source-level stream."
+    },
+    "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1": {
+      "mode": "FULL_SOURCE",
+      "startupCold": "[0,10) seconds uses model initial state and real source audio from t=0.",
+      "steadyState": "Targets at t>=10s have at least 10s real musical history in the full-source stream.",
+      "ownership": "Each source timestamp is decoded once from the source-level stream."
+    },
+    "MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_06_R1_2015_wav--6": {
+      "mode": "FULL_SOURCE",
+      "startupCold": "[0,10) seconds uses model initial state and real source audio from t=0.",
+      "steadyState": "Targets at t>=10s have at least 10s real musical history in the full-source stream.",
+      "ownership": "Each source timestamp is decoded once from the source-level stream."
+    },
+    "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav": {
+      "mode": "FULL_SOURCE",
+      "startupCold": "[0,10) seconds uses model initial state and real source audio from t=0.",
+      "steadyState": "Targets at t>=10s have at least 10s real musical history in the full-source stream.",
+      "ownership": "Each source timestamp is decoded once from the source-level stream."
+    },
+    "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5": {
+      "mode": "FULL_SOURCE",
+      "startupCold": "[0,10) seconds uses model initial state and real source audio from t=0.",
+      "steadyState": "Targets at t>=10s have at least 10s real musical history in the full-source stream.",
+      "ownership": "Each source timestamp is decoded once from the source-level stream."
+    },
+    "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav": {
+      "mode": "FULL_SOURCE",
+      "startupCold": "[0,10) seconds uses model initial state and real source audio from t=0.",
+      "steadyState": "Targets at t>=10s have at least 10s real musical history in the full-source stream.",
+      "ownership": "Each source timestamp is decoded once from the source-level stream."
+    }
+  },
+  "familyCounts": {
+    "chord_pitch_member": 21,
+    "complete_chord": 16,
+    "correct_single": 37,
+    "dense_repeated_pitch": 24,
+    "fast_adjacent_pitch": 24,
+    "long_held_first_strike": 16,
+    "long_held_no_retrigger": 48,
+    "loud_attack": 24,
+    "missing_chord_tone": 16,
+    "partial_overlapping_notes": 21,
+    "pedal_first_strike": 16,
+    "pedal_sustain_no_retrigger": 48,
+    "same_note_retrigger_diagnostic": 24,
+    "same_note_retrigger_first": 16,
+    "same_note_retrigger_second": 16,
+    "soft_attack": 22,
+    "wrong_octave": 16,
+    "wrong_semitone": 16
+  },
+  "summary": {
+    "thresholds": {
+      "0.1": {
+        "verdict": "FAIL",
+        "checks": {
+          "correct_single": {
+            "verdict": "FAIL",
+            "sampleCount": 37,
+            "hit": 35,
+            "recall": 0.945946,
+            "required": 0.95
+          },
+          "complete_chord": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "hit": 13,
+            "recall": 0.8125,
+            "required": 0.9
+          },
+          "same_note_retrigger_second": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "hit": 12,
+            "recall": 0.75,
+            "required": 0.9
+          },
+          "dense_repeated_pitch": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 20,
+            "recall": 0.833333,
+            "required": 0.9
+          },
+          "fast_adjacent_pitch": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 21,
+            "recall": 0.875,
+            "required": 0.9
+          },
+          "partial_overlapping_notes": {
+            "verdict": "PASS",
+            "sampleCount": 21,
+            "hit": 20,
+            "recall": 0.952381,
+            "required": 0.9
+          },
+          "soft_attack": {
+            "verdict": "FAIL",
+            "sampleCount": 22,
+            "hit": 17,
+            "recall": 0.772727,
+            "required": 0.9
+          },
+          "loud_attack": {
+            "verdict": "PASS",
+            "sampleCount": 24,
+            "hit": 24,
+            "recall": 1.0,
+            "required": 0.9
+          },
+          "wrong_semitone": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseAccepts": 9,
+            "maxAllowed": 0
+          },
+          "wrong_octave": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseAccepts": 6,
+            "maxAllowed": 0
+          },
+          "missing_chord_tone": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseAccepts": 2,
+            "maxAllowed": 0
+          },
+          "long_held_no_retrigger": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseRetriggerEvents": 144,
+            "events": [
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 15.49,
+                "onsetProbability": 0.200454,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 0.164479,
+                "distanceFromNext": 1.717031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 15.64,
+                "onsetProbability": 0.124398,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 0.314479,
+                "distanceFromNext": 1.567031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 15.78,
+                "onsetProbability": 0.248784,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 0.454479,
+                "distanceFromNext": 1.427031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 15.92,
+                "onsetProbability": 0.155196,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 0.594479,
+                "distanceFromNext": 1.287031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 16.2,
+                "onsetProbability": 0.179469,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 0.874479,
+                "distanceFromNext": 1.007031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 16.33,
+                "onsetProbability": 0.171191,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 1.004479,
+                "distanceFromNext": 0.877031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 16.47,
+                "onsetProbability": 0.100902,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 1.144479,
+                "distanceFromNext": 0.737031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 16.49,
+                "onsetProbability": 0.15117,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 1.164479,
+                "distanceFromNext": 0.717031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 16.6,
+                "onsetProbability": 0.126394,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 1.274479,
+                "distanceFromNext": 0.607031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 16.88,
+                "onsetProbability": 0.353946,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 1.554479,
+                "distanceFromNext": 0.327031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 17.51,
+                "onsetProbability": 0.141954,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 0.302969,
+                "distanceFromNext": 3.27125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 17.54,
+                "onsetProbability": 0.101828,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 0.332969,
+                "distanceFromNext": 3.24125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 17.64,
+                "onsetProbability": 0.105583,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 0.432969,
+                "distanceFromNext": 3.14125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 17.78,
+                "onsetProbability": 0.139783,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 0.572969,
+                "distanceFromNext": 3.00125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 17.91,
+                "onsetProbability": 0.145552,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 0.702969,
+                "distanceFromNext": 2.87125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.05,
+                "onsetProbability": 0.108409,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 0.842969,
+                "distanceFromNext": 2.73125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.19,
+                "onsetProbability": 0.430232,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 0.982969,
+                "distanceFromNext": 2.59125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.32,
+                "onsetProbability": 0.185911,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 1.112969,
+                "distanceFromNext": 2.46125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.38,
+                "onsetProbability": 0.149574,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 1.172969,
+                "distanceFromNext": 2.40125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.46,
+                "onsetProbability": 0.183515,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 1.252969,
+                "distanceFromNext": 2.32125
+              }
+            ]
+          },
+          "pedal_sustain_no_retrigger": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseRetriggerEvents": 73,
+            "events": [
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:pedal_sustain_no_retrigger:G2:15.019531",
+                "pitch": "G2",
+                "absoluteOnsetTime": 16.2,
+                "onsetProbability": 0.152976,
+                "previousGtSamePitchAttack": 15.01953125,
+                "nextGtSamePitchAttack": 16.875,
+                "distanceFromPrevious": 1.180469,
+                "distanceFromNext": 0.675
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:pedal_sustain_no_retrigger:A#3:29.286458",
+                "pitch": "A#3",
+                "absoluteOnsetTime": 30.04,
+                "onsetProbability": 0.119303,
+                "previousGtSamePitchAttack": 29.286458333333332,
+                "nextGtSamePitchAttack": 35.11848958333333,
+                "distanceFromPrevious": 0.753542,
+                "distanceFromNext": 5.07849
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:pedal_sustain_no_retrigger:A#3:29.286458",
+                "pitch": "A#3",
+                "absoluteOnsetTime": 31.36,
+                "onsetProbability": 0.197425,
+                "previousGtSamePitchAttack": 29.286458333333332,
+                "nextGtSamePitchAttack": 35.11848958333333,
+                "distanceFromPrevious": 2.073542,
+                "distanceFromNext": 3.75849
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:pedal_sustain_no_retrigger:A#3:29.286458",
+                "pitch": "A#3",
+                "absoluteOnsetTime": 31.46,
+                "onsetProbability": 0.209275,
+                "previousGtSamePitchAttack": 29.286458333333332,
+                "nextGtSamePitchAttack": 35.11848958333333,
+                "distanceFromPrevious": 2.173542,
+                "distanceFromNext": 3.65849
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:pedal_sustain_no_retrigger:A#3:29.286458",
+                "pitch": "A#3",
+                "absoluteOnsetTime": 31.63,
+                "onsetProbability": 0.163982,
+                "previousGtSamePitchAttack": 29.286458333333332,
+                "nextGtSamePitchAttack": 35.11848958333333,
+                "distanceFromPrevious": 2.343542,
+                "distanceFromNext": 3.48849
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:pedal_sustain_no_retrigger:A#3:29.286458",
+                "pitch": "A#3",
+                "absoluteOnsetTime": 31.92,
+                "onsetProbability": 0.140195,
+                "previousGtSamePitchAttack": 29.286458333333332,
+                "nextGtSamePitchAttack": 35.11848958333333,
+                "distanceFromPrevious": 2.633542,
+                "distanceFromNext": 3.19849
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:pedal_sustain_no_retrigger:A#3:29.286458",
+                "pitch": "A#3",
+                "absoluteOnsetTime": 31.99,
+                "onsetProbability": 0.110712,
+                "previousGtSamePitchAttack": 29.286458333333332,
+                "nextGtSamePitchAttack": 35.11848958333333,
+                "distanceFromPrevious": 2.703542,
+                "distanceFromNext": 3.12849
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:pedal_sustain_no_retrigger:A#3:29.286458",
+                "pitch": "A#3",
+                "absoluteOnsetTime": 33.24,
+                "onsetProbability": 0.121381,
+                "previousGtSamePitchAttack": 29.286458333333332,
+                "nextGtSamePitchAttack": 35.11848958333333,
+                "distanceFromPrevious": 3.953542,
+                "distanceFromNext": 1.87849
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:pedal_sustain_no_retrigger:A#3:29.286458",
+                "pitch": "A#3",
+                "absoluteOnsetTime": 33.26,
+                "onsetProbability": 0.12502,
+                "previousGtSamePitchAttack": 29.286458333333332,
+                "nextGtSamePitchAttack": 35.11848958333333,
+                "distanceFromPrevious": 3.973542,
+                "distanceFromNext": 1.85849
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 1.64,
+                "onsetProbability": 0.138822,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 0.176458,
+                "distanceFromNext": 2.282917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 1.76,
+                "onsetProbability": 0.22614,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 0.296458,
+                "distanceFromNext": 2.162917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 1.84,
+                "onsetProbability": 0.1904,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 0.376458,
+                "distanceFromNext": 2.082917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 3.63,
+                "onsetProbability": 0.316295,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 2.166458,
+                "distanceFromNext": 0.292917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 3.73,
+                "onsetProbability": 0.114021,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 2.266458,
+                "distanceFromNext": 0.192917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 3.81,
+                "onsetProbability": 0.173763,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 2.346458,
+                "distanceFromNext": 0.112917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:pedal_sustain_no_retrigger:F#3:1.968750",
+                "pitch": "F#3",
+                "absoluteOnsetTime": 2.64,
+                "onsetProbability": 0.153728,
+                "previousGtSamePitchAttack": 1.96875,
+                "nextGtSamePitchAttack": 6.139583333333333,
+                "distanceFromPrevious": 0.67125,
+                "distanceFromNext": 3.499583
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:pedal_sustain_no_retrigger:F#3:1.968750",
+                "pitch": "F#3",
+                "absoluteOnsetTime": 2.73,
+                "onsetProbability": 0.210049,
+                "previousGtSamePitchAttack": 1.96875,
+                "nextGtSamePitchAttack": 6.139583333333333,
+                "distanceFromPrevious": 0.76125,
+                "distanceFromNext": 3.409583
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:pedal_sustain_no_retrigger:F#3:1.968750",
+                "pitch": "F#3",
+                "absoluteOnsetTime": 4.75,
+                "onsetProbability": 0.164065,
+                "previousGtSamePitchAttack": 1.96875,
+                "nextGtSamePitchAttack": 6.139583333333333,
+                "distanceFromPrevious": 2.78125,
+                "distanceFromNext": 1.389583
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:pedal_sustain_no_retrigger:F#3:1.968750",
+                "pitch": "F#3",
+                "absoluteOnsetTime": 5.59,
+                "onsetProbability": 0.187449,
+                "previousGtSamePitchAttack": 1.96875,
+                "nextGtSamePitchAttack": 6.139583333333333,
+                "distanceFromPrevious": 3.62125,
+                "distanceFromNext": 0.549583
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:pedal_sustain_no_retrigger:B3:2.641667",
+                "pitch": "B3",
+                "absoluteOnsetTime": 2.73,
+                "onsetProbability": 0.171121,
+                "previousGtSamePitchAttack": 2.6416666666666666,
+                "nextGtSamePitchAttack": 5.6,
+                "distanceFromPrevious": 0.088333,
+                "distanceFromNext": 2.87
+              }
+            ]
+          }
+        },
+        "sourceLevelEventMetrics": {
+          "10": {
+            "precision": 0.106035,
+            "recall": 0.516178,
+            "f1": 0.175931,
+            "matched": 5759,
+            "predicted": 54312,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 5759,
+              "signedP05Ms": -8.125,
+              "signedMedianMs": 1.458,
+              "signedP95Ms": 8.911,
+              "absoluteMedianMs": 4.167,
+              "absoluteP95Ms": 9.271,
+              "absoluteMaxMs": 10.0
+            }
+          },
+          "20": {
+            "precision": 0.143541,
+            "recall": 0.698754,
+            "f1": 0.238159,
+            "matched": 7796,
+            "predicted": 54312,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 7796,
+              "signedP05Ms": -15.534,
+              "signedMedianMs": 1.25,
+              "signedP95Ms": 13.333,
+              "absoluteMedianMs": 6.042,
+              "absoluteP95Ms": 16.719,
+              "absoluteMaxMs": 20.0
+            }
+          },
+          "30": {
+            "precision": 0.157221,
+            "recall": 0.765349,
+            "f1": 0.260856,
+            "matched": 8539,
+            "predicted": 54312,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 8539,
+              "signedP05Ms": -22.917,
+              "signedMedianMs": 0.417,
+              "signedP95Ms": 13.75,
+              "absoluteMedianMs": 6.667,
+              "absoluteP95Ms": 23.339,
+              "absoluteMaxMs": 30.0
+            }
+          },
+          "50": {
+            "precision": 0.168858,
+            "recall": 0.821995,
+            "f1": 0.280163,
+            "matched": 9171,
+            "predicted": 54312,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 9171,
+              "signedP05Ms": -33.021,
+              "signedMedianMs": -0.417,
+              "signedP95Ms": 13.906,
+              "absoluteMedianMs": 7.292,
+              "absoluteP95Ms": 33.958,
+              "absoluteMaxMs": 50.0
+            }
+          }
+        },
+        "eventPressure": {
+          "eventsPerMinute": 3589.939,
+          "duplicatesPerPhysicalOnset": 3.867975
+        },
+        "rawActivationDistributions": {
+          "positive": {
+            "sampleCount": 225,
+            "min": 0.0,
+            "p05": 0.0,
+            "p50": 0.229558,
+            "p95": 0.944559,
+            "max": 0.972187
+          },
+          "wrongExpectedPitch": {
+            "sampleCount": 64,
+            "min": 0.0,
+            "p05": 0.0,
+            "p50": 0.05352,
+            "p95": 0.886524,
+            "max": 0.958068
+          },
+          "noRetriggerNegative": {
+            "sampleCount": 217,
+            "min": 0.100689,
+            "p05": 0.103769,
+            "p50": 0.14972,
+            "p95": 0.449657,
+            "max": 0.810063
+          }
+        }
+      },
+      "0.2": {
+        "verdict": "FAIL",
+        "checks": {
+          "correct_single": {
+            "verdict": "FAIL",
+            "sampleCount": 37,
+            "hit": 32,
+            "recall": 0.864865,
+            "required": 0.95
+          },
+          "complete_chord": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "hit": 10,
+            "recall": 0.625,
+            "required": 0.9
+          },
+          "same_note_retrigger_second": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "hit": 11,
+            "recall": 0.6875,
+            "required": 0.9
+          },
+          "dense_repeated_pitch": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 17,
+            "recall": 0.708333,
+            "required": 0.9
+          },
+          "fast_adjacent_pitch": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 20,
+            "recall": 0.833333,
+            "required": 0.9
+          },
+          "partial_overlapping_notes": {
+            "verdict": "FAIL",
+            "sampleCount": 21,
+            "hit": 17,
+            "recall": 0.809524,
+            "required": 0.9
+          },
+          "soft_attack": {
+            "verdict": "FAIL",
+            "sampleCount": 22,
+            "hit": 14,
+            "recall": 0.636364,
+            "required": 0.9
+          },
+          "loud_attack": {
+            "verdict": "PASS",
+            "sampleCount": 24,
+            "hit": 23,
+            "recall": 0.958333,
+            "required": 0.9
+          },
+          "wrong_semitone": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseAccepts": 4,
+            "maxAllowed": 0
+          },
+          "wrong_octave": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseAccepts": 3,
+            "maxAllowed": 0
+          },
+          "missing_chord_tone": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseAccepts": 2,
+            "maxAllowed": 0
+          },
+          "long_held_no_retrigger": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseRetriggerEvents": 68,
+            "events": [
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 15.49,
+                "onsetProbability": 0.200454,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 0.164479,
+                "distanceFromNext": 1.717031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 15.65,
+                "onsetProbability": 0.246226,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 0.324479,
+                "distanceFromNext": 1.557031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 15.78,
+                "onsetProbability": 0.248784,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 0.454479,
+                "distanceFromNext": 1.427031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 16.34,
+                "onsetProbability": 0.226754,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 1.014479,
+                "distanceFromNext": 0.867031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 16.5,
+                "onsetProbability": 0.281436,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 1.174479,
+                "distanceFromNext": 0.707031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 16.61,
+                "onsetProbability": 0.278877,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 1.284479,
+                "distanceFromNext": 0.597031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 16.88,
+                "onsetProbability": 0.353946,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 1.554479,
+                "distanceFromNext": 0.327031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 17.65,
+                "onsetProbability": 0.359121,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 0.442969,
+                "distanceFromNext": 3.13125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.06,
+                "onsetProbability": 0.237343,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 0.852969,
+                "distanceFromNext": 2.72125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.19,
+                "onsetProbability": 0.430232,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 0.982969,
+                "distanceFromNext": 2.59125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.33,
+                "onsetProbability": 0.309638,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 1.122969,
+                "distanceFromNext": 2.45125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.73,
+                "onsetProbability": 0.583925,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 1.522969,
+                "distanceFromNext": 2.05125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 19.05,
+                "onsetProbability": 0.245193,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 1.842969,
+                "distanceFromNext": 1.73125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 19.18,
+                "onsetProbability": 0.214284,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 1.972969,
+                "distanceFromNext": 1.60125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:long_held_no_retrigger:D4:1.347656",
+                "pitch": "D4",
+                "absoluteOnsetTime": 2.16,
+                "onsetProbability": 0.660131,
+                "previousGtSamePitchAttack": 1.34765625,
+                "nextGtSamePitchAttack": 2.9609375,
+                "distanceFromPrevious": 0.812344,
+                "distanceFromNext": 0.800937
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:long_held_no_retrigger:D4:1.347656",
+                "pitch": "D4",
+                "absoluteOnsetTime": 2.67,
+                "onsetProbability": 0.233967,
+                "previousGtSamePitchAttack": 1.34765625,
+                "nextGtSamePitchAttack": 2.9609375,
+                "distanceFromPrevious": 1.322344,
+                "distanceFromNext": 0.290938
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:long_held_no_retrigger:C4:17.881510",
+                "pitch": "C4",
+                "absoluteOnsetTime": 18.62,
+                "onsetProbability": 0.448666,
+                "previousGtSamePitchAttack": 17.881510416666664,
+                "nextGtSamePitchAttack": 22.1953125,
+                "distanceFromPrevious": 0.73849,
+                "distanceFromNext": 3.575312
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:long_held_no_retrigger:C4:17.881510",
+                "pitch": "C4",
+                "absoluteOnsetTime": 19.4,
+                "onsetProbability": 0.278476,
+                "previousGtSamePitchAttack": 17.881510416666664,
+                "nextGtSamePitchAttack": 22.1953125,
+                "distanceFromPrevious": 1.51849,
+                "distanceFromNext": 2.795313
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:long_held_no_retrigger:C4:17.881510",
+                "pitch": "C4",
+                "absoluteOnsetTime": 20.94,
+                "onsetProbability": 0.313705,
+                "previousGtSamePitchAttack": 17.881510416666664,
+                "nextGtSamePitchAttack": 22.1953125,
+                "distanceFromPrevious": 3.05849,
+                "distanceFromNext": 1.255312
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:long_held_no_retrigger:A1:5.869792",
+                "pitch": "A1",
+                "absoluteOnsetTime": 27.27,
+                "onsetProbability": 0.232209,
+                "previousGtSamePitchAttack": 5.869791666666667,
+                "nextGtSamePitchAttack": 33.338541666666664,
+                "distanceFromPrevious": 21.400208,
+                "distanceFromNext": 6.068542
+              }
+            ]
+          },
+          "pedal_sustain_no_retrigger": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseRetriggerEvents": 31,
+            "events": [
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:pedal_sustain_no_retrigger:A#3:29.286458",
+                "pitch": "A#3",
+                "absoluteOnsetTime": 30.05,
+                "onsetProbability": 0.320299,
+                "previousGtSamePitchAttack": 29.286458333333332,
+                "nextGtSamePitchAttack": 35.11848958333333,
+                "distanceFromPrevious": 0.763542,
+                "distanceFromNext": 5.06849
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:pedal_sustain_no_retrigger:A#3:29.286458",
+                "pitch": "A#3",
+                "absoluteOnsetTime": 31.46,
+                "onsetProbability": 0.209275,
+                "previousGtSamePitchAttack": 29.286458333333332,
+                "nextGtSamePitchAttack": 35.11848958333333,
+                "distanceFromPrevious": 2.173542,
+                "distanceFromNext": 3.65849
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 1.65,
+                "onsetProbability": 0.422558,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 0.186458,
+                "distanceFromNext": 2.272917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 1.76,
+                "onsetProbability": 0.22614,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 0.296458,
+                "distanceFromNext": 2.162917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 1.85,
+                "onsetProbability": 0.444291,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 0.386458,
+                "distanceFromNext": 2.072917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 3.63,
+                "onsetProbability": 0.316295,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 2.166458,
+                "distanceFromNext": 0.292917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 3.82,
+                "onsetProbability": 0.331172,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 2.356458,
+                "distanceFromNext": 0.102917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:pedal_sustain_no_retrigger:F#3:1.968750",
+                "pitch": "F#3",
+                "absoluteOnsetTime": 2.65,
+                "onsetProbability": 0.33829,
+                "previousGtSamePitchAttack": 1.96875,
+                "nextGtSamePitchAttack": 6.139583333333333,
+                "distanceFromPrevious": 0.68125,
+                "distanceFromNext": 3.489583
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:pedal_sustain_no_retrigger:F#3:1.968750",
+                "pitch": "F#3",
+                "absoluteOnsetTime": 2.73,
+                "onsetProbability": 0.210049,
+                "previousGtSamePitchAttack": 1.96875,
+                "nextGtSamePitchAttack": 6.139583333333333,
+                "distanceFromPrevious": 0.76125,
+                "distanceFromNext": 3.409583
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:pedal_sustain_no_retrigger:F#3:1.968750",
+                "pitch": "F#3",
+                "absoluteOnsetTime": 5.6,
+                "onsetProbability": 0.235446,
+                "previousGtSamePitchAttack": 1.96875,
+                "nextGtSamePitchAttack": 6.139583333333333,
+                "distanceFromPrevious": 3.63125,
+                "distanceFromNext": 0.539583
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:pedal_sustain_no_retrigger:B3:2.641667",
+                "pitch": "B3",
+                "absoluteOnsetTime": 3.33,
+                "onsetProbability": 0.206166,
+                "previousGtSamePitchAttack": 2.6416666666666666,
+                "nextGtSamePitchAttack": 5.6,
+                "distanceFromPrevious": 0.688333,
+                "distanceFromNext": 2.27
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:pedal_sustain_no_retrigger:B3:2.641667",
+                "pitch": "B3",
+                "absoluteOnsetTime": 3.86,
+                "onsetProbability": 0.298511,
+                "previousGtSamePitchAttack": 2.6416666666666666,
+                "nextGtSamePitchAttack": 5.6,
+                "distanceFromPrevious": 1.218333,
+                "distanceFromNext": 1.74
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav:pedal_sustain_no_retrigger:G#3:1.666667",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 2.25,
+                "onsetProbability": 0.399462,
+                "previousGtSamePitchAttack": 1.6666666666666665,
+                "nextGtSamePitchAttack": 4.256510416666666,
+                "distanceFromPrevious": 0.583333,
+                "distanceFromNext": 2.00651
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav:pedal_sustain_no_retrigger:G#3:1.666667",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 2.39,
+                "onsetProbability": 0.402215,
+                "previousGtSamePitchAttack": 1.6666666666666665,
+                "nextGtSamePitchAttack": 4.256510416666666,
+                "distanceFromPrevious": 0.723333,
+                "distanceFromNext": 1.86651
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav:pedal_sustain_no_retrigger:G#3:1.666667",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 2.63,
+                "onsetProbability": 0.336724,
+                "previousGtSamePitchAttack": 1.6666666666666665,
+                "nextGtSamePitchAttack": 4.256510416666666,
+                "distanceFromPrevious": 0.963333,
+                "distanceFromNext": 1.62651
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav:pedal_sustain_no_retrigger:G#3:1.666667",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 3.09,
+                "onsetProbability": 0.320723,
+                "previousGtSamePitchAttack": 1.6666666666666665,
+                "nextGtSamePitchAttack": 4.256510416666666,
+                "distanceFromPrevious": 1.423333,
+                "distanceFromNext": 1.16651
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:D#4:5.494792",
+                "pitch": "D#4",
+                "absoluteOnsetTime": 5.76,
+                "onsetProbability": 0.297279,
+                "previousGtSamePitchAttack": 5.494791666666666,
+                "nextGtSamePitchAttack": 7.2734375,
+                "distanceFromPrevious": 0.265208,
+                "distanceFromNext": 1.513438
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:D#4:5.494792",
+                "pitch": "D#4",
+                "absoluteOnsetTime": 5.87,
+                "onsetProbability": 0.542005,
+                "previousGtSamePitchAttack": 5.494791666666666,
+                "nextGtSamePitchAttack": 7.2734375,
+                "distanceFromPrevious": 0.375208,
+                "distanceFromNext": 1.403437
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:D#4:5.494792",
+                "pitch": "D#4",
+                "absoluteOnsetTime": 6.26,
+                "onsetProbability": 0.510678,
+                "previousGtSamePitchAttack": 5.494791666666666,
+                "nextGtSamePitchAttack": 7.2734375,
+                "distanceFromPrevious": 0.765208,
+                "distanceFromNext": 1.013438
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:D#4:5.494792",
+                "pitch": "D#4",
+                "absoluteOnsetTime": 6.86,
+                "onsetProbability": 0.286765,
+                "previousGtSamePitchAttack": 5.494791666666666,
+                "nextGtSamePitchAttack": 7.2734375,
+                "distanceFromPrevious": 1.365208,
+                "distanceFromNext": 0.413437
+              }
+            ]
+          }
+        },
+        "sourceLevelEventMetrics": {
+          "10": {
+            "precision": 0.200061,
+            "recall": 0.527203,
+            "f1": 0.290054,
+            "matched": 5882,
+            "predicted": 29401,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 5882,
+              "signedP05Ms": -7.5,
+              "signedMedianMs": 2.188,
+              "signedP95Ms": 8.958,
+              "absoluteMedianMs": 4.167,
+              "absoluteP95Ms": 9.167,
+              "absoluteMaxMs": 10.0
+            }
+          },
+          "20": {
+            "precision": 0.257916,
+            "recall": 0.679663,
+            "f1": 0.373934,
+            "matched": 7583,
+            "predicted": 29401,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 7583,
+              "signedP05Ms": -13.125,
+              "signedMedianMs": 2.656,
+              "signedP95Ms": 13.484,
+              "absoluteMedianMs": 5.625,
+              "absoluteP95Ms": 15.828,
+              "absoluteMaxMs": 20.0
+            }
+          },
+          "30": {
+            "precision": 0.271691,
+            "recall": 0.715963,
+            "f1": 0.393905,
+            "matched": 7988,
+            "predicted": 29401,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 7988,
+              "signedP05Ms": -18.542,
+              "signedMedianMs": 2.292,
+              "signedP95Ms": 13.958,
+              "absoluteMedianMs": 5.99,
+              "absoluteP95Ms": 20.034,
+              "absoluteMaxMs": 29.792
+            }
+          },
+          "50": {
+            "precision": 0.280263,
+            "recall": 0.73855,
+            "f1": 0.406332,
+            "matched": 8240,
+            "predicted": 29401,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 8240,
+              "signedP05Ms": -23.542,
+              "signedMedianMs": 2.083,
+              "signedP95Ms": 14.167,
+              "absoluteMedianMs": 6.198,
+              "absoluteP95Ms": 24.901,
+              "absoluteMaxMs": 50.0
+            }
+          }
+        },
+        "eventPressure": {
+          "eventsPerMinute": 1943.36,
+          "duplicatesPerPhysicalOnset": 1.635207
+        },
+        "rawActivationDistributions": {
+          "positive": {
+            "sampleCount": 225,
+            "min": 0.0,
+            "p05": 0.0,
+            "p50": 0.440264,
+            "p95": 0.949533,
+            "max": 0.972187
+          },
+          "wrongExpectedPitch": {
+            "sampleCount": 64,
+            "min": 0.0,
+            "p05": 0.0,
+            "p50": 0.0,
+            "p95": 0.892261,
+            "max": 0.958068
+          },
+          "noRetriggerNegative": {
+            "sampleCount": 99,
+            "min": 0.200454,
+            "p05": 0.20541,
+            "p50": 0.278877,
+            "p95": 0.586671,
+            "max": 0.810063
+          }
+        }
+      },
+      "0.3": {
+        "verdict": "FAIL",
+        "checks": {
+          "correct_single": {
+            "verdict": "FAIL",
+            "sampleCount": 37,
+            "hit": 32,
+            "recall": 0.864865,
+            "required": 0.95
+          },
+          "complete_chord": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "hit": 5,
+            "recall": 0.3125,
+            "required": 0.9
+          },
+          "same_note_retrigger_second": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "hit": 8,
+            "recall": 0.5,
+            "required": 0.9
+          },
+          "dense_repeated_pitch": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 17,
+            "recall": 0.708333,
+            "required": 0.9
+          },
+          "fast_adjacent_pitch": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 19,
+            "recall": 0.791667,
+            "required": 0.9
+          },
+          "partial_overlapping_notes": {
+            "verdict": "FAIL",
+            "sampleCount": 21,
+            "hit": 10,
+            "recall": 0.47619,
+            "required": 0.9
+          },
+          "soft_attack": {
+            "verdict": "FAIL",
+            "sampleCount": 22,
+            "hit": 9,
+            "recall": 0.409091,
+            "required": 0.9
+          },
+          "loud_attack": {
+            "verdict": "PASS",
+            "sampleCount": 24,
+            "hit": 22,
+            "recall": 0.916667,
+            "required": 0.9
+          },
+          "wrong_semitone": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseAccepts": 2,
+            "maxAllowed": 0
+          },
+          "wrong_octave": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseAccepts": 2,
+            "maxAllowed": 0
+          },
+          "missing_chord_tone": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseAccepts": 1,
+            "maxAllowed": 0
+          },
+          "long_held_no_retrigger": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseRetriggerEvents": 30,
+            "events": [
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:15.325521",
+                "pitch": "G3",
+                "absoluteOnsetTime": 16.88,
+                "onsetProbability": 0.353946,
+                "previousGtSamePitchAttack": 15.325520833333332,
+                "nextGtSamePitchAttack": 17.20703125,
+                "distanceFromPrevious": 1.554479,
+                "distanceFromNext": 0.327031
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 17.65,
+                "onsetProbability": 0.359121,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 0.442969,
+                "distanceFromNext": 3.13125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.19,
+                "onsetProbability": 0.430232,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 0.982969,
+                "distanceFromNext": 2.59125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.33,
+                "onsetProbability": 0.309638,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 1.122969,
+                "distanceFromNext": 2.45125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.73,
+                "onsetProbability": 0.583925,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 1.522969,
+                "distanceFromNext": 2.05125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:long_held_no_retrigger:D4:1.347656",
+                "pitch": "D4",
+                "absoluteOnsetTime": 2.16,
+                "onsetProbability": 0.660131,
+                "previousGtSamePitchAttack": 1.34765625,
+                "nextGtSamePitchAttack": 2.9609375,
+                "distanceFromPrevious": 0.812344,
+                "distanceFromNext": 0.800937
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:long_held_no_retrigger:C4:17.881510",
+                "pitch": "C4",
+                "absoluteOnsetTime": 18.62,
+                "onsetProbability": 0.448666,
+                "previousGtSamePitchAttack": 17.881510416666664,
+                "nextGtSamePitchAttack": 22.1953125,
+                "distanceFromPrevious": 0.73849,
+                "distanceFromNext": 3.575312
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:long_held_no_retrigger:C4:17.881510",
+                "pitch": "C4",
+                "absoluteOnsetTime": 20.94,
+                "onsetProbability": 0.313705,
+                "previousGtSamePitchAttack": 17.881510416666664,
+                "nextGtSamePitchAttack": 22.1953125,
+                "distanceFromPrevious": 3.05849,
+                "distanceFromNext": 1.255312
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:long_held_no_retrigger:A1:5.869792",
+                "pitch": "A1",
+                "absoluteOnsetTime": 27.29,
+                "onsetProbability": 0.312964,
+                "previousGtSamePitchAttack": 5.869791666666667,
+                "nextGtSamePitchAttack": 33.338541666666664,
+                "distanceFromPrevious": 21.420208,
+                "distanceFromNext": 6.048542
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:long_held_no_retrigger:G5:44.713542",
+                "pitch": "G5",
+                "absoluteOnsetTime": 50.09,
+                "onsetProbability": 0.417899,
+                "previousGtSamePitchAttack": 44.713541666666664,
+                "nextGtSamePitchAttack": 58.949999999999996,
+                "distanceFromPrevious": 5.376458,
+                "distanceFromNext": 8.86
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:long_held_no_retrigger:G5:44.713542",
+                "pitch": "G5",
+                "absoluteOnsetTime": 51.13,
+                "onsetProbability": 0.331412,
+                "previousGtSamePitchAttack": 44.713541666666664,
+                "nextGtSamePitchAttack": 58.949999999999996,
+                "distanceFromPrevious": 6.416458,
+                "distanceFromNext": 7.82
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:long_held_no_retrigger:G5:44.713542",
+                "pitch": "G5",
+                "absoluteOnsetTime": 56.76,
+                "onsetProbability": 0.323029,
+                "previousGtSamePitchAttack": 44.713541666666664,
+                "nextGtSamePitchAttack": 58.949999999999996,
+                "distanceFromPrevious": 12.046458,
+                "distanceFromNext": 2.19
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:long_held_no_retrigger:E3:10.519792",
+                "pitch": "E3",
+                "absoluteOnsetTime": 11.44,
+                "onsetProbability": 0.330931,
+                "previousGtSamePitchAttack": 10.519791666666666,
+                "nextGtSamePitchAttack": 61.994791666666664,
+                "distanceFromPrevious": 0.920208,
+                "distanceFromNext": 50.554792
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:long_held_no_retrigger:E3:10.519792",
+                "pitch": "E3",
+                "absoluteOnsetTime": 11.47,
+                "onsetProbability": 0.349373,
+                "previousGtSamePitchAttack": 10.519791666666666,
+                "nextGtSamePitchAttack": 61.994791666666664,
+                "distanceFromPrevious": 0.950208,
+                "distanceFromNext": 50.524792
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:long_held_no_retrigger:E3:10.519792",
+                "pitch": "E3",
+                "absoluteOnsetTime": 12.39,
+                "onsetProbability": 0.400431,
+                "previousGtSamePitchAttack": 10.519791666666666,
+                "nextGtSamePitchAttack": 61.994791666666664,
+                "distanceFromPrevious": 1.870208,
+                "distanceFromNext": 49.604792
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav:long_held_no_retrigger:F4:26.562500",
+                "pitch": "F4",
+                "absoluteOnsetTime": 30.14,
+                "onsetProbability": 0.319241,
+                "previousGtSamePitchAttack": 26.5625,
+                "nextGtSamePitchAttack": 33.5078125,
+                "distanceFromPrevious": 3.5775,
+                "distanceFromNext": 3.367812
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav:long_held_no_retrigger:F4:26.562500",
+                "pitch": "F4",
+                "absoluteOnsetTime": 32.89,
+                "onsetProbability": 0.420198,
+                "previousGtSamePitchAttack": 26.5625,
+                "nextGtSamePitchAttack": 33.5078125,
+                "distanceFromPrevious": 6.3275,
+                "distanceFromNext": 0.617812
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:E4:5.115885",
+                "pitch": "E4",
+                "absoluteOnsetTime": 12.0,
+                "onsetProbability": 0.61139,
+                "previousGtSamePitchAttack": 5.115885416666666,
+                "nextGtSamePitchAttack": 17.734375,
+                "distanceFromPrevious": 6.884115,
+                "distanceFromNext": 5.734375
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:E4:5.115885",
+                "pitch": "E4",
+                "absoluteOnsetTime": 12.51,
+                "onsetProbability": 0.410608,
+                "previousGtSamePitchAttack": 5.115885416666666,
+                "nextGtSamePitchAttack": 17.734375,
+                "distanceFromPrevious": 7.394115,
+                "distanceFromNext": 5.224375
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:E4:5.115885",
+                "pitch": "E4",
+                "absoluteOnsetTime": 15.33,
+                "onsetProbability": 0.417681,
+                "previousGtSamePitchAttack": 5.115885416666666,
+                "nextGtSamePitchAttack": 17.734375,
+                "distanceFromPrevious": 10.214115,
+                "distanceFromNext": 2.404375
+              }
+            ]
+          },
+          "pedal_sustain_no_retrigger": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseRetriggerEvents": 19,
+            "events": [
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:pedal_sustain_no_retrigger:A#3:29.286458",
+                "pitch": "A#3",
+                "absoluteOnsetTime": 30.05,
+                "onsetProbability": 0.320299,
+                "previousGtSamePitchAttack": 29.286458333333332,
+                "nextGtSamePitchAttack": 35.11848958333333,
+                "distanceFromPrevious": 0.763542,
+                "distanceFromNext": 5.06849
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:pedal_sustain_no_retrigger:A#3:29.286458",
+                "pitch": "A#3",
+                "absoluteOnsetTime": 31.47,
+                "onsetProbability": 0.400319,
+                "previousGtSamePitchAttack": 29.286458333333332,
+                "nextGtSamePitchAttack": 35.11848958333333,
+                "distanceFromPrevious": 2.183542,
+                "distanceFromNext": 3.64849
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 1.65,
+                "onsetProbability": 0.422558,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 0.186458,
+                "distanceFromNext": 2.272917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 1.85,
+                "onsetProbability": 0.444291,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 0.386458,
+                "distanceFromNext": 2.072917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 3.63,
+                "onsetProbability": 0.316295,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 2.166458,
+                "distanceFromNext": 0.292917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 3.82,
+                "onsetProbability": 0.331172,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 2.356458,
+                "distanceFromNext": 0.102917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:pedal_sustain_no_retrigger:F#3:1.968750",
+                "pitch": "F#3",
+                "absoluteOnsetTime": 2.65,
+                "onsetProbability": 0.33829,
+                "previousGtSamePitchAttack": 1.96875,
+                "nextGtSamePitchAttack": 6.139583333333333,
+                "distanceFromPrevious": 0.68125,
+                "distanceFromNext": 3.489583
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav:pedal_sustain_no_retrigger:G#3:1.666667",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 2.25,
+                "onsetProbability": 0.399462,
+                "previousGtSamePitchAttack": 1.6666666666666665,
+                "nextGtSamePitchAttack": 4.256510416666666,
+                "distanceFromPrevious": 0.583333,
+                "distanceFromNext": 2.00651
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav:pedal_sustain_no_retrigger:G#3:1.666667",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 2.39,
+                "onsetProbability": 0.402215,
+                "previousGtSamePitchAttack": 1.6666666666666665,
+                "nextGtSamePitchAttack": 4.256510416666666,
+                "distanceFromPrevious": 0.723333,
+                "distanceFromNext": 1.86651
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav:pedal_sustain_no_retrigger:G#3:1.666667",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 2.63,
+                "onsetProbability": 0.336724,
+                "previousGtSamePitchAttack": 1.6666666666666665,
+                "nextGtSamePitchAttack": 4.256510416666666,
+                "distanceFromPrevious": 0.963333,
+                "distanceFromNext": 1.62651
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav:pedal_sustain_no_retrigger:G#3:1.666667",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 3.09,
+                "onsetProbability": 0.320723,
+                "previousGtSamePitchAttack": 1.6666666666666665,
+                "nextGtSamePitchAttack": 4.256510416666666,
+                "distanceFromPrevious": 1.423333,
+                "distanceFromNext": 1.16651
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:D#4:5.494792",
+                "pitch": "D#4",
+                "absoluteOnsetTime": 5.87,
+                "onsetProbability": 0.542005,
+                "previousGtSamePitchAttack": 5.494791666666666,
+                "nextGtSamePitchAttack": 7.2734375,
+                "distanceFromPrevious": 0.375208,
+                "distanceFromNext": 1.403437
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:D#4:5.494792",
+                "pitch": "D#4",
+                "absoluteOnsetTime": 6.26,
+                "onsetProbability": 0.510678,
+                "previousGtSamePitchAttack": 5.494791666666666,
+                "nextGtSamePitchAttack": 7.2734375,
+                "distanceFromPrevious": 0.765208,
+                "distanceFromNext": 1.013438
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:G#3:8.852865",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 9.97,
+                "onsetProbability": 0.624842,
+                "previousGtSamePitchAttack": 8.852864583333332,
+                "nextGtSamePitchAttack": 13.766927083333332,
+                "distanceFromPrevious": 1.117135,
+                "distanceFromNext": 3.796927
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:G#3:8.852865",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 11.27,
+                "onsetProbability": 0.404884,
+                "previousGtSamePitchAttack": 8.852864583333332,
+                "nextGtSamePitchAttack": 13.766927083333332,
+                "distanceFromPrevious": 2.417135,
+                "distanceFromNext": 2.496927
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:G#3:8.852865",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 12.95,
+                "onsetProbability": 0.569855,
+                "previousGtSamePitchAttack": 8.852864583333332,
+                "nextGtSamePitchAttack": 13.766927083333332,
+                "distanceFromPrevious": 4.097135,
+                "distanceFromNext": 0.816927
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1:pedal_sustain_no_retrigger:E3:4.496875",
+                "pitch": "E3",
+                "absoluteOnsetTime": 20.65,
+                "onsetProbability": 0.31852,
+                "previousGtSamePitchAttack": 4.496875,
+                "nextGtSamePitchAttack": 40.85,
+                "distanceFromPrevious": 16.153125,
+                "distanceFromNext": 20.2
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1:pedal_sustain_no_retrigger:E3:4.496875",
+                "pitch": "E3",
+                "absoluteOnsetTime": 20.71,
+                "onsetProbability": 0.367315,
+                "previousGtSamePitchAttack": 4.496875,
+                "nextGtSamePitchAttack": 40.85,
+                "distanceFromPrevious": 16.213125,
+                "distanceFromNext": 20.14
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_06_R1_2015_wav--6:pedal_sustain_no_retrigger:G#4:1.173958",
+                "pitch": "G#4",
+                "absoluteOnsetTime": 1.38,
+                "onsetProbability": 0.316818,
+                "previousGtSamePitchAttack": 1.1739583333333332,
+                "nextGtSamePitchAttack": 3.4479166666666665,
+                "distanceFromPrevious": 0.206042,
+                "distanceFromNext": 2.067917
+              }
+            ]
+          }
+        },
+        "sourceLevelEventMetrics": {
+          "10": {
+            "precision": 0.303334,
+            "recall": 0.499059,
+            "f1": 0.377325,
+            "matched": 5568,
+            "predicted": 18356,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 5568,
+              "signedP05Ms": -6.719,
+              "signedMedianMs": 2.552,
+              "signedP95Ms": 9.01,
+              "absoluteMedianMs": 4.167,
+              "absoluteP95Ms": 9.167,
+              "absoluteMaxMs": 10.0
+            }
+          },
+          "20": {
+            "precision": 0.377206,
+            "recall": 0.620597,
+            "f1": 0.469217,
+            "matched": 6924,
+            "predicted": 18356,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 6924,
+              "signedP05Ms": -10.625,
+              "signedMedianMs": 3.333,
+              "signedP95Ms": 13.542,
+              "absoluteMedianMs": 5.365,
+              "absoluteP95Ms": 14.948,
+              "absoluteMaxMs": 20.0
+            }
+          },
+          "30": {
+            "precision": 0.389246,
+            "recall": 0.640405,
+            "f1": 0.484193,
+            "matched": 7145,
+            "predicted": 18356,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 7145,
+              "signedP05Ms": -13.542,
+              "signedMedianMs": 3.125,
+              "signedP95Ms": 13.792,
+              "absoluteMedianMs": 5.469,
+              "absoluteP95Ms": 17.292,
+              "absoluteMaxMs": 29.792
+            }
+          },
+          "50": {
+            "precision": 0.396492,
+            "recall": 0.652326,
+            "f1": 0.493206,
+            "matched": 7278,
+            "predicted": 18356,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 7278,
+              "signedP05Ms": -16.875,
+              "signedMedianMs": 3.047,
+              "signedP95Ms": 13.958,
+              "absoluteMedianMs": 5.625,
+              "absoluteP95Ms": 19.599,
+              "absoluteMaxMs": 49.792
+            }
+          }
+        },
+        "eventPressure": {
+          "eventsPerMinute": 1213.303,
+          "duplicatesPerPhysicalOnset": 0.645245
+        },
+        "rawActivationDistributions": {
+          "positive": {
+            "sampleCount": 225,
+            "min": 0.0,
+            "p05": 0.0,
+            "p50": 0.571247,
+            "p95": 0.958068,
+            "max": 0.972187
+          },
+          "wrongExpectedPitch": {
+            "sampleCount": 64,
+            "min": 0.0,
+            "p05": 0.0,
+            "p50": 0.0,
+            "p95": 0.892261,
+            "max": 0.958068
+          },
+          "noRetriggerNegative": {
+            "sampleCount": 49,
+            "min": 0.309638,
+            "p05": 0.314741,
+            "p50": 0.400431,
+            "p95": 0.646015,
+            "max": 0.810063
+          }
+        }
+      },
+      "0.4": {
+        "verdict": "FAIL",
+        "checks": {
+          "correct_single": {
+            "verdict": "FAIL",
+            "sampleCount": 37,
+            "hit": 30,
+            "recall": 0.810811,
+            "required": 0.95
+          },
+          "complete_chord": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "hit": 4,
+            "recall": 0.25,
+            "required": 0.9
+          },
+          "same_note_retrigger_second": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "hit": 8,
+            "recall": 0.5,
+            "required": 0.9
+          },
+          "dense_repeated_pitch": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 16,
+            "recall": 0.666667,
+            "required": 0.9
+          },
+          "fast_adjacent_pitch": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 19,
+            "recall": 0.791667,
+            "required": 0.9
+          },
+          "partial_overlapping_notes": {
+            "verdict": "FAIL",
+            "sampleCount": 21,
+            "hit": 8,
+            "recall": 0.380952,
+            "required": 0.9
+          },
+          "soft_attack": {
+            "verdict": "FAIL",
+            "sampleCount": 22,
+            "hit": 8,
+            "recall": 0.363636,
+            "required": 0.9
+          },
+          "loud_attack": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 19,
+            "recall": 0.791667,
+            "required": 0.9
+          },
+          "wrong_semitone": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseAccepts": 2,
+            "maxAllowed": 0
+          },
+          "wrong_octave": {
+            "verdict": "PASS",
+            "sampleCount": 16,
+            "falseAccepts": 0,
+            "maxAllowed": 0
+          },
+          "missing_chord_tone": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseAccepts": 1,
+            "maxAllowed": 0
+          },
+          "long_held_no_retrigger": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseRetriggerEvents": 17,
+            "events": [
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.19,
+                "onsetProbability": 0.430232,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 0.982969,
+                "distanceFromNext": 2.59125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.73,
+                "onsetProbability": 0.583925,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 1.522969,
+                "distanceFromNext": 2.05125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:long_held_no_retrigger:D4:1.347656",
+                "pitch": "D4",
+                "absoluteOnsetTime": 2.16,
+                "onsetProbability": 0.660131,
+                "previousGtSamePitchAttack": 1.34765625,
+                "nextGtSamePitchAttack": 2.9609375,
+                "distanceFromPrevious": 0.812344,
+                "distanceFromNext": 0.800937
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:long_held_no_retrigger:C4:17.881510",
+                "pitch": "C4",
+                "absoluteOnsetTime": 18.62,
+                "onsetProbability": 0.448666,
+                "previousGtSamePitchAttack": 17.881510416666664,
+                "nextGtSamePitchAttack": 22.1953125,
+                "distanceFromPrevious": 0.73849,
+                "distanceFromNext": 3.575312
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:long_held_no_retrigger:G5:44.713542",
+                "pitch": "G5",
+                "absoluteOnsetTime": 50.09,
+                "onsetProbability": 0.417899,
+                "previousGtSamePitchAttack": 44.713541666666664,
+                "nextGtSamePitchAttack": 58.949999999999996,
+                "distanceFromPrevious": 5.376458,
+                "distanceFromNext": 8.86
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:long_held_no_retrigger:E3:10.519792",
+                "pitch": "E3",
+                "absoluteOnsetTime": 12.39,
+                "onsetProbability": 0.400431,
+                "previousGtSamePitchAttack": 10.519791666666666,
+                "nextGtSamePitchAttack": 61.994791666666664,
+                "distanceFromPrevious": 1.870208,
+                "distanceFromNext": 49.604792
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav:long_held_no_retrigger:F4:26.562500",
+                "pitch": "F4",
+                "absoluteOnsetTime": 32.89,
+                "onsetProbability": 0.420198,
+                "previousGtSamePitchAttack": 26.5625,
+                "nextGtSamePitchAttack": 33.5078125,
+                "distanceFromPrevious": 6.3275,
+                "distanceFromNext": 0.617812
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:E4:5.115885",
+                "pitch": "E4",
+                "absoluteOnsetTime": 12.0,
+                "onsetProbability": 0.61139,
+                "previousGtSamePitchAttack": 5.115885416666666,
+                "nextGtSamePitchAttack": 17.734375,
+                "distanceFromPrevious": 6.884115,
+                "distanceFromNext": 5.734375
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:E4:5.115885",
+                "pitch": "E4",
+                "absoluteOnsetTime": 12.51,
+                "onsetProbability": 0.410608,
+                "previousGtSamePitchAttack": 5.115885416666666,
+                "nextGtSamePitchAttack": 17.734375,
+                "distanceFromPrevious": 7.394115,
+                "distanceFromNext": 5.224375
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:E4:5.115885",
+                "pitch": "E4",
+                "absoluteOnsetTime": 15.33,
+                "onsetProbability": 0.417681,
+                "previousGtSamePitchAttack": 5.115885416666666,
+                "nextGtSamePitchAttack": 17.734375,
+                "distanceFromPrevious": 10.214115,
+                "distanceFromNext": 2.404375
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:E4:5.115885",
+                "pitch": "E4",
+                "absoluteOnsetTime": 15.9,
+                "onsetProbability": 0.549884,
+                "previousGtSamePitchAttack": 5.115885416666666,
+                "nextGtSamePitchAttack": 17.734375,
+                "distanceFromPrevious": 10.784115,
+                "distanceFromNext": 1.834375
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:E4:5.115885",
+                "pitch": "E4",
+                "absoluteOnsetTime": 16.99,
+                "onsetProbability": 0.810063,
+                "previousGtSamePitchAttack": 5.115885416666666,
+                "nextGtSamePitchAttack": 17.734375,
+                "distanceFromPrevious": 11.874115,
+                "distanceFromNext": 0.744375
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:D#4:5.494792",
+                "pitch": "D#4",
+                "absoluteOnsetTime": 5.87,
+                "onsetProbability": 0.542005,
+                "previousGtSamePitchAttack": 5.494791666666666,
+                "nextGtSamePitchAttack": 7.2734375,
+                "distanceFromPrevious": 0.375208,
+                "distanceFromNext": 1.403437
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:D#4:5.494792",
+                "pitch": "D#4",
+                "absoluteOnsetTime": 6.26,
+                "onsetProbability": 0.510678,
+                "previousGtSamePitchAttack": 5.494791666666666,
+                "nextGtSamePitchAttack": 7.2734375,
+                "distanceFromPrevious": 0.765208,
+                "distanceFromNext": 1.013438
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1:long_held_no_retrigger:A4:13.492708",
+                "pitch": "A4",
+                "absoluteOnsetTime": 14.36,
+                "onsetProbability": 0.794278,
+                "previousGtSamePitchAttack": 13.492708333333333,
+                "nextGtSamePitchAttack": 14.990625,
+                "distanceFromPrevious": 0.867292,
+                "distanceFromNext": 0.630625
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1:long_held_no_retrigger:A4:13.492708",
+                "pitch": "A4",
+                "absoluteOnsetTime": 14.89,
+                "onsetProbability": 0.453619,
+                "previousGtSamePitchAttack": 13.492708333333333,
+                "nextGtSamePitchAttack": 14.990625,
+                "distanceFromPrevious": 1.397292,
+                "distanceFromNext": 0.100625
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_06_R1_2015_wav--6:long_held_no_retrigger:D5:3.991667",
+                "pitch": "D5",
+                "absoluteOnsetTime": 7.17,
+                "onsetProbability": 0.539272,
+                "previousGtSamePitchAttack": 3.9916666666666667,
+                "nextGtSamePitchAttack": 7.930208333333333,
+                "distanceFromPrevious": 3.178333,
+                "distanceFromNext": 0.760208
+              }
+            ]
+          },
+          "pedal_sustain_no_retrigger": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseRetriggerEvents": 11,
+            "events": [
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:pedal_sustain_no_retrigger:A#3:29.286458",
+                "pitch": "A#3",
+                "absoluteOnsetTime": 31.47,
+                "onsetProbability": 0.400319,
+                "previousGtSamePitchAttack": 29.286458333333332,
+                "nextGtSamePitchAttack": 35.11848958333333,
+                "distanceFromPrevious": 2.183542,
+                "distanceFromNext": 3.64849
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 1.65,
+                "onsetProbability": 0.422558,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 0.186458,
+                "distanceFromNext": 2.272917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5:pedal_sustain_no_retrigger:B4:1.463542",
+                "pitch": "B4",
+                "absoluteOnsetTime": 1.85,
+                "onsetProbability": 0.444291,
+                "previousGtSamePitchAttack": 1.4635416666666667,
+                "nextGtSamePitchAttack": 3.9229166666666666,
+                "distanceFromPrevious": 0.386458,
+                "distanceFromNext": 2.072917
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:pedal_sustain_no_retrigger:F#3:1.968750",
+                "pitch": "F#3",
+                "absoluteOnsetTime": 2.66,
+                "onsetProbability": 0.465774,
+                "previousGtSamePitchAttack": 1.96875,
+                "nextGtSamePitchAttack": 6.139583333333333,
+                "distanceFromPrevious": 0.69125,
+                "distanceFromNext": 3.479583
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav:pedal_sustain_no_retrigger:G#3:1.666667",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 2.39,
+                "onsetProbability": 0.402215,
+                "previousGtSamePitchAttack": 1.6666666666666665,
+                "nextGtSamePitchAttack": 4.256510416666666,
+                "distanceFromPrevious": 0.723333,
+                "distanceFromNext": 1.86651
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:D#4:5.494792",
+                "pitch": "D#4",
+                "absoluteOnsetTime": 5.87,
+                "onsetProbability": 0.542005,
+                "previousGtSamePitchAttack": 5.494791666666666,
+                "nextGtSamePitchAttack": 7.2734375,
+                "distanceFromPrevious": 0.375208,
+                "distanceFromNext": 1.403437
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:D#4:5.494792",
+                "pitch": "D#4",
+                "absoluteOnsetTime": 6.26,
+                "onsetProbability": 0.510678,
+                "previousGtSamePitchAttack": 5.494791666666666,
+                "nextGtSamePitchAttack": 7.2734375,
+                "distanceFromPrevious": 0.765208,
+                "distanceFromNext": 1.013438
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:G#3:8.852865",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 9.97,
+                "onsetProbability": 0.624842,
+                "previousGtSamePitchAttack": 8.852864583333332,
+                "nextGtSamePitchAttack": 13.766927083333332,
+                "distanceFromPrevious": 1.117135,
+                "distanceFromNext": 3.796927
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:G#3:8.852865",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 11.27,
+                "onsetProbability": 0.404884,
+                "previousGtSamePitchAttack": 8.852864583333332,
+                "nextGtSamePitchAttack": 13.766927083333332,
+                "distanceFromPrevious": 2.417135,
+                "distanceFromNext": 2.496927
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:G#3:8.852865",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 12.95,
+                "onsetProbability": 0.569855,
+                "previousGtSamePitchAttack": 8.852864583333332,
+                "nextGtSamePitchAttack": 13.766927083333332,
+                "distanceFromPrevious": 4.097135,
+                "distanceFromNext": 0.816927
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1:pedal_sustain_no_retrigger:E3:4.496875",
+                "pitch": "E3",
+                "absoluteOnsetTime": 20.73,
+                "onsetProbability": 0.448876,
+                "previousGtSamePitchAttack": 4.496875,
+                "nextGtSamePitchAttack": 40.85,
+                "distanceFromPrevious": 16.233125,
+                "distanceFromNext": 20.12
+              }
+            ]
+          }
+        },
+        "sourceLevelEventMetrics": {
+          "10": {
+            "precision": 0.418336,
+            "recall": 0.456843,
+            "f1": 0.436742,
+            "matched": 5097,
+            "predicted": 12184,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 5097,
+              "signedP05Ms": -6.25,
+              "signedMedianMs": 2.917,
+              "signedP95Ms": 9.01,
+              "absoluteMedianMs": 4.167,
+              "absoluteP95Ms": 9.167,
+              "absoluteMaxMs": 10.0
+            }
+          },
+          "20": {
+            "precision": 0.508946,
+            "recall": 0.555795,
+            "f1": 0.53134,
+            "matched": 6201,
+            "predicted": 12184,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 6201,
+              "signedP05Ms": -8.125,
+              "signedMedianMs": 3.75,
+              "signedP95Ms": 13.333,
+              "absoluteMedianMs": 5.208,
+              "absoluteP95Ms": 14.167,
+              "absoluteMaxMs": 20.0
+            }
+          },
+          "30": {
+            "precision": 0.518467,
+            "recall": 0.566192,
+            "f1": 0.541279,
+            "matched": 6317,
+            "predicted": 12184,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 6317,
+              "signedP05Ms": -9.708,
+              "signedMedianMs": 3.698,
+              "signedP95Ms": 13.646,
+              "absoluteMedianMs": 5.313,
+              "absoluteP95Ms": 15.417,
+              "absoluteMaxMs": 29.792
+            }
+          },
+          "50": {
+            "precision": 0.523966,
+            "recall": 0.572197,
+            "f1": 0.54702,
+            "matched": 6384,
+            "predicted": 12184,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 6384,
+              "signedP05Ms": -11.042,
+              "signedMedianMs": 3.594,
+              "signedP95Ms": 13.646,
+              "absoluteMedianMs": 5.417,
+              "absoluteP95Ms": 16.346,
+              "absoluteMaxMs": 48.177
+            }
+          }
+        },
+        "eventPressure": {
+          "eventsPerMinute": 805.343,
+          "duplicatesPerPhysicalOnset": 0.09205
+        },
+        "rawActivationDistributions": {
+          "positive": {
+            "sampleCount": 225,
+            "min": 0.0,
+            "p05": 0.0,
+            "p50": 0.588702,
+            "p95": 0.958068,
+            "max": 0.972187
+          },
+          "wrongExpectedPitch": {
+            "sampleCount": 64,
+            "min": 0.0,
+            "p05": 0.0,
+            "p50": 0.0,
+            "p95": 0.892261,
+            "max": 0.958068
+          },
+          "noRetriggerNegative": {
+            "sampleCount": 28,
+            "min": 0.400319,
+            "p05": 0.401055,
+            "p50": 0.459697,
+            "p95": 0.747327,
+            "max": 0.810063
+          }
+        }
+      },
+      "0.5": {
+        "verdict": "FAIL",
+        "checks": {
+          "correct_single": {
+            "verdict": "FAIL",
+            "sampleCount": 37,
+            "hit": 28,
+            "recall": 0.756757,
+            "required": 0.95
+          },
+          "complete_chord": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "hit": 2,
+            "recall": 0.125,
+            "required": 0.9
+          },
+          "same_note_retrigger_second": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "hit": 7,
+            "recall": 0.4375,
+            "required": 0.9
+          },
+          "dense_repeated_pitch": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 15,
+            "recall": 0.625,
+            "required": 0.9
+          },
+          "fast_adjacent_pitch": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 17,
+            "recall": 0.708333,
+            "required": 0.9
+          },
+          "partial_overlapping_notes": {
+            "verdict": "FAIL",
+            "sampleCount": 21,
+            "hit": 8,
+            "recall": 0.380952,
+            "required": 0.9
+          },
+          "soft_attack": {
+            "verdict": "FAIL",
+            "sampleCount": 22,
+            "hit": 7,
+            "recall": 0.318182,
+            "required": 0.9
+          },
+          "loud_attack": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 19,
+            "recall": 0.791667,
+            "required": 0.9
+          },
+          "wrong_semitone": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseAccepts": 2,
+            "maxAllowed": 0
+          },
+          "wrong_octave": {
+            "verdict": "PASS",
+            "sampleCount": 16,
+            "falseAccepts": 0,
+            "maxAllowed": 0
+          },
+          "missing_chord_tone": {
+            "verdict": "PASS",
+            "sampleCount": 16,
+            "falseAccepts": 0,
+            "maxAllowed": 0
+          },
+          "long_held_no_retrigger": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseRetriggerEvents": 9,
+            "events": [
+              {
+                "episodeId": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2:long_held_no_retrigger:G3:17.207031",
+                "pitch": "G3",
+                "absoluteOnsetTime": 18.73,
+                "onsetProbability": 0.583925,
+                "previousGtSamePitchAttack": 17.20703125,
+                "nextGtSamePitchAttack": 20.78125,
+                "distanceFromPrevious": 1.522969,
+                "distanceFromNext": 2.05125
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:long_held_no_retrigger:D4:1.347656",
+                "pitch": "D4",
+                "absoluteOnsetTime": 2.16,
+                "onsetProbability": 0.660131,
+                "previousGtSamePitchAttack": 1.34765625,
+                "nextGtSamePitchAttack": 2.9609375,
+                "distanceFromPrevious": 0.812344,
+                "distanceFromNext": 0.800937
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:E4:5.115885",
+                "pitch": "E4",
+                "absoluteOnsetTime": 12.0,
+                "onsetProbability": 0.61139,
+                "previousGtSamePitchAttack": 5.115885416666666,
+                "nextGtSamePitchAttack": 17.734375,
+                "distanceFromPrevious": 6.884115,
+                "distanceFromNext": 5.734375
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:E4:5.115885",
+                "pitch": "E4",
+                "absoluteOnsetTime": 15.9,
+                "onsetProbability": 0.549884,
+                "previousGtSamePitchAttack": 5.115885416666666,
+                "nextGtSamePitchAttack": 17.734375,
+                "distanceFromPrevious": 10.784115,
+                "distanceFromNext": 1.834375
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:E4:5.115885",
+                "pitch": "E4",
+                "absoluteOnsetTime": 16.99,
+                "onsetProbability": 0.810063,
+                "previousGtSamePitchAttack": 5.115885416666666,
+                "nextGtSamePitchAttack": 17.734375,
+                "distanceFromPrevious": 11.874115,
+                "distanceFromNext": 0.744375
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:D#4:5.494792",
+                "pitch": "D#4",
+                "absoluteOnsetTime": 5.87,
+                "onsetProbability": 0.542005,
+                "previousGtSamePitchAttack": 5.494791666666666,
+                "nextGtSamePitchAttack": 7.2734375,
+                "distanceFromPrevious": 0.375208,
+                "distanceFromNext": 1.403437
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:D#4:5.494792",
+                "pitch": "D#4",
+                "absoluteOnsetTime": 6.26,
+                "onsetProbability": 0.510678,
+                "previousGtSamePitchAttack": 5.494791666666666,
+                "nextGtSamePitchAttack": 7.2734375,
+                "distanceFromPrevious": 0.765208,
+                "distanceFromNext": 1.013438
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1:long_held_no_retrigger:A4:13.492708",
+                "pitch": "A4",
+                "absoluteOnsetTime": 14.36,
+                "onsetProbability": 0.794278,
+                "previousGtSamePitchAttack": 13.492708333333333,
+                "nextGtSamePitchAttack": 14.990625,
+                "distanceFromPrevious": 0.867292,
+                "distanceFromNext": 0.630625
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_06_R1_2015_wav--6:long_held_no_retrigger:D5:3.991667",
+                "pitch": "D5",
+                "absoluteOnsetTime": 7.17,
+                "onsetProbability": 0.539272,
+                "previousGtSamePitchAttack": 3.9916666666666667,
+                "nextGtSamePitchAttack": 7.930208333333333,
+                "distanceFromPrevious": 3.178333,
+                "distanceFromNext": 0.760208
+              }
+            ]
+          },
+          "pedal_sustain_no_retrigger": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseRetriggerEvents": 5,
+            "events": [
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:pedal_sustain_no_retrigger:A#3:29.286458",
+                "pitch": "A#3",
+                "absoluteOnsetTime": 31.5,
+                "onsetProbability": 0.500735,
+                "previousGtSamePitchAttack": 29.286458333333332,
+                "nextGtSamePitchAttack": 35.11848958333333,
+                "distanceFromPrevious": 2.213542,
+                "distanceFromNext": 3.61849
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:D#4:5.494792",
+                "pitch": "D#4",
+                "absoluteOnsetTime": 5.87,
+                "onsetProbability": 0.542005,
+                "previousGtSamePitchAttack": 5.494791666666666,
+                "nextGtSamePitchAttack": 7.2734375,
+                "distanceFromPrevious": 0.375208,
+                "distanceFromNext": 1.403437
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:D#4:5.494792",
+                "pitch": "D#4",
+                "absoluteOnsetTime": 6.26,
+                "onsetProbability": 0.510678,
+                "previousGtSamePitchAttack": 5.494791666666666,
+                "nextGtSamePitchAttack": 7.2734375,
+                "distanceFromPrevious": 0.765208,
+                "distanceFromNext": 1.013438
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:G#3:8.852865",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 9.97,
+                "onsetProbability": 0.624842,
+                "previousGtSamePitchAttack": 8.852864583333332,
+                "nextGtSamePitchAttack": 13.766927083333332,
+                "distanceFromPrevious": 1.117135,
+                "distanceFromNext": 3.796927
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:G#3:8.852865",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 12.95,
+                "onsetProbability": 0.569855,
+                "previousGtSamePitchAttack": 8.852864583333332,
+                "nextGtSamePitchAttack": 13.766927083333332,
+                "distanceFromPrevious": 4.097135,
+                "distanceFromNext": 0.816927
+              }
+            ]
+          }
+        },
+        "sourceLevelEventMetrics": {
+          "10": {
+            "precision": 0.539385,
+            "recall": 0.414896,
+            "f1": 0.469021,
+            "matched": 4629,
+            "predicted": 8582,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 4629,
+              "signedP05Ms": -5.833,
+              "signedMedianMs": 3.125,
+              "signedP95Ms": 9.115,
+              "absoluteMedianMs": 4.167,
+              "absoluteP95Ms": 9.167,
+              "absoluteMaxMs": 10.0
+            }
+          },
+          "20": {
+            "precision": 0.64309,
+            "recall": 0.494667,
+            "f1": 0.559198,
+            "matched": 5519,
+            "predicted": 8582,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 5519,
+              "signedP05Ms": -6.88,
+              "signedMedianMs": 3.958,
+              "signedP95Ms": 13.125,
+              "absoluteMedianMs": 5.156,
+              "absoluteP95Ms": 13.703,
+              "absoluteMaxMs": 20.0
+            }
+          },
+          "30": {
+            "precision": 0.651014,
+            "recall": 0.500762,
+            "f1": 0.566087,
+            "matched": 5587,
+            "predicted": 8582,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 5587,
+              "signedP05Ms": -7.5,
+              "signedMedianMs": 3.958,
+              "signedP95Ms": 13.333,
+              "absoluteMedianMs": 5.208,
+              "absoluteP95Ms": 14.375,
+              "absoluteMaxMs": 29.792
+            }
+          },
+          "50": {
+            "precision": 0.655325,
+            "recall": 0.504078,
+            "f1": 0.569836,
+            "matched": 5624,
+            "predicted": 8582,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 5624,
+              "signedP05Ms": -7.917,
+              "signedMedianMs": 3.854,
+              "signedP95Ms": 13.333,
+              "absoluteMedianMs": 5.208,
+              "absoluteP95Ms": 14.948,
+              "absoluteMaxMs": 48.125
+            }
+          }
+        },
+        "eventPressure": {
+          "eventsPerMinute": 567.257,
+          "duplicatesPerPhysicalOnset": 0.0
+        },
+        "rawActivationDistributions": {
+          "positive": {
+            "sampleCount": 225,
+            "min": 0.0,
+            "p05": 0.0,
+            "p50": 0.59855,
+            "p95": 0.958068,
+            "max": 0.972187
+          },
+          "wrongExpectedPitch": {
+            "sampleCount": 64,
+            "min": 0.0,
+            "p05": 0.0,
+            "p50": 0.0,
+            "p95": 0.892261,
+            "max": 0.958068
+          },
+          "noRetriggerNegative": {
+            "sampleCount": 14,
+            "min": 0.500735,
+            "p05": 0.507198,
+            "p50": 0.55987,
+            "p95": 0.799803,
+            "max": 0.810063
+          }
+        }
+      },
+      "0.6": {
+        "verdict": "FAIL",
+        "checks": {
+          "correct_single": {
+            "verdict": "FAIL",
+            "sampleCount": 37,
+            "hit": 25,
+            "recall": 0.675676,
+            "required": 0.95
+          },
+          "complete_chord": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "hit": 2,
+            "recall": 0.125,
+            "required": 0.9
+          },
+          "same_note_retrigger_second": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "hit": 6,
+            "recall": 0.375,
+            "required": 0.9
+          },
+          "dense_repeated_pitch": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 15,
+            "recall": 0.625,
+            "required": 0.9
+          },
+          "fast_adjacent_pitch": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 15,
+            "recall": 0.625,
+            "required": 0.9
+          },
+          "partial_overlapping_notes": {
+            "verdict": "FAIL",
+            "sampleCount": 21,
+            "hit": 6,
+            "recall": 0.285714,
+            "required": 0.9
+          },
+          "soft_attack": {
+            "verdict": "FAIL",
+            "sampleCount": 22,
+            "hit": 3,
+            "recall": 0.136364,
+            "required": 0.9
+          },
+          "loud_attack": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 19,
+            "recall": 0.791667,
+            "required": 0.9
+          },
+          "wrong_semitone": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseAccepts": 2,
+            "maxAllowed": 0
+          },
+          "wrong_octave": {
+            "verdict": "PASS",
+            "sampleCount": 16,
+            "falseAccepts": 0,
+            "maxAllowed": 0
+          },
+          "missing_chord_tone": {
+            "verdict": "PASS",
+            "sampleCount": 16,
+            "falseAccepts": 0,
+            "maxAllowed": 0
+          },
+          "long_held_no_retrigger": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseRetriggerEvents": 4,
+            "events": [
+              {
+                "episodeId": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1:long_held_no_retrigger:D4:1.347656",
+                "pitch": "D4",
+                "absoluteOnsetTime": 2.16,
+                "onsetProbability": 0.660131,
+                "previousGtSamePitchAttack": 1.34765625,
+                "nextGtSamePitchAttack": 2.9609375,
+                "distanceFromPrevious": 0.812344,
+                "distanceFromNext": 0.800937
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:E4:5.115885",
+                "pitch": "E4",
+                "absoluteOnsetTime": 12.0,
+                "onsetProbability": 0.61139,
+                "previousGtSamePitchAttack": 5.115885416666666,
+                "nextGtSamePitchAttack": 17.734375,
+                "distanceFromPrevious": 6.884115,
+                "distanceFromNext": 5.734375
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:E4:5.115885",
+                "pitch": "E4",
+                "absoluteOnsetTime": 16.99,
+                "onsetProbability": 0.810063,
+                "previousGtSamePitchAttack": 5.115885416666666,
+                "nextGtSamePitchAttack": 17.734375,
+                "distanceFromPrevious": 11.874115,
+                "distanceFromNext": 0.744375
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1:long_held_no_retrigger:A4:13.492708",
+                "pitch": "A4",
+                "absoluteOnsetTime": 14.36,
+                "onsetProbability": 0.794278,
+                "previousGtSamePitchAttack": 13.492708333333333,
+                "nextGtSamePitchAttack": 14.990625,
+                "distanceFromPrevious": 0.867292,
+                "distanceFromNext": 0.630625
+              }
+            ]
+          },
+          "pedal_sustain_no_retrigger": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseRetriggerEvents": 1,
+            "events": [
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:pedal_sustain_no_retrigger:G#3:8.852865",
+                "pitch": "G#3",
+                "absoluteOnsetTime": 9.97,
+                "onsetProbability": 0.624842,
+                "previousGtSamePitchAttack": 8.852864583333332,
+                "nextGtSamePitchAttack": 13.766927083333332,
+                "distanceFromPrevious": 1.117135,
+                "distanceFromNext": 3.796927
+              }
+            ]
+          }
+        },
+        "sourceLevelEventMetrics": {
+          "10": {
+            "precision": 0.658755,
+            "recall": 0.36318,
+            "f1": 0.468223,
+            "matched": 4052,
+            "predicted": 6151,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 4052,
+              "signedP05Ms": -5.625,
+              "signedMedianMs": 3.281,
+              "signedP95Ms": 9.062,
+              "absoluteMedianMs": 4.167,
+              "absoluteP95Ms": 9.167,
+              "absoluteMaxMs": 10.0
+            }
+          },
+          "20": {
+            "precision": 0.771094,
+            "recall": 0.425114,
+            "f1": 0.54807,
+            "matched": 4743,
+            "predicted": 6151,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 4743,
+              "signedP05Ms": -6.25,
+              "signedMedianMs": 4.01,
+              "signedP95Ms": 12.76,
+              "absoluteMedianMs": 5.0,
+              "absoluteP95Ms": 13.125,
+              "absoluteMaxMs": 19.792
+            }
+          },
+          "30": {
+            "precision": 0.77776,
+            "recall": 0.428789,
+            "f1": 0.552808,
+            "matched": 4784,
+            "predicted": 6151,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 4784,
+              "signedP05Ms": -6.458,
+              "signedMedianMs": 4.01,
+              "signedP95Ms": 12.969,
+              "absoluteMedianMs": 5.0,
+              "absoluteP95Ms": 13.646,
+              "absoluteMaxMs": 28.75
+            }
+          },
+          "50": {
+            "precision": 0.779873,
+            "recall": 0.429954,
+            "f1": 0.55431,
+            "matched": 4797,
+            "predicted": 6151,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 4797,
+              "signedP05Ms": -6.615,
+              "signedMedianMs": 3.958,
+              "signedP95Ms": 12.979,
+              "absoluteMedianMs": 5.0,
+              "absoluteP95Ms": 13.865,
+              "absoluteMaxMs": 46.146
+            }
+          }
+        },
+        "eventPressure": {
+          "eventsPerMinute": 406.572,
+          "duplicatesPerPhysicalOnset": 0.0
+        },
+        "rawActivationDistributions": {
+          "positive": {
+            "sampleCount": 225,
+            "min": 0.0,
+            "p05": 0.0,
+            "p50": 0.603028,
+            "p95": 0.958068,
+            "max": 0.972187
+          },
+          "wrongExpectedPitch": {
+            "sampleCount": 64,
+            "min": 0.0,
+            "p05": 0.0,
+            "p50": 0.0,
+            "p95": 0.892261,
+            "max": 0.958068
+          },
+          "noRetriggerNegative": {
+            "sampleCount": 5,
+            "min": 0.61139,
+            "p05": 0.61408,
+            "p50": 0.660131,
+            "p95": 0.806906,
+            "max": 0.810063
+          }
+        }
+      },
+      "0.7": {
+        "verdict": "FAIL",
+        "checks": {
+          "correct_single": {
+            "verdict": "FAIL",
+            "sampleCount": 37,
+            "hit": 22,
+            "recall": 0.594595,
+            "required": 0.95
+          },
+          "complete_chord": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "hit": 1,
+            "recall": 0.0625,
+            "required": 0.9
+          },
+          "same_note_retrigger_second": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "hit": 3,
+            "recall": 0.1875,
+            "required": 0.9
+          },
+          "dense_repeated_pitch": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 14,
+            "recall": 0.583333,
+            "required": 0.9
+          },
+          "fast_adjacent_pitch": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 14,
+            "recall": 0.583333,
+            "required": 0.9
+          },
+          "partial_overlapping_notes": {
+            "verdict": "FAIL",
+            "sampleCount": 21,
+            "hit": 6,
+            "recall": 0.285714,
+            "required": 0.9
+          },
+          "soft_attack": {
+            "verdict": "FAIL",
+            "sampleCount": 22,
+            "hit": 2,
+            "recall": 0.090909,
+            "required": 0.9
+          },
+          "loud_attack": {
+            "verdict": "FAIL",
+            "sampleCount": 24,
+            "hit": 16,
+            "recall": 0.666667,
+            "required": 0.9
+          },
+          "wrong_semitone": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseAccepts": 1,
+            "maxAllowed": 0
+          },
+          "wrong_octave": {
+            "verdict": "PASS",
+            "sampleCount": 16,
+            "falseAccepts": 0,
+            "maxAllowed": 0
+          },
+          "missing_chord_tone": {
+            "verdict": "PASS",
+            "sampleCount": 16,
+            "falseAccepts": 0,
+            "maxAllowed": 0
+          },
+          "long_held_no_retrigger": {
+            "verdict": "FAIL",
+            "sampleCount": 16,
+            "falseRetriggerEvents": 2,
+            "events": [
+              {
+                "episodeId": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav:long_held_no_retrigger:E4:5.115885",
+                "pitch": "E4",
+                "absoluteOnsetTime": 16.99,
+                "onsetProbability": 0.810063,
+                "previousGtSamePitchAttack": 5.115885416666666,
+                "nextGtSamePitchAttack": 17.734375,
+                "distanceFromPrevious": 11.874115,
+                "distanceFromNext": 0.744375
+              },
+              {
+                "episodeId": "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1:long_held_no_retrigger:A4:13.492708",
+                "pitch": "A4",
+                "absoluteOnsetTime": 14.36,
+                "onsetProbability": 0.794278,
+                "previousGtSamePitchAttack": 13.492708333333333,
+                "nextGtSamePitchAttack": 14.990625,
+                "distanceFromPrevious": 0.867292,
+                "distanceFromNext": 0.630625
+              }
+            ]
+          },
+          "pedal_sustain_no_retrigger": {
+            "verdict": "PASS",
+            "sampleCount": 16,
+            "falseRetriggerEvents": 0,
+            "events": []
+          }
+        },
+        "sourceLevelEventMetrics": {
+          "10": {
+            "precision": 0.753884,
+            "recall": 0.304473,
+            "f1": 0.433761,
+            "matched": 3397,
+            "predicted": 4506,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 3397,
+              "signedP05Ms": -5.375,
+              "signedMedianMs": 3.281,
+              "signedP95Ms": 8.958,
+              "absoluteMedianMs": 4.167,
+              "absoluteP95Ms": 9.01,
+              "absoluteMaxMs": 10.0
+            }
+          },
+          "20": {
+            "precision": 0.869507,
+            "recall": 0.35117,
+            "f1": 0.500287,
+            "matched": 3918,
+            "predicted": 4506,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 3918,
+              "signedP05Ms": -5.677,
+              "signedMedianMs": 3.958,
+              "signedP95Ms": 12.516,
+              "absoluteMedianMs": 4.792,
+              "absoluteP95Ms": 12.865,
+              "absoluteMaxMs": 19.792
+            }
+          },
+          "30": {
+            "precision": 0.874834,
+            "recall": 0.353321,
+            "f1": 0.503352,
+            "matched": 3942,
+            "predicted": 4506,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 3942,
+              "signedP05Ms": -5.833,
+              "signedMedianMs": 3.958,
+              "signedP95Ms": 12.81,
+              "absoluteMedianMs": 4.844,
+              "absoluteP95Ms": 13.125,
+              "absoluteMaxMs": 29.167
+            }
+          },
+          "50": {
+            "precision": 0.875499,
+            "recall": 0.35359,
+            "f1": 0.503735,
+            "matched": 3945,
+            "predicted": 4506,
+            "groundTruth": 11157,
+            "timing": {
+              "sampleCount": 3945,
+              "signedP05Ms": -5.927,
+              "signedMedianMs": 3.958,
+              "signedP95Ms": 12.802,
+              "absoluteMedianMs": 4.844,
+              "absoluteP95Ms": 13.125,
+              "absoluteMaxMs": 46.458
+            }
+          }
+        },
+        "eventPressure": {
+          "eventsPerMinute": 297.84,
+          "duplicatesPerPhysicalOnset": 0.0
+        },
+        "rawActivationDistributions": {
+          "positive": {
+            "sampleCount": 225,
+            "min": 0.0,
+            "p05": 0.0,
+            "p50": 0.0,
+            "p95": 0.958068,
+            "max": 0.972187
+          },
+          "wrongExpectedPitch": {
+            "sampleCount": 64,
+            "min": 0.0,
+            "p05": 0.0,
+            "p50": 0.0,
+            "p95": 0.892261,
+            "max": 0.958068
+          },
+          "noRetriggerNegative": {
+            "sampleCount": 2,
+            "min": 0.794278,
+            "p05": 0.795067,
+            "p50": 0.802171,
+            "p95": 0.809274,
+            "max": 0.810063
+          }
+        }
+      }
+    }
+  },
+  "selectedScale": "OFFICIAL_FLOAT"
+}

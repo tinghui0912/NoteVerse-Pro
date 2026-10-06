@@ -1,0 +1,239 @@
+{
+  "metadata": {
+    "generatedAt": "2026-10-06T00:00:00+08:00",
+    "researchHarnessGitHead": "06f537d6b5743a5239d6e607ac1b29b04574ac25",
+    "actualGitHead": "06f537d6b5743a5239d6e607ac1b29b04574ac25",
+    "harnessSha256": "82d6538eb85be20760fdbfaaa8d4c2ef810d7f6315fc46a91fae8b0ca2710dae",
+    "policy": {
+      "path": "backend/research/policies/rtt_deterministic_policy_2026-10-06.json",
+      "sha256": "7a8f7f299f4c4a72d06dea2f1bb969bf9ab8d4a6310774dbad051350fbeac390"
+    },
+    "exactCommand": "backend/scripts/evaluate_rtt_deterministic_inference_v5.py --repo-root /tmp/noteverse-phase7e-harness --policy backend/research/policies/rtt_deterministic_policy_2026-10-06.json --rtt-repo /tmp/noteverse-phase7/rtt --checkpoint /tmp/noteverse-phase7/rtt/ckpts/CustomAMT.ckpt --maestro-root /app/backend/data/work/datasets/maestro-v3.0.0 --development-targets backend/research/reports/bytedance_target_verifier_dev_targets_v3_2026-10-05.json --training-output backend/research/reports/rtt_upstream_training_mode_audit_2026-10-06.json --scale-output backend/research/reports/rtt_input_scale_audit_2026-10-06.json --development-output backend/research/reports/rtt_deterministic_development_2026-10-06.json --threshold-output backend/research/reports/rtt_deterministic_threshold_gate_2026-10-06.json --decision-json backend/research/reports/rtt_deterministic_decision_2026-10-06.json --decision-md backend/research/reports/rtt_deterministic_decision_2026-10-06.md --research-harness-git-head 06f537d6b5743a5239d6e607ac1b29b04574ac25 --require-clean-tree",
+    "dirtyTree": false,
+    "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+    "python": "3.11.16",
+    "environment": {
+      "python": "3.11.16",
+      "torch": "2.6.0+cu124",
+      "torchaudio": "2.6.0+cu124",
+      "librosa": "0.10.2.post1",
+      "numpy": "1.26.4",
+      "scipy": "1.12.0",
+      "mir_eval": "0.8.2",
+      "pretty_midi": "0.2.10",
+      "soxr": "0.5.0.post1",
+      "cuda": "12.4",
+      "cudaAvailable": true,
+      "device": "NVIDIA GeForce RTX 4080 Laptop GPU"
+    },
+    "checkpointSha256": "901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1",
+    "checkpointBytes": 67843364,
+    "rttRepo": "/tmp/noteverse-phase7/rtt",
+    "maestroRoot": "/app/backend/data/work/datasets/maestro-v3.0.0",
+    "frozenEvaluationUsed": false
+  },
+  "phase7DReinterpretation": {
+    "publishedUpstreamCliExactReproductionAttempt": "FAIL",
+    "rootCauseIdentified": "published inference constructs a model that remains in training mode despite Dropout and BatchNorm modules",
+    "phase7DModelQualityVerdict": "SUPERSEDED: RTT MODEL QUALITY = INCONCLUSIVE",
+    "incorrectPhase7DHarnessSha": "22d3054b87d6ef7db1a24f52e479a908904fbeea",
+    "correctPhase7DHarnessSha": "22d3054b3e126fc22ebab5b9d498e815349e82d1"
+  },
+  "identityAudit": {
+    "verdict": "PASS",
+    "reason": "pinned RTT identity verified",
+    "rttHead": "b3197cfa538cc6f7698042b87ecee709223fc58e",
+    "checkpointSha256": "901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1",
+    "checkpointBytes": 67843364
+  },
+  "cohort": {
+    "verdict": "PASS",
+    "sources": [
+      {
+        "basename": "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1",
+        "audioFilename": "2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.wav",
+        "midiFilename": "2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.midi",
+        "audioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+        "midiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4",
+        "split": "test",
+        "year": "2004"
+      },
+      {
+        "basename": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2",
+        "audioFilename": "2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.wav",
+        "midiFilename": "2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.midi",
+        "audioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+        "midiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc",
+        "split": "test",
+        "year": "2008"
+      },
+      {
+        "basename": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1",
+        "audioFilename": "2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.wav",
+        "midiFilename": "2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.midi",
+        "audioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+        "midiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50",
+        "split": "test",
+        "year": "2008"
+      }
+    ]
+  },
+  "publishedRuntimeDefectAudit": {
+    "path": "backend/research/reports/rtt_upstream_training_mode_audit_2026-10-06.json",
+    "sha256": "a41cca2648b782c02ac4f54d650e278f92695ceccce74757da35bc0a795eccfb",
+    "summary": {
+      "artifact": "rtt_upstream_training_mode_audit",
+      "trainingState": {
+        "modelTraining": true,
+        "dropoutCount": 18,
+        "dropoutTrainingCount": 18,
+        "batchNormCount": 38,
+        "batchNormTrainingCount": 38
+      },
+      "inferenceModeState": {
+        "beforeInferenceMode": true,
+        "insideInferenceMode": true
+      },
+      "unmodifiedRepeatedRuns": {
+        "runCount": 3,
+        "pairwise": [
+          {
+            "leftRun": 0,
+            "rightRun": 1,
+            "maxDelta": 0.025865127485503958,
+            "meanDelta": 0.014418052554068042
+          },
+          {
+            "leftRun": 0,
+            "rightRun": 2,
+            "maxDelta": 0.02242931462439146,
+            "meanDelta": 0.007701357756114333
+          },
+          {
+            "leftRun": 1,
+            "rightRun": 2,
+            "maxDelta": 0.027906976744186074,
+            "meanDelta": 0.012753049573681416
+          }
+        ],
+        "diagnostic": "non-zero deltas indicate published runtime nondeterminism"
+      }
+    }
+  },
+  "correctedEvalDeterminism": {
+    "scale": "OFFICIAL_FLOAT",
+    "maxRawTensorDelta": 0.0,
+    "decodedEventAgreement": 1.0,
+    "eventCounts": [
+      164,
+      164,
+      164
+    ],
+    "keys": [
+      "frame_output",
+      "offset_output",
+      "onset_output",
+      "velocity_output"
+    ],
+    "verdict": "PASS",
+    "epsilon": 1e-06
+  },
+  "inputScaleAudit": {
+    "artifact": "rtt_input_scale_audit",
+    "contracts": {
+      "OFFICIAL_FLOAT": {
+        "scale": "OFFICIAL_FLOAT",
+        "meanDistance": 0.14140039682388306,
+        "varianceDistance": 0.6062435507774353,
+        "observedMeanP50": 0.00029826650279574096,
+        "observedVarP50": 1.6003143343823467e-07,
+        "bnRunningMeanP50": 0.0005605833139270544,
+        "bnRunningVarP50": 1.1094166438851971e-06
+      },
+      "INT16_EQUIVALENT": {
+        "scale": "INT16_EQUIVALENT",
+        "meanDistance": 816.726806640625,
+        "varianceDistance": 12.015377044677734,
+        "observedMeanP50": 1.7948307991027832,
+        "observedVarP50": 0.7875528931617737,
+        "bnRunningMeanP50": 0.0005605833139270544,
+        "bnRunningVarP50": 1.1094166438851971e-06
+      }
+    },
+    "selection": {
+      "selectedScale": "OFFICIAL_FLOAT",
+      "reason": "OFFICIAL_FLOAT is clearly closer on both BN mean and variance diagnostics"
+    },
+    "path": "backend/research/reports/rtt_input_scale_audit_2026-10-06.json",
+    "sha256": "9bf37e8becc20c3977e2d9ae303df3bc63bd40b231c59292d8c7d24cdd7fd8d6"
+  },
+  "selectedDeterministicContract": {
+    "rttCommit": "b3197cfa538cc6f7698042b87ecee709223fc58e",
+    "checkpointSha256": "901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1",
+    "modelEval": true,
+    "inputScale": "OFFICIAL_FLOAT",
+    "sampleRate": 16000,
+    "segmentSamples": 48000,
+    "overlap": "50%",
+    "postprocessor": "rtt"
+  },
+  "developmentEvidence": {
+    "path": "backend/research/reports/rtt_deterministic_development_2026-10-06.json",
+    "sha256": "f91f196460ec6c1b7fc70144676cdd9af6ca6f20a02d512871c3f7215e1e08b0",
+    "summary": {
+      "sourceCount": 8,
+      "targetCount": 421,
+      "familyCounts": {
+        "chord_pitch_member": 21,
+        "complete_chord": 16,
+        "correct_single": 37,
+        "dense_repeated_pitch": 24,
+        "fast_adjacent_pitch": 24,
+        "long_held_first_strike": 16,
+        "long_held_no_retrigger": 48,
+        "loud_attack": 24,
+        "missing_chord_tone": 16,
+        "partial_overlapping_notes": 21,
+        "pedal_first_strike": 16,
+        "pedal_sustain_no_retrigger": 48,
+        "same_note_retrigger_diagnostic": 24,
+        "same_note_retrigger_first": 16,
+        "same_note_retrigger_second": 16,
+        "soft_attack": 22,
+        "wrong_octave": 16,
+        "wrong_semitone": 16
+      },
+      "thresholdVerdicts": {
+        "0.1": "FAIL",
+        "0.2": "FAIL",
+        "0.3": "FAIL",
+        "0.4": "FAIL",
+        "0.5": "FAIL",
+        "0.6": "FAIL",
+        "0.7": "FAIL"
+      }
+    }
+  },
+  "thresholdFeasibility": {
+    "path": "backend/research/reports/rtt_deterministic_threshold_gate_2026-10-06.json",
+    "sha256": "5928a99ba2d176724f8199e015f4adcff2858751480782b224e641cb7ab7abfe",
+    "summary": {
+      "development": "FAIL",
+      "eligibleThresholds": [],
+      "selectedThreshold": null,
+      "reason": "Every threshold has at least one valid hard failure.",
+      "artifact": "rtt_deterministic_threshold_gate"
+    }
+  },
+  "final": {
+    "development": "NOT RUN",
+    "calibration": "NOT RUN",
+    "stepReplay": "NOT RUN",
+    "continuousReplay": "NOT RUN",
+    "browser": "NOT RUN",
+    "verdict": "RTT Shared Streaming Onset Frontend = FAIL",
+    "failureCategory": "PRODUCT_ACOUSTIC_GATE_FAILURE",
+    "reason": "Every threshold has at least one valid hard failure.",
+    "productionMicrophone": "DISABLED"
+  }
+}

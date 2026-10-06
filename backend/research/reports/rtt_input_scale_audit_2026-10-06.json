@@ -1,0 +1,27 @@
+{
+  "artifact": "rtt_input_scale_audit",
+  "contracts": {
+    "OFFICIAL_FLOAT": {
+      "scale": "OFFICIAL_FLOAT",
+      "meanDistance": 0.14140039682388306,
+      "varianceDistance": 0.6062435507774353,
+      "observedMeanP50": 0.00029826650279574096,
+      "observedVarP50": 1.6003143343823467e-07,
+      "bnRunningMeanP50": 0.0005605833139270544,
+      "bnRunningVarP50": 1.1094166438851971e-06
+    },
+    "INT16_EQUIVALENT": {
+      "scale": "INT16_EQUIVALENT",
+      "meanDistance": 816.726806640625,
+      "varianceDistance": 12.015377044677734,
+      "observedMeanP50": 1.7948307991027832,
+      "observedVarP50": 0.7875528931617737,
+      "bnRunningMeanP50": 0.0005605833139270544,
+      "bnRunningVarP50": 1.1094166438851971e-06
+    }
+  },
+  "selection": {
+    "selectedScale": "OFFICIAL_FLOAT",
+    "reason": "OFFICIAL_FLOAT is clearly closer on both BN mean and variance diagnostics"
+  }
+}

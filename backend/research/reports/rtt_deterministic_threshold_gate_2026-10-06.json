@@ -1,0 +1,7 @@
+{
+  "development": "FAIL",
+  "eligibleThresholds": [],
+  "selectedThreshold": null,
+  "reason": "Every threshold has at least one valid hard failure.",
+  "artifact": "rtt_deterministic_threshold_gate"
+}
