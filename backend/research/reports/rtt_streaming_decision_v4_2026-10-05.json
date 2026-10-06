@@ -1,13 +1,13 @@
 {
   "metadata": {
     "generatedAt": "2026-10-05T00:00:00+08:00",
-    "researchHarnessGitHead": "7a9241d9e443417796f048af2bc6032635dbea08",
-    "harnessSha256": "ec6246e83a352674453934503ce08d2fae815d2a0a936e4417818054bece17ae",
+    "researchHarnessGitHead": "22d3054b87d6ef7db1a24f52e479a908904fbeea",
+    "harnessSha256": "6bac6cb717538eb07212c0e5effa2c81bd846bb7397df96ace4f2d9d95c80fe0",
     "policy": {
       "path": "backend/research/policies/rtt_streaming_onset_policy_v4_2026-10-05.json",
       "sha256": "29f31ddafc2c3ffc9cde12164eb6ce99a18f7167df6b9c3fb8c0e662fedb8176"
     },
-    "exactCommand": "backend/scripts/evaluate_rtt_streaming_onset_frontend_v4.py --repo-root /tmp/noteverse-phase7d-harness --policy backend/research/policies/rtt_streaming_onset_policy_v4_2026-10-05.json --rtt-repo /tmp/noteverse-phase7/rtt --checkpoint /tmp/noteverse-phase7/rtt/ckpts/CustomAMT.ckpt --maestro-root /app/backend/data/work/datasets/maestro-v3.0.0 --upstream-output backend/research/reports/rtt_upstream_reproduction_v4_2026-10-05.json --decision-json backend/research/reports/rtt_streaming_decision_v4_2026-10-05.json --decision-md backend/research/reports/rtt_streaming_decision_v4_2026-10-05.md --research-harness-git-head 7a9241d9e443417796f048af2bc6032635dbea08 --require-clean-tree",
+    "exactCommand": "backend/scripts/evaluate_rtt_streaming_onset_frontend_v4.py --repo-root /tmp/noteverse-phase7d-harness --policy backend/research/policies/rtt_streaming_onset_policy_v4_2026-10-05.json --rtt-repo /tmp/noteverse-phase7/rtt --checkpoint /tmp/noteverse-phase7/rtt/ckpts/CustomAMT.ckpt --maestro-root /app/backend/data/work/datasets/maestro-v3.0.0 --upstream-output backend/research/reports/rtt_upstream_reproduction_v4_2026-10-05.json --decision-json backend/research/reports/rtt_streaming_decision_v4_2026-10-05.json --decision-md backend/research/reports/rtt_streaming_decision_v4_2026-10-05.md --research-harness-git-head 22d3054b87d6ef7db1a24f52e479a908904fbeea --require-clean-tree",
     "dirtyTree": false,
     "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
     "python": "3.11.16",
@@ -211,23 +211,23 @@
   ],
   "upstreamMetricReproduction": {
     "path": "backend/research/reports/rtt_upstream_reproduction_v4_2026-10-05.json",
-    "sha256": "36bf67bf4c2835f7e7f8bf1c6b009dea105ce1f8423dae6785dbbcc775b15638",
+    "sha256": "90683f8ead33afeb04ec966893e461f56f3cf5f7fcc95641a30c4cc542378c81",
     "summary": {
       "verdict": "FAIL",
       "aggregate": {
         "0.01": {
-          "meanAbsoluteF1Delta": 0.08917122008053457,
-          "maxAbsoluteF1Delta": 0.15017063967340205,
+          "meanAbsoluteF1Delta": 0.09086839960799759,
+          "maxAbsoluteF1Delta": 0.15979624371994938,
           "pass": false
         },
         "0.02": {
-          "meanAbsoluteF1Delta": 0.11877156878235867,
-          "maxAbsoluteF1Delta": 0.17906734149828074,
+          "meanAbsoluteF1Delta": 0.12398804195999245,
+          "maxAbsoluteF1Delta": 0.17548446104304427,
           "pass": false
         },
         "0.03": {
-          "meanAbsoluteF1Delta": 0.12190538525146949,
-          "maxAbsoluteF1Delta": 0.18283042923926895,
+          "meanAbsoluteF1Delta": 0.12769803069499605,
+          "maxAbsoluteF1Delta": 0.17799203521274376,
           "pass": false
         }
       },
