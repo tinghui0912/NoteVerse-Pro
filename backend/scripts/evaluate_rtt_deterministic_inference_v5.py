@@ -527,7 +527,7 @@ def deterministic_development_gate(args: argparse.Namespace, policy: dict[str, A
     from inference import PianoTranscription
 
     targets_report = load_json(args.development_targets)
-    targets = list(targets_report["targets"])
+    targets = normalize_development_targets(args, list(targets_report["targets"]))
     development_policy = development_policy_from_v5(policy)
     sources = v3.build_source_index(args, development_policy, targets)
     transcriptor = DeterministicEvalTranscriptor(
@@ -554,6 +554,26 @@ def deterministic_development_gate(args: argparse.Namespace, policy: dict[str, A
     write_json(args.development_output, development)
     write_json(args.threshold_output, threshold)
     return development, threshold
+
+
+def normalize_development_targets(args: argparse.Namespace, targets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if all("sourceMidi" in target and "sourceMidiSha256" in target for target in targets):
+        return targets
+    metadata_path = args.maestro_root / "maestro-v3.0.0.csv"
+    metadata = list(csv.DictReader(metadata_path.open("r", encoding="utf-8")))
+    by_audio_stem = {Path(row["audio_filename"]).stem: row for row in metadata}
+    normalized = []
+    for target in targets:
+        item = dict(target)
+        audio_stem = Path(item["sourceFile"]).stem
+        row = by_audio_stem.get(audio_stem)
+        if row is None:
+            raise RuntimeError(f"cannot resolve source MIDI for target {item['targetId']}: {audio_stem}")
+        midi_path = find_under(args.maestro_root, row["midi_filename"])
+        item["sourceMidi"] = str(Path("data/work/datasets/maestro-v3.0.0") / row["midi_filename"])
+        item["sourceMidiSha256"] = sha256(midi_path)
+        normalized.append(item)
+    return normalized
 
 
 def development_policy_from_v5(policy: dict[str, Any]) -> dict[str, Any]:
