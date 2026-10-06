@@ -1,0 +1,42 @@
+{
+  "artifact": "online_amt_stateful_policy_v3",
+  "phase": "8C",
+  "generatedAt": "2026-10-06T00:00:00+08:00",
+  "phase8BDisposition": {
+    "verdict": "Online-AMT Stateful Acoustic Frontend = INCONCLUSIVE",
+    "failureCategory": "INCONCLUSIVE_LEGACY_RUNTIME_PARITY",
+    "reason": "Phase 8B only compared package-version strings and did not execute an actual Python 3.7 / Torch 1.6 runtime."
+  },
+  "candidate": {
+    "repo": "https://github.com/jdasam/online_amt",
+    "commit": "ad12550909a1d86f699097d11885f427054a5ac2",
+    "license": "MIT",
+    "checkpointRelativePath": "model-180000.pt",
+    "expectedCheckpointBytes": 178804960,
+    "expectedCheckpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0"
+  },
+  "legacyRuntime": {
+    "requiredPython": "3.7",
+    "requiredPackages": {
+      "torch": "1.6.0",
+      "numpy": "1.16.2",
+      "librosa": "0.7.2",
+      "scipy": "1.4.1",
+      "numba": "0.48"
+    },
+    "requiredDevice": "CPU",
+    "terminalFailureRule": "If the isolated legacy runtime cannot be constructed after documented attempts, final model quality remains INCONCLUSIVE and production candidacy is REJECTED with LEGACY_RUNTIME_NOT_REPRODUCIBLE."
+  },
+  "runtimeContract": {
+    "sampleRate": 16000,
+    "hopSamples": 512,
+    "publishedOnsetBoost": 2.0,
+    "pseudoIntensityShortcut": "DISABLED",
+    "onsetStateIds": [3, 4],
+    "offsetStateIds": [1]
+  },
+  "productionState": {
+    "stepMic": "STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED",
+    "continuousMic": "CONTINUOUS_ANALYSIS_UNAVAILABLE"
+  }
+}
