@@ -1,0 +1,68 @@
+{
+  "artifact": "online_amt_timing_alignment",
+  "candidates": [
+    {
+      "offsetMs": 0.0,
+      "matched": 225,
+      "precision": 0.08079,
+      "recall": 0.078125,
+      "f1": 0.079435,
+      "signedMedianMs": 5.5625,
+      "absoluteMedianMs": 13.333333,
+      "absoluteP95Ms": 38.547917
+    },
+    {
+      "offsetMs": -32.0,
+      "matched": 192,
+      "precision": 0.068941,
+      "recall": 0.066667,
+      "f1": 0.067785,
+      "signedMedianMs": -23.296875,
+      "absoluteMedianMs": 23.713541,
+      "absoluteP95Ms": 45.170833
+    },
+    {
+      "offsetMs": -64.0,
+      "matched": 72,
+      "precision": 0.025853,
+      "recall": 0.025,
+      "f1": 0.025419,
+      "signedMedianMs": -37.901042,
+      "absoluteMedianMs": 38.213542,
+      "absoluteP95Ms": 49.796354
+    },
+    {
+      "offsetMs": -96.0,
+      "matched": 394,
+      "precision": 0.141472,
+      "recall": 0.136806,
+      "f1": 0.1391,
+      "signedMedianMs": 46.203125,
+      "absoluteMedianMs": 46.21875,
+      "absoluteP95Ms": 49.628646
+    },
+    {
+      "offsetMs": -128.0,
+      "matched": 2720,
+      "precision": 0.976661,
+      "recall": 0.944444,
+      "f1": 0.960282,
+      "signedMedianMs": 29.90625,
+      "absoluteMedianMs": 29.90625,
+      "absoluteP95Ms": 45.750521
+    }
+  ],
+  "summary": {
+    "selectedOffsetMs": -128.0,
+    "selected": {
+      "offsetMs": -128.0,
+      "matched": 2720,
+      "precision": 0.976661,
+      "recall": 0.944444,
+      "f1": 0.960282,
+      "signedMedianMs": 29.90625,
+      "absoluteMedianMs": 29.90625,
+      "absoluteP95Ms": 45.750521
+    }
+  }
+}

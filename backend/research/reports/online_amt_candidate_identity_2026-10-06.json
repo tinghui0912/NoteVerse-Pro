@@ -1,0 +1,24 @@
+{
+  "artifact": "online_amt_candidate_identity",
+  "verdict": "PASS",
+  "reason": "candidate identity and strict load verified",
+  "summary": {
+    "repoCommit": "ad12550909a1d86f699097d11885f427054a5ac2",
+    "license": "MIT",
+    "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+    "checkpointBytes": 178804960,
+    "modelComplexityConv": 64,
+    "modelComplexityLstm": 32,
+    "stateDictKeyCount": 36,
+    "parameterCount": 13421314,
+    "tensorDtypes": [
+      "torch.float32",
+      "torch.int64"
+    ],
+    "modelTrainingAfterOnlineTranscriber": false,
+    "dropoutCount": 3,
+    "dropoutTrainingCount": 0,
+    "batchNormCount": 3,
+    "batchNormTrainingCount": 0
+  }
+}

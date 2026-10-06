@@ -1,0 +1,34 @@
+{
+  "artifact": "online_amt_state_semantics",
+  "verdict": "PASS",
+  "reason": "stateful adapter parity/determinism/causality passed",
+  "summary": {
+    "modelEvalVerified": true,
+    "officialAdapterParity": true,
+    "prefixCausality": true,
+    "resetDeterminism": true,
+    "stateContinuityDivergence": {
+      "continuousHopCount": 32,
+      "resetEveryHopDivergentHops": 0
+    },
+    "publishedOnsetBoostPreserved": true,
+    "pseudoIntensityShortcutUsed": false,
+    "onsetStateIds": [
+      3,
+      4
+    ],
+    "offsetStateIds": [
+      1
+    ]
+  },
+  "causality": {
+    "pass": true,
+    "prefixHopCount": 32,
+    "futureHopCount": 47
+  },
+  "resetDeterminism": {
+    "pass": true,
+    "stateAgreement": true,
+    "eventAgreement": true
+  }
+}

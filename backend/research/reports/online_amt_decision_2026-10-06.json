@@ -1,0 +1,274 @@
+{
+  "metadata": {
+    "generatedAt": "2026-10-06T00:00:00+08:00",
+    "researchHarnessGitHead": "9f89679732ded359e8bb4a90bc0b1faffcf4ec89",
+    "actualGitHead": "9f89679732ded359e8bb4a90bc0b1faffcf4ec89",
+    "harnessSha256": "c0a822670cb7fe27c25ef8d969bcbcca8c4fd3a98c1f2744b85fc72e01a5a876",
+    "policy": {
+      "path": "backend/research/policies/online_amt_stateful_policy_2026-10-06.json",
+      "sha256": "cf508a232efd5bcd0c35ff3a3ca91bdc5a75ea815c20a7ceaf32eb732f9e8b15"
+    },
+    "exactCommand": "backend/scripts/evaluate_online_amt_stateful_frontend_v1.py --repo-root /tmp/noteverse-phase8-harness --policy backend/research/policies/online_amt_stateful_policy_2026-10-06.json --online-amt-repo /tmp/noteverse-phase8/online_amt --checkpoint /tmp/noteverse-phase8/online_amt/model-180000.pt --maestro-root /app/backend/data/work/datasets/maestro-v3.0.0 --maestro-v2-metadata /tmp/noteverse-phase8/data/maestro-v2.0.0.csv --development-targets backend/research/reports/bytedance_target_verifier_dev_targets_v3_2026-10-05.json --identity-output backend/research/reports/online_amt_candidate_identity_2026-10-06.json --state-output backend/research/reports/online_amt_state_semantics_2026-10-06.json --alignment-output backend/research/reports/online_amt_timing_alignment_2026-10-06.json --development-output backend/research/reports/online_amt_development_2026-10-06.json --decision-json backend/research/reports/online_amt_decision_2026-10-06.json --decision-md backend/research/reports/online_amt_decision_2026-10-06.md --research-harness-git-head 9f89679732ded359e8bb4a90bc0b1faffcf4ec89 --require-clean-tree",
+    "dirtyTree": false,
+    "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+    "python": "3.11.16",
+    "torch": "2.6.0+cu124",
+    "librosa": "0.10.2.post1",
+    "numpy": "1.26.4",
+    "cudaAvailable": true,
+    "device": "NVIDIA GeForce RTX 4080 Laptop GPU",
+    "frozenEvaluationUsed": false
+  },
+  "rttDisposition": {
+    "verdict": "RTT Shared Streaming Onset Frontend = FAIL",
+    "failureCategory": "PRODUCT_ACOUSTIC_GATE_FAILURE",
+    "wordingCorrection": "The old RTT phrase claiming targets at t>=10s had at least 10s real musical history was inaccurate. RTT produced a score-independent full-source timeline assembled from independent overlapping 3-second segments; recurrent hidden state did not persist across the full performance."
+  },
+  "candidateIdentity": {
+    "path": "backend/research/reports/online_amt_candidate_identity_2026-10-06.json",
+    "sha256": "115facbc31ae713922eb6517ed2c1afe1c2c2b712d0af205e85ce0570ddd01aa",
+    "summary": {
+      "repoCommit": "ad12550909a1d86f699097d11885f427054a5ac2",
+      "license": "MIT",
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "checkpointBytes": 178804960,
+      "modelComplexityConv": 64,
+      "modelComplexityLstm": 32,
+      "stateDictKeyCount": 36,
+      "parameterCount": 13421314,
+      "tensorDtypes": [
+        "torch.float32",
+        "torch.int64"
+      ],
+      "modelTrainingAfterOnlineTranscriber": false,
+      "dropoutCount": 3,
+      "dropoutTrainingCount": 0,
+      "batchNormCount": 3,
+      "batchNormTrainingCount": 0
+    }
+  },
+  "dataIsolation": {
+    "verdict": "PASS",
+    "reason": "MAESTRO v2 leakage audit passed",
+    "overlap": {
+      "alignmentDevelopment": [],
+      "developmentCalibration": [],
+      "alignmentCalibration": []
+    },
+    "sources": [
+      {
+        "cohort": "ALIGNMENT",
+        "basename": "MIDI-UNPROCESSED_01-03_R1_2014_MID--AUDIO_01_R1_2014_wav--1",
+        "maestroV2Split": "test"
+      },
+      {
+        "cohort": "ALIGNMENT",
+        "basename": "MIDI-Unprocessed_02_R1_2009_03-06_ORIG_MID--AUDIO_02_R1_2009_02_R1_2009_04_WAV",
+        "maestroV2Split": "test"
+      },
+      {
+        "cohort": "ALIGNMENT",
+        "basename": "MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_07_WAV",
+        "maestroV2Split": "test"
+      },
+      {
+        "cohort": "DEVELOPMENT",
+        "basename": "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav",
+        "maestroV2Split": "test"
+      },
+      {
+        "cohort": "DEVELOPMENT",
+        "basename": "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2",
+        "maestroV2Split": "test"
+      },
+      {
+        "cohort": "DEVELOPMENT",
+        "basename": "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1",
+        "maestroV2Split": "test"
+      },
+      {
+        "cohort": "DEVELOPMENT",
+        "basename": "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav",
+        "maestroV2Split": "test"
+      },
+      {
+        "cohort": "DEVELOPMENT",
+        "basename": "MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_06_R1_2015_wav--6",
+        "maestroV2Split": "test"
+      },
+      {
+        "cohort": "DEVELOPMENT",
+        "basename": "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5",
+        "maestroV2Split": "test"
+      },
+      {
+        "cohort": "DEVELOPMENT",
+        "basename": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1",
+        "maestroV2Split": "test"
+      },
+      {
+        "cohort": "DEVELOPMENT",
+        "basename": "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1",
+        "maestroV2Split": "test"
+      }
+    ],
+    "blocked": []
+  },
+  "stateSemantics": {
+    "path": "backend/research/reports/online_amt_state_semantics_2026-10-06.json",
+    "sha256": "c34a8aed462f156f3b5ae74823f620237d0f4dd45f2ab39f3af9e74e2e19d822",
+    "summary": {
+      "modelEvalVerified": true,
+      "officialAdapterParity": true,
+      "prefixCausality": true,
+      "resetDeterminism": true,
+      "stateContinuityDivergence": {
+        "continuousHopCount": 32,
+        "resetEveryHopDivergentHops": 0
+      },
+      "publishedOnsetBoostPreserved": true,
+      "pseudoIntensityShortcutUsed": false,
+      "onsetStateIds": [
+        3,
+        4
+      ],
+      "offsetStateIds": [
+        1
+      ]
+    }
+  },
+  "timingAlignment": {
+    "path": "backend/research/reports/online_amt_timing_alignment_2026-10-06.json",
+    "sha256": "a942e87bdb5e105e46eccad73d7e83dfe5717d9c53ca11f9fee6d1c0780a9ecf",
+    "summary": {
+      "selectedOffsetMs": -128.0,
+      "selected": {
+        "offsetMs": -128.0,
+        "matched": 2720,
+        "precision": 0.976661,
+        "recall": 0.944444,
+        "f1": 0.960282,
+        "signedMedianMs": 29.90625,
+        "absoluteMedianMs": 29.90625,
+        "absoluteP95Ms": 45.750521
+      }
+    }
+  },
+  "development": {
+    "path": "backend/research/reports/online_amt_development_2026-10-06.json",
+    "sha256": "74f246604f3dff40f2edf36f9226d41765198f5c5b562e0d577d354403df9832",
+    "summary": {
+      "verdict": "FAIL",
+      "reason": "Development has at least one hard failure.",
+      "checks": {
+        "correct_single": {
+          "verdict": "PASS",
+          "sampleCount": 37,
+          "hit": 37,
+          "recall": 1.0,
+          "required": 0.95
+        },
+        "complete_chord": {
+          "verdict": "FAIL",
+          "sampleCount": 16,
+          "hit": 5,
+          "recall": 0.3125,
+          "required": 0.9
+        },
+        "same_note_retrigger_second": {
+          "verdict": "FAIL",
+          "sampleCount": 16,
+          "hit": 12,
+          "recall": 0.75,
+          "required": 0.9
+        },
+        "dense_repeated_pitch": {
+          "verdict": "FAIL",
+          "sampleCount": 24,
+          "hit": 20,
+          "recall": 0.833333,
+          "required": 0.9
+        },
+        "fast_adjacent_pitch": {
+          "verdict": "FAIL",
+          "sampleCount": 24,
+          "hit": 21,
+          "recall": 0.875,
+          "required": 0.9
+        },
+        "partial_overlapping_notes": {
+          "verdict": "PASS",
+          "sampleCount": 21,
+          "hit": 20,
+          "recall": 0.952381,
+          "required": 0.9
+        },
+        "soft_attack": {
+          "verdict": "FAIL",
+          "sampleCount": 22,
+          "hit": 16,
+          "recall": 0.727273,
+          "required": 0.9
+        },
+        "loud_attack": {
+          "verdict": "PASS",
+          "sampleCount": 24,
+          "hit": 24,
+          "recall": 1.0,
+          "required": 0.9
+        },
+        "wrong_semitone": {
+          "verdict": "PASS",
+          "sampleCount": 16,
+          "falseAccepts": 0,
+          "maxAllowed": 0
+        },
+        "wrong_octave": {
+          "verdict": "PASS",
+          "sampleCount": 16,
+          "falseAccepts": 0,
+          "maxAllowed": 0
+        },
+        "missing_chord_tone": {
+          "verdict": "PASS",
+          "sampleCount": 16,
+          "falseAccepts": 0,
+          "maxAllowed": 0
+        },
+        "long_held_no_retrigger": {
+          "verdict": "FAIL",
+          "sampleCount": 16,
+          "falseOnsetEvents": 1,
+          "events": [
+            {
+              "episodeId": "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1:long_held_no_retrigger:E3:10519.792",
+              "pitch": "E3",
+              "eventTimeMs": 12416.0,
+              "stateId": 3,
+              "onsetProbabilityMass": 0.431628,
+              "previousRealSamePitchAttackMs": 10519.792,
+              "nextRealSamePitchAttackMs": 61994.792
+            }
+          ]
+        },
+        "pedal_sustain_no_retrigger": {
+          "verdict": "PASS",
+          "sampleCount": 16,
+          "falseOnsetEvents": 0,
+          "events": []
+        }
+      }
+    }
+  },
+  "final": {
+    "development": "FAIL",
+    "calibration": "NOT RUN",
+    "stepReplay": "NOT RUN",
+    "continuousReplay": "NOT RUN",
+    "browser": "NOT RUN",
+    "verdict": "Online-AMT Stateful Acoustic Frontend = FAIL",
+    "failureCategory": "PRODUCT_ACOUSTIC_GATE_FAILURE",
+    "reason": "Online-AMT Development has at least one valid hard failure.",
+    "productionMicrophone": "DISABLED"
+  }
+}
