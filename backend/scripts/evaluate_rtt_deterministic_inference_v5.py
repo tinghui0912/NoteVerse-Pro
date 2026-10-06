@@ -402,7 +402,15 @@ for _ in range(3):
     t.model.eval()
     result = t.transcribe(audio)
     outputs.append(result['output_dict'])
-    events.append([(int(e[0]), float(e[1]), float(e[2])) for e in result['est_note_events']])
+    events.append([
+        (
+            int(e['midi_note']),
+            round(float(e['onset_time']), 6),
+            round(float(e['offset_time']), 6),
+            int(e.get('velocity', 0)),
+        )
+        for e in result['est_note_events']
+    ])
 max_delta = 0.0
 keys = sorted(outputs[0].keys())
 for key in keys:
