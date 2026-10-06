@@ -1,0 +1,80 @@
+{
+  "artifact": "online_amt_stateful_policy",
+  "phase": "8",
+  "generatedAt": "2026-10-06T00:00:00+08:00",
+  "rttDisposition": {
+    "verdict": "RTT Shared Streaming Onset Frontend = FAIL",
+    "failureCategory": "PRODUCT_ACOUSTIC_GATE_FAILURE",
+    "wordingCorrection": "The old RTT phrase claiming targets at t>=10s had at least 10s real musical history was inaccurate. RTT produced a score-independent full-source timeline assembled from independent overlapping 3-second segments; recurrent hidden state did not persist across the full performance."
+  },
+  "candidate": {
+    "repo": "https://github.com/jdasam/online_amt",
+    "commit": "ad12550909a1d86f699097d11885f427054a5ac2",
+    "license": "MIT",
+    "checkpointRelativePath": "model-180000.pt",
+    "expectedCheckpointBytes": 178804960,
+    "expectedCheckpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0"
+  },
+  "runtime": {
+    "sampleRate": 16000,
+    "hopSamples": 512,
+    "hopMs": 32,
+    "stftWindowSamples": 2048,
+    "pianoKeys": 88,
+    "stateCount": 5,
+    "publishedOnsetBoost": 2.0,
+    "pseudoIntensityShortcut": "DISABLED_FOR_AUTHORITATIVE_QUALITY_ADAPTER",
+    "inputPcm": "16kHz mono float PCM in [-1, 1]",
+    "finalPartialChunk": "zero-pad to 512 samples; outputs after real audio are not authoritative"
+  },
+  "stateSemantics": {
+    "onsetStateIds": [3, 4],
+    "offsetStateIds": [1],
+    "activeRollStateIdsFromPublicReturnRoll": [2, 3],
+    "source": "online_amt transcribe.py OnlineTranscriber.inference: state 4 is remapped to 3 before onset emission; offsets are state 1; return_roll emits states 2 and 3."
+  },
+  "alignment": {
+    "sourceBasenames": [
+      "MIDI-Unprocessed_07_R1_2008_01-04_ORIG_MID--AUDIO_07_R1_2008_wav--3",
+      "MIDI-Unprocessed_02_R1_2009_03-06_ORIG_MID--AUDIO_02_R1_2009_02_R1_2009_04_WAV",
+      "MIDI-Unprocessed_15_R1_2011_MID--AUDIO_R1-D6_09_Track09_wav"
+    ],
+    "offsetCandidatesMs": [0, -32, -64, -96, -128],
+    "selectionRule": [
+      "maximize matched-event F1 at ±50ms",
+      "tie: minimize absolute median timing error",
+      "exact tie: choose smallest absolute offset"
+    ]
+  },
+  "developmentSources": {
+    "frozenBasenames": [
+      "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1",
+      "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2",
+      "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1",
+      "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1",
+      "MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_06_R1_2015_wav--6",
+      "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav",
+      "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5",
+      "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav"
+    ]
+  },
+  "streamGeometry": {
+    "targetWindowMs": 50
+  },
+  "diagnosticTolerancesMs": [10, 20, 30, 50, 100],
+  "gates": {
+    "correct_single": {"minRecall": 0.95},
+    "complete_chord": {"minRecall": 0.9},
+    "same_note_retrigger_second": {"minRecall": 0.9},
+    "dense_repeated_pitch": {"minRecall": 0.9},
+    "fast_adjacent_pitch": {"minRecall": 0.9},
+    "partial_overlapping_notes": {"minRecall": 0.9},
+    "soft_attack": {"minRecall": 0.9},
+    "loud_attack": {"minRecall": 0.9},
+    "wrong_semitone": {"maxFalseTargetAccepts": 0},
+    "wrong_octave": {"maxFalseTargetAccepts": 0},
+    "missing_chord_tone": {"maxFalseTargetAccepts": 0},
+    "long_held_no_retrigger": {"maxFalseRetriggerEvents": 0},
+    "pedal_sustain_no_retrigger": {"maxFalseRetriggerEvents": 0}
+  }
+}
