@@ -625,9 +625,11 @@ def compact_development_summary(development: dict[str, Any]) -> dict[str, Any]:
 
 def write_all(args: argparse.Namespace, decision: dict[str, Any], verdict: str, category: str, reason: str) -> int:
     final_verdict = f"RTT Shared Streaming Onset Frontend = {verdict}"
+    development_status = "FAIL" if category == "PRODUCT_ACOUSTIC_GATE_FAILURE" else "NOT RUN"
+    calibration_status = "NOT RUN" if development_status != "PASS" else "NOT RUN"
     decision["final"] = {
-        "development": "NOT RUN",
-        "calibration": "NOT RUN",
+        "development": development_status,
+        "calibration": calibration_status,
         "stepReplay": "NOT RUN",
         "continuousReplay": "NOT RUN",
         "browser": "NOT RUN",
