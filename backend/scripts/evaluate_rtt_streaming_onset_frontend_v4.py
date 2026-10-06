@@ -56,12 +56,21 @@ def main() -> int:
         decision["upstreamMetricReproduction"] = {"verdict": "INCONCLUSIVE", "reason": str(exc)}
         return write_decision(args, decision, "INCONCLUSIVE", "ENVIRONMENT_OR_RUNTIME_BLOCKER", str(exc))
 
+    try:
+        wrapper = run_noteverse_wrapper(args, policy, cohort)
+        wrapper_agreement = compare_rows_exact(policy, expected_rows=cli["rows"], computed_rows=wrapper["rows"])
+    except Exception as exc:
+        decision["upstreamMetricReproduction"] = {"verdict": "INCONCLUSIVE", "reason": f"CLI completed but wrapper cross-check failed: {exc}"}
+        return write_decision(args, decision, "INCONCLUSIVE", "WRAPPER_CROSS_CHECK_BLOCKER", str(exc))
+
     comparison = compare_results(policy, expected_rows=cohort["resultsRows"], computed_rows=cli["rows"])
     upstream_report = {
         "artifact": "rtt_upstream_reproduction_v4",
         "verdict": "PASS" if comparison["pass"] else "FAIL",
         "cohort": list(cohort["sources"].keys()),
         "officialCli": cli,
+        "noteVerseWrapper": wrapper,
+        "cliVsWrapperAgreement": wrapper_agreement,
         "comparison": comparison,
         "sourceVerification": summarize_sources(cohort),
         "environment": exact_environment(args),
@@ -212,6 +221,36 @@ def run_unmodified_upstream_cli(args: argparse.Namespace, cohort: dict[str, Any]
         }
 
 
+def run_noteverse_wrapper(args: argparse.Namespace, policy: dict[str, Any], cohort: dict[str, Any]) -> dict[str, Any]:
+    sys.path.insert(0, str((args.rtt_repo / "src").resolve()))
+    import librosa
+    from evaluate import compute_notewise_transcription_metrics, midi_to_array
+    from inference import PianoTranscription
+
+    transcriptor = PianoTranscription(
+        checkpoint_path=str(args.checkpoint),
+        onset_threshold=float(policy["runtime"]["officialOnsetThreshold"]),
+        offset_threshold=float(policy["runtime"]["officialOffsetThreshold"]),
+        frame_threshold=float(policy["runtime"]["officialFrameThreshold"]),
+        overlap=True,
+        postprocessor="rtt",
+        segment_samples=int(policy["runtime"]["officialSegmentSamples"]),
+    )
+    rows = {}
+    tolerances = [float(t) for t in policy["upstreamMetricReproduction"]["tolerancesSeconds"]]
+    for base, source in cohort["sources"].items():
+        audio, _ = librosa.load(str(source["audioPath"]), sr=16000, mono=True)
+        transcribed = transcriptor.transcribe(audio)
+        reference = midi_to_array(str(source["midiPath"]))
+        row = {"file": base}
+        for tolerance in tolerances:
+            metrics = compute_notewise_transcription_metrics(reference, transcribed["est_note_events"], onset_tolerance=tolerance)
+            for metric_name, value in metrics.items():
+                row[f"{metric_name}-{tolerance}"] = str(value)
+        rows[base] = row
+    return {"rows": rows, "runtime": "NoteVerse wrapper using upstream PianoTranscription and evaluate.py"}
+
+
 def write_mini_maestro(root: Path, cohort: dict[str, Any]) -> None:
     rows = []
     for source in cohort["sources"].values():
@@ -269,6 +308,24 @@ def compare_results(policy: dict[str, Any], *, expected_rows: dict[str, dict[str
         "perRow": per_row,
         "aggregate": aggregate,
     }
+
+
+def compare_rows_exact(policy: dict[str, Any], *, expected_rows: dict[str, dict[str, str]], computed_rows: dict[str, dict[str, str]]) -> dict[str, Any]:
+    tolerances = [float(x) for x in policy["upstreamMetricReproduction"]["tolerancesSeconds"]]
+    metrics = list(policy["upstreamMetricReproduction"]["compareMetrics"])
+    max_delta = 0.0
+    rows = []
+    for base, expected in expected_rows.items():
+        computed = computed_rows[base]
+        deltas = {}
+        for tolerance in tolerances:
+            for metric in metrics:
+                key = f"{metric}-{tolerance}"
+                delta = abs(float(expected[key]) - float(computed[key]))
+                deltas[key] = delta
+                max_delta = max(max_delta, delta)
+        rows.append({"file": base, "maxDelta": max(deltas.values()), "deltas": deltas})
+    return {"pass": max_delta <= 1e-9, "maxDelta": max_delta, "rows": rows}
 
 
 def summarize_sources(cohort: dict[str, Any]) -> list[dict[str, Any]]:

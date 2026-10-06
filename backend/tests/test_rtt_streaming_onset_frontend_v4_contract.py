@@ -63,6 +63,13 @@ def test_script_invokes_unmodified_upstream_cli_and_checks_fresh_results():
     assert "len(rows) != 8" in source
 
 
+def test_script_cross_checks_cli_against_wrapper():
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "run_noteverse_wrapper" in source
+    assert "cliVsWrapperAgreement" in source
+    assert "compare_rows_exact" in source
+
+
 def test_markdown_reports_production_disabled():
     m = load_module()
     md = m.markdown({
@@ -83,4 +90,3 @@ def row(value):
         for metric in ["note-on-p", "note-on-r", "note-on-f"]:
             data[f"{metric}-{tolerance}"] = str(value)
     return data
-
