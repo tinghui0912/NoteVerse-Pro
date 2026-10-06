@@ -35,9 +35,9 @@
   },
   "alignment": {
     "sourceBasenames": [
-      "MIDI-Unprocessed_07_R1_2008_01-04_ORIG_MID--AUDIO_07_R1_2008_wav--3",
       "MIDI-Unprocessed_02_R1_2009_03-06_ORIG_MID--AUDIO_02_R1_2009_02_R1_2009_04_WAV",
-      "MIDI-Unprocessed_15_R1_2011_MID--AUDIO_R1-D6_09_Track09_wav"
+      "MIDI-Unprocessed_11_R1_2009_06-09_ORIG_MID--AUDIO_11_R1_2009_11_R1_2009_07_WAV",
+      "MIDI-UNPROCESSED_01-03_R1_2014_MID--AUDIO_01_R1_2014_wav--1"
     ],
     "offsetCandidatesMs": [0, -32, -64, -96, -128],
     "selectionRule": [
