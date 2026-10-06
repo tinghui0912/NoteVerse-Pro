@@ -66,6 +66,8 @@ def test_script_invokes_unmodified_upstream_cli_and_checks_fresh_results():
 def test_script_cross_checks_cli_against_wrapper():
     source = SCRIPT.read_text(encoding="utf-8")
     assert "run_noteverse_wrapper" in source
+    assert "wrapper-work" in source
+    assert "NoteVerse wrapper invoking the unmodified upstream CLI" in source
     assert "cliVsWrapperAgreement" in source
     assert "compare_rows_exact" in source
 

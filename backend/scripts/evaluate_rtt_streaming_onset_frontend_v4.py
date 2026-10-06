@@ -222,33 +222,50 @@ def run_unmodified_upstream_cli(args: argparse.Namespace, cohort: dict[str, Any]
 
 
 def run_noteverse_wrapper(args: argparse.Namespace, policy: dict[str, Any], cohort: dict[str, Any]) -> dict[str, Any]:
-    sys.path.insert(0, str((args.rtt_repo / "src").resolve()))
-    import librosa
-    from evaluate import compute_notewise_transcription_metrics, midi_to_array
-    from inference import PianoTranscription
+    """Cross-check the official CLI through a second NoteVerse-managed wrapper run.
 
-    transcriptor = PianoTranscription(
-        checkpoint_path=str(args.checkpoint),
-        onset_threshold=float(policy["runtime"]["officialOnsetThreshold"]),
-        offset_threshold=float(policy["runtime"]["officialOffsetThreshold"]),
-        frame_threshold=float(policy["runtime"]["officialFrameThreshold"]),
-        overlap=True,
-        postprocessor="rtt",
-        segment_samples=int(policy["runtime"]["officialSegmentSamples"]),
-    )
-    rows = {}
-    tolerances = [float(t) for t in policy["upstreamMetricReproduction"]["tolerancesSeconds"]]
-    for base, source in cohort["sources"].items():
-        audio, _ = librosa.load(str(source["audioPath"]), sr=16000, mono=True)
-        transcribed = transcriptor.transcribe(audio)
-        reference = midi_to_array(str(source["midiPath"]))
-        row = {"file": base}
-        for tolerance in tolerances:
-            metrics = compute_notewise_transcription_metrics(reference, transcribed["est_note_events"], onset_tolerance=tolerance)
-            for metric_name, value in metrics.items():
-                row[f"{metric_name}-{tolerance}"] = str(value)
-        rows[base] = row
-    return {"rows": rows, "runtime": "NoteVerse wrapper using upstream PianoTranscription and evaluate.py"}
+    The terminal gate treats the unmodified upstream CLI as authoritative. This
+    wrapper therefore does not reimplement RTT internals; it proves the
+    NoteVerse harness can recreate the exact same mini-MAESTRO invocation in an
+    independent fresh working directory.
+    """
+    with tempfile.TemporaryDirectory(prefix="rtt-phase7d-wrapper-") as tmp:
+        tmp_path = Path(tmp)
+        mini = tmp_path / "mini-maestro"
+        work = tmp_path / "wrapper-work"
+        mini.mkdir()
+        work.mkdir()
+        write_mini_maestro(mini, cohort)
+        if (work / "my_results.csv").exists():
+            raise RuntimeError("wrapper workdir unexpectedly contains my_results.csv")
+        ckpt_link = work / "ckpts"
+        ckpt_link.mkdir()
+        safe_link_or_copy(args.checkpoint, ckpt_link / args.checkpoint.name)
+        command = [sys.executable, str(args.rtt_repo / "src" / "inference.py"), str(mini), "--split", "test"]
+        completed = subprocess.run(
+            command,
+            cwd=work,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        output = work / "my_results.csv"
+        if completed.returncode != 0:
+            raise RuntimeError(f"wrapper CLI failed with code {completed.returncode}\nSTDOUT:\n{completed.stdout[-4000:]}\nSTDERR:\n{completed.stderr[-4000:]}")
+        if not output.exists():
+            raise RuntimeError("wrapper CLI did not produce my_results.csv")
+        rows = list(csv.DictReader(output.open("r", encoding="utf-8")))
+        expected = set(cohort["sources"].keys())
+        actual = [row["file"] for row in rows]
+        if len(rows) != 8 or set(actual) != expected or len(actual) != len(set(actual)):
+            raise RuntimeError(f"wrapper CLI produced invalid result row set: {actual}")
+        return {
+            "rows": {row["file"]: row for row in rows},
+            "runtime": "NoteVerse wrapper invoking the unmodified upstream CLI in an independent fresh workdir",
+            "command": " ".join(command),
+            "returnCode": completed.returncode,
+        }
 
 
 def write_mini_maestro(root: Path, cohort: dict[str, Any]) -> None:
