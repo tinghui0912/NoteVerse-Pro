@@ -1,0 +1,65 @@
+{
+  "artifact": "online_amt_state_semantics",
+  "verdict": "PASS",
+  "reason": "stateful adapter parity/determinism/causality/state effect passed",
+  "summary": {
+    "modelEvalVerified": true,
+    "officialAdapterParity": true,
+    "prefixCausality": true,
+    "resetDeterminism": true,
+    "stateContinuityDivergence": {
+      "fixtureSeconds": 4.0,
+      "continuousHopCount": 125,
+      "hiddenHNorm": {
+        "sampleCount": 125,
+        "min": 3.559671,
+        "p05": 12.458255,
+        "p50": 17.49025,
+        "p95": 18.470865,
+        "max": 19.117868
+      },
+      "hiddenCNorm": {
+        "sampleCount": 125,
+        "min": 5.603377,
+        "p05": 49.170385,
+        "p50": 348.570282,
+        "p95": 472.881158,
+        "max": 479.93985
+      },
+      "nonZeroPrevOutputPitches": {
+        "sampleCount": 125,
+        "min": 0.0,
+        "p05": 0.0,
+        "p50": 4.0,
+        "p95": 10.0,
+        "max": 10.0
+      },
+      "prevOutputChanges": 22,
+      "maxRawProbabilityDelta": 0.988600135,
+      "p95RawProbabilityDelta": 0.300613,
+      "cellsWithDeltaGt1e6": 54560,
+      "argmaxDivergentHopPitchCells": 629,
+      "eventSequenceDifferingHops": 55,
+      "statefulEffectDemonstrated": true
+    },
+    "publishedOnsetBoostPreserved": true,
+    "pseudoIntensityShortcutUsed": false,
+    "onsetStateIds": [
+      3,
+      4
+    ],
+    "offsetStateIds": [
+      1
+    ]
+  },
+  "causality": {
+    "pass": true,
+    "prefixHopCount": 32,
+    "futureHopCount": 47
+  },
+  "resetDeterminism": {
+    "pass": true,
+    "stateAgreement": true,
+    "eventAgreement": true
+  }
+}
