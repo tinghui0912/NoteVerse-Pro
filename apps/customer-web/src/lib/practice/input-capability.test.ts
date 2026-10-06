@@ -57,10 +57,14 @@ describe('evaluatePracticeInputCapabilities', () => {
     });
   });
 
-  it('reports both AVAILABLE when all browser APIs, OPFS, and model access are present', () => {
+  it('reports browser microphone capture separately from acoustic analysis availability', () => {
     const caps = evaluatePracticeInputCapabilities();
+    expect(caps.microphoneCapture.supported).toBe(true);
+    expect(caps.microphoneCapture.status).toBe('AVAILABLE');
     expect(caps.microphone.supported).toBe(true);
     expect(caps.microphone.status).toBe('AVAILABLE');
+    expect(caps.acousticAnalysis.step.status).toBe('TRIGGER_NOT_VALIDATED');
+    expect(caps.acousticAnalysis.continuous.status).toBe('MODEL_NOT_VALIDATED');
     expect(caps.midi.supported).toBe(true);
     expect(caps.midi.status).toBe('AVAILABLE');
     expect(getSelectedInputCapability('MICROPHONE', caps).status).toBe('AVAILABLE');
@@ -90,28 +94,31 @@ describe('evaluatePracticeInputCapabilities', () => {
     expect(isInputSourceSupported('MIDI', caps, 'CONTINUOUS_PLAY')).toBe(true);
   });
 
-  it('reports MODEL_ACCESS_UNAVAILABLE when model access is unavailable, but MIDI remains AVAILABLE', () => {
+  it('does not make model access a browser microphone capture prerequisite', () => {
     const caps = evaluatePracticeInputCapabilities({ modelAccessAvailable: false });
-    expect(caps.microphone.supported).toBe(false);
-    expect(caps.microphone.status).toBe('MODEL_ACCESS_UNAVAILABLE');
-    expect(caps.microphone.reason).toBe('MODEL_ACCESS_UNAVAILABLE');
+    expect(caps.microphoneCapture.supported).toBe(true);
+    expect(caps.microphoneCapture.status).toBe('AVAILABLE');
+    expect(caps.microphone.supported).toBe(true);
+    expect(caps.microphone.status).toBe('AVAILABLE');
 
-    // Crucial: MIDI MUST NOT be affected by missing microphone model access!
+    // MIDI remains independent of microphone model access.
     expect(caps.midi.supported).toBe(true);
     expect(caps.midi.status).toBe('AVAILABLE');
     expect(isInputSourceSupported('MIDI', caps)).toBe(true);
-    expect(isInputSourceSupported('MICROPHONE', caps)).toBe(false);
+    expect(isInputSourceSupported('MICROPHONE', caps, 'STEP_BY_STEP')).toBe(false);
+    expect(isInputSourceSupported('MICROPHONE', caps, 'CONTINUOUS_PLAY')).toBe(false);
   });
 
-  it('reports MODEL_STORAGE_UNAVAILABLE when OPFS is missing, but MIDI remains AVAILABLE', () => {
+  it('does not make OPFS a browser microphone capture prerequisite', () => {
     Object.defineProperty(navigator, 'storage', {
       value: undefined,
       configurable: true,
     });
     const caps = evaluatePracticeInputCapabilities();
-    expect(caps.microphone.supported).toBe(false);
-    expect(caps.microphone.status).toBe('MODEL_STORAGE_UNAVAILABLE');
-    expect(caps.microphone.reason).toBe('MODEL_STORAGE_UNAVAILABLE');
+    expect(caps.microphoneCapture.supported).toBe(true);
+    expect(caps.microphoneCapture.status).toBe('AVAILABLE');
+    expect(caps.microphone.supported).toBe(true);
+    expect(caps.microphone.status).toBe('AVAILABLE');
 
     // MIDI is independent of OPFS
     expect(caps.midi.supported).toBe(true);
@@ -121,6 +128,8 @@ describe('evaluatePracticeInputCapabilities', () => {
   it('reports BROWSER_UNSUPPORTED when AudioWorklet is missing, but MIDI remains AVAILABLE', () => {
     delete (window as unknown as { AudioWorkletNode?: unknown }).AudioWorkletNode;
     const caps = evaluatePracticeInputCapabilities();
+    expect(caps.microphoneCapture.supported).toBe(false);
+    expect(caps.microphoneCapture.status).toBe('BROWSER_UNSUPPORTED');
     expect(caps.microphone.supported).toBe(false);
     expect(caps.microphone.status).toBe('BROWSER_UNSUPPORTED');
     expect(caps.microphone.reason).toBe('BROWSER_UNSUPPORTED');

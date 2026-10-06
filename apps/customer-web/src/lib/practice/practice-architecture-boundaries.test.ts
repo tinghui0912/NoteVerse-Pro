@@ -95,6 +95,95 @@ describe('practice architecture boundaries', () => {
 
     expect(completeMethod).not.toContain('advanceAnalysisThrough');
   });
+
+  it('documents Practice Product Contract v2 as the authoritative microphone boundary', () => {
+    const contractFile = path.resolve(__dirname, '../../../../../docs/architecture/practice-product-contract-v2.md');
+    const content = readFileSync(contractFile, 'utf8');
+
+    expect(content).toContain('STEP is correctness-driven. STEP has no performance clock.');
+    expect(content).toContain('CAPTURING one bounded attempt');
+    expect(content).toContain('Continuous is tempo-clock practice. It is not score-following.');
+    expect(content).toContain('input region:');
+    expect(content).toContain('commit region:');
+    expect(content).toContain('Production microphone Practice remains disabled');
+    expect(content).toContain('must not require a continuous generic physical-onset stream');
+  });
+
+  it('marks older Continuous and ByteDance architecture notes as superseded or historical', () => {
+    const continuousDoc = readFileSync(
+      path.resolve(__dirname, '../../../../../docs/architecture/continuous-performance-analysis.md'),
+      'utf8'
+    );
+    const bytedanceReadme = readFileSync(path.resolve(__dirname, 'acoustic-inference/README.md'), 'utf8');
+
+    expect(continuousDoc).toContain('Superseded Scope');
+    expect(continuousDoc).toContain('does not require STEP and Continuous to share one acoustic event stream');
+    expect(continuousDoc).toContain('old rolling scheduler as a fallback');
+    expect(bytedanceReadme).toContain('Historical Candidate');
+    expect(bytedanceReadme).toContain('not the authoritative Practice v2 acoustic architecture');
+    expect(bytedanceReadme).toMatch(/must not be restored\s+as a fallback product path/);
+    expect(bytedanceReadme).toContain('future bounded-attempt flow');
+  });
+
+  it('keeps PerformanceClockRuntime independent from acoustic model implementations', () => {
+    const runtimeFile = path.resolve(__dirname, 'local-core/performance-runtime.ts');
+    const content = readFileSync(runtimeFile, 'utf8');
+    const runtimeClass = content.match(/export class PerformanceClockRuntime[\s\S]*?\n}\n\nexport class ContinuousPracticeSession/)?.[0] ?? '';
+
+    for (const token of ['ByteDance', 'RTT', 'OnlineAMT', 'ONNX', 'WebGPU', 'inference', 'acoustic']) {
+      expect(runtimeClass).not.toContain(token);
+    }
+  });
+
+  it('keeps model-specific candidates out of product domain contracts', () => {
+    const productContractFiles = [
+      path.resolve(__dirname, 'local-core/step-runtime.ts'),
+      path.resolve(__dirname, 'local-core/step-evidence-session.ts'),
+      path.resolve(__dirname, 'local-core/performance-runtime.ts'),
+      path.resolve(__dirname, 'local-core/continuous-evaluation-session.ts'),
+      path.resolve(__dirname, 'audio-analysis/continuous/performance-reconciler.ts'),
+      path.resolve(__dirname, 'performance-recorder.ts'),
+      path.resolve(__dirname, 'completed-performance.ts'),
+      path.resolve(__dirname, 'input-capability.ts'),
+    ];
+    const violations = productContractFiles.flatMap((file) => {
+      const content = readFileSync(file, 'utf8');
+      return ['ByteDance', 'RTT', 'OnlineAMT', 'BasicPitch', 'ONNX']
+        .filter((token) => content.includes(token))
+        .map((token) => `${path.relative(process.cwd(), file)} contains ${token}`);
+    });
+
+    expect(violations).toEqual([]);
+  });
+
+  it('does not make WebGPU a browser microphone capture prerequisite', () => {
+    const capabilityFile = path.resolve(__dirname, 'input-capability.ts');
+    const content = readFileSync(capabilityFile, 'utf8');
+
+    expect(content).not.toContain('navigator.gpu');
+    expect(content).toContain('microphoneCapture');
+    expect(content).toContain('acousticAnalysis');
+  });
+
+  it('keeps historical research artifacts available without importing them as production policy', () => {
+    const reportsRoot = path.resolve(__dirname, '../../../../../backend/research/reports');
+    const reports = new Set(readdirSync(reportsRoot));
+
+    expect([...reports].some((name) => name.includes('bytedance'))).toBe(true);
+    expect([...reports].some((name) => name.includes('rtt'))).toBe(true);
+    expect([...reports].some((name) => name.includes('online_amt'))).toBe(true);
+
+    const productionImportsResearch = practiceRoots
+      .flatMap((root) => collectProductionSourceFiles(root))
+      .flatMap((file) => {
+        const content = readFileSync(file, 'utf8');
+        return ['backend/research', 'research/reports']
+          .filter((token) => content.includes(token))
+          .map((token) => `${path.relative(process.cwd(), file)} imports ${token}`);
+      });
+
+    expect(productionImportsResearch).toEqual([]);
+  });
 });
 
 function collectProductionSourceFiles(directory: string): string[] {

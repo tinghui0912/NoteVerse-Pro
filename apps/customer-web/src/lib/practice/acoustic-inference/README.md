@@ -1,9 +1,13 @@
-# ByteDance Browser Acoustic Inference Boundary
+# ByteDance Browser Acoustic Inference Boundary (Historical Candidate)
 
-This package is the shared browser-local inference boundary for future STEP and
-CONTINUOUS practice. It includes the first production-shaped live capture
-pipeline, but it still does not implement model caching, customer-facing
-microphone UI, or production model delivery.
+This package preserves historical ByteDance research candidate infrastructure.
+It is not the authoritative Practice v2 acoustic architecture. See
+`docs/architecture/practice-product-contract-v2.md` for the current product
+contract.
+
+The old rolling/fixed-anchor scheduling code and fixtures must not be restored
+as a fallback product path. Historical fixtures and research reports remain
+preserved so the repository continues to tell the truth about what was tested.
 
 ## Model identity
 
@@ -73,9 +77,9 @@ does not yet have 1000 ms of real lookback, but it never pads missing right-side
 future context. A window is not ready until the full `+220 ms` future prefix is
 captured.
 
-## Live capture pipeline
+## Historical live capture pipeline
 
-The live path is:
+The historical production-shaped live path was:
 
 ```text
 AudioWorklet capture
@@ -100,13 +104,13 @@ callback time or Worker latency. Restarting capture creates a new generation and
 resets the stream normalizer so late results and old per-pitch dedupe state
 cannot cross into the new domain.
 
-The rolling scheduler uses the frozen 150 ms grid (`2400` samples at 16 kHz).
+The rolling scheduler used the frozen 150 ms grid (`2400` samples at 16 kHz).
 Because current warm WebGPU inference is slower than the grid, the old rolling
-CONTINUOUS microphone path is not a product path. STEP still uses the bounded
-single-inference scheduler and never submits an anchor until the full `+220 ms`
-future context is present.
+CONTINUOUS microphone path is not a product path. Practice v2 also does not
+require STEP microphone to consume a continuous generic onset stream; future
+STEP microphone work is a bounded-attempt analyzer, not this scheduler.
 
-## Event stream normalization
+## Historical event stream normalization
 
 Per-window decoded events pass through `AcousticEventStreamNormalizer` before
 STEP consumption. It reuses the validated rolling verifier
@@ -120,16 +124,16 @@ identity rule:
 The decoder itself collapses adjacent above-threshold onset frames into one
 peak event before stream normalization.
 
-## Adapters
+## Historical adapters
 
-The STEP adapter converts generic acoustic events into a
+The previous STEP adapter converted generic acoustic events into a
 `StepVerifierObservation` only when all expected physical attack pitches form one
 fresh coherent post-activation gesture for the current target. STEP progression
-remains owned by `StepPracticeRuntime`.
+remained owned by `StepPracticeRuntime`.
 
 MICROPHONE + CONTINUOUS_PLAY remains unavailable until a separate Continuous
-transcription gate proves model contract, browser throughput, and reconciler
-correctness. Do not reconnect the old rolling adapter as a fallback.
+Practice v2 integration proves a mode-appropriate acoustic contract. Do not
+reconnect the old rolling adapter as a fallback.
 
 ## Reference fixtures
 
@@ -176,17 +180,27 @@ the product path anymore: 150 ms anchors, one active Worker inference, latest
 pending coalescing, and skipped-anchor coverage holes. Its final evidence is
 kept as a research artifact in
 `backend/research/reports/bytedance_rolling_anchor_feasibility_2026-10-03.json`.
-See `docs/architecture/continuous-performance-analysis.md` for the accepted
-shared target-verification boundary.
+See `docs/architecture/practice-product-contract-v2.md` for the authoritative
+Practice v2 product boundary and `docs/architecture/continuous-performance-analysis.md`
+for historical Continuous analysis notes.
 
 ## STEP microphone status
 
 ByteDance is rejected for the old generic Continuous transcription architecture;
-scheduled score-aware target verification has not yet been evaluated. Its
-fixed-anchor target-local classifier remains a possible shared verifier, but the
-previous production STEP microphone path used blind fixed-cadence polling and
-may silently lose relevant physical attacks under backpressure. STEP microphone
-therefore stays disabled until a high-recall attack trigger and ordered
-event-time verification queue are validated. MIDI STEP remains the supported
+scheduled score-aware target verification was historical research, not Practice
+v2 production approval. The previous production STEP microphone path used blind
+fixed-cadence polling and may silently lose relevant physical attacks under
+backpressure.
+
+Practice v2 STEP microphone is a future bounded-attempt flow:
+
+```text
+Target -> READY -> CAPTURING one bounded attempt -> ANALYZING
+-> MATCH / MISMATCH / RETRY_TOO_QUIET / RETRY_UNCERTAIN -> RESET -> READY
+```
+
+That future flow does not require a continuous generic physical-onset stream.
+STEP microphone therefore stays disabled until a later attempt-analyzer gate and
+integration phase validate it. MIDI STEP remains the supported
 correctness-driven learning path.
 

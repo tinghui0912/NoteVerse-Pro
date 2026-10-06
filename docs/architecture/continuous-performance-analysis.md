@@ -1,8 +1,16 @@
 # Continuous Performance Analysis
 
-Status: Accepted for the pre-release shared target-verification research gate.
+Status: Historical Continuous analysis notes. Superseded for product/domain authority by [Practice Product Contract v2](./practice-product-contract-v2.md).
 
 Date: 2026-10-03
+
+## Superseded Scope
+
+This document preserves historical research context and still describes useful Continuous evaluation mechanics such as score-clock ownership and one-to-one `ExpectedStrike` reconciliation. It is not the authoritative long-term Practice acoustic architecture.
+
+Practice Product Contract v2 supersedes any reading that Continuous requires generic realtime transcription, a shared realtime physical-onset identity layer, a shared acoustic controller with STEP, or sub-200 ms live feedback. The current product direction is chunked, score-aware, delayed Continuous verification over expected score targets. STEP microphone is a separate bounded-attempt product flow and does not require a continuous generic onset stream.
+
+Production microphone Practice remains disabled until later model gates and integration work explicitly enable it.
 
 ## Context
 
@@ -113,9 +121,9 @@ legal timing policy
 
 STEP still needs a validated high-recall attack trigger before microphone production can be enabled. Continuous still needs a scheduled target-verification gate before microphone production can be enabled. Neither mode may use score following, OLTW, location estimation, or the old rolling scheduler.
 
-## Intended Acoustic Pipeline
+## Historical Shared Target-Verifier Sketch
 
-The intended shared architecture is:
+The following sketch was a research direction after the old generic transcription gate failed:
 
 ```text
 Browser microphone PCM
@@ -126,7 +134,19 @@ STEP candidate attack time        Continuous expected score time
   -> StepEvidenceSession           -> ContinuousEvaluationSession
 ```
 
-The production tree must not contain a second rolling Continuous path after this rewrite. Production microphone entry points remain disabled until their respective gates pass.
+This sketch is now superseded as a product requirement. Practice v2 does not require STEP and Continuous to share one acoustic event stream, one neural model, one inference scheduler, or one high-level acoustic controller.
+
+The current Continuous v2 direction is:
+
+```text
+continuous microphone PCM
+  -> overlapping model-agnostic analysis chunks
+  -> one inference may evaluate multiple expected score groups
+  -> score-aware local verification / reconciliation
+  -> delayed live feedback for an already elapsed region
+```
+
+Each future Continuous chunk has an input region supplied to the model and a separate non-overlapping commit region whose `ExpectedStrike` verdicts it may finalize. Chunk ownership applies to expected-strike verdicts, not generic transcription coverage. The production tree must not restore the old rolling scheduler as a fallback. Production microphone entry points remain disabled until their respective gates pass.
 
 ## PCM Boundaries
 
@@ -233,4 +253,3 @@ analysis queue state
 diagnostics
 annotation state
 ```
-

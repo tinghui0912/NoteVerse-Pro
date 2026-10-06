@@ -28,9 +28,27 @@ export type PracticeMidiCapability =
   | { supported: false; status: 'BROWSER_UNSUPPORTED'; reason: 'BROWSER_UNSUPPORTED' }
   | { supported: false; status: 'NO_CONNECTED_INPUT'; reason: 'NO_CONNECTED_INPUT' };
 
+type MicrophoneCaptureCapability =
+  | { supported: true; status: 'AVAILABLE'; reason?: undefined }
+  | { supported: false; status: 'BROWSER_UNSUPPORTED'; reason: 'BROWSER_UNSUPPORTED' };
+
 export type PracticeInputCapabilities = {
+  /**
+   * Browser-level PCM capture capability only. It answers whether this browser can
+   * acquire microphone audio; it does not mean any Practice acoustic analyzer has
+   * been validated for STEP or Continuous.
+   */
+  microphoneCapture: MicrophoneCaptureCapability;
+  /**
+   * Backward-compatible alias for microphoneCapture until the UI learns to render
+   * capture and mode-specific analysis availability separately.
+   */
   microphone: PracticeMicrophoneCapability;
   midi: PracticeMidiCapability;
+  acousticAnalysis: {
+    step: StepAcousticAnalysisCapability;
+    continuous: ContinuousAcousticAnalysisCapability;
+  };
 };
 
 type ContinuousAcousticAnalysisCapability =
@@ -59,12 +77,20 @@ export function evaluatePracticeInputCapabilities(
 ): PracticeInputCapabilities {
   if (typeof window === 'undefined') {
     return {
+      microphoneCapture: { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' },
       microphone: { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' },
       midi: { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' },
+      acousticAnalysis: {
+        step: STEP_ACOUSTIC_ANALYSIS_CAPABILITY,
+        continuous: CONTINUOUS_ACOUSTIC_ANALYSIS_CAPABILITY,
+      },
     };
   }
 
-  // Evaluate Microphone
+  void options?.modelAccessAvailable;
+
+  // Evaluate browser microphone capture only. Model/runtime validation is mode-specific
+  // and intentionally lives in acousticAnalysis below.
   const audioWindow = window as WindowWithWebKitAudioContext;
   const hasAudioContext =
     typeof (audioWindow.AudioContext || audioWindow.webkitAudioContext) !==
@@ -73,22 +99,12 @@ export function evaluatePracticeInputCapabilities(
   const hasGetUserMedia =
     typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
   const isBrowserAudioSupported = hasAudioContext && hasAudioWorklet && hasGetUserMedia;
-  const hasWebGpu = typeof navigator !== 'undefined' && Boolean((navigator as Navigator & { gpu?: unknown }).gpu);
 
-  const hasOpfs = typeof navigator !== 'undefined' && Boolean(navigator.storage?.getDirectory);
-  const isModelAccessAvailable = options?.modelAccessAvailable !== false;
-
-  let microphone: PracticeMicrophoneCapability;
+  let microphoneCapture: MicrophoneCaptureCapability;
   if (!isBrowserAudioSupported) {
-    microphone = { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' };
-  } else if (!hasWebGpu) {
-    microphone = { supported: false, status: 'WEBGPU_UNAVAILABLE', reason: 'WEBGPU_UNAVAILABLE' };
-  } else if (!hasOpfs) {
-    microphone = { supported: false, status: 'MODEL_STORAGE_UNAVAILABLE', reason: 'MODEL_STORAGE_UNAVAILABLE' };
-  } else if (!isModelAccessAvailable) {
-    microphone = { supported: false, status: 'MODEL_ACCESS_UNAVAILABLE', reason: 'MODEL_ACCESS_UNAVAILABLE' };
+    microphoneCapture = { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' };
   } else {
-    microphone = { supported: true, status: 'AVAILABLE' };
+    microphoneCapture = { supported: true, status: 'AVAILABLE' };
   }
 
   // Evaluate MIDI (completely independent of AudioWorklet, OPFS, or microphone model)
@@ -105,7 +121,15 @@ export function evaluatePracticeInputCapabilities(
     midi = { supported: true, status: 'AVAILABLE' };
   }
 
-  return { microphone, midi };
+  return {
+    microphoneCapture,
+    microphone: microphoneCapture,
+    midi,
+    acousticAnalysis: {
+      step: STEP_ACOUSTIC_ANALYSIS_CAPABILITY,
+      continuous: CONTINUOUS_ACOUSTIC_ANALYSIS_CAPABILITY,
+    },
+  };
 }
 
 export function getSelectedInputCapability(
@@ -119,7 +143,7 @@ export function getSelectedInputCapability(
   if (
     mode === 'CONTINUOUS_PLAY'
     && capabilities.microphone.supported
-    && CONTINUOUS_ACOUSTIC_ANALYSIS_CAPABILITY.status !== 'AVAILABLE'
+    && capabilities.acousticAnalysis.continuous.status !== 'AVAILABLE'
   ) {
     return {
       supported: false,
@@ -130,7 +154,7 @@ export function getSelectedInputCapability(
   if (
     mode === 'STEP_BY_STEP'
     && capabilities.microphone.supported
-    && STEP_ACOUSTIC_ANALYSIS_CAPABILITY.status !== 'AVAILABLE'
+    && capabilities.acousticAnalysis.step.status !== 'AVAILABLE'
   ) {
     return {
       supported: false,
