@@ -22,6 +22,19 @@
       "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1"
     ]
   },
+  "developmentSources": {
+    "cohortRule": "Intersection of frozen NoteVerse Development source recordings and pinned RTT results.csv rows, sorted in results.csv order.",
+    "frozenBasenames": [
+      "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1",
+      "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2",
+      "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1",
+      "MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1",
+      "MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_06_R1_2015_wav--6",
+      "MIDI-Unprocessed_24_R1_2011_MID--AUDIO_R1-D9_11_Track11_wav",
+      "MIDI-Unprocessed_R1_D1-9-12_mid--AUDIO-from_mp3_11_R1_2015_wav--5",
+      "MIDI-Unprocessed_03_R2_2011_MID--AUDIO_R2-D1_06_Track06_wav"
+    ]
+  },
   "runtime": {
     "sampleRate": 16000,
     "segmentSamples": 48000,
@@ -32,6 +45,28 @@
     "officialFrameThreshold": 0.3,
     "thresholdSweep": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
     "frozenEvaluationUsed": false
+  },
+  "streamGeometry": {
+    "authoritative": "Full source recording inference with one shared score-independent raw stream per Development source.",
+    "startupColdSeconds": 10,
+    "steadyStateHistorySeconds": 10,
+    "targetWindowMs": 50
+  },
+  "diagnosticTolerancesMs": [10, 20, 30, 50],
+  "gates": {
+    "correct_single": {"minRecall": 0.95},
+    "complete_chord": {"minRecall": 0.9},
+    "same_note_retrigger_second": {"minRecall": 0.9},
+    "dense_repeated_pitch": {"minRecall": 0.9},
+    "fast_adjacent_pitch": {"minRecall": 0.9},
+    "partial_overlapping_notes": {"minRecall": 0.9},
+    "soft_attack": {"minRecall": 0.9},
+    "loud_attack": {"minRecall": 0.9},
+    "wrong_semitone": {"maxFalseTargetAccepts": 0},
+    "wrong_octave": {"maxFalseTargetAccepts": 0},
+    "missing_chord_tone": {"maxFalseTargetAccepts": 0},
+    "long_held_no_retrigger": {"maxFalseRetriggerEvents": 0},
+    "pedal_sustain_no_retrigger": {"maxFalseRetriggerEvents": 0}
   },
   "determinismGate": {
     "independentConstructions": 3,

@@ -90,7 +90,26 @@ def main() -> int:
         "overlap": policy["runtime"]["overlap"],
         "postprocessor": policy["runtime"]["postprocessor"],
     }
-    return write_all(args, decision, "INCONCLUSIVE", "DEVELOPMENT_GATE_NOT_IMPLEMENTED", "deterministic contract selected, but Phase 7E Development gate is not implemented in this harness")
+    try:
+        development, threshold = deterministic_development_gate(args, policy, selected_scale=scale["selection"]["selectedScale"])
+    except Exception as exc:
+        decision["developmentEvidence"] = {"verdict": "INCONCLUSIVE", "reason": str(exc)}
+        return write_all(args, decision, "INCONCLUSIVE", "DEVELOPMENT_GATE_BLOCKER", str(exc))
+    decision["developmentEvidence"] = {
+        "path": str(args.development_output),
+        "sha256": sha256(args.development_output),
+        "summary": compact_development_summary(development),
+    }
+    decision["thresholdFeasibility"] = {
+        "path": str(args.threshold_output),
+        "sha256": sha256(args.threshold_output),
+        "summary": threshold,
+    }
+    if threshold["development"] == "FAIL":
+        return write_all(args, decision, "FAIL", "PRODUCT_ACOUSTIC_GATE_FAILURE", threshold["reason"])
+    if threshold["development"] == "PASS":
+        return write_all(args, decision, "INCONCLUSIVE", "CALIBRATION_NOT_RUN", "Development passed; isolated Calibration is required next and was not run in this harness")
+    return write_all(args, decision, "INCONCLUSIVE", "DEVELOPMENT_INCONCLUSIVE", threshold["reason"])
 
 
 def parse_args() -> argparse.Namespace:
@@ -100,8 +119,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rtt-repo", type=Path, required=True)
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--maestro-root", type=Path, required=True)
+    parser.add_argument("--development-targets", type=Path, required=True)
     parser.add_argument("--training-output", type=Path, required=True)
     parser.add_argument("--scale-output", type=Path, required=True)
+    parser.add_argument("--development-output", type=Path, required=True)
+    parser.add_argument("--threshold-output", type=Path, required=True)
     parser.add_argument("--decision-json", type=Path, required=True)
     parser.add_argument("--decision-md", type=Path, required=True)
     parser.add_argument("--research-harness-git-head", required=True)
@@ -486,6 +508,99 @@ def select_scale(policy: dict[str, Any], results: dict[str, dict[str, Any]]) -> 
     if int16_mean_better and int16_var_better:
         return {"selectedScale": "INT16_EQUIVALENT", "reason": "INT16_EQUIVALENT is clearly closer on both BN mean and variance diagnostics"}
     return {"selectedScale": None, "reason": "BN diagnostics did not provide a clear >=2x winner on both mean-distance and variance-distance"}
+
+
+def deterministic_development_gate(args: argparse.Namespace, policy: dict[str, Any], *, selected_scale: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    # Reuse the Phase 7C product-gate scorer, but feed it a corrected
+    # deterministic RTT runtime and do not use pinned results.csv as a gate.
+    import importlib
+
+    scripts_dir = args.repo_root / "backend" / "scripts"
+    sys.path.insert(0, str(scripts_dir.resolve()))
+    sys.path.insert(0, str((args.rtt_repo / "src").resolve()))
+    v3 = importlib.import_module("evaluate_rtt_streaming_onset_frontend_v3")
+    v3._prepare_rtt_imports(args.rtt_repo)
+
+    import librosa
+    import pretty_midi
+    import torch
+    from inference import PianoTranscription
+
+    targets_report = load_json(args.development_targets)
+    targets = list(targets_report["targets"])
+    development_policy = development_policy_from_v5(policy)
+    sources = v3.build_source_index(args, development_policy, targets)
+    transcriptor = DeterministicEvalTranscriptor(
+        PianoTranscription=PianoTranscription,
+        checkpoint=args.checkpoint,
+        policy=policy,
+        torch=torch,
+        selected_scale=selected_scale,
+    )
+    streams = v3.build_source_streams(
+        args,
+        development_policy,
+        targets=targets,
+        sources=sources,
+        transcriptor=transcriptor,
+        librosa=librosa,
+        pretty_midi=pretty_midi,
+    )
+    development = v3.evaluate_development(development_policy, targets=targets, streams=streams)
+    development["artifact"] = "rtt_deterministic_development"
+    development["selectedScale"] = selected_scale
+    threshold = v3.summarize_threshold_feasibility(development, development_policy)
+    threshold["artifact"] = "rtt_deterministic_threshold_gate"
+    write_json(args.development_output, development)
+    write_json(args.threshold_output, threshold)
+    return development, threshold
+
+
+def development_policy_from_v5(policy: dict[str, Any]) -> dict[str, Any]:
+    copied = json.loads(json.dumps(policy))
+    copied["upstreamMetricReproduction"] = {
+        "frozenBasenames": copied["developmentSources"]["frozenBasenames"],
+        "tolerancesSeconds": [0.01, 0.02, 0.03],
+        "compareMetrics": ["note-on-p", "note-on-r", "note-on-f"],
+        "perFileF1Tolerance": 0.01,
+        "aggregateMeanF1Tolerance": 0.005,
+    }
+    copied["runtime"]["thresholdSweep"] = copied["runtime"]["thresholdSweep"]
+    copied["runtime"]["officialSegmentSamples"] = copied["runtime"]["segmentSamples"]
+    copied["runtime"]["officialOnsetThreshold"] = copied["runtime"]["officialOnsetThreshold"]
+    copied["runtime"]["officialOffsetThreshold"] = copied["runtime"]["officialOffsetThreshold"]
+    copied["runtime"]["officialFrameThreshold"] = copied["runtime"]["officialFrameThreshold"]
+    return copied
+
+
+class DeterministicEvalTranscriptor:
+    def __init__(self, *, PianoTranscription: Any, checkpoint: Path, policy: dict[str, Any], torch: Any, selected_scale: str):
+        self.selected_scale = selected_scale
+        self.multiplier = 32768.0 if selected_scale == "INT16_EQUIVALENT" else 1.0
+        self.inner = PianoTranscription(
+            checkpoint_path=str(checkpoint),
+            onset_threshold=float(policy["runtime"]["officialOnsetThreshold"]),
+            offset_threshold=float(policy["runtime"]["officialOffsetThreshold"]),
+            frame_threshold=float(policy["runtime"]["officialFrameThreshold"]),
+            overlap=True,
+            postprocessor=policy["runtime"]["postprocessor"],
+            segment_samples=int(policy["runtime"]["segmentSamples"]),
+            device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        )
+        self.inner.model.eval()
+
+    def transcribe(self, audio: Any) -> dict[str, Any]:
+        return self.inner.transcribe(audio * self.multiplier)
+
+
+def compact_development_summary(development: dict[str, Any]) -> dict[str, Any]:
+    thresholds = development["summary"]["thresholds"]
+    return {
+        "sourceCount": development["sourceCount"],
+        "targetCount": development["targetCount"],
+        "familyCounts": development["familyCounts"],
+        "thresholdVerdicts": {threshold: result["verdict"] for threshold, result in thresholds.items()},
+    }
 
 
 def write_all(args: argparse.Namespace, decision: dict[str, Any], verdict: str, category: str, reason: str) -> int:
