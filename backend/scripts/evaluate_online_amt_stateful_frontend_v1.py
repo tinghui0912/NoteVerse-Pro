@@ -516,7 +516,7 @@ def timing_alignment(args: argparse.Namespace, policy: dict[str, Any], *, adapte
             bucket["matched"] += metrics["matched"]
             bucket["predicted"] += metrics["predicted"]
             bucket["groundTruth"] += metrics["groundTruth"]
-            bucket["errors"].extend(metrics["errors"])
+            bucket["errors"].extend(metrics["timing"]["errorsMs"])
     candidates = []
     for offset, data in results.items():
         precision = data["matched"] / data["predicted"] if data["predicted"] else 0
@@ -560,7 +560,7 @@ def evaluate_development(args: argparse.Namespace, policy: dict[str, Any], *, ad
             aggregate["matched"] += metrics["matched"]
             aggregate["predicted"] += metrics["predicted"]
             aggregate["groundTruth"] += metrics["groundTruth"]
-            aggregate["errors"].extend(metrics["errors"])
+            aggregate["errors"].extend(metrics["timing"]["errorsMs"])
         source_metrics[str(tolerance)] = finalize_metric(aggregate)
     raw_diag = raw_probability_diagnostics(policy, targets, raw_frames_by_source, no_retrigger)
     pressure = event_pressure(events_by_source, notes_by_source)
@@ -735,6 +735,7 @@ def finalize_metric(data: dict[str, Any]) -> dict[str, Any]:
         "predicted": data["predicted"],
         "groundTruth": data["groundTruth"],
         "timing": {
+            "errorsMs": [round(float(x), 6) for x in data["errors"]],
             "sampleCount": len(data["errors"]),
             "signedP05Ms": percentile(data["errors"], 5),
             "signedP50Ms": percentile(data["errors"], 50),

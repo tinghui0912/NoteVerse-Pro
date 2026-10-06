@@ -67,6 +67,8 @@ def test_source_event_matching_is_one_to_one():
     metrics = m.source_event_metrics(events, notes, [10])["10"]
     assert metrics["matched"] == 1
     assert metrics["predicted"] == 2
+    assert metrics["timing"]["errorsMs"] == [-2.0]
+    assert metrics["timing"]["sampleCount"] == 1
 
 
 def test_markdown_reports_production_disabled():
