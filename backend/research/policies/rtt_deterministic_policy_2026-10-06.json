@@ -1,0 +1,49 @@
+{
+  "artifact": "rtt_deterministic_policy",
+  "phase": "7E",
+  "generatedAt": "2026-10-06T00:00:00+08:00",
+  "candidate": {
+    "repo": "https://github.com/huispaty/rtt",
+    "commit": "b3197cfa538cc6f7698042b87ecee709223fc58e",
+    "checkpointRelativePath": "ckpts/CustomAMT.ckpt",
+    "expectedCheckpointBytes": 67843364,
+    "expectedCheckpointSha256": "901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1"
+  },
+  "phase7DCorrection": {
+    "incorrectRecordedHarnessSha": "22d3054b87d6ef7db1a24f52e479a908904fbeea",
+    "actualHarnessSha": "22d3054b3e126fc22ebab5b9d498e815349e82d1",
+    "reinterpretation": "PUBLISHED_UPSTREAM_INFERENCE_RUNTIME = NON_DETERMINISTIC / DEFECTIVE INFERENCE CONTRACT; RTT MODEL QUALITY = INCONCLUSIVE"
+  },
+  "diagnosticCohort": {
+    "rule": "first 3 of the existing frozen 8 Phase 7D reproduction files",
+    "basenames": [
+      "MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1",
+      "MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2",
+      "MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1"
+    ]
+  },
+  "runtime": {
+    "sampleRate": 16000,
+    "segmentSamples": 48000,
+    "overlap": "50%",
+    "postprocessor": "rtt",
+    "officialOnsetThreshold": 0.5,
+    "officialOffsetThreshold": 0.3,
+    "officialFrameThreshold": 0.3,
+    "thresholdSweep": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
+    "frozenEvaluationUsed": false
+  },
+  "determinismGate": {
+    "independentConstructions": 3,
+    "maxRawTensorDeltaEpsilon": 0.000001,
+    "eventDecisionAgreementRequired": 1.0
+  },
+  "scaleAudit": {
+    "contracts": ["OFFICIAL_FLOAT", "INT16_EQUIVALENT"],
+    "sampleSecondsPerSource": 12.0,
+    "clearImprovementFactor": 2.0,
+    "meanDistanceFormula": "mean(abs(observed_channel_mean - bn0.running_mean) / sqrt(bn0.running_var + 1e-6))",
+    "varianceDistanceFormula": "mean(abs(log((observed_channel_variance + 1e-6) / (bn0.running_var + 1e-6))))",
+    "selectionRule": "Select a scale only if it is at least clearImprovementFactor better on both mean-distance and variance-distance. If diagnostics disagree or neither is clearly superior, stop as INCONCLUSIVE_INPUT_SCALE without using NoteVerse product metrics."
+  }
+}
