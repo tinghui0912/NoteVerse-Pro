@@ -1,0 +1,11 @@
+{
+  "artifact": "online_amt_candidate_identity_v3",
+  "verdict": "PASS",
+  "reason": "candidate repository and real Git-LFS checkpoint identity verified",
+  "summary": {
+    "repoCommit": "ad12550909a1d86f699097d11885f427054a5ac2",
+    "license": "MIT",
+    "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+    "checkpointBytes": 178804960
+  }
+}

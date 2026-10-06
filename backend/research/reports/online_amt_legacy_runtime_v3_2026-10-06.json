@@ -1,0 +1,34 @@
+{
+  "artifact": "online_amt_legacy_runtime_attempt_v3",
+  "verdict": "BLOCKED",
+  "reason": "legacy runtime was not executable in the available isolated Linux container",
+  "required": {
+    "requiredPython": "3.7",
+    "requiredPackages": {
+      "torch": "1.6.0",
+      "numpy": "1.16.2",
+      "librosa": "0.7.2",
+      "scipy": "1.4.1",
+      "numba": "0.48"
+    },
+    "requiredDevice": "CPU",
+    "terminalFailureRule": "If the isolated legacy runtime cannot be constructed after documented attempts, final model quality remains INCONCLUSIVE and production candidacy is REJECTED with LEGACY_RUNTIME_NOT_REPRODUCIBLE."
+  },
+  "attemptLogPath": "/tmp/noteverse-phase8c/legacy-attempt/attempt.log",
+  "attemptLogSha256": "52e63b8ef87b88c573703d628762cc3ea70c6ce61a6f47373b0a999337254eaa",
+  "attempts": [
+    {
+      "method": "apt/python3.7",
+      "verdict": "BLOCKED",
+      "evidence": "Debian 13 apt reported no python3.7 candidate; python3.7 command was absent."
+    },
+    {
+      "method": "uv python install 3.7",
+      "verdict": "BLOCKED",
+      "evidence": "uv bootstrap/download did not complete in the available container session before interruption."
+    }
+  ],
+  "executedLegacyModel": false,
+  "loadedCheckpointInLegacyRuntime": false,
+  "processedPcmInLegacyRuntime": false
+}

@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "generatedAt": "2026-10-06T00:00:00+08:00",
+    "researchHarnessGitHead": "d831835bc6cf88b9dc73fb85df2cd72b9bd4bda0",
+    "actualGitHead": "d831835bc6cf88b9dc73fb85df2cd72b9bd4bda0",
+    "harnessSha256": "cee45a9e4d743697741221919ee58bb4e9161e555ada05109460463f091a331d",
+    "policy": {
+      "path": "backend/research/policies/online_amt_stateful_policy_v3_2026-10-06.json",
+      "sha256": "ead408c95bc1aa49ea43a43fafe7480566baf06d17eab11cefc4fba94fbcb992"
+    },
+    "exactCommand": "backend/scripts/evaluate_online_amt_stateful_frontend_v3.py --repo-root /tmp/noteverse-phase8c-harness --policy backend/research/policies/online_amt_stateful_policy_v3_2026-10-06.json --online-amt-repo /tmp/noteverse-phase8/online_amt --checkpoint /tmp/noteverse-phase8/online_amt/model-180000.pt --legacy-attempt-log /tmp/noteverse-phase8c/legacy-attempt/attempt.log --identity-output backend/research/reports/online_amt_candidate_identity_v3_2026-10-06.json --legacy-output backend/research/reports/online_amt_legacy_runtime_v3_2026-10-06.json --decision-json backend/research/reports/online_amt_decision_v3_2026-10-06.json --decision-md backend/research/reports/online_amt_decision_v3_2026-10-06.md --research-harness-git-head d831835bc6cf88b9dc73fb85df2cd72b9bd4bda0 --require-clean-tree",
+    "dirtyTree": false,
+    "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+    "python": "3.11.16"
+  },
+  "phase8BDisposition": {
+    "verdict": "Online-AMT Stateful Acoustic Frontend = INCONCLUSIVE",
+    "failureCategory": "INCONCLUSIVE_LEGACY_RUNTIME_PARITY",
+    "reason": "Phase 8B only compared package-version strings and did not execute an actual Python 3.7 / Torch 1.6 runtime."
+  },
+  "candidateIdentity": {
+    "artifact": "online_amt_candidate_identity_v3",
+    "verdict": "PASS",
+    "reason": "candidate repository and real Git-LFS checkpoint identity verified",
+    "summary": {
+      "repoCommit": "ad12550909a1d86f699097d11885f427054a5ac2",
+      "license": "MIT",
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "checkpointBytes": 178804960
+    }
+  },
+  "legacyRuntime": {
+    "artifact": "online_amt_legacy_runtime_attempt_v3",
+    "verdict": "BLOCKED",
+    "reason": "legacy runtime was not executable in the available isolated Linux container",
+    "required": {
+      "requiredPython": "3.7",
+      "requiredPackages": {
+        "torch": "1.6.0",
+        "numpy": "1.16.2",
+        "librosa": "0.7.2",
+        "scipy": "1.4.1",
+        "numba": "0.48"
+      },
+      "requiredDevice": "CPU",
+      "terminalFailureRule": "If the isolated legacy runtime cannot be constructed after documented attempts, final model quality remains INCONCLUSIVE and production candidacy is REJECTED with LEGACY_RUNTIME_NOT_REPRODUCIBLE."
+    },
+    "attemptLogPath": "/tmp/noteverse-phase8c/legacy-attempt/attempt.log",
+    "attemptLogSha256": "52e63b8ef87b88c573703d628762cc3ea70c6ce61a6f47373b0a999337254eaa",
+    "attempts": [
+      {
+        "method": "apt/python3.7",
+        "verdict": "BLOCKED",
+        "evidence": "Debian 13 apt reported no python3.7 candidate; python3.7 command was absent."
+      },
+      {
+        "method": "uv python install 3.7",
+        "verdict": "BLOCKED",
+        "evidence": "uv bootstrap/download did not complete in the available container session before interruption."
+      }
+    ],
+    "executedLegacyModel": false,
+    "loadedCheckpointInLegacyRuntime": false,
+    "processedPcmInLegacyRuntime": false
+  },
+  "productionState": {
+    "stepMic": "STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED",
+    "continuousMic": "CONTINUOUS_ANALYSIS_UNAVAILABLE"
+  },
+  "final": {
+    "verdict": "Online-AMT Stateful Acoustic Frontend = INCONCLUSIVE",
+    "failureCategory": "LEGACY_RUNTIME_NOT_REPRODUCIBLE",
+    "reason": "Exact Python 3.7 / Torch 1.6 legacy CPU runtime could not be constructed and executed from documented local attempts.",
+    "productionCandidacy": "REJECTED",
+    "development": "NOT RUN",
+    "calibration": "NOT RUN",
+    "productionMicrophone": "DISABLED"
+  }
+}
