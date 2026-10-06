@@ -1,14 +1,14 @@
 {
   "metadata": {
     "generatedAt": "2026-10-06T00:00:00+08:00",
-    "researchHarnessGitHead": "06f537d6b5743a5239d6e607ac1b29b04574ac25",
-    "actualGitHead": "06f537d6b5743a5239d6e607ac1b29b04574ac25",
-    "harnessSha256": "82d6538eb85be20760fdbfaaa8d4c2ef810d7f6315fc46a91fae8b0ca2710dae",
+    "researchHarnessGitHead": "701e40a3e6d2a0b258d6fba1128983af3302f95d",
+    "actualGitHead": "701e40a3e6d2a0b258d6fba1128983af3302f95d",
+    "harnessSha256": "eb60af834ff317aa23c960c129301058739c2fe9ff07c76ae1421789402c4587",
     "policy": {
       "path": "backend/research/policies/rtt_deterministic_policy_2026-10-06.json",
       "sha256": "7a8f7f299f4c4a72d06dea2f1bb969bf9ab8d4a6310774dbad051350fbeac390"
     },
-    "exactCommand": "backend/scripts/evaluate_rtt_deterministic_inference_v5.py --repo-root /tmp/noteverse-phase7e-harness --policy backend/research/policies/rtt_deterministic_policy_2026-10-06.json --rtt-repo /tmp/noteverse-phase7/rtt --checkpoint /tmp/noteverse-phase7/rtt/ckpts/CustomAMT.ckpt --maestro-root /app/backend/data/work/datasets/maestro-v3.0.0 --development-targets backend/research/reports/bytedance_target_verifier_dev_targets_v3_2026-10-05.json --training-output backend/research/reports/rtt_upstream_training_mode_audit_2026-10-06.json --scale-output backend/research/reports/rtt_input_scale_audit_2026-10-06.json --development-output backend/research/reports/rtt_deterministic_development_2026-10-06.json --threshold-output backend/research/reports/rtt_deterministic_threshold_gate_2026-10-06.json --decision-json backend/research/reports/rtt_deterministic_decision_2026-10-06.json --decision-md backend/research/reports/rtt_deterministic_decision_2026-10-06.md --research-harness-git-head 06f537d6b5743a5239d6e607ac1b29b04574ac25 --require-clean-tree",
+    "exactCommand": "backend/scripts/evaluate_rtt_deterministic_inference_v5.py --repo-root /tmp/noteverse-phase7e-harness --policy backend/research/policies/rtt_deterministic_policy_2026-10-06.json --rtt-repo /tmp/noteverse-phase7/rtt --checkpoint /tmp/noteverse-phase7/rtt/ckpts/CustomAMT.ckpt --maestro-root /app/backend/data/work/datasets/maestro-v3.0.0 --development-targets backend/research/reports/bytedance_target_verifier_dev_targets_v3_2026-10-05.json --training-output backend/research/reports/rtt_upstream_training_mode_audit_2026-10-06.json --scale-output backend/research/reports/rtt_input_scale_audit_2026-10-06.json --development-output backend/research/reports/rtt_deterministic_development_2026-10-06.json --threshold-output backend/research/reports/rtt_deterministic_threshold_gate_2026-10-06.json --decision-json backend/research/reports/rtt_deterministic_decision_2026-10-06.json --decision-md backend/research/reports/rtt_deterministic_decision_2026-10-06.md --research-harness-git-head 701e40a3e6d2a0b258d6fba1128983af3302f95d --require-clean-tree",
     "dirtyTree": false,
     "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
     "python": "3.11.16",
@@ -80,7 +80,7 @@
   },
   "publishedRuntimeDefectAudit": {
     "path": "backend/research/reports/rtt_upstream_training_mode_audit_2026-10-06.json",
-    "sha256": "a41cca2648b782c02ac4f54d650e278f92695ceccce74757da35bc0a795eccfb",
+    "sha256": "0b61b02258c8333eb63b83cdf3a48aed288cdbaf51dd07d06f1729933bfa3ea1",
     "summary": {
       "artifact": "rtt_upstream_training_mode_audit",
       "trainingState": {
@@ -100,20 +100,20 @@
           {
             "leftRun": 0,
             "rightRun": 1,
-            "maxDelta": 0.025865127485503958,
-            "meanDelta": 0.014418052554068042
+            "maxDelta": 0.038548752834467126,
+            "meanDelta": 0.015164599461087001
           },
           {
             "leftRun": 0,
             "rightRun": 2,
-            "maxDelta": 0.02242931462439146,
-            "meanDelta": 0.007701357756114333
+            "maxDelta": 0.02947845804988658,
+            "meanDelta": 0.00983243048557713
           },
           {
             "leftRun": 1,
             "rightRun": 2,
-            "maxDelta": 0.027906976744186074,
-            "meanDelta": 0.012753049573681416
+            "maxDelta": 0.030719265335834467,
+            "meanDelta": 0.010460958092063495
           }
         ],
         "diagnostic": "non-zero deltas indicate published runtime nondeterminism"
@@ -226,7 +226,7 @@
     }
   },
   "final": {
-    "development": "NOT RUN",
+    "development": "FAIL",
     "calibration": "NOT RUN",
     "stepReplay": "NOT RUN",
     "continuousReplay": "NOT RUN",

@@ -17,20 +17,20 @@
       {
         "leftRun": 0,
         "rightRun": 1,
-        "maxDelta": 0.025865127485503958,
-        "meanDelta": 0.014418052554068042
+        "maxDelta": 0.038548752834467126,
+        "meanDelta": 0.015164599461087001
       },
       {
         "leftRun": 0,
         "rightRun": 2,
-        "maxDelta": 0.02242931462439146,
-        "meanDelta": 0.007701357756114333
+        "maxDelta": 0.02947845804988658,
+        "meanDelta": 0.00983243048557713
       },
       {
         "leftRun": 1,
         "rightRun": 2,
-        "maxDelta": 0.027906976744186074,
-        "meanDelta": 0.012753049573681416
+        "maxDelta": 0.030719265335834467,
+        "meanDelta": 0.010460958092063495
       }
     ],
     "diagnostic": "non-zero deltas indicate published runtime nondeterminism"
