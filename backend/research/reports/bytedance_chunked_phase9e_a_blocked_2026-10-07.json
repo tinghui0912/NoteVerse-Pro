@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "phase9e_a_bytedance_blocked_not_run",
   "generatedAt": "2026-10-07T00:00:00+08:00",
-  "researchHarnessGitHead": "41780f1380b1ebbb7ecb19021b6cebbc0b9d5bfa",
+  "researchHarnessGitHead": "c05cb253e473bc9cb4ddaab09a4831d7ce9ea254",
   "candidateId": "bytedance-score-aware-chunked-dev-v1",
   "status": "BLOCKED_NOT_RUN",
   "modelAssetStatus": {
@@ -20,9 +20,9 @@
       "reason": "Contains zero coherent Practice v2 real DEVELOPMENT scenarios after causal-case eligibility audit. Historical target-verifier rows were intentionally not converted into fake product truth."
     }
   ],
-  "commandThatWouldRunAfterScenarioManifestExists": "node backend/research/browser_runtime/run_bytedance_phase9e_a.mjs --repo-root . --git-head 41780f1380b1ebbb7ecb19021b6cebbc0b9d5bfa --output-dir backend/research/reports",
-  "eligibilityAudit": "backend/research/reports/bytedance_chunked_phase9e_a1_runner_audit_2026-10-07.json",
+  "commandThatWouldRunAfterScenarioManifestExists": "node backend/research/browser_runtime/run_bytedance_phase9e_a.mjs --repo-root . --git-head c05cb253e473bc9cb4ddaab09a4831d7ce9ea254 --backend wasm --output-dir backend/research/reports",
+  "eligibilityAudit": "backend/research/reports/bytedance_chunked_phase9e_a2_runner_audit_2026-10-07.json",
   "discoveredScenarioCount": 128,
   "measuredCandidateRuns": 0,
-  "reason": "The claimed ONNX model identity was available and verified, but all 128 causal cases were excluded because the old STEP/target-case manifest does not prove complete Practice v2 Continuous score intervals. No measured ByteDance result was produced."
+  "reason": "The claimed ONNX model identity was available, verified, and executed in a real ORT Web smoke run, but all 128 causal cases were excluded because they lack a finite Practice v2 Continuous completion boundary. No measured ByteDance product result was produced."
 }

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "policyId": "phase9e-a-bytedance-score-aware-chunked-development",
-  "phase": "9E-A",
+  "phase": "9E-A.2",
   "createdAt": "2026-10-07T00:00:00+08:00",
-  "researchHarnessGitHead": "41780f1380b1ebbb7ecb19021b6cebbc0b9d5bfa",
+  "researchHarnessGitHead": "c05cb253e473bc9cb4ddaab09a4831d7ce9ea254",
   "candidate": {
     "candidateId": "bytedance-score-aware-chunked-dev-v1",
     "strategyKind": "CHUNKED",
@@ -44,5 +44,10 @@
     "candidateCoverageSynthesized": false,
     "comparativeOutcomeExpected": "INSUFFICIENT_EVALUATION_SET",
     "absoluteProductionGate": "NOT_EVALUATED"
+  },
+  "runtimeSmoke": {
+    "artifact": "backend/research/reports/bytedance_chunked_phase9e_a2_runner_audit_2026-10-07.json",
+    "purpose": "RUNTIME_EXECUTION_SMOKE_ONLY",
+    "productAccuracyMetric": false
   }
 }

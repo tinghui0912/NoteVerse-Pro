@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "phase9e_a_development_benchmark_manifest",
   "generatedAt": "2026-10-07T00:00:00+08:00",
-  "researchHarnessGitHead": "41780f1380b1ebbb7ecb19021b6cebbc0b9d5bfa",
+  "researchHarnessGitHead": "c05cb253e473bc9cb4ddaab09a4831d7ce9ea254",
   "split": "DEVELOPMENT",
   "audioMapping": {
     "performanceOriginSourceMs": "source-audio instant corresponding to Continuous performanceTimeMs = 0",
@@ -11,7 +11,7 @@
     "preRollAndPostRollAreContextOnly": true
   },
   "scenarioCount": 0,
-  "eligibilityAudit": "backend/research/reports/bytedance_chunked_phase9e_a1_runner_audit_2026-10-07.json",
+  "eligibilityAudit": "backend/research/reports/bytedance_chunked_phase9e_a2_runner_audit_2026-10-07.json",
   "scenarios": [],
   "sourceDiscovery": {
     "historicalByteDanceTargetManifest": {
@@ -31,6 +31,6 @@
     "excludedHistoricalTargetRows": 421,
     "auditedCausalCases": 128,
     "eligibleCausalCases": 0,
-    "exclusionReason": "Phase 9E-A did not invent missing Continuous v2 score intervals or convert old target-verifier rows into product truth. A later manifest-building step must construct coherent ExpectedStrike + physical truth intervals before measured real-model accuracy can be reported."
+    "exclusionReason": "Phase 9E-A.2 did not invent missing Continuous v2 completion boundaries or convert old target-verifier rows into product truth. A later manifest-building step must construct coherent ExpectedStrike + physical truth intervals before measured real-model accuracy can be reported."
   }
 }

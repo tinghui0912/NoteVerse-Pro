@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "phase9e_a_bytedance_development_report",
   "generatedAt": "2026-10-07T00:00:00+08:00",
-  "researchHarnessGitHead": "41780f1380b1ebbb7ecb19021b6cebbc0b9d5bfa",
+  "researchHarnessGitHead": "c05cb253e473bc9cb4ddaab09a4831d7ce9ea254",
   "policy": {
     "path": "backend/research/policies/bytedance_chunked_phase9e_a_policy_2026-10-07.json",
     "policyId": "phase9e-a-bytedance-score-aware-chunked-development"
@@ -10,7 +10,7 @@
   "benchmarkManifest": {
     "path": "backend/research/reports/bytedance_chunked_phase9e_a_dev_manifest_2026-10-07.json",
     "scenarioCount": 0,
-    "eligibilityAudit": "backend/research/reports/bytedance_chunked_phase9e_a1_runner_audit_2026-10-07.json",
+    "eligibilityAudit": "backend/research/reports/bytedance_chunked_phase9e_a2_runner_audit_2026-10-07.json",
     "split": "DEVELOPMENT"
   },
   "candidateDefinition": {
@@ -27,7 +27,7 @@
     "audited": 128,
     "eligible": 0,
     "excluded": 128,
-    "topReason": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL"
+    "topReason": "EXCLUDED_NO_COMPLETION"
   },
   "developmentMetrics": {
     "candidateCoverage": {
@@ -45,7 +45,7 @@
     "extraPrecision": { "status": "NOT_EVALUATED", "sampleCount": 0, "reason": "no coherent real DEVELOPMENT scenarios were available" },
     "extraRecall": { "status": "NOT_EVALUATED", "sampleCount": 0, "reason": "no coherent real DEVELOPMENT scenarios were available" },
     "finalizedFeedbackAge": { "status": "NOT_EVALUATED", "sampleCount": 0, "reason": "no candidate publications were generated" },
-    "inferenceLatency": { "status": "NOT_EVALUATED", "sampleCount": 0, "reason": "model was not executed" }
+    "inferenceLatency": { "status": "NOT_EVALUATED", "sampleCount": 0, "reason": "no coherent real DEVELOPMENT scenarios were available; runtime smoke latency is reported in the runner audit" }
   },
   "familyMetrics": {},
   "comparativeOutcome": "INSUFFICIENT_EVALUATION_SET",
@@ -57,7 +57,7 @@
   "candidateSelectionMade": false,
   "notes": [
     "The ByteDance ONNX asset identity was verified locally.",
-    "The Phase 9E-A.1 adapter/planner/scorer path is executable through a mock model executor and covered by deterministic tests.",
-    "No real DEVELOPMENT metric was measured because the causal-case audit found zero cases that prove complete Practice v2 Continuous score intervals without inventing truth semantics."
+    "The Phase 9E-A.2 runner created a real ORT Web browser session, executed the claimed ByteDance ONNX model on a 29120-sample smoke input, and verified reg_onset_output/frame_output shapes.",
+    "No real DEVELOPMENT metric was measured because the causal-case audit found zero cases with a finite Continuous completion boundary and complete Practice v2 Continuous score interval without inventing truth semantics."
   ]
 }

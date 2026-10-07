@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "artifact": "phase9e_a_candidate_scenario_runs",
   "generatedAt": "2026-10-07T00:00:00+08:00",
-  "researchHarnessGitHead": "41780f1380b1ebbb7ecb19021b6cebbc0b9d5bfa",
+  "researchHarnessGitHead": "c05cb253e473bc9cb4ddaab09a4831d7ce9ea254",
   "candidateId": "bytedance-score-aware-chunked-dev-v1",
   "split": "DEVELOPMENT",
   "candidateScenarioRunCount": 0,
   "runs": [],
   "status": "NOT_RUN",
-  "reason": "No coherent real Practice v2 DEVELOPMENT BenchmarkScenario was available after auditing 128 causal cases; therefore no ByteDance CandidateScenarioRun was generated and no acoustic metric was measured."
+  "reason": "No coherent real Practice v2 DEVELOPMENT BenchmarkScenario was available after auditing 128 causal cases; therefore no ByteDance CandidateScenarioRun was generated and no acoustic metric was measured. The independent real ONNX runtime smoke is recorded in the Phase 9E-A.2 runner audit."
 }
