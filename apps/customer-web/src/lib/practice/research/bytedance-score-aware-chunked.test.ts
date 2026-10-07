@@ -9,12 +9,14 @@ import {
   bytedanceCandidateDefinition,
   candidateRunForByteDanceChunks,
   decodeByteDanceChunkRawOutputs,
+  decodeResearchWavToMonoFloat32,
   executeByteDanceScenarioWithExecutor,
   extractAndResampleLinear16k,
   observationsForByteDanceChunk,
   planByteDanceScoreAwareChunks,
   publicationForByteDanceChunk,
   sourceEventTimeToPerformanceTime,
+  validateDecodedWavAgainstScenario,
   validateByteDanceSourceContext,
   validateChunkPlan,
 } from './bytedance-score-aware-chunked';
@@ -70,6 +72,43 @@ function scenario(overrides: Partial<BenchmarkScenario> = {}): BenchmarkScenario
     corpusOverlapStatus: 'UNKNOWN',
     ...overrides,
   };
+}
+
+function pcm16Wav(input: {
+  sampleRateHz: number;
+  channelCount: number;
+  frames: readonly (readonly number[])[];
+}): Uint8Array {
+  const dataBytes = input.frames.length * input.channelCount * 2;
+  const bytes = new Uint8Array(44 + dataBytes);
+  const view = new DataView(bytes.buffer);
+  writeAscii(bytes, 0, 'RIFF');
+  view.setUint32(4, 36 + dataBytes, true);
+  writeAscii(bytes, 8, 'WAVE');
+  writeAscii(bytes, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, input.channelCount, true);
+  view.setUint32(24, input.sampleRateHz, true);
+  view.setUint32(28, input.sampleRateHz * input.channelCount * 2, true);
+  view.setUint16(32, input.channelCount * 2, true);
+  view.setUint16(34, 16, true);
+  writeAscii(bytes, 36, 'data');
+  view.setUint32(40, dataBytes, true);
+  let offset = 44;
+  for (const frame of input.frames) {
+    for (let channel = 0; channel < input.channelCount; channel += 1) {
+      view.setInt16(offset, frame[channel] ?? 0, true);
+      offset += 2;
+    }
+  }
+  return bytes;
+}
+
+function writeAscii(bytes: Uint8Array, offset: number, value: string): void {
+  for (let index = 0; index < value.length; index += 1) {
+    bytes[offset + index] = value.charCodeAt(index);
+  }
 }
 
 describe('ByteDance score-aware chunked research adapter', () => {
@@ -344,6 +383,51 @@ describe('ByteDance score-aware chunked research adapter', () => {
       },
     });
     expect(run.publications.length).toBeGreaterThan(0);
+  });
+
+  it('loads PCM16 WAV research audio with frozen average-channel downmix semantics', () => {
+    const wav = pcm16Wav({
+      sampleRateHz: 48_000,
+      channelCount: 2,
+      frames: [
+        [16_384, 16_384],
+        [32_767, -32_768],
+      ],
+    });
+
+    const decoded = decodeResearchWavToMonoFloat32(wav);
+
+    expect(decoded.sampleRateHz).toBe(48_000);
+    expect(decoded.channelCount).toBe(2);
+    expect(decoded.pcm).toHaveLength(2);
+    expect(decoded.pcm[0]).toBeCloseTo(0.5, 5);
+    expect(decoded.pcm[1]).toBeCloseTo(-1 / 65_536, 8);
+  });
+
+  it('fails closed when decoded WAV identity disagrees with BenchmarkScenario audio metadata', () => {
+    const decoded = decodeResearchWavToMonoFloat32(pcm16Wav({
+      sampleRateHz: 44_100,
+      channelCount: 1,
+      frames: new Array(44).fill(null).map(() => [0]),
+    }));
+
+    expect(() => validateDecodedWavAgainstScenario({
+      scenario: scenario({ audio: { ...scenario().audio, nativeSampleRateHz: 48_000 } }),
+      sampleRateHz: decoded.sampleRateHz,
+      durationMs: decoded.durationMs,
+    })).toThrow(/sample rate/);
+
+    expect(() => validateDecodedWavAgainstScenario({
+      scenario: scenario({
+        audio: {
+          ...scenario().audio,
+          nativeSampleRateHz: 44_100,
+          sourceDurationMs: decoded.durationMs + 10,
+        },
+      }),
+      sampleRateHz: decoded.sampleRateHz,
+      durationMs: decoded.durationMs,
+    })).toThrow(/duration/);
   });
 
   it('feeds generated DEVELOPMENT publications through the accepted bake-off scorer without producing an official rank', () => {

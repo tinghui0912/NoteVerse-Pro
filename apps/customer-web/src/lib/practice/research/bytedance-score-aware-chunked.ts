@@ -399,6 +399,80 @@ export function extractAndResampleLinear16k(input: {
   return output;
 }
 
+export function decodeResearchWavToMonoFloat32(bytes: ArrayBuffer | Uint8Array): {
+  pcm: Float32Array;
+  sampleRateHz: number;
+  channelCount: number;
+  durationMs: number;
+} {
+  const data = bytes instanceof Uint8Array
+    ? new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    : new DataView(bytes);
+  if (ascii(data, 0, 4) !== 'RIFF' || ascii(data, 8, 4) !== 'WAVE') {
+    throw new Error('Research WAV loader supports RIFF/WAVE only.');
+  }
+  let offset = 12;
+  let audioFormat: number | null = null;
+  let channelCount: number | null = null;
+  let sampleRateHz: number | null = null;
+  let bitsPerSample: number | null = null;
+  let dataOffset: number | null = null;
+  let dataBytes: number | null = null;
+  while (offset + 8 <= data.byteLength) {
+    const chunkId = ascii(data, offset, 4);
+    const chunkSize = data.getUint32(offset + 4, true);
+    const chunkDataOffset = offset + 8;
+    if (chunkId === 'fmt ') {
+      audioFormat = data.getUint16(chunkDataOffset, true);
+      channelCount = data.getUint16(chunkDataOffset + 2, true);
+      sampleRateHz = data.getUint32(chunkDataOffset + 4, true);
+      bitsPerSample = data.getUint16(chunkDataOffset + 14, true);
+    } else if (chunkId === 'data') {
+      dataOffset = chunkDataOffset;
+      dataBytes = chunkSize;
+    }
+    offset = chunkDataOffset + chunkSize + (chunkSize % 2);
+  }
+  if (!audioFormat || !channelCount || !sampleRateHz || !bitsPerSample || dataOffset === null || dataBytes === null) {
+    throw new Error('Research WAV loader requires fmt and data chunks.');
+  }
+  if (audioFormat !== 1 || bitsPerSample !== 16) {
+    throw new Error('Research WAV loader currently supports PCM16 WAV only.');
+  }
+  const frameCount = Math.floor(dataBytes / (channelCount * 2));
+  const pcm = new Float32Array(frameCount);
+  for (let frame = 0; frame < frameCount; frame += 1) {
+    let sum = 0;
+    for (let channel = 0; channel < channelCount; channel += 1) {
+      const sampleOffset = dataOffset + (frame * channelCount + channel) * 2;
+      sum += data.getInt16(sampleOffset, true) / 32768;
+    }
+    pcm[frame] = sum / channelCount;
+  }
+  return {
+    pcm,
+    sampleRateHz,
+    channelCount,
+    durationMs: frameCount / sampleRateHz * 1000,
+  };
+}
+
+export function validateDecodedWavAgainstScenario(input: {
+  scenario: BenchmarkScenario;
+  sampleRateHz: number;
+  durationMs: number;
+}): void {
+  if (input.sampleRateHz !== input.scenario.audio.nativeSampleRateHz) {
+    throw new Error('Decoded source sample rate does not match BenchmarkScenario audio metadata.');
+  }
+  if (
+    input.scenario.audio.sourceDurationMs !== undefined
+    && Math.abs(input.durationMs - input.scenario.audio.sourceDurationMs) > 1
+  ) {
+    throw new Error('Decoded source duration does not match BenchmarkScenario audio metadata.');
+  }
+}
+
 export function assertAssetIdentity(input: {
   kind: 'MODEL' | 'AUDIO' | 'MIDI' | 'MANIFEST' | 'RUNTIME';
   path: string;
@@ -544,4 +618,12 @@ function canonicalJson(value: unknown): string {
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
     .join(',')}}`;
+}
+
+function ascii(view: DataView, offset: number, length: number): string {
+  let text = '';
+  for (let index = 0; index < length; index += 1) {
+    text += String.fromCharCode(view.getUint8(offset + index));
+  }
+  return text;
 }
