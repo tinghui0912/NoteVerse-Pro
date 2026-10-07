@@ -4,6 +4,8 @@ import canonicalArtifactJson from './__fixtures__/canonical-practice-score-artif
 import {
   ManualClock,
   ContinuousPracticeSession,
+  DEFAULT_ASSIGNMENT_WINDOW_MS,
+  DEFAULT_MIDI_COVERAGE_GRACE_MS,
   PracticeTimebase,
   StepEvidenceSession,
   StepPracticeRuntime,
@@ -592,6 +594,11 @@ describe('local CONTINUOUS practice runtime', () => {
     expect(session.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MISSING' });
   });
 
+  it('keeps MIDI delivery coverage grace separate from the musical assignment window', () => {
+    expect(DEFAULT_MIDI_COVERAGE_GRACE_MS).toBe(250);
+    expect(DEFAULT_ASSIGNMENT_WINDOW_MS).toBe(250);
+  });
+
   it('does not advance MIDI frontier while paused', () => {
     const clock = new ManualClock(0);
     const session = new ContinuousPracticeSession({
@@ -775,6 +782,42 @@ describe('local CONTINUOUS practice runtime', () => {
       analyzedThroughPerformanceMs: 1000,
     });
     expect(session.evaluationSnapshot.strikes.some((strike) => strike.verdict === 'MISSING')).toBe(true);
+  });
+
+  it('rejects analysis publications before performance evidence time exists', () => {
+    const ready = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock: new ManualClock(0),
+      inputSource: 'MICROPHONE',
+      countInBeats: 0,
+    });
+    const readyBefore = ready.evaluationSnapshot;
+    expect(() => ready.publishAnalysis({
+      sessionDomainId: ready.timebase.domainId,
+      attacks: [],
+      analyzedThroughPerformanceMs: 0,
+    })).toThrow(/requires captured performance evidence time/);
+    expect(ready.evaluationSnapshot).toEqual(readyBefore);
+
+    const countIn = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock: new ManualClock(0),
+      inputSource: 'MICROPHONE',
+      countInBeats: 1,
+    });
+    countIn.start();
+    const countInBefore = countIn.evaluationSnapshot;
+    expect(countIn.snapshot().state).toBe('COUNT_IN');
+    expect(() => countIn.publishAnalysis({
+      sessionDomainId: countIn.timebase.domainId,
+      attacks: [],
+      analyzedThroughPerformanceMs: 0,
+    })).toThrow(/requires captured performance evidence time/);
+    expect(countIn.evaluationSnapshot).toEqual(countInBefore);
   });
 
   it('rejects analysis publication beyond current running performance time without mutation', () => {

@@ -8,7 +8,7 @@ Practice has two product modes: `STEP_BY_STEP` and `CONTINUOUS_PLAY`.
 
 They may share low-level infrastructure such as `PracticeScoreArtifact`, score scope, resolved tempo, timebase primitives, MIDI primitives, microphone capture primitives, metronome primitives, and user recording primitives. They do not need to share one neural model, one acoustic event stream, one inference scheduler, or one high-level acoustic controller.
 
-Recording and input source are orthogonal. User-selected audio or video recording is a media artifact for review. Analysis capture is PCM used by an acoustic analyzer. A future session may record media without performing acoustic analysis, or analyze PCM without producing user recording media.
+Recording and input source are orthogonal. User-selected audio or video recording is a media artifact for review. Analysis capture is PCM used by an acoustic analyzer. A future session may record media without performing acoustic analysis, or analyze PCM without producing user recording media. MediaRecorder output is not the canonical analysis PCM source.
 
 Production microphone Practice remains disabled until a later model gate and integration phase explicitly validates and enables the relevant mode.
 
@@ -97,6 +97,14 @@ The stateful streaming candidate does not impose chunk input/commit geometry. It
 A future model may emit generic pitch-by-time evidence, but the product queries and reconciles that evidence using known score pitches and known expected performance times. Expected timing remains approximate; legal early/late assignment windows still apply. One observed acoustic event must not satisfy multiple `ExpectedStrike`s.
 
 The existing one-to-one reconciliation semantics remain valuable.
+
+## Analysis PCM Timeline
+
+Analysis PCM capture is a source timeline, not a performance clock. Captured PCM carries source sample identity, including the native source sample rate and source sample indexes. Performance time is derived only for samples that belong to a `RUNNING` segment by anchoring that segment to deterministic performance time.
+
+Pause and resume create separate acoustic source segments. Paused wall-clock audio is not Continuous performance evidence time, and future acoustic analyzers must not silently bridge a pause as one uninterrupted model stream. A chunked analyzer may request PCM from one running segment with retained context, and a streaming analyzer may reset its model state at segment boundaries; both still publish into the same evaluation/finalization contract after producing evidence.
+
+Context-only PCM may be retained after the canonical performance-owned samples of a segment for future model input. Context-only samples do not extend performance duration, do not create performance-time ownership, do not move the playhead, and do not advance evaluation coverage by themselves.
 
 ## One Evaluation Truth
 

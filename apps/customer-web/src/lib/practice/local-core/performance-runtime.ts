@@ -17,7 +17,6 @@ import {
 } from './session';
 import {
   ContinuousEvaluationSession,
-  DEFAULT_ASSIGNMENT_WINDOW_MS,
   type ContinuousEvaluationSnapshot,
 } from './continuous-evaluation-session';
 import {
@@ -31,6 +30,8 @@ import {
 import type { CompletedContinuousEvaluation } from '../completed-performance';
 
 export type PerformanceRuntimeState = 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
+
+export const DEFAULT_MIDI_COVERAGE_GRACE_MS = 250;
 
 export type PerformanceClockSnapshot = {
   state: PerformanceRuntimeState;
@@ -472,6 +473,9 @@ export class ContinuousPracticeSession {
       throw new Error('Continuous analysis frontier must be finite, non-negative, and within the resolved scope.');
     }
     const snapshot = this.clock.snapshot();
+    if (snapshot.state === 'READY' || snapshot.state === 'COUNT_IN') {
+      throw new Error('Continuous analysis publication requires captured performance evidence time.');
+    }
     const maxAvailablePerformanceMs = this.maxAvailableAnalysisPerformanceTime(snapshot);
     if (publication.analyzedThroughPerformanceMs > maxAvailablePerformanceMs) {
       throw new Error('Continuous analysis frontier cannot advance beyond captured performance time.');
@@ -545,8 +549,8 @@ export class ContinuousPracticeSession {
 
   private advanceMidiFrontier(snapshot: PerformanceClockSnapshot): void {
     if (this.inputSource === 'MIDI' && snapshot.state === 'RUNNING') {
-      if (snapshot.performanceTimeMs > DEFAULT_ASSIGNMENT_WINDOW_MS) {
-        this.evaluator.advanceAnalysisThrough(snapshot.performanceTimeMs - DEFAULT_ASSIGNMENT_WINDOW_MS);
+      if (snapshot.performanceTimeMs > DEFAULT_MIDI_COVERAGE_GRACE_MS) {
+        this.evaluator.advanceAnalysisThrough(snapshot.performanceTimeMs - DEFAULT_MIDI_COVERAGE_GRACE_MS);
       }
     }
   }

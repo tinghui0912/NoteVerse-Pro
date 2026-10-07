@@ -127,6 +127,9 @@ describe('practice architecture boundaries', () => {
     expect(content).toContain('stateful streaming analyzer');
     expect(content).toContain('The product contract is strategy-neutral');
     expect(content).toContain('Correctness and product-level evaluation accuracy are the primary selection criteria.');
+    expect(content).toContain('Analysis PCM capture is a source timeline, not a performance clock.');
+    expect(content).toContain('Pause and resume create separate acoustic source segments.');
+    expect(content).toContain('Context-only samples do not extend performance duration');
     expect(content).toContain('input region:');
     expect(content).toContain('commit region:');
     expect(content).toContain('Production microphone Practice remains disabled');
@@ -165,6 +168,25 @@ describe('practice architecture boundaries', () => {
     for (const token of ['ByteDance', 'RTT', 'OnlineAMT', 'ONNX', 'WebGPU', 'inference', 'acoustic']) {
       expect(runtimeClass).not.toContain(token);
     }
+  });
+
+  it('keeps MIDI source-delivery grace independent from the musical assignment window', () => {
+    const runtimeFile = path.resolve(__dirname, 'local-core/performance-runtime.ts');
+    const content = readFileSync(runtimeFile, 'utf8');
+
+    expect(content).toContain('DEFAULT_MIDI_COVERAGE_GRACE_MS');
+    expect(content).not.toContain('DEFAULT_ASSIGNMENT_WINDOW_MS');
+  });
+
+  it('keeps PCM capture storage separate from clock and evaluation coverage', () => {
+    const timelineFile = path.resolve(__dirname, 'audio-analysis/capture/performance-pcm-timeline.ts');
+    const content = readFileSync(timelineFile, 'utf8');
+
+    expect(content).toContain('PcmCaptureBlock');
+    expect(content).toContain('sourceSampleRateHz');
+    expect(content).not.toContain('ContinuousEvaluationSession');
+    expect(content).not.toContain('PerformanceClockRuntime');
+    expect(content).not.toContain('advanceAnalysisThrough');
   });
 
   it('keeps model-specific candidates out of product domain contracts', () => {
