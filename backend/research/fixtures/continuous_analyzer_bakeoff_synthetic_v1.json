@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "continuous-bakeoff-synthetic-v1",
+  "description": "Small synthetic model-neutral Continuous analyzer bake-off fixture for Phase 9D harness tests. It is not real model accuracy evidence.",
+  "scenarios": [
+    {
+      "scenarioId": "synthetic_chord_retrigger_sustain_v1",
+      "schemaVersion": 1,
+      "split": "DEVELOPMENT",
+      "familyTags": ["correct_single", "complete_chord", "same_pitch_retrigger", "sustained_no_retrigger"],
+      "source": {
+        "sourceAudioPath": "synthetic://phase9d/chord_retrigger_sustain.wav",
+        "sourceAudioSha256": "synthetic-audio-phase9d-001",
+        "sourceMidiPath": "synthetic://phase9d/chord_retrigger_sustain.mid",
+        "sourceMidiSha256": "synthetic-midi-phase9d-001",
+        "provenance": "synthetic_harness_fixture"
+      },
+      "audio": {
+        "nativeSampleRateHz": 48000,
+        "channelPolicy": "mono_float32_synthetic",
+        "clipStartMs": 0,
+        "clipEndMs": 3000,
+        "pcmIdentity": "synthetic-pcm-phase9d-001"
+      },
+      "expectedStrikes": [
+        { "strikeId": "s1", "groupId": "g1", "pitch": "C4", "expectedPerformanceTimeMs": 0, "renderNoteIds": ["n1"] },
+        { "strikeId": "s2", "groupId": "g2", "pitch": "E4", "expectedPerformanceTimeMs": 500, "renderNoteIds": ["n2"] },
+        { "strikeId": "s3", "groupId": "g2", "pitch": "G4", "expectedPerformanceTimeMs": 500, "renderNoteIds": ["n3"] },
+        { "strikeId": "s4", "groupId": "g3", "pitch": "C4", "expectedPerformanceTimeMs": 900, "renderNoteIds": ["n4"] },
+        { "strikeId": "s5", "groupId": "g4", "pitch": "C4", "expectedPerformanceTimeMs": 1120, "renderNoteIds": ["n5"] },
+        { "strikeId": "s6", "groupId": "g5", "pitch": "D4", "expectedPerformanceTimeMs": 1700, "renderNoteIds": ["n6"] }
+      ],
+      "physicalGroundTruth": {
+        "status": "RECORDED",
+        "source": "synthetic_physical_midi",
+        "attacks": [
+          { "physicalEventId": "p1", "pitch": "C4", "performanceTimeMs": 10 },
+          { "physicalEventId": "p2", "pitch": "E4", "performanceTimeMs": 495 },
+          { "physicalEventId": "p3", "pitch": "G4", "performanceTimeMs": 510 },
+          { "physicalEventId": "p4", "pitch": "C4", "performanceTimeMs": 890 },
+          { "physicalEventId": "p5", "pitch": "C4", "performanceTimeMs": 1140 },
+          { "physicalEventId": "p-extra", "pitch": "F4", "performanceTimeMs": 1400 }
+        ]
+      },
+      "completion": { "kind": "NATURAL", "performanceTimeMs": 2500 },
+      "taxonomy": {
+        "groups": {
+          "g1": ["correct_single"],
+          "g2": ["complete_chord"],
+          "g3": ["same_pitch_retrigger"],
+          "g4": ["same_pitch_retrigger"],
+          "g5": ["sustained_no_retrigger"]
+        }
+      },
+      "corpusOverlapStatus": "UNKNOWN"
+    },
+    {
+      "scenarioId": "planned_unrecorded_pair_v1",
+      "schemaVersion": 1,
+      "split": "DEVELOPMENT",
+      "familyTags": ["missing_chord_tone"],
+      "source": {
+        "sourceAudioPath": "planned://paired_ground_truth/triad_c_e_g_actual_c",
+        "sourceAudioSha256": "planned-audio-not-recorded",
+        "provenance": "paired_ground_truth_manifest_planned"
+      },
+      "audio": {
+        "nativeSampleRateHz": 16000,
+        "channelPolicy": "planned_mono_float32",
+        "clipStartMs": 0,
+        "clipEndMs": 2000,
+        "pcmIdentity": "planned-not-recorded"
+      },
+      "expectedStrikes": [
+        { "strikeId": "planned-c", "groupId": "planned-g1", "pitch": "C4", "expectedPerformanceTimeMs": 0, "renderNoteIds": ["planned-c"] },
+        { "strikeId": "planned-e", "groupId": "planned-g1", "pitch": "E4", "expectedPerformanceTimeMs": 0, "renderNoteIds": ["planned-e"] },
+        { "strikeId": "planned-g", "groupId": "planned-g1", "pitch": "G4", "expectedPerformanceTimeMs": 0, "renderNoteIds": ["planned-g"] }
+      ],
+      "physicalGroundTruth": {
+        "status": "PLANNED_NOT_RECORDED",
+        "source": "paired_ground_truth_manifest_planned",
+        "attacks": []
+      },
+      "completion": { "kind": "NATURAL", "performanceTimeMs": 1400 },
+      "taxonomy": { "groups": { "planned-g1": ["missing_chord_tone"] } },
+      "corpusOverlapStatus": "UNKNOWN"
+    }
+  ]
+}

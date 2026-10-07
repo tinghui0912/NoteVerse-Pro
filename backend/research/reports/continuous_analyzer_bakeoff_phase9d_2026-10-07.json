@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "artifact": "continuous_analyzer_bakeoff_phase9d",
+  "generatedAt": "2026-10-07T00:00:00+08:00",
+  "gitHeadAtAuthoring": "8cd0f947842d725f0fbe6f1ae2beb380e0692036",
+  "purpose": "Model-neutral Continuous analyzer bake-off harness. No real model was run and no candidate winner was selected.",
+  "policy": {
+    "path": "backend/research/policies/continuous_analyzer_bakeoff_policy_v1_2026-10-07.json",
+    "sha256": "1e82a37849a37260188edd0b585f399e48f5ec911729a49f1b8f560137d85379"
+  },
+  "syntheticFixture": {
+    "path": "backend/research/fixtures/continuous_analyzer_bakeoff_synthetic_v1.json",
+    "sha256": "0ea11d323cacb3c65f440bb1a4da5e0c371bae42c0573741175697aafac1c655",
+    "status": "HARNESS_PROOF_ONLY_NOT_REAL_MODEL_ACCURACY"
+  },
+  "productSemantics": {
+    "continuousClock": "score_bpm_scope_start_pause_resume_only",
+    "scoreFollowing": "FORBIDDEN",
+    "evaluationTruth": "ONE_IMMUTABLE_FINALIZED_LEDGER",
+    "secondWholePerformanceInference": "FORBIDDEN",
+    "productionMicrophone": "DISABLED"
+  },
+  "scenarioSchemaSummary": [
+    "scenarioId/schemaVersion/split/familyTags",
+    "source audio and optional source MIDI identity with SHA256",
+    "audio contract including native sample rate and deterministic PCM identity",
+    "ExpectedStrike timeline",
+    "physical ground truth attacks when recorded",
+    "completion semantics",
+    "taxonomy tags",
+    "corpus overlap status"
+  ],
+  "candidateOutputSchemaSummary": [
+    "candidate identity and strategyKind CHUNKED or STREAMING",
+    "runtime/checkpoint/adapter/config provenance",
+    "chronological publications",
+    "observations with stable id, pitch, event time, confidence",
+    "inclusive analyzedThroughPerformanceMs",
+    "availability time separated from musical event time"
+  ],
+  "scorer": {
+    "implementation": "apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.ts",
+    "finalizationReuse": "Uses ContinuousEvaluationSession directly; no independent scorer algorithm duplicates Phase 9B finalization semantics.",
+    "assignmentWindowMs": 250
+  },
+  "existingCorpusClassification": {
+    "practiceAudioManifest": {
+      "status": "HISTORICAL_REGRESSION_ONLY",
+      "reason": "Contains old startup/score-following semantics and reusable WAV assets, not Practice v2 Continuous truth."
+    },
+    "practiceAudioProfileManifest": {
+      "status": "HISTORICAL_REGRESSION_ONLY",
+      "reason": "Contains old startup/following profile semantics."
+    },
+    "pairedGroundTruthManifest": {
+      "status": "METADATA_ONLY_PLANNED",
+      "reason": "Defines the correct paired microphone + physical MIDI truth principle, but planned scenarios cannot produce measured recognition metrics until recorded."
+    },
+    "bytedanceTargetVerifierTargets": {
+      "status": "HISTORICAL_EVIDENCE_ONLY",
+      "reason": "421-target family taxonomy is valuable but old target-verifier shouldMatch decisions are not automatically Practice v2 Continuous truth."
+    },
+    "onlineAmtReports": {
+      "status": "HISTORICAL_EVIDENCE_ONLY",
+      "reason": "Must be rerun through the new contract before comparison."
+    },
+    "rttReports": {
+      "status": "HISTORICAL_EVIDENCE_ONLY",
+      "reason": "Must be rerun through the new contract before comparison."
+    }
+  },
+  "fakeCandidates": {
+    "PERFECT": "emits physical truth and proves exact product agreement",
+    "EMPTY": "emits no attacks and exposes recall failure",
+    "DUPLICATE_EXTRA": "emits correct events plus duplicate/wrong events and worsens extra metrics",
+    "DELAYED_ACCURATE": "keeps event times correct but increases finalized feedback age",
+    "CHUNKED_STREAMING_PARITY": "equivalent canonical publications score identically across strategy kinds"
+  },
+  "final": {
+    "candidateWinner": "NOT_SELECTED",
+    "realModelRuns": "NOT_RUN",
+    "productionApproval": "NOT_GRANTED",
+    "productionMicrophone": "DISABLED"
+  }
+}

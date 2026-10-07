@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "policyId": "continuous-analyzer-bakeoff-policy-v1",
+  "status": "PHASE_9D_FRAMEWORK_ONLY",
+  "selectionOrder": [
+    "product_correctness_first",
+    "absolute_gate_status_reported_independently",
+    "secondary_operational_metrics_only_after_correctness_is_acceptable_or_tied"
+  ],
+  "absoluteGateStatusValues": ["PASS", "FAIL", "NOT_EVALUATED", "INSUFFICIENT_DATA"],
+  "comparativeOutcomeValues": ["RANKED", "NO_PRODUCTION_CANDIDATE", "INSUFFICIENT_EVALUATION_SET"],
+  "zeroSamplePolicy": "ZERO_SAMPLES_ARE_NOT_EVALUATED_NEVER_PASS",
+  "strategyNeutrality": {
+    "chunkedIsPreferred": false,
+    "streamingIsPreferred": false,
+    "primaryCriterion": "product_level_correctness"
+  },
+  "productionMicrophone": "DISABLED_UNTIL_LATER_ACCEPTANCE_GATE",
+  "notes": [
+    "A comparative winner is not production approval.",
+    "Historical research reports remain historical until rerun through this contract.",
+    "Candidate latency does not alter musical event timestamps."
+  ]
+}
