@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   BYTEDANCE_CHUNKED_BASELINE_CONFIG,
   assertAssetIdentity,
-  auditCausalCaseEligibility,
   blockedByteDanceRunArtifact,
   bytedanceConfigurationSha256,
   bytedanceCandidateDefinition,
@@ -625,41 +624,4 @@ describe('ByteDance score-aware chunked research adapter', () => {
     });
   });
 
-  it('audits causal-case scenario eligibility without using historical shouldMatch or predictions', () => {
-    const results = auditCausalCaseEligibility([
-      { caseId: 'missing' },
-      { caseId: 'empty', expectedGroups: [] },
-      {
-        caseId: 'eligible',
-        expectedGroups: [{ groupId: 'g', expectedPerformanceTimeMs: 500, expectedPitches: ['C4'] }],
-        completionPerformanceTimeMs: 1_000,
-        performanceOriginSourceMs: 2_000,
-        sourceAudioSha256: 'audio',
-        sourceMidiSha256: 'midi',
-        hasSynchronizedPhysicalMidi: true,
-        scoreIntervalComplete: true,
-        clipStartMs: 0,
-        clipEndMs: 3_500,
-      },
-      {
-        caseId: 'incomplete-score',
-        expectedGroups: [{ groupId: 'g', expectedPerformanceTimeMs: 500, expectedPitches: ['C4'] }],
-        completionPerformanceTimeMs: 1_000,
-        performanceOriginSourceMs: 2_000,
-        sourceAudioSha256: 'audio',
-        sourceMidiSha256: 'midi',
-        hasSynchronizedPhysicalMidi: true,
-        scoreIntervalComplete: false,
-        clipStartMs: 0,
-        clipEndMs: 3_500,
-      },
-    ]);
-
-    expect(results).toEqual([
-      expect.objectContaining({ caseId: 'missing', status: 'EXCLUDED_NO_EXPECTED_GROUPS' }),
-      expect.objectContaining({ caseId: 'empty', status: 'EXCLUDED_NO_EXPECTED_GROUPS' }),
-      expect.objectContaining({ caseId: 'eligible', status: 'ELIGIBLE_CONTINUOUS_SCENARIO' }),
-      expect.objectContaining({ caseId: 'incomplete-score', status: 'EXCLUDED_INCOMPLETE_SCORE_INTERVAL' }),
-    ]);
-  });
 });

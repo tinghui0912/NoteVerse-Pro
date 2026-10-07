@@ -78,29 +78,6 @@ export type ByteDanceBlockedRunArtifact = {
   reason: string;
 };
 
-export type CausalCaseEligibilityInput = {
-  caseId: string;
-  expectedGroups?: readonly {
-    groupId: string;
-    expectedPerformanceTimeMs: number;
-    expectedPitches: readonly string[];
-  }[];
-  completionPerformanceTimeMs?: number;
-  performanceOriginSourceMs?: number;
-  sourceAudioSha256?: string;
-  sourceMidiSha256?: string;
-  hasSynchronizedPhysicalMidi?: boolean;
-  scoreIntervalComplete?: boolean;
-  clipStartMs?: number;
-  clipEndMs?: number;
-};
-
-export type CausalCaseEligibilityResult = {
-  caseId: string;
-  status: 'ELIGIBLE_CONTINUOUS_SCENARIO' | `EXCLUDED_${string}`;
-  reason: string;
-};
-
 export type ByteDanceModelExecutor = (input: {
   scenario: BenchmarkScenario;
   plan: ByteDanceChunkPlan;
@@ -598,35 +575,6 @@ export function assertAssetIdentity(input: {
   }
 }
 
-export function auditCausalCaseEligibility(
-  cases: readonly CausalCaseEligibilityInput[]
-): readonly CausalCaseEligibilityResult[] {
-  return cases.map((item) => {
-    if (!item.expectedGroups?.length) return excluded(item, 'NO_EXPECTED_GROUPS', 'Case does not expose complete expected groups.');
-    if (!Number.isFinite(item.completionPerformanceTimeMs)) return excluded(item, 'NO_COMPLETION', 'Case has no finite completion boundary.');
-    if (!Number.isFinite(item.performanceOriginSourceMs)) return excluded(item, 'NO_PERFORMANCE_ORIGIN', 'Case has no performance origin.');
-    if (!item.sourceAudioSha256) return excluded(item, 'NO_AUDIO_HASH', 'Case has no source audio hash.');
-    if (!item.sourceMidiSha256) return excluded(item, 'NO_MIDI_HASH', 'Case has no source MIDI hash.');
-    if (!item.hasSynchronizedPhysicalMidi) return excluded(item, 'NO_SYNCHRONIZED_PHYSICAL_MIDI', 'Case lacks synchronized physical MIDI truth.');
-    if (!item.scoreIntervalComplete) return excluded(item, 'INCOMPLETE_SCORE_INTERVAL', 'Case interval cannot prove all score events are represented.');
-    if (
-      item.clipStartMs === undefined
-      || item.clipEndMs === undefined
-      || item.performanceOriginSourceMs === undefined
-      || item.completionPerformanceTimeMs === undefined
-      || item.clipStartMs > item.performanceOriginSourceMs - (BYTEDANCE_CHUNKED_BASELINE_CONFIG.modelInputMs - BYTEDANCE_CHUNKED_BASELINE_CONFIG.futureContextMs)
-      || item.clipEndMs < item.performanceOriginSourceMs + item.completionPerformanceTimeMs + BYTEDANCE_CHUNKED_BASELINE_CONFIG.futureContextMs
-    ) {
-      return excluded(item, 'INSUFFICIENT_CONTEXT', 'Case lacks required ByteDance pre/post context.');
-    }
-    return {
-      caseId: item.caseId,
-      status: 'ELIGIBLE_CONTINUOUS_SCENARIO',
-      reason: 'Case exposes complete score groups, synchronized MIDI truth, source identity, completion, and ByteDance context.',
-    };
-  });
-}
-
 function validateRawTensor(name: string, data: Float32Array, shape: readonly number[]): void {
   if (shape.length !== 3 || shape[0] !== 1 || shape[1] !== 183 || shape[2] !== 88) {
     throw new Error(`ByteDance ${name} must have exact shape [1,183,88].`);
@@ -668,10 +616,6 @@ export function blockedByteDanceRunArtifact(input: {
     command: input.command,
     reason: input.reason ?? 'Required external assets were unavailable; no measured ByteDance DEVELOPMENT result was produced.',
   };
-}
-
-function excluded(item: CausalCaseEligibilityInput, status: string, reason: string): CausalCaseEligibilityResult {
-  return { caseId: item.caseId, status: `EXCLUDED_${status}`, reason };
 }
 
 function groupExpectedStrikesBySimultaneousAttack(scenario: BenchmarkScenario): {
