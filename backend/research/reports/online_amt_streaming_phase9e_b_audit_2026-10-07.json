@@ -1,0 +1,984 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9e_b_online_amt_streaming_audit",
+  "generatedAt": "2026-10-07T15:12:32.004Z",
+  "implementationGitHead": "5fcdb2749ce2dd4a4553bb8c78c4618f5975a4fa",
+  "normalizedCommand": "node backend/research/browser_runtime/run_online_amt_phase9e_b.mjs --repo-root . --git-head 5fcdb2749ce2dd4a4553bb8c78c4618f5975a4fa --online-amt-repo backend/data/work/online_amt --checkpoint backend/data/work/online_amt/model-180000.pt --causal-manifest backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json --output-dir backend/research/reports",
+  "candidate": {
+    "candidateId": "online-amt-stateful-modern-compat-dev-v1",
+    "strategyKind": "STREAMING",
+    "repo": "https://github.com/jdasam/online_amt",
+    "expectedRepoCommit": "ad12550909a1d86f699097d11885f427054a5ac2",
+    "expectedCheckpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+    "expectedCheckpointBytes": 178804960,
+    "configurationSha256": "cb01de9df3ce3fecfecc47735c9fcf0e7f5209ed56d6650ed83322439c491aae"
+  },
+  "executionProfile": {
+    "profileId": "online-amt-modern-compat-python-cpu-stateful-v1",
+    "candidateInferenceConcurrency": 1,
+    "device": "CPU",
+    "browserSupport": "NOT_EVALUATED",
+    "legacyRuntimeParity": "UNPROVEN"
+  },
+  "runtimeEnvironment": {
+    "os": "Windows_NT 10.0.26200 x64",
+    "node": "v24.19.0",
+    "python": {
+      "python": "3.13.15",
+      "packages": {
+        "torch": "UNAVAILABLE:ModuleNotFoundError",
+        "numpy": "UNAVAILABLE:ModuleNotFoundError",
+        "librosa": "UNAVAILABLE:ModuleNotFoundError",
+        "scipy": "UNAVAILABLE:ModuleNotFoundError",
+        "numba": "UNAVAILABLE:ModuleNotFoundError"
+      }
+    }
+  },
+  "assetIdentity": {
+    "repo": {
+      "path": "backend/data/work/online_amt",
+      "available": false
+    },
+    "checkpoint": {
+      "path": "backend/data/work/online_amt/model-180000.pt",
+      "available": false
+    },
+    "status": "BLOCKED"
+  },
+  "runtimeSmoke": {
+    "status": "BLOCKED",
+    "blocker": "NO_ONLINE_AMT_REPO_OR_CHECKPOINT",
+    "reason": "Required external Online-AMT repo/checkpoint was unavailable or identity mismatched."
+  },
+  "statefulnessSmoke": {
+    "status": "BLOCKED",
+    "reason": "Required external Online-AMT assets unavailable."
+  },
+  "pipelineIntegrationSmoke": {
+    "status": "PASS",
+    "kind": "TYPESCRIPT_DETERMINISTIC_STATEFUL_ENGINE",
+    "productAccuracyMetric": false
+  },
+  "causalManifest": {
+    "path": "backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json",
+    "available": true,
+    "caseCount": 128
+  },
+  "eligibilitySummary": {
+    "eligibleContinuousScenarioCount": 0,
+    "excludedCount": 128,
+    "reasons": {
+      "EXCLUDED_NO_COMPLETION": 128
+    }
+  },
+  "eligibility": [
+    {
+      "caseId": "s01_correct_strike_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_correct_strike_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_wrong_semitone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_wrong_semitone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_wrong_octave_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_wrong_octave_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_same_note_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_same_note_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_correct_chord_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_correct_chord_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_missing_chord_tone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_missing_chord_tone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s02_correct_strike_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_correct_strike_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_wrong_semitone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_wrong_semitone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_wrong_octave_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_wrong_octave_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_same_note_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_same_note_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_correct_chord_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_correct_chord_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_missing_chord_tone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_missing_chord_tone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s03_correct_strike_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_correct_strike_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_wrong_semitone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_wrong_semitone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_wrong_octave_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_wrong_octave_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_same_note_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_same_note_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_correct_chord_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_correct_chord_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_missing_chord_tone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_missing_chord_tone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s04_correct_strike_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_correct_strike_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_wrong_semitone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_wrong_semitone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_wrong_octave_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_wrong_octave_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_same_note_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_same_note_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_correct_chord_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_correct_chord_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_missing_chord_tone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_missing_chord_tone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s05_correct_strike_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_correct_strike_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_wrong_semitone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_wrong_semitone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_wrong_octave_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_wrong_octave_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_same_note_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_same_note_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_correct_chord_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_correct_chord_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_missing_chord_tone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_missing_chord_tone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s06_correct_strike_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_correct_strike_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_wrong_semitone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_wrong_semitone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_wrong_octave_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_wrong_octave_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_same_note_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_same_note_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_correct_chord_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_correct_chord_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_missing_chord_tone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_missing_chord_tone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s07_correct_strike_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_correct_strike_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_wrong_semitone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_wrong_semitone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_wrong_octave_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_wrong_octave_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_same_note_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_same_note_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_correct_chord_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_correct_chord_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_missing_chord_tone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_missing_chord_tone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s08_correct_strike_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_correct_strike_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_wrong_semitone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_wrong_semitone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_wrong_octave_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_wrong_octave_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_same_note_retrigger_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_same_note_retrigger_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_correct_chord_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_correct_chord_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_missing_chord_tone_001",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_missing_chord_tone_002",
+      "status": "EXCLUDED_NO_COMPLETION",
+      "reason": "Case has no finite Continuous completion boundary.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    }
+  ],
+  "result": {
+    "candidateStatus": "ENGINEERING_BASELINE_CONTRACT_READY_ASSETS_BLOCKED",
+    "realDevelopmentScenarioCount": 0,
+    "realCandidateScenarioRunCount": 0,
+    "productMetricsStatus": "NOT_EVALUATED",
+    "blocker": "NO_ELIGIBLE_CONTINUOUS_DEVELOPMENT_SCENARIOS",
+    "referenceLegacyRuntimeParity": "UNPROVEN",
+    "calibrationUsed": false,
+    "evaluationUsed": false,
+    "candidateWinnerSelected": false,
+    "productionMicrophoneEnabled": false
+  }
+}
