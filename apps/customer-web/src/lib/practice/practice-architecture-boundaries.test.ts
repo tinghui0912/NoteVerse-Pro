@@ -101,9 +101,12 @@ describe('practice architecture boundaries', () => {
 
   it('derives completed Continuous evaluation from the finalized session ledger', () => {
     const evaluatorFile = path.resolve(__dirname, 'local-core/continuous-evaluation-session.ts');
-    const content = readFileSync(evaluatorFile, 'utf8');
-    const completedMethod = content.match(/completedEvaluation\(\): CompletedContinuousEvaluation[\s\S]*?\n  }\n\n  private finalizeReadyTruth/)?.[0] ?? '';
+    const evaluatorContent = readFileSync(evaluatorFile, 'utf8');
+    const ledgerFile = path.resolve(__dirname, 'local-core/continuous-finalization-ledger.ts');
+    const ledgerContent = readFileSync(ledgerFile, 'utf8');
+    const completedMethod = ledgerContent.match(/completedEvaluation\(\): CompletedContinuousEvaluation[\s\S]*?\n  }\n\n  private finalizeReadyTruth/)?.[0] ?? '';
 
+    expect(evaluatorContent).toContain('this.ledger.completedEvaluation()');
     expect(completedMethod).toContain('const snapshot = this.snapshot()');
     expect(completedMethod).not.toContain('reconcilePerformance');
   });

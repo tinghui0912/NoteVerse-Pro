@@ -8,8 +8,13 @@ import {
   scoreCandidate,
   validateBenchmarkScenario,
   type BenchmarkScenario,
-  type CandidateRun,
+  type CandidateDefinition,
+  type CandidateScenarioRun,
 } from './continuous-analyzer-bakeoff';
+import { ContinuousFinalizationLedger } from '../local-core/continuous-finalization-ledger';
+import { ContinuousEvaluationSession } from '../local-core/continuous-evaluation-session';
+import type { PracticeScoreArtifact } from '../local-core/artifact';
+import type { ObservedAttack } from '../audio-analysis/continuous/observed-attack';
 
 function scenario(overrides: Partial<BenchmarkScenario> = {}): BenchmarkScenario {
   return {
@@ -66,6 +71,21 @@ function scenario(overrides: Partial<BenchmarkScenario> = {}): BenchmarkScenario
   };
 }
 
+function silenceScenario(): BenchmarkScenario {
+  return scenario({
+    scenarioId: 'recorded_silence_all_missing_v1',
+    expectedStrikes: [
+      { strikeId: 'silent-c', groupId: 'silent-g1', pitch: 'C4', expectedPerformanceTimeMs: 500, renderNoteIds: ['silent-c'] },
+    ],
+    physicalGroundTruth: {
+      status: 'RECORDED',
+      source: 'synchronized_empty_midi',
+      attacks: [],
+    },
+    completion: { kind: 'NATURAL', performanceTimeMs: 1_000 },
+  });
+}
+
 function plannedScenario(): BenchmarkScenario {
   return scenario({
     scenarioId: 'planned_unrecorded_pair_v1',
@@ -78,185 +98,441 @@ function plannedScenario(): BenchmarkScenario {
   });
 }
 
-function candidateWithObservation(observation: { pitch: string; performanceTimeMs: number }): CandidateRun {
+function candidateDefinition(id = 'manual-candidate'): CandidateDefinition {
   return {
-    candidateId: 'manual-candidate',
+    candidateId: id,
     strategyKind: 'CHUNKED',
     identity: {
       modelRuntime: 'manual-test',
       adapterVersion: 'test',
-      configurationSha256: 'manual-config',
+      configurationSha256: `${id}-config`,
       trainingDataOverlapStatus: 'UNKNOWN',
     },
+  };
+}
+
+function candidateRun(
+  candidateId: string,
+  scenarioId: string,
+  observations: readonly { observationId: string; pitch: string; performanceTimeMs: number }[],
+  coverage = 2_500
+): CandidateScenarioRun {
+  return {
+    candidateId,
+    scenarioId,
     publications: [{
-      publicationId: 'manual-publication',
-      observations: [{
-        observationId: 'manual-observation',
-        pitch: observation.pitch,
-        performanceTimeMs: observation.performanceTimeMs,
-        confidence: 1,
-      }],
-      analyzedThroughPerformanceMs: 2_500,
-      availabilityTimeMs: 2_500,
+      publicationId: `${candidateId}:${scenarioId}:publication`,
+      observations: observations.map((observation) => ({ ...observation, confidence: 1 })),
+      analyzedThroughPerformanceMs: coverage,
+      availabilityTimeMs: coverage,
     }],
   };
 }
 
-function comparableEvaluation(evaluation: NonNullable<ReturnType<typeof scoreCandidate>['groundTruthEvaluation']>) {
-  if (evaluation.status !== 'COMPLETE') return [];
-  return evaluation.strikes.map((strike) => ({
-    result: strike.result,
-    timingOffsetMs: strike.result === 'MATCHED' ? strike.timingOffsetMs : null,
-  }));
+function artifactFromScenario(input: BenchmarkScenario): PracticeScoreArtifact {
+  const groups = [...new Set(input.expectedStrikes.map((strike) => strike.groupId))].map((groupId) => {
+    const strikes = input.expectedStrikes.filter((strike) => strike.groupId === groupId);
+    return { groupId, strikes };
+  });
+  return {
+    schemaVersion: 1,
+    scoreId: 'parity-score',
+    revisionId: 'parity-revision',
+    artifactId: 'parity-artifact',
+    scoreTempoSegments: [{ startBeat: 0, bpm: 60, source: 'BENCHMARK' }],
+    meterSegments: [{ startBeat: 0, numerator: 4, denominator: 4, measureDurationBeats: 4, countInPulses: 4, source: 'BENCHMARK' }],
+    firstPlayableBeat: groups[0]?.strikes[0].expectedPerformanceTimeMs ?? 0,
+    playableEvents: [],
+    practiceAttackSteps: groups.map(({ groupId, strikes }) => ({
+      stepId: `step:${groupId}`,
+      groupId,
+      onsetBeat: strikes[0].expectedPerformanceTimeMs,
+      attackTargets: strikes.map((strike) => ({
+        pitch: strike.pitch,
+        renderNoteIds: [...strike.renderNoteIds],
+      })),
+      continuation: [],
+    })),
+    expectedPracticeGroups: groups.map(({ groupId, strikes }) => {
+      return {
+        groupId,
+        onsetBeat: strikes[0].expectedPerformanceTimeMs,
+        canonicalEndBeat: strikes[0].expectedPerformanceTimeMs,
+        pitches: strikes.map((strike) => strike.pitch),
+        renderNoteIds: strikes.flatMap((strike) => strike.renderNoteIds),
+        eventIds: strikes.map((strike) => `event:${strike.strikeId}`),
+        measureNumbers: ['1'],
+        staffIds: ['1'],
+        voiceIds: ['1'],
+        expectedNotes: [],
+        strikeTargets: strikes.map((strike) => ({
+          strikeId: strike.strikeId,
+          pitch: strike.pitch,
+          renderNoteIds: [...strike.renderNoteIds],
+          eventIds: [`event:${strike.strikeId}`],
+          measureNumbers: ['1'],
+          expectedNotes: [],
+        })),
+      };
+    }),
+    scoreEndBeat: input.completion?.performanceTimeMs ?? 2_500,
+  } as unknown as PracticeScoreArtifact;
 }
 
+function observed(id: string, pitch: string, performanceTimeMs: number): ObservedAttack {
+  return { observationId: id, pitch, performanceTimeMs, confidence: 1, source: 'ACOUSTIC' };
+}
+
+function comparableEvaluation(evaluation: CompletedEvaluationForTest | undefined) {
+  if (!evaluation || evaluation.status !== 'COMPLETE') return evaluation;
+  return {
+    ...evaluation,
+    strikes: evaluation.strikes.map((strike) => ({
+      result: strike.result,
+      timingOffsetMs: strike.result === 'MATCHED' ? strike.timingOffsetMs : null,
+      pitch: strike.pitch,
+      performanceTimeMs: strike.performanceTimeMs,
+    })),
+    extras: evaluation.extras.map((extra) => ({
+      pitch: extra.pitch,
+      performanceTimeMs: extra.performanceTimeMs,
+    })),
+  };
+}
+
+type CompletedEvaluationForTest = ReturnType<typeof scoreCandidate>['candidateEvaluation'];
+
 describe('Continuous analyzer bake-off harness', () => {
-  it('validates benchmark schema and required physical fields', () => {
+  it('validates benchmark schema and strengthens scenario invariants', () => {
     expect(() => validateBenchmarkScenario(scenario())).not.toThrow();
     expect(() => validateBenchmarkScenario(scenario({ expectedStrikes: [] }))).toThrow(/ExpectedStrike/);
     expect(() => validateBenchmarkScenario(scenario({
-      physicalGroundTruth: { status: 'RECORDED', source: 'bad', attacks: [] },
-    }))).toThrow(/Recorded physical ground truth/);
+      expectedStrikes: [
+        { strikeId: 'dup', groupId: 'g1', pitch: 'C4', expectedPerformanceTimeMs: 0, renderNoteIds: [] },
+        { strikeId: 'dup', groupId: 'g2', pitch: 'D4', expectedPerformanceTimeMs: 0, renderNoteIds: [] },
+      ],
+    }))).toThrow(/Duplicate ExpectedStrike/);
+    expect(() => validateBenchmarkScenario(scenario({
+      expectedStrikes: [
+        { strikeId: 'a', groupId: 'g1', pitch: 'C4', expectedPerformanceTimeMs: 0, renderNoteIds: [] },
+        { strikeId: 'b', groupId: 'g1', pitch: 'E4', expectedPerformanceTimeMs: 10, renderNoteIds: [] },
+      ],
+    }))).toThrow(/different expected times/);
+    expect(() => validateBenchmarkScenario(scenario({
+      physicalGroundTruth: {
+        status: 'RECORDED',
+        source: 'bad',
+        attacks: [{ physicalEventId: 'late', pitch: 'C4', performanceTimeMs: 9_999 }],
+      },
+    }))).toThrow(/beyond scenario completion/);
+  });
+
+  it('accepts recorded physical truth with zero attacks and scores all-missing correctly', () => {
+    const quiet = silenceScenario();
+    expect(() => validateBenchmarkScenario(quiet)).not.toThrow();
+    const { definition, run } = fakeCandidate(quiet, 'EMPTY');
+    const score = scoreCandidate(quiet, definition, run);
+
+    expect(score.groundTruthEvaluation).toMatchObject({ status: 'COMPLETE' });
+    expect(score.candidateEvaluation).toMatchObject({ status: 'COMPLETE' });
+    expect(score.metrics.correctMissingRate).toMatchObject({ status: 'MEASURED', value: 1 });
+    expect(score.metrics.expectedStrikeRecall.status).toBe('NOT_EVALUATED');
+  });
+
+  it('does not manufacture candidate coverage when final coverage is behind completion', () => {
+    const { definition, run } = fakeCandidate(scenario(), 'INCOMPLETE');
+    const score = scoreCandidate(scenario(), definition, run);
+
+    expect(score.groundTruthEvaluation).toMatchObject({ status: 'COMPLETE' });
+    expect(score.candidateEvaluation).toEqual({ status: 'UNAVAILABLE', reason: 'INCOMPLETE_ANALYSIS' });
+    expect(score.metrics.expectedStrikeRecall.status).toBe('NOT_EVALUATED');
+    expect(score.metrics.finalizedFeedbackAgeP50Ms.status).toBe('MEASURED');
   });
 
   it('does not manufacture accuracy for planned unrecorded fixtures', () => {
-    const score = scoreCandidate(plannedScenario(), fakeCandidate(plannedScenario(), 'PERFECT'));
+    const { definition, run } = fakeCandidate(plannedScenario(), 'PERFECT');
+    const score = scoreCandidate(plannedScenario(), definition, run);
 
     expect(score.groundTruthStatus).toBe('INSUFFICIENT_DATA');
     expect(score.metrics.expectedStrikeRecall.status).toBe('NOT_EVALUATED');
-    expect(score.metrics.expectedStrikeRecall.sampleCount).toBe(0);
   });
 
   it('detects protected split leakage by source audio hash', () => {
-    const leaked = [
+    expect(detectSplitLeakage([
       scenario({ scenarioId: 'dev', split: 'DEVELOPMENT' }),
       scenario({ scenarioId: 'eval', split: 'EVALUATION' }),
-    ];
-
-    expect(detectSplitLeakage(leaked)).toEqual([
+    ])).toEqual([
       'synthetic-audio-phase9d-001 appears in protected splits: DEVELOPMENT,EVALUATION',
     ]);
   });
 
-  it('keeps zero-sample metrics NOT_EVALUATED rather than PASS', () => {
-    const score = scoreCandidate(scenario(), fakeCandidate(scenario(), 'PERFECT'));
+  it('binds candidate output to scenarioId and rejects Cartesian cross-scoring', () => {
+    const first = scenario({ scenarioId: 'first', source: { ...scenario().source, sourceAudioSha256: 'first-sha' } });
+    const second = scenario({ scenarioId: 'second', source: { ...scenario().source, sourceAudioSha256: 'second-sha' } });
+    const definition = candidateDefinition('bound-candidate');
+    const report = buildBakeoffReport({
+      scenarios: [first, second],
+      candidateDefinitions: [definition],
+      scenarioRuns: [candidateRun(definition.candidateId, first.scenarioId, [])],
+      gitHead: 'test-head',
+      command: 'vitest phase9d.1',
+      policy: { policyId: 'policy', path: 'policy.json', schemaVersion: 2, sha256: 'policy-hash' },
+      benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
+      dirtyTree: false,
+    });
 
-    expect(score.metrics.correctMissingRate.status).toBe('PASS');
-    expect(score.metrics.correctMissingRate.sampleCount).toBe(1);
+    expect(report.scores).toHaveLength(1);
+    expect(report.skippedScenarioCount).toBe(1);
+    expect(report.scores[0].scenarioId).toBe('first');
+  });
+
+  it('rejects duplicate candidate runs for the same candidate and scenario', () => {
+    const definition = candidateDefinition('dup-run');
+    const run = candidateRun(definition.candidateId, scenario().scenarioId, []);
+
+    expect(() => buildBakeoffReport({
+      scenarios: [scenario()],
+      candidateDefinitions: [definition],
+      scenarioRuns: [run, run],
+      gitHead: 'test-head',
+      command: 'vitest',
+      policy: { policyId: 'policy', path: 'policy.json', schemaVersion: 2, sha256: 'policy-hash' },
+      benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
+      dirtyTree: false,
+    })).toThrow(/Duplicate candidate scenario run/);
+  });
+
+  it('validates canonical publication order instead of sorting it into shape', () => {
+    const definition = candidateDefinition('ordered');
+    const baseRun = candidateRun(definition.candidateId, scenario().scenarioId, []);
+
+    expect(() => scoreCandidate(scenario(), definition, {
+      ...baseRun,
+      publications: [
+        { publicationId: 'late', observations: [], analyzedThroughPerformanceMs: 2_000 },
+        { publicationId: 'early', observations: [], analyzedThroughPerformanceMs: 1_000 },
+      ],
+    })).toThrow(/monotonically non-decreasing/);
+    expect(() => scoreCandidate(scenario(), definition, {
+      ...baseRun,
+      publications: [
+        { publicationId: 'future-coverage', observations: [], analyzedThroughPerformanceMs: 9_999 },
+      ],
+    })).toThrow(/cannot exceed scenario completion/);
+    expect(() => scoreCandidate(scenario(), definition, {
+      ...baseRun,
+      publications: [
+        {
+          publicationId: 'future-event',
+          observations: [{ observationId: 'o', pitch: 'C4', performanceTimeMs: 2_000 }],
+          analyzedThroughPerformanceMs: 1_000,
+        },
+      ],
+    })).toThrow(/event time cannot exceed/);
+  });
+
+  it('keeps metric availability separate from quality gate verdicts', () => {
+    const { definition, run } = fakeCandidate(scenario(), 'EMPTY');
+    const score = scoreCandidate(scenario(), definition, run);
+
+    expect(score.metrics.expectedStrikeRecall).toMatchObject({ status: 'MEASURED', value: 0 });
+    expect(score.metrics.timingAbsoluteMedianMs.status).toBe('NOT_EVALUATED');
+  });
+
+  it('keeps true zero-sample metrics NOT_EVALUATED', () => {
+    const quiet = silenceScenario();
+    const { definition, run } = fakeCandidate(quiet, 'EMPTY');
+    const score = scoreCandidate(quiet, definition, run);
+
+    expect(score.metrics.expectedStrikeRecall).toMatchObject({ status: 'NOT_EVALUATED', sampleCount: 0 });
+    expect(score.metrics.timingAbsoluteP95Ms).toMatchObject({ status: 'NOT_EVALUATED', sampleCount: 0 });
+  });
+
+  it('does not rank from development or calibration fixtures', () => {
+    const dev = scenario({ split: 'DEVELOPMENT' });
+    const calibration = scenario({ scenarioId: 'cal', split: 'CALIBRATION', source: { ...scenario().source, sourceAudioSha256: 'cal-sha' } });
+    const perfect = fakeCandidate(dev, 'PERFECT');
+    const report = buildBakeoffReport({
+      scenarios: [dev, calibration],
+      candidateDefinitions: [perfect.definition],
+      scenarioRuns: [perfect.run],
+      gitHead: 'test-head',
+      command: 'vitest',
+      policy: { policyId: 'policy', path: 'policy.json', schemaVersion: 2, sha256: 'policy-hash' },
+      benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
+      dirtyTree: false,
+    });
+
+    expect(report.comparativeOutcome).toBe('INSUFFICIENT_EVALUATION_SET');
+    expect(report.resultSummary[perfect.definition.candidateId].comparativeRank).toBeNull();
+  });
+
+  it('fails closed for official evaluation when protected splits leak', () => {
+    const dev = scenario({ scenarioId: 'dev', split: 'DEVELOPMENT' });
+    const evaluation = scenario({ scenarioId: 'eval', split: 'EVALUATION' });
+    const perfect = fakeCandidate(evaluation, 'PERFECT');
+    const report = buildBakeoffReport({
+      scenarios: [dev, evaluation],
+      candidateDefinitions: [perfect.definition],
+      scenarioRuns: [perfect.run],
+      gitHead: 'test-head',
+      command: 'vitest',
+      policy: { policyId: 'policy', path: 'policy.json', schemaVersion: 2, sha256: 'policy-hash' },
+      benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
+      dirtyTree: false,
+    });
+
+    expect(report.comparativeOutcome).toBe('INELIGIBLE_SPLIT_LEAKAGE');
+    expect(report.resultSummary[perfect.definition.candidateId].comparativeRank).toBeNull();
   });
 
   it('scores PERFECT candidate with product finalization parity', () => {
-    const score = scoreCandidate(scenario(), fakeCandidate(scenario(), 'PERFECT'));
+    const { definition, run } = fakeCandidate(scenario(), 'PERFECT');
+    const score = scoreCandidate(scenario(), definition, run);
 
-    expect(score.groundTruthStatus).toBe('PASS');
-    expect(comparableEvaluation(score.groundTruthEvaluation!)).toEqual(comparableEvaluation(score.candidateEvaluation));
-    expect(score.metrics.expectedStrikeRecall).toMatchObject({ status: 'PASS', value: 1 });
-    expect(score.metrics.verdictAgreementRate).toMatchObject({ status: 'PASS', value: 1 });
+    expect(score.groundTruthStatus).toBe('MEASURED');
+    expect(comparableEvaluation(score.candidateEvaluation)).toEqual(comparableEvaluation(score.groundTruthEvaluation));
+    expect(score.metrics.expectedStrikeRecall).toMatchObject({ status: 'MEASURED', value: 1 });
+    expect(score.metrics.verdictAgreementRate).toMatchObject({ status: 'MEASURED', value: 1 });
   });
 
-  it('EMPTY candidate exposes expected recall failures', () => {
-    const score = scoreCandidate(scenario(), fakeCandidate(scenario(), 'EMPTY'));
+  it('duplicate/extra candidate worsens extra precision while preserving extra recall', () => {
+    const perfect = scoreCandidate(scenario(), ...Object.values(fakeCandidate(scenario(), 'PERFECT')) as [CandidateDefinition, CandidateScenarioRun]);
+    const noisy = scoreCandidate(scenario(), ...Object.values(fakeCandidate(scenario(), 'DUPLICATE_EXTRA')) as [CandidateDefinition, CandidateScenarioRun]);
 
-    expect(score.metrics.expectedStrikeRecall).toMatchObject({ status: 'PASS', value: 0 });
-    expect(score.metrics.correctMissingRate).toMatchObject({ status: 'PASS', value: 1 });
-  });
-
-  it('duplicate/extra candidate worsens extra metrics', () => {
-    const perfect = scoreCandidate(scenario(), fakeCandidate(scenario(), 'PERFECT'));
-    const noisy = scoreCandidate(scenario(), fakeCandidate(scenario(), 'DUPLICATE_EXTRA'));
-
-    expect(perfect.metrics.extraPrecision.status).toBe('PASS');
-    expect(noisy.metrics.extraPrecision.status).toBe('PASS');
-    if (perfect.metrics.extraPrecision.status === 'PASS' && noisy.metrics.extraPrecision.status === 'PASS') {
+    expect(perfect.metrics.extraPrecision.status).toBe('MEASURED');
+    expect(noisy.metrics.extraPrecision.status).toBe('MEASURED');
+    if (perfect.metrics.extraPrecision.status === 'MEASURED' && noisy.metrics.extraPrecision.status === 'MEASURED') {
       expect(noisy.metrics.extraPrecision.value).toBeLessThan(perfect.metrics.extraPrecision.value);
     }
+    expect(noisy.extraDiagnostics.falseCandidateExtras).toBeGreaterThan(0);
+    expect(noisy.metrics.extraRecall).toMatchObject({ status: 'MEASURED', value: 1 });
+  });
+
+  it('missed physical extras reduce extra recall', () => {
+    const quietCandidate = fakeCandidate(scenario(), 'EMPTY');
+    const score = scoreCandidate(scenario(), quietCandidate.definition, quietCandidate.run);
+
+    expect(score.extraDiagnostics.missedPhysicalExtras).toBe(1);
+    expect(score.metrics.extraRecall).toMatchObject({ status: 'MEASURED', value: 0 });
   });
 
   it('delayed-but-accurate candidate keeps accuracy and worsens finalized feedback age', () => {
-    const perfect = scoreCandidate(scenario(), fakeCandidate(scenario(), 'PERFECT'));
-    const delayed = scoreCandidate(scenario(), fakeCandidate(scenario(), 'DELAYED_ACCURATE'));
+    const perfect = fakeCandidate(scenario(), 'PERFECT');
+    const delayed = fakeCandidate(scenario(), 'DELAYED_ACCURATE');
+    const perfectScore = scoreCandidate(scenario(), perfect.definition, perfect.run);
+    const delayedScore = scoreCandidate(scenario(), delayed.definition, delayed.run);
 
-    expect(delayed.metrics.expectedStrikeRecall).toEqual(perfect.metrics.expectedStrikeRecall);
-    expect(delayed.metrics.timingAbsoluteMedianMs).toEqual(perfect.metrics.timingAbsoluteMedianMs);
+    expect(delayedScore.metrics.expectedStrikeRecall).toEqual(perfectScore.metrics.expectedStrikeRecall);
+    expect(delayedScore.metrics.timingAbsoluteMedianMs).toEqual(perfectScore.metrics.timingAbsoluteMedianMs);
     if (
-      delayed.metrics.finalizedFeedbackAgeP50Ms.status === 'PASS'
-      && perfect.metrics.finalizedFeedbackAgeP50Ms.status === 'PASS'
+      delayedScore.metrics.finalizedFeedbackAgeP50Ms.status === 'MEASURED'
+      && perfectScore.metrics.finalizedFeedbackAgeP50Ms.status === 'MEASURED'
     ) {
-      expect(delayed.metrics.finalizedFeedbackAgeP50Ms.value)
-        .toBeGreaterThan(perfect.metrics.finalizedFeedbackAgeP50Ms.value);
+      expect(delayedScore.metrics.finalizedFeedbackAgeP50Ms.value)
+        .toBeGreaterThan(perfectScore.metrics.finalizedFeedbackAgeP50Ms.value);
     }
+    expect(delayedScore.metrics.inferenceLatencyP50Ms).toMatchObject({ status: 'MEASURED', value: 900 });
   });
 
   it('equivalent CHUNKED and STREAMING canonical outputs score identically', () => {
-    const chunked = scoreCandidate(scenario(), fakeCandidate(scenario(), 'PERFECT', 'CHUNKED'));
-    const streaming = scoreCandidate(scenario(), fakeCandidate(scenario(), 'PERFECT', 'STREAMING'));
+    const chunked = fakeCandidate(scenario(), 'PERFECT', 'CHUNKED');
+    const streaming = fakeCandidate(scenario(), 'PERFECT', 'STREAMING');
+    const chunkedScore = scoreCandidate(scenario(), chunked.definition, chunked.run);
+    const streamingScore = scoreCandidate(scenario(), streaming.definition, streaming.run);
 
-    expect(chunked.metrics).toEqual(streaming.metrics);
-    expect(chunked.familyMetrics).toEqual(streaming.familyMetrics);
+    expect(chunkedScore.metrics).toEqual(streamingScore.metrics);
+    expect(chunkedScore.familyMetrics).toEqual(streamingScore.familyMetrics);
   });
 
   it('keeps event time independent from inference completion time', () => {
-    const delayed = scoreCandidate(scenario(), fakeCandidate(scenario(), 'DELAYED_ACCURATE'));
+    const delayed = fakeCandidate(scenario(), 'DELAYED_ACCURATE');
+    const score = scoreCandidate(scenario(), delayed.definition, delayed.run);
 
-    expect(delayed.metrics.timingAbsoluteMedianMs).toMatchObject({ status: 'PASS', value: 0 });
-    if (delayed.metrics.finalizedFeedbackAgeP50Ms.status === 'PASS') {
-      expect(delayed.metrics.finalizedFeedbackAgeP50Ms.value).toBeGreaterThan(1_000);
+    expect(score.metrics.timingAbsoluteMedianMs).toMatchObject({ status: 'MEASURED', value: 0 });
+    if (score.metrics.finalizedFeedbackAgeP50Ms.status === 'MEASURED') {
+      expect(score.metrics.finalizedFeedbackAgeP50Ms.value).toBeGreaterThan(1_000);
     }
   });
 
   it('preserves same-pitch retrigger one-to-one semantics', () => {
-    const score = scoreCandidate(scenario(), fakeCandidate(scenario(), 'PERFECT'));
+    const perfect = fakeCandidate(scenario(), 'PERFECT');
+    const score = scoreCandidate(scenario(), perfect.definition, perfect.run);
 
     expect(score.familyMetrics.same_pitch_retrigger.expectedStrikeRecall).toMatchObject({
-      status: 'PASS',
+      status: 'MEASURED',
       sampleCount: 2,
       value: 1,
     });
   });
 
-  it('computes chord exact completeness and false complete acceptance', () => {
-    const complete = scoreCandidate(scenario(), fakeCandidate(scenario(), 'PERFECT'));
-    const missingChordTone = scoreCandidate(scenario(), candidateWithObservation({ pitch: 'E4', performanceTimeMs: 595 }));
+  it('limits chord completeness metrics to multi-pitch chord groups', () => {
+    const complete = fakeCandidate(scenario(), 'PERFECT');
+    const onlySingle = scoreCandidate(scenario(), candidateDefinition('single-only'), candidateRun('single-only', scenario().scenarioId, [
+      { observationId: 'single', pitch: 'C4', performanceTimeMs: 10 },
+    ]));
+    const completeScore = scoreCandidate(scenario(), complete.definition, complete.run);
 
-    expect(complete.metrics.groupExactCompletenessRate).toMatchObject({ status: 'PASS', value: 1 });
-    expect(missingChordTone.metrics.groupExactCompletenessRate).toMatchObject({ status: 'PASS', value: 0 });
+    expect(completeScore.metrics.chordExactCompletenessRate).toMatchObject({
+      status: 'MEASURED',
+      sampleCount: 1,
+      value: 1,
+    });
+    expect(onlySingle.metrics.chordExactCompletenessRate).toMatchObject({
+      status: 'MEASURED',
+      sampleCount: 1,
+      value: 0,
+    });
   });
 
   it('scores sustained/no-retrigger false event as a false match on ground-truth missing strike', () => {
-    const falseRetrigger = scoreCandidate(scenario(), candidateWithObservation({ pitch: 'D4', performanceTimeMs: 1_700 }));
+    const definition = candidateDefinition('false-retrigger');
+    const score = scoreCandidate(scenario(), definition, candidateRun(definition.candidateId, scenario().scenarioId, [
+      { observationId: 'false-d4', pitch: 'D4', performanceTimeMs: 1_700 },
+    ]));
 
-    expect(falseRetrigger.familyMetrics.sustained_no_retrigger.falseMatchRateOnGroundTruthMissing)
-      .toMatchObject({ status: 'FAIL', sampleCount: 1, value: 1 });
+    expect(score.familyMetrics.sustained_no_retrigger.falseMatchRateOnGroundTruthMissing)
+      .toMatchObject({ status: 'MEASURED', sampleCount: 1, value: 1 });
   });
 
-  it('suppresses unsupported extra metrics when ground truth is missing', () => {
-    const score = scoreCandidate(plannedScenario(), fakeCandidate(plannedScenario(), 'DUPLICATE_EXTRA'));
+  it('suppresses unsupported metrics when ground truth is missing', () => {
+    const candidate = fakeCandidate(plannedScenario(), 'DUPLICATE_EXTRA');
+    const score = scoreCandidate(plannedScenario(), candidate.definition, candidate.run);
 
     expect(score.metrics.extraPrecision.status).toBe('NOT_EVALUATED');
   });
 
-  it('produces deterministic candidate/report provenance', () => {
+  it('produces deterministic report provenance and aggregate sample counts', () => {
+    const perfect = fakeCandidate(scenario(), 'PERFECT');
+    const empty = fakeCandidate(scenario(), 'EMPTY');
     const reportA = buildBakeoffReport({
       scenarios: [scenario()],
-      candidates: [fakeCandidate(scenario(), 'PERFECT'), fakeCandidate(scenario(), 'EMPTY')],
+      candidateDefinitions: [perfect.definition, empty.definition],
+      scenarioRuns: [perfect.run, empty.run],
       gitHead: 'test-head',
-      command: 'vitest phase9d',
-      policyPath: 'backend/research/policies/continuous_analyzer_bakeoff_policy_v1_2026-10-07.json',
-      policyHash: 'policy-hash',
+      command: 'vitest phase9d.1',
+      policy: { policyId: 'policy', path: 'policy.json', schemaVersion: 2, sha256: 'policy-hash' },
+      benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
       dirtyTree: false,
+      runtimeEnvironment: { node: 'test' },
     });
     const reportB = buildBakeoffReport({
       scenarios: [scenario()],
-      candidates: [fakeCandidate(scenario(), 'PERFECT'), fakeCandidate(scenario(), 'EMPTY')],
+      candidateDefinitions: [perfect.definition, empty.definition],
+      scenarioRuns: [perfect.run, empty.run],
       gitHead: 'test-head',
-      command: 'vitest phase9d',
-      policyPath: 'backend/research/policies/continuous_analyzer_bakeoff_policy_v1_2026-10-07.json',
-      policyHash: 'policy-hash',
+      command: 'vitest phase9d.1',
+      policy: { policyId: 'policy', path: 'policy.json', schemaVersion: 2, sha256: 'policy-hash' },
+      benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
       dirtyTree: false,
+      runtimeEnvironment: { node: 'test' },
     });
 
     expect(reportA).toEqual(reportB);
-    expect(reportA.resultSummary['fake-perfect-chunked'].comparativeRank).toBe(1);
+    expect(reportA.resultSummary[perfect.definition.candidateId].comparativeRank).toBeNull();
+    expect(reportA.aggregateMetrics[perfect.definition.candidateId].expectedStrikeRecall)
+      .toMatchObject({ status: 'MEASURED', sampleCount: 5 });
+    expect(reportA.candidateScenarioRunCount).toBe(2);
   });
 
   it('classifies existing fixture/research corpora without treating historical data as Practice v2 truth', () => {
@@ -272,5 +548,35 @@ describe('Continuous analyzer bake-off harness', () => {
     expect(classification.practiceAudioManifest.status).toBe('HISTORICAL_REGRESSION_ONLY');
     expect(classification.pairedGroundTruthManifest.status).toBe('METADATA_ONLY_PLANNED');
     expect(classification.bytedanceTargetVerifierTargets.status).toBe('HISTORICAL_EVIDENCE_ONLY');
+  });
+
+  it('keeps ContinuousEvaluationSession and direct finalization ledger behavior equivalent', () => {
+    const input = scenario();
+    const artifact = artifactFromScenario(input);
+    const session = new ContinuousEvaluationSession({
+      artifact,
+      timeline: { beatToTimeMs: (beat: number) => beat },
+      scope: { kind: 'FULL' },
+    });
+    const ledger = new ContinuousFinalizationLedger({
+      expectedStrikes: input.expectedStrikes,
+      assignmentWindowMs: 250,
+    });
+    const attacks = [
+      observed('c1', 'C4', 10),
+      observed('e', 'E4', 495),
+      observed('g', 'G4', 510),
+      observed('c2', 'C4', 890),
+      observed('c3', 'C4', 1_140),
+      observed('extra', 'F4', 1_400),
+    ];
+
+    session.publishObservations(attacks, 2_500);
+    ledger.publishObservations(attacks, 2_500);
+    session.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 2_500, terminalPerformanceMs: 2_500 });
+    ledger.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 2_500, terminalPerformanceMs: 2_500 });
+
+    expect(session.snapshot()).toEqual(ledger.snapshot());
+    expect(session.completedEvaluation()).toEqual(ledger.completedEvaluation());
   });
 });

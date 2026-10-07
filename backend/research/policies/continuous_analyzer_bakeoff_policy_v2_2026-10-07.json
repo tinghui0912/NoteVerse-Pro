@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 2,
+  "policyId": "continuous-analyzer-bakeoff-policy-v2",
+  "status": "PHASE_9D_1_FRAMEWORK_ONLY",
+  "selectionOrder": [
+    "product_correctness_first",
+    "absolute_gate_status_reported_independently",
+    "official_comparative_rank_requires_locked_evaluation_split",
+    "secondary_operational_metrics_only_after_correctness_is_acceptable_or_tied"
+  ],
+  "metricAvailabilityValues": ["MEASURED", "NOT_EVALUATED", "INSUFFICIENT_DATA", "MISSING_DATA"],
+  "absoluteGateStatusValues": ["PASS", "FAIL", "NOT_EVALUATED", "INSUFFICIENT_DATA"],
+  "comparativeOutcomeValues": ["RANKED", "INSUFFICIENT_EVALUATION_SET", "INELIGIBLE_SPLIT_LEAKAGE"],
+  "zeroSamplePolicy": "ZERO_SAMPLES_ARE_NOT_EVALUATED_NEVER_PASS",
+  "rankingEligibility": {
+    "developmentSplit": "DIAGNOSTIC_ONLY",
+    "calibrationSplit": "DIAGNOSTIC_ONLY",
+    "evaluationSplit": "REQUIRED_FOR_OFFICIAL_RANK",
+    "splitLeakage": "FAIL_CLOSED_NO_OFFICIAL_RANK"
+  },
+  "coveragePolicy": {
+    "candidateCoverage": "NEVER_SYNTHESIZED_BY_SCORER",
+    "groundTruthCoverage": "BENCHMARK_MAY_EXPLICITLY_PUBLISH_COMPLETE_PHYSICAL_TRUTH_FRONTIER"
+  },
+  "strategyNeutrality": {
+    "chunkedIsPreferred": false,
+    "streamingIsPreferred": false,
+    "primaryCriterion": "product_level_correctness"
+  },
+  "productionMicrophone": "DISABLED_UNTIL_LATER_ACCEPTANCE_GATE",
+  "notes": [
+    "Metric MEASURED means a value exists; it is not a quality PASS.",
+    "A comparative winner is not production approval.",
+    "Historical research reports remain historical until rerun through this contract.",
+    "Candidate latency does not alter musical event timestamps."
+  ]
+}

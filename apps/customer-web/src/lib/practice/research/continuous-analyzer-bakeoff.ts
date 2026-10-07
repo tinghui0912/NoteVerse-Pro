@@ -1,11 +1,12 @@
-import type { PracticeScoreArtifact } from '../local-core/artifact';
-import { ContinuousEvaluationSession, DEFAULT_ASSIGNMENT_WINDOW_MS } from '../local-core/continuous-evaluation-session';
+import { ContinuousFinalizationLedger } from '../local-core/continuous-finalization-ledger';
+import { DEFAULT_ASSIGNMENT_WINDOW_MS } from '../local-core/continuous-evaluation-session';
 import type { CompletedContinuousEvaluation } from '../completed-performance';
 
 type BenchmarkSplit = 'DEVELOPMENT' | 'CALIBRATION' | 'EVALUATION';
 export type CandidateStrategyKind = 'CHUNKED' | 'STREAMING';
-export type MetricStatus = 'PASS' | 'FAIL' | 'NOT_EVALUATED' | 'INSUFFICIENT_DATA' | 'MISSING_DATA';
+export type MetricStatus = 'MEASURED' | 'NOT_EVALUATED' | 'INSUFFICIENT_DATA' | 'MISSING_DATA';
 type CorpusOverlapStatus = 'KNOWN_OVERLAP' | 'KNOWN_DISJOINT' | 'UNKNOWN';
+type ComparativeOutcome = 'RANKED' | 'INSUFFICIENT_EVALUATION_SET' | 'INELIGIBLE_SPLIT_LEAKAGE';
 
 type BenchmarkExpectedStrike = {
   strikeId: string;
@@ -73,10 +74,12 @@ type CandidatePublication = {
     chunkIndex?: number;
     inputStartMs?: number;
     inputEndMs?: number;
+    inferenceLatencyMs?: number;
+    publicationDelayMs?: number;
   };
 };
 
-export type CandidateRun = {
+export type CandidateDefinition = {
   candidateId: string;
   strategyKind: CandidateStrategyKind;
   identity: {
@@ -87,20 +90,38 @@ export type CandidateRun = {
     configurationSha256: string;
     trainingDataOverlapStatus: CorpusOverlapStatus;
   };
+};
+
+export type CandidateScenarioRun = {
+  candidateId: string;
+  scenarioId: string;
   publications: readonly CandidatePublication[];
+  runProvenance?: {
+    command?: string;
+    runtime?: string;
+    environment?: Record<string, string>;
+  };
 };
 
 type MetricNumber =
   | {
-      status: 'PASS' | 'FAIL';
+      status: 'MEASURED';
       sampleCount: number;
       value: number;
+      numerator?: number;
+      denominator?: number;
     }
   | {
       status: 'NOT_EVALUATED' | 'INSUFFICIENT_DATA' | 'MISSING_DATA';
       sampleCount: number;
       reason: string;
     };
+
+type ExtraDiagnostics = {
+  matchedPhysicalExtras: number;
+  missedPhysicalExtras: number;
+  falseCandidateExtras: number;
+};
 
 export type BakeoffScore = {
   scenarioId: string;
@@ -116,12 +137,18 @@ export type BakeoffScore = {
     verdictAgreementRate: MetricNumber;
     timingAbsoluteMedianMs: MetricNumber;
     timingAbsoluteP95Ms: MetricNumber;
-    groupExactCompletenessRate: MetricNumber;
+    chordExactCompletenessRate: MetricNumber;
     falseCompleteChordAcceptanceRate: MetricNumber;
     extraPrecision: MetricNumber;
+    extraRecall: MetricNumber;
     finalizedFeedbackAgeP50Ms: MetricNumber;
     finalizedFeedbackAgeP95Ms: MetricNumber;
+    inferenceLatencyP50Ms: MetricNumber;
+    inferenceLatencyP95Ms: MetricNumber;
+    publicationDelayP50Ms: MetricNumber;
+    publicationDelayP95Ms: MetricNumber;
   };
+  extraDiagnostics: ExtraDiagnostics;
   familyMetrics: Record<string, {
     expectedStrikeRecall: MetricNumber;
     falseMatchRateOnGroundTruthMissing: MetricNumber;
@@ -137,12 +164,29 @@ export function validateBenchmarkScenario(scenario: BenchmarkScenario): void {
   if (!scenario.source?.sourceAudioPath || !scenario.source.sourceAudioSha256) {
     throw new Error('Benchmark scenario requires source audio identity.');
   }
+  if (scenario.physicalGroundTruth?.status === 'RECORDED' && !scenario.source.sourceMidiSha256) {
+    throw new Error('Recorded physical ground truth requires synchronized source MIDI identity.');
+  }
   if (!Number.isFinite(scenario.audio.nativeSampleRateHz) || scenario.audio.nativeSampleRateHz <= 0) {
     throw new Error('Benchmark scenario requires positive native sample rate.');
+  }
+  if (
+    !Number.isFinite(scenario.audio.clipStartMs)
+    || !Number.isFinite(scenario.audio.clipEndMs)
+    || scenario.audio.clipStartMs < 0
+    || scenario.audio.clipEndMs < scenario.audio.clipStartMs
+  ) {
+    throw new Error('Benchmark scenario requires finite ordered audio clip bounds.');
+  }
+  const completion = completionTimeMs(scenario);
+  if (!Number.isFinite(completion) || completion < 0) {
+    throw new Error('Benchmark scenario requires finite non-negative completion time.');
   }
   if (!Array.isArray(scenario.expectedStrikes) || scenario.expectedStrikes.length === 0) {
     throw new Error('Benchmark scenario requires ExpectedStrike timeline.');
   }
+  const strikeIds = new Set<string>();
+  const groupTimes = new Map<string, number>();
   for (const strike of scenario.expectedStrikes) {
     if (
       !strike.strikeId
@@ -153,9 +197,35 @@ export function validateBenchmarkScenario(scenario: BenchmarkScenario): void {
     ) {
       throw new Error('Benchmark ExpectedStrike has invalid identity, pitch, or expected time.');
     }
+    if (strikeIds.has(strike.strikeId)) {
+      throw new Error(`Duplicate ExpectedStrike id: ${strike.strikeId}`);
+    }
+    strikeIds.add(strike.strikeId);
+    const groupTime = groupTimes.get(strike.groupId);
+    if (groupTime !== undefined && groupTime !== strike.expectedPerformanceTimeMs) {
+      throw new Error(`ExpectedStrike group ${strike.groupId} contains different expected times.`);
+    }
+    groupTimes.set(strike.groupId, strike.expectedPerformanceTimeMs);
   }
-  if (scenario.physicalGroundTruth?.status === 'RECORDED' && scenario.physicalGroundTruth.attacks.length === 0) {
-    throw new Error('Recorded physical ground truth requires at least one physical attack.');
+  if (scenario.physicalGroundTruth) {
+    const physicalIds = new Set<string>();
+    for (const attack of scenario.physicalGroundTruth.attacks) {
+      if (
+        !attack.physicalEventId
+        || !attack.pitch
+        || !Number.isFinite(attack.performanceTimeMs)
+        || attack.performanceTimeMs < 0
+      ) {
+        throw new Error('Physical ground truth attack has invalid identity, pitch, or time.');
+      }
+      if (attack.performanceTimeMs > completion) {
+        throw new Error('Physical ground truth attack cannot occur beyond scenario completion.');
+      }
+      if (physicalIds.has(attack.physicalEventId)) {
+        throw new Error(`Duplicate physical event id: ${attack.physicalEventId}`);
+      }
+      physicalIds.add(attack.physicalEventId);
+    }
   }
 }
 
@@ -226,22 +296,27 @@ export function classifyExistingPracticeAudioCorpus(input: {
   };
 }
 
-export function scoreCandidate(scenario: BenchmarkScenario, candidate: CandidateRun): BakeoffScore {
+export function scoreCandidate(
+  scenario: BenchmarkScenario,
+  definition: CandidateDefinition,
+  run: CandidateScenarioRun
+): BakeoffScore {
   validateBenchmarkScenario(scenario);
-  validateCandidateRun(candidate);
-  const candidateEvaluation = runFinalization(scenario, candidate.publications, candidate.candidateId);
-  const finalizationAges = finalizedFeedbackAges(scenario, candidate.publications, candidate.candidateId);
+  validateCandidateScenarioRun(scenario, definition, run);
+  const candidateEvaluation = runFinalization(scenario, run.publications, definition.candidateId, false);
+  const finalizationAges = finalizedFeedbackAges(scenario, run.publications, definition.candidateId);
 
   if (!scenario.physicalGroundTruth || scenario.physicalGroundTruth.status !== 'RECORDED') {
     return {
       scenarioId: scenario.scenarioId,
-      candidateId: candidate.candidateId,
-      strategyKind: candidate.strategyKind,
+      candidateId: definition.candidateId,
+      strategyKind: definition.strategyKind,
       groundTruthStatus: scenario.physicalGroundTruth?.status === 'PLANNED_NOT_RECORDED'
         ? 'INSUFFICIENT_DATA'
         : 'MISSING_DATA',
       candidateEvaluation,
       metrics: notEvaluatedMetrics('physical ground truth is not recorded'),
+      extraDiagnostics: { matchedPhysicalExtras: 0, missedPhysicalExtras: 0, falseCandidateExtras: 0 },
       familyMetrics: familyMetrics(scenario, undefined, candidateEvaluation),
     };
   }
@@ -259,26 +334,36 @@ export function scoreCandidate(scenario: BenchmarkScenario, candidate: Candidate
       analyzedThroughPerformanceMs: completionTimeMs(scenario),
       availabilityTimeMs: completionTimeMs(scenario),
     }],
-    'ground-truth'
+    'ground-truth',
+    true
   );
   return {
     scenarioId: scenario.scenarioId,
-    candidateId: candidate.candidateId,
-    strategyKind: candidate.strategyKind,
-    groundTruthStatus: 'PASS',
+    candidateId: definition.candidateId,
+    strategyKind: definition.strategyKind,
+    groundTruthStatus: groundTruthEvaluation.status === 'COMPLETE' ? 'MEASURED' : 'INSUFFICIENT_DATA',
     candidateEvaluation,
     groundTruthEvaluation,
-    metrics: computeMetrics(scenario, groundTruthEvaluation, candidateEvaluation, finalizationAges),
+    metrics: computeMetrics(scenario, groundTruthEvaluation, candidateEvaluation, finalizationAges, run.publications),
+    extraDiagnostics: extraDiagnostics(groundTruthEvaluation, candidateEvaluation),
     familyMetrics: familyMetrics(scenario, groundTruthEvaluation, candidateEvaluation),
   };
 }
 
-export function fakeCandidate(scenario: BenchmarkScenario, kind: 'PERFECT' | 'EMPTY' | 'DUPLICATE_EXTRA' | 'DELAYED_ACCURATE', strategyKind: CandidateStrategyKind = 'CHUNKED'): CandidateRun {
-  const baseIdentity = {
-    modelRuntime: `fake-${kind.toLowerCase()}`,
-    adapterVersion: 'phase9d-fake-v1',
-    configurationSha256: stableHash({ kind, strategyKind }),
-    trainingDataOverlapStatus: 'UNKNOWN' as const,
+export function fakeCandidate(
+  scenario: BenchmarkScenario,
+  kind: 'PERFECT' | 'EMPTY' | 'DUPLICATE_EXTRA' | 'DELAYED_ACCURATE' | 'INCOMPLETE',
+  strategyKind: CandidateStrategyKind = 'CHUNKED'
+): { definition: CandidateDefinition; run: CandidateScenarioRun } {
+  const definition: CandidateDefinition = {
+    candidateId: `fake-${kind.toLowerCase()}-${strategyKind.toLowerCase()}`,
+    strategyKind,
+    identity: {
+      modelRuntime: `fake-${kind.toLowerCase()}`,
+      adapterVersion: 'phase9d-fake-v1',
+      configurationSha256: stableHash({ kind, strategyKind }),
+      trainingDataOverlapStatus: 'UNKNOWN',
+    },
   };
   const observations = scenario.physicalGroundTruth?.status === 'RECORDED'
     ? scenario.physicalGroundTruth.attacks.map((attack) => ({
@@ -295,87 +380,129 @@ export function fakeCandidate(scenario: BenchmarkScenario, kind: 'PERFECT' | 'EM
         { observationId: 'fake:wrong:bb4', pitch: 'Bb4', performanceTimeMs: 700, confidence: 0.7 },
       ]
     : observations;
+  const finalCoverage = kind === 'INCOMPLETE'
+    ? Math.max(0, completionTimeMs(scenario) - 1_000)
+    : completionTimeMs(scenario);
   return {
-    candidateId: `fake-${kind.toLowerCase()}-${strategyKind.toLowerCase()}`,
-    strategyKind,
-    identity: baseIdentity,
-    publications: [{
-      publicationId: `fake-${kind.toLowerCase()}-publication`,
-      observations: kind === 'EMPTY' ? [] : withDuplicates,
-      analyzedThroughPerformanceMs: completionTimeMs(scenario),
-      availabilityTimeMs: kind === 'DELAYED_ACCURATE' ? completionTimeMs(scenario) + 1_000 : completionTimeMs(scenario),
-      diagnostics: { strategyShape: strategyKind },
-    }],
+    definition,
+    run: {
+      candidateId: definition.candidateId,
+      scenarioId: scenario.scenarioId,
+      publications: [{
+        publicationId: `fake-${kind.toLowerCase()}-publication`,
+        observations: kind === 'EMPTY' ? [] : withDuplicates.filter((observation) => observation.performanceTimeMs <= finalCoverage),
+        analyzedThroughPerformanceMs: finalCoverage,
+        availabilityTimeMs: kind === 'DELAYED_ACCURATE' ? finalCoverage + 1_000 : finalCoverage,
+        diagnostics: {
+          strategyShape: strategyKind,
+          inferenceLatencyMs: kind === 'DELAYED_ACCURATE' ? 900 : 10,
+          publicationDelayMs: kind === 'DELAYED_ACCURATE' ? 1_000 : 10,
+        },
+      }],
+    },
   };
 }
 
 export function buildBakeoffReport(input: {
   scenarios: readonly BenchmarkScenario[];
-  candidates: readonly CandidateRun[];
+  candidateDefinitions: readonly CandidateDefinition[];
+  scenarioRuns: readonly CandidateScenarioRun[];
   gitHead: string;
   command: string;
-  policyPath: string;
-  policyHash: string;
+  policy: { policyId: string; path: string; schemaVersion: number; sha256: string };
+  benchmarkManifest: { manifestId: string; path: string; schemaVersion: number; sha256: string };
   dirtyTree: boolean;
+  runtimeEnvironment?: Record<string, string>;
 }): {
-  schemaVersion: 1;
+  schemaVersion: 2;
   generatedAt: string;
   gitHead: string;
   command: string;
   dirtyTree: boolean;
-  policy: { path: string; sha256: string };
-  scenarioCount: number;
-  candidateCount: number;
+  policy: { policyId: string; path: string; schemaVersion: number; sha256: string };
+  benchmarkManifest: { manifestId: string; path: string; schemaVersion: number; sha256: string };
+  runtimeEnvironment: Record<string, string>;
+  scenarioCountsBySplit: Record<BenchmarkSplit, number>;
+  scoreableScenarioCount: number;
+  missingOrUnrecordedScenarioCount: number;
+  skippedScenarioCount: number;
+  candidateDefinitionCount: number;
+  candidateScenarioRunCount: number;
   splitLeakage: readonly string[];
+  comparativeOutcome: ComparativeOutcome;
   resultSummary: Record<string, { comparativeRank: number | null; absoluteGateStatus: MetricStatus }>;
+  aggregateMetrics: Record<string, { expectedStrikeRecall: MetricNumber; verdictAgreementRate: MetricNumber }>;
   scores: readonly BakeoffScore[];
 } {
   const splitLeakage = detectSplitLeakage(input.scenarios);
-  const scores = input.scenarios.flatMap((scenario) => input.candidates.map((candidate) => scoreCandidate(scenario, candidate)));
-  const byCandidate = new Map<string, BakeoffScore[]>();
-  for (const score of scores) {
-    byCandidate.set(score.candidateId, [...(byCandidate.get(score.candidateId) ?? []), score]);
+  validateScenarioRuns(input.candidateDefinitions, input.scenarioRuns);
+  const scores: BakeoffScore[] = [];
+  for (const scenario of input.scenarios) {
+    for (const definition of input.candidateDefinitions) {
+      const run = input.scenarioRuns.find((candidateRun) =>
+        candidateRun.candidateId === definition.candidateId && candidateRun.scenarioId === scenario.scenarioId
+      );
+      if (run) {
+        scores.push(scoreCandidate(scenario, definition, run));
+      }
+    }
   }
-  const recallByCandidate = [...byCandidate.entries()].map(([candidateId, candidateScores]) => {
-    const recallValues = candidateScores
-      .map((score) => score.metrics.expectedStrikeRecall)
-      .filter((metric): metric is Extract<MetricNumber, { status: 'PASS' | 'FAIL' }> => metric.status === 'PASS' || metric.status === 'FAIL');
-    return {
-      candidateId,
-      recall: recallValues.length === 0
-        ? null
-        : recallValues.reduce((sum, metric) => sum + metric.value, 0) / recallValues.length,
-      hasMissingEvidence: candidateScores.some((score) => score.groundTruthStatus !== 'PASS'),
-    };
-  }).sort((left, right) => (right.recall ?? -1) - (left.recall ?? -1) || left.candidateId.localeCompare(right.candidateId));
-  const resultSummary: Record<string, { comparativeRank: number | null; absoluteGateStatus: MetricStatus }> = {};
-  recallByCandidate.forEach((candidate, index) => {
-    resultSummary[candidate.candidateId] = {
-      comparativeRank: candidate.recall === null ? null : index + 1,
-      absoluteGateStatus: candidate.hasMissingEvidence ? 'INSUFFICIENT_DATA' : 'NOT_EVALUATED',
-    };
-  });
+  const evaluationScenarios = input.scenarios.filter((scenario) => scenario.split === 'EVALUATION');
+  const comparativeOutcome: ComparativeOutcome = splitLeakage.length > 0 && evaluationScenarios.length > 0
+    ? 'INELIGIBLE_SPLIT_LEAKAGE'
+    : evaluationScenarios.length === 0
+      ? 'INSUFFICIENT_EVALUATION_SET'
+      : 'INSUFFICIENT_EVALUATION_SET';
+  const resultSummary = Object.fromEntries(input.candidateDefinitions.map((definition) => [definition.candidateId, {
+    comparativeRank: null,
+    absoluteGateStatus: 'NOT_EVALUATED' as MetricStatus,
+  }]));
+  const aggregateMetrics = Object.fromEntries(input.candidateDefinitions.map((definition) => [
+    definition.candidateId,
+    aggregateCandidateMetrics(scores.filter((score) => score.candidateId === definition.candidateId)),
+  ]));
+  const scenarioCountsBySplit = input.scenarios.reduce<Record<BenchmarkSplit, number>>((counts, scenario) => {
+    counts[scenario.split] += 1;
+    return counts;
+  }, { DEVELOPMENT: 0, CALIBRATION: 0, EVALUATION: 0 });
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAt: new Date(0).toISOString(),
     gitHead: input.gitHead,
     command: input.command,
     dirtyTree: input.dirtyTree,
-    policy: { path: input.policyPath, sha256: input.policyHash },
-    scenarioCount: input.scenarios.length,
-    candidateCount: input.candidates.length,
+    policy: input.policy,
+    benchmarkManifest: input.benchmarkManifest,
+    runtimeEnvironment: input.runtimeEnvironment ?? {},
+    scenarioCountsBySplit,
+    scoreableScenarioCount: input.scenarios.filter((scenario) => scenario.physicalGroundTruth?.status === 'RECORDED').length,
+    missingOrUnrecordedScenarioCount: input.scenarios.filter((scenario) => scenario.physicalGroundTruth?.status !== 'RECORDED').length,
+    skippedScenarioCount: Math.max(0, input.scenarios.length * input.candidateDefinitions.length - scores.length),
+    candidateDefinitionCount: input.candidateDefinitions.length,
+    candidateScenarioRunCount: input.scenarioRuns.length,
     splitLeakage,
+    comparativeOutcome,
     resultSummary,
+    aggregateMetrics,
     scores,
   };
 }
 
-function validateCandidateRun(candidate: CandidateRun): void {
-  if (!candidate.candidateId || !['CHUNKED', 'STREAMING'].includes(candidate.strategyKind)) {
-    throw new Error('Candidate run requires candidateId and strategyKind.');
+function validateCandidateScenarioRun(
+  scenario: BenchmarkScenario,
+  definition: CandidateDefinition,
+  run: CandidateScenarioRun
+): void {
+  if (run.candidateId !== definition.candidateId || run.scenarioId !== scenario.scenarioId) {
+    throw new Error('Candidate scenario run must be bound to the scored candidateId and scenarioId.');
   }
+  const completion = completionTimeMs(scenario);
   const seenPublications = new Set<string>();
-  for (const publication of candidate.publications) {
+  const seenObservations = new Map<string, CandidateObservation>();
+  let previousCoverage = 0;
+  let previousAvailability = Number.NEGATIVE_INFINITY;
+  for (const [index, publication] of run.publications.entries()) {
+    if (!publication.publicationId) throw new Error('Candidate publication requires publicationId.');
     if (seenPublications.has(publication.publicationId)) {
       throw new Error(`Duplicate candidate publicationId: ${publication.publicationId}`);
     }
@@ -383,25 +510,78 @@ function validateCandidateRun(candidate: CandidateRun): void {
     if (!Number.isFinite(publication.analyzedThroughPerformanceMs) || publication.analyzedThroughPerformanceMs < 0) {
       throw new Error('Candidate publication requires finite non-negative coverage.');
     }
+    if (publication.analyzedThroughPerformanceMs > completion) {
+      throw new Error('Candidate publication coverage cannot exceed scenario completion.');
+    }
+    if (index > 0 && publication.analyzedThroughPerformanceMs < previousCoverage) {
+      throw new Error('Candidate publication coverage must be monotonically non-decreasing in canonical order.');
+    }
+    previousCoverage = publication.analyzedThroughPerformanceMs;
+    if (publication.availabilityTimeMs !== undefined) {
+      if (!Number.isFinite(publication.availabilityTimeMs) || publication.availabilityTimeMs < 0) {
+        throw new Error('Candidate publication availability time must be finite and non-negative.');
+      }
+      if (publication.availabilityTimeMs < previousAvailability) {
+        throw new Error('Candidate publication availability time must not move backward in canonical order.');
+      }
+      previousAvailability = publication.availabilityTimeMs;
+    }
+    const publicationIds = new Set<string>();
+    for (const observation of publication.observations) {
+      if (
+        !observation.observationId
+        || !observation.pitch
+        || !Number.isFinite(observation.performanceTimeMs)
+        || observation.performanceTimeMs < 0
+      ) {
+        throw new Error('Candidate observation requires finite non-negative event time, pitch, and identity.');
+      }
+      if (observation.performanceTimeMs > publication.analyzedThroughPerformanceMs) {
+        throw new Error('Candidate observation event time cannot exceed its publication coverage.');
+      }
+      if (publicationIds.has(observation.observationId)) {
+        throw new Error(`Candidate publication contains duplicate observationId: ${observation.observationId}`);
+      }
+      publicationIds.add(observation.observationId);
+      const existing = seenObservations.get(observation.observationId);
+      if (existing && !candidateObservationsEqual(existing, observation)) {
+        throw new Error(`Candidate observationId already exists with different evidence: ${observation.observationId}`);
+      }
+      seenObservations.set(observation.observationId, observation);
+    }
+  }
+}
+
+function validateScenarioRuns(
+  definitions: readonly CandidateDefinition[],
+  runs: readonly CandidateScenarioRun[]
+): void {
+  const candidateIds = new Set(definitions.map((definition) => definition.candidateId));
+  const keys = new Set<string>();
+  for (const run of runs) {
+    if (!candidateIds.has(run.candidateId)) {
+      throw new Error(`Candidate scenario run references unknown candidateId: ${run.candidateId}`);
+    }
+    const key = `${run.candidateId}\0${run.scenarioId}`;
+    if (keys.has(key)) {
+      throw new Error(`Duplicate candidate scenario run: ${run.candidateId} / ${run.scenarioId}`);
+    }
+    keys.add(key);
   }
 }
 
 function runFinalization(
   scenario: BenchmarkScenario,
   publications: readonly CandidatePublication[],
-  sourceId: string
+  sourceId: string,
+  ownsCompleteCoverage: boolean
 ): CompletedContinuousEvaluation {
-  const session = new ContinuousEvaluationSession({
-    artifact: artifactFromScenario(scenario),
-    timeline: identityTimeline(),
-    scope: { kind: 'FULL' },
+  const ledger = new ContinuousFinalizationLedger({
+    expectedStrikes: scenario.expectedStrikes,
+    assignmentWindowMs: DEFAULT_ASSIGNMENT_WINDOW_MS,
   });
-  const sorted = publications.slice().sort((left, right) =>
-    left.analyzedThroughPerformanceMs - right.analyzedThroughPerformanceMs
-      || left.publicationId.localeCompare(right.publicationId)
-  );
-  for (const publication of sorted) {
-    session.publishObservations(
+  for (const publication of publications) {
+    ledger.publishObservations(
       publication.observations.map((observation) => ({
         observationId: `${sourceId}:${observation.observationId}`,
         pitch: observation.pitch,
@@ -412,15 +592,15 @@ function runFinalization(
       publication.analyzedThroughPerformanceMs
     );
   }
-  session.complete({
+  ledger.complete({
     reason: scenario.completion?.kind === 'MANUAL' ? 'STOPPED_BY_USER' : 'SCOPE_COMPLETED',
     performanceTimeMs: completionTimeMs(scenario),
     terminalPerformanceMs: completionTimeMs(scenario),
   });
-  if (sorted.at(-1)?.analyzedThroughPerformanceMs !== completionTimeMs(scenario)) {
-    session.advanceAnalysisThrough(completionTimeMs(scenario));
+  if (ownsCompleteCoverage && publications.at(-1)?.analyzedThroughPerformanceMs !== completionTimeMs(scenario)) {
+    ledger.advanceAnalysisThrough(completionTimeMs(scenario));
   }
-  return session.completedEvaluation();
+  return ledger.completedEvaluation();
 }
 
 function finalizedFeedbackAges(
@@ -428,20 +608,14 @@ function finalizedFeedbackAges(
   publications: readonly CandidatePublication[],
   sourceId: string
 ): number[] {
-  const session = new ContinuousEvaluationSession({
-    artifact: artifactFromScenario(scenario),
-    timeline: identityTimeline(),
-    scope: { kind: 'FULL' },
+  const ledger = new ContinuousFinalizationLedger({
+    expectedStrikes: scenario.expectedStrikes,
+    assignmentWindowMs: DEFAULT_ASSIGNMENT_WINDOW_MS,
   });
   const finalized = new Set<string>();
   const ages: number[] = [];
-  const sorted = publications.slice().sort((left, right) =>
-    (left.availabilityTimeMs ?? left.analyzedThroughPerformanceMs)
-      - (right.availabilityTimeMs ?? right.analyzedThroughPerformanceMs)
-      || left.publicationId.localeCompare(right.publicationId)
-  );
-  for (const publication of sorted) {
-    session.publishObservations(
+  for (const publication of publications) {
+    ledger.publishObservations(
       publication.observations.map((observation) => ({
         observationId: `${sourceId}:${observation.observationId}`,
         pitch: observation.pitch,
@@ -452,7 +626,7 @@ function finalizedFeedbackAges(
       publication.analyzedThroughPerformanceMs
     );
     const availableAt = publication.availabilityTimeMs ?? publication.analyzedThroughPerformanceMs;
-    for (const strike of session.snapshot().strikes) {
+    for (const strike of ledger.snapshot().strikes) {
       if (strike.verdict === 'PENDING' || finalized.has(strike.strikeId)) continue;
       finalized.add(strike.strikeId);
       const eventTime = strike.verdict === 'MATCHED'
@@ -468,10 +642,20 @@ function computeMetrics(
   scenario: BenchmarkScenario,
   groundTruth: CompletedContinuousEvaluation,
   candidate: CompletedContinuousEvaluation,
-  finalizationAges: readonly number[]
+  finalizationAges: readonly number[],
+  publications: readonly CandidatePublication[]
 ): BakeoffScore['metrics'] {
+  const latency = latencyDiagnostics(publications);
   if (groundTruth.status !== 'COMPLETE' || candidate.status !== 'COMPLETE') {
-    return notEvaluatedMetrics('finalization did not complete');
+    return {
+      ...notEvaluatedMetrics('finalization did not complete'),
+      finalizedFeedbackAgeP50Ms: distributionMetric(finalizationAges, 'median'),
+      finalizedFeedbackAgeP95Ms: distributionMetric(finalizationAges, 'p95'),
+      inferenceLatencyP50Ms: distributionMetric(latency.inference, 'median'),
+      inferenceLatencyP95Ms: distributionMetric(latency.inference, 'p95'),
+      publicationDelayP50Ms: distributionMetric(latency.publicationDelay, 'median'),
+      publicationDelayP95Ms: distributionMetric(latency.publicationDelay, 'p95'),
+    };
   }
   const candidateByStrike = new Map(candidate.strikes.map((strike) => [strike.strikeId, strike]));
   const gtMatched = groundTruth.strikes.filter((strike) => strike.result === 'MATCHED');
@@ -485,20 +669,25 @@ function computeMetrics(
     if (!candidateStrike || candidateStrike.result !== 'MATCHED' || gtStrike.result !== 'MATCHED') return [];
     return [candidateStrike.timingOffsetMs - gtStrike.timingOffsetMs];
   });
-  const groupMetrics = groupCompleteness(scenario, groundTruth, candidate);
-  const extraPrecision = extraMetric(groundTruth, candidate);
+  const groupMetrics = chordCompleteness(scenario, groundTruth, candidate);
+  const extras = extraDiagnostics(groundTruth, candidate);
   return {
     expectedStrikeRecall: ratioMetric(candidateTrueMatched.length, gtMatched.length),
-    falseMatchRateOnGroundTruthMissing: ratioMetric(falseMatches.length, gtMissing.length, true),
+    falseMatchRateOnGroundTruthMissing: ratioMetric(falseMatches.length, gtMissing.length),
     correctMissingRate: ratioMetric(correctMissing.length, gtMissing.length),
     verdictAgreementRate: ratioMetric(verdictAgreement.length, groundTruth.strikes.length),
     timingAbsoluteMedianMs: distributionMetric(timingErrors.map(Math.abs), 'median'),
     timingAbsoluteP95Ms: distributionMetric(timingErrors.map(Math.abs), 'p95'),
-    groupExactCompletenessRate: ratioMetric(groupMetrics.exactComplete, groupMetrics.totalCompleteGroups),
-    falseCompleteChordAcceptanceRate: ratioMetric(groupMetrics.falseComplete, groupMetrics.groundTruthIncompleteGroups, true),
-    extraPrecision,
+    chordExactCompletenessRate: ratioMetric(groupMetrics.exactComplete, groupMetrics.totalCompleteChordGroups),
+    falseCompleteChordAcceptanceRate: ratioMetric(groupMetrics.falseComplete, groupMetrics.groundTruthIncompleteChordGroups),
+    extraPrecision: ratioMetric(extras.matchedPhysicalExtras, extras.matchedPhysicalExtras + extras.falseCandidateExtras),
+    extraRecall: ratioMetric(extras.matchedPhysicalExtras, extras.matchedPhysicalExtras + extras.missedPhysicalExtras),
     finalizedFeedbackAgeP50Ms: distributionMetric(finalizationAges, 'median'),
     finalizedFeedbackAgeP95Ms: distributionMetric(finalizationAges, 'p95'),
+    inferenceLatencyP50Ms: distributionMetric(latency.inference, 'median'),
+    inferenceLatencyP95Ms: distributionMetric(latency.inference, 'p95'),
+    publicationDelayP50Ms: distributionMetric(latency.publicationDelay, 'median'),
+    publicationDelayP95Ms: distributionMetric(latency.publicationDelay, 'p95'),
   };
 }
 
@@ -513,8 +702,8 @@ function familyMetrics(
   }
   if (!groundTruth || groundTruth.status !== 'COMPLETE' || candidate.status !== 'COMPLETE') {
     return Object.fromEntries([...allTags].map((tag) => [tag, {
-      expectedStrikeRecall: notEvaluated('physical ground truth is not recorded'),
-      falseMatchRateOnGroundTruthMissing: notEvaluated('physical ground truth is not recorded'),
+      expectedStrikeRecall: notEvaluated('physical ground truth is not recorded or finalization is incomplete'),
+      falseMatchRateOnGroundTruthMissing: notEvaluated('physical ground truth is not recorded or finalization is incomplete'),
     }]));
   }
   const candidateByStrike = new Map(candidate.strikes.map((strike) => [strike.strikeId, strike]));
@@ -529,46 +718,54 @@ function familyMetrics(
     const falseMatches = gtMissing.filter((strike) => candidateByStrike.get(strike.strikeId)?.result === 'MATCHED');
     return [tag, {
       expectedStrikeRecall: ratioMetric(trueMatched.length, gtMatched.length),
-      falseMatchRateOnGroundTruthMissing: ratioMetric(falseMatches.length, gtMissing.length, true),
+      falseMatchRateOnGroundTruthMissing: ratioMetric(falseMatches.length, gtMissing.length),
     }];
   }));
 }
 
-function groupCompleteness(
+function chordCompleteness(
   scenario: BenchmarkScenario,
   groundTruth: Extract<CompletedContinuousEvaluation, { status: 'COMPLETE' }>,
   candidate: Extract<CompletedContinuousEvaluation, { status: 'COMPLETE' }>
-): { exactComplete: number; totalCompleteGroups: number; falseComplete: number; groundTruthIncompleteGroups: number } {
+): { exactComplete: number; totalCompleteChordGroups: number; falseComplete: number; groundTruthIncompleteChordGroups: number } {
   const groups = new Set(scenario.expectedStrikes.map((strike) => strike.groupId));
   let exactComplete = 0;
-  let totalCompleteGroups = 0;
+  let totalCompleteChordGroups = 0;
   let falseComplete = 0;
-  let groundTruthIncompleteGroups = 0;
+  let groundTruthIncompleteChordGroups = 0;
   for (const groupId of groups) {
+    const expectedPitches = new Set(scenario.expectedStrikes
+      .filter((strike) => strike.groupId === groupId)
+      .map((strike) => strike.pitch));
+    if (expectedPitches.size < 2) continue;
     const gtGroup = groundTruth.strikes.filter((strike) => strike.expectedGroupId === groupId);
     const candidateGroup = candidate.strikes.filter((strike) => strike.expectedGroupId === groupId);
     const gtComplete = gtGroup.every((strike) => strike.result === 'MATCHED');
     const candidateComplete = candidateGroup.every((strike) => strike.result === 'MATCHED');
     if (gtComplete) {
-      totalCompleteGroups += 1;
+      totalCompleteChordGroups += 1;
       if (candidateComplete) exactComplete += 1;
     } else {
-      groundTruthIncompleteGroups += 1;
+      groundTruthIncompleteChordGroups += 1;
       if (candidateComplete) falseComplete += 1;
     }
   }
-  return { exactComplete, totalCompleteGroups, falseComplete, groundTruthIncompleteGroups };
+  return { exactComplete, totalCompleteChordGroups, falseComplete, groundTruthIncompleteChordGroups };
 }
 
-function extraMetric(
-  groundTruth: Extract<CompletedContinuousEvaluation, { status: 'COMPLETE' }>,
-  candidate: Extract<CompletedContinuousEvaluation, { status: 'COMPLETE' }>
-): MetricNumber {
-  if (groundTruth.extras.length === 0 && candidate.extras.length === 0) {
-    return ratioMetric(0, 0);
+function extraDiagnostics(
+  groundTruth: CompletedContinuousEvaluation,
+  candidate: CompletedContinuousEvaluation
+): ExtraDiagnostics {
+  if (groundTruth.status !== 'COMPLETE' || candidate.status !== 'COMPLETE') {
+    return { matchedPhysicalExtras: 0, missedPhysicalExtras: 0, falseCandidateExtras: 0 };
   }
-  const matchedCandidateExtras = oneToOneExtraMatches(groundTruth.extras, candidate.extras);
-  return ratioMetric(matchedCandidateExtras, candidate.extras.length);
+  const matches = oneToOneExtraMatches(groundTruth.extras, candidate.extras);
+  return {
+    matchedPhysicalExtras: matches,
+    missedPhysicalExtras: groundTruth.extras.length - matches,
+    falseCandidateExtras: candidate.extras.length - matches,
+  };
 }
 
 function oneToOneExtraMatches(
@@ -596,13 +793,49 @@ function oneToOneExtraMatches(
   return count;
 }
 
-function ratioMetric(numerator: number, denominator: number, lowerIsBetter = false): MetricNumber {
+function aggregateCandidateMetrics(scores: readonly BakeoffScore[]): { expectedStrikeRecall: MetricNumber; verdictAgreementRate: MetricNumber } {
+  let recallNumerator = 0;
+  let recallDenominator = 0;
+  let agreementNumerator = 0;
+  let agreementDenominator = 0;
+  for (const score of scores) {
+    if (score.metrics.expectedStrikeRecall.status === 'MEASURED') {
+      recallNumerator += score.metrics.expectedStrikeRecall.numerator ?? 0;
+      recallDenominator += score.metrics.expectedStrikeRecall.denominator ?? score.metrics.expectedStrikeRecall.sampleCount;
+    }
+    if (score.metrics.verdictAgreementRate.status === 'MEASURED') {
+      agreementNumerator += score.metrics.verdictAgreementRate.numerator ?? 0;
+      agreementDenominator += score.metrics.verdictAgreementRate.denominator ?? score.metrics.verdictAgreementRate.sampleCount;
+    }
+  }
+  return {
+    expectedStrikeRecall: ratioMetric(recallNumerator, recallDenominator),
+    verdictAgreementRate: ratioMetric(agreementNumerator, agreementDenominator),
+  };
+}
+
+function latencyDiagnostics(publications: readonly CandidatePublication[]): { inference: number[]; publicationDelay: number[] } {
+  return {
+    inference: publications.flatMap((publication) =>
+      publication.diagnostics?.inferenceLatencyMs === undefined ? [] : [publication.diagnostics.inferenceLatencyMs]
+    ),
+    publicationDelay: publications.flatMap((publication) =>
+      publication.diagnostics?.publicationDelayMs === undefined ? [] : [publication.diagnostics.publicationDelayMs]
+    ),
+  };
+}
+
+function ratioMetric(numerator: number, denominator: number): MetricNumber {
   if (denominator === 0) {
     return notEvaluated('zero metric sample count');
   }
-  const value = numerator / denominator;
-  const pass = lowerIsBetter ? numerator === 0 : true;
-  return { status: pass ? 'PASS' : 'FAIL', sampleCount: denominator, value };
+  return {
+    status: 'MEASURED',
+    sampleCount: denominator,
+    numerator,
+    denominator,
+    value: numerator / denominator,
+  };
 }
 
 function distributionMetric(values: readonly number[], kind: 'median' | 'p95'): MetricNumber {
@@ -611,7 +844,7 @@ function distributionMetric(values: readonly number[], kind: 'median' | 'p95'): 
   }
   const sorted = values.slice().sort((left, right) => left - right);
   return {
-    status: 'PASS',
+    status: 'MEASURED',
     sampleCount: sorted.length,
     value: percentile(sorted, kind === 'median' ? 0.5 : 0.95),
   };
@@ -634,11 +867,16 @@ function notEvaluatedMetrics(reason: string): BakeoffScore['metrics'] {
     verdictAgreementRate: notEvaluated(reason),
     timingAbsoluteMedianMs: notEvaluated(reason),
     timingAbsoluteP95Ms: notEvaluated(reason),
-    groupExactCompletenessRate: notEvaluated(reason),
+    chordExactCompletenessRate: notEvaluated(reason),
     falseCompleteChordAcceptanceRate: notEvaluated(reason),
     extraPrecision: notEvaluated(reason),
+    extraRecall: notEvaluated(reason),
     finalizedFeedbackAgeP50Ms: notEvaluated(reason),
     finalizedFeedbackAgeP95Ms: notEvaluated(reason),
+    inferenceLatencyP50Ms: notEvaluated(reason),
+    inferenceLatencyP95Ms: notEvaluated(reason),
+    publicationDelayP50Ms: notEvaluated(reason),
+    publicationDelayP95Ms: notEvaluated(reason),
   };
 }
 
@@ -647,70 +885,11 @@ function completionTimeMs(scenario: BenchmarkScenario): number {
     ?? Math.max(...scenario.expectedStrikes.map((strike) => strike.expectedPerformanceTimeMs)) + DEFAULT_ASSIGNMENT_WINDOW_MS;
 }
 
-function artifactFromScenario(scenario: BenchmarkScenario): PracticeScoreArtifact {
-  const groups = [...new Set(scenario.expectedStrikes.map((strike) => strike.groupId))]
-    .map((groupId) => {
-      const strikes = scenario.expectedStrikes.filter((strike) => strike.groupId === groupId);
-      const onsetBeat = Math.min(...strikes.map((strike) => strike.expectedPerformanceTimeMs));
-      const renderNoteIds = strikes.flatMap((strike) => strike.renderNoteIds);
-      return {
-        groupId,
-        onsetBeat,
-        canonicalEndBeat: onsetBeat,
-        pitches: strikes.map((strike) => strike.pitch),
-        renderNoteIds,
-        eventIds: strikes.map((strike) => `event:${strike.strikeId}`),
-        measureNumbers: ['1'],
-        staffIds: ['1'],
-        voiceIds: ['1'],
-        expectedNotes: strikes.map((strike) => ({
-          eventId: `event:${strike.strikeId}`,
-          expectedNoteId: `note:${strike.strikeId}`,
-          measureNumbers: ['1'],
-          pitch: strike.pitch,
-          renderNoteId: strike.renderNoteIds[0] ?? strike.strikeId,
-        })),
-        strikeTargets: strikes.map((strike) => ({
-          strikeId: strike.strikeId,
-          pitch: strike.pitch,
-          renderNoteIds: [...strike.renderNoteIds],
-          eventIds: [`event:${strike.strikeId}`],
-          measureNumbers: ['1'],
-          expectedNotes: [{
-            eventId: `event:${strike.strikeId}`,
-            expectedNoteId: `note:${strike.strikeId}`,
-            measureNumbers: ['1'],
-            pitch: strike.pitch,
-            renderNoteId: strike.renderNoteIds[0] ?? strike.strikeId,
-          }],
-        })),
-      };
-    })
-    .sort((left, right) => left.onsetBeat - right.onsetBeat || left.groupId.localeCompare(right.groupId));
-  return {
-    schemaVersion: 1,
-    scoreId: `benchmark:${scenario.scenarioId}`,
-    revisionId: 'phase9d',
-    artifactId: `artifact:${scenario.scenarioId}`,
-    scoreTempoSegments: [{ startBeat: 0, bpm: 60, source: 'BENCHMARK' }],
-    meterSegments: [{ startBeat: 0, numerator: 4, denominator: 4, measureDurationBeats: 4, countInPulses: 4, source: 'BENCHMARK' }],
-    practiceAttackSteps: groups.map((group) => ({
-      stepId: `step:${group.groupId}`,
-      groupId: group.groupId,
-      onsetBeat: group.onsetBeat,
-      attackTargets: group.strikeTargets.map((target) => ({
-        pitch: target.pitch,
-        renderNoteIds: target.renderNoteIds,
-      })),
-      continuation: [],
-    })),
-    expectedPracticeGroups: groups,
-    scoreEndBeat: completionTimeMs(scenario),
-  } as unknown as PracticeScoreArtifact;
-}
-
-function identityTimeline(): { beatToTimeMs(beat: number): number } {
-  return { beatToTimeMs: (beat: number) => beat };
+function candidateObservationsEqual(left: CandidateObservation, right: CandidateObservation): boolean {
+  return left.observationId === right.observationId
+    && left.pitch === right.pitch
+    && left.performanceTimeMs === right.performanceTimeMs
+    && left.confidence === right.confidence;
 }
 
 function stableHash(value: unknown): string {

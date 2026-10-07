@@ -1,4 +1,5 @@
 export * from './artifact';
+export * from './continuous-finalization-ledger';
 export * from './continuous-evaluation-session';
 export * from './evidence';
 export * from './performance-runtime';

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 2,
+  "artifact": "continuous_analyzer_bakeoff_phase9d1",
+  "generatedAt": "2026-10-07T00:00:00+08:00",
+  "gitHeadAtAuthoring": "1535fe17466f327cbba7f2e3dc8a412c09c6cfcc",
+  "purpose": "Hardening of the model-neutral Continuous analyzer bake-off harness. No real model was run and no candidate winner was selected.",
+  "policy": {
+    "path": "backend/research/policies/continuous_analyzer_bakeoff_policy_v2_2026-10-07.json",
+    "sha256": "dd875a2983248fde88ab041d9e5ebbf1eda7cede5c22250eaecef76273310677"
+  },
+  "syntheticFixture": {
+    "path": "backend/research/fixtures/continuous_analyzer_bakeoff_synthetic_v1.json",
+    "sha256": "0ea11d323cacb3c65f440bb1a4da5e0c371bae42c0573741175697aafac1c655",
+    "status": "HARNESS_PROOF_ONLY_NOT_REAL_MODEL_ACCURACY"
+  },
+  "criticalCorrections": {
+    "candidateCoverage": "NEVER_SYNTHESIZED_BY_SCORER",
+    "groundTruthCoverage": "EXPLICIT_BENCHMARK_OWNED_PHYSICAL_TRUTH_FRONTIER",
+    "candidateScenarioBinding": "candidate outputs are scored only against matching scenarioId",
+    "publicationOrder": "canonical candidate order is validated and never silently sorted",
+    "metricStatus": "MEASURED is separated from product gate PASS/FAIL",
+    "officialRanking": "requires eligible EVALUATION split and no protected split leakage"
+  },
+  "sharedFinalization": {
+    "primitive": "ContinuousFinalizationLedger",
+    "productSession": "ContinuousEvaluationSession builds ExpectedStrike[] from PracticeScoreArtifact and delegates to the ledger",
+    "researchScorer": "Phase 9D.1 scorer feeds benchmark ExpectedStrike[] directly into the same ledger",
+    "parityTest": "session and direct ledger behavior are asserted equivalent for representative chord/retrigger/extra completion"
+  },
+  "metricCorrections": {
+    "zeroSamples": "NOT_EVALUATED",
+    "recordedZeroAttackTruth": "SUPPORTED",
+    "chordMetrics": "only multi-pitch expected groups contribute",
+    "extras": "extra precision and extra recall are reported with matched/missed/false counts",
+    "aggregation": "candidate aggregate ratios pool metric numerators and denominators"
+  },
+  "existingCorpusClassification": {
+    "practiceAudioManifest": "HISTORICAL_REGRESSION_ONLY",
+    "practiceAudioProfileManifest": "HISTORICAL_REGRESSION_ONLY",
+    "pairedGroundTruthManifest": "METADATA_ONLY_PLANNED_UNTIL_RECORDED",
+    "bytedanceTargetVerifierTargets": "HISTORICAL_EVIDENCE_AND_TAXONOMY",
+    "onlineAmtReports": "HISTORICAL_EVIDENCE_ONLY",
+    "rttReports": "HISTORICAL_EVIDENCE_ONLY"
+  },
+  "final": {
+    "candidateWinner": "NOT_SELECTED",
+    "realModelRuns": "NOT_RUN",
+    "productionApproval": "NOT_GRANTED",
+    "productionMicrophone": "DISABLED"
+  }
+}
