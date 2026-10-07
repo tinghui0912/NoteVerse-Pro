@@ -5,7 +5,10 @@ import {
   classifyExistingPracticeAudioCorpus,
   detectSplitLeakage,
   fakeCandidate,
+  isOwnedPerformanceTime,
+  performanceTimeToSourceAudioMs,
   scoreCandidate,
+  sourceAudioTimeToPerformanceMs,
   validateBenchmarkScenario,
   type BenchmarkScenario,
   type CandidateDefinition,
@@ -34,6 +37,8 @@ function scenario(overrides: Partial<BenchmarkScenario> = {}): BenchmarkScenario
       channelPolicy: 'mono_float32_synthetic',
       clipStartMs: 0,
       clipEndMs: 3_000,
+      performanceOriginSourceMs: 0,
+      sourceDurationMs: 3_000,
       pcmIdentity: 'synthetic-pcm-phase9d-001',
     },
     expectedStrikes: [
@@ -225,6 +230,31 @@ describe('Continuous analyzer bake-off harness', () => {
         attacks: [{ physicalEventId: 'late', pitch: 'C4', performanceTimeMs: 9_999 }],
       },
     }))).toThrow(/beyond scenario completion/);
+    expect(() => validateBenchmarkScenario(scenario({
+      audio: { ...scenario().audio, performanceOriginSourceMs: 4_000 },
+    }))).toThrow(/performance origin/);
+    expect(() => validateBenchmarkScenario(scenario({
+      audio: { ...scenario().audio, sourceDurationMs: 2_000 },
+    }))).toThrow(/source duration/);
+  });
+
+  it('maps source audio time to benchmark performance time without making pre/post-roll product-owned', () => {
+    const withPreroll = scenario({
+      audio: {
+        ...scenario().audio,
+        clipStartMs: 1_000,
+        clipEndMs: 4_000,
+        performanceOriginSourceMs: 1_500,
+        sourceDurationMs: 5_000,
+      },
+    });
+
+    expect(sourceAudioTimeToPerformanceMs(withPreroll, 1_250)).toBe(-250);
+    expect(sourceAudioTimeToPerformanceMs(withPreroll, 1_500)).toBe(0);
+    expect(performanceTimeToSourceAudioMs(withPreroll, 750)).toBe(2_250);
+    expect(isOwnedPerformanceTime(withPreroll, -1)).toBe(false);
+    expect(isOwnedPerformanceTime(withPreroll, 2_501)).toBe(false);
+    expect(isOwnedPerformanceTime(withPreroll, 2_500)).toBe(true);
   });
 
   it('accepts recorded physical truth with zero attacks and scores all-missing correctly', () => {
@@ -333,6 +363,31 @@ describe('Continuous analyzer bake-off harness', () => {
       benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
       dirtyTree: false,
     })).toThrow(/Duplicate candidate scenario run/);
+  });
+
+  it('validates malformed and duplicate scenarios before considering missing candidate runs', () => {
+    const definition = candidateDefinition('missing-only');
+    expect(() => buildBakeoffReport({
+      scenarios: [scenario({ expectedStrikes: [] })],
+      candidateDefinitions: [definition],
+      scenarioRuns: [],
+      gitHead: 'test-head',
+      command: 'vitest',
+      policy: { policyId: 'policy', path: 'policy.json', schemaVersion: 2, sha256: 'policy-hash' },
+      benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
+      dirtyTree: false,
+    })).toThrow(/ExpectedStrike/);
+
+    expect(() => buildBakeoffReport({
+      scenarios: [scenario({ scenarioId: 'duplicate' }), scenario({ scenarioId: 'duplicate' })],
+      candidateDefinitions: [definition],
+      scenarioRuns: [],
+      gitHead: 'test-head',
+      command: 'vitest',
+      policy: { policyId: 'policy', path: 'policy.json', schemaVersion: 2, sha256: 'policy-hash' },
+      benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
+      dirtyTree: false,
+    })).toThrow(/Duplicate benchmark scenarioId/);
   });
 
   it('rejects malformed candidate definitions and orphan scenario runs', () => {
@@ -534,6 +589,73 @@ describe('Continuous analyzer bake-off harness', () => {
     expect(score.metricSamples.feedbackAgeMissingAvailabilityCount).toBeGreaterThan(0);
   });
 
+  it('includes completion-triggered finalization in feedback-age accounting', () => {
+    const terminal = scenario({
+      scenarioId: 'completion-finalizes-last-strike',
+      expectedStrikes: [
+        { strikeId: 'last', groupId: 'last-group', pitch: 'C4', expectedPerformanceTimeMs: 2_400, renderNoteIds: ['last'] },
+      ],
+      physicalGroundTruth: {
+        status: 'RECORDED',
+        source: 'synthetic_terminal_truth',
+        attacks: [{ physicalEventId: 'last-attack', pitch: 'C4', performanceTimeMs: 2_400 }],
+      },
+      completion: { kind: 'NATURAL', performanceTimeMs: 2_500 },
+      taxonomy: { groups: { 'last-group': ['terminal'] } },
+    });
+    const definition = candidateDefinition('completion-latency');
+    const score = scoreCandidate(terminal, definition, {
+      candidateId: definition.candidateId,
+      scenarioId: terminal.scenarioId,
+      publications: [{
+        publicationId: 'pre-completion-coverage',
+        observations: [{ observationId: 'last', pitch: 'C4', performanceTimeMs: 2_400, confidence: 1 }],
+        analyzedThroughPerformanceMs: 2_500,
+        availabilityTimeMs: 2_500,
+      }],
+    });
+
+    expect(score.metrics.finalizedFeedbackAgeP50Ms).toMatchObject({
+      status: 'MEASURED',
+      value: 100,
+    });
+  });
+
+  it('records manual completion feedback age for NOT_REACHED and later tail-publication finalization separately', () => {
+    const manual = scenario({
+      scenarioId: 'manual-tail-finalization',
+      expectedStrikes: [
+        { strikeId: 'reached', groupId: 'reached', pitch: 'C4', expectedPerformanceTimeMs: 500, renderNoteIds: ['reached'] },
+        { strikeId: 'future', groupId: 'future', pitch: 'D4', expectedPerformanceTimeMs: 2_000, renderNoteIds: ['future'] },
+      ],
+      physicalGroundTruth: {
+        status: 'RECORDED',
+        source: 'synthetic_manual_tail_truth',
+        attacks: [{ physicalEventId: 'reached-attack', pitch: 'C4', performanceTimeMs: 500 }],
+      },
+      completion: { kind: 'MANUAL', performanceTimeMs: 1_000 },
+      taxonomy: { groups: { reached: ['manual'], future: ['manual'] } },
+    });
+    const definition = candidateDefinition('manual-tail');
+    const score = scoreCandidate(manual, definition, {
+      candidateId: definition.candidateId,
+      scenarioId: manual.scenarioId,
+      publications: [{
+        publicationId: 'tail-after-stop',
+        observations: [{ observationId: 'reached', pitch: 'C4', performanceTimeMs: 500, confidence: 1 }],
+        analyzedThroughPerformanceMs: 1_000,
+        availabilityTimeMs: 1_300,
+      }],
+    });
+
+    expect(score.candidateEvaluation.status).toBe('COMPLETE');
+    expect(score.metricSamples.feedbackAgeMeasuredStrikeCount).toBe(2);
+    expect(score.metrics.finalizedFeedbackAgeP95Ms).toMatchObject({
+      status: 'MEASURED',
+      value: 800,
+    });
+  });
+
   it('scores PERFECT candidate with product finalization parity', () => {
     const { definition, run } = fakeCandidate(scenario(), 'PERFECT');
     const score = scoreCandidate(scenario(), definition, run);
@@ -563,6 +685,37 @@ describe('Continuous analyzer bake-off harness', () => {
 
     expect(score.extraDiagnostics.missedPhysicalExtras).toBe(1);
     expect(score.metrics.extraRecall).toMatchObject({ status: 'MEASURED', value: 0 });
+  });
+
+  it('matches physical extras optimally instead of greedily', () => {
+    const adversarial = scenario({
+      scenarioId: 'extra-optimal-matching',
+      expectedStrikes: [
+        { strikeId: 'base', groupId: 'base', pitch: 'C4', expectedPerformanceTimeMs: 0, renderNoteIds: ['base'] },
+      ],
+      physicalGroundTruth: {
+        status: 'RECORDED',
+        source: 'synthetic_extra_truth',
+        attacks: [
+          { physicalEventId: 'base-attack', pitch: 'C4', performanceTimeMs: 0 },
+          { physicalEventId: 'truth-extra-a', pitch: 'F4', performanceTimeMs: 0 },
+          { physicalEventId: 'truth-extra-b', pitch: 'F4', performanceTimeMs: 400 },
+        ],
+      },
+      completion: { kind: 'NATURAL', performanceTimeMs: 1_000 },
+    });
+    const definition = candidateDefinition('optimal-extra');
+    const score = scoreCandidate(adversarial, definition, candidateRun(definition.candidateId, adversarial.scenarioId, [
+      { observationId: 'base', pitch: 'C4', performanceTimeMs: 0 },
+      { observationId: 'candidate-extra-a', pitch: 'F4', performanceTimeMs: 240 },
+      { observationId: 'candidate-extra-b', pitch: 'F4', performanceTimeMs: 620 },
+    ], 1_000));
+
+    expect(score.extraDiagnostics).toMatchObject({
+      matchedPhysicalExtras: 2,
+      missedPhysicalExtras: 0,
+      falseCandidateExtras: 0,
+    });
   });
 
   it('delayed-but-accurate candidate keeps accuracy and worsens finalized feedback age', () => {

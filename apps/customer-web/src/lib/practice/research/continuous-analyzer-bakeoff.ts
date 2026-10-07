@@ -1,5 +1,6 @@
 import { ContinuousFinalizationLedger } from '../local-core/continuous-finalization-ledger';
 import { DEFAULT_ASSIGNMENT_WINDOW_MS } from '../local-core/continuous-evaluation-session';
+import { assignObservedAttacksToExpectedStrikes } from '../audio-analysis/continuous/performance-reconciler';
 import type { CompletedContinuousEvaluation } from '../completed-performance';
 
 type BenchmarkSplit = 'DEVELOPMENT' | 'CALIBRATION' | 'EVALUATION';
@@ -45,6 +46,8 @@ export type BenchmarkScenario = {
     channelPolicy: string;
     clipStartMs: number;
     clipEndMs: number;
+    performanceOriginSourceMs: number;
+    sourceDurationMs?: number;
     pcmIdentity: string;
   };
   expectedStrikes: readonly BenchmarkExpectedStrike[];
@@ -64,14 +67,14 @@ export type BenchmarkScenario = {
   corpusOverlapStatus: CorpusOverlapStatus;
 };
 
-type CandidateObservation = {
+export type CandidateObservation = {
   observationId: string;
   pitch: string;
   performanceTimeMs: number;
   confidence?: number;
 };
 
-type CandidatePublication = {
+export type CandidatePublication = {
   publicationId: string;
   observations: readonly CandidateObservation[];
   analyzedThroughPerformanceMs: number;
@@ -232,10 +235,22 @@ export function validateBenchmarkScenario(scenario: BenchmarkScenario): void {
   if (
     !Number.isFinite(scenario.audio.clipStartMs)
     || !Number.isFinite(scenario.audio.clipEndMs)
+    || !Number.isFinite(scenario.audio.performanceOriginSourceMs)
     || scenario.audio.clipStartMs < 0
     || scenario.audio.clipEndMs < scenario.audio.clipStartMs
+    || scenario.audio.performanceOriginSourceMs < scenario.audio.clipStartMs
+    || scenario.audio.performanceOriginSourceMs > scenario.audio.clipEndMs
   ) {
-    throw new Error('Benchmark scenario requires finite ordered audio clip bounds.');
+    throw new Error('Benchmark scenario requires finite ordered audio clip bounds and performance origin.');
+  }
+  if (
+    scenario.audio.sourceDurationMs !== undefined
+    && (
+      !Number.isFinite(scenario.audio.sourceDurationMs)
+      || scenario.audio.sourceDurationMs < scenario.audio.clipEndMs
+    )
+  ) {
+    throw new Error('Benchmark scenario clip exceeds declared source duration.');
   }
   const completion = completionTimeMs(scenario);
   if (!Number.isFinite(completion) || completion < 0) {
@@ -509,6 +524,7 @@ export function buildBakeoffReport(input: {
   scores: readonly BakeoffScore[];
 } {
   const splitLeakage = detectSplitLeakage(input.scenarios);
+  validateScenarios(input.scenarios);
   validateScenarioRuns(input.scenarios, input.candidateDefinitions, input.scenarioRuns);
   const scores: BakeoffScore[] = [];
   for (const scenario of input.scenarios) {
@@ -575,6 +591,23 @@ export function buildBakeoffReport(input: {
     aggregateFamilyMetrics: familyAggregates,
     scores,
   };
+}
+
+export function sourceAudioTimeToPerformanceMs(scenario: BenchmarkScenario, sourceAudioTimeMs: number): number {
+  validateBenchmarkScenario(scenario);
+  if (!Number.isFinite(sourceAudioTimeMs)) throw new Error('Source audio time must be finite.');
+  return sourceAudioTimeMs - scenario.audio.performanceOriginSourceMs;
+}
+
+export function performanceTimeToSourceAudioMs(scenario: BenchmarkScenario, performanceTimeMs: number): number {
+  validateBenchmarkScenario(scenario);
+  if (!Number.isFinite(performanceTimeMs)) throw new Error('Performance time must be finite.');
+  return performanceTimeMs + scenario.audio.performanceOriginSourceMs;
+}
+
+export function isOwnedPerformanceTime(scenario: BenchmarkScenario, performanceTimeMs: number): boolean {
+  validateBenchmarkScenario(scenario);
+  return performanceTimeMs >= 0 && performanceTimeMs <= completionTimeMs(scenario);
 }
 
 function missingRunScore(scenario: BenchmarkScenario, definition: CandidateDefinition): BakeoffScore {
@@ -750,6 +783,17 @@ function validateCandidateDefinition(definition: CandidateDefinition): void {
   }
 }
 
+function validateScenarios(scenarios: readonly BenchmarkScenario[]): void {
+  const ids = new Set<string>();
+  for (const scenario of scenarios) {
+    validateBenchmarkScenario(scenario);
+    if (ids.has(scenario.scenarioId)) {
+      throw new Error(`Duplicate benchmark scenarioId: ${scenario.scenarioId}`);
+    }
+    ids.add(scenario.scenarioId);
+  }
+}
+
 function validateScenarioRuns(
   scenarios: readonly BenchmarkScenario[],
   definitions: readonly CandidateDefinition[],
@@ -826,7 +870,41 @@ function metricSamples(
   const finalizedFeedbackAgesMs: number[] = [];
   let feedbackAgeFinalizedStrikeCount = 0;
   let feedbackAgeMissingAvailabilityCount = 0;
+  let completionApplied = false;
+  const completionAt = completionTimeMs(scenario);
+  const completeAtPerformanceBoundary = () => {
+    if (completionApplied) return;
+    ledger.complete({
+      reason: scenario.completion?.kind === 'MANUAL' ? 'STOPPED_BY_USER' : 'SCOPE_COMPLETED',
+      performanceTimeMs: completionAt,
+      terminalPerformanceMs: completionAt,
+    });
+    completionApplied = true;
+    recordNewFinalized(completionAt);
+  };
+  const recordNewFinalized = (availabilityTimeMs: number | undefined) => {
+    for (const strike of ledger.snapshot().strikes) {
+      if (strike.verdict === 'PENDING' || finalized.has(strike.strikeId)) continue;
+      finalized.add(strike.strikeId);
+      feedbackAgeFinalizedStrikeCount += 1;
+      if (availabilityTimeMs === undefined) {
+        feedbackAgeMissingAvailabilityCount += 1;
+        continue;
+      }
+      const eventTime = strike.verdict === 'MATCHED'
+        ? strike.expectedPerformanceTimeMs + strike.timingOffsetMs
+        : strike.expectedPerformanceTimeMs;
+      finalizedFeedbackAgesMs.push(availabilityTimeMs - eventTime);
+    }
+  };
   for (const publication of publications) {
+    if (
+      !completionApplied
+      && publication.availabilityTimeMs !== undefined
+      && publication.availabilityTimeMs >= completionAt
+    ) {
+      completeAtPerformanceBoundary();
+    }
     ledger.publishObservations(
       publication.observations.map((observation) => ({
         observationId: `${sourceId}:${observation.observationId}`,
@@ -837,20 +915,9 @@ function metricSamples(
       })),
       publication.analyzedThroughPerformanceMs
     );
-    for (const strike of ledger.snapshot().strikes) {
-      if (strike.verdict === 'PENDING' || finalized.has(strike.strikeId)) continue;
-      finalized.add(strike.strikeId);
-      feedbackAgeFinalizedStrikeCount += 1;
-      if (publication.availabilityTimeMs === undefined) {
-        feedbackAgeMissingAvailabilityCount += 1;
-        continue;
-      }
-      const eventTime = strike.verdict === 'MATCHED'
-        ? strike.expectedPerformanceTimeMs + strike.timingOffsetMs
-        : strike.expectedPerformanceTimeMs;
-      finalizedFeedbackAgesMs.push(publication.availabilityTimeMs - eventTime);
-    }
+    recordNewFinalized(publication.availabilityTimeMs);
   }
+  completeAtPerformanceBoundary();
   const latency = latencyDiagnostics(publications);
   return {
     timingAbsoluteErrorsMs: [],
@@ -997,25 +1064,24 @@ function oneToOneExtraMatches(
   groundTruthExtras: Extract<CompletedContinuousEvaluation, { status: 'COMPLETE' }>['extras'],
   candidateExtras: Extract<CompletedContinuousEvaluation, { status: 'COMPLETE' }>['extras']
 ): number {
-  const used = new Set<number>();
-  let count = 0;
-  for (const candidate of candidateExtras) {
-    let bestIndex = -1;
-    let bestError = Number.POSITIVE_INFINITY;
-    groundTruthExtras.forEach((truth, index) => {
-      if (used.has(index) || truth.pitch !== candidate.pitch) return;
-      const error = Math.abs(truth.performanceTimeMs - candidate.performanceTimeMs);
-      if (error <= DEFAULT_ASSIGNMENT_WINDOW_MS && error < bestError) {
-        bestError = error;
-        bestIndex = index;
-      }
-    });
-    if (bestIndex >= 0) {
-      used.add(bestIndex);
-      count += 1;
-    }
-  }
-  return count;
+  const assignments = assignObservedAttacksToExpectedStrikes({
+    expectedStrikes: groundTruthExtras.map((truth, index) => ({
+      strikeId: `physical-extra-${index}`,
+      groupId: `physical-extra-${index}`,
+      pitch: truth.pitch,
+      expectedPerformanceTimeMs: truth.performanceTimeMs,
+      renderNoteIds: [],
+    })),
+    observedAttacks: candidateExtras.map((candidate, index) => ({
+      observationId: `candidate-extra-${index}`,
+      pitch: candidate.pitch,
+      performanceTimeMs: candidate.performanceTimeMs,
+      confidence: 1,
+      source: 'ACOUSTIC' as const,
+    })),
+    assignmentWindowMs: DEFAULT_ASSIGNMENT_WINDOW_MS,
+  });
+  return assignments.size;
 }
 
 function aggregateCandidateMetrics(scores: readonly BakeoffScore[]): AggregateMetricVector {
