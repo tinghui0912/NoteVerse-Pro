@@ -7,6 +7,8 @@ import {
   blockedByteDanceRunArtifact,
   bytedanceConfigurationSha256,
   bytedanceCandidateDefinition,
+  bytedanceExecutionProfileSha256,
+  byteDanceRawOutputsFromBrowserChunkArtifact,
   candidateRunForByteDanceChunks,
   decodeByteDanceChunkRawOutputs,
   decodeResearchWavToMonoFloat32,
@@ -15,10 +17,13 @@ import {
   observationsForByteDanceChunk,
   planByteDanceScoreAwareChunks,
   publicationForByteDanceChunk,
+  scheduleByteDanceSingleWorkerPublications,
   sourceEventTimeToPerformanceTime,
   validateDecodedWavAgainstScenario,
+  validateByteDanceRawOutputs,
   validateByteDanceSourceContext,
   validateChunkPlan,
+  BYTEDANCE_PHASE9E_A3_EXECUTION_PROFILE,
 } from './bytedance-score-aware-chunked';
 import { buildBakeoffReport, scoreCandidate, type BenchmarkScenario } from './continuous-analyzer-bakeoff';
 
@@ -131,6 +136,14 @@ describe('ByteDance score-aware chunked research adapter', () => {
     });
     expect(definition.identity.configurationSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(bytedanceConfigurationSha256()).toBe(definition.identity.configurationSha256);
+    expect(bytedanceConfigurationSha256()).toBe('359d4618212ba5daf072da890456d1ff703922c654f8bc3d6b30d308c4806ef0');
+    expect(BYTEDANCE_PHASE9E_A3_EXECUTION_PROFILE).toMatchObject({
+      ortWebVersion: '1.20.1',
+      executionProvider: 'wasm',
+      graphOptimizationLevel: 'disabled',
+      candidateInferenceConcurrency: 1,
+    });
+    expect(bytedanceExecutionProfileSha256()).toMatch(/^[a-f0-9]{64}$/);
     expect(() => bytedanceCandidateDefinition({ gitHead: 'test-head', configurationSha256: 'not-a-sha' }))
       .toThrow(/configurationSha256/);
   });
@@ -288,10 +301,14 @@ describe('ByteDance score-aware chunked research adapter', () => {
       plan: first,
       observations: [],
       inferenceLatencyMs: 35,
+      candidateProcessingLatencyMs: 40,
+      publicationAvailableAtMs: first.inputEndPerformanceMs + 40,
+      inferenceStartAtMs: first.inputEndPerformanceMs,
+      queueDelayMs: 0,
     });
 
     expect(publication.analyzedThroughPerformanceMs).toBe(first.commitEndPerformanceMs);
-    expect(publication.availabilityTimeMs).toBe(first.inputEndPerformanceMs + 35);
+    expect(publication.availabilityTimeMs).toBe(first.inputEndPerformanceMs + 40);
     expect(publication.diagnostics).toMatchObject({
       strategyShape: 'CHUNKED',
       inputStartMs: first.inputStartPerformanceMs,
@@ -299,8 +316,42 @@ describe('ByteDance score-aware chunked research adapter', () => {
       inferenceLatencyMs: 35,
       requiredFutureContextMs: first.inputEndPerformanceMs - first.commitEndPerformanceMs,
       modelInferenceLatencyMs: 35,
-      totalPublicationDelayMs: (first.inputEndPerformanceMs + 35) - first.commitEndPerformanceMs,
+      candidateProcessingLatencyMs: 40,
+      queueDelayMs: 0,
+      totalPublicationDelayMs: (first.inputEndPerformanceMs + 40) - first.commitEndPerformanceMs,
     });
+  });
+
+  it('omits authoritative availability when only inference latency is known', () => {
+    const [first] = planByteDanceScoreAwareChunks(scenario());
+    const publication = publicationForByteDanceChunk({
+      scenario: scenario(),
+      plan: first,
+      observations: [],
+      inferenceLatencyMs: 35,
+    });
+
+    expect(publication.availabilityTimeMs).toBeUndefined();
+    expect(publication.diagnostics?.modelInferenceLatencyMs).toBe(35);
+    expect(publication.diagnostics?.totalPublicationDelayMs).toBeUndefined();
+  });
+
+  it('accumulates queue delay under the frozen single-worker execution profile', () => {
+    const plans = planByteDanceScoreAwareChunks(scenario({
+      completion: { kind: 'NATURAL', performanceTimeMs: 1_800 },
+      audio: { ...scenario().audio, clipEndMs: 4_000 },
+    }));
+    const schedule = scheduleByteDanceSingleWorkerPublications({
+      plans,
+      processingLatencyMsByChunkId: new Map(plans.map((plan) => [plan.chunkId, 1_200])),
+    });
+
+    const first = schedule.get(plans[0].chunkId);
+    const second = schedule.get(plans[1].chunkId);
+    expect(first?.inputReadyAtMs).toBe(plans[0].inputEndPerformanceMs);
+    expect(first?.queueDelayMs).toBe(0);
+    expect(second?.queueDelayMs).toBeGreaterThan(0);
+    expect(second?.inferenceStartAtMs).toBe(first?.inferenceFinishAtMs);
   });
 
   it('fails closed when ByteDance source context is unavailable', () => {
@@ -331,9 +382,9 @@ describe('ByteDance score-aware chunked research adapter', () => {
       plan: first,
       raw: {
         reg_onset_output: onset,
-        reg_onset_shape: [frameCount, pitchCount],
+        reg_onset_shape: [1, frameCount, pitchCount],
         frame_output: frame,
-        frame_shape: [frameCount, pitchCount],
+        frame_shape: [1, frameCount, pitchCount],
       },
     });
 
@@ -344,8 +395,59 @@ describe('ByteDance score-aware chunked research adapter', () => {
     });
   });
 
+  it('rejects malformed or non-finite real ByteDance raw output tensors before decoding', () => {
+    expect(() => validateByteDanceRawOutputs({
+      reg_onset_output: new Float32Array(183 * 88),
+      reg_onset_shape: [183, 88],
+      frame_output: new Float32Array(183 * 88),
+      frame_shape: [183, 88],
+    })).toThrow(/\[1,183,88\]/);
+
+    const onset = new Float32Array(1 * 183 * 88);
+    onset[0] = Number.NaN;
+    expect(() => validateByteDanceRawOutputs({
+      reg_onset_output: onset,
+      reg_onset_shape: [1, 183, 88],
+      frame_output: new Float32Array(1 * 183 * 88),
+      frame_shape: [1, 183, 88],
+    })).toThrow(/non-finite/);
+  });
+
+  it('converts browser raw-output artifacts through the authoritative TypeScript decoder path', () => {
+    const [first] = planByteDanceScoreAwareChunks(scenario());
+    const frameCount = 183;
+    const pitchCount = 88;
+    const onset = new Array(1 * frameCount * pitchCount).fill(0);
+    const frame = new Array(1 * frameCount * pitchCount).fill(0);
+    const pitchIndex = 64 - 21;
+    const eventFrame = 100;
+    onset[eventFrame * pitchCount + pitchIndex] = 0.8;
+    frame[eventFrame * pitchCount + pitchIndex] = 0.8;
+
+    const raw = byteDanceRawOutputsFromBrowserChunkArtifact({
+      chunkId: first.chunkId,
+      rawOutputs: {
+        reg_onset_output: { dims: [1, frameCount, pitchCount], data: onset },
+        frame_output: { dims: [1, frameCount, pitchCount], data: frame },
+      },
+    });
+    const decoded = decodeByteDanceChunkRawOutputs({ scenario: scenario(), plan: first, raw });
+    const publication = publicationForByteDanceChunk({
+      scenario: scenario(),
+      plan: first,
+      observations: observationsForByteDanceChunk(scenario(), first, decoded),
+    });
+
+    expect(decoded[0]).toMatchObject({ pitch: 'E4' });
+    expect(publication.observations[0]).toMatchObject({
+      pitch: 'E4',
+      performanceTimeMs: first.inputStartPerformanceMs + eventFrame * 10,
+    });
+    expect(publication.availabilityTimeMs).toBeUndefined();
+  });
+
   it('uses a deterministic 16k linear resampling path and executable mock model path', async () => {
-    const input = scenario({ audio: { ...scenario().audio, clipEndMs: 4_500, sourceDurationMs: 4_500 } });
+    const input = scenario({ audio: { ...scenario().audio, clipEndMs: 4_500, sourceDurationMs: 5_000 } });
     const sourcePcm = new Float32Array(48_000 * 5).map((_, index) => index / 48_000);
     const resampled = extractAndResampleLinear16k({
       sourcePcm,
@@ -375,14 +477,30 @@ describe('ByteDance score-aware chunked research adapter', () => {
           inferenceLatencyMs: 12,
           raw: {
             reg_onset_output: new Float32Array(183 * 88),
-            reg_onset_shape: [183, 88],
+            reg_onset_shape: [1, 183, 88],
             frame_output: new Float32Array(183 * 88),
-            frame_shape: [183, 88],
+            frame_shape: [1, 183, 88],
           },
         };
       },
     });
     expect(run.publications.length).toBeGreaterThan(0);
+    expect(run.publications[0].availabilityTimeMs).toBeUndefined();
+  });
+
+  it('requires executable scenario PCM metadata to match BenchmarkScenario audio identity', async () => {
+    const input = scenario({ audio: { ...scenario().audio, clipEndMs: 4_500, sourceDurationMs: 4_500 } });
+    await expect(executeByteDanceScenarioWithExecutor({
+      scenario: input,
+      sourcePcm: new Float32Array(48_000 * 5),
+      sourceSampleRateHz: 44_100,
+      candidateId: 'candidate',
+      command: 'bad sample rate',
+      runtime: 'vitest',
+      executor: async () => {
+        throw new Error('executor should not run');
+      },
+    })).rejects.toThrow(/sample rate/);
   });
 
   it('loads PCM16 WAV research audio with frozen average-channel downmix semantics', () => {
@@ -510,6 +628,7 @@ describe('ByteDance score-aware chunked research adapter', () => {
   it('audits causal-case scenario eligibility without using historical shouldMatch or predictions', () => {
     const results = auditCausalCaseEligibility([
       { caseId: 'missing' },
+      { caseId: 'empty', expectedGroups: [] },
       {
         caseId: 'eligible',
         expectedGroups: [{ groupId: 'g', expectedPerformanceTimeMs: 500, expectedPitches: ['C4'] }],
@@ -538,6 +657,7 @@ describe('ByteDance score-aware chunked research adapter', () => {
 
     expect(results).toEqual([
       expect.objectContaining({ caseId: 'missing', status: 'EXCLUDED_NO_EXPECTED_GROUPS' }),
+      expect.objectContaining({ caseId: 'empty', status: 'EXCLUDED_NO_EXPECTED_GROUPS' }),
       expect.objectContaining({ caseId: 'eligible', status: 'ELIGIBLE_CONTINUOUS_SCENARIO' }),
       expect.objectContaining({ caseId: 'incomplete-score', status: 'EXCLUDED_INCOMPLETE_SCORE_INTERVAL' }),
     ]);

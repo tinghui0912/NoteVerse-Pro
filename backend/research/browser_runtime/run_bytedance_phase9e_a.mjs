@@ -16,12 +16,17 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import playwright from '../../../apps/customer-web/node_modules/playwright/index.js';
+import { classifyCausalCase } from './bytedance_phase9e_eligibility.mjs';
 
 const EXPECTED_MODEL_SHA256 = '6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5';
 const EXPECTED_MODEL_BYTES = 98691493;
 const ORT_WEB_VERSION = '1.20.1';
+const EXECUTION_PROVIDER = 'wasm';
+const GRAPH_OPTIMIZATION_LEVEL = 'disabled';
+const CANDIDATE_INFERENCE_CONCURRENCY = 1;
 const INPUT_SAMPLES = 29120;
 const OUTPUT_NAMES = ['reg_onset_output', 'frame_output'];
+const OUTPUT_DIMS = [1, 183, 88];
 
 const { chromium } = playwright;
 const __filename = fileURLToPath(import.meta.url);
@@ -79,6 +84,10 @@ const modelStatus = modelIdentity.available
   ? 'PASS'
   : 'BLOCKED';
 
+if (backend !== EXECUTION_PROVIDER) {
+  throw new Error(`Execution provider ${backend} does not match frozen Phase 9E-A.3 profile ${EXECUTION_PROVIDER}.`);
+}
+
 const chunkInput = chunkInputPath
   ? await loadChunkInputJson(chunkInputPath)
   : {
@@ -125,8 +134,9 @@ const artifact = {
     os: `${os.type()} ${os.release()} ${os.arch()}`,
     node: process.version,
     ortWebVersion: ORT_WEB_VERSION,
-    executionProvider: backend,
-    graphOptimizationLevel: 'disabled',
+    executionProvider: EXECUTION_PROVIDER,
+    graphOptimizationLevel: GRAPH_OPTIMIZATION_LEVEL,
+    candidateInferenceConcurrency: CANDIDATE_INFERENCE_CONCURRENCY,
   },
   modelIdentity: {
     expectedSha256: EXPECTED_MODEL_SHA256,
@@ -172,6 +182,9 @@ async function runBrowserChunkExecutor(input) {
   if (!existsSync(ortScriptPath)) throw new Error(`Missing ORT script: ${ortScriptPath}`);
   const ortPackagePath = path.resolve(input.ortDir, '..', 'package.json');
   const ortPackage = JSON.parse(await readFile(ortPackagePath, 'utf8'));
+  if (ortPackage.version !== ORT_WEB_VERSION) {
+    throw new Error(`ORT Web version ${ortPackage.version} does not match frozen execution profile ${ORT_WEB_VERSION}.`);
+  }
   const server = createSmokeServer({ modelPath: input.modelPath, ortDir: input.ortDir, ortScript });
   const port = await listen(server);
   const browser = await chromium.launch({
@@ -201,8 +214,9 @@ async function runBrowserChunkExecutor(input) {
       status: 'PASS',
       ortWebVersion: ortPackage.version,
       browserVersion: await browser.version(),
-      backend: input.backend,
-      graphOptimizationLevel: 'disabled',
+      backend: EXECUTION_PROVIDER,
+      graphOptimizationLevel: GRAPH_OPTIMIZATION_LEVEL,
+      candidateInferenceConcurrency: CANDIDATE_INFERENCE_CONCURRENCY,
       ...result,
       chunks: summarizedChunks,
     };
@@ -223,7 +237,7 @@ async function runChunks(chunks, includeRawOutputs) {
   ort.env.logLevel = 'warning';
   const options = {
     executionProviders: [${JSON.stringify(ortScript.includes('webgpu') ? 'webgpu' : 'wasm')}],
-    graphOptimizationLevel: 'disabled'
+    graphOptimizationLevel: '${GRAPH_OPTIMIZATION_LEVEL}'
   };
   const session = await ort.InferenceSession.create('/model.onnx', options);
   const results = [];
@@ -241,6 +255,11 @@ async function runChunks(chunks, includeRawOutputs) {
     const rawOutputs = {};
     for (const name of names) {
       summary[name] = { dims: outputs[name].dims, type: outputs[name].type, length: outputs[name].data.length };
+      for (const value of outputs[name].data) {
+        if (!Number.isFinite(value)) {
+          throw new Error('ByteDance output contains a non-finite value.');
+        }
+      }
       if (includeRawOutputs) {
         rawOutputs[name] = {
           dims: outputs[name].dims,
@@ -303,7 +322,13 @@ function validateSmokeResult(result) {
   for (const name of OUTPUT_NAMES) {
     const output = result.outputs?.[name];
     if (!output) throw new Error(`Missing ByteDance output ${name}.`);
-    if (!Array.isArray(output.dims) || output.dims.at(-1) !== 88 || output.length <= 0) {
+    if (
+      output.type !== 'float32'
+      || !Array.isArray(output.dims)
+      || output.dims.length !== OUTPUT_DIMS.length
+      || output.dims.some((value, index) => value !== OUTPUT_DIMS[index])
+      || output.length !== OUTPUT_DIMS.reduce((product, value) => product * value, 1)
+    ) {
       throw new Error(`Unexpected ByteDance output shape for ${name}.`);
     }
   }
@@ -326,48 +351,6 @@ async function loadChunkInputJson(filePath) {
   return {
     mode: 'GENERIC_BROWSER_CHUNK_EXECUTOR',
     chunks,
-  };
-}
-
-function classifyCausalCase(item) {
-  const caseId = String(item.case_id ?? item.caseId ?? 'unknown-case');
-  if (!Array.isArray(item.expected_groups) && !Array.isArray(item.expectedGroups)) {
-    return excluded(item, caseId, 'NO_EXPECTED_GROUPS', 'Case does not expose authoritative expected groups for a Continuous interval.');
-  }
-  if (!Number.isFinite(item.completion_performance_time_ms ?? item.completionPerformanceTimeMs)) {
-    return excluded(item, caseId, 'NO_COMPLETION', 'Case has no finite Continuous completion boundary.');
-  }
-  if (!Number.isFinite(item.performance_origin_source_ms ?? item.performanceOriginSourceMs)) {
-    return excluded(item, caseId, 'NO_PERFORMANCE_ORIGIN', 'Case has no source-audio performance origin.');
-  }
-  if (!(item.source_audio_sha256 ?? item.sourceAudioSha256)) {
-    return excluded(item, caseId, 'NO_AUDIO_HASH', 'Case has no source audio SHA256.');
-  }
-  if (!(item.source_midi_sha256 ?? item.sourceMidiSha256)) {
-    return excluded(item, caseId, 'NO_MIDI_HASH', 'Case has no source MIDI SHA256.');
-  }
-  if (!(item.has_synchronized_physical_midi ?? item.hasSynchronizedPhysicalMidi)) {
-    return excluded(item, caseId, 'NO_SYNCHRONIZED_PHYSICAL_MIDI', 'Case lacks synchronized physical MIDI truth evidence.');
-  }
-  if (!(item.score_interval_complete ?? item.scoreIntervalComplete)) {
-    return excluded(item, caseId, 'INCOMPLETE_SCORE_INTERVAL', 'Case does not prove all score events in the owned interval are represented.');
-  }
-  return {
-    caseId,
-    status: 'ELIGIBLE_CONTINUOUS_SCENARIO',
-    reason: 'Case exposes the required Continuous scenario fields.',
-    sourceAudioSha256: item.source_audio_sha256 ?? item.sourceAudioSha256 ?? null,
-    sourceMidiSha256: item.source_midi_sha256 ?? item.sourceMidiSha256 ?? null,
-  };
-}
-
-function excluded(item, caseId, status, reason) {
-  return {
-    caseId,
-    status: `EXCLUDED_${status}`,
-    reason,
-    sourceAudioSha256: item.source_audio_sha256 ?? item.sourceAudioSha256 ?? null,
-    sourceMidiSha256: item.source_midi_sha256 ?? item.sourceMidiSha256 ?? null,
   };
 }
 

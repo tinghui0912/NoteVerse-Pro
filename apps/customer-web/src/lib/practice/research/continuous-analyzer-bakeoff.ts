@@ -90,6 +90,10 @@ export type CandidatePublication = {
     modelInferenceLatencyMs?: number;
     adapterOverheadMs?: number;
     totalPublicationDelayMs?: number;
+    candidateProcessingLatencyMs?: number;
+    inputReadyAtMs?: number;
+    inferenceStartAtMs?: number;
+    queueDelayMs?: number;
   };
 };
 

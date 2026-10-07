@@ -34,6 +34,14 @@ export const BYTEDANCE_CHUNKED_BASELINE_CONFIG = {
   resampler: 'deterministic_linear_interpolation_v1',
 } as const;
 
+export const BYTEDANCE_PHASE9E_A3_EXECUTION_PROFILE = {
+  profileId: 'bytedance-onnx-ortweb-wasm-disabledopt-concurrency1-v1',
+  ortWebVersion: '1.20.1',
+  executionProvider: 'wasm',
+  graphOptimizationLevel: 'disabled',
+  candidateInferenceConcurrency: 1,
+} as const;
+
 export type ByteDanceChunkPlan = {
   chunkId: string;
   scenarioId: string;
@@ -100,7 +108,16 @@ export type ByteDanceModelExecutor = (input: {
 }) => Promise<{
   raw: ByteDanceRawOutputs;
   inferenceLatencyMs: number;
+  candidateProcessingLatencyMs?: number;
 }>;
+
+export type ByteDanceBrowserRawOutputChunk = {
+  chunkId: string;
+  rawOutputs: {
+    reg_onset_output: { dims: readonly number[]; data: readonly number[] };
+    frame_output: { dims: readonly number[]; data: readonly number[] };
+  };
+};
 
 export function bytedanceCandidateDefinition(input: {
   gitHead: string;
@@ -127,6 +144,10 @@ export function bytedanceCandidateDefinition(input: {
 
 export function bytedanceConfigurationSha256(): string {
   return sha256Hex(canonicalJson(BYTEDANCE_CHUNKED_BASELINE_CONFIG));
+}
+
+export function bytedanceExecutionProfileSha256(): string {
+  return sha256Hex(canonicalJson(BYTEDANCE_PHASE9E_A3_EXECUTION_PROFILE));
 }
 
 export function planByteDanceScoreAwareChunks(
@@ -250,6 +271,7 @@ export function decodeByteDanceChunkRawOutputs(input: {
   raw: ByteDanceRawOutputs;
   inferenceCompletedAtMs?: number;
 }): readonly ByteDanceDecodedModelEvent[] {
+  validateByteDanceRawOutputs(input.raw);
   const captureStartSampleIndex = Math.round(input.plan.inputStartPerformanceMs / 1000 * BYTEDANCE_INFERENCE_CONTRACT.sampleRateHz);
   const request = {
     requestId: input.plan.chunkId,
@@ -282,29 +304,71 @@ export function publicationForByteDanceChunk(input: {
   plan: ByteDanceChunkPlan;
   observations: readonly CandidateObservation[];
   inferenceLatencyMs?: number;
-  adapterOverheadMs?: number;
+  candidateProcessingLatencyMs?: number;
+  publicationAvailableAtMs?: number;
+  inferenceStartAtMs?: number;
+  queueDelayMs?: number;
 }): CandidatePublication {
   const latency = input.inferenceLatencyMs ?? 0;
-  const adapterOverhead = input.adapterOverheadMs ?? 0;
-  const availabilityTimeMs = input.plan.inputEndPerformanceMs + latency + adapterOverhead;
+  const processingLatency = input.candidateProcessingLatencyMs;
+  const availabilityTimeMs = input.publicationAvailableAtMs;
   return {
     publicationId: `${input.plan.chunkId}:publication`,
     observations: input.observations,
     analyzedThroughPerformanceMs: input.plan.commitEndPerformanceMs,
-    availabilityTimeMs,
+    ...(availabilityTimeMs === undefined ? {} : { availabilityTimeMs }),
     diagnostics: {
       strategyShape: 'CHUNKED',
       chunkIndex: Number(input.plan.chunkId.split('chunk-').at(-1) ?? 0),
       inputStartMs: input.plan.inputStartPerformanceMs,
       inputEndMs: input.plan.inputEndPerformanceMs,
       inferenceLatencyMs: latency,
-      publicationDelayMs: availabilityTimeMs - input.plan.commitEndPerformanceMs,
+      ...(availabilityTimeMs === undefined ? {} : { publicationDelayMs: availabilityTimeMs - input.plan.commitEndPerformanceMs }),
       requiredFutureContextMs: input.plan.inputEndPerformanceMs - input.plan.commitEndPerformanceMs,
       modelInferenceLatencyMs: latency,
-      adapterOverheadMs: adapterOverhead,
-      totalPublicationDelayMs: availabilityTimeMs - input.plan.commitEndPerformanceMs,
+      ...(processingLatency === undefined ? {} : { adapterOverheadMs: processingLatency - latency }),
+      ...(processingLatency === undefined ? {} : { candidateProcessingLatencyMs: processingLatency }),
+      ...(input.inferenceStartAtMs === undefined ? {} : { inputReadyAtMs: input.plan.inputEndPerformanceMs }),
+      ...(input.inferenceStartAtMs === undefined ? {} : { inferenceStartAtMs: input.inferenceStartAtMs }),
+      ...(input.queueDelayMs === undefined ? {} : { queueDelayMs: input.queueDelayMs }),
+      ...(availabilityTimeMs === undefined ? {} : { totalPublicationDelayMs: availabilityTimeMs - input.plan.commitEndPerformanceMs }),
     },
   };
+}
+
+export function scheduleByteDanceSingleWorkerPublications(input: {
+  plans: readonly ByteDanceChunkPlan[];
+  processingLatencyMsByChunkId: ReadonlyMap<string, number>;
+}): ReadonlyMap<string, {
+  inputReadyAtMs: number;
+  inferenceStartAtMs: number;
+  inferenceFinishAtMs: number;
+  queueDelayMs: number;
+}> {
+  let previousFinish = 0;
+  const schedule = new Map<string, {
+    inputReadyAtMs: number;
+    inferenceStartAtMs: number;
+    inferenceFinishAtMs: number;
+    queueDelayMs: number;
+  }>();
+  for (const plan of input.plans) {
+    const latency = input.processingLatencyMsByChunkId.get(plan.chunkId);
+    if (latency === undefined || !Number.isFinite(latency) || latency < 0) {
+      throw new Error(`Missing finite candidate processing latency for ${plan.chunkId}.`);
+    }
+    const inputReadyAtMs = plan.inputEndPerformanceMs;
+    const inferenceStartAtMs = Math.max(inputReadyAtMs, previousFinish);
+    const inferenceFinishAtMs = inferenceStartAtMs + latency;
+    schedule.set(plan.chunkId, {
+      inputReadyAtMs,
+      inferenceStartAtMs,
+      inferenceFinishAtMs,
+      queueDelayMs: inferenceStartAtMs - inputReadyAtMs,
+    });
+    previousFinish = inferenceFinishAtMs;
+  }
+  return schedule;
 }
 
 export async function executeByteDanceScenarioWithExecutor(input: {
@@ -316,9 +380,16 @@ export async function executeByteDanceScenarioWithExecutor(input: {
   command: string;
   runtime: string;
 }): Promise<CandidateScenarioRun> {
+  validateDecodedWavAgainstScenario({
+    scenario: input.scenario,
+    sampleRateHz: input.sourceSampleRateHz,
+    durationMs: input.sourcePcm.length / input.sourceSampleRateHz * 1000,
+  });
   const plans = planByteDanceScoreAwareChunks(input.scenario);
   validateByteDanceSourceContext(input.scenario, plans);
-  const publications: CandidatePublication[] = [];
+  const decodedByPlan = new Map<string, readonly ByteDanceDecodedModelEvent[]>();
+  const inferenceLatencyByPlan = new Map<string, number>();
+  const processingLatencyByPlan = new Map<string, number>();
   for (const plan of plans) {
     const sourceInputStartMs = input.scenario.audio.performanceOriginSourceMs + plan.inputStartPerformanceMs;
     const sourceInputEndMs = input.scenario.audio.performanceOriginSourceMs + plan.inputEndPerformanceMs;
@@ -330,14 +401,28 @@ export async function executeByteDanceScenarioWithExecutor(input: {
     });
     const result = await input.executor({ scenario: input.scenario, plan, inputPcm16k: inputPcm });
     const decoded = decodeByteDanceChunkRawOutputs({ scenario: input.scenario, plan, raw: result.raw });
-    const observations = observationsForByteDanceChunk(input.scenario, plan, decoded);
-    publications.push(publicationForByteDanceChunk({
+    decodedByPlan.set(plan.chunkId, decoded);
+    inferenceLatencyByPlan.set(plan.chunkId, result.inferenceLatencyMs);
+    if (result.candidateProcessingLatencyMs !== undefined) {
+      processingLatencyByPlan.set(plan.chunkId, result.candidateProcessingLatencyMs);
+    }
+  }
+  const schedule = processingLatencyByPlan.size === plans.length
+    ? scheduleByteDanceSingleWorkerPublications({ plans, processingLatencyMsByChunkId: processingLatencyByPlan })
+    : undefined;
+  const publications: CandidatePublication[] = plans.map((plan) => {
+    const timing = schedule?.get(plan.chunkId);
+    return publicationForByteDanceChunk({
       scenario: input.scenario,
       plan,
-      observations,
-      inferenceLatencyMs: result.inferenceLatencyMs,
-    }));
-  }
+      observations: observationsForByteDanceChunk(input.scenario, plan, decodedByPlan.get(plan.chunkId) ?? []),
+      inferenceLatencyMs: inferenceLatencyByPlan.get(plan.chunkId),
+      candidateProcessingLatencyMs: processingLatencyByPlan.get(plan.chunkId),
+      publicationAvailableAtMs: timing?.inferenceFinishAtMs,
+      inferenceStartAtMs: timing?.inferenceStartAtMs,
+      queueDelayMs: timing?.queueDelayMs,
+    });
+  });
   return candidateRunForByteDanceChunks({
     candidateId: input.candidateId,
     scenarioId: input.scenario.scenarioId,
@@ -345,6 +430,24 @@ export async function executeByteDanceScenarioWithExecutor(input: {
     command: input.command,
     runtime: input.runtime,
   });
+}
+
+export function validateByteDanceRawOutputs(raw: ByteDanceRawOutputs): void {
+  validateRawTensor('reg_onset_output', raw.reg_onset_output, raw.reg_onset_shape);
+  validateRawTensor('frame_output', raw.frame_output, raw.frame_shape);
+}
+
+export function byteDanceRawOutputsFromBrowserChunkArtifact(
+  chunk: ByteDanceBrowserRawOutputChunk
+): ByteDanceRawOutputs {
+  const raw: ByteDanceRawOutputs = {
+    reg_onset_output: float32FromArtifactData('reg_onset_output', chunk.rawOutputs.reg_onset_output.data),
+    reg_onset_shape: chunk.rawOutputs.reg_onset_output.dims,
+    frame_output: float32FromArtifactData('frame_output', chunk.rawOutputs.frame_output.data),
+    frame_shape: chunk.rawOutputs.frame_output.dims,
+  };
+  validateByteDanceRawOutputs(raw);
+  return raw;
 }
 
 export function candidateRunForByteDanceChunks(input: {
@@ -522,6 +625,31 @@ export function auditCausalCaseEligibility(
       reason: 'Case exposes complete score groups, synchronized MIDI truth, source identity, completion, and ByteDance context.',
     };
   });
+}
+
+function validateRawTensor(name: string, data: Float32Array, shape: readonly number[]): void {
+  if (shape.length !== 3 || shape[0] !== 1 || shape[1] !== 183 || shape[2] !== 88) {
+    throw new Error(`ByteDance ${name} must have exact shape [1,183,88].`);
+  }
+  if (data.length !== 1 * 183 * 88) {
+    throw new Error(`ByteDance ${name} length does not match [1,183,88].`);
+  }
+  for (const value of data) {
+    if (!Number.isFinite(value)) {
+      throw new Error(`ByteDance ${name} contains non-finite values.`);
+    }
+  }
+}
+
+function float32FromArtifactData(name: string, values: readonly number[]): Float32Array {
+  const output = new Float32Array(values.length);
+  values.forEach((value, index) => {
+    if (!Number.isFinite(value)) {
+      throw new Error(`ByteDance ${name} raw artifact contains non-finite values.`);
+    }
+    output[index] = value;
+  });
+  return output;
 }
 
 export function blockedByteDanceRunArtifact(input: {
