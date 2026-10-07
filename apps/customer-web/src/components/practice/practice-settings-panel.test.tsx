@@ -122,8 +122,8 @@ describe('PracticeSettingsPanel', () => {
         <PracticeSettingsPanel
           microphoneCapability={{
             supported: false,
-            status: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
-            reason: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
+            status: 'STEP_ANALYSIS_UNAVAILABLE',
+            reason: 'STEP_ANALYSIS_UNAVAILABLE',
           }}
           midiCapability={{
             supported: true,
@@ -141,7 +141,7 @@ describe('PracticeSettingsPanel', () => {
     );
 
     expect(
-      screen.getByText('Step-by-step microphone analysis is temporarily unavailable while attack detection is revalidated')
+      screen.getByText('Step-by-step microphone analysis is temporarily unavailable')
     ).toBeVisible();
   });
 

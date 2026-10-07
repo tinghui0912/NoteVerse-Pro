@@ -116,7 +116,11 @@ performance starts
 
 Live delayed feedback consists of finalized portions of that one truth. Finalized results are immutable product truth: a result shown to the user as finalized during performance must not later change simply because Review was opened.
 
-Stop or natural completion drains unfinished tail work only. Previously finalized regions are not re-inferred after Stop. There is no second whole-performance inference pass by default, and Review reuses the same accumulated finalized results.
+There is no second whole-performance inference pass for the same Continuous performance evaluation. The canonical evaluation for a performance is the accumulated immutable finalized result produced incrementally during that performance.
+
+Stop or natural completion drains unfinished tail work only. Previously finalized regions are never re-inferred as part of completing the performance or opening Review. Review displays the same accumulated finalized truth.
+
+A future, separately designed user-requested reanalysis of an old recording is out of scope and is not part of this performance lifecycle.
 
 ## Explicit Non-Goals
 

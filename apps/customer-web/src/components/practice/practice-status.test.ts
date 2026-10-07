@@ -184,13 +184,13 @@ describe('resolvePracticeStatusView', () => {
         inputSource: 'MICROPHONE',
         selectedInputCapability: {
           supported: false,
-          status: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
-          reason: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
+          status: 'STEP_ANALYSIS_UNAVAILABLE',
+          reason: 'STEP_ANALYSIS_UNAVAILABLE',
         },
         sessionMode: 'STEP_BY_STEP',
       })
     ).toMatchObject({
-      messageKey: 'micStepTriggerNotValidated',
+      messageKey: 'micStepAnalysisUnavailable',
       isError: true,
     });
 

@@ -1,4 +1,7 @@
-import { CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON } from './input-capability-reasons';
+import {
+  CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON,
+  STEP_ANALYSIS_UNAVAILABLE_REASON,
+} from './input-capability-reasons';
 import type { PracticeInputSource, PracticeMode } from './local-core/artifact';
 
 type WindowWithWebKitAudioContext = Window & {
@@ -11,8 +14,8 @@ export type PracticeMicrophoneCapability =
   | { supported: false; status: 'BROWSER_UNSUPPORTED'; reason: 'BROWSER_UNSUPPORTED' }
   | {
       supported: false;
-      status: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED';
-      reason: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED';
+      status: 'STEP_ANALYSIS_UNAVAILABLE';
+      reason: 'STEP_ANALYSIS_UNAVAILABLE';
     }
   | {
       supported: false;
@@ -48,7 +51,7 @@ type ContinuousAcousticAnalysisCapability =
   | { status: 'AVAILABLE' };
 
 type StepAcousticAnalysisCapability =
-  | { status: 'TRIGGER_NOT_VALIDATED' }
+  | { status: 'ATTEMPT_ANALYZER_NOT_VALIDATED' }
   | { status: 'AVAILABLE' };
 
 const CONTINUOUS_ACOUSTIC_ANALYSIS_CAPABILITY: ContinuousAcousticAnalysisCapability = {
@@ -56,7 +59,7 @@ const CONTINUOUS_ACOUSTIC_ANALYSIS_CAPABILITY: ContinuousAcousticAnalysisCapabil
 };
 
 const STEP_ACOUSTIC_ANALYSIS_CAPABILITY: StepAcousticAnalysisCapability = {
-  status: 'TRIGGER_NOT_VALIDATED',
+  status: 'ATTEMPT_ANALYZER_NOT_VALIDATED',
 };
 
 export type EvaluatePracticeInputOptions = {
@@ -156,8 +159,8 @@ export function getSelectedMicrophoneCapability(
   ) {
     return {
       supported: false,
-      status: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
-      reason: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
+      status: STEP_ANALYSIS_UNAVAILABLE_REASON,
+      reason: STEP_ANALYSIS_UNAVAILABLE_REASON,
     };
   }
   return capabilities.microphoneCapture;

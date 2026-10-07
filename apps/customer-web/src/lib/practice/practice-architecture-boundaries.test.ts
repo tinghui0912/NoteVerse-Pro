@@ -31,6 +31,9 @@ const forbiddenProductionTokens = [
   'skippedAnchorCount',
   'pendingAnchor',
   'activeAnchor',
+  'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
+  'TRIGGER_NOT_VALIDATED',
+  'micStepTriggerNotValidated',
   'follow-controller',
   'Practice WebSocket',
 ];
@@ -105,8 +108,10 @@ describe('practice architecture boundaries', () => {
     expect(content).toContain('Continuous is tempo-clock practice. It is not score-following.');
     expect(content).toContain('A Continuous performance has exactly one accumulated evaluation truth.');
     expect(content).toContain('Review displays the same accumulated finalized truth');
+    expect(content).toContain('There is no second whole-performance inference pass for the same Continuous performance evaluation.');
+    expect(content).toContain('The canonical evaluation for a performance is the accumulated immutable finalized result produced incrementally during that performance.');
     expect(content).toContain('Stop or natural completion drains unfinished tail work only.');
-    expect(content).toContain('There is no second whole-performance inference pass');
+    expect(content).toContain('Previously finalized regions are never re-inferred as part of completing the performance or opening Review.');
     expect(content).toContain('chunked score-aware analyzer');
     expect(content).toContain('stateful streaming analyzer');
     expect(content).toContain('The product contract is strategy-neutral');
@@ -117,6 +122,10 @@ describe('practice architecture boundaries', () => {
     expect(content).toContain('must not require a continuous generic physical-onset stream');
     expect(content).not.toContain('a later full-performance or final analysis may become the canonical Review result');
     expect(content).not.toContain('live delayed feedback and final Review are produced by the same model or runtime');
+    const oneTruthSection = content.match(/## One Evaluation Truth[\s\S]*?## Explicit Non-Goals/)?.[0] ?? '';
+    expect(oneTruthSection).not.toContain('by default');
+    expect(oneTruthSection).not.toContain('may later rerun');
+    expect(oneTruthSection).not.toContain('canonical Review may come from another analysis pass');
   });
 
   it('marks older Continuous and ByteDance architecture notes as superseded or historical', () => {
@@ -178,6 +187,10 @@ describe('practice architecture boundaries', () => {
     expect(content).not.toContain('MODEL_ACCESS_UNAVAILABLE');
     expect(content).not.toContain('MODEL_STORAGE_UNAVAILABLE');
     expect(content).not.toContain('WEBGPU_UNAVAILABLE');
+    expect(content).not.toContain('STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED');
+    expect(content).not.toContain('TRIGGER_NOT_VALIDATED');
+    expect(content).toContain('ATTEMPT_ANALYZER_NOT_VALIDATED');
+    expect(content).toContain('STEP_ANALYSIS_UNAVAILABLE');
   });
 
   it('keeps historical research artifacts available without importing them as production policy', () => {

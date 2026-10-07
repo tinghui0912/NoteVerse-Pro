@@ -195,7 +195,7 @@ describe('useLocalPractice', () => {
     expect(result.current.activeStepGroup?.groupId).toBe(artifact.expectedPracticeGroups[0].groupId);
   });
 
-  it('fails STEP microphone closed until acoustic attack triggering is validated', async () => {
+  it('fails STEP microphone closed until bounded-attempt analysis is available', async () => {
     const { result } = renderHook(() =>
       useLocalPractice({
         artifact,
@@ -211,7 +211,7 @@ describe('useLocalPractice', () => {
 
     expect(result.current.lifecycle).toBe('READY');
     expect(result.current.inputState).toBe('ERROR');
-    expect(result.current.inputError).toBe('STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED');
+    expect(result.current.inputError).toBe('STEP_ANALYSIS_UNAVAILABLE');
   });
 
   it('handles MIDI input start failure by keeping READY lifecycle and setting ERROR inputState', async () => {

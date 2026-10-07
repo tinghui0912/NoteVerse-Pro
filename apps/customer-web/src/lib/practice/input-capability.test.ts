@@ -61,20 +61,20 @@ describe('evaluatePracticeInputCapabilities', () => {
     const caps = evaluatePracticeInputCapabilities();
     expect(caps.microphoneCapture.supported).toBe(true);
     expect(caps.microphoneCapture.status).toBe('AVAILABLE');
-    expect(caps.acousticAnalysis.step.status).toBe('TRIGGER_NOT_VALIDATED');
+    expect(caps.acousticAnalysis.step.status).toBe('ATTEMPT_ANALYZER_NOT_VALIDATED');
     expect(caps.acousticAnalysis.continuous.status).toBe('MODEL_NOT_VALIDATED');
     expect(caps.midi.supported).toBe(true);
     expect(caps.midi.status).toBe('AVAILABLE');
     expect(getSelectedInputCapability('MIDI', caps, 'STEP_BY_STEP').status).toBe('AVAILABLE');
   });
 
-  it('disables STEP microphone until acoustic attack triggering is validated', () => {
+  it('disables STEP microphone until bounded-attempt analysis is available', () => {
     const caps = evaluatePracticeInputCapabilities();
 
     expect(getSelectedInputCapability('MICROPHONE', caps, 'STEP_BY_STEP')).toMatchObject({
       supported: false,
-      status: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
-      reason: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
+      status: 'STEP_ANALYSIS_UNAVAILABLE',
+      reason: 'STEP_ANALYSIS_UNAVAILABLE',
     });
     expect(isInputSourceSupported('MICROPHONE', caps, 'STEP_BY_STEP')).toBe(false);
   });

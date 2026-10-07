@@ -181,7 +181,7 @@
   "micModelAccessUnavailable": "Model asset currently unavailable",
   "micModelStorageUnavailable": "Local model storage unavailable",
   "micWebGpuUnavailable": "WebGPU is required for microphone practice",
-  "micStepTriggerNotValidated": "Step-by-step microphone analysis is temporarily unavailable while attack detection is revalidated",
+  "micStepAnalysisUnavailable": "Step-by-step microphone analysis is temporarily unavailable",
   "micContinuousUnavailable": "Continuous microphone analysis is temporarily unavailable",
   "micModelNotConfigured": "Microphone practice currently unavailable: Model asset not configured",
   "micBrowserUnsupported": "The current browser does not support the required microphone practice features",

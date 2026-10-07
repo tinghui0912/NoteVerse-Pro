@@ -43,6 +43,7 @@ import type {
 import type { ContinuousEvaluationSnapshot } from '@/lib/practice/local-core/continuous-evaluation-session';
 import {
   CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON,
+  STEP_ANALYSIS_UNAVAILABLE_REASON,
 } from '@/lib/practice/input-capability-reasons';
 import {
   BrowserMidiController,
@@ -477,7 +478,7 @@ export function useLocalPractice({
       throw new Error(CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON);
     }
     if (mode === 'STEP_BY_STEP' && inputSource === 'MICROPHONE') {
-      throw new Error('STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED');
+      throw new Error(STEP_ANALYSIS_UNAVAILABLE_REASON);
     }
 
     setErrorInputSource(null);
@@ -543,7 +544,7 @@ export function useLocalPractice({
 
     try {
       if (inputSource === 'MICROPHONE') {
-        throw new Error('STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED');
+        throw new Error(STEP_ANALYSIS_UNAVAILABLE_REASON);
       } else {
         const midiController = new BrowserMidiController({
           timebase,
@@ -681,7 +682,7 @@ export function useLocalPractice({
     try {
       if (mode === 'STEP_BY_STEP') {
         if (inputSource === 'MICROPHONE') {
-          throw new Error('STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED');
+          throw new Error(STEP_ANALYSIS_UNAVAILABLE_REASON);
         } else {
           if (!midiControllerRef.current) {
             throw new Error('MIDI session lost. Please restart practice.');
