@@ -51,21 +51,35 @@ PracticeScoreArtifact
 
 User acoustic or MIDI correctness evidence must never move the playhead, change BPM, seek the score, estimate score position, or change the performance clock. If the user plays early, late, slowly, or misses notes, that becomes timing and correctness evidence. The clock does not follow the player.
 
-The future microphone direction is:
+Future microphone analysis must publish into one model-agnostic Continuous evaluation/finalization contract. The product contract is strategy-neutral; future model selection will decide the execution strategy empirically.
+
+Two future candidate strategies are:
 
 ```text
-continuous microphone PCM
--> overlapping model-agnostic analysis chunks
--> one inference may evaluate multiple expected score groups
--> score-aware local verification / reconciliation
--> delayed live feedback for an already elapsed region
+chunked score-aware analyzer:
+  continuous microphone PCM
+  -> overlapping model input chunks
+  -> one inference can evaluate multiple expected score groups
+  -> commit/finalization region
+  -> evaluation
 ```
 
-The product does not require sub-200 ms instant feedback. Accuracy has priority over feedback latency.
+```text
+stateful streaming analyzer:
+  continuous microphone PCM
+  -> stateful streaming acoustic inference
+  -> chronological acoustic evidence
+  -> evaluation/finalization frontier
+  -> evaluation
+```
 
-## Continuous Chunk Ownership
+There must not be separate product evaluators for chunked and streaming implementations. Correctness and product-level evaluation accuracy are the primary selection criteria. After correctness is acceptable, secondary criteria include feedback age, throughput, CPU/GPU/memory cost, browser compatibility, and implementation complexity.
 
-A future Continuous microphone chunk has two separate regions:
+Do not assume streaming is better because it is lower latency. Do not assume chunked analysis is better because it uses more context. Accuracy has priority over immediate feedback, and the product does not require sub-200 ms instant feedback.
+
+## Analyzer Strategy Geometry
+
+The chunked candidate has two separate regions:
 
 ```text
 input region:
@@ -76,17 +90,33 @@ commit region:
   this chunk is authorized to finalize
 ```
 
-Chunk ownership applies to `ExpectedStrike` verdicts. It is not a requirement that a chunk generically transcribe every physical acoustic event in its interval.
+For the chunked candidate, commit ownership applies to `ExpectedStrike` verdicts. It is not a requirement that a chunk generically transcribe every physical acoustic event in its interval.
+
+The stateful streaming candidate does not impose chunk input/commit geometry. It instead advances an evaluation/finalization frontier from chronological acoustic evidence. It must still publish into the same Continuous evaluation/finalization contract.
 
 A future model may emit generic pitch-by-time evidence, but the product queries and reconciles that evidence using known score pitches and known expected performance times. Expected timing remains approximate; legal early/late assignment windows still apply. One observed acoustic event must not satisfy multiple `ExpectedStrike`s.
 
 The existing one-to-one reconciliation semantics remain valuable.
 
-## Live and Final Evaluation
+## One Evaluation Truth
 
-During performance, delayed chunk results may update live feedback for elapsed regions. After Stop or natural completion, a later full-performance or final analysis may become the canonical Review result.
+A Continuous performance has exactly one accumulated evaluation truth.
 
-The architecture must not assume live delayed feedback and final Review are produced by the same model or runtime.
+```text
+performance starts
+-> evidence is analyzed incrementally
+-> eligible results become FINALIZED
+-> finalized results power delayed live feedback
+-> the same finalized results accumulate
+-> Stop / natural completion
+-> drain only unfinished tail work
+-> CompletedContinuousEvaluation
+-> Review displays the same accumulated finalized truth
+```
+
+Live delayed feedback consists of finalized portions of that one truth. Finalized results are immutable product truth: a result shown to the user as finalized during performance must not later change simply because Review was opened.
+
+Stop or natural completion drains unfinished tail work only. Previously finalized regions are not re-inferred after Stop. There is no second whole-performance inference pass by default, and Review reuses the same accumulated finalized results.
 
 ## Explicit Non-Goals
 

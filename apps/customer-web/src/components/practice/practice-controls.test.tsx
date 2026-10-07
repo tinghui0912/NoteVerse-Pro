@@ -204,8 +204,8 @@ describe('PracticeControls', () => {
     const { rerender } = renderControls(false, {
       selectedInputCapability: {
         supported: false,
-        status: 'MODEL_ACCESS_UNAVAILABLE',
-        reason: 'MODEL_ACCESS_UNAVAILABLE',
+        status: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
+        reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
       },
     });
 
@@ -237,4 +237,3 @@ describe('PracticeControls', () => {
     expect(screen.getByRole('button', { name: /start/i })).toBeEnabled();
   });
 });
-

@@ -22,9 +22,6 @@ type PracticeStatusMessageKey =
   | 'settingStatusReady'
   | 'micStartFailed'
   | 'midiStartFailed'
-  | 'micModelAccessUnavailable'
-  | 'micModelStorageUnavailable'
-  | 'micWebGpuUnavailable'
   | 'micStepTriggerNotValidated'
   | 'micContinuousUnavailable'
   | 'micBrowserUnsupported'
@@ -86,22 +83,6 @@ export function resolvePracticeStatusView({
         countInPulse: null,
       };
     }
-    if (inputError === 'MODEL_ACCESS_UNAVAILABLE') {
-      return {
-        messageKey: 'micModelAccessUnavailable',
-        isError: true,
-        pending: false,
-        countInPulse: null,
-      };
-    }
-    if (inputError === 'MODEL_STORAGE_UNAVAILABLE') {
-      return {
-        messageKey: 'micModelStorageUnavailable',
-        isError: true,
-        pending: false,
-        countInPulse: null,
-      };
-    }
     if (inputError === 'CONTINUOUS_ANALYSIS_UNAVAILABLE') {
       return {
         messageKey: 'micContinuousUnavailable',
@@ -152,22 +133,6 @@ export function resolvePracticeStatusView({
       };
     }
     if (selectedInputCapability && !selectedInputCapability.supported) {
-      if (selectedInputCapability.status === 'MODEL_ACCESS_UNAVAILABLE') {
-        return {
-          messageKey: 'micModelAccessUnavailable',
-          isError: true,
-          pending: false,
-          countInPulse: null,
-        };
-      }
-      if (selectedInputCapability.status === 'MODEL_STORAGE_UNAVAILABLE') {
-        return {
-          messageKey: 'micModelStorageUnavailable',
-          isError: true,
-          pending: false,
-          countInPulse: null,
-        };
-      }
       if (selectedInputCapability.status === 'CONTINUOUS_ANALYSIS_UNAVAILABLE') {
         return {
           messageKey: 'micContinuousUnavailable',
@@ -179,14 +144,6 @@ export function resolvePracticeStatusView({
       if (selectedInputCapability.status === 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED') {
         return {
           messageKey: 'micStepTriggerNotValidated',
-          isError: true,
-          pending: false,
-          countInPulse: null,
-        };
-      }
-      if (selectedInputCapability.status === 'WEBGPU_UNAVAILABLE') {
-        return {
-          messageKey: 'micWebGpuUnavailable',
           isError: true,
           pending: false,
           countInPulse: null,
@@ -284,8 +241,6 @@ export function PracticeStatus({
   } else if (resolvedView.isError) {
     if (
       resolvedView.messageKey === 'midiNoConnectedInput' ||
-      resolvedView.messageKey === 'micModelAccessUnavailable' ||
-      resolvedView.messageKey === 'micModelStorageUnavailable' ||
       resolvedView.messageKey === 'micStepTriggerNotValidated' ||
       resolvedView.messageKey === 'micContinuousUnavailable' ||
       resolvedView.messageKey === 'micBrowserUnsupported' ||

@@ -103,10 +103,20 @@ describe('practice architecture boundaries', () => {
     expect(content).toContain('STEP is correctness-driven. STEP has no performance clock.');
     expect(content).toContain('CAPTURING one bounded attempt');
     expect(content).toContain('Continuous is tempo-clock practice. It is not score-following.');
+    expect(content).toContain('A Continuous performance has exactly one accumulated evaluation truth.');
+    expect(content).toContain('Review displays the same accumulated finalized truth');
+    expect(content).toContain('Stop or natural completion drains unfinished tail work only.');
+    expect(content).toContain('There is no second whole-performance inference pass');
+    expect(content).toContain('chunked score-aware analyzer');
+    expect(content).toContain('stateful streaming analyzer');
+    expect(content).toContain('The product contract is strategy-neutral');
+    expect(content).toContain('Correctness and product-level evaluation accuracy are the primary selection criteria.');
     expect(content).toContain('input region:');
     expect(content).toContain('commit region:');
     expect(content).toContain('Production microphone Practice remains disabled');
     expect(content).toContain('must not require a continuous generic physical-onset stream');
+    expect(content).not.toContain('a later full-performance or final analysis may become the canonical Review result');
+    expect(content).not.toContain('live delayed feedback and final Review are produced by the same model or runtime');
   });
 
   it('marks older Continuous and ByteDance architecture notes as superseded or historical', () => {
@@ -118,6 +128,8 @@ describe('practice architecture boundaries', () => {
 
     expect(continuousDoc).toContain('Superseded Scope');
     expect(continuousDoc).toContain('does not require STEP and Continuous to share one acoustic event stream');
+    expect(continuousDoc).toContain('chunk geometry as one candidate strategy rather than the selected production winner');
+    expect(continuousDoc).toContain('stateful streaming analyzer is also a candidate');
     expect(continuousDoc).toContain('old rolling scheduler as a fallback');
     expect(bytedanceReadme).toContain('Historical Candidate');
     expect(bytedanceReadme).toContain('not the authoritative Practice v2 acoustic architecture');
@@ -163,6 +175,9 @@ describe('practice architecture boundaries', () => {
     expect(content).not.toContain('navigator.gpu');
     expect(content).toContain('microphoneCapture');
     expect(content).toContain('acousticAnalysis');
+    expect(content).not.toContain('MODEL_ACCESS_UNAVAILABLE');
+    expect(content).not.toContain('MODEL_STORAGE_UNAVAILABLE');
+    expect(content).not.toContain('WEBGPU_UNAVAILABLE');
   });
 
   it('keeps historical research artifacts available without importing them as production policy', () => {

@@ -160,42 +160,6 @@ describe('resolvePracticeStatusView', () => {
   });
 
   it('displays capability unavailability reasons before practice starts', () => {
-    // Model access unavailable
-    expect(
-      resolvePracticeStatusView({
-        lifecycle: 'READY',
-        inputState: 'IDLE',
-        inputSource: 'MICROPHONE',
-        selectedInputCapability: {
-          supported: false,
-          status: 'MODEL_ACCESS_UNAVAILABLE',
-          reason: 'MODEL_ACCESS_UNAVAILABLE',
-        },
-        sessionMode: 'STEP_BY_STEP',
-      })
-    ).toMatchObject({
-      messageKey: 'micModelAccessUnavailable',
-      isError: true,
-    });
-
-    // Model storage unavailable
-    expect(
-      resolvePracticeStatusView({
-        lifecycle: 'READY',
-        inputState: 'IDLE',
-        inputSource: 'MICROPHONE',
-        selectedInputCapability: {
-          supported: false,
-          status: 'MODEL_STORAGE_UNAVAILABLE',
-          reason: 'MODEL_STORAGE_UNAVAILABLE',
-        },
-        sessionMode: 'STEP_BY_STEP',
-      })
-    ).toMatchObject({
-      messageKey: 'micModelStorageUnavailable',
-      isError: true,
-    });
-
     expect(
       resolvePracticeStatusView({
         lifecycle: 'READY',
@@ -329,7 +293,7 @@ describe('PracticeStatus rendering', () => {
     expect(screen.getByText(/Failed to start microphone: Device disconnected/)).toBeTruthy();
   });
 
-  it('renders model access unavailable message before start when capability is unavailable', () => {
+  it('renders Continuous analysis unavailable message before start when capability is unavailable', () => {
     render(
       createElement(
         IntlProvider,
@@ -343,17 +307,17 @@ describe('PracticeStatus rendering', () => {
           inputSource: 'MICROPHONE',
           selectedInputCapability: {
             supported: false,
-            status: 'MODEL_ACCESS_UNAVAILABLE',
-            reason: 'MODEL_ACCESS_UNAVAILABLE',
+            status: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
+            reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE',
           },
-          sessionMode: 'STEP_BY_STEP',
+          sessionMode: 'CONTINUOUS_PLAY',
           practiceTime: 0,
         })
       )
     );
 
     expect(
-      screen.getByText('Model asset currently unavailable')
+      screen.getByText('Continuous microphone analysis is temporarily unavailable')
     ).toBeTruthy();
   });
 

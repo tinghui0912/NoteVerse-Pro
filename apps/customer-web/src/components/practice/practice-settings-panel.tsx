@@ -63,13 +63,7 @@ export function PracticeSettingsPanel({
 }: PracticeSettingsPanelProps) {
   const t = useTranslations('practice');
   const microphoneState = microphoneCapability
-    ? microphoneCapability.status === 'MODEL_ACCESS_UNAVAILABLE'
-      ? t('micModelAccessUnavailable')
-      : microphoneCapability.status === 'MODEL_STORAGE_UNAVAILABLE'
-        ? t('micModelStorageUnavailable')
-        : microphoneCapability.status === 'WEBGPU_UNAVAILABLE'
-          ? t('micWebGpuUnavailable')
-        : microphoneCapability.status === 'CONTINUOUS_ANALYSIS_UNAVAILABLE'
+    ? microphoneCapability.status === 'CONTINUOUS_ANALYSIS_UNAVAILABLE'
           ? t('micContinuousUnavailable')
           : microphoneCapability.status === 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED'
             ? t('micStepTriggerNotValidated')

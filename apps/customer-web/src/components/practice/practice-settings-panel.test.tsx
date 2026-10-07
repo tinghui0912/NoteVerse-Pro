@@ -116,14 +116,14 @@ describe('PracticeSettingsPanel', () => {
     expect(screen.queryByText(/^Metronome$/i)).toBeNull();
   });
 
-  it('displays model access unavailable status when microphoneCapability has MODEL_ACCESS_UNAVAILABLE', () => {
+  it('displays STEP acoustic analysis unavailable status', () => {
     render(
       <NextIntlClientProvider locale="en" messages={{ practice: messages }}>
         <PracticeSettingsPanel
           microphoneCapability={{
             supported: false,
-            status: 'MODEL_ACCESS_UNAVAILABLE',
-            reason: 'MODEL_ACCESS_UNAVAILABLE',
+            status: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
+            reason: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
           }}
           midiCapability={{
             supported: true,
@@ -141,7 +141,7 @@ describe('PracticeSettingsPanel', () => {
     );
 
     expect(
-      screen.getByText('Model asset currently unavailable')
+      screen.getByText('Step-by-step microphone analysis is temporarily unavailable while attack detection is revalidated')
     ).toBeVisible();
   });
 
@@ -173,4 +173,3 @@ describe('PracticeSettingsPanel', () => {
     expect(screen.getByText('Unavailable in this browser')).toBeVisible();
   });
 });
-

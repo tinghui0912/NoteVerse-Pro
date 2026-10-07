@@ -9,9 +9,6 @@ type WindowWithWebKitAudioContext = Window & {
 export type PracticeMicrophoneCapability =
   | { supported: true; status: 'AVAILABLE'; reason?: undefined }
   | { supported: false; status: 'BROWSER_UNSUPPORTED'; reason: 'BROWSER_UNSUPPORTED' }
-  | { supported: false; status: 'WEBGPU_UNAVAILABLE'; reason: 'WEBGPU_UNAVAILABLE' }
-  | { supported: false; status: 'MODEL_ACCESS_UNAVAILABLE'; reason: 'MODEL_ACCESS_UNAVAILABLE' }
-  | { supported: false; status: 'MODEL_STORAGE_UNAVAILABLE'; reason: 'MODEL_STORAGE_UNAVAILABLE' }
   | {
       supported: false;
       status: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED';
@@ -39,11 +36,6 @@ export type PracticeInputCapabilities = {
    * been validated for STEP or Continuous.
    */
   microphoneCapture: MicrophoneCaptureCapability;
-  /**
-   * Backward-compatible alias for microphoneCapture until the UI learns to render
-   * capture and mode-specific analysis availability separately.
-   */
-  microphone: PracticeMicrophoneCapability;
   midi: PracticeMidiCapability;
   acousticAnalysis: {
     step: StepAcousticAnalysisCapability;
@@ -69,7 +61,6 @@ const STEP_ACOUSTIC_ANALYSIS_CAPABILITY: StepAcousticAnalysisCapability = {
 
 export type EvaluatePracticeInputOptions = {
   connectedMidiInputs?: number;
-  modelAccessAvailable?: boolean;
 };
 
 export function evaluatePracticeInputCapabilities(
@@ -78,7 +69,6 @@ export function evaluatePracticeInputCapabilities(
   if (typeof window === 'undefined') {
     return {
       microphoneCapture: { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' },
-      microphone: { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' },
       midi: { supported: false, status: 'BROWSER_UNSUPPORTED', reason: 'BROWSER_UNSUPPORTED' },
       acousticAnalysis: {
         step: STEP_ACOUSTIC_ANALYSIS_CAPABILITY,
@@ -86,8 +76,6 @@ export function evaluatePracticeInputCapabilities(
       },
     };
   }
-
-  void options?.modelAccessAvailable;
 
   // Evaluate browser microphone capture only. Model/runtime validation is mode-specific
   // and intentionally lives in acousticAnalysis below.
@@ -123,7 +111,6 @@ export function evaluatePracticeInputCapabilities(
 
   return {
     microphoneCapture,
-    microphone: microphoneCapture,
     midi,
     acousticAnalysis: {
       step: STEP_ACOUSTIC_ANALYSIS_CAPABILITY,
@@ -135,14 +122,26 @@ export function evaluatePracticeInputCapabilities(
 export function getSelectedInputCapability(
   inputSource: PracticeInputSource,
   capabilities: PracticeInputCapabilities,
-  mode?: PracticeMode
+  mode: PracticeMode
 ): PracticeMicrophoneCapability | PracticeMidiCapability {
   if (inputSource !== 'MICROPHONE') {
     return capabilities.midi;
   }
+  return getSelectedMicrophoneCapability(capabilities, mode);
+}
+
+export function getSelectedMicrophoneCapability(
+  capabilities: PracticeInputCapabilities,
+  mode: PracticeMode
+): PracticeMicrophoneCapability {
+  if (mode !== 'STEP_BY_STEP' && mode !== 'CONTINUOUS_PLAY') {
+    throw new Error('PracticeMode is required to resolve product microphone availability.');
+  }
+  if (!capabilities.microphoneCapture.supported) {
+    return capabilities.microphoneCapture;
+  }
   if (
     mode === 'CONTINUOUS_PLAY'
-    && capabilities.microphone.supported
     && capabilities.acousticAnalysis.continuous.status !== 'AVAILABLE'
   ) {
     return {
@@ -153,7 +152,6 @@ export function getSelectedInputCapability(
   }
   if (
     mode === 'STEP_BY_STEP'
-    && capabilities.microphone.supported
     && capabilities.acousticAnalysis.step.status !== 'AVAILABLE'
   ) {
     return {
@@ -162,13 +160,13 @@ export function getSelectedInputCapability(
       reason: 'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
     };
   }
-  return capabilities.microphone;
+  return capabilities.microphoneCapture;
 }
 
 export function isInputSourceSupported(
   inputSource: PracticeInputSource,
   capabilities: PracticeInputCapabilities,
-  mode?: PracticeMode
+  mode: PracticeMode
 ): boolean {
   return getSelectedInputCapability(inputSource, capabilities, mode).supported;
 }

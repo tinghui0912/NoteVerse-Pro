@@ -31,6 +31,7 @@ import type { PracticeTempoSelection } from '@/lib/practice/local-core/practice-
 import {
   evaluatePracticeInputCapabilities,
   getSelectedInputCapability,
+  getSelectedMicrophoneCapability,
 } from '@/lib/practice/input-capability';
 import {
   fullPiecePracticeRangeSelection,
@@ -423,6 +424,10 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     () => getSelectedInputCapability(inputSource, inputCapabilities, practiceMode),
     [inputCapabilities, inputSource, practiceMode]
   );
+  const selectedMicrophoneCapability = useMemo(
+    () => getSelectedMicrophoneCapability(inputCapabilities, practiceMode),
+    [inputCapabilities, practiceMode]
+  );
 
   const rangeSelectionPrompt = useMemo(() => {
     if (!isSelectingRange) {
@@ -592,7 +597,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
               <PracticeSettingsPanel
                 className="h-full rounded-none border-0 shadow-none"
                 inputState={localPractice.inputState}
-                microphoneCapability={inputCapabilities.microphone}
+                microphoneCapability={selectedMicrophoneCapability}
                 midiCapability={inputCapabilities.midi}
                 practiceMode={practiceMode}
                 practiceModeLocked={isActive}
