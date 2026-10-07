@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "artifact": "phase9e_b_online_amt_streaming_audit",
-  "generatedAt": "2026-10-07T15:12:32.004Z",
-  "implementationGitHead": "5fcdb2749ce2dd4a4553bb8c78c4618f5975a4fa",
-  "normalizedCommand": "node backend/research/browser_runtime/run_online_amt_phase9e_b.mjs --repo-root . --git-head 5fcdb2749ce2dd4a4553bb8c78c4618f5975a4fa --online-amt-repo backend/data/work/online_amt --checkpoint backend/data/work/online_amt/model-180000.pt --causal-manifest backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json --output-dir backend/research/reports",
+  "generatedAt": "2026-10-07T15:14:35.230Z",
+  "implementationGitHead": "a58704e3ca2a681551b70069c5d6318bbdd8fa55",
+  "normalizedCommand": "node backend/research/browser_runtime/run_online_amt_phase9e_b.mjs --repo-root . --git-head a58704e3ca2a681551b70069c5d6318bbdd8fa55 --online-amt-repo backend/data/work/online_amt --checkpoint backend/data/work/online_amt/model-180000.pt --causal-manifest backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json --output-dir backend/research/reports",
   "candidate": {
     "candidateId": "online-amt-stateful-modern-compat-dev-v1",
     "strategyKind": "STREAMING",
