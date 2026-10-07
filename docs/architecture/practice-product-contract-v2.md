@@ -116,7 +116,9 @@ performance starts
 
 Live delayed feedback consists of finalized portions of that one truth. Finalized results are immutable product truth: a result shown to the user as finalized during performance must not later change simply because Review was opened.
 
-The product-domain evaluator owns the finalized ledger and the analysis coverage watermark. Evidence publications may be delayed by analyzer latency, but coverage only means the evidence source has completed analysis through a performance-time frontier. The frontier is not the playhead, and it does not move the performance clock.
+The product-domain evaluator owns the finalized ledger and the analysis coverage watermark. Evidence publications may be delayed by analyzer latency, but coverage only means the evidence source has completed analysis through an inclusive performance-time frontier. Once coverage has been declared through time `T`, genuinely new evidence at or before `T` is late and must fail closed; only exact idempotent replays of already-known evidence are allowed. The frontier is not the playhead, and it does not move the performance clock.
+
+At Stop or natural completion, each evidence source drains only its unfinished tail work. MIDI has no asynchronous acoustic inference pass, so after MIDI input is safely closed for the performance it may close coverage through the completion performance time. Microphone analyzers must instead wait for their own source-specific unfinished analysis work to publish coverage.
 
 Finalization must respect one-to-one assignment conflicts. Same-pitch expected strikes whose legal assignment windows overlap, directly or transitively, can compete for the same observed evidence; those results are finalized only when the relevant safe assignment set is closed by analysis coverage or completion semantics. A strike reaching its individual late deadline is not by itself sufficient to freeze `MATCHED` or `MISSING` when overlapping same-pitch opportunities remain unresolved.
 

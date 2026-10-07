@@ -2,6 +2,7 @@ import { resolvePracticeScope, type PracticeScoreArtifact, type PracticeScope, t
 import type { LocalPracticeCompletionReason } from './session';
 import {
   assignObservedAttacksToExpectedStrikes,
+  validateAssignmentWindow,
   type ExpectedStrike,
   type ReconciledStrike,
 } from '../audio-analysis/continuous/performance-reconciler';
@@ -22,7 +23,7 @@ export type ContinuousEvaluationSnapshot = {
 class ContinuousEvaluationLateEvidenceError extends Error {
   readonly code = 'CONTINUOUS_EVALUATION_LATE_EVIDENCE' as const;
 
-  constructor(message = 'Continuous evidence cannot be published behind the finalized analysis frontier.') {
+  constructor(message = 'Continuous evidence cannot be published behind the declared analysis coverage watermark.') {
     super(message);
     this.name = 'ContinuousEvaluationLateEvidenceError';
   }
@@ -52,7 +53,7 @@ export class ContinuousEvaluationSession {
   private readonly finalizedComponentIds = new Set<string>();
   private readonly consumedObservationIds = new Set<string>();
   private readonly finalizedExtras = new Map<string, ObservedAttack>();
-  private analyzedThroughPerformanceMs = 0;
+  private analyzedThroughPerformanceMs: number | null = null;
   private completion:
     | { kind: 'LIVE' }
     | { kind: 'NATURAL'; terminalPerformanceMs: number }
@@ -61,6 +62,7 @@ export class ContinuousEvaluationSession {
   constructor(options: ContinuousEvaluationSessionOptions) {
     const scope = resolvePracticeScope(options.artifact, options.scope);
     this.assignmentWindowMs = options.assignmentWindowMs ?? DEFAULT_ASSIGNMENT_WINDOW_MS;
+    validateAssignmentWindow(this.assignmentWindowMs);
     this.expectedStrikes = buildExpectedStrikes(options.artifact, options.timeline, scope);
     this.conflictComponents = buildConflictComponents(this.expectedStrikes, this.assignmentWindowMs);
   }
@@ -88,6 +90,9 @@ export class ContinuousEvaluationSession {
     const existingIds = new Set<string>();
     for (const attack of attacks) {
       this.validateObservation(attack);
+      if (attack.performanceTimeMs > analyzedThroughPerformanceMs) {
+        throw new Error('Continuous publication cannot include evidence beyond its analysis frontier.');
+      }
       if (existingIds.has(attack.observationId)) {
         throw new Error(`Continuous publication contains duplicate observationId: ${attack.observationId}`);
       }
@@ -186,7 +191,7 @@ export class ContinuousEvaluationSession {
         continue;
       }
       const closeAtMs = this.componentClosureMs(component);
-      if (this.analyzedThroughPerformanceMs < closeAtMs) {
+      if (this.analyzedThroughPerformanceMs === null || this.analyzedThroughPerformanceMs < closeAtMs) {
         continue;
       }
       this.finalizeComponent(component);
@@ -241,7 +246,11 @@ export class ContinuousEvaluationSession {
       if (this.consumedObservationIds.has(attack.observationId) || this.finalizedExtras.has(attack.observationId)) {
         continue;
       }
-      if (!this.canMatchUnfinalizedComponent(attack) && attack.performanceTimeMs <= this.analyzedThroughPerformanceMs) {
+      if (
+        !this.canMatchUnfinalizedComponent(attack)
+        && this.analyzedThroughPerformanceMs !== null
+        && attack.performanceTimeMs <= this.analyzedThroughPerformanceMs
+      ) {
         this.finalizedExtras.set(attack.observationId, { ...attack });
       }
     }
@@ -271,7 +280,7 @@ export class ContinuousEvaluationSession {
     if (!Number.isFinite(performanceTimeMs) || performanceTimeMs < 0) {
       throw new Error('Continuous analysis frontier must be finite and non-negative.');
     }
-    if (performanceTimeMs < this.analyzedThroughPerformanceMs) {
+    if (this.analyzedThroughPerformanceMs !== null && performanceTimeMs < this.analyzedThroughPerformanceMs) {
       throw new Error('Continuous analysis frontier must be monotonic.');
     }
   }
@@ -300,8 +309,8 @@ export class ContinuousEvaluationSession {
     if (matchesFinalizedComponent) {
       return true;
     }
-    return attack.performanceTimeMs <= this.analyzedThroughPerformanceMs
-      && !this.canMatchUnfinalizedComponent(attack);
+    return this.analyzedThroughPerformanceMs !== null
+      && attack.performanceTimeMs <= this.analyzedThroughPerformanceMs;
   }
 
   private canMatchUnfinalizedComponent(attack: ObservedAttack): boolean {

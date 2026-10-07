@@ -441,6 +441,10 @@ export class ContinuousPracticeSession {
 
   observeCapturedAttack(attack: CapturedAttack): boolean {
     this.clock.timebase.assertSameSessionTimeDomain(attack.captureTime, this.clock.timebase.atSessionMs(0));
+    const beforeSnapshot = this.clock.snapshot();
+    if (beforeSnapshot.state === 'ENDED') {
+      return false;
+    }
     const performanceTimeMs = this.clock.performanceTimeAtCapture(attack.captureTime.ms);
     if (performanceTimeMs === null) {
       return false;
@@ -452,12 +456,7 @@ export class ContinuousPracticeSession {
       confidence: attack.confidence,
       source: attack.source,
     });
-    const snapshot = this.clock.snapshot();
-    if (snapshot.state === 'ENDED') {
-      this.evaluator.advanceAnalysisThrough(snapshot.performanceTimeMs);
-    } else {
-      this.advanceMidiFrontier(snapshot);
-    }
+    this.advanceMidiFrontier(this.clock.snapshot());
     return true;
   }
 
@@ -471,6 +470,11 @@ export class ContinuousPracticeSession {
       || publication.analyzedThroughPerformanceMs > this.clock.scopeDurationMs()
     ) {
       throw new Error('Continuous analysis frontier must be finite, non-negative, and within the resolved scope.');
+    }
+    const snapshot = this.clock.snapshot();
+    const maxAvailablePerformanceMs = this.maxAvailableAnalysisPerformanceTime(snapshot);
+    if (publication.analyzedThroughPerformanceMs > maxAvailablePerformanceMs) {
+      throw new Error('Continuous analysis frontier cannot advance beyond captured performance time.');
     }
     for (const attack of publication.attacks) {
       if (attack.captureTime.domainId !== this.clock.timebase.domainId) {
@@ -523,7 +527,6 @@ export class ContinuousPracticeSession {
   }
 
   private syncFromClockSnapshot(snapshot: PerformanceClockSnapshot): PerformanceClockSnapshot {
-    this.advanceMidiFrontier(snapshot);
     if (snapshot.state === 'ENDED' && snapshot.completionReason && this.syncedCompletionReason === null) {
       this.evaluator.complete({
         reason: snapshot.completionReason,
@@ -531,14 +534,31 @@ export class ContinuousPracticeSession {
         terminalPerformanceMs: this.clock.scopeDurationMs(),
       });
       this.syncedCompletionReason = snapshot.completionReason;
+      if (this.inputSource === 'MIDI') {
+        this.evaluator.advanceAnalysisThrough(snapshot.performanceTimeMs);
+      }
+      return snapshot;
     }
+    this.advanceMidiFrontier(snapshot);
     return snapshot;
   }
 
   private advanceMidiFrontier(snapshot: PerformanceClockSnapshot): void {
-    if (this.inputSource === 'MIDI' && (snapshot.state === 'RUNNING' || snapshot.state === 'ENDED')) {
-      this.evaluator.advanceAnalysisThrough(Math.max(0, snapshot.performanceTimeMs - DEFAULT_ASSIGNMENT_WINDOW_MS));
+    if (this.inputSource === 'MIDI' && snapshot.state === 'RUNNING') {
+      if (snapshot.performanceTimeMs > DEFAULT_ASSIGNMENT_WINDOW_MS) {
+        this.evaluator.advanceAnalysisThrough(snapshot.performanceTimeMs - DEFAULT_ASSIGNMENT_WINDOW_MS);
+      }
     }
+  }
+
+  private maxAvailableAnalysisPerformanceTime(snapshot: PerformanceClockSnapshot): number {
+    if (snapshot.state === 'READY' || snapshot.state === 'COUNT_IN') {
+      return 0;
+    }
+    if (snapshot.state === 'ENDED' && snapshot.completionReason === 'SCOPE_COMPLETED') {
+      return this.clock.scopeDurationMs();
+    }
+    return snapshot.performanceTimeMs;
   }
 }
 

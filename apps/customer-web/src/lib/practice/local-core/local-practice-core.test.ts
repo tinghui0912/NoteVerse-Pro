@@ -565,12 +565,11 @@ describe('local CONTINUOUS practice runtime', () => {
     expect(session.evaluationSnapshot.strikes.every((strike) => strike.verdict === 'PENDING')).toBe(true);
 
     session.start();
-    clock.advance(500);
     const before = session.snapshot();
     expect(session.observeCapturedAttack(performanceEvidence('continuous-clock-separate', 0, ['C4'], 'MIDI'))).toBe(true);
     expect(session.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
     expect(session.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'PENDING' });
-    clock.advance(1_000);
+    clock.advance(1_500);
     session.snapshot();
     expect(session.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MATCHED' });
   });
@@ -681,10 +680,58 @@ describe('local CONTINUOUS practice runtime', () => {
     manualClock.advance(100);
     manual.end('STOPPED_BY_USER');
     const manualEvaluation = manual.completedEvaluation();
-    expect(manualEvaluation).toEqual({
-      status: 'UNAVAILABLE',
-      reason: 'INCOMPLETE_ANALYSIS',
+    expect(manualEvaluation.status).toBe('COMPLETE');
+    if (manualEvaluation.status === 'COMPLETE') {
+      expect(manualEvaluation.strikes.some((strike) => strike.result === 'NOT_REACHED')).toBe(true);
+    }
+  });
+
+  it('drains MIDI completion through stop time while preserving missing and not-reached semantics', () => {
+    const manualClock = new ManualClock(0);
+    const manual = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock: manualClock,
+      inputSource: 'MIDI',
+      countInBeats: 0,
     });
+    manual.start();
+    manualClock.advance(1000);
+    manual.end('STOPPED_BY_USER');
+
+    const evaluation = manual.completedEvaluation();
+    expect(evaluation.status).toBe('COMPLETE');
+    if (evaluation.status === 'COMPLETE') {
+      expect(evaluation.strikes[0]).toMatchObject({ result: 'MISSING' });
+      expect(evaluation.strikes.some((strike) => strike.result === 'NOT_REACHED')).toBe(true);
+    }
+  });
+
+  it('keeps matched MIDI evidence immediately before Stop after completion drain', () => {
+    const manualClock = new ManualClock(0);
+    const manual = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock: manualClock,
+      inputSource: 'MIDI',
+      countInBeats: 0,
+      localSessionId: 'midi-stop-match',
+    });
+    manual.start();
+    manualClock.advance(100);
+    expect(manual.observeCapturedAttack(performanceEvidence(manual.timebase.domainId, 0, ['C4'], 'MIDI'))).toBe(true);
+    manual.end('STOPPED_BY_USER');
+
+    const evaluation = manual.completedEvaluation();
+    expect(evaluation.status).toBe('COMPLETE');
+    if (evaluation.status === 'COMPLETE') {
+      expect(evaluation.strikes[0]).toMatchObject({
+        result: 'MATCHED',
+        matchedObservationId: `${manual.timebase.domainId}:0:C4`,
+      });
+    }
   });
 
   it('fails closed when final evaluation still contains pending strikes', () => {
@@ -728,6 +775,96 @@ describe('local CONTINUOUS practice runtime', () => {
       analyzedThroughPerformanceMs: 1000,
     });
     expect(session.evaluationSnapshot.strikes.some((strike) => strike.verdict === 'MISSING')).toBe(true);
+  });
+
+  it('rejects analysis publication beyond current running performance time without mutation', () => {
+    const clock = new ManualClock(0);
+    const session = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock,
+      inputSource: 'MICROPHONE',
+      countInBeats: 0,
+    });
+    session.start();
+    clock.advance(1000);
+    const before = session.evaluationSnapshot;
+
+    expect(() => session.publishAnalysis({
+      sessionDomainId: session.timebase.domainId,
+      attacks: [],
+      analyzedThroughPerformanceMs: 2000,
+    })).toThrow(/beyond captured performance time/);
+    expect(session.evaluationSnapshot).toEqual(before);
+  });
+
+  it('rejects analysis publication beyond paused and stopped performance time', () => {
+    const pausedClock = new ManualClock(0);
+    const paused = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock: pausedClock,
+      inputSource: 'MICROPHONE',
+      countInBeats: 0,
+    });
+    paused.start();
+    pausedClock.advance(1000);
+    paused.pause();
+    pausedClock.advance(5000);
+    const pausedBefore = paused.evaluationSnapshot;
+    expect(() => paused.publishAnalysis({
+      sessionDomainId: paused.timebase.domainId,
+      attacks: [],
+      analyzedThroughPerformanceMs: 1001,
+    })).toThrow(/beyond captured performance time/);
+    expect(paused.evaluationSnapshot).toEqual(pausedBefore);
+
+    const stoppedClock = new ManualClock(0);
+    const stopped = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: { kind: 'FULL' },
+      clock: stoppedClock,
+      inputSource: 'MICROPHONE',
+      countInBeats: 0,
+    });
+    stopped.start();
+    stoppedClock.advance(1000);
+    stopped.end('STOPPED_BY_USER');
+    const stoppedBefore = stopped.evaluationSnapshot;
+    expect(() => stopped.publishAnalysis({
+      sessionDomainId: stopped.timebase.domainId,
+      attacks: [],
+      analyzedThroughPerformanceMs: 1001,
+    })).toThrow(/beyond captured performance time/);
+    expect(stopped.evaluationSnapshot).toEqual(stoppedBefore);
+  });
+
+  it('accepts natural terminal analysis frontier at the resolved scope terminal', () => {
+    const rangeClock = new ManualClock(0);
+    const range = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan: defaultTempoPlan,
+      scope: {
+        kind: 'RANGE',
+        startGroupId: artifact.expectedPracticeGroups[0].groupId,
+        endGroupId: artifact.expectedPracticeGroups[0].groupId,
+      },
+      clock: rangeClock,
+      inputSource: 'MICROPHONE',
+      countInBeats: 0,
+    });
+    range.start();
+    rangeClock.advance(10_000);
+    expect(range.snapshot().completionReason).toBe('SCOPE_COMPLETED');
+
+    expect(() => range.publishAnalysis({
+      sessionDomainId: range.timebase.domainId,
+      attacks: [],
+      analyzedThroughPerformanceMs: range.snapshot().performanceTimeMs,
+    })).not.toThrow();
   });
 
   it('rejects post-terminal analysis publication that moves the performance frontier backwards', () => {
@@ -1132,7 +1269,7 @@ describe('local session foundation', () => {
     expect(naturalSnapshot.completionReason).toBe('SCOPE_COMPLETED');
   });
 
-  it('uses capture-time performance membership and rejects evidence behind finalized truth', () => {
+  it('uses capture-time performance membership and closes ordinary MIDI evidence after completion', () => {
     const clock = new ManualClock(0);
     const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
     const runtime = new ContinuousPracticeSession({
@@ -1175,7 +1312,7 @@ describe('local session foundation', () => {
     // End: state is ENDED
     runtime.end('STOPPED_BY_USER');
     expect(runtime.snapshot().state).toBe('ENDED');
-    expect(() => runtime.observeCapturedAttack(lateRunningEvidence)).toThrow(/finalized analysis frontier/);
+    expect(runtime.observeCapturedAttack(lateRunningEvidence)).toBe(false);
     expect(runtime.observeCapturedAttack(performanceEvidence(runtime.timebase.domainId, clock.nowMs() + 100, ['C4']))).toBe(false);
   });
 

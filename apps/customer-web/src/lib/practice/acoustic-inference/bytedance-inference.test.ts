@@ -727,7 +727,7 @@ describe('ByteDance local practice adapters', () => {
       localSessionId: 'performance-acoustic',
     });
     performance.start();
-    clock.advance(500);
+    clock.advance(1_500);
     const before = performance.snapshot();
     const event = decodeByteDanceRawOutputs(
       rawOutput([{ frame: 0, midiPitch: 60, onset: 0.9, frameScore: 0.8 }]),
@@ -775,6 +775,7 @@ describe('ByteDance local practice adapters', () => {
     for (const observation of observations) {
       clock.advance(Math.max(0, observation.captureTime.ms - clock.nowMs()));
     }
+    clock.advance(Math.max(0, 1_500 - clock.nowMs()));
     performance.publishAnalysis({
       sessionDomainId: performance.timebase.domainId,
       attacks: observations,
@@ -808,6 +809,7 @@ describe('ByteDance local practice adapters', () => {
         captureStartTime: { domainId: 'continuous-chord', ms: 0 },
       })
     );
+    clock.advance(250);
     performance.publishAnalysis({
       sessionDomainId: performance.timebase.domainId,
       attacks: acousticEventsToPerformanceEvidence(decoded),

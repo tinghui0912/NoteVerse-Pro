@@ -25,6 +25,7 @@ export function assignObservedAttacksToExpectedStrikes(input: {
   observedAttacks: readonly ObservedAttack[];
   assignmentWindowMs: number;
 }): Map<number, number> {
+  validateAssignmentWindow(input.assignmentWindowMs);
   const assignments = new Map<number, number>();
   const expectedByPitch = new Map<string, number[]>();
   const observedByPitch = new Map<string, number[]>();
@@ -61,6 +62,12 @@ export function assignObservedAttacksToExpectedStrikes(input: {
     }
   }
   return assignments;
+}
+
+export function validateAssignmentWindow(assignmentWindowMs: number): void {
+  if (!Number.isFinite(assignmentWindowMs) || assignmentWindowMs < 0) {
+    throw new Error('Assignment window must be finite and non-negative.');
+  }
 }
 
 type PitchAssignmentInput = {

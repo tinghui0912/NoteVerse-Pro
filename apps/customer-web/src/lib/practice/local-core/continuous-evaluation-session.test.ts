@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import canonicalArtifactJson from './__fixtures__/canonical-practice-score-artifact.json';
 import { ContinuousEvaluationSession, type PracticeScoreArtifact } from './index';
+import { assignObservedAttacksToExpectedStrikes } from '../audio-analysis/continuous/performance-reconciler';
 import type { ObservedAttack } from '../audio-analysis/continuous/observed-attack';
 
 const baseArtifact = canonicalArtifactJson as PracticeScoreArtifact;
@@ -104,6 +105,38 @@ function verdicts(evaluation: ContinuousEvaluationSession): readonly string[] {
 }
 
 describe('ContinuousEvaluationSession incremental finalization', () => {
+  it('rejects invalid assignment windows at session and assignment primitive boundaries', () => {
+    for (const assignmentWindowMs of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => session([{ id: 'a', timeMs: 0, pitches: ['C4'] }], assignmentWindowMs)).toThrow(/Assignment window/);
+      expect(() => assignObservedAttacksToExpectedStrikes({
+        expectedStrikes: [{
+          strikeId: 's1',
+          groupId: 'g1',
+          pitch: 'C4',
+          expectedPerformanceTimeMs: 0,
+          renderNoteIds: [],
+        }],
+        observedAttacks: [attack('o1', 'C4', 0)],
+        assignmentWindowMs,
+      })).toThrow(/Assignment window/);
+    }
+  });
+
+  it('allows deterministic zero-width assignment windows', () => {
+    const evaluation = session([{ id: 'a', timeMs: 0, pitches: ['C4'] }], 0);
+    evaluation.publishObservations([
+      attack('exact', 'C4', 0),
+      attack('nearby', 'C4', 1),
+    ], 1);
+
+    expect(evaluation.snapshot().strikes[0]).toMatchObject({
+      verdict: 'MATCHED',
+      matchedObservationId: 'exact',
+      timingOffsetMs: 0,
+    });
+    expect(evaluation.snapshot().extras).toEqual([attack('nearby', 'C4', 1)]);
+  });
+
   it('keeps a simple observation pending until analysis safely closes its assignment window', () => {
     const evaluation = session([{ id: 'a', timeMs: 0, pitches: ['C4'] }]);
     evaluation.observeAttack(attack('o1', 'C4', 10));
@@ -117,6 +150,19 @@ describe('ContinuousEvaluationSession incremental finalization', () => {
       verdict: 'MATCHED',
       matchedObservationId: 'o1',
       timingOffsetMs: 10,
+    });
+  });
+
+  it('accepts an event at performance time zero before any coverage watermark is declared', () => {
+    const evaluation = session([{ id: 'a', timeMs: 0, pitches: ['C4'] }]);
+
+    expect(() => evaluation.observeAttack(attack('zero', 'C4', 0))).not.toThrow();
+    evaluation.advanceAnalysisThrough(250);
+
+    expect(evaluation.snapshot().strikes[0]).toMatchObject({
+      verdict: 'MATCHED',
+      matchedObservationId: 'zero',
+      timingOffsetMs: 0,
     });
   });
 
@@ -156,15 +202,28 @@ describe('ContinuousEvaluationSession incremental finalization', () => {
     matched.advanceAnalysisThrough(250);
     const finalizedMatched = matched.snapshot();
 
-    expect(() => matched.observeAttack(attack('late', 'C4', 0))).toThrow(/behind the finalized analysis frontier/);
+    expect(() => matched.observeAttack(attack('late', 'C4', 0))).toThrow(/behind the declared analysis coverage watermark/);
     expect(matched.snapshot()).toEqual(finalizedMatched);
 
     const missing = session([{ id: 'a', timeMs: 0, pitches: ['C4'] }]);
     missing.advanceAnalysisThrough(250);
     const finalizedMissing = missing.snapshot();
 
-    expect(() => missing.observeAttack(attack('late', 'C4', 0))).toThrow(/behind the finalized analysis frontier/);
+    expect(() => missing.observeAttack(attack('late', 'C4', 0))).toThrow(/behind the declared analysis coverage watermark/);
     expect(missing.snapshot()).toEqual(finalizedMissing);
+  });
+
+  it('rejects genuinely new evidence behind the previous inclusive coverage watermark even for open components', () => {
+    const evaluation = session([
+      { id: 'a', timeMs: 0, pitches: ['C4'] },
+      { id: 'b', timeMs: 200, pitches: ['C4'] },
+    ]);
+    evaluation.advanceAnalysisThrough(250);
+    const before = evaluation.snapshot();
+
+    expect(() => evaluation.observeAttack(attack('late-but-matchable', 'C4', 180)))
+      .toThrow(/behind the declared analysis coverage watermark/);
+    expect(evaluation.snapshot()).toEqual(before);
   });
 
   it('preserves one-to-one repeated same-pitch assignments inside a closed component', () => {
@@ -202,7 +261,7 @@ describe('ContinuousEvaluationSession incremental finalization', () => {
     evaluation.advanceAnalysisThrough(250);
 
     expect(evaluation.snapshot().extras).toEqual([attack('extra-d4', 'D4', 90)]);
-    expect(() => evaluation.observeAttack(attack('late-d4', 'D4', 90))).toThrow(/behind the finalized analysis frontier/);
+    expect(() => evaluation.observeAttack(attack('late-d4', 'D4', 90))).toThrow(/behind the declared analysis coverage watermark/);
   });
 
   it('handles duplicate observation identities deterministically', () => {
@@ -220,6 +279,25 @@ describe('ContinuousEvaluationSession incremental finalization', () => {
     });
   });
 
+  it('rejects duplicate IDs inside one publication atomically even when evidence is identical', () => {
+    const evaluation = session([{ id: 'a', timeMs: 0, pitches: ['C4'] }]);
+    const before = evaluation.snapshot();
+    const duplicate = attack('same-publication-id', 'C4', 10);
+
+    expect(() => evaluation.publishObservations([duplicate, { ...duplicate }], 250))
+      .toThrow(/duplicate observationId/);
+    expect(evaluation.snapshot()).toEqual(before);
+  });
+
+  it('rejects publication evidence beyond its coverage watermark atomically', () => {
+    const evaluation = session([{ id: 'a', timeMs: 0, pitches: ['C4'] }]);
+    const before = evaluation.snapshot();
+
+    expect(() => evaluation.publishObservations([attack('future-evidence', 'C4', 251)], 250))
+      .toThrow(/beyond its analysis frontier/);
+    expect(evaluation.snapshot()).toEqual(before);
+  });
+
   it('fails closed on backwards coverage and atomic late publications', () => {
     const evaluation = session([{ id: 'a', timeMs: 0, pitches: ['C4'] }]);
     evaluation.advanceAnalysisThrough(250);
@@ -227,7 +305,7 @@ describe('ContinuousEvaluationSession incremental finalization', () => {
 
     expect(() => evaluation.advanceAnalysisThrough(200)).toThrow(/monotonic/);
     expect(() => evaluation.publishObservations([attack('late', 'C4', 0)], 300))
-      .toThrow(/behind the finalized analysis frontier/);
+      .toThrow(/behind the declared analysis coverage watermark/);
     expect(evaluation.snapshot()).toEqual(before);
   });
 
