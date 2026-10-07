@@ -1,7 +1,11 @@
+import { createHash } from 'node:crypto';
+
 import {
   BYTEDANCE_INFERENCE_CONTRACT,
   BYTEDANCE_INPUT_DESCRIPTOR,
+  type ByteDanceRawOutputs,
 } from '../acoustic-inference/bytedance-contract';
+import { decodeByteDanceRawOutputs } from '../acoustic-inference/bytedance-decoder';
 import {
   sourceAudioTimeToPerformanceMs,
   type BenchmarkScenario,
@@ -15,6 +19,7 @@ export const BYTEDANCE_CHUNKED_BASELINE_CONFIG = {
   adapterVersion: 'phase9e-a-score-aware-chunked-v1',
   candidateId: 'bytedance-score-aware-chunked-dev-v1',
   strategyKind: 'CHUNKED' as const,
+  label: 'SCORE_AWARE_CHUNKED_RESEARCH_BASELINE',
   modelRuntime: 'ByteDance high-resolution piano transcription ONNX research adapter',
   modelSha256: '6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5',
   modelBytes: 98_691_493,
@@ -24,6 +29,9 @@ export const BYTEDANCE_CHUNKED_BASELINE_CONFIG = {
   inputSampleRateHz: BYTEDANCE_INFERENCE_CONTRACT.sampleRateHz,
   onsetThreshold: BYTEDANCE_INFERENCE_CONTRACT.onsetThreshold,
   frameThreshold: BYTEDANCE_INFERENCE_CONTRACT.frameThreshold,
+  sourceContextPolicy: 'FAIL_CLOSED_NO_ZERO_PADDING',
+  downmixPolicy: 'average_channels_to_mono_float32',
+  resampler: 'deterministic_linear_interpolation_v1',
 } as const;
 
 export type ByteDanceChunkPlan = {
@@ -55,17 +63,54 @@ export type ByteDanceBlockedRunArtifact = {
     expectedSha256?: string;
     expectedBytes?: number;
     kind: 'MODEL' | 'AUDIO' | 'MIDI' | 'MANIFEST' | 'RUNTIME';
+    reason?: 'MISSING' | 'MISMATCH' | 'UNAVAILABLE_IDENTITY';
   }[];
   discoveredScenarioCount: number;
   command: string;
   reason: string;
 };
 
+export type CausalCaseEligibilityInput = {
+  caseId: string;
+  expectedGroups?: readonly {
+    groupId: string;
+    expectedPerformanceTimeMs: number;
+    expectedPitches: readonly string[];
+  }[];
+  completionPerformanceTimeMs?: number;
+  performanceOriginSourceMs?: number;
+  sourceAudioSha256?: string;
+  sourceMidiSha256?: string;
+  hasSynchronizedPhysicalMidi?: boolean;
+  scoreIntervalComplete?: boolean;
+  clipStartMs?: number;
+  clipEndMs?: number;
+};
+
+export type CausalCaseEligibilityResult = {
+  caseId: string;
+  status: 'ELIGIBLE_CONTINUOUS_SCENARIO' | `EXCLUDED_${string}`;
+  reason: string;
+};
+
+export type ByteDanceModelExecutor = (input: {
+  scenario: BenchmarkScenario;
+  plan: ByteDanceChunkPlan;
+  inputPcm16k: Float32Array;
+}) => Promise<{
+  raw: ByteDanceRawOutputs;
+  inferenceLatencyMs: number;
+}>;
+
 export function bytedanceCandidateDefinition(input: {
   gitHead: string;
   configurationSha256?: string;
   trainingDataOverlapStatus?: 'KNOWN_OVERLAP' | 'KNOWN_DISJOINT' | 'UNKNOWN';
 }): CandidateDefinition {
+  const configurationSha256 = input.configurationSha256 ?? bytedanceConfigurationSha256();
+  if (!/^[a-f0-9]{64}$/i.test(configurationSha256)) {
+    throw new Error('ByteDance candidate configurationSha256 must be a real 64-character SHA256 hex digest.');
+  }
   return {
     candidateId: BYTEDANCE_CHUNKED_BASELINE_CONFIG.candidateId,
     strategyKind: 'CHUNKED',
@@ -74,82 +119,72 @@ export function bytedanceCandidateDefinition(input: {
       modelCheckpointSha256: BYTEDANCE_CHUNKED_BASELINE_CONFIG.modelSha256,
       adapterVersion: BYTEDANCE_CHUNKED_BASELINE_CONFIG.adapterVersion,
       sourceGitHead: input.gitHead,
-      configurationSha256: input.configurationSha256 ?? stableConfigurationSha256(BYTEDANCE_CHUNKED_BASELINE_CONFIG),
+      configurationSha256,
       trainingDataOverlapStatus: input.trainingDataOverlapStatus ?? 'UNKNOWN',
     },
   };
+}
+
+export function bytedanceConfigurationSha256(): string {
+  return sha256Hex(canonicalJson(BYTEDANCE_CHUNKED_BASELINE_CONFIG));
 }
 
 export function planByteDanceScoreAwareChunks(
   scenario: BenchmarkScenario,
   config: typeof BYTEDANCE_CHUNKED_BASELINE_CONFIG = BYTEDANCE_CHUNKED_BASELINE_CONFIG
 ): readonly ByteDanceChunkPlan[] {
-  const groups = groupExpectedStrikesBySimultaneousAttack(scenario);
-  if (groups.length === 0) return [];
+  const completion = completionTimeMs(scenario);
+  const groups = groupExpectedStrikesBySimultaneousAttack(scenario)
+    .filter((group) => group.expectedPerformanceTimeMs <= completion);
   const plans: ByteDanceChunkPlan[] = [];
-  let groupIndex = 0;
-  while (groupIndex < groups.length) {
-    const first = groups[groupIndex];
-    let endIndex = groupIndex;
-    while (
-      endIndex + 1 < groups.length
-      && groups[endIndex + 1].expectedPerformanceTimeMs - first.expectedPerformanceTimeMs <= config.maxCommitWidthMs
-    ) {
-      endIndex += 1;
-    }
-    const chunkGroups = groups.slice(groupIndex, endIndex + 1);
-    const last = groups[endIndex];
-    const nextGroup = groups[endIndex + 1];
-    const previousGroup = groups[groupIndex - 1];
-    const commitStart = previousGroup
-      ? midpoint(previousGroup.expectedPerformanceTimeMs, first.expectedPerformanceTimeMs)
-      : 0;
-    const commitEnd = nextGroup
-      ? midpoint(last.expectedPerformanceTimeMs, nextGroup.expectedPerformanceTimeMs)
-      : scenario.completion?.performanceTimeMs ?? first.expectedPerformanceTimeMs + config.maxCommitWidthMs;
-    const historyContextMs = config.modelInputMs - config.futureContextMs - (commitEnd - commitStart);
+  let start = 0;
+  while (start < completion || (completion === 0 && plans.length === 0)) {
+    const end = Math.min(completion, start + config.maxCommitWidthMs);
+    const expectedGroupIds = groups
+      .filter((group) => ownsPerformanceTime({ start, end, isFirst: plans.length === 0 }, group.expectedPerformanceTimeMs))
+      .map((group) => group.groupId);
+    const inputEnd = end + config.futureContextMs;
     plans.push({
       chunkId: `${scenario.scenarioId}:chunk-${plans.length}`,
       scenarioId: scenario.scenarioId,
-      commitStartPerformanceMs: commitStart,
-      commitEndPerformanceMs: commitEnd,
-      inputStartPerformanceMs: commitStart - Math.max(0, historyContextMs),
-      inputEndPerformanceMs: commitEnd + config.futureContextMs,
-      expectedGroupIds: chunkGroups.map((group) => group.groupId),
+      commitStartPerformanceMs: start,
+      commitEndPerformanceMs: end,
+      inputStartPerformanceMs: inputEnd - config.modelInputMs,
+      inputEndPerformanceMs: inputEnd,
+      expectedGroupIds,
     });
-    groupIndex = endIndex + 1;
+    if (end === completion) break;
+    start = end;
   }
-  validateChunkPlan(scenario, plans);
+  validateChunkPlan(scenario, plans, config);
   return plans;
-}
-
-function midpoint(left: number, right: number): number {
-  return (left + right) / 2;
 }
 
 export function validateChunkPlan(
   scenario: BenchmarkScenario,
-  plans: readonly ByteDanceChunkPlan[]
+  plans: readonly ByteDanceChunkPlan[],
+  config: typeof BYTEDANCE_CHUNKED_BASELINE_CONFIG = BYTEDANCE_CHUNKED_BASELINE_CONFIG
 ): void {
+  const completion = completionTimeMs(scenario);
   let previousEnd = 0;
   const groupToPlan = new Map<string, string>();
-  for (const plan of plans) {
+  plans.forEach((plan, index) => {
     if (plan.scenarioId !== scenario.scenarioId) {
       throw new Error('ByteDance chunk plan scenarioId does not match scenario.');
     }
+    const width = plan.commitEndPerformanceMs - plan.commitStartPerformanceMs;
+    const inputWidth = plan.inputEndPerformanceMs - plan.inputStartPerformanceMs;
     if (
       !Number.isFinite(plan.commitStartPerformanceMs)
       || !Number.isFinite(plan.commitEndPerformanceMs)
-      || plan.commitEndPerformanceMs < plan.commitStartPerformanceMs
-      || plan.commitStartPerformanceMs < previousEnd
+      || width < 0
+      || width > config.maxCommitWidthMs
+      || plan.commitStartPerformanceMs !== previousEnd
     ) {
-      throw new Error('ByteDance chunk commit ownership must be finite, ordered, and non-overlapping.');
+      throw new Error('ByteDance chunk commit ownership must be continuous and no wider than maxCommitWidthMs.');
     }
-    if (plan.inputEndPerformanceMs < plan.commitEndPerformanceMs) {
-      throw new Error('ByteDance chunk input must include its commit end.');
-    }
-    if (plan.inputStartPerformanceMs > plan.commitStartPerformanceMs) {
-      throw new Error('ByteDance chunk input must include historical context at commit start.');
+    if (inputWidth !== config.modelInputMs) {
+      throw new Error('ByteDance chunk input duration must equal the fixed model input duration.');
     }
     for (const groupId of plan.expectedGroupIds) {
       if (groupToPlan.has(groupId)) {
@@ -158,11 +193,31 @@ export function validateChunkPlan(
       groupToPlan.set(groupId, plan.chunkId);
     }
     previousEnd = plan.commitEndPerformanceMs;
-  }
+    if (index === plans.length - 1 && plan.commitEndPerformanceMs !== completion) {
+      throw new Error('ByteDance chunk plan must cover through scenario completion.');
+    }
+  });
   const plannedGroups = new Set(groupToPlan.keys());
-  for (const groupId of new Set(scenario.expectedStrikes.map((strike) => strike.groupId))) {
-    if (!plannedGroups.has(groupId)) {
-      throw new Error(`ExpectedStrike group ${groupId} is missing from ByteDance chunk plan.`);
+  for (const group of groupExpectedStrikesBySimultaneousAttack(scenario)) {
+    if (group.expectedPerformanceTimeMs > completion) continue;
+    if (!plannedGroups.has(group.groupId)) {
+      throw new Error(`ExpectedStrike group ${group.groupId} is missing from ByteDance chunk plan.`);
+    }
+  }
+}
+
+export function validateByteDanceSourceContext(
+  scenario: BenchmarkScenario,
+  plans: readonly ByteDanceChunkPlan[]
+): void {
+  for (const plan of plans) {
+    const sourceInputStart = scenario.audio.performanceOriginSourceMs + plan.inputStartPerformanceMs;
+    const sourceInputEnd = scenario.audio.performanceOriginSourceMs + plan.inputEndPerformanceMs;
+    if (sourceInputStart < scenario.audio.clipStartMs) {
+      throw new Error(`ByteDance chunk ${plan.chunkId} requires unavailable pre-roll context.`);
+    }
+    if (sourceInputEnd > scenario.audio.clipEndMs) {
+      throw new Error(`ByteDance chunk ${plan.chunkId} requires unavailable post-roll context.`);
     }
   }
 }
@@ -174,13 +229,14 @@ export function observationsForByteDanceChunk(
 ): readonly CandidateObservation[] {
   return decodedEvents
     .filter((event) => ownsEventTime(plan, scenario, event.performanceTimeMs))
-    .map((event) => ({
+    .map((event, ordinal) => ({
       observationId: stableObservationId({
         scenarioId: scenario.scenarioId,
         chunkId: plan.chunkId,
         eventId: event.eventId,
         pitch: event.pitch,
         performanceTimeMs: event.performanceTimeMs,
+        ordinal,
       }),
       pitch: event.pitch,
       performanceTimeMs: event.performanceTimeMs,
@@ -188,29 +244,107 @@ export function observationsForByteDanceChunk(
     }));
 }
 
+export function decodeByteDanceChunkRawOutputs(input: {
+  scenario: BenchmarkScenario;
+  plan: ByteDanceChunkPlan;
+  raw: ByteDanceRawOutputs;
+  inferenceCompletedAtMs?: number;
+}): readonly ByteDanceDecodedModelEvent[] {
+  const captureStartSampleIndex = Math.round(input.plan.inputStartPerformanceMs / 1000 * BYTEDANCE_INFERENCE_CONTRACT.sampleRateHz);
+  const request = {
+    requestId: input.plan.chunkId,
+    pcm: new Float32Array(BYTEDANCE_INPUT_DESCRIPTOR.shape[1]),
+    sampleRateHz: BYTEDANCE_INFERENCE_CONTRACT.sampleRateHz,
+    channelCount: 1 as const,
+    captureStartSampleIndex,
+    captureStartTime: {
+      domainId: `${input.scenario.scenarioId}:${input.plan.chunkId}`,
+      ms: input.plan.inputStartPerformanceMs,
+      sampleIndex: captureStartSampleIndex,
+    },
+  };
+  return decodeByteDanceRawOutputs(input.raw, request, {
+    inferenceCompletedAtMs: input.inferenceCompletedAtMs,
+    onsetThreshold: BYTEDANCE_CHUNKED_BASELINE_CONFIG.onsetThreshold,
+    frameThreshold: BYTEDANCE_CHUNKED_BASELINE_CONFIG.frameThreshold,
+  }).map((event, index) => ({
+    eventId: `${input.plan.chunkId}:frame-event-${index}`,
+    pitch: event.pitch,
+    performanceTimeMs: event.onsetTime.ms,
+    confidence: event.confidence,
+    onsetScore: event.onsetScore,
+    frameScore: event.frameScore,
+  }));
+}
+
 export function publicationForByteDanceChunk(input: {
   scenario: BenchmarkScenario;
   plan: ByteDanceChunkPlan;
   observations: readonly CandidateObservation[];
   inferenceLatencyMs?: number;
-  publicationDelayMs?: number;
+  adapterOverheadMs?: number;
 }): CandidatePublication {
-  const futureContextAvailableAt = input.plan.commitEndPerformanceMs + BYTEDANCE_CHUNKED_BASELINE_CONFIG.futureContextMs;
   const latency = input.inferenceLatencyMs ?? 0;
+  const adapterOverhead = input.adapterOverheadMs ?? 0;
+  const availabilityTimeMs = input.plan.inputEndPerformanceMs + latency + adapterOverhead;
   return {
     publicationId: `${input.plan.chunkId}:publication`,
     observations: input.observations,
     analyzedThroughPerformanceMs: input.plan.commitEndPerformanceMs,
-    availabilityTimeMs: futureContextAvailableAt + latency,
+    availabilityTimeMs,
     diagnostics: {
       strategyShape: 'CHUNKED',
       chunkIndex: Number(input.plan.chunkId.split('chunk-').at(-1) ?? 0),
       inputStartMs: input.plan.inputStartPerformanceMs,
       inputEndMs: input.plan.inputEndPerformanceMs,
       inferenceLatencyMs: latency,
-      publicationDelayMs: input.publicationDelayMs ?? BYTEDANCE_CHUNKED_BASELINE_CONFIG.futureContextMs + latency,
+      publicationDelayMs: availabilityTimeMs - input.plan.commitEndPerformanceMs,
+      requiredFutureContextMs: input.plan.inputEndPerformanceMs - input.plan.commitEndPerformanceMs,
+      modelInferenceLatencyMs: latency,
+      adapterOverheadMs: adapterOverhead,
+      totalPublicationDelayMs: availabilityTimeMs - input.plan.commitEndPerformanceMs,
     },
   };
+}
+
+export async function executeByteDanceScenarioWithExecutor(input: {
+  scenario: BenchmarkScenario;
+  sourcePcm: Float32Array;
+  sourceSampleRateHz: number;
+  executor: ByteDanceModelExecutor;
+  candidateId: string;
+  command: string;
+  runtime: string;
+}): Promise<CandidateScenarioRun> {
+  const plans = planByteDanceScoreAwareChunks(input.scenario);
+  validateByteDanceSourceContext(input.scenario, plans);
+  const publications: CandidatePublication[] = [];
+  for (const plan of plans) {
+    const sourceInputStartMs = input.scenario.audio.performanceOriginSourceMs + plan.inputStartPerformanceMs;
+    const sourceInputEndMs = input.scenario.audio.performanceOriginSourceMs + plan.inputEndPerformanceMs;
+    const inputPcm = extractAndResampleLinear16k({
+      sourcePcm: input.sourcePcm,
+      sourceSampleRateHz: input.sourceSampleRateHz,
+      sourceStartMs: sourceInputStartMs,
+      sourceEndMs: sourceInputEndMs,
+    });
+    const result = await input.executor({ scenario: input.scenario, plan, inputPcm16k: inputPcm });
+    const decoded = decodeByteDanceChunkRawOutputs({ scenario: input.scenario, plan, raw: result.raw });
+    const observations = observationsForByteDanceChunk(input.scenario, plan, decoded);
+    publications.push(publicationForByteDanceChunk({
+      scenario: input.scenario,
+      plan,
+      observations,
+      inferenceLatencyMs: result.inferenceLatencyMs,
+    }));
+  }
+  return candidateRunForByteDanceChunks({
+    candidateId: input.candidateId,
+    scenarioId: input.scenario.scenarioId,
+    publications,
+    command: input.command,
+    runtime: input.runtime,
+  });
 }
 
 export function candidateRunForByteDanceChunks(input: {
@@ -238,6 +372,33 @@ export function sourceEventTimeToPerformanceTime(
   return sourceAudioTimeToPerformanceMs(scenario, sourceAudioTimeMs);
 }
 
+export function extractAndResampleLinear16k(input: {
+  sourcePcm: Float32Array;
+  sourceSampleRateHz: number;
+  sourceStartMs: number;
+  sourceEndMs: number;
+}): Float32Array {
+  if (!Number.isFinite(input.sourceSampleRateHz) || input.sourceSampleRateHz <= 0) {
+    throw new Error('Source sample rate must be positive and finite.');
+  }
+  const outputLength = BYTEDANCE_INPUT_DESCRIPTOR.shape[1];
+  const sourceStart = input.sourceStartMs / 1000 * input.sourceSampleRateHz;
+  const sourceEnd = input.sourceEndMs / 1000 * input.sourceSampleRateHz;
+  if (sourceStart < 0 || sourceEnd > input.sourcePcm.length || sourceEnd <= sourceStart) {
+    throw new Error('Requested ByteDance input window is outside source PCM.');
+  }
+  const output = new Float32Array(outputLength);
+  const sourceSpan = sourceEnd - sourceStart;
+  for (let index = 0; index < outputLength; index += 1) {
+    const position = sourceStart + index * sourceSpan / outputLength;
+    const left = Math.floor(position);
+    const right = Math.min(input.sourcePcm.length - 1, left + 1);
+    const fraction = position - left;
+    output[index] = (input.sourcePcm[left] ?? 0) * (1 - fraction) + (input.sourcePcm[right] ?? 0) * fraction;
+  }
+  return output;
+}
+
 export function assertAssetIdentity(input: {
   kind: 'MODEL' | 'AUDIO' | 'MIDI' | 'MANIFEST' | 'RUNTIME';
   path: string;
@@ -246,12 +407,47 @@ export function assertAssetIdentity(input: {
   expectedBytes?: number;
   actualBytes?: number;
 }): void {
+  if (input.expectedSha256 && !input.actualSha256) {
+    throw new Error(`${input.kind} identity missing for ${input.path}.`);
+  }
+  if (input.expectedBytes !== undefined && input.actualBytes === undefined) {
+    throw new Error(`${input.kind} byte size missing for ${input.path}.`);
+  }
   if (input.expectedSha256 && input.actualSha256 && input.expectedSha256 !== input.actualSha256) {
     throw new Error(`${input.kind} SHA256 mismatch for ${input.path}.`);
   }
   if (input.expectedBytes !== undefined && input.actualBytes !== undefined && input.expectedBytes !== input.actualBytes) {
     throw new Error(`${input.kind} byte size mismatch for ${input.path}.`);
   }
+}
+
+export function auditCausalCaseEligibility(
+  cases: readonly CausalCaseEligibilityInput[]
+): readonly CausalCaseEligibilityResult[] {
+  return cases.map((item) => {
+    if (!item.expectedGroups?.length) return excluded(item, 'NO_EXPECTED_GROUPS', 'Case does not expose complete expected groups.');
+    if (!Number.isFinite(item.completionPerformanceTimeMs)) return excluded(item, 'NO_COMPLETION', 'Case has no finite completion boundary.');
+    if (!Number.isFinite(item.performanceOriginSourceMs)) return excluded(item, 'NO_PERFORMANCE_ORIGIN', 'Case has no performance origin.');
+    if (!item.sourceAudioSha256) return excluded(item, 'NO_AUDIO_HASH', 'Case has no source audio hash.');
+    if (!item.sourceMidiSha256) return excluded(item, 'NO_MIDI_HASH', 'Case has no source MIDI hash.');
+    if (!item.hasSynchronizedPhysicalMidi) return excluded(item, 'NO_SYNCHRONIZED_PHYSICAL_MIDI', 'Case lacks synchronized physical MIDI truth.');
+    if (!item.scoreIntervalComplete) return excluded(item, 'INCOMPLETE_SCORE_INTERVAL', 'Case interval cannot prove all score events are represented.');
+    if (
+      item.clipStartMs === undefined
+      || item.clipEndMs === undefined
+      || item.performanceOriginSourceMs === undefined
+      || item.completionPerformanceTimeMs === undefined
+      || item.clipStartMs > item.performanceOriginSourceMs - (BYTEDANCE_CHUNKED_BASELINE_CONFIG.modelInputMs - BYTEDANCE_CHUNKED_BASELINE_CONFIG.futureContextMs)
+      || item.clipEndMs < item.performanceOriginSourceMs + item.completionPerformanceTimeMs + BYTEDANCE_CHUNKED_BASELINE_CONFIG.futureContextMs
+    ) {
+      return excluded(item, 'INSUFFICIENT_CONTEXT', 'Case lacks required ByteDance pre/post context.');
+    }
+    return {
+      caseId: item.caseId,
+      status: 'ELIGIBLE_CONTINUOUS_SCENARIO',
+      reason: 'Case exposes complete score groups, synchronized MIDI truth, source identity, completion, and ByteDance context.',
+    };
+  });
 }
 
 export function blockedByteDanceRunArtifact(input: {
@@ -270,6 +466,10 @@ export function blockedByteDanceRunArtifact(input: {
     command: input.command,
     reason: input.reason ?? 'Required external assets were unavailable; no measured ByteDance DEVELOPMENT result was produced.',
   };
+}
+
+function excluded(item: CausalCaseEligibilityInput, status: string, reason: string): CausalCaseEligibilityResult {
+  return { caseId: item.caseId, status: `EXCLUDED_${status}`, reason };
 }
 
 function groupExpectedStrikesBySimultaneousAttack(scenario: BenchmarkScenario): {
@@ -291,9 +491,23 @@ function groupExpectedStrikesBySimultaneousAttack(scenario: BenchmarkScenario): 
 }
 
 function ownsEventTime(plan: ByteDanceChunkPlan, scenario: BenchmarkScenario, performanceTimeMs: number): boolean {
-  const isFinalPlan = plan.commitEndPerformanceMs === scenario.completion?.performanceTimeMs;
-  return performanceTimeMs >= plan.commitStartPerformanceMs
-    && (performanceTimeMs < plan.commitEndPerformanceMs || (isFinalPlan && performanceTimeMs === plan.commitEndPerformanceMs));
+  const plans = planByteDanceScoreAwareChunks(scenario);
+  const index = plans.findIndex((candidate) => candidate.chunkId === plan.chunkId);
+  return ownsPerformanceTime({
+    start: plan.commitStartPerformanceMs,
+    end: plan.commitEndPerformanceMs,
+    isFirst: index <= 0,
+  }, performanceTimeMs);
+}
+
+function ownsPerformanceTime(input: { start: number; end: number; isFirst: boolean }, performanceTimeMs: number): boolean {
+  return (input.isFirst ? performanceTimeMs >= input.start : performanceTimeMs > input.start)
+    && performanceTimeMs <= input.end;
+}
+
+function completionTimeMs(scenario: BenchmarkScenario): number {
+  return scenario.completion?.performanceTimeMs
+    ?? Math.max(...scenario.expectedStrikes.map((strike) => strike.expectedPerformanceTimeMs));
 }
 
 function stableObservationId(input: {
@@ -302,25 +516,32 @@ function stableObservationId(input: {
   eventId: string;
   pitch: string;
   performanceTimeMs: number;
+  ordinal: number;
 }): string {
-  return `bd:${stableConfigurationSha256(input).slice(0, 16)}`;
+  return [
+    'bd',
+    sanitizeIdentity(input.scenarioId),
+    sanitizeIdentity(input.chunkId),
+    sanitizeIdentity(input.pitch),
+    input.performanceTimeMs.toFixed(3),
+    sanitizeIdentity(input.eventId),
+    String(input.ordinal),
+  ].join(':');
 }
 
-function stableConfigurationSha256(value: unknown): string {
-  const text = stableJson(value);
-  let hash = 2166136261;
-  for (let index = 0; index < text.length; index += 1) {
-    hash ^= text.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(16).repeat(8).slice(0, 64);
+function sanitizeIdentity(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_.-]+/g, '_');
 }
 
-function stableJson(value: unknown): string {
+function sha256Hex(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
+
+function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
   return `{${Object.entries(value as Record<string, unknown>)
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
     .join(',')}}`;
 }

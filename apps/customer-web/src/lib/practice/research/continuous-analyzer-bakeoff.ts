@@ -86,6 +86,10 @@ export type CandidatePublication = {
     inputEndMs?: number;
     inferenceLatencyMs?: number;
     publicationDelayMs?: number;
+    requiredFutureContextMs?: number;
+    modelInferenceLatencyMs?: number;
+    adapterOverheadMs?: number;
+    totalPublicationDelayMs?: number;
   };
 };
 
@@ -255,6 +259,9 @@ export function validateBenchmarkScenario(scenario: BenchmarkScenario): void {
   const completion = completionTimeMs(scenario);
   if (!Number.isFinite(completion) || completion < 0) {
     throw new Error('Benchmark scenario requires finite non-negative completion time.');
+  }
+  if (scenario.audio.clipEndMs < scenario.audio.performanceOriginSourceMs + completion) {
+    throw new Error('Benchmark scenario clip must contain the full owned performance interval.');
   }
   if (!Array.isArray(scenario.expectedStrikes) || scenario.expectedStrikes.length === 0) {
     throw new Error('Benchmark scenario requires ExpectedStrike timeline.');
