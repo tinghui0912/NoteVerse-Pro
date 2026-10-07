@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "policyId": "phase9e-a-bytedance-score-aware-chunked-development",
-  "phase": "9E-A.2",
+  "phase": "9E-A.3",
   "createdAt": "2026-10-07T00:00:00+08:00",
-  "researchHarnessGitHead": "51451f1f2ad53bd870ffd8f3312c6a756623a8cd",
+  "researchHarnessGitHead": "e989178f4eb6dd15c2859173b38b15772ed31c3a",
   "candidate": {
     "candidateId": "bytedance-score-aware-chunked-dev-v1",
     "strategyKind": "CHUNKED",
@@ -48,6 +48,20 @@
   "runtimeSmoke": {
     "artifact": "backend/research/reports/bytedance_chunked_phase9e_a2_runner_audit_2026-10-07.json",
     "purpose": "RUNTIME_EXECUTION_SMOKE_ONLY",
+    "productAccuracyMetric": false
+  },
+  "executionProfile": {
+    "profileId": "bytedance-onnx-ortweb-wasm-disabledopt-concurrency1-v1",
+    "sha256": "6e4c4e83120f86c976c50f6245c3f1aee91752a30287b24aceb4d80871a7d704",
+    "ortWebVersion": "1.20.1",
+    "executionProvider": "wasm",
+    "graphOptimizationLevel": "disabled",
+    "candidateInferenceConcurrency": 1,
+    "browserVersionIsRuntimeProvenanceOnly": true
+  },
+  "pipelineIntegrationSmoke": {
+    "artifact": "backend/research/reports/bytedance_chunked_phase9e_a3_pipeline_smoke_2026-10-07.json",
+    "purpose": "PIPELINE_INTEGRATION_SMOKE_ONLY",
     "productAccuracyMetric": false
   }
 }

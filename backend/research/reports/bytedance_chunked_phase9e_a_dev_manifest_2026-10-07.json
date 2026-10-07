@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "phase9e_a_development_benchmark_manifest",
   "generatedAt": "2026-10-07T00:00:00+08:00",
-  "researchHarnessGitHead": "51451f1f2ad53bd870ffd8f3312c6a756623a8cd",
+  "researchHarnessGitHead": "e989178f4eb6dd15c2859173b38b15772ed31c3a",
   "split": "DEVELOPMENT",
   "audioMapping": {
     "performanceOriginSourceMs": "source-audio instant corresponding to Continuous performanceTimeMs = 0",
@@ -31,6 +31,6 @@
     "excludedHistoricalTargetRows": 421,
     "auditedCausalCases": 128,
     "eligibleCausalCases": 0,
-    "exclusionReason": "Phase 9E-A.2 did not invent missing Continuous v2 completion boundaries or convert old target-verifier rows into product truth. A later manifest-building step must construct coherent ExpectedStrike + physical truth intervals before measured real-model accuracy can be reported."
+    "exclusionReason": "Phase 9E-A.3 did not invent missing Continuous v2 completion boundaries or convert old target-verifier rows into product truth. A later manifest-building step must construct coherent ExpectedStrike + physical truth intervals before measured real-model accuracy can be reported."
   }
 }

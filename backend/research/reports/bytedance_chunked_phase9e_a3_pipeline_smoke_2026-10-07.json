@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9e_a3_pipeline_integration_smoke",
+  "implementationGitHead": "e989178f4eb6dd15c2859173b38b15772ed31c3a",
+  "status": "PASS",
+  "productAccuracyMetric": false,
+  "executionProfileSha256": "6e4c4e83120f86c976c50f6245c3f1aee91752a30287b24aceb4d80871a7d704",
+  "rawArtifact": "backend/research/reports/bytedance_chunked_phase9e_a3_raw_smoke_2026-10-07.json",
+  "decodedEvents": 0,
+  "canonicalObservations": 0,
+  "publication": {
+    "publicationId": "phase9e-a3-pipeline-smoke:chunk-0:publication",
+    "analyzedThroughPerformanceMs": 600,
+    "availabilityTimeMs": null
+  }
+}

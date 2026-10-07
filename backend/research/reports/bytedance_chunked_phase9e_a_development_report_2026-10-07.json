@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "phase9e_a_bytedance_development_report",
   "generatedAt": "2026-10-07T00:00:00+08:00",
-  "researchHarnessGitHead": "51451f1f2ad53bd870ffd8f3312c6a756623a8cd",
+  "researchHarnessGitHead": "e989178f4eb6dd15c2859173b38b15772ed31c3a",
   "policy": {
     "path": "backend/research/policies/bytedance_chunked_phase9e_a_policy_2026-10-07.json",
     "policyId": "phase9e-a-bytedance-score-aware-chunked-development"
@@ -57,7 +57,8 @@
   "candidateSelectionMade": false,
   "notes": [
     "The ByteDance ONNX asset identity was verified locally.",
-    "The Phase 9E-A.2 runner created a real ORT Web browser session, executed the claimed ByteDance ONNX model on a 29120-sample smoke input, and verified reg_onset_output/frame_output shapes.",
+    "The Phase 9E-A.3 runner created a real ORT Web browser session, executed the claimed ByteDance ONNX model on a 29120-sample smoke input, and verified reg_onset_output/frame_output shapes.",
+    "The Phase 9E-A.3 pipeline integration smoke fed actual browser raw outputs through the authoritative TypeScript ByteDance decoder and canonical CandidatePublication path; it is not a product accuracy metric.",
     "No real DEVELOPMENT metric was measured because the causal-case audit found zero cases with a finite Continuous completion boundary and complete Practice v2 Continuous score interval without inventing truth semantics."
   ]
 }
