@@ -3,7 +3,8 @@
 //
 // This command intentionally does not integrate with production Practice. It:
 // 1. verifies the claimed ByteDance ONNX model identity,
-// 2. executes a real ORT Web browser smoke inference on one 29120-sample chunk,
+// 2. executes real ORT Web browser inference on arbitrary 29120-sample chunks
+//    or, by default, one smoke chunk,
 // 3. audits DEVELOPMENT causal cases for Practice v2 Continuous eligibility,
 // 4. writes a normalized research artifact without manufacturing product metrics.
 
@@ -55,8 +56,13 @@ const outputDir = path.resolve(repoRoot, outputDirRelPath);
 const gitHead = String(args['git-head'] ?? 'UNKNOWN');
 const backend = String(args.backend ?? 'wasm');
 const browserChannel = args['browser-channel'] ? String(args['browser-channel']) : undefined;
+const chunkInputRelPath = args['chunk-input-json'] ? String(args['chunk-input-json']) : null;
+const chunkInputPath = chunkInputRelPath ? path.resolve(repoRoot, chunkInputRelPath) : null;
+const rawOutputRelPath = args['raw-output-json'] ? String(args['raw-output-json']) : null;
+const rawOutputPath = rawOutputRelPath ? path.resolve(repoRoot, rawOutputRelPath) : null;
 
 await mkdir(outputDir, { recursive: true });
+if (rawOutputPath) await mkdir(path.dirname(rawOutputPath), { recursive: true });
 
 const modelIdentity = existsSync(modelPath)
   ? {
@@ -73,8 +79,15 @@ const modelStatus = modelIdentity.available
   ? 'PASS'
   : 'BLOCKED';
 
+const chunkInput = chunkInputPath
+  ? await loadChunkInputJson(chunkInputPath)
+  : {
+      mode: 'RUNTIME_EXECUTION_SMOKE_ONLY',
+      chunks: [{ chunkId: 'runtime-smoke-zero-input', pcm16k: new Array(INPUT_SAMPLES).fill(0) }],
+    };
+
 const runtimeSmoke = modelStatus === 'PASS'
-  ? await runBrowserSmoke({ modelPath, ortDir, backend, browserChannel }).catch((error) => ({
+  ? await runBrowserChunkExecutor({ modelPath, ortDir, backend, browserChannel, chunks: chunkInput.chunks, rawOutputPath }).catch((error) => ({
       status: 'FAIL',
       error: error instanceof Error ? error.message : String(error),
       backend,
@@ -105,6 +118,8 @@ const artifact = {
     `--ort-dir ${ortDirRelPath}`,
     `--backend ${backend}`,
     `--output-dir ${outputDirRelPath}`,
+    ...(chunkInputRelPath ? [`--chunk-input-json ${chunkInputRelPath}`] : []),
+    ...(rawOutputRelPath ? [`--raw-output-json ${rawOutputRelPath}`] : []),
   ].join(' '),
   runtimeEnvironment: {
     os: `${os.type()} ${os.release()} ${os.arch()}`,
@@ -120,6 +135,12 @@ const artifact = {
     status: modelStatus,
   },
   runtimeSmoke,
+  chunkExecution: {
+    mode: chunkInput.mode,
+    chunkInput: chunkInputRelPath,
+    rawOutput: rawOutputRelPath,
+    chunkCount: chunkInput.chunks.length,
+  },
   causalManifest: {
     path: causalManifestRelPath,
     available: Boolean(causalManifest),
@@ -144,7 +165,7 @@ const outputPath = path.join(outputDir, 'bytedance_chunked_phase9e_a2_runner_aud
 await writeFile(outputPath, `${JSON.stringify(artifact, null, 2)}\n`);
 console.log(path.relative(repoRoot, outputPath).replaceAll(path.sep, '/'));
 
-async function runBrowserSmoke(input) {
+async function runBrowserChunkExecutor(input) {
   if (!existsSync(input.ortDir)) throw new Error(`Missing ORT dist directory: ${input.ortDir}`);
   const ortScript = input.backend === 'webgpu' ? 'ort.webgpu.min.js' : 'ort.min.js';
   const ortScriptPath = path.join(input.ortDir, ortScript);
@@ -160,7 +181,22 @@ async function runBrowserSmoke(input) {
   try {
     const page = await browser.newPage();
     await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
-    const result = validateSmokeResult(await page.evaluate(() => window.__runSmoke()));
+    const result = validateSmokeResult(await page.evaluate(({ chunks, includeRawOutputs }) => (
+      window.__runChunks(chunks, includeRawOutputs)
+    ), { chunks: input.chunks, includeRawOutputs: Boolean(input.rawOutputPath) }));
+    if (input.rawOutputPath) {
+      await writeFile(input.rawOutputPath, `${JSON.stringify({
+        schemaVersion: 1,
+        artifact: 'phase9e_a_bytedance_browser_chunk_raw_outputs',
+        chunks: result.chunks,
+      })}\n`);
+    }
+    const summarizedChunks = result.chunks.map((chunk) => ({
+      chunkId: chunk.chunkId,
+      inferenceLatencyMs: chunk.inferenceLatencyMs,
+      outputNames: chunk.outputNames,
+      outputs: chunk.outputs,
+    }));
     return {
       status: 'PASS',
       ortWebVersion: ortPackage.version,
@@ -168,6 +204,7 @@ async function runBrowserSmoke(input) {
       backend: input.backend,
       graphOptimizationLevel: 'disabled',
       ...result,
+      chunks: summarizedChunks,
     };
   } finally {
     await browser.close();
@@ -180,31 +217,57 @@ function createSmokeServer({ modelPath, ortDir, ortScript }) {
 <html><head><meta charset="utf-8"><title>ByteDance Phase 9E-A Smoke</title></head>
 <body><script src="/ort/${ortScript}"></script><script>
 async function runSmoke() {
+  return runChunks([{ chunkId: 'runtime-smoke-zero-input', pcm16k: Array(${INPUT_SAMPLES}).fill(0) }], false);
+}
+async function runChunks(chunks, includeRawOutputs) {
   ort.env.logLevel = 'warning';
   const options = {
     executionProviders: [${JSON.stringify(ortScript.includes('webgpu') ? 'webgpu' : 'wasm')}],
     graphOptimizationLevel: 'disabled'
   };
   const session = await ort.InferenceSession.create('/model.onnx', options);
-  const input = new Float32Array(${INPUT_SAMPLES});
-  const tensor = new ort.Tensor('float32', input, [1, ${INPUT_SAMPLES}]);
-  const start = performance.now();
-  const outputs = await session.run({ audio: tensor });
-  const end = performance.now();
-  const names = Object.keys(outputs);
-  const summary = {};
-  for (const name of names) {
-    summary[name] = { dims: outputs[name].dims, type: outputs[name].type, length: outputs[name].data.length };
+  const results = [];
+  for (const chunk of chunks) {
+    if (!chunk.chunkId || !Array.isArray(chunk.pcm16k) || chunk.pcm16k.length !== ${INPUT_SAMPLES}) {
+      throw new Error('Each ByteDance chunk must have chunkId and exactly ${INPUT_SAMPLES} pcm16k samples.');
+    }
+    const input = new Float32Array(chunk.pcm16k);
+    const tensor = new ort.Tensor('float32', input, [1, ${INPUT_SAMPLES}]);
+    const start = performance.now();
+    const outputs = await session.run({ audio: tensor });
+    const end = performance.now();
+    const names = Object.keys(outputs);
+    const summary = {};
+    const rawOutputs = {};
+    for (const name of names) {
+      summary[name] = { dims: outputs[name].dims, type: outputs[name].type, length: outputs[name].data.length };
+      if (includeRawOutputs) {
+        rawOutputs[name] = {
+          dims: outputs[name].dims,
+          type: outputs[name].type,
+          data: Array.from(outputs[name].data)
+        };
+      }
+    }
+    results.push({
+      chunkId: chunk.chunkId,
+      outputNames: names,
+      outputs: summary,
+      rawOutputs: includeRawOutputs ? rawOutputs : undefined,
+      inferenceLatencyMs: end - start
+    });
   }
   return {
     sessionInputNames: session.inputNames,
     sessionOutputNames: session.outputNames,
-    outputNames: names,
-    outputs: summary,
-    inferenceLatencyMs: end - start
+    chunks: results,
+    outputNames: results[0]?.outputNames ?? [],
+    outputs: results[0]?.outputs ?? {},
+    inferenceLatencyMs: results[0]?.inferenceLatencyMs ?? null
   };
 }
 window.__runSmoke = runSmoke;
+window.__runChunks = runChunks;
 </script></body></html>`;
   return createServer(async (req, res) => {
     try {
@@ -234,6 +297,9 @@ window.__runSmoke = runSmoke;
 }
 
 function validateSmokeResult(result) {
+  if (!Array.isArray(result.chunks) || result.chunks.length === 0) {
+    throw new Error('ByteDance browser executor produced no chunk results.');
+  }
   for (const name of OUTPUT_NAMES) {
     const output = result.outputs?.[name];
     if (!output) throw new Error(`Missing ByteDance output ${name}.`);
@@ -242,6 +308,25 @@ function validateSmokeResult(result) {
     }
   }
   return result;
+}
+
+async function loadChunkInputJson(filePath) {
+  if (!existsSync(filePath)) throw new Error(`Missing ByteDance chunk input JSON: ${filePath}`);
+  const parsed = JSON.parse(await readFile(filePath, 'utf8'));
+  const chunks = Array.isArray(parsed.chunks) ? parsed.chunks : [];
+  if (chunks.length === 0) throw new Error('ByteDance chunk input JSON contains no chunks.');
+  for (const chunk of chunks) {
+    if (!chunk.chunkId || !Array.isArray(chunk.pcm16k) || chunk.pcm16k.length !== INPUT_SAMPLES) {
+      throw new Error('Each ByteDance chunk input must include chunkId and exactly 29120 pcm16k samples.');
+    }
+    for (const sample of chunk.pcm16k) {
+      if (!Number.isFinite(sample)) throw new Error(`ByteDance chunk ${chunk.chunkId} contains a non-finite PCM sample.`);
+    }
+  }
+  return {
+    mode: 'GENERIC_BROWSER_CHUNK_EXECUTOR',
+    chunks,
+  };
 }
 
 function classifyCausalCase(item) {
