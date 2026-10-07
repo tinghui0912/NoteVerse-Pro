@@ -29,7 +29,7 @@ export const ONLINE_AMT_STREAMING_BASELINE_CONFIG = {
   confidenceDefinition: 'P_STATE_3_PLUS_P_STATE_4',
 } as const;
 
-export const ONLINE_AMT_MODERN_COMPAT_EXECUTION_PROFILE = {
+const ONLINE_AMT_MODERN_COMPAT_EXECUTION_PROFILE = {
   profileId: 'online-amt-modern-compat-python-cpu-stateful-v1',
   legacyRuntimeParity: 'UNPROVEN',
   candidateInferenceConcurrency: 1,
@@ -37,7 +37,7 @@ export const ONLINE_AMT_MODERN_COMPAT_EXECUTION_PROFILE = {
   browserSupport: 'NOT_EVALUATED',
 } as const;
 
-export type OnlineAmtProbabilities = readonly [number, number, number, number, number];
+type OnlineAmtProbabilities = readonly [number, number, number, number, number];
 
 export type OnlineAmtPitchState = {
   pitch: string;
