@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "phase9e_a_candidate_definition",
   "generatedAt": "2026-10-07T00:00:00+08:00",
-  "researchHarnessGitHead": "3b5f540b4d9499727b1e75379cd5dd5d27cf75b7",
+  "researchHarnessGitHead": "41780f1380b1ebbb7ecb19021b6cebbc0b9d5bfa",
   "candidateDefinition": {
     "candidateId": "bytedance-score-aware-chunked-dev-v1",
     "strategyKind": "CHUNKED",
@@ -10,8 +10,8 @@
       "modelRuntime": "ByteDance high-resolution piano transcription ONNX research adapter",
       "modelCheckpointSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
       "adapterVersion": "phase9e-a-score-aware-chunked-v1",
-      "sourceGitHead": "3b5f540b4d9499727b1e75379cd5dd5d27cf75b7",
-      "configurationSha256": "cd4f9f13cd4f9f13cd4f9f13cd4f9f13cd4f9f13cd4f9f13cd4f9f13cd4f9f13",
+      "sourceGitHead": "41780f1380b1ebbb7ecb19021b6cebbc0b9d5bfa",
+      "configurationSha256": "359d4618212ba5daf072da890456d1ff703922c654f8bc3d6b30d308c4806ef0",
       "trainingDataOverlapStatus": "UNKNOWN"
     }
   },
@@ -24,5 +24,11 @@
     "actualBytes": 98691493,
     "identityVerified": true
   },
-  "historicalModelAssetReport": "backend/research/reports/bytedance_model_asset_verification.json"
+  "historicalModelAssetReport": "backend/research/reports/bytedance_model_asset_verification.json",
+  "configuration": {
+    "sha256Algorithm": "SHA-256 over canonical JSON",
+    "sourceContextPolicy": "FAIL_CLOSED_NO_ZERO_PADDING",
+    "commitOwnership": "first [0,T], later (previous,T]",
+    "resampler": "deterministic_linear_interpolation_v1"
+  }
 }

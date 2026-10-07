@@ -1,0 +1,931 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9e_a_1_bytedance_runner_audit",
+  "generatedAt": "1970-01-01T00:00:00.000Z",
+  "researchHarnessGitHead": "41780f1380b1ebbb7ecb19021b6cebbc0b9d5bfa",
+  "command": "D:\\Program Files\\nodejs\\node.exe C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\browser_runtime\\run_bytedance_phase9e_a.mjs --repo-root . --git-head 41780f1380b1ebbb7ecb19021b6cebbc0b9d5bfa --output-dir backend/research/reports",
+  "modelIdentity": {
+    "expectedSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "expectedBytes": 98691493,
+    "path": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\bytedance_browser_runtime_feasibility\\bytedance_note_model_fixed_anchor.onnx",
+    "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "bytes": 98691493,
+    "available": true,
+    "status": "PASS"
+  },
+  "causalManifest": {
+    "path": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\datasets\\maestro-v3.0.0\\production_step_development_set\\public_step_causal_cases_manifest.json",
+    "available": true,
+    "caseCount": 128
+  },
+  "eligibilitySummary": {
+    "eligibleContinuousScenarioCount": 0,
+    "excludedCount": 128,
+    "reasons": {
+      "EXCLUDED_INCOMPLETE_SCORE_INTERVAL": 128
+    }
+  },
+  "eligibility": [
+    {
+      "caseId": "s01_correct_strike_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_correct_strike_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_wrong_semitone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_wrong_semitone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_wrong_octave_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_wrong_octave_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_same_note_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_same_note_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_correct_chord_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_correct_chord_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_missing_chord_tone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s01_missing_chord_tone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "sourceMidiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+    },
+    {
+      "caseId": "s02_correct_strike_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_correct_strike_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_wrong_semitone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_wrong_semitone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_wrong_octave_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_wrong_octave_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_same_note_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_same_note_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_correct_chord_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_correct_chord_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_missing_chord_tone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s02_missing_chord_tone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "sourceMidiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+    },
+    {
+      "caseId": "s03_correct_strike_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_correct_strike_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_wrong_semitone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_wrong_semitone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_wrong_octave_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_wrong_octave_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_same_note_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_same_note_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_correct_chord_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_correct_chord_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_missing_chord_tone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s03_missing_chord_tone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "c2ca6e70a70a5944483eb0792b3c5ddb93c191a10fed19a9fe06a554e8604a9b",
+      "sourceMidiSha256": "ad4646c0dc920d3991a9bdf2d6cdddebd5e0f39bc1dad0f21e6e4add7a6db42c"
+    },
+    {
+      "caseId": "s04_correct_strike_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_correct_strike_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_wrong_semitone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_wrong_semitone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_wrong_octave_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_wrong_octave_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_same_note_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_same_note_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_correct_chord_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_correct_chord_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_missing_chord_tone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s04_missing_chord_tone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "4ad44caf3896990b507e209e41e5e4632da003f7796d39783b028cbbbb4ccf7a",
+      "sourceMidiSha256": "ecea10c2fa18f881a944eb7ea6ab180dcc420d6c16cccaa1bede4b18c2123063"
+    },
+    {
+      "caseId": "s05_correct_strike_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_correct_strike_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_wrong_semitone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_wrong_semitone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_wrong_octave_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_wrong_octave_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_same_note_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_same_note_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_correct_chord_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_correct_chord_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_missing_chord_tone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s05_missing_chord_tone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "79fc91699f340100f194ba3a60ab2c924ee0221e14d412e44105f85c248bcaac",
+      "sourceMidiSha256": "a8eb54f7d7e5f8d614ce5825af83b76d74ef584cc4995fe514a6a014edd0a3cb"
+    },
+    {
+      "caseId": "s06_correct_strike_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_correct_strike_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_wrong_semitone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_wrong_semitone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_wrong_octave_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_wrong_octave_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_same_note_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_same_note_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_correct_chord_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_correct_chord_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_missing_chord_tone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s06_missing_chord_tone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "bcfefed60076129edbc77b549bd99b96ed2fc038401203cee640330e329c3cc5",
+      "sourceMidiSha256": "d71cac5a8e3684c253f104b1524031352aa1410550173421ece1876201acf1d3"
+    },
+    {
+      "caseId": "s07_correct_strike_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_correct_strike_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_wrong_semitone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_wrong_semitone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_wrong_octave_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_wrong_octave_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_same_note_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_same_note_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_correct_chord_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_correct_chord_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_missing_chord_tone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s07_missing_chord_tone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "sourceMidiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+    },
+    {
+      "caseId": "s08_correct_strike_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_correct_strike_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_wrong_semitone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_wrong_semitone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_wrong_octave_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_wrong_octave_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_long_held_note_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_long_held_note_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_pedal_sustain_tail_without_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_pedal_sustain_tail_without_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_same_note_retrigger_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_same_note_retrigger_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_correct_chord_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_correct_chord_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_missing_chord_tone_001",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    },
+    {
+      "caseId": "s08_missing_chord_tone_002",
+      "status": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL",
+      "reason": "The causal-case manifest is an old STEP/target-case contract and does not prove a complete Practice v2 Continuous ExpectedStrike interval.",
+      "sourceAudioSha256": "9ace3b72a432e0cb3a60b1b75f7531968ef40890fb11da4df70858506fc8f290",
+      "sourceMidiSha256": "65bb065f74687771a08fa8b76a8182a00d4879c2e2a0b18dfb35cdc730ef8ce3"
+    }
+  ],
+  "result": {
+    "status": "BLOCKED_NOT_RUN",
+    "reason": "No causal case proved a complete Practice v2 Continuous score interval; model execution was not run.",
+    "candidateScenarioRunCount": 0
+  }
+}

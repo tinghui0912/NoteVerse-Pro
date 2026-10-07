@@ -3,7 +3,7 @@
   "policyId": "phase9e-a-bytedance-score-aware-chunked-development",
   "phase": "9E-A",
   "createdAt": "2026-10-07T00:00:00+08:00",
-  "researchHarnessGitHead": "3b5f540b4d9499727b1e75379cd5dd5d27cf75b7",
+  "researchHarnessGitHead": "41780f1380b1ebbb7ecb19021b6cebbc0b9d5bfa",
   "candidate": {
     "candidateId": "bytedance-score-aware-chunked-dev-v1",
     "strategyKind": "CHUNKED",
@@ -23,7 +23,8 @@
     "futureContextMs": 220,
     "maxCommitWidthMs": 600,
     "inputSampleRateHz": 16000,
-    "commitOwnership": "non-overlapping half-open intervals, final interval may close terminal boundary",
+    "commitOwnership": "inclusive-frontier-compatible regions: first [0,T], later (previous,T]",
+    "sourceContextPolicy": "FAIL_CLOSED_NO_ZERO_PADDING",
     "plannerInputsAllowed": [
       "BenchmarkScenario",
       "ExpectedStrike expectedPerformanceTimeMs",

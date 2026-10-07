@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "phase9e_a_bytedance_development_report",
   "generatedAt": "2026-10-07T00:00:00+08:00",
-  "researchHarnessGitHead": "3b5f540b4d9499727b1e75379cd5dd5d27cf75b7",
+  "researchHarnessGitHead": "41780f1380b1ebbb7ecb19021b6cebbc0b9d5bfa",
   "policy": {
     "path": "backend/research/policies/bytedance_chunked_phase9e_a_policy_2026-10-07.json",
     "policyId": "phase9e-a-bytedance-score-aware-chunked-development"
@@ -10,6 +10,7 @@
   "benchmarkManifest": {
     "path": "backend/research/reports/bytedance_chunked_phase9e_a_dev_manifest_2026-10-07.json",
     "scenarioCount": 0,
+    "eligibilityAudit": "backend/research/reports/bytedance_chunked_phase9e_a1_runner_audit_2026-10-07.json",
     "split": "DEVELOPMENT"
   },
   "candidateDefinition": {
@@ -22,6 +23,12 @@
     "count": 0
   },
   "runStatus": "BLOCKED_NOT_RUN",
+  "causalCaseEligibility": {
+    "audited": 128,
+    "eligible": 0,
+    "excluded": 128,
+    "topReason": "EXCLUDED_INCOMPLETE_SCORE_INTERVAL"
+  },
   "developmentMetrics": {
     "candidateCoverage": {
       "expectedScenarioCount": 0,
@@ -50,7 +57,7 @@
   "candidateSelectionMade": false,
   "notes": [
     "The ByteDance ONNX asset identity was verified locally.",
-    "The Phase 9E-A adapter/planner/scorer path is implemented and covered by deterministic tests.",
-    "No real DEVELOPMENT metric was measured because no coherent Practice v2 Continuous BenchmarkScenario manifest was available without inventing missing truth semantics from historical target-verifier rows."
+    "The Phase 9E-A.1 adapter/planner/scorer path is executable through a mock model executor and covered by deterministic tests.",
+    "No real DEVELOPMENT metric was measured because the causal-case audit found zero cases that prove complete Practice v2 Continuous score intervals without inventing truth semantics."
   ]
 }
