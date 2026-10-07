@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 3,
+  "policyId": "continuous-analyzer-bakeoff-policy-v3",
+  "status": "PHASE_9D_FINAL_FRAMEWORK_ONLY",
+  "selectionOrder": [
+    "product_correctness_first",
+    "absolute_gate_status_reported_independently",
+    "official_comparative_rank_requires_locked_evaluation_split",
+    "secondary_operational_metrics_only_after_correctness_is_acceptable_or_tied"
+  ],
+  "metricAvailabilityValues": ["MEASURED", "NOT_EVALUATED", "INSUFFICIENT_DATA", "MISSING_DATA"],
+  "comparativeOutcomeValues": [
+    "RANKED",
+    "INSUFFICIENT_EVALUATION_SET",
+    "INELIGIBLE_SPLIT_LEAKAGE",
+    "INCOMPLETE_EVALUATION_COVERAGE",
+    "EVALUATION_READY_NO_COMPARATOR_POLICY"
+  ],
+  "missingRunPolicy": "EVERY_CANDIDATE_SCENARIO_PAIR_HAS_EXPLICIT_RESULT",
+  "aggregatePolicy": {
+    "splitSpecific": true,
+    "allSplits": "DIAGNOSTIC_ONLY",
+    "ratios": "POOL_NUMERATORS_AND_DENOMINATORS",
+    "distributions": "POOL_RAW_SAMPLES"
+  },
+  "rankingEligibility": {
+    "developmentSplit": "DIAGNOSTIC_ONLY",
+    "calibrationSplit": "DIAGNOSTIC_ONLY",
+    "evaluationSplit": "REQUIRED_FOR_OFFICIAL_RANK",
+    "splitLeakage": "FAIL_CLOSED_NO_OFFICIAL_RANK",
+    "missingEvaluationRun": "FAIL_CLOSED_NO_OFFICIAL_RANK",
+    "incompleteCandidateEvaluation": "FAIL_CLOSED_NO_OFFICIAL_RANK"
+  },
+  "availabilityTimeMs": {
+    "meaning": "milliseconds on the simulated/live performance-origin clock at which the canonical publication became available to the product evaluator",
+    "mustBeMonotonic": true,
+    "mustBeAtLeastAnalyzedThroughPerformanceMs": true,
+    "missingValue": "NO_FINALIZED_FEEDBACK_AGE_SAMPLE"
+  },
+  "coveragePolicy": {
+    "candidateCoverage": "NEVER_SYNTHESIZED_BY_SCORER",
+    "groundTruthCoverage": "BENCHMARK_MAY_EXPLICITLY_PUBLISH_COMPLETE_PHYSICAL_TRUTH_FRONTIER"
+  },
+  "strategyNeutrality": {
+    "chunkedIsPreferred": false,
+    "streamingIsPreferred": false,
+    "primaryCriterion": "product_level_correctness"
+  },
+  "productionMicrophone": "DISABLED_UNTIL_LATER_ACCEPTANCE_GATE"
+}

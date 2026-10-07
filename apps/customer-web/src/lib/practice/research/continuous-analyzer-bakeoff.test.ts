@@ -239,6 +239,29 @@ describe('Continuous analyzer bake-off harness', () => {
     expect(score.metrics.expectedStrikeRecall.status).toBe('NOT_EVALUATED');
   });
 
+  it('validates NATURAL completion while preserving MANUAL future NOT_REACHED semantics', () => {
+    expect(() => validateBenchmarkScenario(scenario({
+      completion: { kind: 'NATURAL', performanceTimeMs: 1_000 },
+    }))).toThrow(/Natural completion/);
+
+    const manual = scenario({
+      scenarioId: 'manual-stop-before-future-note',
+      physicalGroundTruth: {
+        status: 'RECORDED',
+        source: 'synthetic_manual_stop_truth',
+        attacks: [{ physicalEventId: 'early-c', pitch: 'C4', performanceTimeMs: 10 }],
+      },
+      completion: { kind: 'MANUAL', performanceTimeMs: 1_000 },
+    });
+    const { definition, run } = fakeCandidate(manual, 'PERFECT');
+    const score = scoreCandidate(manual, definition, run);
+
+    expect(score.candidateEvaluation.status).toBe('COMPLETE');
+    if (score.candidateEvaluation.status === 'COMPLETE') {
+      expect(score.candidateEvaluation.strikes.some((strike) => strike.result === 'NOT_REACHED')).toBe(true);
+    }
+  });
+
   it('does not manufacture candidate coverage when final coverage is behind completion', () => {
     const { definition, run } = fakeCandidate(scenario(), 'INCOMPLETE');
     const score = scoreCandidate(scenario(), definition, run);
@@ -281,9 +304,19 @@ describe('Continuous analyzer bake-off harness', () => {
       dirtyTree: false,
     });
 
-    expect(report.scores).toHaveLength(1);
+    expect(report.scores).toHaveLength(2);
     expect(report.skippedScenarioCount).toBe(1);
     expect(report.scores[0].scenarioId).toBe('first');
+    expect(report.scores[1]).toMatchObject({
+      scenarioId: 'second',
+      candidateRunStatus: 'MISSING_DATA',
+      candidateEvaluation: { status: 'UNAVAILABLE', reason: 'INCOMPLETE_ANALYSIS' },
+    });
+    expect(report.candidateCoverage[definition.candidateId].DEVELOPMENT).toMatchObject({
+      expectedScenarioCount: 2,
+      runPresentCount: 1,
+      missingRunCount: 1,
+    });
   });
 
   it('rejects duplicate candidate runs for the same candidate and scenario', () => {
@@ -300,6 +333,40 @@ describe('Continuous analyzer bake-off harness', () => {
       benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
       dirtyTree: false,
     })).toThrow(/Duplicate candidate scenario run/);
+  });
+
+  it('rejects malformed candidate definitions and orphan scenario runs', () => {
+    const definition = candidateDefinition('valid');
+    expect(() => buildBakeoffReport({
+      scenarios: [scenario()],
+      candidateDefinitions: [{ ...definition, candidateId: '' }],
+      scenarioRuns: [],
+      gitHead: 'test-head',
+      command: 'vitest',
+      policy: { policyId: 'policy', path: 'policy.json', schemaVersion: 2, sha256: 'policy-hash' },
+      benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
+      dirtyTree: false,
+    })).toThrow(/CandidateDefinition/);
+    expect(() => buildBakeoffReport({
+      scenarios: [scenario()],
+      candidateDefinitions: [definition, { ...definition }],
+      scenarioRuns: [],
+      gitHead: 'test-head',
+      command: 'vitest',
+      policy: { policyId: 'policy', path: 'policy.json', schemaVersion: 2, sha256: 'policy-hash' },
+      benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
+      dirtyTree: false,
+    })).toThrow(/Duplicate CandidateDefinition/);
+    expect(() => buildBakeoffReport({
+      scenarios: [scenario()],
+      candidateDefinitions: [definition],
+      scenarioRuns: [candidateRun(definition.candidateId, 'unknown-scenario', [])],
+      gitHead: 'test-head',
+      command: 'vitest',
+      policy: { policyId: 'policy', path: 'policy.json', schemaVersion: 2, sha256: 'policy-hash' },
+      benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
+      dirtyTree: false,
+    })).toThrow(/unknown scenarioId/);
   });
 
   it('validates canonical publication order instead of sorting it into shape', () => {
@@ -329,6 +396,12 @@ describe('Continuous analyzer bake-off harness', () => {
         },
       ],
     })).toThrow(/event time cannot exceed/);
+    expect(() => scoreCandidate(scenario(), definition, {
+      ...baseRun,
+      publications: [
+        { publicationId: 'bad-availability', observations: [], analyzedThroughPerformanceMs: 1_000, availabilityTimeMs: 999 },
+      ],
+    })).toThrow(/availability time cannot be earlier/);
   });
 
   it('keeps metric availability separate from quality gate verdicts', () => {
@@ -365,6 +438,10 @@ describe('Continuous analyzer bake-off harness', () => {
 
     expect(report.comparativeOutcome).toBe('INSUFFICIENT_EVALUATION_SET');
     expect(report.resultSummary[perfect.definition.candidateId].comparativeRank).toBeNull();
+    expect(report.aggregateMetrics[perfect.definition.candidateId].EVALUATION.expectedStrikeRecall.status)
+      .toBe('NOT_EVALUATED');
+    expect(report.aggregateMetrics[perfect.definition.candidateId].ALL_SPLITS_DIAGNOSTIC_ONLY.expectedStrikeRecall.status)
+      .toBe('MEASURED');
   });
 
   it('fails closed for official evaluation when protected splits leak', () => {
@@ -384,6 +461,77 @@ describe('Continuous analyzer bake-off harness', () => {
 
     expect(report.comparativeOutcome).toBe('INELIGIBLE_SPLIT_LEAKAGE');
     expect(report.resultSummary[perfect.definition.candidateId].comparativeRank).toBeNull();
+  });
+
+  it('distinguishes incomplete evaluation coverage from ready evaluation without a comparator', () => {
+    const e1 = scenario({ scenarioId: 'e1', split: 'EVALUATION', source: { ...scenario().source, sourceAudioSha256: 'e1-sha' } });
+    const e2 = scenario({ scenarioId: 'e2', split: 'EVALUATION', source: { ...scenario().source, sourceAudioSha256: 'e2-sha' } });
+    const candidateA1 = fakeCandidate(e1, 'PERFECT');
+    const candidateA2 = fakeCandidate(e2, 'PERFECT');
+    const candidateB1 = fakeCandidate(e1, 'PERFECT', 'STREAMING');
+    const missingReport = buildBakeoffReport({
+      scenarios: [e1, e2],
+      candidateDefinitions: [candidateA1.definition, candidateB1.definition],
+      scenarioRuns: [candidateA1.run, candidateA2.run, candidateB1.run],
+      gitHead: 'test-head',
+      command: 'vitest',
+      policy: { policyId: 'policy', path: 'policy.json', schemaVersion: 2, sha256: 'policy-hash' },
+      benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
+      dirtyTree: false,
+    });
+    expect(missingReport.comparativeOutcome).toBe('INCOMPLETE_EVALUATION_COVERAGE');
+    expect(missingReport.candidateCoverage[candidateB1.definition.candidateId].EVALUATION)
+      .toMatchObject({ expectedScenarioCount: 2, runPresentCount: 1, missingRunCount: 1 });
+
+    const completeReport = buildBakeoffReport({
+      scenarios: [e1, e2],
+      candidateDefinitions: [candidateA1.definition],
+      scenarioRuns: [candidateA1.run, candidateA2.run],
+      gitHead: 'test-head',
+      command: 'vitest',
+      policy: { policyId: 'policy', path: 'policy.json', schemaVersion: 2, sha256: 'policy-hash' },
+      benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
+      dirtyTree: false,
+    });
+    expect(completeReport.comparativeOutcome).toBe('EVALUATION_READY_NO_COMPARATOR_POLICY');
+    expect(completeReport.resultSummary[candidateA1.definition.candidateId].comparativeRank).toBeNull();
+  });
+
+  it('counts incomplete candidate evaluation coverage as ineligible', () => {
+    const evaluation = scenario({ scenarioId: 'eval-incomplete', split: 'EVALUATION' });
+    const incomplete = fakeCandidate(evaluation, 'INCOMPLETE');
+    const report = buildBakeoffReport({
+      scenarios: [evaluation],
+      candidateDefinitions: [incomplete.definition],
+      scenarioRuns: [incomplete.run],
+      gitHead: 'test-head',
+      command: 'vitest',
+      policy: { policyId: 'policy', path: 'policy.json', schemaVersion: 2, sha256: 'policy-hash' },
+      benchmarkManifest: { manifestId: 'manifest', path: 'fixture.json', schemaVersion: 1, sha256: 'manifest-hash' },
+      dirtyTree: false,
+    });
+
+    expect(report.comparativeOutcome).toBe('INCOMPLETE_EVALUATION_COVERAGE');
+    expect(report.candidateCoverage[incomplete.definition.candidateId].EVALUATION.candidateIncompleteAnalysisCount).toBe(1);
+  });
+
+  it('does not fabricate finalized feedback age without availabilityTimeMs', () => {
+    const definition = candidateDefinition('no-availability');
+    const run = candidateRun(definition.candidateId, scenario().scenarioId, [
+      { observationId: 'c', pitch: 'C4', performanceTimeMs: 10 },
+      { observationId: 'e', pitch: 'E4', performanceTimeMs: 495 },
+      { observationId: 'g', pitch: 'G4', performanceTimeMs: 510 },
+      { observationId: 'c2', pitch: 'C4', performanceTimeMs: 890 },
+      { observationId: 'c3', pitch: 'C4', performanceTimeMs: 1_140 },
+    ]);
+    const runWithoutAvailability: CandidateScenarioRun = {
+      ...run,
+      publications: run.publications.map(({ availabilityTimeMs: _availabilityTimeMs, ...publication }) => publication),
+    };
+    const score = scoreCandidate(scenario(), definition, runWithoutAvailability);
+
+    expect(score.metrics.finalizedFeedbackAgeP50Ms.status).toBe('NOT_EVALUATED');
+    expect(score.metricSamples.feedbackAgeMissingAvailabilityCount).toBeGreaterThan(0);
   });
 
   it('scores PERFECT candidate with product finalization parity', () => {
@@ -530,7 +678,7 @@ describe('Continuous analyzer bake-off harness', () => {
 
     expect(reportA).toEqual(reportB);
     expect(reportA.resultSummary[perfect.definition.candidateId].comparativeRank).toBeNull();
-    expect(reportA.aggregateMetrics[perfect.definition.candidateId].expectedStrikeRecall)
+    expect(reportA.aggregateMetrics[perfect.definition.candidateId].ALL_SPLITS_DIAGNOSTIC_ONLY.expectedStrikeRecall)
       .toMatchObject({ status: 'MEASURED', sampleCount: 5 });
     expect(reportA.candidateScenarioRunCount).toBe(2);
   });

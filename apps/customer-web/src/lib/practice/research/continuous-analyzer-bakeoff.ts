@@ -3,10 +3,16 @@ import { DEFAULT_ASSIGNMENT_WINDOW_MS } from '../local-core/continuous-evaluatio
 import type { CompletedContinuousEvaluation } from '../completed-performance';
 
 type BenchmarkSplit = 'DEVELOPMENT' | 'CALIBRATION' | 'EVALUATION';
+type AggregateSplit = BenchmarkSplit | 'ALL_SPLITS_DIAGNOSTIC_ONLY';
 export type CandidateStrategyKind = 'CHUNKED' | 'STREAMING';
 export type MetricStatus = 'MEASURED' | 'NOT_EVALUATED' | 'INSUFFICIENT_DATA' | 'MISSING_DATA';
 type CorpusOverlapStatus = 'KNOWN_OVERLAP' | 'KNOWN_DISJOINT' | 'UNKNOWN';
-type ComparativeOutcome = 'RANKED' | 'INSUFFICIENT_EVALUATION_SET' | 'INELIGIBLE_SPLIT_LEAKAGE';
+type ComparativeOutcome =
+  | 'RANKED'
+  | 'INSUFFICIENT_EVALUATION_SET'
+  | 'INELIGIBLE_SPLIT_LEAKAGE'
+  | 'INCOMPLETE_EVALUATION_COVERAGE'
+  | 'EVALUATION_READY_NO_COMPARATOR_POLICY';
 
 type BenchmarkExpectedStrike = {
   strikeId: string;
@@ -44,6 +50,7 @@ export type BenchmarkScenario = {
   expectedStrikes: readonly BenchmarkExpectedStrike[];
   physicalGroundTruth?: {
     status: 'RECORDED' | 'PLANNED_NOT_RECORDED' | 'MISSING';
+    sourceKind?: 'PAIRED_PHYSICAL_MIDI' | 'SYNTHETIC_HARNESS';
     source: string;
     attacks: readonly PhysicalGroundTruthAttack[];
   };
@@ -123,10 +130,22 @@ type ExtraDiagnostics = {
   falseCandidateExtras: number;
 };
 
+type MetricSamples = {
+  timingAbsoluteErrorsMs: number[];
+  finalizedFeedbackAgesMs: number[];
+  inferenceLatencyMs: number[];
+  publicationDelayMs: number[];
+  feedbackAgeFinalizedStrikeCount: number;
+  feedbackAgeMeasuredStrikeCount: number;
+  feedbackAgeMissingAvailabilityCount: number;
+};
+
 export type BakeoffScore = {
   scenarioId: string;
+  scenarioSplit: BenchmarkSplit;
   candidateId: string;
   strategyKind: CandidateStrategyKind;
+  candidateRunStatus: MetricStatus;
   groundTruthStatus: MetricStatus;
   candidateEvaluation: CompletedContinuousEvaluation;
   groundTruthEvaluation?: CompletedContinuousEvaluation;
@@ -149,10 +168,46 @@ export type BakeoffScore = {
     publicationDelayP95Ms: MetricNumber;
   };
   extraDiagnostics: ExtraDiagnostics;
+  metricSamples: MetricSamples;
   familyMetrics: Record<string, {
     expectedStrikeRecall: MetricNumber;
     falseMatchRateOnGroundTruthMissing: MetricNumber;
   }>;
+};
+
+type CandidateSplitCoverage = {
+  expectedScenarioCount: number;
+  runPresentCount: number;
+  groundTruthScoreableCount: number;
+  candidateCompleteEvaluationCount: number;
+  candidateIncompleteAnalysisCount: number;
+  missingRunCount: number;
+  notScoreableGroundTruthCount: number;
+};
+
+type AggregateMetricVector = {
+  expectedStrikeRecall: MetricNumber;
+  falseMatchRateOnGroundTruthMissing: MetricNumber;
+  correctMissingRate: MetricNumber;
+  verdictAgreementRate: MetricNumber;
+  chordExactCompletenessRate: MetricNumber;
+  falseCompleteChordAcceptanceRate: MetricNumber;
+  extraPrecision: MetricNumber;
+  extraRecall: MetricNumber;
+  timingAbsoluteMedianMs: MetricNumber;
+  timingAbsoluteP95Ms: MetricNumber;
+  finalizedFeedbackAgeP50Ms: MetricNumber;
+  finalizedFeedbackAgeP95Ms: MetricNumber;
+  inferenceLatencyP50Ms: MetricNumber;
+  inferenceLatencyP95Ms: MetricNumber;
+  publicationDelayP50Ms: MetricNumber;
+  publicationDelayP95Ms: MetricNumber;
+  extraDiagnostics: ExtraDiagnostics;
+  feedbackAgeCoverage: {
+    finalizedStrikeCount: number;
+    measuredStrikeCount: number;
+    missingAvailabilityCount: number;
+  };
 };
 
 export function validateBenchmarkScenario(scenario: BenchmarkScenario): void {
@@ -164,7 +219,11 @@ export function validateBenchmarkScenario(scenario: BenchmarkScenario): void {
   if (!scenario.source?.sourceAudioPath || !scenario.source.sourceAudioSha256) {
     throw new Error('Benchmark scenario requires source audio identity.');
   }
-  if (scenario.physicalGroundTruth?.status === 'RECORDED' && !scenario.source.sourceMidiSha256) {
+  if (
+    scenario.physicalGroundTruth?.status === 'RECORDED'
+    && (scenario.physicalGroundTruth.sourceKind ?? 'PAIRED_PHYSICAL_MIDI') === 'PAIRED_PHYSICAL_MIDI'
+    && !scenario.source.sourceMidiSha256
+  ) {
     throw new Error('Recorded physical ground truth requires synchronized source MIDI identity.');
   }
   if (!Number.isFinite(scenario.audio.nativeSampleRateHz) || scenario.audio.nativeSampleRateHz <= 0) {
@@ -206,6 +265,9 @@ export function validateBenchmarkScenario(scenario: BenchmarkScenario): void {
       throw new Error(`ExpectedStrike group ${strike.groupId} contains different expected times.`);
     }
     groupTimes.set(strike.groupId, strike.expectedPerformanceTimeMs);
+    if (scenario.completion?.kind === 'NATURAL' && strike.expectedPerformanceTimeMs > completion) {
+      throw new Error('Natural completion cannot occur before an ExpectedStrike in the scenario.');
+    }
   }
   if (scenario.physicalGroundTruth) {
     const physicalIds = new Set<string>();
@@ -302,21 +364,25 @@ export function scoreCandidate(
   run: CandidateScenarioRun
 ): BakeoffScore {
   validateBenchmarkScenario(scenario);
+  validateCandidateDefinition(definition);
   validateCandidateScenarioRun(scenario, definition, run);
   const candidateEvaluation = runFinalization(scenario, run.publications, definition.candidateId, false);
-  const finalizationAges = finalizedFeedbackAges(scenario, run.publications, definition.candidateId);
+  const samples = metricSamples(scenario, run.publications, definition.candidateId);
 
   if (!scenario.physicalGroundTruth || scenario.physicalGroundTruth.status !== 'RECORDED') {
     return {
       scenarioId: scenario.scenarioId,
+      scenarioSplit: scenario.split,
       candidateId: definition.candidateId,
       strategyKind: definition.strategyKind,
+      candidateRunStatus: 'MEASURED',
       groundTruthStatus: scenario.physicalGroundTruth?.status === 'PLANNED_NOT_RECORDED'
         ? 'INSUFFICIENT_DATA'
         : 'MISSING_DATA',
       candidateEvaluation,
       metrics: notEvaluatedMetrics('physical ground truth is not recorded'),
       extraDiagnostics: { matchedPhysicalExtras: 0, missedPhysicalExtras: 0, falseCandidateExtras: 0 },
+      metricSamples: samples,
       familyMetrics: familyMetrics(scenario, undefined, candidateEvaluation),
     };
   }
@@ -339,13 +405,16 @@ export function scoreCandidate(
   );
   return {
     scenarioId: scenario.scenarioId,
+    scenarioSplit: scenario.split,
     candidateId: definition.candidateId,
     strategyKind: definition.strategyKind,
+    candidateRunStatus: 'MEASURED',
     groundTruthStatus: groundTruthEvaluation.status === 'COMPLETE' ? 'MEASURED' : 'INSUFFICIENT_DATA',
     candidateEvaluation,
     groundTruthEvaluation,
-    metrics: computeMetrics(scenario, groundTruthEvaluation, candidateEvaluation, finalizationAges, run.publications),
+    metrics: computeMetrics(scenario, groundTruthEvaluation, candidateEvaluation, samples),
     extraDiagnostics: extraDiagnostics(groundTruthEvaluation, candidateEvaluation),
+    metricSamples: samples,
     familyMetrics: familyMetrics(scenario, groundTruthEvaluation, candidateEvaluation),
   };
 }
@@ -414,7 +483,7 @@ export function buildBakeoffReport(input: {
   dirtyTree: boolean;
   runtimeEnvironment?: Record<string, string>;
 }): {
-  schemaVersion: 2;
+  schemaVersion: 3;
   generatedAt: string;
   gitHead: string;
   command: string;
@@ -431,11 +500,16 @@ export function buildBakeoffReport(input: {
   splitLeakage: readonly string[];
   comparativeOutcome: ComparativeOutcome;
   resultSummary: Record<string, { comparativeRank: number | null; absoluteGateStatus: MetricStatus }>;
-  aggregateMetrics: Record<string, { expectedStrikeRecall: MetricNumber; verdictAgreementRate: MetricNumber }>;
+  candidateCoverage: Record<string, Record<AggregateSplit, CandidateSplitCoverage>>;
+  aggregateMetrics: Record<string, Record<AggregateSplit, AggregateMetricVector>>;
+  aggregateFamilyMetrics: Record<string, Record<AggregateSplit, Record<string, {
+    expectedStrikeRecall: MetricNumber;
+    falseMatchRateOnGroundTruthMissing: MetricNumber;
+  }>>>;
   scores: readonly BakeoffScore[];
 } {
   const splitLeakage = detectSplitLeakage(input.scenarios);
-  validateScenarioRuns(input.candidateDefinitions, input.scenarioRuns);
+  validateScenarioRuns(input.scenarios, input.candidateDefinitions, input.scenarioRuns);
   const scores: BakeoffScore[] = [];
   for (const scenario of input.scenarios) {
     for (const definition of input.candidateDefinitions) {
@@ -444,29 +518,42 @@ export function buildBakeoffReport(input: {
       );
       if (run) {
         scores.push(scoreCandidate(scenario, definition, run));
+      } else {
+        scores.push(missingRunScore(scenario, definition));
       }
     }
   }
   const evaluationScenarios = input.scenarios.filter((scenario) => scenario.split === 'EVALUATION');
-  const comparativeOutcome: ComparativeOutcome = splitLeakage.length > 0 && evaluationScenarios.length > 0
-    ? 'INELIGIBLE_SPLIT_LEAKAGE'
-    : evaluationScenarios.length === 0
-      ? 'INSUFFICIENT_EVALUATION_SET'
-      : 'INSUFFICIENT_EVALUATION_SET';
+  const candidateCoverage = Object.fromEntries(input.candidateDefinitions.map((definition) => [
+    definition.candidateId,
+    coverageBySplit(input.scenarios, scores.filter((score) => score.candidateId === definition.candidateId)),
+  ])) as Record<string, Record<AggregateSplit, CandidateSplitCoverage>>;
+  const comparativeOutcome = comparativeOutcomeFor({
+    splitLeakage,
+    evaluationScenarios,
+    candidateCoverage,
+  });
   const resultSummary = Object.fromEntries(input.candidateDefinitions.map((definition) => [definition.candidateId, {
     comparativeRank: null,
     absoluteGateStatus: 'NOT_EVALUATED' as MetricStatus,
   }]));
   const aggregateMetrics = Object.fromEntries(input.candidateDefinitions.map((definition) => [
     definition.candidateId,
-    aggregateCandidateMetrics(scores.filter((score) => score.candidateId === definition.candidateId)),
-  ]));
+    aggregateBySplit(scores.filter((score) => score.candidateId === definition.candidateId), aggregateCandidateMetrics),
+  ])) as Record<string, Record<AggregateSplit, AggregateMetricVector>>;
+  const familyAggregates = Object.fromEntries(input.candidateDefinitions.map((definition) => [
+    definition.candidateId,
+    aggregateBySplit(scores.filter((score) => score.candidateId === definition.candidateId), aggregateFamilyMetrics),
+  ])) as Record<string, Record<AggregateSplit, Record<string, {
+    expectedStrikeRecall: MetricNumber;
+    falseMatchRateOnGroundTruthMissing: MetricNumber;
+  }>>>;
   const scenarioCountsBySplit = input.scenarios.reduce<Record<BenchmarkSplit, number>>((counts, scenario) => {
     counts[scenario.split] += 1;
     return counts;
   }, { DEVELOPMENT: 0, CALIBRATION: 0, EVALUATION: 0 });
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     generatedAt: new Date(0).toISOString(),
     gitHead: input.gitHead,
     command: input.command,
@@ -477,15 +564,104 @@ export function buildBakeoffReport(input: {
     scenarioCountsBySplit,
     scoreableScenarioCount: input.scenarios.filter((scenario) => scenario.physicalGroundTruth?.status === 'RECORDED').length,
     missingOrUnrecordedScenarioCount: input.scenarios.filter((scenario) => scenario.physicalGroundTruth?.status !== 'RECORDED').length,
-    skippedScenarioCount: Math.max(0, input.scenarios.length * input.candidateDefinitions.length - scores.length),
+    skippedScenarioCount: scores.filter((score) => score.candidateRunStatus === 'MISSING_DATA').length,
     candidateDefinitionCount: input.candidateDefinitions.length,
     candidateScenarioRunCount: input.scenarioRuns.length,
     splitLeakage,
     comparativeOutcome,
     resultSummary,
+    candidateCoverage,
     aggregateMetrics,
+    aggregateFamilyMetrics: familyAggregates,
     scores,
   };
+}
+
+function missingRunScore(scenario: BenchmarkScenario, definition: CandidateDefinition): BakeoffScore {
+  const familyMetrics = Object.fromEntries([...new Set([
+    ...scenario.familyTags,
+    ...Object.values(scenario.taxonomy?.groups ?? {}).flat(),
+  ])].map((tag) => [tag, {
+    expectedStrikeRecall: missingDataMetric('candidate scenario run missing'),
+    falseMatchRateOnGroundTruthMissing: missingDataMetric('candidate scenario run missing'),
+  }]));
+  return {
+    scenarioId: scenario.scenarioId,
+    scenarioSplit: scenario.split,
+    candidateId: definition.candidateId,
+    strategyKind: definition.strategyKind,
+    candidateRunStatus: 'MISSING_DATA',
+    groundTruthStatus: scenario.physicalGroundTruth?.status === 'RECORDED' ? 'MEASURED' : 'MISSING_DATA',
+    candidateEvaluation: { status: 'UNAVAILABLE', reason: 'INCOMPLETE_ANALYSIS' },
+    metrics: missingDataMetrics('candidate scenario run missing'),
+    extraDiagnostics: { matchedPhysicalExtras: 0, missedPhysicalExtras: 0, falseCandidateExtras: 0 },
+    metricSamples: emptyMetricSamples(),
+    familyMetrics,
+  };
+}
+
+function comparativeOutcomeFor(input: {
+  splitLeakage: readonly string[];
+  evaluationScenarios: readonly BenchmarkScenario[];
+  candidateCoverage: Record<string, Record<AggregateSplit, CandidateSplitCoverage>>;
+}): ComparativeOutcome {
+  if (input.evaluationScenarios.length === 0) {
+    return 'INSUFFICIENT_EVALUATION_SET';
+  }
+  if (input.splitLeakage.length > 0) {
+    return 'INELIGIBLE_SPLIT_LEAKAGE';
+  }
+  const incomplete = Object.values(input.candidateCoverage).some((coverage) => {
+    const evaluation = coverage.EVALUATION;
+    return evaluation.expectedScenarioCount === 0
+      || evaluation.runPresentCount !== evaluation.expectedScenarioCount
+      || evaluation.groundTruthScoreableCount !== evaluation.expectedScenarioCount
+      || evaluation.candidateCompleteEvaluationCount !== evaluation.expectedScenarioCount
+      || evaluation.candidateIncompleteAnalysisCount > 0
+      || evaluation.missingRunCount > 0
+      || evaluation.notScoreableGroundTruthCount > 0;
+  });
+  return incomplete ? 'INCOMPLETE_EVALUATION_COVERAGE' : 'EVALUATION_READY_NO_COMPARATOR_POLICY';
+}
+
+function coverageBySplit(
+  scenarios: readonly BenchmarkScenario[],
+  scores: readonly BakeoffScore[]
+): Record<AggregateSplit, CandidateSplitCoverage> {
+  return Object.fromEntries(allAggregateSplits().map((split) => {
+    const splitScores = split === 'ALL_SPLITS_DIAGNOSTIC_ONLY'
+      ? scores
+      : scores.filter((score) => score.scenarioSplit === split);
+    const splitScenarios = split === 'ALL_SPLITS_DIAGNOSTIC_ONLY'
+      ? scenarios
+      : scenarios.filter((scenario) => scenario.split === split);
+    const coverage: CandidateSplitCoverage = {
+      expectedScenarioCount: splitScenarios.length,
+      runPresentCount: splitScores.filter((score) => score.candidateRunStatus !== 'MISSING_DATA').length,
+      groundTruthScoreableCount: splitScores.filter((score) => score.groundTruthStatus === 'MEASURED').length,
+      candidateCompleteEvaluationCount: splitScores.filter((score) => score.candidateEvaluation.status === 'COMPLETE').length,
+      candidateIncompleteAnalysisCount: splitScores.filter((score) => score.candidateEvaluation.status === 'UNAVAILABLE').length,
+      missingRunCount: splitScores.filter((score) => score.candidateRunStatus === 'MISSING_DATA').length,
+      notScoreableGroundTruthCount: splitScores.filter((score) => score.groundTruthStatus !== 'MEASURED').length,
+    };
+    return [split, coverage];
+  })) as Record<AggregateSplit, CandidateSplitCoverage>;
+}
+
+function aggregateBySplit<T>(
+  scores: readonly BakeoffScore[],
+  aggregate: (scores: readonly BakeoffScore[]) => T
+): Record<AggregateSplit, T> {
+  return Object.fromEntries(allAggregateSplits().map((split) => [
+    split,
+    aggregate(split === 'ALL_SPLITS_DIAGNOSTIC_ONLY'
+      ? scores
+      : scores.filter((score) => score.scenarioSplit === split)),
+  ])) as Record<AggregateSplit, T>;
+}
+
+function allAggregateSplits(): AggregateSplit[] {
+  return ['DEVELOPMENT', 'CALIBRATION', 'EVALUATION', 'ALL_SPLITS_DIAGNOSTIC_ONLY'];
 }
 
 function validateCandidateScenarioRun(
@@ -521,6 +697,9 @@ function validateCandidateScenarioRun(
       if (!Number.isFinite(publication.availabilityTimeMs) || publication.availabilityTimeMs < 0) {
         throw new Error('Candidate publication availability time must be finite and non-negative.');
       }
+      if (publication.availabilityTimeMs < publication.analyzedThroughPerformanceMs) {
+        throw new Error('Candidate publication availability time cannot be earlier than analyzed coverage.');
+      }
       if (publication.availabilityTimeMs < previousAvailability) {
         throw new Error('Candidate publication availability time must not move backward in canonical order.');
       }
@@ -552,15 +731,46 @@ function validateCandidateScenarioRun(
   }
 }
 
+function validateCandidateDefinition(definition: CandidateDefinition): void {
+  if (
+    !definition.candidateId
+    || !['CHUNKED', 'STREAMING'].includes(definition.strategyKind)
+    || !definition.identity.modelRuntime
+    || !definition.identity.adapterVersion
+    || !definition.identity.configurationSha256
+    || !['KNOWN_OVERLAP', 'KNOWN_DISJOINT', 'UNKNOWN'].includes(definition.identity.trainingDataOverlapStatus)
+  ) {
+    throw new Error('CandidateDefinition requires complete candidate identity and strategy metadata.');
+  }
+  if (
+    definition.identity.modelCheckpointSha256 !== undefined
+    && !/^[a-f0-9]{64}$/i.test(definition.identity.modelCheckpointSha256)
+  ) {
+    throw new Error('CandidateDefinition modelCheckpointSha256 must be a 64-character SHA256 hex digest.');
+  }
+}
+
 function validateScenarioRuns(
+  scenarios: readonly BenchmarkScenario[],
   definitions: readonly CandidateDefinition[],
   runs: readonly CandidateScenarioRun[]
 ): void {
-  const candidateIds = new Set(definitions.map((definition) => definition.candidateId));
+  const candidateIds = new Set<string>();
+  for (const definition of definitions) {
+    validateCandidateDefinition(definition);
+    if (candidateIds.has(definition.candidateId)) {
+      throw new Error(`Duplicate CandidateDefinition candidateId: ${definition.candidateId}`);
+    }
+    candidateIds.add(definition.candidateId);
+  }
+  const scenarioIds = new Set(scenarios.map((scenario) => scenario.scenarioId));
   const keys = new Set<string>();
   for (const run of runs) {
     if (!candidateIds.has(run.candidateId)) {
       throw new Error(`Candidate scenario run references unknown candidateId: ${run.candidateId}`);
+    }
+    if (!scenarioIds.has(run.scenarioId)) {
+      throw new Error(`Candidate scenario run references unknown scenarioId: ${run.scenarioId}`);
     }
     const key = `${run.candidateId}\0${run.scenarioId}`;
     if (keys.has(key)) {
@@ -603,17 +813,19 @@ function runFinalization(
   return ledger.completedEvaluation();
 }
 
-function finalizedFeedbackAges(
+function metricSamples(
   scenario: BenchmarkScenario,
   publications: readonly CandidatePublication[],
   sourceId: string
-): number[] {
+): MetricSamples {
   const ledger = new ContinuousFinalizationLedger({
     expectedStrikes: scenario.expectedStrikes,
     assignmentWindowMs: DEFAULT_ASSIGNMENT_WINDOW_MS,
   });
   const finalized = new Set<string>();
-  const ages: number[] = [];
+  const finalizedFeedbackAgesMs: number[] = [];
+  let feedbackAgeFinalizedStrikeCount = 0;
+  let feedbackAgeMissingAvailabilityCount = 0;
   for (const publication of publications) {
     ledger.publishObservations(
       publication.observations.map((observation) => ({
@@ -625,36 +837,47 @@ function finalizedFeedbackAges(
       })),
       publication.analyzedThroughPerformanceMs
     );
-    const availableAt = publication.availabilityTimeMs ?? publication.analyzedThroughPerformanceMs;
     for (const strike of ledger.snapshot().strikes) {
       if (strike.verdict === 'PENDING' || finalized.has(strike.strikeId)) continue;
       finalized.add(strike.strikeId);
+      feedbackAgeFinalizedStrikeCount += 1;
+      if (publication.availabilityTimeMs === undefined) {
+        feedbackAgeMissingAvailabilityCount += 1;
+        continue;
+      }
       const eventTime = strike.verdict === 'MATCHED'
         ? strike.expectedPerformanceTimeMs + strike.timingOffsetMs
         : strike.expectedPerformanceTimeMs;
-      ages.push(availableAt - eventTime);
+      finalizedFeedbackAgesMs.push(publication.availabilityTimeMs - eventTime);
     }
   }
-  return ages;
+  const latency = latencyDiagnostics(publications);
+  return {
+    timingAbsoluteErrorsMs: [],
+    finalizedFeedbackAgesMs,
+    inferenceLatencyMs: latency.inference,
+    publicationDelayMs: latency.publicationDelay,
+    feedbackAgeFinalizedStrikeCount,
+    feedbackAgeMeasuredStrikeCount: finalizedFeedbackAgesMs.length,
+    feedbackAgeMissingAvailabilityCount,
+  };
 }
 
 function computeMetrics(
   scenario: BenchmarkScenario,
   groundTruth: CompletedContinuousEvaluation,
   candidate: CompletedContinuousEvaluation,
-  finalizationAges: readonly number[],
-  publications: readonly CandidatePublication[]
+  samples: MetricSamples
 ): BakeoffScore['metrics'] {
-  const latency = latencyDiagnostics(publications);
   if (groundTruth.status !== 'COMPLETE' || candidate.status !== 'COMPLETE') {
     return {
       ...notEvaluatedMetrics('finalization did not complete'),
-      finalizedFeedbackAgeP50Ms: distributionMetric(finalizationAges, 'median'),
-      finalizedFeedbackAgeP95Ms: distributionMetric(finalizationAges, 'p95'),
-      inferenceLatencyP50Ms: distributionMetric(latency.inference, 'median'),
-      inferenceLatencyP95Ms: distributionMetric(latency.inference, 'p95'),
-      publicationDelayP50Ms: distributionMetric(latency.publicationDelay, 'median'),
-      publicationDelayP95Ms: distributionMetric(latency.publicationDelay, 'p95'),
+      finalizedFeedbackAgeP50Ms: distributionMetric(samples.finalizedFeedbackAgesMs, 'median'),
+      finalizedFeedbackAgeP95Ms: distributionMetric(samples.finalizedFeedbackAgesMs, 'p95'),
+      inferenceLatencyP50Ms: distributionMetric(samples.inferenceLatencyMs, 'median'),
+      inferenceLatencyP95Ms: distributionMetric(samples.inferenceLatencyMs, 'p95'),
+      publicationDelayP50Ms: distributionMetric(samples.publicationDelayMs, 'median'),
+      publicationDelayP95Ms: distributionMetric(samples.publicationDelayMs, 'p95'),
     };
   }
   const candidateByStrike = new Map(candidate.strikes.map((strike) => [strike.strikeId, strike]));
@@ -669,6 +892,8 @@ function computeMetrics(
     if (!candidateStrike || candidateStrike.result !== 'MATCHED' || gtStrike.result !== 'MATCHED') return [];
     return [candidateStrike.timingOffsetMs - gtStrike.timingOffsetMs];
   });
+  const timingAbsoluteErrorsMs = timingErrors.map(Math.abs);
+  samples.timingAbsoluteErrorsMs = timingAbsoluteErrorsMs;
   const groupMetrics = chordCompleteness(scenario, groundTruth, candidate);
   const extras = extraDiagnostics(groundTruth, candidate);
   return {
@@ -676,18 +901,18 @@ function computeMetrics(
     falseMatchRateOnGroundTruthMissing: ratioMetric(falseMatches.length, gtMissing.length),
     correctMissingRate: ratioMetric(correctMissing.length, gtMissing.length),
     verdictAgreementRate: ratioMetric(verdictAgreement.length, groundTruth.strikes.length),
-    timingAbsoluteMedianMs: distributionMetric(timingErrors.map(Math.abs), 'median'),
-    timingAbsoluteP95Ms: distributionMetric(timingErrors.map(Math.abs), 'p95'),
+    timingAbsoluteMedianMs: distributionMetric(timingAbsoluteErrorsMs, 'median'),
+    timingAbsoluteP95Ms: distributionMetric(timingAbsoluteErrorsMs, 'p95'),
     chordExactCompletenessRate: ratioMetric(groupMetrics.exactComplete, groupMetrics.totalCompleteChordGroups),
     falseCompleteChordAcceptanceRate: ratioMetric(groupMetrics.falseComplete, groupMetrics.groundTruthIncompleteChordGroups),
     extraPrecision: ratioMetric(extras.matchedPhysicalExtras, extras.matchedPhysicalExtras + extras.falseCandidateExtras),
     extraRecall: ratioMetric(extras.matchedPhysicalExtras, extras.matchedPhysicalExtras + extras.missedPhysicalExtras),
-    finalizedFeedbackAgeP50Ms: distributionMetric(finalizationAges, 'median'),
-    finalizedFeedbackAgeP95Ms: distributionMetric(finalizationAges, 'p95'),
-    inferenceLatencyP50Ms: distributionMetric(latency.inference, 'median'),
-    inferenceLatencyP95Ms: distributionMetric(latency.inference, 'p95'),
-    publicationDelayP50Ms: distributionMetric(latency.publicationDelay, 'median'),
-    publicationDelayP95Ms: distributionMetric(latency.publicationDelay, 'p95'),
+    finalizedFeedbackAgeP50Ms: distributionMetric(samples.finalizedFeedbackAgesMs, 'median'),
+    finalizedFeedbackAgeP95Ms: distributionMetric(samples.finalizedFeedbackAgesMs, 'p95'),
+    inferenceLatencyP50Ms: distributionMetric(samples.inferenceLatencyMs, 'median'),
+    inferenceLatencyP95Ms: distributionMetric(samples.inferenceLatencyMs, 'p95'),
+    publicationDelayP50Ms: distributionMetric(samples.publicationDelayMs, 'median'),
+    publicationDelayP95Ms: distributionMetric(samples.publicationDelayMs, 'p95'),
   };
 }
 
@@ -793,25 +1018,70 @@ function oneToOneExtraMatches(
   return count;
 }
 
-function aggregateCandidateMetrics(scores: readonly BakeoffScore[]): { expectedStrikeRecall: MetricNumber; verdictAgreementRate: MetricNumber } {
-  let recallNumerator = 0;
-  let recallDenominator = 0;
-  let agreementNumerator = 0;
-  let agreementDenominator = 0;
-  for (const score of scores) {
-    if (score.metrics.expectedStrikeRecall.status === 'MEASURED') {
-      recallNumerator += score.metrics.expectedStrikeRecall.numerator ?? 0;
-      recallDenominator += score.metrics.expectedStrikeRecall.denominator ?? score.metrics.expectedStrikeRecall.sampleCount;
-    }
-    if (score.metrics.verdictAgreementRate.status === 'MEASURED') {
-      agreementNumerator += score.metrics.verdictAgreementRate.numerator ?? 0;
-      agreementDenominator += score.metrics.verdictAgreementRate.denominator ?? score.metrics.verdictAgreementRate.sampleCount;
+function aggregateCandidateMetrics(scores: readonly BakeoffScore[]): AggregateMetricVector {
+  const expectedStrikeRecall = pooledRatio(scores, (score) => score.metrics.expectedStrikeRecall);
+  const falseMatchRateOnGroundTruthMissing = pooledRatio(scores, (score) => score.metrics.falseMatchRateOnGroundTruthMissing);
+  const correctMissingRate = pooledRatio(scores, (score) => score.metrics.correctMissingRate);
+  const verdictAgreementRate = pooledRatio(scores, (score) => score.metrics.verdictAgreementRate);
+  const chordExactCompletenessRate = pooledRatio(scores, (score) => score.metrics.chordExactCompletenessRate);
+  const falseCompleteChordAcceptanceRate = pooledRatio(scores, (score) => score.metrics.falseCompleteChordAcceptanceRate);
+  const extraDiagnostics = scores.reduce<ExtraDiagnostics>((totals, score) => ({
+    matchedPhysicalExtras: totals.matchedPhysicalExtras + score.extraDiagnostics.matchedPhysicalExtras,
+    missedPhysicalExtras: totals.missedPhysicalExtras + score.extraDiagnostics.missedPhysicalExtras,
+    falseCandidateExtras: totals.falseCandidateExtras + score.extraDiagnostics.falseCandidateExtras,
+  }), { matchedPhysicalExtras: 0, missedPhysicalExtras: 0, falseCandidateExtras: 0 });
+  const feedbackAgeCoverage = scores.reduce((totals, score) => ({
+    finalizedStrikeCount: totals.finalizedStrikeCount + score.metricSamples.feedbackAgeFinalizedStrikeCount,
+    measuredStrikeCount: totals.measuredStrikeCount + score.metricSamples.feedbackAgeMeasuredStrikeCount,
+    missingAvailabilityCount: totals.missingAvailabilityCount + score.metricSamples.feedbackAgeMissingAvailabilityCount,
+  }), { finalizedStrikeCount: 0, measuredStrikeCount: 0, missingAvailabilityCount: 0 });
+  return {
+    expectedStrikeRecall,
+    falseMatchRateOnGroundTruthMissing,
+    correctMissingRate,
+    verdictAgreementRate,
+    chordExactCompletenessRate,
+    falseCompleteChordAcceptanceRate,
+    extraPrecision: ratioMetric(extraDiagnostics.matchedPhysicalExtras, extraDiagnostics.matchedPhysicalExtras + extraDiagnostics.falseCandidateExtras),
+    extraRecall: ratioMetric(extraDiagnostics.matchedPhysicalExtras, extraDiagnostics.matchedPhysicalExtras + extraDiagnostics.missedPhysicalExtras),
+    timingAbsoluteMedianMs: distributionMetric(scores.flatMap((score) => score.metricSamples.timingAbsoluteErrorsMs), 'median'),
+    timingAbsoluteP95Ms: distributionMetric(scores.flatMap((score) => score.metricSamples.timingAbsoluteErrorsMs), 'p95'),
+    finalizedFeedbackAgeP50Ms: distributionMetric(scores.flatMap((score) => score.metricSamples.finalizedFeedbackAgesMs), 'median'),
+    finalizedFeedbackAgeP95Ms: distributionMetric(scores.flatMap((score) => score.metricSamples.finalizedFeedbackAgesMs), 'p95'),
+    inferenceLatencyP50Ms: distributionMetric(scores.flatMap((score) => score.metricSamples.inferenceLatencyMs), 'median'),
+    inferenceLatencyP95Ms: distributionMetric(scores.flatMap((score) => score.metricSamples.inferenceLatencyMs), 'p95'),
+    publicationDelayP50Ms: distributionMetric(scores.flatMap((score) => score.metricSamples.publicationDelayMs), 'median'),
+    publicationDelayP95Ms: distributionMetric(scores.flatMap((score) => score.metricSamples.publicationDelayMs), 'p95'),
+    extraDiagnostics,
+    feedbackAgeCoverage,
+  };
+}
+
+function aggregateFamilyMetrics(scores: readonly BakeoffScore[]): Record<string, {
+  expectedStrikeRecall: MetricNumber;
+  falseMatchRateOnGroundTruthMissing: MetricNumber;
+}> {
+  const familyTags = new Set(scores.flatMap((score) => Object.keys(score.familyMetrics)));
+  return Object.fromEntries([...familyTags].map((tag) => {
+    const familyScores = scores.flatMap((score) => score.familyMetrics[tag] ? [score.familyMetrics[tag]] : []);
+    return [tag, {
+      expectedStrikeRecall: pooledRatio(familyScores, (score) => score.expectedStrikeRecall),
+      falseMatchRateOnGroundTruthMissing: pooledRatio(familyScores, (score) => score.falseMatchRateOnGroundTruthMissing),
+    }];
+  }));
+}
+
+function pooledRatio<T>(items: readonly T[], select: (item: T) => MetricNumber): MetricNumber {
+  let numerator = 0;
+  let denominator = 0;
+  for (const item of items) {
+    const metric = select(item);
+    if (metric.status === 'MEASURED') {
+      numerator += metric.numerator ?? 0;
+      denominator += metric.denominator ?? metric.sampleCount;
     }
   }
-  return {
-    expectedStrikeRecall: ratioMetric(recallNumerator, recallDenominator),
-    verdictAgreementRate: ratioMetric(agreementNumerator, agreementDenominator),
-  };
+  return ratioMetric(numerator, denominator);
 }
 
 function latencyDiagnostics(publications: readonly CandidatePublication[]): { inference: number[]; publicationDelay: number[] } {
@@ -859,6 +1129,10 @@ function notEvaluated(reason: string): MetricNumber {
   return { status: 'NOT_EVALUATED', sampleCount: 0, reason };
 }
 
+function missingDataMetric(reason: string): MetricNumber {
+  return { status: 'MISSING_DATA', sampleCount: 0, reason };
+}
+
 function notEvaluatedMetrics(reason: string): BakeoffScore['metrics'] {
   return {
     expectedStrikeRecall: notEvaluated(reason),
@@ -877,6 +1151,39 @@ function notEvaluatedMetrics(reason: string): BakeoffScore['metrics'] {
     inferenceLatencyP95Ms: notEvaluated(reason),
     publicationDelayP50Ms: notEvaluated(reason),
     publicationDelayP95Ms: notEvaluated(reason),
+  };
+}
+
+function missingDataMetrics(reason: string): BakeoffScore['metrics'] {
+  return {
+    expectedStrikeRecall: missingDataMetric(reason),
+    falseMatchRateOnGroundTruthMissing: missingDataMetric(reason),
+    correctMissingRate: missingDataMetric(reason),
+    verdictAgreementRate: missingDataMetric(reason),
+    timingAbsoluteMedianMs: missingDataMetric(reason),
+    timingAbsoluteP95Ms: missingDataMetric(reason),
+    chordExactCompletenessRate: missingDataMetric(reason),
+    falseCompleteChordAcceptanceRate: missingDataMetric(reason),
+    extraPrecision: missingDataMetric(reason),
+    extraRecall: missingDataMetric(reason),
+    finalizedFeedbackAgeP50Ms: missingDataMetric(reason),
+    finalizedFeedbackAgeP95Ms: missingDataMetric(reason),
+    inferenceLatencyP50Ms: missingDataMetric(reason),
+    inferenceLatencyP95Ms: missingDataMetric(reason),
+    publicationDelayP50Ms: missingDataMetric(reason),
+    publicationDelayP95Ms: missingDataMetric(reason),
+  };
+}
+
+function emptyMetricSamples(): MetricSamples {
+  return {
+    timingAbsoluteErrorsMs: [],
+    finalizedFeedbackAgesMs: [],
+    inferenceLatencyMs: [],
+    publicationDelayMs: [],
+    feedbackAgeFinalizedStrikeCount: 0,
+    feedbackAgeMeasuredStrikeCount: 0,
+    feedbackAgeMissingAvailabilityCount: 0,
   };
 }
 

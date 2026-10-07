@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 3,
+  "artifact": "continuous_analyzer_bakeoff_phase9d2_final_hardening",
+  "generatedAt": "2026-10-07T00:00:00+08:00",
+  "gitHeadAtAuthoring": "1d383483330aa6771a696b663dbe5e989a2930a0",
+  "purpose": "Final Phase 9D report/evaluation-set integrity hardening before real candidate adapters. No real model was run and no candidate winner was selected.",
+  "policy": {
+    "path": "backend/research/policies/continuous_analyzer_bakeoff_policy_v3_2026-10-07.json",
+    "sha256": "e95db32aab3d56160e9adfec91416c9455a1db210672e711cfa535c8219aa896"
+  },
+  "syntheticFixture": {
+    "path": "backend/research/fixtures/continuous_analyzer_bakeoff_synthetic_v1.json",
+    "sha256": "0ea11d323cacb3c65f440bb1a4da5e0c371bae42c0573741175697aafac1c655",
+    "status": "HARNESS_PROOF_ONLY_NOT_REAL_MODEL_ACCURACY"
+  },
+  "hardening": {
+    "missingRuns": "Every candidate x scenario pair produces an explicit MISSING_DATA score when no run exists.",
+    "candidateCoverage": "Per-candidate/per-split coverage diagnostics report expected, present, scoreable, complete, incomplete, missing, and not-scoreable counts.",
+    "aggregates": "Metrics aggregate separately by DEVELOPMENT, CALIBRATION, EVALUATION, and ALL_SPLITS_DIAGNOSTIC_ONLY.",
+    "correctnessVector": "Aggregates include expected-strike, missing, verdict, chord, extra, timing, finalized-feedback-age, inference-latency, and publication-delay metrics.",
+    "families": "Family metrics aggregate by split using pooled numerator/denominator semantics.",
+    "comparativeOutcome": "Outcome distinguishes insufficient evaluation set, split leakage, incomplete evaluation coverage, and evaluation-ready without comparator policy.",
+    "availabilityTimeMs": "Availability is publication availability on the performance-origin clock; missing availability does not fabricate feedback-age samples.",
+    "candidateValidation": "Candidate definitions, scenario runs, orphan runs, duplicate definitions, duplicate runs, and malformed hashes fail closed.",
+    "completionValidation": "Natural completion cannot precede expected strikes; manual stop may leave future strikes NOT_REACHED."
+  },
+  "final": {
+    "candidateWinner": "NOT_SELECTED",
+    "realModelRuns": "NOT_RUN",
+    "productionApproval": "NOT_GRANTED",
+    "productionMicrophone": "DISABLED"
+  }
+}
