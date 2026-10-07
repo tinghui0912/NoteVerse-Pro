@@ -569,6 +569,9 @@ describe('local CONTINUOUS practice runtime', () => {
     const before = session.snapshot();
     expect(session.observeCapturedAttack(performanceEvidence('continuous-clock-separate', 0, ['C4'], 'MIDI'))).toBe(true);
     expect(session.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
+    expect(session.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'PENDING' });
+    clock.advance(1_000);
+    session.snapshot();
     expect(session.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MATCHED' });
   });
 
@@ -585,7 +588,7 @@ describe('local CONTINUOUS practice runtime', () => {
     });
 
     session.start();
-    clock.advance(300);
+    clock.advance(1_000);
     expect(session.snapshot().state).toBe('RUNNING');
     expect(session.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MISSING' });
   });
@@ -635,6 +638,9 @@ describe('local CONTINUOUS practice runtime', () => {
     session.start();
     extraClock.advance(150);
     expect(session.observeCapturedAttack(performanceEvidence(session.timebase.domainId, 150, ['F#4'], 'MIDI'))).toBe(true);
+    expect(session.evaluationSnapshot.extras).toHaveLength(0);
+    extraClock.advance(500);
+    session.snapshot();
     expect(session.evaluationSnapshot.extras).toHaveLength(1);
   });
 
@@ -675,10 +681,10 @@ describe('local CONTINUOUS practice runtime', () => {
     manualClock.advance(100);
     manual.end('STOPPED_BY_USER');
     const manualEvaluation = manual.completedEvaluation();
-    expect(manualEvaluation.status).toBe('COMPLETE');
-    if (manualEvaluation.status === 'COMPLETE') {
-      expect(manualEvaluation.strikes.some((strike) => strike.result === 'NOT_REACHED')).toBe(true);
-    }
+    expect(manualEvaluation).toEqual({
+      status: 'UNAVAILABLE',
+      reason: 'INCOMPLETE_ANALYSIS',
+    });
   });
 
   it('fails closed when final evaluation still contains pending strikes', () => {
@@ -724,7 +730,7 @@ describe('local CONTINUOUS practice runtime', () => {
     expect(session.evaluationSnapshot.strikes.some((strike) => strike.verdict === 'MISSING')).toBe(true);
   });
 
-  it('accepts post-terminal analysis publication through a monotonic performance frontier', () => {
+  it('rejects post-terminal analysis publication that moves the performance frontier backwards', () => {
     const clock = new ManualClock(0);
     const session = new ContinuousPracticeSession({
       artifact,
@@ -744,11 +750,11 @@ describe('local CONTINUOUS practice runtime', () => {
       analyzedThroughPerformanceMs: 1000,
     });
     const afterForward = session.evaluationSnapshot;
-    session.publishAnalysis({
+    expect(() => session.publishAnalysis({
       sessionDomainId: session.timebase.domainId,
       attacks: [],
       analyzedThroughPerformanceMs: 100,
-    });
+    })).toThrow(/monotonic/);
 
     expect(session.evaluationSnapshot).toEqual(afterForward);
   });
@@ -995,6 +1001,9 @@ describe('local session foundation', () => {
       inferenceCompletedAtMs: 5_000,
     });
     expect(evaluated).toBe(true);
+    expect(performance.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'PENDING' });
+    performanceClock.advance(1_000);
+    performance.snapshot();
     expect(performance.evaluationSnapshot.strikes[0]).toMatchObject({
       verdict: 'MATCHED',
       timingOffsetMs: 0,
@@ -1123,10 +1132,21 @@ describe('local session foundation', () => {
     expect(naturalSnapshot.completionReason).toBe('SCOPE_COMPLETED');
   });
 
-  it('accepts evidence by capture-time performance membership rather than callback-time runtime state', () => {
+  it('uses capture-time performance membership and rejects evidence behind finalized truth', () => {
     const clock = new ManualClock(0);
     const tempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
-    const runtime = new ContinuousPracticeSession({ artifact, tempoPlan, scope: { kind: 'FULL' }, clock, countInBeats: 3 });
+    const runtime = new ContinuousPracticeSession({
+      artifact,
+      tempoPlan,
+      scope: {
+        kind: 'RANGE',
+        startGroupId: artifact.expectedPracticeGroups[0].groupId,
+        endGroupId: artifact.expectedPracticeGroups[0].groupId,
+      },
+      clock,
+      countInBeats: 3,
+      inputSource: 'MIDI',
+    });
     // Before start: state is READY
     const evidence = performanceEvidence(runtime.timebase.domainId, 100, ['C4']);
     expect(runtime.observeCapturedAttack(evidence)).toBe(false);
@@ -1155,10 +1175,7 @@ describe('local session foundation', () => {
     // End: state is ENDED
     runtime.end('STOPPED_BY_USER');
     expect(runtime.snapshot().state).toBe('ENDED');
-    expect(runtime.observeCapturedAttack(lateRunningEvidence)).toBe(true);
-    expect(runtime.evaluationSnapshot.strikes[0]).toMatchObject({
-      verdict: 'MATCHED',
-    });
+    expect(() => runtime.observeCapturedAttack(lateRunningEvidence)).toThrow(/finalized analysis frontier/);
     expect(runtime.observeCapturedAttack(performanceEvidence(runtime.timebase.domainId, clock.nowMs() + 100, ['C4']))).toBe(false);
   });
 

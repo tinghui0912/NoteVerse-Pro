@@ -17,6 +17,7 @@ import {
 } from './session';
 import {
   ContinuousEvaluationSession,
+  DEFAULT_ASSIGNMENT_WINDOW_MS,
   type ContinuousEvaluationSnapshot,
 } from './continuous-evaluation-session';
 import {
@@ -451,7 +452,12 @@ export class ContinuousPracticeSession {
       confidence: attack.confidence,
       source: attack.source,
     });
-    this.advanceMidiFrontier(this.clock.snapshot());
+    const snapshot = this.clock.snapshot();
+    if (snapshot.state === 'ENDED') {
+      this.evaluator.advanceAnalysisThrough(snapshot.performanceTimeMs);
+    } else {
+      this.advanceMidiFrontier(snapshot);
+    }
     return true;
   }
 
@@ -488,10 +494,7 @@ export class ContinuousPracticeSession {
       }];
     });
 
-    for (const attack of observedAttacks) {
-      this.evaluator.observeAttack(attack);
-    }
-    this.evaluator.advanceAnalysisThrough(publication.analyzedThroughPerformanceMs);
+    this.evaluator.publishObservations(observedAttacks, publication.analyzedThroughPerformanceMs);
   }
 
   snapshotSession(): LocalPerformanceSessionSnapshot {
@@ -534,7 +537,7 @@ export class ContinuousPracticeSession {
 
   private advanceMidiFrontier(snapshot: PerformanceClockSnapshot): void {
     if (this.inputSource === 'MIDI' && (snapshot.state === 'RUNNING' || snapshot.state === 'ENDED')) {
-      this.evaluator.advanceAnalysisThrough(snapshot.performanceTimeMs);
+      this.evaluator.advanceAnalysisThrough(Math.max(0, snapshot.performanceTimeMs - DEFAULT_ASSIGNMENT_WINDOW_MS));
     }
   }
 }

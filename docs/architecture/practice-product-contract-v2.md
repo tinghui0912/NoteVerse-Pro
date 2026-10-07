@@ -116,6 +116,10 @@ performance starts
 
 Live delayed feedback consists of finalized portions of that one truth. Finalized results are immutable product truth: a result shown to the user as finalized during performance must not later change simply because Review was opened.
 
+The product-domain evaluator owns the finalized ledger and the analysis coverage watermark. Evidence publications may be delayed by analyzer latency, but coverage only means the evidence source has completed analysis through a performance-time frontier. The frontier is not the playhead, and it does not move the performance clock.
+
+Finalization must respect one-to-one assignment conflicts. Same-pitch expected strikes whose legal assignment windows overlap, directly or transitively, can compete for the same observed evidence; those results are finalized only when the relevant safe assignment set is closed by analysis coverage or completion semantics. A strike reaching its individual late deadline is not by itself sufficient to freeze `MATCHED` or `MISSING` when overlapping same-pitch opportunities remain unresolved.
+
 There is no second whole-performance inference pass for the same Continuous performance evaluation. The canonical evaluation for a performance is the accumulated immutable finalized result produced incrementally during that performance.
 
 Stop or natural completion drains unfinished tail work only. Previously finalized regions are never re-inferred as part of completing the performance or opening Review. Review displays the same accumulated finalized truth.

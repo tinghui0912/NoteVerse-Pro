@@ -99,6 +99,15 @@ describe('practice architecture boundaries', () => {
     expect(completeMethod).not.toContain('advanceAnalysisThrough');
   });
 
+  it('derives completed Continuous evaluation from the finalized session ledger', () => {
+    const evaluatorFile = path.resolve(__dirname, 'local-core/continuous-evaluation-session.ts');
+    const content = readFileSync(evaluatorFile, 'utf8');
+    const completedMethod = content.match(/completedEvaluation\(\): CompletedContinuousEvaluation[\s\S]*?\n  }\n\n  private finalizeReadyTruth/)?.[0] ?? '';
+
+    expect(completedMethod).toContain('const snapshot = this.snapshot()');
+    expect(completedMethod).not.toContain('reconcilePerformance');
+  });
+
   it('documents Practice Product Contract v2 as the authoritative microphone boundary', () => {
     const contractFile = path.resolve(__dirname, '../../../../../docs/architecture/practice-product-contract-v2.md');
     const content = readFileSync(contractFile, 'utf8');
@@ -112,6 +121,8 @@ describe('practice architecture boundaries', () => {
     expect(content).toContain('The canonical evaluation for a performance is the accumulated immutable finalized result produced incrementally during that performance.');
     expect(content).toContain('Stop or natural completion drains unfinished tail work only.');
     expect(content).toContain('Previously finalized regions are never re-inferred as part of completing the performance or opening Review.');
+    expect(content).toContain('The product-domain evaluator owns the finalized ledger and the analysis coverage watermark.');
+    expect(content).toContain('A strike reaching its individual late deadline is not by itself sufficient to freeze');
     expect(content).toContain('chunked score-aware analyzer');
     expect(content).toContain('stateful streaming analyzer');
     expect(content).toContain('The product contract is strategy-neutral');

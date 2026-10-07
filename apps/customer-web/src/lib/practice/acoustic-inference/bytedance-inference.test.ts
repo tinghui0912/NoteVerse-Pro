@@ -738,7 +738,11 @@ describe('ByteDance local practice adapters', () => {
       { inferenceCompletedAtMs: 10_000 }
     );
     const [observation] = acousticEventsToPerformanceEvidence(event);
-    performance.observeCapturedAttack(observation);
+    performance.publishAnalysis({
+      sessionDomainId: performance.timebase.domainId,
+      attacks: [observation],
+      analyzedThroughPerformanceMs: 1_500,
+    });
     expect(performance.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MATCHED' });
     expect(performance.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
   });
@@ -767,10 +771,15 @@ describe('ByteDance local practice adapters', () => {
       { inferenceCompletedAtMs: 20_000 }
     );
     expect(decoded).toHaveLength(1);
-    for (const observation of acousticEventsToPerformanceEvidence(normalizer.normalizeWindow(decoded))) {
+    const observations = acousticEventsToPerformanceEvidence(normalizer.normalizeWindow(decoded));
+    for (const observation of observations) {
       clock.advance(Math.max(0, observation.captureTime.ms - clock.nowMs()));
-      performance.observeCapturedAttack(observation);
     }
+    performance.publishAnalysis({
+      sessionDomainId: performance.timebase.domainId,
+      attacks: observations,
+      analyzedThroughPerformanceMs: 1_500,
+    });
     expect(performance.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MATCHED' });
     expect(performance.evaluationSnapshot.extras).toEqual([]);
   });
@@ -799,10 +808,11 @@ describe('ByteDance local practice adapters', () => {
         captureStartTime: { domainId: 'continuous-chord', ms: 0 },
       })
     );
-    for (const observation of acousticEventsToPerformanceEvidence(decoded)) {
-      clock.advance(Math.max(0, observation.captureTime.ms - clock.nowMs()));
-      performance.observeCapturedAttack(observation);
-    }
+    performance.publishAnalysis({
+      sessionDomainId: performance.timebase.domainId,
+      attacks: acousticEventsToPerformanceEvidence(decoded),
+      analyzedThroughPerformanceMs: 250,
+    });
     expect(performance.evaluationSnapshot.strikes.every((strike) => strike.verdict === 'MATCHED')).toBe(true);
     expect(performance.evaluationSnapshot.extras).toEqual([]);
   });

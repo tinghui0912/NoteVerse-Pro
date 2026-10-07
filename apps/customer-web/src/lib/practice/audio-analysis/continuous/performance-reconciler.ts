@@ -20,56 +20,7 @@ export type ReconciledStrike =
       verdict: Exclude<StrikeVerdict, 'MATCHED'>;
     });
 
-export type ReconciliationResult = {
-  strikes: readonly ReconciledStrike[];
-  extras: readonly ObservedAttack[];
-};
-
-export function reconcilePerformance(input: {
-  expectedStrikes: readonly ExpectedStrike[];
-  observedAttacks: readonly ObservedAttack[];
-  analyzedThroughPerformanceMs: number;
-  assignmentWindowMs: number;
-  completion:
-    | { kind: 'LIVE' }
-    | { kind: 'NATURAL'; terminalPerformanceMs: number }
-    | { kind: 'MANUAL'; stoppedAtPerformanceMs: number };
-}): ReconciliationResult {
-  if (input.assignmentWindowMs < 0) {
-    throw new Error('Assignment window must be non-negative.');
-  }
-  const assignedStrikes = buildOptimalAssignments(input);
-  const assignedObservations = new Set(assignedStrikes.values());
-
-  const strikes = input.expectedStrikes.map((strike, strikeIndex): ReconciledStrike => {
-    const observationIndex = assignedStrikes.get(strikeIndex);
-    if (observationIndex !== undefined) {
-      const observation = input.observedAttacks[observationIndex];
-      return {
-        ...strike,
-        verdict: 'MATCHED',
-        matchedObservationId: observation.observationId,
-        timingOffsetMs: observation.performanceTimeMs - strike.expectedPerformanceTimeMs,
-      };
-    }
-    const deadline = strike.expectedPerformanceTimeMs + input.assignmentWindowMs;
-    if (input.completion.kind === 'MANUAL' && deadline > input.completion.stoppedAtPerformanceMs) {
-      return { ...strike, verdict: 'NOT_REACHED' };
-    }
-    const analyzedDeadline = input.completion.kind === 'NATURAL'
-      ? Math.min(deadline, input.completion.terminalPerformanceMs)
-      : deadline;
-    if (input.analyzedThroughPerformanceMs >= analyzedDeadline) {
-      return { ...strike, verdict: 'MISSING' };
-    }
-    return { ...strike, verdict: 'PENDING' };
-  });
-
-  const extras = input.observedAttacks.filter((_, observationIndex) => !assignedObservations.has(observationIndex));
-  return { strikes, extras };
-}
-
-function buildOptimalAssignments(input: {
+export function assignObservedAttacksToExpectedStrikes(input: {
   expectedStrikes: readonly ExpectedStrike[];
   observedAttacks: readonly ObservedAttack[];
   assignmentWindowMs: number;
