@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "phase9e_a_candidate_scenario_runs",
   "generatedAt": "2026-10-07T00:00:00+08:00",
-  "researchHarnessGitHead": "c05cb253e473bc9cb4ddaab09a4831d7ce9ea254",
+  "researchHarnessGitHead": "51451f1f2ad53bd870ffd8f3312c6a756623a8cd",
   "candidateId": "bytedance-score-aware-chunked-dev-v1",
   "split": "DEVELOPMENT",
   "candidateScenarioRunCount": 0,

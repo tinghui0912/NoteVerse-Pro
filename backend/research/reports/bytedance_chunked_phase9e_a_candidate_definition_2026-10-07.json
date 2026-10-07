@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "phase9e_a_candidate_definition",
   "generatedAt": "2026-10-07T00:00:00+08:00",
-  "researchHarnessGitHead": "c05cb253e473bc9cb4ddaab09a4831d7ce9ea254",
+  "researchHarnessGitHead": "51451f1f2ad53bd870ffd8f3312c6a756623a8cd",
   "candidateDefinition": {
     "candidateId": "bytedance-score-aware-chunked-dev-v1",
     "strategyKind": "CHUNKED",
@@ -10,7 +10,7 @@
       "modelRuntime": "ByteDance high-resolution piano transcription ONNX research adapter",
       "modelCheckpointSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
       "adapterVersion": "phase9e-a-score-aware-chunked-v1",
-      "sourceGitHead": "c05cb253e473bc9cb4ddaab09a4831d7ce9ea254",
+      "sourceGitHead": "51451f1f2ad53bd870ffd8f3312c6a756623a8cd",
       "configurationSha256": "359d4618212ba5daf072da890456d1ff703922c654f8bc3d6b30d308c4806ef0",
       "trainingDataOverlapStatus": "UNKNOWN"
     }

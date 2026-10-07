@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "phase9e_a_bytedance_development_report",
   "generatedAt": "2026-10-07T00:00:00+08:00",
-  "researchHarnessGitHead": "c05cb253e473bc9cb4ddaab09a4831d7ce9ea254",
+  "researchHarnessGitHead": "51451f1f2ad53bd870ffd8f3312c6a756623a8cd",
   "policy": {
     "path": "backend/research/policies/bytedance_chunked_phase9e_a_policy_2026-10-07.json",
     "policyId": "phase9e-a-bytedance-score-aware-chunked-development"

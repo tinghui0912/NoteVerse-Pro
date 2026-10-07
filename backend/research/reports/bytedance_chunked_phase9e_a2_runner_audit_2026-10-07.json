@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
   "artifact": "phase9e_a_2_bytedance_runner_audit",
-  "generatedAt": "2026-10-07T14:22:37.306Z",
-  "researchHarnessGitHead": "c05cb253e473bc9cb4ddaab09a4831d7ce9ea254",
-  "normalizedCommand": "node backend/research/browser_runtime/run_bytedance_phase9e_a.mjs --repo-root . --git-head c05cb253e473bc9cb4ddaab09a4831d7ce9ea254 --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx --causal-manifest backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json --ort-dir backend/data/work/ort-ab/1.20.1/node_modules/onnxruntime-web/dist --backend wasm --output-dir backend/research/reports",
+  "generatedAt": "2026-10-07T14:30:07.933Z",
+  "researchHarnessGitHead": "51451f1f2ad53bd870ffd8f3312c6a756623a8cd",
+  "normalizedCommand": "node backend/research/browser_runtime/run_bytedance_phase9e_a.mjs --repo-root . --git-head 51451f1f2ad53bd870ffd8f3312c6a756623a8cd --model backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx --causal-manifest backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json --ort-dir backend/data/work/ort-ab/1.20.1/node_modules/onnxruntime-web/dist --backend wasm --output-dir backend/research/reports",
   "runtimeEnvironment": {
     "os": "Windows_NT 10.0.26200 x64",
     "node": "v24.19.0",
@@ -33,6 +33,36 @@
       "reg_onset_output",
       "frame_output"
     ],
+    "chunks": [
+      {
+        "chunkId": "runtime-smoke-zero-input",
+        "inferenceLatencyMs": 1178,
+        "outputNames": [
+          "reg_onset_output",
+          "frame_output"
+        ],
+        "outputs": {
+          "reg_onset_output": {
+            "dims": [
+              1,
+              183,
+              88
+            ],
+            "type": "float32",
+            "length": 16104
+          },
+          "frame_output": {
+            "dims": [
+              1,
+              183,
+              88
+            ],
+            "type": "float32",
+            "length": 16104
+          }
+        }
+      }
+    ],
     "outputNames": [
       "reg_onset_output",
       "frame_output"
@@ -57,7 +87,13 @@
         "length": 16104
       }
     },
-    "inferenceLatencyMs": 1006.5
+    "inferenceLatencyMs": 1178
+  },
+  "chunkExecution": {
+    "mode": "RUNTIME_EXECUTION_SMOKE_ONLY",
+    "chunkInput": null,
+    "rawOutput": null,
+    "chunkCount": 1
   },
   "causalManifest": {
     "path": "backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json",
