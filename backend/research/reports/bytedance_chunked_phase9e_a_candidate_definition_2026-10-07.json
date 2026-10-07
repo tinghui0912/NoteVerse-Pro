@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9e_a_candidate_definition",
+  "generatedAt": "2026-10-07T00:00:00+08:00",
+  "researchHarnessGitHead": "3b5f540b4d9499727b1e75379cd5dd5d27cf75b7",
+  "candidateDefinition": {
+    "candidateId": "bytedance-score-aware-chunked-dev-v1",
+    "strategyKind": "CHUNKED",
+    "identity": {
+      "modelRuntime": "ByteDance high-resolution piano transcription ONNX research adapter",
+      "modelCheckpointSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+      "adapterVersion": "phase9e-a-score-aware-chunked-v1",
+      "sourceGitHead": "3b5f540b4d9499727b1e75379cd5dd5d27cf75b7",
+      "configurationSha256": "cd4f9f13cd4f9f13cd4f9f13cd4f9f13cd4f9f13cd4f9f13cd4f9f13cd4f9f13",
+      "trainingDataOverlapStatus": "UNKNOWN"
+    }
+  },
+  "modelAsset": {
+    "kind": "ONNX",
+    "pathChecked": "backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx",
+    "expectedSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "actualSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "expectedBytes": 98691493,
+    "actualBytes": 98691493,
+    "identityVerified": true
+  },
+  "historicalModelAssetReport": "backend/research/reports/bytedance_model_asset_verification.json"
+}

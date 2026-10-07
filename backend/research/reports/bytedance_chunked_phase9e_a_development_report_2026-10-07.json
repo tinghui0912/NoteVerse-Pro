@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9e_a_bytedance_development_report",
+  "generatedAt": "2026-10-07T00:00:00+08:00",
+  "researchHarnessGitHead": "3b5f540b4d9499727b1e75379cd5dd5d27cf75b7",
+  "policy": {
+    "path": "backend/research/policies/bytedance_chunked_phase9e_a_policy_2026-10-07.json",
+    "policyId": "phase9e-a-bytedance-score-aware-chunked-development"
+  },
+  "benchmarkManifest": {
+    "path": "backend/research/reports/bytedance_chunked_phase9e_a_dev_manifest_2026-10-07.json",
+    "scenarioCount": 0,
+    "split": "DEVELOPMENT"
+  },
+  "candidateDefinition": {
+    "path": "backend/research/reports/bytedance_chunked_phase9e_a_candidate_definition_2026-10-07.json",
+    "candidateId": "bytedance-score-aware-chunked-dev-v1",
+    "strategyKind": "CHUNKED"
+  },
+  "candidateScenarioRuns": {
+    "path": "backend/research/reports/bytedance_chunked_phase9e_a_candidate_runs_2026-10-07.json",
+    "count": 0
+  },
+  "runStatus": "BLOCKED_NOT_RUN",
+  "developmentMetrics": {
+    "candidateCoverage": {
+      "expectedScenarioCount": 0,
+      "runPresentCount": 0,
+      "candidateCompleteEvaluationCount": 0,
+      "candidateIncompleteAnalysisCount": 0,
+      "missingRunCount": 0
+    },
+    "expectedStrikeRecall": { "status": "NOT_EVALUATED", "sampleCount": 0, "reason": "no coherent real DEVELOPMENT scenarios were available" },
+    "falseMatchRateOnGroundTruthMissing": { "status": "NOT_EVALUATED", "sampleCount": 0, "reason": "no coherent real DEVELOPMENT scenarios were available" },
+    "correctMissingRate": { "status": "NOT_EVALUATED", "sampleCount": 0, "reason": "no coherent real DEVELOPMENT scenarios were available" },
+    "verdictAgreementRate": { "status": "NOT_EVALUATED", "sampleCount": 0, "reason": "no coherent real DEVELOPMENT scenarios were available" },
+    "chordExactCompletenessRate": { "status": "NOT_EVALUATED", "sampleCount": 0, "reason": "no coherent real DEVELOPMENT scenarios were available" },
+    "extraPrecision": { "status": "NOT_EVALUATED", "sampleCount": 0, "reason": "no coherent real DEVELOPMENT scenarios were available" },
+    "extraRecall": { "status": "NOT_EVALUATED", "sampleCount": 0, "reason": "no coherent real DEVELOPMENT scenarios were available" },
+    "finalizedFeedbackAge": { "status": "NOT_EVALUATED", "sampleCount": 0, "reason": "no candidate publications were generated" },
+    "inferenceLatency": { "status": "NOT_EVALUATED", "sampleCount": 0, "reason": "model was not executed" }
+  },
+  "familyMetrics": {},
+  "comparativeOutcome": "INSUFFICIENT_EVALUATION_SET",
+  "comparativeRank": null,
+  "absoluteProductionGateStatus": "NOT_EVALUATED",
+  "calibrationUsed": false,
+  "evaluationUsed": false,
+  "productionMicrophoneEnabled": false,
+  "candidateSelectionMade": false,
+  "notes": [
+    "The ByteDance ONNX asset identity was verified locally.",
+    "The Phase 9E-A adapter/planner/scorer path is implemented and covered by deterministic tests.",
+    "No real DEVELOPMENT metric was measured because no coherent Practice v2 Continuous BenchmarkScenario manifest was available without inventing missing truth semantics from historical target-verifier rows."
+  ]
+}

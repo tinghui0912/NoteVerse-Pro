@@ -10,6 +10,7 @@ import {
   planByteDanceScoreAwareChunks,
   publicationForByteDanceChunk,
   sourceEventTimeToPerformanceTime,
+  validateChunkPlan,
 } from './bytedance-score-aware-chunked';
 import { buildBakeoffReport, scoreCandidate, type BenchmarkScenario } from './continuous-analyzer-bakeoff';
 
@@ -94,6 +95,7 @@ describe('ByteDance score-aware chunked research adapter', () => {
   it('plans deterministic non-overlapping commit ownership without splitting simultaneous groups', () => {
     const plans = planByteDanceScoreAwareChunks(scenario());
 
+    expect(() => validateChunkPlan(scenario(), plans)).not.toThrow();
     expect(plans.length).toBeGreaterThan(1);
     for (let index = 1; index < plans.length; index += 1) {
       expect(plans[index].commitStartPerformanceMs).toBeGreaterThanOrEqual(plans[index - 1].commitEndPerformanceMs);

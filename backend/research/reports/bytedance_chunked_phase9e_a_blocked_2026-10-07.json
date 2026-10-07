@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9e_a_bytedance_blocked_not_run",
+  "generatedAt": "2026-10-07T00:00:00+08:00",
+  "researchHarnessGitHead": "3b5f540b4d9499727b1e75379cd5dd5d27cf75b7",
+  "candidateId": "bytedance-score-aware-chunked-dev-v1",
+  "status": "BLOCKED_NOT_RUN",
+  "modelAssetStatus": {
+    "path": "backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx",
+    "expectedSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "actualSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "expectedBytes": 98691493,
+    "actualBytes": 98691493,
+    "available": true
+  },
+  "missingOrBlockedInputs": [
+    {
+      "kind": "MANIFEST",
+      "path": "backend/research/reports/bytedance_chunked_phase9e_a_dev_manifest_2026-10-07.json",
+      "reason": "Contains zero coherent Practice v2 real DEVELOPMENT scenarios. Historical target-verifier rows were intentionally not converted into fake product truth."
+    }
+  ],
+  "commandThatWouldRunAfterScenarioManifestExists": "npm run test -- src/lib/practice/research/bytedance-score-aware-chunked.test.ts && <future phase9e-a real runner using CandidateScenarioRun>",
+  "discoveredScenarioCount": 0,
+  "measuredCandidateRuns": 0,
+  "reason": "Required real Practice v2 DEVELOPMENT scenarios were not available without inventing Continuous score/physical-truth semantics. No measured ByteDance result was produced."
+}

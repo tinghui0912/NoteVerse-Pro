@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9e_a_development_benchmark_manifest",
+  "generatedAt": "2026-10-07T00:00:00+08:00",
+  "researchHarnessGitHead": "3b5f540b4d9499727b1e75379cd5dd5d27cf75b7",
+  "split": "DEVELOPMENT",
+  "audioMapping": {
+    "performanceOriginSourceMs": "source-audio instant corresponding to Continuous performanceTimeMs = 0",
+    "clipStartCanPrecedeOrigin": true,
+    "clipEndCanExceedCompletion": true,
+    "preRollAndPostRollAreContextOnly": true
+  },
+  "scenarioCount": 0,
+  "scenarios": [],
+  "sourceDiscovery": {
+    "historicalByteDanceTargetManifest": {
+      "path": "backend/research/reports/bytedance_target_verifier_dev_targets_v4_2026-10-05.json",
+      "targetCount": 421,
+      "status": "HISTORICAL_TAXONOMY_ONLY_FOR_PHASE9E_A",
+      "reason": "The target-verifier rows encode old per-target shouldMatch/anchor semantics. They are useful for taxonomy/source discovery, but they are not coherent full Continuous v2 performance intervals and were not imported as benchmark truth."
+    },
+    "causalCaseManifest": {
+      "path": "backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json",
+      "sha256FromHistoricalReport": "42a0ac14282ca3b9ed678ac5bcfa49322fc6c8cf3edfd89dc7fa18c576848cc1",
+      "status": "SOURCE_DISCOVERY_ONLY_FOR_PHASE9E_A"
+    }
+  },
+  "inclusionSummary": {
+    "includedRealDevelopmentScenarios": 0,
+    "excludedHistoricalTargetRows": 421,
+    "exclusionReason": "Phase 9E-A did not invent missing Continuous v2 score intervals or convert old target-verifier rows into product truth. A later manifest-building step must construct coherent ExpectedStrike + physical truth intervals before measured real-model accuracy can be reported."
+  }
+}
