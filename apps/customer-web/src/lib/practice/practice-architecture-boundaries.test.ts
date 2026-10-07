@@ -128,8 +128,11 @@ describe('practice architecture boundaries', () => {
     expect(content).toContain('The product contract is strategy-neutral');
     expect(content).toContain('Correctness and product-level evaluation accuracy are the primary selection criteria.');
     expect(content).toContain('Analysis PCM capture is a source timeline, not a performance clock.');
+    expect(content).toContain('one monotonic source-sample identity domain');
+    expect(content).toContain('Source sample ranges are half-open');
+    expect(content).toContain('Running segments must not overlap in performance time.');
     expect(content).toContain('Pause and resume create separate acoustic source segments.');
-    expect(content).toContain('Context-only samples do not extend performance duration');
+    expect(content).toContain('Context-only samples consume source sample identity but do not extend performance duration');
     expect(content).toContain('input region:');
     expect(content).toContain('commit region:');
     expect(content).toContain('Production microphone Practice remains disabled');

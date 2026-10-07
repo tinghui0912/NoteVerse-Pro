@@ -100,11 +100,13 @@ The existing one-to-one reconciliation semantics remain valuable.
 
 ## Analysis PCM Timeline
 
-Analysis PCM capture is a source timeline, not a performance clock. Captured PCM carries source sample identity, including the native source sample rate and source sample indexes. Performance time is derived only for samples that belong to a `RUNNING` segment by anchoring that segment to deterministic performance time.
+Analysis PCM capture is a source timeline, not a performance clock. Captured PCM carries source sample identity, including the native source sample rate and source sample indexes. One PCM capture timeline owns one monotonic source-sample identity domain. Source sample ranges are half-open: `[sourceStartSampleIndex, sourceEndSampleIndex)`.
+
+Performance time is derived only for samples that belong to a `RUNNING` segment by anchoring that segment to deterministic performance time. Running segments must not overlap in performance time. A gap between running segments represents missing or unretained analysis PCM, not implicit silence.
 
 Pause and resume create separate acoustic source segments. Paused wall-clock audio is not Continuous performance evidence time, and future acoustic analyzers must not silently bridge a pause as one uninterrupted model stream. A chunked analyzer may request PCM from one running segment with retained context, and a streaming analyzer may reset its model state at segment boundaries; both still publish into the same evaluation/finalization contract after producing evidence.
 
-Context-only PCM may be retained after the canonical performance-owned samples of a segment for future model input. Context-only samples do not extend performance duration, do not create performance-time ownership, do not move the playhead, and do not advance evaluation coverage by themselves.
+Context-only PCM may be retained after the canonical performance-owned samples of a segment for future model input. Context-only samples consume source sample identity but do not extend performance duration, do not create performance-time ownership, do not move the playhead, and do not advance evaluation coverage by themselves.
 
 ## One Evaluation Truth
 

@@ -1,6 +1,8 @@
 export type PcmCaptureBlock = {
   sourceSampleRateHz: number;
+  /** First included source sample identity. Source ranges are half-open: [start, end). */
   sourceStartSampleIndex: number;
+  /** Exclusive source sample boundary immediately after the final included sample. */
   sourceEndSampleIndex: number;
   samples: Float32Array;
 };
@@ -9,8 +11,11 @@ export type PerformancePcmSegment = {
   segmentId: string;
   performanceStartMs: number;
   sourceSampleRateHz: number;
+  /** First retained source sample identity for this RUNNING segment. */
   sourceStartSampleIndex: number;
+  /** Exclusive source boundary after the final performance-owned sample. */
   sourcePerformanceEndSampleIndex: number;
+  /** Exclusive source boundary after the final retained sample, including context tail. */
   sourceContextTailEndSampleIndex: number;
 };
 
@@ -51,6 +56,7 @@ export class PerformancePcmTimeline {
     if (!Number.isFinite(input.performanceStartMs) || input.performanceStartMs < 0) {
       throw new Error('Performance segment start must be finite and non-negative.');
     }
+    this.validateNextSegmentStart(input);
     const segment: MutableSegment = {
       segmentId: `segment-${this.nextSegmentIndex}`,
       performanceStartMs: input.performanceStartMs,
@@ -139,20 +145,20 @@ export class PerformancePcmTimeline {
     return output;
   }
 
-  sourceSampleIndexToPerformanceMs(segmentId: string, sourceSampleIndex: number): number {
+  sourceSampleBoundaryToPerformanceMs(segmentId: string, sourceSampleBoundaryIndex: number): number {
     const segment = this.segmentById(segmentId);
-    validateSourceSampleIndex(sourceSampleIndex, 'sourceSampleIndex');
+    validateSourceSampleIndex(sourceSampleBoundaryIndex, 'sourceSampleBoundaryIndex');
     if (
-      sourceSampleIndex < segment.sourceStartSampleIndex
-      || sourceSampleIndex > segment.sourcePerformanceEndSampleIndex
+      sourceSampleBoundaryIndex < segment.sourceStartSampleIndex
+      || sourceSampleBoundaryIndex > segment.sourcePerformanceEndSampleIndex
     ) {
-      throw new Error('Source sample is outside the segment performance-owned range.');
+      throw new Error('Source sample boundary is outside the segment performance-owned range.');
     }
     return segment.performanceStartMs
-      + (sourceSampleIndex - segment.sourceStartSampleIndex) / segment.sourceSampleRateHz * 1000;
+      + (sourceSampleBoundaryIndex - segment.sourceStartSampleIndex) / segment.sourceSampleRateHz * 1000;
   }
 
-  performanceMsToSourceSampleIndex(
+  performanceMsToSourceSampleBoundary(
     segmentId: string,
     performanceMs: number,
     rounding: 'floor' | 'ceil' | 'round' = 'floor'
@@ -161,7 +167,7 @@ export class PerformancePcmTimeline {
     if (!Number.isFinite(performanceMs) || performanceMs < segment.performanceStartMs) {
       throw new Error('Performance time is outside the segment performance-owned range.');
     }
-    const performanceEndMs = this.sourceSampleIndexToPerformanceMs(
+    const performanceEndMs = this.sourceSampleBoundaryToPerformanceMs(
       segmentId,
       segment.sourcePerformanceEndSampleIndex
     );
@@ -184,9 +190,14 @@ export class PerformancePcmTimeline {
       throw new Error('Performance range end must not precede start.');
     }
     return {
-      sourceStartSampleIndex: this.performanceMsToSourceSampleIndex(segmentId, performanceStartMs, 'floor'),
-      sourceEndSampleIndex: this.performanceMsToSourceSampleIndex(segmentId, performanceEndMs, 'ceil'),
+      sourceStartSampleIndex: this.performanceMsToSourceSampleBoundary(segmentId, performanceStartMs, 'floor'),
+      sourceEndSampleIndex: this.performanceMsToSourceSampleBoundary(segmentId, performanceEndMs, 'ceil'),
     };
+  }
+
+  segmentPerformanceEndMs(segmentId: string): number {
+    const segment = this.segmentById(segmentId);
+    return performanceEndMsForSegment(segment);
   }
 
   debugSegmentBlockCount(segmentId: string): number {
@@ -219,6 +230,23 @@ export class PerformancePcmTimeline {
     }
     if (this.sourceSampleRateHz !== sourceSampleRateHz) {
       throw new Error('PCM source sample rate cannot change within one capture timeline.');
+    }
+  }
+
+  private validateNextSegmentStart(input: {
+    performanceStartMs: number;
+    sourceStartSampleIndex: number;
+  }): void {
+    const previous = this.segments[this.segments.length - 1];
+    if (!previous) {
+      return;
+    }
+    if (input.sourceStartSampleIndex < previous.sourceContextTailEndSampleIndex) {
+      throw new Error('PCM source sample identity cannot overlap or move backward across RUNNING segments.');
+    }
+    const previousPerformanceEndMs = performanceEndMsForSegment(previous);
+    if (input.performanceStartMs < previousPerformanceEndMs) {
+      throw new Error('Performance PCM segments cannot overlap in performance time.');
     }
   }
 
@@ -268,6 +296,13 @@ function validateSourceSampleIndex(value: number, label: string): void {
   if (!Number.isInteger(value) || value < 0) {
     throw new Error(`PCM ${label} must be a non-negative integer.`);
   }
+}
+
+function performanceEndMsForSegment(segment: PerformancePcmSegment): number {
+  return segment.performanceStartMs
+    + (segment.sourcePerformanceEndSampleIndex - segment.sourceStartSampleIndex)
+      / segment.sourceSampleRateHz
+      * 1000;
 }
 
 function appendToSegmentBlocks(
