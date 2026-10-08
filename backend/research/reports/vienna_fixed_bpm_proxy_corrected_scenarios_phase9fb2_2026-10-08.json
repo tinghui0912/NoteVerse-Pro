@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "vienna_fixed_bpm_proxy_scenario_manifest",
-  "implementationGitHead": "4cc1cfb4a801b207cbc5853b1c78b2c823dcbe6c",
+  "implementationGitHead": "2f6ca3638183fa3323a26ab3dc933cd05499672d",
   "scenarioManifestFrozenBeforeInference": true,
   "publicManifest": {
     "schemaVersion": 1,
@@ -53,11 +53,11 @@
       "vienna-secondary-base:Schubert_D783_no15_p14:49.500"
     ],
     "scenarioManifestFrozenBeforeInference": true,
-    "frozenAt": "2026-10-08T13:54:20.575Z",
+    "frozenAt": "2026-10-08T14:13:54.099Z",
     "candidateOutputIncluded": false,
     "officialProductEvaluation": false
   },
-  "publicManifestSha256": "5de19f81e1f43208e2dcea93bcce85244552d861f60b898e5a243d40716dc5d1",
+  "publicManifestSha256": "7ac65219ffe59e0a162bd45caf6182563c7ab91816b77d367ccb376eac6b8bf2",
   "metadataCommit": "1033ade0899bfd03a89f370c9ad5d8443ddccd3e",
   "audioZip": {
     "path": "backend/data/work/public_proxy/vienna-4x22/audio.zip",

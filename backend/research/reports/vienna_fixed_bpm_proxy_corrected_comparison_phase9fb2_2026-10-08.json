@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "artifact": "phase9f_b1_vienna_fixed_bpm_proxy_real_comparison",
-  "generatedAt": "2026-10-08T14:10:40.582Z",
-  "implementationGitHead": "4cc1cfb4a801b207cbc5853b1c78b2c823dcbe6c",
-  "artifactGeneratedFromGitHead": "4cc1cfb4a801b207cbc5853b1c78b2c823dcbe6c",
+  "generatedAt": "2026-10-08T14:31:06.625Z",
+  "implementationGitHead": "2f6ca3638183fa3323a26ab3dc933cd05499672d",
+  "artifactGeneratedFromGitHead": "2f6ca3638183fa3323a26ab3dc933cd05499672d",
   "normalizedCommand": "node backend/research/browser_runtime/run_vienna_fixed_bpm_proxy_benchmark.mjs --repo-root . --work-root backend/data/work/public_proxy/vienna-4x22 --max-scenarios 32 --scenario-manifest backend/research/reports/vienna_fixed_bpm_proxy_corrected_scenarios_phase9fb2_2026-10-08.json --output backend/research/reports/vienna_fixed_bpm_proxy_corrected_comparison_phase9fb2_2026-10-08.json",
   "runtimeEnvironment": {
     "os": "Windows_NT 10.0.26200 x64",
@@ -35,8 +35,8 @@
   },
   "frozenScenarioManifest": {
     "path": "backend/research/reports/vienna_fixed_bpm_proxy_corrected_scenarios_phase9fb2_2026-10-08.json",
-    "sha256": "078641b9c16d132c339c7d8af136d5178532364d238f2dcd6b6a6990e2906d70",
-    "publicManifestSha256": "5de19f81e1f43208e2dcea93bcce85244552d861f60b898e5a243d40716dc5d1",
+    "sha256": "9712ac1307aff038f633306d34a0834412d8941008a8a9e1a1e905f07fb3e704",
+    "publicManifestSha256": "7ac65219ffe59e0a162bd45caf6182563c7ab91816b77d367ccb376eac6b8bf2",
     "frozenBeforeInference": true,
     "scenarioCount": 32
   },
@@ -161,32 +161,32 @@
         "finalizedFeedbackAgeP50Ms": {
           "status": "MEASURED",
           "sampleCount": 880,
-          "value": 3828.5
+          "value": 3958.199999999255
         },
         "finalizedFeedbackAgeP95Ms": {
           "status": "MEASURED",
           "sampleCount": 880,
-          "value": 5615.100000005215
+          "value": 9689.000000003725
         },
         "inferenceLatencyP50Ms": {
           "status": "MEASURED",
           "sampleCount": 251,
-          "value": 1132.7000000029802
+          "value": 1136.199999999255
         },
         "inferenceLatencyP95Ms": {
           "status": "MEASURED",
           "sampleCount": 251,
-          "value": 1191.300000000745
+          "value": 3652.900000002235
         },
         "publicationDelayP50Ms": {
           "status": "MEASURED",
           "sampleCount": 251,
-          "value": 3481.8000000044703
+          "value": 3513.1999999955297
         },
         "publicationDelayP95Ms": {
           "status": "MEASURED",
           "sampleCount": 251,
-          "value": 5744.100000005215
+          "value": 10704.315384618365
         },
         "extraDiagnostics": {
           "matchedPhysicalExtras": 110,
@@ -453,32 +453,32 @@
         "finalizedFeedbackAgeP50Ms": {
           "status": "MEASURED",
           "sampleCount": 880,
-          "value": 3828.5
+          "value": 3958.199999999255
         },
         "finalizedFeedbackAgeP95Ms": {
           "status": "MEASURED",
           "sampleCount": 880,
-          "value": 5615.100000005215
+          "value": 9689.000000003725
         },
         "inferenceLatencyP50Ms": {
           "status": "MEASURED",
           "sampleCount": 251,
-          "value": 1132.7000000029802
+          "value": 1136.199999999255
         },
         "inferenceLatencyP95Ms": {
           "status": "MEASURED",
           "sampleCount": 251,
-          "value": 1191.300000000745
+          "value": 3652.900000002235
         },
         "publicationDelayP50Ms": {
           "status": "MEASURED",
           "sampleCount": 251,
-          "value": 3481.8000000044703
+          "value": 3513.1999999955297
         },
         "publicationDelayP95Ms": {
           "status": "MEASURED",
           "sampleCount": 251,
-          "value": 5744.100000005215
+          "value": 10704.315384618365
         },
         "extraDiagnostics": {
           "matchedPhysicalExtras": 110,
@@ -563,12 +563,12 @@
         "finalizedFeedbackAgeP50Ms": {
           "status": "MEASURED",
           "sampleCount": 880,
-          "value": 449.22031599989714
+          "value": 449.2219819995589
         },
         "finalizedFeedbackAgeP95Ms": {
           "status": "MEASURED",
           "sampleCount": 880,
-          "value": 928.9502880001928
+          "value": 928.9813669998475
         },
         "inferenceLatencyP50Ms": {
           "status": "NOT_EVALUATED",
@@ -583,12 +583,12 @@
         "publicationDelayP50Ms": {
           "status": "MEASURED",
           "sampleCount": 4485,
-          "value": 161.6470179998105
+          "value": 161.6556719996952
         },
         "publicationDelayP95Ms": {
           "status": "MEASURED",
           "sampleCount": 4485,
-          "value": 164.2914479999563
+          "value": 163.71489699996164
         },
         "extraDiagnostics": {
           "matchedPhysicalExtras": 104,
@@ -855,12 +855,12 @@
         "finalizedFeedbackAgeP50Ms": {
           "status": "MEASURED",
           "sampleCount": 880,
-          "value": 449.22031599989714
+          "value": 449.2219819995589
         },
         "finalizedFeedbackAgeP95Ms": {
           "status": "MEASURED",
           "sampleCount": 880,
-          "value": 928.9502880001928
+          "value": 928.9813669998475
         },
         "inferenceLatencyP50Ms": {
           "status": "NOT_EVALUATED",
@@ -875,12 +875,12 @@
         "publicationDelayP50Ms": {
           "status": "MEASURED",
           "sampleCount": 4485,
-          "value": 161.6470179998105
+          "value": 161.6556719996952
         },
         "publicationDelayP95Ms": {
           "status": "MEASURED",
           "sampleCount": 4485,
-          "value": 164.2914479999563
+          "value": 163.71489699996164
         },
         "extraDiagnostics": {
           "matchedPhysicalExtras": 104,
@@ -908,6 +908,46 @@
           "seed": 13371
         }
       },
+      "falseMatchRateOnGroundTruthMissing": {
+        "status": "MEASURED",
+        "sampleCount": 19,
+        "meanDifferenceByteDanceMinusOnlineAmt": 0.10526315789473684,
+        "bootstrap95Ci": {
+          "low": -0.10526315789473684,
+          "high": 0.3157894736842105,
+          "seed": 13371
+        }
+      },
+      "falseCompleteChordAcceptanceRate": {
+        "status": "MEASURED",
+        "sampleCount": 12,
+        "meanDifferenceByteDanceMinusOnlineAmt": 0.25,
+        "bootstrap95Ci": {
+          "low": -0.08333333333333333,
+          "high": 0.5833333333333334,
+          "seed": 13371
+        }
+      },
+      "correctMissingRate": {
+        "status": "MEASURED",
+        "sampleCount": 19,
+        "meanDifferenceByteDanceMinusOnlineAmt": -0.10526315789473684,
+        "bootstrap95Ci": {
+          "low": -0.3157894736842105,
+          "high": 0.10526315789473684,
+          "seed": 13371
+        }
+      },
+      "chordExactCompletenessRate": {
+        "status": "MEASURED",
+        "sampleCount": 32,
+        "meanDifferenceByteDanceMinusOnlineAmt": 0.08744814213564216,
+        "bootstrap95Ci": {
+          "low": 0.08744814213564214,
+          "high": 0.08744814213564214,
+          "seed": 13371
+        }
+      },
       "expectedStrikeRecall": {
         "status": "MEASURED",
         "sampleCount": 32,
@@ -925,6 +965,16 @@
         "bootstrap95Ci": {
           "low": 0.29148615001556183,
           "high": 0.4490193007027371,
+          "seed": 13371
+        }
+      },
+      "extraRecall": {
+        "status": "MEASURED",
+        "sampleCount": 30,
+        "meanDifferenceByteDanceMinusOnlineAmt": 0.056666666666666664,
+        "bootstrap95Ci": {
+          "low": 0,
+          "high": 0.14,
           "seed": 13371
         }
       },
@@ -1104,32 +1154,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 880,
-            "value": 3828.5
+            "value": 3958.199999999255
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 880,
-            "value": 5615.100000005215
+            "value": 9689.000000003725
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 251,
-            "value": 1132.7000000029802
+            "value": 1136.199999999255
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 251,
-            "value": 1191.300000000745
+            "value": 3652.900000002235
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 251,
-            "value": 3481.8000000044703
+            "value": 3513.1999999955297
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 251,
-            "value": 5744.100000005215
+            "value": 10704.315384618365
           },
           "extraDiagnostics": {
             "matchedPhysicalExtras": 110,
@@ -1396,32 +1446,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 880,
-            "value": 3828.5
+            "value": 3958.199999999255
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 880,
-            "value": 5615.100000005215
+            "value": 9689.000000003725
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 251,
-            "value": 1132.7000000029802
+            "value": 1136.199999999255
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 251,
-            "value": 1191.300000000745
+            "value": 3652.900000002235
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 251,
-            "value": 3481.8000000044703
+            "value": 3513.1999999955297
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 251,
-            "value": 5744.100000005215
+            "value": 10704.315384618365
           },
           "extraDiagnostics": {
             "matchedPhysicalExtras": 110,
@@ -1506,12 +1556,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 880,
-            "value": 449.22031599989714
+            "value": 449.2219819995589
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 880,
-            "value": 928.9502880001928
+            "value": 928.9813669998475
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -1526,12 +1576,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 4485,
-            "value": 161.6470179998105
+            "value": 161.6556719996952
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 4485,
-            "value": 164.2914479999563
+            "value": 163.71489699996164
           },
           "extraDiagnostics": {
             "matchedPhysicalExtras": 104,
@@ -1798,12 +1848,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 880,
-            "value": 449.22031599989714
+            "value": 449.2219819995589
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 880,
-            "value": 928.9502880001928
+            "value": 928.9813669998475
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -1818,12 +1868,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 4485,
-            "value": 161.6470179998105
+            "value": 161.6556719996952
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 4485,
-            "value": 164.2914479999563
+            "value": 163.71489699996164
           },
           "extraDiagnostics": {
             "matchedPhysicalExtras": 104,
@@ -2072,32 +2122,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 28,
-            "value": 3187.699999999255
+            "value": 3196.699999999255
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 28,
-            "value": 4808.599999997765
+            "value": 4740.599999997765
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1145.5
+            "value": 1129.199999999255
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1190.3999999985099
+            "value": 1166.8999999985099
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 2972.699999999255
+            "value": 2985.89999999851
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5780.0857142864625
+            "value": 5593.885714283482
           }
         },
         "extraDiagnostics": {
@@ -2183,12 +2233,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 28,
-            "value": 417.6475479996625
+            "value": 417.13841800016235
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 28,
-            "value": 450.35223800013773
+            "value": 449.8878459999978
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -2203,12 +2253,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 135,
-            "value": 162.27485899990643
+            "value": 161.4359989999757
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 135,
-            "value": 166.09298600006514
+            "value": 162.94688800017684
           }
         },
         "extraDiagnostics": {
@@ -2294,32 +2344,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 20,
-            "value": 3974
+            "value": 4069.900000002235
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 20,
-            "value": 5503.39999999851
+            "value": 5651.800000000745
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1136.199999999255
+            "value": 1169.1000000014901
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1203.5
+            "value": 1190.199999999255
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 2937.800000000745
+            "value": 3037.400000002235
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5476.35205479303
+            "value": 5597.85205479303
           }
         },
         "extraDiagnostics": {
@@ -2405,12 +2455,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 20,
-            "value": 419.7856720000491
+            "value": 420.21827299983124
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 20,
-            "value": 930.6772260002399
+            "value": 929.2837580001797
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -2425,12 +2475,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 143,
-            "value": 161.7784979999742
+            "value": 161.59878600011143
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 143,
-            "value": 164.33246200004578
+            "value": 163.32126999996763
           }
         },
         "extraDiagnostics": {
@@ -2510,32 +2560,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 22,
-            "value": 3401.900000002235
+            "value": 3262.800000000745
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 22,
-            "value": 5430.400000002235
+            "value": 5213.099999997765
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1142.699999999255
+            "value": 1124
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1223.300000000745
+            "value": 1163.800000000745
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 3100.10000000149
+            "value": 2962.7000000029802
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5744.100000005215
+            "value": 5525.499999996275
           }
         },
         "extraDiagnostics": {
@@ -2615,12 +2665,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 22,
-            "value": 417.7216119999357
+            "value": 417.99133899964
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 22,
-            "value": 865.2588770000075
+            "value": 865.3526040001561
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -2635,12 +2685,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 136,
-            "value": 161.3414019999327
+            "value": 161.51709100004882
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 136,
-            "value": 161.9085769999474
+            "value": 162.7740709997015
           }
         },
         "extraDiagnostics": {
@@ -2724,32 +2774,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 31,
-            "value": 3838.5
+            "value": 3841.800000000745
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 31,
-            "value": 5656.000000003725
+            "value": 5684.499999996275
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1136
+            "value": 1135.5999999977648
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1165.199999999255
+            "value": 1164.300000000745
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 2988.5
+            "value": 2991.800000000745
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 4686.621118016148
+            "value": 4715.1211180086975
           }
         },
         "extraDiagnostics": {
@@ -2833,12 +2883,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 31,
-            "value": 441.878470093234
+            "value": 441.7921150937948
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 31,
-            "value": 833.2200850000663
+            "value": 833.1337300006271
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -2853,12 +2903,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 130,
-            "value": 161.4924910000882
+            "value": 161.69242899978417
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 130,
-            "value": 162.43544200015822
+            "value": 168.01255600021977
           }
         },
         "extraDiagnostics": {
@@ -2944,32 +2994,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 26,
-            "value": 3237.3000000044703
+            "value": 3260.7999999970198
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 26,
-            "value": 4660.60000000149
+            "value": 4676.099999997765
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1133.1000000014901
+            "value": 1124.699999999255
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1168.1000000014901
+            "value": 1195
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 2991.900000002235
+            "value": 3003.7999999970198
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5526.356097562466
+            "value": 5510.656097559486
           }
         },
         "extraDiagnostics": {
@@ -3055,12 +3105,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 26,
-            "value": 417.21626599998126
+            "value": 417.6552310002662
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 26,
-            "value": 545.4695639997153
+            "value": 546.518074999396
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -3075,12 +3125,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 139,
-            "value": 161.8772939997216
+            "value": 161.68136299948674
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 139,
-            "value": 168.15472299968678
+            "value": 164.14931900054216
           }
         },
         "extraDiagnostics": {
@@ -3166,32 +3216,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 6397.300000000745
+            "value": 3810.199999999255
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 8918.79999999702
+            "value": 6566.800000000745
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 9,
-            "value": 1126.4000000022352
+            "value": 1171.199999999255
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 9,
-            "value": 4209.099999997765
+            "value": 1384.800000000745
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 9,
-            "value": 6518.5
+            "value": 4174.10000000149
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 9,
-            "value": 9122.56721311252
+            "value": 6809.36721311699
           }
         },
         "extraDiagnostics": {
@@ -3277,12 +3327,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 436.0927162454809
+            "value": 436.1427172460262
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 931.7674459999835
+            "value": 931.1002799996713
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -3297,12 +3347,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 155,
-            "value": 161.44935000020996
+            "value": 161.88963500063255
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 155,
-            "value": 166.17367299987382
+            "value": 164.3300399997388
           }
         },
         "extraDiagnostics": {
@@ -3382,32 +3432,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 16,
-            "value": 2917.199999999255
+            "value": 2908.099999997765
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 16,
-            "value": 4336.39999999851
+            "value": 4359.39999999851
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1132.0999999977648
+            "value": 1142.199999999255
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1184.7000000029802
+            "value": 1172.5
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 3009.39999999851
+            "value": 3020.39999999851
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 4669.090909090908
+            "value": 4735.590909090908
           }
         },
         "extraDiagnostics": {
@@ -3487,12 +3537,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 16,
-            "value": 420.73106199974427
+            "value": 417.66115299948433
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 16,
-            "value": 900.7310619997443
+            "value": 897.6611529994843
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -3507,12 +3557,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 129,
-            "value": 161.73274899993703
+            "value": 162.47387599979265
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 129,
-            "value": 166.96851900006368
+            "value": 164.87786500020593
           }
         },
         "extraDiagnostics": {
@@ -3596,32 +3646,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 38,
-            "value": 3941.400000002235
+            "value": 4411.60000000149
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 38,
-            "value": 5436.20000000298
+            "value": 5986.199999999255
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1122.199999999255
+            "value": 1178.300000000745
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1160.199999999255
+            "value": 1437.800000000745
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 2972.60000000149
+            "value": 3401.60000000149
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5514.7491978654325
+            "value": 6129.649197860217
           }
         },
         "extraDiagnostics": {
@@ -3705,12 +3755,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 38,
-            "value": 481.17086599989125
+            "value": 481.7144449997868
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 38,
-            "value": 865.1708659998912
+            "value": 865.7144449997868
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -3725,12 +3775,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 137,
-            "value": 161.4286879999854
+            "value": 161.96803000057844
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 137,
-            "value": 162.71528700018098
+            "value": 164.69717599976138
           }
         },
         "extraDiagnostics": {
@@ -3810,32 +3860,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 3456.60000000149
+            "value": 8849.699999999255
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 5141.20000000298
+            "value": 15653.900000002235
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1132.5999999977648
+            "value": 3695.800000000745
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1343.300000000745
+            "value": 3941.300000000745
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 2996.60000000149
+            "value": 8389.699999999255
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5778.095238098964
+            "value": 21075.795238098217
           }
         },
         "extraDiagnostics": {
@@ -3915,12 +3965,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 443.82527285686774
+            "value": 442.4179108573135
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 1026.5864149997215
+            "value": 1026.0086049993988
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -3935,12 +3985,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 150,
-            "value": 161.86595700001635
+            "value": 161.88653200025146
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 150,
-            "value": 165.98398999995698
+            "value": 163.65035500039812
           }
         },
         "extraDiagnostics": {
@@ -4026,32 +4076,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 3773.3000000044703
+            "value": 13699.800000000745
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 5880.800000000745
+            "value": 23512.699999999255
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 9,
-            "value": 1123.3999999985099
+            "value": 3684.7000000029802
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 9,
-            "value": 1156.300000000745
+            "value": 3850.10000000149
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 9,
-            "value": 3483.3000000044703
+            "value": 13409.800000000745
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 9,
-            "value": 6111.258823528668
+            "value": 26371.258823528668
           }
         },
         "extraDiagnostics": {
@@ -4137,12 +4187,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 449.0917890003366
+            "value": 449.5655920000863
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 897.1378670000777
+            "value": 897.8597039992965
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -4157,12 +4207,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 153,
-            "value": 161.52451000026122
+            "value": 161.80408799992438
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 153,
-            "value": 163.18094700009897
+            "value": 164.5882569997484
           }
         },
         "extraDiagnostics": {
@@ -4248,32 +4298,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 50,
-            "value": 4167.400000002235
+            "value": 4143.39999999851
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 50,
-            "value": 5129.10000000149
+            "value": 5106
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1132.5
+            "value": 1137
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1186.800000000745
+            "value": 1168.199999999255
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 3017.400000002235
+            "value": 2993.39999999851
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5733.073684212017
+            "value": 5747.773684211272
           }
         },
         "extraDiagnostics": {
@@ -4359,12 +4409,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 50,
-            "value": 451.0132639998992
+            "value": 449.55501400008507
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 50,
-            "value": 898.3131659999744
+            "value": 897.8000559998181
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -4379,12 +4429,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 133,
-            "value": 161.74461299998075
+            "value": 161.8356400000339
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 133,
-            "value": 165.43083199995453
+            "value": 170.28155599983438
           }
         },
         "extraDiagnostics": {
@@ -4464,32 +4514,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 3545.099999997765
+            "value": 3531.7999999970198
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 5009.899999994785
+            "value": 4995.099999997765
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1130.800000000745
+            "value": 1129.300000000745
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1172.800000000745
+            "value": 1155.699999999255
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 2985.099999997765
+            "value": 2971.7999999970198
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5325.0473282435305
+            "value": 5295.14732823757
           }
         },
         "extraDiagnostics": {
@@ -4569,12 +4619,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 449.3692249999149
+            "value": 449.2219819995589
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 961.3692249999149
+            "value": 961.5198870000386
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -4589,12 +4639,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 145,
-            "value": 161.7726969999312
+            "value": 161.51457400029176
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 145,
-            "value": 163.68021299977772
+            "value": 167.2243889994279
           }
         },
         "extraDiagnostics": {
@@ -4674,32 +4724,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 4467.900000002235
+            "value": 4224.80000000447
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 5958.5
+            "value": 5792.300000008196
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1160.699999999255
+            "value": 1191.9000000022352
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1364.7000000029802
+            "value": 1258.9000000022352
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 3333.900000002235
+            "value": 3267.1000000052154
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5749.198561153315
+            "value": 5649.89856116002
           }
         },
         "extraDiagnostics": {
@@ -4779,12 +4829,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 418.2705959999694
+            "value": 428.2507950004074
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 897.5436970001683
+            "value": 897.8470460003737
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -4799,12 +4849,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 150,
-            "value": 161.74412200017105
+            "value": 161.8959720004641
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 150,
-            "value": 164.19608599981802
+            "value": 167.7305849994882
           }
         },
         "extraDiagnostics": {
@@ -4882,32 +4932,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 3263
+            "value": 3688.099999997765
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 4344.899999994785
+            "value": 4758.19999999553
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1129
+            "value": 1138.5999999977648
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1166.5999999977648
+            "value": 1331.6000000014901
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 2978.5
+            "value": 3407.9999999962747
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5674.4123893760625
+            "value": 6079.712389376808
           }
         },
         "extraDiagnostics": {
@@ -4983,12 +5033,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 421.2522709997902
+            "value": 420.13349200011726
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 513.6206979998497
+            "value": 513.9174630001071
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -5003,12 +5053,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 134,
-            "value": 161.6272160000408
+            "value": 161.72928799970396
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 134,
-            "value": 167.50945600015984
+            "value": 163.27236400012043
           }
         },
         "extraDiagnostics": {
@@ -5088,32 +5138,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 3811.89999999851
+            "value": 9689.000000003725
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 5419.39999999851
+            "value": 16377.00000000745
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1140.699999999255
+            "value": 3488.800000000745
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1177.8999999985099
+            "value": 3871.800000000745
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 3031.89999999851
+            "value": 8909.000000003725
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 4845.89999999851
+            "value": 18212.100000005215
           }
         },
         "extraDiagnostics": {
@@ -5193,12 +5243,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 420.12244799963446
+            "value": 419.5220230001869
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 930.590854000071
+            "value": 931.380853999668
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -5213,12 +5263,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 126,
-            "value": 161.88653600020916
+            "value": 162.11624000025768
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 126,
-            "value": 164.56703499998912
+            "value": 167.9192289999337
           }
         },
         "extraDiagnostics": {
@@ -5304,32 +5354,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 3450.39999999851
+            "value": 8717.70000000298
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 5445.499999996275
+            "value": 10831.800000000745
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1130.5
+            "value": 1153.8999999985099
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1176.5999999977648
+            "value": 3525.199999999255
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 3020.7999999970198
+            "value": 8367.70000000298
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5318.015384610169
+            "value": 10704.315384618365
           }
         },
         "extraDiagnostics": {
@@ -5415,12 +5465,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 419.60627200007
+            "value": 419.09771800039016
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 865.0709810002918
+            "value": 865.4056129998135
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -5435,12 +5485,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 146,
-            "value": 161.76600600020538
+            "value": 161.4286650006834
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 146,
-            "value": 164.824714999766
+            "value": 163.72066299992002
           }
         },
         "extraDiagnostics": {
@@ -5524,32 +5574,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 38,
-            "value": 3998.5
+            "value": 3964.2000000029802
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 38,
-            "value": 5275.20000000298
+            "value": 5307.500000007451
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1125.4000000022352
+            "value": 1122.4000000022352
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1180
+            "value": 1173
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 2988.5
+            "value": 2954.2000000029802
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5189.719075145254
+            "value": 5227.319075150469
           }
         },
         "extraDiagnostics": {
@@ -5633,12 +5683,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 38,
-            "value": 481.5970189996988
+            "value": 481.19813300029637
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 38,
-            "value": 833.7714949999099
+            "value": 833.1981330002964
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -5653,12 +5703,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 148,
-            "value": 161.70309600020846
+            "value": 161.30081199990673
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 148,
-            "value": 162.5086220002304
+            "value": 162.26221100042312
           }
         },
         "extraDiagnostics": {
@@ -5738,32 +5788,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 3439.199999999255
+            "value": 3533.199999999255
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 6007.599999997765
+            "value": 6106.800000000745
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1128.5999999977648
+            "value": 1127
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1160
+            "value": 1195.1000000014901
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 2969.199999999255
+            "value": 3063.199999999255
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5084.199999999255
+            "value": 5183.800000000745
           }
         },
         "extraDiagnostics": {
@@ -5843,12 +5893,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 450.52102699955503
+            "value": 448.93797199992696
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 1028.1211890001687
+            "value": 1025.433519000282
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -5863,12 +5913,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 151,
-            "value": 161.65372000032949
+            "value": 161.38537600055133
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 151,
-            "value": 165.55592399991656
+            "value": 162.57390599967766
           }
         },
         "extraDiagnostics": {
@@ -5954,32 +6004,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 22,
-            "value": 3323.7999999970198
+            "value": 3313.1000000052154
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 22,
-            "value": 5439.7999999932945
+            "value": 5383.30000000447
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1130.699999999255
+            "value": 1127.3999999985099
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1178.0999999977648
+            "value": 1179.9000000022352
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 2993.1999999955297
+            "value": 2986.0000000037253
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 4687.662595413141
+            "value": 4631.162595424317
           }
         },
         "extraDiagnostics": {
@@ -6065,12 +6115,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 22,
-            "value": 420.2710919996789
+            "value": 418.1947270001401
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 22,
-            "value": 865.8463659998342
+            "value": 865.4048860006806
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -6085,12 +6135,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 130,
-            "value": 161.7776849999318
+            "value": 161.63954000022204
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 130,
-            "value": 165.44298499967044
+            "value": 165.36029600011534
           }
         },
         "extraDiagnostics": {
@@ -6174,32 +6224,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 34,
-            "value": 3695.2333333318456
+            "value": 3765.633333334081
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 34,
-            "value": 5653.79999999702
+            "value": 5737.500000003725
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1123.699999999255
+            "value": 1133
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1163.699999999255
+            "value": 1179.199999999255
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 2961.89999999851
+            "value": 3032.300000000745
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5340.090476188987
+            "value": 5420.2904761956925
           }
         },
         "extraDiagnostics": {
@@ -6283,12 +6333,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 34,
-            "value": 449.8998579998406
+            "value": 450.2804280001292
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 34,
-            "value": 1121.7694470001952
+            "value": 1121.6115479997534
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -6303,12 +6353,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 143,
-            "value": 161.62504799977614
+            "value": 161.8597140001002
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 143,
-            "value": 163.34504899997046
+            "value": 166.63349299925176
           }
         },
         "extraDiagnostics": {
@@ -6394,32 +6444,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 3786.864383557174
+            "value": 3731.9643835661145
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 5382.2999999932945
+            "value": 5322.500000003725
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1144.8999999985099
+            "value": 1137.1000000014901
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1179.2999999970198
+            "value": 1164.5
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 3030.6999999955297
+            "value": 2975.8000000044703
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 4759.610958895914
+            "value": 4681.21095890858
           }
         },
         "extraDiagnostics": {
@@ -6505,12 +6555,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 449.4584959998938
+            "value": 449.14043700018374
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 962.4750269998985
+            "value": 961.1404370001837
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -6525,12 +6575,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 130,
-            "value": 161.66445200006638
+            "value": 161.57373700080643
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 130,
-            "value": 163.946753000444
+            "value": 162.89769500018156
           }
         },
         "extraDiagnostics": {
@@ -6616,32 +6666,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 3492.5
+            "value": 3498.7000000029802
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 5313.188235295607
+            "value": 5256.988235292627
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1135.5
+            "value": 1126.8999999985099
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1191.300000000745
+            "value": 1186.9000000022352
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 2992.5
+            "value": 2998.7000000029802
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5663.6745098061565
+            "value": 5599.374509801686
           }
         },
         "extraDiagnostics": {
@@ -6727,12 +6777,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 429.0307707646407
+            "value": 427.0668207649778
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 835.5013589999362
+            "value": 833.5374090002733
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -6747,12 +6797,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 136,
-            "value": 161.68081399983566
+            "value": 161.50455900024826
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 136,
-            "value": 163.29561899975306
+            "value": 162.4712660001096
           }
         },
         "extraDiagnostics": {
@@ -6836,32 +6886,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 31,
-            "value": 3795.0000000037253
+            "value": 3713.3999999947846
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 31,
-            "value": 5843.600000005215
+            "value": 5723.0999999940395
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1139.1000000014901
+            "value": 1123.5
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1188.2000000029802
+            "value": 1172.5999999977648
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 3045.0000000037253
+            "value": 2963.3999999947846
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5268.014285718756
+            "value": 5142.314285708325
           }
         },
         "extraDiagnostics": {
@@ -6945,12 +6995,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 31,
-            "value": 481.09162299981836
+            "value": 482.077146999407
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 31,
-            "value": 1025.0916229998184
+            "value": 1026.077146999407
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -6965,12 +7015,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 149,
-            "value": 161.71176199996626
+            "value": 161.65033500020218
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 149,
-            "value": 164.39293599988378
+            "value": 163.24088899965136
           }
         },
         "extraDiagnostics": {
@@ -7050,32 +7100,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 3891.4000000059605
+            "value": 3587.400000002235
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 5605.100000005215
+            "value": 5177
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1140
+            "value": 1133.6000000014901
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1365.1000000014901
+            "value": 1193
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 3301.4000000059605
+            "value": 2997.400000002235
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5951.688059709688
+            "value": 5530.388059701492
           }
         },
         "extraDiagnostics": {
@@ -7155,12 +7205,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 421.0029028209501
+            "value": 421.5613268202869
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 23,
-            "value": 961.582512000321
+            "value": 961.9821919999667
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -7175,12 +7225,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 141,
-            "value": 161.8048239998716
+            "value": 161.75889199949597
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 141,
-            "value": 166.03987800009054
+            "value": 162.83223099945462
           }
         },
         "extraDiagnostics": {
@@ -7260,32 +7310,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 17,
-            "value": 3272.89999999851
+            "value": 3186.60000000149
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 17,
-            "value": 4796.20000000298
+            "value": 4652.199999999255
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1153.4000000022352
+            "value": 1118.5
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1177.800000000745
+            "value": 1161.3999999985099
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 3044
+            "value": 2935.10000000149
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 4836.203389834232
+            "value": 4631.703389830507
           }
         },
         "extraDiagnostics": {
@@ -7365,12 +7415,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 17,
-            "value": 417.5390609996284
+            "value": 425.38569100021414
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 17,
-            "value": 609.2894099999794
+            "value": 609.3667710004011
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -7385,12 +7435,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 129,
-            "value": 161.4469550000722
+            "value": 161.46594500024366
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 129,
-            "value": 167.2736930000683
+            "value": 167.2422389998319
           }
         },
         "extraDiagnostics": {
@@ -7476,32 +7526,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 41,
-            "value": 3443.2000000029802
+            "value": 3454.0000000037253
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 41,
-            "value": 5393.800000000745
+            "value": 5351.60000000149
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1129.699999999255
+            "value": 1121.8999999985099
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1171.1000000014901
+            "value": 1166.8999999985099
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 2963.2000000029802
+            "value": 2974.0000000037253
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5484.280281692372
+            "value": 5400.380281690137
           }
         },
         "extraDiagnostics": {
@@ -7587,12 +7637,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 41,
-            "value": 438.62457746466316
+            "value": 438.23057346547284
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 41,
-            "value": 1024.867740000056
+            "value": 1024.8913610003656
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -7607,12 +7657,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 140,
-            "value": 161.7627159999829
+            "value": 161.49548199938
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 140,
-            "value": 164.5618789999462
+            "value": 162.00686000011774
           }
         },
         "extraDiagnostics": {
@@ -7694,32 +7744,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 27,
-            "value": 3344.5000000037253
+            "value": 3368.7000000029802
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 27,
-            "value": 5320.800000008196
+            "value": 5336.10000000149
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1125.199999999255
+            "value": 1123.6000000014901
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1158.7000000029802
+            "value": 1160.300000000745
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 2949.0000000037253
+            "value": 2996.10000000149
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5148.814285723227
+            "value": 5160.614285716521
           }
         },
         "extraDiagnostics": {
@@ -7803,12 +7853,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 27,
-            "value": 420.6327851427668
+            "value": 421.09385814299094
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 27,
-            "value": 961.7659159997929
+            "value": 961.4617910005181
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -7823,12 +7873,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 149,
-            "value": 161.67258799997217
+            "value": 161.5555859994929
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 149,
-            "value": 163.3465989999495
+            "value": 162.27158000002237
           }
         },
         "extraDiagnostics": {
@@ -7908,32 +7958,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 22,
-            "value": 3480.7000000029802
+            "value": 3470.9999999962747
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 22,
-            "value": 4903.400000002235
+            "value": 4918.099999997765
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1126.9000000022352
+            "value": 1138.300000000745
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1184.300000000745
+            "value": 1169.5999999977648
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 3010.7000000029802
+            "value": 3000.9999999962747
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5268.937209303811
+            "value": 5298.337209298596
           }
         },
         "extraDiagnostics": {
@@ -8013,12 +8063,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 22,
-            "value": 416.9502880001928
+            "value": 416.9813669998475
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 22,
-            "value": 928.9502880001928
+            "value": 928.9813669998475
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -8033,12 +8083,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 147,
-            "value": 161.53147499981787
+            "value": 161.4053680001307
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 147,
-            "value": 164.3175750001392
+            "value": 162.11495400021522
           }
         },
         "extraDiagnostics": {
@@ -8122,32 +8172,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 50,
-            "value": 4207.800000000745
+            "value": 4183.19999999553
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 50,
-            "value": 5444.199999999255
+            "value": 5384.399999991059
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1131.5
+            "value": 1126.7999999970198
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 1177
+            "value": 1160.0999999977648
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 3007.800000000745
+            "value": 2983.7999999932945
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 8,
-            "value": 5645.585714286459
+            "value": 5574.185714276773
           }
         },
         "extraDiagnostics": {
@@ -8231,12 +8281,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 50,
-            "value": 449.23497699992004
+            "value": 451.3983879997759
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 50,
-            "value": 865.3758070003387
+            "value": 865.6119090000284
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -8251,12 +8301,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 135,
-            "value": 161.21531100007633
+            "value": 161.95115799983614
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 135,
-            "value": 162.37725600022532
+            "value": 163.71489699996164
           }
         },
         "extraDiagnostics": {
@@ -8336,32 +8386,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 16,
-            "value": 4801.999999992549
+            "value": 4713.200000010431
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 16,
-            "value": 5401.999999992549
+            "value": 5313.200000010431
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1138.5
+            "value": 1127.9000000022352
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1180.199999999255
+            "value": 1167.9000000022352
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 3053.3999999947846
+            "value": 2977.4000000059605
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 4657.753488365387
+            "value": 4576.853488381778
           }
         },
         "extraDiagnostics": {
@@ -8441,12 +8491,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 16,
-            "value": 449.6959859999115
+            "value": 449.3311239994873
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 16,
-            "value": 929.6959859999115
+            "value": 929.3311239994873
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -8461,12 +8511,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 132,
-            "value": 161.92743700012943
+            "value": 161.62525299988192
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 132,
-            "value": 167.37634099955176
+            "value": 162.64251799985504
           }
         },
         "extraDiagnostics": {
@@ -8546,32 +8596,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 3884.6000000089407
+            "value": 4336.20000000298
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 6072.400000009686
+            "value": 6473.200000010431
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 9,
-            "value": 1135.1000000014901
+            "value": 1125.1000000014901
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 9,
-            "value": 1180.9000000022352
+            "value": 1364.300000000745
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 9,
-            "value": 3554.6000000089407
+            "value": 4006.2000000029802
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 9,
-            "value": 6225.5588235405885
+            "value": 6642.158823538353
           }
         },
         "extraDiagnostics": {
@@ -8651,12 +8701,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 449.26108699982797
+            "value": 448.78469499971834
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 25,
-            "value": 865.261086999828
+            "value": 864.7846949997183
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -8671,12 +8721,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 153,
-            "value": 161.65829500015025
+            "value": 161.32694799999445
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 153,
-            "value": 162.36559399986436
+            "value": 162.22881200029224
           }
         },
         "extraDiagnostics": {
@@ -8760,32 +8810,32 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 44,
-            "value": 3948.800000000745
+            "value": 4070.7999999970198
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 44,
-            "value": 5419.636842103773
+            "value": 5573.636842103773
           },
           "inferenceLatencyP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1135.5
+            "value": 1129.8999999985099
           },
           "inferenceLatencyP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 1172.699999999255
+            "value": 1315.8999999985099
           },
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 3006.300000000745
+            "value": 3126.199999999255
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 7,
-            "value": 4630.1631578932465
+            "value": 4784.1631578932465
           }
         },
         "extraDiagnostics": {
@@ -8869,12 +8919,12 @@
           "finalizedFeedbackAgeP50Ms": {
             "status": "MEASURED",
             "sampleCount": 44,
-            "value": 480.95500199990784
+            "value": 481.1504539992966
           },
           "finalizedFeedbackAgeP95Ms": {
             "status": "MEASURED",
             "sampleCount": 44,
-            "value": 865.2655790000717
+            "value": 865.5121459995935
           },
           "inferenceLatencyP50Ms": {
             "status": "NOT_EVALUATED",
@@ -8889,12 +8939,12 @@
           "publicationDelayP50Ms": {
             "status": "MEASURED",
             "sampleCount": 131,
-            "value": 161.3953649999603
+            "value": 161.62918199971318
           },
           "publicationDelayP95Ms": {
             "status": "MEASURED",
             "sampleCount": 131,
-            "value": 162.82406999981322
+            "value": 162.14533999992273
           }
         },
         "extraDiagnostics": {
