@@ -219,7 +219,7 @@ export function auditContinuousPairedTakeCorpus(manifest: ContinuousPairedTakeMa
   };
 }
 
-export function detectContinuousSplitLeakage(takes: readonly ContinuousPairedTake[]): string[] {
+function detectContinuousSplitLeakage(takes: readonly ContinuousPairedTake[]): string[] {
   const byIdentity = new Map<string, Set<Split>>();
   for (const take of takes) {
     for (const identity of [take.audio.sha256, take.midi.sha256, take.captureSessionId]) {
