@@ -1,10 +1,10 @@
-import { resolvePracticeScope, type PracticeScoreArtifact, type PracticeScope, type ResolvedPracticeScope } from './artifact';
+import { resolvePracticeScope, type PracticeScoreArtifact, type PracticeScope } from './artifact';
 import type { LocalPracticeCompletionReason } from './session';
 import {
   ContinuousFinalizationLedger,
   type ContinuousEvaluationSnapshot,
 } from './continuous-finalization-ledger';
-import type { ExpectedStrike } from '../audio-analysis/continuous/performance-reconciler';
+import { buildContinuousExpectedStrikesFromTimeline } from './continuous-expected-strikes';
 import type { ObservedAttack } from '../audio-analysis/continuous/observed-attack';
 import type { CompletedContinuousEvaluation } from '../completed-performance';
 
@@ -29,7 +29,7 @@ export class ContinuousEvaluationSession {
   constructor(options: ContinuousEvaluationSessionOptions) {
     const scope = resolvePracticeScope(options.artifact, options.scope);
     this.ledger = new ContinuousFinalizationLedger({
-      expectedStrikes: buildExpectedStrikes(options.artifact, options.timeline, scope),
+      expectedStrikes: buildContinuousExpectedStrikesFromTimeline(options.artifact, options.timeline, scope),
       assignmentWindowMs: options.assignmentWindowMs ?? DEFAULT_ASSIGNMENT_WINDOW_MS,
     });
   }
@@ -61,24 +61,4 @@ export class ContinuousEvaluationSession {
   completedEvaluation(): CompletedContinuousEvaluation {
     return this.ledger.completedEvaluation();
   }
-}
-
-function buildExpectedStrikes(
-  artifact: PracticeScoreArtifact,
-  timeline: ContinuousEvaluationClock,
-  scope: ResolvedPracticeScope
-): ExpectedStrike[] {
-  const scopeStartTimeMs = timeline.beatToTimeMs(scope.startBeat);
-  return artifact.expectedPracticeGroups
-    .slice(scope.startIndex, scope.endIndex + 1)
-    .flatMap((group) => {
-      const performanceTimeMs = timeline.beatToTimeMs(group.onsetBeat) - scopeStartTimeMs;
-      return group.strikeTargets.map((strike) => ({
-        strikeId: strike.strikeId,
-        groupId: group.groupId,
-        pitch: strike.pitch,
-        expectedPerformanceTimeMs: performanceTimeMs,
-        renderNoteIds: strike.renderNoteIds,
-      }));
-    });
 }

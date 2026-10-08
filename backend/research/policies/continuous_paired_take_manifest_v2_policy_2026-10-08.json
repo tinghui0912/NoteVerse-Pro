@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 2,
+  "artifact": "continuous_paired_take_manifest_v2_policy",
+  "policyId": "continuous-paired-take-manifest-v2",
+  "policyVersion": "2026-10-08",
+  "sourceOfTruth": {
+    "expectedScore": "verified PracticeScoreArtifact + PracticeTempoSelection + PracticeScope",
+    "physicalTruth": "same-take browser capture MIDI event log or synchronized performance MIDI bytes",
+    "completion": "explicit NATURAL or MANUAL product/capture lifecycle boundary"
+  },
+  "captureContextRecommendation": {
+    "recommendedPreRollMs": 2000,
+    "recommendedPostRollMs": 2000,
+    "syntheticSilenceForEligibility": "FORBIDDEN"
+  },
+  "candidateEligibility": {
+    "bytedance-score-aware-chunked-dev-v1": "actual frozen chunk-plan source windows",
+    "online-amt-stateful-modern-compat-dev-v1": "onlineAmtSegmentTailRequirement"
+  },
+  "syncQuality": [
+    "SHARED_CAPTURE_CLOCK_VERIFIED",
+    "CALIBRATED_OFFSET",
+    "INSUFFICIENT_SYNCHRONIZATION"
+  ],
+  "splits": [
+    "DEVELOPMENT",
+    "CALIBRATION",
+    "EVALUATION"
+  ],
+  "evaluationLocking": {
+    "lockProjectionIncludes": [
+      "manifest ID/version/split",
+      "take IDs",
+      "capture session IDs",
+      "source audio hashes",
+      "source MIDI/capture-event hashes",
+      "PracticeScoreArtifact hashes",
+      "capture/sync identities",
+      "policy ID/version/hash"
+    ],
+    "lockedEvaluationManifestsMustMatchProjection": true
+  }
+}

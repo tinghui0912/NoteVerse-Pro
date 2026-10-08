@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "artifact": "public_proxy_dataset_bootstrap",
+  "generatedAt": "2026-10-08T06:36:35.997Z",
+  "datasetId": "vienna-4x22",
+  "dataset": {
+    "datasetId": "vienna-4x22",
+    "name": "The Vienna 4x22 Piano Corpus",
+    "sourceUrl": "https://datasets.mdw.ac.at/datasets/dataset/98ea25fa-2468-43ff-929b-3c926e163583",
+    "doi": "10.21939/4X22",
+    "version": "1.0.0 match-file ecosystem when using CPJKU/vienna4x22 metadata",
+    "license": "CC BY 4.0",
+    "roleAllowedInNoteVerseResearch": "PUBLIC_EXTERNAL_PROXY",
+    "mayParticipateInProductMetrics": false,
+    "status": "PUBLIC_EXTERNAL_PROXY_NOT_PRODUCT_CAPTURE",
+    "trainingOverlapStatus": "UNKNOWN",
+    "notes": "Real piano audio, performance MIDI, MusicXML score, and alignment/match data are useful for pipeline testing but were not captured against the NoteVerse configured Practice clock."
+  },
+  "status": "BLOCKED_SOURCE_NOT_AVAILABLE",
+  "blocker": "No --source-root supplied; large public datasets are not downloaded by default.",
+  "importedPerformanceCount": 0,
+  "productAccuracyMetric": false,
+  "mayEnterLockedProductEvaluation": false,
+  "registrySha256": "3bb957994b1fbae3b7b3b384fdde03c91832e49b0877681acb71d909747a583a"
+}

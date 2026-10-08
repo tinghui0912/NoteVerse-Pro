@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 2,
+  "artifact": "continuous_paired_take_manifest_v2_audit",
+  "generatedAt": "2026-10-08T06:36:35.527Z",
+  "manifest": {
+    "path": "backend/research/fixtures/continuous_paired_take_manifest_v2_empty_development_2026-10-08.json",
+    "available": true,
+    "sha256": "f46561110009b2429588a09af12279cdcc713ff1b56c495fbc4a22cb1e30bf52"
+  },
+  "takeCount": 0,
+  "scoreableTakeCount": 0,
+  "blockedTakeCount": 0,
+  "countsBySplit": {
+    "DEVELOPMENT": 0,
+    "CALIBRATION": 0,
+    "EVALUATION": 0
+  },
+  "countsByFamily": {},
+  "blockers": {},
+  "splitLeakage": [],
+  "candidateEligibility": {
+    "bytedance-score-aware-chunked-dev-v1": {},
+    "online-amt-stateful-modern-compat-dev-v1": {}
+  },
+  "realRecordedTakeCount": 0,
+  "scoreableRealTakeCount": 0,
+  "status": "CAPTURE_PIPELINE_READY",
+  "nextAction": "RECORD_REAL_PAIRED_DEVELOPMENT_TAKES",
+  "productAccuracyMetric": false,
+  "blocker": null
+}

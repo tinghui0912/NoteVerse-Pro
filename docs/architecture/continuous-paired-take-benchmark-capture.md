@@ -1,6 +1,6 @@
 # Continuous Paired-Take Benchmark Capture
 
-Status: Phase 9F-A research-only contract.
+Status: Phase 9F-A.1 research-only contract.
 
 This document defines the source-of-truth boundary for future Continuous Practice v2 acoustic benchmark takes. It does not enable production microphone Practice and does not select a model winner.
 
@@ -9,7 +9,7 @@ This document defines the source-of-truth boundary for future Continuous Practic
 The benchmark unit is one complete Continuous performance take:
 
 - PracticeScoreArtifact identity
-- configured BPM and scope
+- PracticeTempoSelection and PracticeScope
 - performanceTime = 0 boundary
 - authoritative NATURAL or MANUAL completion
 - microphone PCM from that exact take
@@ -18,13 +18,13 @@ The benchmark unit is one complete Continuous performance take:
 - pre-roll and post-roll context
 - immutable source hashes
 
-ExpectedStrike[] comes from PracticeScoreArtifact + BPM + scope + start. It must not be derived from physical MIDI. Physical MIDI records what the performer actually played, including wrong notes, missing notes, extras, repeated attacks, velocity, and pedal/control metadata.
+ExpectedStrike[] is never a source-manifest field. It is derived by the same product-domain builder used by ContinuousEvaluationSession from PracticeScoreArtifact + PracticeTempoSelection + PracticeScope. Physical MIDI records what the performer actually played, including wrong notes, missing notes, extras, repeated attacks, velocity, and pedal/control metadata. A perfectly correct physical MIDI performance may match the expected score exactly; provenance comes from verified score artifacts, not from forcing score/performance differences.
 
 ## Capture Harness Contract
 
-A research browser harness may reuse lower-level Practice primitives, but it remains outside production Practice UI. It must support loading a PracticeScoreArtifact, configuring BPM/scope/start, selecting microphone and MIDI inputs, Begin Take, Manual Stop, Natural completion, optional pause/resume, source PCM sample counters, physical MIDI capture, and export of raw artifacts plus a ContinuousPairedTakeManifest v1.
+A research browser harness may reuse lower-level Practice primitives, but it remains outside production Practice UI. It must support loading a PracticeScoreArtifact, configuring tempo/scope/start, selecting microphone and MIDI inputs, Begin Take, Manual Stop, Natural completion, optional pause/resume, source PCM sample counters, physical MIDI capture, and export of raw artifacts plus a ContinuousPairedTakeManifest v2.
 
-No recognition model output is required during capture.
+No recognition model output is required during capture. The research-only route is `/research/continuous-capture` under the localized workspace app.
 
 ## Clock Mapping
 
@@ -55,7 +55,11 @@ Timing metrics require one of:
 
 Supported splits are DEVELOPMENT, CALIBRATION, and EVALUATION. Source audio hash, MIDI hash, and capture session identity must not leak across protected splits.
 
-An EVALUATION manifest must be lockable by canonical manifest SHA256, take IDs, audio/MIDI hashes, score artifact hashes, and policy version. Phase 9F-A does not populate or inspect EVALUATION for tuning.
+An EVALUATION manifest must carry an executable lock projection. The lock includes manifest ID/version/split, take IDs, capture session IDs, source audio hashes, MIDI/capture-event hashes, PracticeScoreArtifact hashes, sync identities, and policy identity. Phase 9F-A.1 does not populate or inspect EVALUATION for tuning.
+
+## Public Proxy Datasets
+
+Public datasets may test pipeline mechanics, but they do not replace native NoteVerse product-capture EVALUATION. Vienna 4x22 is the first preferred proxy because it has real piano audio, performance MIDI, MusicXML score, and alignment data under CC BY 4.0. Its role is `PUBLIC_EXTERNAL_PROXY_NOT_PRODUCT_CAPTURE`, not locked product evidence. MAESTRO/ASAP/nASAP are `KNOWN_TRAINING_OVERLAP_PROXY_ONLY` because the frozen candidates document MAESTRO-family exposure. SMD, MAPS, and GiantMIDI-Piano have separate proxy roles in `backend/research/policies/public_piano_dataset_registry_2026-10-08.json`.
 
 ## Development Matrix
 
@@ -86,8 +90,17 @@ Audit an empty or recorded manifest before candidate execution:
 ```bash
 node backend/research/browser_runtime/audit_continuous_paired_take_manifest.mjs \
   --repo-root . \
-  --manifest backend/research/fixtures/continuous_paired_take_manifest_v1_empty_development_2026-10-08.json \
-  --output backend/research/reports/continuous_paired_take_manifest_v1_audit_2026-10-08.json
+  --manifest backend/research/fixtures/continuous_paired_take_manifest_v2_empty_development_2026-10-08.json \
+  --output backend/research/reports/continuous_paired_take_manifest_v2_audit_2026-10-08.json
 ```
 
-The current Phase 9F-A fixture intentionally contains zero real takes and reports `CAPTURE_PIPELINE_READY`.
+Bootstrap a public proxy dataset without downloading large archives by default:
+
+```bash
+node backend/research/browser_runtime/bootstrap_public_proxy_dataset.mjs \
+  --repo-root . \
+  --dataset vienna-4x22 \
+  --output backend/research/reports/vienna_4x22_public_proxy_bootstrap_2026-10-08.json
+```
+
+The current fixture intentionally contains zero real takes and reports `CAPTURE_PIPELINE_READY` only for schema/capture readiness. Real product accuracy remains blocked until same-take microphone + physical-MIDI DEVELOPMENT takes are recorded.

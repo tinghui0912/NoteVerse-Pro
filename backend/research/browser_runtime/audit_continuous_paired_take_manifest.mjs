@@ -1,108 +1,66 @@
 #!/usr/bin/env node
 // Research-only validator for Continuous Practice v2 paired-take manifests.
-// It audits source-of-truth readiness before any acoustic candidate is run.
+// The policy lives in apps/customer-web TypeScript; this CLI is only a Node entry point.
 
 import { createHash } from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { createJiti } from '../../../apps/customer-web/node_modules/jiti/lib/jiti.mjs';
 
 const args = parseArgs(process.argv);
 const repoRoot = path.resolve(args['repo-root'] ?? process.cwd());
-const manifestRel = args.manifest ?? 'backend/data/work/continuous/continuous_paired_take_manifest_v1.json';
-const outputRel = args.output ?? 'backend/research/reports/continuous_paired_take_manifest_v1_audit_2026-10-08.json';
+const manifestRel = args.manifest ?? 'backend/research/fixtures/continuous_paired_take_manifest_v2_empty_development_2026-10-08.json';
+const outputRel = args.output ?? 'backend/research/reports/continuous_paired_take_manifest_v2_audit_2026-10-08.json';
 const manifestPath = path.resolve(repoRoot, manifestRel);
 const outputPath = path.resolve(repoRoot, outputRel);
 
+const jiti = createJiti(import.meta.url, { alias: { '@': path.join(repoRoot, 'apps/customer-web/src') } });
+const corpus = await jiti.import(path.join(repoRoot, 'apps/customer-web/src/lib/practice/research/continuous-paired-take-corpus.ts'));
+
 let manifest = null;
+let audit = null;
 let blocker = null;
 try {
   manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-  validateManifest(manifest);
+  audit = corpus.auditContinuousPairedTakeCorpus(manifest, { repoRoot });
+  if (audit.splitLeakage?.length) {
+    blocker = `split leakage: ${audit.splitLeakage.join('; ')}`;
+  }
 } catch (error) {
   blocker = error instanceof Error ? error.message : String(error);
 }
 
 const takes = Array.isArray(manifest?.takes) ? manifest.takes : [];
-const audit = {
-  schemaVersion: 1,
-  artifact: 'continuous_paired_take_manifest_v1_audit',
+const report = {
+  schemaVersion: 2,
+  artifact: 'continuous_paired_take_manifest_v2_audit',
   generatedAt: new Date().toISOString(),
   manifest: {
     path: manifestRel,
     available: Boolean(manifest),
     sha256: manifest ? sha256Json(manifest) : null,
   },
-  takeCount: takes.length,
-  scoreableTakeCount: blocker ? 0 : takes.length,
-  blockedTakeCount: blocker ? takes.length : 0,
-  countsBySplit: countBy(takes, (take) => take.split),
-  countsByFamily: countFamilies(takes),
-  splitLeakage: manifest ? detectLeakage(takes) : [],
+  ...(audit ?? {
+    takeCount: takes.length,
+    scoreableTakeCount: 0,
+    blockedTakeCount: takes.length,
+    countsBySplit: manifest?.split ? { [manifest.split]: takes.length } : {},
+    countsByFamily: {},
+    blockers: Object.fromEntries(takes.map((take) => [take.takeId ?? 'unknown', [blocker ?? 'Manifest validation failed.']])),
+    splitLeakage: [],
+    candidateEligibility: {},
+    realRecordedTakeCount: 0,
+    scoreableRealTakeCount: 0,
+    status: 'BLOCKED',
+    nextAction: 'RECORD_REAL_PAIRED_DEVELOPMENT_TAKES',
+    productAccuracyMetric: false,
+  }),
   blocker,
-  realRecordedTakeCount: takes.length,
-  scoreableRealTakeCount: blocker ? 0 : takes.length,
-  status: blocker ? 'BLOCKED' : (takes.length === 0 ? 'CAPTURE_PIPELINE_READY' : 'PASS'),
-  nextAction: takes.length === 0 ? 'RECORD_REAL_PAIRED_DEVELOPMENT_TAKES' : 'RUN_FROZEN_DEVELOPMENT_CANDIDATES_ONLY',
-  productAccuracyMetric: false,
 };
 
 await mkdir(path.dirname(outputPath), { recursive: true });
-await writeFile(outputPath, `${JSON.stringify(audit, null, 2)}\n`);
+await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
 console.log(outputRel);
-
-function validateManifest(input) {
-  if (input.schemaVersion !== 1 || !input.manifestId || !Array.isArray(input.takes)) {
-    throw new Error('Manifest requires schemaVersion 1, manifestId, and takes array.');
-  }
-  const leakage = detectLeakage(input.takes);
-  if (leakage.length > 0) throw new Error(`split leakage: ${leakage.join('; ')}`);
-  for (const take of input.takes) validateTake(take);
-}
-
-function validateTake(take) {
-  if (!take.takeId || !take.captureSessionId) throw new Error('take identity missing');
-  if (!take.product?.completion?.kind || !Number.isFinite(take.product.completion.performanceTimeMs)) {
-    throw new Error(`${take.takeId}: missing authoritative completion`);
-  }
-  if (!take.score?.practiceScoreArtifactSha256 || !Array.isArray(take.score.expectedStrikes) || take.score.expectedStrikes.length === 0) {
-    throw new Error(`${take.takeId}: missing PracticeScoreArtifact-derived expected strikes`);
-  }
-  if (!take.audio?.sha256 || !take.midi?.sha256 || take.midi.sameTake !== true) {
-    throw new Error(`${take.takeId}: audio/MIDI same-take identities are required`);
-  }
-  if (take.sync?.quality === 'INSUFFICIENT_SYNCHRONIZATION') {
-    throw new Error(`${take.takeId}: insufficient synchronization`);
-  }
-}
-
-function detectLeakage(takes) {
-  const byIdentity = new Map();
-  for (const take of takes) {
-    for (const identity of [take.audio?.sha256, take.midi?.sha256, take.captureSessionId].filter(Boolean)) {
-      const splits = byIdentity.get(identity) ?? new Set();
-      splits.add(take.split);
-      byIdentity.set(identity, splits);
-    }
-  }
-  return [...byIdentity.entries()]
-    .filter(([, splits]) => splits.size > 1)
-    .map(([identity, splits]) => `${identity} appears in ${[...splits].sort().join(',')}`);
-}
-
-function countBy(items, fn) {
-  return items.reduce((counts, item) => {
-    const key = fn(item) ?? 'UNKNOWN';
-    counts[key] = (counts[key] ?? 0) + 1;
-    return counts;
-  }, {});
-}
-
-function countFamilies(takes) {
-  return takes.reduce((counts, take) => {
-    for (const tag of take.taxonomy ?? []) counts[tag] = (counts[tag] ?? 0) + 1;
-    return counts;
-  }, {});
-}
 
 function sha256Json(value) {
   return createHash('sha256').update(canonicalJson(value)).digest('hex');

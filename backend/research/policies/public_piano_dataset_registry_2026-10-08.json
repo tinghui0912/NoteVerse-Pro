@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "artifact": "public_piano_dataset_registry",
+  "policyVersion": "2026-10-08",
+  "datasets": [
+    {
+      "datasetId": "vienna-4x22",
+      "name": "The Vienna 4x22 Piano Corpus",
+      "sourceUrl": "https://datasets.mdw.ac.at/datasets/dataset/98ea25fa-2468-43ff-929b-3c926e163583",
+      "doi": "10.21939/4X22",
+      "version": "1.0.0 match-file ecosystem when using CPJKU/vienna4x22 metadata",
+      "license": "CC BY 4.0",
+      "roleAllowedInNoteVerseResearch": "PUBLIC_EXTERNAL_PROXY",
+      "mayParticipateInProductMetrics": false,
+      "status": "PUBLIC_EXTERNAL_PROXY_NOT_PRODUCT_CAPTURE",
+      "trainingOverlapStatus": "UNKNOWN",
+      "notes": "Real piano audio, performance MIDI, MusicXML score, and alignment/match data are useful for pipeline testing but were not captured against the NoteVerse configured Practice clock."
+    },
+    {
+      "datasetId": "maestro",
+      "name": "MAESTRO",
+      "sourceUrl": "https://magenta.withgoogle.com/datasets/maestro",
+      "version": "v2/v3 metadata only unless explicitly selected locally",
+      "license": "CC BY-NC-SA 4.0",
+      "roleAllowedInNoteVerseResearch": "KNOWN_TRAINING_OVERLAP_PROXY_ONLY",
+      "mayParticipateInProductMetrics": false,
+      "trainingOverlapStatus": "KNOWN_OVERLAP",
+      "notes": "Both frozen candidates document MAESTRO-family exposure; do not use for official ByteDance-vs-Online-AMT selection."
+    },
+    {
+      "datasetId": "asap-nasap",
+      "name": "ASAP / nASAP",
+      "sourceUrl": "https://github.com/fosfrancesco/asap-dataset",
+      "version": "metadata-only registry entry",
+      "license": "dataset-specific",
+      "roleAllowedInNoteVerseResearch": "KNOWN_TRAINING_OVERLAP_PROXY_ONLY",
+      "mayParticipateInProductMetrics": false,
+      "trainingOverlapStatus": "KNOWN_OVERLAP",
+      "notes": "ASAP audio is MAESTRO-derived in common uses; keep as diagnostic metadata unless future provenance proves otherwise."
+    },
+    {
+      "datasetId": "smd",
+      "name": "Saarland Music Data MIDI-Audio Piano Music",
+      "sourceUrl": "https://audiolabs-erlangen.com/resources/MIR/SMD/midi",
+      "version": "v2 metadata/downloader support candidate",
+      "license": "dataset-specific",
+      "roleAllowedInNoteVerseResearch": "PUBLIC_EXTERNAL_ACOUSTIC_PROXY",
+      "mayParticipateInProductMetrics": false,
+      "trainingOverlapStatus": "UNKNOWN",
+      "notes": "Real human Disklavier performances with synchronized audio/MIDI, but score identity must be bound independently before product metrics."
+    },
+    {
+      "datasetId": "maps",
+      "name": "MAPS",
+      "sourceUrl": "https://www.tsi.telecom-paristech.fr/aao/en/2010/07/08/maps-database-a-piano-database-for-multipitch-estimation-and-automatic-transcription-of-music/",
+      "version": "registry only",
+      "license": "dataset-specific",
+      "roleAllowedInNoteVerseResearch": "GENERATED_OR_DISKLAVIER_ACOUSTIC_PROXY",
+      "mayParticipateInProductMetrics": false,
+      "trainingOverlapStatus": "UNKNOWN",
+      "notes": "Useful for isolated acoustic regression; not a same-take human NoteVerse Practice benchmark."
+    },
+    {
+      "datasetId": "giantmidi-piano",
+      "name": "GiantMIDI-Piano",
+      "sourceUrl": "https://arxiv.org/abs/2010.07061",
+      "version": "registry only",
+      "license": "dataset-specific",
+      "roleAllowedInNoteVerseResearch": "NOT_PHYSICAL_GROUND_TRUTH",
+      "mayParticipateInProductMetrics": false,
+      "trainingOverlapStatus": "UNKNOWN",
+      "notes": "Symbolic/transcribed corpus; not same-take physical acoustic truth."
+    }
+  ]
+}
