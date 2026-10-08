@@ -11,12 +11,16 @@ import {
   assertPrimaryFixedGridProvenance,
   assertPublicDatasetMayEnterWinnerEvidence,
   buildPublicDiagnosticBakeoffReport,
+  buildPublicPairedComparison,
   canonicalPublicScenarioManifestSha256,
+  decideSecondaryHumanFixedBpmProxy,
   decideOverallPublicEvidence,
   productIntegerBpm,
+  publicProxyBootstrapCi,
   scoreFixedGridGroundTruthWithLedger,
   validatePublicScenarioManifest,
   validateSecondaryViennaFit,
+  PUBLIC_PROXY_BOOTSTRAP_CONFIG,
   type PublicDatasetProvenance,
   type PublicScenarioManifest,
 } from './public-fixed-bpm-benchmark';
@@ -362,5 +366,91 @@ describe('public fixed-BPM benchmark policy', () => {
       .toBe('PREFERRED_ON_SECONDARY_HUMAN_PROXY');
     expect(decideOverallPublicEvidence({ primary: 'BYTE_DANCE_BETTER', secondary: 'NO_CLEAR_WINNER' }))
       .toBe('PREFERRED_ON_PUBLIC_FIXED_BPM_EVIDENCE');
+  });
+
+  it('uses a bootstrap that is not degenerate for nonconstant 32-element vectors', () => {
+    const values = Array.from({ length: 32 }, (_, index) => (index % 5) / 100);
+    const ci = publicProxyBootstrapCi(values);
+    expect(ci.draws).toBeGreaterThanOrEqual(5_000);
+    expect(ci.high).toBeGreaterThan(ci.low);
+  });
+
+  it('keeps bootstrap deterministic and degenerate only for constant vectors', () => {
+    const constant = Array.from({ length: 32 }, () => 0.25);
+    expect(publicProxyBootstrapCi(constant)).toEqual(publicProxyBootstrapCi(constant));
+    const ci = publicProxyBootstrapCi(constant);
+    expect(ci.low).toBe(0.25);
+    expect(ci.high).toBe(0.25);
+  });
+
+  it.each([8, 12, 19, 30, 32, 33])('avoids low-bit modulo artifacts for sample length %i', (length) => {
+    const values = Array.from({ length }, (_, index) => (index % 7) / 50);
+    const ci = publicProxyBootstrapCi(values);
+    expect(ci.high).toBeGreaterThan(ci.low);
+  });
+
+  it('requires at least 5000 bootstrap draws in public paired reports', () => {
+    expect(PUBLIC_PROXY_BOOTSTRAP_CONFIG.draws).toBeGreaterThanOrEqual(5_000);
+    expect(() => publicProxyBootstrapCi([0, 1], { seed: 1, draws: 100 }))
+      .toThrow(/at least 5000/);
+  });
+
+  it('applies safety vetoes and insufficient-family conservatism in the shared decision policy', () => {
+    const measured = (diff: number, low: number, high: number, sampleCount = 32) => ({
+      status: 'MEASURED' as const,
+      sampleCount,
+      meanDifferenceByteDanceMinusOnlineAmt: diff,
+      bootstrap95Ci: { low, high, seed: 13_371, draws: 5_000 },
+    });
+    const notEvaluated = {
+      status: 'NOT_EVALUATED' as const,
+      sampleCount: 0,
+      meanDifferenceByteDanceMinusOnlineAmt: null,
+      bootstrap95Ci: null,
+    };
+    const paired = (verdictDiff: number, safetyDiff = 0) => ({
+      pairedScenarioCount: 32,
+      bootstrap: PUBLIC_PROXY_BOOTSTRAP_CONFIG,
+      metrics: {
+        verdictAgreementRate: measured(verdictDiff, verdictDiff - 0.02, verdictDiff + 0.02),
+        falseMatchRateOnGroundTruthMissing: measured(safetyDiff, safetyDiff - 0.001, safetyDiff + 0.001),
+        correctMissingRate: measured(0, -0.001, 0.001),
+        chordExactCompletenessRate: measured(0, -0.001, 0.001),
+        falseCompleteChordAcceptanceRate: measured(0, -0.001, 0.001),
+        expectedStrikeRecall: measured(0, -0.001, 0.001),
+        extraPrecision: measured(0, -0.001, 0.001),
+        extraRecall: measured(0, -0.001, 0.001),
+        timingAbsoluteMedianMs: measured(0, -0.001, 0.001),
+        timingAbsoluteP95Ms: measured(0, -0.001, 0.001),
+      },
+    });
+    const sufficientFamilies = {
+      COUNTERFACTUAL_MISSING_NOTE: { status: 'MEASURED' as const, paired: paired(0.02) },
+      COUNTERFACTUAL_WRONG_SEMITONE: { status: 'MEASURED' as const, paired: paired(0.02) },
+      COUNTERFACTUAL_INCOMPLETE_CHORD: { status: 'MEASURED' as const, paired: paired(0.02) },
+    };
+    expect(decideSecondaryHumanFixedBpmProxy({ base: paired(0.03), families: sufficientFamilies }))
+      .toBe('BYTE_DANCE_BETTER');
+    expect(decideSecondaryHumanFixedBpmProxy({ base: paired(-0.03), families: sufficientFamilies }))
+      .toBe('ONLINE_AMT_BETTER');
+    expect(decideSecondaryHumanFixedBpmProxy({
+      base: paired(0.03),
+      families: {
+        ...sufficientFamilies,
+        COUNTERFACTUAL_MISSING_NOTE: { status: 'MEASURED', paired: paired(0.03, 0.02) },
+      },
+    })).toBe('NO_CLEAR_WINNER');
+    expect(decideSecondaryHumanFixedBpmProxy({
+      base: paired(0.03),
+      families: {
+        ...sufficientFamilies,
+        COUNTERFACTUAL_WRONG_SEMITONE: {
+          status: 'INSUFFICIENT_FAMILY_EVIDENCE',
+          paired: { ...paired(0.03), metrics: { ...paired(0.03).metrics, verdictAgreementRate: notEvaluated } },
+        },
+      },
+    })).toBe('NO_CLEAR_WINNER');
+    expect(decideSecondaryHumanFixedBpmProxy({ base: paired(0.005), families: sufficientFamilies }))
+      .toBe('NO_CLEAR_WINNER');
   });
 });

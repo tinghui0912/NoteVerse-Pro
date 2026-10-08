@@ -21,7 +21,9 @@ const BYTE_DANCE_MODEL_SHA256 = '6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876
 const BYTE_DANCE_MODEL_BYTES = 98_691_493;
 const ONLINE_AMT_CHECKPOINT_SHA256 = '54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0';
 const ONLINE_AMT_CHECKPOINT_BYTES = 178_804_960;
-const DEFAULT_MAX_SCENARIOS = 20;
+const DEFAULT_MAX_SCENARIOS = 32;
+const COUNTERFACTUAL_TARGET_PER_FAMILY = 12;
+const COUNTERFACTUAL_MIN_EVIDENCE_PER_FAMILY = 8;
 const DEFAULT_SCOPE_TARGET_MS = 4_000;
 const DEFAULT_SCOPE_MIN_MS = 4_000;
 const DEFAULT_SCOPE_MAX_MS = 12_000;
@@ -36,12 +38,13 @@ const workRootRel = args['work-root'] ?? 'backend/data/work/public_proxy/vienna-
 const workRoot = path.resolve(repoRoot, workRootRel);
 const outputDirRel = args['output-dir'] ?? 'backend/research/reports';
 const outputDir = path.resolve(repoRoot, outputDirRel);
-const manifestRel = args['scenario-manifest'] ?? 'backend/research/reports/vienna_fixed_bpm_proxy_scenarios_phase9fb1_2026-10-08.json';
+const manifestRel = args['scenario-manifest'] ?? 'backend/research/reports/vienna_fixed_bpm_proxy_final_scenarios_phase9fb3_2026-10-08.json';
 const manifestPath = path.resolve(repoRoot, manifestRel);
-const reportRel = args.output ?? 'backend/research/reports/vienna_fixed_bpm_proxy_comparison_phase9fb1_2026-10-08.json';
+const reportRel = args.output ?? 'backend/research/reports/vienna_fixed_bpm_proxy_final_comparison_phase9fb3_2026-10-08.json';
 const reportPath = path.resolve(repoRoot, reportRel);
 const maxScenarios = Number(args['max-scenarios'] ?? DEFAULT_MAX_SCENARIOS);
 const implementationGitHead = gitHead(repoRoot);
+const dirtyTreeAtExecution = gitDirty(repoRoot);
 const require = createRequire(import.meta.url);
 const { createJiti } = require(path.resolve(repoRoot, 'apps/customer-web/node_modules/jiti'));
 const jiti = createJiti(import.meta.url);
@@ -67,12 +70,19 @@ for (const performance of binding.performances) {
   skippedScopes.push(...built.skipped);
 }
 const selectedScenarioItems = selectStratifiedScenarios(scenarioPool, maxScenarios);
-const scenarios = selectedScenarioItems.map((item) => item.scenario);
-const scenarioReceipts = selectedScenarioItems.map((item) => item.receipt);
+const counterfactualItems = buildCounterfactualScenarioItems(selectedScenarioItems, scoreArtifacts);
+const scenarioItems = [...selectedScenarioItems, ...counterfactualItems];
+const scenarios = scenarioItems.map((item) => item.scenario);
+const scenarioReceipts = scenarioItems.map((item) => item.receipt);
+const baseScenarios = selectedScenarioItems.map((item) => item.scenario);
+const baseScenarioReceipts = selectedScenarioItems.map((item) => item.receipt);
+const counterfactualReceipts = counterfactualItems.map((item) => item.receipt);
+const scenarioFamilies = [...new Set(scenarios.flatMap((scenario) => scenario.familyTags)
+  .filter((tag) => tag === 'BASE_ORIGINAL' || tag.startsWith('COUNTERFACTUAL_')))];
 
 const publicManifest = {
   schemaVersion: 1,
-  manifestId: 'phase9f-b1-vienna-secondary-human-fixed-bpm-proxy-v1',
+  manifestId: 'phase9f-b3-vienna-secondary-human-fixed-bpm-proxy-v1',
   layer: 'SECONDARY_HUMAN_FIXED_BPM_PROXY',
   dataset: {
     datasetId: 'vienna-4x22',
@@ -82,7 +92,7 @@ const publicManifest = {
     role: 'SECONDARY_HUMAN_FIXED_BPM_PROXY',
     trainingOverlapStatus: 'UNKNOWN',
   },
-  scenarioFamilies: ['BASE_ORIGINAL'],
+  scenarioFamilies,
   scenarioIds: scenarios.map((scenario) => scenario.scenarioId),
   scenarioManifestFrozenBeforeInference: true,
   frozenAt: new Date().toISOString(),
@@ -92,7 +102,7 @@ const publicManifest = {
 if (scenarios.length === 0) {
   await writeFile(reportPath, `${JSON.stringify({
     schemaVersion: 1,
-    artifact: 'phase9f_b1_vienna_fixed_bpm_proxy_blocked_before_inference',
+    artifact: 'phase9f_b3_vienna_secondary_blocked_before_inference',
     implementationGitHead,
     acquisition,
     bindingSummary: {
@@ -110,7 +120,7 @@ const manifestSha256 = publicContract.canonicalPublicScenarioManifestSha256(publ
 
 await writeFile(manifestPath, `${JSON.stringify({
   schemaVersion: 1,
-  artifact: 'vienna_fixed_bpm_proxy_scenario_manifest',
+  artifact: 'phase9f_b3_vienna_secondary_final_scenarios',
   implementationGitHead,
   scenarioManifestFrozenBeforeInference: true,
   publicManifest,
@@ -118,28 +128,53 @@ await writeFile(manifestPath, `${JSON.stringify({
   metadataCommit: VIENNA_METADATA_COMMIT,
   audioZip: acquisition.audioZip,
   intersectionCount: binding.intersectionCount,
-    scenarioReceipts,
+  scenarioReceipts,
+  counterfactualReceipts,
   practiceScoreArtifacts: [...scoreArtifacts.values()].map((item) => item.receipt),
   scenarios,
 }, null, 2)}\n`);
 
 const runs = [];
+const runReceipts = [];
 const failures = [];
 const byteDanceDefinition = byteDance.bytedanceCandidateDefinition({ gitHead: implementationGitHead, trainingDataOverlapStatus: 'UNKNOWN' });
 const onlineAmtDefinition = onlineAmt.onlineAmtCandidateDefinition({ gitHead: implementationGitHead, trainingDataOverlapStatus: 'UNKNOWN' });
 
-for (const scenario of scenarios) {
+for (const scenario of baseScenarios) {
   try {
     const run = await runByteDanceScenario(scenario);
     runs.push(run);
+    runReceipts.push(candidateRunReceipt({ scenario, run, mode: 'REAL_RUN', scenarioManifestSha256: manifestSha256, runtime: 'real-ort-web-wasm-vienna-public-proxy' }));
   } catch (error) {
     failures.push({ candidateId: BYTEDANCE_CANDIDATE_ID, scenarioId: scenario.scenarioId, error: errorMessage(error) });
   }
   try {
     const run = await runOnlineAmtScenario(scenario);
     runs.push(run);
+    runReceipts.push(candidateRunReceipt({ scenario, run, mode: 'REAL_RUN', scenarioManifestSha256: manifestSha256, runtime: 'real-online-amt-modern-docker-vienna-public-proxy' }));
   } catch (error) {
     failures.push({ candidateId: ONLINE_AMT_CANDIDATE_ID, scenarioId: scenario.scenarioId, error: errorMessage(error) });
+  }
+}
+const baseRunByScenarioAndCandidate = new Map(runs.map((run) => [`${run.scenarioId}|${run.candidateId}`, run]));
+for (const item of counterfactualItems) {
+  for (const candidateId of [BYTEDANCE_CANDIDATE_ID, ONLINE_AMT_CANDIDATE_ID]) {
+    const baseRun = baseRunByScenarioAndCandidate.get(`${item.receipt.baseScenarioId}|${candidateId}`);
+    if (!baseRun) {
+      failures.push({ candidateId, scenarioId: item.scenario.scenarioId, error: 'Missing base run for acoustic evidence reuse.' });
+      continue;
+    }
+    const run = reuseCandidateRunForCounterfactual(baseRun, item.scenario);
+    runs.push(run);
+    runReceipts.push(candidateRunReceipt({
+      scenario: item.scenario,
+      run,
+      mode: 'REUSED_IDENTICAL_ACOUSTIC_EVIDENCE',
+      scenarioManifestSha256: manifestSha256,
+      runtime: candidateId === BYTEDANCE_CANDIDATE_ID
+        ? 'real-ort-web-wasm-vienna-public-proxy'
+        : 'real-online-amt-modern-docker-vienna-public-proxy',
+    }));
   }
 }
 
@@ -148,16 +183,22 @@ const diagnosticReport = publicContract.buildPublicDiagnosticBakeoffReport({
   candidates: [byteDanceDefinition, onlineAmtDefinition],
   runs,
 });
-const baseScores = diagnosticReport.scores.filter((score) => score.scenarioSplit === 'DEVELOPMENT');
+const familyTagsByScenario = new Map(scenarios.map((scenario) => [scenario.scenarioId, scenario.familyTags]));
+const baseScores = diagnosticReport.scores.filter((score) =>
+  score.scenarioSplit === 'DEVELOPMENT' && (familyTagsByScenario.get(score.scenarioId) ?? []).includes('BASE_ORIGINAL')
+);
 const headline = diagnosticReport.aggregateMetrics;
-const paired = pairedDifferences(baseScores);
-const secondaryResult = decideSecondaryResult(paired);
+const paired = publicContract.buildPublicPairedComparison({ scores: baseScores });
+const familyComparisons = buildFamilyComparisons(diagnosticReport.scores, familyTagsByScenario);
+const secondaryResult = publicContract.decideSecondaryHumanFixedBpmProxy({ base: paired, families: familyComparisons });
 const report = {
   schemaVersion: 1,
-  artifact: 'phase9f_b1_vienna_fixed_bpm_proxy_real_comparison',
+  artifact: 'phase9f_b3_vienna_secondary_final_comparison',
   generatedAt: new Date().toISOString(),
   implementationGitHead,
   artifactGeneratedFromGitHead: gitHead(repoRoot),
+  dirtyTreeAtExecution,
+  artifactCommitRelationship: 'artifactCommitSha is the later commit containing this generated compact artifact',
   normalizedCommand: [
     'node backend/research/browser_runtime/run_vienna_fixed_bpm_proxy_benchmark.mjs',
     '--repo-root .',
@@ -187,6 +228,12 @@ const report = {
       correctedStatus: 'INVALIDATED_BENCHMARK_TRUTH_CONSTRUCTION',
       reason: '9F-B.1 used matched .match anchors for both expected score pitch and physical attacks; 9F-B.2 uses PracticeScoreArtifact/product resolver for expected truth and full performance MIDI for physical truth.',
     },
+    preliminaryBaseOnlyResult: {
+      artifact: 'vienna_fixed_bpm_proxy_corrected_comparison_phase9fb2_2026-10-08.json',
+      previousResult: 'BYTE_DANCE_BETTER',
+      correctedStatus: 'PRELIMINARY_BASE_ONLY_RESULT',
+      reason: '9F-B.2 BASE metrics are descriptive and valid, but the final decision requires fixed bootstrap statistics plus counterfactual safety families.',
+    },
   },
   frozenScenarioManifest: {
     path: normalizeRel(repoRoot, manifestPath),
@@ -197,8 +244,10 @@ const report = {
   },
   scopeGeneration: {
     consideredPerformanceCount: binding.intersectionCount,
-    consideredScopeCount: scenarioReceipts.length + skippedScopes.length,
-    baseScenarioCount: scenarios.length,
+    consideredScopeCount: baseScenarioReceipts.length + skippedScopes.length,
+    baseScenarioCount: baseScenarios.length,
+    candidateScopeCountByPiece: countBy([...scenarioPool.map((item) => item.receipt), ...skippedScopes], (item) => item.pieceId ?? pieceIdForPerformance(item.performanceId ?? '')),
+    eligibleBasePoolCountByPiece: countBy(scenarioPool.map((item) => item.receipt), (item) => item.pieceId),
     skippedScopeCount: skippedScopes.length,
     targetScopeMs: DEFAULT_SCOPE_TARGET_MS,
     minScopeMs: DEFAULT_SCOPE_MIN_MS,
@@ -207,22 +256,40 @@ const report = {
       groundTruthExpectedStrikeMatchRateAtLeast: 0.95,
       absoluteTimingResidualP95AtMostMs: 125,
     },
-    bpmDistribution: distribution(scenarioReceipts.map((item) => item.configuredIntegerBpm)),
-    residualP95DistributionMs: distribution(scenarioReceipts.map((item) => item.absoluteResidualP95Ms)),
-    ledgerGroundTruthMatchRateDistribution: distribution(scenarioReceipts.map((item) => item.ledgerGroundTruthExpectedStrikeMatchRate)),
-    realScoreMissingNoteCount: scenarioReceipts.reduce((sum, item) => sum + item.groundTruthMissingCount, 0),
-    realPhysicalExtraCount: scenarioReceipts.reduce((sum, item) => sum + item.groundTruthExtraCount, 0),
-    selectedScenariosByPiece: countBy(scenarioReceipts, (item) => item.pieceId),
-    uniquePerformerCount: new Set(scenarioReceipts.map((item) => item.performanceId)).size,
-    uniquePieceCount: new Set(scenarioReceipts.map((item) => item.pieceId)).size,
+    bpmDistribution: distribution(baseScenarioReceipts.map((item) => item.configuredIntegerBpm)),
+    residualP95DistributionMs: distribution(baseScenarioReceipts.map((item) => item.absoluteResidualP95Ms)),
+    ledgerGroundTruthMatchRateDistribution: distribution(baseScenarioReceipts.map((item) => item.ledgerGroundTruthExpectedStrikeMatchRate)),
+    realScoreMissingNoteCount: baseScenarioReceipts.reduce((sum, item) => sum + item.groundTruthMissingCount, 0),
+    realPhysicalExtraCount: baseScenarioReceipts.reduce((sum, item) => sum + item.groundTruthExtraCount, 0),
+    selectedScenariosByPiece: countBy(baseScenarioReceipts, (item) => item.pieceId),
+    uniquePerformerCount: new Set(baseScenarioReceipts.map((item) => performerIdForPerformance(item.performanceId))).size,
+    uniquePerformanceCount: new Set(baseScenarioReceipts.map((item) => item.performanceId)).size,
+    uniquePieceCount: new Set(baseScenarioReceipts.map((item) => item.pieceId)).size,
+  },
+  counterfactuals: {
+    mutationManifestSha256: sha256Text(canonicalJson(counterfactualReceipts.map((receipt) => receipt.mutation))),
+    countsByFamily: countBy(counterfactualReceipts, (item) => item.family),
+    pieceCountsByFamily: Object.fromEntries([...new Set(counterfactualReceipts.map((item) => item.family))].map((family) => [
+      family,
+      new Set(counterfactualReceipts.filter((item) => item.family === family).map((item) => item.pieceId)).size,
+    ])),
+    performanceCountsByFamily: Object.fromEntries([...new Set(counterfactualReceipts.map((item) => item.family))].map((family) => [
+      family,
+      new Set(counterfactualReceipts.filter((item) => item.family === family).map((item) => item.performanceId)).size,
+    ])),
+    receipts: counterfactualReceipts,
   },
   candidateRuns: {
     byteDanceRealRunCount: runs.filter((run) => run.candidateId === BYTEDANCE_CANDIDATE_ID).length,
     onlineAmtRealRunCount: runs.filter((run) => run.candidateId === ONLINE_AMT_CANDIDATE_ID).length,
+    realRunCount: runReceipts.filter((receipt) => receipt.inferenceMode === 'REAL_RUN').length,
+    reusedIdenticalAcousticEvidenceCount: runReceipts.filter((receipt) => receipt.inferenceMode === 'REUSED_IDENTICAL_ACOUSTIC_EVIDENCE').length,
+    receipts: runReceipts,
     failures,
   },
   metrics: headline,
   pairedComparison: paired,
+  familyPairedComparisons: familyComparisons,
   SECONDARY_HUMAN_FIXED_BPM_PROXY_RESULT: secondaryResult,
   overallPublicEvidenceConclusion: secondaryResult === 'NO_CLEAR_WINNER'
     ? 'NO_CLEAR_WINNER_ON_PUBLIC_FIXED_BPM_PROXY'
@@ -547,6 +614,331 @@ async function buildScenarioCandidates(performance, scoreArtifactEntry, limit) {
   return { scenarios, skipped };
 }
 
+function buildCounterfactualScenarioItems(baseItems, scoreArtifacts) {
+  const families = [
+    'COUNTERFACTUAL_MISSING_NOTE',
+    'COUNTERFACTUAL_EXTRA_NOTE',
+    'COUNTERFACTUAL_WRONG_SEMITONE',
+    'COUNTERFACTUAL_INCOMPLETE_CHORD',
+  ];
+  const selected = [];
+  for (const family of families) {
+    const candidates = [];
+    for (const item of baseItems) {
+      try {
+        const scoreArtifactEntry = scoreArtifacts.get(item.receipt.pieceId);
+        const candidate = buildCounterfactualScenarioItem(item, scoreArtifactEntry, family);
+        if (candidate) candidates.push(candidate);
+      } catch {
+        // Counterfactual eligibility is best-effort and deterministic; invalid mutations are skipped.
+      }
+    }
+    selected.push(...selectBalancedCounterfactuals(candidates, COUNTERFACTUAL_TARGET_PER_FAMILY));
+  }
+  return selected;
+}
+
+function buildCounterfactualScenarioItem(baseItem, scoreArtifactEntry, family) {
+  if (!scoreArtifactEntry) return null;
+  const baseScenario = baseItem.scenario;
+  const baseReceipt = baseItem.receipt;
+  const baseArtifact = scoreArtifactEntry.artifact;
+  const derived = cloneJson(baseArtifact);
+  const scopeGroupIds = groupIdsInScope(baseArtifact, baseReceipt.practiceScope);
+  const mutation = mutateArtifactForFamily({
+    artifact: derived,
+    baseScenario,
+    scopeGroupIds,
+    family,
+  });
+  if (!mutation) return null;
+  const derivedSha = sha256Text(canonicalJson(derived));
+  derived.artifactId = `practice-score-artifact:vienna-cf:${derivedSha.slice(0, 16)}`;
+  derived.revisionId = `vienna-counterfactual:${family}:${derivedSha.slice(0, 16)}`;
+  artifactDomain.assertPracticeScoreArtifact(derived);
+  const contract = continuousContract.resolveContinuousPracticeContract({
+    artifact: derived,
+    tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: baseReceipt.configuredIntegerBpm },
+    scope: baseReceipt.practiceScope,
+  });
+  if (Math.abs(contract.naturalTerminalPerformanceTimeMs - baseScenario.completion.performanceTimeMs) > 1e-9) {
+    return null;
+  }
+  const scenarioId = baseScenario.scenarioId.replace('vienna-secondary-base:', `vienna-secondary-${family.toLowerCase()}:`);
+  const scenario = {
+    ...baseScenario,
+    scenarioId,
+    familyTags: [family, 'SECONDARY_HUMAN_FIXED_BPM_PROXY'],
+    expectedStrikes: contract.expectedStrikes,
+    taxonomy: {
+      groups: Object.fromEntries([...new Set(contract.expectedStrikes.map((strike) => strike.groupId))].map((groupId) => [groupId, [family]])),
+    },
+  };
+  publicContract.assertCounterfactualPreservesAudioAndMidi({ base: baseScenario, mutated: scenario });
+  bakeoff.validateBenchmarkScenario(scenario);
+  const groundTruthScore = scoreGroundTruthEvaluation(scenario);
+  return {
+    scenario,
+    receipt: {
+      ...baseReceipt,
+      scenarioId,
+      baseScenarioId: baseScenario.scenarioId,
+      family,
+      practiceScoreArtifactSha256: derivedSha,
+      basePracticeScoreArtifactSha256: baseReceipt.practiceScoreArtifactSha256,
+      derivedPracticeScoreArtifactSha256: derivedSha,
+      expectedStrikeCount: contract.expectedStrikes.length,
+      groundTruthMissingCount: groundTruthScore.missingCount,
+      groundTruthExtraCount: groundTruthScore.extraCount,
+      ledgerGroundTruthExpectedStrikeMatchRate: groundTruthScore.matchRate,
+      mutation: {
+        family,
+        operation: mutation.operation,
+        baseScenarioId: baseScenario.scenarioId,
+        baseScoreArtifactSha256: baseReceipt.practiceScoreArtifactSha256,
+        derivedScoreArtifactSha256: derivedSha,
+        targetGroupId: mutation.groupId,
+        targetPitch: mutation.targetPitch,
+        addedPitch: mutation.addedPitch,
+        removedPitch: mutation.removedPitch,
+        shiftedFromPitch: mutation.shiftedFromPitch,
+        shiftedToPitch: mutation.shiftedToPitch,
+        audioSha256: baseScenario.source.sourceAudioSha256,
+        midiSha256: baseScenario.source.sourceMidiSha256,
+        configuredIntegerBpm: baseReceipt.configuredIntegerBpm,
+        practiceScope: baseReceipt.practiceScope,
+        naturalTerminalPerformanceTimeMs: baseScenario.completion.performanceTimeMs,
+        selectionInputs: 'score artifact + physical MIDI + deterministic mutation rule; candidate outputs excluded',
+      },
+      acousticEvidenceReuse: {
+        status: 'ACOUSTIC_EVIDENCE_REUSED_IDENTICAL_INPUT',
+        sameSourceAudioSha: true,
+        samePerformanceOrigin: true,
+        sameCompletion: true,
+        sameByteDanceChunkGeometry: true,
+        sameOnlineAmtOwnedPcmTailGeometry: true,
+      },
+      truthIndependence: {
+        expectedTruthSource: 'Derived PracticeScoreArtifact + CUSTOM_FIXED_BPM + PracticeScope RANGE',
+        physicalTruthSource: 'Unchanged Vienna performance MIDI full NoteOn set',
+        alignmentSource: 'Vienna .match score/performance anchors for the base geometry only',
+        audioSource: 'Unchanged Vienna WAV',
+      },
+    },
+  };
+}
+
+function mutateArtifactForFamily({ artifact, baseScenario, scopeGroupIds, family }) {
+  const groupById = new Map(artifact.expectedPracticeGroups.map((group) => [group.groupId, group]));
+  const groups = scopeGroupIds.map((groupId) => groupById.get(groupId)).filter(Boolean);
+  const internalGroups = groups.slice(1, Math.max(1, groups.length - 1));
+  if (family === 'COUNTERFACTUAL_MISSING_NOTE') {
+    for (const group of [
+      ...internalGroups.filter((candidate) => candidate.pitches.length === 1),
+      ...internalGroups.filter((candidate) => candidate.pitches.length !== 1),
+    ]) {
+      const time = expectedTimeForGroup(baseScenario, group.groupId);
+      const addedPitch = deterministicUnplayedPitch(group.pitches, baseScenario, time);
+      if (!addedPitch) continue;
+      const wasMonophonic = group.pitches.length === 1;
+      addPitchToGroupAndStep(artifact, group, addedPitch, family);
+      return {
+        operation: wasMonophonic
+          ? 'ADD_EXPECTED_PITCH_TO_EXISTING_MONOPHONIC_GROUP'
+          : 'ADD_EXPECTED_PITCH_TO_EXISTING_INTERNAL_GROUP',
+        groupId: group.groupId,
+        targetPitch: group.pitches[0],
+        addedPitch,
+      };
+    }
+  }
+  if (family === 'COUNTERFACTUAL_INCOMPLETE_CHORD') {
+    for (const group of internalGroups.filter((candidate) => candidate.pitches.length >= 2)) {
+      const time = expectedTimeForGroup(baseScenario, group.groupId);
+      const addedPitch = deterministicUnplayedPitch(group.pitches, baseScenario, time);
+      if (!addedPitch) continue;
+      addPitchToGroupAndStep(artifact, group, addedPitch, family);
+      return { operation: 'ADD_REQUIRED_CHORD_TONE', groupId: group.groupId, addedPitch };
+    }
+  }
+  if (family === 'COUNTERFACTUAL_EXTRA_NOTE') {
+    for (const group of internalGroups.filter((candidate) => candidate.pitches.length >= 2)) {
+      const time = expectedTimeForGroup(baseScenario, group.groupId);
+      const target = group.strikeTargets.find((strike) => hasPhysicalPitchNear(baseScenario, strike.pitch, time));
+      if (!target) continue;
+      removeStrikeFromGroupAndStep(artifact, group, target);
+      return { operation: 'REMOVE_EXPECTED_TONE_KEEP_PHYSICAL_MIDI', groupId: group.groupId, removedPitch: target.pitch, targetPitch: target.pitch };
+    }
+  }
+  if (family === 'COUNTERFACTUAL_WRONG_SEMITONE') {
+    for (const group of internalGroups) {
+      const target = group.strikeTargets[0];
+      const shifted = semitoneShift(target.pitch, group.pitches);
+      if (!shifted) continue;
+      shiftStrikePitchInGroupAndStep(artifact, group, target, shifted);
+      return { operation: 'SHIFT_EXPECTED_PITCH_BY_SEMITONE', groupId: group.groupId, shiftedFromPitch: target.pitch, shiftedToPitch: shifted, targetPitch: target.pitch };
+    }
+  }
+  return null;
+}
+
+function groupIdsInScope(artifact, scope) {
+  const groups = artifact.expectedPracticeGroups;
+  const start = groups.findIndex((group) => group.groupId === scope.startGroupId);
+  const end = groups.findIndex((group) => group.groupId === scope.endGroupId);
+  if (start < 0 || end < start) throw new Error('Counterfactual scope group IDs not found.');
+  return groups.slice(start, end + 1).map((group) => group.groupId);
+}
+
+function addPitchToGroupAndStep(artifact, group, pitch, family) {
+  const token = sanitizeFile(`${family}-${group.groupId}-${pitch}`);
+  const renderNoteId = `cf-${token}`;
+  const eventId = `${group.groupId}:cf:${pitch}`;
+  const note = {
+    eventId,
+    expectedNoteId: `${eventId}:${renderNoteId}`,
+    measureNumbers: group.measureNumbers ?? [],
+    pitch,
+    renderNoteId,
+  };
+  const strike = {
+    eventIds: [eventId],
+    expectedNotes: [note],
+    measureNumbers: group.measureNumbers ?? [],
+    pitch,
+    renderNoteIds: [renderNoteId],
+    strikeId: `${group.groupId}:strike:${sanitizeFile(pitch)}:cf`,
+  };
+  group.strikeTargets.push(strike);
+  resyncGroup(group);
+  const step = findStepForGroup(artifact, group);
+  if (step) {
+    step.attackTargets.push({
+      attackId: `${step.stepId}:target:${sanitizeFile(pitch)}:cf`,
+      eventIds: [eventId],
+      measureNumbers: group.measureNumbers ?? [],
+      notes: [{
+        eventId,
+        measureNumbers: group.measureNumbers ?? [],
+        pitch,
+        renderNoteId,
+        staffIds: group.staffIds ?? [],
+        stepNoteId: `${eventId}:${renderNoteId}`,
+        voiceIds: group.voiceIds ?? [],
+      }],
+      pitch,
+      renderNoteIds: [renderNoteId],
+    });
+    resyncStep(step);
+  }
+}
+
+function removeStrikeFromGroupAndStep(artifact, group, strike) {
+  group.strikeTargets = group.strikeTargets.filter((candidate) => candidate.strikeId !== strike.strikeId);
+  resyncGroup(group);
+  const step = findStepForGroup(artifact, group);
+  if (step) {
+    step.attackTargets = step.attackTargets.filter((target) => target.pitch !== strike.pitch);
+    resyncStep(step);
+  }
+}
+
+function shiftStrikePitchInGroupAndStep(artifact, group, strike, shiftedPitch) {
+  const oldPitch = strike.pitch;
+  strike.pitch = shiftedPitch;
+  strike.strikeId = `${group.groupId}:strike:${sanitizeFile(shiftedPitch)}:cf`;
+  for (const note of strike.expectedNotes ?? []) note.pitch = shiftedPitch;
+  resyncGroup(group);
+  const step = findStepForGroup(artifact, group);
+  const target = step?.attackTargets.find((candidate) => candidate.pitch === oldPitch);
+  if (target) {
+    target.pitch = shiftedPitch;
+    target.attackId = `${step.stepId}:target:${sanitizeFile(shiftedPitch)}:cf`;
+    for (const note of target.notes ?? []) note.pitch = shiftedPitch;
+    resyncStep(step);
+  }
+}
+
+function resyncGroup(group) {
+  const notes = group.strikeTargets.flatMap((target) => target.expectedNotes ?? []);
+  group.expectedNotes = notes;
+  group.eventIds = unique(notes.map((note) => note.eventId));
+  group.renderNoteIds = unique(notes.map((note) => note.renderNoteId));
+  group.pitches = unique(group.strikeTargets.map((target) => target.pitch));
+}
+
+function resyncStep(step) {
+  const notes = step.attackTargets.flatMap((target) => target.notes ?? []);
+  step.eventIds = unique(notes.map((note) => note.eventId));
+  step.renderNoteIds = unique(notes.map((note) => note.renderNoteId));
+}
+
+function findStepForGroup(artifact, group) {
+  return artifact.practiceAttackSteps.find((step) =>
+    step.onsetBeat === group.onsetBeat
+    && step.renderNoteIds.some((noteId) => group.renderNoteIds.includes(noteId))
+  );
+}
+
+function expectedTimeForGroup(scenario, groupId) {
+  const strike = scenario.expectedStrikes.find((candidate) => candidate.groupId === groupId);
+  return strike?.expectedPerformanceTimeMs ?? 0;
+}
+
+function deterministicUnplayedPitch(existingPitches, scenario, timeMs) {
+  const base = pitchNameToMidi(existingPitches[0]);
+  for (const delta of [4, 7, -5, 2, -1, 9, -8, 12]) {
+    const midi = base + delta;
+    if (midi < 21 || midi > 108) continue;
+    const pitch = midiPitchName(midi);
+    if (existingPitches.includes(pitch)) continue;
+    if (hasPhysicalPitchNear(scenario, pitch, timeMs)) continue;
+    return pitch;
+  }
+  return null;
+}
+
+function hasPhysicalPitchNear(scenario, pitch, timeMs) {
+  return scenario.physicalGroundTruth.attacks.some((attack) =>
+    attack.pitch === pitch && Math.abs(attack.performanceTimeMs - timeMs) <= DEFAULT_ASSIGNMENT_WINDOW_MS
+  );
+}
+
+function semitoneShift(pitch, existingPitches) {
+  const midi = pitchNameToMidi(pitch);
+  for (const delta of [1, -1]) {
+    const next = midi + delta;
+    if (next < 21 || next > 108) continue;
+    const shifted = midiPitchName(next);
+    if (!existingPitches.includes(shifted)) return shifted;
+  }
+  return null;
+}
+
+function selectBalancedCounterfactuals(candidates, target) {
+  const sorted = [...candidates].sort((left, right) =>
+    left.receipt.pieceId.localeCompare(right.receipt.pieceId)
+    || performerIdForPerformance(left.receipt.performanceId).localeCompare(performerIdForPerformance(right.receipt.performanceId))
+    || left.receipt.scenarioId.localeCompare(right.receipt.scenarioId)
+  );
+  const selected = [];
+  const usedBase = new Set();
+  const pieceOrder = ['Chopin_op10_no3', 'Chopin_op38', 'Mozart_K331_1st-mov', 'Schubert_D783_no15'];
+  while (selected.length < target) {
+    let added = false;
+    for (const pieceId of pieceOrder) {
+      const candidate = sorted.find((item) => item.receipt.pieceId === pieceId && !usedBase.has(item.receipt.baseScenarioId));
+      if (!candidate) continue;
+      selected.push(candidate);
+      usedBase.add(candidate.receipt.baseScenarioId);
+      added = true;
+      if (selected.length >= target) break;
+    }
+    if (!added) break;
+  }
+  return selected;
+}
+
 async function runByteDanceScenario(scenario) {
   const wav = byteDance.decodeResearchWavToMonoFloat32(await readFile(path.resolve(repoRoot, scenario.source.sourceAudioPath)));
   const plans = byteDance.planByteDanceScoreAwareChunks(scenario);
@@ -784,7 +1176,7 @@ function verifyMatchMidiConsistency(anchors, noteOns, performanceId) {
     items.push(note);
     byPitch.set(note.midi, items);
   }
-  for (const anchor of anchors.slice(0, 200)) {
+  for (const anchor of anchors) {
     const nearest = (byPitch.get(anchor.performedMidi) ?? [])
       .reduce((best, note) => {
         const delta = Math.abs(note.onsetMs - anchor.performedMs);
@@ -813,13 +1205,16 @@ function parseMidiNoteOns(bytes) {
     const trackEnd = offset + 4 + readU32(bytes, offset);
     offset += 4;
     let tick = 0;
+    let timeMs = 0;
     let tempo = 500000;
+    let firstTempo = null;
     let runningStatus = null;
     let eventIndex = 0;
     while (offset < trackEnd) {
       const delta = readVar(bytes, offset);
       offset = delta.offset;
       tick += delta.value;
+      timeMs += delta.value * tempo / division / 1000;
       let status = bytes[offset++];
       if (status < 0x80) {
         if (runningStatus === null) throw new Error('MIDI running status without previous status.');
@@ -833,7 +1228,12 @@ function parseMidiNoteOns(bytes) {
         const length = readVar(bytes, offset);
         offset = length.offset;
         if (type === 0x51 && length.value === 3) {
-          tempo = (bytes[offset] << 16) | (bytes[offset + 1] << 8) | bytes[offset + 2];
+          const nextTempo = (bytes[offset] << 16) | (bytes[offset + 1] << 8) | bytes[offset + 2];
+          if (firstTempo === null) firstTempo = nextTempo;
+          if (nextTempo !== firstTempo) {
+            throw new Error('Vienna MIDI tempo changes are not supported by the fixed-BPM proxy parser.');
+          }
+          tempo = nextTempo;
         }
         offset += length.value;
         continue;
@@ -852,7 +1252,7 @@ function parseMidiNoteOns(bytes) {
           eventIndex,
           midi: data1,
           velocity: data2,
-          onsetMs: tick * tempo / division / 1000,
+          onsetMs: timeMs,
         });
       }
       eventIndex += 1;
@@ -884,44 +1284,63 @@ function readVar(bytes, offset) {
   return { value, offset };
 }
 
-function pairedDifferences(scores) {
-  const byScenario = new Map();
-  for (const score of scores) {
-    const entry = byScenario.get(score.scenarioId) ?? {};
-    entry[score.candidateId] = score;
-    byScenario.set(score.scenarioId, entry);
-  }
-  const pairs = [...byScenario.entries()].flatMap(([scenarioId, entry]) =>
-    entry[BYTEDANCE_CANDIDATE_ID] && entry[ONLINE_AMT_CANDIDATE_ID]
-      ? [{ scenarioId, byteDance: entry[BYTEDANCE_CANDIDATE_ID], onlineAmt: entry[ONLINE_AMT_CANDIDATE_ID] }]
-      : []
-  );
-  const metricNames = [
-    'verdictAgreementRate',
-    'falseMatchRateOnGroundTruthMissing',
-    'falseCompleteChordAcceptanceRate',
-    'correctMissingRate',
-    'chordExactCompletenessRate',
-    'expectedStrikeRecall',
-    'extraPrecision',
-    'extraRecall',
-    'timingAbsoluteP95Ms',
+function buildFamilyComparisons(scores, familyTagsByScenario) {
+  const families = [
+    'COUNTERFACTUAL_MISSING_NOTE',
+    'COUNTERFACTUAL_EXTRA_NOTE',
+    'COUNTERFACTUAL_WRONG_SEMITONE',
+    'COUNTERFACTUAL_INCOMPLETE_CHORD',
   ];
+  return Object.fromEntries(families.map((family) => {
+    const familyScores = scores.filter((score) => (familyTagsByScenario.get(score.scenarioId) ?? []).includes(family));
+    const paired = publicContract.buildPublicPairedComparison({ scores: familyScores });
+    const scenarioIds = new Set(familyScores.map((score) => score.scenarioId));
+    const pieceIds = new Set([...scenarioIds].map((scenarioId) => pieceIdFromScenarioId(scenarioId)).filter(Boolean));
+    const status = paired.pairedScenarioCount >= COUNTERFACTUAL_MIN_EVIDENCE_PER_FAMILY && pieceIds.size >= 2
+      ? 'MEASURED'
+      : 'INSUFFICIENT_FAMILY_EVIDENCE';
+    return [family, {
+      status,
+      scenarioCount: paired.pairedScenarioCount,
+      pieceCount: pieceIds.size,
+      paired,
+    }];
+  }));
+}
+
+function reuseCandidateRunForCounterfactual(baseRun, scenario) {
+  const replaceId = (value) => typeof value === 'string' ? value.replaceAll(baseRun.scenarioId, scenario.scenarioId) : value;
   return {
-    pairedScenarioCount: pairs.length,
-    metrics: Object.fromEntries(metricNames.map((name) => {
-      const values = pairs.flatMap((pair) => {
-        const left = pair.byteDance.metrics[name];
-        const right = pair.onlineAmt.metrics[name];
-        return left.status === 'MEASURED' && right.status === 'MEASURED' ? [left.value - right.value] : [];
-      });
-      return [name, {
-        status: values.length === 0 ? 'NOT_EVALUATED' : 'MEASURED',
-        sampleCount: values.length,
-        meanDifferenceByteDanceMinusOnlineAmt: values.length === 0 ? null : values.reduce((sum, value) => sum + value, 0) / values.length,
-        bootstrap95Ci: values.length < 2 ? null : bootstrapCi(values, 13_371),
-      }];
+    ...cloneJson(baseRun),
+    scenarioId: scenario.scenarioId,
+    publications: baseRun.publications.map((publication) => ({
+      ...publication,
+      publicationId: replaceId(publication.publicationId),
+      observations: publication.observations.map((observation) => ({
+        ...observation,
+        observationId: replaceId(observation.observationId),
+      })),
     })),
+    diagnostics: {
+      ...(baseRun.diagnostics ?? {}),
+      acousticEvidenceReuse: 'ACOUSTIC_EVIDENCE_REUSED_IDENTICAL_INPUT',
+      baseScenarioId: baseRun.scenarioId,
+    },
+  };
+}
+
+function candidateRunReceipt({ scenario, run, mode, scenarioManifestSha256, runtime }) {
+  return {
+    candidateId: run.candidateId,
+    scenarioId: scenario.scenarioId,
+    scenarioManifestSha256,
+    audioSha256: scenario.source.sourceAudioSha256,
+    candidateConfigurationSha256: run.candidateId === BYTEDANCE_CANDIDATE_ID
+      ? byteDance.bytedanceCandidateDefinition({ gitHead: implementationGitHead, trainingDataOverlapStatus: 'UNKNOWN' }).identity.configurationSha256
+      : onlineAmt.onlineAmtCandidateDefinition({ gitHead: implementationGitHead, trainingDataOverlapStatus: 'UNKNOWN' }).identity.configurationSha256,
+    runtimeProfileIdentity: runtime,
+    inferenceMode: mode,
+    runStatus: 'COMPLETE',
   };
 }
 
@@ -949,26 +1368,6 @@ function compactBakeoffReport(report) {
       extraDiagnostics: score.extraDiagnostics,
     })),
   };
-}
-
-function decideSecondaryResult(paired) {
-  const verdict = paired.metrics.verdictAgreementRate;
-  if (verdict.status !== 'MEASURED' || verdict.sampleCount === 0) return 'NO_CLEAR_WINNER';
-  const diff = verdict.meanDifferenceByteDanceMinusOnlineAmt;
-  if (Math.abs(diff) < 0.01) return 'NO_CLEAR_WINNER';
-  const verdictCi = verdict.bootstrap95Ci;
-  if (!verdictCi || (verdictCi.low <= 0 && verdictCi.high >= 0)) return 'NO_CLEAR_WINNER';
-  const apparentWinner = diff > 0 ? 'BYTE_DANCE_BETTER' : 'ONLINE_AMT_BETTER';
-  for (const metric of ['falseMatchRateOnGroundTruthMissing', 'falseCompleteChordAcceptanceRate']) {
-    const safety = paired.metrics[metric];
-    if (safety?.status !== 'MEASURED' || !safety.bootstrap95Ci) continue;
-    const safetyDiff = safety.meanDifferenceByteDanceMinusOnlineAmt;
-    const byteDanceMateriallyWorse = safetyDiff > 0.01 && safety.bootstrap95Ci.low > 0;
-    const onlineAmtMateriallyWorse = safetyDiff < -0.01 && safety.bootstrap95Ci.high < 0;
-    if (apparentWinner === 'BYTE_DANCE_BETTER' && byteDanceMateriallyWorse) return 'NO_CLEAR_WINNER';
-    if (apparentWinner === 'ONLINE_AMT_BETTER' && onlineAmtMateriallyWorse) return 'NO_CLEAR_WINNER';
-  }
-  return apparentWinner;
 }
 
 function selectStratifiedScenarios(pool, maxCount) {
@@ -1003,21 +1402,6 @@ function selectStratifiedScenarios(pool, maxCount) {
     round += 1;
   }
   return selected;
-}
-
-function bootstrapCi(values, seed) {
-  const draws = [];
-  let state = seed;
-  for (let sample = 0; sample < 500; sample += 1) {
-    let sum = 0;
-    for (let index = 0; index < values.length; index += 1) {
-      state = (1664525 * state + 1013904223) >>> 0;
-      sum += values[state % values.length];
-    }
-    draws.push(sum / values.length);
-  }
-  draws.sort((left, right) => left - right);
-  return { low: percentile(draws, 0.025), high: percentile(draws, 0.975), seed };
 }
 
 function resampleLinear(input) {
@@ -1087,6 +1471,27 @@ function countBy(items, select) {
   }, {});
 }
 
+function unique(values) {
+  return [...new Set(values.filter((value) => value !== undefined && value !== null))];
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function canonicalJson(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  return `{${Object.entries(value)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
+    .join(',')}}`;
+}
+
+function sha256Text(text) {
+  return createHash('sha256').update(text).digest('hex');
+}
+
 function median(values) {
   return percentile(values.slice().sort((left, right) => left - right), 0.5);
 }
@@ -1100,6 +1505,25 @@ function percentile(sortedValues, p) {
 function midiPitchName(midiPitch) {
   const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   return `${names[midiPitch % 12]}${Math.floor(midiPitch / 12) - 1}`;
+}
+
+function pitchNameToMidi(pitch) {
+  const match = /^([A-G])(#?)(-?\d+)$/.exec(pitch);
+  if (!match) throw new Error(`Invalid pitch name ${pitch}`);
+  const semitone = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[match[1]] + (match[2] === '#' ? 1 : 0);
+  return (Number(match[3]) + 1) * 12 + semitone;
+}
+
+function performerIdForPerformance(performanceId) {
+  return performanceId.match(/_p(\d+)/)?.[1] ? `p${performanceId.match(/_p(\d+)/)[1]}` : performanceId;
+}
+
+function pieceIdFromScenarioId(scenarioId) {
+  if (scenarioId.includes('Chopin_op10_no3')) return 'Chopin_op10_no3';
+  if (scenarioId.includes('Chopin_op38')) return 'Chopin_op38';
+  if (scenarioId.includes('Mozart_K331_1st-mov')) return 'Mozart_K331_1st-mov';
+  if (scenarioId.includes('Schubert_D783_no15')) return 'Schubert_D783_no15';
+  return null;
 }
 
 async function sha256File(filePath) {
@@ -1126,6 +1550,14 @@ function gitHead(cwd) {
     return execFileSync('git', ['-C', cwd, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   } catch {
     return 'UNKNOWN';
+  }
+}
+
+function gitDirty(cwd) {
+  try {
+    return execFileSync('git', ['-C', cwd, 'status', '--porcelain'], { encoding: 'utf8' }).trim().length > 0;
+  } catch {
+    return true;
   }
 }
 

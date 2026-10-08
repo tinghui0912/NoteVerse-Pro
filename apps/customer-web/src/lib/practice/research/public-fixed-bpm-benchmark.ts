@@ -77,6 +77,67 @@ type PublicBenchmarkMetricDecision = {
   direction: 'HIGHER_BETTER' | 'LOWER_BETTER';
 };
 
+export type PublicPairedMetricName =
+  | 'verdictAgreementRate'
+  | 'falseMatchRateOnGroundTruthMissing'
+  | 'correctMissingRate'
+  | 'chordExactCompletenessRate'
+  | 'falseCompleteChordAcceptanceRate'
+  | 'expectedStrikeRecall'
+  | 'extraPrecision'
+  | 'extraRecall'
+  | 'timingAbsoluteMedianMs'
+  | 'timingAbsoluteP95Ms';
+
+export type PublicBootstrapConfig = {
+  seed: number;
+  draws: number;
+};
+
+export type PublicPairedMetricComparison = {
+  status: 'MEASURED' | 'NOT_EVALUATED';
+  sampleCount: number;
+  meanDifferenceByteDanceMinusOnlineAmt: number | null;
+  bootstrap95Ci: { low: number; high: number; seed: number; draws: number } | null;
+};
+
+export type PublicPairedComparison = {
+  pairedScenarioCount: number;
+  bootstrap: PublicBootstrapConfig;
+  metrics: Record<PublicPairedMetricName, PublicPairedMetricComparison>;
+};
+
+export type PublicFamilyEvidenceStatus =
+  | 'MEASURED'
+  | 'INSUFFICIENT_FAMILY_EVIDENCE'
+  | 'NOT_EVALUATED';
+
+export type PublicSecondaryDecisionInput = {
+  base: PublicPairedComparison;
+  families?: Partial<Record<Exclude<PublicScenarioFamily, 'BASE_ORIGINAL'>, {
+    status: PublicFamilyEvidenceStatus;
+    paired: PublicPairedComparison;
+  }>>;
+};
+
+export const PUBLIC_PROXY_BOOTSTRAP_CONFIG: PublicBootstrapConfig = {
+  seed: 13_371,
+  draws: 5_000,
+};
+
+const PUBLIC_PAIRED_METRICS: readonly PublicPairedMetricName[] = [
+  'verdictAgreementRate',
+  'falseMatchRateOnGroundTruthMissing',
+  'correctMissingRate',
+  'chordExactCompletenessRate',
+  'falseCompleteChordAcceptanceRate',
+  'expectedStrikeRecall',
+  'extraPrecision',
+  'extraRecall',
+  'timingAbsoluteMedianMs',
+  'timingAbsoluteP95Ms',
+];
+
 const PUBLIC_FIXED_BPM_METRIC_DECISION_ORDER: readonly PublicBenchmarkMetricDecision[] = [
   { metric: 'verdictAgreementRate', direction: 'HIGHER_BETTER' },
   { metric: 'falseMatchRateOnGroundTruthMissing', direction: 'LOWER_BETTER' },
@@ -243,6 +304,73 @@ export function buildPublicDiagnosticBakeoffReport(input: {
   };
 }
 
+export function buildPublicPairedComparison(input: {
+  scores: readonly BakeoffScore[];
+  byteDanceCandidateId?: string;
+  onlineAmtCandidateId?: string;
+  bootstrap?: PublicBootstrapConfig;
+}): PublicPairedComparison {
+  const byteDanceCandidateId = input.byteDanceCandidateId ?? 'bytedance-score-aware-chunked-dev-v1';
+  const onlineAmtCandidateId = input.onlineAmtCandidateId ?? 'online-amt-stateful-modern-compat-dev-v1';
+  const bootstrap = input.bootstrap ?? PUBLIC_PROXY_BOOTSTRAP_CONFIG;
+  if (bootstrap.draws < 5_000) throw new Error('Public proxy paired bootstrap requires at least 5000 draws.');
+  const byScenario = new Map<string, Partial<Record<string, BakeoffScore>>>();
+  for (const score of input.scores) {
+    const entry = byScenario.get(score.scenarioId) ?? {};
+    entry[score.candidateId] = score;
+    byScenario.set(score.scenarioId, entry);
+  }
+  const pairs = [...byScenario.values()].flatMap((entry) =>
+    entry[byteDanceCandidateId] && entry[onlineAmtCandidateId]
+      ? [{ byteDance: entry[byteDanceCandidateId], onlineAmt: entry[onlineAmtCandidateId] }]
+      : []
+  );
+  const metrics = Object.fromEntries(PUBLIC_PAIRED_METRICS.map((name) => {
+    const values = pairs.flatMap((pair) => {
+      const left = pair.byteDance?.metrics[name];
+      const right = pair.onlineAmt?.metrics[name];
+      return left?.status === 'MEASURED' && right?.status === 'MEASURED' ? [left.value - right.value] : [];
+    });
+    return [name, pairedMetric(values, bootstrap)];
+  })) as Record<PublicPairedMetricName, PublicPairedMetricComparison>;
+  return { pairedScenarioCount: pairs.length, bootstrap, metrics };
+}
+
+export function decideSecondaryHumanFixedBpmProxy(input: PublicSecondaryDecisionInput): PublicLayerResult {
+  const verdict = input.base.metrics.verdictAgreementRate;
+  if (verdict.status !== 'MEASURED' || verdict.sampleCount === 0 || verdict.meanDifferenceByteDanceMinusOnlineAmt === null) {
+    return 'NO_CLEAR_WINNER';
+  }
+  const diff = verdict.meanDifferenceByteDanceMinusOnlineAmt;
+  if (Math.abs(diff) < 0.01) return 'NO_CLEAR_WINNER';
+  const verdictCi = verdict.bootstrap95Ci;
+  if (!verdictCi || (verdictCi.low <= 0 && verdictCi.high >= 0)) return 'NO_CLEAR_WINNER';
+  const apparentWinner: PublicLayerResult = diff > 0 ? 'BYTE_DANCE_BETTER' : 'ONLINE_AMT_BETTER';
+  const criticalFamilies: readonly Exclude<PublicScenarioFamily, 'BASE_ORIGINAL'>[] = [
+    'COUNTERFACTUAL_MISSING_NOTE',
+    'COUNTERFACTUAL_WRONG_SEMITONE',
+    'COUNTERFACTUAL_INCOMPLETE_CHORD',
+  ];
+  for (const family of criticalFamilies) {
+    const evidence = input.families?.[family];
+    if (!evidence || evidence.status === 'INSUFFICIENT_FAMILY_EVIDENCE' || evidence.status === 'NOT_EVALUATED') {
+      return 'NO_CLEAR_WINNER';
+    }
+  }
+  for (const paired of [input.base, ...Object.values(input.families ?? {}).map((entry) => entry.paired)]) {
+    for (const metric of ['falseMatchRateOnGroundTruthMissing', 'falseCompleteChordAcceptanceRate'] as const) {
+      const safety = paired.metrics[metric];
+      if (safety.status !== 'MEASURED' || !safety.bootstrap95Ci || safety.meanDifferenceByteDanceMinusOnlineAmt === null) continue;
+      const safetyDiff = safety.meanDifferenceByteDanceMinusOnlineAmt;
+      const byteDanceMateriallyWorse = safetyDiff >= 0.01 && safety.bootstrap95Ci.low > 0;
+      const onlineAmtMateriallyWorse = safetyDiff <= -0.01 && safety.bootstrap95Ci.high < 0;
+      if (apparentWinner === 'BYTE_DANCE_BETTER' && byteDanceMateriallyWorse) return 'NO_CLEAR_WINNER';
+      if (apparentWinner === 'ONLINE_AMT_BETTER' && onlineAmtMateriallyWorse) return 'NO_CLEAR_WINNER';
+    }
+  }
+  return apparentWinner;
+}
+
 export function decideOverallPublicEvidence(input: {
   primary: PublicLayerResult;
   secondary: PublicLayerResult;
@@ -276,6 +404,79 @@ export function assertFrozenCandidateConfigsUnchanged(): void {
 
 function sha256Hex(value: string): string {
   return createHash('sha256').update(value).digest('hex');
+}
+
+function pairedMetric(values: readonly number[], bootstrap: PublicBootstrapConfig): PublicPairedMetricComparison {
+  if (values.length === 0) {
+    return {
+      status: 'NOT_EVALUATED',
+      sampleCount: 0,
+      meanDifferenceByteDanceMinusOnlineAmt: null,
+      bootstrap95Ci: null,
+    };
+  }
+  return {
+    status: 'MEASURED',
+    sampleCount: values.length,
+    meanDifferenceByteDanceMinusOnlineAmt: mean(values),
+    bootstrap95Ci: values.length < 2 ? null : bootstrapCi(values, bootstrap),
+  };
+}
+
+export function publicProxyBootstrapCi(
+  values: readonly number[],
+  bootstrap: PublicBootstrapConfig = PUBLIC_PROXY_BOOTSTRAP_CONFIG,
+): { low: number; high: number; seed: number; draws: number } {
+  return bootstrapCi(values, bootstrap);
+}
+
+function bootstrapCi(
+  values: readonly number[],
+  bootstrap: PublicBootstrapConfig,
+): { low: number; high: number; seed: number; draws: number } {
+  if (values.length === 0) throw new Error('Cannot bootstrap an empty vector.');
+  if (bootstrap.draws < 5_000) throw new Error('Public proxy paired bootstrap requires at least 5000 draws.');
+  const random = mulberry32(bootstrap.seed);
+  const draws: number[] = [];
+  for (let draw = 0; draw < bootstrap.draws; draw += 1) {
+    let sum = 0;
+    for (let index = 0; index < values.length; index += 1) {
+      const sampleIndex = Math.min(values.length - 1, Math.floor(random() * values.length));
+      sum += values[sampleIndex];
+    }
+    draws.push(sum / values.length);
+  }
+  draws.sort((left, right) => left - right);
+  return {
+    low: percentile(draws, 0.025),
+    high: percentile(draws, 0.975),
+    seed: bootstrap.seed,
+    draws: bootstrap.draws,
+  };
+}
+
+function mulberry32(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296;
+  };
+}
+
+function mean(values: readonly number[]): number {
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function percentile(values: readonly number[], p: number): number {
+  if (values.length === 0) throw new Error('Cannot compute percentile for an empty vector.');
+  const index = (values.length - 1) * p;
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  if (lower === upper) return values[lower];
+  return values[lower] + (values[upper] - values[lower]) * (index - lower);
 }
 
 function canonicalJson(value: unknown): string {
