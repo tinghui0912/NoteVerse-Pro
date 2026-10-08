@@ -896,7 +896,17 @@ function pairedDifferences(scores) {
       ? [{ scenarioId, byteDance: entry[BYTEDANCE_CANDIDATE_ID], onlineAmt: entry[ONLINE_AMT_CANDIDATE_ID] }]
       : []
   );
-  const metricNames = ['verdictAgreementRate', 'expectedStrikeRecall', 'extraPrecision', 'timingAbsoluteP95Ms'];
+  const metricNames = [
+    'verdictAgreementRate',
+    'falseMatchRateOnGroundTruthMissing',
+    'falseCompleteChordAcceptanceRate',
+    'correctMissingRate',
+    'chordExactCompletenessRate',
+    'expectedStrikeRecall',
+    'extraPrecision',
+    'extraRecall',
+    'timingAbsoluteP95Ms',
+  ];
   return {
     pairedScenarioCount: pairs.length,
     metrics: Object.fromEntries(metricNames.map((name) => {
@@ -946,7 +956,19 @@ function decideSecondaryResult(paired) {
   if (verdict.status !== 'MEASURED' || verdict.sampleCount === 0) return 'NO_CLEAR_WINNER';
   const diff = verdict.meanDifferenceByteDanceMinusOnlineAmt;
   if (Math.abs(diff) < 0.01) return 'NO_CLEAR_WINNER';
-  return diff > 0 ? 'BYTE_DANCE_BETTER' : 'ONLINE_AMT_BETTER';
+  const verdictCi = verdict.bootstrap95Ci;
+  if (!verdictCi || (verdictCi.low <= 0 && verdictCi.high >= 0)) return 'NO_CLEAR_WINNER';
+  const apparentWinner = diff > 0 ? 'BYTE_DANCE_BETTER' : 'ONLINE_AMT_BETTER';
+  for (const metric of ['falseMatchRateOnGroundTruthMissing', 'falseCompleteChordAcceptanceRate']) {
+    const safety = paired.metrics[metric];
+    if (safety?.status !== 'MEASURED' || !safety.bootstrap95Ci) continue;
+    const safetyDiff = safety.meanDifferenceByteDanceMinusOnlineAmt;
+    const byteDanceMateriallyWorse = safetyDiff > 0.01 && safety.bootstrap95Ci.low > 0;
+    const onlineAmtMateriallyWorse = safetyDiff < -0.01 && safety.bootstrap95Ci.high < 0;
+    if (apparentWinner === 'BYTE_DANCE_BETTER' && byteDanceMateriallyWorse) return 'NO_CLEAR_WINNER';
+    if (apparentWinner === 'ONLINE_AMT_BETTER' && onlineAmtMateriallyWorse) return 'NO_CLEAR_WINNER';
+  }
+  return apparentWinner;
 }
 
 function selectStratifiedScenarios(pool, maxCount) {
