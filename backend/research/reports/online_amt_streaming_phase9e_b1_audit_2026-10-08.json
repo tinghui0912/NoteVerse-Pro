@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "artifact": "phase9e_b_online_amt_streaming_audit",
-  "generatedAt": "2026-10-08T02:12:06.917Z",
-  "implementationGitHead": "d2b16c554fbd0bd6151ca29ff5a63d55de3044c3",
-  "normalizedCommand": "node backend/research/browser_runtime/run_online_amt_phase9e_b.mjs --repo-root . --git-head d2b16c554fbd0bd6151ca29ff5a63d55de3044c3 --online-amt-repo backend/data/work/online_amt --checkpoint backend/data/work/online_amt/model-180000.pt --causal-manifest backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json --runtime-smoke backend/research/reports/online_amt_streaming_phase9e_b1_runtime_smoke_2026-10-08.json --bridge-receipt backend/research/reports/online_amt_streaming_phase9e_b1_bridge_receipt_2026-10-08.json --execution-profile backend/research/policies/online_amt_modern_compat_execution_profile_2026-10-08.json --output-dir backend/research/reports",
+  "generatedAt": "2026-10-08T02:13:31.673Z",
+  "implementationGitHead": "a8cc378d5016f6a5385b688565acc9f13be2dc17",
+  "normalizedCommand": "node backend/research/browser_runtime/run_online_amt_phase9e_b.mjs --repo-root . --git-head a8cc378d5016f6a5385b688565acc9f13be2dc17 --online-amt-repo backend/data/work/online_amt --checkpoint backend/data/work/online_amt/model-180000.pt --causal-manifest backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json --runtime-smoke backend/research/reports/online_amt_streaming_phase9e_b1_runtime_smoke_2026-10-08.json --bridge-receipt backend/research/reports/online_amt_streaming_phase9e_b1_bridge_receipt_2026-10-08.json --execution-profile backend/research/policies/online_amt_modern_compat_execution_profile_2026-10-08.json --output-dir backend/research/reports",
   "candidate": {
     "candidateId": "online-amt-stateful-modern-compat-dev-v1",
     "strategyKind": "STREAMING",
