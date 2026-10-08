@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "continuous-paired-development-empty-v1",
+  "split": "DEVELOPMENT",
+  "takes": [],
+  "evaluationLock": {
+    "locked": false,
+    "manifestSha256": "",
+    "policyVersion": "continuous_paired_take_manifest_v1_policy_2026-10-08"
+  }
+}

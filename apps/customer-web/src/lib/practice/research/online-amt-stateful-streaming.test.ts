@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -6,16 +7,17 @@ import { buildBakeoffReport, scoreCandidate, type BenchmarkScenario } from './co
 import {
   ONLINE_AMT_STREAMING_BASELINE_CONFIG,
   assertOnlineAmtAssetIdentity,
+  createOnlineAmtBridgeReceipt,
   eventTimeFromSegmentLocalDecisionMs,
   eventTimeFromDecisionTimeMs,
   observationsForOnlineAmtHop,
   onlineAmtCandidateDefinition,
   onlineAmtConfigurationSha256,
-  onlineAmtExecutionProfileSha256,
   onlineAmtSegmentTailRequirement,
   parseOnlineAmtPythonHopArtifact,
   runOnlineAmtStreamingCandidate,
   runOnlineAmtStreamingCandidateFromHopArtifact,
+  validateOnlineAmtPythonHopArtifactForScenario,
   validateOnlineAmtSegments,
   type OnlineAmtHopOutput,
   type OnlineAmtSegment,
@@ -95,6 +97,21 @@ function segment(input: {
   };
 }
 
+function eightyEightStates(activePitch = 'F#4') {
+  const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  return Array.from({ length: 88 }, (_, index) => {
+    const midi = 21 + index;
+    const pitch = `${names[midi % 12]}${Math.floor(midi / 12) - 1}`;
+    return {
+      pitch,
+      chosenState: pitch === activePitch ? 4 : 0,
+      probabilities: pitch === activePitch
+        ? [0.1, 0.1, 0.1, 0.25, 0.5] as const
+        : [0.9, 0.02, 0.03, 0.03, 0.02] as const,
+    };
+  });
+}
+
 describe('Online-AMT stateful streaming research adapter', () => {
   it('freezes candidate identity, model semantics, and separate execution profile', () => {
     const definition = onlineAmtCandidateDefinition({ gitHead: 'test-head' });
@@ -118,7 +135,18 @@ describe('Online-AMT stateful streaming research adapter', () => {
       onsetStateIds: [3, 4],
     });
     expect(onlineAmtConfigurationSha256()).toMatch(/^[a-f0-9]{64}$/);
-    expect(onlineAmtExecutionProfileSha256()).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('uses one canonical Online-AMT execution-profile digest in policy and reports', () => {
+    const profilePath = resolve(process.cwd(), '../../backend/research/policies/online_amt_modern_compat_execution_profile_2026-10-08.json');
+    const reportPath = resolve(process.cwd(), '../../backend/research/reports/online_amt_streaming_phase9e_b1_audit_2026-10-08.json');
+    const profile = JSON.parse(readFileSync(profilePath, 'utf8'));
+    const report = JSON.parse(readFileSync(reportPath, 'utf8'));
+    expect(profile.executionProfileSha256).toBe('9b0d6e5f0edb84824863b887ed579c2af74eaf95288171e870788456d8192e4b');
+    expect(report.executionProfile.executionProfileSha256).toBe(profile.executionProfileSha256);
+    const changed = { ...profile, dockerfile: { ...profile.dockerfile, sha256: 'changed' } };
+    delete changed.executionProfileSha256;
+    expect(createHash('sha256').update(canonicalJsonForTest(changed)).digest('hex')).not.toBe(profile.executionProfileSha256);
   });
 
   it('fails closed on repo or checkpoint identity mismatch', () => {
@@ -338,16 +366,12 @@ describe('Online-AMT stateful streaming research adapter', () => {
         performanceStartMs: 0,
         performanceOwnedSamples: 512 * 6,
         contextTailSamples: 4096,
-        hops: [{
-          hopIndex: 5,
-          localDecisionSample: 512 * 6,
+        hops: Array.from({ length: 6 }, (_, index) => ({
+          hopIndex: index,
+          localDecisionSample: 512 * (index + 1),
           processingLatencyMs: 5,
-          pitchStates: [{
-            pitch: 'F#4',
-            chosenState: 4,
-            probabilities: [0.1, 0.1, 0.1, 0.25, 0.5],
-          }],
-        }],
+          pitchStates: index === 5 ? eightyEightStates('F#4') : eightyEightStates('none'),
+        })),
       }],
     });
     const run = runOnlineAmtStreamingCandidateFromHopArtifact({
@@ -357,7 +381,8 @@ describe('Online-AMT stateful streaming research adapter', () => {
       command: 'python artifact smoke',
       runtime: 'docker-online-amt-modern',
     });
-    expect(run.publications[0].observations[0]).toMatchObject({
+    const bridgedObservation = run.publications.flatMap((publication) => publication.observations)[0];
+    expect(bridgedObservation).toMatchObject({
       pitch: 'F#4',
       performanceTimeMs: 34,
       confidence: 0.75,
@@ -369,10 +394,24 @@ describe('Online-AMT stateful streaming research adapter', () => {
         hops: [{ ...artifact.segments[0].hops[0], pitchStates: [{ pitch: 'C4', chosenState: 3, probabilities: [0, Number.NaN, 0, 0, 0] }] }],
       }],
     })).toThrow(/finite/);
+    expect(() => validateOnlineAmtPythonHopArtifactForScenario(scenario(), {
+      ...artifact,
+      segments: [{
+        ...artifact.segments[0],
+        hops: [{ ...artifact.segments[0].hops[0], localDecisionSample: 513 }],
+      }],
+    })).toThrow(/hop-aligned/);
+    expect(() => validateOnlineAmtPythonHopArtifactForScenario(scenario(), {
+      ...artifact,
+      segments: [{
+        ...artifact.segments[0],
+        hops: [{ ...artifact.segments[0].hops[0], pitchStates: eightyEightStates().slice(0, 87) }],
+      }],
+    })).toThrow(/88/);
   });
 
   it('bridges the real Docker smoke artifact through the authoritative TypeScript adapter when present', () => {
-    const artifactPath = resolve(process.cwd(), '../../backend/data/work/online_amt/phase9e_b1_runtime_smoke.json');
+    const artifactPath = resolve(process.cwd(), '../../backend/research/reports/online_amt_streaming_phase9e_b1_runtime_smoke_2026-10-08.json');
     if (!existsSync(artifactPath)) {
       expect(true).toBe(true);
       return;
@@ -402,6 +441,19 @@ describe('Online-AMT stateful streaming research adapter', () => {
     expect(run.publications.length).toBeGreaterThan(0);
     expect(run.publications.every((publication) => publication.analyzedThroughPerformanceMs >= 0)).toBe(true);
     expect(() => scoreCandidate(smokeScenario, definition, run)).not.toThrow();
+    const receiptPath = resolve(process.cwd(), '../../backend/research/reports/online_amt_streaming_phase9e_b1_bridge_receipt_2026-10-08.json');
+    if (existsSync(receiptPath)) {
+      const receipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
+      const actual = createOnlineAmtBridgeReceipt({
+        scenario: smokeScenario,
+        runtimeArtifactPath: 'backend/research/reports/online_amt_streaming_phase9e_b1_runtime_smoke_2026-10-08.json',
+        runtimeArtifactSha256: createHash('sha256').update(readFileSync(artifactPath)).digest('hex'),
+        artifact,
+        candidateId: definition.candidateId,
+        executionProfileSha256: '9b0d6e5f0edb84824863b887ed579c2af74eaf95288171e870788456d8192e4b',
+      });
+      expect(receipt).toEqual(actual);
+    }
   });
 
   it('does not count synthetic streaming smoke as DEVELOPMENT metrics or ranking', () => {
@@ -420,3 +472,12 @@ describe('Online-AMT stateful streaming research adapter', () => {
     expect(report.resultSummary[definition.candidateId].comparativeRank).toBeNull();
   });
 });
+
+function canonicalJsonForTest(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJsonForTest).join(',')}]`;
+  return `{${Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJsonForTest(item)}`)
+    .join(',')}}`;
+}

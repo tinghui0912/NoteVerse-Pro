@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "artifact": "continuous_paired_take_manifest_v1_policy",
+  "captureContextPolicy": {
+    "minimumPreRollMs": 2000,
+    "minimumPostRollMs": 2000,
+    "syntheticSilenceForEligibility": "FORBIDDEN"
+  },
+  "syncQuality": [
+    "SHARED_CAPTURE_CLOCK_VERIFIED",
+    "CALIBRATED_OFFSET",
+    "INSUFFICIENT_SYNCHRONIZATION"
+  ],
+  "completionRequired": true,
+  "expectedScoreSource": "PracticeScoreArtifact + BPM + scope + start",
+  "physicalTruthSource": "same-take physical MIDI NoteOn events",
+  "splits": [
+    "DEVELOPMENT",
+    "CALIBRATION",
+    "EVALUATION"
+  ],
+  "evaluationLocking": {
+    "lockIdentityIncludes": [
+      "manifest canonical SHA256",
+      "take IDs",
+      "source audio hashes",
+      "source MIDI hashes",
+      "score artifact hashes",
+      "policy version"
+    ]
+  }
+}

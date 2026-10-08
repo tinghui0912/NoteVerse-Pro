@@ -29,14 +29,6 @@ export const ONLINE_AMT_STREAMING_BASELINE_CONFIG = {
   confidenceDefinition: 'P_STATE_3_PLUS_P_STATE_4',
 } as const;
 
-const ONLINE_AMT_MODERN_COMPAT_EXECUTION_PROFILE = {
-  profileId: 'online-amt-modern-compat-python-cpu-stateful-v1',
-  legacyRuntimeParity: 'UNPROVEN',
-  candidateInferenceConcurrency: 1,
-  authoritativeDevice: 'CPU',
-  browserSupport: 'NOT_EVALUATED',
-} as const;
-
 type OnlineAmtProbabilities = readonly [number, number, number, number, number];
 
 export type OnlineAmtPitchState = {
@@ -90,6 +82,24 @@ export type OnlineAmtPythonHopArtifact = {
   }[];
 };
 
+export type OnlineAmtBridgeReceipt = {
+  schemaVersion: 1;
+  artifact: 'online_amt_real_typescript_bridge_receipt';
+  runtimeArtifactPath: string;
+  runtimeArtifactSha256: string;
+  candidateId: string;
+  candidateConfigurationSha256: string;
+  executionProfileSha256: string;
+  hopSegmentCount: number;
+  hopCount: number;
+  publicationCount: number;
+  observationCount: number;
+  finalAnalyzedThroughPerformanceMs: number | null;
+  canonicalPublicationDigest: string;
+  bridgeStatus: 'PASS';
+  productAccuracyMetric: false;
+};
+
 export function onlineAmtCandidateDefinition(input: {
   gitHead: string;
   configurationSha256?: string;
@@ -115,10 +125,6 @@ export function onlineAmtCandidateDefinition(input: {
 
 export function onlineAmtConfigurationSha256(): string {
   return sha256Hex(canonicalJson(ONLINE_AMT_STREAMING_BASELINE_CONFIG));
-}
-
-export function onlineAmtExecutionProfileSha256(): string {
-  return sha256Hex(canonicalJson(ONLINE_AMT_MODERN_COMPAT_EXECUTION_PROFILE));
 }
 
 export function runOnlineAmtStreamingCandidate(input: {
@@ -178,6 +184,7 @@ export function runOnlineAmtStreamingCandidateFromHopArtifact(input: {
   runtime: string;
 }): CandidateScenarioRun {
   const artifact = parseOnlineAmtPythonHopArtifact(input.artifact);
+  validateOnlineAmtPythonHopArtifactForScenario(input.scenario, artifact);
   const publications = publicationsFromHopOutputs({
     scenarioId: input.scenario.scenarioId,
     hopSegments: artifact.segments.map((segment) => ({
@@ -203,6 +210,42 @@ export function runOnlineAmtStreamingCandidateFromHopArtifact(input: {
       command: input.command,
       runtime: input.runtime,
     },
+  };
+}
+
+export function createOnlineAmtBridgeReceipt(input: {
+  scenario: BenchmarkScenario;
+  runtimeArtifactPath: string;
+  runtimeArtifactSha256: string;
+  artifact: OnlineAmtPythonHopArtifact;
+  candidateId: string;
+  executionProfileSha256: string;
+}): OnlineAmtBridgeReceipt {
+  const run = runOnlineAmtStreamingCandidateFromHopArtifact({
+    scenario: input.scenario,
+    artifact: input.artifact,
+    candidateId: input.candidateId,
+    command: 'create Online-AMT TypeScript bridge receipt',
+    runtime: 'typescript-authoritative-bridge',
+  });
+  const observations = run.publications.flatMap((publication) => publication.observations);
+  const hopCount = input.artifact.segments.reduce((sum, segment) => sum + segment.hops.length, 0);
+  return {
+    schemaVersion: 1,
+    artifact: 'online_amt_real_typescript_bridge_receipt',
+    runtimeArtifactPath: input.runtimeArtifactPath,
+    runtimeArtifactSha256: input.runtimeArtifactSha256,
+    candidateId: input.candidateId,
+    candidateConfigurationSha256: onlineAmtConfigurationSha256(),
+    executionProfileSha256: input.executionProfileSha256,
+    hopSegmentCount: input.artifact.segments.length,
+    hopCount,
+    publicationCount: run.publications.length,
+    observationCount: observations.length,
+    finalAnalyzedThroughPerformanceMs: run.publications.at(-1)?.analyzedThroughPerformanceMs ?? null,
+    canonicalPublicationDigest: sha256Hex(canonicalJson(run.publications)),
+    bridgeStatus: 'PASS',
+    productAccuracyMetric: false,
   };
 }
 
@@ -433,6 +476,59 @@ export function parseOnlineAmtPythonHopArtifact(value: unknown): OnlineAmtPython
     }
   }
   return artifact;
+}
+
+export function validateOnlineAmtPythonHopArtifactForScenario(
+  scenario: BenchmarkScenario,
+  artifact: OnlineAmtPythonHopArtifact,
+): void {
+  const seenSegments = new Set<string>();
+  const completion = scenario.completion?.performanceTimeMs ?? scenario.audio.clipEndMs - scenario.audio.performanceOriginSourceMs;
+  let previousEndMs = -Infinity;
+  for (const segment of artifact.segments) {
+    if (seenSegments.has(segment.segmentId)) throw new Error('Online-AMT hop artifact segmentId must be unique.');
+    seenSegments.add(segment.segmentId);
+    const segmentEndMs = performanceEndMs(segment.performanceStartMs, segment.performanceOwnedSamples);
+    if (segment.performanceStartMs < previousEndMs) {
+      throw new Error('Online-AMT hop artifact performance ownership cannot overlap.');
+    }
+    if (segmentEndMs > completion + 1e-9) {
+      throw new Error('Online-AMT hop artifact performance ownership exceeds scenario completion.');
+    }
+    previousEndMs = segmentEndMs;
+    const availableProcessedSamples = Math.floor(
+      (segment.performanceOwnedSamples + segment.contextTailSamples) / ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples,
+    ) * ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples;
+    const required = onlineAmtSegmentTailRequirement(segment.performanceOwnedSamples);
+    const maxRequiredSample = Math.min(availableProcessedSamples, required.requiredProcessedSamples);
+    const seenHops = new Set<number>();
+    segment.hops.forEach((hop, ordinal) => {
+      if (seenHops.has(hop.hopIndex)) throw new Error('Online-AMT hop indexes must be unique.');
+      seenHops.add(hop.hopIndex);
+      if (hop.hopIndex !== ordinal) throw new Error('Online-AMT hopIndex must equal chronological ordinal.');
+      const expectedDecisionSample = (hop.hopIndex + 1) * ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples;
+      if (hop.localDecisionSample !== expectedDecisionSample) {
+        throw new Error('Online-AMT localDecisionSample must be hop-aligned and equal to (hopIndex + 1) * 512.');
+      }
+      if (hop.localDecisionSample <= 0 || hop.localDecisionSample > availableProcessedSamples) {
+        throw new Error('Online-AMT hop exceeds available performance/context PCM.');
+      }
+      if (hop.localDecisionSample > maxRequiredSample) {
+        throw new Error('Online-AMT hop exceeds required product-safe processing horizon.');
+      }
+      if (hop.pitchStates.length !== 88) {
+        throw new Error('Real Online-AMT hop output must contain exactly 88 pitch states.');
+      }
+      const pitches = new Set<string>();
+      for (const state of hop.pitchStates) {
+        if (pitches.has(state.pitch)) throw new Error('Online-AMT pitch identities must be unique within one hop.');
+        pitches.add(state.pitch);
+        if (state.chosenState < 0 || state.chosenState > 4) {
+          throw new Error('Online-AMT chosenState is outside the 5-state vocabulary.');
+        }
+      }
+    });
+  }
 }
 
 export function assertOnlineAmtAssetIdentity(input: {

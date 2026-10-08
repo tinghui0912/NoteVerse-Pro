@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "artifact": "online_amt_modern_compat_execution_profile",
+  "profileId": "online-amt-modern-compat-python-cpu-stateful-v1",
+  "candidateId": "online-amt-stateful-modern-compat-dev-v1",
+  "cpuExecution": true,
+  "candidateInferenceConcurrency": 1,
+  "legacyRuntimeParity": "UNPROVEN",
+  "browserSupport": "NOT_EVALUATED",
+  "tailPolicy": "REAL_CONTEXT_FAIL_CLOSED",
+  "dockerfile": {
+    "path": "docker/research/Dockerfile.online-amt-modern",
+    "sha256": "22b431fc231b73e7e606b3fe03a5d689cdf131db3f371442bb263c24ba5e4835"
+  },
+  "requirements": {
+    "path": "docker/research/requirements.online-amt-modern.txt",
+    "sha256": "e9a111ded6955940aa714bab69e9b4e0c124bbaad4bde94b4bb30bf6c16b750d"
+  },
+  "runtime": {
+    "python": "3.11.10",
+    "torch": "2.6.0+cpu",
+    "numpy": "1.26.4",
+    "librosa": "0.10.2.post1",
+    "scipy": "1.14.1",
+    "numba": "0.61.2",
+    "pretty_midi": "0.2.10",
+    "soundfile": "0.12.1"
+  },
+  "baseImage": {
+    "tag": "python:3.11.10-slim-bookworm",
+    "digest": "sha256:840e180ebcc6e5c8efab209c43f5e40fd2af98cb49db5c7103c90539c56bb30e"
+  },
+  "dockerImage": {
+    "localTag": "noteverse-online-amt-modern:phase9e-b1",
+    "localImageDigest": "sha256:daff15ede55853aedbe8ec0b2fe6924d3e87697f6e041d0f2d05f3151b1cadfb"
+  },
+  "executionProfileSha256": "9b0d6e5f0edb84824863b887ed579c2af74eaf95288171e870788456d8192e4b"
+}

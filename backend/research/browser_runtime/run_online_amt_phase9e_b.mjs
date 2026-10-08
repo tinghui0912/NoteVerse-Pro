@@ -47,6 +47,10 @@ const causalManifestRel = args['causal-manifest'] ?? 'backend/data/work/datasets
 const causalManifest = path.resolve(repoRoot, causalManifestRel);
 const runtimeSmokeRel = args['runtime-smoke'] ?? 'backend/data/work/online_amt/phase9e_b1_runtime_smoke.json';
 const runtimeSmokePath = path.resolve(repoRoot, runtimeSmokeRel);
+const bridgeReceiptRel = args['bridge-receipt'] ?? 'backend/research/reports/online_amt_streaming_phase9e_b1_bridge_receipt_2026-10-08.json';
+const bridgeReceiptPath = path.resolve(repoRoot, bridgeReceiptRel);
+const executionProfileRel = args['execution-profile'] ?? 'backend/research/policies/online_amt_modern_compat_execution_profile_2026-10-08.json';
+const executionProfilePath = path.resolve(repoRoot, executionProfileRel);
 
 await mkdir(outputDir, { recursive: true });
 
@@ -66,6 +70,10 @@ const pythonRuntime = inspectPythonRuntime();
 const runtimeSmokeArtifact = existsSync(runtimeSmokePath)
   ? JSON.parse(await readFile(runtimeSmokePath, 'utf8'))
   : null;
+const runtimeSmokeSha256 = runtimeSmokeArtifact ? await sha256File(runtimeSmokePath) : null;
+const bridgeReceipt = existsSync(bridgeReceiptPath)
+  ? JSON.parse(await readFile(bridgeReceiptPath, 'utf8'))
+  : null;
 const runtimeSmoke = runtimeSmokeArtifact?.runtimeSmoke ?? (
   assetStatus === 'PASS'
     ? { status: 'NOT_RUN', reason: 'Real Docker Online-AMT smoke artifact was not provided.' }
@@ -77,32 +85,30 @@ const statefulnessSmoke = runtimeSmokeArtifact?.statefulnessSmoke ?? {
     ? 'Real Docker Online-AMT statefulness smoke artifact was not provided.'
     : 'Required external Online-AMT assets unavailable.',
 };
-const executionProfile = {
-  profileId: EXECUTION_PROFILE_ID,
-  candidateInferenceConcurrency: 1,
-  device: 'CPU',
-  browserSupport: 'NOT_EVALUATED',
-  legacyRuntimeParity: 'UNPROVEN',
-  dockerfile: 'docker/research/Dockerfile.online-amt-modern',
-  requirements: 'docker/research/requirements.online-amt-modern.txt',
-  runtimeSmokeArtifact: runtimeSmokeArtifact ? runtimeSmokeRel : null,
-  tailPolicy: 'REAL_CONTEXT_FAIL_CLOSED',
-};
-const executionProfileSha256 = createHash('sha256')
-  .update(JSON.stringify(executionProfile))
-  .digest('hex');
+const executionProfileArtifact = JSON.parse(await readFile(executionProfilePath, 'utf8'));
+const executionProfileSha256 = canonicalArtifactSha256(executionProfileArtifact, 'executionProfileSha256');
+if (executionProfileSha256 !== executionProfileArtifact.executionProfileSha256) {
+  throw new Error('Online-AMT execution profile SHA256 mismatch.');
+}
 const realPipelineIntegrationSmoke = runtimeSmokeArtifact?.hopArtifact
+  && bridgeReceipt?.bridgeStatus === 'PASS'
+  && bridgeReceipt.runtimeArtifactSha256 === runtimeSmokeSha256
+  && bridgeReceipt.executionProfileSha256 === executionProfileSha256
   ? {
       status: 'PASS',
-      kind: 'REAL_DOCKER_ONLINE_AMT_HOP_OUTPUT_READY_FOR_TYPESCRIPT_BRIDGE',
+      kind: 'REAL_DOCKER_ONLINE_AMT_HOP_OUTPUT_BRIDGED_BY_TYPESCRIPT_ADAPTER',
       productAccuracyMetric: false,
+      bridgeReceiptPath: bridgeReceiptRel,
+      bridgeReceiptSha256: await sha256File(bridgeReceiptPath),
       hopSegmentCount: runtimeSmokeArtifact.hopArtifact.segments?.length ?? 0,
+      publicationCount: bridgeReceipt.publicationCount,
+      observationCount: bridgeReceipt.observationCount,
     }
   : {
       status: 'BLOCKED',
-      kind: 'REAL_DOCKER_ONLINE_AMT_HOP_OUTPUT_READY_FOR_TYPESCRIPT_BRIDGE',
+      kind: 'REAL_DOCKER_ONLINE_AMT_HOP_OUTPUT_BRIDGED_BY_TYPESCRIPT_ADAPTER',
       productAccuracyMetric: false,
-      reason: 'Real Online-AMT hop output artifact was unavailable.',
+      reason: 'Real Online-AMT bridge receipt was unavailable or did not match the runtime artifact/profile.',
     };
 const engineeringRuntimePass = runtimeSmoke.status === 'PASS'
   && statefulnessSmoke.status === 'PASS'
@@ -129,6 +135,8 @@ const artifact = {
     `--checkpoint ${checkpointRel}`,
     `--causal-manifest ${causalManifestRel}`,
     `--runtime-smoke ${runtimeSmokeRel}`,
+    `--bridge-receipt ${bridgeReceiptRel}`,
+    `--execution-profile ${executionProfileRel}`,
     `--output-dir ${outputDirRel}`,
   ].join(' '),
   candidate: {
@@ -141,7 +149,14 @@ const artifact = {
     configurationSha256: CONFIG_SHA256,
   },
   executionProfile: {
-    ...executionProfile,
+    path: executionProfileRel,
+    artifact: executionProfileArtifact.artifact,
+    profileId: executionProfileArtifact.profileId,
+    candidateInferenceConcurrency: executionProfileArtifact.candidateInferenceConcurrency,
+    device: executionProfileArtifact.cpuExecution ? 'CPU' : 'UNKNOWN',
+    browserSupport: executionProfileArtifact.browserSupport,
+    legacyRuntimeParity: executionProfileArtifact.legacyRuntimeParity,
+    tailPolicy: executionProfileArtifact.tailPolicy,
     executionProfileSha256,
   },
   runtimeEnvironment: {
@@ -228,4 +243,19 @@ function inspectPythonRuntime() {
 
 async function sha256File(filePath) {
   return createHash('sha256').update(await readFile(filePath)).digest('hex');
+}
+
+function canonicalArtifactSha256(artifact, digestField) {
+  const copy = { ...artifact };
+  delete copy[digestField];
+  return createHash('sha256').update(canonicalJson(copy)).digest('hex');
+}
+
+function canonicalJson(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  return `{${Object.entries(value)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
+    .join(',')}}`;
 }

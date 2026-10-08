@@ -69,11 +69,12 @@ def run_smoke(args: argparse.Namespace) -> dict[str, Any]:
 
         adapter = OnlineAmtAdapter(args.checkpoint, torch=torch, load_model=load_model, transcriber_cls=OnlineTranscriber)
         fixture = synthetic_fixture(args.duration_ms)
+        context_tail = synthetic_fixture(required_context_tail_ms(len(fixture)))
         hop_artifact = adapter.process_segment(
             segment_id="synthetic-runtime-smoke-seg-0",
             performance_start_ms=0.0,
             performance_pcm=fixture,
-            context_tail_pcm=synthetic_fixture(256),
+            context_tail_pcm=context_tail,
         )
         determinism = reset_determinism(adapter, fixture)
         causality = prefix_causality(adapter, fixture)
@@ -257,6 +258,12 @@ def synthetic_fixture(duration_ms: float) -> np.ndarray:
     sample_count = int(math.ceil(duration_ms / 1000 * SAMPLE_RATE))
     t = np.arange(sample_count, dtype=np.float32) / SAMPLE_RATE
     return (0.2 * np.sin(2 * math.pi * 440 * t) + 0.1 * np.sin(2 * math.pi * 660 * t)).astype(np.float32)
+
+
+def required_context_tail_ms(performance_samples: int) -> float:
+    correction_delay_samples = math.ceil(158 / 1000 * SAMPLE_RATE)
+    required_processed_samples = math.ceil((performance_samples + correction_delay_samples) / HOP_SAMPLES) * HOP_SAMPLES
+    return max(0, required_processed_samples - performance_samples) / SAMPLE_RATE * 1000
 
 
 def runtime_block(*, torch: Any | None = None) -> dict[str, Any]:
