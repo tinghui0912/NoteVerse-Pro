@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "artifact": "online_amt_real_typescript_bridge_receipt",
+  "runtimeArtifactPath": "backend/research/reports/online_amt_streaming_phase9e_b1_runtime_smoke_2026-10-08.json",
+  "runtimeArtifactSha256": "cc18697c3a5bcb5f69b08b8f7571f4e1fd3129df63bd3b8690526b74b661c32b",
+  "candidateId": "online-amt-stateful-modern-compat-dev-v1",
+  "candidateConfigurationSha256": "cb01de9df3ce3fecfecc47735c9fcf0e7f5209ed56d6650ed83322439c491aae",
+  "executionProfileSha256": "9b0d6e5f0edb84824863b887ed579c2af74eaf95288171e870788456d8192e4b",
+  "hopSegmentCount": 1,
+  "hopCount": 37,
+  "publicationCount": 33,
+  "observationCount": 3,
+  "finalAnalyzedThroughPerformanceMs": 1024,
+  "canonicalPublicationDigest": "efa924d23049ba447d83321ee82345917ac7d5086baa667789dd081ad859227f",
+  "bridgeStatus": "PASS",
+  "productAccuracyMetric": false
+}

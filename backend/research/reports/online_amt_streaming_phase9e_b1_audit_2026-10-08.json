@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "artifact": "phase9e_b_online_amt_streaming_audit",
-  "generatedAt": "2026-10-08T01:40:02.297Z",
-  "implementationGitHead": "e061c60f712130338b8143b6a393302dc77538da",
-  "normalizedCommand": "node backend/research/browser_runtime/run_online_amt_phase9e_b.mjs --repo-root . --git-head e061c60f712130338b8143b6a393302dc77538da --online-amt-repo backend/data/work/online_amt --checkpoint backend/data/work/online_amt/model-180000.pt --causal-manifest backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json --runtime-smoke backend/research/reports/online_amt_streaming_phase9e_b1_runtime_smoke_2026-10-08.json --output-dir backend/research/reports",
+  "generatedAt": "2026-10-08T02:12:06.917Z",
+  "implementationGitHead": "d2b16c554fbd0bd6151ca29ff5a63d55de3044c3",
+  "normalizedCommand": "node backend/research/browser_runtime/run_online_amt_phase9e_b.mjs --repo-root . --git-head d2b16c554fbd0bd6151ca29ff5a63d55de3044c3 --online-amt-repo backend/data/work/online_amt --checkpoint backend/data/work/online_amt/model-180000.pt --causal-manifest backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json --runtime-smoke backend/research/reports/online_amt_streaming_phase9e_b1_runtime_smoke_2026-10-08.json --bridge-receipt backend/research/reports/online_amt_streaming_phase9e_b1_bridge_receipt_2026-10-08.json --execution-profile backend/research/policies/online_amt_modern_compat_execution_profile_2026-10-08.json --output-dir backend/research/reports",
   "candidate": {
     "candidateId": "online-amt-stateful-modern-compat-dev-v1",
     "strategyKind": "STREAMING",
@@ -14,16 +14,15 @@
     "configurationSha256": "cb01de9df3ce3fecfecc47735c9fcf0e7f5209ed56d6650ed83322439c491aae"
   },
   "executionProfile": {
+    "path": "backend/research/policies/online_amt_modern_compat_execution_profile_2026-10-08.json",
+    "artifact": "online_amt_modern_compat_execution_profile",
     "profileId": "online-amt-modern-compat-python-cpu-stateful-v1",
     "candidateInferenceConcurrency": 1,
     "device": "CPU",
     "browserSupport": "NOT_EVALUATED",
     "legacyRuntimeParity": "UNPROVEN",
-    "dockerfile": "docker/research/Dockerfile.online-amt-modern",
-    "requirements": "docker/research/requirements.online-amt-modern.txt",
-    "runtimeSmokeArtifact": "backend/research/reports/online_amt_streaming_phase9e_b1_runtime_smoke_2026-10-08.json",
     "tailPolicy": "REAL_CONTEXT_FAIL_CLOSED",
-    "executionProfileSha256": "4b6ae1e4ebc5b6fdc30f6879b04f9c159ea837bc041d110db6d2df84c3d334bb"
+    "executionProfileSha256": "9b0d6e5f0edb84824863b887ed579c2af74eaf95288171e870788456d8192e4b"
   },
   "runtimeEnvironment": {
     "os": "Windows_NT 10.0.26200 x64",
@@ -80,9 +79,13 @@
   },
   "realPipelineIntegrationSmoke": {
     "status": "PASS",
-    "kind": "REAL_DOCKER_ONLINE_AMT_HOP_OUTPUT_READY_FOR_TYPESCRIPT_BRIDGE",
+    "kind": "REAL_DOCKER_ONLINE_AMT_HOP_OUTPUT_BRIDGED_BY_TYPESCRIPT_ADAPTER",
     "productAccuracyMetric": false,
-    "hopSegmentCount": 1
+    "bridgeReceiptPath": "backend/research/reports/online_amt_streaming_phase9e_b1_bridge_receipt_2026-10-08.json",
+    "bridgeReceiptSha256": "55629391100e269c79d348b7a48252b247b19bf616041924e76f7f8fe887c383",
+    "hopSegmentCount": 1,
+    "publicationCount": 33,
+    "observationCount": 3
   },
   "causalManifest": {
     "path": "backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json",
