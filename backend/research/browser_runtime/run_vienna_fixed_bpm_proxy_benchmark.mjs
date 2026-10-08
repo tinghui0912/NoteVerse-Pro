@@ -50,25 +50,25 @@ const publicContract = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/pr
 const bakeoff = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.ts'));
 const byteDance = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/practice/research/bytedance-score-aware-chunked.ts'));
 const onlineAmt = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/practice/research/online-amt-stateful-streaming.ts'));
+const artifactDomain = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/practice/local-core/artifact.ts'));
+const continuousContract = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/practice/local-core/continuous-expected-strikes.ts'));
 
 await mkdir(outputDir, { recursive: true });
 await mkdir(workRoot, { recursive: true });
 
 const acquisition = await ensureViennaSources();
+const scoreArtifacts = await ensureViennaPracticeScoreArtifacts(acquisition.metadataRoot);
 const binding = await bindViennaSources();
-const scenarios = [];
-const scenarioReceipts = [];
+const scenarioPool = [];
 const skippedScopes = [];
 for (const performance of binding.performances) {
-  if (scenarios.length >= maxScenarios) break;
-  const built = await buildScenarioCandidates(performance, maxScenarios - scenarios.length);
-  for (const item of built.scenarios) {
-    scenarios.push(item.scenario);
-    scenarioReceipts.push(item.receipt);
-    if (scenarios.length >= maxScenarios) break;
-  }
+  const built = await buildScenarioCandidates(performance, scoreArtifacts.get(performance.pieceId), 2);
+  scenarioPool.push(...built.scenarios);
   skippedScopes.push(...built.skipped);
 }
+const selectedScenarioItems = selectStratifiedScenarios(scenarioPool, maxScenarios);
+const scenarios = selectedScenarioItems.map((item) => item.scenario);
+const scenarioReceipts = selectedScenarioItems.map((item) => item.receipt);
 
 const publicManifest = {
   schemaVersion: 1,
@@ -118,7 +118,8 @@ await writeFile(manifestPath, `${JSON.stringify({
   metadataCommit: VIENNA_METADATA_COMMIT,
   audioZip: acquisition.audioZip,
   intersectionCount: binding.intersectionCount,
-  scenarioReceipts,
+    scenarioReceipts,
+  practiceScoreArtifacts: [...scoreArtifacts.values()].map((item) => item.receipt),
   scenarios,
 }, null, 2)}\n`);
 
@@ -180,6 +181,12 @@ const report = {
     audioMidiMatchIntersectionCount: binding.intersectionCount,
     changesMdSha256: acquisition.changesMdSha256,
     provenance: 'DATASET_PROVIDED_AUDIO_MIDI_ALIGNMENT',
+    invalidatedPriorResult: {
+      artifact: 'phase9f_b1_vienna_fixed_bpm_proxy_real_comparison',
+      previousResult: 'BYTE_DANCE_BETTER',
+      correctedStatus: 'INVALIDATED_BENCHMARK_TRUTH_CONSTRUCTION',
+      reason: '9F-B.1 used matched .match anchors for both expected score pitch and physical attacks; 9F-B.2 uses PracticeScoreArtifact/product resolver for expected truth and full performance MIDI for physical truth.',
+    },
   },
   frozenScenarioManifest: {
     path: normalizeRel(repoRoot, manifestPath),
@@ -202,6 +209,12 @@ const report = {
     },
     bpmDistribution: distribution(scenarioReceipts.map((item) => item.configuredIntegerBpm)),
     residualP95DistributionMs: distribution(scenarioReceipts.map((item) => item.absoluteResidualP95Ms)),
+    ledgerGroundTruthMatchRateDistribution: distribution(scenarioReceipts.map((item) => item.ledgerGroundTruthExpectedStrikeMatchRate)),
+    realScoreMissingNoteCount: scenarioReceipts.reduce((sum, item) => sum + item.groundTruthMissingCount, 0),
+    realPhysicalExtraCount: scenarioReceipts.reduce((sum, item) => sum + item.groundTruthExtraCount, 0),
+    selectedScenariosByPiece: countBy(scenarioReceipts, (item) => item.pieceId),
+    uniquePerformerCount: new Set(scenarioReceipts.map((item) => item.performanceId)).size,
+    uniquePieceCount: new Set(scenarioReceipts.map((item) => item.pieceId)).size,
   },
   candidateRuns: {
     byteDanceRealRunCount: runs.filter((run) => run.candidateId === BYTEDANCE_CANDIDATE_ID).length,
@@ -225,6 +238,9 @@ const report = {
     productionMicrophoneEnabled: false,
     calibrationUsed: false,
     evaluationUsed: false,
+    expectedTruthSource: 'PracticeScoreArtifact + CUSTOM_FIXED_BPM + PracticeScope RANGE + resolveContinuousPracticeContract',
+    physicalTruthSource: 'Full Vienna performance MIDI NoteOn events',
+    alignmentSource: 'Vienna .match files for fitting/alignment only',
   },
 };
 
@@ -282,6 +298,51 @@ async function ensureViennaSources() {
   };
 }
 
+async function ensureViennaPracticeScoreArtifacts(metadataRootRel) {
+  const metadataRoot = path.resolve(repoRoot, metadataRootRel);
+  const outputDir = path.join(workRoot, 'practice-score-artifacts');
+  const receiptPath = path.join(outputDir, 'receipt.json');
+  const result = spawnSync('docker', [
+    'run',
+    '--rm',
+    '--entrypoint',
+    'python',
+    '-e',
+    'PYTHONPATH=/workspace/backend',
+    '-v',
+    `${repoRoot}:/workspace`,
+    '-w',
+    '/workspace',
+    'noteverse-backend-practice:dev',
+    'backend/research/vienna/generate_vienna_practice_artifacts.py',
+    '--musicxml-root',
+    normalizeRel(repoRoot, path.join(metadataRoot, 'musicxml')),
+    '--output-dir',
+    normalizeRel(repoRoot, outputDir),
+    '--metadata-commit',
+    VIENNA_METADATA_COMMIT,
+    '--receipt',
+    normalizeRel(repoRoot, receiptPath),
+  ], { cwd: repoRoot, encoding: 'utf8', timeout: 300_000 });
+  if (result.status !== 0) throw new Error(`Vienna PracticeScoreArtifact generation failed: ${result.stderr || result.stdout}`);
+  const receipt = JSON.parse(await readFile(receiptPath, 'utf8'));
+  const artifacts = new Map();
+  for (const piece of receipt.pieces) {
+    const artifactPath = path.resolve(repoRoot, piece.practiceScoreArtifactPath);
+    const artifact = JSON.parse(await readFile(artifactPath, 'utf8'));
+    artifactDomain.assertPracticeScoreArtifact(artifact);
+    artifacts.set(piece.pieceId, {
+      artifact,
+      receipt: {
+        ...piece,
+        musicXmlPath: normalizeRel(repoRoot, path.resolve(piece.musicXmlPath)),
+        practiceScoreArtifactPath: normalizeRel(repoRoot, artifactPath),
+      },
+    });
+  }
+  return artifacts;
+}
+
 async function bindViennaSources() {
   const metadataRoot = path.join(workRoot, 'vienna4x22-metadata');
   const audioRoot = path.join(workRoot, 'audio-extracted', 'audio');
@@ -306,8 +367,11 @@ async function bindViennaSources() {
   };
 }
 
-async function buildScenarioCandidates(performance, limit) {
+async function buildScenarioCandidates(performance, scoreArtifactEntry, limit) {
+  if (!scoreArtifactEntry) throw new Error(`Missing PracticeScoreArtifact for ${performance.pieceId}`);
+  const artifact = scoreArtifactEntry.artifact;
   const match = await parseMatchFile(performance.matchPath);
+  const midi = parseMidiNoteOns(await readFile(performance.midiPath));
   const wav = byteDance.decodeResearchWavToMonoFloat32(await readFile(performance.audioPath));
   const hashes = {
     audio: await sha256File(performance.audioPath),
@@ -315,73 +379,82 @@ async function buildScenarioCandidates(performance, limit) {
     match: await sha256File(performance.matchPath),
     musicXml: await sha256File(performance.musicXmlPath),
   };
-  const grouped = groupAnchors(match.anchors.filter((anchor) => anchor.scoreBeat >= 0));
+  const anchorsByScoreNoteId = new Map(match.anchors.map((anchor) => [anchor.scoreNoteId, anchor]));
+  verifyMatchMidiConsistency(match.anchors, midi.noteOns, performance.performanceId);
+  const scoreGroups = artifact.expectedPracticeGroups.filter((group) => group.onsetBeat >= 0);
   const scenarios = [];
   const skipped = [];
-  for (let startIndex = 8; startIndex < grouped.length && scenarios.length < limit; startIndex += 24) {
-    const candidateGroups = [];
-    const sourceStart = grouped[startIndex].performedMs;
-    for (let index = startIndex; index < grouped.length; index += 1) {
-      candidateGroups.push(grouped[index]);
-      const span = grouped[index].performedMs - sourceStart;
-      if (span >= DEFAULT_SCOPE_TARGET_MS) break;
+  for (let startIndex = 0; startIndex < scoreGroups.length && scenarios.length < limit; startIndex += 12) {
+    let endIndex = startIndex;
+    let candidateGroups = scoreGroups.slice(startIndex, endIndex + 1);
+    let candidateAnchors = anchorsForGroups(candidateGroups, anchorsByScoreNoteId);
+    let fit = fitLocalBpm(candidateAnchors);
+    let configuredIntegerBpm = Number.isFinite(fit.rawFittedBpm) ? safeProductIntegerBpm(fit.rawFittedBpm) : null;
+    let contract = null;
+    while (endIndex + 1 < scoreGroups.length) {
+      candidateGroups = scoreGroups.slice(startIndex, endIndex + 1);
+      candidateAnchors = anchorsForGroups(candidateGroups, anchorsByScoreNoteId);
+      fit = fitLocalBpm(candidateAnchors);
+      configuredIntegerBpm = Number.isFinite(fit.rawFittedBpm) ? safeProductIntegerBpm(fit.rawFittedBpm) : null;
+      if (configuredIntegerBpm !== null) {
+        const scope = {
+          kind: 'RANGE',
+          startGroupId: candidateGroups[0].groupId,
+          endGroupId: candidateGroups.at(-1).groupId,
+        };
+        contract = continuousContract.resolveContinuousPracticeContract({
+          artifact,
+          tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: configuredIntegerBpm },
+          scope,
+        });
+        if (contract.naturalTerminalPerformanceTimeMs >= DEFAULT_SCOPE_TARGET_MS) break;
+      }
+      endIndex += 1;
     }
-    const sourceSpan = candidateGroups.at(-1).performedMs - sourceStart;
-    if (sourceSpan < DEFAULT_SCOPE_MIN_MS || sourceSpan > DEFAULT_SCOPE_MAX_MS) {
-      skipped.push({ performanceId: performance.performanceId, reason: 'SCOPE_DURATION_OUTSIDE_TARGET', sourceSpan });
+    if (!contract || configuredIntegerBpm === null) {
+      skipped.push({ performanceId: performance.performanceId, reason: 'NO_PRODUCT_BPM_OR_CONTRACT' });
       continue;
     }
-    const fit = fitLocalBpm(candidateGroups.flatMap((group) => group.anchors));
-    let configuredIntegerBpm;
+    const sourceSpan = candidateAnchors.length > 0
+      ? Math.max(...candidateAnchors.map((anchor) => anchor.performedMs)) - Math.min(...candidateAnchors.map((anchor) => anchor.performedMs))
+      : 0;
+    if (
+      contract.naturalTerminalPerformanceTimeMs < DEFAULT_SCOPE_MIN_MS
+      || contract.naturalTerminalPerformanceTimeMs > DEFAULT_SCOPE_MAX_MS
+    ) {
+      skipped.push({ performanceId: performance.performanceId, reason: 'SCOPE_DURATION_OUTSIDE_TARGET', sourceSpan, productDurationMs: contract.naturalTerminalPerformanceTimeMs });
+      continue;
+    }
     try {
-      configuredIntegerBpm = publicContract.productIntegerBpm(fit.rawFittedBpm);
+      publicContract.productIntegerBpm(fit.rawFittedBpm);
     } catch (error) {
       skipped.push({ performanceId: performance.performanceId, reason: 'BPM_OUTSIDE_PRODUCT_RANGE', rawFittedBpm: fit.rawFittedBpm, error: errorMessage(error) });
       continue;
     }
-    const startBeat = candidateGroups[0].scoreBeat;
-    const performanceOriginSourceMs = median(candidateGroups.flatMap((group) => group.anchors.map((anchor) =>
+    const startBeat = contract.scopeStartBeat;
+    const performanceOriginSourceMs = median(candidateAnchors.map((anchor) =>
       anchor.performedMs - (anchor.scoreBeat - startBeat) * fit.msPerBeat
-    )));
-    const msPerBeatProduct = 60_000 / configuredIntegerBpm;
-    const expectedStrikes = [];
-    for (const group of candidateGroups) {
-      const expectedPerformanceTimeMs = (group.scoreBeat - startBeat) * msPerBeatProduct;
-      for (const anchor of group.anchors) {
-        expectedStrikes.push({
-          strikeId: `${performance.performanceId}:${anchor.scoreNoteId}`,
-          groupId: `${performance.performanceId}:beat-${group.scoreBeat.toFixed(4)}`,
-          pitch: midiPitchName(anchor.scoreMidi),
-          expectedPerformanceTimeMs,
-          renderNoteIds: [anchor.scoreNoteId],
-        });
-      }
-    }
-    const completion = Math.ceil((candidateGroups.at(-1).scoreBeat - startBeat) * msPerBeatProduct + DEFAULT_ASSIGNMENT_WINDOW_MS);
-    const physicalAttacks = candidateGroups.flatMap((group) => group.anchors.map((anchor) => ({
-      physicalEventId: `${performance.performanceId}:${anchor.performanceNoteId}`,
-      pitch: midiPitchName(anchor.performedMidi),
-      performanceTimeMs: anchor.performedMs - performanceOriginSourceMs,
-      velocity: anchor.velocity,
-    }))).filter((attack) => attack.performanceTimeMs >= 0 && attack.performanceTimeMs <= completion);
-    const residuals = candidateGroups.flatMap((group) => group.anchors.map((anchor) => Math.abs(
+    ));
+    const completion = contract.naturalTerminalPerformanceTimeMs;
+    const expectedStrikes = contract.expectedStrikes;
+    const physicalAttacks = midi.noteOns.map((note) => ({
+      physicalEventId: `${performance.performanceId}:midi-track-${note.trackIndex}-event-${note.eventIndex}`,
+      pitch: midiPitchName(note.midi),
+      performanceTimeMs: note.onsetMs - performanceOriginSourceMs,
+      velocity: note.velocity,
+    })).filter((attack) => attack.performanceTimeMs >= 0 && attack.performanceTimeMs <= completion);
+    const residuals = candidateAnchors.map((anchor) => Math.abs(
       (anchor.performedMs - performanceOriginSourceMs)
-      - (anchor.scoreBeat - startBeat) * msPerBeatProduct
-    )));
+      - (anchor.scoreBeat - startBeat) * (60_000 / configuredIntegerBpm)
+    ));
     const diagnostics = {
       method: 'MEDIAN_LOCAL_MS_PER_QUARTER',
       rawFittedBpm: fit.rawFittedBpm,
       configuredIntegerBpm,
-      alignmentAnchorCount: residuals.length,
+      alignmentAnchorCount: candidateAnchors.length,
       absoluteResidualP95Ms: percentile(residuals, 0.95),
-      groundTruthExpectedStrikeMatchRate: physicalAttacks.length / expectedStrikes.length,
+      groundTruthExpectedStrikeMatchRate: 0,
     };
-    try {
-      publicContract.validateSecondaryViennaFit(diagnostics);
-    } catch (error) {
-      skipped.push({ performanceId: performance.performanceId, reason: 'PRE_MODEL_FIT_GATE_FAILED', diagnostics, error: errorMessage(error) });
-      continue;
-    }
     const scenario = {
       schemaVersion: 1,
       scenarioId: `vienna-secondary-base:${performance.performanceId}:${startBeat.toFixed(3)}`,
@@ -416,11 +489,19 @@ async function buildScenarioCandidates(performance, limit) {
       },
       corpusOverlapStatus: 'UNKNOWN',
     };
+    const groundTruthScore = scoreGroundTruthEvaluation(scenario);
+    diagnostics.groundTruthExpectedStrikeMatchRate = groundTruthScore.matchRate;
+    try {
+      publicContract.validateSecondaryViennaFit(diagnostics);
+    } catch (error) {
+      skipped.push({ performanceId: performance.performanceId, reason: 'PRE_MODEL_FIT_GATE_FAILED', diagnostics, error: errorMessage(error) });
+      continue;
+    }
     try {
       bakeoff.validateBenchmarkScenario(scenario);
       const plans = byteDance.planByteDanceScoreAwareChunks(scenario);
       byteDance.validateByteDanceSourceContext(scenario, plans);
-      const onlineRequirement = onlineAmt.onlineAmtSegmentTailRequirement(Math.round(completion / 1000 * 16_000));
+      const onlineRequirement = onlineAmt.onlineAmtSegmentTailRequirement(performanceOwnedSamplesAtOrBefore(completion));
       const onlineRequiredEndMs = performanceOriginSourceMs + completion + onlineRequirement.requiredContextTailSamples / 16_000 * 1000;
       if (onlineRequiredEndMs > wav.durationMs) throw new Error('Online-AMT requires unavailable context tail.');
     } catch (error) {
@@ -437,16 +518,29 @@ async function buildScenarioCandidates(performance, limit) {
         midiSha256: hashes.midi,
         matchSha256: hashes.match,
         musicXmlSha256: hashes.musicXml,
+        practiceScoreArtifactPath: scoreArtifactEntry.receipt.practiceScoreArtifactPath,
+        practiceScoreArtifactSha256: scoreArtifactEntry.receipt.practiceScoreArtifactSha256,
+        artifactId: scoreArtifactEntry.receipt.artifactId,
         matchPath: normalizeRel(repoRoot, performance.matchPath),
         musicXmlPath: normalizeRel(repoRoot, performance.musicXmlPath),
         scopeStartBeat: startBeat,
-        scopeEndBeat: candidateGroups.at(-1).scoreBeat,
+        scopeEndBeat: contract.scopeTerminalBeat,
+        practiceScope: { kind: 'RANGE', startGroupId: candidateGroups[0].groupId, endGroupId: candidateGroups.at(-1).groupId },
         performanceOriginSourceMs,
         rawFittedBpm: fit.rawFittedBpm,
         configuredIntegerBpm,
         absoluteResidualP95Ms: diagnostics.absoluteResidualP95Ms,
-        groundTruthExpectedStrikeMatchRate: diagnostics.groundTruthExpectedStrikeMatchRate,
+        ledgerGroundTruthExpectedStrikeMatchRate: diagnostics.groundTruthExpectedStrikeMatchRate,
+        groundTruthMissingCount: groundTruthScore.missingCount,
+        groundTruthExtraCount: groundTruthScore.extraCount,
         expectedStrikeCount: expectedStrikes.length,
+        physicalMidiAttackCount: physicalAttacks.length,
+        truthIndependence: {
+          expectedTruthSource: 'PracticeScoreArtifact + CUSTOM_FIXED_BPM + PracticeScope RANGE',
+          physicalTruthSource: 'Vienna performance MIDI full NoteOn set',
+          alignmentSource: 'Vienna .match score/performance anchors',
+          audioSource: 'Vienna WAV',
+        },
       },
     });
   }
@@ -518,7 +612,7 @@ async function runByteDanceScenario(scenario) {
 async function runOnlineAmtScenario(scenario) {
   const wav = byteDance.decodeResearchWavToMonoFloat32(await readFile(path.resolve(repoRoot, scenario.source.sourceAudioPath)));
   const completion = scenario.completion.performanceTimeMs;
-  const ownedSamples = Math.round(completion / 1000 * 16_000);
+  const ownedSamples = performanceOwnedSamplesAtOrBefore(completion);
   const requirement = onlineAmt.onlineAmtSegmentTailRequirement(ownedSamples);
   const performancePcm16k = resampleLinear({
     sourcePcm: wav.pcm,
@@ -592,7 +686,6 @@ async function parseMatchFile(filePath) {
       scoreBeat: Number(match[2]),
       performanceNoteId: match[3],
       performedMidi: Number(match[4]),
-      scoreMidi: Number(match[4]),
       performedMs: Number(match[5]) * tickToMs,
       velocity: Number(match[7]),
     });
@@ -614,6 +707,7 @@ function groupAnchors(anchors) {
 
 function fitLocalBpm(anchors) {
   const groups = groupAnchors(anchors);
+  if (groups.length < 2) return { msPerBeat: NaN, rawFittedBpm: NaN };
   const tempos = [];
   for (let index = 1; index < groups.length; index += 1) {
     const beatDelta = groups[index].scoreBeat - groups[index - 1].scoreBeat;
@@ -622,6 +716,172 @@ function fitLocalBpm(anchors) {
   }
   const msPerBeat = median(tempos);
   return { msPerBeat, rawFittedBpm: 60_000 / msPerBeat };
+}
+
+function safeProductIntegerBpm(rawBpm) {
+  try {
+    return publicContract.productIntegerBpm(rawBpm);
+  } catch {
+    return null;
+  }
+}
+
+function anchorsForGroups(groups, anchorsByScoreNoteId) {
+  return groups
+    .flatMap((group) => group.renderNoteIds.flatMap((noteId) => {
+      const direct = anchorsByScoreNoteId.get(noteId);
+      if (direct) return [direct];
+      const base = String(noteId).replace(/voice_overlap$/, '');
+      const fallback = anchorsByScoreNoteId.get(base);
+      return fallback ? [fallback] : [];
+    }))
+    .sort((left, right) => left.scoreBeat - right.scoreBeat || left.performedMs - right.performedMs);
+}
+
+function scoreGroundTruthEvaluation(scenario) {
+  const definition = {
+    candidateId: 'physical-midi-ground-truth-probe',
+    strategyKind: 'CHUNKED',
+    identity: {
+      modelRuntime: 'physical-midi-ground-truth-probe',
+      adapterVersion: 'vienna-corrected-truth-probe-v1',
+      configurationSha256: createHash('sha256').update('vienna-corrected-truth-probe-v1').digest('hex'),
+      trainingDataOverlapStatus: 'UNKNOWN',
+    },
+  };
+  const run = {
+    candidateId: definition.candidateId,
+    scenarioId: scenario.scenarioId,
+    publications: [{
+      publicationId: `${scenario.scenarioId}:physical-midi-probe`,
+      analyzedThroughPerformanceMs: scenario.completion.performanceTimeMs,
+      observations: scenario.physicalGroundTruth.attacks.map((attack) => ({
+        observationId: attack.physicalEventId,
+        pitch: attack.pitch,
+        performanceTimeMs: attack.performanceTimeMs,
+        confidence: 1,
+      })),
+    }],
+  };
+  const score = bakeoff.scoreCandidate(scenario, definition, run);
+  const groundTruth = score.groundTruthEvaluation;
+  if (!groundTruth || groundTruth.status !== 'COMPLETE') {
+    throw new Error('Physical MIDI ground-truth evaluation did not complete.');
+  }
+  const matched = groundTruth.strikes.filter((strike) => strike.result === 'MATCHED').length;
+  const missing = groundTruth.strikes.filter((strike) => strike.result === 'MISSING').length;
+  return {
+    matchRate: matched / groundTruth.strikes.length,
+    missingCount: missing,
+    extraCount: groundTruth.extras.length,
+  };
+}
+
+function verifyMatchMidiConsistency(anchors, noteOns, performanceId) {
+  const byPitch = new Map();
+  for (const note of noteOns) {
+    const items = byPitch.get(note.midi) ?? [];
+    items.push(note);
+    byPitch.set(note.midi, items);
+  }
+  for (const anchor of anchors.slice(0, 200)) {
+    const nearest = (byPitch.get(anchor.performedMidi) ?? [])
+      .reduce((best, note) => {
+        const delta = Math.abs(note.onsetMs - anchor.performedMs);
+        return !best || delta < best.delta ? { note, delta } : best;
+      }, null);
+    if (!nearest || nearest.delta > 8) {
+      throw new Error(`Vienna match/MIDI timing mismatch for ${performanceId} ${anchor.performanceNoteId}.`);
+    }
+  }
+}
+
+function parseMidiNoteOns(bytes) {
+  let offset = 0;
+  if (ascii(bytes, offset, 4) !== 'MThd') throw new Error('MIDI file missing MThd header.');
+  offset += 4;
+  const headerLength = readU32(bytes, offset); offset += 4;
+  const format = readU16(bytes, offset); offset += 2;
+  const trackCount = readU16(bytes, offset); offset += 2;
+  const division = readU16(bytes, offset); offset += 2;
+  offset += headerLength - 6;
+  if (division & 0x8000) throw new Error('SMPTE MIDI timing is not supported for Vienna proxy.');
+  const noteOns = [];
+  for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
+    if (ascii(bytes, offset, 4) !== 'MTrk') throw new Error('MIDI file missing MTrk chunk.');
+    offset += 4;
+    const trackEnd = offset + 4 + readU32(bytes, offset);
+    offset += 4;
+    let tick = 0;
+    let tempo = 500000;
+    let runningStatus = null;
+    let eventIndex = 0;
+    while (offset < trackEnd) {
+      const delta = readVar(bytes, offset);
+      offset = delta.offset;
+      tick += delta.value;
+      let status = bytes[offset++];
+      if (status < 0x80) {
+        if (runningStatus === null) throw new Error('MIDI running status without previous status.');
+        offset -= 1;
+        status = runningStatus;
+      } else if (status < 0xf0) {
+        runningStatus = status;
+      }
+      if (status === 0xff) {
+        const type = bytes[offset++];
+        const length = readVar(bytes, offset);
+        offset = length.offset;
+        if (type === 0x51 && length.value === 3) {
+          tempo = (bytes[offset] << 16) | (bytes[offset + 1] << 8) | bytes[offset + 2];
+        }
+        offset += length.value;
+        continue;
+      }
+      if (status === 0xf0 || status === 0xf7) {
+        const length = readVar(bytes, offset);
+        offset = length.offset + length.value;
+        continue;
+      }
+      const command = status & 0xf0;
+      const data1 = bytes[offset++];
+      const data2 = command === 0xc0 || command === 0xd0 ? 0 : bytes[offset++];
+      if (command === 0x90 && data2 > 0) {
+        noteOns.push({
+          trackIndex,
+          eventIndex,
+          midi: data1,
+          velocity: data2,
+          onsetMs: tick * tempo / division / 1000,
+        });
+      }
+      eventIndex += 1;
+    }
+    offset = trackEnd;
+  }
+  return { format, division, noteOns };
+}
+
+function ascii(bytes, offset, length) {
+  return String.fromCharCode(...bytes.slice(offset, offset + length));
+}
+
+function readU16(bytes, offset) {
+  return (bytes[offset] << 8) | bytes[offset + 1];
+}
+
+function readU32(bytes, offset) {
+  return ((bytes[offset] << 24) >>> 0) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3];
+}
+
+function readVar(bytes, offset) {
+  let value = 0;
+  let current = 0;
+  do {
+    current = bytes[offset++];
+    value = (value << 7) | (current & 0x7f);
+  } while (current & 0x80);
+  return { value, offset };
 }
 
 function pairedDifferences(scores) {
@@ -689,6 +949,40 @@ function decideSecondaryResult(paired) {
   return diff > 0 ? 'BYTE_DANCE_BETTER' : 'ONLINE_AMT_BETTER';
 }
 
+function selectStratifiedScenarios(pool, maxCount) {
+  const byPiece = new Map();
+  for (const item of pool) {
+    const list = byPiece.get(item.receipt.pieceId) ?? [];
+    list.push(item);
+    byPiece.set(item.receipt.pieceId, list);
+  }
+  for (const list of byPiece.values()) {
+    list.sort((left, right) =>
+      left.receipt.performanceId.localeCompare(right.receipt.performanceId)
+      || left.receipt.scopeStartBeat - right.receipt.scopeStartBeat
+    );
+  }
+  const pieceOrder = ['Chopin_op10_no3', 'Chopin_op38', 'Mozart_K331_1st-mov', 'Schubert_D783_no15'];
+  const selected = [];
+  const selectedKeys = new Set();
+  let round = 0;
+  while (selected.length < maxCount) {
+    let added = false;
+    for (const pieceId of pieceOrder) {
+      const list = byPiece.get(pieceId) ?? [];
+      const candidate = list.filter((item) => !selectedKeys.has(item.receipt.scenarioId))[round];
+      if (!candidate) continue;
+      selected.push(candidate);
+      selectedKeys.add(candidate.receipt.scenarioId);
+      added = true;
+      if (selected.length >= maxCount) break;
+    }
+    if (!added) break;
+    round += 1;
+  }
+  return selected;
+}
+
 function bootstrapCi(values, seed) {
   const draws = [];
   let state = seed;
@@ -716,6 +1010,11 @@ function resampleLinear(input) {
     output[index] = input.sourcePcm[left] * (1 - fraction) + input.sourcePcm[right] * fraction;
   }
   return output;
+}
+
+function performanceOwnedSamplesAtOrBefore(completionPerformanceTimeMs) {
+  const exactSamples = completionPerformanceTimeMs / 1000 * 16_000;
+  return Math.max(0, Math.floor(exactSamples + 1e-9));
 }
 
 function mapFilesByBasename(root, extension, filter = () => true) {
@@ -756,6 +1055,14 @@ function distribution(values) {
   if (values.length === 0) return { sampleCount: 0 };
   const sorted = values.slice().sort((left, right) => left - right);
   return { sampleCount: sorted.length, min: sorted[0], median: percentile(sorted, 0.5), p95: percentile(sorted, 0.95), max: sorted.at(-1) };
+}
+
+function countBy(items, select) {
+  return items.reduce((counts, item) => {
+    const key = select(item);
+    counts[key] = (counts[key] ?? 0) + 1;
+    return counts;
+  }, {});
 }
 
 function median(values) {

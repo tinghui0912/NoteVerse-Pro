@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import type { BenchmarkScenario, CandidateDefinition, CandidateScenarioRun } from './continuous-analyzer-bakeoff';
+import { scoreCandidate, type BenchmarkScenario, type CandidateDefinition, type CandidateScenarioRun } from './continuous-analyzer-bakeoff';
 import {
   assertCounterfactualPreservesAudioAndMidi,
   assertFrozenCandidateConfigsUnchanged,
@@ -227,6 +227,96 @@ describe('public fixed-BPM benchmark policy', () => {
     expect(scored.groundTruthStatus).toBe('MEASURED');
     expect(scored.candidateEvaluation.status).toBe('COMPLETE');
     expect(scored.metrics.verdictAgreementRate.status).toBe('MEASURED');
+  });
+
+  it('keeps expected score pitch independent from wrong performance MIDI pitch', () => {
+    const base = scenario('wrong-pitch');
+    const wrongPitchScenario: BenchmarkScenario = {
+      ...base,
+      expectedStrikes: [
+        { strikeId: 's-c4', groupId: 'g-c4', pitch: 'C4', expectedPerformanceTimeMs: 0, renderNoteIds: ['score-c4'] },
+      ],
+      physicalGroundTruth: {
+        status: 'RECORDED',
+        sourceKind: 'PAIRED_PHYSICAL_MIDI',
+        source: base.physicalGroundTruth!.source,
+        attacks: [
+          { physicalEventId: 'midi-c-sharp', pitch: 'C#4', performanceTimeMs: 0, velocity: 90 },
+        ],
+      },
+      completion: { kind: 'NATURAL', performanceTimeMs: 500 },
+    };
+    const scored = scoreCandidate(wrongPitchScenario, candidate('probe', 'CHUNKED'), {
+      candidateId: 'probe',
+      scenarioId: wrongPitchScenario.scenarioId,
+      publications: [{
+        publicationId: 'probe',
+        analyzedThroughPerformanceMs: 500,
+        observations: [{ observationId: 'midi-c-sharp', pitch: 'C#4', performanceTimeMs: 0 }],
+      }],
+    });
+    expect(wrongPitchScenario.expectedStrikes[0].pitch).toBe('C4');
+    expect(wrongPitchScenario.physicalGroundTruth!.attacks[0].pitch).toBe('C#4');
+    expect(scored.groundTruthEvaluation?.strikes[0].result).toBe('MISSING');
+    expect(scored.groundTruthEvaluation?.extras).toHaveLength(1);
+  });
+
+  it('preserves score deletions, performance insertions, and same-pitch retriggers', () => {
+    const deletion: BenchmarkScenario = {
+      ...scenario('deletion'),
+      physicalGroundTruth: {
+        status: 'RECORDED',
+        sourceKind: 'PAIRED_PHYSICAL_MIDI',
+        source: 'same-take-midi',
+        attacks: [{ physicalEventId: 'only-c4', pitch: 'C4', performanceTimeMs: 0 }],
+      },
+    };
+    const deletionScored = scoreCandidate(deletion, candidate('deletion-probe', 'CHUNKED'), {
+      candidateId: 'deletion-probe',
+      scenarioId: deletion.scenarioId,
+      publications: [{
+        publicationId: 'deletion-probe',
+        analyzedThroughPerformanceMs: 1_000,
+        observations: [{ observationId: 'only-c4', pitch: 'C4', performanceTimeMs: 0 }],
+      }],
+    });
+    expect(deletionScored.groundTruthEvaluation?.strikes.find((strike) => strike.strikeId === 's2')?.result)
+      .toBe('MISSING');
+
+    const insertion: BenchmarkScenario = {
+      ...scenario('insertion'),
+      expectedStrikes: [
+        { strikeId: 's-c4', groupId: 'g-c4', pitch: 'C4', expectedPerformanceTimeMs: 0, renderNoteIds: ['score-c4'] },
+      ],
+      physicalGroundTruth: {
+        status: 'RECORDED',
+        sourceKind: 'PAIRED_PHYSICAL_MIDI',
+        source: 'same-take-midi',
+        attacks: [
+          { physicalEventId: 'c4', pitch: 'C4', performanceTimeMs: 0 },
+          { physicalEventId: 'g4-extra', pitch: 'G4', performanceTimeMs: 120 },
+          { physicalEventId: 'c4-retrigger', pitch: 'C4', performanceTimeMs: 300 },
+        ],
+      },
+      completion: { kind: 'NATURAL', performanceTimeMs: 600 },
+    };
+    const insertionScored = scoreCandidate(insertion, candidate('insertion-probe', 'CHUNKED'), {
+      candidateId: 'insertion-probe',
+      scenarioId: insertion.scenarioId,
+      publications: [{
+        publicationId: 'insertion-probe',
+        analyzedThroughPerformanceMs: 600,
+        observations: insertion.physicalGroundTruth!.attacks.map((attack) => ({
+          observationId: attack.physicalEventId,
+          pitch: attack.pitch,
+          performanceTimeMs: attack.performanceTimeMs,
+        })),
+      }],
+    });
+    expect(insertion.physicalGroundTruth!.attacks.map((attack) => attack.physicalEventId))
+      .toEqual(['c4', 'g4-extra', 'c4-retrigger']);
+    expect(insertionScored.groundTruthEvaluation?.extras.map((extra) => extra.pitch).sort())
+      .toEqual(['C4', 'G4']);
   });
 
   it('prevents counterfactuals from mutating audio or MIDI identity', () => {
