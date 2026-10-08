@@ -7,7 +7,7 @@ import { planByteDanceScoreAwareChunks, validateByteDanceSourceContext } from '.
 import { validateBenchmarkScenario, type BenchmarkScenario } from './continuous-analyzer-bakeoff';
 import { ONLINE_AMT_STREAMING_BASELINE_CONFIG, onlineAmtSegmentTailRequirement } from './online-amt-stateful-streaming';
 import { assertPracticeScoreArtifact, type PracticeScope, type PracticeScoreArtifact } from '../local-core/artifact';
-import { buildContinuousExpectedStrikes } from '../local-core/continuous-expected-strikes';
+import { resolveContinuousPracticeContract } from '../local-core/continuous-expected-strikes';
 import type { PracticeTempoSelection } from '../local-core/practice-tempo';
 
 type Split = 'DEVELOPMENT' | 'CALIBRATION' | 'EVALUATION';
@@ -20,7 +20,7 @@ export type ContinuousPairedTakeManifest = {
   schemaVersion: 2;
   manifestId: string;
   split: Split;
-  policy: { policyId: string; policyVersion: string; policySha256: string };
+  policy: { policyPath: string; policyId: string; policyVersion: string; policySha256: string };
   takes: readonly ContinuousPairedTake[];
   evaluationLock?: { locked: boolean; lockProjectionSha256: string };
 };
@@ -83,6 +83,7 @@ export type ContinuousPairedTake = {
   performerId?: string;
   setupId?: string;
   pieceId?: string;
+  evidenceRole: 'NATIVE_PRODUCT_CAPTURE' | 'PUBLIC_EXTERNAL_PROXY_DIAGNOSTIC' | 'SYNTHETIC_HARNESS';
   publicProxy?: { status: 'PUBLIC_EXTERNAL_PROXY_NOT_PRODUCT_CAPTURE'; datasetId: string };
 };
 
@@ -132,20 +133,27 @@ export function importContinuousPairedTake(
   validateManifestSplit(manifest.split);
   const take = manifest.takes.find((candidate) => candidate.takeId === takeId);
   if (!take) throw new Error(`Continuous paired take not found: ${takeId}`);
+  if (manifest.split === 'EVALUATION') validateEvaluationLock(manifest);
   validateTakeShape(take);
-  validateSync(take);
 
   const repoRoot = options.repoRoot ?? process.cwd();
+  verifyPolicy(manifest, repoRoot);
+  if (manifest.split === 'EVALUATION' && take.evidenceRole !== 'NATIVE_PRODUCT_CAPTURE') {
+    throw new Error('Only NATIVE_PRODUCT_CAPTURE takes may enter locked product EVALUATION.');
+  }
+  validateSync(take, repoRoot);
   const artifact = loadPracticeScoreArtifact(take, repoRoot);
-  const audio = readAndVerifyWav(take.audio, repoRoot);
-  const physical = derivePhysicalMidiAttacks(take, repoRoot);
-  validateSegments(take, audio);
-
-  const expectedStrikes = buildContinuousExpectedStrikes({
+  const contract = resolveContinuousPracticeContract({
     artifact,
     tempoSelection: take.practice.tempoSelection,
     scope: take.practice.scope,
   });
+  validateCompletion(take, contract.naturalTerminalPerformanceTimeMs);
+  const audio = readAndVerifyWav(take.audio, repoRoot);
+  const physical = derivePhysicalMidiAttacks(take, repoRoot);
+  validateSegments(take, audio);
+
+  const expectedStrikes = contract.expectedStrikes;
   if (expectedStrikes.length === 0) throw new Error('PracticeScoreArtifact-derived ExpectedStrike timeline is empty.');
   const scenario: BenchmarkScenario = {
     scenarioId: take.takeId,
@@ -157,7 +165,7 @@ export function importContinuousPairedTake(
       sourceAudioSha256: take.audio.sha256,
       sourceMidiPath: normalizeResearchPath(take.physicalMidi.path),
       sourceMidiSha256: take.physicalMidi.sha256,
-      provenance: take.publicProxy?.status ?? 'CONTINUOUS_PAIRED_TAKE_MANIFEST_V2',
+      provenance: take.publicProxy?.status ?? take.evidenceRole,
     },
     audio: {
       nativeSampleRateHz: audio.sampleRateHz,
@@ -203,6 +211,11 @@ export function auditContinuousPairedTakeCorpus(
   const bytedanceEligibility: Record<string, CandidateEligibility> = {};
   const onlineAmtEligibility: Record<string, CandidateEligibility> = {};
   const seenTakeIds = new Set<string>();
+  try {
+    verifyPolicy(manifest, options.repoRoot ?? process.cwd());
+  } catch (error) {
+    blockers.__policy = [error instanceof Error ? error.message : String(error)];
+  }
   for (const take of manifest.takes) {
     for (const tag of take.familyTags ?? []) countsByFamily[tag] = (countsByFamily[tag] ?? 0) + 1;
     try {
@@ -241,8 +254,8 @@ export function auditContinuousPairedTakeCorpus(
     },
     realRecordedTakeCount: manifest.takes.filter((take) => !take.publicProxy).length,
     scoreableRealTakeCount: manifest.takes.filter((take) => !take.publicProxy && !blockers[take.takeId]).length,
-    status: manifest.takes.length === 0 ? 'CAPTURE_PIPELINE_READY' : (Object.keys(blockers).length === 0 ? 'CAPTURE_PIPELINE_READY' : 'BLOCKED'),
-    nextAction: manifest.takes.length === 0 ? 'RECORD_REAL_PAIRED_DEVELOPMENT_TAKES' : 'RUN_FROZEN_DEVELOPMENT_CANDIDATES_ONLY',
+    status: manifest.takes.length === 0 ? 'CAPTURE_HARNESS_READY' : (Object.keys(blockers).length === 0 ? 'CAPTURE_PIPELINE_READY' : 'BLOCKED'),
+    nextAction: scoreableTakeCount === 0 ? 'RECORD_REAL_PAIRED_DEVELOPMENT_TAKES' : 'RUN_FROZEN_DEVELOPMENT_CANDIDATES_ONLY',
     productAccuracyMetric: false,
   };
 }
@@ -264,10 +277,16 @@ export function evaluationLockProjectionSha256(manifest: ContinuousPairedTakeMan
     takes: manifest.takes.map((take) => ({
       takeId: take.takeId,
       captureSessionId: take.captureSessionId,
-      audioSha256: take.audio.sha256,
-      midiSha256: take.physicalMidi.sha256,
-      practiceScoreArtifactSha256: take.score.practiceScoreArtifactSha256,
+      score: take.score,
+      practice: take.practice,
+      audio: take.audio,
+      physicalMidi: take.physicalMidi,
+      segments: take.segments,
       sync: take.sync,
+      familyTags: take.familyTags ?? [],
+      expectedGroupFamilyTags: take.expectedGroupFamilyTags ?? {},
+      evidenceRole: take.evidenceRole,
+      publicProxy: take.publicProxy ?? null,
     })),
   }));
 }
@@ -285,9 +304,10 @@ function validateTakeShape(take: ContinuousPairedTake): void {
   if (take.physicalMidi.sameTakeAudioSha256 !== take.audio.sha256) throw new Error('Physical MIDI must be bound to the same-take microphone audio identity.');
   if (!take.practice.completion || !Number.isFinite(take.practice.completion.performanceTimeMs)) throw new Error('Continuous paired take requires authoritative completion.');
   if (!Array.isArray(take.segments) || take.segments.length === 0) throw new Error('Continuous paired take requires source/performance segments.');
+  if (!['NATIVE_PRODUCT_CAPTURE', 'PUBLIC_EXTERNAL_PROXY_DIAGNOSTIC', 'SYNTHETIC_HARNESS'].includes(take.evidenceRole)) throw new Error('Continuous paired take requires explicit evidenceRole.');
 }
 
-function validateSync(take: ContinuousPairedTake): void {
+function validateSync(take: ContinuousPairedTake, repoRoot: string): void {
   if (take.sync.quality === 'SHARED_CAPTURE_CLOCK_VERIFIED') {
     if (!take.sync.sharedCaptureClockId) throw new Error('Shared capture-clock synchronization requires sharedCaptureClockId.');
     return;
@@ -295,6 +315,15 @@ function validateSync(take: ContinuousPairedTake): void {
   if (take.sync.quality === 'CALIBRATED_OFFSET') {
     if (!Number.isFinite(take.sync.offsetMs) || !Number.isFinite(take.sync.uncertaintyMs) || !take.sync.method || !take.sync.calibrationArtifactPath || !take.sync.calibrationArtifactSha256) {
       throw new Error('CALIBRATED_OFFSET synchronization requires offset, uncertainty, method, and calibration artifact identity.');
+    }
+    const bytes = readVerifiedFile(take.sync.calibrationArtifactPath, take.sync.calibrationArtifactSha256, repoRoot, 'calibration artifact');
+    try {
+      const calibration = JSON.parse(Buffer.from(bytes).toString('utf8')) as { offsetMs?: number; uncertaintyMs?: number };
+      if (calibration.offsetMs !== undefined && calibration.offsetMs !== take.sync.offsetMs) throw new Error('calibration offset mismatch');
+      if (calibration.uncertaintyMs !== undefined && calibration.uncertaintyMs !== take.sync.uncertaintyMs) throw new Error('calibration uncertainty mismatch');
+    } catch (error) {
+      if (error instanceof SyntaxError) return;
+      throw error;
     }
     return;
   }
@@ -310,6 +339,27 @@ function loadPracticeScoreArtifact(take: ContinuousPairedTake, repoRoot: string)
     throw new Error('PracticeScoreArtifact schema version does not match manifest.');
   }
   return artifact as PracticeScoreArtifact;
+}
+
+function verifyPolicy(manifest: ContinuousPairedTakeManifest, repoRoot: string): void {
+  const bytes = readVerifiedFile(manifest.policy.policyPath, manifest.policy.policySha256, repoRoot, 'Continuous corpus policy');
+  const policy = JSON.parse(Buffer.from(bytes).toString('utf8')) as { policyId?: string; policyVersion?: string };
+  if (policy.policyId !== manifest.policy.policyId || policy.policyVersion !== manifest.policy.policyVersion) {
+    throw new Error('Continuous corpus policy identity does not match manifest.');
+  }
+}
+
+function validateCompletion(take: ContinuousPairedTake, naturalTerminalPerformanceTimeMs: number): void {
+  const completion = take.practice.completion;
+  if (completion.kind === 'NATURAL') {
+    if (Math.abs(completion.performanceTimeMs - naturalTerminalPerformanceTimeMs) > 1e-9) {
+      throw new Error('NATURAL completion must equal the resolved product scope terminal performance time.');
+    }
+    return;
+  }
+  if (completion.performanceTimeMs < 0 || completion.performanceTimeMs > naturalTerminalPerformanceTimeMs + 1e-9) {
+    throw new Error('MANUAL completion must be between performance start and natural scope terminal.');
+  }
 }
 
 function readAndVerifyWav(audio: ContinuousPairedTake['audio'], repoRoot: string): {
@@ -334,41 +384,68 @@ function derivePhysicalMidiAttacks(take: ContinuousPairedTake, repoRoot: string)
   const bytes = readVerifiedFile(take.physicalMidi.path, take.physicalMidi.sha256, repoRoot, 'physical MIDI/capture-event artifact');
   if (take.physicalMidi.sourceKind === 'BROWSER_CAPTURE_EVENT_LOG') {
     const log = JSON.parse(Buffer.from(bytes).toString('utf8')) as {
-      events?: readonly { eventId?: string; type?: string; messageType?: string; pitch?: string; midiNote?: number; velocity?: number; performanceTimeMs?: number }[];
+      events?: readonly { eventId?: string; type?: string; messageType?: string; pitch?: string; midiNote?: number; velocity?: number; captureClockMs?: number; performanceTimeMs?: number }[];
     };
+    assertUniqueCaptureEventIds(log.events ?? []);
     return {
       noteOns: (log.events ?? [])
         .filter((event) => event.type === 'NOTE_ON' || event.messageType === 'NOTE_ON')
         .filter((event) => (event.velocity ?? 1) > 0)
-        .map((event, index) => ({
-          physicalEventId: event.eventId ?? `capture-note-on-${index}`,
-          pitch: event.pitch ?? midiToPitchName(event.midiNote ?? 60),
-          performanceTimeMs: requireFinite(event.performanceTimeMs, 'capture MIDI performanceTimeMs'),
-          velocity: event.velocity,
-        })),
+        .map((event) => validateCaptureNoteOn(event)),
     };
   }
   const midi = new Midi(bytes);
+  const offsetMs = take.sync.quality === 'CALIBRATED_OFFSET' ? take.sync.offsetMs ?? 0 : 0;
   return {
     noteOns: midi.tracks.flatMap((track, trackIndex) => track.notes.map((note, noteIndex) => ({
       physicalEventId: `smf-track${trackIndex}-note${noteIndex}-${note.midi}-${Math.round(note.time * 1_000_000)}`,
       pitch: midiToPitchName(note.midi),
-      performanceTimeMs: note.time * 1000,
+      performanceTimeMs: note.time * 1000 + offsetMs,
       velocity: Math.round(note.velocity * 127),
     }))).sort((left, right) => left.performanceTimeMs - right.performanceTimeMs || left.pitch.localeCompare(right.pitch) || left.physicalEventId.localeCompare(right.physicalEventId)),
   };
+}
+
+function validateCaptureNoteOn(event: { eventId?: string; pitch?: string; midiNote?: number; velocity?: number; captureClockMs?: number; performanceTimeMs?: number }): NonNullable<BenchmarkScenario['physicalGroundTruth']>['attacks'][number] {
+  if (!event.eventId) throw new Error('Browser capture NOTE_ON events require stable eventId.');
+  if (!Number.isFinite(event.captureClockMs)) throw new Error('Browser capture NOTE_ON events require finite captureClockMs.');
+  if (!Number.isFinite(event.performanceTimeMs)) throw new Error('Browser capture NOTE_ON events require mapped performanceTimeMs.');
+  const pitch = event.midiNote === undefined ? event.pitch : midiToPitchName(event.midiNote);
+  if (!pitch) throw new Error('Browser capture NOTE_ON events require pitch or midiNote.');
+  if (event.pitch && event.midiNote !== undefined && event.pitch !== midiToPitchName(event.midiNote)) {
+    throw new Error('Browser capture MIDI note and pitch text disagree.');
+  }
+  return {
+    physicalEventId: event.eventId,
+    pitch,
+    performanceTimeMs: requireFinite(event.performanceTimeMs, 'capture MIDI performanceTimeMs'),
+    velocity: event.velocity,
+  };
+}
+
+function assertUniqueCaptureEventIds(events: readonly { eventId?: string }[]): void {
+  const seen = new Set<string>();
+  for (const event of events) {
+    if (!event.eventId) throw new Error('Browser capture events require stable non-empty eventId.');
+    if (seen.has(event.eventId)) throw new Error(`Duplicate browser capture eventId: ${event.eventId}`);
+    seen.add(event.eventId);
+  }
 }
 
 function validateSegments(take: ContinuousPairedTake, audio: { sampleRateHz: number; sampleFrameCount: number }): void {
   const seen = new Set<string>();
   let previousSourceEnd = -Infinity;
   let previousPerformanceEnd = -Infinity;
-  for (const segment of take.segments) {
+  for (const [index, segment] of take.segments.entries()) {
     if (!segment.segmentId || seen.has(segment.segmentId)) throw new Error('Segments require unique non-empty ids.');
     seen.add(segment.segmentId);
     const { sourcePerformanceStartSampleBoundary: start, sourcePerformanceEndSampleBoundary: end, sourceContextTailEndSampleBoundary: contextEnd } = segment;
     if (![start, end, contextEnd].every((value) => Number.isInteger(value) && value >= 0) || start > end || end > contextEnd) throw new Error('Source sample boundaries must be half-open and ordered.');
     if (contextEnd > audio.sampleFrameCount) throw new Error('Source sample boundary exceeds audio file.');
+    if (index === 0) {
+      const originBoundary = (take.audio.performanceOriginSourceMs / 1000) * audio.sampleRateHz;
+      if (Math.abs(originBoundary - start) > 1e-6) throw new Error('audio.performanceOriginSourceMs must match first sourcePerformanceStartSampleBoundary.');
+    }
     if (start < previousSourceEnd) throw new Error('Source sample identity cannot move backward between segments.');
     if (segment.performanceStartMs < previousPerformanceEnd) throw new Error('Pause/resume segments must not overlap in performance time.');
     const sourcePerformanceMs = ((end - start) / audio.sampleRateHz) * 1000;

@@ -1,6 +1,6 @@
 # Continuous Paired-Take Benchmark Capture
 
-Status: Phase 9F-A.1 research-only contract.
+Status: Phase 9F-A.2 research-only contract.
 
 This document defines the source-of-truth boundary for future Continuous Practice v2 acoustic benchmark takes. It does not enable production microphone Practice and does not select a model winner.
 
@@ -18,13 +18,13 @@ The benchmark unit is one complete Continuous performance take:
 - pre-roll and post-roll context
 - immutable source hashes
 
-ExpectedStrike[] is never a source-manifest field. It is derived by the same product-domain builder used by ContinuousEvaluationSession from PracticeScoreArtifact + PracticeTempoSelection + PracticeScope. Physical MIDI records what the performer actually played, including wrong notes, missing notes, extras, repeated attacks, velocity, and pedal/control metadata. A perfectly correct physical MIDI performance may match the expected score exactly; provenance comes from verified score artifacts, not from forcing score/performance differences.
+ExpectedStrike[] is never a source-manifest field. It is derived by the shared product-domain Continuous practice contract resolver used by ContinuousEvaluationSession from PracticeScoreArtifact + PracticeTempoSelection + PracticeScope. The same resolver defines the deterministic NATURAL completion boundary. Physical MIDI records what the performer actually played, including wrong notes, missing notes, extras, repeated attacks, velocity, and pedal/control metadata. A perfectly correct physical MIDI performance may match the expected score exactly; provenance comes from verified score artifacts, not from forcing score/performance differences.
 
 ## Capture Harness Contract
 
 A research browser harness may reuse lower-level Practice primitives, but it remains outside production Practice UI. It must support loading a PracticeScoreArtifact, configuring tempo/scope/start, selecting microphone and MIDI inputs, Begin Take, Manual Stop, Natural completion, optional pause/resume, source PCM sample counters, physical MIDI capture, and export of raw artifacts plus a ContinuousPairedTakeManifest v2.
 
-No recognition model output is required during capture. The research-only route is `/research/continuous-capture` under the localized workspace app.
+No recognition model output is required during capture. The research-only route is `/research/continuous-capture` under the localized workspace app and is hidden behind the `RESEARCH_CAPTURE_HARNESS_ENABLED=1` server-side feature gate.
 
 ## Clock Mapping
 
@@ -49,13 +49,19 @@ Timing metrics require one of:
 - `SHARED_CAPTURE_CLOCK_VERIFIED`
 - `CALIBRATED_OFFSET`
 
-`INSUFFICIENT_SYNCHRONIZATION` blocks scoreability. Any calibrated offset must record method, offset, uncertainty, and calibration artifact identity. Candidate predictions must never define synchronization.
+`INSUFFICIENT_SYNCHRONIZATION` blocks scoreability. Any calibrated offset must record method, offset, uncertainty, and calibration artifact identity. The offset convention is:
+
+```text
+performanceTimeMs = sourceMidiTimeMs + offsetMs
+```
+
+The calibration artifact bytes are verified before import. Candidate predictions must never define synchronization.
 
 ## Splits And Locking
 
 Supported splits are DEVELOPMENT, CALIBRATION, and EVALUATION. Source audio hash, MIDI hash, and capture session identity must not leak across protected splits.
 
-An EVALUATION manifest must carry an executable lock projection. The lock includes manifest ID/version/split, take IDs, capture session IDs, source audio hashes, MIDI/capture-event hashes, PracticeScoreArtifact hashes, sync identities, and policy identity. Phase 9F-A.1 does not populate or inspect EVALUATION for tuning.
+An EVALUATION manifest must carry an executable lock projection. Direct import of an unlocked EVALUATION manifest fails closed. The lock includes every truth-defining field: manifest identity/schema/split, verified policy identity, take IDs, capture session IDs, score artifact path/hash/schema, tempo selection, scope, completion, audio identity and metadata, performance origin, physical MIDI/capture identity, same-take binding, segment source/performance boundaries, synchronization provenance, family taxonomy, and evidence role. Phase 9F-A.2 does not populate or inspect EVALUATION for tuning.
 
 ## Public Proxy Datasets
 
@@ -103,4 +109,4 @@ node backend/research/browser_runtime/bootstrap_public_proxy_dataset.mjs \
   --output backend/research/reports/vienna_4x22_public_proxy_bootstrap_2026-10-08.json
 ```
 
-The current fixture intentionally contains zero real takes and reports `CAPTURE_PIPELINE_READY` only for schema/capture readiness. Real product accuracy remains blocked until same-take microphone + physical-MIDI DEVELOPMENT takes are recorded.
+The current fixture intentionally contains zero real takes and reports `CAPTURE_HARNESS_READY`, with `REAL_RECORDING_REQUIRED` as the practical next step. `CAPTURE_PIPELINE_READY` is reserved for a real or device-mocked export that the authoritative importer accepts end to end. Real product accuracy remains blocked until same-take microphone + physical-MIDI DEVELOPMENT takes are recorded.

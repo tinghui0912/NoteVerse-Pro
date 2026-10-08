@@ -27,6 +27,7 @@ type PhysicalGroundTruthAttack = {
   physicalEventId: string;
   pitch: string;
   performanceTimeMs: number;
+  velocity?: number;
 };
 
 export type BenchmarkScenario = {

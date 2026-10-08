@@ -11,7 +11,6 @@ const args = parseArgs(process.argv);
 const repoRoot = path.resolve(args['repo-root'] ?? process.cwd());
 const manifestRel = args.manifest ?? 'backend/research/fixtures/continuous_paired_take_manifest_v2_empty_development_2026-10-08.json';
 const outputRel = args.output ?? 'backend/research/reports/continuous_paired_take_manifest_v2_audit_2026-10-08.json';
-const manifestPath = path.resolve(repoRoot, manifestRel);
 const outputPath = path.resolve(repoRoot, outputRel);
 
 const jiti = createJiti(import.meta.url, { alias: { '@': path.join(repoRoot, 'apps/customer-web/src') } });
@@ -21,10 +20,38 @@ let manifest = null;
 let audit = null;
 let blocker = null;
 try {
-  manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-  audit = corpus.auditContinuousPairedTakeCorpus(manifest, { repoRoot });
-  if (audit.splitLeakage?.length) {
-    blocker = `split leakage: ${audit.splitLeakage.join('; ')}`;
+  if (args.index) {
+    const indexRel = args.index;
+    const index = JSON.parse(await readFile(path.resolve(repoRoot, indexRel), 'utf8'));
+    const entries = [
+      ...(index.developmentManifests ?? []).map((manifestPath) => ({ split: 'DEVELOPMENT', manifestPath })),
+      ...(index.calibrationManifests ?? []).map((manifestPath) => ({ split: 'CALIBRATION', manifestPath })),
+      ...(index.evaluationManifests ?? []).map((manifestPath) => ({ split: 'EVALUATION', manifestPath })),
+    ];
+    const manifests = [];
+    const manifestAudits = [];
+    for (const entry of entries) {
+      const loaded = JSON.parse(await readFile(path.resolve(repoRoot, entry.manifestPath), 'utf8'));
+      manifests.push(loaded);
+      manifestAudits.push({ path: entry.manifestPath, audit: corpus.auditContinuousPairedTakeCorpus(loaded, { repoRoot }) });
+    }
+    const splitLeakage = corpus.detectContinuousSplitLeakage(manifests.map((loaded) => ({ split: loaded.split, takes: loaded.takes })));
+    audit = {
+      schemaVersion: 2,
+      artifact: 'continuous_paired_take_corpus_index_audit',
+      index: { path: indexRel, sha256: sha256Json(index) },
+      manifestAudits,
+      splitLeakage,
+      status: splitLeakage.length ? 'BLOCKED' : 'CORPUS_SCHEMA_READY',
+      productAccuracyMetric: false,
+    };
+    if (splitLeakage.length) blocker = `split leakage: ${splitLeakage.join('; ')}`;
+  } else {
+    manifest = JSON.parse(await readFile(path.resolve(repoRoot, manifestRel), 'utf8'));
+    audit = corpus.auditContinuousPairedTakeCorpus(manifest, { repoRoot });
+    if (audit.splitLeakage?.length) {
+      blocker = `split leakage: ${audit.splitLeakage.join('; ')}`;
+    }
   }
 } catch (error) {
   blocker = error instanceof Error ? error.message : String(error);
@@ -35,7 +62,7 @@ const report = {
   schemaVersion: 2,
   artifact: 'continuous_paired_take_manifest_v2_audit',
   generatedAt: new Date().toISOString(),
-  manifest: {
+  manifest: args.index ? undefined : {
     path: manifestRel,
     available: Boolean(manifest),
     sha256: manifest ? sha256Json(manifest) : null,

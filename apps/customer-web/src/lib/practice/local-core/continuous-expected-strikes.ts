@@ -8,6 +8,7 @@ import {
 import {
   PracticeTempoTimeline,
   resolvePracticeTempoPlan,
+  type ResolvedPracticeTempoPlan,
   type PracticeTempoSelection,
 } from './practice-tempo';
 import type { ExpectedStrike } from '../audio-analysis/continuous/performance-reconciler';
@@ -22,12 +23,37 @@ export type BuildContinuousExpectedStrikesInput = {
   scope: PracticeScope;
 };
 
-export function buildContinuousExpectedStrikes(input: BuildContinuousExpectedStrikesInput): ExpectedStrike[] {
+export type ResolvedContinuousPracticeContract = {
+  artifact: PracticeScoreArtifact;
+  tempoPlan: ResolvedPracticeTempoPlan;
+  timeline: PracticeTempoTimeline;
+  scope: ResolvedPracticeScope;
+  scopeStartBeat: number;
+  scopeTerminalBeat: number;
+  naturalTerminalPerformanceTimeMs: number;
+  expectedStrikes: ExpectedStrike[];
+};
+
+export function resolveContinuousPracticeContract(input: BuildContinuousExpectedStrikesInput): ResolvedContinuousPracticeContract {
   assertPracticeScoreArtifact(input.artifact);
   const tempoPlan = resolvePracticeTempoPlan(input.artifact, input.tempoSelection);
   const timeline = new PracticeTempoTimeline(tempoPlan, input.artifact.scoreEndBeat);
   const scope = resolvePracticeScope(input.artifact, input.scope);
-  return buildContinuousExpectedStrikesFromTimeline(input.artifact, timeline, scope);
+  const expectedStrikes = buildContinuousExpectedStrikesFromTimeline(input.artifact, timeline, scope);
+  return {
+    artifact: input.artifact,
+    tempoPlan,
+    timeline,
+    scope,
+    scopeStartBeat: scope.startBeat,
+    scopeTerminalBeat: scope.terminalBeat,
+    naturalTerminalPerformanceTimeMs: timeline.beatToTimeMs(scope.terminalBeat) - timeline.beatToTimeMs(scope.startBeat),
+    expectedStrikes,
+  };
+}
+
+export function buildContinuousExpectedStrikes(input: BuildContinuousExpectedStrikesInput): ExpectedStrike[] {
+  return resolveContinuousPracticeContract(input).expectedStrikes;
 }
 
 export function buildContinuousExpectedStrikesFromTimeline(

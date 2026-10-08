@@ -3,9 +3,10 @@
   "manifestId": "continuous-paired-development-empty-v2",
   "split": "DEVELOPMENT",
   "policy": {
+    "policyPath": "backend/research/policies/continuous_paired_take_manifest_v2_policy_2026-10-08.json",
     "policyId": "continuous-paired-take-manifest-v2",
     "policyVersion": "2026-10-08",
-    "policySha256": "f5d4d43d9c2a1bb3144a68695c72a93a0477bfb6a7b265ee3a9f2b6b65cba0ea"
+    "policySha256": "b42cd20ae4aaffd6d38b2aac51aa1ec7ff614d0d14157ac8392b67578e8a79a7"
   },
   "takes": []
 }

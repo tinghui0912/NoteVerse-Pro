@@ -1,11 +1,11 @@
 {
   "schemaVersion": 2,
   "artifact": "continuous_paired_take_manifest_v2_audit",
-  "generatedAt": "2026-10-08T06:36:35.527Z",
+  "generatedAt": "2026-10-08T07:15:17.474Z",
   "manifest": {
     "path": "backend/research/fixtures/continuous_paired_take_manifest_v2_empty_development_2026-10-08.json",
     "available": true,
-    "sha256": "f46561110009b2429588a09af12279cdcc713ff1b56c495fbc4a22cb1e30bf52"
+    "sha256": "2ae4fb4a8bb5eb3257f967338eebf626282217e015735a3604c6e9dfd079ae52"
   },
   "takeCount": 0,
   "scoreableTakeCount": 0,
@@ -24,7 +24,7 @@
   },
   "realRecordedTakeCount": 0,
   "scoreableRealTakeCount": 0,
-  "status": "CAPTURE_PIPELINE_READY",
+  "status": "CAPTURE_HARNESS_READY",
   "nextAction": "RECORD_REAL_PAIRED_DEVELOPMENT_TAKES",
   "productAccuracyMetric": false,
   "blocker": null

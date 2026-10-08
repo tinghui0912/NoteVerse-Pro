@@ -54,6 +54,12 @@ export type ContinuousCaptureBundle = {
   status: 'SYNTHETIC_CAPTURE_SMOKE_ONLY' | 'REAL_CAPTURE_EXPORT';
 };
 
+export type DeviceMockedCaptureExport = {
+  bundle: ContinuousCaptureBundle;
+  wavBytes: Uint8Array;
+  midiEventLogJson: string;
+};
+
 export function createSyntheticContinuousCaptureBundle(input: {
   practiceScoreArtifactPath: string;
   practiceScoreArtifactSha256: string;
@@ -112,8 +118,63 @@ export function createSyntheticContinuousCaptureBundle(input: {
   };
 }
 
+export function createDeviceMockedCaptureExport(input: {
+  practiceScoreArtifactPath: string;
+  practiceScoreArtifactSha256: string;
+  tempoSelection: PracticeTempoSelection;
+  scope: PracticeScope;
+  sampleRateHz?: number;
+  preRollMs?: number;
+  performanceDurationMs?: number;
+  postRollMs?: number;
+  midiEvents?: readonly ContinuousCaptureMidiEvent[];
+}): DeviceMockedCaptureExport {
+  const bundle = createSyntheticContinuousCaptureBundle(input);
+  return {
+    bundle,
+    wavBytes: createPcm16WavBytes({
+      sampleRateHz: bundle.audio.sampleRateHz,
+      channelCount: bundle.audio.channelCount,
+      sampleFrameCount: bundle.audio.sampleFrameCount,
+    }),
+    midiEventLogJson: `${JSON.stringify({
+      schemaVersion: 1,
+      artifact: 'continuous_browser_midi_capture_event_log',
+      captureClockId: bundle.captureClock.clockId,
+      events: input.midiEvents ?? bundle.midi.events,
+    }, null, 2)}\n`,
+  };
+}
+
 export function exportCaptureBundleJson(bundle: ContinuousCaptureBundle): string {
   return `${JSON.stringify(bundle, null, 2)}\n`;
+}
+
+function createPcm16WavBytes(input: {
+  sampleRateHz: number;
+  channelCount: number;
+  sampleFrameCount: number;
+}): Uint8Array {
+  const dataBytes = input.sampleFrameCount * input.channelCount * 2;
+  const bytes = new Uint8Array(44 + dataBytes);
+  const view = new DataView(bytes.buffer);
+  writeAscii(bytes, 0, 'RIFF');
+  view.setUint32(4, 36 + dataBytes, true);
+  writeAscii(bytes, 8, 'WAVEfmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, input.channelCount, true);
+  view.setUint32(24, input.sampleRateHz, true);
+  view.setUint32(28, input.sampleRateHz * input.channelCount * 2, true);
+  view.setUint16(32, input.channelCount * 2, true);
+  view.setUint16(34, 16, true);
+  writeAscii(bytes, 36, 'data');
+  view.setUint32(40, dataBytes, true);
+  return bytes;
+}
+
+function writeAscii(bytes: Uint8Array, offset: number, value: string): void {
+  for (let index = 0; index < value.length; index += 1) bytes[offset + index] = value.charCodeAt(index);
 }
 
 function msToSamples(ms: number, sampleRateHz: number): number {

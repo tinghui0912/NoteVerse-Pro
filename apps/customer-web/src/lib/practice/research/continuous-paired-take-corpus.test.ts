@@ -153,6 +153,13 @@ function midiBytes(notes: readonly { midi: number; time: number; velocity?: numb
 function fixture(root = workspace(), overrides: Partial<ContinuousPairedTake> = {}) {
   const artifact = makeArtifact();
   const artifactSha = writeJson(root, 'score/practice-score-artifact.json', artifact);
+  const policy = {
+    schemaVersion: 2,
+    artifact: 'continuous_paired_take_manifest_v2_policy',
+    policyId: 'continuous-paired-take-v2',
+    policyVersion: '2026-10-08',
+  };
+  const policySha = writeJson(root, 'policy/continuous-paired-take-policy.json', policy);
   const audioSha = writeBytes(root, 'takes/take-dev-001.wav', wavPcm16(48_000, 240_000));
   const midiSha = writeBytes(root, 'takes/take-dev-001.mid', midiBytes([
     { midi: 60, time: 0 },
@@ -199,6 +206,7 @@ function fixture(root = workspace(), overrides: Partial<ContinuousPairedTake> = 
       performanceEndMs: 1_500,
     }],
     sync: { quality: 'SHARED_CAPTURE_CLOCK_VERIFIED', method: 'shared browser capture origin', sharedCaptureClockId: 'capture-clock-a' },
+    evidenceRole: 'NATIVE_PRODUCT_CAPTURE',
     familyTags: ['complete_chord', 'same_pitch_retrigger'],
     expectedGroupFamilyTags: { g2: ['complete_chord'] },
     ...overrides,
@@ -207,7 +215,7 @@ function fixture(root = workspace(), overrides: Partial<ContinuousPairedTake> = 
     schemaVersion: 2,
     manifestId: 'continuous-dev-v2',
     split: 'DEVELOPMENT',
-    policy: { policyId: 'continuous-paired-take-v2', policyVersion: '2026-10-08', policySha256: '0'.repeat(64) },
+    policy: { policyPath: 'policy/continuous-paired-take-policy.json', policyId: 'continuous-paired-take-v2', policyVersion: '2026-10-08', policySha256: policySha },
     takes: [take],
   };
   return { root, artifact, take, manifest };
@@ -251,12 +259,22 @@ describe('Continuous paired take corpus contract v2', () => {
   });
 
   it.each([
-    ['FULL scope', { scope: { kind: 'FULL' } as PracticeScope, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 } as PracticeTempoSelection }],
-    ['RANGE scope', { scope: { kind: 'RANGE', startGroupId: 'g2', endGroupId: 'g3' } as PracticeScope, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 } as PracticeTempoSelection }],
-    ['score tempo', { scope: { kind: 'FULL' } as PracticeScope, tempoSelection: { mode: 'SCORE' } as PracticeTempoSelection }],
+    ['FULL scope', { scope: { kind: 'FULL' } as PracticeScope, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 } as PracticeTempoSelection, terminal: 1_500 }],
+    ['RANGE scope', { scope: { kind: 'RANGE', startGroupId: 'g2', endGroupId: 'g3' } as PracticeScope, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 120 } as PracticeTempoSelection, terminal: 625 }],
+    ['score tempo', { scope: { kind: 'FULL' } as PracticeScope, tempoSelection: { mode: 'SCORE' } as PracticeTempoSelection, terminal: 2_500 }],
   ])('derives %s through product tempo/scope semantics', (_name, practice) => {
     const { root, manifest, take } = fixture();
-    expect(() => importContinuousPairedTake({ ...manifest, takes: [{ ...take, practice: { ...take.practice, ...practice, completion: { kind: 'NATURAL', performanceTimeMs: 2_000 } } }] }, 'take-dev-001', { repoRoot: root })).not.toThrow();
+    const captureSha = writeJson(root, `takes/${_name.replaceAll(' ', '-')}.capture.json`, {
+      events: [{ eventId: 'note-on-c4', type: 'NOTE_ON', midiNote: 60, velocity: 90, captureClockMs: 2_000, performanceTimeMs: 0 }],
+    });
+    const frames = Math.round((practice.terminal / 1000) * 48_000);
+    expect(() => importContinuousPairedTake({ ...manifest, takes: [{ ...take, practice: { ...take.practice, scope: practice.scope, tempoSelection: practice.tempoSelection, completion: { kind: 'NATURAL', performanceTimeMs: practice.terminal } }, physicalMidi: { sourceKind: 'BROWSER_CAPTURE_EVENT_LOG', path: `takes/${_name.replaceAll(' ', '-')}.capture.json`, sha256: captureSha, sameTakeAudioSha256: take.audio.sha256 }, segments: [{ ...take.segments[0], sourcePerformanceEndSampleBoundary: 96_000 + frames, performanceEndMs: practice.terminal }] }] }, 'take-dev-001', { repoRoot: root })).not.toThrow();
+  });
+
+  it('rejects malformed NATURAL completion but allows MANUAL early stop', () => {
+    const { root, manifest, take } = fixture();
+    expect(() => importContinuousPairedTake({ ...manifest, takes: [{ ...take, practice: { ...take.practice, completion: { kind: 'NATURAL', performanceTimeMs: 1_499 } } }] }, 'take-dev-001', { repoRoot: root })).toThrow(/NATURAL completion/);
+    expect(() => importContinuousPairedTake({ ...manifest, takes: [{ ...take, practice: { ...take.practice, completion: { kind: 'MANUAL', performanceTimeMs: 900 } }, segments: [{ ...take.segments[0], sourcePerformanceEndSampleBoundary: 139_200, performanceEndMs: 900 }] }] }, 'take-dev-001', { repoRoot: root })).not.toThrow();
   });
 
   it('allows a perfectly correct physical MIDI performance', () => {
@@ -270,10 +288,10 @@ describe('Continuous paired take corpus contract v2', () => {
     const base = fixture(root);
     const captureSha = writeJson(root, 'takes/take-dev-001.capture-events.json', {
       events: [
-        { eventId: 'a', type: 'NOTE_ON', midiNote: 60, velocity: 90, performanceTimeMs: 0 },
-        { eventId: 'b', type: 'NOTE_ON', midiNote: 60, velocity: 91, performanceTimeMs: 80 },
-        { eventId: 'wrong', type: 'NOTE_ON', midiNote: 66, velocity: 80, performanceTimeMs: 500 },
-        { eventId: 'pedal', type: 'CC', controller: 64, value: 127, performanceTimeMs: 510 },
+        { eventId: 'a', type: 'NOTE_ON', midiNote: 60, velocity: 90, captureClockMs: 2_000, performanceTimeMs: 0 },
+        { eventId: 'b', type: 'NOTE_ON', midiNote: 60, velocity: 91, captureClockMs: 2_080, performanceTimeMs: 80 },
+        { eventId: 'wrong', type: 'NOTE_ON', midiNote: 66, velocity: 80, captureClockMs: 2_500, performanceTimeMs: 500 },
+        { eventId: 'pedal', type: 'CC', controller: 64, value: 127, captureClockMs: 2_510, performanceTimeMs: 510 },
       ],
     });
     const manifest = {
@@ -298,13 +316,54 @@ describe('Continuous paired take corpus contract v2', () => {
   it('validates source sample mapping and context-tail ownership', () => {
     const { root, manifest, take } = fixture();
     expect(() => importContinuousPairedTake({ ...manifest, takes: [{ ...take, segments: [{ ...take.segments[0], sourceContextTailEndSampleBoundary: take.segments[0].sourcePerformanceEndSampleBoundary - 1 }] }] }, 'take-dev-001', { repoRoot: root })).toThrow(/half-open/);
-    expect(() => importContinuousPairedTake({ ...manifest, takes: [{ ...take, practice: { ...take.practice, completion: { kind: 'NATURAL', performanceTimeMs: 1_700 } }, segments: [{ ...take.segments[0], performanceEndMs: 1_520 }] }] }, 'take-dev-001', { repoRoot: root })).toThrow(/duration/);
+    expect(() => importContinuousPairedTake({ ...manifest, takes: [{ ...take, segments: [{ ...take.segments[0], performanceEndMs: 1_490 }] }] }, 'take-dev-001', { repoRoot: root })).toThrow(/duration/);
   });
 
   it('requires calibrated synchronization metadata and uses one manifest-level split', () => {
     const { root, manifest, take } = fixture();
     expect(() => importContinuousPairedTake({ ...manifest, takes: [{ ...take, sync: { quality: 'CALIBRATED_OFFSET', method: 'manual clap' } as never }] }, 'take-dev-001', { repoRoot: root })).toThrow(/CALIBRATED_OFFSET/);
     expect('split' in take).toBe(false);
+  });
+
+  it('applies calibrated MIDI offset and verifies calibration artifact bytes', () => {
+    const root = workspace();
+    const base = fixture(root);
+    const calibrationSha = writeJson(root, 'sync/calibration.json', { offsetMs: 25, uncertaintyMs: 2 });
+    const manifest = {
+      ...base.manifest,
+      takes: [{
+        ...base.take,
+        sync: {
+          quality: 'CALIBRATED_OFFSET' as const,
+          method: 'manual shared trigger',
+          offsetMs: 25,
+          uncertaintyMs: 2,
+          calibrationArtifactPath: 'sync/calibration.json',
+          calibrationArtifactSha256: calibrationSha,
+        },
+      }],
+    };
+    const scenario = importContinuousPairedTakeAsBenchmarkScenario(manifest, 'take-dev-001', { repoRoot: root });
+    expect(scenario.physicalGroundTruth?.attacks[0].performanceTimeMs).toBe(25);
+    expect(() => importContinuousPairedTake({ ...manifest, takes: [{ ...manifest.takes[0], sync: { ...manifest.takes[0].sync, calibrationArtifactSha256: 'f'.repeat(64) } }] }, 'take-dev-001', { repoRoot: root })).toThrow(/calibration artifact SHA256/);
+  });
+
+  it('strictly validates browser capture-event identity and pitch agreement', () => {
+    const root = workspace();
+    const base = fixture(root);
+    const badSha = writeJson(root, 'takes/bad.capture.json', {
+      events: [
+        { eventId: 'dup', type: 'NOTE_ON', midiNote: 60, pitch: 'D4', velocity: 90, captureClockMs: 10, performanceTimeMs: 0 },
+        { eventId: 'dup', type: 'CC', controller: 64, value: 127, captureClockMs: 11 },
+      ],
+    });
+    expect(() => importContinuousPairedTake({
+      ...base.manifest,
+      takes: [{
+        ...base.take,
+        physicalMidi: { sourceKind: 'BROWSER_CAPTURE_EVENT_LOG', path: 'takes/bad.capture.json', sha256: badSha, sameTakeAudioSha256: base.take.audio.sha256 },
+      }],
+    }, 'take-dev-001', { repoRoot: root })).toThrow(/Duplicate browser capture eventId|disagree/);
   });
 
   it('uses real expectedGroupIds for group taxonomy and family metrics', () => {
@@ -325,18 +384,39 @@ describe('Continuous paired take corpus contract v2', () => {
   });
 
   it('enforces EVALUATION locks', () => {
-    const { manifest } = fixture();
+    const { root, manifest } = fixture();
     const evaluation = { ...manifest, split: 'EVALUATION' as const };
+    expect(() => importContinuousPairedTakeAsBenchmarkScenario(evaluation, 'take-dev-001', { repoRoot: root })).toThrow(/EVALUATION/);
     const locked = { ...evaluation, evaluationLock: { locked: true, lockProjectionSha256: evaluationLockProjectionSha256(evaluation) } };
     expect(() => validateEvaluationLock(locked)).not.toThrow();
     expect(() => validateEvaluationLock({ ...locked, takes: [{ ...locked.takes[0], audio: { ...locked.takes[0].audio, sha256: 'a'.repeat(64) } }] })).toThrow(/lock/);
+    expect(() => validateEvaluationLock({ ...locked, takes: [{ ...locked.takes[0], practice: { ...locked.takes[0].practice, tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 121 } } }] })).toThrow(/lock/);
+    expect(() => validateEvaluationLock({ ...locked, takes: [{ ...locked.takes[0], practice: { ...locked.takes[0].practice, scope: { kind: 'RANGE', startGroupId: 'g1', endGroupId: 'g2' } } }] })).toThrow(/lock/);
+    expect(() => validateEvaluationLock({ ...locked, takes: [{ ...locked.takes[0], practice: { ...locked.takes[0].practice, completion: { kind: 'MANUAL', performanceTimeMs: 100 } } }] })).toThrow(/lock/);
+    expect(() => validateEvaluationLock({ ...locked, takes: [{ ...locked.takes[0], segments: [{ ...locked.takes[0].segments[0], sourcePerformanceStartSampleBoundary: 95_999 }] }] })).toThrow(/lock/);
+  });
+
+  it('rejects public proxy takes in locked EVALUATION', () => {
+    const { root, manifest, take } = fixture();
+    const evaluation = {
+      ...manifest,
+      split: 'EVALUATION' as const,
+      takes: [{ ...take, evidenceRole: 'PUBLIC_EXTERNAL_PROXY_DIAGNOSTIC' as const, publicProxy: { status: 'PUBLIC_EXTERNAL_PROXY_NOT_PRODUCT_CAPTURE' as const, datasetId: 'vienna-4x22' } }],
+    };
+    const locked = { ...evaluation, evaluationLock: { locked: true, lockProjectionSha256: evaluationLockProjectionSha256(evaluation) } };
+    expect(() => importContinuousPairedTake(locked, 'take-dev-001', { repoRoot: root })).toThrow(/NATIVE_PRODUCT_CAPTURE/);
   });
 
   it('uses candidate-specific context requirements rather than a coarse 2s rule', () => {
     const { root, manifest, take } = fixture();
-    const audit = auditContinuousPairedTakeCorpus({ ...manifest, takes: [{ ...take, audio: { ...take.audio, performanceOriginSourceMs: 1_800 } }] }, { repoRoot: root });
+    const audit = auditContinuousPairedTakeCorpus({ ...manifest, takes: [{ ...take, audio: { ...take.audio, performanceOriginSourceMs: 1_800 }, segments: [{ ...take.segments[0], sourcePerformanceStartSampleBoundary: 86_400, sourcePerformanceEndSampleBoundary: 158_400 }] }] }, { repoRoot: root });
     expect(audit.scoreableTakeCount).toBe(1);
     expect(audit.candidateEligibility['online-amt-stateful-modern-compat-dev-v1']['take-dev-001']).toBe('ELIGIBLE');
+  });
+
+  it('validates first source boundary against performance origin', () => {
+    const { root, manifest, take } = fixture();
+    expect(() => importContinuousPairedTake({ ...manifest, takes: [{ ...take, audio: { ...take.audio, performanceOriginSourceMs: 2_001 } }] }, 'take-dev-001', { repoRoot: root })).toThrow(/performanceOriginSourceMs/);
   });
 
   it('does not let one malformed take hide audit results for other takes', () => {
