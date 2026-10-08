@@ -1,0 +1,822 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9f_b_public_fixed_bpm_proxy_benchmark",
+  "generatedAt": "2026-10-08T11:39:37.089Z",
+  "implementationGitHead": "e31dcbc6da1cb898f497050576a7eb8142e5e811",
+  "normalizedCommand": "node backend/research/browser_runtime/run_public_fixed_bpm_proxy_benchmark.mjs --repo-root . --work-root backend/data/work/public_proxy --output backend/research/reports/public_fixed_bpm_proxy_phase9f_b_2026-10-08.json",
+  "runtimeEnvironment": {
+    "os": "Windows_NT 10.0.26200 x64",
+    "node": "v24.19.0"
+  },
+  "datasetRegistry": {
+    "path": "backend/research/policies/public_piano_dataset_registry_2026-10-08.json",
+    "sha256": "67cfe4c150b5ed8cd87c35bb9956971e8c46c0ddf80bd11f0df96aa9cff5b30d"
+  },
+  "frozenCandidates": {
+    "byteDance": {
+      "candidateId": "bytedance-score-aware-chunked-dev-v1",
+      "strategy": "CHUNKED",
+      "frozenConfig": {
+        "modelInputSamples": 29120,
+        "sampleRateHz": 16000,
+        "futureContextMs": 220,
+        "maxCommitWidthMs": 600,
+        "onsetThreshold": 0.2,
+        "frameThreshold": 0.2
+      },
+      "modelIdentity": {
+        "path": "backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx",
+        "available": true,
+        "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+        "bytes": 98691493,
+        "expectedSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+        "expectedBytes": 98691493,
+        "status": "PASS"
+      }
+    },
+    "onlineAmt": {
+      "candidateId": "online-amt-stateful-modern-compat-dev-v1",
+      "strategy": "STREAMING",
+      "frozenConfig": {
+        "sampleRateHz": 16000,
+        "hopSamples": 512,
+        "timingCorrectionMs": -158,
+        "onsetStateIds": [
+          3,
+          4
+        ],
+        "onsetBoost": 2
+      },
+      "checkpointIdentity": {
+        "path": "backend/data/work/online_amt/model-180000.pt",
+        "available": true,
+        "sha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+        "bytes": 178804960,
+        "expectedSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+        "expectedBytes": 178804960,
+        "status": "PASS"
+      }
+    }
+  },
+  "benchmarkPolicy": {
+    "accuracyGate": "GATE_1_ONLY",
+    "metricDecisionOrder": [
+      "verdictAgreementRate",
+      "falseMatchRateOnGroundTruthMissing",
+      "falseCompleteChordAcceptanceRate",
+      "correctMissingRate",
+      "chordExactCompletenessRate",
+      "expectedStrikeRecall",
+      "extraPrecision",
+      "extraRecall",
+      "timingAbsoluteMedianMs",
+      "timingAbsoluteP95Ms"
+    ],
+    "primaryAndSecondarySeparated": true,
+    "officialProductRank": null,
+    "absoluteGateStatus": "NOT_EVALUATED",
+    "calibrationUsed": false,
+    "evaluationUsed": false
+  },
+  "manifests": {
+    "primary": {
+      "schemaVersion": 1,
+      "manifestId": "phase9f-b-primary-fixed-grid-proxy-v1",
+      "layer": "PRIMARY_FIXED_GRID_PROXY",
+      "dataset": {
+        "datasetId": "maps",
+        "datasetVersion": "registry only",
+        "sourceUrl": "https://www.tsi.telecom-paristech.fr/aao/en/2010/07/08/maps-database-a-piano-database-for-multipitch-estimation-and-automatic-transcription-of-music/",
+        "license": "dataset-specific",
+        "role": "PRIMARY_FIXED_GRID_PROXY_CANDIDATE_AUDITED_AS_UNAVAILABLE",
+        "trainingOverlapStatus": "UNKNOWN"
+      },
+      "scenarioFamilies": [
+        "BASE_ORIGINAL",
+        "COUNTERFACTUAL_MISSING_NOTE",
+        "COUNTERFACTUAL_EXTRA_NOTE",
+        "COUNTERFACTUAL_WRONG_SEMITONE",
+        "COUNTERFACTUAL_INCOMPLETE_CHORD"
+      ],
+      "scenarioIds": [],
+      "candidateOutputIncluded": false,
+      "officialProductEvaluation": false,
+      "sha256": "126e858da2c21ac2c7c1bd92c03fc5aee924b8874b509367e56f813221252ac3",
+      "scenarioManifestFrozenBeforeInference": true
+    },
+    "secondary": {
+      "schemaVersion": 1,
+      "manifestId": "phase9f-b-secondary-vienna-human-fixed-bpm-proxy-v1",
+      "layer": "SECONDARY_HUMAN_FIXED_BPM_PROXY",
+      "dataset": {
+        "datasetId": "vienna-4x22",
+        "datasetVersion": "1.0.0 match-file ecosystem when using CPJKU/vienna4x22 metadata",
+        "sourceUrl": "https://datasets.mdw.ac.at/datasets/dataset/98ea25fa-2468-43ff-929b-3c926e163583",
+        "doi": "10.21939/4X22",
+        "license": "CC BY 4.0",
+        "role": "SECONDARY_HUMAN_FIXED_BPM_PROXY",
+        "trainingOverlapStatus": "UNKNOWN"
+      },
+      "scenarioFamilies": [
+        "BASE_ORIGINAL",
+        "COUNTERFACTUAL_MISSING_NOTE",
+        "COUNTERFACTUAL_EXTRA_NOTE",
+        "COUNTERFACTUAL_WRONG_SEMITONE",
+        "COUNTERFACTUAL_INCOMPLETE_CHORD"
+      ],
+      "scenarioIds": [],
+      "candidateOutputIncluded": false,
+      "officialProductEvaluation": false,
+      "sha256": "105fc36387dafbac2d9fb0094978a083c6a168ac1ef36c79f4faeadd6a0ddb9c",
+      "scenarioManifestFrozenBeforeInference": true
+    }
+  },
+  "acquisition": {
+    "primary": {
+      "layer": "PRIMARY_FIXED_GRID_PROXY",
+      "dataset": {
+        "datasetId": "maps",
+        "datasetVersion": "registry only",
+        "sourceUrl": "https://www.tsi.telecom-paristech.fr/aao/en/2010/07/08/maps-database-a-piano-database-for-multipitch-estimation-and-automatic-transcription-of-music/",
+        "license": "dataset-specific",
+        "role": "PRIMARY_FIXED_GRID_PROXY_CANDIDATE_AUDITED_AS_UNAVAILABLE",
+        "trainingOverlapStatus": "UNKNOWN"
+      },
+      "status": "PRIMARY_FIXED_GRID_PROXY_UNAVAILABLE",
+      "sourceProbe": {
+        "attempted": true,
+        "url": "https://www.tsi.telecom-paristech.fr/aao/en/2010/07/08/maps-database-a-piano-database-for-multipitch-estimation-and-automatic-transcription-of-music/",
+        "method": "GET",
+        "status": "AVAILABLE",
+        "httpStatus": 200,
+        "contentType": "text/html",
+        "contentLength": "8153"
+      },
+      "blocker": "No primary fixed-grid source root supplied; MAPS has no safe partial downloader in this runner, and exact selected-subset provenance must be audited before classification.",
+      "downloadedPerformanceCount": 0,
+      "qualifyingFixedGridPerformanceCount": 0
+    },
+    "secondaryVienna": {
+      "layer": "SECONDARY_HUMAN_FIXED_BPM_PROXY",
+      "dataset": {
+        "datasetId": "vienna-4x22",
+        "datasetVersion": "1.0.0 match-file ecosystem when using CPJKU/vienna4x22 metadata",
+        "sourceUrl": "https://datasets.mdw.ac.at/datasets/dataset/98ea25fa-2468-43ff-929b-3c926e163583",
+        "doi": "10.21939/4X22",
+        "license": "CC BY 4.0",
+        "role": "SECONDARY_HUMAN_FIXED_BPM_PROXY",
+        "trainingOverlapStatus": "UNKNOWN"
+      },
+      "metadataAcquisition": {
+        "attempted": true,
+        "status": "AVAILABLE_LOCAL",
+        "path": "backend/data/work/public_proxy/vienna-4x22/vienna4x22-metadata",
+        "fileCount": 221,
+        "commit": "1033ade0899bfd03a89f370c9ad5d8443ddccd3e"
+      },
+      "audioDistributionProbe": {
+        "attempted": true,
+        "url": "https://datasets.mdw.ac.at/media/content_files/8dec8d0a-c4da-4a96-b290-a3ba783c03ba.zip",
+        "method": "HEAD",
+        "status": "AVAILABLE",
+        "httpStatus": 200,
+        "contentType": "application/zip",
+        "contentLength": "1295130820",
+        "expectedBytes": 1295130820,
+        "note": "Official Vienna 4x22 audio distribution was probed but not downloaded by default; source audio must still be bound into NoteVerse scenarios before scoring."
+      },
+      "status": "SOURCE_AVAILABLE_BUT_NO_SCOREABLE_AUDIO_MIDI_SCORE_BINDING",
+      "blocker": "Vienna MIDI/MusicXML/match metadata was detected and the official audio distribution was probed, but no downloaded audio source root was provided/imported into NoteVerse PracticeScoreArtifact scenarios.",
+      "downloadedPerformerCount": 22,
+      "downloadedPerformanceCount": 112,
+      "musicXmlScoreCount": 4,
+      "matchAlignmentCount": 88,
+      "sourceAudioFileCount": 0,
+      "scoreableSecondaryScenarioCount": 0,
+      "bpmFit": {
+        "method": "MEDIAN_LOCAL_MS_PER_QUARTER",
+        "eligibilityThresholds": {
+          "groundTruthExpectedStrikeMatchingAtLeast": 0.95,
+          "absoluteGroundTruthTimingResidualP95AtMostMs": 125
+        },
+        "fittedScopeCount": 0
+      }
+    }
+  },
+  "scenarioCounts": {
+    "primaryConsidered": 0,
+    "primaryMatched": 0,
+    "secondaryConsidered": 0,
+    "secondaryMatched": 0,
+    "baseOriginal": 0,
+    "counterfactualMissingNote": 0,
+    "counterfactualExtraNote": 0,
+    "counterfactualWrongSemitone": 0,
+    "counterfactualIncompleteChord": 0
+  },
+  "candidateRuns": {
+    "byteDanceRealRunCount": 0,
+    "onlineAmtRealRunCount": 0,
+    "skippedBeforeInferenceReason": "NO_SCOREABLE_MATCHED_PUBLIC_SCENARIOS"
+  },
+  "metrics": {
+    "primary": {
+      "BASE_ORIGINAL": {
+        "status": "NOT_EVALUATED",
+        "reason": "PRIMARY_FIXED_GRID_PROXY_UNAVAILABLE",
+        "metrics": {
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          }
+        },
+        "pairedCandidateDifferences": null,
+        "bootstrap95Ci": null
+      },
+      "COUNTERFACTUAL_MISSING_NOTE": {
+        "status": "NOT_EVALUATED",
+        "reason": "PRIMARY_FIXED_GRID_PROXY_UNAVAILABLE",
+        "metrics": {
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          }
+        },
+        "pairedCandidateDifferences": null,
+        "bootstrap95Ci": null
+      },
+      "COUNTERFACTUAL_EXTRA_NOTE": {
+        "status": "NOT_EVALUATED",
+        "reason": "PRIMARY_FIXED_GRID_PROXY_UNAVAILABLE",
+        "metrics": {
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          }
+        },
+        "pairedCandidateDifferences": null,
+        "bootstrap95Ci": null
+      },
+      "COUNTERFACTUAL_WRONG_SEMITONE": {
+        "status": "NOT_EVALUATED",
+        "reason": "PRIMARY_FIXED_GRID_PROXY_UNAVAILABLE",
+        "metrics": {
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          }
+        },
+        "pairedCandidateDifferences": null,
+        "bootstrap95Ci": null
+      },
+      "COUNTERFACTUAL_INCOMPLETE_CHORD": {
+        "status": "NOT_EVALUATED",
+        "reason": "PRIMARY_FIXED_GRID_PROXY_UNAVAILABLE",
+        "metrics": {
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          }
+        },
+        "pairedCandidateDifferences": null,
+        "bootstrap95Ci": null
+      }
+    },
+    "secondary": {
+      "BASE_ORIGINAL": {
+        "status": "NOT_EVALUATED",
+        "reason": "NO_SCOREABLE_SECONDARY_SCENARIOS",
+        "metrics": {
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          }
+        },
+        "pairedCandidateDifferences": null,
+        "bootstrap95Ci": null
+      },
+      "COUNTERFACTUAL_MISSING_NOTE": {
+        "status": "NOT_EVALUATED",
+        "reason": "NO_SCOREABLE_SECONDARY_SCENARIOS",
+        "metrics": {
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          }
+        },
+        "pairedCandidateDifferences": null,
+        "bootstrap95Ci": null
+      },
+      "COUNTERFACTUAL_EXTRA_NOTE": {
+        "status": "NOT_EVALUATED",
+        "reason": "NO_SCOREABLE_SECONDARY_SCENARIOS",
+        "metrics": {
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          }
+        },
+        "pairedCandidateDifferences": null,
+        "bootstrap95Ci": null
+      },
+      "COUNTERFACTUAL_WRONG_SEMITONE": {
+        "status": "NOT_EVALUATED",
+        "reason": "NO_SCOREABLE_SECONDARY_SCENARIOS",
+        "metrics": {
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          }
+        },
+        "pairedCandidateDifferences": null,
+        "bootstrap95Ci": null
+      },
+      "COUNTERFACTUAL_INCOMPLETE_CHORD": {
+        "status": "NOT_EVALUATED",
+        "reason": "NO_SCOREABLE_SECONDARY_SCENARIOS",
+        "metrics": {
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "value": null
+          }
+        },
+        "pairedCandidateDifferences": null,
+        "bootstrap95Ci": null
+      }
+    }
+  },
+  "conclusions": {
+    "PRIMARY_FIXED_GRID_PROXY_RESULT": "UNAVAILABLE",
+    "SECONDARY_HUMAN_FIXED_BPM_PROXY_RESULT": "UNAVAILABLE",
+    "overallPublicEvidenceConclusion": "NO_CLEAR_WINNER_ON_PUBLIC_FIXED_BPM_PROXY",
+    "reason": "No scoreable matched public proxy scenarios were available before inference; no real model run was executed on public benchmark scenarios."
+  },
+  "confirmations": {
+    "noAcousticModelTuning": true,
+    "noBpmFittingFromCandidateOutputs": true,
+    "noCalibrationOrEvaluationTuning": true,
+    "noOfficialProductionWinner": true,
+    "officialProductRankRemainsNull": true,
+    "productionMicrophoneEnabled": false
+  }
+}

@@ -109,8 +109,10 @@ export type ContinuousCorpusAudit = {
   candidateEligibility: Record<CandidateId, Record<string, CandidateEligibility>>;
   realRecordedTakeCount: number;
   scoreableRealTakeCount: number;
-  status: 'CORPUS_SCHEMA_READY' | 'CAPTURE_HARNESS_READY' | 'CAPTURE_PIPELINE_READY' | 'BLOCKED';
-  nextAction: 'RECORD_REAL_PAIRED_DEVELOPMENT_TAKES' | 'RUN_FROZEN_DEVELOPMENT_CANDIDATES_ONLY';
+  publicProxyTakeCount: number;
+  scoreablePublicProxyTakeCount: number;
+  status: 'CORPUS_SCHEMA_READY' | 'PUBLIC_BENCHMARK_READY' | 'BLOCKED';
+  nextAction: 'ACQUIRE_PUBLIC_PROXY_DATA' | 'RUN_FROZEN_PUBLIC_BENCHMARK_CANDIDATES' | 'FIX_INVALID_CORPUS_TAKES';
   productAccuracyMetric: false;
 };
 
@@ -252,10 +254,14 @@ export function auditContinuousPairedTakeCorpus(
       'bytedance-score-aware-chunked-dev-v1': bytedanceEligibility,
       'online-amt-stateful-modern-compat-dev-v1': onlineAmtEligibility,
     },
-    realRecordedTakeCount: manifest.takes.filter((take) => !take.publicProxy).length,
-    scoreableRealTakeCount: manifest.takes.filter((take) => !take.publicProxy && !blockers[take.takeId]).length,
-    status: manifest.takes.length === 0 ? 'CAPTURE_HARNESS_READY' : (Object.keys(blockers).length === 0 ? 'CAPTURE_PIPELINE_READY' : 'BLOCKED'),
-    nextAction: scoreableTakeCount === 0 ? 'RECORD_REAL_PAIRED_DEVELOPMENT_TAKES' : 'RUN_FROZEN_DEVELOPMENT_CANDIDATES_ONLY',
+    realRecordedTakeCount: manifest.takes.filter((take) => take.evidenceRole === 'NATIVE_PRODUCT_CAPTURE').length,
+    scoreableRealTakeCount: manifest.takes.filter((take) => take.evidenceRole === 'NATIVE_PRODUCT_CAPTURE' && !blockers[take.takeId]).length,
+    publicProxyTakeCount: manifest.takes.filter((take) => take.evidenceRole === 'PUBLIC_EXTERNAL_PROXY_DIAGNOSTIC').length,
+    scoreablePublicProxyTakeCount: manifest.takes.filter((take) => take.evidenceRole === 'PUBLIC_EXTERNAL_PROXY_DIAGNOSTIC' && !blockers[take.takeId]).length,
+    status: manifest.takes.length === 0 ? 'CORPUS_SCHEMA_READY' : (Object.keys(blockers).length === 0 ? 'PUBLIC_BENCHMARK_READY' : 'BLOCKED'),
+    nextAction: Object.keys(blockers).length > 0
+      ? 'FIX_INVALID_CORPUS_TAKES'
+      : (scoreableTakeCount === 0 ? 'ACQUIRE_PUBLIC_PROXY_DATA' : 'RUN_FROZEN_PUBLIC_BENCHMARK_CANDIDATES'),
     productAccuracyMetric: false,
   };
 }
@@ -322,7 +328,7 @@ function validateSync(take: ContinuousPairedTake, repoRoot: string): void {
       if (calibration.offsetMs !== undefined && calibration.offsetMs !== take.sync.offsetMs) throw new Error('calibration offset mismatch');
       if (calibration.uncertaintyMs !== undefined && calibration.uncertaintyMs !== take.sync.uncertaintyMs) throw new Error('calibration uncertainty mismatch');
     } catch (error) {
-      if (error instanceof SyntaxError) return;
+      if (error instanceof SyntaxError) throw new Error('CALIBRATED_OFFSET calibration artifact must be valid JSON.');
       throw error;
     }
     return;

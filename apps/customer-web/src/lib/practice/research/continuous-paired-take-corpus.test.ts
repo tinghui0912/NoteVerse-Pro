@@ -329,6 +329,7 @@ describe('Continuous paired take corpus contract v2', () => {
     const root = workspace();
     const base = fixture(root);
     const calibrationSha = writeJson(root, 'sync/calibration.json', { offsetMs: 25, uncertaintyMs: 2 });
+    const malformedCalibrationSha = writeBytes(root, 'sync/malformed-calibration.txt', Buffer.from('not-json', 'utf8'));
     const manifest = {
       ...base.manifest,
       takes: [{
@@ -346,6 +347,10 @@ describe('Continuous paired take corpus contract v2', () => {
     const scenario = importContinuousPairedTakeAsBenchmarkScenario(manifest, 'take-dev-001', { repoRoot: root });
     expect(scenario.physicalGroundTruth?.attacks[0].performanceTimeMs).toBe(25);
     expect(() => importContinuousPairedTake({ ...manifest, takes: [{ ...manifest.takes[0], sync: { ...manifest.takes[0].sync, calibrationArtifactSha256: 'f'.repeat(64) } }] }, 'take-dev-001', { repoRoot: root })).toThrow(/calibration artifact SHA256/);
+    expect(() => importContinuousPairedTake({
+      ...manifest,
+      takes: [{ ...manifest.takes[0], sync: { ...manifest.takes[0].sync, calibrationArtifactPath: 'sync/malformed-calibration.txt', calibrationArtifactSha256: malformedCalibrationSha } }],
+    }, 'take-dev-001', { repoRoot: root })).toThrow(/valid JSON/);
   });
 
   it('strictly validates browser capture-event identity and pitch agreement', () => {
@@ -439,7 +444,29 @@ describe('Continuous paired take corpus contract v2', () => {
     ledger.publishObservations([{ observationId: 'obs-c4', pitch: 'C4', performanceTimeMs: 0, confidence: 1, source: 'ACOUSTIC' }], 1_500);
     ledger.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 1_500, terminalPerformanceMs: 1_500 });
     expect(ledger.completedEvaluation().status).toBe('COMPLETE');
-    expect(auditContinuousPairedTakeCorpus({ ...manifest, takes: [] }, { repoRoot: root })).toMatchObject({ realRecordedTakeCount: 0, scoreableRealTakeCount: 0, productAccuracyMetric: false });
+    expect(auditContinuousPairedTakeCorpus({ ...manifest, takes: [] }, { repoRoot: root })).toMatchObject({
+      realRecordedTakeCount: 0,
+      scoreableRealTakeCount: 0,
+      publicProxyTakeCount: 0,
+      scoreablePublicProxyTakeCount: 0,
+      status: 'CORPUS_SCHEMA_READY',
+      productAccuracyMetric: false,
+    });
     expect(canonicalManifestSha256(manifest)).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('does not count synthetic or public-proxy takes as native real recordings', () => {
+    const { root, manifest, take } = fixture();
+    const audit = auditContinuousPairedTakeCorpus({
+      ...manifest,
+      takes: [
+        { ...take, takeId: 'synthetic', evidenceRole: 'SYNTHETIC_HARNESS' as const },
+        { ...take, takeId: 'proxy', evidenceRole: 'PUBLIC_EXTERNAL_PROXY_DIAGNOSTIC' as const, publicProxy: { status: 'PUBLIC_EXTERNAL_PROXY_NOT_PRODUCT_CAPTURE' as const, datasetId: 'vienna-4x22' } },
+      ],
+    }, { repoRoot: root });
+    expect(audit.realRecordedTakeCount).toBe(0);
+    expect(audit.scoreableRealTakeCount).toBe(0);
+    expect(audit.publicProxyTakeCount).toBe(1);
+    expect(audit.scoreablePublicProxyTakeCount).toBe(1);
   });
 });

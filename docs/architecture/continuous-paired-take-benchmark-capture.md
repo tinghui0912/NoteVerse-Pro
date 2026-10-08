@@ -1,6 +1,6 @@
 # Continuous Paired-Take Benchmark Capture
 
-Status: Phase 9F-A.2 research-only contract.
+Status: Phase 9F-B research-only corpus/import contract.
 
 This document defines the source-of-truth boundary for future Continuous Practice v2 acoustic benchmark takes. It does not enable production microphone Practice and does not select a model winner.
 
@@ -20,11 +20,16 @@ The benchmark unit is one complete Continuous performance take:
 
 ExpectedStrike[] is never a source-manifest field. It is derived by the shared product-domain Continuous practice contract resolver used by ContinuousEvaluationSession from PracticeScoreArtifact + PracticeTempoSelection + PracticeScope. The same resolver defines the deterministic NATURAL completion boundary. Physical MIDI records what the performer actually played, including wrong notes, missing notes, extras, repeated attacks, velocity, and pedal/control metadata. A perfectly correct physical MIDI performance may match the expected score exactly; provenance comes from verified score artifacts, not from forcing score/performance differences.
 
-## Capture Harness Contract
+## Public Proxy Benchmark Direction
 
-A research browser harness may reuse lower-level Practice primitives, but it remains outside production Practice UI. It must support loading a PracticeScoreArtifact, configuring tempo/scope/start, selecting microphone and MIDI inputs, Begin Take, Manual Stop, Natural completion, optional pause/resume, source PCM sample counters, physical MIDI capture, and export of raw artifacts plus a ContinuousPairedTakeManifest v2.
+NoteVerse no longer maintains a custom research microphone/MIDI capture frontend for the immediate frozen-candidate comparison. ContinuousPairedTakeManifest v2 remains the source-of-truth schema for native future takes, but Phase 9F-B uses public proxy data first.
 
-No recognition model output is required during capture. The research-only route is `/research/continuous-capture` under the localized workspace app and is hidden behind the `RESEARCH_CAPTURE_HARNESS_ENABLED=1` server-side feature gate.
+Public comparison evidence is split into two layers:
+
+- `PRIMARY_FIXED_GRID_PROXY`: public audio/performance-MIDI/score material whose provenance proves same-take audio/MIDI, independent score truth, and an intrinsic fixed-tempo grid.
+- `SECONDARY_HUMAN_FIXED_BPM_PROXY`: Vienna 4x22-style human performances where a local fixed-BPM proxy is fitted from score-performance alignment before candidate inference.
+
+Both layers remain diagnostic public evidence. They do not become official locked product EVALUATION.
 
 ## Clock Mapping
 
@@ -65,7 +70,7 @@ An EVALUATION manifest must carry an executable lock projection. Direct import o
 
 ## Public Proxy Datasets
 
-Public datasets may test pipeline mechanics, but they do not replace native NoteVerse product-capture EVALUATION. Vienna 4x22 is the first preferred proxy because it has real piano audio, performance MIDI, MusicXML score, and alignment data under CC BY 4.0. Its role is `PUBLIC_EXTERNAL_PROXY_NOT_PRODUCT_CAPTURE`, not locked product evidence. MAESTRO/ASAP/nASAP are `KNOWN_TRAINING_OVERLAP_PROXY_ONLY` because the frozen candidates document MAESTRO-family exposure. SMD, MAPS, and GiantMIDI-Piano have separate proxy roles in `backend/research/policies/public_piano_dataset_registry_2026-10-08.json`.
+Public datasets may test diagnostic product feedback accuracy, but they do not replace native NoteVerse product-capture EVALUATION. Vienna 4x22 is the required secondary human proxy because it has real piano audio, performance MIDI, MusicXML score, and alignment data under CC BY 4.0. Its role is `PUBLIC_EXTERNAL_PROXY_NOT_PRODUCT_CAPTURE`, not locked product evidence. MAPS may enter `PRIMARY_FIXED_GRID_PROXY` only after the exact selected subset proves fixed-grid score/MIDI/audio provenance. MAESTRO/ASAP/nASAP are excluded from winner evidence because the frozen candidates document MAESTRO-family exposure.
 
 ## Development Matrix
 
@@ -109,4 +114,12 @@ node backend/research/browser_runtime/bootstrap_public_proxy_dataset.mjs \
   --output backend/research/reports/vienna_4x22_public_proxy_bootstrap_2026-10-08.json
 ```
 
-The current fixture intentionally contains zero real takes and reports `CAPTURE_HARNESS_READY`, with `REAL_RECORDING_REQUIRED` as the practical next step. `CAPTURE_PIPELINE_READY` is reserved for a real or device-mocked export that the authoritative importer accepts end to end. Real product accuracy remains blocked until same-take microphone + physical-MIDI DEVELOPMENT takes are recorded.
+The current native paired-take fixture intentionally contains zero real native takes and reports `CORPUS_SCHEMA_READY`. Public proxy acquisition/comparison is driven by:
+
+```bash
+node backend/research/browser_runtime/run_public_fixed_bpm_proxy_benchmark.mjs \
+  --repo-root . \
+  --output backend/research/reports/public_fixed_bpm_proxy_phase9f_b_2026-10-08.json
+```
+
+The public proxy runner must not assign official product rank or production readiness.
