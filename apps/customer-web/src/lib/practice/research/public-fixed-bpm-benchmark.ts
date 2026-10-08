@@ -77,7 +77,7 @@ type PublicBenchmarkMetricDecision = {
   direction: 'HIGHER_BETTER' | 'LOWER_BETTER';
 };
 
-export type PublicPairedMetricName =
+type PublicPairedMetricName =
   | 'verdictAgreementRate'
   | 'falseMatchRateOnGroundTruthMissing'
   | 'correctMissingRate'
@@ -94,7 +94,7 @@ export type PublicBootstrapConfig = {
   draws: number;
 };
 
-export type PublicPairedMetricComparison = {
+type PublicPairedMetricComparison = {
   status: 'MEASURED' | 'NOT_EVALUATED';
   sampleCount: number;
   meanDifferenceByteDanceMinusOnlineAmt: number | null;
@@ -107,7 +107,7 @@ export type PublicPairedComparison = {
   metrics: Record<PublicPairedMetricName, PublicPairedMetricComparison>;
 };
 
-export type PublicFamilyEvidenceStatus =
+type PublicFamilyEvidenceStatus =
   | 'MEASURED'
   | 'INSUFFICIENT_FAMILY_EVIDENCE'
   | 'NOT_EVALUATED';

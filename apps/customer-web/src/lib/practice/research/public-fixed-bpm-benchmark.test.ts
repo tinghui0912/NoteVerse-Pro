@@ -11,7 +11,6 @@ import {
   assertPrimaryFixedGridProvenance,
   assertPublicDatasetMayEnterWinnerEvidence,
   buildPublicDiagnosticBakeoffReport,
-  buildPublicPairedComparison,
   canonicalPublicScenarioManifestSha256,
   decideSecondaryHumanFixedBpmProxy,
   decideOverallPublicEvidence,
