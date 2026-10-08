@@ -8,7 +8,7 @@
 
 import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readdirSync, statSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -393,29 +393,43 @@ function countFiles(root) {
   if (!existsSync(root)) return 0;
   const output = spawnSync('git', ['-C', repoRoot, 'ls-files', '--others', '--exclude-standard', '--', root], { encoding: 'utf8' });
   if (output.status === 0 && output.stdout.trim()) return output.stdout.trim().split(/\r?\n/).length;
-  try {
-    const listing = execFileSync('powershell', ['-NoProfile', '-Command', `Get-ChildItem -LiteralPath ${JSON.stringify(root)} -Recurse -File | Measure-Object | Select-Object -ExpandProperty Count`], { encoding: 'utf8' });
-    return Number.parseInt(listing.trim(), 10) || 0;
-  } catch {
-    return 0;
-  }
+  return walkFiles(root).length;
 }
 
 function countFilesWithExtensions(root, extensions) {
   if (!existsSync(root)) return 0;
-  try {
-    const escapedRoot = JSON.stringify(root);
-    const escapedExtensions = extensions.map((extension) => JSON.stringify(extension.toLowerCase())).join(',');
-    const command = `$extensions=@(${escapedExtensions}); Get-ChildItem -LiteralPath ${escapedRoot} -Recurse -File | Where-Object { $extensions -contains $_.Extension.ToLowerInvariant() } | Measure-Object | Select-Object -ExpandProperty Count`;
-    const listing = execFileSync('powershell', ['-NoProfile', '-Command', command], { encoding: 'utf8' });
-    return Number.parseInt(listing.trim(), 10) || 0;
-  } catch {
-    return 0;
+  const normalized = new Set(extensions.map((extension) => extension.toLowerCase()));
+  return walkFiles(root).filter((filePath) => normalized.has(path.extname(filePath).toLowerCase())).length;
+}
+
+function walkFiles(root) {
+  const files = [];
+  const stack = [root];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || !existsSync(current)) continue;
+    const stat = statSync(current);
+    if (stat.isFile()) {
+      files.push(current);
+      continue;
+    }
+    if (!stat.isDirectory()) continue;
+    for (const entry of readdirSync(current)) {
+      stack.push(path.join(current, entry));
+    }
   }
+  return files;
 }
 
 async function sha256File(filePath) {
-  return createHash('sha256').update(await readFile(filePath)).digest('hex');
+  const digest = createHash('sha256');
+  await new Promise((resolve, reject) => {
+    const stream = createReadStream(filePath);
+    stream.on('data', (chunk) => digest.update(chunk));
+    stream.on('error', reject);
+    stream.on('end', resolve);
+  });
+  return digest.digest('hex');
 }
 
 function sha256Json(value) {

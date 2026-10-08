@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -132,8 +132,10 @@ describe('public fixed-BPM benchmark policy', () => {
 
   it('keeps Vienna fixed-BPM fitting candidate-independent and uses product integer BPM', () => {
     expect(productIntegerBpm(119.6)).toBe(120);
-    expect(productIntegerBpm(9)).toBe(20);
-    expect(productIntegerBpm(301)).toBe(300);
+    expect(productIntegerBpm(40.4)).toBe(40);
+    expect(productIntegerBpm(239.6)).toBe(240);
+    expect(() => productIntegerBpm(9)).toThrow(/40-240/);
+    expect(() => productIntegerBpm(301)).toThrow(/40-240/);
     expect(() => validateSecondaryViennaFit({
       method: 'MEDIAN_LOCAL_MS_PER_QUARTER',
       rawFittedBpm: 121.4,
@@ -150,6 +152,14 @@ describe('public fixed-BPM benchmark policy', () => {
       absoluteResidualP95Ms: 126,
       groundTruthExpectedStrikeMatchRate: 0.96,
     })).toThrow(/eligibility/);
+    expect(() => validateSecondaryViennaFit({
+      method: 'MEDIAN_LOCAL_MS_PER_QUARTER',
+      rawFittedBpm: 121.6,
+      configuredIntegerBpm: 121,
+      alignmentAnchorCount: 12,
+      absoluteResidualP95Ms: 100,
+      groundTruthExpectedStrikeMatchRate: 0.96,
+    })).toThrow(/configuredIntegerBpm/);
   });
 
   it('freezes public manifests before candidate inference and keeps official product rank null', () => {
@@ -174,6 +184,42 @@ describe('public fixed-BPM benchmark policy', () => {
     expect(report.comparativeRank).toBeNull();
     expect(report.absoluteGateStatus).toBe('NOT_EVALUATED');
     expect(report.officialProductEvaluation).toBe(false);
+  });
+
+  it('rejects a frozen public benchmark manifest with zero scenarios', () => {
+    const manifest: PublicScenarioManifest = {
+      schemaVersion: 1,
+      manifestId: 'empty-secondary',
+      layer: 'SECONDARY_HUMAN_FIXED_BPM_PROXY',
+      dataset: {
+        ...primaryDataset,
+        datasetId: 'vienna-4x22',
+        role: 'SECONDARY_HUMAN_FIXED_BPM_PROXY',
+      },
+      scenarioFamilies: ['BASE_ORIGINAL'],
+      scenarioIds: [],
+      scenarioManifestFrozenBeforeInference: true,
+      officialProductEvaluation: false,
+    };
+    expect(() => validatePublicScenarioManifest(manifest)).toThrow(/zero scenarios/);
+  });
+
+  it('keeps public proxy runners on the shared TypeScript contract and pure Node traversal', () => {
+    const root = path.resolve(__dirname, '../../../../../..');
+    const viennaRunner = readFileSync(
+      path.join(root, 'backend/research/browser_runtime/run_vienna_fixed_bpm_proxy_benchmark.mjs'),
+      'utf8'
+    );
+    expect(viennaRunner).toContain('createJiti');
+    expect(viennaRunner).toContain('publicContract.validatePublicScenarioManifest');
+    expect(viennaRunner).toContain('publicContract.canonicalPublicScenarioManifestSha256');
+
+    const legacyRunner = readFileSync(
+      path.join(root, 'backend/research/browser_runtime/run_public_fixed_bpm_proxy_benchmark.mjs'),
+      'utf8'
+    );
+    expect(legacyRunner).not.toContain('Get-ChildItem');
+    expect(legacyRunner).toContain('function walkFiles');
   });
 
   it('keeps score-derived truth separate from physical MIDI and uses the ledger for ground truth', () => {

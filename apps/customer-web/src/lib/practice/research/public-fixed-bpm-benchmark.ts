@@ -2,6 +2,11 @@ import { createHash } from 'node:crypto';
 
 import { DEFAULT_ASSIGNMENT_WINDOW_MS } from '../local-core/continuous-evaluation-session';
 import {
+  MAX_PRACTICE_TEMPO_BPM,
+  MIN_PRACTICE_TEMPO_BPM,
+  isCustomTempoValid,
+} from '../local-core/practice-tempo';
+import {
   buildBakeoffReport,
   scoreCandidate,
   type BakeoffScore,
@@ -119,16 +124,26 @@ export function validateSecondaryViennaFit(diagnostics: SecondaryBpmFitDiagnosti
   ) {
     throw new Error('SECONDARY Vienna fixed-BPM proxy failed candidate-independent BPM-fit eligibility.');
   }
-  productIntegerBpm(diagnostics.rawFittedBpm);
+  const configuredIntegerBpm = productIntegerBpm(diagnostics.rawFittedBpm);
+  if (diagnostics.configuredIntegerBpm !== configuredIntegerBpm) {
+    throw new Error('SECONDARY Vienna configuredIntegerBpm must equal the product-derived custom tempo.');
+  }
 }
 
 export function productIntegerBpm(rawBpm: number): number {
   if (!Number.isFinite(rawBpm) || rawBpm <= 0) throw new Error('Configured BPM requires a positive finite value.');
-  return Math.max(20, Math.min(300, Math.round(rawBpm)));
+  const bpm = Math.round(rawBpm);
+  if (!isCustomTempoValid(bpm)) {
+    throw new Error(
+      `Configured BPM must be within the product custom tempo range ${MIN_PRACTICE_TEMPO_BPM}-${MAX_PRACTICE_TEMPO_BPM}.`
+    );
+  }
+  return bpm;
 }
 
 export function validatePublicScenarioManifest(manifest: PublicScenarioManifest): void {
   if (manifest.schemaVersion !== 1 || !manifest.manifestId) throw new Error('Unsupported public benchmark manifest.');
+  if (manifest.scenarioIds.length === 0) throw new Error('Public benchmark manifest cannot claim a frozen benchmark with zero scenarios.');
   if (manifest.candidateOutputIncluded) throw new Error('Public scenario manifest must be frozen before candidate output.');
   if (!manifest.scenarioManifestFrozenBeforeInference) throw new Error('Public scenario manifest must be frozen before inference.');
   if (manifest.officialProductEvaluation !== false) throw new Error('Public proxy scenarios cannot become official product EVALUATION.');

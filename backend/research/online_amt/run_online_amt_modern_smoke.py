@@ -37,6 +37,7 @@ def main() -> int:
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--duration-ms", type=float, default=1024)
+    parser.add_argument("--segment-input", type=Path)
     args = parser.parse_args()
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -68,14 +69,27 @@ def run_smoke(args: argparse.Namespace) -> dict[str, Any]:
         from transcribe import load_model, OnlineTranscriber
 
         adapter = OnlineAmtAdapter(args.checkpoint, torch=torch, load_model=load_model, transcriber_cls=OnlineTranscriber)
-        fixture = synthetic_fixture(args.duration_ms)
-        context_tail = synthetic_fixture(required_context_tail_ms(len(fixture)))
-        hop_artifact = adapter.process_segment(
-            segment_id="synthetic-runtime-smoke-seg-0",
-            performance_start_ms=0.0,
-            performance_pcm=fixture,
-            context_tail_pcm=context_tail,
-        )
+        if args.segment_input:
+            fixture_segments = load_segment_input(args.segment_input)
+            hop_segments = [
+                adapter.process_segment(
+                    segment_id=segment["segmentId"],
+                    performance_start_ms=float(segment["performanceStartMs"]),
+                    performance_pcm=segment["performancePcm16k"],
+                    context_tail_pcm=segment["contextTailPcm16k"],
+                )
+                for segment in fixture_segments
+            ]
+            fixture = fixture_segments[0]["performancePcm16k"]
+        else:
+            fixture = synthetic_fixture(args.duration_ms)
+            context_tail = synthetic_fixture(required_context_tail_ms(len(fixture)))
+            hop_segments = [adapter.process_segment(
+                segment_id="synthetic-runtime-smoke-seg-0",
+                performance_start_ms=0.0,
+                performance_pcm=fixture,
+                context_tail_pcm=context_tail,
+            )]
         determinism = reset_determinism(adapter, fixture)
         causality = prefix_causality(adapter, fixture)
         state_effect = stateful_effect(adapter, fixture)
@@ -95,7 +109,7 @@ def run_smoke(args: argparse.Namespace) -> dict[str, Any]:
             "hopArtifact": {
                 "schemaVersion": 1,
                 "artifact": "online_amt_real_hop_output",
-                "segments": [hop_artifact],
+                "segments": hop_segments,
             },
             "productAccuracyMetric": False,
             "legacyRuntimeParity": "UNPROVEN",
@@ -264,6 +278,32 @@ def required_context_tail_ms(performance_samples: int) -> float:
     correction_delay_samples = math.ceil(158 / 1000 * SAMPLE_RATE)
     required_processed_samples = math.ceil((performance_samples + correction_delay_samples) / HOP_SAMPLES) * HOP_SAMPLES
     return max(0, required_processed_samples - performance_samples) / SAMPLE_RATE * 1000
+
+
+def load_segment_input(path: Path) -> list[dict[str, Any]]:
+    parsed = json.loads(path.read_text(encoding="utf-8"))
+    segments = parsed.get("segments")
+    if not isinstance(segments, list) or not segments:
+        raise ValueError("Online-AMT segment input requires a non-empty segments array")
+    output: list[dict[str, Any]] = []
+    for segment in segments:
+        segment_id = segment.get("segmentId")
+        performance_start_ms = segment.get("performanceStartMs")
+        performance_pcm = np.asarray(segment.get("performancePcm16k"), dtype=np.float32)
+        context_tail_pcm = np.asarray(segment.get("contextTailPcm16k"), dtype=np.float32)
+        if not segment_id or not np.isfinite(float(performance_start_ms)):
+            raise ValueError("Online-AMT segment input has invalid segment identity")
+        if performance_pcm.ndim != 1 or context_tail_pcm.ndim != 1:
+            raise ValueError("Online-AMT segment PCM must be one-dimensional")
+        if not np.all(np.isfinite(performance_pcm)) or not np.all(np.isfinite(context_tail_pcm)):
+            raise ValueError("Online-AMT segment PCM must be finite")
+        output.append({
+            "segmentId": str(segment_id),
+            "performanceStartMs": float(performance_start_ms),
+            "performancePcm16k": performance_pcm,
+            "contextTailPcm16k": context_tail_pcm,
+        })
+    return output
 
 
 def runtime_block(*, torch: Any | None = None) -> dict[str, Any]:
