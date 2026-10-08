@@ -233,6 +233,47 @@ describe('public fixed-BPM benchmark policy', () => {
     expect(legacyRunner).toContain('function walkFiles');
   });
 
+  it('keeps B3 counterfactual artifact hashes and acoustic reuse receipts executable', () => {
+    const root = path.resolve(__dirname, '../../../../../..');
+    const viennaRunner = readFileSync(
+      path.join(root, 'backend/research/browser_runtime/run_vienna_fixed_bpm_proxy_benchmark.mjs'),
+      'utf8'
+    );
+    expect(viennaRunner).toContain('mutationContentSha256');
+    expect(viennaRunner).toContain('finalDerivedPracticeScoreArtifactSha256');
+    expect(viennaRunner).toContain('byteDanceGeometryIdentity(baseScenario)');
+    expect(viennaRunner).toContain('onlineAmtGeometryIdentity(baseScenario)');
+    expect(viennaRunner).toContain('ACOUSTIC_EVIDENCE_REUSE_REJECTED_GEOMETRY_MISMATCH');
+    expect(viennaRunner).not.toContain('sameByteDanceChunkGeometry: true');
+    expect(viennaRunner).toContain('rawScoreDefinedScopeAttemptCount');
+    expect(viennaRunner).toContain('scopeCountDefinitions');
+  });
+
+  it('freezes the 9G-A performer-disjoint calibration protocol before blind execution', () => {
+    const root = path.resolve(__dirname, '../../../../../..');
+    const protocol = JSON.parse(readFileSync(
+      path.join(root, 'backend/research/policies/public_model_calibration_protocol_v1_2026-10-09.json'),
+      'utf8'
+    ));
+    expect(protocol.policyId).toBe('PUBLIC_MODEL_CALIBRATION_PROTOCOL_V1');
+    expect(protocol.performerDisjointPartitions.calibrationProxyPerformers)
+      .toEqual(['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p14']);
+    expect(protocol.performerDisjointPartitions.blindEvaluationProxyPerformers)
+      .toEqual(['p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22']);
+    expect(protocol.performerDisjointPartitions.blindEvaluationPolicy.candidateInferenceAllowedInPhase9GA)
+      .toBe(false);
+    expect(protocol.calibrationFamilies).toEqual([
+      'BASE_ORIGINAL',
+      'COUNTERFACTUAL_MISSING_NOTE',
+      'COUNTERFACTUAL_EXTRA_NOTE',
+      'COUNTERFACTUAL_WRONG_SEMITONE',
+      'COUNTERFACTUAL_INCOMPLETE_CHORD',
+    ]);
+    expect(protocol.calibrationDecisionPolicy.priorityOrder[0])
+      .toMatch(/falseMatchRateOnGroundTruthMissing/);
+    expect(protocol.qualificationGate.phase9GAProductionWinnerAllowed).toBe(false);
+  });
+
   it('keeps score-derived truth separate from physical MIDI and uses the ledger for ground truth', () => {
     const scored = scoreFixedGridGroundTruthWithLedger(scenario());
     expect(scored.groundTruthStatus).toBe('MEASURED');

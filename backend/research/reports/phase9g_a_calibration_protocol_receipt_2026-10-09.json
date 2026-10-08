@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a_calibration_protocol_receipt",
+  "generatedAt": "2026-10-09T00:00:00.000+08:00",
+  "phase": "9G-A",
+  "startingRemoteHead": "bf7835de1214af72b580b1acfd5882a10dd9ab67",
+  "status": "PROTOCOL_AND_PROVENANCE_CLEANUP_READY",
+  "notAProductionWinner": true,
+  "blindEvaluationCandidateOutputsGenerated": false,
+  "policy": {
+    "path": "backend/research/policies/public_model_calibration_protocol_v1_2026-10-09.json",
+    "sha256": "14c1d49061403e766aac2fe385446762d207c6e9561c04b98c3076b1dcd06046",
+    "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V1"
+  },
+  "acceptedB3Evidence": {
+    "scenarioManifestPath": "backend/research/reports/vienna_fixed_bpm_proxy_final_scenarios_phase9fb3_2026-10-08.json",
+    "scenarioManifestSha256": "6c24096c62c31ecc9c512dd74819748448d599851e1855e8955774a6e409db79",
+    "comparisonReportPath": "backend/research/reports/vienna_fixed_bpm_proxy_final_comparison_phase9fb3_2026-10-08.json",
+    "comparisonReportSha256": "3ce9e1f188dcbdfdb19f224cf0577873a4b16e519757157180ea857d49e8642d",
+    "historicalFrozenBaselineConclusion": "BYTE_DANCE_BETTER_ON_SECONDARY_HUMAN_FIXED_BPM_PROXY",
+    "productionWinner": false
+  },
+  "b3CleanupImplementedInRunner": {
+    "counterfactualArtifactShaSemantics": {
+      "mutationContentSha256": "computed from deterministic mutation projection before generated derived artifact identity fields",
+      "finalDerivedPracticeScoreArtifactSha256": "computed from final canonical derived artifact after artifactId/revisionId are populated"
+    },
+    "acousticEvidenceReuse": {
+      "byteDanceGeometryCompared": [
+        "inputStartPerformanceMs",
+        "inputEndPerformanceMs",
+        "commitStartPerformanceMs",
+        "commitEndPerformanceMs"
+      ],
+      "onlineAmtGeometryCompared": [
+        "performanceOwnedSamples",
+        "requiredContextTailSamples",
+        "requiredProcessedSamples",
+        "correctionDelaySamples",
+        "segment reset geometry"
+      ],
+      "alsoRequires": [
+        "same source audio SHA",
+        "same performance origin",
+        "same completion",
+        "same frozen candidate configuration"
+      ],
+      "rejectedStatus": "ACOUSTIC_EVIDENCE_REUSE_REJECTED_GEOMETRY_MISMATCH"
+    },
+    "scopeAccounting": {
+      "consideredScopeCount": "raw score-defined RANGE scope attempts before the pre-model gate",
+      "candidateScopeCountByPiece": "raw score-defined RANGE scope attempts grouped by Vienna piece",
+      "eligibleBasePoolCountByPiece": "BASE_ORIGINAL scopes that passed the frozen pre-model ground-truth and context gates",
+      "selectedScenariosByPiece": "BASE_ORIGINAL scopes selected for paired model execution"
+    }
+  },
+  "performerDisjointSplit": {
+    "developmentProxyPerformers": ["p01", "p02", "p03", "p04", "p05", "p06"],
+    "calibrationProxyPerformers": ["p07", "p08", "p09", "p10", "p11", "p12", "p13", "p14"],
+    "blindEvaluationProxyPerformers": ["p15", "p16", "p17", "p18", "p19", "p20", "p21", "p22"],
+    "blindPerformersOutsideAcceptedB3SelectedBaseSet": true,
+    "blindEvaluationOutputsGeneratedOrInspected": false
+  },
+  "candidateExecutionStatus": {
+    "bytedanceCalibrationSweep": "NOT_RUN_IN_THIS_RECEIPT",
+    "onlineAmtCalibration": "NOT_RUN_IN_THIS_RECEIPT",
+    "transkunV2Aug": "NOT_RUN_IN_THIS_RECEIPT",
+    "ariaAmt": "NOT_RUN_IN_THIS_RECEIPT",
+    "rtt": "NOT_RUN_IN_THIS_RECEIPT",
+    "robustByteDanceAugmented": "NOT_RUN_IN_THIS_RECEIPT",
+    "d3rm": "NOT_RUN_IN_THIS_RECEIPT"
+  },
+  "confirmations": {
+    "noteVerseProductTruthAndScorerPreserved": true,
+    "blindEvaluationCandidateOutputsUntouched": true,
+    "productionWinnerSelected": false,
+    "productionMicrophoneEnabled": false
+  }
+}

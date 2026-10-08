@@ -159,6 +159,14 @@ for (const scenario of baseScenarios) {
 const baseRunByScenarioAndCandidate = new Map(runs.map((run) => [`${run.scenarioId}|${run.candidateId}`, run]));
 for (const item of counterfactualItems) {
   for (const candidateId of [BYTEDANCE_CANDIDATE_ID, ONLINE_AMT_CANDIDATE_ID]) {
+    if (item.receipt.acousticEvidenceReuse.status !== 'ACOUSTIC_EVIDENCE_REUSED_IDENTICAL_INPUT') {
+      failures.push({
+        candidateId,
+        scenarioId: item.scenario.scenarioId,
+        error: `Acoustic evidence reuse rejected: ${JSON.stringify(item.receipt.acousticEvidenceReuse)}`,
+      });
+      continue;
+    }
     const baseRun = baseRunByScenarioAndCandidate.get(`${item.receipt.baseScenarioId}|${candidateId}`);
     if (!baseRun) {
       failures.push({ candidateId, scenarioId: item.scenario.scenarioId, error: 'Missing base run for acoustic evidence reuse.' });
@@ -244,8 +252,15 @@ const report = {
   },
   scopeGeneration: {
     consideredPerformanceCount: binding.intersectionCount,
-    consideredScopeCount: baseScenarioReceipts.length + skippedScopes.length,
+    rawScoreDefinedScopeAttemptCount: scenarioPool.length + skippedScopes.length,
+    consideredScopeCount: scenarioPool.length + skippedScopes.length,
     baseScenarioCount: baseScenarios.length,
+    scopeCountDefinitions: {
+      consideredScopeCount: 'raw score-defined RANGE scope attempts before the pre-model gate',
+      candidateScopeCountByPiece: 'raw score-defined RANGE scope attempts grouped by Vienna piece',
+      eligibleBasePoolCountByPiece: 'BASE_ORIGINAL scopes that passed the frozen pre-model ground-truth and context gates',
+      selectedScenariosByPiece: 'BASE_ORIGINAL scopes selected for paired model execution',
+    },
     candidateScopeCountByPiece: countBy([...scenarioPool.map((item) => item.receipt), ...skippedScopes], (item) => item.pieceId ?? pieceIdForPerformance(item.performanceId ?? '')),
     eligibleBasePoolCountByPiece: countBy(scenarioPool.map((item) => item.receipt), (item) => item.pieceId),
     skippedScopeCount: skippedScopes.length,
@@ -652,10 +667,17 @@ function buildCounterfactualScenarioItem(baseItem, scoreArtifactEntry, family) {
     family,
   });
   if (!mutation) return null;
-  const derivedSha = sha256Text(canonicalJson(derived));
-  derived.artifactId = `practice-score-artifact:vienna-cf:${derivedSha.slice(0, 16)}`;
-  derived.revisionId = `vienna-counterfactual:${family}:${derivedSha.slice(0, 16)}`;
+  const mutationContentSha256 = sha256Text(canonicalJson(counterfactualMutationProjection({
+    basePracticeScoreArtifactSha256: baseReceipt.practiceScoreArtifactSha256,
+    family,
+    practiceScope: baseReceipt.practiceScope,
+    mutation,
+    artifact: derived,
+  })));
+  derived.artifactId = `practice-score-artifact:vienna-cf:${mutationContentSha256.slice(0, 16)}`;
+  derived.revisionId = `vienna-counterfactual:${family}:${mutationContentSha256.slice(0, 16)}`;
   artifactDomain.assertPracticeScoreArtifact(derived);
+  const finalDerivedPracticeScoreArtifactSha256 = sha256Text(canonicalJson(derived));
   const contract = continuousContract.resolveContinuousPracticeContract({
     artifact: derived,
     tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: baseReceipt.configuredIntegerBpm },
@@ -684,9 +706,10 @@ function buildCounterfactualScenarioItem(baseItem, scoreArtifactEntry, family) {
       scenarioId,
       baseScenarioId: baseScenario.scenarioId,
       family,
-      practiceScoreArtifactSha256: derivedSha,
+      practiceScoreArtifactSha256: finalDerivedPracticeScoreArtifactSha256,
       basePracticeScoreArtifactSha256: baseReceipt.practiceScoreArtifactSha256,
-      derivedPracticeScoreArtifactSha256: derivedSha,
+      mutationContentSha256,
+      finalDerivedPracticeScoreArtifactSha256,
       expectedStrikeCount: contract.expectedStrikes.length,
       groundTruthMissingCount: groundTruthScore.missingCount,
       groundTruthExtraCount: groundTruthScore.extraCount,
@@ -696,7 +719,8 @@ function buildCounterfactualScenarioItem(baseItem, scoreArtifactEntry, family) {
         operation: mutation.operation,
         baseScenarioId: baseScenario.scenarioId,
         baseScoreArtifactSha256: baseReceipt.practiceScoreArtifactSha256,
-        derivedScoreArtifactSha256: derivedSha,
+        mutationContentSha256,
+        finalDerivedPracticeScoreArtifactSha256,
         targetGroupId: mutation.groupId,
         targetPitch: mutation.targetPitch,
         addedPitch: mutation.addedPitch,
@@ -710,14 +734,7 @@ function buildCounterfactualScenarioItem(baseItem, scoreArtifactEntry, family) {
         naturalTerminalPerformanceTimeMs: baseScenario.completion.performanceTimeMs,
         selectionInputs: 'score artifact + physical MIDI + deterministic mutation rule; candidate outputs excluded',
       },
-      acousticEvidenceReuse: {
-        status: 'ACOUSTIC_EVIDENCE_REUSED_IDENTICAL_INPUT',
-        sameSourceAudioSha: true,
-        samePerformanceOrigin: true,
-        sameCompletion: true,
-        sameByteDanceChunkGeometry: true,
-        sameOnlineAmtOwnedPcmTailGeometry: true,
-      },
+      acousticEvidenceReuse: acousticEvidenceReuseReceipt(baseScenario, scenario),
       truthIndependence: {
         expectedTruthSource: 'Derived PracticeScoreArtifact + CUSTOM_FIXED_BPM + PracticeScope RANGE',
         physicalTruthSource: 'Unchanged Vienna performance MIDI full NoteOn set',
@@ -725,6 +742,105 @@ function buildCounterfactualScenarioItem(baseItem, scoreArtifactEntry, family) {
         audioSource: 'Unchanged Vienna WAV',
       },
     },
+  };
+}
+
+function counterfactualMutationProjection({
+  basePracticeScoreArtifactSha256,
+  family,
+  practiceScope,
+  mutation,
+  artifact,
+}) {
+  return {
+    projectionKind: 'VIENNA_COUNTERFACTUAL_MUTATION_CONTENT_V1',
+    basePracticeScoreArtifactSha256,
+    family,
+    practiceScope,
+    mutation,
+    expectedPracticeGroups: artifact.expectedPracticeGroups,
+    practiceAttackSteps: artifact.practiceAttackSteps,
+    sourceMetadata: artifact.sourceMetadata ?? null,
+  };
+}
+
+function acousticEvidenceReuseReceipt(baseScenario, mutatedScenario) {
+  const baseByteDance = byteDanceGeometryIdentity(baseScenario);
+  const mutatedByteDance = byteDanceGeometryIdentity(mutatedScenario);
+  const baseOnlineAmt = onlineAmtGeometryIdentity(baseScenario);
+  const mutatedOnlineAmt = onlineAmtGeometryIdentity(mutatedScenario);
+  const receipt = {
+    status: 'ACOUSTIC_EVIDENCE_REUSED_IDENTICAL_INPUT',
+    sameSourceAudioSha: baseScenario.source.sourceAudioSha256 === mutatedScenario.source.sourceAudioSha256,
+    samePerformanceOrigin: baseScenario.audio.performanceOriginSourceMs === mutatedScenario.audio.performanceOriginSourceMs,
+    sameCompletion: baseScenario.completion.performanceTimeMs === mutatedScenario.completion.performanceTimeMs,
+    sameFrozenCandidateConfiguration: true,
+    byteDanceChunkGeometrySha256: {
+      base: baseByteDance.sha256,
+      mutated: mutatedByteDance.sha256,
+    },
+    onlineAmtSegmentGeometrySha256: {
+      base: baseOnlineAmt.sha256,
+      mutated: mutatedOnlineAmt.sha256,
+    },
+    sameByteDanceChunkGeometry: baseByteDance.sha256 === mutatedByteDance.sha256,
+    sameOnlineAmtOwnedPcmTailGeometry: baseOnlineAmt.sha256 === mutatedOnlineAmt.sha256,
+  };
+  if (
+    !receipt.sameSourceAudioSha
+    || !receipt.samePerformanceOrigin
+    || !receipt.sameCompletion
+    || !receipt.sameByteDanceChunkGeometry
+    || !receipt.sameOnlineAmtOwnedPcmTailGeometry
+  ) {
+    return {
+      ...receipt,
+      status: 'ACOUSTIC_EVIDENCE_REUSE_REJECTED_GEOMETRY_MISMATCH',
+    };
+  }
+  return receipt;
+}
+
+function byteDanceGeometryIdentity(scenario) {
+  const geometry = byteDance.planByteDanceScoreAwareChunks(scenario).map((plan) => ({
+    chunkIdOrdinal: Number(plan.chunkId.match(/chunk-([0-9]+)$/)?.[1] ?? 0),
+    inputStartPerformanceMs: plan.inputStartPerformanceMs,
+    inputEndPerformanceMs: plan.inputEndPerformanceMs,
+    commitStartPerformanceMs: plan.commitStartPerformanceMs,
+    commitEndPerformanceMs: plan.commitEndPerformanceMs,
+  }));
+  return {
+    geometry,
+    sha256: sha256Text(canonicalJson({
+      identityKind: 'BYTEDANCE_FROZEN_CHUNK_GEOMETRY_V1',
+      candidateId: BYTEDANCE_CANDIDATE_ID,
+      geometry,
+    })),
+  };
+}
+
+function onlineAmtGeometryIdentity(scenario) {
+  const performanceOwnedSamples = performanceOwnedSamplesAtOrBefore(scenario.completion.performanceTimeMs);
+  const tail = onlineAmt.onlineAmtSegmentTailRequirement(performanceOwnedSamples);
+  const geometry = {
+    segmentCount: 1,
+    segments: [{
+      segmentOrdinal: 0,
+      performanceStartMs: 0,
+      performanceOwnedSamples,
+      requiredContextTailSamples: tail.requiredContextTailSamples,
+      requiredProcessedSamples: tail.requiredProcessedSamples,
+      correctionDelaySamples: tail.correctionDelaySamples,
+      resetBeforeSegment: true,
+    }],
+  };
+  return {
+    geometry,
+    sha256: sha256Text(canonicalJson({
+      identityKind: 'ONLINE_AMT_FROZEN_SEGMENT_GEOMETRY_V1',
+      candidateId: ONLINE_AMT_CANDIDATE_ID,
+      geometry,
+    })),
   };
 }
 
