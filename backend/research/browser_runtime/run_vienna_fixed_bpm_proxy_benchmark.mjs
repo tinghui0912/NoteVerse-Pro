@@ -201,7 +201,7 @@ const diagnosticReport = publicContract.buildPublicDiagnosticBakeoffReport({
 });
 const familyTagsByScenario = new Map(scenarios.map((scenario) => [scenario.scenarioId, scenario.familyTags]));
 const baseScores = diagnosticReport.scores.filter((score) =>
-  score.scenarioSplit === 'DEVELOPMENT' && (familyTagsByScenario.get(score.scenarioId) ?? []).includes('BASE_ORIGINAL')
+  score.scenarioSplit === scenarioSplit && (familyTagsByScenario.get(score.scenarioId) ?? []).includes('BASE_ORIGINAL')
 );
 const headline = diagnosticReport.aggregateMetrics;
 const paired = publicContract.buildPublicPairedComparison({ scores: baseScores });
