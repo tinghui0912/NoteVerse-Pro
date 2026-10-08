@@ -45,6 +45,8 @@ const checkpointRel = args.checkpoint ?? path.join(onlineAmtRepoRel, 'model-1800
 const checkpoint = path.resolve(repoRoot, checkpointRel);
 const causalManifestRel = args['causal-manifest'] ?? 'backend/data/work/datasets/maestro-v3.0.0/production_step_development_set/public_step_causal_cases_manifest.json';
 const causalManifest = path.resolve(repoRoot, causalManifestRel);
+const runtimeSmokeRel = args['runtime-smoke'] ?? 'backend/data/work/online_amt/phase9e_b1_runtime_smoke.json';
+const runtimeSmokePath = path.resolve(repoRoot, runtimeSmokeRel);
 
 await mkdir(outputDir, { recursive: true });
 
@@ -61,9 +63,50 @@ const assetStatus = repoIdentity.commit === REPO_COMMIT
   : 'BLOCKED';
 
 const pythonRuntime = inspectPythonRuntime();
-const runtimeSmoke = assetStatus === 'PASS'
-  ? { status: 'NOT_RUN', reason: 'Real Online-AMT execution hook is intentionally not duplicated in Node; use committed Python adapter path in a later asset-present run.' }
-  : { status: 'BLOCKED', blocker: 'NO_ONLINE_AMT_REPO_OR_CHECKPOINT', reason: 'Required external Online-AMT repo/checkpoint was unavailable or identity mismatched.' };
+const runtimeSmokeArtifact = existsSync(runtimeSmokePath)
+  ? JSON.parse(await readFile(runtimeSmokePath, 'utf8'))
+  : null;
+const runtimeSmoke = runtimeSmokeArtifact?.runtimeSmoke ?? (
+  assetStatus === 'PASS'
+    ? { status: 'NOT_RUN', reason: 'Real Docker Online-AMT smoke artifact was not provided.' }
+    : { status: 'BLOCKED', blocker: 'NO_ONLINE_AMT_REPO_OR_CHECKPOINT', reason: 'Required external Online-AMT repo/checkpoint was unavailable or identity mismatched.' }
+);
+const statefulnessSmoke = runtimeSmokeArtifact?.statefulnessSmoke ?? {
+  status: assetStatus === 'PASS' ? 'NOT_RUN' : 'BLOCKED',
+  reason: assetStatus === 'PASS'
+    ? 'Real Docker Online-AMT statefulness smoke artifact was not provided.'
+    : 'Required external Online-AMT assets unavailable.',
+};
+const executionProfile = {
+  profileId: EXECUTION_PROFILE_ID,
+  candidateInferenceConcurrency: 1,
+  device: 'CPU',
+  browserSupport: 'NOT_EVALUATED',
+  legacyRuntimeParity: 'UNPROVEN',
+  dockerfile: 'docker/research/Dockerfile.online-amt-modern',
+  requirements: 'docker/research/requirements.online-amt-modern.txt',
+  runtimeSmokeArtifact: runtimeSmokeArtifact ? runtimeSmokeRel : null,
+  tailPolicy: 'REAL_CONTEXT_FAIL_CLOSED',
+};
+const executionProfileSha256 = createHash('sha256')
+  .update(JSON.stringify(executionProfile))
+  .digest('hex');
+const realPipelineIntegrationSmoke = runtimeSmokeArtifact?.hopArtifact
+  ? {
+      status: 'PASS',
+      kind: 'REAL_DOCKER_ONLINE_AMT_HOP_OUTPUT_READY_FOR_TYPESCRIPT_BRIDGE',
+      productAccuracyMetric: false,
+      hopSegmentCount: runtimeSmokeArtifact.hopArtifact.segments?.length ?? 0,
+    }
+  : {
+      status: 'BLOCKED',
+      kind: 'REAL_DOCKER_ONLINE_AMT_HOP_OUTPUT_READY_FOR_TYPESCRIPT_BRIDGE',
+      productAccuracyMetric: false,
+      reason: 'Real Online-AMT hop output artifact was unavailable.',
+    };
+const engineeringRuntimePass = runtimeSmoke.status === 'PASS'
+  && statefulnessSmoke.status === 'PASS'
+  && realPipelineIntegrationSmoke.status === 'PASS';
 
 const causalData = existsSync(causalManifest) ? JSON.parse(await readFile(causalManifest, 'utf8')) : null;
 const cases = Array.isArray(causalData?.cases) ? causalData.cases : [];
@@ -85,6 +128,7 @@ const artifact = {
     `--online-amt-repo ${onlineAmtRepoRel}`,
     `--checkpoint ${checkpointRel}`,
     `--causal-manifest ${causalManifestRel}`,
+    `--runtime-smoke ${runtimeSmokeRel}`,
     `--output-dir ${outputDirRel}`,
   ].join(' '),
   candidate: {
@@ -97,11 +141,8 @@ const artifact = {
     configurationSha256: CONFIG_SHA256,
   },
   executionProfile: {
-    profileId: EXECUTION_PROFILE_ID,
-    candidateInferenceConcurrency: 1,
-    device: 'CPU',
-    browserSupport: 'NOT_EVALUATED',
-    legacyRuntimeParity: 'UNPROVEN',
+    ...executionProfile,
+    executionProfileSha256,
   },
   runtimeEnvironment: {
     os: `${os.type()} ${os.release()} ${os.arch()}`,
@@ -114,17 +155,14 @@ const artifact = {
     status: assetStatus,
   },
   runtimeSmoke,
-  statefulnessSmoke: {
-    status: assetStatus === 'PASS' ? 'NOT_RUN' : 'BLOCKED',
-    reason: assetStatus === 'PASS'
-      ? 'Asset-present real smoke is reserved for the Online-AMT Python execution path.'
-      : 'Required external Online-AMT assets unavailable.',
-  },
+  statefulnessSmoke,
   pipelineIntegrationSmoke: {
     status: 'PASS',
-    kind: 'TYPESCRIPT_DETERMINISTIC_STATEFUL_ENGINE',
+    kind: 'STREAMING_CONTRACT_SMOKE_ONLY',
     productAccuracyMetric: false,
+    realModelExecution: false,
   },
+  realPipelineIntegrationSmoke,
   causalManifest: {
     path: causalManifestRel,
     available: Boolean(causalData),
@@ -137,7 +175,11 @@ const artifact = {
   },
   eligibility,
   result: {
-    candidateStatus: assetStatus === 'PASS' ? 'ENGINEERING_BASELINE_EXECUTABLE' : 'ENGINEERING_BASELINE_CONTRACT_READY_ASSETS_BLOCKED',
+    engineeringRuntimeStatus: engineeringRuntimePass ? 'PASS' : 'BLOCKED',
+    productDevelopmentStatus: 'BLOCKED_NO_ELIGIBLE_SCENARIOS',
+    candidateStatus: engineeringRuntimePass
+      ? 'ENGINEERING_BASELINE_EXECUTABLE'
+      : 'ENGINEERING_RUNTIME_BLOCKED',
     realDevelopmentScenarioCount: 0,
     realCandidateScenarioRunCount: 0,
     productMetricsStatus: 'NOT_EVALUATED',
@@ -151,10 +193,10 @@ const artifact = {
 };
 
 await writeFile(
-  path.join(outputDir, 'online_amt_streaming_phase9e_b_audit_2026-10-07.json'),
+  path.join(outputDir, 'online_amt_streaming_phase9e_b1_audit_2026-10-08.json'),
   `${JSON.stringify(artifact, null, 2)}\n`
 );
-console.log(path.posix.join(outputDirRel, 'online_amt_streaming_phase9e_b_audit_2026-10-07.json'));
+console.log(path.posix.join(outputDirRel, 'online_amt_streaming_phase9e_b1_audit_2026-10-08.json'));
 
 async function inspectRepo(repoPath) {
   if (!existsSync(repoPath)) return { path: onlineAmtRepoRel, available: false };

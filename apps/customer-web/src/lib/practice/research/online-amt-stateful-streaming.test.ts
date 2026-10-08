@@ -1,16 +1,24 @@
 import { describe, expect, it } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import { buildBakeoffReport, scoreCandidate, type BenchmarkScenario } from './continuous-analyzer-bakeoff';
 import {
   ONLINE_AMT_STREAMING_BASELINE_CONFIG,
   assertOnlineAmtAssetIdentity,
+  eventTimeFromSegmentLocalDecisionMs,
   eventTimeFromDecisionTimeMs,
   observationsForOnlineAmtHop,
   onlineAmtCandidateDefinition,
   onlineAmtConfigurationSha256,
   onlineAmtExecutionProfileSha256,
+  onlineAmtSegmentTailRequirement,
+  parseOnlineAmtPythonHopArtifact,
   runOnlineAmtStreamingCandidate,
+  runOnlineAmtStreamingCandidateFromHopArtifact,
+  validateOnlineAmtSegments,
   type OnlineAmtHopOutput,
+  type OnlineAmtSegment,
   type OnlineAmtStreamingEngine,
 } from './online-amt-stateful-streaming';
 
@@ -70,6 +78,21 @@ class MockStatefulOnlineAmtEngine implements OnlineAmtStreamingEngine {
       }],
     };
   }
+}
+
+function segment(input: {
+  segmentId?: string;
+  performanceStartMs?: number;
+  performanceSamples?: number;
+  contextSamples?: number;
+  fill?: number;
+} = {}): OnlineAmtSegment {
+  return {
+    segmentId: input.segmentId ?? 'seg-0',
+    performanceStartMs: input.performanceStartMs ?? 0,
+    performancePcm16k: new Float32Array(input.performanceSamples ?? 512 * 8).fill(input.fill ?? 0.5),
+    contextTailPcm16k: new Float32Array(input.contextSamples ?? 0).fill(input.fill ?? 0.5),
+  };
 }
 
 describe('Online-AMT stateful streaming research adapter', () => {
@@ -147,13 +170,66 @@ describe('Online-AMT stateful streaming research adapter', () => {
     expect(observations).toEqual([]);
   });
 
+  it('restarts startup suppression for every resumed segment', () => {
+    expect(eventTimeFromSegmentLocalDecisionMs(300, 32)).toBe(174);
+    const observations = observationsForOnlineAmtHop({
+      scenarioId: 's',
+      segmentId: 'seg-1',
+      hopIndex: 0,
+      segmentPerformanceStartMs: 300,
+      segmentPerformanceEndMs: 500,
+      localDecisionTimeMs: 32,
+      previousCoverage: 300,
+      pitchStates: [{
+        pitch: 'C4',
+        chosenState: 3,
+        probabilities: [0, 0, 0, 0.7, 0.1],
+      }],
+    });
+    expect(observations).toEqual([]);
+  });
+
+  it('computes required real context tail with hop alignment', () => {
+    expect(onlineAmtSegmentTailRequirement(16_000)).toEqual({
+      correctionDelaySamples: 2528,
+      requiredProcessedSamples: 18_944,
+      requiredContextTailSamples: 2_944,
+    });
+    expect(onlineAmtSegmentTailRequirement(513).requiredContextTailSamples).toBe(2_559);
+  });
+
+  it('keeps performance PCM and context tail ownership separate', () => {
+    const diagnostics = validateOnlineAmtSegments(scenario(), [
+      segment({ performanceSamples: 512, contextSamples: 4096 }),
+    ]);
+    expect(diagnostics[0]).toMatchObject({
+      performanceOwnedSamples: 512,
+      availableContextTailSamples: 4096,
+      segmentPerformanceEndMs: 32,
+      coverageComplete: true,
+    });
+  });
+
+  it('leaves coverage incomplete when real context tail cannot close the delayed frontier', () => {
+    const longScenario = {
+      ...scenario(),
+      completion: { kind: 'NATURAL' as const, performanceTimeMs: 1_200 },
+      audio: { ...scenario().audio, clipEndMs: 1_200, sourceDurationMs: 1_200 },
+    };
+    const diagnostics = validateOnlineAmtSegments(longScenario, [
+      segment({ performanceSamples: 16_000, contextSamples: 0 }),
+    ]);
+    expect(diagnostics[0].requiredContextTailSamples).toBeGreaterThan(0);
+    expect(diagnostics[0].coverageComplete).toBe(false);
+    expect(diagnostics[0].lastSafeCoverageMs).toBeLessThan(diagnostics[0].segmentPerformanceEndMs);
+  });
+
   it('preserves continuous state, resets at segment boundaries, and creates valid publications', () => {
     const engine = new MockStatefulOnlineAmtEngine();
-    const pcm = new Float32Array(512 * 8).fill(0.5);
     const definition = onlineAmtCandidateDefinition({ gitHead: 'test-head' });
     const run = runOnlineAmtStreamingCandidate({
       scenario: scenario(),
-      segments: [{ segmentId: 'seg-0', performanceStartMs: 0, pcm16k: pcm }],
+      segments: [segment({ performanceSamples: 512 * 8, contextSamples: 4096 })],
       engine,
       candidateId: definition.candidateId,
       command: 'vitest online-amt streaming smoke',
@@ -170,12 +246,28 @@ describe('Online-AMT stateful streaming research adapter', () => {
     expect(() => scoreCandidate(scenario(), definition, run)).not.toThrow();
   });
 
+  it('uses real context tail to emit delayed events inside performance ownership', () => {
+    const engine = new MockStatefulOnlineAmtEngine();
+    const definition = onlineAmtCandidateDefinition({ gitHead: 'test-head' });
+    const run = runOnlineAmtStreamingCandidate({
+      scenario: scenario(),
+      segments: [segment({ performanceSamples: 512, contextSamples: 4096 })],
+      engine,
+      candidateId: definition.candidateId,
+      command: 'tail smoke',
+      runtime: 'mock-stateful',
+    });
+
+    expect(run.publications.at(-1)?.analyzedThroughPerformanceMs).toBe(32);
+    expect(run.publications.flatMap((publication) => publication.observations).every((event) => event.performanceTimeMs <= 32)).toBe(true);
+  });
+
   it('accumulates queue delay when stateful processing is slower than hop cadence', () => {
     const engine = new MockStatefulOnlineAmtEngine();
     const definition = onlineAmtCandidateDefinition({ gitHead: 'test-head' });
     const run = runOnlineAmtStreamingCandidate({
       scenario: scenario(),
-      segments: [{ segmentId: 'seg-0', performanceStartMs: 0, pcm16k: new Float32Array(512 * 8).fill(0.5) }],
+      segments: [segment({ performanceSamples: 512 * 8, contextSamples: 4096 })],
       engine,
       candidateId: definition.candidateId,
       command: 'queue smoke',
@@ -190,11 +282,16 @@ describe('Online-AMT stateful streaming research adapter', () => {
     const second = new MockStatefulOnlineAmtEngine();
     const definition = onlineAmtCandidateDefinition({ gitHead: 'test-head' });
     const segments = [
-      { segmentId: 'seg-0', performanceStartMs: 0, pcm16k: new Float32Array(512 * 4).fill(0.5) },
-      { segmentId: 'seg-1', performanceStartMs: 300, pcm16k: new Float32Array(512 * 4).fill(0.5) },
+      segment({ segmentId: 'seg-0', performanceStartMs: 0, performanceSamples: 512 * 4, contextSamples: 4096 }),
+      segment({ segmentId: 'seg-1', performanceStartMs: 300, performanceSamples: 512 * 4, contextSamples: 4096 }),
     ];
+    const resetScenario = {
+      ...scenario(),
+      completion: { kind: 'NATURAL' as const, performanceTimeMs: 600 },
+      audio: { ...scenario().audio, clipEndMs: 600, sourceDurationMs: 600 },
+    };
     const runA = runOnlineAmtStreamingCandidate({
-      scenario: scenario(),
+      scenario: resetScenario,
       segments,
       engine: first,
       candidateId: definition.candidateId,
@@ -202,7 +299,7 @@ describe('Online-AMT stateful streaming research adapter', () => {
       runtime: 'mock-stateful',
     });
     const runB = runOnlineAmtStreamingCandidate({
-      scenario: scenario(),
+      scenario: resetScenario,
       segments,
       engine: second,
       candidateId: definition.candidateId,
@@ -211,6 +308,100 @@ describe('Online-AMT stateful streaming research adapter', () => {
     });
     expect(first.resets).toBe(2);
     expect(runB.publications).toEqual(runA.publications);
+    expect(runA.publications.every((publication) => publication.availabilityTimeMs === undefined)).toBe(true);
+  });
+
+  it('rejects segment ordering, duplicate IDs, non-finite PCM, and manual-stop ownership overflow', () => {
+    expect(() => validateOnlineAmtSegments(scenario(), [
+      segment({ segmentId: 'dup', performanceStartMs: 0, performanceSamples: 512 }),
+      segment({ segmentId: 'dup', performanceStartMs: 40, performanceSamples: 512 }),
+    ])).toThrow(/unique/);
+    expect(() => validateOnlineAmtSegments(scenario(), [
+      segment({ segmentId: 'a', performanceStartMs: 100, performanceSamples: 512 }),
+      segment({ segmentId: 'b', performanceStartMs: 110, performanceSamples: 512 }),
+    ])).toThrow(/overlap/);
+    const bad = segment({ performanceSamples: 512 });
+    bad.performancePcm16k[0] = Number.NaN;
+    expect(() => validateOnlineAmtSegments(scenario(), [bad])).toThrow(/finite/);
+    expect(() => validateOnlineAmtSegments(scenario(), [
+      segment({ performanceStartMs: 240, performanceSamples: 512 }),
+    ])).toThrow(/completion/);
+  });
+
+  it('bridges real Python hop artifacts into canonical publications and rejects malformed output', () => {
+    const definition = onlineAmtCandidateDefinition({ gitHead: 'test-head' });
+    const artifact = parseOnlineAmtPythonHopArtifact({
+      schemaVersion: 1,
+      artifact: 'online_amt_real_hop_output',
+      segments: [{
+        segmentId: 'seg-0',
+        performanceStartMs: 0,
+        performanceOwnedSamples: 512 * 6,
+        contextTailSamples: 4096,
+        hops: [{
+          hopIndex: 5,
+          localDecisionSample: 512 * 6,
+          processingLatencyMs: 5,
+          pitchStates: [{
+            pitch: 'F#4',
+            chosenState: 4,
+            probabilities: [0.1, 0.1, 0.1, 0.25, 0.5],
+          }],
+        }],
+      }],
+    });
+    const run = runOnlineAmtStreamingCandidateFromHopArtifact({
+      scenario: scenario(),
+      artifact,
+      candidateId: definition.candidateId,
+      command: 'python artifact smoke',
+      runtime: 'docker-online-amt-modern',
+    });
+    expect(run.publications[0].observations[0]).toMatchObject({
+      pitch: 'F#4',
+      performanceTimeMs: 34,
+      confidence: 0.75,
+    });
+    expect(() => parseOnlineAmtPythonHopArtifact({
+      ...artifact,
+      segments: [{
+        ...artifact.segments[0],
+        hops: [{ ...artifact.segments[0].hops[0], pitchStates: [{ pitch: 'C4', chosenState: 3, probabilities: [0, Number.NaN, 0, 0, 0] }] }],
+      }],
+    })).toThrow(/finite/);
+  });
+
+  it('bridges the real Docker smoke artifact through the authoritative TypeScript adapter when present', () => {
+    const artifactPath = resolve(process.cwd(), '../../backend/data/work/online_amt/phase9e_b1_runtime_smoke.json');
+    if (!existsSync(artifactPath)) {
+      expect(true).toBe(true);
+      return;
+    }
+    const smoke = JSON.parse(readFileSync(artifactPath, 'utf8')) as { hopArtifact: unknown };
+    const artifact = parseOnlineAmtPythonHopArtifact(smoke.hopArtifact);
+    const definition = onlineAmtCandidateDefinition({ gitHead: 'test-head' });
+    const smokeScenario = {
+      ...scenario(),
+      scenarioId: 'online-amt-real-docker-smoke-not-product',
+      completion: { kind: 'NATURAL' as const, performanceTimeMs: 1_024 },
+      audio: { ...scenario().audio, clipEndMs: 1_024, sourceDurationMs: 1_024 },
+      physicalGroundTruth: {
+        status: 'RECORDED' as const,
+        sourceKind: 'SYNTHETIC_HARNESS' as const,
+        source: 'docker-runtime-smoke',
+        attacks: [],
+      },
+    };
+    const run = runOnlineAmtStreamingCandidateFromHopArtifact({
+      scenario: smokeScenario,
+      artifact,
+      candidateId: definition.candidateId,
+      command: 'docker online-amt real smoke',
+      runtime: 'docker-online-amt-modern',
+    });
+    expect(run.publications.length).toBeGreaterThan(0);
+    expect(run.publications.every((publication) => publication.analyzedThroughPerformanceMs >= 0)).toBe(true);
+    expect(() => scoreCandidate(smokeScenario, definition, run)).not.toThrow();
   });
 
   it('does not count synthetic streaming smoke as DEVELOPMENT metrics or ranking', () => {
