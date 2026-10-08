@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import type { CompletedContinuousEvaluation } from '../completed-performance';
 import { scoreCandidate, type BenchmarkScenario, type CandidateDefinition, type CandidateScenarioRun } from './continuous-analyzer-bakeoff';
 import {
   assertCounterfactualPreservesAudioAndMidi,
@@ -19,6 +20,13 @@ import {
   type PublicDatasetProvenance,
   type PublicScenarioManifest,
 } from './public-fixed-bpm-benchmark';
+
+function expectCompleteEvaluation(
+  evaluation: CompletedContinuousEvaluation | undefined,
+): Extract<CompletedContinuousEvaluation, { status: 'COMPLETE' }> {
+  expect(evaluation?.status).toBe('COMPLETE');
+  return evaluation as Extract<CompletedContinuousEvaluation, { status: 'COMPLETE' }>;
+}
 
 function scenario(id = 'public-fixed-bpm-scenario'): BenchmarkScenario {
   return {
@@ -257,8 +265,9 @@ describe('public fixed-BPM benchmark policy', () => {
     });
     expect(wrongPitchScenario.expectedStrikes[0].pitch).toBe('C4');
     expect(wrongPitchScenario.physicalGroundTruth!.attacks[0].pitch).toBe('C#4');
-    expect(scored.groundTruthEvaluation?.strikes[0].result).toBe('MISSING');
-    expect(scored.groundTruthEvaluation?.extras).toHaveLength(1);
+    const groundTruth = expectCompleteEvaluation(scored.groundTruthEvaluation);
+    expect(groundTruth.strikes[0].result).toBe('MISSING');
+    expect(groundTruth.extras).toHaveLength(1);
   });
 
   it('preserves score deletions, performance insertions, and same-pitch retriggers', () => {
@@ -280,7 +289,8 @@ describe('public fixed-BPM benchmark policy', () => {
         observations: [{ observationId: 'only-c4', pitch: 'C4', performanceTimeMs: 0 }],
       }],
     });
-    expect(deletionScored.groundTruthEvaluation?.strikes.find((strike) => strike.strikeId === 's2')?.result)
+    const deletionGroundTruth = expectCompleteEvaluation(deletionScored.groundTruthEvaluation);
+    expect(deletionGroundTruth.strikes.find((strike) => strike.strikeId === 's2')?.result)
       .toBe('MISSING');
 
     const insertion: BenchmarkScenario = {
@@ -315,7 +325,8 @@ describe('public fixed-BPM benchmark policy', () => {
     });
     expect(insertion.physicalGroundTruth!.attacks.map((attack) => attack.physicalEventId))
       .toEqual(['c4', 'g4-extra', 'c4-retrigger']);
-    expect(insertionScored.groundTruthEvaluation?.extras.map((extra) => extra.pitch).sort())
+    const insertionGroundTruth = expectCompleteEvaluation(insertionScored.groundTruthEvaluation);
+    expect(insertionGroundTruth.extras.map((extra) => extra.pitch).sort())
       .toEqual(['C4', 'G4']);
   });
 
