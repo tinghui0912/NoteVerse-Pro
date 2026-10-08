@@ -45,6 +45,7 @@ const reportPath = path.resolve(repoRoot, reportRel);
 const maxScenarios = Number(args['max-scenarios'] ?? DEFAULT_MAX_SCENARIOS);
 const includedPerformers = parseCsvSet(args.performers);
 const scenarioSplit = args['scenario-split'] ?? 'DEVELOPMENT';
+const practiceImage = args['practice-image'] ?? 'noteverse-backend-practice:dev';
 const implementationGitHead = gitHead(repoRoot);
 const dirtyTreeAtExecution = gitDirty(repoRoot);
 const require = createRequire(import.meta.url);
@@ -221,6 +222,7 @@ const report = {
     `--max-scenarios ${maxScenarios}`,
     includedPerformers.size > 0 ? `--performers ${[...includedPerformers].sort().join(',')}` : null,
     scenarioSplit !== 'DEVELOPMENT' ? `--scenario-split ${scenarioSplit}` : null,
+    practiceImage !== 'noteverse-backend-practice:dev' ? `--practice-image ${practiceImage}` : null,
     `--scenario-manifest ${manifestRel}`,
     `--output ${reportRel}`,
   ].filter(Boolean).join(' '),
@@ -228,6 +230,7 @@ const report = {
     os: `${os.type()} ${os.release()} ${os.arch()}`,
     node: process.version,
     dockerImage: ONLINE_AMT_IMAGE,
+    practiceImage,
   },
   vienna: {
     metadataCommit: VIENNA_METADATA_COMMIT,
@@ -406,7 +409,7 @@ async function ensureViennaPracticeScoreArtifacts(metadataRootRel) {
     `${repoRoot}:/workspace`,
     '-w',
     '/workspace',
-    'noteverse-backend-practice:dev',
+    practiceImage,
     'backend/research/vienna/generate_vienna_practice_artifacts.py',
     '--musicxml-root',
     normalizeRel(repoRoot, path.join(metadataRoot, 'musicxml')),
