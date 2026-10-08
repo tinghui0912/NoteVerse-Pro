@@ -43,6 +43,8 @@ const manifestPath = path.resolve(repoRoot, manifestRel);
 const reportRel = args.output ?? 'backend/research/reports/vienna_fixed_bpm_proxy_final_comparison_phase9fb3_2026-10-08.json';
 const reportPath = path.resolve(repoRoot, reportRel);
 const maxScenarios = Number(args['max-scenarios'] ?? DEFAULT_MAX_SCENARIOS);
+const includedPerformers = parseCsvSet(args.performers);
+const scenarioSplit = args['scenario-split'] ?? 'DEVELOPMENT';
 const implementationGitHead = gitHead(repoRoot);
 const dirtyTreeAtExecution = gitDirty(repoRoot);
 const require = createRequire(import.meta.url);
@@ -62,9 +64,12 @@ await mkdir(workRoot, { recursive: true });
 const acquisition = await ensureViennaSources();
 const scoreArtifacts = await ensureViennaPracticeScoreArtifacts(acquisition.metadataRoot);
 const binding = await bindViennaSources();
+const selectedPerformances = includedPerformers.size === 0
+  ? binding.performances
+  : binding.performances.filter((performance) => includedPerformers.has(performerIdForPerformance(performance.performanceId)));
 const scenarioPool = [];
 const skippedScopes = [];
-for (const performance of binding.performances) {
+for (const performance of selectedPerformances) {
   const built = await buildScenarioCandidates(performance, scoreArtifacts.get(performance.pieceId), 2);
   scenarioPool.push(...built.scenarios);
   skippedScopes.push(...built.skipped);
@@ -127,8 +132,10 @@ await writeFile(manifestPath, `${JSON.stringify({
   publicManifestSha256: manifestSha256,
   metadataCommit: VIENNA_METADATA_COMMIT,
   audioZip: acquisition.audioZip,
-  intersectionCount: binding.intersectionCount,
-  scenarioReceipts,
+    intersectionCount: binding.intersectionCount,
+    filteredPerformanceCount: selectedPerformances.length,
+    includedPerformers: [...includedPerformers].sort(),
+    scenarioReceipts,
   counterfactualReceipts,
   practiceScoreArtifacts: [...scoreArtifacts.values()].map((item) => item.receipt),
   scenarios,
@@ -212,9 +219,11 @@ const report = {
     '--repo-root .',
     `--work-root ${workRootRel}`,
     `--max-scenarios ${maxScenarios}`,
+    includedPerformers.size > 0 ? `--performers ${[...includedPerformers].sort().join(',')}` : null,
+    scenarioSplit !== 'DEVELOPMENT' ? `--scenario-split ${scenarioSplit}` : null,
     `--scenario-manifest ${manifestRel}`,
     `--output ${reportRel}`,
-  ].join(' '),
+  ].filter(Boolean).join(' '),
   runtimeEnvironment: {
     os: `${os.type()} ${os.release()} ${os.arch()}`,
     node: process.version,
@@ -228,6 +237,8 @@ const report = {
     midiCount: binding.midiCount,
     matchCount: binding.matchCount,
     audioMidiMatchIntersectionCount: binding.intersectionCount,
+    filteredPerformanceCount: selectedPerformances.length,
+    includedPerformers: [...includedPerformers].sort(),
     changesMdSha256: acquisition.changesMdSha256,
     provenance: 'DATASET_PROVIDED_AUDIO_MIDI_ALIGNMENT',
     invalidatedPriorResult: {
@@ -540,7 +551,7 @@ async function buildScenarioCandidates(performance, scoreArtifactEntry, limit) {
     const scenario = {
       schemaVersion: 1,
       scenarioId: `vienna-secondary-base:${performance.performanceId}:${startBeat.toFixed(3)}`,
-      split: 'DEVELOPMENT',
+      split: scenarioSplit,
       familyTags: ['BASE_ORIGINAL', 'SECONDARY_HUMAN_FIXED_BPM_PROXY'],
       source: {
         sourceAudioPath: normalizeRel(repoRoot, performance.audioPath),
@@ -1679,6 +1690,11 @@ function gitDirty(cwd) {
 
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function parseCsvSet(value) {
+  if (!value) return new Set();
+  return new Set(String(value).split(',').map((item) => item.trim()).filter(Boolean));
 }
 
 function parseArgs(argv) {
