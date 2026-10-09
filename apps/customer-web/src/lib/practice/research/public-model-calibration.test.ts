@@ -4,22 +4,24 @@ import {
   BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES,
   ONLINE_AMT_TIMING_CALIBRATION_V1,
   PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256,
-  PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3_SHA256,
+  PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4_SHA256,
   assertCandidateExecutorReachableForPhase9G,
   assertPhase9GExecutionAllowed,
   assertPublicModelCalibrationPolicyIdentity,
   assertViennaPublicProxyExecutionAllowed,
   decideCandidateSpecificAcousticEvidenceReuse,
+  onlineAmtTimingCorrectionForInScopePhysicalTruthForTest,
+  planByteDanceV4ContextWindowsForTest,
   runGuardedViennaCandidateExecutorsForTest,
   selectCalibrationProfile,
   type CalibrationProfileScenarioScore,
 } from './public-model-calibration';
 
 const policy = {
-  path: 'backend/research/policies/public_model_calibration_protocol_v3_2026-10-09.json',
-  sha256: PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3_SHA256,
-  policyId: 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3',
-  schemaVersion: 3,
+  path: 'backend/research/policies/public_model_calibration_protocol_v4_2026-10-09.json',
+  sha256: PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4_SHA256,
+  policyId: 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4',
+  schemaVersion: 4,
 };
 
 function request(overrides = {}) {
@@ -59,8 +61,8 @@ function allMetricScores(profileId: string, values: readonly number[], family: C
   return values.map((value, index) => score(profileId, `s${index}`, family, value, metric));
 }
 
-describe('public model calibration protocol V3', () => {
-  it('retains V2 as historical evidence but accepts only the exact V3 policy identity for current execution', () => {
+describe('public model calibration protocol V4', () => {
+  it('retains V2 as historical evidence but accepts only the exact V4 policy identity for current execution', () => {
     expect(PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256).toMatch(/^[a-f0-9]{64}$/);
     expect(() => assertPublicModelCalibrationPolicyIdentity(policy)).not.toThrow();
     expect(() => assertPublicModelCalibrationPolicyIdentity({ ...policy, sha256: 'a'.repeat(64) }))
@@ -142,11 +144,30 @@ describe('public model calibration protocol V3', () => {
     expect(BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES.find((item) => item.profileId === 'CALIBRATED_CONTEXT_1820'))
       .toMatchObject({ modelInputMs: 1820, futureContextMs: 220, commitWidthMs: 600 });
     expect(BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES.find((item) => item.profileId === 'CALIBRATED_CONTEXT_3S'))
-      .toMatchObject({ modelInputMs: 3000, ownedCentralRegionMs: 1500, pastContextMs: 750, futureContextMs: 750 });
+      .toMatchObject({ modelInputMs: 3000, nominalOwnedRegionMs: 1500, interiorPastContextMs: 750, maximumFutureContextMs: 750, terminalWindowPolicy: 'RIGHT_ANCHORED_TERMINAL_FUTURE_BOUND_V1' });
     expect(BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES.find((item) => item.profileId === 'CALIBRATED_CONTEXT_5S'))
-      .toMatchObject({ modelInputMs: 5000, ownedCentralRegionMs: 2500, pastContextMs: 1250, futureContextMs: 1250 });
+      .toMatchObject({ modelInputMs: 5000, nominalOwnedRegionMs: 2500, interiorPastContextMs: 1250, maximumFutureContextMs: 1250, terminalWindowPolicy: 'RIGHT_ANCHORED_TERMINAL_FUTURE_BOUND_V1' });
     expect(BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES.find((item) => item.profileId === 'CALIBRATED_CONTEXT_10S'))
-      .toMatchObject({ modelInputMs: 10000, ownedCentralRegionMs: 5000, pastContextMs: 2500, futureContextMs: 2500 });
+      .toMatchObject({ modelInputMs: 10000, nominalOwnedRegionMs: 5000, interiorPastContextMs: 2500, maximumFutureContextMs: 2500, terminalWindowPolicy: 'RIGHT_ANCHORED_TERMINAL_FUTURE_BOUND_V1' });
+  });
+
+  it('right-anchors terminal partial ByteDance windows while allowing terminal past expansion', () => {
+    const context = BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES.find((item) => item.profileId === 'CALIBRATED_CONTEXT_5S')!;
+    const plans = planByteDanceV4ContextWindowsForTest(6100, context);
+    const terminal = plans.at(-1)!;
+    expect(terminal.commitStartPerformanceMs).toBe(5000);
+    expect(terminal.commitEndPerformanceMs).toBe(6100);
+    expect(terminal.inputEndPerformanceMs - terminal.commitEndPerformanceMs).toBe(1250);
+    expect(terminal.inputEndPerformanceMs - terminal.inputStartPerformanceMs).toBe(5000);
+    expect(terminal.commitStartPerformanceMs - terminal.inputStartPerformanceMs).toBeGreaterThan(context.interiorPastContextMs!);
+  });
+
+  it('keeps interior ByteDance windows at exact past/future geometry', () => {
+    const context = BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES.find((item) => item.profileId === 'CALIBRATED_CONTEXT_3S')!;
+    const [first] = planByteDanceV4ContextWindowsForTest(3000, context);
+    expect(first.commitEndPerformanceMs - first.commitStartPerformanceMs).toBe(1500);
+    expect(first.commitStartPerformanceMs - first.inputStartPerformanceMs).toBe(750);
+    expect(first.inputEndPerformanceMs - first.commitEndPerformanceMs).toBe(750);
   });
 
   it('freezes Online-AMT timing calibration as one deterministic algorithm', () => {
@@ -154,6 +175,35 @@ describe('public model calibration protocol V3', () => {
     expect(ONLINE_AMT_TIMING_CALIBRATION_V1.rawTimingCorrectionMs).toBe(0);
     expect(ONLINE_AMT_TIMING_CALIBRATION_V1.matchWindowMs).toBe(250);
     expect(ONLINE_AMT_TIMING_CALIBRATION_V1.forbiddenInputs).toContain('BLIND_EVALUATION data');
+  });
+
+  it('excludes post-scope physical attacks from Online-AMT timing correction matching', () => {
+    const candidate = [
+      { pitch: 'C4', rawDecisionTimeMs: 90 },
+      { pitch: 'C4', rawDecisionTimeMs: 180 },
+    ];
+    const withoutPostScope = onlineAmtTimingCorrectionForInScopePhysicalTruthForTest(
+      candidate,
+      [{ pitch: 'C4', performanceTimeMs: 100 }],
+      150,
+    );
+    const withPostScope = onlineAmtTimingCorrectionForInScopePhysicalTruthForTest(
+      candidate,
+      [{ pitch: 'C4', performanceTimeMs: 100 }, { pitch: 'C4', performanceTimeMs: 175 }],
+      150,
+    );
+    expect(withPostScope.timingCorrectionMs).toBe(withoutPostScope.timingCorrectionMs);
+    expect(withPostScope.matchedPostScopePhysicalPairCount).toBe(0);
+  });
+
+  it('keeps late candidate decisions for in-scope terminal attacks eligible for timing calibration', () => {
+    const result = onlineAmtTimingCorrectionForInScopePhysicalTruthForTest(
+      [{ pitch: 'C4', rawDecisionTimeMs: 180 }],
+      [{ pitch: 'C4', performanceTimeMs: 100 }],
+      150,
+    );
+    expect(result.timingCorrectionMs).toBe(-80);
+    expect(result.lateInScopeDecisionPairCount).toBe(1);
   });
 
   it('compares independently supplied base and target candidate configuration identities for reuse', () => {

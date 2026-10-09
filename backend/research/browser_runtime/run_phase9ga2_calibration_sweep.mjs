@@ -18,21 +18,23 @@ const onlineAmt = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/practic
 
 const IMPLEMENTATION_HEAD = gitHead(repoRoot);
 const DIRTY = gitDirty(repoRoot);
-const POLICY_REL = 'backend/research/policies/public_model_calibration_protocol_v3_2026-10-09.json';
+const POLICY_REL = 'backend/research/policies/public_model_calibration_protocol_v4_2026-10-09.json';
 const SCENARIO_REL = 'backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json';
 const BASELINE_REPORT_REL = 'backend/research/reports/phase9g_a1_vienna_calibration_baseline_reference_2026-10-09.json';
 const BLIND_REL = 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json';
-const REPORT_REL = 'backend/research/reports/phase9g_a23_bytedance_online_amt_incumbent_completion_2026-10-09.json';
-const PROFILE_REGISTRY_REL = 'backend/research/reports/phase9g_a23_final_incumbent_registry_2026-10-09.json';
-const CORRECTION_RECEIPT_REL = 'backend/research/reports/phase9g_a23_prior_artifact_status_receipt_2026-10-09.json';
-const BYTEDANCE_PROVENANCE_REL = 'backend/research/reports/phase9g_a23_bytedance_same_weight_provenance_2026-10-09.json';
-const BYTEDANCE_PARITY_REL = 'backend/research/reports/phase9g_a23_bytedance_checkpoint_onnx_decoded_parity_2026-10-09.json';
-const BYTEDANCE_RAW_EVIDENCE_REL = 'backend/research/reports/phase9g_a23_bytedance_raw_evidence_manifest_2026-10-09.json';
-const BYTEDANCE_FUTURE_OVERRUN_REL = 'backend/research/reports/phase9g_a23_bytedance_future_overrun_diagnostic_2026-10-09.json';
-const BLIND_LOCK_REL = 'backend/research/reports/phase9g_a23_blind_lock_receipt_2026-10-09.json';
-const V1V2_RECEIPT_REL = 'backend/research/reports/phase9g_a23_v1_v2_blind_semantic_equivalence_2026-10-09.json';
+const REPORT_REL = 'backend/research/reports/phase9g_a24_bytedance_online_amt_incumbent_completion_2026-10-09.json';
+const PROFILE_REGISTRY_REL = 'backend/research/reports/phase9g_a24_final_incumbent_registry_2026-10-09.json';
+const CORRECTION_RECEIPT_REL = 'backend/research/reports/phase9g_a24_prior_artifact_status_receipt_2026-10-09.json';
+const BYTEDANCE_PROVENANCE_REL = 'backend/research/reports/phase9g_a24_bytedance_same_weight_provenance_2026-10-09.json';
+const BYTEDANCE_PARITY_REL = 'backend/research/reports/phase9g_a24_bytedance_checkpoint_onnx_decoded_parity_2026-10-09.json';
+const BYTEDANCE_RAW_EVIDENCE_REL = 'backend/research/reports/phase9g_a24_bytedance_raw_evidence_manifest_2026-10-09.json';
+const BYTEDANCE_FUTURE_OVERRUN_REL = 'backend/research/reports/phase9g_a24_bytedance_future_overrun_diagnostic_2026-10-09.json';
+const BLIND_LOCK_REL = 'backend/research/reports/phase9g_a24_blind_lock_receipt_2026-10-09.json';
+const V1V2_RECEIPT_REL = 'backend/research/reports/phase9g_a24_v1_v2_blind_semantic_equivalence_2026-10-09.json';
 const A21_REPORT_REL = 'backend/research/reports/phase9g_a21_bytedance_online_amt_incumbent_completion_2026-10-09.json';
 const A22_REPORT_REL = 'backend/research/reports/phase9g_a22_bytedance_online_amt_incumbent_completion_2026-10-09.json';
+const A23_REPORT_REL = 'backend/research/reports/phase9g_a23_bytedance_online_amt_incumbent_completion_2026-10-09.json';
+const A23_RAW_WORK_DIR = 'backend/data/work/public_proxy/vienna-4x22/phase9ga23';
 const ONLINE_AMT_IMAGE = 'noteverse-online-amt-modern:phase9e-b1';
 const BYTEDANCE_IMAGE = 'noteverse-bytedance-calibration:phase9ga21';
 const TIMING_CALIBRATION_REAL_POSTROLL_MS = 500;
@@ -60,7 +62,7 @@ const ONLINE_AMT_POLICIES = [
 ];
 
 await mkdir(path.resolve(repoRoot, 'backend/research/reports'), { recursive: true });
-await mkdir(path.resolve(repoRoot, 'backend/data/work/public_proxy/vienna-4x22/phase9ga23'), { recursive: true });
+await mkdir(path.resolve(repoRoot, 'backend/data/work/public_proxy/vienna-4x22/phase9ga24'), { recursive: true });
 
 const policy = await measuredPolicyIdentity(POLICY_REL);
 calibration.assertPublicModelCalibrationPolicyIdentity(policy);
@@ -77,8 +79,8 @@ const blindManifest = JSON.parse(await readFile(path.resolve(repoRoot, BLIND_REL
 const blindProjection = semanticProjection(blindManifest);
 const blindLock = {
   schemaVersion: 1,
-  artifact: 'phase9g_a23_blind_lock_receipt',
-  phase: '9G-A.2.3',
+  artifact: 'phase9g_a24_blind_lock_receipt',
+  phase: '9G-A.2.4',
   blindManifestPath: BLIND_REL,
   blindManifestSha256: blindManifestSha,
   expectedBlindManifestSha256: '0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab',
@@ -102,7 +104,7 @@ const v1ProjectionSha = sha256Json(semanticProjection(v1Manifest));
 const v2ProjectionSha = sha256Json(semanticProjection(v2Manifest));
 await writeJson(V1V2_RECEIPT_REL, {
   schemaVersion: 1,
-  artifact: 'phase9g_a23_v1_v2_blind_semantic_equivalence',
+  artifact: 'phase9g_a24_v1_v2_blind_semantic_equivalence',
   v1ManifestGitObject: `b938fc49:${BLIND_REL}`,
   v1ManifestSha256: v1Sha,
   v2ManifestPath: BLIND_REL,
@@ -127,6 +129,12 @@ const a22Report = existsSync(path.resolve(repoRoot, A22_REPORT_REL))
 const a22ReportSha = existsSync(path.resolve(repoRoot, A22_REPORT_REL))
   ? await sha256File(path.resolve(repoRoot, A22_REPORT_REL))
   : null;
+const a23Report = existsSync(path.resolve(repoRoot, A23_REPORT_REL))
+  ? JSON.parse(await readFile(path.resolve(repoRoot, A23_REPORT_REL), 'utf8'))
+  : null;
+const a23ReportSha = existsSync(path.resolve(repoRoot, A23_REPORT_REL))
+  ? await sha256File(path.resolve(repoRoot, A23_REPORT_REL))
+  : null;
 const scenarios = scenarioManifest.scenarios;
 const baseScenarios = scenarios.filter((scenario) => scenario.familyTags.includes('BASE_ORIGINAL'));
 const counterfactualReceiptsByScenario = new Map((scenarioManifest.counterfactualReceipts ?? []).map((receipt) => [receipt.scenarioId, receipt]));
@@ -140,8 +148,10 @@ const byteDanceSameWeightProvenance = await writeByteDanceSameWeightProvenance()
 
 const registry = {
   schemaVersion: 1,
-  artifact: 'phase9g_a23_final_incumbent_registry',
-  phase: '9G-A.2.3',
+  artifact: 'phase9g_a24_final_incumbent_registry',
+  phase: '9G-A.2.4',
+  implementationGitHead: IMPLEMENTATION_HEAD,
+  artifactGeneratedFromGitHead: IMPLEMENTATION_HEAD,
   policy,
   scenarioManifestSha256: scenarioManifestSha,
   profiles: [...byteDanceResult.profileRegistry, ...onlineAmtResult.profileRegistry],
@@ -150,8 +160,8 @@ await writeJson(PROFILE_REGISTRY_REL, registry);
 
 const report = {
   schemaVersion: 1,
-  artifact: 'phase9g_a23_bytedance_online_amt_incumbent_completion',
-  phase: '9G-A.2.3',
+  artifact: 'phase9g_a24_bytedance_online_amt_incumbent_completion',
+  phase: '9G-A.2.4',
   calibrationUsed: true,
   evaluationUsed: false,
   blindCandidateInferencePerformed: false,
@@ -165,6 +175,7 @@ const report = {
     v1Sha256: calibration.PUBLIC_MODEL_CALIBRATION_PROTOCOL_V1_SHA256,
     v2Sha256: calibration.PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256,
     v3Sha256: calibration.PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3_SHA256,
+    v4Sha256: calibration.PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4_SHA256,
   },
   frozenBlind: {
     manifestPath: BLIND_REL,
@@ -201,6 +212,11 @@ const report = {
     preservedAsHistoricalEvidence: Boolean(a22Report),
     gate1SurvivorCountsByContext: a22Report ? byteDanceSurvivorCountsByContext(a22Report.byteDance?.selectorTrace?.remainingProfileIds ?? []) : null,
   },
+  phase9gA23HistoricalComparison: {
+    path: A23_REPORT_REL,
+    sha256: a23ReportSha,
+    preservedAsHistoricalEvidence: Boolean(a23Report),
+  },
   prematureLockInvalidationReceiptPath: CORRECTION_RECEIPT_REL,
   prematureLockInvalidation,
   byteDanceSameWeightProvenanceReceiptPath: BYTEDANCE_PROVENANCE_REL,
@@ -228,6 +244,7 @@ async function runByteDanceCalibration(input) {
     && parityReceipt?.onnxSha256 === EXPECTED_BYTEDANCE_ONNX.sha256;
   const contexts = calibration.BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES;
   const contextEligibility = computeByteDanceContextEligibility(input.baseScenarios, contexts);
+  const terminalContextDiagnostics = computeByteDanceTerminalContextDiagnostics(input.baseScenarios, contexts);
   const commonBaseScenarios = input.baseScenarios.filter((scenario) =>
     contextEligibility.byScenario[scenario.scenarioId]?.eligibleAllContexts
   );
@@ -262,7 +279,7 @@ async function runByteDanceCalibration(input) {
             strategyKind: 'CHUNKED',
             runtime: 'ByteDance original PyTorch CPU variable-context calibration',
             checkpointSha: EXPECTED_BYTEDANCE_CHECKPOINT.sha256,
-            adapterVersion: 'phase9g-a23-variable-context-threshold-calibration-v1',
+            adapterVersion: 'phase9g-a24-variable-context-threshold-calibration-v1',
             configurationSha256: profile.configurationSha256,
           }));
           for (const scenario of scoredScenarios) {
@@ -302,7 +319,9 @@ async function runByteDanceCalibration(input) {
       configurationSha256: profile.configurationSha256,
       qualificationStatus: profile.profileId === selectedProfileId ? 'CALIBRATED_AND_LOCKED' : 'REJECTED_OR_NOT_SELECTED',
       LOCKED_FOR_PHASE_9G_B: profile.profileId === selectedProfileId,
-      selectionStatus: profile.profileId === selectedProfileId ? 'SELECTED' : 'REJECTED_OR_NOT_SELECTED',
+      selectionStatus: profile.profileId === selectedProfileId
+        ? (gate2TieBreak?.reason === 'GATE2_FINALIZED_FEEDBACK_AGE_P95_MS' ? 'SELECTED_GATE2_LATENCY' : 'SELECTED_GATE1')
+        : 'REJECTED_GATE1',
     })) : [{
       candidateFamily: 'bytedance-original',
       profileId: 'bytedance-original-current-executable-representative-v1',
@@ -337,10 +356,10 @@ async function runByteDanceCalibration(input) {
         familyCounts: coverage,
         status: minimumCoveragePass ? 'PASS' : 'INSUFFICIENT_COMMON_CALIBRATION_COVERAGE',
       },
-      rawNeuralInferenceExecutedCount: [...rawBatches.values()].reduce((sum, byScenario) =>
-        sum + [...byScenario.values()].reduce((inner, raw) => inner + raw.chunks.length, 0), 0),
+      terminalContextDiagnostics,
+      rawNeuralInferenceExecutedCount: rawBatchResult.rawNeuralInferenceExecutedCount ?? 0,
       validatedRawArtifactReadbackCount: rawBatchResult.evidenceManifest?.rows?.length ?? 0,
-      validatedRawCacheLoadCount: 0,
+      validatedRawCacheLoadCount: rawBatchResult.validatedRawCacheLoadCount ?? 0,
       rawCacheMemoryHitCount: 0,
       uniqueInferenceWindowCount: rawBatchResult.evidenceManifest?.rows?.length ?? 0,
       thresholdDecodeCount: runs.length,
@@ -355,8 +374,11 @@ async function runByteDanceCalibration(input) {
         : null,
       thresholdProfileCount: profiles.length,
       blockedContextCount: parityVerified && minimumCoveragePass ? 0 : contexts.length,
-      metrics: compactAggregateMetrics(diagnostic.aggregateMetrics),
-      selectorTrace: selection,
+      selectedMetrics: selectedProfileId
+        ? compactAggregateMetrics({ [selectedProfileId]: diagnostic.aggregateMetrics[selectedProfileId] })[selectedProfileId]
+        : null,
+      contextMetricSummary: summarizeByteDanceContextMetrics(profiles, diagnostic.aggregateMetrics),
+      selectorTrace: compactSelectionTrace(selection),
       gate1SurvivorCountsByContext: selection ? byteDanceSurvivorCountsByContext(selection.remainingProfileIds ?? []) : null,
       gate2TieBreak,
       selectedProfileId,
@@ -406,21 +428,21 @@ async function ensureByteDanceParityReceipt() {
   });
   await writeJson(BYTEDANCE_PARITY_REL, {
     ...receipt,
-    artifact: 'phase9g_a23_bytedance_checkpoint_onnx_decoded_parity',
-    phase: '9G-A.2.3',
+    artifact: 'phase9g_a24_bytedance_checkpoint_onnx_decoded_parity',
+    phase: '9G-A.2.4',
     comparisons,
     overallAuthoritativeDecodedEventParityAtOnset020Frame020: authoritativePass,
   });
 }
 
 function decodeParityEventsWithTypeScript(fixtureId, rawOutputs) {
-  const scenarioId = `phase9g-a23-parity:${fixtureId}`;
+  const scenarioId = `phase9g-a24-parity:${fixtureId}`;
   const scenario = {
     scenarioId,
     schemaVersion: 1,
     split: 'DEVELOPMENT',
     familyTags: ['PARITY_FIXTURE'],
-    source: { corpusId: 'phase9g-a23-parity', sourceAudioSha256: 'parity', sourceMidiSha256: 'parity' },
+    source: { corpusId: 'phase9g-a24-parity', sourceAudioSha256: 'parity', sourceMidiSha256: 'parity' },
     audio: {
       sourceAudioSha256: 'parity',
       sourceSampleRateHz: 16000,
@@ -488,7 +510,7 @@ async function runOnlineAmtCalibration(input) {
       strategyKind: 'STREAMING',
       runtime: 'Online-AMT modern compatibility Docker CPU',
       checkpointSha: onlineAmt.ONLINE_AMT_STREAMING_BASELINE_CONFIG.checkpointSha256,
-      adapterVersion: 'phase9g-a23-online-amt-policy-calibration-v1',
+      adapterVersion: 'phase9g-a24-online-amt-policy-calibration-v1',
       configurationSha256: profile.configurationSha256,
     }));
     for (const scenario of input.scenarios) {
@@ -500,7 +522,7 @@ async function runOnlineAmtCalibration(input) {
           artifact: { schemaVersion: 1, artifact: 'online_amt_real_hop_output', segments: [segment] },
           candidateId: profile.profileId,
           command: `docker run ${ONLINE_AMT_IMAGE} run_online_amt_modern_smoke.py --pseudo-intensity ${policy.pseudoIntensity} --onset-boost ${policy.onsetBoost}`,
-          runtime: 'real-online-amt-modern-docker-phase9ga23-correction-aware',
+          runtime: 'real-online-amt-modern-docker-phase9ga24-correction-aware',
           timingCorrectionMs: correction.timingCorrectionMs,
         });
         assertOnlineAmtTerminalCoverage({ scenario, candidateRun, profileId: profile.profileId });
@@ -531,7 +553,9 @@ async function runOnlineAmtCalibration(input) {
       selectedCandidateId: profile.profileId === selectedProfileId ? 'online-amt-calibrated-v1' : profile.profileId,
       configurationSha256: profile.configurationSha256,
       LOCKED_FOR_PHASE_9G_B: profile.profileId === selectedProfileId,
-      selectionStatus: profile.profileId === selectedProfileId ? 'SELECTED_OR_GATE1_FALLBACK' : 'REJECTED_OR_NOT_SELECTED',
+      selectionStatus: profile.profileId === selectedProfileId
+        ? (gate2TieBreak?.reason === 'GATE2_FINALIZED_FEEDBACK_AGE_P95_MS' ? 'SELECTED_GATE2_LATENCY' : 'SELECTED_GATE1')
+        : 'REJECTED_GATE1',
     })),
     report: {
       policyResults: profiles.map((profile) => ({
@@ -542,7 +566,7 @@ async function runOnlineAmtCalibration(input) {
         tailGeometry: profile.tailGeometry,
         metrics: compactAggregateMetrics(diagnostic.aggregateMetrics[profile.profileId]),
       })),
-      selectorTrace: selection,
+      selectorTrace: compactSelectionTrace(selection),
       gate2TieBreak,
       timingCalibrationSet: {
         fixedRealPostrollMs: TIMING_CALIBRATION_REAL_POSTROLL_MS,
@@ -552,8 +576,8 @@ async function runOnlineAmtCalibration(input) {
         nearTerminalPhysicalAttackWithin180MsCount: timingSet.nearTerminal.length,
         nearTerminalPhysicalAttackDiagnostics: timingSet.nearTerminal,
       },
-      phase9gA22Comparison: a22Report ? compareOnlineAmtA21({
-        oldReport: a22Report,
+      phase9gA23Comparison: a23Report ? compareOnlineAmtA21({
+        oldReport: a23Report,
         newPolicies: profiles,
         timingReports,
       }) : null,
@@ -677,8 +701,8 @@ function runByteDanceFromRaw({ scenario, raw, profile }) {
     candidateId: profile.profileId,
     scenarioId: scenario.scenarioId,
     publications,
-    command: 'phase9ga23 decode validated fresh real ByteDance PyTorch raw outputs',
-    runtime: 'real-pytorch-cpu-variable-context-phase9ga23',
+    command: 'phase9ga24 decode V4-validated ByteDance PyTorch raw outputs',
+    runtime: 'real-pytorch-cpu-variable-context-phase9ga24',
   });
 }
 
@@ -711,6 +735,8 @@ function computeByteDanceContextEligibility(baseScenarios, contexts) {
 async function runByteDancePyTorchBatches({ contexts, baseScenarios }) {
   const result = new Map();
   const evidenceRows = [];
+  let rawNeuralInferenceExecutedCount = 0;
+  let validatedRawCacheLoadCount = 0;
   for (const context of contexts) {
     const windows = [];
     const planByScenario = new Map();
@@ -754,24 +780,29 @@ async function runByteDancePyTorchBatches({ contexts, baseScenarios }) {
         });
       }
     }
-    const inputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga23/${context.profileId}.bytedance-pytorch-input.json`;
-    const outputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga23/${context.profileId}.bytedance-pytorch-raw.json`;
-    const validationRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga23/${context.profileId}.bytedance-pytorch-readback.json`;
+    const inputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga24/${context.profileId}.bytedance-pytorch-input.json`;
+    const outputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga24/${context.profileId}.bytedance-pytorch-raw.json`;
+    const reusedOutputRel = `${A23_RAW_WORK_DIR}/${context.profileId}.bytedance-pytorch-raw.json`;
+    const validationRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga24/${context.profileId}.bytedance-pytorch-readback.json`;
     await writeJson(inputRel, { windows });
-    const run = spawnSync('docker', [
-      'run', '--rm',
-      '--entrypoint', 'python',
-      '-v', `${repoRoot}:/workspace`,
-      '-w', '/workspace',
-      BYTEDANCE_IMAGE,
-      'backend/scripts/run_bytedance_pytorch_raw_batch.py',
-      '--input', inputRel,
-      '--output', outputRel,
-      '--checkpoint', EXPECTED_BYTEDANCE_CHECKPOINT.path,
-      '--device', 'cpu',
-      '--runtime-identity', BYTEDANCE_IMAGE,
-    ], { cwd: repoRoot, encoding: 'utf8', timeout: 3_600_000, maxBuffer: 20 * 1024 * 1024 });
-    if (run.status !== 0) throw new Error(`ByteDance PyTorch batch failed for ${context.profileId}: ${run.stderr || run.stdout}`);
+    let rawRel = existsSync(path.resolve(repoRoot, reusedOutputRel)) ? reusedOutputRel : outputRel;
+    if (!existsSync(path.resolve(repoRoot, rawRel))) {
+      const run = spawnSync('docker', [
+        'run', '--rm',
+        '--entrypoint', 'python',
+        '-v', `${repoRoot}:/workspace`,
+        '-w', '/workspace',
+        BYTEDANCE_IMAGE,
+        'backend/scripts/run_bytedance_pytorch_raw_batch.py',
+        '--input', inputRel,
+        '--output', outputRel,
+        '--checkpoint', EXPECTED_BYTEDANCE_CHECKPOINT.path,
+        '--device', 'cpu',
+        '--runtime-identity', BYTEDANCE_IMAGE,
+      ], { cwd: repoRoot, encoding: 'utf8', timeout: 3_600_000, maxBuffer: 20 * 1024 * 1024 });
+      if (run.status !== 0) throw new Error(`ByteDance PyTorch batch failed for ${context.profileId}: ${run.stderr || run.stdout}`);
+      rawRel = outputRel;
+    }
     const validationRun = spawnSync('docker', [
       'run', '--rm',
       '--entrypoint', 'python',
@@ -780,7 +811,7 @@ async function runByteDancePyTorchBatches({ contexts, baseScenarios }) {
       BYTEDANCE_IMAGE,
       'backend/scripts/validate_bytedance_pytorch_raw_batch.py',
       '--input', inputRel,
-      '--raw', outputRel,
+      '--raw', rawRel,
       '--checkpoint', EXPECTED_BYTEDANCE_CHECKPOINT.path,
       '--output', validationRel,
     ], { cwd: repoRoot, encoding: 'utf8', timeout: 600_000, maxBuffer: 20 * 1024 * 1024 });
@@ -789,7 +820,9 @@ async function runByteDancePyTorchBatches({ contexts, baseScenarios }) {
     }
     const validation = JSON.parse(await readFile(path.resolve(repoRoot, validationRel), 'utf8'));
     evidenceRows.push(...validation.rows);
-    const raw = JSON.parse(await readFile(path.resolve(repoRoot, outputRel), 'utf8'));
+    if (rawRel === reusedOutputRel) validatedRawCacheLoadCount += validation.rows.length;
+    else rawNeuralInferenceExecutedCount += validation.rows.length;
+    const raw = JSON.parse(await readFile(path.resolve(repoRoot, rawRel), 'utf8'));
     const byScenario = new Map();
     for (const scenario of baseScenarios) {
       const chunks = raw.chunks
@@ -804,15 +837,15 @@ async function runByteDancePyTorchBatches({ contexts, baseScenarios }) {
   }
   const evidenceManifest = {
     schemaVersion: 1,
-    artifact: 'phase9g_a23_bytedance_raw_evidence_manifest',
-    phase: '9G-A.2.3',
+    artifact: 'phase9g_a24_bytedance_raw_evidence_manifest',
+    phase: '9G-A.2.4',
     checkpointSha256: EXPECTED_BYTEDANCE_CHECKPOINT.sha256,
     checkpointBytes: EXPECTED_BYTEDANCE_CHECKPOINT.bytes,
     rowCount: evidenceRows.length,
     rows: evidenceRows,
   };
   await writeJson(BYTEDANCE_RAW_EVIDENCE_REL, evidenceManifest);
-  return { byContext: result, evidenceManifest };
+  return { byContext: result, evidenceManifest, rawNeuralInferenceExecutedCount, validatedRawCacheLoadCount };
 }
 
 function planByteDanceVariableContext(scenario, context) {
@@ -822,7 +855,8 @@ function planByteDanceVariableContext(scenario, context) {
   const completion = scenario.completion.performanceTimeMs;
   const plans = [];
   let start = 0;
-  const ownedMs = context.ownedCentralRegionMs;
+  const ownedMs = nominalOwnedRegionMs(context);
+  const futureMs = maximumFutureContextMs(context);
   while (start < completion || (completion === 0 && plans.length === 0)) {
     const end = Math.min(completion, start + ownedMs);
     plans.push({
@@ -830,8 +864,8 @@ function planByteDanceVariableContext(scenario, context) {
       scenarioId: scenario.scenarioId,
       commitStartPerformanceMs: start,
       commitEndPerformanceMs: end,
-      inputStartPerformanceMs: end + context.futureContextMs - context.modelInputMs,
-      inputEndPerformanceMs: end + context.futureContextMs,
+      inputStartPerformanceMs: end + futureMs - context.modelInputMs,
+      inputEndPerformanceMs: end + futureMs,
       expectedGroupIds: expectedGroupIdsInRange(scenario, start, end, plans.length === 0),
     });
     if (end === completion) break;
@@ -848,7 +882,7 @@ function validateByteDanceVariableContextPlan(scenario, plans, context) {
       throw new Error(`ByteDance ${context.profileId} input duration mismatch.`);
     }
     if (context.profileId !== 'CALIBRATED_CONTEXT_1820'
-      && Math.abs((plan.inputEndPerformanceMs - plan.commitEndPerformanceMs) - context.futureContextMs) > 1e-9) {
+      && Math.abs((plan.inputEndPerformanceMs - plan.commitEndPerformanceMs) - maximumFutureContextMs(context)) > 1e-9) {
       throw new Error(`ByteDance ${context.profileId} future context exceeds frozen bound.`);
     }
     if (plan.commitStartPerformanceMs !== previousEnd || plan.commitEndPerformanceMs < plan.commitStartPerformanceMs) {
@@ -873,6 +907,43 @@ function validateByteDanceVariableContextSource(scenario, plans) {
   }
 }
 
+function computeByteDanceTerminalContextDiagnostics(baseScenarios, contexts) {
+  const byContext = {};
+  for (const context of contexts.filter((item) => item.profileId !== 'CALIBRATED_CONTEXT_1820')) {
+    const rows = baseScenarios.map((scenario) => {
+      const plans = planByteDanceVariableContext(scenario, context);
+      const terminal = plans[plans.length - 1];
+      const actualOwnedWidthMs = terminal.commitEndPerformanceMs - terminal.commitStartPerformanceMs;
+      const actualPastContextMs = terminal.commitStartPerformanceMs - terminal.inputStartPerformanceMs;
+      const actualFutureContextMs = terminal.inputEndPerformanceMs - terminal.commitEndPerformanceMs;
+      const interiorPastMs = interiorPastContextMs(context);
+      const maximumFutureMs = maximumFutureContextMs(context);
+      if (actualFutureContextMs - maximumFutureMs > 1e-9) {
+        throw new Error(`ByteDance ${context.profileId} terminal future exceeds V4 bound.`);
+      }
+      return {
+        scenarioId: scenario.scenarioId,
+        windowId: terminal.chunkId,
+        actualOwnedWidthMs,
+        actualPastContextMs,
+        interiorPastContextMs: interiorPastMs,
+        excessPastContextMs: actualPastContextMs - interiorPastMs,
+        actualFutureContextMs,
+        maximumFutureContextMs: maximumFutureMs,
+      };
+    });
+    byContext[context.profileId] = {
+      terminalWindowPolicy: 'RIGHT_ANCHORED_TERMINAL_FUTURE_BOUND_V1',
+      rowCount: rows.length,
+      nonZeroExcessPastCount: rows.filter((row) => row.excessPastContextMs > 1e-9).length,
+      maximumActualFutureContextMs: Math.max(...rows.map((row) => row.actualFutureContextMs)),
+      maximumExcessPastContextMs: Math.max(...rows.map((row) => row.excessPastContextMs)),
+      rows,
+    };
+  }
+  return byContext;
+}
+
 async function writeByteDanceFutureOverrunDiagnostic(baseScenariosForDiagnostic) {
   const contexts = calibration.BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES
     .filter((context) => context.profileId !== 'CALIBRATED_CONTEXT_1820');
@@ -883,11 +954,11 @@ async function writeByteDanceFutureOverrunDiagnostic(baseScenariosForDiagnostic)
     const correctedExcess = [];
     for (const scenario of baseScenariosForDiagnostic) {
       for (const plan of oldByteDanceVariableContextPlan(scenario, context)) {
-        const excess = (plan.inputEndPerformanceMs - plan.commitEndPerformanceMs) - context.futureContextMs;
+        const excess = (plan.inputEndPerformanceMs - plan.commitEndPerformanceMs) - maximumFutureContextMs(context);
         if (excess > 1e-9) oldExcess.push({ scenarioId: scenario.scenarioId, windowId: plan.chunkId, excessFutureMs: excess });
       }
       for (const plan of planByteDanceVariableContext(scenario, context)) {
-        const excess = Math.max(0, (plan.inputEndPerformanceMs - plan.commitEndPerformanceMs) - context.futureContextMs);
+        const excess = Math.max(0, (plan.inputEndPerformanceMs - plan.commitEndPerformanceMs) - maximumFutureContextMs(context));
         correctedExcess.push({ scenarioId: scenario.scenarioId, windowId: plan.chunkId, excessFutureMs: excess });
       }
     }
@@ -896,10 +967,10 @@ async function writeByteDanceFutureOverrunDiagnostic(baseScenariosForDiagnostic)
   }
   const receipt = {
     schemaVersion: 1,
-    artifact: 'phase9g_a23_bytedance_future_overrun_diagnostic',
-    phase: '9G-A.2.3',
+    artifact: 'phase9g_a24_bytedance_future_overrun_diagnostic',
+    phase: '9G-A.2.4',
     oldPhase9gA22Geometry: oldByContext,
-    correctedPhase9gA23Geometry: correctedByContext,
+    correctedPhase9gA24Geometry: correctedByContext,
     correctedMaximumExcessFutureMs: Math.max(0, ...Object.values(correctedByContext).map((item) => item.maximumExcessFutureMs ?? 0)),
     numericToleranceMs: 1e-9,
   };
@@ -911,20 +982,33 @@ function oldByteDanceVariableContextPlan(scenario, context) {
   const completion = scenario.completion.performanceTimeMs;
   const plans = [];
   let start = 0;
-  const ownedMs = context.ownedCentralRegionMs;
+  const ownedMs = nominalOwnedRegionMs(context);
+  const interiorPastMs = interiorPastContextMs(context);
   while (start < completion || (completion === 0 && plans.length === 0)) {
     const end = Math.min(completion, start + ownedMs);
     plans.push({
       chunkId: `${scenario.scenarioId}:${context.profileId}:old-window-${plans.length.toString().padStart(3, '0')}`,
       commitStartPerformanceMs: start,
       commitEndPerformanceMs: end,
-      inputStartPerformanceMs: start - context.pastContextMs,
-      inputEndPerformanceMs: start - context.pastContextMs + context.modelInputMs,
+      inputStartPerformanceMs: start - interiorPastMs,
+      inputEndPerformanceMs: start - interiorPastMs + context.modelInputMs,
     });
     if (end === completion) break;
     start = end;
   }
   return plans;
+}
+
+function nominalOwnedRegionMs(context) {
+  return context.nominalOwnedRegionMs ?? context.ownedCentralRegionMs;
+}
+
+function interiorPastContextMs(context) {
+  return context.interiorPastContextMs ?? context.pastContextMs;
+}
+
+function maximumFutureContextMs(context) {
+  return context.maximumFutureContextMs ?? context.futureContextMs;
 }
 
 function summarizeFutureExcess(items) {
@@ -955,6 +1039,55 @@ function byteDanceSurvivorCountsByContext(profileIds) {
     }
   }
   return counts;
+}
+
+function compactSelectionTrace(selection) {
+  if (!selection) return null;
+  return {
+    selectedProfileId: selection.selectedProfileId,
+    remainingProfileIds: selection.remainingProfileIds,
+    decisionCount: selection.decisions?.length ?? 0,
+    decisions: (selection.decisions ?? []).map((decision) => ({
+      priority: decision.priority,
+      metric: decision.metric,
+      dominatedProfileIds: decision.dominatedProfileIds,
+      remainingProfileIds: decision.remainingProfileIds,
+      pairwiseComparisonCount: decision.pairwiseComparisons?.length ?? 0,
+      dominanceCycleTreatedAsTie: decision.dominanceCycleTreatedAsTie ?? false,
+    })),
+  };
+}
+
+function summarizeByteDanceContextMetrics(profiles, aggregateMetrics) {
+  const summary = {};
+  for (const context of calibration.BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES) {
+    const contextProfiles = profiles.filter((profile) => profile.projection.context.profileId === context.profileId);
+    summary[context.profileId] = {
+      profileCount: contextProfiles.length,
+      bestByVerdictAgreement: bestProfileByMetric(contextProfiles, aggregateMetrics, 'verdictAgreementRate', 'higher'),
+      bestByCriticalFalseMatch: bestProfileByMetric(contextProfiles, aggregateMetrics, 'falseMatchRateOnGroundTruthMissing', 'lower'),
+      bestByIncompleteChordFalseComplete: bestProfileByMetric(contextProfiles, aggregateMetrics, 'falseCompleteChordAcceptanceRate', 'lower'),
+    };
+  }
+  return summary;
+}
+
+function bestProfileByMetric(profiles, aggregateMetrics, metricName, direction) {
+  let best = null;
+  for (const profile of profiles) {
+    const metric = aggregateMetrics[profile.profileId]?.CALIBRATION?.[metricName];
+    if (!metric || metric.status !== 'MEASURED') continue;
+    if (!best || (direction === 'higher' ? metric.value > best.value : metric.value < best.value)) {
+      best = {
+        profileId: profile.profileId,
+        value: metric.value,
+        sampleCount: metric.sampleCount,
+        numerator: metric.numerator,
+        denominator: metric.denominator,
+      };
+    }
+  }
+  return best;
 }
 
 function expectedGroupIdsInRange(scenario, start, end, isFirst) {
@@ -1007,8 +1140,8 @@ async function runOnlineAmtBatch(policy, baseScenarios, options) {
     });
   }
   const safe = `${policy.profileId.toLowerCase()}-${sanitizeFile(options.phaseLabel)}`;
-  const inputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga23/${safe}.segments.json`;
-  const outputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga23/${safe}.hop-artifact.json`;
+  const inputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga24/${safe}.segments.json`;
+  const outputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga24/${safe}.hop-artifact.json`;
   await writeJson(inputRel, { segments });
   const run = spawnSync('docker', [
     'run', '--rm',
@@ -1042,27 +1175,29 @@ function timingCorrectionForPolicy({ policy, batchArtifact, baseScenarios }) {
     const completion = scenario.completion.performanceTimeMs;
     const candidate = timingCalibrationObservationsForSegment({ scenario, segment });
     const physical = extendedPhysicalMidiTruthForScenario(scenario);
-    const pairs = matchTimingPairs(candidate, physical);
+    const scopePhysical = physical.filter((attack) => attack.performanceTimeMs <= completion + 1e-9);
+    const postScopePhysical = physical.filter((attack) => attack.performanceTimeMs > completion + 1e-9);
+    const pairs = matchTimingPairs(candidate, scopePhysical);
     rawTimingObservationCount += candidate.length;
     totalExtendedPhysicalAttacks += physical.length;
-    totalScopePhysicalAttacks += physical.filter((attack) => attack.performanceTimeMs <= completion + 1e-9).length;
-    totalPostScopePhysicalAttacks += physical.filter((attack) => attack.performanceTimeMs > completion + 1e-9).length;
+    totalScopePhysicalAttacks += scopePhysical.length;
+    totalPostScopePhysicalAttacks += postScopePhysical.length;
     allPairs.push(...pairs.map((pair) => ({ ...pair, scenarioId: scenario.scenarioId, completionTimeMs: completion })));
     truthDiagnostics.push({
       scenarioId: scenario.scenarioId,
       extendedPhysicalAttackCount: physical.length,
-      scopePhysicalAttackCount: physical.filter((attack) => attack.performanceTimeMs <= completion + 1e-9).length,
-      postScopePhysicalAttackCount: physical.filter((attack) => attack.performanceTimeMs > completion + 1e-9).length,
+      scopePhysicalAttackCount: scopePhysical.length,
+      postScopePhysicalAttackCount: postScopePhysical.length,
       rawTimingObservationCount: candidate.length,
       matchedPairCount: pairs.length,
-      matchedInScopePairCount: pairs.filter((pair) => pair.physicalTimeMs <= completion + 1e-9).length,
-      matchedPostScopePairCount: pairs.filter((pair) => pair.physicalTimeMs > completion + 1e-9).length,
+      matchedInScopePairCount: pairs.length,
+      matchedPostScopePairCount: 0,
       inScopePairsWithRawDecisionAfterCompletion: pairs.filter((pair) =>
-        pair.physicalTimeMs <= completion + 1e-9 && pair.rawDecisionTimeMs > completion + 1e-9
+        pair.rawDecisionTimeMs > completion + 1e-9
       ).length,
     });
   }
-  const correctionPairs = allPairs.filter((pair) => pair.physicalTimeMs <= pair.completionTimeMs + 1e-9);
+  const correctionPairs = allPairs;
   const offsets = correctionPairs.map((pair) => pair.physicalTimeMs - pair.rawDecisionTimeMs);
   offsets.sort((left, right) => left - right);
   const timingCorrectionMs = median(offsets);
@@ -1076,7 +1211,8 @@ function timingCorrectionForPolicy({ policy, batchArtifact, baseScenarios }) {
     rawTimingObservationCount,
     matchedPairCount: allPairs.length,
     matchedInScopePairCount: correctionPairs.length,
-    matchedPostScopePairCount: allPairs.length - correctionPairs.length,
+    matchedPostScopePairCount: 0,
+    postScopePhysicalAttackDiagnosticCount: totalPostScopePhysicalAttacks,
     correctionPairsWithRawDecisionAfterCompletion: correctionPairs.filter((pair) =>
       pair.rawDecisionTimeMs > pair.completionTimeMs + 1e-9
     ).length,
@@ -1326,8 +1462,8 @@ function assertOnlineAmtTerminalCoverage({ scenario, candidateRun, profileId }) 
 async function writePrematureLockInvalidationReceipt() {
   const receipt = {
     schemaVersion: 1,
-    artifact: 'phase9g_a23_prior_lock_invalidation',
-    phase: '9G-A.2.3',
+    artifact: 'phase9g_a24_prior_lock_invalidation',
+    phase: '9G-A.2.4',
     invalidatedArtifactsPreserved: [
       'backend/research/reports/phase9g_a22_bytedance_online_amt_incumbent_completion_2026-10-09.json',
       'backend/research/reports/phase9g_a22_final_incumbent_registry_2026-10-09.json',
@@ -1372,8 +1508,8 @@ async function writeByteDanceSameWeightProvenance() {
     && parity?.overallAuthoritativeDecodedEventParityAtOnset020Frame020 === true;
   const receipt = {
     schemaVersion: 1,
-    artifact: 'phase9g_a23_bytedance_same_weight_provenance',
-    phase: '9G-A.2.3',
+    artifact: 'phase9g_a24_bytedance_same_weight_provenance',
+    phase: '9G-A.2.4',
     originalPyTorchCheckpoint: checkpoint,
     currentFixedOnnxAsset: onnx,
     modelArchitectureImportIdentity: 'piano_transcription_inference.PianoTranscription note_model',
@@ -1442,16 +1578,38 @@ function bytedanceProfile({ context, onsetThreshold, frameThreshold }) {
     candidateFamily: 'bytedance-original',
     checkpointSha256: EXPECTED_BYTEDANCE_CHECKPOINT.sha256,
     checkpointBytes: EXPECTED_BYTEDANCE_CHECKPOINT.bytes,
-    context,
+    context: byteDanceConfigurationContextProjection(context),
+    plannerVersion: 'RIGHT_ANCHORED_TERMINAL_FUTURE_BOUND_V1',
+    preprocessingIdentity: 'deterministic_linear_interpolation_v1_mono_float32',
     onsetThreshold,
     frameThreshold,
-    decoderVersion: 'phase9g-a23-bytedance-threshold-grid-v1',
+    decoderVersion: 'phase9g-a24-bytedance-threshold-grid-v1',
   };
   return {
     profileId: `bytedance-original-calibration-${context.profileId}-onset-${onsetThreshold.toFixed(2)}-frame-${frameThreshold.toFixed(2)}`,
     configurationSha256: sha256Json(projection),
     thresholds: { onsetThreshold, frameThreshold },
     projection,
+  };
+}
+
+function byteDanceConfigurationContextProjection(context) {
+  if (context.profileId === 'CALIBRATED_CONTEXT_1820') {
+    return {
+      profileId: context.profileId,
+      modelInputMs: context.modelInputMs,
+      futureContextMs: context.futureContextMs,
+      commitWidthMs: context.commitWidthMs,
+      ownershipPolicy: 'historical inclusive-compatible 600ms chunk ownership',
+    };
+  }
+  return {
+    profileId: context.profileId,
+    modelInputMs: context.modelInputMs,
+    nominalOwnedRegionMs: nominalOwnedRegionMs(context),
+    interiorPastContextMs: interiorPastContextMs(context),
+    maximumFutureContextMs: maximumFutureContextMs(context),
+    terminalWindowPolicy: 'RIGHT_ANCHORED_TERMINAL_FUTURE_BOUND_V1',
   };
 }
 
@@ -1465,6 +1623,9 @@ function onlineAmtProfile({ policy, timingCorrectionMs }) {
     pseudoIntensity: policy.pseudoIntensity,
     onsetBoost: policy.onsetBoost,
     timingCorrectionMs,
+    timingCalibrationPostrollMs: TIMING_CALIBRATION_REAL_POSTROLL_MS,
+    timingCalibrationPhysicalTruth: 'IN_SCOPE_PHYSICAL_ATTACKS_ONLY_V1',
+    postScopePhysicalAttacks: 'DIAGNOSTIC_ONLY_EXCLUDED_FROM_MATCHING_AND_MEDIAN',
   };
   return {
     profileId: `online-amt-calibration-${policy.pseudoIntensity.toLowerCase()}-boost-${String(policy.onsetBoost).replace('.', '_')}`,

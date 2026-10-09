@@ -7,9 +7,10 @@ import {
 export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V1_SHA256 = '5f0decb22200f51d295bbd3c60cd04481eec7661d7844e2b7c48b4f8b42ff56a';
 export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256 = 'eea0939a2c19727a0a93b2fdd3ce39e07d40dfa40a5f117a903552a080af4d5f';
 export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3_SHA256 = '9c6b3ca6cc46fd902a27cdf27825edd2833753cb15c9285e7c77365b3ff05130';
+export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4_SHA256 = 'b62f85cbc910d4a537214eed68c2d6e3accd3036417b16249d33d2e3a1a7cce9';
 
-const PUBLIC_MODEL_CALIBRATION_PROTOCOL_ID = 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3';
-const PUBLIC_MODEL_CALIBRATION_SCHEMA_VERSION = 3;
+const PUBLIC_MODEL_CALIBRATION_PROTOCOL_ID = 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4';
+const PUBLIC_MODEL_CALIBRATION_SCHEMA_VERSION = 4;
 const PHASE_9GA = '9G-A';
 const PHASE_9GA_CALIBRATION_PERFORMERS = ['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p14'] as const;
 const PHASE_9GA_BLIND_PERFORMERS = ['p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22'] as const;
@@ -17,7 +18,7 @@ const PHASE_9GA_POLICY_PATH = [
   'backend',
   'research',
   'policies',
-  'public_model_calibration_protocol_v3_2026-10-09.json',
+  'public_model_calibration_protocol_v4_2026-10-09.json',
 ].join('/');
 
 type Phase9GExecutionMode = 'CANDIDATE_INFERENCE' | 'TRUTH_ONLY';
@@ -40,17 +41,19 @@ export interface Phase9GExecutionRequest {
 export interface ByteDanceContextGeometry {
   readonly profileId: string;
   readonly modelInputMs: number;
-  readonly ownedCentralRegionMs?: number;
-  readonly pastContextMs?: number;
-  readonly futureContextMs: number;
+  readonly nominalOwnedRegionMs?: number;
+  readonly interiorPastContextMs?: number;
+  readonly maximumFutureContextMs?: number;
+  readonly futureContextMs?: number;
   readonly commitWidthMs?: number;
+  readonly terminalWindowPolicy?: 'RIGHT_ANCHORED_TERMINAL_FUTURE_BOUND_V1';
 }
 
 export const BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES: readonly ByteDanceContextGeometry[] = [
   { profileId: 'CALIBRATED_CONTEXT_1820', modelInputMs: 1820, futureContextMs: 220, commitWidthMs: 600 },
-  { profileId: 'CALIBRATED_CONTEXT_3S', modelInputMs: 3000, ownedCentralRegionMs: 1500, pastContextMs: 750, futureContextMs: 750 },
-  { profileId: 'CALIBRATED_CONTEXT_5S', modelInputMs: 5000, ownedCentralRegionMs: 2500, pastContextMs: 1250, futureContextMs: 1250 },
-  { profileId: 'CALIBRATED_CONTEXT_10S', modelInputMs: 10000, ownedCentralRegionMs: 5000, pastContextMs: 2500, futureContextMs: 2500 },
+  { profileId: 'CALIBRATED_CONTEXT_3S', modelInputMs: 3000, nominalOwnedRegionMs: 1500, interiorPastContextMs: 750, maximumFutureContextMs: 750, terminalWindowPolicy: 'RIGHT_ANCHORED_TERMINAL_FUTURE_BOUND_V1' },
+  { profileId: 'CALIBRATED_CONTEXT_5S', modelInputMs: 5000, nominalOwnedRegionMs: 2500, interiorPastContextMs: 1250, maximumFutureContextMs: 1250, terminalWindowPolicy: 'RIGHT_ANCHORED_TERMINAL_FUTURE_BOUND_V1' },
+  { profileId: 'CALIBRATED_CONTEXT_10S', modelInputMs: 10000, nominalOwnedRegionMs: 5000, interiorPastContextMs: 2500, maximumFutureContextMs: 2500, terminalWindowPolicy: 'RIGHT_ANCHORED_TERMINAL_FUTURE_BOUND_V1' },
 ];
 
 export const BYTEDANCE_PHASE_9GA_THRESHOLD_GRID = {
@@ -75,6 +78,56 @@ export const ONLINE_AMT_PHASE_9GA_POLICY_GRID = {
   timingCorrection: ONLINE_AMT_TIMING_CALIBRATION_V1.algorithmId,
 } as const;
 
+export interface ByteDanceV4WindowPlan {
+  readonly inputStartPerformanceMs: number;
+  readonly inputEndPerformanceMs: number;
+  readonly commitStartPerformanceMs: number;
+  readonly commitEndPerformanceMs: number;
+}
+
+export function planByteDanceV4ContextWindowsForTest(
+  completionMs: number,
+  context: ByteDanceContextGeometry,
+): readonly ByteDanceV4WindowPlan[] {
+  if (context.profileId === 'CALIBRATED_CONTEXT_1820') {
+    throw new Error('BYTE_DANCE_1820_USES_HISTORICAL_PLANNER');
+  }
+  const nominalOwnedRegionMs = context.nominalOwnedRegionMs;
+  const maximumFutureContextMs = context.maximumFutureContextMs;
+  if (nominalOwnedRegionMs === undefined || maximumFutureContextMs === undefined) {
+    throw new Error(`BYTE_DANCE_V4_CONTEXT_GEOMETRY_INCOMPLETE:${context.profileId}`);
+  }
+  const plans: ByteDanceV4WindowPlan[] = [];
+  let start = 0;
+  while (start < completionMs || (completionMs === 0 && plans.length === 0)) {
+    const end = Math.min(completionMs, start + nominalOwnedRegionMs);
+    plans.push({
+      commitStartPerformanceMs: start,
+      commitEndPerformanceMs: end,
+      inputEndPerformanceMs: end + maximumFutureContextMs,
+      inputStartPerformanceMs: end + maximumFutureContextMs - context.modelInputMs,
+    });
+    if (end === completionMs) break;
+    start = end;
+  }
+  return plans;
+}
+
+export function onlineAmtTimingCorrectionForInScopePhysicalTruthForTest(
+  candidateObservations: readonly { readonly pitch: string; readonly rawDecisionTimeMs: number }[],
+  physicalAttacks: readonly { readonly pitch: string; readonly performanceTimeMs: number }[],
+  completionMs: number,
+): { readonly timingCorrectionMs: number | null; readonly matchedPostScopePhysicalPairCount: number; readonly lateInScopeDecisionPairCount: number } {
+  const inScopePhysical = physicalAttacks.filter((attack) => attack.performanceTimeMs >= 0 && attack.performanceTimeMs <= completionMs);
+  const pairs = greedySamePitchTimingPairs(candidateObservations, inScopePhysical, ONLINE_AMT_TIMING_CALIBRATION_V1.matchWindowMs);
+  const offsets = pairs.map((pair) => pair.physicalTimeMs - pair.rawDecisionTimeMs).sort((left, right) => left - right);
+  return {
+    timingCorrectionMs: offsets.length === 0 ? null : percentileValue(offsets, 0.5),
+    matchedPostScopePhysicalPairCount: 0,
+    lateInScopeDecisionPairCount: pairs.filter((pair) => pair.rawDecisionTimeMs > completionMs).length,
+  };
+}
+
 export function assertPublicModelCalibrationPolicyIdentity(identity: PublicModelCalibrationPolicyIdentity): void {
   const normalizedPath = identity.path.replaceAll('\\', '/');
   if (normalizedPath !== PHASE_9GA_POLICY_PATH) {
@@ -86,7 +139,7 @@ export function assertPublicModelCalibrationPolicyIdentity(identity: PublicModel
   if (identity.schemaVersion !== PUBLIC_MODEL_CALIBRATION_SCHEMA_VERSION) {
     throw new Error(`PUBLIC_MODEL_CALIBRATION_POLICY_SCHEMA_MISMATCH:${identity.schemaVersion}`);
   }
-  if (identity.sha256 !== PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3_SHA256) {
+  if (identity.sha256 !== PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4_SHA256) {
     throw new Error(`PUBLIC_MODEL_CALIBRATION_POLICY_SHA_MISMATCH:${identity.sha256}`);
   }
 }
@@ -544,4 +597,44 @@ function assertExactPerformerSet(actual: readonly string[], expected: readonly s
 function mean(values: readonly number[]): number {
   if (values.length === 0) throw new Error('MEAN_REQUIRES_VALUES');
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function greedySamePitchTimingPairs(
+  candidateObservations: readonly { readonly pitch: string; readonly rawDecisionTimeMs: number }[],
+  physicalAttacks: readonly { readonly pitch: string; readonly performanceTimeMs: number }[],
+  matchWindowMs: number,
+): { readonly rawDecisionTimeMs: number; readonly physicalTimeMs: number }[] {
+  const pairs: { rawDecisionTimeMs: number; physicalTimeMs: number }[] = [];
+  const pitches = new Set([...candidateObservations.map((item) => item.pitch), ...physicalAttacks.map((item) => item.pitch)]);
+  for (const pitch of pitches) {
+    const candidates = candidateObservations.filter((item) => item.pitch === pitch).sort((left, right) => left.rawDecisionTimeMs - right.rawDecisionTimeMs);
+    const physical = physicalAttacks.filter((item) => item.pitch === pitch).sort((left, right) => left.performanceTimeMs - right.performanceTimeMs);
+    const used = new Set<number>();
+    for (const candidate of candidates) {
+      let bestIndex = -1;
+      let bestDistance = Infinity;
+      for (let index = 0; index < physical.length; index += 1) {
+        if (used.has(index)) continue;
+        const distance = Math.abs(candidate.rawDecisionTimeMs - physical[index].performanceTimeMs);
+        if (distance <= matchWindowMs && distance < bestDistance) {
+          bestIndex = index;
+          bestDistance = distance;
+        }
+      }
+      if (bestIndex >= 0) {
+        used.add(bestIndex);
+        pairs.push({ rawDecisionTimeMs: candidate.rawDecisionTimeMs, physicalTimeMs: physical[bestIndex].performanceTimeMs });
+      }
+    }
+  }
+  return pairs;
+}
+
+function percentileValue(sortedValues: readonly number[], quantile: number): number {
+  if (sortedValues.length === 0) throw new Error('PERCENTILE_REQUIRES_VALUES');
+  const index = (sortedValues.length - 1) * quantile;
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  if (lower === upper) return sortedValues[lower];
+  return sortedValues[lower] + (sortedValues[upper] - sortedValues[lower]) * (index - lower);
 }
