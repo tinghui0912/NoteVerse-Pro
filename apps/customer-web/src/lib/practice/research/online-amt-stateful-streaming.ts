@@ -370,14 +370,17 @@ export function observationsForOnlineAmtHop(input: {
     }));
 }
 
-export function eventTimeFromDecisionTimeMs(decisionTimeMs: number, timingCorrectionMs = ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs): number {
+export function eventTimeFromDecisionTimeMs(
+  decisionTimeMs: number,
+  timingCorrectionMs: number = ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs,
+): number {
   return decisionTimeMs + timingCorrectionMs;
 }
 
 export function eventTimeFromSegmentLocalDecisionMs(
   segmentPerformanceStartMs: number,
   localDecisionTimeMs: number,
-  timingCorrectionMs = ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs,
+  timingCorrectionMs: number = ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs,
 ): number {
   return segmentPerformanceStartMs + localDecisionTimeMs + timingCorrectionMs;
 }
