@@ -12,7 +12,12 @@ const PUBLIC_MODEL_CALIBRATION_SCHEMA_VERSION = 2;
 const PHASE_9GA = '9G-A';
 const PHASE_9GA_CALIBRATION_PERFORMERS = ['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p14'] as const;
 const PHASE_9GA_BLIND_PERFORMERS = ['p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22'] as const;
-const PHASE_9GA_POLICY_PATH = 'backend/research/policies/public_model_calibration_protocol_v2_2026-10-09.json';
+const PHASE_9GA_POLICY_PATH = [
+  'backend',
+  'research',
+  'policies',
+  'public_model_calibration_protocol_v2_2026-10-09.json',
+].join('/');
 
 type Phase9GExecutionMode = 'CANDIDATE_INFERENCE' | 'TRUTH_ONLY';
 
