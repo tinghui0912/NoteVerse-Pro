@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a21_bytedance_checkpoint_onnx_parity",
+  "checkpointPath": "models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
+  "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+  "checkpointBytes": 171966578,
+  "onnxPath": "backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx",
+  "onnxSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+  "onnxBytes": 98691493,
+  "device": "cpu",
+  "onnxRuntimeOptimization": "disabled_after_default_load_failed",
+  "fixtureCount": 3,
+  "comparisons": [
+    {
+      "fixtureId": "s01_correct_strike_001_g01",
+      "inputPcmSha256": "c1c7f2b427bb9f6f6b14f85b547e5fb11b0a687d6eeba8d1367ebdce09787791",
+      "regOnsetShape": [
+        183,
+        88
+      ],
+      "frameShape": [
+        183,
+        88
+      ],
+      "regOnsetMeanAbsDelta": 2.044140323675947e-08,
+      "regOnsetMaxAbsDelta": 4.470348358154297e-07,
+      "frameMeanAbsDelta": 2.358541628666444e-08,
+      "frameMaxAbsDelta": 5.811452865600586e-07,
+      "decoderDecisionParityAtOnset020Frame020": true
+    },
+    {
+      "fixtureId": "s01_correct_chord_001_g01",
+      "inputPcmSha256": "92e5a689786cca232d8ad3d960caea06c992405e6b7e7e4a582d6477a0887649",
+      "regOnsetShape": [
+        183,
+        88
+      ],
+      "frameShape": [
+        183,
+        88
+      ],
+      "regOnsetMeanAbsDelta": 2.822936373547691e-08,
+      "regOnsetMaxAbsDelta": 4.947185516357422e-06,
+      "frameMeanAbsDelta": 2.6682299036906443e-08,
+      "frameMaxAbsDelta": 8.091330528259277e-06,
+      "decoderDecisionParityAtOnset020Frame020": true
+    },
+    {
+      "fixtureId": "s01_same_note_retrigger_001_g02",
+      "inputPcmSha256": "b515a27333feacf437f986f1894d5393746d11c8b9cded67f1c99f27addcf1b4",
+      "regOnsetShape": [
+        183,
+        88
+      ],
+      "frameShape": [
+        183,
+        88
+      ],
+      "regOnsetMeanAbsDelta": 2.517775143928702e-08,
+      "regOnsetMaxAbsDelta": 1.0132789611816406e-06,
+      "frameMeanAbsDelta": 2.5186292162970858e-08,
+      "frameMaxAbsDelta": 1.4156103134155273e-06,
+      "decoderDecisionParityAtOnset020Frame020": true
+    }
+  ],
+  "overallDecoderDecisionParityAtOnset020Frame020": true,
+  "maxRegOnsetAbsDelta": 4.947185516357422e-06,
+  "maxFrameAbsDelta": 8.091330528259277e-06,
+  "meanRegOnsetAbsDelta": 2.4616172803841135e-08,
+  "meanFrameAbsDelta": 2.5151335828847248e-08
+}

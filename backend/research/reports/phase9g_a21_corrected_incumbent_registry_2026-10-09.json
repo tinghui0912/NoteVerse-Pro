@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a2_calibrated_profile_registry",
+  "phase": "9G-A.2",
+  "policy": {
+    "path": "backend/research/policies/public_model_calibration_protocol_v3_2026-10-09.json",
+    "sha256": "9c6b3ca6cc46fd902a27cdf27825edd2833753cb15c9285e7c77365b3ff05130",
+    "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3",
+    "schemaVersion": 3
+  },
+  "scenarioManifestSha256": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
+  "profiles": [
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-current-executable-representative-v1",
+      "sourceHistoricalProfileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.20",
+      "configurationSha256": "a105b5bf220b6bcb3743f5bcc289c5a14e74771d22f2f27ec806a261b7da6079",
+      "qualificationStatus": "CONTEXT_OPTIMUM_UNRESOLVED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "PROVISIONAL_CONTEXT_OPTIMUM_UNRESOLVED"
+    },
+    {
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-disabled-boost-2",
+      "selectedCandidateId": "online-amt-calibration-disabled-boost-2",
+      "configurationSha256": "f8fa92275a7f55926111f40a32ca3397500bfdaaa69ac77e87c07f279b8f0687",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-disabled-boost-1",
+      "selectedCandidateId": "online-amt-calibration-disabled-boost-1",
+      "configurationSha256": "6a56bba6f2d081af72396ae924ddb6683412069b833683ad46ee615761a14fc3",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-native-boost-2",
+      "selectedCandidateId": "online-amt-calibration-native-boost-2",
+      "configurationSha256": "7e76eb37acb8a04b82dffa73ca2e8634d3de7851f4657132f197c4fe5a9b5f53",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "selectedCandidateId": "online-amt-calibrated-v1",
+      "configurationSha256": "1f0f5718eca00a2305e1361937ec9207bc2c9bba06caef5739596fff59abfd8b",
+      "LOCKED_FOR_PHASE_9G_B": true,
+      "selectionStatus": "SELECTED_OR_GATE1_FALLBACK"
+    }
+  ]
+}
