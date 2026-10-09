@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a24_blind_lock_receipt",
+  "phase": "9G-A.2.4",
+  "blindManifestPath": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
+  "blindManifestSha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+  "expectedBlindManifestSha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+  "scenarioCount": 70,
+  "candidateRunCount": 0,
+  "blindPerformerIds": [
+    "p15",
+    "p16",
+    "p17",
+    "p18",
+    "p19",
+    "p20",
+    "p21",
+    "p22"
+  ],
+  "semanticTruthProjectionSha256": "c2a13bd63a4426a6bce8c340fc6b5115167b500faf09237511ff51b3893c3e29"
+}
