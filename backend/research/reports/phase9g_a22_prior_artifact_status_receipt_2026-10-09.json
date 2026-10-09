@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a21_premature_lock_invalidation",
+  "phase": "9G-A.2.1",
+  "invalidatedArtifactsPreserved": [
+    "backend/research/reports/phase9g_a2_bytedance_online_amt_calibration_2026-10-09.json",
+    "backend/research/reports/phase9g_a2_calibrated_profile_registry_2026-10-09.json"
+  ],
+  "invalidations": [
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.20",
+      "correctedStatus": "SUPERSEDED_PREMATURE_LOCK_CONTEXT_CALIBRATION_INCOMPLETE",
+      "reason": "The V3 selector selected onset 0.15 / frame 0.15 within the executable 1820ms threshold sweep; the historical 0.20 / 0.20 profile was preserved only because longer-context same-weight execution was reported blocked."
+    },
+    {
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "correctedStatus": "INVALIDATED_FINAL_SCORING_TAIL_GEOMETRY",
+      "reason": "The calibrated timing correction requires profile-specific context-tail processing; some CALIBRATION BASE scenarios require more processing than the historical -158ms geometry."
+    }
+  ]
+}

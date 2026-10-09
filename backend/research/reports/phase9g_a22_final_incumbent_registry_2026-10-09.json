@@ -1,0 +1,766 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a22_final_incumbent_registry",
+  "phase": "9G-A.2.2",
+  "policy": {
+    "path": "backend/research/policies/public_model_calibration_protocol_v3_2026-10-09.json",
+    "sha256": "9c6b3ca6cc46fd902a27cdf27825edd2833753cb15c9285e7c77365b3ff05130",
+    "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3",
+    "schemaVersion": 3
+  },
+  "scenarioManifestSha256": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
+  "profiles": [
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.05",
+      "configurationSha256": "a4879b6903a0984b15e4543412058388a16f55e0b3f42442106bbf392e887643",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.10",
+      "configurationSha256": "9ed748bc842634441b5cb3854092837db31fe0b1093146827f80e335b0a7671b",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.15",
+      "configurationSha256": "bcf26d5ae6e6eba882f2cfd54c858f037dc08dad3f70d6843a7a8e6d3be04893",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.20",
+      "configurationSha256": "a2b19f914f935b49697512b6c88e9eaa8454c634702d649ca2e759979ca0f4b2",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.05",
+      "configurationSha256": "05df5ba094e6561a6268812fe6367355570fcaec46c0a824c753162e14227547",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.10",
+      "configurationSha256": "6341bb69b321eacf3f51f7737997e3df985bba240d7b175429892ed3cdc5c0c3",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.15",
+      "configurationSha256": "50acc3c5fd09bc1e3dee6128b372362da9453e364a4f46ce09cce363ab48f95f",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.20",
+      "configurationSha256": "470b047ed9fd8c47413bf3decdf27a8197c560b1735f137641ba3356a8c98050",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.05",
+      "configurationSha256": "f7caeabdcc68bd8a8b465d7d5611173981a1c0924be0f234d186176248709323",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.10",
+      "configurationSha256": "ac3c40a22530ce76e0fa73fde43cb364241466b252e35036f85b6220632d022b",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.15",
+      "configurationSha256": "1fcb1d115c0a08c9768fb9977ad98377c0126b9447d54ec476bd0323aa4672b0",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.20",
+      "configurationSha256": "e8a8f9f7de122d912c7f8176823cfac0b8adeaadccb29cfb74eec33e57b4390e",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "configurationSha256": "d12d35b60f6ed53a3e5105bbfc23dcd769a5237109f5fe2104dac5667fd6cda7",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.10",
+      "configurationSha256": "7e16d456d12297c5974bae350e16208e6ba41de1f10520b4e085793eb62f2c75",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.15",
+      "configurationSha256": "882ea2aef4921b6474850aa408cb35d56ec09234985bbfb1739658cabcc1cb6c",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.20",
+      "configurationSha256": "d283fda58af0a02a9496cbbba506128d8827f47a600bee496b120bd212dbb729",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.05",
+      "configurationSha256": "47a97cb6286d11e7628f44e6ecc957349b1245df39921bbe4152bc59943032ed",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.10",
+      "configurationSha256": "f257ab171dea94db4ce05b11f5bcc5f8621427c456ca37f3edf73a34a641e8e6",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.15",
+      "configurationSha256": "532adb0f3590d5d1e96a5817baccd52e4831f883d498b272052a3bf39c4e9bef",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.20",
+      "configurationSha256": "6f7c8a2d0b92ef77cb3a887b439660985d3c28fefafe4a59b28005c5743b306a",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.15-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.15-frame-0.05",
+      "configurationSha256": "6edaf69bca93d3c745d01c4b0a79641a736d252d9dd5f9b4690f2cf15fe1b806",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.15-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.15-frame-0.10",
+      "configurationSha256": "801883f73462ff204845967e761ef3c10fc67b58228124fc1ce127f49bc12c1c",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.15-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.15-frame-0.15",
+      "configurationSha256": "348f75f128909a112a8ea13da999591b166301627d7aa70fc865426a95915575",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.15-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.15-frame-0.20",
+      "configurationSha256": "13305f9601661703d9ce39a0b5185601cc63f299ed7199200a0f0a8b77de9e55",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.20-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.20-frame-0.05",
+      "configurationSha256": "9c21fad7f9530ca29bac9da200f8ccc34ceb2516c900938730131b0f33de7705",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.20-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.20-frame-0.10",
+      "configurationSha256": "c0e103af846deb1896e0e7e5a7a87b863b625d14c0418cd9b3ee3c3dbee8f05e",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.20-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.20-frame-0.15",
+      "configurationSha256": "10436f5cca144b5604c27348436338e9da4dd92863c4cbb6e19bb61a0f81cd54",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.20-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.20-frame-0.20",
+      "configurationSha256": "fbb40eca70cd51a95776957be9256577033016cff8e54d068aa3e652410475b3",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.25-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.25-frame-0.05",
+      "configurationSha256": "1535c25ec9287f6fa5fc8ada607376148919e2848cd2a68df0812ddc5f0a198e",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.25-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.25-frame-0.10",
+      "configurationSha256": "bf30ede2e4b6f450db9081da353f0c4f6b18ebdd7aa54e6140b5ce5a7b609e8f",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.25-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.25-frame-0.15",
+      "configurationSha256": "8e28fdcbd0d1f37f9b2a84a373766de962b61bdb955f58a0e2df884d736483a0",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.25-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.25-frame-0.20",
+      "configurationSha256": "1f78a3078b445d72ab1cfa94c603d228163873ade1eb36c1d81d4cdf3fe636ff",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.30-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibrated-v1",
+      "configurationSha256": "741f59ef4538285a72c35d1c2e118c96a1a4bdf2665c335222cd4662572e3c9a",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED",
+      "LOCKED_FOR_PHASE_9G_B": true,
+      "selectionStatus": "SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.30-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.30-frame-0.10",
+      "configurationSha256": "4bdd27b862a99e8ea3be52090e950875ae73bb18acbd7d90632d97a7d1c8b128",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.30-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.30-frame-0.15",
+      "configurationSha256": "e3470bb003be2f2bb743f20d7d5eff8f0a9fb7a65e98b49be2a9fbf3420287b8",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.30-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.30-frame-0.20",
+      "configurationSha256": "d49dba5cb9f8c303a8be1ed9530befdae1e51179256cda5d96019fdfb4cf9928",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.35-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.35-frame-0.05",
+      "configurationSha256": "ba34420f3189c11807ef8b6124098b40f31a01dcc8555e26b28962e7f5ddfc24",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.35-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.35-frame-0.10",
+      "configurationSha256": "6273f0ea0fd5a588a676744b2ba0b3a8731816cef8cade88bf68cffb0c6ad83b",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.35-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.35-frame-0.15",
+      "configurationSha256": "eea7ed5b99e65137a69f169a270fbfa40de9c70750ca5281dabdfd73db9cbf50",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.35-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_3S-onset-0.35-frame-0.20",
+      "configurationSha256": "e8bdcba09a73f22b207b9cb3e32c991d38cb1ba3f14526d830e2a641ca057a5f",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.05",
+      "configurationSha256": "d4fb196fb951644883d94117768f2fdc54df03328d11f1d55e252fca3231783f",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.10",
+      "configurationSha256": "93ea6cfa7ab2d1902e0c50e18ed0b2c3166dba2f5f312a4bad55e64ca9c5655f",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.15",
+      "configurationSha256": "2a8dc048c5952f0313a5fd7dbc2c2cd831e7073cd661c40fe7641a105dfa767c",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.20",
+      "configurationSha256": "58c2ed07ad08bc344d1be8eec0b5c448da19b7b61dfcbd8ab2614618e48d3414",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.05",
+      "configurationSha256": "1ccdef69caa879133e2b797bbea5856752598bb32bbf8a5173f0accc296ba682",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "configurationSha256": "40a6b957e428e06f698153e0981807ab6486f9076244ff6e0321b85cf01dbbc3",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.15",
+      "configurationSha256": "e59fc924097c06cb258b7961291e49b0c42923f1ab5522b30b2888a1d354a159",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.20",
+      "configurationSha256": "71e9ae6b8ecaff2e58b9617db22bcfef8f16c9f57557e6707eaa26c81ed075b1",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.25-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.25-frame-0.05",
+      "configurationSha256": "2b2f80db0f7f8aacac7c8907bf58e0f65ccad0c50db6c3a96c62bccffaa0f2f0",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.25-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.25-frame-0.10",
+      "configurationSha256": "86af78ebe1543cac7bb9df984796b26b6d6088184dbbaf2be374e3294b6858d1",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.25-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.25-frame-0.15",
+      "configurationSha256": "392647f980e997e57aed31fb294cc0a8b3c749a7cbc853d2828ac3d0518afce4",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.25-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.25-frame-0.20",
+      "configurationSha256": "78a061dcf376e107c1c9dd2a350428a7c57264e282aab0444bb7157d7cc64052",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.30-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.30-frame-0.05",
+      "configurationSha256": "806fdfa92f8932b0b4e5b955c57a5a8736dd75a9c1e821128b9908375dd838b5",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.30-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.30-frame-0.10",
+      "configurationSha256": "4cb0bb3355316228a2cf8472a67f9331cdcc0438c82428b9534735bc218fbf43",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.30-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.30-frame-0.15",
+      "configurationSha256": "6dec93df15ab79cde38d723abcfcdc10b2aad43ea460ffbc4c529eae8d78b9b6",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.30-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.30-frame-0.20",
+      "configurationSha256": "aee133be31465912958edb4ddebe9f4cab4fb01c827fd828e95c0846501c1a51",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.35-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.35-frame-0.05",
+      "configurationSha256": "3df85805f199833e491d5848923732b57b7f5cd2588e2b508c5d9e97ff02e818",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.35-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.35-frame-0.10",
+      "configurationSha256": "d0723a0185e756906108420de2bfcf16864fe32ff209866389b4984ecea340ec",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.35-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.35-frame-0.15",
+      "configurationSha256": "4e26881223f1250adcca2bef798166d889dada4e968e1ac3729f7394bfa0f2e6",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.35-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.35-frame-0.20",
+      "configurationSha256": "96cec4ffe54c452414f06236d9885056e298041a4b2725826028519306e14d52",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.15-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.15-frame-0.05",
+      "configurationSha256": "3dd31bdf04fb04584efcb04f400b073487f31cfe5b0f842fbd1776516b7e9a56",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.15-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.15-frame-0.10",
+      "configurationSha256": "c7ec2c1a4e87a6c7521b7d79552e0ce40632eb2999d4278f5ef9da73ff1f91a9",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.15-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.15-frame-0.15",
+      "configurationSha256": "6daf1a60269e499adf7b42f02087f651e9cc3f1e3d1d725c4ef46d746d8ed4a6",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.15-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.15-frame-0.20",
+      "configurationSha256": "2e2b96ea4a386de9e2493dc765535ed9867f85c85847fef055225db4fe2fb91f",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.20-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.20-frame-0.05",
+      "configurationSha256": "ba15f57d49c463192c3302a279ee825aed39f11214dd39ee8966f8e626bf1a5b",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.20-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.20-frame-0.10",
+      "configurationSha256": "a551f4be337828828ef9e34d9a5d842a1e05a9958057e7021baedacc7fee276d",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.20-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.20-frame-0.15",
+      "configurationSha256": "82656b02f5e75c7ab8d162d4a4f31b65244e6bbe5c85cf18182c205e05d80265",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.20-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.20-frame-0.20",
+      "configurationSha256": "f7870deacd2cbbac8806169f7dd8a2259ecf390c94d0943fdb23501fecfcadf7",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.25-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.25-frame-0.05",
+      "configurationSha256": "986b0944ab78b08a0276b8a4668fb79d367f454542ab75d7015e70abf4be8203",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.25-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.25-frame-0.10",
+      "configurationSha256": "0522516492105e89a414e00a61f2714eaf3519b58b16034495ce6340a9a9fbaa",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.25-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.25-frame-0.15",
+      "configurationSha256": "3a4f164dd6173228c21edea38e91d5e430ab81628062ba2eec04085618f724da",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.25-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.25-frame-0.20",
+      "configurationSha256": "6838e660cd6c955b1483e19154d6910dad7f6ea480eae1b7bac8d9047a043dde",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.30-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.30-frame-0.05",
+      "configurationSha256": "539a2bb4250561a7c39825bb07a7321e9140d8a8dcb868d4da48132ca53e63a1",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.30-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.30-frame-0.10",
+      "configurationSha256": "8cebbe6c12ac86efd72b3cd4b7d1fd8b7bd573db3b23078f2254d094d14aab49",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.30-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.30-frame-0.15",
+      "configurationSha256": "4e50528ef3e358942be20ca62f5ac123cb39f8f71f1a3a10d5ad84ca2c21fdcd",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.30-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.30-frame-0.20",
+      "configurationSha256": "170534732d2d9f1065f1f14c6743e4d0969c2a72795afd071ecdbb634d1a90ae",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.35-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.35-frame-0.05",
+      "configurationSha256": "73a813988eb16e7b3c9437e3a5b95c9072bb4b735f806528599f48dad8e0d6b9",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.35-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.35-frame-0.10",
+      "configurationSha256": "2e4cc1da0d3bab7619a0eedae6dd51141803a2d92bd50954229b6119d05fbc0b",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.35-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.35-frame-0.15",
+      "configurationSha256": "eeca6c967fdef21d01e007aaf6d7e3e07f6850394b7d34780946d1524f8c184a",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.35-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.35-frame-0.20",
+      "configurationSha256": "c0e2771ca3f30355fa16b2b8d86e41412f4cd7352da21e8cffea12bb49e3a02f",
+      "qualificationStatus": "REJECTED_OR_NOT_SELECTED",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-disabled-boost-2",
+      "selectedCandidateId": "online-amt-calibration-disabled-boost-2",
+      "configurationSha256": "f8fa92275a7f55926111f40a32ca3397500bfdaaa69ac77e87c07f279b8f0687",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-disabled-boost-1",
+      "selectedCandidateId": "online-amt-calibration-disabled-boost-1",
+      "configurationSha256": "6a56bba6f2d081af72396ae924ddb6683412069b833683ad46ee615761a14fc3",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-native-boost-2",
+      "selectedCandidateId": "online-amt-calibration-native-boost-2",
+      "configurationSha256": "7e76eb37acb8a04b82dffa73ca2e8634d3de7851f4657132f197c4fe5a9b5f53",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "selectedCandidateId": "online-amt-calibrated-v1",
+      "configurationSha256": "1f0f5718eca00a2305e1361937ec9207bc2c9bba06caef5739596fff59abfd8b",
+      "LOCKED_FOR_PHASE_9G_B": true,
+      "selectionStatus": "SELECTED_OR_GATE1_FALLBACK"
+    }
+  ]
+}
