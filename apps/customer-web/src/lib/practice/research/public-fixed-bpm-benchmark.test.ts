@@ -245,7 +245,7 @@ describe('public fixed-BPM benchmark policy', () => {
     expect(viennaRunner).toContain('onlineAmtGeometryIdentity(baseScenario)');
     expect(viennaRunner).toContain('ACOUSTIC_EVIDENCE_REUSE_REJECTED_GEOMETRY_MISMATCH');
     expect(viennaRunner).not.toContain('sameByteDanceChunkGeometry: true');
-    expect(viennaRunner).toContain('rawScoreDefinedScopeAttemptCount');
+    expect(viennaRunner).toContain('rawScopeAttemptCount');
     expect(viennaRunner).toContain('scopeCountDefinitions');
   });
 

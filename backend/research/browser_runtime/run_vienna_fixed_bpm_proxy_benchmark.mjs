@@ -38,14 +38,19 @@ const workRootRel = args['work-root'] ?? 'backend/data/work/public_proxy/vienna-
 const workRoot = path.resolve(repoRoot, workRootRel);
 const outputDirRel = args['output-dir'] ?? 'backend/research/reports';
 const outputDir = path.resolve(repoRoot, outputDirRel);
-const manifestRel = args['scenario-manifest'] ?? 'backend/research/reports/vienna_fixed_bpm_proxy_final_scenarios_phase9fb3_2026-10-08.json';
-const manifestPath = path.resolve(repoRoot, manifestRel);
-const reportRel = args.output ?? 'backend/research/reports/vienna_fixed_bpm_proxy_final_comparison_phase9fb3_2026-10-08.json';
-const reportPath = path.resolve(repoRoot, reportRel);
 const maxScenarios = Number(args['max-scenarios'] ?? DEFAULT_MAX_SCENARIOS);
 const includedPerformers = parseCsvSet(args.performers);
 const scenarioSplit = args['scenario-split'] ?? 'DEVELOPMENT';
 const practiceImage = args['practice-image'] ?? 'noteverse-backend-practice:dev';
+const phase = args.phase ?? '9F-B3';
+const executionMode = args['execution-mode'] ?? 'CANDIDATE_INFERENCE';
+const defaultPaths = defaultOutputPaths({ phase, executionMode });
+const manifestRel = args['scenario-manifest'] ?? defaultPaths.manifestRel;
+const manifestPath = path.resolve(repoRoot, manifestRel);
+const reportRel = args.output ?? defaultPaths.reportRel;
+const reportPath = path.resolve(repoRoot, reportRel);
+const calibrationPolicyRel = args['calibration-policy'] ?? 'backend/research/policies/public_model_calibration_protocol_v1_2026-10-09.json';
+const calibrationPolicyPath = path.resolve(repoRoot, calibrationPolicyRel);
 const implementationGitHead = gitHead(repoRoot);
 const dirtyTreeAtExecution = gitDirty(repoRoot);
 const require = createRequire(import.meta.url);
@@ -53,6 +58,7 @@ const { createJiti } = require(path.resolve(repoRoot, 'apps/customer-web/node_mo
 const jiti = createJiti(import.meta.url);
 
 const publicContract = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/practice/research/public-fixed-bpm-benchmark.ts'));
+const calibrationContract = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/practice/research/public-model-calibration.ts'));
 const bakeoff = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.ts'));
 const byteDance = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/practice/research/bytedance-score-aware-chunked.ts'));
 const onlineAmt = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/practice/research/online-amt-stateful-streaming.ts'));
@@ -61,6 +67,18 @@ const continuousContract = jiti(path.resolve(repoRoot, 'apps/customer-web/src/li
 
 await mkdir(outputDir, { recursive: true });
 await mkdir(workRoot, { recursive: true });
+
+const calibrationPolicy = await loadCalibrationPolicyIdentity();
+const phaseExecutionRequest = {
+  phase,
+  mode: executionMode,
+  scenarioSplit,
+  performers: [...includedPerformers].sort(),
+  policy: calibrationPolicy,
+};
+if (phase === '9G-A') {
+  calibrationContract.assertPhase9GExecutionAllowed(phaseExecutionRequest);
+}
 
 const acquisition = await ensureViennaSources();
 const scoreArtifacts = await ensureViennaPracticeScoreArtifacts(acquisition.metadataRoot);
@@ -126,9 +144,20 @@ const manifestSha256 = publicContract.canonicalPublicScenarioManifestSha256(publ
 
 await writeFile(manifestPath, `${JSON.stringify({
   schemaVersion: 1,
-  artifact: 'phase9f_b3_vienna_secondary_final_scenarios',
+  artifact: phase === '9G-A' && executionMode === 'TRUTH_ONLY'
+    ? 'phase9g_b_blind_truth_only_vienna_manifest'
+    : phase === '9G-A'
+      ? 'phase9g_a_vienna_calibration_scenarios'
+      : 'phase9f_b3_vienna_secondary_final_scenarios',
+  phase,
+  executionMode,
   implementationGitHead,
   scenarioManifestFrozenBeforeInference: true,
+  candidateInferenceIncluded: executionMode === 'CANDIDATE_INFERENCE',
+  candidateObservationIncluded: false,
+  candidatePublicationIncluded: false,
+  candidateScenarioRunIncluded: false,
+  calibrationPolicy,
   publicManifest,
   publicManifestSha256: manifestSha256,
   metadataCommit: VIENNA_METADATA_COMMIT,
@@ -141,6 +170,53 @@ await writeFile(manifestPath, `${JSON.stringify({
   practiceScoreArtifacts: [...scoreArtifacts.values()].map((item) => item.receipt),
   scenarios,
 }, null, 2)}\n`);
+
+if (executionMode === 'TRUTH_ONLY') {
+  await writeFile(reportPath, `${JSON.stringify({
+    schemaVersion: 1,
+    artifact: 'phase9g_b_blind_truth_only_vienna_manifest_receipt',
+    phase,
+    executionMode,
+    split: scenarioSplit,
+    implementationGitHead,
+    artifactGeneratedFromGitHead: gitHead(repoRoot),
+    dirtyTreeAtExecution,
+    calibrationPolicy,
+    blindCandidateInferencePerformed: false,
+    candidateRunCount: 0,
+    candidateObservationIncluded: false,
+    candidatePublicationIncluded: false,
+    candidateScenarioRunIncluded: false,
+    frozenScenarioManifest: {
+      path: normalizeRel(repoRoot, manifestPath),
+      sha256: await sha256File(manifestPath),
+      publicManifestSha256: manifestSha256,
+      scenarioCount: scenarios.length,
+    },
+    vienna: {
+      metadataCommit: VIENNA_METADATA_COMMIT,
+      datasetPerformanceCount: binding.intersectionCount,
+      filteredPerformanceCount: selectedPerformances.length,
+      includedPerformers: [...includedPerformers].sort(),
+    },
+    scopeGeneration: scopeGenerationSummary({
+      binding,
+      selectedPerformances,
+      scenarioPool,
+      skippedScopes,
+      baseScenarioReceipts,
+    }),
+    counterfactuals: counterfactualSummary(counterfactualReceipts),
+    confirmations: {
+      truthOnlyModeDidNotLoadOrExecuteCandidates: true,
+      evaluationCandidateOutputsGeneratedOrInspected: false,
+      productionWinnerSelected: false,
+      productionMicrophoneEnabled: false,
+    },
+  }, null, 2)}\n`);
+  console.log(normalizeRel(repoRoot, reportPath));
+  process.exit(0);
+}
 
 const runs = [];
 const runReceipts = [];
@@ -209,7 +285,17 @@ const familyComparisons = buildFamilyComparisons(diagnosticReport.scores, family
 const secondaryResult = publicContract.decideSecondaryHumanFixedBpmProxy({ base: paired, families: familyComparisons });
 const report = {
   schemaVersion: 1,
-  artifact: 'phase9f_b3_vienna_secondary_final_comparison',
+  artifact: phase === '9G-A'
+    ? 'phase9g_a_vienna_calibration_baseline_reference'
+    : 'phase9f_b3_vienna_secondary_final_comparison',
+  phase,
+  split: scenarioSplit,
+  executionMode,
+  calibrationUsed: phase === '9G-A' && scenarioSplit === 'CALIBRATION',
+  evaluationUsed: false,
+  blindCandidateInferencePerformed: false,
+  productionWinnerSelected: false,
+  officialProductRank: null,
   generatedAt: new Date().toISOString(),
   implementationGitHead,
   artifactGeneratedFromGitHead: gitHead(repoRoot),
@@ -219,6 +305,9 @@ const report = {
     'node backend/research/browser_runtime/run_vienna_fixed_bpm_proxy_benchmark.mjs',
     '--repo-root .',
     `--work-root ${workRootRel}`,
+    phase !== '9F-B3' ? `--phase ${phase}` : null,
+    executionMode !== 'CANDIDATE_INFERENCE' ? `--execution-mode ${executionMode}` : null,
+    `--calibration-policy ${calibrationPolicyRel}`,
     `--max-scenarios ${maxScenarios}`,
     includedPerformers.size > 0 ? `--performers ${[...includedPerformers].sort().join(',')}` : null,
     scenarioSplit !== 'DEVELOPMENT' ? `--scenario-split ${scenarioSplit}` : null,
@@ -232,6 +321,7 @@ const report = {
     dockerImage: ONLINE_AMT_IMAGE,
     practiceImage,
   },
+  calibrationPolicy,
   vienna: {
     metadataCommit: VIENNA_METADATA_COMMIT,
     officialAudioZipUrl: VIENNA_AUDIO_ZIP_URL,
@@ -265,19 +355,21 @@ const report = {
     scenarioCount: scenarios.length,
   },
   scopeGeneration: {
-    consideredPerformanceCount: binding.intersectionCount,
-    rawScoreDefinedScopeAttemptCount: scenarioPool.length + skippedScopes.length,
-    consideredScopeCount: scenarioPool.length + skippedScopes.length,
-    baseScenarioCount: baseScenarios.length,
+    ...scopeGenerationSummary({
+      binding,
+      selectedPerformances,
+      scenarioPool,
+      skippedScopes,
+      baseScenarioReceipts,
+    }),
     scopeCountDefinitions: {
-      consideredScopeCount: 'raw score-defined RANGE scope attempts before the pre-model gate',
+      datasetPerformanceCount: 'all Vienna bound audio/MIDI/match performances in the dataset intersection',
+      filteredPerformanceCount: 'performances belonging to the requested/frozen performer set',
+      rawScopeAttemptCount: 'raw score-defined RANGE scope attempts for the filtered performance set before the pre-model gate',
       candidateScopeCountByPiece: 'raw score-defined RANGE scope attempts grouped by Vienna piece',
       eligibleBasePoolCountByPiece: 'BASE_ORIGINAL scopes that passed the frozen pre-model ground-truth and context gates',
       selectedScenariosByPiece: 'BASE_ORIGINAL scopes selected for paired model execution',
     },
-    candidateScopeCountByPiece: countBy([...scenarioPool.map((item) => item.receipt), ...skippedScopes], (item) => item.pieceId ?? pieceIdForPerformance(item.performanceId ?? '')),
-    eligibleBasePoolCountByPiece: countBy(scenarioPool.map((item) => item.receipt), (item) => item.pieceId),
-    skippedScopeCount: skippedScopes.length,
     targetScopeMs: DEFAULT_SCOPE_TARGET_MS,
     minScopeMs: DEFAULT_SCOPE_MIN_MS,
     maxScopeMs: DEFAULT_SCOPE_MAX_MS,
@@ -285,27 +377,9 @@ const report = {
       groundTruthExpectedStrikeMatchRateAtLeast: 0.95,
       absoluteTimingResidualP95AtMostMs: 125,
     },
-    bpmDistribution: distribution(baseScenarioReceipts.map((item) => item.configuredIntegerBpm)),
-    residualP95DistributionMs: distribution(baseScenarioReceipts.map((item) => item.absoluteResidualP95Ms)),
-    ledgerGroundTruthMatchRateDistribution: distribution(baseScenarioReceipts.map((item) => item.ledgerGroundTruthExpectedStrikeMatchRate)),
-    realScoreMissingNoteCount: baseScenarioReceipts.reduce((sum, item) => sum + item.groundTruthMissingCount, 0),
-    realPhysicalExtraCount: baseScenarioReceipts.reduce((sum, item) => sum + item.groundTruthExtraCount, 0),
-    selectedScenariosByPiece: countBy(baseScenarioReceipts, (item) => item.pieceId),
-    uniquePerformerCount: new Set(baseScenarioReceipts.map((item) => performerIdForPerformance(item.performanceId))).size,
-    uniquePerformanceCount: new Set(baseScenarioReceipts.map((item) => item.performanceId)).size,
-    uniquePieceCount: new Set(baseScenarioReceipts.map((item) => item.pieceId)).size,
   },
   counterfactuals: {
-    mutationManifestSha256: sha256Text(canonicalJson(counterfactualReceipts.map((receipt) => receipt.mutation))),
-    countsByFamily: countBy(counterfactualReceipts, (item) => item.family),
-    pieceCountsByFamily: Object.fromEntries([...new Set(counterfactualReceipts.map((item) => item.family))].map((family) => [
-      family,
-      new Set(counterfactualReceipts.filter((item) => item.family === family).map((item) => item.pieceId)).size,
-    ])),
-    performanceCountsByFamily: Object.fromEntries([...new Set(counterfactualReceipts.map((item) => item.family))].map((family) => [
-      family,
-      new Set(counterfactualReceipts.filter((item) => item.family === family).map((item) => item.performanceId)).size,
-    ])),
+    ...counterfactualSummary(counterfactualReceipts),
     receipts: counterfactualReceipts,
   },
   candidateRuns: {
@@ -319,10 +393,14 @@ const report = {
   metrics: headline,
   pairedComparison: paired,
   familyPairedComparisons: familyComparisons,
-  SECONDARY_HUMAN_FIXED_BPM_PROXY_RESULT: secondaryResult,
-  overallPublicEvidenceConclusion: secondaryResult === 'NO_CLEAR_WINNER'
-    ? 'NO_CLEAR_WINNER_ON_PUBLIC_FIXED_BPM_PROXY'
-    : 'PREFERRED_ON_SECONDARY_HUMAN_PROXY',
+  historicalBaselineComparison: phase === '9G-A' ? 'DESCRIPTIVE_ONLY' : undefined,
+  CALIBRATION_POLICY_DIAGNOSTIC_CURRENT_BASELINES: phase === '9G-A' ? secondaryResult : undefined,
+  ...(phase === '9G-A' ? {} : {
+    SECONDARY_HUMAN_FIXED_BPM_PROXY_RESULT: secondaryResult,
+    overallPublicEvidenceConclusion: secondaryResult === 'NO_CLEAR_WINNER'
+      ? 'NO_CLEAR_WINNER_ON_PUBLIC_FIXED_BPM_PROXY'
+      : 'PREFERRED_ON_SECONDARY_HUMAN_PROXY',
+  }),
   diagnosticBakeoffReport: compactBakeoffReport(diagnosticReport),
   confirmations: {
     byteDanceNotTuned: true,
@@ -332,7 +410,7 @@ const report = {
     publicProxyNotOfficialEvaluation: true,
     officialProductRankRemainsNull: true,
     productionMicrophoneEnabled: false,
-    calibrationUsed: false,
+    calibrationUsed: phase === '9G-A' && scenarioSplit === 'CALIBRATION',
     evaluationUsed: false,
     expectedTruthSource: 'PracticeScoreArtifact + CUSTOM_FIXED_BPM + PracticeScope RANGE + resolveContinuousPracticeContract',
     physicalTruthSource: 'Full Vienna performance MIDI NoteOn events',
@@ -392,6 +470,19 @@ async function ensureViennaSources() {
     },
     changesMdSha256: await sha256File(path.join(metadataRoot, 'CHANGES.md')),
   };
+}
+
+async function loadCalibrationPolicyIdentity() {
+  const text = await readFile(calibrationPolicyPath, 'utf8');
+  const policy = JSON.parse(text);
+  const identity = {
+    path: normalizeRel(repoRoot, calibrationPolicyPath),
+    sha256: sha256Text(text),
+    policyId: policy.policyId,
+    schemaVersion: policy.schemaVersion,
+  };
+  calibrationContract.assertPublicModelCalibrationPolicyIdentity(identity);
+  return identity;
 }
 
 async function ensureViennaPracticeScoreArtifacts(metadataRootRel) {
@@ -783,12 +874,15 @@ function acousticEvidenceReuseReceipt(baseScenario, mutatedScenario) {
   const mutatedByteDance = byteDanceGeometryIdentity(mutatedScenario);
   const baseOnlineAmt = onlineAmtGeometryIdentity(baseScenario);
   const mutatedOnlineAmt = onlineAmtGeometryIdentity(mutatedScenario);
+  const candidateConfigurations = candidateConfigurationReuseIdentity();
   const receipt = {
     status: 'ACOUSTIC_EVIDENCE_REUSED_IDENTICAL_INPUT',
     sameSourceAudioSha: baseScenario.source.sourceAudioSha256 === mutatedScenario.source.sourceAudioSha256,
     samePerformanceOrigin: baseScenario.audio.performanceOriginSourceMs === mutatedScenario.audio.performanceOriginSourceMs,
     sameCompletion: baseScenario.completion.performanceTimeMs === mutatedScenario.completion.performanceTimeMs,
-    sameFrozenCandidateConfiguration: true,
+    candidateConfigurations,
+    sameFrozenCandidateConfiguration: Object.values(candidateConfigurations)
+      .every((entry) => entry.sameFrozenCandidateConfiguration),
     byteDanceChunkGeometrySha256: {
       base: baseByteDance.sha256,
       mutated: mutatedByteDance.sha256,
@@ -804,6 +898,7 @@ function acousticEvidenceReuseReceipt(baseScenario, mutatedScenario) {
     !receipt.sameSourceAudioSha
     || !receipt.samePerformanceOrigin
     || !receipt.sameCompletion
+    || !receipt.sameFrozenCandidateConfiguration
     || !receipt.sameByteDanceChunkGeometry
     || !receipt.sameOnlineAmtOwnedPcmTailGeometry
   ) {
@@ -813,6 +908,23 @@ function acousticEvidenceReuseReceipt(baseScenario, mutatedScenario) {
     };
   }
   return receipt;
+}
+
+function candidateConfigurationReuseIdentity() {
+  const bytedanceConfigurationSha256 = byteDance.bytedanceCandidateDefinition({ gitHead: implementationGitHead, trainingDataOverlapStatus: 'UNKNOWN' }).identity.configurationSha256;
+  const onlineAmtConfigurationSha256 = onlineAmt.onlineAmtCandidateDefinition({ gitHead: implementationGitHead, trainingDataOverlapStatus: 'UNKNOWN' }).identity.configurationSha256;
+  return {
+    [BYTEDANCE_CANDIDATE_ID]: {
+      baseCandidateConfigurationSha256: bytedanceConfigurationSha256,
+      counterfactualCandidateConfigurationSha256: bytedanceConfigurationSha256,
+      sameFrozenCandidateConfiguration: bytedanceConfigurationSha256 === bytedanceConfigurationSha256,
+    },
+    [ONLINE_AMT_CANDIDATE_ID]: {
+      baseCandidateConfigurationSha256: onlineAmtConfigurationSha256,
+      counterfactualCandidateConfigurationSha256: onlineAmtConfigurationSha256,
+      sameFrozenCandidateConfiguration: onlineAmtConfigurationSha256 === onlineAmtConfigurationSha256,
+    },
+  };
 }
 
 function byteDanceGeometryIdentity(scenario) {
@@ -1070,6 +1182,7 @@ function selectBalancedCounterfactuals(candidates, target) {
 }
 
 async function runByteDanceScenario(scenario) {
+  if (phase === '9G-A') calibrationContract.assertCandidateExecutorReachableForPhase9G(phaseExecutionRequest);
   const wav = byteDance.decodeResearchWavToMonoFloat32(await readFile(path.resolve(repoRoot, scenario.source.sourceAudioPath)));
   const plans = byteDance.planByteDanceScoreAwareChunks(scenario);
   byteDance.validateByteDanceSourceContext(scenario, plans);
@@ -1132,6 +1245,7 @@ async function runByteDanceScenario(scenario) {
 }
 
 async function runOnlineAmtScenario(scenario) {
+  if (phase === '9G-A') calibrationContract.assertCandidateExecutorReachableForPhase9G(phaseExecutionRequest);
   const wav = byteDance.decodeResearchWavToMonoFloat32(await readFile(path.resolve(repoRoot, scenario.source.sourceAudioPath)));
   const completion = scenario.completion.performanceTimeMs;
   const ownedSamples = performanceOwnedSamplesAtOrBefore(completion);
@@ -1438,6 +1552,50 @@ function buildFamilyComparisons(scores, familyTagsByScenario) {
   }));
 }
 
+function scopeGenerationSummary({
+  binding,
+  selectedPerformances,
+  scenarioPool,
+  skippedScopes,
+  baseScenarioReceipts,
+}) {
+  return {
+    datasetPerformanceCount: binding.intersectionCount,
+    filteredPerformanceCount: selectedPerformances.length,
+    rawScopeAttemptCount: scenarioPool.length + skippedScopes.length,
+    consideredScopeCount: scenarioPool.length + skippedScopes.length,
+    baseScenarioCount: baseScenarioReceipts.length,
+    selectedBaseScenarioCount: baseScenarioReceipts.length,
+    candidateScopeCountByPiece: countBy([...scenarioPool.map((item) => item.receipt), ...skippedScopes], (item) => item.pieceId ?? pieceIdForPerformance(item.performanceId ?? '')),
+    eligibleBasePoolCountByPiece: countBy(scenarioPool.map((item) => item.receipt), (item) => item.pieceId),
+    skippedScopeCount: skippedScopes.length,
+    bpmDistribution: distribution(baseScenarioReceipts.map((item) => item.configuredIntegerBpm)),
+    residualP95DistributionMs: distribution(baseScenarioReceipts.map((item) => item.absoluteResidualP95Ms)),
+    ledgerGroundTruthMatchRateDistribution: distribution(baseScenarioReceipts.map((item) => item.ledgerGroundTruthExpectedStrikeMatchRate)),
+    realScoreMissingNoteCount: baseScenarioReceipts.reduce((sum, item) => sum + item.groundTruthMissingCount, 0),
+    realPhysicalExtraCount: baseScenarioReceipts.reduce((sum, item) => sum + item.groundTruthExtraCount, 0),
+    selectedScenariosByPiece: countBy(baseScenarioReceipts, (item) => item.pieceId),
+    uniquePerformerCount: new Set(baseScenarioReceipts.map((item) => performerIdForPerformance(item.performanceId))).size,
+    uniquePerformanceCount: new Set(baseScenarioReceipts.map((item) => item.performanceId)).size,
+    uniquePieceCount: new Set(baseScenarioReceipts.map((item) => item.pieceId)).size,
+  };
+}
+
+function counterfactualSummary(counterfactualReceipts) {
+  return {
+    mutationManifestSha256: sha256Text(canonicalJson(counterfactualReceipts.map((receipt) => receipt.mutation))),
+    countsByFamily: countBy(counterfactualReceipts, (item) => item.family),
+    pieceCountsByFamily: Object.fromEntries([...new Set(counterfactualReceipts.map((item) => item.family))].map((family) => [
+      family,
+      new Set(counterfactualReceipts.filter((item) => item.family === family).map((item) => item.pieceId)).size,
+    ])),
+    performanceCountsByFamily: Object.fromEntries([...new Set(counterfactualReceipts.map((item) => item.family))].map((family) => [
+      family,
+      new Set(counterfactualReceipts.filter((item) => item.family === family).map((item) => item.performanceId)).size,
+    ])),
+  };
+}
+
 function reuseCandidateRunForCounterfactual(baseRun, scenario) {
   const replaceId = (value) => typeof value === 'string' ? value.replaceAll(baseRun.scenarioId, scenario.scenarioId) : value;
   return {
@@ -1713,4 +1871,23 @@ function parseArgs(argv) {
     }
   }
   return parsed;
+}
+
+function defaultOutputPaths({ phase, executionMode }) {
+  if (phase === '9G-A' && executionMode === 'TRUTH_ONLY') {
+    return {
+      manifestRel: 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json',
+      reportRel: 'backend/research/reports/phase9g_b_blind_truth_only_manifest_receipt_2026-10-09.json',
+    };
+  }
+  if (phase === '9G-A') {
+    return {
+      manifestRel: 'backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json',
+      reportRel: 'backend/research/reports/phase9g_a1_vienna_calibration_baseline_reference_2026-10-09.json',
+    };
+  }
+  return {
+    manifestRel: 'backend/research/reports/vienna_fixed_bpm_proxy_final_scenarios_phase9fb3_2026-10-08.json',
+    reportRel: 'backend/research/reports/vienna_fixed_bpm_proxy_final_comparison_phase9fb3_2026-10-08.json',
+  };
 }

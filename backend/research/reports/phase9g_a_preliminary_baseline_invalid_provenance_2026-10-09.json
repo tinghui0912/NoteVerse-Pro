@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a_preliminary_baseline_invalid_provenance_audit",
+  "phase": "9G-A.1",
+  "createdAt": "2026-10-09T00:00:00.000+08:00",
+  "auditedArtifact": {
+    "path": "backend/research/reports/phase9g_a_vienna_calibration_current_baselines_2026-10-09.json",
+    "recordedImplementationGitHead": "d284d3a04a474d37417b9c453321391f80833857",
+    "knownRequiredLaterFixGitHead": "0d397f5b56148ba4b7ec4da5b3d7fd8b28005ff5"
+  },
+  "status": "PRELIMINARY_INVALID_EXECUTION_PROVENANCE",
+  "reason": "RECORDED_IMPLEMENTATION_GIT_HEAD_DOES_NOT_FULLY_DESCRIBE_EXECUTED_CALIBRATION_CODE",
+  "details": [
+    "The artifact contains a 24-scenario paired CALIBRATION comparison.",
+    "The scenarioSplit BASE-score filtering fix needed to produce that comparison was committed after the artifact's recorded implementationGitHead.",
+    "The artifact is preserved as historical preliminary evidence but must not be used for profile selection."
+  ],
+  "replacementRequired": true
+}

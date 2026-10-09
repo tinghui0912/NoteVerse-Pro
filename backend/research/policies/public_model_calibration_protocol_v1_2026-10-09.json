@@ -129,19 +129,26 @@
         {
           "profileId": "INTERMEDIATE_CONTEXT_3S",
           "modelInputMs": 3000,
-          "overlapPolicy": "central ownership derived from fixed context",
+          "ownedCentralRegionMs": 1500,
+          "pastContextMs": 750,
+          "futureContextMs": 750,
+          "overlapPolicy": "overlapping model input windows with non-overlapping product ownership; first/last windows require real source context and do not use fake zero padding",
           "thresholdGrid": "PREDECLARED_BYTEDANCE_THRESHOLD_GRID_V1"
         },
         {
           "profileId": "INTERMEDIATE_CONTEXT_5S",
           "modelInputMs": 5000,
-          "overlapPolicy": "central ownership derived from fixed context",
+          "ownedCentralRegionMs": 2500,
+          "pastContextMs": 1250,
+          "futureContextMs": 1250,
+          "overlapPolicy": "overlapping model input windows with non-overlapping product ownership; first/last windows require real source context and do not use fake zero padding",
           "thresholdGrid": "PREDECLARED_BYTEDANCE_THRESHOLD_GRID_V1"
         },
         {
           "profileId": "UPSTREAM_10S_REFERENCE",
           "modelInputMs": 10000,
           "ownedCentralRegionMs": 5000,
+          "pastContextMs": 2500,
           "futureContextMs": 2500,
           "overlapPolicy": "upstream 50% overlap central-region deframing",
           "thresholdGrid": [
@@ -169,9 +176,10 @@
         "onsetStateIds": [3, 4]
       },
       "timingCorrectionCalibration": {
+        "algorithmId": "ONLINE_AMT_TIMING_CALIBRATION_V1",
         "historicalCorrectionMs": -158,
         "calibrationAllowedOnCalibrationProxyOnly": true,
-        "method": "predeclared robust median signed timing error from high-confidence pitch-matched events or bounded search recorded before execution"
+        "method": "Generate raw Online-AMT onset evidence on CALIBRATION BASE audio only using zero additional timing correction. Match raw candidate onsets to physical MIDI attacks using same pitch only, deterministic one-to-one assignment, maximum absolute timing distance 250ms, maximize matches then minimize total absolute timing error. For every matched pair compute physicalAttackTimeMs - rawCandidateEventTimeMs. The calibrated correction is the median of all matched signed offsets. Record matched pair count, median, signed residual P05/P50/P95, and absolute residual P50/P95. ExpectedStrike timing, counterfactual duplicate acoustic evidence, and BLIND_EVALUATION data are forbidden inputs."
       },
       "predeclaredPolicies": {
         "pseudoIntensity": ["DISABLED_PSEUDO_INTENSITY", "NATIVE_PSEUDO_INTENSITY"],

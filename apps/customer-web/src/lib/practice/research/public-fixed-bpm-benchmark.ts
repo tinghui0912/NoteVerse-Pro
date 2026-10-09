@@ -94,7 +94,7 @@ export type PublicBootstrapConfig = {
   draws: number;
 };
 
-type PublicPairedMetricComparison = {
+export type PublicPairedMetricComparison = {
   status: 'MEASURED' | 'NOT_EVALUATED';
   sampleCount: number;
   meanDifferenceByteDanceMinusOnlineAmt: number | null;
