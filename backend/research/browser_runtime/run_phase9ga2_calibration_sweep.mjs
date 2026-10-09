@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -22,14 +22,17 @@ const POLICY_REL = 'backend/research/policies/public_model_calibration_protocol_
 const SCENARIO_REL = 'backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json';
 const BASELINE_REPORT_REL = 'backend/research/reports/phase9g_a1_vienna_calibration_baseline_reference_2026-10-09.json';
 const BLIND_REL = 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json';
-const REPORT_REL = 'backend/research/reports/phase9g_a22_bytedance_online_amt_incumbent_completion_2026-10-09.json';
-const PROFILE_REGISTRY_REL = 'backend/research/reports/phase9g_a22_final_incumbent_registry_2026-10-09.json';
-const CORRECTION_RECEIPT_REL = 'backend/research/reports/phase9g_a22_prior_artifact_status_receipt_2026-10-09.json';
-const BYTEDANCE_PROVENANCE_REL = 'backend/research/reports/phase9g_a22_bytedance_same_weight_provenance_2026-10-09.json';
-const BYTEDANCE_PARITY_REL = 'backend/research/reports/phase9g_a22_bytedance_checkpoint_onnx_decoded_parity_2026-10-09.json';
-const BLIND_LOCK_REL = 'backend/research/reports/phase9g_a22_blind_lock_receipt_2026-10-09.json';
-const V1V2_RECEIPT_REL = 'backend/research/reports/phase9g_a22_v1_v2_blind_semantic_equivalence_2026-10-09.json';
+const REPORT_REL = 'backend/research/reports/phase9g_a23_bytedance_online_amt_incumbent_completion_2026-10-09.json';
+const PROFILE_REGISTRY_REL = 'backend/research/reports/phase9g_a23_final_incumbent_registry_2026-10-09.json';
+const CORRECTION_RECEIPT_REL = 'backend/research/reports/phase9g_a23_prior_artifact_status_receipt_2026-10-09.json';
+const BYTEDANCE_PROVENANCE_REL = 'backend/research/reports/phase9g_a23_bytedance_same_weight_provenance_2026-10-09.json';
+const BYTEDANCE_PARITY_REL = 'backend/research/reports/phase9g_a23_bytedance_checkpoint_onnx_decoded_parity_2026-10-09.json';
+const BYTEDANCE_RAW_EVIDENCE_REL = 'backend/research/reports/phase9g_a23_bytedance_raw_evidence_manifest_2026-10-09.json';
+const BYTEDANCE_FUTURE_OVERRUN_REL = 'backend/research/reports/phase9g_a23_bytedance_future_overrun_diagnostic_2026-10-09.json';
+const BLIND_LOCK_REL = 'backend/research/reports/phase9g_a23_blind_lock_receipt_2026-10-09.json';
+const V1V2_RECEIPT_REL = 'backend/research/reports/phase9g_a23_v1_v2_blind_semantic_equivalence_2026-10-09.json';
 const A21_REPORT_REL = 'backend/research/reports/phase9g_a21_bytedance_online_amt_incumbent_completion_2026-10-09.json';
+const A22_REPORT_REL = 'backend/research/reports/phase9g_a22_bytedance_online_amt_incumbent_completion_2026-10-09.json';
 const ONLINE_AMT_IMAGE = 'noteverse-online-amt-modern:phase9e-b1';
 const BYTEDANCE_IMAGE = 'noteverse-bytedance-calibration:phase9ga21';
 const TIMING_CALIBRATION_REAL_POSTROLL_MS = 500;
@@ -57,7 +60,7 @@ const ONLINE_AMT_POLICIES = [
 ];
 
 await mkdir(path.resolve(repoRoot, 'backend/research/reports'), { recursive: true });
-await mkdir(path.resolve(repoRoot, 'backend/data/work/public_proxy/vienna-4x22/phase9ga2'), { recursive: true });
+await mkdir(path.resolve(repoRoot, 'backend/data/work/public_proxy/vienna-4x22/phase9ga23'), { recursive: true });
 
 const policy = await measuredPolicyIdentity(POLICY_REL);
 calibration.assertPublicModelCalibrationPolicyIdentity(policy);
@@ -74,8 +77,8 @@ const blindManifest = JSON.parse(await readFile(path.resolve(repoRoot, BLIND_REL
 const blindProjection = semanticProjection(blindManifest);
 const blindLock = {
   schemaVersion: 1,
-  artifact: 'phase9g_a22_blind_lock_receipt',
-  phase: '9G-A.2.2',
+  artifact: 'phase9g_a23_blind_lock_receipt',
+  phase: '9G-A.2.3',
   blindManifestPath: BLIND_REL,
   blindManifestSha256: blindManifestSha,
   expectedBlindManifestSha256: '0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab',
@@ -99,7 +102,7 @@ const v1ProjectionSha = sha256Json(semanticProjection(v1Manifest));
 const v2ProjectionSha = sha256Json(semanticProjection(v2Manifest));
 await writeJson(V1V2_RECEIPT_REL, {
   schemaVersion: 1,
-  artifact: 'phase9g_a22_v1_v2_blind_semantic_equivalence',
+  artifact: 'phase9g_a23_v1_v2_blind_semantic_equivalence',
   v1ManifestGitObject: `b938fc49:${BLIND_REL}`,
   v1ManifestSha256: v1Sha,
   v2ManifestPath: BLIND_REL,
@@ -118,9 +121,16 @@ const a21Report = existsSync(path.resolve(repoRoot, A21_REPORT_REL))
 const a21ReportSha = existsSync(path.resolve(repoRoot, A21_REPORT_REL))
   ? await sha256File(path.resolve(repoRoot, A21_REPORT_REL))
   : null;
+const a22Report = existsSync(path.resolve(repoRoot, A22_REPORT_REL))
+  ? JSON.parse(await readFile(path.resolve(repoRoot, A22_REPORT_REL), 'utf8'))
+  : null;
+const a22ReportSha = existsSync(path.resolve(repoRoot, A22_REPORT_REL))
+  ? await sha256File(path.resolve(repoRoot, A22_REPORT_REL))
+  : null;
 const scenarios = scenarioManifest.scenarios;
 const baseScenarios = scenarios.filter((scenario) => scenario.familyTags.includes('BASE_ORIGINAL'));
 const counterfactualReceiptsByScenario = new Map((scenarioManifest.counterfactualReceipts ?? []).map((receipt) => [receipt.scenarioId, receipt]));
+const byteDanceFutureOverrunDiagnostic = await writeByteDanceFutureOverrunDiagnostic(baseScenarios);
 
 await ensureByteDanceParityReceipt();
 const byteDanceResult = await runByteDanceCalibration({ scenarios, baseScenarios, counterfactualReceiptsByScenario, scenarioManifestSha });
@@ -130,8 +140,8 @@ const byteDanceSameWeightProvenance = await writeByteDanceSameWeightProvenance()
 
 const registry = {
   schemaVersion: 1,
-  artifact: 'phase9g_a22_final_incumbent_registry',
-  phase: '9G-A.2.2',
+  artifact: 'phase9g_a23_final_incumbent_registry',
+  phase: '9G-A.2.3',
   policy,
   scenarioManifestSha256: scenarioManifestSha,
   profiles: [...byteDanceResult.profileRegistry, ...onlineAmtResult.profileRegistry],
@@ -140,8 +150,8 @@ await writeJson(PROFILE_REGISTRY_REL, registry);
 
 const report = {
   schemaVersion: 1,
-  artifact: 'phase9g_a22_bytedance_online_amt_incumbent_completion',
-  phase: '9G-A.2.2',
+  artifact: 'phase9g_a23_bytedance_online_amt_incumbent_completion',
+  phase: '9G-A.2.3',
   calibrationUsed: true,
   evaluationUsed: false,
   blindCandidateInferencePerformed: false,
@@ -163,6 +173,11 @@ const report = {
     lockReceiptPath: BLIND_LOCK_REL,
     semanticProjectionSha256: blindLock.semanticTruthProjectionSha256,
   },
+  byteDanceFutureOverrunDiagnostic: {
+    path: BYTEDANCE_FUTURE_OVERRUN_REL,
+    sha256: await sha256File(BYTEDANCE_FUTURE_OVERRUN_REL),
+    correctedMaximumExcessFutureMs: byteDanceFutureOverrunDiagnostic.correctedMaximumExcessFutureMs,
+  },
   v1V2BlindSemanticEquivalenceReceiptPath: V1V2_RECEIPT_REL,
   scenarioManifest: {
     path: SCENARIO_REL,
@@ -179,6 +194,12 @@ const report = {
     path: A21_REPORT_REL,
     sha256: a21ReportSha,
     preservedAsPartialEvidence: Boolean(a21Report),
+  },
+  phase9gA22InvalidatedComparison: {
+    path: A22_REPORT_REL,
+    sha256: a22ReportSha,
+    preservedAsHistoricalEvidence: Boolean(a22Report),
+    gate1SurvivorCountsByContext: a22Report ? byteDanceSurvivorCountsByContext(a22Report.byteDance?.selectorTrace?.remainingProfileIds ?? []) : null,
   },
   prematureLockInvalidationReceiptPath: CORRECTION_RECEIPT_REL,
   prematureLockInvalidation,
@@ -222,9 +243,10 @@ async function runByteDanceCalibration(input) {
   const coverage = familyCounts(scoredScenarios);
   const minimumCoveragePass = ['BASE_ORIGINAL', 'COUNTERFACTUAL_MISSING_NOTE', 'COUNTERFACTUAL_WRONG_SEMITONE', 'COUNTERFACTUAL_INCOMPLETE_CHORD']
     .every((family) => (coverage[family] ?? 0) >= 8);
-  const rawBatches = parityVerified && minimumCoveragePass
+  const rawBatchResult = parityVerified && minimumCoveragePass
     ? await runByteDancePyTorchBatches({ contexts, baseScenarios: commonBaseScenarios, contextEligibility })
-    : new Map();
+    : { byContext: new Map(), evidenceManifest: null };
+  const rawBatches = rawBatchResult.byContext;
   const profiles = [];
   const candidateDefinitions = [];
   const runs = [];
@@ -240,7 +262,7 @@ async function runByteDanceCalibration(input) {
             strategyKind: 'CHUNKED',
             runtime: 'ByteDance original PyTorch CPU variable-context calibration',
             checkpointSha: EXPECTED_BYTEDANCE_CHECKPOINT.sha256,
-            adapterVersion: 'phase9g-a22-variable-context-threshold-calibration-v1',
+            adapterVersion: 'phase9g-a23-variable-context-threshold-calibration-v1',
             configurationSha256: profile.configurationSha256,
           }));
           for (const scenario of scoredScenarios) {
@@ -264,7 +286,11 @@ async function runByteDanceCalibration(input) {
   });
   const scores = calibrationScoresFromSummaries(diagnostic.scores);
   const selection = scores.length > 0 ? calibration.selectCalibrationProfile(scores) : null;
-  const gate2TieBreak = selection?.selectedProfileId ? null : byteDanceGate2TieBreak({ selection, profiles });
+  const gate2TieBreak = selection?.selectedProfileId ? null : byteDanceGate2TieBreak({
+    selection,
+    profiles,
+    aggregateMetrics: diagnostic.aggregateMetrics ?? {},
+  });
   const selectedProfileId = selection?.selectedProfileId ?? gate2TieBreak?.selectedProfileId ?? null;
   const locked = Boolean(selectedProfileId && parityVerified && minimumCoveragePass && failures.length === 0);
   const selectedProfile = profiles.find((profile) => profile.profileId === selectedProfileId) ?? null;
@@ -313,16 +339,25 @@ async function runByteDanceCalibration(input) {
       },
       rawNeuralInferenceExecutedCount: [...rawBatches.values()].reduce((sum, byScenario) =>
         sum + [...byScenario.values()].reduce((inner, raw) => inner + raw.chunks.length, 0), 0),
+      validatedRawArtifactReadbackCount: rawBatchResult.evidenceManifest?.rows?.length ?? 0,
       validatedRawCacheLoadCount: 0,
       rawCacheMemoryHitCount: 0,
+      uniqueInferenceWindowCount: rawBatchResult.evidenceManifest?.rows?.length ?? 0,
       thresholdDecodeCount: runs.length,
+      thresholdScenarioDecodeCount: runs.length,
+      rawChunkDecodeCount: runs.reduce((sum, run) => sum + run.publications.length, 0),
       counterfactualRawReuseCount: scoredScenarios.filter((scenario) =>
         input.counterfactualReceiptsByScenario.has(scenario.scenarioId)
       ).length * profiles.length,
+      rawEvidenceManifestPath: BYTEDANCE_RAW_EVIDENCE_REL,
+      rawEvidenceManifestSha256: existsSync(path.resolve(repoRoot, BYTEDANCE_RAW_EVIDENCE_REL))
+        ? await sha256File(BYTEDANCE_RAW_EVIDENCE_REL)
+        : null,
       thresholdProfileCount: profiles.length,
       blockedContextCount: parityVerified && minimumCoveragePass ? 0 : contexts.length,
       metrics: compactAggregateMetrics(diagnostic.aggregateMetrics),
       selectorTrace: selection,
+      gate1SurvivorCountsByContext: selection ? byteDanceSurvivorCountsByContext(selection.remainingProfileIds ?? []) : null,
       gate2TieBreak,
       selectedProfileId,
       selectedContext: selectedProfile?.projection.context.profileId ?? null,
@@ -355,6 +390,76 @@ async function ensureByteDanceParityReceipt() {
   if (run.status !== 0) {
     throw new Error(`ByteDance checkpoint/ONNX parity failed: ${run.stderr || run.stdout}`);
   }
+  const receipt = JSON.parse(await readFile(outputPath, 'utf8'));
+  let authoritativePass = true;
+  const comparisons = receipt.comparisons.map((item) => {
+    const pytorchEvents = decodeParityEventsWithTypeScript(item.fixtureId, item.pytorchRawOutputs);
+    const onnxEvents = decodeParityEventsWithTypeScript(item.fixtureId, item.onnxRawOutputs);
+    const authoritativeDecodedEventParityAtOnset020Frame020 = canonicalJson(pytorchEvents) === canonicalJson(onnxEvents);
+    authoritativePass = authoritativePass && authoritativeDecodedEventParityAtOnset020Frame020;
+    const { pytorchRawOutputs: _pytorchRawOutputs, onnxRawOutputs: _onnxRawOutputs, ...compact } = item;
+    return {
+      ...compact,
+      authoritativeDecodedEventParityAtOnset020Frame020,
+      authoritativeDecodedEventSequenceSha256: sha256Json(pytorchEvents),
+    };
+  });
+  await writeJson(BYTEDANCE_PARITY_REL, {
+    ...receipt,
+    artifact: 'phase9g_a23_bytedance_checkpoint_onnx_decoded_parity',
+    phase: '9G-A.2.3',
+    comparisons,
+    overallAuthoritativeDecodedEventParityAtOnset020Frame020: authoritativePass,
+  });
+}
+
+function decodeParityEventsWithTypeScript(fixtureId, rawOutputs) {
+  const scenarioId = `phase9g-a23-parity:${fixtureId}`;
+  const scenario = {
+    scenarioId,
+    schemaVersion: 1,
+    split: 'DEVELOPMENT',
+    familyTags: ['PARITY_FIXTURE'],
+    source: { corpusId: 'phase9g-a23-parity', sourceAudioSha256: 'parity', sourceMidiSha256: 'parity' },
+    audio: {
+      sourceAudioSha256: 'parity',
+      sourceSampleRateHz: 16000,
+      channelCount: 1,
+      sampleEncoding: 'PCM_FLOAT32',
+      sourceDurationMs: 1820,
+      performanceOriginSourceMs: 0,
+      clipStartMs: 0,
+      clipEndMs: 1820,
+    },
+    completion: { kind: 'NATURAL', performanceTimeMs: 1820 },
+    expectedStrikes: [],
+    physicalGroundTruth: { attacks: [] },
+  };
+  const plan = {
+    chunkId: `${scenarioId}:chunk-0`,
+    scenarioId,
+    inputStartPerformanceMs: 0,
+    inputEndPerformanceMs: 1820,
+    commitStartPerformanceMs: 0,
+    commitEndPerformanceMs: 600,
+    expectedGroupIds: [],
+  };
+  const raw = byteDance.byteDanceRawOutputsFromBrowserChunkArtifact({
+    chunkId: plan.chunkId,
+    rawOutputs,
+  }, { allowVariableFrameCount: true });
+  return byteDance.decodeByteDanceChunkRawOutputs({
+    scenario,
+    plan,
+    raw,
+    onsetThreshold: 0.20,
+    frameThreshold: 0.20,
+    allowVariableFrameCount: true,
+  }).map((event) => ({
+    pitch: event.pitch,
+    performanceTimeMs: event.performanceTimeMs,
+    eventId: event.eventId,
+  }));
 }
 
 async function runOnlineAmtCalibration(input) {
@@ -383,7 +488,7 @@ async function runOnlineAmtCalibration(input) {
       strategyKind: 'STREAMING',
       runtime: 'Online-AMT modern compatibility Docker CPU',
       checkpointSha: onlineAmt.ONLINE_AMT_STREAMING_BASELINE_CONFIG.checkpointSha256,
-      adapterVersion: 'phase9g-a2-online-amt-policy-calibration-v1',
+      adapterVersion: 'phase9g-a23-online-amt-policy-calibration-v1',
       configurationSha256: profile.configurationSha256,
     }));
     for (const scenario of input.scenarios) {
@@ -395,7 +500,7 @@ async function runOnlineAmtCalibration(input) {
           artifact: { schemaVersion: 1, artifact: 'online_amt_real_hop_output', segments: [segment] },
           candidateId: profile.profileId,
           command: `docker run ${ONLINE_AMT_IMAGE} run_online_amt_modern_smoke.py --pseudo-intensity ${policy.pseudoIntensity} --onset-boost ${policy.onsetBoost}`,
-          runtime: 'real-online-amt-modern-docker-phase9ga21-correction-aware',
+          runtime: 'real-online-amt-modern-docker-phase9ga23-correction-aware',
           timingCorrectionMs: correction.timingCorrectionMs,
         });
         assertOnlineAmtTerminalCoverage({ scenario, candidateRun, profileId: profile.profileId });
@@ -447,8 +552,8 @@ async function runOnlineAmtCalibration(input) {
         nearTerminalPhysicalAttackWithin180MsCount: timingSet.nearTerminal.length,
         nearTerminalPhysicalAttackDiagnostics: timingSet.nearTerminal,
       },
-      phase9gA21Comparison: a21Report ? compareOnlineAmtA21({
-        oldReport: a21Report,
+      phase9gA22Comparison: a22Report ? compareOnlineAmtA21({
+        oldReport: a22Report,
         newPolicies: profiles,
         timingReports,
       }) : null,
@@ -497,11 +602,33 @@ function onlineAmtNativePreferenceRank(profile) {
   return pseudoRank * 10 + boostRank;
 }
 
-function byteDanceGate2TieBreak({ selection, profiles }) {
+function byteDanceGate2TieBreak({ selection, profiles, aggregateMetrics }) {
   const remaining = (selection?.remainingProfileIds ?? [])
     .map((profileId) => profiles.find((profile) => profile.profileId === profileId))
     .filter(Boolean);
   if (remaining.length === 0) return null;
+  const latencyRows = remaining.map((profile) => ({
+    profile,
+    finalizedFeedbackAgeP95Ms: aggregateMetrics[profile.profileId]?.CALIBRATION?.finalizedFeedbackAgeP95Ms?.value,
+  }));
+  const finiteLatencyRows = latencyRows.filter((row) => Number.isFinite(row.finalizedFeedbackAgeP95Ms));
+  if (finiteLatencyRows.length === remaining.length) {
+    const sortedByLatency = [...finiteLatencyRows].sort((left, right) =>
+      left.finalizedFeedbackAgeP95Ms - right.finalizedFeedbackAgeP95Ms
+      || left.profile.profileId.localeCompare(right.profile.profileId)
+    );
+    const spread = sortedByLatency.at(-1).finalizedFeedbackAgeP95Ms - sortedByLatency[0].finalizedFeedbackAgeP95Ms;
+    if (spread >= 100) {
+      return {
+        selectedProfileId: sortedByLatency[0].profile.profileId,
+        reason: 'GATE2_FINALIZED_FEEDBACK_AGE_P95_MS',
+        latencyDiscriminated: true,
+        latencySpreadMs: spread,
+        selectedFinalizedFeedbackAgeP95Ms: sortedByLatency[0].finalizedFeedbackAgeP95Ms,
+        remainingProfileIds: remaining.map((profile) => profile.profileId).sort(),
+      };
+    }
+  }
   const selected = [...remaining].sort((left, right) =>
     left.projection.context.modelInputMs - right.projection.context.modelInputMs
     || left.thresholds.onsetThreshold - right.thresholds.onsetThreshold
@@ -550,8 +677,8 @@ function runByteDanceFromRaw({ scenario, raw, profile }) {
     candidateId: profile.profileId,
     scenarioId: scenario.scenarioId,
     publications,
-    command: 'phase9ga2 decode cached real ByteDance raw ONNX outputs',
-    runtime: 'real-pytorch-cpu-variable-context-phase9ga22',
+    command: 'phase9ga23 decode validated fresh real ByteDance PyTorch raw outputs',
+    runtime: 'real-pytorch-cpu-variable-context-phase9ga23',
   });
 }
 
@@ -583,6 +710,7 @@ function computeByteDanceContextEligibility(baseScenarios, contexts) {
 
 async function runByteDancePyTorchBatches({ contexts, baseScenarios }) {
   const result = new Map();
+  const evidenceRows = [];
   for (const context of contexts) {
     const windows = [];
     const planByScenario = new Map();
@@ -626,8 +754,9 @@ async function runByteDancePyTorchBatches({ contexts, baseScenarios }) {
         });
       }
     }
-    const inputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga2/${context.profileId}.bytedance-pytorch-input.json`;
-    const outputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga2/${context.profileId}.bytedance-pytorch-raw.json`;
+    const inputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga23/${context.profileId}.bytedance-pytorch-input.json`;
+    const outputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga23/${context.profileId}.bytedance-pytorch-raw.json`;
+    const validationRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga23/${context.profileId}.bytedance-pytorch-readback.json`;
     await writeJson(inputRel, { windows });
     const run = spawnSync('docker', [
       'run', '--rm',
@@ -643,6 +772,23 @@ async function runByteDancePyTorchBatches({ contexts, baseScenarios }) {
       '--runtime-identity', BYTEDANCE_IMAGE,
     ], { cwd: repoRoot, encoding: 'utf8', timeout: 3_600_000, maxBuffer: 20 * 1024 * 1024 });
     if (run.status !== 0) throw new Error(`ByteDance PyTorch batch failed for ${context.profileId}: ${run.stderr || run.stdout}`);
+    const validationRun = spawnSync('docker', [
+      'run', '--rm',
+      '--entrypoint', 'python',
+      '-v', `${repoRoot}:/workspace`,
+      '-w', '/workspace',
+      BYTEDANCE_IMAGE,
+      'backend/scripts/validate_bytedance_pytorch_raw_batch.py',
+      '--input', inputRel,
+      '--raw', outputRel,
+      '--checkpoint', EXPECTED_BYTEDANCE_CHECKPOINT.path,
+      '--output', validationRel,
+    ], { cwd: repoRoot, encoding: 'utf8', timeout: 600_000, maxBuffer: 20 * 1024 * 1024 });
+    if (validationRun.status !== 0) {
+      throw new Error(`ByteDance PyTorch readback validation failed for ${context.profileId}: ${validationRun.stderr || validationRun.stdout}`);
+    }
+    const validation = JSON.parse(await readFile(path.resolve(repoRoot, validationRel), 'utf8'));
+    evidenceRows.push(...validation.rows);
     const raw = JSON.parse(await readFile(path.resolve(repoRoot, outputRel), 'utf8'));
     const byScenario = new Map();
     for (const scenario of baseScenarios) {
@@ -656,7 +802,17 @@ async function runByteDancePyTorchBatches({ contexts, baseScenarios }) {
     }
     result.set(context.profileId, byScenario);
   }
-  return result;
+  const evidenceManifest = {
+    schemaVersion: 1,
+    artifact: 'phase9g_a23_bytedance_raw_evidence_manifest',
+    phase: '9G-A.2.3',
+    checkpointSha256: EXPECTED_BYTEDANCE_CHECKPOINT.sha256,
+    checkpointBytes: EXPECTED_BYTEDANCE_CHECKPOINT.bytes,
+    rowCount: evidenceRows.length,
+    rows: evidenceRows,
+  };
+  await writeJson(BYTEDANCE_RAW_EVIDENCE_REL, evidenceManifest);
+  return { byContext: result, evidenceManifest };
 }
 
 function planByteDanceVariableContext(scenario, context) {
@@ -674,8 +830,8 @@ function planByteDanceVariableContext(scenario, context) {
       scenarioId: scenario.scenarioId,
       commitStartPerformanceMs: start,
       commitEndPerformanceMs: end,
-      inputStartPerformanceMs: start - context.pastContextMs,
-      inputEndPerformanceMs: start - context.pastContextMs + context.modelInputMs,
+      inputStartPerformanceMs: end + context.futureContextMs - context.modelInputMs,
+      inputEndPerformanceMs: end + context.futureContextMs,
       expectedGroupIds: expectedGroupIdsInRange(scenario, start, end, plans.length === 0),
     });
     if (end === completion) break;
@@ -690,6 +846,10 @@ function validateByteDanceVariableContextPlan(scenario, plans, context) {
   for (const plan of plans) {
     if (Math.abs((plan.inputEndPerformanceMs - plan.inputStartPerformanceMs) - context.modelInputMs) > 1e-9) {
       throw new Error(`ByteDance ${context.profileId} input duration mismatch.`);
+    }
+    if (context.profileId !== 'CALIBRATED_CONTEXT_1820'
+      && Math.abs((plan.inputEndPerformanceMs - plan.commitEndPerformanceMs) - context.futureContextMs) > 1e-9) {
+      throw new Error(`ByteDance ${context.profileId} future context exceeds frozen bound.`);
     }
     if (plan.commitStartPerformanceMs !== previousEnd || plan.commitEndPerformanceMs < plan.commitStartPerformanceMs) {
       throw new Error(`ByteDance ${context.profileId} commit ownership is not chronological/non-overlapping.`);
@@ -711,6 +871,90 @@ function validateByteDanceVariableContextSource(scenario, plans) {
     if (sourceStart < scenario.audio.clipStartMs - 1e-9) throw new Error(`requires unavailable pre-roll context`);
     if (sourceEnd > scenario.audio.clipEndMs + 1e-9) throw new Error(`requires unavailable post-roll context`);
   }
+}
+
+async function writeByteDanceFutureOverrunDiagnostic(baseScenariosForDiagnostic) {
+  const contexts = calibration.BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES
+    .filter((context) => context.profileId !== 'CALIBRATED_CONTEXT_1820');
+  const oldByContext = {};
+  const correctedByContext = {};
+  for (const context of contexts) {
+    const oldExcess = [];
+    const correctedExcess = [];
+    for (const scenario of baseScenariosForDiagnostic) {
+      for (const plan of oldByteDanceVariableContextPlan(scenario, context)) {
+        const excess = (plan.inputEndPerformanceMs - plan.commitEndPerformanceMs) - context.futureContextMs;
+        if (excess > 1e-9) oldExcess.push({ scenarioId: scenario.scenarioId, windowId: plan.chunkId, excessFutureMs: excess });
+      }
+      for (const plan of planByteDanceVariableContext(scenario, context)) {
+        const excess = Math.max(0, (plan.inputEndPerformanceMs - plan.commitEndPerformanceMs) - context.futureContextMs);
+        correctedExcess.push({ scenarioId: scenario.scenarioId, windowId: plan.chunkId, excessFutureMs: excess });
+      }
+    }
+    oldByContext[context.profileId] = summarizeFutureExcess(oldExcess);
+    correctedByContext[context.profileId] = summarizeFutureExcess(correctedExcess.filter((item) => item.excessFutureMs > 1e-9));
+  }
+  const receipt = {
+    schemaVersion: 1,
+    artifact: 'phase9g_a23_bytedance_future_overrun_diagnostic',
+    phase: '9G-A.2.3',
+    oldPhase9gA22Geometry: oldByContext,
+    correctedPhase9gA23Geometry: correctedByContext,
+    correctedMaximumExcessFutureMs: Math.max(0, ...Object.values(correctedByContext).map((item) => item.maximumExcessFutureMs ?? 0)),
+    numericToleranceMs: 1e-9,
+  };
+  await writeJson(BYTEDANCE_FUTURE_OVERRUN_REL, receipt);
+  return receipt;
+}
+
+function oldByteDanceVariableContextPlan(scenario, context) {
+  const completion = scenario.completion.performanceTimeMs;
+  const plans = [];
+  let start = 0;
+  const ownedMs = context.ownedCentralRegionMs;
+  while (start < completion || (completion === 0 && plans.length === 0)) {
+    const end = Math.min(completion, start + ownedMs);
+    plans.push({
+      chunkId: `${scenario.scenarioId}:${context.profileId}:old-window-${plans.length.toString().padStart(3, '0')}`,
+      commitStartPerformanceMs: start,
+      commitEndPerformanceMs: end,
+      inputStartPerformanceMs: start - context.pastContextMs,
+      inputEndPerformanceMs: start - context.pastContextMs + context.modelInputMs,
+    });
+    if (end === completion) break;
+    start = end;
+  }
+  return plans;
+}
+
+function summarizeFutureExcess(items) {
+  const values = items.map((item) => item.excessFutureMs).sort((left, right) => left - right);
+  return {
+    overrunWindowCount: items.length,
+    minimumExcessFutureMs: values.length ? values[0] : 0,
+    medianExcessFutureMs: median(values) ?? 0,
+    p95ExcessFutureMs: percentile(values, 0.95) ?? 0,
+    maximumExcessFutureMs: values.length ? values.at(-1) : 0,
+    worstScenarioIds: [...items]
+      .sort((left, right) => right.excessFutureMs - left.excessFutureMs || left.scenarioId.localeCompare(right.scenarioId))
+      .slice(0, 10)
+      .map((item) => item.scenarioId),
+  };
+}
+
+function byteDanceSurvivorCountsByContext(profileIds) {
+  const counts = {
+    CALIBRATED_CONTEXT_1820: 0,
+    CALIBRATED_CONTEXT_3S: 0,
+    CALIBRATED_CONTEXT_5S: 0,
+    CALIBRATED_CONTEXT_10S: 0,
+  };
+  for (const profileId of profileIds) {
+    for (const contextId of Object.keys(counts)) {
+      if (profileId.includes(contextId)) counts[contextId] += 1;
+    }
+  }
+  return counts;
 }
 
 function expectedGroupIdsInRange(scenario, start, end, isFirst) {
@@ -763,8 +1007,8 @@ async function runOnlineAmtBatch(policy, baseScenarios, options) {
     });
   }
   const safe = `${policy.profileId.toLowerCase()}-${sanitizeFile(options.phaseLabel)}`;
-  const inputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga2/${safe}.segments.json`;
-  const outputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga2/${safe}.hop-artifact.json`;
+  const inputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga23/${safe}.segments.json`;
+  const outputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga23/${safe}.hop-artifact.json`;
   await writeJson(inputRel, { segments });
   const run = spawnSync('docker', [
     'run', '--rm',
@@ -787,30 +1031,56 @@ async function runOnlineAmtBatch(policy, baseScenarios, options) {
 }
 
 function timingCorrectionForPolicy({ policy, batchArtifact, baseScenarios }) {
-  const offsets = [];
+  const allPairs = [];
+  const truthDiagnostics = [];
+  let rawTimingObservationCount = 0;
+  let totalExtendedPhysicalAttacks = 0;
+  let totalScopePhysicalAttacks = 0;
+  let totalPostScopePhysicalAttacks = 0;
   for (const scenario of baseScenarios) {
     const segment = segmentForScenario(batchArtifact, scenario.scenarioId);
     const completion = scenario.completion.performanceTimeMs;
-    const candidate = segment.hops.flatMap((hop) => onlineAmt.observationsForOnlineAmtHop({
+    const candidate = timingCalibrationObservationsForSegment({ scenario, segment });
+    const physical = extendedPhysicalMidiTruthForScenario(scenario);
+    const pairs = matchTimingPairs(candidate, physical);
+    rawTimingObservationCount += candidate.length;
+    totalExtendedPhysicalAttacks += physical.length;
+    totalScopePhysicalAttacks += physical.filter((attack) => attack.performanceTimeMs <= completion + 1e-9).length;
+    totalPostScopePhysicalAttacks += physical.filter((attack) => attack.performanceTimeMs > completion + 1e-9).length;
+    allPairs.push(...pairs.map((pair) => ({ ...pair, scenarioId: scenario.scenarioId, completionTimeMs: completion })));
+    truthDiagnostics.push({
       scenarioId: scenario.scenarioId,
-      segmentId: segment.segmentId,
-      hopIndex: hop.hopIndex,
-      segmentPerformanceStartMs: segment.performanceStartMs,
-      segmentPerformanceEndMs: completion,
-      localDecisionTimeMs: hop.localDecisionSample / onlineAmt.ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz * 1000,
-      pitchStates: hop.pitchStates,
-      previousCoverage: -Infinity,
-      timingCorrectionMs: 0,
-    }));
-    offsets.push(...matchOffsets(candidate, scenario.physicalGroundTruth.attacks));
+      extendedPhysicalAttackCount: physical.length,
+      scopePhysicalAttackCount: physical.filter((attack) => attack.performanceTimeMs <= completion + 1e-9).length,
+      postScopePhysicalAttackCount: physical.filter((attack) => attack.performanceTimeMs > completion + 1e-9).length,
+      rawTimingObservationCount: candidate.length,
+      matchedPairCount: pairs.length,
+      matchedInScopePairCount: pairs.filter((pair) => pair.physicalTimeMs <= completion + 1e-9).length,
+      matchedPostScopePairCount: pairs.filter((pair) => pair.physicalTimeMs > completion + 1e-9).length,
+      inScopePairsWithRawDecisionAfterCompletion: pairs.filter((pair) =>
+        pair.physicalTimeMs <= completion + 1e-9 && pair.rawDecisionTimeMs > completion + 1e-9
+      ).length,
+    });
   }
+  const correctionPairs = allPairs.filter((pair) => pair.physicalTimeMs <= pair.completionTimeMs + 1e-9);
+  const offsets = correctionPairs.map((pair) => pair.physicalTimeMs - pair.rawDecisionTimeMs);
   offsets.sort((left, right) => left - right);
   const timingCorrectionMs = median(offsets);
   const residuals = offsets.map((offset) => offset - timingCorrectionMs).sort((left, right) => left - right);
   return {
     profileId: policy.profileId,
     policy,
-    matchedPairCount: offsets.length,
+    totalExtendedPhysicalAttacks,
+    scopePhysicalAttacks: totalScopePhysicalAttacks,
+    postScopePhysicalAttacks: totalPostScopePhysicalAttacks,
+    rawTimingObservationCount,
+    matchedPairCount: allPairs.length,
+    matchedInScopePairCount: correctionPairs.length,
+    matchedPostScopePairCount: allPairs.length - correctionPairs.length,
+    correctionPairsWithRawDecisionAfterCompletion: correctionPairs.filter((pair) =>
+      pair.rawDecisionTimeMs > pair.completionTimeMs + 1e-9
+    ).length,
+    timingTruthDiagnostics: truthDiagnostics,
     timingCorrectionMs,
     signedResidualP05Ms: percentile(residuals, 0.05),
     signedResidualP50Ms: percentile(residuals, 0.50),
@@ -818,6 +1088,52 @@ function timingCorrectionForPolicy({ policy, batchArtifact, baseScenarios }) {
     absoluteResidualP50Ms: percentile(residuals.map(Math.abs).sort((left, right) => left - right), 0.50),
     absoluteResidualP95Ms: percentile(residuals.map(Math.abs).sort((left, right) => left - right), 0.95),
   };
+}
+
+function timingCalibrationObservationsForSegment({ scenario, segment }) {
+  return segment.hops.flatMap((hop) => {
+    const rawDecisionTimeMs = hop.localDecisionSample / onlineAmt.ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz * 1000;
+    return hop.pitchStates
+      .filter((state) => onlineAmt.ONLINE_AMT_STREAMING_BASELINE_CONFIG.onsetStateIds.includes(state.chosenState))
+      .map((state, ordinal) => ({
+        observationId: [
+          'oamt-calibration',
+          sanitizeFile(scenario.scenarioId),
+          sanitizeFile(segment.segmentId),
+          hop.hopIndex,
+          sanitizeFile(state.pitch),
+          ordinal,
+        ].join(':'),
+        pitch: state.pitch,
+        rawDecisionTimeMs,
+        hopIndex: hop.hopIndex,
+        segmentId: segment.segmentId,
+        confidence: state.probabilities[3] + state.probabilities[4],
+      }));
+  });
+}
+
+function extendedPhysicalMidiTruthForScenario(scenario) {
+  const midiPath = path.resolve(repoRoot, scenario.source.sourceMidiPath);
+  const bytes = readFileSync(midiPath);
+  const actualSha = createHash('sha256').update(bytes).digest('hex');
+  if (actualSha !== scenario.source.sourceMidiSha256) {
+    throw new Error(`Online-AMT timing calibration MIDI SHA mismatch for ${scenario.scenarioId}.`);
+  }
+  const parsed = parseMidiNoteOns(bytes);
+  const end = scenario.completion.performanceTimeMs + TIMING_CALIBRATION_REAL_POSTROLL_MS;
+  return parsed.noteOns
+    .map((note) => ({
+      physicalEventId: `extended-midi:${note.trackIndex}:${note.eventIndex}`,
+      pitch: midiToPitch(note.midi),
+      midi: note.midi,
+      velocity: note.velocity,
+      performanceTimeMs: note.onsetMs - scenario.audio.performanceOriginSourceMs,
+    }))
+    .filter((attack) => attack.performanceTimeMs >= -1e-9 && attack.performanceTimeMs <= end + 1e-9)
+    .sort((left, right) => left.performanceTimeMs - right.performanceTimeMs
+      || left.midi - right.midi
+      || left.physicalEventId.localeCompare(right.physicalEventId));
 }
 
 function matchOffsets(candidateObservations, physicalAttacks) {
@@ -848,6 +1164,53 @@ function matchPitchOffsets(candidate, physical) {
     return best;
   };
   return solve(0, 0).offsets;
+}
+
+function matchTimingPairs(candidateObservations, physicalAttacks) {
+  const pairs = [];
+  const pitches = new Set([...candidateObservations.map((item) => item.pitch), ...physicalAttacks.map((item) => item.pitch)]);
+  for (const pitch of pitches) {
+    const candidate = candidateObservations
+      .filter((item) => item.pitch === pitch)
+      .sort((left, right) => left.rawDecisionTimeMs - right.rawDecisionTimeMs || left.observationId.localeCompare(right.observationId));
+    const physical = physicalAttacks
+      .filter((item) => item.pitch === pitch)
+      .sort((left, right) => left.performanceTimeMs - right.performanceTimeMs || left.physicalEventId.localeCompare(right.physicalEventId));
+    pairs.push(...matchPitchTimingPairs(candidate, physical));
+  }
+  return pairs.sort((left, right) => left.physicalTimeMs - right.physicalTimeMs
+    || left.rawDecisionTimeMs - right.rawDecisionTimeMs
+    || left.pitch.localeCompare(right.pitch));
+}
+
+function matchPitchTimingPairs(candidate, physical) {
+  const memo = new Map();
+  const solve = (i, j) => {
+    const key = `${i}|${j}`;
+    if (memo.has(key)) return memo.get(key);
+    if (i >= candidate.length || j >= physical.length) return { count: 0, cost: 0, pairs: [] };
+    const options = [solve(i + 1, j), solve(i, j + 1)];
+    const diff = physical[j].performanceTimeMs - candidate[i].rawDecisionTimeMs;
+    if (Math.abs(diff) <= 250) {
+      const next = solve(i + 1, j + 1);
+      options.push({
+        count: next.count + 1,
+        cost: next.cost + Math.abs(diff),
+        pairs: [{
+          pitch: candidate[i].pitch,
+          rawDecisionTimeMs: candidate[i].rawDecisionTimeMs,
+          physicalTimeMs: physical[j].performanceTimeMs,
+          candidateObservationId: candidate[i].observationId,
+          physicalEventId: physical[j].physicalEventId,
+          signedOffsetMs: diff,
+        }, ...next.pairs],
+      });
+    }
+    const best = options.sort((a, b) => (b.count - a.count) || (a.cost - b.cost))[0];
+    memo.set(key, best);
+    return best;
+  };
+  return solve(0, 0).pairs;
 }
 
 function segmentForScenario(batchArtifact, scenarioId) {
@@ -936,9 +1299,10 @@ function compareOnlineAmtA21({ oldReport, newPolicies, timingReports }) {
         ? timing.timingCorrectionMs - old.timingCalibration.timingCorrectionMs
         : null,
       oldMatchedPairCount: old?.timingCalibration?.matchedPairCount ?? null,
-      newMatchedPairCount: timing?.matchedPairCount ?? null,
+      newMatchedPairCount: timing?.matchedInScopePairCount ?? null,
+      newMatchedPairCountIncludingPostScopeGuards: timing?.matchedPairCount ?? null,
       matchedPairCountDelta: timing && old?.timingCalibration
-        ? timing.matchedPairCount - old.timingCalibration.matchedPairCount
+        ? timing.matchedInScopePairCount - old.timingCalibration.matchedPairCount
         : null,
     };
   });
@@ -962,24 +1326,26 @@ function assertOnlineAmtTerminalCoverage({ scenario, candidateRun, profileId }) 
 async function writePrematureLockInvalidationReceipt() {
   const receipt = {
     schemaVersion: 1,
-    artifact: 'phase9g_a21_premature_lock_invalidation',
-    phase: '9G-A.2.1',
+    artifact: 'phase9g_a23_prior_lock_invalidation',
+    phase: '9G-A.2.3',
     invalidatedArtifactsPreserved: [
-      'backend/research/reports/phase9g_a2_bytedance_online_amt_calibration_2026-10-09.json',
-      'backend/research/reports/phase9g_a2_calibrated_profile_registry_2026-10-09.json',
+      'backend/research/reports/phase9g_a22_bytedance_online_amt_incumbent_completion_2026-10-09.json',
+      'backend/research/reports/phase9g_a22_final_incumbent_registry_2026-10-09.json',
     ],
     invalidations: [
       {
         candidateFamily: 'bytedance-original',
-        profileId: 'bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.20',
-        correctedStatus: 'SUPERSEDED_PREMATURE_LOCK_CONTEXT_CALIBRATION_INCOMPLETE',
-        reason: 'The V3 selector selected onset 0.15 / frame 0.15 within the executable 1820ms threshold sweep; the historical 0.20 / 0.20 profile was preserved only because longer-context same-weight execution was reported blocked.',
+        candidateId: 'bytedance-original-calibrated-v1',
+        configurationSha256: '741f59ef4538285a72c35d1c2e118c96a1a4bdf2665c335222cd4662572e3c9a',
+        correctedStatus: 'INVALIDATED_VARIABLE_CONTEXT_FINAL_WINDOW_FUTURE_OVERRUN',
+        reason: 'Phase 9G-A.2.2 variable-context final windows anchored inputStart to commitStart - pastContext, allowing partial final commits to exceed the frozen futureContextMs bound.',
       },
       {
         candidateFamily: 'online-amt',
-        profileId: 'online-amt-calibration-native-boost-1',
-        correctedStatus: 'INVALIDATED_FINAL_SCORING_TAIL_GEOMETRY',
-        reason: 'The calibrated timing correction requires profile-specific context-tail processing; some CALIBRATION BASE scenarios require more processing than the historical -158ms geometry.',
+        candidateId: 'online-amt-calibrated-v1',
+        configurationSha256: '1f0f5718eca00a2305e1361937ec9207bc2c9bba06caef5739596fff59abfd8b',
+        correctedStatus: 'INVALIDATED_TIMING_CALIBRATION_POSTROLL_OBSERVATIONS_FILTERED_AT_SCOPE_END',
+        reason: 'Phase 9G-A.2.2 fed 500ms real post-roll, but timing calibration evidence was extracted through product observation semantics that filtered uncorrected event times after scope completion.',
       },
     ],
   };
@@ -1006,8 +1372,8 @@ async function writeByteDanceSameWeightProvenance() {
     && parity?.overallAuthoritativeDecodedEventParityAtOnset020Frame020 === true;
   const receipt = {
     schemaVersion: 1,
-    artifact: 'phase9g_a21_bytedance_same_weight_provenance',
-    phase: '9G-A.2.1',
+    artifact: 'phase9g_a23_bytedance_same_weight_provenance',
+    phase: '9G-A.2.3',
     originalPyTorchCheckpoint: checkpoint,
     currentFixedOnnxAsset: onnx,
     modelArchitectureImportIdentity: 'piano_transcription_inference.PianoTranscription note_model',
@@ -1079,7 +1445,7 @@ function bytedanceProfile({ context, onsetThreshold, frameThreshold }) {
     context,
     onsetThreshold,
     frameThreshold,
-    decoderVersion: 'phase9g-a2-bytedance-threshold-grid-v1',
+    decoderVersion: 'phase9g-a23-bytedance-threshold-grid-v1',
   };
   return {
     profileId: `bytedance-original-calibration-${context.profileId}-onset-${onsetThreshold.toFixed(2)}-frame-${frameThreshold.toFixed(2)}`,
@@ -1221,11 +1587,14 @@ function semanticProjection(manifest) {
   })).sort((a, b) => a.scenarioId.localeCompare(b.scenarioId));
 }
 
-function resampleLinear({ sourcePcm, sourceSampleRateHz, sourceStartMs, sampleCount }) {
+function resampleLinear({ sourcePcm, sourceSampleRateHz, sourceStartMs, sourceEndMs, sampleCount }) {
   const output = new Float32Array(sampleCount);
   const sourceStart = sourceStartMs / 1000 * sourceSampleRateHz;
+  const sourceSpan = sourceEndMs === undefined
+    ? sampleCount * sourceSampleRateHz / 16000
+    : sourceEndMs / 1000 * sourceSampleRateHz - sourceStart;
   for (let index = 0; index < output.length; index += 1) {
-    const sourcePosition = sourceStart + index * sourceSampleRateHz / 16000;
+    const sourcePosition = sourceStart + index * sourceSpan / sampleCount;
     const left = Math.floor(sourcePosition);
     const right = Math.min(sourcePcm.length - 1, left + 1);
     const fraction = sourcePosition - left;
@@ -1246,6 +1615,97 @@ function percentile(values, q) {
   const upper = Math.ceil(index);
   const fraction = index - lower;
   return values[lower] * (1 - fraction) + values[upper] * fraction;
+}
+
+function parseMidiNoteOns(bytes) {
+  let offset = 0;
+  if (ascii(bytes, offset, 4) !== 'MThd') throw new Error('MIDI file missing MThd header.');
+  offset += 4;
+  const headerLength = readU32(bytes, offset); offset += 4;
+  const format = readU16(bytes, offset); offset += 2;
+  const trackCount = readU16(bytes, offset); offset += 2;
+  const division = readU16(bytes, offset); offset += 2;
+  offset += headerLength - 6;
+  if (division & 0x8000) throw new Error('SMPTE MIDI timing is not supported for Vienna proxy.');
+  const noteOns = [];
+  for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
+    if (ascii(bytes, offset, 4) !== 'MTrk') throw new Error('MIDI file missing MTrk chunk.');
+    offset += 4;
+    const trackEnd = offset + 4 + readU32(bytes, offset);
+    offset += 4;
+    let timeMs = 0;
+    let tempo = 500000;
+    let firstTempo = null;
+    let runningStatus = null;
+    let eventIndex = 0;
+    while (offset < trackEnd) {
+      const delta = readVar(bytes, offset);
+      offset = delta.offset;
+      timeMs += delta.value * tempo / division / 1000;
+      let status = bytes[offset++];
+      if (status < 0x80) {
+        if (runningStatus === null) throw new Error('MIDI running status without previous status.');
+        offset -= 1;
+        status = runningStatus;
+      } else if (status < 0xf0) {
+        runningStatus = status;
+      }
+      if (status === 0xff) {
+        const type = bytes[offset++];
+        const length = readVar(bytes, offset);
+        offset = length.offset;
+        if (type === 0x51 && length.value === 3) {
+          const nextTempo = (bytes[offset] << 16) | (bytes[offset + 1] << 8) | bytes[offset + 2];
+          if (firstTempo === null) firstTempo = nextTempo;
+          if (nextTempo !== firstTempo) throw new Error('Vienna MIDI tempo changes are not supported by the fixed-BPM proxy parser.');
+          tempo = nextTempo;
+        }
+        offset += length.value;
+        continue;
+      }
+      if (status === 0xf0 || status === 0xf7) {
+        const length = readVar(bytes, offset);
+        offset = length.offset + length.value;
+        continue;
+      }
+      const command = status & 0xf0;
+      const data1 = bytes[offset++];
+      const data2 = command === 0xc0 || command === 0xd0 ? 0 : bytes[offset++];
+      if (command === 0x90 && data2 > 0) {
+        noteOns.push({ trackIndex, eventIndex, midi: data1, velocity: data2, onsetMs: timeMs });
+      }
+      eventIndex += 1;
+    }
+    offset = trackEnd;
+  }
+  return { format, division, noteOns };
+}
+
+function ascii(bytes, offset, length) {
+  return String.fromCharCode(...bytes.slice(offset, offset + length));
+}
+
+function readU16(bytes, offset) {
+  return (bytes[offset] << 8) | bytes[offset + 1];
+}
+
+function readU32(bytes, offset) {
+  return ((bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]) >>> 0;
+}
+
+function readVar(bytes, offset) {
+  let value = 0;
+  let current = 0;
+  do {
+    current = bytes[offset++];
+    value = (value << 7) | (current & 0x7f);
+  } while (current & 0x80);
+  return { value, offset };
+}
+
+function midiToPitch(midi) {
+  const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  return `${names[midi % 12]}${Math.floor(midi / 12) - 1}`;
 }
 
 async function measuredPolicyIdentity(rel) {

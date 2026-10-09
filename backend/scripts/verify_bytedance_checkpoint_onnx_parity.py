@@ -65,16 +65,36 @@ def main() -> int:
                     ((pytorch_raw["onset"] >= 0.20) == (onnx_onset[0] >= 0.20)).all()
                     and ((pytorch_raw["frame"] >= 0.20) == (onnx_frame[0] >= 0.20)).all()
                 ),
-                "authoritativeDecodedEventParityAtOnset020Frame020": pytorch_events == onnx_events,
+                "referenceDecodedEventParityAtOnset020Frame020": pytorch_events == onnx_events,
                 "pytorchDecodedEventCount": len(pytorch_events),
                 "onnxDecodedEventCount": len(onnx_events),
                 "decodedEventSequenceSha256": sha256_json(pytorch_events),
+                "pytorchRawOutputs": {
+                    "reg_onset_output": {
+                        "dims": list(pytorch_raw["onset"].shape),
+                        "data": pytorch_raw["onset"].reshape(-1).astype(float).tolist(),
+                    },
+                    "frame_output": {
+                        "dims": list(pytorch_raw["frame"].shape),
+                        "data": pytorch_raw["frame"].reshape(-1).astype(float).tolist(),
+                    },
+                },
+                "onnxRawOutputs": {
+                    "reg_onset_output": {
+                        "dims": list(onnx_onset[0].shape),
+                        "data": onnx_onset[0].reshape(-1).astype(float).tolist(),
+                    },
+                    "frame_output": {
+                        "dims": list(onnx_frame[0].shape),
+                        "data": onnx_frame[0].reshape(-1).astype(float).tolist(),
+                    },
+                },
             }
         )
 
     receipt = {
         "schemaVersion": 1,
-        "artifact": "phase9g_a22_bytedance_checkpoint_onnx_decoded_parity",
+        "artifact": "phase9g_a23_bytedance_checkpoint_onnx_reference_parity",
         "checkpointPath": normalize(args.checkpoint),
         "checkpointSha256": checkpoint_sha,
         "checkpointBytes": args.checkpoint.stat().st_size,
@@ -88,8 +108,8 @@ def main() -> int:
         "overallThresholdMaskParityAtOnset020Frame020": all(
             item["thresholdMaskParityAtOnset020Frame020"] for item in comparisons
         ),
-        "overallAuthoritativeDecodedEventParityAtOnset020Frame020": all(
-            item["authoritativeDecodedEventParityAtOnset020Frame020"] for item in comparisons
+        "overallReferenceDecodedEventParityAtOnset020Frame020": all(
+            item["referenceDecodedEventParityAtOnset020Frame020"] for item in comparisons
         ),
         "maxRegOnsetAbsDelta": max(item["regOnsetMaxAbsDelta"] for item in comparisons),
         "maxFrameAbsDelta": max(item["frameMaxAbsDelta"] for item in comparisons),

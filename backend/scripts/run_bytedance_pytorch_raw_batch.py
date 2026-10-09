@@ -69,7 +69,7 @@ def main() -> int:
 
     output = {
         "schemaVersion": 1,
-        "artifact": "phase9g_a22_bytedance_pytorch_raw_batch",
+        "artifact": "phase9g_a23_bytedance_pytorch_raw_batch",
         "checkpointPath": normalize(args.checkpoint),
         "checkpointSha256": checkpoint_sha,
         "checkpointBytes": args.checkpoint.stat().st_size,
