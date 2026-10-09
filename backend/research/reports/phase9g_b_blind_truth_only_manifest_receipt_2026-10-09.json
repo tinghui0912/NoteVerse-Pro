@@ -4,8 +4,8 @@
   "phase": "9G-A",
   "executionMode": "TRUTH_ONLY",
   "split": "EVALUATION",
-  "implementationGitHead": "d8ce9028e877742dcf1eaaf5824ab5b834af8fac",
-  "artifactGeneratedFromGitHead": "d8ce9028e877742dcf1eaaf5824ab5b834af8fac",
+  "implementationGitHead": "21f02cae9c823fc1dfc501bf68c5aaa5b087b619",
+  "artifactGeneratedFromGitHead": "21f02cae9c823fc1dfc501bf68c5aaa5b087b619",
   "dirtyTreeAtExecution": false,
   "calibrationPolicy": {
     "path": "backend/research/policies/public_model_calibration_protocol_v2_2026-10-09.json",
@@ -20,8 +20,8 @@
   "candidateScenarioRunIncluded": false,
   "frozenScenarioManifest": {
     "path": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
-    "sha256": "26809de43dd15ea5822d5e917c07c0fc17817ce1d17b6aa91267a62cfd6fc44a",
-    "publicManifestSha256": "b9bdc29ef1b8b58f7ad42965447458fb3c3a309b5d4acb046f9399d3010dafa8",
+    "sha256": "bde301ab5168978031a8e3be0941b9b28c507c37c70003896de239ac52dfe078",
+    "publicManifestSha256": "43cde89f6bd260d9d9010ded822d1e9616573c7fdd9ead5c4c53011ce74ff23f",
     "scenarioCount": 70
   },
   "vienna": {
