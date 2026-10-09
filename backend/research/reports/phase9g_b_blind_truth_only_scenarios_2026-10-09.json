@@ -3,7 +3,7 @@
   "artifact": "phase9g_b_blind_truth_only_vienna_manifest",
   "phase": "9G-A",
   "executionMode": "TRUTH_ONLY",
-  "implementationGitHead": "21f02cae9c823fc1dfc501bf68c5aaa5b087b619",
+  "implementationGitHead": "d7b0d7566be6a279ab7343ca799dab40f8ee236f",
   "scenarioManifestFrozenBeforeInference": true,
   "candidateInferenceIncluded": false,
   "candidateObservationIncluded": false,
@@ -107,11 +107,11 @@
       "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p19:49.500"
     ],
     "scenarioManifestFrozenBeforeInference": true,
-    "frozenAt": "2026-10-09T03:32:28.120Z",
+    "frozenAt": "2026-10-09T03:34:19.931Z",
     "candidateOutputIncluded": false,
     "officialProductEvaluation": false
   },
-  "publicManifestSha256": "43cde89f6bd260d9d9010ded822d1e9616573c7fdd9ead5c4c53011ce74ff23f",
+  "publicManifestSha256": "d87044ac6353927a69eeb6f37572b33a7e52292f0e7374f58ca5b2085aa1601d",
   "metadataCommit": "1033ade0899bfd03a89f370c9ad5d8443ddccd3e",
   "audioZip": {
     "path": "backend/data/work/public_proxy/vienna-4x22/audio.zip",
