@@ -4,14 +4,14 @@
   "phase": "9G-A",
   "executionMode": "TRUTH_ONLY",
   "split": "EVALUATION",
-  "implementationGitHead": "fac4dae3b07ed96f8e6c263967a13f40126cecd0",
-  "artifactGeneratedFromGitHead": "fac4dae3b07ed96f8e6c263967a13f40126cecd0",
+  "implementationGitHead": "d8ce9028e877742dcf1eaaf5824ab5b834af8fac",
+  "artifactGeneratedFromGitHead": "d8ce9028e877742dcf1eaaf5824ab5b834af8fac",
   "dirtyTreeAtExecution": false,
   "calibrationPolicy": {
-    "path": "backend/research/policies/public_model_calibration_protocol_v1_2026-10-09.json",
-    "sha256": "5f0decb22200f51d295bbd3c60cd04481eec7661d7844e2b7c48b4f8b42ff56a",
-    "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V1",
-    "schemaVersion": 1
+    "path": "backend/research/policies/public_model_calibration_protocol_v2_2026-10-09.json",
+    "sha256": "eea0939a2c19727a0a93b2fdd3ce39e07d40dfa40a5f117a903552a080af4d5f",
+    "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2",
+    "schemaVersion": 2
   },
   "blindCandidateInferencePerformed": false,
   "candidateRunCount": 0,
@@ -20,8 +20,8 @@
   "candidateScenarioRunIncluded": false,
   "frozenScenarioManifest": {
     "path": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
-    "sha256": "70e6a84aaddc4f926a5ca8cc9674d45fdaac65f2fb62bf7024cf361be02ed692",
-    "publicManifestSha256": "b81d0349befb2835291201cb7a2e7a20284c9a5689cea6b6508fd6f02bbc3e57",
+    "sha256": "26809de43dd15ea5822d5e917c07c0fc17817ce1d17b6aa91267a62cfd6fc44a",
+    "publicManifestSha256": "b9bdc29ef1b8b58f7ad42965447458fb3c3a309b5d4acb046f9399d3010dafa8",
     "scenarioCount": 70
   },
   "vienna": {
@@ -47,12 +47,13 @@
     "baseScenarioCount": 22,
     "selectedBaseScenarioCount": 22,
     "candidateScopeCountByPiece": {
+      "Chopin_op10_no3": 112,
       "Chopin_op38": 39,
       "Mozart_K331_1st-mov": 64,
-      "Schubert_D783_no15": 67,
-      "Chopin_op10_no3": 112
+      "Schubert_D783_no15": 67
     },
     "eligibleBasePoolCountByPiece": {
+      "Chopin_op10_no3": 0,
       "Chopin_op38": 16,
       "Mozart_K331_1st-mov": 16,
       "Schubert_D783_no15": 12
@@ -82,6 +83,7 @@
     "realScoreMissingNoteCount": 9,
     "realPhysicalExtraCount": 83,
     "selectedScenariosByPiece": {
+      "Chopin_op10_no3": 0,
       "Chopin_op38": 8,
       "Mozart_K331_1st-mov": 8,
       "Schubert_D783_no15": 6
@@ -112,7 +114,9 @@
     }
   },
   "confirmations": {
-    "truthOnlyModeDidNotLoadOrExecuteCandidates": true,
+    "candidateInferenceExecuted": false,
+    "modelAssetsLoaded": false,
+    "candidateScenarioRunsGenerated": false,
     "evaluationCandidateOutputsGeneratedOrInspected": false,
     "productionWinnerSelected": false,
     "productionMicrophoneEnabled": false
