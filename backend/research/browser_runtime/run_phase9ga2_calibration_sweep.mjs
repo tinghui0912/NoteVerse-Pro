@@ -250,8 +250,8 @@ async function runOnlineAmtCalibration(input) {
   for (const policy of ONLINE_AMT_POLICIES) {
     const batchArtifact = await runOnlineAmtBatch(policy, input.baseScenarios);
     const correction = timingCorrectionForPolicy({ policy, batchArtifact, baseScenarios: input.baseScenarios });
-    timingReports.push(correction);
     const profile = onlineAmtProfile({ policy, timingCorrectionMs: correction.timingCorrectionMs });
+    timingReports.push({ ...correction, profileId: profile.profileId });
     profiles.push(profile);
     candidateDefinitions.push(candidateDefinition({
       candidateId: profile.profileId,
