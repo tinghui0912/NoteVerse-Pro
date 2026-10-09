@@ -7,8 +7,8 @@
   "blindCandidateInferencePerformed": false,
   "productionWinnerSelected": false,
   "officialProductRank": null,
-  "implementationGitHead": "05503fc522bf1955c19b50ae793b8e314f220235",
-  "artifactGeneratedFromGitHead": "05503fc522bf1955c19b50ae793b8e314f220235",
+  "implementationGitHead": "e5573459103a7367ee66624140b2f00f0205c658",
+  "artifactGeneratedFromGitHead": "e5573459103a7367ee66624140b2f00f0205c658",
   "dirtyTreeAtExecution": false,
   "policy": {
     "path": "backend/research/policies/public_model_calibration_protocol_v3_2026-10-09.json",
@@ -19153,12 +19153,12 @@
             "finalizedFeedbackAgeP50Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 450.848939333413
+              "value": 450.69284633342613
             },
             "finalizedFeedbackAgeP95Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 930.9255483333745
+              "value": 930.935877333508
             },
             "inferenceLatencyP50Ms": {
               "status": "NOT_EVALUATED",
@@ -19173,12 +19173,12 @@
             "publicationDelayP50Ms": {
               "status": "MEASURED",
               "sampleCount": 10155,
-              "value": 163.43854933331932
+              "value": 163.060679333581
             },
             "publicationDelayP95Ms": {
               "status": "MEASURED",
               "sampleCount": 10155,
-              "value": 166.23470633346733
+              "value": 164.26720133320123
             },
             "extraDiagnostics": {
               "matchedPhysicalExtras": 264,
@@ -19353,12 +19353,12 @@
             "finalizedFeedbackAgeP50Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 450.848939333413
+              "value": 450.69284633342613
             },
             "finalizedFeedbackAgeP95Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 930.9255483333745
+              "value": 930.935877333508
             },
             "inferenceLatencyP50Ms": {
               "status": "NOT_EVALUATED",
@@ -19373,12 +19373,12 @@
             "publicationDelayP50Ms": {
               "status": "MEASURED",
               "sampleCount": 10155,
-              "value": 163.43854933331932
+              "value": 163.060679333581
             },
             "publicationDelayP95Ms": {
               "status": "MEASURED",
               "sampleCount": 10155,
-              "value": 166.23470633346733
+              "value": 164.26720133320123
             },
             "extraDiagnostics": {
               "matchedPhysicalExtras": 264,
@@ -19579,12 +19579,12 @@
             "finalizedFeedbackAgeP50Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 453.8413690000234
+              "value": 453.5766330000606
             },
             "finalizedFeedbackAgeP95Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 933.5185199999241
+              "value": 933.6956879999743
             },
             "inferenceLatencyP50Ms": {
               "status": "NOT_EVALUATED",
@@ -19599,12 +19599,12 @@
             "publicationDelayP50Ms": {
               "status": "MEASURED",
               "sampleCount": 10083,
-              "value": 166.26054299996758
+              "value": 166.12060499989275
             },
             "publicationDelayP95Ms": {
               "status": "MEASURED",
               "sampleCount": 10083,
-              "value": 168.09766299997227
+              "value": 167.3210159997925
             },
             "extraDiagnostics": {
               "matchedPhysicalExtras": 258,
@@ -19779,12 +19779,12 @@
             "finalizedFeedbackAgeP50Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 453.8413690000234
+              "value": 453.5766330000606
             },
             "finalizedFeedbackAgeP95Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 933.5185199999241
+              "value": 933.6956879999743
             },
             "inferenceLatencyP50Ms": {
               "status": "NOT_EVALUATED",
@@ -19799,12 +19799,12 @@
             "publicationDelayP50Ms": {
               "status": "MEASURED",
               "sampleCount": 10083,
-              "value": 166.26054299996758
+              "value": 166.12060499989275
             },
             "publicationDelayP95Ms": {
               "status": "MEASURED",
               "sampleCount": 10083,
-              "value": 168.09766299997227
+              "value": 167.3210159997925
             },
             "extraDiagnostics": {
               "matchedPhysicalExtras": 258,
@@ -20005,12 +20005,12 @@
             "finalizedFeedbackAgeP50Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 450.54551933332823
+              "value": 450.41112833336774
             },
             "finalizedFeedbackAgeP95Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 930.5781713332872
+              "value": 930.5892073332197
             },
             "inferenceLatencyP50Ms": {
               "status": "NOT_EVALUATED",
@@ -20025,12 +20025,12 @@
             "publicationDelayP50Ms": {
               "status": "MEASURED",
               "sampleCount": 10155,
-              "value": 162.88813433335054
+              "value": 162.8206923333055
             },
             "publicationDelayP95Ms": {
               "status": "MEASURED",
               "sampleCount": 10155,
-              "value": 164.3464583332916
+              "value": 164.03026833314289
             },
             "extraDiagnostics": {
               "matchedPhysicalExtras": 264,
@@ -20205,12 +20205,12 @@
             "finalizedFeedbackAgeP50Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 450.54551933332823
+              "value": 450.41112833336774
             },
             "finalizedFeedbackAgeP95Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 930.5781713332872
+              "value": 930.5892073332197
             },
             "inferenceLatencyP50Ms": {
               "status": "NOT_EVALUATED",
@@ -20225,12 +20225,12 @@
             "publicationDelayP50Ms": {
               "status": "MEASURED",
               "sampleCount": 10155,
-              "value": 162.88813433335054
+              "value": 162.8206923333055
             },
             "publicationDelayP95Ms": {
               "status": "MEASURED",
               "sampleCount": 10155,
-              "value": 164.3464583332916
+              "value": 164.03026833314289
             },
             "extraDiagnostics": {
               "matchedPhysicalExtras": 264,
@@ -20431,12 +20431,12 @@
             "finalizedFeedbackAgeP50Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 453.7720316666182
+              "value": 453.6250446666245
             },
             "finalizedFeedbackAgeP95Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 933.7025806666734
+              "value": 933.5004466666678
             },
             "inferenceLatencyP50Ms": {
               "status": "NOT_EVALUATED",
@@ -20451,12 +20451,12 @@
             "publicationDelayP50Ms": {
               "status": "MEASURED",
               "sampleCount": 10083,
-              "value": 166.16820266665218
+              "value": 165.94994966669492
             },
             "publicationDelayP95Ms": {
               "status": "MEASURED",
               "sampleCount": 10083,
-              "value": 168.2712456666859
+              "value": 167.17555866659768
             },
             "extraDiagnostics": {
               "matchedPhysicalExtras": 258,
@@ -20631,12 +20631,12 @@
             "finalizedFeedbackAgeP50Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 453.7720316666182
+              "value": 453.6250446666245
             },
             "finalizedFeedbackAgeP95Ms": {
               "status": "MEASURED",
               "sampleCount": 1870,
-              "value": 933.7025806666734
+              "value": 933.5004466666678
             },
             "inferenceLatencyP50Ms": {
               "status": "NOT_EVALUATED",
@@ -20651,12 +20651,12 @@
             "publicationDelayP50Ms": {
               "status": "MEASURED",
               "sampleCount": 10083,
-              "value": 166.16820266665218
+              "value": 165.94994966669492
             },
             "publicationDelayP95Ms": {
               "status": "MEASURED",
               "sampleCount": 10083,
-              "value": 168.2712456666859
+              "value": 167.17555866659768
             },
             "extraDiagnostics": {
               "matchedPhysicalExtras": 258,
