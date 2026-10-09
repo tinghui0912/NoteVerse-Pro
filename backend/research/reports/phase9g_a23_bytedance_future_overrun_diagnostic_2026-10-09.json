@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a23_bytedance_future_overrun_diagnostic",
+  "phase": "9G-A.2.3",
+  "oldPhase9gA22Geometry": {
+    "CALIBRATED_CONTEXT_3S": {
+      "overrunWindowCount": 24,
+      "minimumExcessFutureMs": 22.38805970149224,
+      "medianExcessFutureMs": 411.30717436730856,
+      "p95ExcessFutureMs": 1443.5344827586136,
+      "maximumExcessFutureMs": 1476.190476190477,
+      "worstScenarioIds": [
+        "vienna-secondary-base:Schubert_D783_no15_p09:49.500",
+        "vienna-secondary-base:Chopin_op38_p13:246.000",
+        "vienna-secondary-base:Chopin_op38_p12:150.000",
+        "vienna-secondary-base:Mozart_K331_1st-mov_p09:134.000",
+        "vienna-secondary-base:Schubert_D783_no15_p08:0.000",
+        "vienna-secondary-base:Chopin_op38_p09:66.000",
+        "vienna-secondary-base:Schubert_D783_no15_p11:0.000",
+        "vienna-secondary-base:Mozart_K331_1st-mov_p14:30.000",
+        "vienna-secondary-base:Mozart_K331_1st-mov_p11:15.000",
+        "vienna-secondary-base:Schubert_D783_no15_p07:39.000"
+      ]
+    },
+    "CALIBRATED_CONTEXT_5S": {
+      "overrunWindowCount": 24,
+      "minimumExcessFutureMs": 147.05882352941262,
+      "medianExcessFutureMs": 542.8841706958146,
+      "p95ExcessFutureMs": 886.1596598960797,
+      "maximumExcessFutureMs": 932.2033898305071,
+      "worstScenarioIds": [
+        "vienna-secondary-base:Mozart_K331_1st-mov_p08:30.000",
+        "vienna-secondary-base:Chopin_op38_p07:17.000",
+        "vienna-secondary-base:Chopin_op38_p11:17.000",
+        "vienna-secondary-base:Schubert_D783_no15_p14:49.500",
+        "vienna-secondary-base:Mozart_K331_1st-mov_p12:15.000",
+        "vienna-secondary-base:Chopin_op38_p10:0.000",
+        "vienna-secondary-base:Chopin_op10_no3_p08:27.000",
+        "vienna-secondary-base:Schubert_D783_no15_p13:49.500",
+        "vienna-secondary-base:Chopin_op38_p14:66.000",
+        "vienna-secondary-base:Mozart_K331_1st-mov_p07:78.000"
+      ]
+    },
+    "CALIBRATED_CONTEXT_10S": {
+      "overrunWindowCount": 24,
+      "minimumExcessFutureMs": 147.05882352941262,
+      "medianExcessFutureMs": 542.8841706958146,
+      "p95ExcessFutureMs": 886.1596598960797,
+      "maximumExcessFutureMs": 932.2033898305071,
+      "worstScenarioIds": [
+        "vienna-secondary-base:Mozart_K331_1st-mov_p08:30.000",
+        "vienna-secondary-base:Chopin_op38_p07:17.000",
+        "vienna-secondary-base:Chopin_op38_p11:17.000",
+        "vienna-secondary-base:Schubert_D783_no15_p14:49.500",
+        "vienna-secondary-base:Mozart_K331_1st-mov_p12:15.000",
+        "vienna-secondary-base:Chopin_op38_p10:0.000",
+        "vienna-secondary-base:Chopin_op10_no3_p08:27.000",
+        "vienna-secondary-base:Schubert_D783_no15_p13:49.500",
+        "vienna-secondary-base:Chopin_op38_p14:66.000",
+        "vienna-secondary-base:Mozart_K331_1st-mov_p07:78.000"
+      ]
+    }
+  },
+  "correctedPhase9gA23Geometry": {
+    "CALIBRATED_CONTEXT_3S": {
+      "overrunWindowCount": 0,
+      "minimumExcessFutureMs": 0,
+      "medianExcessFutureMs": 0,
+      "p95ExcessFutureMs": 0,
+      "maximumExcessFutureMs": 0,
+      "worstScenarioIds": []
+    },
+    "CALIBRATED_CONTEXT_5S": {
+      "overrunWindowCount": 0,
+      "minimumExcessFutureMs": 0,
+      "medianExcessFutureMs": 0,
+      "p95ExcessFutureMs": 0,
+      "maximumExcessFutureMs": 0,
+      "worstScenarioIds": []
+    },
+    "CALIBRATED_CONTEXT_10S": {
+      "overrunWindowCount": 0,
+      "minimumExcessFutureMs": 0,
+      "medianExcessFutureMs": 0,
+      "p95ExcessFutureMs": 0,
+      "maximumExcessFutureMs": 0,
+      "worstScenarioIds": []
+    }
+  },
+  "correctedMaximumExcessFutureMs": 0,
+  "numericToleranceMs": 1e-9
+}

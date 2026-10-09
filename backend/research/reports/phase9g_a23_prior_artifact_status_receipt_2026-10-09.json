@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a23_prior_lock_invalidation",
+  "phase": "9G-A.2.3",
+  "invalidatedArtifactsPreserved": [
+    "backend/research/reports/phase9g_a22_bytedance_online_amt_incumbent_completion_2026-10-09.json",
+    "backend/research/reports/phase9g_a22_final_incumbent_registry_2026-10-09.json"
+  ],
+  "invalidations": [
+    {
+      "candidateFamily": "bytedance-original",
+      "candidateId": "bytedance-original-calibrated-v1",
+      "configurationSha256": "741f59ef4538285a72c35d1c2e118c96a1a4bdf2665c335222cd4662572e3c9a",
+      "correctedStatus": "INVALIDATED_VARIABLE_CONTEXT_FINAL_WINDOW_FUTURE_OVERRUN",
+      "reason": "Phase 9G-A.2.2 variable-context final windows anchored inputStart to commitStart - pastContext, allowing partial final commits to exceed the frozen futureContextMs bound."
+    },
+    {
+      "candidateFamily": "online-amt",
+      "candidateId": "online-amt-calibrated-v1",
+      "configurationSha256": "1f0f5718eca00a2305e1361937ec9207bc2c9bba06caef5739596fff59abfd8b",
+      "correctedStatus": "INVALIDATED_TIMING_CALIBRATION_POSTROLL_OBSERVATIONS_FILTERED_AT_SCOPE_END",
+      "reason": "Phase 9G-A.2.2 fed 500ms real post-roll, but timing calibration evidence was extracted through product observation semantics that filtered uncorrected event times after scope completion."
+    }
+  ]
+}

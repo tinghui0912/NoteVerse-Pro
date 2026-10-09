@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a23_bytedance_same_weight_provenance",
+  "phase": "9G-A.2.3",
+  "originalPyTorchCheckpoint": {
+    "path": "models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
+    "exists": true,
+    "expectedSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+    "actualSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+    "expectedBytes": 171966578,
+    "actualBytes": 171966578,
+    "identityVerified": true
+  },
+  "currentFixedOnnxAsset": {
+    "path": "backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx",
+    "exists": true,
+    "expectedSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "actualSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "expectedBytes": 98691493,
+    "actualBytes": 98691493,
+    "identityVerified": true
+  },
+  "modelArchitectureImportIdentity": "piano_transcription_inference.PianoTranscription note_model",
+  "fixedShapeOnnxExportIdentity": {
+    "outputNames": [
+      "reg_onset_output",
+      "frame_output"
+    ],
+    "currentOnnxSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+    "historicalExportReports": [
+      {
+        "path": "backend/research/reports/bytedance_browser_runtime_feasibility.md",
+        "exists": true,
+        "sha256": "8a9df1a5266822ab0668312f31dc0c8672fe1e0e407782fa1e1611135ddaf50e"
+      },
+      {
+        "path": "backend/research/reports/bytedance_continuous_batch_export_parity_2026-10-05.json",
+        "exists": true,
+        "sha256": "bbc82865f935aa211b45515e1ad59102ffe44ebd1f702dc363e94ac746e39139"
+      },
+      {
+        "path": "backend/research/reports/bytedance_rolling_anchor_feasibility_2026-10-03.json",
+        "exists": true,
+        "sha256": "2df7f29d8c75f8a32e10b4cfe6de8c9132a705b80946d67c48359d02be311c67"
+      },
+      {
+        "path": "backend/research/reports/bytedance_target_verifier_context_matrix_dev_bounded_2026-10-05.json",
+        "exists": true,
+        "sha256": "8a7ffa5df45603a68b2d81b48d268e5480f6bc246883dc284c62414ccfb6c741"
+      }
+    ]
+  },
+  "parityReceiptPath": "backend/research/reports/phase9g_a23_bytedance_checkpoint_onnx_decoded_parity_2026-10-09.json",
+  "parityReceiptSha256": "0b34c04affb285294fe3ca3d39a07ca825eb474c3fe5c00216f0fbc490d6d3e6",
+  "sameWeightParityStatus": "SAME_WEIGHT_1820_PYTORCH_ONNX_PARITY_VERIFIED"
+}
