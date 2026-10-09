@@ -205,7 +205,8 @@ async function runByteDanceCalibration(input) {
   });
   const scores = calibrationScoresFromSummaries(diagnostic.scores);
   const selection = calibration.selectCalibrationProfile(scores);
-  const selectedProfileId = selection.selectedProfileId ?? fallbackProfileId(profiles, 'bytedance-original-calibrated-v1');
+  const selectorSuggestedProfileId = selection.selectedProfileId ?? fallbackProfileId(profiles, 'bytedance-original-calibrated-v1');
+  const selectedProfileId = historicalByteDanceProfileId(profiles);
   return {
     profileRegistry: profiles.map((profile) => ({
       candidateFamily: 'bytedance-original',
@@ -230,6 +231,11 @@ async function runByteDanceCalibration(input) {
       blockedContextCount: blockedContexts.length,
       metrics: compactAggregateMetrics(diagnostic.aggregateMetrics),
       selectorTrace: selection,
+      selectorSuggestedProfileId,
+      selectionOverride: {
+        status: 'PRESERVED_HISTORICAL_CURRENT_BASELINE_REFERENCE',
+        reason: 'Longer-context same-weight comparison is unproven; Phase 9G-A.2 policy preserves the current ByteDance baseline instead of selecting a partially swept threshold-only variant.',
+      },
       selectedProfileId,
       selectedContext: 'CALIBRATED_CONTEXT_1820',
       selectedThresholdPair: profiles.find((profile) => profile.profileId === selectedProfileId)?.thresholds ?? null,
@@ -553,6 +559,13 @@ function fallbackProfileId(profiles, selectedCandidateId) {
     && profile.thresholds?.frameThreshold === 0.2
   );
   return historical?.profileId ?? profiles[0]?.profileId ?? selectedCandidateId;
+}
+
+function historicalByteDanceProfileId(profiles) {
+  return profiles.find((profile) =>
+    profile.thresholds?.onsetThreshold === 0.2
+    && profile.thresholds?.frameThreshold === 0.2
+  )?.profileId ?? fallbackProfileId(profiles, 'bytedance-original-calibrated-v1');
 }
 
 function semanticProjection(manifest) {
