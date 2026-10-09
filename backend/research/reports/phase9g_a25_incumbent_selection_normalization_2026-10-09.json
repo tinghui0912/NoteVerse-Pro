@@ -1,0 +1,576 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a25_incumbent_selection_normalization",
+  "phase": "9G-A.2.5",
+  "calibrationUsed": true,
+  "evaluationUsed": false,
+  "blindCandidateInferencePerformed": false,
+  "productionWinnerSelected": false,
+  "officialProductRank": null,
+  "implementationGitHead": "5d4e1c7338571b4aa130ced31555508c9d47dfd5",
+  "artifactGeneratedFromGitHead": "5d4e1c7338571b4aa130ced31555508c9d47dfd5",
+  "dirtyTreeAtExecution": false,
+  "policy": {
+    "path": "backend/research/policies/public_model_calibration_protocol_v5_2026-10-09.json",
+    "sha256": "5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6",
+    "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5",
+    "schemaVersion": 5
+  },
+  "historicalPolicySha256": {
+    "v1": "5f0decb22200f51d295bbd3c60cd04481eec7661d7844e2b7c48b4f8b42ff56a",
+    "v2": "eea0939a2c19727a0a93b2fdd3ce39e07d40dfa40a5f117a903552a080af4d5f",
+    "v3": "9c6b3ca6cc46fd902a27cdf27825edd2833753cb15c9285e7c77365b3ff05130",
+    "v4": "b62f85cbc910d4a537214eed68c2d6e3accd3036417b16249d33d2e3a1a7cce9"
+  },
+  "blind": {
+    "path": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
+    "sha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+    "candidateRunCount": 0
+  },
+  "supersessionReceiptPath": "backend/research/reports/phase9g_a25_incumbent_supersession_receipt_2026-10-09.json",
+  "byteDance": {
+    "oldA24ConfigurationSha256": "ac78f607c52f8b3be09553ad778958b20837d539395685ac0fc4cd0576d7bf5e",
+    "finalCandidateId": "bytedance-original-calibrated-v1",
+    "exactProfileResolution": {
+      "selectedProfileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "status": "SELECTED",
+      "reason": "NON_PERFORMANCE_NEUTRAL_HASH",
+      "latencyThresholdMs": 100,
+      "latencyRows": [
+        {
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.15-frame-0.10",
+          "contextProfileId": "CALIBRATED_CONTEXT_10S",
+          "onsetThreshold": 0.15,
+          "frameThreshold": 0.1,
+          "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+          "deltaFromBestLatencyMs": 3809.7374689998514,
+          "latencyDominated": true
+        },
+        {
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.15-frame-0.15",
+          "contextProfileId": "CALIBRATED_CONTEXT_10S",
+          "onsetThreshold": 0.15,
+          "frameThreshold": 0.15,
+          "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+          "deltaFromBestLatencyMs": 3809.7374689998514,
+          "latencyDominated": true
+        },
+        {
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.20-frame-0.10",
+          "contextProfileId": "CALIBRATED_CONTEXT_10S",
+          "onsetThreshold": 0.2,
+          "frameThreshold": 0.1,
+          "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+          "deltaFromBestLatencyMs": 3809.7374689998514,
+          "latencyDominated": true
+        },
+        {
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.20-frame-0.15",
+          "contextProfileId": "CALIBRATED_CONTEXT_10S",
+          "onsetThreshold": 0.2,
+          "frameThreshold": 0.15,
+          "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+          "deltaFromBestLatencyMs": 3809.7374689998514,
+          "latencyDominated": true
+        },
+        {
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.30-frame-0.05",
+          "contextProfileId": "CALIBRATED_CONTEXT_10S",
+          "onsetThreshold": 0.3,
+          "frameThreshold": 0.05,
+          "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+          "deltaFromBestLatencyMs": 3809.7374689998514,
+          "latencyDominated": true
+        },
+        {
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.35-frame-0.05",
+          "contextProfileId": "CALIBRATED_CONTEXT_10S",
+          "onsetThreshold": 0.35,
+          "frameThreshold": 0.05,
+          "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+          "deltaFromBestLatencyMs": 3809.7374689998514,
+          "latencyDominated": true
+        },
+        {
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.10",
+          "contextProfileId": "CALIBRATED_CONTEXT_5S",
+          "onsetThreshold": 0.15,
+          "frameThreshold": 0.1,
+          "finalizedFeedbackAgeP95Ms": 4288.551912000098,
+          "deltaFromBestLatencyMs": 0,
+          "latencyDominated": false
+        },
+        {
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.15",
+          "contextProfileId": "CALIBRATED_CONTEXT_5S",
+          "onsetThreshold": 0.15,
+          "frameThreshold": 0.15,
+          "finalizedFeedbackAgeP95Ms": 4288.551912000098,
+          "deltaFromBestLatencyMs": 0,
+          "latencyDominated": false
+        },
+        {
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+          "contextProfileId": "CALIBRATED_CONTEXT_5S",
+          "onsetThreshold": 0.2,
+          "frameThreshold": 0.1,
+          "finalizedFeedbackAgeP95Ms": 4288.551912000098,
+          "deltaFromBestLatencyMs": 0,
+          "latencyDominated": false
+        }
+      ],
+      "profilesAfterLatency": [
+        "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.10",
+        "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.15",
+        "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10"
+      ],
+      "profilesAfterContext": [
+        "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.10",
+        "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.15",
+        "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10"
+      ],
+      "neutralTieKeys": [
+        {
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+          "tieKeySha256": "0ddec7fd2c238e4dcfb70b32675bf3efa342de3a42beffc81e0bd99f23a4cc53"
+        },
+        {
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.15",
+          "tieKeySha256": "64aa4632cdc5f20943782d343d2670acb923c4c9980956b54745e6b2e79c92e5"
+        },
+        {
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.10",
+          "tieKeySha256": "9f82361ab123f23525b3e810c9f64b17949aeed0bb907ca51fe7febe97d44485"
+        }
+      ]
+    },
+    "gate1SurvivorCount": 9,
+    "gate1SurvivorLatencyTable": [
+      {
+        "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.15-frame-0.10",
+        "contextProfileId": "CALIBRATED_CONTEXT_10S",
+        "onsetThreshold": 0.15,
+        "frameThreshold": 0.1,
+        "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+        "deltaFromBestLatencyMs": 3809.7374689998514,
+        "latencyDominated": true
+      },
+      {
+        "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.15-frame-0.15",
+        "contextProfileId": "CALIBRATED_CONTEXT_10S",
+        "onsetThreshold": 0.15,
+        "frameThreshold": 0.15,
+        "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+        "deltaFromBestLatencyMs": 3809.7374689998514,
+        "latencyDominated": true
+      },
+      {
+        "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.20-frame-0.10",
+        "contextProfileId": "CALIBRATED_CONTEXT_10S",
+        "onsetThreshold": 0.2,
+        "frameThreshold": 0.1,
+        "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+        "deltaFromBestLatencyMs": 3809.7374689998514,
+        "latencyDominated": true
+      },
+      {
+        "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.20-frame-0.15",
+        "contextProfileId": "CALIBRATED_CONTEXT_10S",
+        "onsetThreshold": 0.2,
+        "frameThreshold": 0.15,
+        "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+        "deltaFromBestLatencyMs": 3809.7374689998514,
+        "latencyDominated": true
+      },
+      {
+        "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.30-frame-0.05",
+        "contextProfileId": "CALIBRATED_CONTEXT_10S",
+        "onsetThreshold": 0.3,
+        "frameThreshold": 0.05,
+        "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+        "deltaFromBestLatencyMs": 3809.7374689998514,
+        "latencyDominated": true
+      },
+      {
+        "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.35-frame-0.05",
+        "contextProfileId": "CALIBRATED_CONTEXT_10S",
+        "onsetThreshold": 0.35,
+        "frameThreshold": 0.05,
+        "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+        "deltaFromBestLatencyMs": 3809.7374689998514,
+        "latencyDominated": true
+      },
+      {
+        "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.10",
+        "contextProfileId": "CALIBRATED_CONTEXT_5S",
+        "onsetThreshold": 0.15,
+        "frameThreshold": 0.1,
+        "finalizedFeedbackAgeP95Ms": 4288.551912000098,
+        "deltaFromBestLatencyMs": 0,
+        "latencyDominated": false
+      },
+      {
+        "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.15",
+        "contextProfileId": "CALIBRATED_CONTEXT_5S",
+        "onsetThreshold": 0.15,
+        "frameThreshold": 0.15,
+        "finalizedFeedbackAgeP95Ms": 4288.551912000098,
+        "deltaFromBestLatencyMs": 0,
+        "latencyDominated": false
+      },
+      {
+        "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+        "contextProfileId": "CALIBRATED_CONTEXT_5S",
+        "onsetThreshold": 0.2,
+        "frameThreshold": 0.1,
+        "finalizedFeedbackAgeP95Ms": 4288.551912000098,
+        "deltaFromBestLatencyMs": 0,
+        "latencyDominated": false
+      }
+    ],
+    "profilesSurvivingLatencyDiscrimination": [
+      "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.10",
+      "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.15",
+      "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10"
+    ],
+    "profilesSurvivingContextTieBreak": [
+      "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.10",
+      "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.15",
+      "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10"
+    ],
+    "neutralHashRequired": true,
+    "selectedProfileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+    "selectedContext": "CALIBRATED_CONTEXT_5S",
+    "selectedThresholds": {
+      "onset": 0.2,
+      "frame": 0.1
+    },
+    "finalConfigurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+    "exactA24ProfileResult": "REPLACED",
+    "selectedContextEvidence": "GATE1_GATE2_SUPPORTED",
+    "selectedThresholdEvidence": "STATISTICALLY_TIED_NEUTRAL_PREBLIND_CHOICE",
+    "measurementReuse": {
+      "status": "A24_MEASUREMENTS_REUSED_UNCHANGED",
+      "sourceReportPath": "backend/research/reports/phase9g_a24_bytedance_online_amt_incumbent_completion_2026-10-09.json",
+      "sourceReportSha256": "5c2c564f30056d786c40bc40db43222ec5620e45dad1c0e38ef6ca8c54f62674",
+      "sourceRawEvidencePath": "backend/research/reports/phase9g_a24_bytedance_raw_evidence_manifest_2026-10-09.json",
+      "sourceRawEvidenceSha256": "8743b2069553eacd83e81ca956991f3f0c4ffa5ffdadd413bd62996aedc05554",
+      "scenarioManifestSha256": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
+      "commonScenarioCount": 61,
+      "rawNeuralInferenceExecutedCount": 0,
+      "validatedRawCacheLoadCount": 300,
+      "thresholdDecodeRebound": true,
+      "candidateScenarioRunReconstructed": true,
+      "identityValidation": "PASS"
+    },
+    "noNeuralInferenceExecuted": true,
+    "historicalGate1SurvivorCountsByContext": {
+      "CALIBRATED_CONTEXT_1820": 0,
+      "CALIBRATED_CONTEXT_3S": 0,
+      "CALIBRATED_CONTEXT_5S": 3,
+      "CALIBRATED_CONTEXT_10S": 6
+    }
+  },
+  "onlineAmt": {
+    "finalCandidateId": "online-amt-calibrated-v1",
+    "selectedProfileId": "online-amt-calibration-native-boost-1",
+    "selectionStatus": "SELECTED_GATE2_NATIVE_POLICY_TIE_BREAK",
+    "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+    "acceptedA24TimingCalibration": {
+      "profileId": "online-amt-calibration-native-boost-1",
+      "policy": {
+        "profileId": "ONLINE_AMT_NATIVE_BOOST_1",
+        "pseudoIntensity": "NATIVE",
+        "onsetBoost": 1
+      },
+      "totalExtendedPhysicalAttacks": 802,
+      "scopePhysicalAttacks": 710,
+      "postScopePhysicalAttacks": 92,
+      "rawTimingObservationCount": 859,
+      "matchedPairCount": 648,
+      "matchedInScopePairCount": 648,
+      "matchedPostScopePairCount": 0,
+      "postScopePhysicalAttackDiagnosticCount": 92,
+      "correctionPairsWithRawDecisionAfterCompletion": 29,
+      "timingTruthDiagnostics": [
+        {
+          "scenarioId": "vienna-secondary-base:Chopin_op10_no3_p08:27.000",
+          "extendedPhysicalAttackCount": 40,
+          "scopePhysicalAttackCount": 35,
+          "postScopePhysicalAttackCount": 5,
+          "rawTimingObservationCount": 48,
+          "matchedPairCount": 35,
+          "matchedInScopePairCount": 35,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 0
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Chopin_op38_p07:17.000",
+          "extendedPhysicalAttackCount": 29,
+          "scopePhysicalAttackCount": 25,
+          "postScopePhysicalAttackCount": 4,
+          "rawTimingObservationCount": 32,
+          "matchedPairCount": 24,
+          "matchedInScopePairCount": 24,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 0
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p07:78.000",
+          "extendedPhysicalAttackCount": 26,
+          "scopePhysicalAttackCount": 23,
+          "postScopePhysicalAttackCount": 3,
+          "rawTimingObservationCount": 32,
+          "matchedPairCount": 22,
+          "matchedInScopePairCount": 22,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 1
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p07:39.000",
+          "extendedPhysicalAttackCount": 40,
+          "scopePhysicalAttackCount": 37,
+          "postScopePhysicalAttackCount": 3,
+          "rawTimingObservationCount": 40,
+          "matchedPairCount": 34,
+          "matchedInScopePairCount": 34,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 6
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Chopin_op38_p08:17.000",
+          "extendedPhysicalAttackCount": 30,
+          "scopePhysicalAttackCount": 26,
+          "postScopePhysicalAttackCount": 4,
+          "rawTimingObservationCount": 38,
+          "matchedPairCount": 26,
+          "matchedInScopePairCount": 26,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 0
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p08:30.000",
+          "extendedPhysicalAttackCount": 24,
+          "scopePhysicalAttackCount": 21,
+          "postScopePhysicalAttackCount": 3,
+          "rawTimingObservationCount": 27,
+          "matchedPairCount": 20,
+          "matchedInScopePairCount": 20,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 0
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p08:0.000",
+          "extendedPhysicalAttackCount": 47,
+          "scopePhysicalAttackCount": 42,
+          "postScopePhysicalAttackCount": 5,
+          "rawTimingObservationCount": 47,
+          "matchedPairCount": 40,
+          "matchedInScopePairCount": 40,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 3
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Chopin_op38_p09:66.000",
+          "extendedPhysicalAttackCount": 30,
+          "scopePhysicalAttackCount": 26,
+          "postScopePhysicalAttackCount": 4,
+          "rawTimingObservationCount": 39,
+          "matchedPairCount": 23,
+          "matchedInScopePairCount": 23,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 0
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p09:134.000",
+          "extendedPhysicalAttackCount": 29,
+          "scopePhysicalAttackCount": 24,
+          "postScopePhysicalAttackCount": 5,
+          "rawTimingObservationCount": 33,
+          "matchedPairCount": 23,
+          "matchedInScopePairCount": 23,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 0
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p09:49.500",
+          "extendedPhysicalAttackCount": 43,
+          "scopePhysicalAttackCount": 37,
+          "postScopePhysicalAttackCount": 6,
+          "rawTimingObservationCount": 42,
+          "matchedPairCount": 33,
+          "matchedInScopePairCount": 33,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 0
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Chopin_op38_p10:0.000",
+          "extendedPhysicalAttackCount": 20,
+          "scopePhysicalAttackCount": 20,
+          "postScopePhysicalAttackCount": 0,
+          "rawTimingObservationCount": 22,
+          "matchedPairCount": 20,
+          "matchedInScopePairCount": 20,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 4
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p10:48.000",
+          "extendedPhysicalAttackCount": 31,
+          "scopePhysicalAttackCount": 28,
+          "postScopePhysicalAttackCount": 3,
+          "rawTimingObservationCount": 29,
+          "matchedPairCount": 27,
+          "matchedInScopePairCount": 27,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 2
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p11:0.000",
+          "extendedPhysicalAttackCount": 39,
+          "scopePhysicalAttackCount": 35,
+          "postScopePhysicalAttackCount": 4,
+          "rawTimingObservationCount": 39,
+          "matchedPairCount": 33,
+          "matchedInScopePairCount": 33,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 0
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Chopin_op38_p11:17.000",
+          "extendedPhysicalAttackCount": 30,
+          "scopePhysicalAttackCount": 26,
+          "postScopePhysicalAttackCount": 4,
+          "rawTimingObservationCount": 44,
+          "matchedPairCount": 24,
+          "matchedInScopePairCount": 24,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 0
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p11:15.000",
+          "extendedPhysicalAttackCount": 18,
+          "scopePhysicalAttackCount": 18,
+          "postScopePhysicalAttackCount": 0,
+          "rawTimingObservationCount": 21,
+          "matchedPairCount": 17,
+          "matchedInScopePairCount": 17,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 0
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p12:81.000",
+          "extendedPhysicalAttackCount": 48,
+          "scopePhysicalAttackCount": 41,
+          "postScopePhysicalAttackCount": 7,
+          "rawTimingObservationCount": 46,
+          "matchedPairCount": 34,
+          "matchedInScopePairCount": 34,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 1
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Chopin_op38_p12:150.000",
+          "extendedPhysicalAttackCount": 36,
+          "scopePhysicalAttackCount": 31,
+          "postScopePhysicalAttackCount": 5,
+          "rawTimingObservationCount": 41,
+          "matchedPairCount": 29,
+          "matchedInScopePairCount": 29,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 1
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p12:15.000",
+          "extendedPhysicalAttackCount": 21,
+          "scopePhysicalAttackCount": 18,
+          "postScopePhysicalAttackCount": 3,
+          "rawTimingObservationCount": 26,
+          "matchedPairCount": 17,
+          "matchedInScopePairCount": 17,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 0
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p13:49.500",
+          "extendedPhysicalAttackCount": 57,
+          "scopePhysicalAttackCount": 50,
+          "postScopePhysicalAttackCount": 7,
+          "rawTimingObservationCount": 54,
+          "matchedPairCount": 43,
+          "matchedInScopePairCount": 43,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 1
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Chopin_op38_p13:246.000",
+          "extendedPhysicalAttackCount": 38,
+          "scopePhysicalAttackCount": 34,
+          "postScopePhysicalAttackCount": 4,
+          "rawTimingObservationCount": 34,
+          "matchedPairCount": 29,
+          "matchedInScopePairCount": 29,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 4
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p13:63.000",
+          "extendedPhysicalAttackCount": 17,
+          "scopePhysicalAttackCount": 13,
+          "postScopePhysicalAttackCount": 4,
+          "rawTimingObservationCount": 16,
+          "matchedPairCount": 9,
+          "matchedInScopePairCount": 9,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 0
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p14:49.500",
+          "extendedPhysicalAttackCount": 50,
+          "scopePhysicalAttackCount": 49,
+          "postScopePhysicalAttackCount": 1,
+          "rawTimingObservationCount": 41,
+          "matchedPairCount": 37,
+          "matchedInScopePairCount": 37,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 6
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Chopin_op38_p14:66.000",
+          "extendedPhysicalAttackCount": 27,
+          "scopePhysicalAttackCount": 23,
+          "postScopePhysicalAttackCount": 4,
+          "rawTimingObservationCount": 34,
+          "matchedPairCount": 21,
+          "matchedInScopePairCount": 21,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 0
+        },
+        {
+          "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p14:30.000",
+          "extendedPhysicalAttackCount": 32,
+          "scopePhysicalAttackCount": 28,
+          "postScopePhysicalAttackCount": 4,
+          "rawTimingObservationCount": 34,
+          "matchedPairCount": 28,
+          "matchedInScopePairCount": 28,
+          "matchedPostScopePairCount": 0,
+          "inScopePairsWithRawDecisionAfterCompletion": 0
+        }
+      ],
+      "timingCorrectionMs": -162.93750000004252,
+      "signedResidualP05Ms": -21.852083333208476,
+      "signedResidualP50Ms": 0,
+      "signedResidualP95Ms": 24.629166666867647,
+      "absoluteResidualP50Ms": 9.35416666667902,
+      "absoluteResidualP95Ms": 29.662500000073884
+    },
+    "noNeuralInferenceExecuted": true
+  },
+  "confirmations": {
+    "noChallengerExecuted": true,
+    "noNewBlindInference": true,
+    "noProductionWinnerSelected": true,
+    "productionMicrophoneEnabled": false
+  }
+}

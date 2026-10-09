@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a25_final_incumbent_registry",
+  "phase": "9G-A.2.5",
+  "implementationGitHead": "5d4e1c7338571b4aa130ced31555508c9d47dfd5",
+  "artifactGeneratedFromGitHead": "5d4e1c7338571b4aa130ced31555508c9d47dfd5",
+  "dirtyTreeAtExecution": false,
+  "policy": {
+    "path": "backend/research/policies/public_model_calibration_protocol_v5_2026-10-09.json",
+    "sha256": "5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6",
+    "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5",
+    "schemaVersion": 5
+  },
+  "blindManifest": {
+    "path": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
+    "sha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+    "candidateRunCount": 0
+  },
+  "calibrationScenarioManifestSha256": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
+  "profiles": [
+    {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+      "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+      "fixedOnnxRuntimeAssetSha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+      "selectionStatus": "SELECTED_GATE2_NEUTRAL_HASH",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED",
+      "LOCKED_FOR_PHASE_9G_B": true,
+      "exactProfileResolution": {
+        "selectedProfileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+        "status": "SELECTED",
+        "reason": "NON_PERFORMANCE_NEUTRAL_HASH",
+        "latencyThresholdMs": 100,
+        "latencyRows": [
+          {
+            "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.15-frame-0.10",
+            "contextProfileId": "CALIBRATED_CONTEXT_10S",
+            "onsetThreshold": 0.15,
+            "frameThreshold": 0.1,
+            "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+            "deltaFromBestLatencyMs": 3809.7374689998514,
+            "latencyDominated": true
+          },
+          {
+            "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.15-frame-0.15",
+            "contextProfileId": "CALIBRATED_CONTEXT_10S",
+            "onsetThreshold": 0.15,
+            "frameThreshold": 0.15,
+            "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+            "deltaFromBestLatencyMs": 3809.7374689998514,
+            "latencyDominated": true
+          },
+          {
+            "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.20-frame-0.10",
+            "contextProfileId": "CALIBRATED_CONTEXT_10S",
+            "onsetThreshold": 0.2,
+            "frameThreshold": 0.1,
+            "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+            "deltaFromBestLatencyMs": 3809.7374689998514,
+            "latencyDominated": true
+          },
+          {
+            "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.20-frame-0.15",
+            "contextProfileId": "CALIBRATED_CONTEXT_10S",
+            "onsetThreshold": 0.2,
+            "frameThreshold": 0.15,
+            "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+            "deltaFromBestLatencyMs": 3809.7374689998514,
+            "latencyDominated": true
+          },
+          {
+            "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.30-frame-0.05",
+            "contextProfileId": "CALIBRATED_CONTEXT_10S",
+            "onsetThreshold": 0.3,
+            "frameThreshold": 0.05,
+            "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+            "deltaFromBestLatencyMs": 3809.7374689998514,
+            "latencyDominated": true
+          },
+          {
+            "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_10S-onset-0.35-frame-0.05",
+            "contextProfileId": "CALIBRATED_CONTEXT_10S",
+            "onsetThreshold": 0.35,
+            "frameThreshold": 0.05,
+            "finalizedFeedbackAgeP95Ms": 8098.28938099995,
+            "deltaFromBestLatencyMs": 3809.7374689998514,
+            "latencyDominated": true
+          },
+          {
+            "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.10",
+            "contextProfileId": "CALIBRATED_CONTEXT_5S",
+            "onsetThreshold": 0.15,
+            "frameThreshold": 0.1,
+            "finalizedFeedbackAgeP95Ms": 4288.551912000098,
+            "deltaFromBestLatencyMs": 0,
+            "latencyDominated": false
+          },
+          {
+            "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.15",
+            "contextProfileId": "CALIBRATED_CONTEXT_5S",
+            "onsetThreshold": 0.15,
+            "frameThreshold": 0.15,
+            "finalizedFeedbackAgeP95Ms": 4288.551912000098,
+            "deltaFromBestLatencyMs": 0,
+            "latencyDominated": false
+          },
+          {
+            "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+            "contextProfileId": "CALIBRATED_CONTEXT_5S",
+            "onsetThreshold": 0.2,
+            "frameThreshold": 0.1,
+            "finalizedFeedbackAgeP95Ms": 4288.551912000098,
+            "deltaFromBestLatencyMs": 0,
+            "latencyDominated": false
+          }
+        ],
+        "profilesAfterLatency": [
+          "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.10",
+          "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.15",
+          "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10"
+        ],
+        "profilesAfterContext": [
+          "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.10",
+          "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.15",
+          "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10"
+        ],
+        "neutralTieKeys": [
+          {
+            "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+            "tieKeySha256": "0ddec7fd2c238e4dcfb70b32675bf3efa342de3a42beffc81e0bd99f23a4cc53"
+          },
+          {
+            "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.15",
+            "tieKeySha256": "64aa4632cdc5f20943782d343d2670acb923c4c9980956b54745e6b2e79c92e5"
+          },
+          {
+            "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.15-frame-0.10",
+            "tieKeySha256": "9f82361ab123f23525b3e810c9f64b17949aeed0bb907ca51fe7febe97d44485"
+          }
+        ]
+      }
+    },
+    {
+      "candidateId": "online-amt-calibrated-v1",
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "selectionStatus": "SELECTED_GATE2_NATIVE_POLICY_TIE_BREAK",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED",
+      "LOCKED_FOR_PHASE_9G_B": true
+    }
+  ]
+}

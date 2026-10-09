@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a25_incumbent_supersession_receipt",
+  "phase": "9G-A.2.5",
+  "historicalArtifactsPreserved": true,
+  "entries": [
+    {
+      "phase": "9G-A.2.2",
+      "candidateFamily": "bytedance-original",
+      "status": "INVALIDATED_VARIABLE_CONTEXT_FINAL_WINDOW_FUTURE_OVERRUN"
+    },
+    {
+      "phase": "9G-A.2.3",
+      "candidateFamily": "bytedance-original",
+      "status": "SUPERSEDED_BY_V4_TERMINAL_WINDOW_SEMANTICS"
+    },
+    {
+      "phase": "9G-A.2.2",
+      "candidateFamily": "online-amt",
+      "status": "INVALIDATED_TIMING_CALIBRATION_POSTROLL_EVIDENCE_BOUNDARY"
+    },
+    {
+      "phase": "9G-A.2.3",
+      "candidateFamily": "online-amt",
+      "status": "SUPERSEDED_BY_V4_IN_SCOPE_PHYSICAL_TRUTH_TIMING_CALIBRATION"
+    },
+    {
+      "phase": "9G-A.2.4",
+      "candidateFamily": "both-incumbents",
+      "status": "SUPERSEDED_AS_EXACT_PROFILE_LOCK_SOURCE_BY_V5_GATE2_NORMALIZATION"
+    }
+  ]
+}
