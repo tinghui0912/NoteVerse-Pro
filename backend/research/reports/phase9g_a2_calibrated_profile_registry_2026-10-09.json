@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a2_calibrated_profile_registry",
+  "phase": "9G-A.2",
+  "policy": {
+    "path": "backend/research/policies/public_model_calibration_protocol_v3_2026-10-09.json",
+    "sha256": "9c6b3ca6cc46fd902a27cdf27825edd2833753cb15c9285e7c77365b3ff05130",
+    "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3",
+    "schemaVersion": 3
+  },
+  "scenarioManifestSha256": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
+  "profiles": [
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.05",
+      "configurationSha256": "e199f57accbb1b23e639b0002ec7b244aba33f25cb02a62ada03000f99573798",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.10",
+      "configurationSha256": "c7ac269082f1d856bb725efa0b2942de6ec1b426b654e7b38f907c42b3450b4c",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.15",
+      "configurationSha256": "2943750e353126ecca2fc51bd2c61dd18e41523705ab6f460dae4199657a118b",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.20",
+      "configurationSha256": "8e9455a4fa32839ec86a58ba6d6314647b7964f3aac39701bebb2929eb156c75",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.05",
+      "configurationSha256": "e8439db41247e6a599f1e769f1216e4520e656a8d5940742205e6f46e7043ad4",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.10",
+      "configurationSha256": "01a285cd891368af5cedb86e5c9731cf2137734576fa44f5c129e5505c83d67c",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.15",
+      "configurationSha256": "c749340de913afe14d9bc8958b5520819cdf135509fb175aa2dd813e559dd4b6",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibrated-v1",
+      "configurationSha256": "a105b5bf220b6bcb3743f5bcc289c5a14e74771d22f2f27ec806a261b7da6079",
+      "LOCKED_FOR_PHASE_9G_B": true,
+      "selectionStatus": "SELECTED_OR_GATE1_FALLBACK"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.05",
+      "configurationSha256": "9c4c8fa50396ce0ab716f66ee77f6e97de7f1c661703faba88f1b9bd3a938642",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.10",
+      "configurationSha256": "3e8e68a2519ade75f85a53e6eeae6a8de165d8fa4ea0cc707d3eb81695d1c465",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.15",
+      "configurationSha256": "487bc5c4ac8b4679953b85f52810bfc91468ac9a1b5ecba2ab8ce1bb8ec02e58",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.25-frame-0.20",
+      "configurationSha256": "9bb6570e4327a6714dfc90e24466162c9b84355a2b46fd69dcb576484d1f8267",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "configurationSha256": "a5dd91b92d1fd64f1007786aaf6a49aaa2d3bb0d8dd36ea9eaeae725ce6020d5",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.10",
+      "configurationSha256": "3f0a386d9c2f13ab8ac6ccc063a3c4b0d561ede774aa7580e6dad3565ebe3a51",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.15",
+      "configurationSha256": "7afd94217c77ac8007cea6736cf27c0599f0cf92bc7f0f1eef03f27e2c3f0592",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.20",
+      "configurationSha256": "102419d293cd66cb2030635bf385344cfbde9091970a70ae0959b87d1e3517cb",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.05",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.05",
+      "configurationSha256": "2c7c15a6def40f0c2438265e41ecaf17a397fdfca156d119edcb0cb29cc73dc3",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.10",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.10",
+      "configurationSha256": "81b3cd71e5bc5a12f9ca9887ca2a7f8ef9108f7cc183fb43ceee594f89ebf5b4",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.15",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.15",
+      "configurationSha256": "e1763de8e7d308a48899abdaaacab4f21df70bb23e7d4cb22276ea8bf8e0a650",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.20",
+      "selectedCandidateId": "bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.35-frame-0.20",
+      "configurationSha256": "8de246b40dd27e7d4b6dc5c2014110db22af402656769aaf796927a15f05ad47",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-disabled-boost-2",
+      "selectedCandidateId": "online-amt-calibrated-v1",
+      "configurationSha256": "f8fa92275a7f55926111f40a32ca3397500bfdaaa69ac77e87c07f279b8f0687",
+      "LOCKED_FOR_PHASE_9G_B": true,
+      "selectionStatus": "SELECTED_OR_GATE1_FALLBACK"
+    },
+    {
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-disabled-boost-1",
+      "selectedCandidateId": "online-amt-calibration-disabled-boost-1",
+      "configurationSha256": "6a56bba6f2d081af72396ae924ddb6683412069b833683ad46ee615761a14fc3",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-native-boost-2",
+      "selectedCandidateId": "online-amt-calibration-native-boost-2",
+      "configurationSha256": "7e76eb37acb8a04b82dffa73ca2e8634d3de7851f4657132f197c4fe5a9b5f53",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    },
+    {
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "selectedCandidateId": "online-amt-calibration-native-boost-1",
+      "configurationSha256": "1f0f5718eca00a2305e1361937ec9207bc2c9bba06caef5739596fff59abfd8b",
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+    }
+  ]
+}
