@@ -5,6 +5,7 @@ import {
   ONLINE_AMT_TIMING_CALIBRATION_V1,
   PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256,
   PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4_SHA256,
+  PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5_SHA256,
   assertCandidateExecutorReachableForPhase9G,
   assertPhase9GExecutionAllowed,
   assertPublicModelCalibrationPolicyIdentity,
@@ -12,16 +13,17 @@ import {
   decideCandidateSpecificAcousticEvidenceReuse,
   onlineAmtTimingCorrectionForInScopePhysicalTruthForTest,
   planByteDanceV4ContextWindowsForTest,
+  resolveCalibrationGate2ExactProfile,
   runGuardedViennaCandidateExecutorsForTest,
   selectCalibrationProfile,
   type CalibrationProfileScenarioScore,
 } from './public-model-calibration';
 
 const policy = {
-  path: 'backend/research/policies/public_model_calibration_protocol_v4_2026-10-09.json',
-  sha256: PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4_SHA256,
-  policyId: 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4',
-  schemaVersion: 4,
+  path: 'backend/research/policies/public_model_calibration_protocol_v5_2026-10-09.json',
+  sha256: PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5_SHA256,
+  policyId: 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5',
+  schemaVersion: 5,
 };
 
 function request(overrides = {}) {
@@ -61,15 +63,17 @@ function allMetricScores(profileId: string, values: readonly number[], family: C
   return values.map((value, index) => score(profileId, `s${index}`, family, value, metric));
 }
 
-describe('public model calibration protocol V4', () => {
-  it('retains V2 as historical evidence but accepts only the exact V4 policy identity for current execution', () => {
+describe('public model calibration protocol V5', () => {
+  it('retains V2/V4 as historical evidence but accepts only the exact V5 policy identity for current execution', () => {
     expect(PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256).toMatch(/^[a-f0-9]{64}$/);
+    expect(PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4_SHA256).toMatch(/^[a-f0-9]{64}$/);
+    expect(PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5_SHA256).toMatch(/^[a-f0-9]{64}$/);
     expect(() => assertPublicModelCalibrationPolicyIdentity(policy)).not.toThrow();
     expect(() => assertPublicModelCalibrationPolicyIdentity({ ...policy, sha256: 'a'.repeat(64) }))
       .toThrow(/POLICY_SHA_MISMATCH/);
-    expect(() => assertPublicModelCalibrationPolicyIdentity({ ...policy, policyId: 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2' }))
+    expect(() => assertPublicModelCalibrationPolicyIdentity({ ...policy, policyId: 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4' }))
       .toThrow(/POLICY_ID_MISMATCH/);
-    expect(() => assertPublicModelCalibrationPolicyIdentity({ ...policy, schemaVersion: 2 }))
+    expect(() => assertPublicModelCalibrationPolicyIdentity({ ...policy, schemaVersion: 4 }))
       .toThrow(/POLICY_SCHEMA_MISMATCH/);
   });
 
@@ -204,6 +208,57 @@ describe('public model calibration protocol V4', () => {
     );
     expect(result.timingCorrectionMs).toBe(-80);
     expect(result.lateInScopeDecisionPairCount).toBe(1);
+  });
+
+  it('applies the 100ms latency threshold to each survivor instead of the total spread', () => {
+    const result = resolveCalibrationGate2ExactProfile([
+      { profileId: 'a', contextProfileId: '5S', modelInputMs: 5000, finalizedFeedbackAgeP95Ms: 1000, configurationSha256: 'a' },
+      { profileId: 'b', contextProfileId: '5S', modelInputMs: 5000, finalizedFeedbackAgeP95Ms: 1050, configurationSha256: 'b' },
+      { profileId: 'c', contextProfileId: '5S', modelInputMs: 5000, finalizedFeedbackAgeP95Ms: 5000, configurationSha256: 'c' },
+    ]);
+    expect(result.profilesAfterLatency).toEqual(['a', 'b']);
+    expect(result.latencyRows.find((row) => row.profileId === 'c')?.latencyDominated).toBe(true);
+    expect(result.latencyRows.find((row) => row.profileId === 'b')?.latencyDominated).toBe(false);
+  });
+
+  it.each([
+    [0, true],
+    [50, true],
+    [100, false],
+  ])('resolves same-context threshold ties at latency delta %ims with the neutral hash only when needed', (delta, neutralHashSurvives) => {
+    const result = resolveCalibrationGate2ExactProfile([
+      { profileId: 'a', contextProfileId: '5S', modelInputMs: 5000, finalizedFeedbackAgeP95Ms: 1000, configurationSha256: 'a' },
+      { profileId: 'b', contextProfileId: '5S', modelInputMs: 5000, finalizedFeedbackAgeP95Ms: 1000 + delta, configurationSha256: 'b' },
+    ]);
+    if (neutralHashSurvives) {
+      expect(result.reason).toBe('NON_PERFORMANCE_NEUTRAL_HASH');
+      expect(result.neutralTieKeys).toHaveLength(2);
+    } else {
+      expect(result.profilesAfterLatency).toEqual(['a']);
+      expect(result.reason).toBe('GATE2_FINALIZED_FEEDBACK_AGE_P95_MS');
+      expect(result.neutralTieKeys).toHaveLength(0);
+    }
+  });
+
+  it('uses the smaller context before neutral threshold resolution', () => {
+    const result = resolveCalibrationGate2ExactProfile([
+      { profileId: 'long', contextProfileId: '10S', modelInputMs: 10000, finalizedFeedbackAgeP95Ms: 1000, configurationSha256: 'long' },
+      { profileId: 'short', contextProfileId: '5S', modelInputMs: 5000, finalizedFeedbackAgeP95Ms: 1050, configurationSha256: 'short' },
+    ]);
+    expect(result.selectedProfileId).toBe('short');
+    expect(result.reason).toBe('GATE2_CONTEXT_SIZE_TIE_BREAK');
+    expect(result.neutralTieKeys).toHaveLength(0);
+  });
+
+  it('is input-order independent for neutral tie resolution', () => {
+    const profiles = [
+      { profileId: 'a', contextProfileId: '5S', modelInputMs: 5000, finalizedFeedbackAgeP95Ms: 1000, configurationSha256: 'a' },
+      { profileId: 'b', contextProfileId: '5S', modelInputMs: 5000, finalizedFeedbackAgeP95Ms: 1000, configurationSha256: 'b' },
+      { profileId: 'c', contextProfileId: '5S', modelInputMs: 5000, finalizedFeedbackAgeP95Ms: 1000, configurationSha256: 'c' },
+    ];
+    const forward = resolveCalibrationGate2ExactProfile(profiles);
+    const reverse = resolveCalibrationGate2ExactProfile([...profiles].reverse());
+    expect(reverse).toEqual(forward);
   });
 
   it('compares independently supplied base and target candidate configuration identities for reuse', () => {

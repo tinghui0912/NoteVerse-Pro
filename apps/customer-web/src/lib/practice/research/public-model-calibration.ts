@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   PUBLIC_PROXY_BOOTSTRAP_CONFIG,
   publicProxyBootstrapCi,
@@ -8,9 +9,10 @@ export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V1_SHA256 = '5f0decb22200f51d295b
 export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256 = 'eea0939a2c19727a0a93b2fdd3ce39e07d40dfa40a5f117a903552a080af4d5f';
 export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3_SHA256 = '9c6b3ca6cc46fd902a27cdf27825edd2833753cb15c9285e7c77365b3ff05130';
 export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4_SHA256 = 'b62f85cbc910d4a537214eed68c2d6e3accd3036417b16249d33d2e3a1a7cce9';
+export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5_SHA256 = '5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6';
 
-const PUBLIC_MODEL_CALIBRATION_PROTOCOL_ID = 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4';
-const PUBLIC_MODEL_CALIBRATION_SCHEMA_VERSION = 4;
+const PUBLIC_MODEL_CALIBRATION_PROTOCOL_ID = 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5';
+const PUBLIC_MODEL_CALIBRATION_SCHEMA_VERSION = 5;
 const PHASE_9GA = '9G-A';
 const PHASE_9GA_CALIBRATION_PERFORMERS = ['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p14'] as const;
 const PHASE_9GA_BLIND_PERFORMERS = ['p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22'] as const;
@@ -18,7 +20,7 @@ const PHASE_9GA_POLICY_PATH = [
   'backend',
   'research',
   'policies',
-  'public_model_calibration_protocol_v4_2026-10-09.json',
+  'public_model_calibration_protocol_v5_2026-10-09.json',
 ].join('/');
 
 type Phase9GExecutionMode = 'CANDIDATE_INFERENCE' | 'TRUTH_ONLY';
@@ -139,7 +141,7 @@ export function assertPublicModelCalibrationPolicyIdentity(identity: PublicModel
   if (identity.schemaVersion !== PUBLIC_MODEL_CALIBRATION_SCHEMA_VERSION) {
     throw new Error(`PUBLIC_MODEL_CALIBRATION_POLICY_SCHEMA_MISMATCH:${identity.schemaVersion}`);
   }
-  if (identity.sha256 !== PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4_SHA256) {
+  if (identity.sha256 !== PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5_SHA256) {
     throw new Error(`PUBLIC_MODEL_CALIBRATION_POLICY_SHA_MISMATCH:${identity.sha256}`);
   }
 }
@@ -348,6 +350,44 @@ export interface CalibrationProfileSelection {
   readonly absoluteAggregates: readonly CalibrationProfileAbsoluteAggregate[];
 }
 
+export interface CalibrationGate2Profile {
+  readonly profileId: string;
+  readonly contextProfileId: string;
+  readonly modelInputMs: number;
+  readonly onsetThreshold?: number;
+  readonly frameThreshold?: number;
+  readonly finalizedFeedbackAgeP95Ms: number | null;
+  readonly configurationSha256: string;
+}
+
+export interface CalibrationGate2LatencyRow {
+  readonly profileId: string;
+  readonly contextProfileId: string;
+  readonly onsetThreshold: number | null;
+  readonly frameThreshold: number | null;
+  readonly finalizedFeedbackAgeP95Ms: number | null;
+  readonly deltaFromBestLatencyMs: number | null;
+  readonly latencyDominated: boolean;
+}
+
+export interface CalibrationGate2Resolution {
+  readonly selectedProfileId: string | null;
+  readonly status: 'SELECTED' | 'TIE_UNRESOLVED';
+  readonly reason:
+    | 'GATE2_FINALIZED_FEEDBACK_AGE_P95_MS'
+    | 'GATE2_CONTEXT_SIZE_TIE_BREAK'
+    | 'NON_PERFORMANCE_NEUTRAL_HASH'
+    | 'GATE2_LATENCY_UNAVAILABLE';
+  readonly latencyThresholdMs: number;
+  readonly latencyRows: readonly CalibrationGate2LatencyRow[];
+  readonly profilesAfterLatency: readonly string[];
+  readonly profilesAfterContext: readonly string[];
+  readonly neutralTieKeys: readonly {
+    readonly profileId: string;
+    readonly tieKeySha256: string;
+  }[];
+}
+
 const CRITICAL_FAMILIES = [
   'COUNTERFACTUAL_MISSING_NOTE',
   'COUNTERFACTUAL_WRONG_SEMITONE',
@@ -424,6 +464,81 @@ export function selectCalibrationProfile(
     remainingProfileIds: remaining,
     decisions,
     absoluteAggregates,
+  };
+}
+
+export function resolveCalibrationGate2ExactProfile(
+  profiles: readonly CalibrationGate2Profile[],
+  latencyThresholdMs = 100,
+): CalibrationGate2Resolution {
+  if (profiles.length === 0) {
+    throw new Error('CALIBRATION_GATE2_REQUIRES_PROFILES');
+  }
+  if (!Number.isFinite(latencyThresholdMs) || latencyThresholdMs <= 0) {
+    throw new Error(`CALIBRATION_GATE2_INVALID_LATENCY_THRESHOLD:${latencyThresholdMs}`);
+  }
+  const ordered = [...profiles].sort((left, right) => left.profileId.localeCompare(right.profileId));
+  const finiteLatencies = ordered
+    .map((profile) => profile.finalizedFeedbackAgeP95Ms)
+    .filter((value): value is number => Number.isFinite(value));
+  const bestLatency = finiteLatencies.length === ordered.length ? Math.min(...finiteLatencies) : null;
+  const latencyRows = ordered.map((profile): CalibrationGate2LatencyRow => {
+    const latency = profile.finalizedFeedbackAgeP95Ms;
+    const delta = bestLatency === null || latency === null ? null : latency - bestLatency;
+    return {
+      profileId: profile.profileId,
+      contextProfileId: profile.contextProfileId,
+      onsetThreshold: profile.onsetThreshold ?? null,
+      frameThreshold: profile.frameThreshold ?? null,
+      finalizedFeedbackAgeP95Ms: latency,
+      deltaFromBestLatencyMs: delta,
+      latencyDominated: delta !== null && delta >= latencyThresholdMs,
+    };
+  });
+  const profilesAfterLatency = ordered
+    .filter((profile) => {
+      const row = latencyRows.find((candidate) => candidate.profileId === profile.profileId)!;
+      return !row.latencyDominated;
+    });
+  const minimumContextMs = Math.min(...profilesAfterLatency.map((profile) => profile.modelInputMs));
+  const profilesAfterContext = profilesAfterLatency
+    .filter((profile) => profile.modelInputMs === minimumContextMs)
+    .sort((left, right) => left.profileId.localeCompare(right.profileId));
+  if (profilesAfterContext.length === 1) {
+    return {
+      selectedProfileId: profilesAfterContext[0].profileId,
+      status: 'SELECTED',
+      reason: bestLatency === null
+        ? 'GATE2_LATENCY_UNAVAILABLE'
+        : profilesAfterLatency.length === 1 && ordered.length > 1
+          ? 'GATE2_FINALIZED_FEEDBACK_AGE_P95_MS'
+          : 'GATE2_CONTEXT_SIZE_TIE_BREAK',
+      latencyThresholdMs,
+      latencyRows,
+      profilesAfterLatency: profilesAfterLatency.map((profile) => profile.profileId),
+      profilesAfterContext: profilesAfterContext.map((profile) => profile.profileId),
+      neutralTieKeys: [],
+    };
+  }
+  const neutralTieKeys = profilesAfterContext
+    .map((profile) => ({
+      profileId: profile.profileId,
+      tieKeySha256: sha256Hex([
+        'NOTEVERSE_NEUTRAL_CALIBRATION_TIE_V1',
+        PUBLIC_MODEL_CALIBRATION_PROTOCOL_V4_SHA256,
+        profile.configurationSha256,
+      ].join('\n')),
+    }))
+    .sort((left, right) => left.tieKeySha256.localeCompare(right.tieKeySha256) || left.profileId.localeCompare(right.profileId));
+  return {
+    selectedProfileId: neutralTieKeys[0]?.profileId ?? null,
+    status: neutralTieKeys.length > 0 ? 'SELECTED' : 'TIE_UNRESOLVED',
+    reason: 'NON_PERFORMANCE_NEUTRAL_HASH',
+    latencyThresholdMs,
+    latencyRows,
+    profilesAfterLatency: profilesAfterLatency.map((profile) => profile.profileId),
+    profilesAfterContext: profilesAfterContext.map((profile) => profile.profileId),
+    neutralTieKeys,
   };
 }
 
@@ -597,6 +712,10 @@ function assertExactPerformerSet(actual: readonly string[], expected: readonly s
 function mean(values: readonly number[]): number {
   if (values.length === 0) throw new Error('MEAN_REQUIRES_VALUES');
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function sha256Hex(value: string): string {
+  return createHash('sha256').update(value, 'utf8').digest('hex');
 }
 
 function greedySamePitchTimingPairs(
