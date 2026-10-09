@@ -1,11 +1,18 @@
-import type { PublicPairedMetricComparison } from './public-fixed-bpm-benchmark';
+import {
+  PUBLIC_PROXY_BOOTSTRAP_CONFIG,
+  publicProxyBootstrapCi,
+  type PublicBootstrapConfig,
+} from './public-fixed-bpm-benchmark';
 
-const PUBLIC_MODEL_CALIBRATION_PROTOCOL_ID = 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V1';
-const PUBLIC_MODEL_CALIBRATION_SCHEMA_VERSION = 1;
+export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V1_SHA256 = '5f0decb22200f51d295bbd3c60cd04481eec7661d7844e2b7c48b4f8b42ff56a';
+export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256 = 'eea0939a2c19727a0a93b2fdd3ce39e07d40dfa40a5f117a903552a080af4d5f';
+
+const PUBLIC_MODEL_CALIBRATION_PROTOCOL_ID = 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2';
+const PUBLIC_MODEL_CALIBRATION_SCHEMA_VERSION = 2;
 const PHASE_9GA = '9G-A';
 const PHASE_9GA_CALIBRATION_PERFORMERS = ['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p14'] as const;
 const PHASE_9GA_BLIND_PERFORMERS = ['p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22'] as const;
-const PHASE_9GA_POLICY_FILE = 'public_model_calibration_protocol_v1_2026-10-09.json';
+const PHASE_9GA_POLICY_PATH = 'backend/research/policies/public_model_calibration_protocol_v2_2026-10-09.json';
 
 type Phase9GExecutionMode = 'CANDIDATE_INFERENCE' | 'TRUTH_ONLY';
 
@@ -34,36 +41,13 @@ export interface ByteDanceContextGeometry {
 }
 
 export const BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES: readonly ByteDanceContextGeometry[] = [
-  {
-    profileId: 'CURRENT_BASELINE',
-    modelInputMs: 1820,
-    futureContextMs: 220,
-    commitWidthMs: 600,
-  },
-  {
-    profileId: 'INTERMEDIATE_CONTEXT_3S',
-    modelInputMs: 3000,
-    ownedCentralRegionMs: 1500,
-    pastContextMs: 750,
-    futureContextMs: 750,
-  },
-  {
-    profileId: 'INTERMEDIATE_CONTEXT_5S',
-    modelInputMs: 5000,
-    ownedCentralRegionMs: 2500,
-    pastContextMs: 1250,
-    futureContextMs: 1250,
-  },
-  {
-    profileId: 'UPSTREAM_10S_REFERENCE',
-    modelInputMs: 10000,
-    ownedCentralRegionMs: 5000,
-    pastContextMs: 2500,
-    futureContextMs: 2500,
-  },
+  { profileId: 'CURRENT_BASELINE', modelInputMs: 1820, futureContextMs: 220, commitWidthMs: 600 },
+  { profileId: 'INTERMEDIATE_CONTEXT_3S', modelInputMs: 3000, ownedCentralRegionMs: 1500, pastContextMs: 750, futureContextMs: 750 },
+  { profileId: 'INTERMEDIATE_CONTEXT_5S', modelInputMs: 5000, ownedCentralRegionMs: 2500, pastContextMs: 1250, futureContextMs: 1250 },
+  { profileId: 'UPSTREAM_10S_REFERENCE', modelInputMs: 10000, ownedCentralRegionMs: 5000, pastContextMs: 2500, futureContextMs: 2500 },
 ];
 
-const BYTEDANCE_PHASE_9GA_THRESHOLD_GRID = {
+export const BYTEDANCE_PHASE_9GA_THRESHOLD_GRID = {
   onset: [0.15, 0.20, 0.25, 0.30, 0.35],
   frame: [0.05, 0.10, 0.15, 0.20],
 } as const;
@@ -73,30 +57,21 @@ export const ONLINE_AMT_TIMING_CALIBRATION_V1 = {
   rawTimingCorrectionMs: 0,
   matchWindowMs: 250,
   pitchRule: 'same-pitch-only',
-  assignmentPriority: [
-    'maximize-match-count',
-    'minimize-total-absolute-timing-error',
-    'deterministic-tie-break',
-  ],
+  assignmentPriority: ['maximize-match-count', 'minimize-total-absolute-timing-error', 'deterministic-tie-break'],
   offsetDefinition: 'physicalAttackTimeMs - rawCandidateEventTimeMs',
   calibratedCorrection: 'median of matched signed offsets',
-  forbiddenInputs: [
-    'ExpectedStrike timing',
-    'counterfactual duplicate acoustic evidence',
-    'BLIND_EVALUATION data',
-  ],
+  forbiddenInputs: ['ExpectedStrike timing', 'counterfactual duplicate acoustic evidence', 'BLIND_EVALUATION data'],
 } as const;
 
-const ONLINE_AMT_PHASE_9GA_POLICY_GRID = {
+export const ONLINE_AMT_PHASE_9GA_POLICY_GRID = {
   pseudoIntensity: ['DISABLED', 'NATIVE'],
   onsetBoost: [2.0, 1.0],
   timingCorrection: ONLINE_AMT_TIMING_CALIBRATION_V1.algorithmId,
 } as const;
 
-export function assertPublicModelCalibrationPolicyIdentity(
-  identity: PublicModelCalibrationPolicyIdentity,
-): void {
-  if (!identity.path.replaceAll('\\', '/').endsWith(PHASE_9GA_POLICY_FILE)) {
+export function assertPublicModelCalibrationPolicyIdentity(identity: PublicModelCalibrationPolicyIdentity): void {
+  const normalizedPath = identity.path.replaceAll('\\', '/');
+  if (normalizedPath !== PHASE_9GA_POLICY_PATH) {
     throw new Error(`PUBLIC_MODEL_CALIBRATION_POLICY_PATH_MISMATCH:${identity.path}`);
   }
   if (identity.policyId !== PUBLIC_MODEL_CALIBRATION_PROTOCOL_ID) {
@@ -105,9 +80,22 @@ export function assertPublicModelCalibrationPolicyIdentity(
   if (identity.schemaVersion !== PUBLIC_MODEL_CALIBRATION_SCHEMA_VERSION) {
     throw new Error(`PUBLIC_MODEL_CALIBRATION_POLICY_SCHEMA_MISMATCH:${identity.schemaVersion}`);
   }
-  if (!/^[a-f0-9]{64}$/.test(identity.sha256)) {
-    throw new Error(`PUBLIC_MODEL_CALIBRATION_POLICY_SHA_INVALID:${identity.sha256}`);
+  if (identity.sha256 !== PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256) {
+    throw new Error(`PUBLIC_MODEL_CALIBRATION_POLICY_SHA_MISMATCH:${identity.sha256}`);
   }
+}
+
+export function assertViennaPublicProxyExecutionAllowed(request: Phase9GExecutionRequest): void {
+  assertPublicModelCalibrationPolicyIdentity(request.policy);
+  const performers = normalizedUniquePerformers(request.performers);
+  if (request.mode === 'CANDIDATE_INFERENCE' && includesBlindPerformer(performers)) {
+    throw new Error('PHASE_9GA_BLIND_EVALUATION_INFERENCE_FORBIDDEN');
+  }
+  if (request.phase !== PHASE_9GA) {
+    if (request.mode === 'CANDIDATE_INFERENCE') return;
+    throw new Error(`PHASE_9GA_TRUTH_ONLY_PHASE_REQUIRED:${request.phase}`);
+  }
+  assertPhase9GExecutionAllowed(request);
 }
 
 export function assertPhase9GExecutionAllowed(request: Phase9GExecutionRequest): void {
@@ -134,48 +122,155 @@ export function assertPhase9GExecutionAllowed(request: Phase9GExecutionRequest):
 }
 
 export function assertCandidateExecutorReachableForPhase9G(request: Phase9GExecutionRequest): void {
-  assertPhase9GExecutionAllowed(request);
+  assertViennaPublicProxyExecutionAllowed(request);
   if (request.mode !== 'CANDIDATE_INFERENCE') {
     throw new Error(`PHASE_9GA_CANDIDATE_EXECUTOR_FORBIDDEN_IN_MODE:${request.mode}`);
   }
 }
 
-function assertNoBlindPerformerCandidateInference(request: Phase9GExecutionRequest): void {
+export function runGuardedViennaCandidateExecutorsForTest(
+  request: Phase9GExecutionRequest,
+  executors: {
+    readonly byteDance: () => void;
+    readonly onlineAmt: () => void;
+  },
+): { readonly byteDanceExecutorCalls: number; readonly onlineAmtExecutorCalls: number } {
+  assertViennaPublicProxyExecutionAllowed(request);
+  if (request.mode === 'TRUTH_ONLY') {
+    return { byteDanceExecutorCalls: 0, onlineAmtExecutorCalls: 0 };
+  }
+  assertCandidateExecutorReachableForPhase9G(request);
+  executors.byteDance();
+  executors.onlineAmt();
+  return { byteDanceExecutorCalls: 1, onlineAmtExecutorCalls: 1 };
+}
+
+export function assertNoBlindPerformerCandidateInference(request: Phase9GExecutionRequest): void {
   const performers = normalizedUniquePerformers(request.performers);
-  if (
-    request.phase === PHASE_9GA
-    && request.mode === 'CANDIDATE_INFERENCE'
-    && performers.some((performer) => (PHASE_9GA_BLIND_PERFORMERS as readonly string[]).includes(performer))
-  ) {
+  if (request.mode === 'CANDIDATE_INFERENCE' && includesBlindPerformer(performers)) {
     throw new Error('PHASE_9GA_BLIND_EVALUATION_INFERENCE_FORBIDDEN');
   }
   assertPhase9GExecutionAllowed(request);
 }
 
-interface CalibrationMetricEstimate {
-  readonly meanDifference: number;
-  readonly bootstrap95Ci: { readonly low: number; readonly high: number } | null;
-  readonly pairedScenarioCount: number;
+export interface CandidateExecutionIdentity {
+  readonly candidateId: string;
+  readonly candidateConfigurationSha256: string;
+  readonly modelIdentity: string;
+  readonly runtimeProfileIdentity: string;
 }
 
-export interface CalibrationProfileEvidence {
+export interface CandidateSpecificReuseInput {
+  readonly candidateId: string;
+  readonly sameSourceAudioSha: boolean;
+  readonly samePerformanceOrigin: boolean;
+  readonly sameCompletion: boolean;
+  readonly sameGeometrySha: boolean;
+  readonly baseExecutionIdentity: CandidateExecutionIdentity;
+  readonly targetExecutionIdentity: CandidateExecutionIdentity;
+}
+
+export interface CandidateSpecificReuseDecision {
+  readonly candidateId: string;
+  readonly status: 'ACOUSTIC_EVIDENCE_REUSED_IDENTICAL_INPUT' | 'ACOUSTIC_EVIDENCE_REUSE_REJECTED';
+  readonly baseCandidateConfigurationSha256: string;
+  readonly targetCandidateConfigurationSha256: string;
+  readonly sameFrozenCandidateConfiguration: boolean;
+  readonly sameSourceAudioSha: boolean;
+  readonly samePerformanceOrigin: boolean;
+  readonly sameCompletion: boolean;
+  readonly sameGeometrySha: boolean;
+}
+
+export function decideCandidateSpecificAcousticEvidenceReuse(input: CandidateSpecificReuseInput): CandidateSpecificReuseDecision {
+  if (input.baseExecutionIdentity.candidateId !== input.candidateId) {
+    throw new Error(`ACOUSTIC_REUSE_BASE_CANDIDATE_MISMATCH:${input.baseExecutionIdentity.candidateId}`);
+  }
+  if (input.targetExecutionIdentity.candidateId !== input.candidateId) {
+    throw new Error(`ACOUSTIC_REUSE_TARGET_CANDIDATE_MISMATCH:${input.targetExecutionIdentity.candidateId}`);
+  }
+  const sameFrozenCandidateConfiguration =
+    input.baseExecutionIdentity.candidateConfigurationSha256 === input.targetExecutionIdentity.candidateConfigurationSha256;
+  const reusable = input.sameSourceAudioSha
+    && input.samePerformanceOrigin
+    && input.sameCompletion
+    && input.sameGeometrySha
+    && sameFrozenCandidateConfiguration
+    && input.baseExecutionIdentity.modelIdentity === input.targetExecutionIdentity.modelIdentity
+    && input.baseExecutionIdentity.runtimeProfileIdentity === input.targetExecutionIdentity.runtimeProfileIdentity;
+  return {
+    candidateId: input.candidateId,
+    status: reusable ? 'ACOUSTIC_EVIDENCE_REUSED_IDENTICAL_INPUT' : 'ACOUSTIC_EVIDENCE_REUSE_REJECTED',
+    baseCandidateConfigurationSha256: input.baseExecutionIdentity.candidateConfigurationSha256,
+    targetCandidateConfigurationSha256: input.targetExecutionIdentity.candidateConfigurationSha256,
+    sameFrozenCandidateConfiguration,
+    sameSourceAudioSha: input.sameSourceAudioSha,
+    samePerformanceOrigin: input.samePerformanceOrigin,
+    sameCompletion: input.sameCompletion,
+    sameGeometrySha: input.sameGeometrySha,
+  };
+}
+
+export type CalibrationScenarioFamily =
+  | 'BASE_ORIGINAL'
+  | 'COUNTERFACTUAL_MISSING_NOTE'
+  | 'COUNTERFACTUAL_EXTRA_NOTE'
+  | 'COUNTERFACTUAL_WRONG_SEMITONE'
+  | 'COUNTERFACTUAL_INCOMPLETE_CHORD';
+
+export type CalibrationSelectionMetricName =
+  | 'criticalFalseMatchRate'
+  | 'incompleteChordFalseCompleteRate'
+  | 'baseVerdictAgreementRate'
+  | 'criticalCorrectMissingRate'
+  | 'baseChordExactCompletenessRate'
+  | 'baseExpectedStrikeRecall'
+  | 'extraNoteExtraPrecision'
+  | 'extraNoteExtraRecall'
+  | 'baseTimingMedianMs'
+  | 'baseTimingP95Ms';
+
+type ScenarioRawMetricName =
+  | 'falseMatchRateOnGroundTruthMissing'
+  | 'falseCompleteChordAcceptanceRate'
+  | 'verdictAgreementRate'
+  | 'correctMissingRate'
+  | 'chordExactCompletenessRate'
+  | 'expectedStrikeRecall'
+  | 'extraPrecision'
+  | 'extraRecall'
+  | 'timingAbsoluteMedianMs'
+  | 'timingAbsoluteP95Ms';
+
+export interface CalibrationScenarioMetricValue {
+  readonly value: number;
+  readonly numerator?: number;
+  readonly denominator?: number;
+}
+
+export interface CalibrationProfileScenarioScore {
   readonly profileId: string;
-  readonly metrics: {
-    readonly criticalFalseMatchRate: CalibrationMetricEstimate;
-    readonly incompleteChordFalseCompleteRate: CalibrationMetricEstimate;
-    readonly baseVerdictAgreementRate: CalibrationMetricEstimate;
-    readonly criticalCorrectMissingRate: CalibrationMetricEstimate;
-    readonly baseChordExactCompletenessRate: CalibrationMetricEstimate;
-    readonly baseExpectedStrikeRecall: CalibrationMetricEstimate;
-    readonly extraNoteExtraPrecision: CalibrationMetricEstimate;
-    readonly extraNoteExtraRecall: CalibrationMetricEstimate;
-    readonly baseTimingMedianMs: CalibrationMetricEstimate;
-    readonly baseTimingP95Ms: CalibrationMetricEstimate;
-  };
-  readonly latency?: {
-    readonly medianMs: number;
-    readonly p95Ms: number;
-  };
+  readonly scenarioId: string;
+  readonly family: CalibrationScenarioFamily;
+  readonly metrics: Partial<Record<ScenarioRawMetricName, CalibrationScenarioMetricValue>>;
+}
+
+export interface CalibrationProfileAbsoluteAggregate {
+  readonly profileId: string;
+  readonly metric: CalibrationSelectionMetricName;
+  readonly value: number | null;
+  readonly scenarioCount: number;
+  readonly pooledNumerator?: number;
+  readonly pooledDenominator?: number;
+}
+
+export interface CalibrationPairedProfileComparison {
+  readonly metric: CalibrationSelectionMetricName;
+  readonly leftProfileId: string;
+  readonly rightProfileId: string;
+  readonly pairedScenarioCount: number;
+  readonly meanDifferenceLeftMinusRight: number | null;
+  readonly bootstrap95Ci: { readonly low: number; readonly high: number; readonly seed: number; readonly draws: number } | null;
 }
 
 export interface CalibrationProfileSelection {
@@ -183,126 +278,192 @@ export interface CalibrationProfileSelection {
   readonly selectedProfileId: string | null;
   readonly remainingProfileIds: readonly string[];
   readonly decisions: readonly {
-    readonly metric: string;
+    readonly metric: CalibrationSelectionMetricName;
     readonly direction: 'LOWER_IS_BETTER' | 'HIGHER_IS_BETTER';
     readonly remainingProfileIds: readonly string[];
+    readonly pairwiseComparisons: readonly CalibrationPairedProfileComparison[];
   }[];
+  readonly absoluteAggregates: readonly CalibrationProfileAbsoluteAggregate[];
 }
 
-type CalibrationMetricName = keyof CalibrationProfileEvidence['metrics'];
+const CRITICAL_FAMILIES = [
+  'COUNTERFACTUAL_MISSING_NOTE',
+  'COUNTERFACTUAL_WRONG_SEMITONE',
+  'COUNTERFACTUAL_INCOMPLETE_CHORD',
+] as const;
 
 const CALIBRATION_PRIORITY: readonly {
-  readonly name: CalibrationMetricName;
+  readonly name: CalibrationSelectionMetricName;
+  readonly rawMetric: ScenarioRawMetricName;
   readonly direction: 'LOWER_IS_BETTER' | 'HIGHER_IS_BETTER';
+  readonly families: readonly CalibrationScenarioFamily[];
   readonly minimumEffect: number;
   readonly minimumSamples: number;
 }[] = [
-  { name: 'criticalFalseMatchRate', direction: 'LOWER_IS_BETTER', minimumEffect: 0.01, minimumSamples: 8 },
-  { name: 'incompleteChordFalseCompleteRate', direction: 'LOWER_IS_BETTER', minimumEffect: 0.01, minimumSamples: 8 },
-  { name: 'baseVerdictAgreementRate', direction: 'HIGHER_IS_BETTER', minimumEffect: 0.01, minimumSamples: 8 },
-  { name: 'criticalCorrectMissingRate', direction: 'HIGHER_IS_BETTER', minimumEffect: 0.01, minimumSamples: 8 },
-  { name: 'baseChordExactCompletenessRate', direction: 'HIGHER_IS_BETTER', minimumEffect: 0.01, minimumSamples: 8 },
-  { name: 'baseExpectedStrikeRecall', direction: 'HIGHER_IS_BETTER', minimumEffect: 0.01, minimumSamples: 8 },
-  { name: 'extraNoteExtraPrecision', direction: 'HIGHER_IS_BETTER', minimumEffect: 0.01, minimumSamples: 8 },
-  { name: 'extraNoteExtraRecall', direction: 'HIGHER_IS_BETTER', minimumEffect: 0.01, minimumSamples: 8 },
-  { name: 'baseTimingMedianMs', direction: 'LOWER_IS_BETTER', minimumEffect: 5, minimumSamples: 8 },
-  { name: 'baseTimingP95Ms', direction: 'LOWER_IS_BETTER', minimumEffect: 10, minimumSamples: 8 },
+  { name: 'criticalFalseMatchRate', rawMetric: 'falseMatchRateOnGroundTruthMissing', direction: 'LOWER_IS_BETTER', families: CRITICAL_FAMILIES, minimumEffect: 0.01, minimumSamples: 8 },
+  { name: 'incompleteChordFalseCompleteRate', rawMetric: 'falseCompleteChordAcceptanceRate', direction: 'LOWER_IS_BETTER', families: ['COUNTERFACTUAL_INCOMPLETE_CHORD'], minimumEffect: 0.01, minimumSamples: 8 },
+  { name: 'baseVerdictAgreementRate', rawMetric: 'verdictAgreementRate', direction: 'HIGHER_IS_BETTER', families: ['BASE_ORIGINAL'], minimumEffect: 0.01, minimumSamples: 8 },
+  { name: 'criticalCorrectMissingRate', rawMetric: 'correctMissingRate', direction: 'HIGHER_IS_BETTER', families: CRITICAL_FAMILIES, minimumEffect: 0.01, minimumSamples: 8 },
+  { name: 'baseChordExactCompletenessRate', rawMetric: 'chordExactCompletenessRate', direction: 'HIGHER_IS_BETTER', families: ['BASE_ORIGINAL'], minimumEffect: 0.01, minimumSamples: 8 },
+  { name: 'baseExpectedStrikeRecall', rawMetric: 'expectedStrikeRecall', direction: 'HIGHER_IS_BETTER', families: ['BASE_ORIGINAL'], minimumEffect: 0.01, minimumSamples: 8 },
+  { name: 'extraNoteExtraPrecision', rawMetric: 'extraPrecision', direction: 'HIGHER_IS_BETTER', families: ['COUNTERFACTUAL_EXTRA_NOTE'], minimumEffect: 0.01, minimumSamples: 8 },
+  { name: 'extraNoteExtraRecall', rawMetric: 'extraRecall', direction: 'HIGHER_IS_BETTER', families: ['COUNTERFACTUAL_EXTRA_NOTE'], minimumEffect: 0.01, minimumSamples: 8 },
+  { name: 'baseTimingMedianMs', rawMetric: 'timingAbsoluteMedianMs', direction: 'LOWER_IS_BETTER', families: ['BASE_ORIGINAL'], minimumEffect: 5, minimumSamples: 8 },
+  { name: 'baseTimingP95Ms', rawMetric: 'timingAbsoluteP95Ms', direction: 'LOWER_IS_BETTER', families: ['BASE_ORIGINAL'], minimumEffect: 10, minimumSamples: 8 },
 ];
 
 export function selectCalibrationProfile(
-  profiles: readonly CalibrationProfileEvidence[],
+  scores: readonly CalibrationProfileScenarioScore[],
+  bootstrap: PublicBootstrapConfig = PUBLIC_PROXY_BOOTSTRAP_CONFIG,
 ): CalibrationProfileSelection {
-  if (profiles.length === 0) throw new Error('CALIBRATION_PROFILE_SELECTION_REQUIRES_PROFILES');
-  let remaining = [...profiles].sort((left, right) => left.profileId.localeCompare(right.profileId));
+  const profileIds = [...new Set(scores.map((score) => score.profileId))].sort();
+  if (profileIds.length === 0) throw new Error('CALIBRATION_PROFILE_SELECTION_REQUIRES_PROFILES');
+  if (bootstrap.draws < 5_000) throw new Error('CALIBRATION_PROFILE_SELECTION_REQUIRES_5000_BOOTSTRAP_DRAWS');
+  let remaining = profileIds;
   const decisions: CalibrationProfileSelection['decisions'][number][] = [];
+  const absoluteAggregates = profileIds.flatMap((profileId) =>
+    CALIBRATION_PRIORITY.map((priority) => absoluteAggregate(scores, profileId, priority))
+  );
   for (const priority of CALIBRATION_PRIORITY) {
     if (remaining.length <= 1) break;
-    const best = bestProfileForMetric(remaining, priority.name, priority.direction);
-    remaining = remaining.filter((profile) =>
-      !isMeaningfullyWorseThanBest(profile.metrics[priority.name], best.metrics[priority.name], priority)
-    );
-    decisions.push({
-      metric: priority.name,
-      direction: priority.direction,
-      remainingProfileIds: remaining.map((profile) => profile.profileId),
-    });
+    const best = bestProfileForPriority(scores, remaining, priority);
+    if (!best) {
+      decisions.push({ metric: priority.name, direction: priority.direction, remainingProfileIds: remaining, pairwiseComparisons: [] });
+      continue;
+    }
+    const pairwiseComparisons = remaining
+      .filter((profileId) => profileId !== best)
+      .map((profileId) => pairedProfileComparison(scores, best, profileId, priority, bootstrap));
+    remaining = remaining.filter((profileId) => {
+      if (profileId === best) return true;
+      const comparison = pairwiseComparisons.find((item) => item.rightProfileId === profileId);
+      return !comparison || !isRightProfileMeaningfullyWorse(comparison, priority);
+    }).sort();
+    decisions.push({ metric: priority.name, direction: priority.direction, remainingProfileIds: remaining, pairwiseComparisons });
   }
   return {
     status: remaining.length === 1 ? 'SELECTED' : 'GATE_1_TIE',
-    selectedProfileId: remaining.length === 1 ? remaining[0].profileId : null,
-    remainingProfileIds: remaining.map((profile) => profile.profileId),
+    selectedProfileId: remaining.length === 1 ? remaining[0] : null,
+    remainingProfileIds: remaining,
     decisions,
+    absoluteAggregates,
   };
 }
 
-function pooledCriticalMetric(
-  metrics: readonly PublicPairedMetricComparison[],
-): CalibrationMetricEstimate {
-  const measured = metrics.filter((metric) =>
-    metric.status === 'MEASURED'
-    && metric.meanDifferenceByteDanceMinusOnlineAmt !== null
-    && metric.bootstrap95Ci !== null
-  );
-  const totalSamples = measured.reduce((sum, metric) => sum + metric.sampleCount, 0);
-  if (measured.length === 0 || totalSamples === 0) {
-    return { meanDifference: 0, bootstrap95Ci: null, pairedScenarioCount: 0 };
+export function pairedProfileComparison(
+  scores: readonly CalibrationProfileScenarioScore[],
+  leftProfileId: string,
+  rightProfileId: string,
+  priority: typeof CALIBRATION_PRIORITY[number],
+  bootstrap: PublicBootstrapConfig = PUBLIC_PROXY_BOOTSTRAP_CONFIG,
+): CalibrationPairedProfileComparison {
+  const left = scenarioMetricMap(scores, leftProfileId, priority);
+  const right = scenarioMetricMap(scores, rightProfileId, priority);
+  const deltas = [...left.entries()].filter(([key]) => right.has(key)).map(([key, value]) => value - right.get(key)!);
+  if (deltas.length === 0) {
+    return { metric: priority.name, leftProfileId, rightProfileId, pairedScenarioCount: 0, meanDifferenceLeftMinusRight: null, bootstrap95Ci: null };
   }
   return {
-    meanDifference: measured.reduce((sum, metric) =>
-      sum + metric.meanDifferenceByteDanceMinusOnlineAmt! * metric.sampleCount, 0) / totalSamples,
-    bootstrap95Ci: {
-      low: measured.reduce((sum, metric) => sum + metric.bootstrap95Ci!.low * metric.sampleCount, 0) / totalSamples,
-      high: measured.reduce((sum, metric) => sum + metric.bootstrap95Ci!.high * metric.sampleCount, 0) / totalSamples,
-    },
-    pairedScenarioCount: totalSamples,
+    metric: priority.name,
+    leftProfileId,
+    rightProfileId,
+    pairedScenarioCount: deltas.length,
+    meanDifferenceLeftMinusRight: mean(deltas),
+    bootstrap95Ci: deltas.length < 2 ? null : publicProxyBootstrapCi(deltas, bootstrap),
   };
 }
 
-function bestProfileForMetric(
-  profiles: readonly CalibrationProfileEvidence[],
-  metric: CalibrationMetricName,
-  direction: 'LOWER_IS_BETTER' | 'HIGHER_IS_BETTER',
-): CalibrationProfileEvidence {
-  return [...profiles].sort((left, right) => {
-    const delta = left.metrics[metric].meanDifference - right.metrics[metric].meanDifference;
-    return (direction === 'LOWER_IS_BETTER' ? delta : -delta) || left.profileId.localeCompare(right.profileId);
-  })[0];
+function bestProfileForPriority(
+  scores: readonly CalibrationProfileScenarioScore[],
+  profileIds: readonly string[],
+  priority: typeof CALIBRATION_PRIORITY[number],
+): string | null {
+  const aggregates = profileIds
+    .map((profileId) => absoluteAggregate(scores, profileId, priority))
+    .filter((aggregate) => aggregate.value !== null) as (CalibrationProfileAbsoluteAggregate & { value: number })[];
+  if (aggregates.length === 0) return null;
+  return aggregates.sort((left, right) => {
+    const delta = left.value - right.value;
+    return (priority.direction === 'LOWER_IS_BETTER' ? delta : -delta) || left.profileId.localeCompare(right.profileId);
+  })[0].profileId;
 }
 
-function isMeaningfullyWorseThanBest(
-  candidate: CalibrationMetricEstimate,
-  best: CalibrationMetricEstimate,
+function isRightProfileMeaningfullyWorse(
+  comparison: CalibrationPairedProfileComparison,
   priority: typeof CALIBRATION_PRIORITY[number],
 ): boolean {
-  if (candidate.pairedScenarioCount < priority.minimumSamples || best.pairedScenarioCount < priority.minimumSamples) {
+  if (comparison.pairedScenarioCount < priority.minimumSamples || comparison.meanDifferenceLeftMinusRight === null || comparison.bootstrap95Ci === null) {
     return false;
   }
-  if (!candidate.bootstrap95Ci || !best.bootstrap95Ci) return false;
-  const difference = candidate.meanDifference - best.meanDifference;
-  const worseMagnitude = priority.direction === 'LOWER_IS_BETTER' ? difference : -difference;
-  if (worseMagnitude < priority.minimumEffect) return false;
-  const ciDifference = {
-    low: candidate.bootstrap95Ci.low - best.bootstrap95Ci.high,
-    high: candidate.bootstrap95Ci.high - best.bootstrap95Ci.low,
-  };
-  return priority.direction === 'LOWER_IS_BETTER'
-    ? ciDifference.low > 0
-    : ciDifference.high < 0;
+  if (priority.direction === 'LOWER_IS_BETTER') {
+    const rightMinusLeft = -comparison.meanDifferenceLeftMinusRight;
+    return rightMinusLeft >= priority.minimumEffect && comparison.bootstrap95Ci.high < 0;
+  }
+  return comparison.meanDifferenceLeftMinusRight >= priority.minimumEffect && comparison.bootstrap95Ci.low > 0;
+}
+
+function absoluteAggregate(
+  scores: readonly CalibrationProfileScenarioScore[],
+  profileId: string,
+  priority: typeof CALIBRATION_PRIORITY[number],
+): CalibrationProfileAbsoluteAggregate {
+  const values = metricEntries(scores, profileId, priority);
+  if (values.length === 0) return { profileId, metric: priority.name, value: null, scenarioCount: 0 };
+  const numeratorEntries = values.filter((entry) => entry.metric.numerator !== undefined && entry.metric.denominator !== undefined);
+  if (numeratorEntries.length > 0) {
+    const pooledNumerator = numeratorEntries.reduce((sum, entry) => sum + entry.metric.numerator!, 0);
+    const pooledDenominator = numeratorEntries.reduce((sum, entry) => sum + entry.metric.denominator!, 0);
+    return {
+      profileId,
+      metric: priority.name,
+      value: pooledDenominator > 0 ? pooledNumerator / pooledDenominator : null,
+      scenarioCount: values.length,
+      pooledNumerator,
+      pooledDenominator,
+    };
+  }
+  return { profileId, metric: priority.name, value: mean(values.map((entry) => entry.metric.value)), scenarioCount: values.length };
+}
+
+function scenarioMetricMap(
+  scores: readonly CalibrationProfileScenarioScore[],
+  profileId: string,
+  priority: typeof CALIBRATION_PRIORITY[number],
+): Map<string, number> {
+  return new Map(metricEntries(scores, profileId, priority).map((entry) => [entry.key, entry.metric.value]));
+}
+
+function metricEntries(
+  scores: readonly CalibrationProfileScenarioScore[],
+  profileId: string,
+  priority: typeof CALIBRATION_PRIORITY[number],
+): { key: string; metric: CalibrationScenarioMetricValue }[] {
+  return scores.flatMap((score) => {
+    if (score.profileId !== profileId || !priority.families.includes(score.family)) return [];
+    const metric = score.metrics[priority.rawMetric];
+    if (!metric || !Number.isFinite(metric.value)) return [];
+    if (metric.denominator !== undefined && metric.denominator <= 0) return [];
+    return [{ key: `${score.family}|${score.scenarioId}`, metric }];
+  });
 }
 
 function normalizedUniquePerformers(performers: readonly string[]): readonly string[] {
   return [...new Set(performers)].sort();
 }
 
-function assertExactPerformerSet(
-  actual: readonly string[],
-  expected: readonly string[],
-  code: string,
-): void {
+function includesBlindPerformer(performers: readonly string[]): boolean {
+  return performers.some((performer) => (PHASE_9GA_BLIND_PERFORMERS as readonly string[]).includes(performer));
+}
+
+function assertExactPerformerSet(actual: readonly string[], expected: readonly string[], code: string): void {
   const same = actual.length === expected.length && actual.every((item, index) => item === expected[index]);
   if (!same) {
-    const includesBlind = actual.some((performer) => (PHASE_9GA_BLIND_PERFORMERS as readonly string[]).includes(performer));
-    if (includesBlind) throw new Error('PHASE_9GA_BLIND_EVALUATION_INFERENCE_FORBIDDEN');
+    if (includesBlindPerformer(actual)) throw new Error('PHASE_9GA_BLIND_EVALUATION_INFERENCE_FORBIDDEN');
     throw new Error(`${code}:actual=${actual.join(',')}:expected=${expected.join(',')}`);
   }
+}
+
+function mean(values: readonly number[]): number {
+  if (values.length === 0) throw new Error('MEAN_REQUIRES_VALUES');
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }

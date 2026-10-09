@@ -1,0 +1,273 @@
+{
+  "schemaVersion": 2,
+  "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2",
+  "createdForPhase": "9G-A",
+  "createdAt": "2026-10-09",
+  "benchmarkTruthBoundary": {
+    "expectedTruth": "PracticeScoreArtifact + CUSTOM_FIXED_BPM + PracticeScope RANGE + resolveContinuousPracticeContract(...)",
+    "physicalTruth": "full physical/performance MIDI NoteOn events",
+    "alignment": "dataset alignment files may be used only for candidate-independent timing/BPM/origin fitting",
+    "scorer": "CandidateScenarioRun -> ContinuousFinalizationLedger / accepted bake-off scorer",
+    "candidateOutputCannotControl": [
+      "clock",
+      "tempo",
+      "scope",
+      "playhead",
+      "ExpectedStrike",
+      "completion",
+      "mutation selection"
+    ]
+  },
+  "sourceEvidence": {
+    "datasetId": "vienna-4x22",
+    "metadataCommit": "1033ade0899bfd03a89f370c9ad5d8443ddccd3e",
+    "acceptedHistoricalReport": "backend/research/reports/vienna_fixed_bpm_proxy_final_comparison_phase9fb3_2026-10-08.json",
+    "acceptedHistoricalScenarioManifest": "backend/research/reports/vienna_fixed_bpm_proxy_final_scenarios_phase9fb3_2026-10-08.json",
+    "historicalFrozenBaselinesOnlyConclusion": "BYTE_DANCE_BETTER_ON_SECONDARY_HUMAN_FIXED_BPM_PROXY",
+    "productionWinner": false
+  },
+  "performerDisjointPartitions": {
+    "partitionMethod": "deterministic performer identity partition frozen before Phase 9G-A calibration outputs",
+    "performerIdentityPattern": "Vienna pianist suffix p01..p22",
+    "developmentProxyPerformers": [
+      "p01",
+      "p02",
+      "p03",
+      "p04",
+      "p05",
+      "p06"
+    ],
+    "calibrationProxyPerformers": [
+      "p07",
+      "p08",
+      "p09",
+      "p10",
+      "p11",
+      "p12",
+      "p13",
+      "p14"
+    ],
+    "blindEvaluationProxyPerformers": [
+      "p15",
+      "p16",
+      "p17",
+      "p18",
+      "p19",
+      "p20",
+      "p21",
+      "p22"
+    ],
+    "blindEvaluationPolicy": {
+      "candidateInferenceAllowedInPhase9GA": false,
+      "eligibleTruthAndContextMayBeAudited": true,
+      "candidateOutputsMayBeGeneratedOrInspected": false
+    },
+    "knownB3SelectedBasePerformers": [
+      "p01",
+      "p02",
+      "p03",
+      "p04",
+      "p05",
+      "p06",
+      "p07",
+      "p08",
+      "p09",
+      "p10",
+      "p11",
+      "p12",
+      "p13",
+      "p14"
+    ],
+    "blindPerformerSelectionRationale": "All blind performers are outside the accepted B3 selected BASE performer set."
+  },
+  "calibrationFamilies": [
+    "BASE_ORIGINAL",
+    "COUNTERFACTUAL_MISSING_NOTE",
+    "COUNTERFACTUAL_EXTRA_NOTE",
+    "COUNTERFACTUAL_WRONG_SEMITONE",
+    "COUNTERFACTUAL_INCOMPLETE_CHORD"
+  ],
+  "calibrationDecisionPolicy": {
+    "policyKind": "LEXICOGRAPHIC_NOTEVERSE_SAFETY_FIRST",
+    "meaningfulDifferenceThresholds": {
+      "rateAbsoluteDifference": 0.01,
+      "timingMedianMs": 5,
+      "timingP95Ms": 10
+    },
+    "priorityOrder": [
+      "lower falseMatchRateOnGroundTruthMissing",
+      "lower falseCompleteChordAcceptanceRate",
+      "higher verdictAgreementRate",
+      "higher correctMissingRate",
+      "higher chordExactCompletenessRate",
+      "higher expectedStrikeRecall",
+      "higher extraPrecision",
+      "higher extraRecall",
+      "lower timingAbsoluteMedianMs",
+      "lower timingAbsoluteP95Ms"
+    ],
+    "latencyTieBreakPolicy": "Latency/runtime cannot select a profile until Gate-1 accuracy/safety profiles are effectively tied."
+  },
+  "candidateSearchSpaces": {
+    "bytedanceOriginal": {
+      "modelFamily": "ByteDance high-resolution piano transcription original checkpoint",
+      "checkpointIdentity": {
+        "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+        "bytes": 98691493
+      },
+      "profiles": [
+        {
+          "profileId": "CURRENT_BASELINE",
+          "modelInputMs": 1820,
+          "futureContextMs": 220,
+          "commitWidthMs": 600,
+          "overlapPolicy": "inclusive chunk ownership first [0,T], later (previous,T]",
+          "thresholdGrid": [
+            {
+              "onset": 0.2,
+              "frame": 0.2
+            }
+          ]
+        },
+        {
+          "profileId": "INTERMEDIATE_CONTEXT_3S",
+          "modelInputMs": 3000,
+          "ownedCentralRegionMs": 1500,
+          "pastContextMs": 750,
+          "futureContextMs": 750,
+          "overlapPolicy": "overlapping model input windows with non-overlapping product ownership; first/last windows require real source context and do not use fake zero padding",
+          "thresholdGrid": "PREDECLARED_BYTEDANCE_THRESHOLD_GRID_V1"
+        },
+        {
+          "profileId": "INTERMEDIATE_CONTEXT_5S",
+          "modelInputMs": 5000,
+          "ownedCentralRegionMs": 2500,
+          "pastContextMs": 1250,
+          "futureContextMs": 1250,
+          "overlapPolicy": "overlapping model input windows with non-overlapping product ownership; first/last windows require real source context and do not use fake zero padding",
+          "thresholdGrid": "PREDECLARED_BYTEDANCE_THRESHOLD_GRID_V1"
+        },
+        {
+          "profileId": "UPSTREAM_10S_REFERENCE",
+          "modelInputMs": 10000,
+          "ownedCentralRegionMs": 5000,
+          "pastContextMs": 2500,
+          "futureContextMs": 2500,
+          "overlapPolicy": "upstream 50% overlap central-region deframing",
+          "thresholdGrid": [
+            {
+              "onset": 0.3,
+              "frame": 0.1
+            }
+          ]
+        }
+      ],
+      "thresholdGridV1": {
+        "onset": [
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35
+        ],
+        "frame": [
+          0.05,
+          0.1,
+          0.15,
+          0.2
+        ]
+      }
+    },
+    "bytedanceRobustAugmented": {
+      "checkpoint": "high_resolution_MAESTRO_augmentations.pth",
+      "doi": "10.5281/zenodo.10610212",
+      "role": "BYTEDANCE_FAMILY_ROBUSTNESS_CHALLENGER",
+      "licenseStatus": "TO_BE_VERIFIED_BEFORE_PRODUCTION"
+    },
+    "onlineAmt": {
+      "candidateId": "online-amt-stateful-modern-compat-dev-v1",
+      "structuralConstantsNotTuned": {
+        "sampleRateHz": 16000,
+        "hopSamples": 512,
+        "statefulRecurrence": true,
+        "onsetStateIds": [
+          3,
+          4
+        ]
+      },
+      "timingCorrectionCalibration": {
+        "algorithmId": "ONLINE_AMT_TIMING_CALIBRATION_V1",
+        "historicalCorrectionMs": -158,
+        "calibrationAllowedOnCalibrationProxyOnly": true,
+        "method": "Generate raw Online-AMT onset evidence on CALIBRATION BASE audio only using zero additional timing correction. Match raw candidate onsets to physical MIDI attacks using same pitch only, deterministic one-to-one assignment, maximum absolute timing distance 250ms, maximize matches then minimize total absolute timing error. For every matched pair compute physicalAttackTimeMs - rawCandidateEventTimeMs. The calibrated correction is the median of all matched signed offsets. Record matched pair count, median, signed residual P05/P50/P95, and absolute residual P50/P95. ExpectedStrike timing, counterfactual duplicate acoustic evidence, and BLIND_EVALUATION data are forbidden inputs."
+      },
+      "predeclaredPolicies": {
+        "pseudoIntensity": [
+          "DISABLED_PSEUDO_INTENSITY",
+          "NATIVE_PSEUDO_INTENSITY"
+        ],
+        "onsetBoost": [
+          2.0,
+          1.0
+        ]
+      }
+    },
+    "mandatoryChallengers": [
+      {
+        "candidateFamily": "Transkun V2 Aug",
+        "repository": "Yujia-Yan/Transkun",
+        "role": "MODERN_OFFLINE_OR_SEGMENTWISE_CHALLENGER",
+        "nativeInferenceRequired": true
+      },
+      {
+        "candidateFamily": "Aria-AMT piano v1 medium-double",
+        "repository": "EleutherAI/aria-amt",
+        "role": "MODERN_OFFLINE_CHALLENGER",
+        "nativeInferenceRequired": true,
+        "weightLicenseMustBeRecordedSeparately": true
+      },
+      {
+        "candidateFamily": "RTT final released checkpoint",
+        "repository": "huispaty/rtt",
+        "role": "STRICT_CAUSAL_STREAMING_REFERENCE",
+        "nativeInferenceRequired": true
+      }
+    ],
+    "optionalReferences": [
+      {
+        "candidateFamily": "D3RM",
+        "repository": "hanshounsu/d3rm",
+        "role": "OFFLINE_ACCURACY_REFERENCE",
+        "mayBlockOnRuntimeDependencies": true
+      }
+    ],
+    "watchlist": [
+      {
+        "candidateFamily": "hFT-Transformer",
+        "reason": "deprioritized until mandatory challengers execute"
+      },
+      {
+        "candidateFamily": "Efficient sparse-attention seq2seq piano transcription",
+        "repository": "WX-Wei/efficient-seq2seq-piano-trans",
+        "reason": "license unresolved watchlist"
+      }
+    ]
+  },
+  "qualificationGate": {
+    "requiresRealCheckpointExecution": true,
+    "requiresReproducibleAssetIdentity": true,
+    "requiresCanonicalCandidateScenarioRun": true,
+    "requiresAdequateCalibrationCoverage": true,
+    "requiresNoCatastrophicFalseCorrectBehavior": true,
+    "requiresRuntimeCapableOfBoundedProductAudio": true,
+    "licenseMayLimitToResearchOnly": true,
+    "phase9GAProductionWinnerAllowed": false
+  },
+  "integrityCorrections": {
+    "blindCandidateInferenceLock": "p15-p22 candidate inference forbidden until a future explicit Phase 9G-B unlock validates frozen manifest and qualified profiles",
+    "explicitPhaseRequired": true,
+    "acousticEvidenceReuse": "candidate-specific independent base/target execution identity comparison required",
+    "pairedProfileSelection": "direct scenario-level paired bootstrap over A-B vectors; marginal CI subtraction forbidden",
+    "truthOnlyReceiptSemantics": "candidateInferenceExecuted/modelAssetsLoaded/candidateScenarioRunsGenerated flags must be false"
+  }
+}

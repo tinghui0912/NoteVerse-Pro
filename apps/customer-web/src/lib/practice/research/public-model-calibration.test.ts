@@ -3,17 +3,22 @@ import { describe, expect, it } from 'vitest';
 import {
   BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES,
   ONLINE_AMT_TIMING_CALIBRATION_V1,
+  PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256,
   assertCandidateExecutorReachableForPhase9G,
   assertPhase9GExecutionAllowed,
+  assertPublicModelCalibrationPolicyIdentity,
+  assertViennaPublicProxyExecutionAllowed,
+  decideCandidateSpecificAcousticEvidenceReuse,
+  runGuardedViennaCandidateExecutorsForTest,
   selectCalibrationProfile,
-  type CalibrationProfileEvidence,
+  type CalibrationProfileScenarioScore,
 } from './public-model-calibration';
 
 const policy = {
-  path: 'public_model_calibration_protocol_v1_2026-10-09.json',
-  sha256: 'a'.repeat(64),
-  policyId: 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V1',
-  schemaVersion: 1,
+  path: 'backend/research/policies/public_model_calibration_protocol_v2_2026-10-09.json',
+  sha256: PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256,
+  policyId: 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2',
+  schemaVersion: 2,
 };
 
 function request(overrides = {}) {
@@ -27,46 +32,98 @@ function request(overrides = {}) {
   };
 }
 
-function metric(meanDifference: number, low: number, high: number, pairedScenarioCount = 12) {
-  return {
-    meanDifference,
-    bootstrap95Ci: { low, high },
-    pairedScenarioCount,
-  };
-}
-
-function profile(profileId: string, overrides: Partial<CalibrationProfileEvidence['metrics']> = {}): CalibrationProfileEvidence {
-  const tied = metric(0.5, 0.49, 0.51, 12);
+function score(
+  profileId: string,
+  scenarioId: string,
+  family: CalibrationProfileScenarioScore['family'],
+  value: number,
+  metric: keyof CalibrationProfileScenarioScore['metrics'] = 'falseMatchRateOnGroundTruthMissing',
+  denominator = 1,
+): CalibrationProfileScenarioScore {
   return {
     profileId,
+    scenarioId,
+    family,
     metrics: {
-      criticalFalseMatchRate: tied,
-      incompleteChordFalseCompleteRate: tied,
-      baseVerdictAgreementRate: tied,
-      criticalCorrectMissingRate: tied,
-      baseChordExactCompletenessRate: tied,
-      baseExpectedStrikeRecall: tied,
-      extraNoteExtraPrecision: tied,
-      extraNoteExtraRecall: tied,
-      baseTimingMedianMs: metric(10, 9, 11, 12),
-      baseTimingP95Ms: metric(30, 29, 31, 12),
-      ...overrides,
+      [metric]: { value, numerator: value * denominator, denominator },
     },
   };
 }
 
-describe('public model calibration protocol', () => {
+function profileScores(profileId: string, values: readonly number[], family: CalibrationProfileScenarioScore['family'] = 'COUNTERFACTUAL_MISSING_NOTE') {
+  return values.map((value, index) => score(profileId, `s${index}`, family, value));
+}
+
+function allMetricScores(profileId: string, values: readonly number[], family: CalibrationProfileScenarioScore['family'], metric: Parameters<typeof score>[4]) {
+  return values.map((value, index) => score(profileId, `s${index}`, family, value, metric));
+}
+
+describe('public model calibration protocol V2', () => {
+  it('accepts only the exact V2 policy identity and rejects arbitrary hashes', () => {
+    expect(() => assertPublicModelCalibrationPolicyIdentity(policy)).not.toThrow();
+    expect(() => assertPublicModelCalibrationPolicyIdentity({ ...policy, sha256: 'a'.repeat(64) }))
+      .toThrow(/POLICY_SHA_MISMATCH/);
+    expect(() => assertPublicModelCalibrationPolicyIdentity({ ...policy, policyId: 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V1' }))
+      .toThrow(/POLICY_ID_MISMATCH/);
+    expect(() => assertPublicModelCalibrationPolicyIdentity({ ...policy, schemaVersion: 1 }))
+      .toThrow(/POLICY_SCHEMA_MISMATCH/);
+  });
+
   it('allows Phase 9G-A candidate inference only for p07-p14 CALIBRATION', () => {
     expect(() => assertCandidateExecutorReachableForPhase9G(request())).not.toThrow();
+    expect(() => assertCandidateExecutorReachableForPhase9G(request({ scenarioSplit: 'EVALUATION' })))
+      .toThrow(/REQUIRES_CALIBRATION/);
+    expect(() => assertCandidateExecutorReachableForPhase9G(request({ performers: ['p99'] })))
+      .toThrow(/CALIBRATION_PERFORMER_SET_REQUIRED/);
+  });
+
+  it('globally rejects blind candidate inference before executor reachability', () => {
+    const blind = request({
+      phase: '9F-B3',
+      performers: ['p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22'],
+    });
+    expect(() => assertViennaPublicProxyExecutionAllowed(blind))
+      .toThrow(/PHASE_9GA_BLIND_EVALUATION_INFERENCE_FORBIDDEN/);
     expect(() => assertCandidateExecutorReachableForPhase9G(request({
-      performers: ['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p15'],
+      performers: ['p07', 'p15'],
     }))).toThrow(/PHASE_9GA_BLIND_EVALUATION_INFERENCE_FORBIDDEN/);
-    expect(() => assertCandidateExecutorReachableForPhase9G(request({
+  });
+
+  it('proves executor-call counters stay zero for blind, mixed, and TRUTH_ONLY requests', () => {
+    let byteDanceCalls = 0;
+    let onlineAmtCalls = 0;
+    const executors = {
+      byteDance: () => { byteDanceCalls += 1; },
+      onlineAmt: () => { onlineAmtCalls += 1; },
+    };
+    expect(runGuardedViennaCandidateExecutorsForTest(request(), executors)).toEqual({
+      byteDanceExecutorCalls: 1,
+      onlineAmtExecutorCalls: 1,
+    });
+    expect(byteDanceCalls).toBe(1);
+    expect(onlineAmtCalls).toBe(1);
+
+    for (const invalid of [
+      request({ performers: ['p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22'] }),
+      request({ performers: ['p07', 'p15'] }),
+    ]) {
+      expect(() => runGuardedViennaCandidateExecutorsForTest(invalid, executors))
+        .toThrow(/PHASE_9GA_BLIND_EVALUATION_INFERENCE_FORBIDDEN/);
+    }
+    expect(byteDanceCalls).toBe(1);
+    expect(onlineAmtCalls).toBe(1);
+
+    const truthOnly = request({
+      mode: 'TRUTH_ONLY',
       scenarioSplit: 'EVALUATION',
-    }))).toThrow(/REQUIRES_CALIBRATION/);
-    expect(() => assertCandidateExecutorReachableForPhase9G(request({
-      performers: ['p99'],
-    }))).toThrow(/CALIBRATION_PERFORMER_SET_REQUIRED/);
+      performers: ['p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22'],
+    });
+    expect(runGuardedViennaCandidateExecutorsForTest(truthOnly, executors)).toEqual({
+      byteDanceExecutorCalls: 0,
+      onlineAmtExecutorCalls: 0,
+    });
+    expect(byteDanceCalls).toBe(1);
+    expect(onlineAmtCalls).toBe(1);
   });
 
   it('allows blind TRUTH_ONLY manifest construction and forbids candidate execution there', () => {
@@ -77,13 +134,6 @@ describe('public model calibration protocol', () => {
     });
     expect(() => assertPhase9GExecutionAllowed(truthOnly)).not.toThrow();
     expect(() => assertCandidateExecutorReachableForPhase9G(truthOnly)).toThrow(/CANDIDATE_EXECUTOR_FORBIDDEN/);
-  });
-
-  it('validates policy identity and hash shape before execution', () => {
-    expect(() => assertPhase9GExecutionAllowed(request({ policy: { ...policy, sha256: 'bad' } })))
-      .toThrow(/POLICY_SHA_INVALID/);
-    expect(() => assertPhase9GExecutionAllowed(request({ policy: { ...policy, policyId: 'wrong' } })))
-      .toThrow(/POLICY_ID_MISMATCH/);
   });
 
   it('freezes ByteDance 3s/5s/10s context geometry exactly', () => {
@@ -102,28 +152,115 @@ describe('public model calibration protocol', () => {
     expect(ONLINE_AMT_TIMING_CALIBRATION_V1.forbiddenInputs).toContain('BLIND_EVALUATION data');
   });
 
-  it('selects calibration profiles order-independently with safety first', () => {
-    const safe = profile('safe', { criticalFalseMatchRate: metric(0.10, 0.09, 0.11) });
-    const unsafe = profile('unsafe', { criticalFalseMatchRate: metric(0.13, 0.12, 0.14), baseVerdictAgreementRate: metric(0.9, 0.89, 0.91) });
-    expect(selectCalibrationProfile([unsafe, safe]).selectedProfileId).toBe('safe');
-    expect(selectCalibrationProfile([safe, unsafe]).selectedProfileId).toBe('safe');
+  it('compares independently supplied base and target candidate configuration identities for reuse', () => {
+    const baseExecutionIdentity = {
+      candidateId: 'bytedance-score-aware-chunked-dev-v1',
+      candidateConfigurationSha256: 'base',
+      modelIdentity: 'model',
+      runtimeProfileIdentity: 'runtime',
+    };
+    const targetExecutionIdentity = { ...baseExecutionIdentity, candidateConfigurationSha256: 'target' };
+    const decision = decideCandidateSpecificAcousticEvidenceReuse({
+      candidateId: 'bytedance-score-aware-chunked-dev-v1',
+      sameSourceAudioSha: true,
+      samePerformanceOrigin: true,
+      sameCompletion: true,
+      sameGeometrySha: true,
+      baseExecutionIdentity,
+      targetExecutionIdentity,
+    });
+    expect(decision.baseCandidateConfigurationSha256).toBe('base');
+    expect(decision.targetCandidateConfigurationSha256).toBe('target');
+    expect(decision.sameFrozenCandidateConfiguration).toBe(false);
+    expect(decision.status).toBe('ACOUSTIC_EVIDENCE_REUSE_REJECTED');
   });
 
-  it('treats safety evidence with crossing confidence interval as tied', () => {
-    const left = profile('left', { criticalFalseMatchRate: metric(0.10, 0.05, 0.15), baseVerdictAgreementRate: metric(0.80, 0.79, 0.81) });
-    const right = profile('right', { criticalFalseMatchRate: metric(0.11, 0.04, 0.16), baseVerdictAgreementRate: metric(0.84, 0.83, 0.85) });
-    expect(selectCalibrationProfile([left, right]).selectedProfileId).toBe('right');
+  it('allows candidate-specific reuse decisions to differ', () => {
+    const identity = (candidateId: string) => ({
+      candidateId,
+      candidateConfigurationSha256: `${candidateId}-config`,
+      modelIdentity: `${candidateId}-model`,
+      runtimeProfileIdentity: `${candidateId}-runtime`,
+    });
+    const byteDance = decideCandidateSpecificAcousticEvidenceReuse({
+      candidateId: 'bytedance-score-aware-chunked-dev-v1',
+      sameSourceAudioSha: true,
+      samePerformanceOrigin: true,
+      sameCompletion: true,
+      sameGeometrySha: false,
+      baseExecutionIdentity: identity('bytedance-score-aware-chunked-dev-v1'),
+      targetExecutionIdentity: identity('bytedance-score-aware-chunked-dev-v1'),
+    });
+    const onlineAmt = decideCandidateSpecificAcousticEvidenceReuse({
+      candidateId: 'online-amt-stateful-modern-compat-dev-v1',
+      sameSourceAudioSha: true,
+      samePerformanceOrigin: true,
+      sameCompletion: true,
+      sameGeometrySha: true,
+      baseExecutionIdentity: identity('online-amt-stateful-modern-compat-dev-v1'),
+      targetExecutionIdentity: identity('online-amt-stateful-modern-compat-dev-v1'),
+    });
+    expect(byteDance.status).toBe('ACOUSTIC_EVIDENCE_REUSE_REJECTED');
+    expect(onlineAmt.status).toBe('ACOUSTIC_EVIDENCE_REUSED_IDENTICAL_INPUT');
   });
 
-  it('does not let latency beat a Gate-1 accuracy difference', () => {
-    const accurateSlow = { ...profile('accurate-slow', { baseVerdictAgreementRate: metric(0.90, 0.89, 0.91) }), latency: { medianMs: 100, p95Ms: 150 } };
-    const fastWeak = { ...profile('fast-weak', { baseVerdictAgreementRate: metric(0.86, 0.85, 0.87) }), latency: { medianMs: 1, p95Ms: 2 } };
-    expect(selectCalibrationProfile([fastWeak, accurateSlow]).selectedProfileId).toBe('accurate-slow');
+  it('selects calibration profiles with direct paired scenario-level bootstrap', () => {
+    const scores = [
+      ...profileScores('safe', Array.from({ length: 12 }, () => 0.10)),
+      ...profileScores('unsafe', Array.from({ length: 12 }, () => 0.13)),
+    ];
+    const result = selectCalibrationProfile(scores);
+    expect(result.selectedProfileId).toBe('safe');
+    expect(result.decisions[0].pairwiseComparisons[0]).toMatchObject({
+      leftProfileId: 'safe',
+      rightProfileId: 'unsafe',
+      pairedScenarioCount: 12,
+    });
   });
 
-  it('keeps all profiles when Gate-1 evidence is effectively tied', () => {
-    const result = selectCalibrationProfile([profile('a'), profile('b')]);
-    expect(result.status).toBe('GATE_1_TIE');
-    expect(result.remainingProfileIds).toEqual(['a', 'b']);
+  it('excludes zero-denominator scenario metrics instead of converting them to zero', () => {
+    const scores = [
+      score('a', 'zero-denom', 'COUNTERFACTUAL_MISSING_NOTE', 0, 'falseMatchRateOnGroundTruthMissing', 0),
+      score('b', 'zero-denom', 'COUNTERFACTUAL_MISSING_NOTE', 1, 'falseMatchRateOnGroundTruthMissing', 0),
+    ];
+    const result = selectCalibrationProfile(scores);
+    expect(result.decisions[0].pairwiseComparisons).toEqual([]);
+  });
+
+  it('is permutation invariant for three or more profiles', () => {
+    const scores = [
+      ...profileScores('a', Array.from({ length: 12 }, () => 0.10)),
+      ...profileScores('b', Array.from({ length: 12 }, () => 0.11)),
+      ...profileScores('c', Array.from({ length: 12 }, () => 0.13)),
+      ...profileScores('d', Array.from({ length: 12 }, () => 0.12)),
+    ];
+    const expected = selectCalibrationProfile(scores).remainingProfileIds;
+    for (const order of [['d', 'c', 'b', 'a'], ['b', 'd', 'a', 'c'], ['c', 'a', 'd', 'b']]) {
+      const permuted = order.flatMap((profileId) => scores.filter((item) => item.profileId === profileId));
+      expect(selectCalibrationProfile(permuted).remainingProfileIds).toEqual(expected);
+      expect(selectCalibrationProfile(permuted).decisions.map((item) => item.remainingProfileIds)).toEqual(
+        selectCalibrationProfile(scores).decisions.map((item) => item.remainingProfileIds),
+      );
+    }
+  });
+
+  it('uses later priorities only when safety evidence is statistically tied', () => {
+    const leftSafety = Array.from({ length: 12 }, (_, index) => 0.10 + (index % 2) * 0.04);
+    const rightSafety = Array.from({ length: 12 }, (_, index) => 0.11 + (index % 2) * 0.04);
+    const scores = [
+      ...profileScores('left', leftSafety),
+      ...profileScores('right', rightSafety),
+      ...allMetricScores('left', Array.from({ length: 12 }, () => 0.80), 'BASE_ORIGINAL', 'verdictAgreementRate'),
+      ...allMetricScores('right', Array.from({ length: 12 }, () => 0.86), 'BASE_ORIGINAL', 'verdictAgreementRate'),
+    ];
+    expect(selectCalibrationProfile(scores).selectedProfileId).toBe('right');
+  });
+
+  it('does not allow latency to override Gate-1 selection', () => {
+    const scores = [
+      ...allMetricScores('accurate-slow', Array.from({ length: 12 }, () => 0.90), 'BASE_ORIGINAL', 'verdictAgreementRate'),
+      ...allMetricScores('fast-weak', Array.from({ length: 12 }, () => 0.86), 'BASE_ORIGINAL', 'verdictAgreementRate'),
+    ];
+    expect(selectCalibrationProfile(scores).selectedProfileId).toBe('accurate-slow');
   });
 });

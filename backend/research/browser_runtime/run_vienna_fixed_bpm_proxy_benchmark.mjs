@@ -31,6 +31,7 @@ const DEFAULT_ASSIGNMENT_WINDOW_MS = 250;
 const ONLINE_AMT_IMAGE = 'noteverse-online-amt-modern:phase9e-b1';
 const BYTEDANCE_CANDIDATE_ID = 'bytedance-score-aware-chunked-dev-v1';
 const ONLINE_AMT_CANDIDATE_ID = 'online-amt-stateful-modern-compat-dev-v1';
+const VIENNA_PIECE_IDS = ['Chopin_op10_no3', 'Chopin_op38', 'Mozart_K331_1st-mov', 'Schubert_D783_no15'];
 
 const args = parseArgs(process.argv);
 const repoRoot = path.resolve(args['repo-root'] ?? process.cwd());
@@ -42,14 +43,15 @@ const maxScenarios = Number(args['max-scenarios'] ?? DEFAULT_MAX_SCENARIOS);
 const includedPerformers = parseCsvSet(args.performers);
 const scenarioSplit = args['scenario-split'] ?? 'DEVELOPMENT';
 const practiceImage = args['practice-image'] ?? 'noteverse-backend-practice:dev';
-const phase = args.phase ?? '9F-B3';
+const phase = args.phase;
+if (!phase) throw new Error('VIENNA_PUBLIC_PROXY_RESEARCH_PHASE_REQUIRED');
 const executionMode = args['execution-mode'] ?? 'CANDIDATE_INFERENCE';
 const defaultPaths = defaultOutputPaths({ phase, executionMode });
 const manifestRel = args['scenario-manifest'] ?? defaultPaths.manifestRel;
 const manifestPath = path.resolve(repoRoot, manifestRel);
 const reportRel = args.output ?? defaultPaths.reportRel;
 const reportPath = path.resolve(repoRoot, reportRel);
-const calibrationPolicyRel = args['calibration-policy'] ?? 'backend/research/policies/public_model_calibration_protocol_v1_2026-10-09.json';
+const calibrationPolicyRel = args['calibration-policy'] ?? 'backend/research/policies/public_model_calibration_protocol_v2_2026-10-09.json';
 const calibrationPolicyPath = path.resolve(repoRoot, calibrationPolicyRel);
 const implementationGitHead = gitHead(repoRoot);
 const dirtyTreeAtExecution = gitDirty(repoRoot);
@@ -76,9 +78,7 @@ const phaseExecutionRequest = {
   performers: [...includedPerformers].sort(),
   policy: calibrationPolicy,
 };
-if (phase === '9G-A') {
-  calibrationContract.assertPhase9GExecutionAllowed(phaseExecutionRequest);
-}
+calibrationContract.assertViennaPublicProxyExecutionAllowed(phaseExecutionRequest);
 
 const acquisition = await ensureViennaSources();
 const scoreArtifacts = await ensureViennaPracticeScoreArtifacts(acquisition.metadataRoot);
@@ -208,7 +208,9 @@ if (executionMode === 'TRUTH_ONLY') {
     }),
     counterfactuals: counterfactualSummary(counterfactualReceipts),
     confirmations: {
-      truthOnlyModeDidNotLoadOrExecuteCandidates: true,
+      candidateInferenceExecuted: false,
+      modelAssetsLoaded: false,
+      candidateScenarioRunsGenerated: false,
       evaluationCandidateOutputsGeneratedOrInspected: false,
       productionWinnerSelected: false,
       productionMicrophoneEnabled: false,
@@ -243,11 +245,12 @@ for (const scenario of baseScenarios) {
 const baseRunByScenarioAndCandidate = new Map(runs.map((run) => [`${run.scenarioId}|${run.candidateId}`, run]));
 for (const item of counterfactualItems) {
   for (const candidateId of [BYTEDANCE_CANDIDATE_ID, ONLINE_AMT_CANDIDATE_ID]) {
-    if (item.receipt.acousticEvidenceReuse.status !== 'ACOUSTIC_EVIDENCE_REUSED_IDENTICAL_INPUT') {
+    const reuseDecision = item.receipt.acousticEvidenceReuse.byCandidate[candidateId];
+    if (!reuseDecision || reuseDecision.status !== 'ACOUSTIC_EVIDENCE_REUSED_IDENTICAL_INPUT') {
       failures.push({
         candidateId,
         scenarioId: item.scenario.scenarioId,
-        error: `Acoustic evidence reuse rejected: ${JSON.stringify(item.receipt.acousticEvidenceReuse)}`,
+        error: `Acoustic evidence reuse rejected: ${JSON.stringify(reuseDecision ?? item.receipt.acousticEvidenceReuse)}`,
       });
       continue;
     }
@@ -394,7 +397,6 @@ const report = {
   pairedComparison: paired,
   familyPairedComparisons: familyComparisons,
   historicalBaselineComparison: phase === '9G-A' ? 'DESCRIPTIVE_ONLY' : undefined,
-  CALIBRATION_POLICY_DIAGNOSTIC_CURRENT_BASELINES: phase === '9G-A' ? secondaryResult : undefined,
   ...(phase === '9G-A' ? {} : {
     SECONDARY_HUMAN_FIXED_BPM_PROXY_RESULT: secondaryResult,
     overallPublicEvidenceConclusion: secondaryResult === 'NO_CLEAR_WINNER'
@@ -473,11 +475,12 @@ async function ensureViennaSources() {
 }
 
 async function loadCalibrationPolicyIdentity() {
-  const text = await readFile(calibrationPolicyPath, 'utf8');
+  const bytes = await readFile(calibrationPolicyPath);
+  const text = bytes.toString('utf8');
   const policy = JSON.parse(text);
   const identity = {
     path: normalizeRel(repoRoot, calibrationPolicyPath),
-    sha256: sha256Text(text),
+    sha256: createHash('sha256').update(bytes).digest('hex'),
     policyId: policy.policyId,
     schemaVersion: policy.schemaVersion,
   };
@@ -874,15 +877,34 @@ function acousticEvidenceReuseReceipt(baseScenario, mutatedScenario) {
   const mutatedByteDance = byteDanceGeometryIdentity(mutatedScenario);
   const baseOnlineAmt = onlineAmtGeometryIdentity(baseScenario);
   const mutatedOnlineAmt = onlineAmtGeometryIdentity(mutatedScenario);
-  const candidateConfigurations = candidateConfigurationReuseIdentity();
-  const receipt = {
-    status: 'ACOUSTIC_EVIDENCE_REUSED_IDENTICAL_INPUT',
+  const common = {
     sameSourceAudioSha: baseScenario.source.sourceAudioSha256 === mutatedScenario.source.sourceAudioSha256,
     samePerformanceOrigin: baseScenario.audio.performanceOriginSourceMs === mutatedScenario.audio.performanceOriginSourceMs,
     sameCompletion: baseScenario.completion.performanceTimeMs === mutatedScenario.completion.performanceTimeMs,
-    candidateConfigurations,
-    sameFrozenCandidateConfiguration: Object.values(candidateConfigurations)
-      .every((entry) => entry.sameFrozenCandidateConfiguration),
+  };
+  const byteDanceReuse = calibrationContract.decideCandidateSpecificAcousticEvidenceReuse({
+    candidateId: BYTEDANCE_CANDIDATE_ID,
+    ...common,
+    sameGeometrySha: baseByteDance.sha256 === mutatedByteDance.sha256,
+    baseExecutionIdentity: candidateExecutionIdentity(BYTEDANCE_CANDIDATE_ID),
+    targetExecutionIdentity: candidateExecutionIdentity(BYTEDANCE_CANDIDATE_ID),
+  });
+  const onlineAmtReuse = calibrationContract.decideCandidateSpecificAcousticEvidenceReuse({
+    candidateId: ONLINE_AMT_CANDIDATE_ID,
+    ...common,
+    sameGeometrySha: baseOnlineAmt.sha256 === mutatedOnlineAmt.sha256,
+    baseExecutionIdentity: candidateExecutionIdentity(ONLINE_AMT_CANDIDATE_ID),
+    targetExecutionIdentity: candidateExecutionIdentity(ONLINE_AMT_CANDIDATE_ID),
+  });
+  const receipt = {
+    status: [byteDanceReuse, onlineAmtReuse].every((entry) => entry.status === 'ACOUSTIC_EVIDENCE_REUSED_IDENTICAL_INPUT')
+      ? 'ACOUSTIC_EVIDENCE_REUSED_IDENTICAL_INPUT'
+      : 'ACOUSTIC_EVIDENCE_REUSE_REJECTED_GEOMETRY_MISMATCH',
+    ...common,
+    byCandidate: {
+      [BYTEDANCE_CANDIDATE_ID]: byteDanceReuse,
+      [ONLINE_AMT_CANDIDATE_ID]: onlineAmtReuse,
+    },
     byteDanceChunkGeometrySha256: {
       base: baseByteDance.sha256,
       mutated: mutatedByteDance.sha256,
@@ -894,37 +916,27 @@ function acousticEvidenceReuseReceipt(baseScenario, mutatedScenario) {
     sameByteDanceChunkGeometry: baseByteDance.sha256 === mutatedByteDance.sha256,
     sameOnlineAmtOwnedPcmTailGeometry: baseOnlineAmt.sha256 === mutatedOnlineAmt.sha256,
   };
-  if (
-    !receipt.sameSourceAudioSha
-    || !receipt.samePerformanceOrigin
-    || !receipt.sameCompletion
-    || !receipt.sameFrozenCandidateConfiguration
-    || !receipt.sameByteDanceChunkGeometry
-    || !receipt.sameOnlineAmtOwnedPcmTailGeometry
-  ) {
-    return {
-      ...receipt,
-      status: 'ACOUSTIC_EVIDENCE_REUSE_REJECTED_GEOMETRY_MISMATCH',
-    };
-  }
   return receipt;
 }
 
-function candidateConfigurationReuseIdentity() {
-  const bytedanceConfigurationSha256 = byteDance.bytedanceCandidateDefinition({ gitHead: implementationGitHead, trainingDataOverlapStatus: 'UNKNOWN' }).identity.configurationSha256;
-  const onlineAmtConfigurationSha256 = onlineAmt.onlineAmtCandidateDefinition({ gitHead: implementationGitHead, trainingDataOverlapStatus: 'UNKNOWN' }).identity.configurationSha256;
-  return {
-    [BYTEDANCE_CANDIDATE_ID]: {
-      baseCandidateConfigurationSha256: bytedanceConfigurationSha256,
-      counterfactualCandidateConfigurationSha256: bytedanceConfigurationSha256,
-      sameFrozenCandidateConfiguration: bytedanceConfigurationSha256 === bytedanceConfigurationSha256,
-    },
-    [ONLINE_AMT_CANDIDATE_ID]: {
-      baseCandidateConfigurationSha256: onlineAmtConfigurationSha256,
-      counterfactualCandidateConfigurationSha256: onlineAmtConfigurationSha256,
-      sameFrozenCandidateConfiguration: onlineAmtConfigurationSha256 === onlineAmtConfigurationSha256,
-    },
-  };
+function candidateExecutionIdentity(candidateId) {
+  if (candidateId === BYTEDANCE_CANDIDATE_ID) {
+    return {
+      candidateId,
+      candidateConfigurationSha256: byteDance.bytedanceCandidateDefinition({ gitHead: implementationGitHead, trainingDataOverlapStatus: 'UNKNOWN' }).identity.configurationSha256,
+      modelIdentity: `sha256:${BYTE_DANCE_MODEL_SHA256};bytes:${BYTE_DANCE_MODEL_BYTES}`,
+      runtimeProfileIdentity: 'real-ort-web-wasm-vienna-public-proxy',
+    };
+  }
+  if (candidateId === ONLINE_AMT_CANDIDATE_ID) {
+    return {
+      candidateId,
+      candidateConfigurationSha256: onlineAmt.onlineAmtCandidateDefinition({ gitHead: implementationGitHead, trainingDataOverlapStatus: 'UNKNOWN' }).identity.configurationSha256,
+      modelIdentity: `sha256:${ONLINE_AMT_CHECKPOINT_SHA256};bytes:${ONLINE_AMT_CHECKPOINT_BYTES}`,
+      runtimeProfileIdentity: 'real-online-amt-modern-docker-vienna-public-proxy',
+    };
+  }
+  throw new Error(`UNKNOWN_CANDIDATE_EXECUTION_IDENTITY:${candidateId}`);
 }
 
 function byteDanceGeometryIdentity(scenario) {
@@ -1165,7 +1177,7 @@ function selectBalancedCounterfactuals(candidates, target) {
   );
   const selected = [];
   const usedBase = new Set();
-  const pieceOrder = ['Chopin_op10_no3', 'Chopin_op38', 'Mozart_K331_1st-mov', 'Schubert_D783_no15'];
+  const pieceOrder = VIENNA_PIECE_IDS;
   while (selected.length < target) {
     let added = false;
     for (const pieceId of pieceOrder) {
@@ -1566,15 +1578,15 @@ function scopeGenerationSummary({
     consideredScopeCount: scenarioPool.length + skippedScopes.length,
     baseScenarioCount: baseScenarioReceipts.length,
     selectedBaseScenarioCount: baseScenarioReceipts.length,
-    candidateScopeCountByPiece: countBy([...scenarioPool.map((item) => item.receipt), ...skippedScopes], (item) => item.pieceId ?? pieceIdForPerformance(item.performanceId ?? '')),
-    eligibleBasePoolCountByPiece: countBy(scenarioPool.map((item) => item.receipt), (item) => item.pieceId),
+    candidateScopeCountByPiece: withAllViennaPieces(countBy([...scenarioPool.map((item) => item.receipt), ...skippedScopes], (item) => item.pieceId ?? pieceIdForPerformance(item.performanceId ?? ''))),
+    eligibleBasePoolCountByPiece: withAllViennaPieces(countBy(scenarioPool.map((item) => item.receipt), (item) => item.pieceId)),
     skippedScopeCount: skippedScopes.length,
     bpmDistribution: distribution(baseScenarioReceipts.map((item) => item.configuredIntegerBpm)),
     residualP95DistributionMs: distribution(baseScenarioReceipts.map((item) => item.absoluteResidualP95Ms)),
     ledgerGroundTruthMatchRateDistribution: distribution(baseScenarioReceipts.map((item) => item.ledgerGroundTruthExpectedStrikeMatchRate)),
     realScoreMissingNoteCount: baseScenarioReceipts.reduce((sum, item) => sum + item.groundTruthMissingCount, 0),
     realPhysicalExtraCount: baseScenarioReceipts.reduce((sum, item) => sum + item.groundTruthExtraCount, 0),
-    selectedScenariosByPiece: countBy(baseScenarioReceipts, (item) => item.pieceId),
+    selectedScenariosByPiece: withAllViennaPieces(countBy(baseScenarioReceipts, (item) => item.pieceId)),
     uniquePerformerCount: new Set(baseScenarioReceipts.map((item) => performerIdForPerformance(item.performanceId))).size,
     uniquePerformanceCount: new Set(baseScenarioReceipts.map((item) => item.performanceId)).size,
     uniquePieceCount: new Set(baseScenarioReceipts.map((item) => item.pieceId)).size,
@@ -1757,6 +1769,10 @@ function countBy(items, select) {
     counts[key] = (counts[key] ?? 0) + 1;
     return counts;
   }, {});
+}
+
+function withAllViennaPieces(counts) {
+  return Object.fromEntries(VIENNA_PIECE_IDS.map((pieceId) => [pieceId, counts[pieceId] ?? 0]));
 }
 
 function unique(values) {
