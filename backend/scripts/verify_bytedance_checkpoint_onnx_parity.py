@@ -49,6 +49,8 @@ def main() -> int:
         )
         onset_delta = np.abs(pytorch_raw["onset"] - onnx_onset[0])
         frame_delta = np.abs(pytorch_raw["frame"] - onnx_frame[0])
+        pytorch_events = decode_events(pytorch_raw["onset"], pytorch_raw["frame"], 0.20, 0.20)
+        onnx_events = decode_events(onnx_onset[0], onnx_frame[0], 0.20, 0.20)
         comparisons.append(
             {
                 "fixtureId": fixture["fixture_id"],
@@ -59,16 +61,20 @@ def main() -> int:
                 "regOnsetMaxAbsDelta": float(onset_delta.max()),
                 "frameMeanAbsDelta": float(frame_delta.mean()),
                 "frameMaxAbsDelta": float(frame_delta.max()),
-                "decoderDecisionParityAtOnset020Frame020": bool(
+                "thresholdMaskParityAtOnset020Frame020": bool(
                     ((pytorch_raw["onset"] >= 0.20) == (onnx_onset[0] >= 0.20)).all()
                     and ((pytorch_raw["frame"] >= 0.20) == (onnx_frame[0] >= 0.20)).all()
                 ),
+                "authoritativeDecodedEventParityAtOnset020Frame020": pytorch_events == onnx_events,
+                "pytorchDecodedEventCount": len(pytorch_events),
+                "onnxDecodedEventCount": len(onnx_events),
+                "decodedEventSequenceSha256": sha256_json(pytorch_events),
             }
         )
 
     receipt = {
         "schemaVersion": 1,
-        "artifact": "phase9g_a21_bytedance_checkpoint_onnx_parity",
+        "artifact": "phase9g_a22_bytedance_checkpoint_onnx_decoded_parity",
         "checkpointPath": normalize(args.checkpoint),
         "checkpointSha256": checkpoint_sha,
         "checkpointBytes": args.checkpoint.stat().st_size,
@@ -79,8 +85,11 @@ def main() -> int:
         "onnxRuntimeOptimization": ortOptimization,
         "fixtureCount": len(comparisons),
         "comparisons": comparisons,
-        "overallDecoderDecisionParityAtOnset020Frame020": all(
-            item["decoderDecisionParityAtOnset020Frame020"] for item in comparisons
+        "overallThresholdMaskParityAtOnset020Frame020": all(
+            item["thresholdMaskParityAtOnset020Frame020"] for item in comparisons
+        ),
+        "overallAuthoritativeDecodedEventParityAtOnset020Frame020": all(
+            item["authoritativeDecodedEventParityAtOnset020Frame020"] for item in comparisons
         ),
         "maxRegOnsetAbsDelta": max(item["regOnsetMaxAbsDelta"] for item in comparisons),
         "maxFrameAbsDelta": max(item["frameMaxAbsDelta"] for item in comparisons),
@@ -110,6 +119,47 @@ def sha256(path: Path) -> str:
       for chunk in iter(lambda: handle.read(1024 * 1024), b""):
         digest.update(chunk)
     return digest.hexdigest()
+
+
+def sha256_json(value: object) -> str:
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def decode_events(onset: np.ndarray, frame: np.ndarray, onset_threshold: float, frame_threshold: float) -> list[dict[str, object]]:
+    events: list[dict[str, object]] = []
+    frame_count, pitch_count = onset.shape
+    for pitch_index in range(pitch_count):
+        frame_index = 0
+        while frame_index < frame_count:
+            while frame_index < frame_count and float(onset[frame_index, pitch_index]) < onset_threshold:
+                frame_index += 1
+            if frame_index >= frame_count:
+                break
+            peak = frame_index
+            peak_score = float(onset[frame_index, pitch_index])
+            while frame_index + 1 < frame_count and float(onset[frame_index + 1, pitch_index]) >= onset_threshold:
+                frame_index += 1
+                score = float(onset[frame_index, pitch_index])
+                if score > peak_score:
+                    peak = frame_index
+                    peak_score = score
+            if float(frame[peak, pitch_index]) >= frame_threshold:
+                midi = 21 + pitch_index
+                events.append({
+                    "midiPitch": midi,
+                    "pitch": midi_to_pitch(midi),
+                    "frameIndex": peak,
+                    "performanceTimeMs": round(peak / 100 * 1000, 6),
+                })
+            frame_index += 1
+    return sorted(events, key=lambda item: (item["performanceTimeMs"], item["midiPitch"]))
+
+
+def midi_to_pitch(midi: int) -> str:
+    names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    return f"{names[midi % 12]}{midi // 12 - 1}"
 
 
 def normalize(path: Path) -> str:

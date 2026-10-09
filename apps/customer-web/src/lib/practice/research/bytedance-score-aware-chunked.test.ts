@@ -412,6 +412,70 @@ describe('ByteDance score-aware chunked research adapter', () => {
     })).toThrow(/non-finite/);
   });
 
+  it('only accepts variable-frame ByteDance tensors through the explicit calibration path', () => {
+    const [first] = planByteDanceScoreAwareChunks(scenario());
+    const frameCount = 301;
+    const pitchCount = 88;
+    const onset = new Array(frameCount * pitchCount).fill(0);
+    const frame = new Array(frameCount * pitchCount).fill(0);
+    const pitchIndex = 60 - 21;
+    onset[120 * pitchCount + pitchIndex] = 0.8;
+    frame[120 * pitchCount + pitchIndex] = 0.8;
+    const chunk = {
+      chunkId: first.chunkId,
+      rawOutputs: {
+        reg_onset_output: { dims: [frameCount, pitchCount], data: onset },
+        frame_output: { dims: [frameCount, pitchCount], data: frame },
+      },
+    };
+
+    expect(() => byteDanceRawOutputsFromBrowserChunkArtifact(chunk)).toThrow(/\[1,183,88\]/);
+
+    const raw = byteDanceRawOutputsFromBrowserChunkArtifact(chunk, { allowVariableFrameCount: true });
+    const decoded = decodeByteDanceChunkRawOutputs({
+      scenario: scenario(),
+      plan: first,
+      raw,
+      allowVariableFrameCount: true,
+    });
+
+    expect(decoded).toHaveLength(1);
+    expect(decoded[0]).toMatchObject({
+      pitch: 'C4',
+      performanceTimeMs: first.inputStartPerformanceMs + 1_200,
+    });
+  });
+
+  it('does not let non-initial variable-context windows re-own their left boundary', () => {
+    const secondWindow = {
+      chunkId: 'variable-context-window-001',
+      scenarioId: scenario().scenarioId,
+      inputStartPerformanceMs: 250,
+      inputEndPerformanceMs: 3_250,
+      commitStartPerformanceMs: 1_000,
+      commitEndPerformanceMs: 2_500,
+      expectedGroupIds: [],
+    };
+
+    const observations = observationsForByteDanceChunk(scenario(), secondWindow, [{
+      eventId: 'boundary',
+      pitch: 'C4',
+      performanceTimeMs: 1_000,
+      confidence: 0.9,
+      onsetScore: 0.9,
+      frameScore: 0.9,
+    }, {
+      eventId: 'inside',
+      pitch: 'D4',
+      performanceTimeMs: 1_010,
+      confidence: 0.9,
+      onsetScore: 0.9,
+      frameScore: 0.9,
+    }]);
+
+    expect(observations.map((observation) => observation.pitch)).toEqual(['D4']);
+  });
+
   it('converts browser raw-output artifacts through the authoritative TypeScript decoder path', () => {
     const [first] = planByteDanceScoreAwareChunks(scenario());
     const frameCount = 183;

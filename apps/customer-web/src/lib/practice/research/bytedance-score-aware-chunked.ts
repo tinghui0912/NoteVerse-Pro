@@ -249,8 +249,9 @@ export function decodeByteDanceChunkRawOutputs(input: {
   inferenceCompletedAtMs?: number;
   onsetThreshold?: number;
   frameThreshold?: number;
+  allowVariableFrameCount?: boolean;
 }): readonly ByteDanceDecodedModelEvent[] {
-  validateByteDanceRawOutputs(input.raw);
+  validateByteDanceRawOutputs(input.raw, { allowVariableFrameCount: input.allowVariableFrameCount });
   const captureStartSampleIndex = Math.round(input.plan.inputStartPerformanceMs / 1000 * BYTEDANCE_INFERENCE_CONTRACT.sampleRateHz);
   const request = {
     requestId: input.plan.chunkId,
@@ -411,13 +412,16 @@ export async function executeByteDanceScenarioWithExecutor(input: {
   });
 }
 
-export function validateByteDanceRawOutputs(raw: ByteDanceRawOutputs): void {
-  validateRawTensor('reg_onset_output', raw.reg_onset_output, raw.reg_onset_shape);
-  validateRawTensor('frame_output', raw.frame_output, raw.frame_shape);
+export function validateByteDanceRawOutputs(raw: ByteDanceRawOutputs, options?: {
+  allowVariableFrameCount?: boolean;
+}): void {
+  validateRawTensor('reg_onset_output', raw.reg_onset_output, raw.reg_onset_shape, options);
+  validateRawTensor('frame_output', raw.frame_output, raw.frame_shape, options);
 }
 
 export function byteDanceRawOutputsFromBrowserChunkArtifact(
-  chunk: ByteDanceBrowserRawOutputChunk
+  chunk: ByteDanceBrowserRawOutputChunk,
+  options?: { allowVariableFrameCount?: boolean }
 ): ByteDanceRawOutputs {
   const raw: ByteDanceRawOutputs = {
     reg_onset_output: float32FromArtifactData('reg_onset_output', chunk.rawOutputs.reg_onset_output.data),
@@ -425,7 +429,7 @@ export function byteDanceRawOutputsFromBrowserChunkArtifact(
     frame_output: float32FromArtifactData('frame_output', chunk.rawOutputs.frame_output.data),
     frame_shape: chunk.rawOutputs.frame_output.dims,
   };
-  validateByteDanceRawOutputs(raw);
+  validateByteDanceRawOutputs(raw, options);
   return raw;
 }
 
@@ -577,7 +581,28 @@ export function assertAssetIdentity(input: {
   }
 }
 
-function validateRawTensor(name: string, data: Float32Array, shape: readonly number[]): void {
+function validateRawTensor(name: string, data: Float32Array, shape: readonly number[], options?: {
+  allowVariableFrameCount?: boolean;
+}): void {
+  if (options?.allowVariableFrameCount) {
+    const frameCount = shape.length === 3 && shape[0] === 1 && shape[2] === 88
+      ? shape[1]
+      : shape.length === 2 && shape[1] === 88
+        ? shape[0]
+        : undefined;
+    if (frameCount === undefined || !Number.isInteger(frameCount) || frameCount <= 0) {
+      throw new Error(`ByteDance ${name} must have shape [1,N,88] or [N,88] for variable-context calibration.`);
+    }
+    if (data.length !== frameCount * 88) {
+      throw new Error(`ByteDance ${name} length does not match variable-context shape.`);
+    }
+    for (const value of data) {
+      if (!Number.isFinite(value)) {
+        throw new Error(`ByteDance ${name} contains non-finite values.`);
+      }
+    }
+    return;
+  }
   if (shape.length !== 3 || shape[0] !== 1 || shape[1] !== 183 || shape[2] !== 88) {
     throw new Error(`ByteDance ${name} must have exact shape [1,183,88].`);
   }
@@ -641,10 +666,11 @@ function groupExpectedStrikesBySimultaneousAttack(scenario: BenchmarkScenario): 
 function ownsEventTime(plan: ByteDanceChunkPlan, scenario: BenchmarkScenario, performanceTimeMs: number): boolean {
   const plans = planByteDanceScoreAwareChunks(scenario);
   const index = plans.findIndex((candidate) => candidate.chunkId === plan.chunkId);
+  const isFirst = index >= 0 ? index === 0 : Math.abs(plan.commitStartPerformanceMs) <= 1e-9;
   return ownsPerformanceTime({
     start: plan.commitStartPerformanceMs,
     end: plan.commitEndPerformanceMs,
-    isFirst: index <= 0,
+    isFirst,
   }, performanceTimeMs);
 }
 

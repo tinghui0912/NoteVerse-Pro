@@ -22,14 +22,17 @@ const POLICY_REL = 'backend/research/policies/public_model_calibration_protocol_
 const SCENARIO_REL = 'backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json';
 const BASELINE_REPORT_REL = 'backend/research/reports/phase9g_a1_vienna_calibration_baseline_reference_2026-10-09.json';
 const BLIND_REL = 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json';
-const REPORT_REL = 'backend/research/reports/phase9g_a21_bytedance_online_amt_incumbent_completion_2026-10-09.json';
-const PROFILE_REGISTRY_REL = 'backend/research/reports/phase9g_a21_corrected_incumbent_registry_2026-10-09.json';
-const CORRECTION_RECEIPT_REL = 'backend/research/reports/phase9g_a21_premature_lock_invalidation_2026-10-09.json';
-const BYTEDANCE_PROVENANCE_REL = 'backend/research/reports/phase9g_a21_bytedance_same_weight_provenance_2026-10-09.json';
-const BYTEDANCE_PARITY_REL = 'backend/research/reports/phase9g_a21_bytedance_checkpoint_onnx_parity_2026-10-09.json';
-const BLIND_LOCK_REL = 'backend/research/reports/phase9g_a21_blind_lock_receipt_2026-10-09.json';
-const V1V2_RECEIPT_REL = 'backend/research/reports/phase9g_a21_v1_v2_blind_semantic_equivalence_2026-10-09.json';
+const REPORT_REL = 'backend/research/reports/phase9g_a22_bytedance_online_amt_incumbent_completion_2026-10-09.json';
+const PROFILE_REGISTRY_REL = 'backend/research/reports/phase9g_a22_final_incumbent_registry_2026-10-09.json';
+const CORRECTION_RECEIPT_REL = 'backend/research/reports/phase9g_a22_prior_artifact_status_receipt_2026-10-09.json';
+const BYTEDANCE_PROVENANCE_REL = 'backend/research/reports/phase9g_a22_bytedance_same_weight_provenance_2026-10-09.json';
+const BYTEDANCE_PARITY_REL = 'backend/research/reports/phase9g_a22_bytedance_checkpoint_onnx_decoded_parity_2026-10-09.json';
+const BLIND_LOCK_REL = 'backend/research/reports/phase9g_a22_blind_lock_receipt_2026-10-09.json';
+const V1V2_RECEIPT_REL = 'backend/research/reports/phase9g_a22_v1_v2_blind_semantic_equivalence_2026-10-09.json';
+const A21_REPORT_REL = 'backend/research/reports/phase9g_a21_bytedance_online_amt_incumbent_completion_2026-10-09.json';
 const ONLINE_AMT_IMAGE = 'noteverse-online-amt-modern:phase9e-b1';
+const BYTEDANCE_IMAGE = 'noteverse-bytedance-calibration:phase9ga21';
+const TIMING_CALIBRATION_REAL_POSTROLL_MS = 500;
 const EXPECTED_BYTEDANCE_CHECKPOINT = {
   path: 'models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth',
   sha256: 'c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141',
@@ -71,8 +74,8 @@ const blindManifest = JSON.parse(await readFile(path.resolve(repoRoot, BLIND_REL
 const blindProjection = semanticProjection(blindManifest);
 const blindLock = {
   schemaVersion: 1,
-  artifact: 'phase9g_a2_blind_lock_receipt',
-  phase: '9G-A.2',
+  artifact: 'phase9g_a22_blind_lock_receipt',
+  phase: '9G-A.2.2',
   blindManifestPath: BLIND_REL,
   blindManifestSha256: blindManifestSha,
   expectedBlindManifestSha256: '0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab',
@@ -96,7 +99,7 @@ const v1ProjectionSha = sha256Json(semanticProjection(v1Manifest));
 const v2ProjectionSha = sha256Json(semanticProjection(v2Manifest));
 await writeJson(V1V2_RECEIPT_REL, {
   schemaVersion: 1,
-  artifact: 'phase9g_a2_v1_v2_blind_semantic_equivalence',
+  artifact: 'phase9g_a22_v1_v2_blind_semantic_equivalence',
   v1ManifestGitObject: `b938fc49:${BLIND_REL}`,
   v1ManifestSha256: v1Sha,
   v2ManifestPath: BLIND_REL,
@@ -109,6 +112,12 @@ await writeJson(V1V2_RECEIPT_REL, {
 const scenarioManifest = JSON.parse(await readFile(path.resolve(repoRoot, SCENARIO_REL), 'utf8'));
 const scenarioManifestSha = await sha256File(path.resolve(repoRoot, SCENARIO_REL));
 const baselineReportSha = await sha256File(path.resolve(repoRoot, BASELINE_REPORT_REL));
+const a21Report = existsSync(path.resolve(repoRoot, A21_REPORT_REL))
+  ? JSON.parse(await readFile(path.resolve(repoRoot, A21_REPORT_REL), 'utf8'))
+  : null;
+const a21ReportSha = existsSync(path.resolve(repoRoot, A21_REPORT_REL))
+  ? await sha256File(path.resolve(repoRoot, A21_REPORT_REL))
+  : null;
 const scenarios = scenarioManifest.scenarios;
 const baseScenarios = scenarios.filter((scenario) => scenario.familyTags.includes('BASE_ORIGINAL'));
 const counterfactualReceiptsByScenario = new Map((scenarioManifest.counterfactualReceipts ?? []).map((receipt) => [receipt.scenarioId, receipt]));
@@ -121,8 +130,8 @@ const byteDanceSameWeightProvenance = await writeByteDanceSameWeightProvenance()
 
 const registry = {
   schemaVersion: 1,
-  artifact: 'phase9g_a2_calibrated_profile_registry',
-  phase: '9G-A.2',
+  artifact: 'phase9g_a22_final_incumbent_registry',
+  phase: '9G-A.2.2',
   policy,
   scenarioManifestSha256: scenarioManifestSha,
   profiles: [...byteDanceResult.profileRegistry, ...onlineAmtResult.profileRegistry],
@@ -131,8 +140,8 @@ await writeJson(PROFILE_REGISTRY_REL, registry);
 
 const report = {
   schemaVersion: 1,
-  artifact: 'phase9g_a2_bytedance_online_amt_calibration',
-  phase: '9G-A.2',
+  artifact: 'phase9g_a22_bytedance_online_amt_incumbent_completion',
+  phase: '9G-A.2.2',
   calibrationUsed: true,
   evaluationUsed: false,
   blindCandidateInferencePerformed: false,
@@ -166,6 +175,11 @@ const report = {
     sha256: baselineReportSha,
     reuseStatus: 'MEASUREMENTS_REUSED_UNCHANGED_FROM_AUDIT_CLEAN_V1_RUN_FOR_HISTORICAL_BASELINE_CONTEXT',
   },
+  phase9gA21HistoricalComparison: {
+    path: A21_REPORT_REL,
+    sha256: a21ReportSha,
+    preservedAsPartialEvidence: Boolean(a21Report),
+  },
   prematureLockInvalidationReceiptPath: CORRECTION_RECEIPT_REL,
   prematureLockInvalidation,
   byteDanceSameWeightProvenanceReceiptPath: BYTEDANCE_PROVENANCE_REL,
@@ -187,73 +201,94 @@ async function runByteDanceCalibration(input) {
   const parityReceipt = existsSync(path.resolve(repoRoot, BYTEDANCE_PARITY_REL))
     ? JSON.parse(await readFile(path.resolve(repoRoot, BYTEDANCE_PARITY_REL), 'utf8'))
     : null;
-  const parityVerified = parityReceipt?.overallDecoderDecisionParityAtOnset020Frame020 === true
+  const parityVerified = parityReceipt?.overallThresholdMaskParityAtOnset020Frame020 === true
+    && parityReceipt?.overallAuthoritativeDecodedEventParityAtOnset020Frame020 === true
     && parityReceipt?.checkpointSha256 === EXPECTED_BYTEDANCE_CHECKPOINT.sha256
     && parityReceipt?.onnxSha256 === EXPECTED_BYTEDANCE_ONNX.sha256;
-  const executableContexts = [{
-    profileId: 'CALIBRATED_CONTEXT_1820',
-    modelInputMs: 1820,
-    futureContextMs: 220,
-    commitWidthMs: 600,
-    status: 'EXECUTABLE_CURRENT_ONNX',
-  }];
-  const blockedContexts = ['CALIBRATED_CONTEXT_3S', 'CALIBRATED_CONTEXT_5S', 'CALIBRATED_CONTEXT_10S'].map((profileId) => ({
-    profileId,
-    status: parityVerified ? 'BLOCKED_PENDING_PYTORCH_LONG_CONTEXT_EXECUTION' : 'BLOCKED_PENDING_PYTORCH_ONNX_PARITY',
-    reason: parityVerified
-      ? 'PyTorch/ONNX 1820 fixture parity is verified, but Phase 9G-A.2.1 does not issue a ByteDance lock until all four V3 contexts execute in the same PyTorch runtime.'
-      : 'The original checkpoint identity is locally verified, but PyTorch/ONNX parity has not passed in the current artifact set.',
-  }));
+  const contexts = calibration.BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES;
+  const contextEligibility = computeByteDanceContextEligibility(input.baseScenarios, contexts);
+  const commonBaseScenarios = input.baseScenarios.filter((scenario) =>
+    contextEligibility.byScenario[scenario.scenarioId]?.eligibleAllContexts
+  );
+  const commonScenarioIds = new Set([
+    ...commonBaseScenarios.map((scenario) => scenario.scenarioId),
+    ...input.scenarios
+      .filter((scenario) => commonBaseScenarios.some((base) =>
+        input.counterfactualReceiptsByScenario.get(scenario.scenarioId)?.baseScenarioId === base.scenarioId
+      ))
+      .map((scenario) => scenario.scenarioId),
+  ]);
+  const scoredScenarios = input.scenarios.filter((scenario) => commonScenarioIds.has(scenario.scenarioId));
+  const coverage = familyCounts(scoredScenarios);
+  const minimumCoveragePass = ['BASE_ORIGINAL', 'COUNTERFACTUAL_MISSING_NOTE', 'COUNTERFACTUAL_WRONG_SEMITONE', 'COUNTERFACTUAL_INCOMPLETE_CHORD']
+    .every((family) => (coverage[family] ?? 0) >= 8);
+  const rawBatches = parityVerified && minimumCoveragePass
+    ? await runByteDancePyTorchBatches({ contexts, baseScenarios: commonBaseScenarios, contextEligibility })
+    : new Map();
   const profiles = [];
   const candidateDefinitions = [];
   const runs = [];
   const failures = [];
-  const rawCache = new Map();
-  for (const onsetThreshold of calibration.BYTEDANCE_PHASE_9GA_THRESHOLD_GRID.onset) {
-    for (const frameThreshold of calibration.BYTEDANCE_PHASE_9GA_THRESHOLD_GRID.frame) {
-      const profile = bytedanceProfile({ context: executableContexts[0], onsetThreshold, frameThreshold });
-      profiles.push(profile);
-      candidateDefinitions.push(candidateDefinition({
-        candidateId: profile.profileId,
-        strategyKind: 'CHUNKED',
-        runtime: 'ByteDance original ONNX current 1820ms family',
-        checkpointSha: byteDance.BYTEDANCE_CHUNKED_BASELINE_CONFIG.modelSha256,
-        adapterVersion: 'phase9g-a2-threshold-calibration-v1',
-        configurationSha256: profile.configurationSha256,
-      }));
-      for (const scenario of input.scenarios) {
-        try {
-          const baseScenarioId = input.counterfactualReceiptsByScenario.get(scenario.scenarioId)?.baseScenarioId ?? scenario.scenarioId;
-          const raw = await loadByteDanceRaw(baseScenarioId, rawCache);
-          runs.push(runByteDanceFromRaw({ scenario, raw, profile }));
-        } catch (error) {
-          failures.push({ profileId: profile.profileId, scenarioId: scenario.scenarioId, error: errorMessage(error) });
+  if (parityVerified && minimumCoveragePass) {
+    for (const context of contexts) {
+      for (const onsetThreshold of calibration.BYTEDANCE_PHASE_9GA_THRESHOLD_GRID.onset) {
+        for (const frameThreshold of calibration.BYTEDANCE_PHASE_9GA_THRESHOLD_GRID.frame) {
+          const profile = bytedanceProfile({ context, onsetThreshold, frameThreshold });
+          profiles.push(profile);
+          candidateDefinitions.push(candidateDefinition({
+            candidateId: profile.profileId,
+            strategyKind: 'CHUNKED',
+            runtime: 'ByteDance original PyTorch CPU variable-context calibration',
+            checkpointSha: EXPECTED_BYTEDANCE_CHECKPOINT.sha256,
+            adapterVersion: 'phase9g-a22-variable-context-threshold-calibration-v1',
+            configurationSha256: profile.configurationSha256,
+          }));
+          for (const scenario of scoredScenarios) {
+            try {
+              const baseScenarioId = input.counterfactualReceiptsByScenario.get(scenario.scenarioId)?.baseScenarioId ?? scenario.scenarioId;
+              const raw = rawBatches.get(context.profileId)?.get(baseScenarioId);
+              if (!raw) throw new Error(`Missing ByteDance raw batch for ${context.profileId} ${baseScenarioId}`);
+              runs.push(runByteDanceFromRaw({ scenario, raw, profile, context }));
+            } catch (error) {
+              failures.push({ profileId: profile.profileId, scenarioId: scenario.scenarioId, error: errorMessage(error) });
+            }
+          }
         }
       }
     }
   }
   const diagnostic = publicContract.buildPublicDiagnosticBakeoffReport({
-    scenarios: input.scenarios,
+    scenarios: scoredScenarios,
     candidates: candidateDefinitions,
     runs,
   });
   const scores = calibrationScoresFromSummaries(diagnostic.scores);
-  const selection = calibration.selectCalibrationProfile(scores);
-  const selectorSuggestedProfileId = selection.selectedProfileId ?? fallbackProfileId(profiles, 'bytedance-original-calibrated-v1');
-  const selectedProfileId = historicalByteDanceProfileId(profiles);
+  const selection = scores.length > 0 ? calibration.selectCalibrationProfile(scores) : null;
+  const gate2TieBreak = selection?.selectedProfileId ? null : byteDanceGate2TieBreak({ selection, profiles });
+  const selectedProfileId = selection?.selectedProfileId ?? gate2TieBreak?.selectedProfileId ?? null;
+  const locked = Boolean(selectedProfileId && parityVerified && minimumCoveragePass && failures.length === 0);
+  const selectedProfile = profiles.find((profile) => profile.profileId === selectedProfileId) ?? null;
   return {
-    profileRegistry: [{
+    profileRegistry: locked ? profiles.map((profile) => ({
+      candidateFamily: 'bytedance-original',
+      profileId: profile.profileId,
+      selectedCandidateId: profile.profileId === selectedProfileId ? 'bytedance-original-calibrated-v1' : profile.profileId,
+      configurationSha256: profile.configurationSha256,
+      qualificationStatus: profile.profileId === selectedProfileId ? 'CALIBRATED_AND_LOCKED' : 'REJECTED_OR_NOT_SELECTED',
+      LOCKED_FOR_PHASE_9G_B: profile.profileId === selectedProfileId,
+      selectionStatus: profile.profileId === selectedProfileId ? 'SELECTED' : 'REJECTED_OR_NOT_SELECTED',
+    })) : [{
       candidateFamily: 'bytedance-original',
       profileId: 'bytedance-original-current-executable-representative-v1',
-      sourceHistoricalProfileId: selectedProfileId,
-      configurationSha256: profiles.find((profile) => profile.profileId === selectedProfileId)?.configurationSha256 ?? null,
-      qualificationStatus: 'CONTEXT_OPTIMUM_UNRESOLVED',
+      sourceHistoricalProfileId: historicalByteDanceProfileIdFor1820(),
+      configurationSha256: null,
+      qualificationStatus: parityVerified && !minimumCoveragePass ? 'INSUFFICIENT_COMMON_CALIBRATION_COVERAGE' : 'PARITY_UNRESOLVED',
       LOCKED_FOR_PHASE_9G_B: false,
       selectionStatus: 'PROVISIONAL_CONTEXT_OPTIMUM_UNRESOLVED',
     }],
     report: {
       sameWeightParityStatus: parityVerified
-        ? 'SAME_WEIGHT_1820_PYTORCH_ONNX_PARITY_VERIFIED_LONG_CONTEXT_EXECUTION_PENDING'
+        ? 'SAME_WEIGHT_1820_PYTORCH_ONNX_PARITY_VERIFIED'
         : 'LOCAL_ASSETS_VERIFIED_PYTORCH_ONNX_PARITY_EXECUTION_PENDING',
       parityReceiptPath: BYTEDANCE_PARITY_REL,
       parityReceiptSha256: parityReceipt ? await sha256File(BYTEDANCE_PARITY_REL) : null,
@@ -261,34 +296,41 @@ async function runByteDanceCalibration(input) {
         fixtureCount: parityReceipt.fixtureCount,
         maxRegOnsetAbsDelta: parityReceipt.maxRegOnsetAbsDelta,
         maxFrameAbsDelta: parityReceipt.maxFrameAbsDelta,
-        overallDecoderDecisionParityAtOnset020Frame020: parityReceipt.overallDecoderDecisionParityAtOnset020Frame020,
+        overallThresholdMaskParityAtOnset020Frame020: parityReceipt.overallThresholdMaskParityAtOnset020Frame020,
+        overallAuthoritativeDecodedEventParityAtOnset020Frame020: parityReceipt.overallAuthoritativeDecodedEventParityAtOnset020Frame020,
       } : null,
-      contexts: [...executableContexts, ...blockedContexts],
+      contexts: contexts.map((context) => ({
+        ...context,
+        status: parityVerified && minimumCoveragePass ? 'EXECUTED_PYTORCH_VARIABLE_CONTEXT' : 'NOT_EXECUTED',
+        eligibleBaseScenarioCount: contextEligibility.byContext[context.profileId]?.eligibleBaseScenarioCount ?? 0,
+      })),
       commonCalibrationScenarioCounts: {
         totalCalibrationScenarios: input.scenarios.length,
-        executableCurrentOnnxScenarios: input.scenarios.length,
-        allFourContextCommonMatchedCount: 0,
-        status: 'INSUFFICIENT_COMMON_CALIBRATION_COVERAGE_FOR_LONG_CONTEXT_SELECTION',
+        commonBaseScenarioCount: commonBaseScenarios.length,
+        commonScenarioCount: scoredScenarios.length,
+        familyCounts: coverage,
+        status: minimumCoveragePass ? 'PASS' : 'INSUFFICIENT_COMMON_CALIBRATION_COVERAGE',
       },
-      rawNeuralInferenceRunCount: rawCache.size,
-      rawCacheReuseCount: input.scenarios.length * profiles.length - rawCache.size,
+      rawNeuralInferenceExecutedCount: [...rawBatches.values()].reduce((sum, byScenario) =>
+        sum + [...byScenario.values()].reduce((inner, raw) => inner + raw.chunks.length, 0), 0),
+      validatedRawCacheLoadCount: 0,
+      rawCacheMemoryHitCount: 0,
+      thresholdDecodeCount: runs.length,
+      counterfactualRawReuseCount: scoredScenarios.filter((scenario) =>
+        input.counterfactualReceiptsByScenario.has(scenario.scenarioId)
+      ).length * profiles.length,
       thresholdProfileCount: profiles.length,
-      blockedContextCount: blockedContexts.length,
+      blockedContextCount: parityVerified && minimumCoveragePass ? 0 : contexts.length,
       metrics: compactAggregateMetrics(diagnostic.aggregateMetrics),
       selectorTrace: selection,
-      selectorSuggestedProfileId,
-      qualificationOverride: {
-        status: 'CONTEXT_OPTIMUM_UNRESOLVED',
-        reason: 'The 1820ms threshold sensitivity evidence is preserved, but no Phase 9G-B ByteDance-original calibrated lock is issued until same-weight long-context execution completes.',
-      },
-      provisionalProfileId: 'bytedance-original-current-executable-representative-v1',
-      provisionalSourceProfileId: selectedProfileId,
-      provisionalContext: 'CALIBRATED_CONTEXT_1820',
-      provisionalThresholdPair: profiles.find((profile) => profile.profileId === selectedProfileId)?.thresholds ?? null,
-      provisionalConfigurationSha256: profiles.find((profile) => profile.profileId === selectedProfileId)?.configurationSha256 ?? null,
-      lockedForPhase9gB: false,
-      historicalCurrentBaselineResult: profiles.find((profile) => profile.thresholds.onsetThreshold === 0.2 && profile.thresholds.frameThreshold === 0.2)?.profileId,
-      upstreamNative10sResult: 'BLOCKED_SAME_WEIGHT_CONTEXT_COMPARISON_UNPROVEN',
+      gate2TieBreak,
+      selectedProfileId,
+      selectedContext: selectedProfile?.projection.context.profileId ?? null,
+      selectedThresholdPair: selectedProfile?.thresholds ?? null,
+      selectedConfigurationSha256: selectedProfile?.configurationSha256 ?? null,
+      lockedForPhase9gB: locked,
+      earlier1820Onset015Frame015Reproduced: selectedProfileId?.includes('CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.15') ?? false,
+      contextQuestions: answerByteDanceContextQuestions({ profiles, selection, diagnostic, selectedProfileId }),
       failures,
     },
   };
@@ -321,12 +363,13 @@ async function runOnlineAmtCalibration(input) {
   const runs = [];
   const timingReports = [];
   const failures = [];
+  const timingSet = onlineAmtTimingCalibrationSet(input.baseScenarios);
   for (const policy of ONLINE_AMT_POLICIES) {
-    const timingBatchArtifact = await runOnlineAmtBatch(policy, input.baseScenarios, {
-      phaseLabel: 'timing-zero-correction',
-      tailTimingCorrectionMs: 0,
+    const timingBatchArtifact = await runOnlineAmtBatch(policy, timingSet.includedScenarios, {
+      phaseLabel: 'timing-500ms-real-postroll',
+      fixedContextTailSamples: Math.ceil(TIMING_CALIBRATION_REAL_POSTROLL_MS / 1000 * onlineAmt.ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz),
     });
-    const correction = timingCorrectionForPolicy({ policy, batchArtifact: timingBatchArtifact, baseScenarios: input.baseScenarios });
+    const correction = timingCorrectionForPolicy({ policy, batchArtifact: timingBatchArtifact, baseScenarios: timingSet.includedScenarios });
     const profile = onlineAmtProfile({ policy, timingCorrectionMs: correction.timingCorrectionMs });
     const finalBatchArtifact = await runOnlineAmtBatch(policy, input.baseScenarios, {
       phaseLabel: `final-correction-${correction.timingCorrectionMs.toFixed(6)}`,
@@ -396,6 +439,19 @@ async function runOnlineAmtCalibration(input) {
       })),
       selectorTrace: selection,
       gate2TieBreak,
+      timingCalibrationSet: {
+        fixedRealPostrollMs: TIMING_CALIBRATION_REAL_POSTROLL_MS,
+        includedScenarioCount: timingSet.includedScenarios.length,
+        includedScenarioIds: timingSet.includedScenarios.map((scenario) => scenario.scenarioId),
+        excluded: timingSet.excluded,
+        nearTerminalPhysicalAttackWithin180MsCount: timingSet.nearTerminal.length,
+        nearTerminalPhysicalAttackDiagnostics: timingSet.nearTerminal,
+      },
+      phase9gA21Comparison: a21Report ? compareOnlineAmtA21({
+        oldReport: a21Report,
+        newPolicies: profiles,
+        timingReports,
+      }) : null,
       selectedProfileId,
       selectedPseudoPolicy: profiles.find((profile) => profile.profileId === selectedProfileId)?.policy.pseudoIntensity ?? null,
       selectedBoost: profiles.find((profile) => profile.profileId === selectedProfileId)?.policy.onsetBoost ?? null,
@@ -441,8 +497,30 @@ function onlineAmtNativePreferenceRank(profile) {
   return pseudoRank * 10 + boostRank;
 }
 
+function byteDanceGate2TieBreak({ selection, profiles }) {
+  const remaining = (selection?.remainingProfileIds ?? [])
+    .map((profileId) => profiles.find((profile) => profile.profileId === profileId))
+    .filter(Boolean);
+  if (remaining.length === 0) return null;
+  const selected = [...remaining].sort((left, right) =>
+    left.projection.context.modelInputMs - right.projection.context.modelInputMs
+    || left.thresholds.onsetThreshold - right.thresholds.onsetThreshold
+    || left.thresholds.frameThreshold - right.thresholds.frameThreshold
+    || left.profileId.localeCompare(right.profileId)
+  )[0];
+  return {
+    selectedProfileId: selected.profileId,
+    reason: 'GATE2_CONTEXT_SIZE_TIE_BREAK',
+    latencyDiscriminated: false,
+    latencyThresholdMs: 100,
+    selectedModelInputMs: selected.projection.context.modelInputMs,
+    selectedThresholds: selected.thresholds,
+    remainingProfileIds: remaining.map((profile) => profile.profileId).sort(),
+  };
+}
+
 function runByteDanceFromRaw({ scenario, raw, profile }) {
-  const plans = byteDance.planByteDanceScoreAwareChunks(scenario);
+  const plans = raw.plansForScenario?.get?.(scenario.scenarioId) ?? planByteDanceVariableContext(scenario, profile.projection.context);
   const rawChunks = raw.chunks;
   const processingByChunk = new Map(plans.map((plan, index) => [plan.chunkId, rawChunks[index]?.inferenceLatencyMs ?? 0]));
   const schedule = byteDance.scheduleByteDanceSingleWorkerPublications({ plans, processingLatencyMsByChunkId: processingByChunk });
@@ -451,9 +529,10 @@ function runByteDanceFromRaw({ scenario, raw, profile }) {
     const decoded = byteDance.decodeByteDanceChunkRawOutputs({
       scenario,
       plan,
-      raw: byteDance.byteDanceRawOutputsFromBrowserChunkArtifact(chunk),
+      raw: byteDance.byteDanceRawOutputsFromBrowserChunkArtifact(chunk, { allowVariableFrameCount: true }),
       onsetThreshold: profile.thresholds.onsetThreshold,
       frameThreshold: profile.thresholds.frameThreshold,
+      allowVariableFrameCount: true,
     });
     const timing = schedule.get(plan.chunkId);
     return byteDance.publicationForByteDanceChunk({
@@ -472,8 +551,180 @@ function runByteDanceFromRaw({ scenario, raw, profile }) {
     scenarioId: scenario.scenarioId,
     publications,
     command: 'phase9ga2 decode cached real ByteDance raw ONNX outputs',
-    runtime: 'real-ort-web-wasm-cached-raw-phase9ga2',
+    runtime: 'real-pytorch-cpu-variable-context-phase9ga22',
   });
+}
+
+function computeByteDanceContextEligibility(baseScenarios, contexts) {
+  const byScenario = {};
+  const byContext = {};
+  for (const context of contexts) {
+    byContext[context.profileId] = { eligibleBaseScenarioCount: 0, ineligible: [] };
+  }
+  for (const scenario of baseScenarios) {
+    const perContext = {};
+    let eligibleAllContexts = true;
+    for (const context of contexts) {
+      try {
+        const plans = planByteDanceVariableContext(scenario, context);
+        validateByteDanceVariableContextSource(scenario, plans, context);
+        perContext[context.profileId] = { eligible: true, planCount: plans.length };
+        byContext[context.profileId].eligibleBaseScenarioCount += 1;
+      } catch (error) {
+        eligibleAllContexts = false;
+        perContext[context.profileId] = { eligible: false, reason: errorMessage(error) };
+        byContext[context.profileId].ineligible.push({ scenarioId: scenario.scenarioId, reason: errorMessage(error) });
+      }
+    }
+    byScenario[scenario.scenarioId] = { eligibleAllContexts, perContext };
+  }
+  return { byScenario, byContext };
+}
+
+async function runByteDancePyTorchBatches({ contexts, baseScenarios }) {
+  const result = new Map();
+  for (const context of contexts) {
+    const windows = [];
+    const planByScenario = new Map();
+    for (const scenario of baseScenarios) {
+      const plans = planByteDanceVariableContext(scenario, context);
+      planByScenario.set(scenario.scenarioId, plans);
+      for (const plan of plans) {
+        const inputStartSourceMs = scenario.audio.performanceOriginSourceMs + plan.inputStartPerformanceMs;
+        const inputEndSourceMs = scenario.audio.performanceOriginSourceMs + plan.inputEndPerformanceMs;
+        const identity = {
+          schemaVersion: 1,
+          candidateFamily: 'bytedance-original',
+          checkpointSha256: EXPECTED_BYTEDANCE_CHECKPOINT.sha256,
+          checkpointBytes: EXPECTED_BYTEDANCE_CHECKPOINT.bytes,
+          runtimeIdentity: BYTEDANCE_IMAGE,
+          contextProfileId: context.profileId,
+          sourceAudioSha256: scenario.source.sourceAudioSha256,
+          sourceAudioPath: scenario.source.sourceAudioPath,
+          inputStartSourceMs,
+          inputEndSourceMs,
+          inputSampleRateHz: 16000,
+          inputSampleCount: Math.round(context.modelInputMs / 1000 * 16000),
+          windowGeometrySha256: sha256Json({
+            contextProfileId: context.profileId,
+            inputStartPerformanceMs: plan.inputStartPerformanceMs,
+            inputEndPerformanceMs: plan.inputEndPerformanceMs,
+            commitStartPerformanceMs: plan.commitStartPerformanceMs,
+            commitEndPerformanceMs: plan.commitEndPerformanceMs,
+          }),
+          preprocessingIdentity: 'deterministic_linear_interpolation_v1_mono_float32',
+        };
+        windows.push({
+          scenarioId: scenario.scenarioId,
+          contextProfileId: context.profileId,
+          windowId: plan.chunkId,
+          sourceAudioPath: scenario.source.sourceAudioPath,
+          inputStartSourceMs,
+          inputEndSourceMs,
+          inputSampleCount: identity.inputSampleCount,
+          identity,
+        });
+      }
+    }
+    const inputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga2/${context.profileId}.bytedance-pytorch-input.json`;
+    const outputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga2/${context.profileId}.bytedance-pytorch-raw.json`;
+    await writeJson(inputRel, { windows });
+    const run = spawnSync('docker', [
+      'run', '--rm',
+      '--entrypoint', 'python',
+      '-v', `${repoRoot}:/workspace`,
+      '-w', '/workspace',
+      BYTEDANCE_IMAGE,
+      'backend/scripts/run_bytedance_pytorch_raw_batch.py',
+      '--input', inputRel,
+      '--output', outputRel,
+      '--checkpoint', EXPECTED_BYTEDANCE_CHECKPOINT.path,
+      '--device', 'cpu',
+      '--runtime-identity', BYTEDANCE_IMAGE,
+    ], { cwd: repoRoot, encoding: 'utf8', timeout: 3_600_000, maxBuffer: 20 * 1024 * 1024 });
+    if (run.status !== 0) throw new Error(`ByteDance PyTorch batch failed for ${context.profileId}: ${run.stderr || run.stdout}`);
+    const raw = JSON.parse(await readFile(path.resolve(repoRoot, outputRel), 'utf8'));
+    const byScenario = new Map();
+    for (const scenario of baseScenarios) {
+      const chunks = raw.chunks
+        .filter((chunk) => chunk.scenarioId === scenario.scenarioId)
+        .sort((left, right) => left.windowId.localeCompare(right.windowId));
+      byScenario.set(scenario.scenarioId, {
+        chunks,
+        plansForScenario: new Map([[scenario.scenarioId, planByScenario.get(scenario.scenarioId)]]),
+      });
+    }
+    result.set(context.profileId, byScenario);
+  }
+  return result;
+}
+
+function planByteDanceVariableContext(scenario, context) {
+  if (context.profileId === 'CALIBRATED_CONTEXT_1820') {
+    return byteDance.planByteDanceScoreAwareChunks(scenario);
+  }
+  const completion = scenario.completion.performanceTimeMs;
+  const plans = [];
+  let start = 0;
+  const ownedMs = context.ownedCentralRegionMs;
+  while (start < completion || (completion === 0 && plans.length === 0)) {
+    const end = Math.min(completion, start + ownedMs);
+    plans.push({
+      chunkId: `${scenario.scenarioId}:${context.profileId}:window-${plans.length.toString().padStart(3, '0')}`,
+      scenarioId: scenario.scenarioId,
+      commitStartPerformanceMs: start,
+      commitEndPerformanceMs: end,
+      inputStartPerformanceMs: start - context.pastContextMs,
+      inputEndPerformanceMs: start - context.pastContextMs + context.modelInputMs,
+      expectedGroupIds: expectedGroupIdsInRange(scenario, start, end, plans.length === 0),
+    });
+    if (end === completion) break;
+    start = end;
+  }
+  validateByteDanceVariableContextPlan(scenario, plans, context);
+  return plans;
+}
+
+function validateByteDanceVariableContextPlan(scenario, plans, context) {
+  let previousEnd = 0;
+  for (const plan of plans) {
+    if (Math.abs((plan.inputEndPerformanceMs - plan.inputStartPerformanceMs) - context.modelInputMs) > 1e-9) {
+      throw new Error(`ByteDance ${context.profileId} input duration mismatch.`);
+    }
+    if (plan.commitStartPerformanceMs !== previousEnd || plan.commitEndPerformanceMs < plan.commitStartPerformanceMs) {
+      throw new Error(`ByteDance ${context.profileId} commit ownership is not chronological/non-overlapping.`);
+    }
+    if (plan.inputStartPerformanceMs > plan.commitStartPerformanceMs || plan.inputEndPerformanceMs < plan.commitEndPerformanceMs) {
+      throw new Error(`ByteDance ${context.profileId} input does not contain owned interval.`);
+    }
+    previousEnd = plan.commitEndPerformanceMs;
+  }
+  if (Math.abs(previousEnd - scenario.completion.performanceTimeMs) > 1e-9) {
+    throw new Error(`ByteDance ${context.profileId} plan does not cover completion.`);
+  }
+}
+
+function validateByteDanceVariableContextSource(scenario, plans) {
+  for (const plan of plans) {
+    const sourceStart = scenario.audio.performanceOriginSourceMs + plan.inputStartPerformanceMs;
+    const sourceEnd = scenario.audio.performanceOriginSourceMs + plan.inputEndPerformanceMs;
+    if (sourceStart < scenario.audio.clipStartMs - 1e-9) throw new Error(`requires unavailable pre-roll context`);
+    if (sourceEnd > scenario.audio.clipEndMs + 1e-9) throw new Error(`requires unavailable post-roll context`);
+  }
+}
+
+function expectedGroupIdsInRange(scenario, start, end, isFirst) {
+  const seen = new Set();
+  return scenario.expectedStrikes
+    .filter((strike) => {
+      if (seen.has(strike.groupId)) return false;
+      const owned = isFirst
+        ? strike.expectedPerformanceTimeMs >= start && strike.expectedPerformanceTimeMs <= end
+        : strike.expectedPerformanceTimeMs > start && strike.expectedPerformanceTimeMs <= end;
+      if (owned) seen.add(strike.groupId);
+      return owned;
+    })
+    .map((strike) => strike.groupId);
 }
 
 async function loadByteDanceRaw(scenarioId, cache) {
@@ -491,7 +742,9 @@ async function runOnlineAmtBatch(policy, baseScenarios, options) {
     const wav = byteDance.decodeResearchWavToMonoFloat32(await readFile(path.resolve(repoRoot, scenario.source.sourceAudioPath)));
     const completion = scenario.completion.performanceTimeMs;
     const ownedSamples = Math.floor(completion / 1000 * onlineAmt.ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz);
-    const requirement = onlineAmt.onlineAmtSegmentTailRequirement(ownedSamples, options.tailTimingCorrectionMs);
+    const requirement = options.fixedContextTailSamples === undefined
+      ? onlineAmt.onlineAmtSegmentTailRequirement(ownedSamples, options.tailTimingCorrectionMs)
+      : { requiredContextTailSamples: options.fixedContextTailSamples };
     segments.push({
       segmentId: `${scenario.scenarioId}:segment-0`,
       performanceStartMs: 0,
@@ -537,15 +790,18 @@ function timingCorrectionForPolicy({ policy, batchArtifact, baseScenarios }) {
   const offsets = [];
   for (const scenario of baseScenarios) {
     const segment = segmentForScenario(batchArtifact, scenario.scenarioId);
-    const rawRun = onlineAmt.runOnlineAmtStreamingCandidateFromHopArtifact({
-      scenario,
-      artifact: { schemaVersion: 1, artifact: 'online_amt_real_hop_output', segments: [segment] },
-      candidateId: policy.profileId,
-      command: 'phase9ga2 raw timing calibration',
-      runtime: 'real-online-amt-modern-docker-phase9ga2',
+    const completion = scenario.completion.performanceTimeMs;
+    const candidate = segment.hops.flatMap((hop) => onlineAmt.observationsForOnlineAmtHop({
+      scenarioId: scenario.scenarioId,
+      segmentId: segment.segmentId,
+      hopIndex: hop.hopIndex,
+      segmentPerformanceStartMs: segment.performanceStartMs,
+      segmentPerformanceEndMs: completion,
+      localDecisionTimeMs: hop.localDecisionSample / onlineAmt.ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz * 1000,
+      pitchStates: hop.pitchStates,
+      previousCoverage: -Infinity,
       timingCorrectionMs: 0,
-    });
-    const candidate = rawRun.publications.flatMap((publication) => publication.observations);
+    }));
     offsets.push(...matchOffsets(candidate, scenario.physicalGroundTruth.attacks));
   }
   offsets.sort((left, right) => left - right);
@@ -635,6 +891,59 @@ function onlineAmtTailGeometryDelta(baseScenarios, timingCorrectionMs) {
   };
 }
 
+function onlineAmtTimingCalibrationSet(baseScenarios) {
+  const includedScenarios = [];
+  const excluded = [];
+  const nearTerminal = [];
+  for (const scenario of baseScenarios) {
+    const requiredSourceEnd = scenario.audio.performanceOriginSourceMs
+      + scenario.completion.performanceTimeMs
+      + TIMING_CALIBRATION_REAL_POSTROLL_MS;
+    if (requiredSourceEnd > scenario.audio.clipEndMs + 1e-9) {
+      excluded.push({
+        scenarioId: scenario.scenarioId,
+        reason: 'INSUFFICIENT_REAL_500MS_TIMING_POSTROLL',
+        requiredSourceEndMs: requiredSourceEnd,
+        clipEndMs: scenario.audio.clipEndMs,
+      });
+      continue;
+    }
+    includedScenarios.push(scenario);
+    const lastAttack = Math.max(...scenario.physicalGroundTruth.attacks.map((attack) => attack.performanceTimeMs));
+    const delta = scenario.completion.performanceTimeMs - lastAttack;
+    if (delta <= 180) {
+      nearTerminal.push({
+        scenarioId: scenario.scenarioId,
+        lastPhysicalAttackTimeMs: lastAttack,
+        completionTimeMs: scenario.completion.performanceTimeMs,
+        deltaToCompletionMs: delta,
+      });
+    }
+  }
+  return { includedScenarios, excluded, nearTerminal };
+}
+
+function compareOnlineAmtA21({ oldReport, newPolicies, timingReports }) {
+  const oldByProfile = new Map((oldReport.onlineAmt?.policyResults ?? []).map((item) => [item.profileId, item]));
+  return newPolicies.map((profile) => {
+    const old = oldByProfile.get(profile.profileId);
+    const timing = timingReports.find((item) => item.profileId === profile.profileId);
+    return {
+      profileId: profile.profileId,
+      oldTimingCorrectionMs: old?.timingCalibration?.timingCorrectionMs ?? null,
+      newTimingCorrectionMs: timing?.timingCorrectionMs ?? null,
+      timingCorrectionDeltaMs: timing && old?.timingCalibration
+        ? timing.timingCorrectionMs - old.timingCalibration.timingCorrectionMs
+        : null,
+      oldMatchedPairCount: old?.timingCalibration?.matchedPairCount ?? null,
+      newMatchedPairCount: timing?.matchedPairCount ?? null,
+      matchedPairCountDelta: timing && old?.timingCalibration
+        ? timing.matchedPairCount - old.timingCalibration.matchedPairCount
+        : null,
+    };
+  });
+}
+
 function assertOnlineAmtTerminalCoverage({ scenario, candidateRun, profileId }) {
   const completion = scenario.completion?.performanceTimeMs;
   if (!Number.isFinite(completion)) {
@@ -690,6 +999,11 @@ async function writeByteDanceSameWeightProvenance() {
       sha256: existsSync(abs) ? await sha256FileBytes(abs) : null,
     });
   }
+  const parity = existsSync(path.resolve(repoRoot, BYTEDANCE_PARITY_REL))
+    ? JSON.parse(await readFile(path.resolve(repoRoot, BYTEDANCE_PARITY_REL), 'utf8'))
+    : null;
+  const parityPassed = parity?.overallThresholdMaskParityAtOnset020Frame020 === true
+    && parity?.overallAuthoritativeDecodedEventParityAtOnset020Frame020 === true;
   const receipt = {
     schemaVersion: 1,
     artifact: 'phase9g_a21_bytedance_same_weight_provenance',
@@ -702,9 +1016,13 @@ async function writeByteDanceSameWeightProvenance() {
       currentOnnxSha256: onnx.actualSha256,
       historicalExportReports: historicalEvidence,
     },
-    sameWeightParityStatus: checkpoint.identityVerified && onnx.identityVerified
-      ? 'LOCAL_ASSETS_VERIFIED_PARITY_EXECUTION_REQUIRED'
-      : 'LOCAL_ASSET_IDENTITY_BLOCKED',
+    parityReceiptPath: BYTEDANCE_PARITY_REL,
+    parityReceiptSha256: parity ? await sha256File(BYTEDANCE_PARITY_REL) : null,
+    sameWeightParityStatus: checkpoint.identityVerified && onnx.identityVerified && parityPassed
+      ? 'SAME_WEIGHT_1820_PYTORCH_ONNX_PARITY_VERIFIED'
+      : checkpoint.identityVerified && onnx.identityVerified
+        ? 'LOCAL_ASSETS_VERIFIED_PARITY_EXECUTION_REQUIRED'
+        : 'LOCAL_ASSET_IDENTITY_BLOCKED',
   };
   await writeJson(BYTEDANCE_PROVENANCE_REL, receipt);
   return receipt;
@@ -756,7 +1074,8 @@ function calibrationScoresFromSummaries(scores) {
 function bytedanceProfile({ context, onsetThreshold, frameThreshold }) {
   const projection = {
     candidateFamily: 'bytedance-original',
-    checkpointSha256: byteDance.BYTEDANCE_CHUNKED_BASELINE_CONFIG.modelSha256,
+    checkpointSha256: EXPECTED_BYTEDANCE_CHECKPOINT.sha256,
+    checkpointBytes: EXPECTED_BYTEDANCE_CHECKPOINT.bytes,
     context,
     onsetThreshold,
     frameThreshold,
@@ -822,6 +1141,58 @@ function historicalByteDanceProfileId(profiles) {
     profile.thresholds?.onsetThreshold === 0.2
     && profile.thresholds?.frameThreshold === 0.2
   )?.profileId ?? fallbackProfileId(profiles, 'bytedance-original-calibrated-v1');
+}
+
+function historicalByteDanceProfileIdFor1820() {
+  return 'bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.20';
+}
+
+function familyCounts(scenariosForCounts) {
+  const counts = {};
+  for (const scenario of scenariosForCounts) {
+    const family = scenarioFamily(scenario);
+    counts[family] = (counts[family] ?? 0) + 1;
+  }
+  for (const family of [
+    'BASE_ORIGINAL',
+    'COUNTERFACTUAL_MISSING_NOTE',
+    'COUNTERFACTUAL_EXTRA_NOTE',
+    'COUNTERFACTUAL_WRONG_SEMITONE',
+    'COUNTERFACTUAL_INCOMPLETE_CHORD',
+  ]) {
+    counts[family] ??= 0;
+  }
+  return counts;
+}
+
+function scenarioFamily(scenario) {
+  return scenario.familyTags.find((tag) => tag === 'BASE_ORIGINAL' || tag.startsWith('COUNTERFACTUAL_')) ?? 'UNKNOWN';
+}
+
+function answerByteDanceContextQuestions({ profiles, selectedProfileId, diagnostic }) {
+  const selected = selectedProfileId ?? null;
+  const contextBest = {};
+  for (const contextId of ['CALIBRATED_CONTEXT_1820', 'CALIBRATED_CONTEXT_3S', 'CALIBRATED_CONTEXT_5S', 'CALIBRATED_CONTEXT_10S']) {
+    const profileIds = profiles.filter((profile) => profile.projection.context.profileId === contextId).map((profile) => profile.profileId);
+    const scoreRows = diagnostic.scores.filter((score) => profileIds.includes(score.candidateId));
+    contextBest[contextId] = {
+      profileCount: profileIds.length,
+      measuredScenarioScoreCount: scoreRows.length,
+      selectedInFinalTrace: selected?.includes(contextId) ?? false,
+    };
+  }
+  return {
+    did3sImproveOver1820: selected?.includes('CALIBRATED_CONTEXT_3S') ?? false,
+    did5sImproveOver1820: selected?.includes('CALIBRATED_CONTEXT_5S') ?? false,
+    did10sImproveOver1820: selected?.includes('CALIBRATED_CONTEXT_10S') ?? false,
+    didLongerContextReduceCriticalFalseCorrectErrors: 'See selectorTrace pairwise dominance decisions and per-context metrics.',
+    didLongerContextHarmRecallOrChordCompleteness: 'See selectorTrace pairwise dominance decisions and per-context metrics.',
+    survivingContext: profiles.find((profile) => profile.profileId === selected)?.projection.context.profileId ?? null,
+    survivingThresholdPair: profiles.find((profile) => profile.profileId === selected)?.thresholds ?? null,
+    earlier1820Onset015Frame015Reproduced: selected === 'bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.15-frame-0.15',
+    was1820ActuallyOptimal: selected?.includes('CALIBRATED_CONTEXT_1820') ?? false,
+    contextBest,
+  };
 }
 
 function semanticProjection(manifest) {
