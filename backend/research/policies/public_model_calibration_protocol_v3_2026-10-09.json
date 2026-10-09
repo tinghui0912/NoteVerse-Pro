@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 3,
+  "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3",
+  "createdForPhase": "9G-A.2",
+  "createdAt": "2026-10-09",
+  "preservesHistoricalPolicies": [
+    "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V1",
+    "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2"
+  ],
+  "benchmarkTruthBoundary": {
+    "expectedTruth": "PracticeScoreArtifact + CUSTOM_FIXED_BPM + PracticeScope RANGE + resolveContinuousPracticeContract(...)",
+    "physicalTruth": "full physical/performance MIDI NoteOn events",
+    "alignment": "Vienna .match files may be used only for candidate-independent timing/BPM/origin fitting",
+    "scorer": "CandidateScenarioRun -> ContinuousFinalizationLedger / accepted bake-off scorer",
+    "candidateOutputCannotControl": [
+      "clock",
+      "tempo",
+      "scope",
+      "playhead",
+      "ExpectedStrike",
+      "completion",
+      "mutation selection",
+      "context eligibility"
+    ]
+  },
+  "sourceEvidence": {
+    "datasetId": "vienna-4x22",
+    "metadataCommit": "1033ade0899bfd03a89f370c9ad5d8443ddccd3e",
+    "acceptedHistoricalReport": "backend/research/reports/vienna_fixed_bpm_proxy_final_comparison_phase9fb3_2026-10-08.json",
+    "acceptedHistoricalScenarioManifest": "backend/research/reports/vienna_fixed_bpm_proxy_final_scenarios_phase9fb3_2026-10-08.json",
+    "historicalFrozenBaselinesOnlyConclusion": "BYTE_DANCE_BETTER_ON_SECONDARY_HUMAN_FIXED_BPM_PROXY",
+    "productionWinner": false
+  },
+  "performerDisjointPartitions": {
+    "partitionMethod": "deterministic Vienna pianist identity partition frozen before candidate calibration outputs",
+    "performerIdentityPattern": "Vienna pianist suffix p01..p22",
+    "developmentProxyPerformers": [
+      "p01",
+      "p02",
+      "p03",
+      "p04",
+      "p05",
+      "p06"
+    ],
+    "calibrationProxyPerformers": [
+      "p07",
+      "p08",
+      "p09",
+      "p10",
+      "p11",
+      "p12",
+      "p13",
+      "p14"
+    ],
+    "blindEvaluationProxyPerformers": [
+      "p15",
+      "p16",
+      "p17",
+      "p18",
+      "p19",
+      "p20",
+      "p21",
+      "p22"
+    ],
+    "blindEvaluationPolicy": {
+      "candidateInferenceAllowedInPhase9GA": false,
+      "candidateOutputsMayBeGeneratedOrInspected": false,
+      "truthOnlyManifestPath": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
+      "truthOnlyManifestSha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+      "truthOnlyScenarioCount": 70,
+      "candidateRunCount": 0
+    }
+  },
+  "calibrationFamilies": [
+    "BASE_ORIGINAL",
+    "COUNTERFACTUAL_MISSING_NOTE",
+    "COUNTERFACTUAL_EXTRA_NOTE",
+    "COUNTERFACTUAL_WRONG_SEMITONE",
+    "COUNTERFACTUAL_INCOMPLETE_CHORD"
+  ],
+  "calibrationDecisionPolicy": {
+    "policyKind": "PAIRWISE_DOMINANCE_NOTEVERSE_SAFETY_FIRST",
+    "bootstrap": {
+      "seed": 13371,
+      "draws": 5000
+    },
+    "meaningfulDifferenceThresholds": {
+      "rateAbsoluteDifference": 0.01,
+      "timingMedianMs": 5,
+      "timingP95Ms": 10,
+      "minimumPairedScenarioCount": 8
+    },
+    "priorityOrder": [
+      "lower critical false-match rate",
+      "lower incomplete-chord false-complete rate",
+      "higher BASE verdict agreement",
+      "higher critical correct-missing rate",
+      "higher BASE chord exact completeness",
+      "higher BASE expected recall",
+      "higher EXTRA_NOTE extra precision",
+      "higher EXTRA_NOTE extra recall",
+      "lower BASE timing median",
+      "lower BASE timing P95"
+    ],
+    "pairedComparison": {
+      "unit": "scenario-level direct A-minus-B metric vector",
+      "pooledEventAggregates": "DESCRIPTIVE_ONLY",
+      "dominance": "A dominates B at a priority only when A is better in the correct direction, the paired mean effect meets the threshold, the paired 95% bootstrap CI excludes zero in that direction, and pairedScenarioCount >= 8.",
+      "cycles": "Contradictory pairwise dominance cycles are treated as ties for that priority."
+    },
+    "gate2TieBreak": {
+      "allowedOnlyAfterGate1Tie": true,
+      "latencyMetric": "finalizedFeedbackAgeP95Ms",
+      "minimumLatencyDifferenceMs": 100,
+      "byteDanceFinalTieBreak": "smaller modelInputMs",
+      "onlineAmtFinalTieBreak": "prefer NATIVE pseudo-intensity, then boost 2.0, only if accuracy and latency remain tied"
+    }
+  },
+  "candidateSearchSpaces": {
+    "bytedanceOriginal": {
+      "modelFamily": "ByteDance high-resolution piano transcription original checkpoint",
+      "historicalCandidateId": "bytedance-score-aware-chunked-dev-v1",
+      "selectedCandidateId": "bytedance-original-calibrated-v1",
+      "checkpointIdentity": {
+        "sha256": "6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5",
+        "bytes": 98691493
+      },
+      "sameWeightRequirement": "Longer-context profiles must verify same-weight parity against the frozen current ONNX family. If exact weight equivalence cannot be established, evidence must be split and SAME_WEIGHT_CONTEXT_COMPARISON_UNPROVEN reported.",
+      "descriptiveReferences": [
+        {
+          "profileId": "HISTORICAL_CURRENT_BASELINE_REFERENCE",
+          "modelInputMs": 1820,
+          "futureContextMs": 220,
+          "commitWidthMs": 600,
+          "onsetThreshold": 0.2,
+          "frameThreshold": 0.2
+        },
+        {
+          "profileId": "UPSTREAM_10S_NATIVE_REFERENCE",
+          "modelInputMs": 10000,
+          "ownedCentralRegionMs": 5000,
+          "pastContextMs": 2500,
+          "futureContextMs": 2500,
+          "onsetThreshold": 0.3,
+          "frameThreshold": 0.1
+        }
+      ],
+      "calibratedContexts": [
+        {
+          "profileId": "CALIBRATED_CONTEXT_1820",
+          "modelInputMs": 1820,
+          "futureContextMs": 220,
+          "commitWidthMs": 600,
+          "ownershipPolicy": "historical inclusive-compatible 600ms chunk ownership"
+        },
+        {
+          "profileId": "CALIBRATED_CONTEXT_3S",
+          "modelInputMs": 3000,
+          "ownedCentralRegionMs": 1500,
+          "pastContextMs": 750,
+          "futureContextMs": 750,
+          "ownershipPolicy": "overlapping model input windows with non-overlapping product ownership and no fake padding"
+        },
+        {
+          "profileId": "CALIBRATED_CONTEXT_5S",
+          "modelInputMs": 5000,
+          "ownedCentralRegionMs": 2500,
+          "pastContextMs": 1250,
+          "futureContextMs": 1250,
+          "ownershipPolicy": "overlapping model input windows with non-overlapping product ownership and no fake padding"
+        },
+        {
+          "profileId": "CALIBRATED_CONTEXT_10S",
+          "modelInputMs": 10000,
+          "ownedCentralRegionMs": 5000,
+          "pastContextMs": 2500,
+          "futureContextMs": 2500,
+          "ownershipPolicy": "overlapping model input windows with non-overlapping product ownership and no fake padding"
+        }
+      ],
+      "thresholdGridV3": {
+        "onset": [
+          0.15,
+          0.2,
+          0.25,
+          0.3,
+          0.35
+        ],
+        "frame": [
+          0.05,
+          0.1,
+          0.15,
+          0.2
+        ]
+      },
+      "profileCount": 80,
+      "rawInferenceCacheIdentity": [
+        "checkpoint SHA",
+        "model implementation identity",
+        "input PCM SHA",
+        "input geometry SHA",
+        "sample rate",
+        "preprocessing identity",
+        "raw tensor shape",
+        "raw tensor digest"
+      ],
+      "candidateScenarioRunReuseAcrossThresholds": false
+    },
+    "onlineAmt": {
+      "historicalCandidateId": "online-amt-stateful-modern-compat-dev-v1",
+      "selectedCandidateId": "online-amt-calibrated-v1",
+      "structuralConstantsNotTuned": {
+        "sampleRateHz": 16000,
+        "hopSamples": 512,
+        "statefulRecurrence": true,
+        "onsetStateIds": [
+          3,
+          4
+        ],
+        "checkpointWeights": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0"
+      },
+      "policyCombinations": [
+        {
+          "profileId": "ONLINE_AMT_DISABLED_BOOST_2",
+          "pseudoIntensity": "DISABLED",
+          "onsetBoost": 2.0
+        },
+        {
+          "profileId": "ONLINE_AMT_DISABLED_BOOST_1",
+          "pseudoIntensity": "DISABLED",
+          "onsetBoost": 1.0
+        },
+        {
+          "profileId": "ONLINE_AMT_NATIVE_BOOST_2",
+          "pseudoIntensity": "NATIVE",
+          "onsetBoost": 2.0
+        },
+        {
+          "profileId": "ONLINE_AMT_NATIVE_BOOST_1",
+          "pseudoIntensity": "NATIVE",
+          "onsetBoost": 1.0
+        }
+      ],
+      "timingCorrectionCalibration": {
+        "algorithmId": "ONLINE_AMT_TIMING_CALIBRATION_V1_PER_POLICY",
+        "runPerPolicyCombination": true,
+        "rawTimingCorrectionMs": 0,
+        "matchWindowMs": 250,
+        "matchRule": "same pitch only, one-to-one, maximize match count, minimize total absolute timing error, deterministic tie break",
+        "offsetDefinition": "physicalAttackTimeMs - rawCandidateEventTimeMs",
+        "calibratedCorrection": "median of matched signed offsets",
+        "forbiddenInputs": [
+          "ExpectedStrike timing",
+          "counterfactual duplicate acoustic evidence",
+          "BLIND_EVALUATION data"
+        ]
+      }
+    }
+  },
+  "withinFamilySelection": {
+    "byteDanceOriginal": "select one bytedance-original-calibrated-v1 profile before cross-family comparison",
+    "onlineAmt": "select one online-amt-calibrated-v1 profile before cross-family comparison",
+    "crossFamilyProductionWinnerAllowed": false
+  },
+  "integrityCorrections": {
+    "blindCandidateInferenceLock": "p15-p22 candidate inference remains forbidden in Phase 9G-A.2",
+    "explicitPhaseRequired": true,
+    "acousticEvidenceReuse": "candidate-specific independent base/target execution identity comparison required",
+    "selector": "direct pairwise scenario-level dominance; pooled aggregates are descriptive only",
+    "blindManifestReuse": "accepted blind truth manifest is locked and not regenerated solely because policy changed"
+  }
+}

@@ -134,6 +134,7 @@ export function runOnlineAmtStreamingCandidate(input: {
   candidateId: string;
   command: string;
   runtime: string;
+  timingCorrectionMs?: number;
 }): CandidateScenarioRun {
   const diagnostics = validateOnlineAmtSegments(input.scenario, input.segments);
   const hopSegments = input.segments.map((segment) => {
@@ -160,6 +161,7 @@ export function runOnlineAmtStreamingCandidate(input: {
     scenarioId: input.scenario.scenarioId,
     hopSegments,
     omitAvailabilityAcrossSegments: input.segments.length > 1,
+    timingCorrectionMs: input.timingCorrectionMs,
   });
   return {
     candidateId: input.candidateId,
@@ -182,6 +184,7 @@ export function runOnlineAmtStreamingCandidateFromHopArtifact(input: {
   candidateId: string;
   command: string;
   runtime: string;
+  timingCorrectionMs?: number;
 }): CandidateScenarioRun {
   const artifact = parseOnlineAmtPythonHopArtifact(input.artifact);
   validateOnlineAmtPythonHopArtifactForScenario(input.scenario, artifact);
@@ -201,6 +204,7 @@ export function runOnlineAmtStreamingCandidateFromHopArtifact(input: {
       })),
     })),
     omitAvailabilityAcrossSegments: artifact.segments.length > 1,
+    timingCorrectionMs: input.timingCorrectionMs,
   });
   return {
     candidateId: input.candidateId,
@@ -262,6 +266,7 @@ function publicationsFromHopOutputs(input: {
     }[];
   }[];
   omitAvailabilityAcrossSegments: boolean;
+  timingCorrectionMs?: number;
 }): CandidatePublication[] {
   const publications: CandidatePublication[] = [];
   let previousCoverage = -Infinity;
@@ -275,6 +280,7 @@ function publicationsFromHopOutputs(input: {
       const correctedEventFrontierMs = eventTimeFromSegmentLocalDecisionMs(
         segment.performanceStartMs,
         localDecisionTimeMs,
+        input.timingCorrectionMs,
       );
       if (correctedEventFrontierMs < segment.performanceStartMs) {
         continue;
@@ -292,6 +298,7 @@ function publicationsFromHopOutputs(input: {
         localDecisionTimeMs,
         pitchStates: hop.output.pitchStates,
         previousCoverage,
+        timingCorrectionMs: input.timingCorrectionMs,
       });
       const processingLatency = hop.output.processingLatencyMs;
       const inputReadyAtMs = decisionTimeMs;
@@ -336,10 +343,11 @@ export function observationsForOnlineAmtHop(input: {
   decisionTimeMs?: number;
   pitchStates: readonly OnlineAmtPitchState[];
   previousCoverage: number;
+  timingCorrectionMs?: number;
 }): readonly CandidateObservation[] {
   const eventTime = input.localDecisionTimeMs === undefined || input.segmentPerformanceStartMs === undefined
-    ? eventTimeFromDecisionTimeMs(input.decisionTimeMs ?? 0)
-    : eventTimeFromSegmentLocalDecisionMs(input.segmentPerformanceStartMs, input.localDecisionTimeMs);
+    ? eventTimeFromDecisionTimeMs(input.decisionTimeMs ?? 0, input.timingCorrectionMs)
+    : eventTimeFromSegmentLocalDecisionMs(input.segmentPerformanceStartMs, input.localDecisionTimeMs, input.timingCorrectionMs);
   const segmentStart = input.segmentPerformanceStartMs ?? 0;
   const segmentEnd = input.segmentPerformanceEndMs ?? Infinity;
   if (eventTime < segmentStart || eventTime > segmentEnd || eventTime <= input.previousCoverage) {
@@ -362,15 +370,16 @@ export function observationsForOnlineAmtHop(input: {
     }));
 }
 
-export function eventTimeFromDecisionTimeMs(decisionTimeMs: number): number {
-  return decisionTimeMs + ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs;
+export function eventTimeFromDecisionTimeMs(decisionTimeMs: number, timingCorrectionMs = ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs): number {
+  return decisionTimeMs + timingCorrectionMs;
 }
 
 export function eventTimeFromSegmentLocalDecisionMs(
   segmentPerformanceStartMs: number,
   localDecisionTimeMs: number,
+  timingCorrectionMs = ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs,
 ): number {
-  return segmentPerformanceStartMs + localDecisionTimeMs + ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs;
+  return segmentPerformanceStartMs + localDecisionTimeMs + timingCorrectionMs;
 }
 
 export function onlineAmtSegmentTailRequirement(performanceOwnedSamples: number): {

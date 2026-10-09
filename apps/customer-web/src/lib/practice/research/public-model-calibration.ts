@@ -6,9 +6,10 @@ import {
 
 export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V1_SHA256 = '5f0decb22200f51d295bbd3c60cd04481eec7661d7844e2b7c48b4f8b42ff56a';
 export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256 = 'eea0939a2c19727a0a93b2fdd3ce39e07d40dfa40a5f117a903552a080af4d5f';
+export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3_SHA256 = '9c6b3ca6cc46fd902a27cdf27825edd2833753cb15c9285e7c77365b3ff05130';
 
-const PUBLIC_MODEL_CALIBRATION_PROTOCOL_ID = 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2';
-const PUBLIC_MODEL_CALIBRATION_SCHEMA_VERSION = 2;
+const PUBLIC_MODEL_CALIBRATION_PROTOCOL_ID = 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3';
+const PUBLIC_MODEL_CALIBRATION_SCHEMA_VERSION = 3;
 const PHASE_9GA = '9G-A';
 const PHASE_9GA_CALIBRATION_PERFORMERS = ['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p14'] as const;
 const PHASE_9GA_BLIND_PERFORMERS = ['p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22'] as const;
@@ -16,7 +17,7 @@ const PHASE_9GA_POLICY_PATH = [
   'backend',
   'research',
   'policies',
-  'public_model_calibration_protocol_v2_2026-10-09.json',
+  'public_model_calibration_protocol_v3_2026-10-09.json',
 ].join('/');
 
 type Phase9GExecutionMode = 'CANDIDATE_INFERENCE' | 'TRUTH_ONLY';
@@ -46,10 +47,10 @@ export interface ByteDanceContextGeometry {
 }
 
 export const BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES: readonly ByteDanceContextGeometry[] = [
-  { profileId: 'CURRENT_BASELINE', modelInputMs: 1820, futureContextMs: 220, commitWidthMs: 600 },
-  { profileId: 'INTERMEDIATE_CONTEXT_3S', modelInputMs: 3000, ownedCentralRegionMs: 1500, pastContextMs: 750, futureContextMs: 750 },
-  { profileId: 'INTERMEDIATE_CONTEXT_5S', modelInputMs: 5000, ownedCentralRegionMs: 2500, pastContextMs: 1250, futureContextMs: 1250 },
-  { profileId: 'UPSTREAM_10S_REFERENCE', modelInputMs: 10000, ownedCentralRegionMs: 5000, pastContextMs: 2500, futureContextMs: 2500 },
+  { profileId: 'CALIBRATED_CONTEXT_1820', modelInputMs: 1820, futureContextMs: 220, commitWidthMs: 600 },
+  { profileId: 'CALIBRATED_CONTEXT_3S', modelInputMs: 3000, ownedCentralRegionMs: 1500, pastContextMs: 750, futureContextMs: 750 },
+  { profileId: 'CALIBRATED_CONTEXT_5S', modelInputMs: 5000, ownedCentralRegionMs: 2500, pastContextMs: 1250, futureContextMs: 1250 },
+  { profileId: 'CALIBRATED_CONTEXT_10S', modelInputMs: 10000, ownedCentralRegionMs: 5000, pastContextMs: 2500, futureContextMs: 2500 },
 ];
 
 export const BYTEDANCE_PHASE_9GA_THRESHOLD_GRID = {
@@ -85,7 +86,7 @@ export function assertPublicModelCalibrationPolicyIdentity(identity: PublicModel
   if (identity.schemaVersion !== PUBLIC_MODEL_CALIBRATION_SCHEMA_VERSION) {
     throw new Error(`PUBLIC_MODEL_CALIBRATION_POLICY_SCHEMA_MISMATCH:${identity.schemaVersion}`);
   }
-  if (identity.sha256 !== PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256) {
+  if (identity.sha256 !== PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3_SHA256) {
     throw new Error(`PUBLIC_MODEL_CALIBRATION_POLICY_SHA_MISMATCH:${identity.sha256}`);
   }
 }
@@ -287,6 +288,9 @@ export interface CalibrationProfileSelection {
     readonly direction: 'LOWER_IS_BETTER' | 'HIGHER_IS_BETTER';
     readonly remainingProfileIds: readonly string[];
     readonly pairwiseComparisons: readonly CalibrationPairedProfileComparison[];
+    readonly dominatedProfileIds: readonly string[];
+    readonly pairwiseDominanceCycles: readonly (readonly string[])[];
+    readonly cycleTreatedAsTie: boolean;
   }[];
   readonly absoluteAggregates: readonly CalibrationProfileAbsoluteAggregate[];
 }
@@ -331,20 +335,35 @@ export function selectCalibrationProfile(
   );
   for (const priority of CALIBRATION_PRIORITY) {
     if (remaining.length <= 1) break;
-    const best = bestProfileForPriority(scores, remaining, priority);
-    if (!best) {
-      decisions.push({ metric: priority.name, direction: priority.direction, remainingProfileIds: remaining, pairwiseComparisons: [] });
+    const pairwiseComparisons = pairwiseComparisonsForPriority(scores, remaining, priority, bootstrap);
+    const dominance = dominanceForPriority(pairwiseComparisons, priority);
+    if (pairwiseComparisons.length === 0 || dominance.edges.length === 0) {
+      decisions.push({
+        metric: priority.name,
+        direction: priority.direction,
+        remainingProfileIds: remaining,
+        pairwiseComparisons,
+        dominatedProfileIds: [],
+        pairwiseDominanceCycles: dominance.cycles,
+        cycleTreatedAsTie: dominance.cycles.length > 0,
+      });
       continue;
     }
-    const pairwiseComparisons = remaining
-      .filter((profileId) => profileId !== best)
-      .map((profileId) => pairedProfileComparison(scores, best, profileId, priority, bootstrap));
-    remaining = remaining.filter((profileId) => {
-      if (profileId === best) return true;
-      const comparison = pairwiseComparisons.find((item) => item.rightProfileId === profileId);
-      return !comparison || !isRightProfileMeaningfullyWorse(comparison, priority);
-    }).sort();
-    decisions.push({ metric: priority.name, direction: priority.direction, remainingProfileIds: remaining, pairwiseComparisons });
+    const cycleProfiles = new Set(dominance.cycles.flat());
+    const dominatedProfileIds = [...new Set(dominance.edges
+      .map((edge) => edge.to)
+      .filter((profileId) => !cycleProfiles.has(profileId)))]
+      .sort();
+    remaining = remaining.filter((profileId) => !dominatedProfileIds.includes(profileId)).sort();
+    decisions.push({
+      metric: priority.name,
+      direction: priority.direction,
+      remainingProfileIds: remaining,
+      pairwiseComparisons,
+      dominatedProfileIds,
+      pairwiseDominanceCycles: dominance.cycles,
+      cycleTreatedAsTie: dominance.cycles.length > 0,
+    });
   }
   return {
     status: remaining.length === 1 ? 'SELECTED' : 'GATE_1_TIE',
@@ -353,6 +372,89 @@ export function selectCalibrationProfile(
     decisions,
     absoluteAggregates,
   };
+}
+
+function pairwiseComparisonsForPriority(
+  scores: readonly CalibrationProfileScenarioScore[],
+  profileIds: readonly string[],
+  priority: typeof CALIBRATION_PRIORITY[number],
+  bootstrap: PublicBootstrapConfig,
+): CalibrationPairedProfileComparison[] {
+  const sorted = [...profileIds].sort();
+  const comparisons: CalibrationPairedProfileComparison[] = [];
+  for (let leftIndex = 0; leftIndex < sorted.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < sorted.length; rightIndex += 1) {
+      comparisons.push(pairedProfileComparison(scores, sorted[leftIndex], sorted[rightIndex], priority, bootstrap));
+    }
+  }
+  return comparisons;
+}
+
+function dominanceForPriority(
+  comparisons: readonly CalibrationPairedProfileComparison[],
+  priority: typeof CALIBRATION_PRIORITY[number],
+): {
+  readonly edges: readonly { readonly from: string; readonly to: string }[];
+  readonly cycles: readonly (readonly string[])[];
+} {
+  const edges = comparisons.flatMap((comparison) => {
+    const direction = dominanceDirection(comparison, priority);
+    if (direction === 'LEFT_DOMINATES_RIGHT') {
+      return [{ from: comparison.leftProfileId, to: comparison.rightProfileId }];
+    }
+    if (direction === 'RIGHT_DOMINATES_LEFT') {
+      return [{ from: comparison.rightProfileId, to: comparison.leftProfileId }];
+    }
+    return [];
+  });
+  return { edges, cycles: dominanceCycles(edges) };
+}
+
+function dominanceDirection(
+  comparison: CalibrationPairedProfileComparison,
+  priority: typeof CALIBRATION_PRIORITY[number],
+): 'LEFT_DOMINATES_RIGHT' | 'RIGHT_DOMINATES_LEFT' | 'TIE' {
+  if (comparison.pairedScenarioCount < priority.minimumSamples || comparison.meanDifferenceLeftMinusRight === null || comparison.bootstrap95Ci === null) {
+    return 'TIE';
+  }
+  const mean = comparison.meanDifferenceLeftMinusRight;
+  const ci = comparison.bootstrap95Ci;
+  if (priority.direction === 'LOWER_IS_BETTER') {
+    if (-mean >= priority.minimumEffect && ci.high < 0) return 'LEFT_DOMINATES_RIGHT';
+    if (mean >= priority.minimumEffect && ci.low > 0) return 'RIGHT_DOMINATES_LEFT';
+    return 'TIE';
+  }
+  if (mean >= priority.minimumEffect && ci.low > 0) return 'LEFT_DOMINATES_RIGHT';
+  if (-mean >= priority.minimumEffect && ci.high < 0) return 'RIGHT_DOMINATES_LEFT';
+  return 'TIE';
+}
+
+function dominanceCycles(edges: readonly { readonly from: string; readonly to: string }[]): readonly (readonly string[])[] {
+  const nodes = [...new Set(edges.flatMap((edge) => [edge.from, edge.to]))].sort();
+  const outgoing = new Map(nodes.map((node) => [node, edges.filter((edge) => edge.from === node).map((edge) => edge.to)]));
+  const cycles = new Set<string>();
+  for (const node of nodes) {
+    findCycles(node, node, [], outgoing, cycles);
+  }
+  return [...cycles].map((cycle) => cycle.split('|'));
+}
+
+function findCycles(
+  start: string,
+  current: string,
+  path: readonly string[],
+  outgoing: ReadonlyMap<string, readonly string[]>,
+  cycles: Set<string>,
+): void {
+  const nextPath = [...path, current];
+  for (const next of outgoing.get(current) ?? []) {
+    if (next === start && nextPath.length > 1) {
+      cycles.add([...nextPath].sort().join('|'));
+      continue;
+    }
+    if (nextPath.includes(next)) continue;
+    findCycles(start, next, nextPath, outgoing, cycles);
+  }
 }
 
 export function pairedProfileComparison(
@@ -376,35 +478,6 @@ export function pairedProfileComparison(
     meanDifferenceLeftMinusRight: mean(deltas),
     bootstrap95Ci: deltas.length < 2 ? null : publicProxyBootstrapCi(deltas, bootstrap),
   };
-}
-
-function bestProfileForPriority(
-  scores: readonly CalibrationProfileScenarioScore[],
-  profileIds: readonly string[],
-  priority: typeof CALIBRATION_PRIORITY[number],
-): string | null {
-  const aggregates = profileIds
-    .map((profileId) => absoluteAggregate(scores, profileId, priority))
-    .filter((aggregate) => aggregate.value !== null) as (CalibrationProfileAbsoluteAggregate & { value: number })[];
-  if (aggregates.length === 0) return null;
-  return aggregates.sort((left, right) => {
-    const delta = left.value - right.value;
-    return (priority.direction === 'LOWER_IS_BETTER' ? delta : -delta) || left.profileId.localeCompare(right.profileId);
-  })[0].profileId;
-}
-
-function isRightProfileMeaningfullyWorse(
-  comparison: CalibrationPairedProfileComparison,
-  priority: typeof CALIBRATION_PRIORITY[number],
-): boolean {
-  if (comparison.pairedScenarioCount < priority.minimumSamples || comparison.meanDifferenceLeftMinusRight === null || comparison.bootstrap95Ci === null) {
-    return false;
-  }
-  if (priority.direction === 'LOWER_IS_BETTER') {
-    const rightMinusLeft = -comparison.meanDifferenceLeftMinusRight;
-    return rightMinusLeft >= priority.minimumEffect && comparison.bootstrap95Ci.high < 0;
-  }
-  return comparison.meanDifferenceLeftMinusRight >= priority.minimumEffect && comparison.bootstrap95Ci.low > 0;
 }
 
 function absoluteAggregate(

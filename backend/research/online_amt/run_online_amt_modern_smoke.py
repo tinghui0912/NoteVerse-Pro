@@ -26,7 +26,6 @@ CHECKPOINT_SHA256 = "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d23
 CHECKPOINT_BYTES = 178_804_960
 SAMPLE_RATE = 16_000
 HOP_SAMPLES = 512
-ONSET_BOOST = 2.0
 ONSET_STATE_IDS = {3, 4}
 MIDI_OFFSET = 21
 
@@ -38,6 +37,8 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--duration-ms", type=float, default=1024)
     parser.add_argument("--segment-input", type=Path)
+    parser.add_argument("--pseudo-intensity", choices=["DISABLED", "NATIVE"], default="DISABLED")
+    parser.add_argument("--onset-boost", type=float, default=2.0)
     args = parser.parse_args()
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -68,7 +69,14 @@ def run_smoke(args: argparse.Namespace) -> dict[str, Any]:
         import torch
         from transcribe import load_model, OnlineTranscriber
 
-        adapter = OnlineAmtAdapter(args.checkpoint, torch=torch, load_model=load_model, transcriber_cls=OnlineTranscriber)
+        adapter = OnlineAmtAdapter(
+            args.checkpoint,
+            torch=torch,
+            load_model=load_model,
+            transcriber_cls=OnlineTranscriber,
+            pseudo_intensity=args.pseudo_intensity,
+            onset_boost=float(args.onset_boost),
+        )
         if args.segment_input:
             fixture_segments = load_segment_input(args.segment_input)
             hop_segments = [
@@ -109,6 +117,10 @@ def run_smoke(args: argparse.Namespace) -> dict[str, Any]:
             "hopArtifact": {
                 "schemaVersion": 1,
                 "artifact": "online_amt_real_hop_output",
+                "policy": {
+                    "pseudoIntensity": args.pseudo_intensity,
+                    "onsetBoost": float(args.onset_boost),
+                },
                 "segments": hop_segments,
             },
             "productAccuracyMetric": False,
@@ -129,11 +141,13 @@ def run_smoke(args: argparse.Namespace) -> dict[str, Any]:
 
 
 class OnlineAmtAdapter:
-    def __init__(self, checkpoint: Path, *, torch: Any, load_model: Any, transcriber_cls: Any):
+    def __init__(self, checkpoint: Path, *, torch: Any, load_model: Any, transcriber_cls: Any, pseudo_intensity: str, onset_boost: float):
         self.checkpoint = checkpoint
         self.torch = torch
         self.load_model = load_model
         self.transcriber_cls = transcriber_cls
+        self.pseudo_intensity = pseudo_intensity
+        self.onset_boost = onset_boost
 
     def new_session(self) -> Any:
         model = self.load_model(str(self.checkpoint))
@@ -190,6 +204,15 @@ class OnlineAmtAdapter:
         th = self.torch
         with th.no_grad():
             session.update_buffer(audio.astype(np.float32))
+            if self.pseudo_intensity == "NATIVE":
+                session.switch_on_or_off()
+                if session.num_under_thr > session.patience:
+                    silent = np.zeros((88, 5), dtype=np.float32)
+                    silent[:, 0] = 1.0
+                    return {
+                        "probabilities": silent,
+                        "states": np.zeros(88, dtype=np.int64),
+                    }
             session.update_mel_buffer()
             acoustic_out = session.update_acoustic_out(session.mel_buffer.transpose(-1, -2))
             if reset_recurrent:
@@ -197,7 +220,7 @@ class OnlineAmtAdapter:
                 session.prev_output = th.zeros_like(session.prev_output)
             language_out, session.hidden = session.model.lm_model_step(acoustic_out, session.hidden, session.prev_output)
             boosted = language_out.clone()
-            boosted[0, 0, :, 3:5] *= ONSET_BOOST
+            boosted[0, 0, :, 3:5] *= self.onset_boost
             session.prev_output = boosted.argmax(dim=3)
             return {
                 "probabilities": language_out[0, 0, :, :].detach().cpu().numpy(),

@@ -247,6 +247,8 @@ export function decodeByteDanceChunkRawOutputs(input: {
   plan: ByteDanceChunkPlan;
   raw: ByteDanceRawOutputs;
   inferenceCompletedAtMs?: number;
+  onsetThreshold?: number;
+  frameThreshold?: number;
 }): readonly ByteDanceDecodedModelEvent[] {
   validateByteDanceRawOutputs(input.raw);
   const captureStartSampleIndex = Math.round(input.plan.inputStartPerformanceMs / 1000 * BYTEDANCE_INFERENCE_CONTRACT.sampleRateHz);
@@ -264,8 +266,8 @@ export function decodeByteDanceChunkRawOutputs(input: {
   };
   return decodeByteDanceRawOutputs(input.raw, request, {
     inferenceCompletedAtMs: input.inferenceCompletedAtMs,
-    onsetThreshold: BYTEDANCE_CHUNKED_BASELINE_CONFIG.onsetThreshold,
-    frameThreshold: BYTEDANCE_CHUNKED_BASELINE_CONFIG.frameThreshold,
+    onsetThreshold: input.onsetThreshold ?? BYTEDANCE_CHUNKED_BASELINE_CONFIG.onsetThreshold,
+    frameThreshold: input.frameThreshold ?? BYTEDANCE_CHUNKED_BASELINE_CONFIG.frameThreshold,
   }).map((event, index) => ({
     eventId: `${input.plan.chunkId}:frame-event-${index}`,
     pitch: event.pitch,

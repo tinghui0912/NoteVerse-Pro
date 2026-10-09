@@ -4,6 +4,7 @@ import {
   BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES,
   ONLINE_AMT_TIMING_CALIBRATION_V1,
   PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256,
+  PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3_SHA256,
   assertCandidateExecutorReachableForPhase9G,
   assertPhase9GExecutionAllowed,
   assertPublicModelCalibrationPolicyIdentity,
@@ -15,10 +16,10 @@ import {
 } from './public-model-calibration';
 
 const policy = {
-  path: 'backend/research/policies/public_model_calibration_protocol_v2_2026-10-09.json',
-  sha256: PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256,
-  policyId: 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2',
-  schemaVersion: 2,
+  path: 'backend/research/policies/public_model_calibration_protocol_v3_2026-10-09.json',
+  sha256: PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3_SHA256,
+  policyId: 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V3',
+  schemaVersion: 3,
 };
 
 function request(overrides = {}) {
@@ -58,14 +59,15 @@ function allMetricScores(profileId: string, values: readonly number[], family: C
   return values.map((value, index) => score(profileId, `s${index}`, family, value, metric));
 }
 
-describe('public model calibration protocol V2', () => {
-  it('accepts only the exact V2 policy identity and rejects arbitrary hashes', () => {
+describe('public model calibration protocol V3', () => {
+  it('retains V2 as historical evidence but accepts only the exact V3 policy identity for current execution', () => {
+    expect(PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2_SHA256).toMatch(/^[a-f0-9]{64}$/);
     expect(() => assertPublicModelCalibrationPolicyIdentity(policy)).not.toThrow();
     expect(() => assertPublicModelCalibrationPolicyIdentity({ ...policy, sha256: 'a'.repeat(64) }))
       .toThrow(/POLICY_SHA_MISMATCH/);
-    expect(() => assertPublicModelCalibrationPolicyIdentity({ ...policy, policyId: 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V1' }))
+    expect(() => assertPublicModelCalibrationPolicyIdentity({ ...policy, policyId: 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V2' }))
       .toThrow(/POLICY_ID_MISMATCH/);
-    expect(() => assertPublicModelCalibrationPolicyIdentity({ ...policy, schemaVersion: 1 }))
+    expect(() => assertPublicModelCalibrationPolicyIdentity({ ...policy, schemaVersion: 2 }))
       .toThrow(/POLICY_SCHEMA_MISMATCH/);
   });
 
@@ -137,11 +139,13 @@ describe('public model calibration protocol V2', () => {
   });
 
   it('freezes ByteDance 3s/5s/10s context geometry exactly', () => {
-    expect(BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES.find((item) => item.profileId === 'INTERMEDIATE_CONTEXT_3S'))
+    expect(BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES.find((item) => item.profileId === 'CALIBRATED_CONTEXT_1820'))
+      .toMatchObject({ modelInputMs: 1820, futureContextMs: 220, commitWidthMs: 600 });
+    expect(BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES.find((item) => item.profileId === 'CALIBRATED_CONTEXT_3S'))
       .toMatchObject({ modelInputMs: 3000, ownedCentralRegionMs: 1500, pastContextMs: 750, futureContextMs: 750 });
-    expect(BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES.find((item) => item.profileId === 'INTERMEDIATE_CONTEXT_5S'))
+    expect(BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES.find((item) => item.profileId === 'CALIBRATED_CONTEXT_5S'))
       .toMatchObject({ modelInputMs: 5000, ownedCentralRegionMs: 2500, pastContextMs: 1250, futureContextMs: 1250 });
-    expect(BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES.find((item) => item.profileId === 'UPSTREAM_10S_REFERENCE'))
+    expect(BYTEDANCE_PHASE_9GA_CONTEXT_GEOMETRIES.find((item) => item.profileId === 'CALIBRATED_CONTEXT_10S'))
       .toMatchObject({ modelInputMs: 10000, ownedCentralRegionMs: 5000, pastContextMs: 2500, futureContextMs: 2500 });
   });
 
@@ -224,7 +228,11 @@ describe('public model calibration protocol V2', () => {
       score('b', 'zero-denom', 'COUNTERFACTUAL_MISSING_NOTE', 1, 'falseMatchRateOnGroundTruthMissing', 0),
     ];
     const result = selectCalibrationProfile(scores);
-    expect(result.decisions[0].pairwiseComparisons).toEqual([]);
+    expect(result.decisions[0].pairwiseComparisons[0]).toMatchObject({
+      pairedScenarioCount: 0,
+      meanDifferenceLeftMinusRight: null,
+    });
+    expect(result.decisions[0].dominatedProfileIds).toEqual([]);
   });
 
   it('is permutation invariant for three or more profiles', () => {
@@ -242,6 +250,33 @@ describe('public model calibration protocol V2', () => {
         selectCalibrationProfile(scores).decisions.map((item) => item.remainingProfileIds),
       );
     }
+  });
+
+  it('uses direct paired dominance instead of pooled event-rate weighting', () => {
+    const scores: CalibrationProfileScenarioScore[] = [];
+    for (let index = 0; index < 12; index += 1) {
+      scores.push(score('pooled-favorite', `s${index}`, 'COUNTERFACTUAL_MISSING_NOTE', index === 0 ? 0 : 0.20, 'falseMatchRateOnGroundTruthMissing', index === 0 ? 1000 : 1));
+      scores.push(score('paired-favorite', `s${index}`, 'COUNTERFACTUAL_MISSING_NOTE', index === 0 ? 0.10 : 0.05, 'falseMatchRateOnGroundTruthMissing', index === 0 ? 1 : 1));
+    }
+    const aggregates = selectCalibrationProfile(scores).absoluteAggregates
+      .filter((item) => item.metric === 'criticalFalseMatchRate');
+    expect(aggregates.find((item) => item.profileId === 'pooled-favorite')?.value)
+      .toBeLessThan(aggregates.find((item) => item.profileId === 'paired-favorite')?.value ?? 1);
+    expect(selectCalibrationProfile(scores).selectedProfileId).toBe('paired-favorite');
+  });
+
+  it('treats contradictory pairwise dominance cycles as ties at that priority', () => {
+    const scores = [
+      ...profileScores('a', [0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10], 'COUNTERFACTUAL_MISSING_NOTE'),
+      ...profileScores('b', [0.20, 0.20, 0.20, 0.20, 0.20, 0.20, 0.20, 0.20], 'COUNTERFACTUAL_MISSING_NOTE'),
+      ...Array.from({ length: 8 }, (_, index) => score('b', `t${index}`, 'COUNTERFACTUAL_WRONG_SEMITONE', 0.10)),
+      ...Array.from({ length: 8 }, (_, index) => score('c', `t${index}`, 'COUNTERFACTUAL_WRONG_SEMITONE', 0.20)),
+      ...Array.from({ length: 8 }, (_, index) => score('c', `u${index}`, 'COUNTERFACTUAL_INCOMPLETE_CHORD', 0.10)),
+      ...Array.from({ length: 8 }, (_, index) => score('a', `u${index}`, 'COUNTERFACTUAL_INCOMPLETE_CHORD', 0.20)),
+    ];
+    const firstDecision = selectCalibrationProfile(scores).decisions[0];
+    expect(firstDecision.cycleTreatedAsTie).toBe(true);
+    expect(firstDecision.remainingProfileIds).toEqual(['a', 'b', 'c']);
   });
 
   it('uses later priorities only when safety evidence is statistically tied', () => {
