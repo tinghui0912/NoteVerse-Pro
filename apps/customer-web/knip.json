@@ -35,7 +35,7 @@
     "next.config.ts": ["exports"],
     "openapi-ts.config.ts": ["exports"],
     "src/lib/practice/research/public-fixed-bpm-benchmark.ts": ["exports", "types"],
-    "src/lib/practice/research/public-model-calibration.ts": ["exports"],
+    "src/lib/practice/research/public-model-calibration.ts": ["exports", "types"],
     "vitest.config.ts": ["exports"]
   },
   "ignoreDependencies": [
