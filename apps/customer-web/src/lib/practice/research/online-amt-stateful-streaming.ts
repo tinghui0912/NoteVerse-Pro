@@ -136,9 +136,9 @@ export function runOnlineAmtStreamingCandidate(input: {
   runtime: string;
   timingCorrectionMs?: number;
 }): CandidateScenarioRun {
-  const diagnostics = validateOnlineAmtSegments(input.scenario, input.segments);
+  const diagnostics = validateOnlineAmtSegments(input.scenario, input.segments, input.timingCorrectionMs);
   const hopSegments = input.segments.map((segment) => {
-    const required = onlineAmtSegmentTailRequirement(segment.performancePcm16k.length);
+    const required = onlineAmtSegmentTailRequirement(segment.performancePcm16k.length, input.timingCorrectionMs);
     const stream = concatFloat32(segment.performancePcm16k, segment.contextTailPcm16k);
     const hopCount = Math.floor(Math.min(stream.length, required.requiredProcessedSamples) / ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples);
     input.engine.reset();
@@ -187,7 +187,7 @@ export function runOnlineAmtStreamingCandidateFromHopArtifact(input: {
   timingCorrectionMs?: number;
 }): CandidateScenarioRun {
   const artifact = parseOnlineAmtPythonHopArtifact(input.artifact);
-  validateOnlineAmtPythonHopArtifactForScenario(input.scenario, artifact);
+  validateOnlineAmtPythonHopArtifactForScenario(input.scenario, artifact, input.timingCorrectionMs);
   const publications = publicationsFromHopOutputs({
     scenarioId: input.scenario.scenarioId,
     hopSegments: artifact.segments.map((segment) => ({
@@ -385,7 +385,10 @@ export function eventTimeFromSegmentLocalDecisionMs(
   return segmentPerformanceStartMs + localDecisionTimeMs + timingCorrectionMs;
 }
 
-export function onlineAmtSegmentTailRequirement(performanceOwnedSamples: number): {
+export function onlineAmtSegmentTailRequirement(
+  performanceOwnedSamples: number,
+  timingCorrectionMs: number = ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs,
+): {
   correctionDelaySamples: number;
   requiredProcessedSamples: number;
   requiredContextTailSamples: number;
@@ -393,8 +396,11 @@ export function onlineAmtSegmentTailRequirement(performanceOwnedSamples: number)
   if (!Number.isInteger(performanceOwnedSamples) || performanceOwnedSamples < 0) {
     throw new Error('Online-AMT performance-owned samples must be a non-negative integer.');
   }
+  if (!Number.isFinite(timingCorrectionMs)) {
+    throw new Error('Online-AMT timing correction must be finite.');
+  }
   const correctionDelaySamples = Math.ceil(
-    Math.abs(ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs)
+    Math.abs(timingCorrectionMs)
     / 1000
     * ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz,
   );
@@ -411,6 +417,7 @@ export function onlineAmtSegmentTailRequirement(performanceOwnedSamples: number)
 export function validateOnlineAmtSegments(
   scenario: BenchmarkScenario,
   segments: readonly OnlineAmtSegment[],
+  timingCorrectionMs: number = ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs,
 ): readonly OnlineAmtSegmentDiagnostics[] {
   const seen = new Set<string>();
   const completion = scenario.completion?.performanceTimeMs ?? scenario.audio.clipEndMs - scenario.audio.performanceOriginSourceMs;
@@ -432,14 +439,14 @@ export function validateOnlineAmtSegments(
       throw new Error('Online-AMT segment cannot own performance PCM beyond scenario completion.');
     }
     previousEnd = segmentEnd;
-    const requirement = onlineAmtSegmentTailRequirement(segment.performancePcm16k.length);
+    const requirement = onlineAmtSegmentTailRequirement(segment.performancePcm16k.length, timingCorrectionMs);
     const availableSamples = segment.performancePcm16k.length + segment.contextTailPcm16k.length;
     const processedSamples = Math.floor(
       Math.min(availableSamples, requirement.requiredProcessedSamples) / ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples,
     ) * ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples;
     const lastSafeCoverage = Math.min(
       segmentEnd,
-      eventTimeFromSegmentLocalDecisionMs(segment.performanceStartMs, samplesToMs(processedSamples)),
+      eventTimeFromSegmentLocalDecisionMs(segment.performanceStartMs, samplesToMs(processedSamples), timingCorrectionMs),
     );
     return {
       segmentId: segment.segmentId,
@@ -493,6 +500,7 @@ export function parseOnlineAmtPythonHopArtifact(value: unknown): OnlineAmtPython
 export function validateOnlineAmtPythonHopArtifactForScenario(
   scenario: BenchmarkScenario,
   artifact: OnlineAmtPythonHopArtifact,
+  timingCorrectionMs: number = ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs,
 ): void {
   const seenSegments = new Set<string>();
   const completion = scenario.completion?.performanceTimeMs ?? scenario.audio.clipEndMs - scenario.audio.performanceOriginSourceMs;
@@ -511,7 +519,7 @@ export function validateOnlineAmtPythonHopArtifactForScenario(
     const availableProcessedSamples = Math.floor(
       (segment.performanceOwnedSamples + segment.contextTailSamples) / ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples,
     ) * ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples;
-    const required = onlineAmtSegmentTailRequirement(segment.performanceOwnedSamples);
+    const required = onlineAmtSegmentTailRequirement(segment.performanceOwnedSamples, timingCorrectionMs);
     const maxRequiredSample = Math.min(availableProcessedSamples, required.requiredProcessedSamples);
     const seenHops = new Set<number>();
     segment.hops.forEach((hop, ordinal) => {

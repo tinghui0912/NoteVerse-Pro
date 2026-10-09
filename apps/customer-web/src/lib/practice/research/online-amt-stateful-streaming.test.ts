@@ -226,6 +226,17 @@ describe('Online-AMT stateful streaming research adapter', () => {
     expect(onlineAmtSegmentTailRequirement(513).requiredContextTailSamples).toBe(2_559);
   });
 
+  it('computes calibrated tail requirements from the explicit timing correction', () => {
+    expect(onlineAmtSegmentTailRequirement(16_000, -162.625)).toEqual({
+      correctionDelaySamples: 2602,
+      requiredProcessedSamples: 18_944,
+      requiredContextTailSamples: 2_944,
+    });
+    expect(onlineAmtSegmentTailRequirement(16_360, -158).requiredProcessedSamples).toBe(18_944);
+    expect(onlineAmtSegmentTailRequirement(16_360, -162.625).requiredProcessedSamples).toBe(19_456);
+    expect(() => onlineAmtSegmentTailRequirement(16_000, Number.NaN)).toThrow(/timing correction/);
+  });
+
   it('keeps performance PCM and context tail ownership separate', () => {
     const diagnostics = validateOnlineAmtSegments(scenario(), [
       segment({ performanceSamples: 512, contextSamples: 4096 }),
@@ -250,6 +261,34 @@ describe('Online-AMT stateful streaming research adapter', () => {
     expect(diagnostics[0].requiredContextTailSamples).toBeGreaterThan(0);
     expect(diagnostics[0].coverageComplete).toBe(false);
     expect(diagnostics[0].lastSafeCoverageMs).toBeLessThan(diagnostics[0].segmentPerformanceEndMs);
+  });
+
+  it('validates hop artifacts against the profile-specific product-safe horizon', () => {
+    const artifact = parseOnlineAmtPythonHopArtifact({
+      schemaVersion: 1,
+      artifact: 'online_amt_real_hop_output',
+      segments: [{
+        segmentId: 'seg-0',
+        performanceStartMs: 0,
+        performanceOwnedSamples: 16_360,
+        contextTailSamples: 3_096,
+        hops: Array.from({ length: 38 }, (_, hopIndex) => ({
+          hopIndex,
+          localDecisionSample: (hopIndex + 1) * 512,
+          pitchStates: eightyEightStates(),
+        })),
+      }],
+    });
+    const artifactScenario = {
+      ...scenario(),
+      completion: { kind: 'NATURAL' as const, performanceTimeMs: 1_022.5 },
+      audio: { ...scenario().audio, clipEndMs: 1_022.5, sourceDurationMs: 1_022.5 },
+    };
+
+    expect(() => validateOnlineAmtPythonHopArtifactForScenario(artifactScenario, artifact, -158))
+      .toThrow(/required product-safe processing horizon/);
+    expect(() => validateOnlineAmtPythonHopArtifactForScenario(artifactScenario, artifact, -162.625))
+      .not.toThrow();
   });
 
   it('preserves continuous state, resets at segment boundaries, and creates valid publications', () => {

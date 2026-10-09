@@ -1,0 +1,8 @@
+FROM noteverse-backend-worker:dev
+
+RUN python -m pip install --no-cache-dir \
+  numpy==1.26.4 \
+  piano-transcription-inference==0.0.6 \
+  onnxruntime==1.20.1 \
+  audioread==3.0.1 \
+  && python -m pip install --no-cache-dir --force-reinstall numpy==1.26.4

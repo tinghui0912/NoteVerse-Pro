@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -22,11 +22,30 @@ const POLICY_REL = 'backend/research/policies/public_model_calibration_protocol_
 const SCENARIO_REL = 'backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json';
 const BASELINE_REPORT_REL = 'backend/research/reports/phase9g_a1_vienna_calibration_baseline_reference_2026-10-09.json';
 const BLIND_REL = 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json';
-const REPORT_REL = 'backend/research/reports/phase9g_a2_bytedance_online_amt_calibration_2026-10-09.json';
-const PROFILE_REGISTRY_REL = 'backend/research/reports/phase9g_a2_calibrated_profile_registry_2026-10-09.json';
-const BLIND_LOCK_REL = 'backend/research/reports/phase9g_a2_blind_lock_receipt_2026-10-09.json';
-const V1V2_RECEIPT_REL = 'backend/research/reports/phase9g_a2_v1_v2_blind_semantic_equivalence_2026-10-09.json';
+const REPORT_REL = 'backend/research/reports/phase9g_a21_bytedance_online_amt_incumbent_completion_2026-10-09.json';
+const PROFILE_REGISTRY_REL = 'backend/research/reports/phase9g_a21_corrected_incumbent_registry_2026-10-09.json';
+const CORRECTION_RECEIPT_REL = 'backend/research/reports/phase9g_a21_premature_lock_invalidation_2026-10-09.json';
+const BYTEDANCE_PROVENANCE_REL = 'backend/research/reports/phase9g_a21_bytedance_same_weight_provenance_2026-10-09.json';
+const BYTEDANCE_PARITY_REL = 'backend/research/reports/phase9g_a21_bytedance_checkpoint_onnx_parity_2026-10-09.json';
+const BLIND_LOCK_REL = 'backend/research/reports/phase9g_a21_blind_lock_receipt_2026-10-09.json';
+const V1V2_RECEIPT_REL = 'backend/research/reports/phase9g_a21_v1_v2_blind_semantic_equivalence_2026-10-09.json';
 const ONLINE_AMT_IMAGE = 'noteverse-online-amt-modern:phase9e-b1';
+const EXPECTED_BYTEDANCE_CHECKPOINT = {
+  path: 'models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth',
+  sha256: 'c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141',
+  bytes: 171966578,
+};
+const EXPECTED_BYTEDANCE_ONNX = {
+  path: 'backend/data/work/bytedance_browser_runtime_feasibility/bytedance_note_model_fixed_anchor.onnx',
+  sha256: '6ba3bc4e73607f9cd021e69858fd3ff969a3941c7a93876d5be5cedb53038cf5',
+  bytes: 98691493,
+};
+const BYTEDANCE_HISTORICAL_PARITY_REPORTS = [
+  'backend/research/reports/bytedance_browser_runtime_feasibility.md',
+  'backend/research/reports/bytedance_continuous_batch_export_parity_2026-10-05.json',
+  'backend/research/reports/bytedance_rolling_anchor_feasibility_2026-10-03.json',
+  'backend/research/reports/bytedance_target_verifier_context_matrix_dev_bounded_2026-10-05.json',
+];
 const ONLINE_AMT_POLICIES = [
   { profileId: 'ONLINE_AMT_DISABLED_BOOST_2', pseudoIntensity: 'DISABLED', onsetBoost: 2.0 },
   { profileId: 'ONLINE_AMT_DISABLED_BOOST_1', pseudoIntensity: 'DISABLED', onsetBoost: 1.0 },
@@ -94,8 +113,11 @@ const scenarios = scenarioManifest.scenarios;
 const baseScenarios = scenarios.filter((scenario) => scenario.familyTags.includes('BASE_ORIGINAL'));
 const counterfactualReceiptsByScenario = new Map((scenarioManifest.counterfactualReceipts ?? []).map((receipt) => [receipt.scenarioId, receipt]));
 
+await ensureByteDanceParityReceipt();
 const byteDanceResult = await runByteDanceCalibration({ scenarios, baseScenarios, counterfactualReceiptsByScenario, scenarioManifestSha });
 const onlineAmtResult = await runOnlineAmtCalibration({ scenarios, baseScenarios, counterfactualReceiptsByScenario, scenarioManifestSha });
+const prematureLockInvalidation = await writePrematureLockInvalidationReceipt();
+const byteDanceSameWeightProvenance = await writeByteDanceSameWeightProvenance();
 
 const registry = {
   schemaVersion: 1,
@@ -144,6 +166,10 @@ const report = {
     sha256: baselineReportSha,
     reuseStatus: 'MEASUREMENTS_REUSED_UNCHANGED_FROM_AUDIT_CLEAN_V1_RUN_FOR_HISTORICAL_BASELINE_CONTEXT',
   },
+  prematureLockInvalidationReceiptPath: CORRECTION_RECEIPT_REL,
+  prematureLockInvalidation,
+  byteDanceSameWeightProvenanceReceiptPath: BYTEDANCE_PROVENANCE_REL,
+  byteDanceSameWeightProvenance,
   byteDance: byteDanceResult.report,
   onlineAmt: onlineAmtResult.report,
   confirmations: {
@@ -158,6 +184,12 @@ await writeJson(REPORT_REL, report);
 console.log(REPORT_REL);
 
 async function runByteDanceCalibration(input) {
+  const parityReceipt = existsSync(path.resolve(repoRoot, BYTEDANCE_PARITY_REL))
+    ? JSON.parse(await readFile(path.resolve(repoRoot, BYTEDANCE_PARITY_REL), 'utf8'))
+    : null;
+  const parityVerified = parityReceipt?.overallDecoderDecisionParityAtOnset020Frame020 === true
+    && parityReceipt?.checkpointSha256 === EXPECTED_BYTEDANCE_CHECKPOINT.sha256
+    && parityReceipt?.onnxSha256 === EXPECTED_BYTEDANCE_ONNX.sha256;
   const executableContexts = [{
     profileId: 'CALIBRATED_CONTEXT_1820',
     modelInputMs: 1820,
@@ -167,8 +199,10 @@ async function runByteDanceCalibration(input) {
   }];
   const blockedContexts = ['CALIBRATED_CONTEXT_3S', 'CALIBRATED_CONTEXT_5S', 'CALIBRATED_CONTEXT_10S'].map((profileId) => ({
     profileId,
-    status: 'BLOCKED_SAME_WEIGHT_CONTEXT_COMPARISON_UNPROVEN',
-    reason: 'Only the fixed 29120-sample ONNX asset is present in local reproducible assets; no original PyTorch checkpoint/export provenance is available to prove same-weight longer-context execution.',
+    status: parityVerified ? 'BLOCKED_PENDING_PYTORCH_LONG_CONTEXT_EXECUTION' : 'BLOCKED_PENDING_PYTORCH_ONNX_PARITY',
+    reason: parityVerified
+      ? 'PyTorch/ONNX 1820 fixture parity is verified, but Phase 9G-A.2.1 does not issue a ByteDance lock until all four V3 contexts execute in the same PyTorch runtime.'
+      : 'The original checkpoint identity is locally verified, but PyTorch/ONNX parity has not passed in the current artifact set.',
   }));
   const profiles = [];
   const candidateDefinitions = [];
@@ -208,16 +242,27 @@ async function runByteDanceCalibration(input) {
   const selectorSuggestedProfileId = selection.selectedProfileId ?? fallbackProfileId(profiles, 'bytedance-original-calibrated-v1');
   const selectedProfileId = historicalByteDanceProfileId(profiles);
   return {
-    profileRegistry: profiles.map((profile) => ({
+    profileRegistry: [{
       candidateFamily: 'bytedance-original',
-      profileId: profile.profileId,
-      selectedCandidateId: profile.profileId === selectedProfileId ? 'bytedance-original-calibrated-v1' : profile.profileId,
-      configurationSha256: profile.configurationSha256,
-      LOCKED_FOR_PHASE_9G_B: profile.profileId === selectedProfileId,
-      selectionStatus: profile.profileId === selectedProfileId ? 'SELECTED_OR_GATE1_FALLBACK' : 'REJECTED_OR_NOT_SELECTED',
-    })),
+      profileId: 'bytedance-original-current-executable-representative-v1',
+      sourceHistoricalProfileId: selectedProfileId,
+      configurationSha256: profiles.find((profile) => profile.profileId === selectedProfileId)?.configurationSha256 ?? null,
+      qualificationStatus: 'CONTEXT_OPTIMUM_UNRESOLVED',
+      LOCKED_FOR_PHASE_9G_B: false,
+      selectionStatus: 'PROVISIONAL_CONTEXT_OPTIMUM_UNRESOLVED',
+    }],
     report: {
-      sameWeightParityStatus: 'SAME_WEIGHT_CONTEXT_COMPARISON_UNPROVEN',
+      sameWeightParityStatus: parityVerified
+        ? 'SAME_WEIGHT_1820_PYTORCH_ONNX_PARITY_VERIFIED_LONG_CONTEXT_EXECUTION_PENDING'
+        : 'LOCAL_ASSETS_VERIFIED_PYTORCH_ONNX_PARITY_EXECUTION_PENDING',
+      parityReceiptPath: BYTEDANCE_PARITY_REL,
+      parityReceiptSha256: parityReceipt ? await sha256File(BYTEDANCE_PARITY_REL) : null,
+      paritySummary: parityReceipt ? {
+        fixtureCount: parityReceipt.fixtureCount,
+        maxRegOnsetAbsDelta: parityReceipt.maxRegOnsetAbsDelta,
+        maxFrameAbsDelta: parityReceipt.maxFrameAbsDelta,
+        overallDecoderDecisionParityAtOnset020Frame020: parityReceipt.overallDecoderDecisionParityAtOnset020Frame020,
+      } : null,
       contexts: [...executableContexts, ...blockedContexts],
       commonCalibrationScenarioCounts: {
         totalCalibrationScenarios: input.scenarios.length,
@@ -232,19 +277,42 @@ async function runByteDanceCalibration(input) {
       metrics: compactAggregateMetrics(diagnostic.aggregateMetrics),
       selectorTrace: selection,
       selectorSuggestedProfileId,
-      selectionOverride: {
-        status: 'PRESERVED_HISTORICAL_CURRENT_BASELINE_REFERENCE',
-        reason: 'Longer-context same-weight comparison is unproven; Phase 9G-A.2 policy preserves the current ByteDance baseline instead of selecting a partially swept threshold-only variant.',
+      qualificationOverride: {
+        status: 'CONTEXT_OPTIMUM_UNRESOLVED',
+        reason: 'The 1820ms threshold sensitivity evidence is preserved, but no Phase 9G-B ByteDance-original calibrated lock is issued until same-weight long-context execution completes.',
       },
-      selectedProfileId,
-      selectedContext: 'CALIBRATED_CONTEXT_1820',
-      selectedThresholdPair: profiles.find((profile) => profile.profileId === selectedProfileId)?.thresholds ?? null,
-      selectedConfigurationSha256: profiles.find((profile) => profile.profileId === selectedProfileId)?.configurationSha256 ?? null,
+      provisionalProfileId: 'bytedance-original-current-executable-representative-v1',
+      provisionalSourceProfileId: selectedProfileId,
+      provisionalContext: 'CALIBRATED_CONTEXT_1820',
+      provisionalThresholdPair: profiles.find((profile) => profile.profileId === selectedProfileId)?.thresholds ?? null,
+      provisionalConfigurationSha256: profiles.find((profile) => profile.profileId === selectedProfileId)?.configurationSha256 ?? null,
+      lockedForPhase9gB: false,
       historicalCurrentBaselineResult: profiles.find((profile) => profile.thresholds.onsetThreshold === 0.2 && profile.thresholds.frameThreshold === 0.2)?.profileId,
       upstreamNative10sResult: 'BLOCKED_SAME_WEIGHT_CONTEXT_COMPARISON_UNPROVEN',
       failures,
     },
   };
+}
+
+async function ensureByteDanceParityReceipt() {
+  const outputPath = path.resolve(repoRoot, BYTEDANCE_PARITY_REL);
+  if (existsSync(outputPath)) return;
+  const run = spawnSync('docker', [
+    'run', '--rm',
+    '--entrypoint', 'python',
+    '-v', `${repoRoot}:/workspace`,
+    '-w', '/workspace',
+    'noteverse-bytedance-calibration:phase9ga21',
+    'backend/scripts/verify_bytedance_checkpoint_onnx_parity.py',
+    '--checkpoint', EXPECTED_BYTEDANCE_CHECKPOINT.path,
+    '--onnx', EXPECTED_BYTEDANCE_ONNX.path,
+    '--fixture-dir', 'backend/data/work/bytedance_browser_runtime_feasibility/golden_fixtures',
+    '--output', BYTEDANCE_PARITY_REL,
+    '--device', 'cpu',
+  ], { cwd: repoRoot, encoding: 'utf8', timeout: 600_000, maxBuffer: 20 * 1024 * 1024 });
+  if (run.status !== 0) {
+    throw new Error(`ByteDance checkpoint/ONNX parity failed: ${run.stderr || run.stdout}`);
+  }
 }
 
 async function runOnlineAmtCalibration(input) {
@@ -254,9 +322,17 @@ async function runOnlineAmtCalibration(input) {
   const timingReports = [];
   const failures = [];
   for (const policy of ONLINE_AMT_POLICIES) {
-    const batchArtifact = await runOnlineAmtBatch(policy, input.baseScenarios);
-    const correction = timingCorrectionForPolicy({ policy, batchArtifact, baseScenarios: input.baseScenarios });
+    const timingBatchArtifact = await runOnlineAmtBatch(policy, input.baseScenarios, {
+      phaseLabel: 'timing-zero-correction',
+      tailTimingCorrectionMs: 0,
+    });
+    const correction = timingCorrectionForPolicy({ policy, batchArtifact: timingBatchArtifact, baseScenarios: input.baseScenarios });
     const profile = onlineAmtProfile({ policy, timingCorrectionMs: correction.timingCorrectionMs });
+    const finalBatchArtifact = await runOnlineAmtBatch(policy, input.baseScenarios, {
+      phaseLabel: `final-correction-${correction.timingCorrectionMs.toFixed(6)}`,
+      tailTimingCorrectionMs: correction.timingCorrectionMs,
+    });
+    const tailGeometry = onlineAmtTailGeometryDelta(input.baseScenarios, correction.timingCorrectionMs);
     timingReports.push({ ...correction, profileId: profile.profileId });
     profiles.push(profile);
     candidateDefinitions.push(candidateDefinition({
@@ -270,19 +346,22 @@ async function runOnlineAmtCalibration(input) {
     for (const scenario of input.scenarios) {
       try {
         const baseScenarioId = input.counterfactualReceiptsByScenario.get(scenario.scenarioId)?.baseScenarioId ?? scenario.scenarioId;
-        const segment = segmentForScenario(batchArtifact, baseScenarioId);
-        runs.push(onlineAmt.runOnlineAmtStreamingCandidateFromHopArtifact({
+        const segment = segmentForScenario(finalBatchArtifact, baseScenarioId);
+        const candidateRun = onlineAmt.runOnlineAmtStreamingCandidateFromHopArtifact({
           scenario,
           artifact: { schemaVersion: 1, artifact: 'online_amt_real_hop_output', segments: [segment] },
           candidateId: profile.profileId,
           command: `docker run ${ONLINE_AMT_IMAGE} run_online_amt_modern_smoke.py --pseudo-intensity ${policy.pseudoIntensity} --onset-boost ${policy.onsetBoost}`,
-          runtime: 'real-online-amt-modern-docker-phase9ga2',
+          runtime: 'real-online-amt-modern-docker-phase9ga21-correction-aware',
           timingCorrectionMs: correction.timingCorrectionMs,
-        }));
+        });
+        assertOnlineAmtTerminalCoverage({ scenario, candidateRun, profileId: profile.profileId });
+        runs.push(candidateRun);
       } catch (error) {
         failures.push({ profileId: profile.profileId, scenarioId: scenario.scenarioId, error: errorMessage(error) });
       }
     }
+    profile.tailGeometry = tailGeometry;
   }
   const diagnostic = publicContract.buildPublicDiagnosticBakeoffReport({
     scenarios: input.scenarios,
@@ -312,6 +391,7 @@ async function runOnlineAmtCalibration(input) {
         policy: profile.policy,
         configurationSha256: profile.configurationSha256,
         timingCalibration: timingReports.find((item) => item.profileId === profile.profileId),
+        tailGeometry: profile.tailGeometry,
         metrics: compactAggregateMetrics(diagnostic.aggregateMetrics[profile.profileId]),
       })),
       selectorTrace: selection,
@@ -405,13 +485,13 @@ async function loadByteDanceRaw(scenarioId, cache) {
   return raw;
 }
 
-async function runOnlineAmtBatch(policy, baseScenarios) {
+async function runOnlineAmtBatch(policy, baseScenarios, options) {
   const segments = [];
   for (const scenario of baseScenarios) {
     const wav = byteDance.decodeResearchWavToMonoFloat32(await readFile(path.resolve(repoRoot, scenario.source.sourceAudioPath)));
     const completion = scenario.completion.performanceTimeMs;
     const ownedSamples = Math.floor(completion / 1000 * onlineAmt.ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz);
-    const requirement = onlineAmt.onlineAmtSegmentTailRequirement(ownedSamples);
+    const requirement = onlineAmt.onlineAmtSegmentTailRequirement(ownedSamples, options.tailTimingCorrectionMs);
     segments.push({
       segmentId: `${scenario.scenarioId}:segment-0`,
       performanceStartMs: 0,
@@ -429,7 +509,7 @@ async function runOnlineAmtBatch(policy, baseScenarios) {
       })),
     });
   }
-  const safe = `${policy.profileId.toLowerCase()}`;
+  const safe = `${policy.profileId.toLowerCase()}-${sanitizeFile(options.phaseLabel)}`;
   const inputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga2/${safe}.segments.json`;
   const outputRel = `backend/data/work/public_proxy/vienna-4x22/phase9ga2/${safe}.hop-artifact.json`;
   await writeJson(inputRel, { segments });
@@ -519,6 +599,141 @@ function segmentForScenario(batchArtifact, scenarioId) {
   const segment = batchArtifact.segments.find((item) => item.segmentId === segmentId);
   if (!segment) throw new Error(`Missing Online-AMT segment ${segmentId}`);
   return segment;
+}
+
+function onlineAmtTailGeometryDelta(baseScenarios, timingCorrectionMs) {
+  const affected = [];
+  const details = baseScenarios.map((scenario) => {
+    const ownedSamples = Math.floor(
+      scenario.completion.performanceTimeMs / 1000 * onlineAmt.ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz,
+    );
+    const historical = onlineAmt.onlineAmtSegmentTailRequirement(ownedSamples, -158);
+    const calibrated = onlineAmt.onlineAmtSegmentTailRequirement(ownedSamples, timingCorrectionMs);
+    const additionalHopCount = Math.max(
+      0,
+      (calibrated.requiredProcessedSamples - historical.requiredProcessedSamples)
+      / onlineAmt.ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples,
+    );
+    const detail = {
+      scenarioId: scenario.scenarioId,
+      ownedSamples,
+      historicalRequiredContextTailSamples: historical.requiredContextTailSamples,
+      calibratedRequiredContextTailSamples: calibrated.requiredContextTailSamples,
+      historicalRequiredProcessedSamples: historical.requiredProcessedSamples,
+      calibratedRequiredProcessedSamples: calibrated.requiredProcessedSamples,
+      additionalHopCount,
+    };
+    if (additionalHopCount > 0) affected.push(scenario.scenarioId);
+    return detail;
+  });
+  return {
+    historicalTimingCorrectionMs: -158,
+    calibratedTimingCorrectionMs: timingCorrectionMs,
+    additionalHopScenarioCount: affected.length,
+    additionalHopScenarioIds: affected,
+    details,
+  };
+}
+
+function assertOnlineAmtTerminalCoverage({ scenario, candidateRun, profileId }) {
+  const completion = scenario.completion?.performanceTimeMs;
+  if (!Number.isFinite(completion)) {
+    throw new Error(`Online-AMT final coverage cannot validate missing completion for ${scenario.scenarioId}`);
+  }
+  const finalCoverage = candidateRun.publications.at(-1)?.analyzedThroughPerformanceMs;
+  const sampleGridToleranceMs = 1000 / onlineAmt.ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz + 1e-6;
+  if (!Number.isFinite(finalCoverage) || finalCoverage + sampleGridToleranceMs < completion) {
+    throw new Error(
+      `Online-AMT final coverage incomplete for ${profileId} ${scenario.scenarioId}: `
+      + `coverage=${finalCoverage}, completion=${completion}`,
+    );
+  }
+}
+
+async function writePrematureLockInvalidationReceipt() {
+  const receipt = {
+    schemaVersion: 1,
+    artifact: 'phase9g_a21_premature_lock_invalidation',
+    phase: '9G-A.2.1',
+    invalidatedArtifactsPreserved: [
+      'backend/research/reports/phase9g_a2_bytedance_online_amt_calibration_2026-10-09.json',
+      'backend/research/reports/phase9g_a2_calibrated_profile_registry_2026-10-09.json',
+    ],
+    invalidations: [
+      {
+        candidateFamily: 'bytedance-original',
+        profileId: 'bytedance-original-calibration-CALIBRATED_CONTEXT_1820-onset-0.20-frame-0.20',
+        correctedStatus: 'SUPERSEDED_PREMATURE_LOCK_CONTEXT_CALIBRATION_INCOMPLETE',
+        reason: 'The V3 selector selected onset 0.15 / frame 0.15 within the executable 1820ms threshold sweep; the historical 0.20 / 0.20 profile was preserved only because longer-context same-weight execution was reported blocked.',
+      },
+      {
+        candidateFamily: 'online-amt',
+        profileId: 'online-amt-calibration-native-boost-1',
+        correctedStatus: 'INVALIDATED_FINAL_SCORING_TAIL_GEOMETRY',
+        reason: 'The calibrated timing correction requires profile-specific context-tail processing; some CALIBRATION BASE scenarios require more processing than the historical -158ms geometry.',
+      },
+    ],
+  };
+  await writeJson(CORRECTION_RECEIPT_REL, receipt);
+  return receipt;
+}
+
+async function writeByteDanceSameWeightProvenance() {
+  const checkpoint = await measuredBinaryAsset(EXPECTED_BYTEDANCE_CHECKPOINT);
+  const onnx = await measuredBinaryAsset(EXPECTED_BYTEDANCE_ONNX);
+  const historicalEvidence = [];
+  for (const rel of BYTEDANCE_HISTORICAL_PARITY_REPORTS) {
+    const abs = path.resolve(repoRoot, rel);
+    historicalEvidence.push({
+      path: rel,
+      exists: existsSync(abs),
+      sha256: existsSync(abs) ? await sha256FileBytes(abs) : null,
+    });
+  }
+  const receipt = {
+    schemaVersion: 1,
+    artifact: 'phase9g_a21_bytedance_same_weight_provenance',
+    phase: '9G-A.2.1',
+    originalPyTorchCheckpoint: checkpoint,
+    currentFixedOnnxAsset: onnx,
+    modelArchitectureImportIdentity: 'piano_transcription_inference.PianoTranscription note_model',
+    fixedShapeOnnxExportIdentity: {
+      outputNames: ['reg_onset_output', 'frame_output'],
+      currentOnnxSha256: onnx.actualSha256,
+      historicalExportReports: historicalEvidence,
+    },
+    sameWeightParityStatus: checkpoint.identityVerified && onnx.identityVerified
+      ? 'LOCAL_ASSETS_VERIFIED_PARITY_EXECUTION_REQUIRED'
+      : 'LOCAL_ASSET_IDENTITY_BLOCKED',
+  };
+  await writeJson(BYTEDANCE_PROVENANCE_REL, receipt);
+  return receipt;
+}
+
+async function measuredBinaryAsset(expected) {
+  const abs = path.resolve(repoRoot, expected.path);
+  if (!existsSync(abs)) {
+    return {
+      path: expected.path,
+      exists: false,
+      expectedSha256: expected.sha256,
+      actualSha256: null,
+      expectedBytes: expected.bytes,
+      actualBytes: null,
+      identityVerified: false,
+    };
+  }
+  const actualSha256 = await sha256FileBytes(abs);
+  const actualBytes = statSync(abs).size;
+  return {
+    path: expected.path,
+    exists: true,
+    expectedSha256: expected.sha256,
+    actualSha256,
+    expectedBytes: expected.bytes,
+    actualBytes,
+    identityVerified: actualSha256 === expected.sha256 && actualBytes === expected.bytes,
+  };
 }
 
 function calibrationScoresFromSummaries(scores) {
@@ -677,6 +892,10 @@ async function writeJson(rel, value) {
 
 async function sha256File(file) {
   return sha256Text(await readFile(file, 'utf8'));
+}
+
+async function sha256FileBytes(file) {
+  return createHash('sha256').update(await readFile(file)).digest('hex');
 }
 
 function sha256Json(value) {
