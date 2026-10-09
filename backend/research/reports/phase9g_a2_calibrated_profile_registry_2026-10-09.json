@@ -173,10 +173,10 @@
     {
       "candidateFamily": "online-amt",
       "profileId": "online-amt-calibration-disabled-boost-2",
-      "selectedCandidateId": "online-amt-calibrated-v1",
+      "selectedCandidateId": "online-amt-calibration-disabled-boost-2",
       "configurationSha256": "f8fa92275a7f55926111f40a32ca3397500bfdaaa69ac77e87c07f279b8f0687",
-      "LOCKED_FOR_PHASE_9G_B": true,
-      "selectionStatus": "SELECTED_OR_GATE1_FALLBACK"
+      "LOCKED_FOR_PHASE_9G_B": false,
+      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
     },
     {
       "candidateFamily": "online-amt",
@@ -197,10 +197,10 @@
     {
       "candidateFamily": "online-amt",
       "profileId": "online-amt-calibration-native-boost-1",
-      "selectedCandidateId": "online-amt-calibration-native-boost-1",
+      "selectedCandidateId": "online-amt-calibrated-v1",
       "configurationSha256": "1f0f5718eca00a2305e1361937ec9207bc2c9bba06caef5739596fff59abfd8b",
-      "LOCKED_FOR_PHASE_9G_B": false,
-      "selectionStatus": "REJECTED_OR_NOT_SELECTED"
+      "LOCKED_FOR_PHASE_9G_B": true,
+      "selectionStatus": "SELECTED_OR_GATE1_FALLBACK"
     }
   ]
 }
