@@ -291,7 +291,12 @@ async function runOnlineAmtCalibration(input) {
   });
   const scores = calibrationScoresFromSummaries(diagnostic.scores);
   const selection = calibration.selectCalibrationProfile(scores);
-  const selectedProfileId = selection.selectedProfileId ?? fallbackProfileId(profiles, 'online-amt-calibrated-v1');
+  const gate2TieBreak = selection.selectedProfileId ? null : onlineAmtGate2TieBreak({
+    remainingProfileIds: selection.remainingProfileIds,
+    profiles,
+    aggregateMetrics: diagnostic.aggregateMetrics,
+  });
+  const selectedProfileId = selection.selectedProfileId ?? gate2TieBreak?.selectedProfileId ?? fallbackProfileId(profiles, 'online-amt-calibrated-v1');
   return {
     profileRegistry: profiles.map((profile) => ({
       candidateFamily: 'online-amt',
@@ -310,6 +315,7 @@ async function runOnlineAmtCalibration(input) {
         metrics: compactAggregateMetrics(diagnostic.aggregateMetrics[profile.profileId]),
       })),
       selectorTrace: selection,
+      gate2TieBreak,
       selectedProfileId,
       selectedPseudoPolicy: profiles.find((profile) => profile.profileId === selectedProfileId)?.policy.pseudoIntensity ?? null,
       selectedBoost: profiles.find((profile) => profile.profileId === selectedProfileId)?.policy.onsetBoost ?? null,
@@ -318,6 +324,41 @@ async function runOnlineAmtCalibration(input) {
       failures,
     },
   };
+}
+
+function onlineAmtGate2TieBreak({ remainingProfileIds, profiles, aggregateMetrics }) {
+  const remaining = profiles.filter((profile) => remainingProfileIds.includes(profile.profileId));
+  if (remaining.length <= 1) return null;
+  const withLatency = remaining.map((profile) => ({
+    profile,
+    p95: aggregateMetrics[profile.profileId]?.CALIBRATION?.finalizedFeedbackAgeP95Ms?.value,
+  }));
+  const finite = withLatency.filter((item) => Number.isFinite(item.p95));
+  if (finite.length === remaining.length) {
+    const sortedByLatency = [...finite].sort((left, right) => left.p95 - right.p95);
+    if (sortedByLatency.at(-1).p95 - sortedByLatency[0].p95 >= 100) {
+      return {
+        selectedProfileId: sortedByLatency[0].profile.profileId,
+        reason: 'GATE2_FINALIZED_FEEDBACK_AGE_P95_MS',
+        finalizedFeedbackAgeP95Ms: sortedByLatency[0].p95,
+      };
+    }
+  }
+  const selected = [...remaining].sort((left, right) =>
+    onlineAmtNativePreferenceRank(left) - onlineAmtNativePreferenceRank(right)
+    || left.profileId.localeCompare(right.profileId)
+  )[0];
+  return {
+    selectedProfileId: selected.profileId,
+    reason: 'GATE2_DETERMINISTIC_NATIVE_POLICY_TIE_BREAK',
+    preferenceOrder: 'NATIVE pseudo-intensity before DISABLED; boost 2.0 before 1.0 only if pseudo policy remains tied',
+  };
+}
+
+function onlineAmtNativePreferenceRank(profile) {
+  const pseudoRank = profile.policy.pseudoIntensity === 'NATIVE' ? 0 : 1;
+  const boostRank = profile.policy.onsetBoost === 2.0 ? 0 : 1;
+  return pseudoRank * 10 + boostRank;
 }
 
 function runByteDanceFromRaw({ scenario, raw, profile }) {
