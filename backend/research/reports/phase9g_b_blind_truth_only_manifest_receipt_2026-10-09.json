@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_b_blind_truth_only_vienna_manifest_receipt",
+  "phase": "9G-A",
+  "executionMode": "TRUTH_ONLY",
+  "split": "EVALUATION",
+  "implementationGitHead": "fac4dae3b07ed96f8e6c263967a13f40126cecd0",
+  "artifactGeneratedFromGitHead": "fac4dae3b07ed96f8e6c263967a13f40126cecd0",
+  "dirtyTreeAtExecution": false,
+  "calibrationPolicy": {
+    "path": "backend/research/policies/public_model_calibration_protocol_v1_2026-10-09.json",
+    "sha256": "5f0decb22200f51d295bbd3c60cd04481eec7661d7844e2b7c48b4f8b42ff56a",
+    "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V1",
+    "schemaVersion": 1
+  },
+  "blindCandidateInferencePerformed": false,
+  "candidateRunCount": 0,
+  "candidateObservationIncluded": false,
+  "candidatePublicationIncluded": false,
+  "candidateScenarioRunIncluded": false,
+  "frozenScenarioManifest": {
+    "path": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
+    "sha256": "70e6a84aaddc4f926a5ca8cc9674d45fdaac65f2fb62bf7024cf361be02ed692",
+    "publicManifestSha256": "b81d0349befb2835291201cb7a2e7a20284c9a5689cea6b6508fd6f02bbc3e57",
+    "scenarioCount": 70
+  },
+  "vienna": {
+    "metadataCommit": "1033ade0899bfd03a89f370c9ad5d8443ddccd3e",
+    "datasetPerformanceCount": 88,
+    "filteredPerformanceCount": 32,
+    "includedPerformers": [
+      "p15",
+      "p16",
+      "p17",
+      "p18",
+      "p19",
+      "p20",
+      "p21",
+      "p22"
+    ]
+  },
+  "scopeGeneration": {
+    "datasetPerformanceCount": 88,
+    "filteredPerformanceCount": 32,
+    "rawScopeAttemptCount": 282,
+    "consideredScopeCount": 282,
+    "baseScenarioCount": 22,
+    "selectedBaseScenarioCount": 22,
+    "candidateScopeCountByPiece": {
+      "Chopin_op38": 39,
+      "Mozart_K331_1st-mov": 64,
+      "Schubert_D783_no15": 67,
+      "Chopin_op10_no3": 112
+    },
+    "eligibleBasePoolCountByPiece": {
+      "Chopin_op38": 16,
+      "Mozart_K331_1st-mov": 16,
+      "Schubert_D783_no15": 12
+    },
+    "skippedScopeCount": 238,
+    "bpmDistribution": {
+      "sampleCount": 22,
+      "min": 109,
+      "median": 137,
+      "p95": 163,
+      "max": 173
+    },
+    "residualP95DistributionMs": {
+      "sampleCount": 22,
+      "min": 3.5714285714252583,
+      "median": 57.96062691132465,
+      "p95": 99.18032786884169,
+      "max": 111.18766404199323
+    },
+    "ledgerGroundTruthMatchRateDistribution": {
+      "sampleCount": 22,
+      "min": 0.95,
+      "median": 1,
+      "p95": 1,
+      "max": 1
+    },
+    "realScoreMissingNoteCount": 9,
+    "realPhysicalExtraCount": 83,
+    "selectedScenariosByPiece": {
+      "Chopin_op38": 8,
+      "Mozart_K331_1st-mov": 8,
+      "Schubert_D783_no15": 6
+    },
+    "uniquePerformerCount": 8,
+    "uniquePerformanceCount": 22,
+    "uniquePieceCount": 3
+  },
+  "counterfactuals": {
+    "mutationManifestSha256": "1e09b89aea81ca0182cffbbe87cdbba564910e3d5ac4b04e025a4f7ca0949d7d",
+    "countsByFamily": {
+      "COUNTERFACTUAL_MISSING_NOTE": 12,
+      "COUNTERFACTUAL_EXTRA_NOTE": 12,
+      "COUNTERFACTUAL_WRONG_SEMITONE": 12,
+      "COUNTERFACTUAL_INCOMPLETE_CHORD": 12
+    },
+    "pieceCountsByFamily": {
+      "COUNTERFACTUAL_MISSING_NOTE": 3,
+      "COUNTERFACTUAL_EXTRA_NOTE": 3,
+      "COUNTERFACTUAL_WRONG_SEMITONE": 3,
+      "COUNTERFACTUAL_INCOMPLETE_CHORD": 3
+    },
+    "performanceCountsByFamily": {
+      "COUNTERFACTUAL_MISSING_NOTE": 12,
+      "COUNTERFACTUAL_EXTRA_NOTE": 12,
+      "COUNTERFACTUAL_WRONG_SEMITONE": 12,
+      "COUNTERFACTUAL_INCOMPLETE_CHORD": 12
+    }
+  },
+  "confirmations": {
+    "truthOnlyModeDidNotLoadOrExecuteCandidates": true,
+    "evaluationCandidateOutputsGeneratedOrInspected": false,
+    "productionWinnerSelected": false,
+    "productionMicrophoneEnabled": false
+  }
+}
