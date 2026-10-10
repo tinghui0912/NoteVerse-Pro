@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 3,
+  "artifact": "phase9g_b12_protocol_freeze_report",
+  "phase": "9G-B.1.2",
+  "generatedAt": "2026-10-10T10:14:33.268Z",
+  "gitHead": "ff9a2ec14a4adae293cbd2bd8e0a8d7b329f9fb2",
+  "dirtyTreeAtFreeze": false,
+  "protocolState": "PHASE_9GB12_ONE_SHOT_EXECUTION_LOCKED_AWAITING_EXPLICIT_BLIND_AUTHORIZATION",
+  "allChecksPassed": true,
+  "checksCount": 10,
+  "checks": [
+    {
+      "checkId": "CHECK_1_IMMUTABLE_SOURCE_POLICIES_V3_PROTOCOL_AND_MANIFESTS_IDENTITIES",
+      "status": "PASS",
+      "details": {
+        "v5PolicySha": "5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6",
+        "v1PolicySha": "0ccd4872d6998b67d794baf96cad22c5ccbba3f8ee65a9ac02ba1ad9790ec71b",
+        "v2PolicySha": "b467e9aad917808f307346482477d1d4a4716aed665bd2662e87445231d12f8c",
+        "v1ProtocolSha": "06d9811ad830bebbd0e3161c424c15ee04282756479d80868ae8aa29e6bdafb0",
+        "v2ProtocolSha": "42a2777600e51e2a9d8a83fd6671d169e99d80236bb5617bc330565ee3c7b890",
+        "v3ProtocolSha": "6a0f664af87bdcf773f6dbeb767ad0e4ba59b7b2518b41964f66773709191363",
+        "a25RegistrySha": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
+        "a1CalibrationManifestSha": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
+        "blindManifestSha": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+        "performerIsolationVerified": true
+      }
+    },
+    {
+      "checkId": "CHECK_2_IMMUTABLE_SOURCE_CODE_AND_SCORER_BINDINGS",
+      "status": "PASS",
+      "details": {
+        "scorerSourceSha256": "70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea",
+        "finalizerLedgerSha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e",
+        "reconcilerSha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146",
+        "qualificationModuleSha256": "cde64ef8d4d6ae26c5a15b0511a93160c768db08c6167090e84dbc8e03409b6f",
+        "orchestratorModuleSha256": "7aa79d3dd1606d0d799779fa6f4dfa478f58ed1f72bce4a788a660750cc6dfc9",
+        "rehearsalModuleSha256": "8249576ed46619eeb877accc36e18a7a35203cd117ec3df6a5f509a66577e97f"
+      }
+    },
+    {
+      "checkId": "CHECK_3_ADMITTED_CANDIDATES_CHECKPOINT_LOCKS_AND_BYTE_SIZES",
+      "status": "PASS",
+      "details": {
+        "rankedCandidatesCount": 3,
+        "rankedCandidates": [
+          {
+            "candidateId": "bytedance-original-calibrated-v1",
+            "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+            "checkpointBytes": 171966578
+          },
+          {
+            "candidateId": "online-amt-calibrated-v1",
+            "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+            "checkpointBytes": 178804960
+          },
+          {
+            "candidateId": "bytedance-robust-augmented-calibrated-v1",
+            "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+            "checkpointBytes": 103815845
+          }
+        ],
+        "nonRankingReferencesCount": 3,
+        "blockedCandidatesCount": 1
+      }
+    },
+    {
+      "checkId": "CHECK_4_OBJECTIVE_SCENARIO_ELIGIBILITY_DERIVED_FROM_AUDIO_GEOMETRY",
+      "status": "PASS",
+      "details": {
+        "totalBlindScenarios": 70,
+        "eligibleByteDanceOriginal": 63,
+        "eligibleOnlineAmt": 70,
+        "eligibleRobustAugmented": 63,
+        "mutualPairwiseEligibleCount": 63
+      }
+    },
+    {
+      "checkId": "CHECK_5_ATOMIC_RUN_LOCK_AND_CRYPTOGRAPHIC_JOURNAL_CONTRACT",
+      "status": "PASS",
+      "details": {
+        "exclusiveAtomicLockMechanism": "openSync(path, \"wx\")",
+        "appendOnlyJournalFile": "journal.jsonl",
+        "cryptographicChainEnforced": true,
+        "crashRecoveryOutcome": "ATTEMPT_OUTCOME_UNKNOWN"
+      }
+    },
+    {
+      "checkId": "CHECK_6_PREFLIGHT_AND_CAUSAL_PUBLICATION_TIMING_GUARDS",
+      "status": "PASS",
+      "details": {
+        "futureAudioLookaheadGuardsVerified": true,
+        "backdatedAvailabilityGuardsVerified": true,
+        "truthLeakageGuardsVerified": true
+      }
+    },
+    {
+      "checkId": "CHECK_7_RAW_EVIDENCE_DURABILITY_AND_DISK_READBACK_SCORING",
+      "status": "PASS",
+      "details": {
+        "evidenceDirectory": "evidence/<candidateId>__<scenarioId>.json",
+        "observationDigestValidation": true,
+        "inMemoryPublicationBypassForbidden": true,
+        "sharedScorer": "continuous-analyzer-bakeoff.ts (scoreCandidate)"
+      }
+    },
+    {
+      "checkId": "CHECK_8_SYMMETRIC_11_LEVEL_SAFETY_HIERARCHY_AND_BOOTSTRAP",
+      "status": "PASS",
+      "details": {
+        "hierarchyRuleCount": 11,
+        "criticalSafetyGateCount": 8,
+        "symmetricReversalInvarianceVerified": true,
+        "missingCriticalSafetyBlocksWinner": true,
+        "bootstrapDraws": 5000,
+        "bootstrapSeed": 13371
+      }
+    },
+    {
+      "checkId": "CHECK_9_TRUE_SYNTHETIC_END_TO_END_REHEARSAL",
+      "status": "PASS",
+      "details": {
+        "rehearsalMode": "TRUE_SYNTHETIC_END_TO_END_PIPELINE",
+        "testsExecuted": 16,
+        "allTestsPassed": true,
+        "realBlindInferenceExecuted": false
+      }
+    },
+    {
+      "checkId": "CHECK_10_RUNTIME_CONTAINER_CHECK_AND_PREFLIGHT_BOUNDARIES",
+      "status": "PASS",
+      "details": {
+        "candidateRunCount": 0,
+        "productionWinnerSelected": false,
+        "productionMicrophoneActive": false,
+        "runtimeContainerBinding": "REAL_RUNTIME_BINDING_NOT_VERIFIABLE_IN_THIS_ENVIRONMENT",
+        "programmaticInferenceBlocked": true,
+        "protocolState": "PHASE_9GB12_ONE_SHOT_EXECUTION_LOCKED_AWAITING_EXPLICIT_BLIND_AUTHORIZATION"
+      }
+    }
+  ],
+  "activeV3Protocol": {
+    "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v3_2026-10-10.json",
+    "sha256": "6a0f664af87bdcf773f6dbeb767ad0e4ba59b7b2518b41964f66773709191363",
+    "supersedesPolicySha256": "42a2777600e51e2a9d8a83fd6671d169e99d80236bb5617bc330565ee3c7b890"
+  },
+  "boundImplementationFiles": {
+    "scorerSource": {
+      "path": "apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.ts",
+      "sha256": "70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea"
+    },
+    "finalizerLedger": {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalization-ledger.ts",
+      "sha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e"
+    },
+    "performanceReconciler": {
+      "path": "apps/customer-web/src/lib/practice/audio-analysis/continuous/performance-reconciler.ts",
+      "sha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146"
+    },
+    "qualificationEngine": {
+      "path": "apps/customer-web/src/lib/practice/research/public-challenger-qualification.ts",
+      "sha256": "cde64ef8d4d6ae26c5a15b0511a93160c768db08c6167090e84dbc8e03409b6f"
+    },
+    "executionOrchestrator": {
+      "path": "backend/research/browser_runtime/execution_grade_blind_orchestrator.mjs",
+      "sha256": "7aa79d3dd1606d0d799779fa6f4dfa478f58ed1f72bce4a788a660750cc6dfc9"
+    },
+    "rehearsalModule": {
+      "path": "backend/research/browser_runtime/rehearse_phase9gb_blind_protocol.mjs",
+      "sha256": "8249576ed46619eeb877accc36e18a7a35203cd117ec3df6a5f509a66577e97f"
+    }
+  },
+  "lockedCandidates": [
+    {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+      "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+      "checkpointBytes": 171966578,
+      "eligibleScenarios": 63
+    },
+    {
+      "candidateId": "online-amt-calibrated-v1",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "checkpointBytes": 178804960,
+      "eligibleScenarios": 70
+    },
+    {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "configurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce",
+      "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+      "checkpointBytes": 103815845,
+      "eligibleScenarios": 63
+    }
+  ],
+  "preflightConfirmation": {
+    "blindPerformerInferenceExecuted": false,
+    "blindExpectedStrikeTruthReadForInference": false,
+    "productionWinnerSelected": false,
+    "productionMicrophoneActive": false,
+    "candidateRunCount": 0,
+    "runtimeContainerBinding": "REAL_RUNTIME_BINDING_NOT_VERIFIABLE_IN_THIS_ENVIRONMENT",
+    "readinessStatus": "PHASE_9GB12_ONE_SHOT_EXECUTION_LOCKED_AWAITING_EXPLICIT_BLIND_AUTHORIZATION"
+  }
+}

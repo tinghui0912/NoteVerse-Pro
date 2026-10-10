@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 3,
+  "artifact": "phase9g_b12_rehearsal_receipt",
+  "phase": "9G-B.1.2",
+  "generatedAt": "2026-10-10T10:14:33.250Z",
+  "gitHead": "ff9a2ec14a4adae293cbd2bd8e0a8d7b329f9fb2",
+  "dirtyTreeAtExecution": false,
+  "rehearsalMode": "TRUE_SYNTHETIC_END_TO_END_PIPELINE",
+  "realBlindInferenceExecuted": false,
+  "realBlindPerformersIsolated": [
+    "p15",
+    "p16",
+    "p17",
+    "p18",
+    "p19",
+    "p20",
+    "p21",
+    "p22"
+  ],
+  "syntheticScenariosUsed": 8,
+  "testsExecuted": 16,
+  "allTestsPassed": true,
+  "rehearsalResults": [
+    {
+      "testId": "REHEARSAL_1_EXCLUSIVE_ATOMIC_RUN_LOCK_COLLISION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_2_CRASH_AND_UNKNOWN_OUTCOME_PRESERVATION",
+      "status": "PASS",
+      "details": {
+        "recordedStatus": "ATTEMPT_OUTCOME_UNKNOWN",
+        "failureReason": "CRASH_BEFORE_EVIDENCE_COMMIT_DETECTED_ON_RESUME"
+      }
+    },
+    {
+      "testId": "REHEARSAL_3_CRASH_RESILIENT_APPEND_ONLY_JOURNAL",
+      "status": "PASS",
+      "details": {
+        "validatedEvents": 4
+      }
+    },
+    {
+      "testId": "REHEARSAL_4_CHANGED_PROTOCOL_HASH_PREVENTS_RESUME",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_5_CHANGED_SCORER_OR_ADAPTER_HASH_PREVENTS_INVOCATION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_6_CHANGED_CHECKPOINT_OR_PCM_SHA_PREVENTS_INVOCATION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_7_UNAUTHORIZED_CANDIDATE_OR_PERFORMER_BLOCKED",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_8_NESTED_TRUTH_LEAKAGE_REJECTED",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_9_JOURNAL_INTEGRITY_TAMPER_AND_TRUNCATION_DETECTION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_10_INDEPENDENT_DISK_EVIDENCE_RECONSTRUCTION_AND_SCORING",
+      "status": "PASS",
+      "details": {
+        "totalScoresComputed": 7
+      }
+    },
+    {
+      "testId": "REHEARSAL_11_CAUSAL_AND_PUBLICATION_TIMING_VIOLATIONS_BLOCKED",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_12_MISSING_HIGH_PRIORITY_SAFETY_METRICS_BLOCKS_WINNER",
+      "status": "PASS",
+      "details": {
+        "outcome": "INSUFFICIENT_SAFETY_EVIDENCE",
+        "criticalSafetyEvidenceSufficient": false
+      }
+    },
+    {
+      "testId": "REHEARSAL_13_SYMMETRIC_DECISION_PROCEDURE_REVERSAL_INVARIANCE",
+      "status": "PASS",
+      "details": {
+        "outcomeAB": "CANDIDATE_A_DOMINATES",
+        "outcomeBA": "CANDIDATE_B_DOMINATES"
+      }
+    },
+    {
+      "testId": "REHEARSAL_14_GENUINE_SCORER_DERIVED_BOOTSTRAP_STATISTICS",
+      "status": "PASS",
+      "details": {
+        "draws": 5000,
+        "seed": 13371,
+        "pairedScenariosScored": 7,
+        "meanAB": 0,
+        "meanBA": 0
+      }
+    },
+    {
+      "testId": "REHEARSAL_15_INCOMPLETE_COVERAGE_YIELDS_NO_WINNER",
+      "status": "PASS",
+      "details": {
+        "simulatedCoverage": "79.4%",
+        "outcome": "EVALUATION_INCOMPLETE_NO_WINNER"
+      }
+    },
+    {
+      "testId": "REHEARSAL_16_DUPLICATE_CANDIDATE_SCENARIO_REJECTED_AFTER_RESTART",
+      "status": "PASS"
+    }
+  ]
+}

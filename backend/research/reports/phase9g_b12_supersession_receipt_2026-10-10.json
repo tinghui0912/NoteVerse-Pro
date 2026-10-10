@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 3,
+  "artifact": "phase9g_b12_supersession_receipt",
+  "phase": "9G-B.1.2",
+  "generatedAt": "2026-10-10T10:14:33.135Z",
+  "gitHead": "ff9a2ec14a4adae293cbd2bd8e0a8d7b329f9fb2",
+  "dirtyTreeAtGeneration": false,
+  "supersededProtocol": {
+    "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V2",
+    "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v2_2026-10-10.json",
+    "sha256": "42a2777600e51e2a9d8a83fd6671d169e99d80236bb5617bc330565ee3c7b890",
+    "status": "SUPERSEDED_NOT_EXECUTION_SAFE",
+    "supersessionReason": "Independent GitHub review confirmed that Phase 9G-B.1.1 protocol V2 produced a valuable foundation, but remained non-execution-safe: the execution ledger used non-atomic whole-file writes and lacked exclusive run reservation (\"wx\" lock), acoustic evidence was not durably persisted to disk before scoring, mandatory preflight guards were not enforced at the adapter invocation boundary, publication causal timing was not verified, and the decision function was not symmetric across all safety levels."
+  },
+  "activeProtocol": {
+    "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V3",
+    "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v3_2026-10-10.json",
+    "sha256": "6a0f664af87bdcf773f6dbeb767ad0e4ba59b7b2518b41964f66773709191363",
+    "status": "ACTIVE_ONE_SHOT_EXECUTION_LOCKED"
+  },
+  "materialAmendmentsInV3": [
+    "Implemented exclusive atomic run reservation using filesystem openSync(\"wx\") locking.",
+    "Implemented append-only cryptographic event journaling (journal.jsonl) with monotonic sequence numbers, individual event hashes, and chained SHA256 hashes.",
+    "Durably persist complete raw acoustic evidence blobs to disk (evidence/<candidateId>__<scenarioId>.json) with observation digests before truth access.",
+    "Updated shared scoreCandidate() invocation to reconstruct candidate runs strictly from disk evidence, validating digests against ledger records.",
+    "Mandatory preflightCandidateScenarioExecution() enforced directly at the adapter invocation boundary, rejecting unknown candidates, config/checkpoint mismatches, audio geometry ineligibility, and truth leakage.",
+    "Causal publication timing validation: enforced assertAcousticPublicationCausalTimingValid(), rejecting future-audio lookahead and backdated availability.",
+    "Implemented symmetric 11-level safety decision procedure (evaluateSymmetricSafetyDominance) where candidate reversal produces reciprocal outcomes and critical safety missing data strictly blocks winner declaration.",
+    "Seeded bootstrap confidence intervals (5000 draws, seed 13371) paired directly on candidate difference vectors from shared scorer outputs.",
+    "Expanded adversarial synthetic rehearsal to 16 execution-grade checks exercising run collision, crash recovery, journal tampering, and preflight guards.",
+    "Enforced non-negotiable execution boundaries: candidateRunCount = 0, productionWinnerSelected = false, productionMicrophoneActive = false."
+  ]
+}
