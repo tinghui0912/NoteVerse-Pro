@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "artifact": "phase9g_b2_runtime_attestation_receipt",
   "phase": "9G-B.2-FINAL-GATE",
-  "attestedAt": "2026-10-10T14:06:30.468Z",
+  "attestedAt": "2026-10-10T15:44:04.124Z",
   "status": "TARGET_RUNTIME_ENVIRONMENT_AND_MODELS_ATTESTED",
   "allCheckpointsVerified": true,
   "checkpointAttestations": [
@@ -101,7 +101,7 @@
       "cudaExecutionVerified": true,
       "syntheticForwardPassVerified": true,
       "exitCode": 0,
-      "durationMs": 16680,
+      "durationMs": 16865,
       "status": "SUCCESS",
       "stdoutExcerpt": "Checkpoint path: /models/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth\nUsing cuda for inference.\nGPU number: 1\nSegment 0 / 1\nSegment 1 / 1\n__MODEL_OUT__{\"status\": \"PASS\", \"shape\": [1001, 88], \"is_finite\": true, \"device\": \"cuda\"}"
     },
@@ -120,7 +120,7 @@
       "cudaExecutionVerified": false,
       "syntheticForwardPassVerified": true,
       "exitCode": 0,
-      "durationMs": 9828,
+      "durationMs": 9825,
       "status": "SUCCESS",
       "stdoutExcerpt": "__MODEL_OUT__{\"status\": \"PASS\", \"shape\": [88], \"is_finite\": true, \"device\": \"cpu\", \"deployment_mode\": \"STREAMING_CAUSAL_HOP_CPU\"}"
     },
@@ -140,7 +140,7 @@
       "cudaExecutionVerified": true,
       "syntheticForwardPassVerified": true,
       "exitCode": 0,
-      "durationMs": 14325,
+      "durationMs": 14221,
       "status": "SUCCESS",
       "stdoutExcerpt": "__MODEL_OUT__{\"status\": \"PASS\", \"shape\": [1, 183, 88], \"is_finite\": true, \"device\": \"cuda\"}"
     }

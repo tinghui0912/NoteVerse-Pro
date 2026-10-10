@@ -1,11 +1,11 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "artifact": "phase9g_b2_protocol_freeze_report",
-  "phase": "9G-B.2-FINAL-GATE",
-  "generatedAt": "2026-10-10T14:06:30.980Z",
-  "gitHead": "8eb7b676bc980fb31c98e371ab16b72c08e8e60f",
+  "phase": "9G-B.2-FINAL-GATE-R1",
+  "generatedAt": "2026-10-10T15:44:45.271Z",
+  "gitHead": "92dd2e0aa18e77382c77f67276f2b5a038247b24",
   "dirtyTreeAtGeneration": false,
-  "authorizationGateOutcome": "PHASE_9GB2_FINAL_GATE_READY_TO_REQUEST_EXPLICIT_ONE_SHOT_AUTHORIZATION",
+  "authorizationGateOutcome": "PHASE_9GB2_FINAL_GATE_R1_READY_TO_REQUEST_EXPLICIT_AUTHORIZATION",
   "allConditionsSatisfied": true,
   "verificationsCount": 14,
   "verificationChecks": [
@@ -22,6 +22,7 @@
         "v4ProtocolSha": "f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67",
         "v5ProtocolSha": "e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b",
         "v6ProtocolSha": "39303325793b7ff512e051a8771c0fa6c37500e78d18409bb8192660c959c4fe",
+        "v7ProtocolSha": "8fdb2202cf32b181e0b609b4485933c7df9baa4e121d7175ffb92f727e7bc4bc",
         "a25RegistrySha": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
         "a1CalibrationManifestSha": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
         "blindManifestSha": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
@@ -35,10 +36,10 @@
         "scorerSourceSha256": "70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea",
         "finalizerLedgerSha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e",
         "reconcilerSha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146",
-        "qualificationModuleSha256": "42a3917d943adf83043f436b5b7f309808fd0df1055b33d5949dfda9ec2d056b",
-        "orchestratorModuleSha256": "226fda45ec2933859522b8d449712f6023045fef88e8129fe24b368563c6ab8b",
-        "executionEntrypointSha256": "68cb001a8cccd50df94009375fddf37bcb7e83863d3414452404d567d73b698a",
-        "rehearsalModuleSha256": "02e070939a1be0497bd0c9209d1f0c705234a606bf9f82c7fff608e13fa17b7e",
+        "qualificationModuleSha256": "e552ca31022069d50c7d29b49d49bf9b886e1ac8de499abdad4acbc0c575980d",
+        "orchestratorModuleSha256": "d9feb981937fd470e099c7afe3856eadc5f089c994dd96283259dc019e619eb6",
+        "executionEntrypointSha256": "2df08dbadda4473ad809087c8615f188875affe360ba39b3eabcf8db9b3c7e57",
+        "rehearsalModuleSha256": "11be0bc2de253751df41643e570bde62e12f729f06bcc12bb06f75352b586820",
         "attestationModuleSha256": "b7065282855460ca2de2df2ddadb6ce6b36158c0887df9d87ea1218fcbf612ca"
       }
     },
@@ -172,7 +173,7 @@
       "checkId": "CHECK_13_CLEAN_WORKING_TREE_INTEGRITY",
       "status": "PASS",
       "details": {
-        "gitHead": "8eb7b676bc980fb31c98e371ab16b72c08e8e60f",
+        "gitHead": "92dd2e0aa18e77382c77f67276f2b5a038247b24",
         "dirty": false,
         "allowDirty": false
       }
@@ -185,7 +186,7 @@
         "productionWinnerSelected": false,
         "productionMicrophoneActive": false,
         "programmaticInferenceBlocked": true,
-        "gateOutcome": "PHASE_9GB2_FINAL_GATE_READY_TO_REQUEST_EXPLICIT_ONE_SHOT_AUTHORIZATION"
+        "gateOutcome": "PHASE_9GB2_FINAL_GATE_R1_READY_TO_REQUEST_EXPLICIT_AUTHORIZATION"
       }
     }
   ],
@@ -199,16 +200,17 @@
     "v4BlindProtocolSha256": "f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67",
     "v5BlindProtocolSha256": "e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b",
     "v6BlindProtocolSha256": "39303325793b7ff512e051a8771c0fa6c37500e78d18409bb8192660c959c4fe",
+    "v7BlindProtocolSha256": "8fdb2202cf32b181e0b609b4485933c7df9baa4e121d7175ffb92f727e7bc4bc",
     "a25IncumbentRegistrySha256": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
     "a1CalibrationManifestSha256": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
     "blindManifestSha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
     "scorerSourceSha256": "70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea",
     "finalizerLedgerSha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e",
     "reconcilerSha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146",
-    "qualificationModuleSha256": "42a3917d943adf83043f436b5b7f309808fd0df1055b33d5949dfda9ec2d056b",
-    "orchestratorModuleSha256": "226fda45ec2933859522b8d449712f6023045fef88e8129fe24b368563c6ab8b",
-    "executionEntrypointSha256": "68cb001a8cccd50df94009375fddf37bcb7e83863d3414452404d567d73b698a",
-    "rehearsalModuleSha256": "02e070939a1be0497bd0c9209d1f0c705234a606bf9f82c7fff608e13fa17b7e",
+    "qualificationModuleSha256": "e552ca31022069d50c7d29b49d49bf9b886e1ac8de499abdad4acbc0c575980d",
+    "orchestratorModuleSha256": "d9feb981937fd470e099c7afe3856eadc5f089c994dd96283259dc019e619eb6",
+    "executionEntrypointSha256": "2df08dbadda4473ad809087c8615f188875affe360ba39b3eabcf8db9b3c7e57",
+    "rehearsalModuleSha256": "11be0bc2de253751df41643e570bde62e12f729f06bcc12bb06f75352b586820",
     "attestationModuleSha256": "b7065282855460ca2de2df2ddadb6ce6b36158c0887df9d87ea1218fcbf612ca"
   },
   "executionGuards": {

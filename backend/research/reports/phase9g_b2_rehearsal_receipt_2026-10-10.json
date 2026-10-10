@@ -1,9 +1,9 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "artifact": "phase9g_b2_rehearsal_receipt",
-  "phase": "9G-B.2-FINAL-GATE",
-  "generatedAt": "2026-10-10T14:06:30.959Z",
-  "gitHead": "8eb7b676bc980fb31c98e371ab16b72c08e8e60f",
+  "phase": "9G-B.2-FINAL-GATE-R1",
+  "generatedAt": "2026-10-10T15:44:45.251Z",
+  "gitHead": "92dd2e0aa18e77382c77f67276f2b5a038247b24",
   "dirtyTreeAtExecution": false,
   "rehearsalMode": "TRUE_SYNTHETIC_END_TO_END_PIPELINE",
   "realBlindInferenceExecuted": false,
@@ -19,6 +19,8 @@
   ],
   "syntheticScenariosUsed": 8,
   "testsExecuted": 20,
+  "pipelineTestsExecuted": 20,
+  "adversarialTestsExecuted": 17,
   "allTestsPassed": true,
   "rehearsalResults": [
     {
@@ -163,5 +165,174 @@
         "attemptsExecuted": 7
       }
     }
-  ]
+  ],
+  "adversarialResults": [
+    {
+      "testId": "ADV_1_UNSIGNED_JSON_AUTHORIZATION_REJECTED",
+      "executionType": "PURE_UNIT_TEST",
+      "status": "PASS",
+      "details": {
+        "unsignedJsonRejected": true
+      }
+    },
+    {
+      "testId": "ADV_2_MISSING_RUN_ID_IN_REQUEST_AND_RECEIPT_REJECTED",
+      "executionType": "PURE_UNIT_TEST",
+      "status": "PASS",
+      "details": {
+        "missingRunIdRejected": true
+      }
+    },
+    {
+      "testId": "ADV_3_WRONG_COMMIT_PROTOCOL_ROSTER_RUN_ID_REJECTED",
+      "executionType": "PURE_UNIT_TEST",
+      "status": "PASS",
+      "details": {
+        "wrongKeyOrBindingRejected": true
+      }
+    },
+    {
+      "testId": "ADV_4_CONSUMED_AUTHORIZATION_ANTI_REPLAY",
+      "executionType": "PURE_UNIT_TEST",
+      "status": "PASS",
+      "details": {
+        "antiReplayEnforced": true
+      }
+    },
+    {
+      "testId": "ADV_5_V6_MANDATORY_DOWNGRADE_AND_MUTABLE_ROOT_FAIL",
+      "executionType": "PURE_UNIT_TEST",
+      "status": "PASS",
+      "details": {
+        "v5DowngradeRejected": true,
+        "v4DowngradeRejected": true,
+        "mutableSetterAbsent": true
+      }
+    },
+    {
+      "testId": "ADV_6_REAL_DOCKER_MODEL_ADAPTER_INFERENCE",
+      "executionType": "REAL_SYNTHETIC_DOCKER_INFERENCE",
+      "status": "PASS",
+      "details": {
+        "candidatesTested": [
+          "bytedance-original-calibrated-v1",
+          "online-amt-calibrated-v1",
+          "bytedance-robust-augmented-calibrated-v1"
+        ],
+        "publicationCounts": {
+          "bytedance-original-calibrated-v1": 100,
+          "online-amt-calibrated-v1": 31,
+          "bytedance-robust-augmented-calibrated-v1": 10
+        }
+      }
+    },
+    {
+      "testId": "ADV_7_REAL_SYNTHETIC_PUBLICATIONS_VALID_FINITE_CAUSAL",
+      "executionType": "REAL_SYNTHETIC_DOCKER_INFERENCE",
+      "status": "PASS",
+      "details": {
+        "allPublicationsCausal": true,
+        "allTimestampsFinite": true,
+        "validatedCandidates": [
+          "bytedance-original-calibrated-v1",
+          "online-amt-calibrated-v1",
+          "bytedance-robust-augmented-calibrated-v1"
+        ]
+      }
+    },
+    {
+      "testId": "ADV_8_AUDIO_BYTE_INTEGRITY_ENFORCEMENT",
+      "executionType": "PURE_UNIT_TEST",
+      "status": "PASS",
+      "details": {
+        "corruptedRiffRejected": true,
+        "pcmShaMismatchRejected": true
+      }
+    },
+    {
+      "testId": "ADV_9_UNAUTHORIZED_SCENARIO_OR_PERFORMER_BLOCKED",
+      "executionType": "PURE_UNIT_TEST",
+      "status": "PASS",
+      "details": {
+        "unauthorizedScenarioRejected": true
+      }
+    },
+    {
+      "testId": "ADV_10_ACOUSTIC_PROCESS_TRUTH_ISOLATION",
+      "executionType": "INJECTED_FAKE_ADAPTER",
+      "status": "PASS",
+      "details": {
+        "truthLeakageDetected": true
+      }
+    },
+    {
+      "testId": "ADV_11_MODEL_FAILURE_PREVENTS_COMPLETED",
+      "executionType": "INJECTED_FAKE_ADAPTER",
+      "status": "PASS",
+      "details": {
+        "modelFailureBlockedCompletion": true
+      }
+    },
+    {
+      "testId": "ADV_12_PREDECLARED_COVERAGE_ENFORCEMENT_196_ATTEMPTS",
+      "executionType": "INJECTED_FAKE_ADAPTER",
+      "status": "PASS",
+      "details": {
+        "isComplete": false,
+        "totalCompleted": 5,
+        "totalMissing": 1,
+        "incompleteVerdict": "EVALUATION_INCOMPLETE_NO_WINNER"
+      }
+    },
+    {
+      "testId": "ADV_13_WRITER_LOCK_OWNERSHIP_AND_MUTEX",
+      "executionType": "PURE_UNIT_TEST",
+      "status": "PASS",
+      "details": {
+        "wrongOwnerReleaseForbidden": true,
+        "lostOwnershipDetected": true
+      }
+    },
+    {
+      "testId": "ADV_14_EXTERNAL_CHAIN_TIP_ANCHOR_VERIFICATION",
+      "executionType": "PURE_UNIT_TEST",
+      "status": "PASS",
+      "details": {
+        "missingAnchorRejected": true
+      }
+    },
+    {
+      "testId": "ADV_15_POST_EVIDENCE_SCORING_AND_STATISTICAL_ANALYSIS",
+      "executionType": "INJECTED_FAKE_ADAPTER",
+      "status": "PASS",
+      "details": {
+        "postEvidenceScoringStatus": "COMPLETED_POST_EVIDENCE_AUDIT",
+        "pairwiseEvaluated": 3
+      }
+    },
+    {
+      "testId": "ADV_15_POST_EVIDENCE_SCORING_AND_STATISTICAL_ANALYSIS",
+      "executionType": "INJECTED_FAKE_ADAPTER",
+      "status": "PASS",
+      "details": {
+        "postEvidenceScoringStatus": "COMPLETED_POST_EVIDENCE_AUDIT",
+        "pairwiseEvaluated": 3
+      }
+    },
+    {
+      "testId": "ADV_16_CLI_ARGUMENT_VALIDATION",
+      "executionType": "PURE_UNIT_TEST",
+      "status": "PASS",
+      "details": {
+        "unknownAuthReceiptRejected": true,
+        "conflictingModesRejected": true,
+        "documentedFlagsAccepted": true
+      }
+    }
+  ],
+  "adversarialExecutionBreakdown": {
+    "realSyntheticDockerInference": 2,
+    "injectedFakeAdapter": 5,
+    "pureUnitTest": 10
+  }
 }

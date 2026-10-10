@@ -1,9 +1,9 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "artifact": "phase9g_b2_candidate_lock_receipt",
-  "phase": "9G-B.2-FINAL-GATE",
-  "generatedAt": "2026-10-10T14:06:30.469Z",
-  "gitHead": "8eb7b676bc980fb31c98e371ab16b72c08e8e60f",
+  "phase": "9G-B.2-FINAL-GATE-R1",
+  "generatedAt": "2026-10-10T15:44:04.125Z",
+  "gitHead": "92dd2e0aa18e77382c77f67276f2b5a038247b24",
   "dirtyTreeAtGeneration": false,
   "runtimeAttestationStatus": "TARGET_RUNTIME_ENVIRONMENT_AND_MODELS_ATTESTED",
   "runtimeAttestationSummary": {
