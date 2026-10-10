@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V1,
@@ -9,6 +10,7 @@ import {
   PHASE_9GB_BLIND_MANIFEST_SHA256,
   PHASE_9GA3,
   PHASE_9GA31,
+  PHASE_9GA32,
   CHALLENGER_CALIBRATION_PERFORMERS,
   CHALLENGER_BLIND_PERFORMERS,
   assertChallengerQualificationPolicyIdentity,
@@ -21,9 +23,16 @@ import {
   validateA25IncumbentRegistry,
   assertCheckpointIdentityStrict,
   validateRobustByteDanceRawCache,
+  validateRobustByteDanceRawCacheStrict,
   validateTranscriptionRawCache,
+  validateTranscriptionRawCacheStrict,
+  computeCanonicalTranscriptionNotesDigest,
   deriveCandidateContextEligibility,
+  assertNoIneligibleScenarioInProfileScoring,
   assertAcousticEvidenceScoreIndependent,
+  computeCanonicalAcousticObservationDigest,
+  assertAcousticEvidenceScoreIndependentDeterministic,
+  assertScoreIndependencePreservesOffScoreNotes,
   assertModelStateDictCompatibility,
   assertCandidateCausalStreamingClaimsValid,
   assertPublicationTimingValid,
@@ -32,9 +41,14 @@ import {
   evaluatePairwiseComparison,
   assertCleanWorkingTree,
   assertCandidateQualificationForPhase9GB,
+  assertCandidateMultiDimensionalQualification,
   assertContextEligibilityScoreIndependent,
+  assertPairwiseMatrixDenominatorsValid,
+  classifyMetricPairwiseComparison,
+  assertNoBelowThresholdCrossFamilyWinner,
   type ChallengerExecutionRequest,
 } from './public-challenger-qualification';
+import type { CandidateScenarioRun } from './continuous-analyzer-bakeoff';
 import {
   PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5_SHA256,
 } from './public-model-calibration';
@@ -49,6 +63,7 @@ function validRequest(overrides: Partial<ChallengerExecutionRequest> = {}): Chal
     incumbentPolicySha256: PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5_SHA256,
     incumbentRegistrySha256: PHASE_9GA25_REGISTRY_SHA256,
     blindManifestSha256: PHASE_9GB_BLIND_MANIFEST_SHA256,
+    calibrationManifestSha256: PHASE_9GA1_CALIBRATION_SCENARIOS_SHA256,
     phase: PHASE_9GA3,
     mode: 'CANDIDATE_INFERENCE',
     scenarioSplit: 'CALIBRATION',
@@ -421,14 +436,20 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       }, expectedWindows)).toThrow(/RAW_OUTPUTS_MISSING_IN_CACHE|FLOAT32_SHA_MISSING_IN_CACHE/);
 
       // Valid raw cache passes
+      const validData = new Array(88).fill(0.1);
+      const buf = Buffer.alloc(88 * 4);
+      validData.forEach((v, i) => buf.writeFloatLE(v, i * 4));
+      const validSha = createHash('sha256').update(buf).digest('hex');
+
       expect(validateRobustByteDanceRawCache({
         chunks: [{
           windowId: 'w1',
           contextProfileId: 'ctx1',
           inputSampleCount: 16000,
+          scenarioId: 'sc1',
           rawOutputs: {
-            frame_output: { data: [0.1], float32ByteSha256: 'abc' },
-            reg_onset_output: { data: [0.2], float32ByteSha256: 'def' },
+            frame_output: { dims: [1, 88], data: validData, float32ByteSha256: validSha },
+            reg_onset_output: { dims: [1, 88], data: validData, float32ByteSha256: validSha },
           },
         }],
       }, expectedWindows)).toBe(true);
@@ -556,11 +577,13 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
     });
 
     it('Defect 10: Changing ExpectedStrike truth produces identical raw observations', () => {
-      const baseRun: any = {
+      const baseRun: CandidateScenarioRun = {
+        candidateId: 'cand-1',
         scenarioId: 'sc-base',
         publications: [
           {
             publicationId: 'pub-1',
+            analyzedThroughPerformanceMs: 200,
             observations: [
               { observationId: 'o1', pitch: 'C4', performanceTimeMs: 100 },
               { observationId: 'o2', pitch: 'E4', performanceTimeMs: 200 },
@@ -570,11 +593,13 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       };
 
       // Exact matching counterfactual observations pass
-      const identicalCfRun: any = {
+      const identicalCfRun: CandidateScenarioRun = {
+        candidateId: 'cand-1',
         scenarioId: 'sc-cf-1',
         publications: [
           {
             publicationId: 'pub-cf-1',
+            analyzedThroughPerformanceMs: 200,
             observations: [
               { observationId: 'o1', pitch: 'C4', performanceTimeMs: 100 },
               { observationId: 'o2', pitch: 'E4', performanceTimeMs: 200 },
@@ -588,11 +613,13 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       expect(res.verifiedScenarioCount).toBe(1);
 
       // Counterfactual run where observations differ (score conditioning) fails closed
-      const tamperedCfRun: any = {
+      const tamperedCfRun: CandidateScenarioRun = {
+        candidateId: 'cand-1',
         scenarioId: 'sc-cf-1',
         publications: [
           {
             publicationId: 'pub-cf-1',
+            analyzedThroughPerformanceMs: 200,
             observations: [
               { observationId: 'o1', pitch: 'C4', performanceTimeMs: 100 },
               // Altered observation
@@ -666,5 +693,379 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       })).not.toThrow();
     });
   });
+
+  describe('Phase 9G-A.3.2 Adversarial Behavioral Tests (13 Mandatory Defect Cases)', () => {
+    function createValidTensor(length: number, value = 0.1): { data: number[]; byteSha256: string } {
+      const data = new Array(length).fill(value);
+      const buf = Buffer.alloc(length * 4);
+      data.forEach((v, i) => buf.writeFloatLE(v, i * 4));
+      return { data, byteSha256: createHash('sha256').update(buf).digest('hex') };
+    }
+
+    it('Case 1: altered numeric raw tensor with unchanged claimed hash fails', () => {
+      const tensor = createValidTensor(88, 0.25);
+      const expectedWindows = [{ windowId: 'win_1', contextProfileId: 'ctx_1', inputSampleCount: 16000 }];
+
+      // Raw cache has valid byte SHA for original data, but numeric data is altered
+      const alteredData = [...tensor.data];
+      alteredData[0] += 0.05; // Mutate first element
+
+      expect(() => validateRobustByteDanceRawCacheStrict({
+        chunks: [{
+          windowId: 'win_1',
+          contextProfileId: 'ctx_1',
+          inputSampleCount: 16000,
+          rawOutputs: {
+            frame_output: { dims: [1, 88], data: alteredData, float32ByteSha256: tensor.byteSha256 },
+            reg_onset_output: { dims: [1, 88], data: tensor.data, float32ByteSha256: tensor.byteSha256 },
+          },
+        }],
+      }, expectedWindows)).toThrow(/FLOAT32_SHA_MISMATCH:win_1:frame_output/);
+    });
+
+    it('Case 2: altered checkpoint or source PCM under an existing cache filename fails', () => {
+      const tensor = createValidTensor(88);
+      const expectedWindows = [{
+        windowId: 'win_1',
+        contextProfileId: 'ctx_1',
+        inputSampleCount: 16000,
+        inputPcmSha256: 'expected_pcm_hash_1234',
+      }];
+
+      // Mismatched checkpoint SHA fails
+      expect(() => validateRobustByteDanceRawCacheStrict({
+        checkpointSha256: 'corrupted_checkpoint_sha',
+        chunks: [{
+          windowId: 'win_1',
+          contextProfileId: 'ctx_1',
+          inputSampleCount: 16000,
+          inputPcmSha256: 'expected_pcm_hash_1234',
+          rawOutputs: {
+            frame_output: { dims: [1, 88], data: tensor.data, float32ByteSha256: tensor.byteSha256 },
+            reg_onset_output: { dims: [1, 88], data: tensor.data, float32ByteSha256: tensor.byteSha256 },
+          },
+        }],
+      }, expectedWindows, {
+        expectedCheckpointSha256: 'valid_checkpoint_sha_5678',
+      })).toThrow(/CHECKPOINT_SHA_MISMATCH/);
+
+      // Mismatched input PCM SHA fails
+      expect(() => validateRobustByteDanceRawCacheStrict({
+        chunks: [{
+          windowId: 'win_1',
+          contextProfileId: 'ctx_1',
+          inputSampleCount: 16000,
+          inputPcmSha256: 'altered_pcm_hash_9999',
+          rawOutputs: {
+            frame_output: { dims: [1, 88], data: tensor.data, float32ByteSha256: tensor.byteSha256 },
+            reg_onset_output: { dims: [1, 88], data: tensor.data, float32ByteSha256: tensor.byteSha256 },
+          },
+        }],
+      }, expectedWindows)).toThrow(/PCM_SHA_MISMATCH:win_1/);
+    });
+
+    it('Case 3: wrong tensor shape, duplicate or missing window fails', () => {
+      const tensor = createValidTensor(88);
+      const expectedWindows = [
+        { windowId: 'win_1', contextProfileId: 'ctx_1', inputSampleCount: 16000 },
+        { windowId: 'win_2', contextProfileId: 'ctx_1', inputSampleCount: 16000 },
+      ];
+
+      // Wrong tensor classes dimension (e.g. 87 instead of 88)
+      expect(() => validateRobustByteDanceRawCacheStrict({
+        chunks: [{
+          windowId: 'win_1',
+          contextProfileId: 'ctx_1',
+          inputSampleCount: 16000,
+          rawOutputs: {
+            frame_output: { dims: [1, 87], data: new Array(87).fill(0.1), float32ByteSha256: 'some_sha' },
+            reg_onset_output: { dims: [1, 88], data: tensor.data, float32ByteSha256: tensor.byteSha256 },
+          },
+        }],
+      }, [{ windowId: 'win_1', contextProfileId: 'ctx_1', inputSampleCount: 16000 }])).toThrow(/INVALID_TENSOR_SHAPE/);
+
+      // Duplicate windowId fails
+      expect(() => validateRobustByteDanceRawCacheStrict({
+        chunks: [
+          {
+            windowId: 'win_1',
+            contextProfileId: 'ctx_1',
+            inputSampleCount: 16000,
+            rawOutputs: {
+              frame_output: { dims: [1, 88], data: tensor.data, float32ByteSha256: tensor.byteSha256 },
+              reg_onset_output: { dims: [1, 88], data: tensor.data, float32ByteSha256: tensor.byteSha256 },
+            },
+          },
+          {
+            windowId: 'win_1', // Duplicate!
+            contextProfileId: 'ctx_1',
+            inputSampleCount: 16000,
+            rawOutputs: {
+              frame_output: { dims: [1, 88], data: tensor.data, float32ByteSha256: tensor.byteSha256 },
+              reg_onset_output: { dims: [1, 88], data: tensor.data, float32ByteSha256: tensor.byteSha256 },
+            },
+          },
+        ],
+      }, expectedWindows)).toThrow(/DUPLICATE_WINDOW_IN_RAW_CACHE:win_1/);
+
+      // Missing window fails
+      expect(() => validateRobustByteDanceRawCacheStrict({
+        chunks: [
+          {
+            windowId: 'win_1',
+            contextProfileId: 'ctx_1',
+            inputSampleCount: 16000,
+            rawOutputs: {
+              frame_output: { dims: [1, 88], data: tensor.data, float32ByteSha256: tensor.byteSha256 },
+              reg_onset_output: { dims: [1, 88], data: tensor.data, float32ByteSha256: tensor.byteSha256 },
+            },
+          },
+        ],
+      }, expectedWindows)).toThrow(/ROBUST_BYTEDANCE_RAW_CACHE_WINDOW_COUNT_MISMATCH/);
+    });
+
+    it('Case 4: changed transcription note values with stale digest fails', () => {
+      const originalNotes = [
+        { pitch: 'C4', midiPitch: 60, onsetTimeMs: 100, offsetTimeMs: 500, velocity: 64 },
+        { pitch: 'E4', midiPitch: 64, onsetTimeMs: 200, offsetTimeMs: 600, velocity: 70 },
+      ];
+      const validDigest = computeCanonicalTranscriptionNotesDigest(originalNotes);
+
+      // Mutate one note's pitch or onset
+      const alteredNotes = [
+        { pitch: 'C#4', midiPitch: 61, onsetTimeMs: 100, offsetTimeMs: 500, velocity: 64 },
+        { pitch: 'E4', midiPitch: 64, onsetTimeMs: 200, offsetTimeMs: 600, velocity: 70 },
+      ];
+
+      expect(() => validateTranscriptionRawCacheStrict({
+        transcriptions: {
+          'scenario_1': {
+            audioSha256: 'audio_sha_123',
+            notes: alteredNotes,
+          },
+        },
+      }, [{
+        audioKey: 'scenario_1',
+        expectedAudioSha256: 'audio_sha_123',
+        expectedNotesDigest: validDigest, // Stale digest!
+      }])).toThrow(/TRANSCRIPTION_NOTES_DIGEST_MISMATCH:scenario_1/);
+
+      // Altered audio SHA also fails
+      expect(() => validateTranscriptionRawCacheStrict({
+        transcriptions: {
+          'scenario_1': {
+            audioSha256: 'altered_audio_sha',
+            notes: originalNotes,
+          },
+        },
+      }, [{
+        audioKey: 'scenario_1',
+        expectedAudioSha256: 'audio_sha_123',
+      }])).toThrow(/AUDIO_SHA_MISMATCH:scenario_1/);
+    });
+
+    it('Case 5: eligible=false scenario entering profile scoring fails', () => {
+      const eligibilityList = [
+        { scenarioId: 'sc_valid', candidateFamily: 'bytedance-robust-augmented' as const, isEligible: true, preRollMs: 8000, postRollMs: 5000, requiredWindowMs: 10000, contextProfileId: 'CALIBRATED_CONTEXT_10S' },
+        { scenarioId: 'vienna-secondary-base:Mozart_K331_1st-mov_p11:15.000', candidateFamily: 'bytedance-robust-augmented' as const, isEligible: false, preRollMs: 7430, postRollMs: 5000, requiredWindowMs: 10000, contextProfileId: 'CALIBRATED_CONTEXT_10S' },
+      ];
+
+      // Passing ineligible Mozart into CALIBRATED_CONTEXT_10S scoring fails closed
+      expect(() => assertNoIneligibleScenarioInProfileScoring(
+        'CALIBRATED_CONTEXT_10S',
+        [{ scenarioId: 'sc_valid' }, { scenarioId: 'vienna-secondary-base:Mozart_K331_1st-mov_p11:15.000' }],
+        eligibilityList,
+      )).toThrow(/INELIGIBLE_SCENARIO_ENTERED_PROFILE_SCORING:CALIBRATED_CONTEXT_10S:vienna-secondary-base:Mozart_K331_1st-mov_p11:15.000/);
+
+      // Passing only eligible scenarios passes
+      expect(() => assertNoIneligibleScenarioInProfileScoring(
+        'CALIBRATED_CONTEXT_10S',
+        [{ scenarioId: 'sc_valid' }],
+        eligibilityList,
+      )).not.toThrow();
+    });
+
+    it('Case 6: BASE/counterfactual eligibility divergence fails', () => {
+      const baseElig = [
+        { scenarioId: 'sc_base', candidateFamily: 'bytedance-robust-augmented' as const, isEligible: true, preRollMs: 8000, postRollMs: 4000, requiredWindowMs: 5000 },
+      ];
+      const divergentCfElig = [
+        { scenarioId: 'sc_cf_missing', candidateFamily: 'bytedance-robust-augmented' as const, isEligible: false, preRollMs: 8000, postRollMs: 4000, requiredWindowMs: 5000 },
+      ];
+
+      expect(() => assertContextEligibilityScoreIndependent(baseElig, divergentCfElig)).toThrow(
+        /CONTEXT_ELIGIBILITY_ALTERED_BY_COUNTERFACTUAL:sc_base/
+      );
+    });
+
+    it('Case 7: score-dependent removal of off-score/repeated notes fails', () => {
+      const unfilteredObservations = [
+        { observationId: 'obs_1', pitch: 'C4', performanceTimeMs: 100, confidence: 0.9 },
+        { observationId: 'obs_2', pitch: 'C#4', performanceTimeMs: 150, confidence: 0.8 }, // Off-score note
+      ];
+      const scorePrunedObservations = [
+        { observationId: 'obs_1', pitch: 'C4', performanceTimeMs: 100, confidence: 0.9 }, // Off-score note filtered out!
+      ];
+      const expectedScorePitches = new Set(['C4', 'E4', 'G4']);
+
+      expect(() => assertScoreIndependencePreservesOffScoreNotes(
+        unfilteredObservations,
+        scorePrunedObservations,
+        expectedScorePitches,
+      )).toThrow(/SCORE_DEPENDENT_OFF_SCORE_PRUNING_DETECTED/);
+    });
+
+    it('Case 8: altered confidence with identical pitch/onset fails deterministic audit', () => {
+      const baseRun = {
+        scenarioId: 'base_1',
+        candidateId: 'cand_1',
+        publications: [{
+          publicationId: 'pub_1',
+          availabilityTimeMs: 1000,
+          analyzedThroughPerformanceMs: 1000,
+          observations: [{ observationId: 'obs_base_1', pitch: 'C4', performanceTimeMs: 500, confidence: 0.92 }],
+        }],
+      };
+      // Counterfactual run has identical pitch and performance time, but confidence was perturbed
+      const cfRun = {
+        scenarioId: 'cf_1',
+        candidateId: 'cand_1',
+        publications: [{
+          publicationId: 'pub_1',
+          availabilityTimeMs: 1000,
+          analyzedThroughPerformanceMs: 1000,
+          observations: [{ observationId: 'obs_cf_1', pitch: 'C4', performanceTimeMs: 500, confidence: 0.45 }],
+        }],
+      };
+      const pairMap = new Map([['cf_1', 'base_1']]);
+
+      expect(() => assertAcousticEvidenceScoreIndependentDeterministic([baseRun], [cfRun], pairMap))
+        .toThrow(/SCORE_INDEPENDENCE_DIGEST_MISMATCH:cf_1/);
+    });
+
+    it('Case 9: missing score-independence audit pairs fails', () => {
+      const pairMap = new Map([
+        ['cf_1', 'base_1'],
+        ['cf_2', 'base_2'], // base_2 missing from baseRuns!
+      ]);
+      const baseRuns = [{
+        scenarioId: 'base_1',
+        candidateId: 'cand_1',
+        publications: [{
+          publicationId: 'pub_1',
+          availabilityTimeMs: 1000,
+          analyzedThroughPerformanceMs: 1000,
+          observations: [{ observationId: 'obs_base_1', pitch: 'C4', performanceTimeMs: 500, confidence: 0.9 }],
+        }],
+      }];
+      const cfRuns = [
+        {
+          scenarioId: 'cf_1',
+          candidateId: 'cand_1',
+          publications: [{
+            publicationId: 'pub_1',
+            availabilityTimeMs: 1000,
+            analyzedThroughPerformanceMs: 1000,
+            observations: [{ observationId: 'obs_cf_1', pitch: 'C4', performanceTimeMs: 500, confidence: 0.9 }],
+          }],
+        },
+        {
+          scenarioId: 'cf_2',
+          candidateId: 'cand_1',
+          publications: [],
+        },
+      ];
+
+      expect(() => assertAcousticEvidenceScoreIndependentDeterministic(baseRuns, cfRuns, pairMap))
+        .toThrow(/MISSING_SCORE_INDEPENDENCE_AUDIT_PAIR:cf_2/);
+    });
+
+    it('Case 10: 72 total scenarios being mislabeled as 72 valid paired scores fails', () => {
+      const mislabeledRecord = {
+        candidateA: 'bytedance-robust-augmented-calibrated-v1',
+        candidateB: 'transkun-v2-aug-calibrated-v1',
+        status: 'MEASURED' as const,
+        totalCalibrationScenarios: 72,
+        mutuallyEligibleScenarioCount: 61,
+        metricSpecificValidPairedCount: 72, // Mislabeled! Cannot have 72 valid paired scores when only 61 mutually eligible
+      };
+
+      expect(() => assertPairwiseMatrixDenominatorsValid(mislabeledRecord))
+        .toThrow(/INVALID_PAIRED_SAMPLE_COUNT_MISLABELED_AS_TOTAL_SCENARIOS/);
+
+      // Correct denominators pass
+      const correctRecord = {
+        ...mislabeledRecord,
+        metricSpecificValidPairedCount: 61,
+      };
+      expect(() => assertPairwiseMatrixDenominatorsValid(correctRecord)).not.toThrow();
+    });
+
+    it('Case 11: statistically detectable but below-threshold difference being called a meaningful winner fails', () => {
+      // 0.458 percentage point difference (0.00458) with CI excluding zero [0.001, 0.008], below 1.0% threshold (0.01)
+      const classification = classifyMetricPairwiseComparison(0.00458, { low: 0.001, high: 0.008 }, 0.01);
+      expect(classification).toBe('DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD');
+
+      // Claiming a cross-family winner on below-threshold difference fails closed
+      expect(() => assertNoBelowThresholdCrossFamilyWinner(classification, true))
+        .toThrow(/MEANINGLESS_EFFECT_CANNOT_BE_CROSS_FAMILY_WINNER/);
+
+      // Not claiming a winner passes
+      expect(() => assertNoBelowThresholdCrossFamilyWinner(classification, false)).not.toThrow();
+    });
+
+    it('Case 12: an unqualified candidate being locked by changing only a status string fails', () => {
+      const unqualifiedCandidate = {
+        candidateFamily: 'rtt',
+        candidateId: 'rtt-v1',
+        scientificCalibrationValidity: 'INVALID' as const,
+        eligibilityForResearchBlindComparison: 'RESEARCH_REFERENCE_ONLY' as const,
+        causalLiveRuntimeCompatibility: 'OFFLINE_SEGMENTWISE_INCOMPATIBLE' as const,
+        productionCheckpointLicensing: 'RESEARCH_VALID_PRODUCTION_LICENSE_BLOCKED' as const,
+        finalProductionSelectionEligibility: 'INELIGIBLE' as const,
+        qualificationStatus: 'CALIBRATED_AND_LOCKED_FOR_RESEARCH', // Fraudulent status string!
+        lockedForPhase9gB: true,
+      };
+
+      expect(() => assertCandidateMultiDimensionalQualification(unqualifiedCandidate))
+        .toThrow(/UNQUALIFIED_CANDIDATE_CANNOT_BE_LOCKED_FOR_PHASE_9G_B:rtt/);
+    });
+
+    it('Case 13: missing protocol SHA being accepted by an inference guard fails', () => {
+      // Missing protocol SHA fails closed
+      expect(() => assertChallengerQualificationPolicyIdentity({
+        policyId: PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2,
+        schemaVersion: 2,
+        sha256: undefined,
+      })).toThrow(/CHALLENGER_QUALIFICATION_POLICY_SHA_REQUIRED/);
+
+      // Missing calibration manifest SHA fails closed
+      expect(() => assertChallengerExecutionAllowed(validRequest({
+        calibrationManifestSha256: undefined,
+      }))).toThrow(/CALIBRATION_MANIFEST_SHA_REQUIRED/);
+    });
+
+    it('Case 14: Phase constants and observation digest helper are well-defined', () => {
+      expect(PHASE_9GA31).toBe('9G-A.3.1');
+      expect(PHASE_9GA32).toBe('9G-A.3.2');
+      const testRun: CandidateScenarioRun = {
+        candidateId: 'test-c',
+        scenarioId: 'test-s',
+        publications: [
+          {
+            publicationId: 'p1',
+            analyzedThroughPerformanceMs: 100,
+            observations: [
+              { observationId: 'o1', pitch: 'C4', performanceTimeMs: 100, confidence: 0.9 },
+            ],
+          },
+        ],
+      };
+      const digest1 = computeCanonicalAcousticObservationDigest(testRun);
+      const digest2 = computeCanonicalAcousticObservationDigest(testRun);
+      expect(digest1).toBe(digest2);
+    });
+  });
 });
+
 

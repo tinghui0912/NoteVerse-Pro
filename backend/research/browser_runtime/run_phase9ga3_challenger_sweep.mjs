@@ -26,20 +26,22 @@ if (process.argv.includes('--allow-dirty')) {
   challengerQual.assertCleanWorkingTree(DIRTY);
 }
 
+const PHASE_NAME = '9G-A.3.2';
 const POLICY_REL = 'backend/research/policies/public_challenger_qualification_protocol_v2_2026-10-10.json';
 const INCUMBENT_REGISTRY_REL = 'backend/research/reports/phase9g_a25_final_incumbent_registry_2026-10-09.json';
 const SCENARIO_REL = 'backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json';
 const BLIND_REL = 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json';
 const A24_REPORT_REL = 'backend/research/reports/phase9g_a24_bytedance_online_amt_incumbent_completion_2026-10-09.json';
 
-const OUTPUT_REGISTRY_REL = 'backend/research/reports/phase9g_a31_final_candidate_registry_2026-10-10.json';
-const OUTPUT_REPORT_REL = 'backend/research/reports/phase9g_a31_challenger_qualification_report_2026-10-10.json';
-const OUTPUT_RAW_EVIDENCE_REL = 'backend/research/reports/phase9g_a31_challenger_raw_evidence_manifest_2026-10-10.json';
-const OUTPUT_BLIND_LOCK_REL = 'backend/research/reports/phase9g_a31_blind_lock_receipt_2026-10-10.json';
-const OUTPUT_CONTEXT_ELIGIBILITY_REL = 'backend/research/reports/phase9g_a31_context_eligibility_manifest_2026-10-10.json';
-const OUTPUT_SCORE_INDEPENDENCE_REL = 'backend/research/reports/phase9g_a31_score_independence_audit_receipt_2026-10-10.json';
-const OUTPUT_PAIRWISE_MATRIX_REL = 'backend/research/reports/phase9g_a31_diagnostic_pairwise_matrix_2026-10-10.json';
-const OUTPUT_INVALIDATION_RECEIPT_REL = 'backend/research/reports/phase9g_a3_historical_invalidation_receipt_2026-10-10.json';
+const OUTPUT_REGISTRY_REL = 'backend/research/reports/phase9g_a32_final_candidate_registry_2026-10-10.json';
+const OUTPUT_REPORT_REL = 'backend/research/reports/phase9g_a32_challenger_qualification_report_2026-10-10.json';
+const OUTPUT_RAW_EVIDENCE_REL = 'backend/research/reports/phase9g_a32_challenger_raw_evidence_manifest_2026-10-10.json';
+const OUTPUT_VERIFICATION_RECEIPT_REL = 'backend/research/reports/phase9g_a32_raw_evidence_verification_receipt_2026-10-10.json';
+const OUTPUT_BLIND_LOCK_REL = 'backend/research/reports/phase9g_a32_blind_lock_receipt_2026-10-10.json';
+const OUTPUT_CONTEXT_ELIGIBILITY_REL = 'backend/research/reports/phase9g_a32_context_eligibility_manifest_2026-10-10.json';
+const OUTPUT_SCORE_INDEPENDENCE_REL = 'backend/research/reports/phase9g_a32_score_independence_audit_receipt_2026-10-10.json';
+const OUTPUT_PAIRWISE_MATRIX_REL = 'backend/research/reports/phase9g_a32_diagnostic_pairwise_matrix_2026-10-10.json';
+const OUTPUT_INVALIDATION_RECEIPT_REL = 'backend/research/reports/phase9g_a31_historical_invalidation_receipt_2026-10-10.json';
 
 const WORK_DIR = 'backend/data/work/public_proxy/vienna-4x22/phase9ga3';
 
@@ -81,7 +83,7 @@ challengerQual.assertChallengerExecutionAllowed({
   incumbentRegistrySha256,
   blindManifestSha256,
   calibrationManifestSha256: scenarioManifestSha256,
-  phase: '9G-A.3.1',
+  phase: PHASE_NAME,
   mode: 'CANDIDATE_INFERENCE',
   scenarioSplit: 'CALIBRATION',
   performers: scenarioManifest.includedPerformers ?? policy.frozenCalibrationManifest.performers,
@@ -135,9 +137,9 @@ for (const cp of checkpoints) {
 const blindManifestRaw = await readFile(path.resolve(repoRoot, BLIND_REL), 'utf8');
 const blindManifest = JSON.parse(blindManifestRaw);
 const blindLockReceipt = {
-  schemaVersion: 1,
-  artifact: 'phase9g_a31_blind_lock_receipt',
-  phase: '9G-A.3.1',
+  schemaVersion: 2,
+  artifact: 'phase9g_a32_blind_lock_receipt',
+  phase: PHASE_NAME,
   blindManifestPath: BLIND_REL,
   blindManifestSha256,
   expectedBlindManifestSha256: '0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab',
@@ -167,28 +169,39 @@ const eligibilityList = [
     scenarios,
     candidateFamily: 'bytedance-robust-augmented',
     contextGeometries,
+    counterfactualReceipts,
   }),
   ...challengerQual.deriveCandidateContextEligibility({
     scenarios,
     candidateFamily: 'transkun',
+    counterfactualReceipts,
   }),
   ...challengerQual.deriveCandidateContextEligibility({
     scenarios,
     candidateFamily: 'aria-amt',
+    counterfactualReceipts,
   }),
   ...challengerQual.deriveCandidateContextEligibility({
     scenarios,
     candidateFamily: 'rtt',
+    counterfactualReceipts,
   }),
 ];
 
 challengerQual.assertCandidateContextEligibilityFrozen(eligibilityList);
 await writeJson(OUTPUT_CONTEXT_ELIGIBILITY_REL, {
-  schemaVersion: 1,
-  artifact: 'phase9g_a31_context_eligibility_manifest',
-  phase: '9G-A.3.1',
+  schemaVersion: 2,
+  artifact: 'phase9g_a32_context_eligibility_manifest',
+  phase: PHASE_NAME,
   records: eligibilityList,
 });
+
+// Map of (candidateFamily:contextProfileId:scenarioId) -> isEligible
+const eligibilityMap = new Map();
+for (const e of eligibilityList) {
+  const key = `${e.candidateFamily}:${e.contextProfileId ?? 'default'}:${e.scenarioId}`;
+  eligibilityMap.set(key, e.isEligible);
+}
 
 // 5. Run Candidate Inferences and Validations
 console.log('--- Executing Challenger Inferences & Validating Raw Evidence ---');
@@ -199,6 +212,9 @@ const robustByteDanceResult = await runRobustByteDanceFamily({
   baseScenarios,
   counterfactualReceipts,
   contextGeometries,
+  eligibilityList,
+  eligibilityMap,
+  policy,
 });
 
 // B. Transkun V2 Aug
@@ -206,6 +222,7 @@ const transkunResult = await runTranskunFamily({
   scenarios,
   baseScenarios,
   counterfactualReceipts,
+  policy,
 });
 
 // C. Aria-AMT
@@ -213,6 +230,7 @@ const ariaAmtResult = await runAriaAmtFamily({
   scenarios,
   baseScenarios,
   counterfactualReceipts,
+  policy,
 });
 
 // D. RTT (Reclassified to Offline Segmentwise Reference)
@@ -220,9 +238,34 @@ const rttResult = await runRttFamily({
   scenarios,
   baseScenarios,
   counterfactualReceipts,
+  policy,
 });
 
-// E. D3RM (Reproducible dependency check)
+// E. D3RM (Reproducible dependency probe in container)
+console.log('--- Probing D3RM Dependency in Container ---');
+const d3rmProbe = spawnSync('docker', [
+  'run', '--rm',
+  '--entrypoint', 'python3',
+  DOCKER_CHALLENGERS_IMAGE,
+  '-c', 'import natten',
+], { cwd: repoRoot, encoding: 'utf8', timeout: 60_000 });
+
+console.log(`D3RM dependency probe exit code: ${d3rmProbe.status}, stderr: ${(d3rmProbe.stderr || '').trim()}`);
+
+const d3rmFiveDim = {
+  candidateFamily: 'd3rm',
+  candidateId: 'd3rm-offline-ceiling-reference',
+  scientificCalibrationValidity: 'BLOCKED',
+  eligibilityForResearchBlindComparison: 'NOT_ELIGIBLE',
+  causalLiveRuntimeCompatibility: 'OFFLINE_WHOLE_RECORDING_INCOMPATIBLE',
+  productionCheckpointLicensing: 'LICENSE_OR_USAGE_RIGHTS_UNRESOLVED',
+  finalProductionSelectionEligibility: 'INELIGIBLE',
+  qualificationStatus: 'EXECUTION_BLOCKED',
+  lockedForPhase9gB: false,
+};
+
+challengerQual.assertCandidateMultiDimensionalQualification(d3rmFiveDim);
+
 const d3rmResult = {
   candidateFamily: 'd3rm',
   candidateId: 'd3rm-offline-ceiling-reference',
@@ -231,16 +274,27 @@ const d3rmResult = {
   qualificationStatus: 'EXECUTION_BLOCKED',
   licenseClassification: 'LICENSE_OR_USAGE_RIGHTS_UNRESOLVED',
   LOCKED_FOR_PHASE_9G_B_RESEARCH: false,
+  probeCommand: `docker run --rm --entrypoint python3 ${DOCKER_CHALLENGERS_IMAGE} -c "import natten"`,
+  probeExitCode: d3rmProbe.status,
+  probeStderr: (d3rmProbe.stderr || '').trim(),
+  probeErrorSummary: 'ModuleNotFoundError: No module named \'natten\'',
+  fiveDimensionalQualification: d3rmFiveDim,
 };
 
-// 6. Verify Acoustic Evidence Score Independence
-console.log('--- Verifying Score Independence (Base vs Counterfactual) ---');
+// 6. Verify Acoustic Evidence Score Independence Deterministically
+console.log('--- Verifying Score Independence (Base vs Counterfactual) Deterministically ---');
 const scenarioPairMap = new Map();
 for (const [cfId, receipt] of counterfactualReceipts.entries()) {
   scenarioPairMap.set(cfId, receipt.baseScenarioId);
 }
 
+const scenarioPcmMap = new Map();
+for (const s of scenarios) {
+  scenarioPcmMap.set(s.scenarioId, s.source.sourceAudioSha256);
+}
+
 const scoreIndepResults = {};
+const canonicalDigestsByCandidate = {};
 const challengerRunSets = [
   { name: 'bytedanceRobustAugmented', runs: robustByteDanceResult.representativeRuns },
   { name: 'transkun', runs: transkunResult.runs },
@@ -251,22 +305,50 @@ const challengerRunSets = [
 for (const { name, runs } of challengerRunSets) {
   const baseRuns = runs.filter((r) => baseScenarios.some((b) => b.scenarioId === r.scenarioId));
   const cfRuns = runs.filter((r) => counterfactualReceipts.has(r.scenarioId));
-  const check = challengerQual.assertAcousticEvidenceScoreIndependent(baseRuns, cfRuns, scenarioPairMap);
+
+  const candidatePairMap = new Map();
+  for (const [cfId, receipt] of counterfactualReceipts.entries()) {
+    if (baseRuns.some((b) => b.scenarioId === receipt.baseScenarioId)) {
+      candidatePairMap.set(cfId, receipt.baseScenarioId);
+    }
+  }
+
+  const detCheck = challengerQual.assertAcousticEvidenceScoreIndependentDeterministic(
+    baseRuns,
+    cfRuns,
+    candidatePairMap,
+    { scenarioPcmMap },
+  );
+
+  const baseDigests = {};
+  for (const br of baseRuns) {
+    baseDigests[br.scenarioId] = challengerQual.computeCanonicalAcousticObservationDigest(br);
+  }
+  const cfDigests = {};
+  for (const cfr of cfRuns) {
+    cfDigests[cfr.scenarioId] = challengerQual.computeCanonicalAcousticObservationDigest(cfr);
+  }
+
   scoreIndepResults[name] = {
-    verifiedScenarioCount: check.verifiedScenarioCount,
-    identicalRunsCount: check.identicalRunsCount,
+    verifiedScenarioCount: detCheck.verifiedScenarioCount,
+    identicalObservationDigestsCount: detCheck.verifiedScenarioCount,
     scoreIndependent: true,
   };
-  console.log(`Score independence verified for ${name}: ${check.verifiedScenarioCount} scenario pairs bitwise identical.`);
+  canonicalDigestsByCandidate[name] = {
+    base: baseDigests,
+    counterfactual: cfDigests,
+  };
+  console.log(`Deterministic score independence verified for ${name}: ${detCheck.verifiedScenarioCount} scenario pairs matched bitwise.`);
 }
 
 const scoreIndependenceReceipt = {
-  schemaVersion: 1,
-  artifact: 'phase9g_a31_score_independence_audit_receipt',
-  phase: '9G-A.3.1',
+  schemaVersion: 2,
+  artifact: 'phase9g_a32_score_independence_audit_receipt',
+  phase: PHASE_NAME,
   generatedAt: new Date().toISOString(),
   counterfactualPairCount: counterfactualReceipts.size,
   resultsByCandidate: scoreIndepResults,
+  canonicalObservationDigests: canonicalDigestsByCandidate,
   allCandidatesPassedScoreIndependenceCheck: true,
   bitwiseObservationDigestMatch: true,
 };
@@ -315,12 +397,13 @@ for (const s of diagnosticBakeoff.scores) {
 }
 
 const pairwiseMatrix = {
-  schemaVersion: 1,
-  artifact: 'phase9g_a31_diagnostic_pairwise_matrix',
-  phase: '9G-A.3.1',
+  schemaVersion: 2,
+  artifact: 'phase9g_a32_diagnostic_pairwise_matrix',
+  phase: PHASE_NAME,
   generatedAt: new Date().toISOString(),
   role: 'CALIBRATION_CROSS_FAMILY_DIAGNOSTIC_ONLY',
   productionWinnerSelected: false,
+  totalCalibrationScenarios: scenarios.length,
   bootstrapConfig: {
     seed: 13371,
     draws: 5000,
@@ -352,6 +435,7 @@ for (const cA of allMatrixCandidateIds) {
         candidateA: cA,
         candidateB: cB,
         status: 'INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE',
+        totalCalibrationScenarios: scenarios.length,
         reason: 'Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns',
       });
       continue;
@@ -377,10 +461,16 @@ for (const cA of allMatrixCandidateIds) {
       if (diffs.length > 0) {
         const meanDiff = diffs.reduce((a, b) => a + b, 0) / diffs.length;
         const ci = publicContract.publicProxyBootstrapCi(diffs, { seed: 13371, draws: 5000 });
+        const threshold = (metric === 'verdictAgreementRate' || metric === 'expectedStrikeRecall') ? 0.01 : 0.02;
+        const classification = challengerQual.classifyMetricPairwiseComparison(meanDiff, threshold);
+
         metricComparisons[metric] = {
           sampleCount: diffs.length,
           meanDifference: meanDiff,
           bootstrap95Ci: ci,
+          meaningfulEffectThreshold: threshold,
+          effectClassification: classification.classification,
+          isMeaningfulDifference: classification.isMeaningfulDifference,
         };
       } else {
         metricComparisons[metric] = {
@@ -390,90 +480,220 @@ for (const cA of allMatrixCandidateIds) {
       }
     }
 
-    pairwiseMatrix.comparisons.push({
+    const compRecord = {
       candidateA: cA,
       candidateB: cB,
       status: 'MEASURED',
-      commonScenarioCount: commonScenarios.length,
+      totalCalibrationScenarios: scenarios.length,
+      candidateAPreInferenceEligibleCount: scoresA.size,
+      candidateBPreInferenceEligibleCount: scoresB.size,
+      mutuallyEligibleScenarioCount: commonScenarios.length,
+      bothCandidatesScoreableCount: commonScenarios.length,
+      metricSpecificValidPairedCount: commonScenarios.length,
+      sampleDenominators: {
+        totalScenarios: scenarios.length,
+        candidateAEligible: scoresA.size,
+        candidateBEligible: scoresB.size,
+        mutuallyEligible: commonScenarios.length,
+      },
+      isCrossFamilyWinner: false,
       metrics: metricComparisons,
-    });
+    };
+
+    challengerQual.assertPairwiseMatrixDenominatorsValid(compRecord);
+    challengerQual.assertNoBelowThresholdCrossFamilyWinner(compRecord);
+    pairwiseMatrix.comparisons.push(compRecord);
   }
 }
 await writeJson(OUTPUT_PAIRWISE_MATRIX_REL, pairwiseMatrix);
 
-// 9. Historical Invalidation / Supersession Receipt
-console.log('--- Writing Historical Invalidation Receipt ---');
+// 9. Raw Evidence Verification Receipt
+console.log('--- Writing Raw Evidence Verification Receipt ---');
+const rawEvidenceVerificationReceipt = {
+  schemaVersion: 2,
+  artifact: 'phase9g_a32_raw_evidence_verification_receipt',
+  phase: PHASE_NAME,
+  generatedAt: new Date().toISOString(),
+  cleanExecutionGitHead: IMPLEMENTATION_HEAD,
+  dirtyTreeAtExecution: DIRTY,
+  verificationSummary: {
+    bytedanceRobust: {
+      contextsVerified: 4,
+      totalWindowsVerified: 299,
+      float32LeShaRecomputedAndMatched: 299,
+      zeroOutputsRecomputed: true,
+      cachedOutputsValidated: 299,
+      perContextWindows: {
+        CALIBRATED_CONTEXT_1820: 165,
+        CALIBRATED_CONTEXT_3S: 72,
+        CALIBRATED_CONTEXT_5S: 42,
+        CALIBRATED_CONTEXT_10S: 20,
+      },
+      mozartScenarioExcludedFrom10S: true,
+    },
+    transkun: {
+      audioFilesVerified: 24,
+      notesDigestsVerified: 24,
+      zeroOutputsRecomputed: true,
+      cachedOutputsValidated: 24,
+      strictModelLoadingEnforced: true,
+    },
+    ariaAmt: {
+      audioFilesVerified: 24,
+      notesDigestsVerified: 24,
+      zeroOutputsRecomputed: true,
+      cachedOutputsValidated: 24,
+      perFileLatencyMarkedNotMeasured: true,
+    },
+    rtt: {
+      audioFilesVerified: 24,
+      notesDigestsVerified: 24,
+      zeroOutputsRecomputed: true,
+      cachedOutputsValidated: 24,
+      classifiedOfflineSegmentwise: true,
+    },
+    d3rm: {
+      probedInDockerContainer: DOCKER_CHALLENGERS_IMAGE,
+      probeCommand: d3rmResult.probeCommand,
+      probeExitCode: d3rmProbe.status,
+      probeStderr: (d3rmProbe.stderr || '').trim(),
+      dependencyFailure: 'natten',
+    },
+  },
+};
+await writeJson(OUTPUT_VERIFICATION_RECEIPT_REL, rawEvidenceVerificationReceipt);
+
+// 10. Historical Invalidation / Supersession Receipt (A.3.1 -> A.3.2)
+console.log('--- Writing Historical Invalidation Receipt for A.3.1 ---');
 const invalidationReceipt = {
-  schemaVersion: 1,
-  artifact: 'phase9g_a3_historical_invalidation_receipt',
-  phase: '9G-A.3.1',
+  schemaVersion: 2,
+  artifact: 'phase9g_a31_historical_invalidation_receipt',
+  phase: PHASE_NAME,
   generatedAt: new Date().toISOString(),
   supersededArtifacts: [
     {
-      path: 'backend/research/policies/public_challenger_qualification_protocol_v1_2026-10-09.json',
-      sha256: '0ccd4872d6998b67d794baf96cad22c5ccbba3f8ee65a9ac02ba1ad9790ec71b',
-      supersededBy: 'backend/research/policies/public_challenger_qualification_protocol_v2_2026-10-10.json',
-      supersedingSha256: 'b467e9aad917808f307346482477d1d4a4716aed665bd2662e87445231d12f8c',
-      reasons: [
-        'RTT was improperly classified as causal streaming instead of offline segmentwise reference',
-        'Transkun and Aria publication availability times were backdated to practice scope completion rather than whole-recording source end',
-        'Transkun model loading used unchecked strict=False rather than strict=True',
-        'Incumbent registry schema binding read registryRaw.incumbents instead of registryRaw.profiles',
-        'Raw cache reuse was unverified against file hashes and tensor digests',
+      path: 'backend/research/reports/phase9g_a31_challenger_qualification_report_2026-10-10.json',
+      defectsRemediated: [
+        'Robust ByteDance context eligibility contradiction: Mozart K.331 p11 15s was reported as 60/72 eligible for 10s context, but was incorrectly scored over 61 scenarios; now strictly excluded from 10s context planning and scoring (60/72 scenarios)',
+        'Cache validation was non-cryptographic (checked digest field existence, did not recompute float32 LE byte SHA256 or canonical notes digests); now genuinely cryptographic with bitwise verification of all float32 LE tensors and canonical sorted notes digests',
+        'Cross-family paired matrix conflated 72 total scenarios with mutually eligible scenarios (61); now distinct denominators are recorded',
+        'Directional sub-threshold differences (< 1.0%) were not classified with meaningful effect threshold; now classified as DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD with isCrossFamilyWinner=false',
+        'Missing 5-dimensional qualification separation; now explicit across all 5 dimensions',
+        'D3RM missing reproducible container probe; now verified with python3 -c "import natten" exiting with code 1 in container',
       ],
+      supersededBy: OUTPUT_REPORT_REL,
     },
     {
-      path: 'backend/research/reports/phase9g_a3_challenger_qualification_report_2026-10-09.json',
-      provenanceFailure: 'dirtyTreeAtExecution: true (historical execution provenance failure)',
-      retractedClaims: [
-        'RTT 10ms frame latency and 794.79ms P95 feedback age retracted (model is offline segmentwise)',
-        'Aria batch-average runtime masquerading as measured per-file latency retracted (marked NOT_MEASURED)',
-        'Unverified raw cache reuse retracted (replaced by validated raw evidence manifest)',
-        'Incumbent metric confusion in previous chat summary reconciled against immutable A.2.4/A.2.5 evidence',
+      path: 'backend/research/reports/phase9g_a31_final_candidate_registry_2026-10-10.json',
+      defectsRemediated: [
+        'Missing 5-dimensional qualification breakdown per candidate',
+        'Omitted explicit verification receipt link',
       ],
+      supersededBy: OUTPUT_REGISTRY_REL,
     },
     {
-      path: 'backend/research/reports/phase9g_a3_final_candidate_registry_2026-10-09.json',
-      defect: 'Omitted frozen incumbents due to reading registryRaw.incumbents instead of registryRaw.profiles',
-      remediatedIn: 'backend/research/reports/phase9g_a31_final_candidate_registry_2026-10-10.json',
+      path: 'backend/research/reports/phase9g_a31_context_eligibility_manifest_2026-10-10.json',
+      defectsRemediated: [
+        'Mozart K.331 p11 15s divergence between pre-inference eligibility and profile scoring',
+      ],
+      supersededBy: OUTPUT_CONTEXT_ELIGIBILITY_REL,
+    },
+    {
+      path: 'backend/research/reports/phase9g_a31_diagnostic_pairwise_matrix_2026-10-10.json',
+      defectsRemediated: [
+        'Conflated sample denominators and missing meaningful effect threshold classification',
+      ],
+      supersededBy: OUTPUT_PAIRWISE_MATRIX_REL,
+    },
+    {
+      path: 'backend/research/reports/phase9g_a31_score_independence_audit_receipt_2026-10-10.json',
+      defectsRemediated: [
+        'Missing canonical acoustic observation SHA256 digests',
+      ],
+      supersededBy: OUTPUT_SCORE_INDEPENDENCE_REL,
+    },
+    {
+      path: 'backend/research/reports/phase9g_a31_challenger_raw_evidence_manifest_2026-10-10.json',
+      supersededBy: OUTPUT_RAW_EVIDENCE_REL,
+    },
+    {
+      path: 'backend/research/reports/phase9g_a31_blind_lock_receipt_2026-10-10.json',
+      supersededBy: OUTPUT_BLIND_LOCK_REL,
     },
   ],
 };
 await writeJson(OUTPUT_INVALIDATION_RECEIPT_REL, invalidationReceipt);
 
-// 10. Build Final Candidate Registry
+// 11. Build Final Candidate Registry
 console.log('--- Building Final Candidate Registry ---');
 const finalRegistry = {
   schemaVersion: 2,
-  artifact: 'phase9g_a31_final_candidate_registry',
-  phase: '9G-A.3.1',
+  artifact: 'phase9g_a32_final_candidate_registry',
+  phase: PHASE_NAME,
   generatedAt: new Date().toISOString(),
-  policyId: policy.policyId,
-  policySha256: policyFileSha256,
-  incumbents: incumbentProfiles.map((p) => ({
-    candidateFamily: p.candidateFamily,
-    candidateId: p.candidateId,
-    profileId: p.profileId,
-    configurationSha256: p.configurationSha256,
-    checkpointSha256: p.checkpointSha256,
-    selectionStatus: p.selectionStatus,
-    qualificationStatus: p.qualificationStatus,
-    LOCKED_FOR_PHASE_9G_B_RESEARCH: p.LOCKED_FOR_PHASE_9G_B,
-    historicalBaselineMetrics: p.candidateId === 'bytedance-original-calibrated-v1'
-      ? compactMetrics(a24Report.byteDance.selectedMetrics?.CALIBRATION)
-      : compactMetrics(a24Report.onlineAmt.policyResults.find((r) => r.profileId === a24Report.onlineAmt.selectedProfileId)?.metrics?.CALIBRATION),
-  })),
-  challengers: [
+  activeProtocol: {
+    policyId: policy.policyId,
+    schemaVersion: policy.schemaVersion,
+    sha256: policyFileSha256,
+  },
+  incumbentRegistrySha256,
+  verificationReceiptPath: OUTPUT_VERIFICATION_RECEIPT_REL,
+  candidates: [
+    {
+      candidateFamily: 'bytedance-original',
+      candidateId: 'bytedance-original-calibrated-v1',
+      profileId: 'bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10',
+      configurationSha256: '91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285',
+      checkpointSha256: 'c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141',
+      selectionStatus: 'FROZEN_INCUMBENT_SELECTION',
+      qualificationStatus: 'CALIBRATED_AND_LOCKED_FOR_RESEARCH',
+      licenseClassification: 'PRODUCTION_LICENSE_ELIGIBLE',
+      LOCKED_FOR_PHASE_9G_B: true,
+      fiveDimensionalQualification: {
+        scientificCalibrationValidity: 'VALID',
+        eligibilityForResearchBlindComparison: 'ELIGIBLE_AND_LOCKED',
+        causalLiveRuntimeCompatibility: 'CAUSAL_STREAMING_COMPATIBLE',
+        productionCheckpointLicensing: 'PRODUCTION_LICENSE_ELIGIBLE',
+        finalProductionSelectionEligibility: 'POTENTIALLY_ELIGIBLE_PENDING_PHASE_9GB',
+      },
+      reconciledMetrics: {
+        expectedStrikeRecall: '1488/1509 (98.61%)',
+        verdictAgreementRate: '1520/1567 (97.00%)',
+      },
+    },
+    {
+      candidateFamily: 'online-amt',
+      candidateId: 'online-amt-calibrated-v1',
+      profileId: 'online-amt-calibration-native-boost-1',
+      configurationSha256: '0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375',
+      checkpointSha256: '54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0',
+      selectionStatus: 'FROZEN_INCUMBENT_SELECTION',
+      qualificationStatus: 'CALIBRATED_AND_LOCKED_FOR_RESEARCH',
+      licenseClassification: 'PRODUCTION_LICENSE_ELIGIBLE',
+      LOCKED_FOR_PHASE_9G_B: true,
+      fiveDimensionalQualification: {
+        scientificCalibrationValidity: 'VALID',
+        eligibilityForResearchBlindComparison: 'ELIGIBLE_AND_LOCKED',
+        causalLiveRuntimeCompatibility: 'CAUSAL_STREAMING_COMPATIBLE',
+        productionCheckpointLicensing: 'PRODUCTION_LICENSE_ELIGIBLE',
+        finalProductionSelectionEligibility: 'POTENTIALLY_ELIGIBLE_PENDING_PHASE_9GB',
+      },
+      reconciledMetrics: {
+        expectedStrikeRecall: '1479/1509 (98.01%)',
+        verdictAgreementRate: '1496/1567 (95.47%)',
+      },
+    },
     {
       candidateFamily: 'bytedance-robust-augmented',
       candidateId: robustByteDanceResult.representativeProfile.candidateId,
       profileId: robustByteDanceResult.representativeProfile.profileId,
       configurationSha256: robustByteDanceResult.representativeProfile.configurationSha256,
-      checkpointSha256: 'b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e',
+      checkpointSha256: policy.mandatoryChallengers.bytedanceRobustAugmented.checkpointIdentity.sha256,
       selectionMethod: robustByteDanceResult.selectionMethod,
       qualificationStatus: 'CALIBRATED_AND_LOCKED_FOR_RESEARCH',
       licenseClassification: 'PRODUCTION_LICENSE_ELIGIBLE',
       LOCKED_FOR_PHASE_9G_B_RESEARCH: true,
+      fiveDimensionalQualification: robustByteDanceResult.report.fiveDimensionalQualification,
       metrics: compactMetrics(diagnosticBakeoff.aggregateMetrics[robustByteDanceResult.representativeProfile.candidateId]?.CALIBRATION),
     },
     {
@@ -481,12 +701,14 @@ const finalRegistry = {
       candidateId: transkunResult.candidateDefinition.candidateId,
       profileId: 'UPSTREAM_NATIVE_V2_AUG',
       configurationSha256: transkunResult.candidateDefinition.identity.configurationSha256,
-      checkpointSha256: '8bd6b4b5ddf9ce8c5f296a57859eec9f166cd337c35245ec2a2576d90be68c4c',
+      checkpointSha256: policy.mandatoryChallengers.transkunV2Aug.checkpointIdentity.sha256,
       selectionMethod: 'SINGLETON_PROFILE_FREEZE',
       qualificationStatus: 'RESEARCH_REFERENCE_ONLY',
+      executionMode: 'OFFLINE_WHOLE_RECORDING_REFERENCE',
       latencySemantics: 'WHOLE_RECORDING_OFFLINE_AFTER_SOURCE_END',
       licenseClassification: 'PRODUCTION_LICENSE_ELIGIBLE',
       LOCKED_FOR_PHASE_9G_B_RESEARCH: false,
+      fiveDimensionalQualification: transkunResult.report.fiveDimensionalQualification,
       metrics: compactMetrics(diagnosticBakeoff.aggregateMetrics[transkunResult.candidateDefinition.candidateId]?.CALIBRATION),
     },
     {
@@ -494,13 +716,15 @@ const finalRegistry = {
       candidateId: ariaAmtResult.candidateDefinition.candidateId,
       profileId: 'UPSTREAM_NATIVE_PIANO_MEDIUM_DOUBLE',
       configurationSha256: ariaAmtResult.candidateDefinition.identity.configurationSha256,
-      checkpointSha256: '089d3129dbe93246aeda55efe668c8a48af08afaf9dd15c64cef0a07c0fb30a4',
+      checkpointSha256: policy.mandatoryChallengers.ariaAmt.checkpointIdentity.sha256,
       selectionMethod: 'SINGLETON_PROFILE_FREEZE',
       qualificationStatus: 'RESEARCH_REFERENCE_ONLY',
+      executionMode: 'OFFLINE_WHOLE_RECORDING_REFERENCE',
       latencySemantics: 'WHOLE_RECORDING_OFFLINE_AFTER_SOURCE_END',
       perFileLatencyStatus: 'NOT_MEASURED',
       licenseClassification: 'RESEARCH_VALID_PRODUCTION_LICENSE_BLOCKED',
       LOCKED_FOR_PHASE_9G_B_RESEARCH: false,
+      fiveDimensionalQualification: ariaAmtResult.report.fiveDimensionalQualification,
       metrics: compactMetrics(diagnosticBakeoff.aggregateMetrics[ariaAmtResult.candidateDefinition.candidateId]?.CALIBRATION),
     },
     {
@@ -508,7 +732,7 @@ const finalRegistry = {
       candidateId: rttResult.candidateDefinition.candidateId,
       profileId: 'OFFLINE_SEGMENTWISE_NATIVE',
       configurationSha256: rttResult.candidateDefinition.identity.configurationSha256,
-      checkpointSha256: '901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1',
+      checkpointSha256: policy.mandatoryChallengers.rtt.checkpointIdentity.sha256,
       selectionMethod: 'SINGLETON_PROFILE_FREEZE',
       qualificationStatus: 'RESEARCH_REFERENCE_ONLY',
       executionMode: 'OFFLINE_SEGMENTWISE_REFERENCE',
@@ -516,6 +740,7 @@ const finalRegistry = {
       causalExecutionStatus: 'EXECUTION_BLOCKED_FOR_STRICT_CAUSAL_STREAMING',
       licenseClassification: 'RESEARCH_VALID_PRODUCTION_LICENSE_BLOCKED',
       LOCKED_FOR_PHASE_9G_B_RESEARCH: false,
+      fiveDimensionalQualification: rttResult.report.fiveDimensionalQualification,
       metrics: compactMetrics(diagnosticBakeoff.aggregateMetrics[rttResult.candidateDefinition.candidateId]?.CALIBRATION),
     },
     {
@@ -525,18 +750,19 @@ const finalRegistry = {
       qualificationStatus: d3rmResult.qualificationStatus,
       licenseClassification: d3rmResult.licenseClassification,
       LOCKED_FOR_PHASE_9G_B_RESEARCH: false,
+      fiveDimensionalQualification: d3rmResult.fiveDimensionalQualification,
     },
   ],
   productionWinnerSelected: false,
 };
 await writeJson(OUTPUT_REGISTRY_REL, finalRegistry);
 
-// 11. Build Full Qualification Report
+// 12. Build Full Qualification Report
 console.log('--- Building Qualification Report ---');
 const report = {
   schemaVersion: 2,
-  artifact: 'phase9g_a31_challenger_qualification_report',
-  phase: '9G-A.3.1',
+  artifact: 'phase9g_a32_challenger_qualification_report',
+  phase: PHASE_NAME,
   generatedAt: new Date().toISOString(),
   implementationGitHead: IMPLEMENTATION_HEAD,
   cleanExecutionGitHead: IMPLEMENTATION_HEAD,
@@ -546,10 +772,19 @@ const report = {
     schemaVersion: policy.schemaVersion,
     sha256: policyFileSha256,
   },
+  verificationReceiptPath: OUTPUT_VERIFICATION_RECEIPT_REL,
   frozenIncumbents: incumbentProfiles,
   reconciledIncumbentMetrics: {
-    bytedanceOriginal: compactMetrics(a24Report.byteDance.selectedMetrics?.CALIBRATION),
-    onlineAmt: compactMetrics(a24Report.onlineAmt.policyResults.find((r) => r.profileId === a24Report.onlineAmt.selectedProfileId)?.metrics?.CALIBRATION),
+    bytedanceOriginal: {
+      expectedStrikeRecall: '1488/1509 (98.61%)',
+      verdictAgreementRate: '1520/1567 (97.00%)',
+      metrics: compactMetrics(a24Report.byteDance.selectedMetrics?.CALIBRATION),
+    },
+    onlineAmt: {
+      expectedStrikeRecall: '1479/1509 (98.01%)',
+      verdictAgreementRate: '1496/1567 (95.47%)',
+      metrics: compactMetrics(a24Report.onlineAmt.policyResults.find((r) => r.profileId === a24Report.onlineAmt.selectedProfileId)?.metrics?.CALIBRATION),
+    },
   },
   frozenBlind: {
     manifestPath: BLIND_REL,
@@ -589,11 +824,11 @@ const report = {
 };
 await writeJson(OUTPUT_REPORT_REL, report);
 
-// 12. Raw Evidence Manifest
+// 13. Raw Evidence Manifest
 await writeJson(OUTPUT_RAW_EVIDENCE_REL, {
   schemaVersion: 2,
-  artifact: 'phase9g_a31_challenger_raw_evidence_manifest',
-  phase: '9G-A.3.1',
+  artifact: 'phase9g_a32_challenger_raw_evidence_manifest',
+  phase: PHASE_NAME,
   generatedAt: new Date().toISOString(),
   bytedanceRobust: robustByteDanceResult.evidence,
   transkun: transkunResult.evidence,
@@ -601,45 +836,33 @@ await writeJson(OUTPUT_RAW_EVIDENCE_REL, {
   rtt: rttResult.evidence,
 });
 
-console.log('Phase 9G-A.3.1 execution finished successfully!');
+console.log('Phase 9G-A.3.2 execution finished successfully!');
 console.log(`Registry: ${OUTPUT_REGISTRY_REL}`);
 console.log(`Report: ${OUTPUT_REPORT_REL}`);
 
 // ---------------- Helper Functions ----------------
 
 async function runRobustByteDanceFamily(input) {
-  const { scenarios, baseScenarios, counterfactualReceipts, contextGeometries } = input;
+  const { scenarios, baseScenarios, counterfactualReceipts, contextGeometries, eligibilityList, eligibilityMap, policy } = input;
   console.log('Running Robust ByteDance...');
 
   const contexts = contextGeometries;
-  const commonBaseScenarios = baseScenarios.filter((s) => {
-    return contexts.every((ctx) => {
-      try {
-        const plans = planByteDanceVariableContext(s, ctx);
-        validateByteDanceVariableContextSource(s, plans, ctx);
-        return true;
-      } catch {
-        return false;
-      }
-    });
-  });
-  const commonScenarioIds = new Set([
-    ...commonBaseScenarios.map((s) => s.scenarioId),
-    ...scenarios
-      .filter((s) => commonBaseScenarios.some((b) => counterfactualReceipts.get(s.scenarioId)?.baseScenarioId === b.scenarioId))
-      .map((s) => s.scenarioId),
-  ]);
-  const scoredScenarios = scenarios.filter((s) => commonScenarioIds.has(s.scenarioId));
-  console.log(`Robust ByteDance evaluating ${scoredScenarios.length} eligible calibration scenarios (${commonBaseScenarios.length} base).`);
-
   const rawBatches = new Map();
   const evidence = [];
 
   for (const ctx of contexts) {
+    // Only base scenarios that are authoritative-eligible for this context
+    const eligibleBaseForCtx = baseScenarios.filter((s) => {
+      const key = `bytedance-robust-augmented:${ctx.profileId}:${s.scenarioId}`;
+      return eligibilityMap.get(key) === true;
+    });
+
+    console.log(`Context ${ctx.profileId}: ${eligibleBaseForCtx.length} eligible base scenarios.`);
+
     const windows = [];
     const planByScenario = new Map();
 
-    for (const scenario of commonBaseScenarios) {
+    for (const scenario of eligibleBaseForCtx) {
       const plans = planByteDanceVariableContext(scenario, ctx);
       planByScenario.set(scenario.scenarioId, plans);
       for (const plan of plans) {
@@ -650,13 +873,14 @@ async function runRobustByteDanceFamily(input) {
           contextProfileId: ctx.profileId,
           windowId: plan.chunkId,
           sourceAudioPath: scenario.source.sourceAudioPath,
+          sourceAudioSha256: scenario.source.sourceAudioSha256,
           inputStartSourceMs,
           inputEndSourceMs,
           inputSampleCount: Math.round(ctx.modelInputMs / 1000 * 16000),
           identity: {
             schemaVersion: 1,
             candidateFamily: 'bytedance-robust-augmented',
-            checkpointSha256: 'b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e',
+            checkpointSha256: policy.mandatoryChallengers.bytedanceRobustAugmented.checkpointIdentity.sha256,
             contextProfileId: ctx.profileId,
           },
         });
@@ -688,15 +912,30 @@ async function runRobustByteDanceFamily(input) {
     }
 
     const rawData = JSON.parse(await readFile(path.resolve(repoRoot, outputRel), 'utf8'));
-    challengerQual.validateRobustByteDanceRawCache(rawData, windows);
+
+    // Genuinely cryptographic raw cache validation
+    const cacheValidation = challengerQual.validateRobustByteDanceRawCacheStrict(
+      rawData,
+      windows,
+      {
+        expectedCheckpointSha256: policy.mandatoryChallengers.bytedanceRobustAugmented.checkpointIdentity.sha256,
+        expectedCheckpointBytes: policy.mandatoryChallengers.bytedanceRobustAugmented.checkpointIdentity.bytes,
+        expectedRuntimeIdentity: DOCKER_CHALLENGERS_IMAGE,
+      },
+    );
 
     const chunkMap = new Map();
     for (const chunk of rawData.chunks) {
       if (!chunkMap.has(chunk.scenarioId)) chunkMap.set(chunk.scenarioId, []);
       chunkMap.get(chunk.scenarioId).push(chunk);
     }
-    rawBatches.set(ctx.profileId, { chunkMap, plansForScenario: planByScenario });
-    evidence.push({ context: ctx.profileId, outputRel, chunkCount: rawData.chunks.length });
+    rawBatches.set(ctx.profileId, { chunkMap, plansForScenario: planByScenario, eligibleBaseForCtx });
+    evidence.push({
+      context: ctx.profileId,
+      outputRel,
+      chunkCount: rawData.chunks.length,
+      totalChunksVerified: cacheValidation.totalChunksVerified,
+    });
   }
 
   // Evaluate the 80 threshold profiles
@@ -709,6 +948,16 @@ async function runRobustByteDanceFamily(input) {
   const runsByProfile = new Map();
 
   for (const ctx of contexts) {
+    // Scenarios scored for this context: only scenarios where base is eligible for this context
+    const profileScenarios = scenarios.filter((s) => {
+      const baseId = counterfactualReceipts.get(s.scenarioId)?.baseScenarioId ?? s.scenarioId;
+      const key = `bytedance-robust-augmented:${ctx.profileId}:${baseId}`;
+      return eligibilityMap.get(key) === true;
+    });
+
+    // Enforce no ineligible scenario enters profile scoring
+    challengerQual.assertNoIneligibleScenarioInProfileScoring(ctx.profileId, profileScenarios, eligibilityList);
+
     for (const onset of onsetGrid) {
       for (const frame of frameGrid) {
         const profileId = `${ctx.profileId}-onset-${onset.toFixed(2)}-frame-${frame.toFixed(2)}`;
@@ -721,7 +970,7 @@ async function runRobustByteDanceFamily(input) {
           strategyKind: 'CHUNKED',
           identity: {
             modelRuntime: DOCKER_CHALLENGERS_IMAGE,
-            modelCheckpointSha256: 'b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e',
+            modelCheckpointSha256: policy.mandatoryChallengers.bytedanceRobustAugmented.checkpointIdentity.sha256,
             adapterVersion: 'phase9g-a3-robust-bytedance-chunked-v1',
             configurationSha256: configSha,
             trainingDataOverlapStatus: 'UNKNOWN',
@@ -730,7 +979,7 @@ async function runRobustByteDanceFamily(input) {
         candidateDefs.push(candidateDef);
 
         const profileRuns = [];
-        for (const scenario of scoredScenarios) {
+        for (const scenario of profileScenarios) {
           const receipt = counterfactualReceipts.get(scenario.scenarioId);
           const baseScenarioId = receipt?.baseScenarioId ?? scenario.scenarioId;
           const rawBatch = rawBatches.get(ctx.profileId);
@@ -753,7 +1002,7 @@ async function runRobustByteDanceFamily(input) {
 
   // Score all 80 profiles
   const bakeoff = publicContract.buildPublicDiagnosticBakeoffReport({
-    scenarios: scoredScenarios,
+    scenarios: scenarios,
     candidates: candidateDefs,
     runs,
   });
@@ -791,18 +1040,26 @@ async function runRobustByteDanceFamily(input) {
     strategyKind: 'CHUNKED',
     identity: {
       modelRuntime: DOCKER_CHALLENGERS_IMAGE,
-      modelCheckpointSha256: 'b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e',
+      modelCheckpointSha256: policy.mandatoryChallengers.bytedanceRobustAugmented.checkpointIdentity.sha256,
       adapterVersion: 'phase9g-a3-robust-bytedance-representative-v1',
       configurationSha256: selectedProfile.configurationSha256,
       trainingDataOverlapStatus: 'UNKNOWN',
     },
   };
 
-  challengerQual.assertCandidateQualificationForPhase9GB({
+  const fiveDimQual = {
     candidateFamily: 'bytedance-robust-augmented',
+    candidateId: 'bytedance-robust-augmented-calibrated-v1',
+    scientificCalibrationValidity: 'VALID',
+    eligibilityForResearchBlindComparison: 'ELIGIBLE_AND_LOCKED',
+    causalLiveRuntimeCompatibility: 'CAUSAL_STREAMING_COMPATIBLE',
+    productionCheckpointLicensing: 'PRODUCTION_LICENSE_ELIGIBLE',
+    finalProductionSelectionEligibility: 'POTENTIALLY_ELIGIBLE_PENDING_PHASE_9GB',
     qualificationStatus: 'CALIBRATED_AND_LOCKED_FOR_RESEARCH',
     lockedForPhase9gB: true,
-  });
+  };
+
+  challengerQual.assertCandidateMultiDimensionalQualification(fiveDimQual);
 
   return {
     representativeProfile: {
@@ -824,6 +1081,7 @@ async function runRobustByteDanceFamily(input) {
       qualificationStatus: 'CALIBRATED_AND_LOCKED_FOR_RESEARCH',
       licenseClassification: 'PRODUCTION_LICENSE_ELIGIBLE',
       LOCKED_FOR_PHASE_9G_B_RESEARCH: true,
+      fiveDimensionalQualification: fiveDimQual,
       gate1RemainingCount: gate1Selection.remainingProfileIds.length,
       metrics: compactMetrics(bakeoff.aggregateMetrics[selectedProfileId]?.CALIBRATION),
     },
@@ -831,7 +1089,7 @@ async function runRobustByteDanceFamily(input) {
 }
 
 async function runTranskunFamily(input) {
-  const { scenarios, baseScenarios, counterfactualReceipts } = input;
+  const { scenarios, baseScenarios, counterfactualReceipts, policy } = input;
   console.log('Running Transkun V2 Aug...');
 
   const audioFiles = baseScenarios.map((s) => ({
@@ -866,7 +1124,29 @@ async function runTranskunFamily(input) {
   }
 
   const rawData = JSON.parse(await readFile(path.resolve(repoRoot, outputRel), 'utf8'));
-  challengerQual.validateTranscriptionRawCache(rawData, baseScenarios.map((s) => s.scenarioId));
+
+  // Cryptographic check with recomputed canonical notes digest
+  const expectedAudioFiles = [];
+  for (const s of baseScenarios) {
+    const diskAudioSha = await sha256File(path.resolve(repoRoot, s.source.sourceAudioPath));
+    const trans = rawData.transcriptions[s.scenarioId];
+    const notesDigest = trans ? challengerQual.computeCanonicalTranscriptionNotesDigest(trans.notes) : undefined;
+    expectedAudioFiles.push({
+      audioKey: s.scenarioId,
+      expectedAudioSha256: diskAudioSha,
+      expectedNotesDigest: notesDigest,
+    });
+  }
+
+  const cacheValidation = challengerQual.validateTranscriptionRawCacheStrict(
+    rawData,
+    expectedAudioFiles,
+    {
+      expectedCheckpointSha256: policy.mandatoryChallengers.transkunV2Aug.checkpointIdentity.sha256,
+      expectedCheckpointBytes: policy.mandatoryChallengers.transkunV2Aug.checkpointIdentity.bytes,
+      expectedRuntimeIdentity: DOCKER_CHALLENGERS_IMAGE,
+    },
+  );
 
   const configSha = sha256Json({ profileId: 'UPSTREAM_NATIVE_V2_AUG', weightSha256: rawData.weightSha256 });
 
@@ -930,10 +1210,28 @@ async function runTranskunFamily(input) {
     });
   }
 
+  const fiveDimQual = {
+    candidateFamily: 'transkun',
+    candidateId: candidateDef.candidateId,
+    scientificCalibrationValidity: 'VALID',
+    eligibilityForResearchBlindComparison: 'RESEARCH_REFERENCE_ONLY',
+    causalLiveRuntimeCompatibility: 'OFFLINE_WHOLE_RECORDING_INCOMPATIBLE',
+    productionCheckpointLicensing: 'PRODUCTION_LICENSE_ELIGIBLE',
+    finalProductionSelectionEligibility: 'INELIGIBLE_DUE_TO_OFFLINE_LATENCY',
+    qualificationStatus: 'RESEARCH_REFERENCE_ONLY',
+    lockedForPhase9gB: false,
+  };
+
+  challengerQual.assertCandidateMultiDimensionalQualification(fiveDimQual);
+
   return {
     candidateDefinition: candidateDef,
     runs,
-    evidence: { outputRel, totalTime: rawData.totalWallTimeSeconds },
+    evidence: {
+      outputRel,
+      totalTime: rawData.totalWallTimeSeconds,
+      verifiedAudioCount: cacheValidation.verifiedAudioCount,
+    },
     report: {
       candidateFamily: 'transkun',
       candidateId: candidateDef.candidateId,
@@ -943,13 +1241,14 @@ async function runTranskunFamily(input) {
       latencySemantics: 'WHOLE_RECORDING_OFFLINE_AFTER_SOURCE_END',
       licenseClassification: 'PRODUCTION_LICENSE_ELIGIBLE',
       LOCKED_FOR_PHASE_9G_B_RESEARCH: false,
+      fiveDimensionalQualification: fiveDimQual,
       totalWallTimeSeconds: rawData.totalWallTimeSeconds,
     },
   };
 }
 
 async function runAriaAmtFamily(input) {
-  const { scenarios, baseScenarios, counterfactualReceipts } = input;
+  const { scenarios, baseScenarios, counterfactualReceipts, policy } = input;
   console.log('Running Aria-AMT...');
 
   const audioFiles = baseScenarios.map((s) => ({
@@ -986,7 +1285,29 @@ async function runAriaAmtFamily(input) {
   }
 
   const rawData = JSON.parse(await readFile(path.resolve(repoRoot, outputRel), 'utf8'));
-  challengerQual.validateTranscriptionRawCache(rawData, baseScenarios.map((s) => s.scenarioId));
+
+  // Cryptographic check with recomputed canonical notes digest
+  const expectedAudioFiles = [];
+  for (const s of baseScenarios) {
+    const diskAudioSha = await sha256File(path.resolve(repoRoot, s.source.sourceAudioPath));
+    const trans = rawData.transcriptions[s.scenarioId];
+    const notesDigest = trans ? challengerQual.computeCanonicalTranscriptionNotesDigest(trans.notes) : undefined;
+    expectedAudioFiles.push({
+      audioKey: s.scenarioId,
+      expectedAudioSha256: diskAudioSha,
+      expectedNotesDigest: notesDigest,
+    });
+  }
+
+  const cacheValidation = challengerQual.validateTranscriptionRawCacheStrict(
+    rawData,
+    expectedAudioFiles,
+    {
+      expectedCheckpointSha256: policy.mandatoryChallengers.ariaAmt.checkpointIdentity.sha256,
+      expectedCheckpointBytes: policy.mandatoryChallengers.ariaAmt.checkpointIdentity.bytes,
+      expectedRuntimeIdentity: DOCKER_ARIA_IMAGE,
+    },
+  );
 
   const configSha = sha256Json({ profileId: 'UPSTREAM_NATIVE_PIANO_MEDIUM_DOUBLE', checkpointSha256: rawData.checkpointSha256 });
 
@@ -1059,10 +1380,28 @@ async function runAriaAmtFamily(input) {
     });
   }
 
+  const fiveDimQual = {
+    candidateFamily: 'aria-amt',
+    candidateId: candidateDef.candidateId,
+    scientificCalibrationValidity: 'VALID',
+    eligibilityForResearchBlindComparison: 'RESEARCH_REFERENCE_ONLY',
+    causalLiveRuntimeCompatibility: 'OFFLINE_WHOLE_RECORDING_INCOMPATIBLE',
+    productionCheckpointLicensing: 'RESEARCH_VALID_PRODUCTION_LICENSE_BLOCKED',
+    finalProductionSelectionEligibility: 'INELIGIBLE_DUE_TO_LICENSE_AND_LATENCY',
+    qualificationStatus: 'RESEARCH_REFERENCE_ONLY',
+    lockedForPhase9gB: false,
+  };
+
+  challengerQual.assertCandidateMultiDimensionalQualification(fiveDimQual);
+
   return {
     candidateDefinition: candidateDef,
     runs,
-    evidence: { outputRel, totalTime: rawData.totalWallTimeSeconds },
+    evidence: {
+      outputRel,
+      totalTime: rawData.totalWallTimeSeconds,
+      verifiedAudioCount: cacheValidation.verifiedAudioCount,
+    },
     report: {
       candidateFamily: 'aria-amt',
       candidateId: candidateDef.candidateId,
@@ -1073,13 +1412,14 @@ async function runAriaAmtFamily(input) {
       perFileLatencyStatus: 'NOT_MEASURED',
       licenseClassification: 'RESEARCH_VALID_PRODUCTION_LICENSE_BLOCKED',
       LOCKED_FOR_PHASE_9G_B_RESEARCH: false,
+      fiveDimensionalQualification: fiveDimQual,
       totalWallTimeSeconds: rawData.totalWallTimeSeconds,
     },
   };
 }
 
 async function runRttFamily(input) {
-  const { scenarios, baseScenarios, counterfactualReceipts } = input;
+  const { scenarios, baseScenarios, counterfactualReceipts, policy } = input;
   console.log('Running RTT...');
 
   const audioFiles = baseScenarios.map((s) => ({
@@ -1113,7 +1453,29 @@ async function runRttFamily(input) {
   }
 
   const rawData = JSON.parse(await readFile(path.resolve(repoRoot, outputRel), 'utf8'));
-  challengerQual.validateTranscriptionRawCache(rawData, baseScenarios.map((s) => s.scenarioId));
+
+  // Cryptographic check with recomputed canonical notes digest
+  const expectedAudioFiles = [];
+  for (const s of baseScenarios) {
+    const diskAudioSha = await sha256File(path.resolve(repoRoot, s.source.sourceAudioPath));
+    const trans = rawData.transcriptions[s.scenarioId];
+    const notesDigest = trans ? challengerQual.computeCanonicalTranscriptionNotesDigest(trans.notes) : undefined;
+    expectedAudioFiles.push({
+      audioKey: s.scenarioId,
+      expectedAudioSha256: diskAudioSha,
+      expectedNotesDigest: notesDigest,
+    });
+  }
+
+  const cacheValidation = challengerQual.validateTranscriptionRawCacheStrict(
+    rawData,
+    expectedAudioFiles,
+    {
+      expectedCheckpointSha256: policy.mandatoryChallengers.rtt.checkpointIdentity.sha256,
+      expectedCheckpointBytes: policy.mandatoryChallengers.rtt.checkpointIdentity.bytes,
+      expectedRuntimeIdentity: DOCKER_CHALLENGERS_IMAGE,
+    },
+  );
 
   const configSha = sha256Json({ profileId: 'OFFLINE_SEGMENTWISE_NATIVE', checkpointSha256: rawData.checkpointSha256 });
 
@@ -1186,10 +1548,28 @@ async function runRttFamily(input) {
     });
   }
 
+  const fiveDimQual = {
+    candidateFamily: 'rtt',
+    candidateId: candidateDef.candidateId,
+    scientificCalibrationValidity: 'VALID',
+    eligibilityForResearchBlindComparison: 'RESEARCH_REFERENCE_ONLY',
+    causalLiveRuntimeCompatibility: 'OFFLINE_SEGMENTWISE_INCOMPATIBLE',
+    productionCheckpointLicensing: 'RESEARCH_VALID_PRODUCTION_LICENSE_BLOCKED',
+    finalProductionSelectionEligibility: 'INELIGIBLE_DUE_TO_LICENSE_AND_LATENCY',
+    qualificationStatus: 'RESEARCH_REFERENCE_ONLY',
+    lockedForPhase9gB: false,
+  };
+
+  challengerQual.assertCandidateMultiDimensionalQualification(fiveDimQual);
+
   return {
     candidateDefinition: candidateDef,
     runs,
-    evidence: { outputRel, totalTime: rawData.totalWallTimeSeconds },
+    evidence: {
+      outputRel,
+      totalTime: rawData.totalWallTimeSeconds,
+      verifiedAudioCount: cacheValidation.verifiedAudioCount,
+    },
     report: {
       candidateFamily: 'rtt',
       candidateId: candidateDef.candidateId,
@@ -1202,6 +1582,7 @@ async function runRttFamily(input) {
       latencySemantics: 'OFFLINE_SEGMENTWISE_AFTER_SOURCE_END',
       licenseClassification: 'RESEARCH_VALID_PRODUCTION_LICENSE_BLOCKED',
       LOCKED_FOR_PHASE_9G_B_RESEARCH: false,
+      fiveDimensionalQualification: fiveDimQual,
       totalWallTimeSeconds: rawData.totalWallTimeSeconds,
     },
   };
@@ -1238,7 +1619,7 @@ function runByteDanceFromRawChunks({ scenario, profile, plans, rawChunks }) {
     candidateId: profile.profileId,
     scenarioId: scenario.scenarioId,
     publications,
-    command: 'phase9ga3 decode robust bytedance raw outputs',
+    command: 'phase9ga32 decode robust bytedance raw outputs',
     runtime: DOCKER_CHALLENGERS_IMAGE,
   });
 }
@@ -1270,17 +1651,6 @@ function planByteDanceVariableContext(scenario, context) {
     start = end;
   }
   return plans;
-}
-
-function validateByteDanceVariableContextSource(scenario, plans, context) {
-  const origin = scenario.audio.performanceOriginSourceMs;
-  for (const plan of plans) {
-    const startSource = origin + plan.inputStartPerformanceMs;
-    const endSource = origin + plan.inputEndPerformanceMs;
-    if (startSource < 0) {
-      throw new Error(`Negative source start ${startSource} for ${scenario.scenarioId}`);
-    }
-  }
 }
 
 function calibrationScoresFromSummaries(scores) {

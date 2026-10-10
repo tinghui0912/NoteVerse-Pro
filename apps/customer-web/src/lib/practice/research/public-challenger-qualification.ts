@@ -10,6 +10,7 @@
  * 5. D3RM (optional offline accuracy ceiling reference)
  */
 
+import { createHash } from 'node:crypto';
 import {
   PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5_SHA256,
   selectCalibrationProfile,
@@ -17,7 +18,7 @@ import {
   type CalibrationProfileScenarioScore,
   type CalibrationGate2Profile,
 } from './public-model-calibration';
-import type { CandidateObservation, CandidatePublication, CandidateScenarioRun } from './continuous-analyzer-bakeoff';
+import type { CandidateObservation, CandidateScenarioRun } from './continuous-analyzer-bakeoff';
 
 export const PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5 = 'PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5' as const;
 export const CHALLENGER_CALIBRATION_PERFORMERS = ['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p14'] as const;
@@ -29,17 +30,15 @@ export const PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V1_SHA256 = '0ccd4872d6998
 export const PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2 = 'PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2' as const;
 export const PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2_SHA256 = 'b467e9aad917808f307346482477d1d4a4716aed665bd2662e87445231d12f8c' as const;
 
-export const PHASE_9GA25_REGISTRY_PATH = 'backend/research/reports/phase9g_a25_final_incumbent_registry_2026-10-09.json' as const;
 export const PHASE_9GA25_REGISTRY_SHA256 = '935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439' as const;
 
-export const PHASE_9GA1_CALIBRATION_SCENARIOS_PATH = 'backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json' as const;
 export const PHASE_9GA1_CALIBRATION_SCENARIOS_SHA256 = '56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e' as const;
 
-export const PHASE_9GB_BLIND_MANIFEST_PATH = 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json' as const;
 export const PHASE_9GB_BLIND_MANIFEST_SHA256 = '0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab' as const;
 
 export const PHASE_9GA3 = '9G-A.3' as const;
 export const PHASE_9GA31 = '9G-A.3.1' as const;
+export const PHASE_9GA32 = '9G-A.3.2' as const;
 
 export type ChallengerFamily =
   | 'bytedance-robust-augmented'
@@ -76,7 +75,10 @@ export function assertChallengerQualificationPolicyIdentity(identity: Challenger
     if (identity.schemaVersion !== 2) {
       throw new Error(`CHALLENGER_QUALIFICATION_POLICY_SCHEMA_VERSION_MISMATCH:${identity.schemaVersion}`);
     }
-    if (identity.sha256 && identity.sha256 !== PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2_SHA256) {
+    if (!identity.sha256) {
+      throw new Error('CHALLENGER_QUALIFICATION_POLICY_SHA_REQUIRED');
+    }
+    if (identity.sha256 !== PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2_SHA256) {
       throw new Error(`CHALLENGER_QUALIFICATION_POLICY_SHA_MISMATCH:${identity.sha256}`);
     }
     return;
@@ -86,7 +88,10 @@ export function assertChallengerQualificationPolicyIdentity(identity: Challenger
     if (identity.schemaVersion !== 1) {
       throw new Error(`CHALLENGER_QUALIFICATION_POLICY_SCHEMA_VERSION_MISMATCH:${identity.schemaVersion}`);
     }
-    if (identity.sha256 && identity.sha256 !== PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V1_SHA256) {
+    if (!identity.sha256) {
+      throw new Error('CHALLENGER_QUALIFICATION_POLICY_SHA_REQUIRED');
+    }
+    if (identity.sha256 !== PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V1_SHA256) {
       throw new Error(`CHALLENGER_QUALIFICATION_POLICY_SHA_MISMATCH:${identity.sha256}`);
     }
     return;
@@ -109,12 +114,15 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
   if (request.blindManifestSha256 !== PHASE_9GB_BLIND_MANIFEST_SHA256) {
     throw new Error(`FROZEN_BLIND_MANIFEST_SHA_MISMATCH:${request.blindManifestSha256}`);
   }
-  if (request.calibrationManifestSha256 && request.calibrationManifestSha256 !== PHASE_9GA1_CALIBRATION_SCENARIOS_SHA256) {
+  if (!request.calibrationManifestSha256) {
+    throw new Error('CALIBRATION_MANIFEST_SHA_REQUIRED');
+  }
+  if (request.calibrationManifestSha256 !== PHASE_9GA1_CALIBRATION_SCENARIOS_SHA256) {
     throw new Error(`FROZEN_CALIBRATION_MANIFEST_SHA_MISMATCH:${request.calibrationManifestSha256}`);
   }
 
   // 3. Fail closed on missing, malformed, or non-9G-A phase
-  const allowedPhases = [PHASE_9GA3, PHASE_9GA31] as const;
+  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32] as const;
   if (!request.phase || !allowedPhases.includes(request.phase as typeof allowedPhases[number])) {
     if (request.mode === 'TRUTH_ONLY') {
       throw new Error(`CHALLENGER_TRUTH_ONLY_PHASE_REQUIRED:${request.phase}`);
@@ -207,16 +215,16 @@ export interface IncumbentProfileRecord {
   readonly LOCKED_FOR_PHASE_9G_B: boolean;
 }
 
-export function validateA25IncumbentRegistry(registryRaw: any): readonly IncumbentProfileRecord[] {
+export function validateA25IncumbentRegistry(registryRaw: Record<string, unknown> | null | undefined): readonly IncumbentProfileRecord[] {
   if (!registryRaw || typeof registryRaw !== 'object') {
     throw new Error('INVALID_INCUMBENT_REGISTRY');
   }
-  const profiles = registryRaw.profiles;
+  const profiles = registryRaw.profiles as readonly Record<string, unknown>[] | undefined;
   if (!Array.isArray(profiles) || profiles.length !== 2) {
     throw new Error(`INCUMBENT_PROFILE_COUNT_MUST_BE_EXACTLY_TWO:got ${profiles?.length}`);
   }
-  const bytedance = profiles.find((p: any) => p.candidateId === 'bytedance-original-calibrated-v1');
-  const onlineAmt = profiles.find((p: any) => p.candidateId === 'online-amt-calibrated-v1');
+  const bytedance = profiles.find((p) => p.candidateId === 'bytedance-original-calibrated-v1');
+  const onlineAmt = profiles.find((p) => p.candidateId === 'online-amt-calibrated-v1');
   if (!bytedance || !onlineAmt) {
     throw new Error('MISSING_REQUIRED_INCUMBENT_PROFILES');
   }
@@ -257,35 +265,241 @@ export function assertCheckpointIdentityStrict(check: ChallengerCheckpointVerifi
   }
 }
 
-export function validateRobustByteDanceRawCache(rawData: any, expectedWindows: readonly any[]): boolean {
+export interface RobustByteDanceRawCacheValidationOptions {
+  readonly expectedCheckpointSha256?: string;
+  readonly expectedCheckpointBytes?: number;
+  readonly expectedRuntimeIdentity?: string;
+  readonly expectedAudioShaMap?: ReadonlyMap<string, string>;
+}
+
+export interface RobustByteDanceExpectedWindow {
+  readonly windowId: string;
+  readonly contextProfileId?: string;
+  readonly inputSampleCount?: number;
+  readonly scenarioId?: string;
+  readonly inputPcmSha256?: string;
+  readonly sourceAudioPath?: string;
+  readonly sourceAudioSha256?: string;
+}
+
+interface RawOutputTensor {
+  readonly dims: readonly number[];
+  readonly data: readonly number[];
+  readonly float32ByteSha256: string;
+}
+
+export function validateRobustByteDanceRawCacheStrict(
+  rawData: Record<string, unknown> | null | undefined,
+  expectedWindows: readonly RobustByteDanceExpectedWindow[],
+  options?: RobustByteDanceRawCacheValidationOptions,
+): {
+  readonly totalChunksVerified: number;
+  readonly verifiedWindowIds: readonly string[];
+  readonly recomputedFloat32ByteHashes: ReadonlyMap<string, { frameSha: string; onsetSha: string }>;
+} {
   if (!rawData || !Array.isArray(rawData.chunks)) {
     throw new Error('INVALID_ROBUST_BYTEDANCE_RAW_CACHE_SCHEMA');
   }
-  if (rawData.chunks.length !== expectedWindows.length) {
-    throw new Error(`ROBUST_BYTEDANCE_RAW_CACHE_WINDOW_COUNT_MISMATCH:expected ${expectedWindows.length}, got ${rawData.chunks.length}`);
+  const chunks = rawData.chunks as readonly Record<string, unknown>[];
+  if (options?.expectedCheckpointSha256 && rawData.checkpointSha256 !== options.expectedCheckpointSha256) {
+    throw new Error(`CHECKPOINT_SHA_MISMATCH:bytedance-robust-augmented:expected ${options.expectedCheckpointSha256}, got ${rawData.checkpointSha256}`);
   }
-  const chunkMap = new Map<string, any>(rawData.chunks.map((c: any) => [c.windowId, c]));
+  if (options?.expectedCheckpointBytes && rawData.checkpointBytes !== options.expectedCheckpointBytes) {
+    throw new Error(`CHECKPOINT_BYTES_MISMATCH:bytedance-robust-augmented:expected ${options.expectedCheckpointBytes}, got ${rawData.checkpointBytes}`);
+  }
+  if (options?.expectedRuntimeIdentity) {
+    const actualRuntime = typeof rawData.runtimeIdentity === 'string' ? rawData.runtimeIdentity : (rawData.runtimeIdentity as Record<string, unknown> | undefined)?.image;
+    if (actualRuntime !== options.expectedRuntimeIdentity) {
+      throw new Error(`RUNTIME_IDENTITY_MISMATCH:bytedance-robust-augmented:expected ${options.expectedRuntimeIdentity}, got ${actualRuntime}`);
+    }
+  }
+  if (chunks.length !== expectedWindows.length) {
+    throw new Error(`ROBUST_BYTEDANCE_RAW_CACHE_WINDOW_COUNT_MISMATCH:expected ${expectedWindows.length}, got ${chunks.length}`);
+  }
+
+  const seenWindowIds = new Set<string>();
+  for (const chunk of chunks) {
+    const windowId = chunk.windowId as string;
+    if (seenWindowIds.has(windowId)) {
+      throw new Error(`DUPLICATE_WINDOW_IN_RAW_CACHE:${windowId}`);
+    }
+    seenWindowIds.add(windowId);
+  }
+
+  const chunkMap = new Map<string, Record<string, unknown>>(chunks.map((c) => [c.windowId as string, c]));
+  const recomputedFloat32ByteHashes = new Map<string, { frameSha: string; onsetSha: string }>();
+
   for (const win of expectedWindows) {
     const chunk = chunkMap.get(win.windowId);
     if (!chunk) throw new Error(`MISSING_WINDOW_IN_RAW_CACHE:${win.windowId}`);
     if (chunk.contextProfileId !== win.contextProfileId) throw new Error(`CONTEXT_MISMATCH_IN_RAW_CACHE:${win.windowId}`);
     if (chunk.inputSampleCount !== win.inputSampleCount) throw new Error(`SAMPLE_COUNT_MISMATCH_IN_RAW_CACHE:${win.windowId}`);
-    const ro = chunk.rawOutputs;
+    if (win.scenarioId && chunk.scenarioId !== win.scenarioId) throw new Error(`SCENARIO_MISMATCH_IN_RAW_CACHE:${win.windowId}`);
+    if (win.inputPcmSha256 && chunk.inputPcmSha256 !== win.inputPcmSha256) {
+      throw new Error(`PCM_SHA_MISMATCH:${win.windowId}:expected ${win.inputPcmSha256}, got ${chunk.inputPcmSha256}`);
+    }
+    if (options?.expectedAudioShaMap && win.sourceAudioPath && win.scenarioId) {
+      const expectedAudioSha = options.expectedAudioShaMap.get(win.scenarioId);
+      if (expectedAudioSha && win.sourceAudioSha256 && win.sourceAudioSha256 !== expectedAudioSha) {
+        throw new Error(`AUDIO_SHA_MISMATCH:${win.windowId}:expected ${expectedAudioSha}, got ${win.sourceAudioSha256}`);
+      }
+    }
+
+    const ro = chunk.rawOutputs as { frame_output?: RawOutputTensor; reg_onset_output?: RawOutputTensor } | undefined;
     if (!ro?.frame_output?.data || !ro?.reg_onset_output?.data) throw new Error(`RAW_OUTPUTS_MISSING_IN_CACHE:${win.windowId}`);
     if (!ro.frame_output.float32ByteSha256 || !ro.reg_onset_output.float32ByteSha256) throw new Error(`FLOAT32_SHA_MISSING_IN_CACHE:${win.windowId}`);
+
+    const outputs = [
+      { name: 'frame_output', tensor: ro.frame_output },
+      { name: 'reg_onset_output', tensor: ro.reg_onset_output },
+    ];
+    let frameSha = '';
+    let onsetSha = '';
+
+    for (const { name, tensor } of outputs) {
+      const dims = tensor.dims;
+      if (!Array.isArray(dims) || (dims.length !== 2 && dims.length !== 3)) {
+        throw new Error(`INVALID_TENSOR_SHAPE:${win.windowId}:${name}`);
+      }
+      const lastDim = dims[dims.length - 1];
+      if (lastDim !== 88) {
+        throw new Error(`INVALID_TENSOR_SHAPE:${win.windowId}:${name}:classes must be 88, got ${lastDim}`);
+      }
+      const totalElements = dims.reduce((acc: number, d: number) => acc * d, 1);
+      if (tensor.data.length !== totalElements) {
+        throw new Error(`TENSOR_LENGTH_MISMATCH:${win.windowId}:${name}:expected ${totalElements}, got ${tensor.data.length}`);
+      }
+      const buf = Buffer.alloc(tensor.data.length * 4);
+      for (let i = 0; i < tensor.data.length; i++) {
+        const val = tensor.data[i];
+        if (!Number.isFinite(val)) {
+          throw new Error(`NON_FINITE_TENSOR_VALUE:${win.windowId}:${name}:index ${i}`);
+        }
+        buf.writeFloatLE(val, i * 4);
+      }
+      const recomputedSha = createHash('sha256').update(buf).digest('hex');
+      if (recomputedSha !== tensor.float32ByteSha256) {
+        throw new Error(`FLOAT32_SHA_MISMATCH:${win.windowId}:${name}:expected ${tensor.float32ByteSha256}, got ${recomputedSha}`);
+      }
+      if (name === 'frame_output') frameSha = recomputedSha;
+      if (name === 'reg_onset_output') onsetSha = recomputedSha;
+    }
+
+    recomputedFloat32ByteHashes.set(win.windowId, { frameSha, onsetSha });
   }
+
+  return {
+    totalChunksVerified: expectedWindows.length,
+    verifiedWindowIds: expectedWindows.map((w) => w.windowId),
+    recomputedFloat32ByteHashes,
+  };
+}
+
+export function validateRobustByteDanceRawCache(rawData: Record<string, unknown> | null | undefined, expectedWindows: readonly RobustByteDanceExpectedWindow[]): boolean {
+  validateRobustByteDanceRawCacheStrict(rawData, expectedWindows);
   return true;
 }
 
-export function validateTranscriptionRawCache(rawData: any, expectedAudioKeys: readonly string[]): boolean {
+export function computeCanonicalTranscriptionNotesDigest(notes: readonly Record<string, unknown>[]): string {
+  if (!Array.isArray(notes)) throw new Error('NOTES_ARRAY_REQUIRED');
+  const normalized = notes.map((n) => {
+    const pitch = (n.pitch as string | undefined) ?? String(n.midiPitch ?? '');
+    const midiPitch = typeof n.midiPitch === 'number' ? n.midiPitch : 0;
+    const onsetTimeMs = typeof n.onsetTimeMs === 'number' && Number.isFinite(n.onsetTimeMs)
+      ? Math.round(n.onsetTimeMs * 1000) / 1000
+      : 0;
+    const offsetTimeMs = typeof n.offsetTimeMs === 'number' && Number.isFinite(n.offsetTimeMs)
+      ? Math.round(n.offsetTimeMs * 1000) / 1000
+      : 0;
+    const velocity = typeof n.velocity === 'number' ? n.velocity : 0;
+    return { p: pitch, m: midiPitch, o: onsetTimeMs, e: offsetTimeMs, v: velocity };
+  }).sort((a, b) => a.o - b.o || a.m - b.m || a.e - b.e);
+  return createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
+}
+
+export interface TranscriptionRawCacheValidationOptions {
+  readonly expectedCheckpointSha256?: string;
+  readonly expectedCheckpointBytes?: number;
+  readonly expectedRuntimeIdentity?: string;
+}
+
+export function validateTranscriptionRawCacheStrict(
+  rawData: Record<string, unknown> | null | undefined,
+  expectedAudioFiles: readonly {
+    audioKey: string;
+    expectedAudioSha256?: string;
+    expectedNotesDigest?: string;
+  }[],
+  options?: TranscriptionRawCacheValidationOptions,
+): {
+  readonly verifiedAudioCount: number;
+  readonly transcriptionDigests: ReadonlyMap<string, string>;
+} {
   if (!rawData || !rawData.transcriptions || typeof rawData.transcriptions !== 'object') {
     throw new Error('INVALID_TRANSCRIPTION_RAW_CACHE_SCHEMA');
   }
-  for (const key of expectedAudioKeys) {
-    const trans = rawData.transcriptions[key];
-    if (!trans) throw new Error(`MISSING_AUDIO_IN_TRANSCRIPTION_CACHE:${key}`);
-    if (!Array.isArray(trans.notes)) throw new Error(`MISSING_NOTES_IN_TRANSCRIPTION_CACHE:${key}`);
+  const candidateFamily = (rawData.candidateFamily as string | undefined) ?? 'transcription-candidate';
+  if (options?.expectedCheckpointSha256) {
+    const actualCp = (rawData.checkpointSha256 ?? rawData.weightSha256) as string | undefined;
+    if (actualCp !== options.expectedCheckpointSha256) {
+      throw new Error(`CHECKPOINT_SHA_MISMATCH:${candidateFamily}:expected ${options.expectedCheckpointSha256}, got ${actualCp}`);
+    }
   }
+  if (options?.expectedCheckpointBytes) {
+    const actualBytes = (rawData.checkpointBytes ?? rawData.weightBytes) as number | undefined;
+    if (actualBytes !== options.expectedCheckpointBytes) {
+      throw new Error(`CHECKPOINT_BYTES_MISMATCH:${candidateFamily}:expected ${options.expectedCheckpointBytes}, got ${actualBytes}`);
+    }
+  }
+  if (options?.expectedRuntimeIdentity) {
+    const actualRuntime = typeof rawData.runtimeIdentity === 'string'
+      ? rawData.runtimeIdentity
+      : (rawData.runtimeIdentity as Record<string, unknown> | undefined)?.image;
+    if (actualRuntime !== options.expectedRuntimeIdentity) {
+      throw new Error(`RUNTIME_IDENTITY_MISMATCH:${candidateFamily}:expected ${options.expectedRuntimeIdentity}, got ${actualRuntime}`);
+    }
+  }
+
+  const transcriptions = rawData.transcriptions as Record<string, Record<string, unknown>>;
+  const transcriptionDigests = new Map<string, string>();
+
+  for (const item of expectedAudioFiles) {
+    const trans = transcriptions[item.audioKey];
+    if (!trans) throw new Error(`MISSING_AUDIO_IN_TRANSCRIPTION_CACHE:${item.audioKey}`);
+    if (item.expectedAudioSha256 && trans.audioSha256 !== item.expectedAudioSha256) {
+      throw new Error(`AUDIO_SHA_MISMATCH:${item.audioKey}:expected ${item.expectedAudioSha256}, got ${trans.audioSha256}`);
+    }
+    if (!Array.isArray(trans.notes)) throw new Error(`MISSING_NOTES_IN_TRANSCRIPTION_CACHE:${item.audioKey}`);
+
+    const notes = trans.notes as readonly Record<string, unknown>[];
+    for (let i = 0; i < notes.length; i++) {
+      const note = notes[i];
+      if (typeof note.onsetTimeMs === 'number' && !Number.isFinite(note.onsetTimeMs)) {
+        throw new Error(`NON_FINITE_NOTE_TIME:${item.audioKey}:note ${i}`);
+      }
+      if (typeof note.offsetTimeMs === 'number' && !Number.isFinite(note.offsetTimeMs)) {
+        throw new Error(`NON_FINITE_NOTE_TIME:${item.audioKey}:note ${i}`);
+      }
+    }
+
+    const digest = computeCanonicalTranscriptionNotesDigest(notes);
+    if (item.expectedNotesDigest && digest !== item.expectedNotesDigest) {
+      throw new Error(`TRANSCRIPTION_NOTES_DIGEST_MISMATCH:${item.audioKey}:expected ${item.expectedNotesDigest}, got ${digest}`);
+    }
+    transcriptionDigests.set(item.audioKey, digest);
+  }
+
+  return {
+    verifiedAudioCount: expectedAudioFiles.length,
+    transcriptionDigests,
+  };
+}
+
+export function validateTranscriptionRawCache(rawData: Record<string, unknown> | null | undefined, expectedAudioKeys: readonly string[]): boolean {
+  validateTranscriptionRawCacheStrict(
+    rawData,
+    expectedAudioKeys.map((k) => ({ audioKey: k }))
+  );
   return true;
 }
 
@@ -302,26 +516,45 @@ export interface CandidateContextEligibility {
 }
 
 export function deriveCandidateContextEligibility(input: {
-  readonly scenarios: readonly any[];
+  readonly scenarios: readonly Record<string, unknown>[];
   readonly candidateFamily: ChallengerFamily;
-  readonly contextGeometries?: readonly any[];
+  readonly contextGeometries?: readonly Record<string, unknown>[];
+  readonly counterfactualReceipts?: ReadonlyMap<string, Record<string, unknown>>;
 }): CandidateContextEligibility[] {
   const result: CandidateContextEligibility[] = [];
+  const baseScenarioMap = new Map<string, Record<string, unknown>>();
   for (const scenario of input.scenarios) {
-    const preRollMs = Math.max(0, scenario.audio.performanceOriginSourceMs - scenario.audio.clipStartMs);
-    const postRollMs = Math.max(0, scenario.audio.clipEndMs - (scenario.audio.performanceOriginSourceMs + (scenario.completion?.performanceTimeMs ?? 30000)));
+    const familyTags = scenario.familyTags as readonly string[] | undefined;
+    if (familyTags?.includes('BASE_ORIGINAL')) {
+      baseScenarioMap.set(scenario.scenarioId as string, scenario);
+    }
+  }
+
+  for (const scenario of input.scenarios) {
+    const scenarioId = scenario.scenarioId as string;
+    const receipt = input.counterfactualReceipts?.get(scenarioId);
+    const audioScenario = receipt ? (baseScenarioMap.get(receipt.baseScenarioId as string) ?? scenario) : scenario;
+
+    const audio = audioScenario.audio as Record<string, number> | undefined;
+    const completion = audioScenario.completion as Record<string, number> | undefined;
+    const originMs = audio?.performanceOriginSourceMs ?? 0;
+    const clipStartMs = audio?.clipStartMs ?? 0;
+    const clipEndMs = audio?.clipEndMs ?? 0;
+    const compMs = completion?.performanceTimeMs ?? 30000;
+    const preRollMs = Math.max(0, originMs - clipStartMs);
+    const postRollMs = Math.max(0, clipEndMs - (originMs + compMs));
 
     if (input.candidateFamily === 'bytedance-robust-augmented') {
       const contexts = input.contextGeometries ?? [];
       for (const ctx of contexts) {
-        const requiredWindowMs = ctx.modelInputMs;
-        const requiredPreRoll = ctx.preRollRequiredMs ?? (ctx.modelInputMs - (ctx.maximumFutureContextMs ?? 0));
-        const requiredPostRoll = ctx.maximumFutureContextMs ?? 0;
+        const requiredWindowMs = (ctx.modelInputMs as number) ?? 0;
+        const requiredPreRoll = (ctx.preRollRequiredMs as number | undefined) ?? (requiredWindowMs - ((ctx.maximumFutureContextMs as number) ?? 0));
+        const requiredPostRoll = (ctx.maximumFutureContextMs as number) ?? 0;
         const isEligible = preRollMs >= requiredPreRoll && postRollMs >= requiredPostRoll;
         result.push({
-          scenarioId: scenario.scenarioId,
+          scenarioId,
           candidateFamily: input.candidateFamily,
-          contextProfileId: ctx.profileId,
+          contextProfileId: ctx.profileId as string | undefined,
           isEligible,
           preRollMs,
           postRollMs,
@@ -333,17 +566,36 @@ export function deriveCandidateContextEligibility(input: {
     } else {
       // Whole-recording or segmentwise offline
       result.push({
-        scenarioId: scenario.scenarioId,
+        scenarioId,
         candidateFamily: input.candidateFamily,
         isEligible: true,
         preRollMs,
         postRollMs,
-        requiredWindowMs: scenario.audio.clipEndMs - scenario.audio.clipStartMs,
+        requiredWindowMs: clipEndMs - clipStartMs,
         scopeKind: 'WHOLE_RECORDING_SOURCE_CONSUMED',
       });
     }
   }
   return result;
+}
+
+export function assertNoIneligibleScenarioInProfileScoring(
+  profileContextId: string,
+  scenarios: readonly { readonly scenarioId: string }[],
+  eligibilityList: readonly CandidateContextEligibility[],
+): void {
+  const eligMap = new Map<string, boolean>();
+  for (const e of eligibilityList) {
+    if (e.contextProfileId === profileContextId) {
+      eligMap.set(e.scenarioId, e.isEligible);
+    }
+  }
+  for (const sc of scenarios) {
+    const isElig = eligMap.get(sc.scenarioId);
+    if (isElig === false) {
+      throw new Error(`INELIGIBLE_SCENARIO_ENTERED_PROFILE_SCORING:${profileContextId}:${sc.scenarioId}`);
+    }
+  }
 }
 
 export function assertCandidateContextEligibilityFrozen(
@@ -559,8 +811,8 @@ export function assertAriaPerFileLatencyReportValid(record: {
 export function evaluatePairwiseComparison(
   candidateAId: string,
   candidateBId: string,
-  runsA?: readonly any[],
-  runsB?: readonly any[],
+  runsA?: readonly unknown[],
+  runsB?: readonly unknown[],
 ): { readonly status: 'EVALUATED' | 'INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE'; readonly reason?: string } {
   if (!runsA || !runsB || runsA.length === 0 || runsB.length === 0) {
     return {
@@ -609,3 +861,167 @@ export function assertContextEligibilityScoreIndependent(
     }
   }
 }
+
+export function computeCanonicalAcousticObservationDigest(run: CandidateScenarioRun): string {
+  const observations = run.publications.flatMap((p) =>
+    p.observations.map((obs) => ({
+      pitch: obs.pitch,
+      performanceTimeMs: Math.round(obs.performanceTimeMs * 1000) / 1000,
+      confidence: typeof obs.confidence === 'number' ? Math.round(obs.confidence * 1000000) / 1000000 : 0,
+      pubAvailMs: typeof p.availabilityTimeMs === 'number' ? Math.round(p.availabilityTimeMs * 1000) / 1000 : 0,
+      pubThroughMs: Math.round(p.analyzedThroughPerformanceMs * 1000) / 1000,
+    }))
+  ).sort((a, b) => a.performanceTimeMs - b.performanceTimeMs || a.pitch.localeCompare(b.pitch));
+  return createHash('sha256').update(JSON.stringify(observations)).digest('hex');
+}
+
+export function assertAcousticEvidenceScoreIndependentDeterministic(
+  baseRuns: readonly CandidateScenarioRun[],
+  counterfactualRuns: readonly CandidateScenarioRun[],
+  scenarioPairMap: ReadonlyMap<string, string>,
+  options?: {
+    scenarioPcmMap?: ReadonlyMap<string, string>;
+  },
+): {
+  readonly verifiedScenarioCount: number;
+  readonly pairDigests: readonly {
+    readonly cfScenarioId: string;
+    readonly baseScenarioId: string;
+    readonly baseDigest: string;
+    readonly cfDigest: string;
+    readonly match: boolean;
+  }[];
+} {
+  const baseRunMap = new Map(baseRuns.map((r) => [r.scenarioId, r]));
+  const cfRunMap = new Map(counterfactualRuns.map((r) => [r.scenarioId, r]));
+  const pairDigests: {
+    cfScenarioId: string;
+    baseScenarioId: string;
+    baseDigest: string;
+    cfDigest: string;
+    match: boolean;
+  }[] = [];
+
+  for (const [cfId, baseId] of scenarioPairMap.entries()) {
+    const baseRun = baseRunMap.get(baseId);
+    const cfRun = cfRunMap.get(cfId);
+    if (!baseRun || !cfRun) {
+      throw new Error(`MISSING_SCORE_INDEPENDENCE_AUDIT_PAIR:${cfId}:missing ${!baseRun ? 'base' : 'cf'}`);
+    }
+
+    if (options?.scenarioPcmMap) {
+      const basePcm = options.scenarioPcmMap.get(baseId);
+      const cfPcm = options.scenarioPcmMap.get(cfId);
+      if (basePcm && cfPcm && basePcm !== cfPcm) {
+        throw new Error(`COUNTERFACTUAL_AUDIO_MISMATCH_CANNOT_REUSE_ACOUSTIC_EVIDENCE:${cfId}`);
+      }
+    }
+
+    const baseDigest = computeCanonicalAcousticObservationDigest(baseRun);
+    const cfDigest = computeCanonicalAcousticObservationDigest(cfRun);
+    if (baseDigest !== cfDigest) {
+      throw new Error(`SCORE_INDEPENDENCE_DIGEST_MISMATCH:${cfId}:base=${baseDigest}, cf=${cfDigest}`);
+    }
+
+    pairDigests.push({
+      cfScenarioId: cfId,
+      baseScenarioId: baseId,
+      baseDigest,
+      cfDigest,
+      match: true,
+    });
+  }
+
+  return { verifiedScenarioCount: pairDigests.length, pairDigests };
+}
+
+export function assertScoreIndependencePreservesOffScoreNotes(
+  unfilteredObservations: readonly CandidateObservation[],
+  candidateObservations: readonly CandidateObservation[],
+  expectedScorePitches: ReadonlySet<string>,
+): void {
+  const unfilteredOffScore = unfilteredObservations.filter((o) => !expectedScorePitches.has(o.pitch));
+  const candidateOffScore = candidateObservations.filter((o) => !expectedScorePitches.has(o.pitch));
+  if (unfilteredOffScore.length > 0 && candidateOffScore.length < unfilteredOffScore.length) {
+    throw new Error('SCORE_DEPENDENT_OFF_SCORE_PRUNING_DETECTED');
+  }
+}
+
+export interface PairedMatrixComparisonRecord {
+  readonly candidateA: string;
+  readonly candidateB: string;
+  readonly status: 'MEASURED' | 'INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE';
+  readonly reason?: string;
+  readonly totalCalibrationScenarios?: number;
+  readonly candidateAPreInferenceEligibleCount?: number;
+  readonly candidateBPreInferenceEligibleCount?: number;
+  readonly mutuallyEligibleScenarioCount?: number;
+  readonly bothCandidatesScoreableCount?: number;
+  readonly metricSpecificValidPairedCount?: number;
+  readonly sampleDenominators?: Record<string, number>;
+  readonly exclusionReasons?: readonly string[];
+  readonly isCrossFamilyWinner?: boolean;
+  readonly metrics?: Record<string, unknown>;
+}
+
+export function assertPairwiseMatrixDenominatorsValid(record: PairedMatrixComparisonRecord): void {
+  if (record.status !== 'MEASURED') return;
+  if (record.totalCalibrationScenarios === undefined || record.mutuallyEligibleScenarioCount === undefined) {
+    throw new Error('MISSING_PAIRED_MATRIX_DENOMINATOR_FIELDS');
+  }
+  if (
+    record.totalCalibrationScenarios === 72 &&
+    record.mutuallyEligibleScenarioCount < 72 &&
+    record.metricSpecificValidPairedCount === 72
+  ) {
+    throw new Error('INVALID_PAIRED_SAMPLE_COUNT_MISLABELED_AS_TOTAL_SCENARIOS');
+  }
+}
+
+export function classifyMetricPairwiseComparison(
+  meanDiff: number,
+  ci: { low: number; high: number },
+  meaningfulEffectThreshold: number,
+): 'DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD' | 'STATISTICALLY_SIGNIFICANT_MEANINGFUL_DIFFERENCE' | 'NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE' {
+  const ciExcludesZero = ci.low > 0 || ci.high < 0;
+  if (ciExcludesZero) {
+    if (Math.abs(meanDiff) < meaningfulEffectThreshold) {
+      return 'DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD';
+    }
+    return 'STATISTICALLY_SIGNIFICANT_MEANINGFUL_DIFFERENCE';
+  }
+  return 'NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE';
+}
+
+export function assertNoBelowThresholdCrossFamilyWinner(
+  classification: string,
+  claimedWinner: boolean,
+): void {
+  if (classification === 'DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD' && claimedWinner) {
+    throw new Error('MEANINGLESS_EFFECT_CANNOT_BE_CROSS_FAMILY_WINNER');
+  }
+}
+
+export interface CandidateMultiDimensionalRecord {
+  readonly candidateFamily: string;
+  readonly candidateId: string;
+  readonly scientificCalibrationValidity: 'VALID' | 'INVALID' | 'BLOCKED';
+  readonly eligibilityForResearchBlindComparison: 'ELIGIBLE_AND_LOCKED' | 'SCIENTIFICALLY_ELIGIBLE_DEFERRED' | 'RESEARCH_REFERENCE_ONLY' | 'NOT_ELIGIBLE';
+  readonly causalLiveRuntimeCompatibility: 'CAUSAL_STREAMING_COMPATIBLE' | 'OFFLINE_WHOLE_RECORDING_INCOMPATIBLE' | 'OFFLINE_SEGMENTWISE_INCOMPATIBLE';
+  readonly productionCheckpointLicensing: 'PRODUCTION_LICENSE_ELIGIBLE' | 'RESEARCH_VALID_PRODUCTION_LICENSE_BLOCKED' | 'LICENSE_OR_USAGE_RIGHTS_UNRESOLVED';
+  readonly finalProductionSelectionEligibility: 'POTENTIALLY_ELIGIBLE_PENDING_PHASE_9GB' | 'INELIGIBLE_DUE_TO_OFFLINE_LATENCY' | 'INELIGIBLE_DUE_TO_LICENSE_AND_LATENCY' | 'INELIGIBLE';
+  readonly qualificationStatus: string;
+  readonly lockedForPhase9gB: boolean;
+}
+
+export function assertCandidateMultiDimensionalQualification(candidate: CandidateMultiDimensionalRecord): void {
+  if (candidate.lockedForPhase9gB) {
+    if (
+      candidate.scientificCalibrationValidity !== 'VALID' ||
+      candidate.qualificationStatus !== 'CALIBRATED_AND_LOCKED_FOR_RESEARCH'
+    ) {
+      throw new Error(`UNQUALIFIED_CANDIDATE_CANNOT_BE_LOCKED_FOR_PHASE_9G_B:${candidate.candidateFamily}`);
+    }
+  }
+}
+
