@@ -45,6 +45,7 @@ export const PHASE_9GB1 = '9G-B.1' as const;
 export const PHASE_9GB11 = '9G-B.1.1' as const;
 export const PHASE_9GB12 = '9G-B.1.2' as const;
 export const PHASE_9GB2_PRE = '9G-B.2-PRE' as const;
+export const PHASE_9GB2_ARM = '9G-B.2-ARM' as const;
 
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V1' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256 = '06d9811ad830bebbd0e3161c424c15ee04282756479d80868ae8aa29e6bdafb0' as const;
@@ -53,6 +54,8 @@ export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2_SHA256 = '42a2777600e51e2a9d
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V3' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3_SHA256 = '6a0f664af87bdcf773f6dbeb767ad0e4ba59b7b2518b41964f66773709191363' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V4' as const;
+export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4_SHA256 = 'f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67' as const;
+export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V5' as const;
 
 export type ChallengerFamily =
   | 'bytedance-robust-augmented'
@@ -136,7 +139,7 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
   }
 
   // 3. Fail closed on missing, malformed, or non-whitelisted phase
-  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01, PHASE_9GB1, PHASE_9GB11, PHASE_9GB12, PHASE_9GB2_PRE] as const;
+  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01, PHASE_9GB1, PHASE_9GB11, PHASE_9GB12, PHASE_9GB2_PRE, PHASE_9GB2_ARM] as const;
   if (!request.phase || !allowedPhases.includes(request.phase as typeof allowedPhases[number])) {
     if (request.mode === 'TRUTH_ONLY') {
       throw new Error(`CHALLENGER_TRUTH_ONLY_PHASE_REQUIRED:${request.phase}`);
@@ -144,9 +147,9 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
     throw new Error(`CHALLENGER_EXECUTION_PHASE_REQUIRED:${request.phase}`);
   }
 
-  // Phase 9G-B.0 through 9G-B.2-PRE are non-inference preflight readiness / protocol freeze gates
-  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01 || request.phase === PHASE_9GB1 || request.phase === PHASE_9GB11 || request.phase === PHASE_9GB12 || request.phase === PHASE_9GB2_PRE) && request.mode === 'CANDIDATE_INFERENCE') {
-    const prefix = request.phase === PHASE_9GB2_PRE ? 'PHASE_9GB2' : request.phase === PHASE_9GB12 ? 'PHASE_9GB12' : request.phase === PHASE_9GB11 ? 'PHASE_9GB11' : request.phase === PHASE_9GB1 ? 'PHASE_9GB1' : request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0';
+  // Phase 9G-B.0 through 9G-B.2-ARM are non-inference preflight readiness / protocol freeze gates
+  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01 || request.phase === PHASE_9GB1 || request.phase === PHASE_9GB11 || request.phase === PHASE_9GB12 || request.phase === PHASE_9GB2_PRE || request.phase === PHASE_9GB2_ARM) && request.mode === 'CANDIDATE_INFERENCE') {
+    const prefix = request.phase === PHASE_9GB2_ARM ? 'PHASE_9GB2_ARM' : request.phase === PHASE_9GB2_PRE ? 'PHASE_9GB2' : request.phase === PHASE_9GB12 ? 'PHASE_9GB12' : request.phase === PHASE_9GB11 ? 'PHASE_9GB11' : request.phase === PHASE_9GB1 ? 'PHASE_9GB1' : request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0';
     throw new Error(`${prefix}_CANDIDATE_INFERENCE_FORBIDDEN`);
   }
 
@@ -1600,6 +1603,116 @@ export function assertBlindProtocolV4Identity(identity: {
     throw new Error(`BLIND_PROTOCOL_V4_SUPERSEDED_POLICY_SHA_MISMATCH:${identity.supersedesPolicySha256}`);
   }
 }
+
+export function assertBlindProtocolV5Identity(identity: {
+  policyId: string;
+  schemaVersion: number;
+  sha256?: string;
+  supersedesPolicySha256?: string;
+}): void {
+  if (identity.policyId !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5 && identity.policyId !== 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V5') {
+    throw new Error(`BLIND_PROTOCOL_V5_POLICY_ID_MISMATCH:${identity.policyId}`);
+  }
+  if (identity.schemaVersion !== 5) {
+    throw new Error(`BLIND_PROTOCOL_V5_SCHEMA_VERSION_MISMATCH:${identity.schemaVersion}`);
+  }
+  if (!identity.sha256 || identity.sha256.length !== 64) {
+    throw new Error('BLIND_PROTOCOL_V5_SHA_REQUIRED');
+  }
+  if (identity.supersedesPolicySha256 !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4_SHA256) {
+    throw new Error(`BLIND_PROTOCOL_V5_SUPERSEDED_POLICY_SHA_MISMATCH:${identity.supersedesPolicySha256}`);
+  }
+}
+
+export function assertJournalChainTipAndCompleteness(
+  events: readonly JournalEvent[],
+  trustedAnchor?: { chainTipHash?: string; eventCount?: number },
+): void {
+  if (!trustedAnchor || !trustedAnchor.chainTipHash) {
+    throw new Error('JOURNAL_COMPLETENESS_NOT_VERIFIABLE: Missing trusted journal chain-tip anchor or run receipt');
+  }
+  assertJournalEventChainValid(events);
+  const actualTip = events[events.length - 1].eventHash;
+  if (actualTip !== trustedAnchor.chainTipHash) {
+    throw new Error(`JOURNAL_CHAIN_TIP_MISMATCH: expected ${trustedAnchor.chainTipHash}, got ${actualTip}`);
+  }
+  if (trustedAnchor.eventCount !== undefined && events.length !== trustedAnchor.eventCount) {
+    throw new Error(`JOURNAL_TRUNCATION_OR_COUNT_MISMATCH: expected ${trustedAnchor.eventCount}, got ${events.length}`);
+  }
+}
+
+export interface ProductionAudioManifestRecord {
+  readonly scenarioId: string;
+  readonly split: 'BLIND' | 'EVALUATION';
+  readonly performerId?: string;
+  readonly audio?: {
+    readonly nativeSampleRateHz: number;
+    readonly channelPolicy: string;
+    readonly clipStartMs?: number;
+    readonly clipEndMs?: number;
+    readonly performanceOriginSourceMs?: number;
+    readonly sourceDurationMs?: number;
+    readonly sourceSampleCount?: number;
+  };
+  readonly source: {
+    readonly sourceAudioPath: string;
+    readonly sourceAudioSha256: string;
+    readonly sourcePcmSha256: string;
+    readonly isSyntheticFixture?: boolean;
+  };
+}
+
+export function assertProductionAudioManifestValid(scenario: ProductionAudioManifestRecord): void {
+  if (!scenario.scenarioId || typeof scenario.scenarioId !== 'string') {
+    throw new Error('PRODUCTION_AUDIO_MANIFEST_SCENARIO_ID_REQUIRED');
+  }
+  if (scenario.split !== 'BLIND' && scenario.split !== 'EVALUATION') {
+    throw new Error(`PRODUCTION_AUDIO_MANIFEST_INVALID_SPLIT:${scenario.split}`);
+  }
+  if (scenario.source?.isSyntheticFixture || scenario.scenarioId.includes('synthetic')) {
+    throw new Error('SYNTHETIC_FIXTURE_REJECTED_IN_PRODUCTION');
+  }
+  if (!scenario.source?.sourceAudioPath || typeof scenario.source.sourceAudioPath !== 'string') {
+    throw new Error('PRODUCTION_AUDIO_MANIFEST_SOURCE_PATH_REQUIRED');
+  }
+  if (!scenario.source?.sourceAudioSha256 || scenario.source.sourceAudioSha256.length !== 64) {
+    throw new Error('PRODUCTION_AUDIO_MANIFEST_AUDIO_SHA_REQUIRED');
+  }
+  if (!scenario.source?.sourcePcmSha256 || scenario.source.sourcePcmSha256.length !== 64) {
+    throw new Error('PRODUCTION_AUDIO_MANIFEST_PCM_SHA_REQUIRED');
+  }
+  if (scenario.source.sourceAudioSha256 === scenario.source.sourcePcmSha256) {
+    throw new Error('PRODUCTION_AUDIO_MANIFEST_AUDIO_AND_PCM_HASH_COLLISION');
+  }
+  const fakeAudioSha = createHash('sha256').update(`audio_${scenario.scenarioId}`, 'utf8').digest('hex');
+  const fakePcmSha = createHash('sha256').update(`pcm_${scenario.scenarioId}`, 'utf8').digest('hex');
+  if (scenario.source.sourceAudioSha256 === fakeAudioSha || scenario.source.sourcePcmSha256 === fakePcmSha) {
+    throw new Error('PRODUCTION_AUDIO_MANIFEST_FABRICATED_HASH_DETECTED');
+  }
+}
+
+export function assertSyntheticRehearsalManifestValid(scenario: {
+  scenarioId: string;
+  isSynthetic?: boolean;
+  split?: string;
+  source?: {
+    sourceAudioPath?: string;
+    sourceAudioSha256?: string;
+    sourcePcmSha256?: string;
+  };
+}): void {
+  const isSynthetic = scenario.isSynthetic === true || scenario.scenarioId.includes('synthetic') || scenario.split === 'SYNTHETIC_REHEARSAL';
+  if (!isSynthetic) {
+    throw new Error('SYNTHETIC_REHEARSAL_MANIFEST_MUST_BE_EXPLICITLY_SYNTHETIC');
+  }
+  if (!scenario.source?.sourceAudioSha256 || scenario.source.sourceAudioSha256.length !== 64) {
+    throw new Error('SYNTHETIC_REHEARSAL_AUDIO_SHA_REQUIRED');
+  }
+  if (!scenario.source?.sourcePcmSha256 || scenario.source.sourcePcmSha256.length !== 64) {
+    throw new Error('SYNTHETIC_REHEARSAL_PCM_SHA_REQUIRED');
+  }
+}
+
 
 export interface JournalEvent {
   readonly seq: number;

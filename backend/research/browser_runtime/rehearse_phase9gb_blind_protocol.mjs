@@ -1,18 +1,18 @@
 /**
- * Phase 9G-B.2-PRE: True Synthetic End-to-End Evaluation Protocol Rehearsal Engine.
+ * Phase 9G-B.2-ARM: True Synthetic End-to-End Evaluation Protocol Rehearsal Engine.
  *
  * Implements a true end-to-end rehearsal of the future Phase 9G-B blind evaluation execution path:
- * - Real non-neural orchestration, exclusive atomic run lock ('wx'), append-only journal,
- *   mandatory preflight guards, score-blind acoustic execution, immutable disk evidence persistence,
+ * - Real non-neural orchestration, exclusive atomic run lock ('wx'), exclusive resume writer mutex ('writer.lock'),
+ *   append-only journal, mandatory preflight guards, score-blind acoustic execution, immutable disk evidence persistence,
  *   shared scoreCandidate() reading strictly from disk, genuine scorer-derived seeded bootstrap (5000 draws),
  *   and symmetric safety-first decision hierarchy.
- * - Spawns real child process to verify 2-process concurrency lock rejection.
+ * - Spawns real child process to verify 2-process concurrency lock rejection and concurrent resume rejection.
  * - Writes genuine synthetic WAV audio files to disk with valid 44-byte RIFF headers and PCM samples.
  * - Dependency-injects fake acoustic adapters without importing real neural models.
  * - Synthetic fixture audio identities and fabricated ExpectedStrike truth constructed exclusively
  *   for rehearsal; NEVER accesses real blind performance audio (p15-p22) or real ExpectedStrike truth.
  *
- * Exercises all 17 mandatory execution-grade adversarial cases:
+ * Exercises all 18 mandatory execution-grade adversarial cases:
  * 1. Two concurrent processes attempt the same frozen run ID (tested via spawned child process).
  * 2. Crash between model start and evidence commit; unknown outcome preserved (ATTEMPT_OUTCOME_UNKNOWN).
  * 3. Crash during ledger publication does not corrupt or overwrite prior journal.
@@ -30,6 +30,7 @@
  * 15. Incomplete coverage evaluated by real frozen coverage decision function (EVALUATION_INCOMPLETE_NO_WINNER).
  * 16. Duplicate candidate/scenario attempts rejected, even after restart.
  * 17. Committed evidence overwrite protection (openSync wx / exists check).
+ * 18. Audio manifest schema separation and simulated digest rejection.
  */
 
 import { createHash } from 'node:crypto';
@@ -52,6 +53,8 @@ import {
   deriveScenarioEligibility,
   computeCandidateEligibilityMatrix,
   createSanitizedAcousticManifest,
+  createProductionExecutionManifest,
+  createSyntheticRehearsalManifest,
   DurableExecutionLedger,
   executeAcousticCandidate,
   commitAcousticEvidence,
@@ -65,15 +68,18 @@ import {
   independentlyVerifyAndScoreCommittedEvidence,
   FROZEN_RANKED_ROSTER,
   FROZEN_V4_PROTOCOL_ID,
+  FROZEN_V5_PROTOCOL_ID,
+  TRUSTED_BLIND_PROTOCOL_V4_SHA256,
   sha256Text,
   sha256Json,
 } from './execution_grade_blind_orchestrator.mjs';
 
 export const B3_PROTOCOL_REL = 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v3_2026-10-10.json';
 export const B4_PROTOCOL_REL = 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v4_2026-10-10.json';
+export const B5_PROTOCOL_REL = 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v5_2026-10-10.json';
 export const BLIND_MANIFEST_REL = 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json';
 export const EXPECTED_BLIND_MANIFEST_SHA = '0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab';
-export const TRUSTED_V4_TEST_PROTOCOL_SHA = '4'.repeat(64);
+export const TRUSTED_V4_TEST_PROTOCOL_SHA = TRUSTED_BLIND_PROTOCOL_V4_SHA256;
 
 /**
  * Generates genuine synthetic WAV file on disk with valid 44-byte RIFF header and PCM samples.
@@ -308,7 +314,7 @@ export function createFakeAcousticAdapter(options = {}) {
 }
 
 export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
-  console.log('=== Phase 9G-B.2-PRE: True Synthetic End-to-End Protocol Rehearsal ===');
+  console.log('=== Phase 9G-B.2-ARM: True Synthetic End-to-End Protocol Rehearsal ===');
 
   const testWorkspaceDir = path.resolve(repoRoot, `tmp/rehearsal_b2_${Date.now()}_${Math.random().toString(36).slice(2)}`);
   const audioDir = path.resolve(testWorkspaceDir, 'audio');
@@ -325,7 +331,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Case 1: Two concurrent processes attempt the same frozen run ID (including real child process)
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 1/17] Testing exclusive atomic run reservation and lock collision...');
+  console.log('[Rehearsal 1/18] Testing exclusive atomic run reservation, lock collision, and concurrent resume...');
   const lockRunId = 'phase9gb-lock-collision-test';
   const lockDir = path.resolve(testWorkspaceDir, 'lock_collision_ledger');
   const ledgerPrimary = new DurableExecutionLedger(lockDir, lockRunId);
@@ -342,7 +348,19 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   }
   if (!lockCollisionCaught) throw new Error('Failed to catch concurrent run lock collision on duplicate init in same process!');
 
-  // Two-process concurrency test using child process
+  // Test concurrent resume writer collision while ledgerPrimary holds writer.lock
+  let concurrentResumeCaught = false;
+  try {
+    const collidingResumeLedger = new DurableExecutionLedger(lockDir, lockRunId);
+    await collidingResumeLedger.init({ allowResume: true });
+  } catch (err) {
+    if (err.message.includes('CONCURRENT_RESUME_WRITER_COLLISION')) {
+      concurrentResumeCaught = true;
+    }
+  }
+  if (!concurrentResumeCaught) throw new Error('Failed to catch concurrent resume writer collision when ledger is locked by active process!');
+
+  // Two-process concurrency test using child process (exclusive init race)
   const orchUrl = pathToFileURL(path.resolve(repoRoot, 'backend/research/browser_runtime/execution_grade_blind_orchestrator.mjs')).href;
   const childScript = `
     import { DurableExecutionLedger } from '${orchUrl}';
@@ -361,16 +379,36 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
     throw new Error(`Child process failed concurrency race test: exit code ${childResult.status}, stderr: ${childResult.stderr}`);
   }
 
+  // Two-process concurrency test using child process (concurrent resume race)
+  const childResumeScript = `
+    import { DurableExecutionLedger } from '${orchUrl}';
+    const l = new DurableExecutionLedger(${JSON.stringify(lockDir)}, ${JSON.stringify(lockRunId)});
+    l.init({ allowResume: true })
+      .then(() => process.exit(0))
+      .catch((err) => {
+        if (err.message.includes('CONCURRENT_RESUME_WRITER_COLLISION')) {
+          process.exit(43);
+        }
+        process.exit(1);
+      });
+  `;
+  const childResumeResult = spawnSync('node', ['--input-type=module', '-e', childResumeScript], { encoding: 'utf8', timeout: 5000 });
+  if (childResumeResult.status !== 43) {
+    throw new Error(`Child process failed concurrent resume race test: exit code ${childResumeResult.status}, stderr: ${childResumeResult.stderr}`);
+  }
+
+  ledgerPrimary.close();
+
   rehearsalResults.push({
     testId: 'REHEARSAL_1_EXCLUSIVE_ATOMIC_RUN_LOCK_COLLISION',
     status: 'PASS',
-    details: { twoProcessConcurrencyVerified: true },
+    details: { twoProcessConcurrencyVerified: true, concurrentResumeCollisionVerified: true },
   });
 
   // -------------------------------------------------------------------------
   // Case 2: A crash occurs between model start and evidence commit; unknown outcome preserved
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 2/17] Testing crash between start and commit with ATTEMPT_OUTCOME_UNKNOWN preservation...');
+  console.log('[Rehearsal 2/18] Testing crash between start and commit with ATTEMPT_OUTCOME_UNKNOWN preservation...');
   const crashRunId = 'phase9gb-crash-recovery-test';
   const crashDir = path.resolve(testWorkspaceDir, 'crash_recovery_ledger');
   const crashLedger = new DurableExecutionLedger(crashDir, crashRunId);
@@ -379,6 +417,21 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
 
   // Start attempt on scenario 0, but crash before committing
   crashLedger.startAttempt(candidates[0].candidateId, sanitizedScenarios[0].scenarioId);
+
+  // Before crashLedger exits, attempting resume fails with collision
+  let resumeBlockedBeforeDeath = false;
+  try {
+    const prematureResume = new DurableExecutionLedger(crashDir, crashRunId);
+    await prematureResume.init({ allowResume: true });
+  } catch (err) {
+    if (err.message.includes('CONCURRENT_RESUME_WRITER_COLLISION')) {
+      resumeBlockedBeforeDeath = true;
+    }
+  }
+  if (!resumeBlockedBeforeDeath) throw new Error('Premature resume during active run was not rejected!');
+
+  // Simulate process death / crash of the previous process
+  crashLedger.close();
 
   // Resume ledger
   const resumedCrashLedger = new DurableExecutionLedger(crashDir, crashRunId);
@@ -397,12 +450,14 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Case 3: A crash during ledger publication does not corrupt or overwrite prior journal
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 3/17] Testing append-only journal resilience across process crashes...');
+  console.log('[Rehearsal 3/18] Testing append-only journal resilience across process crashes...');
   const journalEventsCountBefore = resumedCrashLedger.journalEvents.length;
   if (journalEventsCountBefore < 2) {
     throw new Error('Journal did not contain expected events before crash simulation');
   }
   challengerQual.assertJournalEventChainValid(resumedCrashLedger.journalEvents);
+  resumedCrashLedger.close();
+
   rehearsalResults.push({
     testId: 'REHEARSAL_3_CRASH_RESILIENT_APPEND_ONLY_JOURNAL',
     status: 'PASS',
@@ -412,11 +467,15 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Case 4: A changed protocol hash prevents resume
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 4/17] Testing changed protocol hash resume rejection...');
+  console.log('[Rehearsal 4/18] Testing changed protocol hash and bindings resume rejection...');
   const hashRunId = 'phase9gb-hash-check-run';
   const hashDir = path.resolve(testWorkspaceDir, 'hash_check_ledger');
   const hashLedger = new DurableExecutionLedger(hashDir, hashRunId);
-  await hashLedger.init({ protocolSha256: 'orig_'.padEnd(64, '0') });
+  await hashLedger.init({
+    protocolSha256: 'orig_'.padEnd(64, '0'),
+    scorerSha256: 'scorer_'.padEnd(64, '0'),
+  });
+  hashLedger.close();
 
   let alteredProtocolCaught = false;
   try {
@@ -428,15 +487,32 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
     }
   }
   if (!alteredProtocolCaught) throw new Error('Failed to block resume when protocol hash changed!');
+
+  let alteredScorerCaught = false;
+  try {
+    const alteredScorerLedger = new DurableExecutionLedger(hashDir, hashRunId);
+    await alteredScorerLedger.init({
+      allowResume: true,
+      protocolSha256: 'orig_'.padEnd(64, '0'),
+      scorerSha256: 'diff_scorer_'.padEnd(64, '0'),
+    });
+  } catch (err) {
+    if (err.message.includes('RESUME_BLOCKED_SCORER_SHA_CHANGED')) {
+      alteredScorerCaught = true;
+    }
+  }
+  if (!alteredScorerCaught) throw new Error('Failed to block resume when scorer hash changed!');
+
   rehearsalResults.push({
     testId: 'REHEARSAL_4_CHANGED_PROTOCOL_HASH_PREVENTS_RESUME',
     status: 'PASS',
+    details: { protocolShaMismatchBlocked: true, scorerShaMismatchBlocked: true },
   });
 
   // -------------------------------------------------------------------------
   // Case 5: A changed scorer or adapter hash prevents model invocation (and dummy hash rejected)
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 5/17] Testing changed scorer, adapter hash, and dummy hash rejection...');
+  console.log('[Rehearsal 5/18] Testing changed scorer, adapter hash, and dummy hash rejection...');
   let preflightProtocolCaught = false;
   try {
     preflightCandidateScenarioExecution({
@@ -469,15 +545,56 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   }
   if (!dummyBypassCaught) throw new Error('Preflight failed to reject dummy hash bypass ("a".repeat(64))!');
 
+  // Realistic-looking wrong protocol SHA
+  let realisticWrongShaCaught = false;
+  try {
+    preflightCandidateScenarioExecution({
+      protocolId: FROZEN_V4_PROTOCOL_ID,
+      protocolSha256: '4'.repeat(64), // realistic 64-char hex string, but wrong
+      candidateConfig: candidates[0],
+      sanitizedScenario: sanitizedScenarios[1],
+      ledger: crashLedger,
+    });
+  } catch (err) {
+    if (err.message.includes('PREFLIGHT_PROTOCOL_SHA_MISMATCH')) {
+      realisticWrongShaCaught = true;
+    }
+  }
+  if (!realisticWrongShaCaught) throw new Error('Preflight failed to reject realistic-looking wrong protocol SHA!');
+
+  // Caller attempting to supply its own expected root
+  let callerSuppliedRootCaught = false;
+  try {
+    preflightCandidateScenarioExecution({
+      protocolId: FROZEN_V4_PROTOCOL_ID,
+      protocolSha256: '4'.repeat(64),
+      expectedProtocolSha256: '4'.repeat(64),
+      candidateConfig: candidates[0],
+      sanitizedScenario: sanitizedScenarios[1],
+      ledger: crashLedger,
+    });
+  } catch (err) {
+    if (err.message.includes('PREFLIGHT_UNTRUSTED_EXPECTED_PROTOCOL_SHA')) {
+      callerSuppliedRootCaught = true;
+    }
+  }
+  if (!callerSuppliedRootCaught) throw new Error('Preflight failed to reject untrusted caller-supplied expected root!');
+
   rehearsalResults.push({
     testId: 'REHEARSAL_5_CHANGED_SCORER_OR_ADAPTER_HASH_PREVENTS_INVOCATION',
     status: 'PASS',
+    details: {
+      lengthValidationEnforced: true,
+      dummyBypassRejected: true,
+      realisticWrongShaRejected: true,
+      untrustedExpectedShaRejected: true,
+    },
   });
 
   // -------------------------------------------------------------------------
   // Case 6: A changed checkpoint or input WAV/PCM SHA prevents model invocation
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 6/17] Testing changed checkpoint or PCM SHA rejection in preflight...');
+  console.log('[Rehearsal 6/18] Testing changed checkpoint or PCM SHA rejection in preflight...');
   let checkpointMismatchCaught = false;
   try {
     preflightCandidateScenarioExecution({
@@ -501,7 +618,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Case 7: Unauthorized candidate, performer or scenario fails at the actual execution entrypoint
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 7/17] Testing unauthorized candidate, scenario, and calibration performer rejection...');
+  console.log('[Rehearsal 7/18] Testing unauthorized candidate, scenario, and calibration performer rejection...');
   let unauthCandCaught = false;
   try {
     preflightCandidateScenarioExecution({
@@ -541,7 +658,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
       protocolId: FROZEN_V4_PROTOCOL_ID,
       protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA,
       candidateConfig: candidates[0],
-      sanitizedScenario: { ...sanitizedScenarios[1], scenarioId: 'scenario-fake:performer_p07', split: 'BLIND' },
+      sanitizedScenario: { ...sanitizedScenarios[1], scenarioId: 'scenario-fake:performer_p07', split: 'BLIND', familyTags: [] },
       ledger: crashLedger,
     });
   } catch (err) {
@@ -559,7 +676,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Case 8: Nested or indirect score truth cannot reach acoustic adapter
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 8/17] Testing nested or indirect score truth rejection...');
+  console.log('[Rehearsal 8/18] Testing nested or indirect score truth rejection...');
   let nestedTruthCaught = false;
   try {
     const leakyScenario = {
@@ -587,7 +704,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Case 9: Cryptographic journal integrity: gaps, tampering, truncation, and attempt ordering
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 9/17] Testing cryptographic journal integrity, payload tampering, and truncation...');
+  console.log('[Rehearsal 9/18] Testing cryptographic journal integrity, payload tampering, and truncation...');
   const ev0Base = {
     seq: 0,
     prevEventHash: '0'.repeat(64),
@@ -716,7 +833,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Case 10: Original raw publications independently reconstructed, rescored from disk, verified
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 10/17] Testing independent disk evidence reconstruction and scoring...');
+  console.log('[Rehearsal 10/18] Testing independent disk evidence reconstruction, chain-tip anchor, and scoring...');
   const candDefs = candidates.map((cand) => ({
     candidateId: cand.candidateId,
     strategyKind: 'CHUNKED',
@@ -727,21 +844,87 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
       trainingDataOverlapStatus: 'KNOWN_DISJOINT',
     },
   }));
+
+  // 10a. Missing chain-tip anchor / receipt throws JOURNAL_COMPLETENESS_NOT_VERIFIABLE
+  let missingAnchorCaught = false;
+  try {
+    await independentlyVerifyAndScoreCommittedEvidence(mainLedger.runDir, syntheticScenarios, candDefs);
+  } catch (err) {
+    if (err.message.includes('JOURNAL_COMPLETENESS_NOT_VERIFIABLE')) {
+      missingAnchorCaught = true;
+    }
+  }
+  if (!missingAnchorCaught) throw new Error('Audit failed to throw JOURNAL_COMPLETENESS_NOT_VERIFIABLE when anchor missing!');
+
+  // Create trusted run receipt on disk
+  const chainTipHash = mainLedger.journalEvents[mainLedger.journalEvents.length - 1].eventHash;
+  const eventCount = mainLedger.journalEvents.length;
+  const receiptPayload = {
+    runId: mainRunId,
+    eventCount,
+    chainTipHash,
+    generatedAt: new Date().toISOString(),
+  };
+  writeFileSync(path.resolve(mainLedger.runDir, 'run_receipt.json'), JSON.stringify(receiptPayload, null, 2) + '\n');
+
+  // 10b. Audit succeeds with trusted receipt
   const auditResult = await independentlyVerifyAndScoreCommittedEvidence(mainLedger.runDir, syntheticScenarios, candDefs);
   if (!auditResult.verifiedJournal || auditResult.totalAttemptsVerified !== 21) {
     throw new Error(`Independent disk evidence verification failed: ${JSON.stringify(auditResult)}`);
   }
 
+  // 10c. Joint evidence tampering detection: tamper payload and self-hash, verify journal mismatch
+  const cand0Id = candidates[0].candidateId;
+  const sc1Id = sanitizedScenarios[1].scenarioId;
+  const auditSafeCandId = cand0Id.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const auditSafeScId = sc1Id.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const evPath = path.resolve(mainLedger.runDir, 'evidence', `${auditSafeCandId}__${auditSafeScId}.json`);
+  const origEvRaw = readFileSync(evPath, 'utf8');
+  const origEvObj = JSON.parse(origEvRaw);
+
+  const tamperedEv = {
+    ...origEvObj,
+    publications: [
+      {
+        publicationId: 'tampered_pub',
+        analyzedThroughPerformanceMs: 1000,
+        availabilityTimeMs: 1020,
+        observations: [],
+      },
+    ],
+  };
+  tamperedEv.observationDigest = sha256Json(tamperedEv.publications);
+  const unsignedTampered = { ...tamperedEv };
+  delete unsignedTampered.evidenceRecordSha256;
+  tamperedEv.evidenceRecordSha256 = sha256Json(unsignedTampered);
+  writeFileSync(evPath, JSON.stringify(tamperedEv, null, 2) + '\n');
+
+  let tamperedEvCaught = false;
+  try {
+    await independentlyVerifyAndScoreCommittedEvidence(mainLedger.runDir, syntheticScenarios, candDefs);
+  } catch (err) {
+    if (err.message.includes('EVIDENCE_SHA_MISMATCH_WITH_JOURNAL')) {
+      tamperedEvCaught = true;
+    }
+  }
+  // Restore original evidence file
+  writeFileSync(evPath, origEvRaw);
+  if (!tamperedEvCaught) throw new Error('Audit failed to catch jointly modified evidence data and hash against journal!');
+
   rehearsalResults.push({
     testId: 'REHEARSAL_10_INDEPENDENT_DISK_EVIDENCE_RECONSTRUCTION_AND_SCORING',
     status: 'PASS',
-    details: { totalAttemptsVerified: auditResult.totalAttemptsVerified },
+    details: {
+      totalAttemptsVerified: auditResult.totalAttemptsVerified,
+      missingAnchorRejected: true,
+      jointTamperingDetected: true,
+    },
   });
 
   // -------------------------------------------------------------------------
   // Case 11: Future-audio lookahead or backdated availability fails at admission
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 11/17] Testing causal publication timing validation failure at admission...');
+  console.log('[Rehearsal 11/18] Testing causal publication timing validation failure at admission...');
   const timingLedger = new DurableExecutionLedger(testWorkspaceDir, 'run_rehearsal_11');
   await timingLedger.init();
   timingLedger.transitionTo('RUNNING');
@@ -780,6 +963,8 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   }
   if (!backdatedCaught) throw new Error('Failed to catch backdated publication availability during execution!');
 
+  timingLedger.close();
+
   rehearsalResults.push({
     testId: 'REHEARSAL_11_CAUSAL_AND_PUBLICATION_TIMING_VIOLATIONS_BLOCKED',
     status: 'PASS',
@@ -788,7 +973,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Case 12: Missing high-priority safety metrics cannot produce a winner
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 12/17] Testing winner blocking when critical safety metrics have insufficient evidence...');
+  console.log('[Rehearsal 12/18] Testing winner blocking when critical safety metrics have insufficient evidence...');
   const insufficientSafetyVectors = {
     falseMatchRateOnGroundTruthMissing: [0.0], // only 1 sample (< 8)
     expectedStrikeRecall: [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05],
@@ -806,7 +991,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Case 13: Candidate A/B reversal produces an equivalent symmetric decision
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 13/17] Testing symmetric reversal invariance of safety decision function...');
+  console.log('[Rehearsal 13/18] Testing symmetric reversal invariance of safety decision function...');
   const diffsAB = {
     falseMatchRateOnGroundTruthMissing: [-0.02, -0.02, -0.02, -0.02, -0.02, -0.02, -0.02, -0.02],
     falseCompleteChordAcceptanceRate: [0, 0, 0, 0, 0, 0, 0, 0],
@@ -837,7 +1022,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Case 14: Genuine scorer-derived paired bootstrap vectors (non-zero differences)
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 14/17] Testing paired bootstrap derived directly from real shared scorer outputs...');
+  console.log('[Rehearsal 14/18] Testing paired bootstrap derived directly from real shared scorer outputs...');
   const scoresCand0 = candidateScores['bytedance-original-calibrated-v1'];
   const scoresCand2 = candidateScores['bytedance-robust-augmented-calibrated-v1'];
 
@@ -884,7 +1069,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Case 15: Incomplete coverage evaluated by real frozen coverage decision function
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 15/17] Testing incomplete coverage evaluation decision from execution ledger...');
+  console.log('[Rehearsal 15/18] Testing incomplete coverage evaluation decision from execution ledger...');
   const coverageAssessment = evaluateProductionExecutionCoverage(mainLedger, syntheticScenarios, candidates);
   // Scenario 0 was not run in mainLedger, so missing count > 0 and overall < 100%
   if (coverageAssessment.coverageOutcome !== 'EVALUATION_INCOMPLETE_NO_WINNER') {
@@ -903,8 +1088,9 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Case 16: Duplicate candidate/scenario attempts rejected after restart
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 16/17] Testing duplicate candidate/scenario rejection after restart...');
+  console.log('[Rehearsal 16/18] Testing duplicate candidate/scenario rejection after restart...');
   mainLedger.transitionTo('COMPLETED');
+  mainLedger.close();
 
   const resumedCompletedLedger = new DurableExecutionLedger(mainDir, mainRunId);
   await resumedCompletedLedger.init({ allowResume: true });
@@ -918,6 +1104,8 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
     }
   }
   if (!dupAfterRestartCaught) throw new Error('Failed to reject duplicate attempt on completed ledger after resume!');
+  resumedCompletedLedger.close();
+
   rehearsalResults.push({
     testId: 'REHEARSAL_16_DUPLICATE_CANDIDATE_SCENARIO_REJECTED_AFTER_RESTART',
     status: 'PASS',
@@ -926,7 +1114,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Case 17: Committed evidence overwrite protection
   // -------------------------------------------------------------------------
-  console.log('[Rehearsal 17/17] Testing committed evidence file overwrite protection...');
+  console.log('[Rehearsal 17/18] Testing committed evidence file overwrite protection...');
   const overwriteRunDir = path.resolve(testWorkspaceDir, 'overwrite_test_ledger');
   const overwriteLedger = new DurableExecutionLedger(overwriteRunDir, 'run_overwrite_test');
   await overwriteLedger.init();
@@ -949,10 +1137,86 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
     }
   }
   if (!overwriteCaught) throw new Error('Failed to reject overwrite of existing committed evidence file!');
+  overwriteLedger.close();
 
   rehearsalResults.push({
     testId: 'REHEARSAL_17_COMMITTED_EVIDENCE_OVERWRITE_PROTECTION',
     status: 'PASS',
+  });
+
+  // -------------------------------------------------------------------------
+  // Case 18: Audio manifest schema separation & real digest verification
+  // -------------------------------------------------------------------------
+  console.log('[Rehearsal 18/18] Testing audio manifest schema separation and simulated digest rejection...');
+  // 18a. Production audio manifest rejects synthetic fixture flag
+  let syntheticInProdCaught = false;
+  try {
+    challengerQual.assertProductionAudioManifestValid({
+      scenarioId: 'test-sc-1:performer_p15',
+      split: 'BLIND',
+      audio: { nativeSampleRateHz: 16000, channelPolicy: 'MONO', clipStartMs: 0, clipEndMs: 15000 },
+      source: {
+        sourceAudioPath: 'audio/p15.wav',
+        sourceAudioSha256: 'a'.repeat(64),
+        sourcePcmSha256: 'b'.repeat(64),
+        isSyntheticFixture: true,
+      },
+    });
+  } catch (err) {
+    if (err.message.includes('SYNTHETIC_FIXTURE_REJECTED_IN_PRODUCTION')) {
+      syntheticInProdCaught = true;
+    }
+  }
+  if (!syntheticInProdCaught) throw new Error('assertProductionAudioManifestValid failed to reject synthetic fixture flag!');
+
+  // 18b. Production audio manifest rejects fabricated placeholder audio identity
+  let placeholderHashCaught = false;
+  try {
+    const fakeAudioSha = createHash('sha256').update('audio_test-sc-2:performer_p15', 'utf8').digest('hex');
+    challengerQual.assertProductionAudioManifestValid({
+      scenarioId: 'test-sc-2:performer_p15',
+      split: 'BLIND',
+      audio: { nativeSampleRateHz: 16000, channelPolicy: 'MONO', clipStartMs: 0, clipEndMs: 15000 },
+      source: {
+        sourceAudioPath: 'audio/p15.wav',
+        sourceAudioSha256: fakeAudioSha,
+        sourcePcmSha256: 'b'.repeat(64),
+        isSyntheticFixture: false,
+      },
+    });
+  } catch (err) {
+    if (err.message.includes('PRODUCTION_AUDIO_MANIFEST_FABRICATED_HASH_DETECTED')) {
+      placeholderHashCaught = true;
+    }
+  }
+  if (!placeholderHashCaught) throw new Error('assertProductionAudioManifestValid failed to reject fabricated placeholder audio SHA!');
+
+  // 18c. Synthetic manifest requires synthetic flag or scenarioId
+  let nonFixtureInSyntheticCaught = false;
+  try {
+    challengerQual.assertSyntheticRehearsalManifestValid({
+      scenarioId: 'prod-sc:performer_p15',
+      split: 'BLIND',
+      source: {
+        sourceAudioPath: 'audio/p15.wav',
+        sourceAudioSha256: 'c'.repeat(64),
+      },
+    });
+  } catch (err) {
+    if (err.message.includes('SYNTHETIC_REHEARSAL_MANIFEST_MUST_BE_EXPLICITLY_SYNTHETIC')) {
+      nonFixtureInSyntheticCaught = true;
+    }
+  }
+  if (!nonFixtureInSyntheticCaught) throw new Error('assertSyntheticRehearsalManifestValid failed to require synthetic flag!');
+
+  rehearsalResults.push({
+    testId: 'REHEARSAL_18_AUDIO_MANIFEST_SCHEMA_SEPARATION_AND_REAL_DIGEST_VERIFICATION',
+    status: 'PASS',
+    details: {
+      syntheticFlagInProdRejected: true,
+      fabricatedDigestRejected: true,
+      syntheticFixtureFlagEnforced: true,
+    },
   });
 
   // Cleanup test workspace
@@ -962,9 +1226,9 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
 
   const allPassed = rehearsalResults.every((r) => r.status === 'PASS');
   const rehearsalReceipt = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     artifact: 'phase9g_b2_rehearsal_receipt',
-    phase: '9G-B.2-PRE',
+    phase: '9G-B.2-ARM',
     generatedAt: new Date().toISOString(),
     gitHead,
     dirtyTreeAtExecution: dirty,

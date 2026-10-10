@@ -1,5 +1,5 @@
 /**
- * Phase 9G-B.2-PRE Unified Protocol Freeze Runner.
+ * Phase 9G-B.2-ARM Unified Protocol Freeze Runner.
  *
  * Orchestrates:
  * 1. Evidence Reconciliation and Receipt Preparation (all 4 B.2 artifacts)
@@ -30,6 +30,7 @@ import {
   B2_PROTOCOL_REL,
   B3_PROTOCOL_REL,
   B4_PROTOCOL_REL,
+  B5_PROTOCOL_REL,
   A25_REGISTRY_REL,
   A1_SCENARIOS_REL,
   BLIND_MANIFEST_REL,
@@ -70,8 +71,8 @@ function getGitDirty(dir) {
   }
 }
 
-export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV4 = false, allowDirty = false } = {}) {
-  console.log('>>> Preparing Phase 9G-B.2-PRE Evidence Receipts...');
+export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV5 = false, allowUnwrittenV4 = false, allowDirty = false } = {}) {
+  console.log('>>> Preparing Phase 9G-B.2-ARM Evidence Receipts...');
 
   const v5ActualSha = await sha256File(V5_POLICY_REL);
   const v1PolicySha = await sha256File(V1_POLICY_REL);
@@ -79,8 +80,9 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
   const b1ProtocolSha = await sha256File(B1_PROTOCOL_REL);
   const b2ProtocolSha = await sha256File(B2_PROTOCOL_REL);
   const b3ProtocolSha = await sha256File(B3_PROTOCOL_REL);
-  const b4ProtocolSha = existsSync(path.resolve(repoRoot, B4_PROTOCOL_REL))
-    ? await sha256File(B4_PROTOCOL_REL)
+  const b4ProtocolSha = await sha256File(B4_PROTOCOL_REL);
+  const b5ProtocolSha = existsSync(path.resolve(repoRoot, B5_PROTOCOL_REL))
+    ? await sha256File(B5_PROTOCOL_REL)
     : null;
   const a25Sha = await sha256File(A25_REGISTRY_REL);
   const a1Sha = await sha256File(A1_SCENARIOS_REL);
@@ -96,37 +98,34 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
 
   // 1. Supersession Receipt
   const supersessionReceipt = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     artifact: 'phase9g_b2_supersession_receipt',
-    phase: '9G-B.2-PRE',
+    phase: '9G-B.2-ARM',
     generatedAt: new Date().toISOString(),
     gitHead,
     dirtyTreeAtGeneration: dirty,
     supersededProtocol: {
-      policyId: 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V3',
-      path: B3_PROTOCOL_REL,
-      sha256: b3ProtocolSha,
-      status: 'SUPERSEDED_NOT_RUNTIME_ATTESTED',
-      supersessionReason: 'Independent source review confirmed that Phase 9G-B.1.2 protocol V3 introduced valuable atomic file creation, durable acoustic publications, scorer readback, and causal timing checks, but contained protocol-hash fallbacks, untested real Docker runtime container bindings, non-cross-verified evidence-to-journal cryptographic hashes, and lacked genuine non-zero scorer-derived paired bootstrap vectors.',
-    },
-    activeProtocol: {
       policyId: 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V4',
       path: B4_PROTOCOL_REL,
       sha256: b4ProtocolSha,
+      status: 'SUPERSEDED_BY_V5_ARM',
+      supersessionReason: 'Independent source review confirmed that Phase 9G-B.2-PRE protocol V4 established atomic run reservation, journal event hashing, and physical-checkpoint checks, but trusted protocol SHA comparison was still optional, production audio identities could still be fabricated from scenario IDs, Online-AMT attestation lacked a real model forward pass, and resume lacked exclusive writer ownership verification.',
+    },
+    activeProtocol: {
+      policyId: 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V5',
+      path: B5_PROTOCOL_REL,
+      sha256: b5ProtocolSha,
       status: 'ACTIVE_AUTHORIZATION_GATED',
     },
-    materialAmendmentsInV4: [
-      'Eliminated all protocol-hash fallbacks and bypasses: exact V4 protocol SHA256 is strictly required in all execution requests.',
-      'Enforced preflight scenario and performer allowlist verification, strictly rejecting calibration performers (p07-p14) relabeled as blind.',
-      'Implemented full cryptographic journal event verification: canonical unsigned payload SHA256 recomputation, genesis event enforcement, sequential attempt ordering, and run receipt truncation checking.',
-      'Bound durable evidence blobs directly to journal ATTEMPT_COMMITTED events, cross-verifying evidenceSha256 and acousticOutputDigest before scoring.',
-      'Enforced evidence file overwrite protection, rejecting duplicate writes to existing evidence files.',
-      'Corrected shared scorer schema integration: read status === "MEASURED" and numeric metric values, matching paired vectors on exact scenarioId without zero-filling unmeasured values.',
-      'Implemented production coverage evaluation deriving counts directly from durable execution ledger (eligible, completed, failed, uncertain, missing).',
-      'Implemented independent disk evidence auditor (independentlyVerifyAndScoreCommittedEvidence) verifying event chains, evidence hashes, and score readbacks.',
-      'Verified physical checkpoints on disk (171.9MB, 178.8MB, 103.8MB) and attested synthetic zero-input forward passes in target Docker containers with CUDA GPU.',
-      'Exercised genuine two-process concurrency race test spawning a separate Node.js process to verify lock collision.',
-      'Established immutable authorization gate: PHASE_9GB2_PRE_READY_FOR_SEPARATE_EXPLICIT_BLIND_EXECUTION_AUTHORIZATION.',
+    materialAmendmentsInV5: [
+      'Made trusted protocol SHA256 comparison strictly mandatory at preflight execution boundary: untrusted caller-supplied expected SHA cannot serve as its own trust root, and realistic-looking wrong hashes are rejected.',
+      'Enforced production audio manifest schema requiring real 64-character SHA256 digests for WAV and decoded PCM, explicitly rejecting fabricated audio_${id} digests and synthetic rehearsal fixtures.',
+      'Completed end-to-end target runtime attestation for all three candidate models in production Docker containers on CUDA, including genuine OnlineTranscriber forward pass.',
+      'Bound immutable Docker container image IDs and RepoDigests to runtime attestation receipts.',
+      'Implemented exclusive resume writer ownership mutex (writer.lock with "wx" mode) and verified complete run bindings on resume.',
+      'Enforced trusted chain-tip anchor requirement for independent disk evidence audit completeness (JOURNAL_COMPLETENESS_NOT_VERIFIABLE).',
+      'Expanded synthetic rehearsal to 18 comprehensive adversarial test cases, verifying concurrency, crash preservation, tampering detection, and manifest schema separation.',
+      'Established Phase 9G-B.2-ARM execution authorization gate outcome: PHASE_9GB2_ARM_READY_FOR_SEPARATE_ONE_SHOT_BLIND_AUTHORIZATION.',
     ],
   };
   await writeJson(B2_SUPERSESSION_RECEIPT_REL, supersessionReceipt);
@@ -135,9 +134,9 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
   const runtimeAttestation = attestRuntimeEnvironment();
 
   const candidateLockReceipt = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     artifact: 'phase9g_b2_candidate_lock_receipt',
-    phase: '9G-B.2-PRE',
+    phase: '9G-B.2-ARM',
     generatedAt: new Date().toISOString(),
     gitHead,
     dirtyTreeAtGeneration: dirty,
@@ -220,15 +219,16 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
   const verifierReport = await verifyPhase9gb2Protocol({
     gitHead,
     dirty,
-    allowUnwrittenV4,
+    allowUnwrittenV5: allowUnwrittenV5 || allowUnwrittenV4,
     allowDirty,
     existingAttestation: runtimeAttestation,
+    existingRehearsal: rehearsalReceipt,
   });
 
   const freezeReport = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     artifact: 'phase9g_b2_protocol_freeze_report',
-    phase: '9G-B.2-PRE',
+    phase: '9G-B.2-ARM',
     generatedAt: new Date().toISOString(),
     gitHead,
     dirtyTreeAtGeneration: dirty,
@@ -244,6 +244,7 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
       v2BlindProtocolSha256: b2ProtocolSha,
       v3BlindProtocolSha256: b3ProtocolSha,
       v4BlindProtocolSha256: b4ProtocolSha,
+      v5BlindProtocolSha256: b5ProtocolSha,
       a25IncumbentRegistrySha256: a25Sha,
       a1CalibrationManifestSha256: a1Sha,
       blindManifestSha256: blindSha,
@@ -265,7 +266,7 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
   };
   await writeJson(B2_PROTOCOL_FREEZE_REPORT_REL, freezeReport);
 
-  console.log(`\nPhase 9G-B.2-PRE Artifacts Successfully Prepared. Gate Status: ${verifierReport.protocolState}\n`);
+  console.log(`\nPhase 9G-B.2-ARM Artifacts Successfully Prepared. Gate Status: ${verifierReport.protocolState}\n`);
   return {
     supersessionReceipt,
     candidateLockReceipt,
@@ -277,7 +278,7 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename ?? '')) {
   const allowDirty = process.argv.includes('--allow-dirty');
-  const allowUnwrittenV4 = process.argv.includes('--allow-unwritten-v4');
+  const allowUnwrittenV5 = process.argv.includes('--allow-unwritten-v5') || process.argv.includes('--allow-unwritten-v4');
   const gitHead = getGitHead(repoRoot);
   const dirty = getGitDirty(repoRoot);
 
@@ -286,7 +287,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.met
     process.exit(1);
   }
 
-  preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV4, allowDirty })
+  preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV5, allowDirty })
     .then((res) => {
       process.exit(res.verifierReport.allChecksPassed ? 0 : 1);
     })

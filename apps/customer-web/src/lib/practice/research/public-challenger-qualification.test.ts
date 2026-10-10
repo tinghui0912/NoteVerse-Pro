@@ -17,12 +17,15 @@ import {
   PHASE_9GB11,
   PHASE_9GB12,
   PHASE_9GB2_PRE,
+  PHASE_9GB2_ARM,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2_SHA256,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3_SHA256,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4,
+  PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4_SHA256,
+  PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5,
   CHALLENGER_CALIBRATION_PERFORMERS,
   CHALLENGER_BLIND_PERFORMERS,
   assertChallengerQualificationPolicyIdentity,
@@ -70,6 +73,7 @@ import {
   assertBlindProtocolV2Identity,
   assertBlindProtocolV3Identity,
   assertBlindProtocolV4Identity,
+  assertBlindProtocolV5Identity,
   assertExecutionLockBindingsValid,
   assertLedgerStateTransitionValid,
   assertNoDuplicateRunAttempt,
@@ -77,6 +81,9 @@ import {
   computeJournalEventHash,
   assertJournalEventChainValid,
   assertJournalMatchesRunReceipt,
+  assertJournalChainTipAndCompleteness,
+  assertProductionAudioManifestValid,
+  assertSyntheticRehearsalManifestValid,
   assertAcousticPublicationCausalTimingValid,
   evaluateSymmetricSafetyDominance,
   assertMetricSpecificDenominatorsValid,
@@ -2203,6 +2210,163 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       // Run ID mismatch
       expect(() => assertJournalMatchesRunReceipt(events, { ...validReceipt, runId: 'different-run' }))
         .toThrow(/JOURNAL_RUN_ID_MISMATCH/);
+    });
+
+    it('B.2-ARM-1: Programmatic candidate inference is strictly forbidden in Phase 9G-B.2-ARM', () => {
+      const baseReq = {
+        policy: {
+          schemaVersion: 2,
+          policyId: PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2,
+          sha256: PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2_SHA256,
+        },
+        incumbentPolicySha256: '5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6',
+        phase: PHASE_9GB2_ARM,
+        mode: 'CANDIDATE_INFERENCE' as const,
+        candidateId: 'bytedance-robust-augmented-calibrated-v1',
+        candidateFamily: 'bytedance-robust-augmented',
+        scenarioSplit: 'CALIBRATION' as const,
+        performers: ['p07'],
+        calibrationManifestSha256: PHASE_9GA1_CALIBRATION_SCENARIOS_SHA256,
+        incumbentRegistrySha256: PHASE_9GA25_REGISTRY_SHA256,
+        blindManifestSha256: PHASE_9GB_BLIND_MANIFEST_SHA256,
+      };
+
+      expect(() => assertChallengerExecutionAllowed(baseReq))
+        .toThrow(/PHASE_9GB2_ARM_CANDIDATE_INFERENCE_FORBIDDEN/);
+    });
+
+    it('B.2-ARM-2: assertBlindProtocolV5Identity validates V5 schema, SHA, and supersedes V4 SHA', () => {
+      const validV5 = {
+        policyId: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5,
+        schemaVersion: 5,
+        sha256: 'a'.repeat(64),
+        supersedesPolicySha256: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4_SHA256,
+      };
+
+      expect(() => assertBlindProtocolV5Identity(validV5)).not.toThrow();
+
+      // Wrong schema
+      expect(() => assertBlindProtocolV5Identity({ ...validV5, schemaVersion: 4 }))
+        .toThrow(/BLIND_PROTOCOL_V5_SCHEMA_VERSION_MISMATCH:4/);
+
+      // Wrong predecessor V4 SHA
+      expect(() => assertBlindProtocolV5Identity({ ...validV5, supersedesPolicySha256: 'wrong'.padEnd(64, '0') }))
+        .toThrow(/BLIND_PROTOCOL_V5_SUPERSEDED_POLICY_SHA_MISMATCH/);
+
+      // Wrong policyId
+      expect(() => assertBlindProtocolV5Identity({ ...validV5, policyId: 'WRONG' }))
+        .toThrow(/BLIND_PROTOCOL_V5_POLICY_ID_MISMATCH:WRONG/);
+    });
+
+    it('B.2-ARM-3: Production audio manifest rejects synthetic fixtures and fabricated hashes', () => {
+      const validProdScenario: ProductionAudioManifestRecord = {
+        scenarioId: 'vienna_eval_01',
+        split: 'BLIND',
+        performerId: 'p15',
+        audio: {
+          nativeSampleRateHz: 16000,
+          channelPolicy: 'MONO',
+          clipStartMs: 0,
+          clipEndMs: 15000,
+          performanceOriginSourceMs: 5000,
+          sourceDurationMs: 15000,
+          sourceSampleCount: 240000,
+        },
+        source: {
+          sourceAudioPath: 'audio/blind/vienna_eval_01.wav',
+          sourceAudioSha256: '1'.repeat(64),
+          sourcePcmSha256: '2'.repeat(64),
+        },
+      };
+
+      expect(() => assertProductionAudioManifestValid(validProdScenario)).not.toThrow();
+
+      // Synthetic fixture in production must be rejected
+      expect(() => assertProductionAudioManifestValid({
+        ...validProdScenario,
+        source: { ...validProdScenario.source, isSyntheticFixture: true },
+      })).toThrow(/SYNTHETIC_FIXTURE_REJECTED_IN_PRODUCTION/);
+
+      expect(() => assertProductionAudioManifestValid({
+        ...validProdScenario,
+        scenarioId: 'synthetic_test_01',
+      })).toThrow(/SYNTHETIC_FIXTURE_REJECTED_IN_PRODUCTION/);
+
+      // Fabricated text hash (e.g. sha256Text("audio_" + scenarioId)) must be rejected
+      const fabricatedAudio = createHash('sha256').update('audio_vienna_eval_01', 'utf8').digest('hex');
+      expect(() => assertProductionAudioManifestValid({
+        ...validProdScenario,
+        source: { ...validProdScenario.source, sourceAudioSha256: fabricatedAudio },
+      })).toThrow(/PRODUCTION_AUDIO_MANIFEST_FABRICATED_HASH_DETECTED/);
+
+      // Hash collision between audio and PCM must be rejected
+      expect(() => assertProductionAudioManifestValid({
+        ...validProdScenario,
+        source: { ...validProdScenario.source, sourcePcmSha256: '1'.repeat(64) },
+      })).toThrow(/PRODUCTION_AUDIO_MANIFEST_AUDIO_AND_PCM_HASH_COLLISION/);
+    });
+
+    it('B.2-ARM-4: Synthetic rehearsal manifest requires explicit synthetic tagging', () => {
+      const validSynth = {
+        scenarioId: 'synthetic_rehearsal_01',
+        isSynthetic: true,
+        source: {
+          sourceAudioPath: 'test_tmp/fixtures/synth1.wav',
+          sourceAudioSha256: '3'.repeat(64),
+          sourcePcmSha256: '4'.repeat(64),
+        },
+      };
+
+      expect(() => assertSyntheticRehearsalManifestValid(validSynth)).not.toThrow();
+
+      // Non-synthetic scenario in rehearsal manifest must be rejected
+      expect(() => assertSyntheticRehearsalManifestValid({
+        scenarioId: 'vienna_prod_01',
+        isSynthetic: false,
+        source: validSynth.source,
+      })).toThrow(/SYNTHETIC_REHEARSAL_MANIFEST_MUST_BE_EXPLICITLY_SYNTHETIC/);
+    });
+
+    it('B.2-ARM-5: assertJournalChainTipAndCompleteness enforces trusted anchor requirement', () => {
+      const ev0Base = {
+        seq: 0,
+        prevEventHash: '0'.repeat(64),
+        timestamp: '2026-10-10T00:00:00Z',
+        eventType: 'RUN_INITIALIZED',
+        runId: 'arm-journal-check',
+        payload: {},
+      };
+      const ev0 = { ...ev0Base, eventHash: computeJournalEventHash(ev0Base) };
+
+      const ev1Base = {
+        seq: 1,
+        prevEventHash: ev0.eventHash,
+        timestamp: '2026-10-10T00:00:01Z',
+        eventType: 'RUN_COMPLETED',
+        runId: 'arm-journal-check',
+        payload: {},
+      };
+      const ev1 = { ...ev1Base, eventHash: computeJournalEventHash(ev1Base) };
+
+      const events = [ev0, ev1];
+
+      // Missing trusted anchor must fail closed with JOURNAL_COMPLETENESS_NOT_VERIFIABLE
+      expect(() => assertJournalChainTipAndCompleteness(events, undefined))
+        .toThrow(/JOURNAL_COMPLETENESS_NOT_VERIFIABLE/);
+      expect(() => assertJournalChainTipAndCompleteness(events, {}))
+        .toThrow(/JOURNAL_COMPLETENESS_NOT_VERIFIABLE/);
+
+      // Valid anchor succeeds
+      expect(() => assertJournalChainTipAndCompleteness(events, { chainTipHash: ev1.eventHash, eventCount: 2 }))
+        .not.toThrow();
+
+      // Mismatched tip hash fails
+      expect(() => assertJournalChainTipAndCompleteness(events, { chainTipHash: 'wrong'.padEnd(64, '0'), eventCount: 2 }))
+        .toThrow(/JOURNAL_CHAIN_TIP_MISMATCH/);
+
+      // Truncated events count fails
+      expect(() => assertJournalChainTipAndCompleteness(events, { chainTipHash: ev1.eventHash, eventCount: 3 }))
+        .toThrow(/JOURNAL_TRUNCATION_OR_COUNT_MISMATCH/);
     });
   });
 });

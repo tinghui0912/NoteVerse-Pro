@@ -43,6 +43,21 @@ export function sha256Json(obj) {
 }
 
 export const FROZEN_V4_PROTOCOL_ID = '9G-B-BLIND-V4';
+export const FROZEN_V5_PROTOCOL_ID = '9G-B-BLIND-V5';
+export const TRUSTED_BLIND_PROTOCOL_V4_SHA256 = 'f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67';
+
+export function getTrustedProtocolSha256(protocolId) {
+  if (protocolId === '9G-B-BLIND-V5' || protocolId === 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V5') {
+    const v5Path = path.resolve(repoRoot, 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v5_2026-10-10.json');
+    if (existsSync(v5Path)) {
+      return sha256Buffer(readFileSync(v5Path));
+    }
+  }
+  if (protocolId === '9G-B-BLIND-V4' || protocolId === 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V4') {
+    return TRUSTED_BLIND_PROTOCOL_V4_SHA256;
+  }
+  return null;
+}
 
 // Frozen 3-candidate competitive roster constants
 export const FROZEN_RANKED_ROSTER = {
@@ -183,11 +198,12 @@ export function computeCandidateEligibilityMatrix(scenarios, candidates) {
   return candidateEligibleMap;
 }
 
-export function createSanitizedAcousticManifest(rawScenarios) {
+export function createProductionExecutionManifest(rawScenarios) {
   return rawScenarios.map((s) => {
-    return {
+    const sc = {
       scenarioId: s.scenarioId,
-      split: s.split,
+      split: s.split ?? 'BLIND',
+      performerId: s.performerId ?? s.scenarioId.split(':').pop()?.replace(/^performer_/, ''),
       audio: {
         nativeSampleRateHz: s.audio?.nativeSampleRateHz ?? 16000,
         channelPolicy: s.audio?.channelPolicy ?? 'MONO',
@@ -195,16 +211,55 @@ export function createSanitizedAcousticManifest(rawScenarios) {
         clipEndMs: s.audio?.clipEndMs ?? 15000,
         performanceOriginSourceMs: s.audio?.performanceOriginSourceMs ?? s.performanceOriginSourceMs ?? 0,
         sourceDurationMs: s.audio?.sourceDurationMs ?? s.audio?.clipEndMs ?? 15000,
-        pcmIdentity: s.audio?.pcmIdentity ?? `pcm_${s.scenarioId}`,
+        sourceSampleCount: s.audio?.sourceSampleCount,
       },
       source: {
-        sourceAudioPath: s.source?.sourceAudioPath ?? `audio/${s.scenarioId}.wav`,
-        sourceAudioSha256: s.source?.sourceAudioSha256 ?? sha256Text(`audio_${s.scenarioId}`),
-        sourcePcmSha256: s.source?.sourcePcmSha256 ?? sha256Text(`pcm_${s.scenarioId}`),
+        sourceAudioPath: s.source?.sourceAudioPath,
+        sourceAudioSha256: s.source?.sourceAudioSha256,
+        sourcePcmSha256: s.source?.sourcePcmSha256,
+        isSyntheticFixture: false,
       },
     };
+    challengerQual.assertProductionAudioManifestValid(sc);
+    return sc;
   });
 }
+
+export function createSyntheticRehearsalManifest(fixtures) {
+  return fixtures.map((f) => {
+    const sc = {
+      scenarioId: f.scenarioId,
+      split: 'SYNTHETIC_REHEARSAL',
+      isSynthetic: true,
+      audio: {
+        nativeSampleRateHz: f.sampleRateHz ?? f.audio?.nativeSampleRateHz ?? 16000,
+        channelPolicy: 'MONO',
+        clipStartMs: f.clipStartMs ?? f.audio?.clipStartMs ?? 0,
+        clipEndMs: f.durationMs ?? f.audio?.clipEndMs ?? 15000,
+        performanceOriginSourceMs: f.performanceOriginSourceMs ?? f.audio?.performanceOriginSourceMs ?? 5000,
+        sourceDurationMs: f.durationMs ?? f.audio?.sourceDurationMs ?? 15000,
+        sourceSampleCount: f.sampleCount ?? f.audio?.sourceSampleCount,
+      },
+      source: {
+        sourceAudioPath: f.audioPath ?? f.source?.sourceAudioPath,
+        sourceAudioSha256: f.audioSha256 ?? f.source?.sourceAudioSha256,
+        sourcePcmSha256: f.pcmSha256 ?? f.source?.sourcePcmSha256,
+        isSyntheticFixture: true,
+      },
+    };
+    challengerQual.assertSyntheticRehearsalManifestValid(sc);
+    return sc;
+  });
+}
+
+export function createSanitizedAcousticManifest(scenarios) {
+  const isSynthetic = scenarios.some((s) => s.isSynthetic || s.scenarioId?.includes('synthetic') || s.split === 'SYNTHETIC_REHEARSAL');
+  if (isSynthetic) {
+    return createSyntheticRehearsalManifest(scenarios);
+  }
+  return createProductionExecutionManifest(scenarios);
+}
+
 
 // ---------------------------------------------------------------------------
 // Layer 2: Exclusive Atomic Run Lock & Cryptographic Event Journal
@@ -215,6 +270,7 @@ export class DurableExecutionLedger {
     this.runId = runId;
     this.runDir = path.resolve(baseDir, runId);
     this.lockPath = path.resolve(this.runDir, 'run.lock');
+    this.writerLockPath = path.resolve(this.runDir, 'writer.lock');
     this.journalPath = path.resolve(this.runDir, 'journal.jsonl');
     this.ledgerPath = path.resolve(this.runDir, 'execution_ledger.json');
     this.evidenceDir = path.resolve(this.runDir, 'evidence');
@@ -249,10 +305,30 @@ export class DurableExecutionLedger {
         createdAt: this.createdAt,
         protocolSha256: options.protocolSha256,
         scorerSha256: options.scorerSha256,
+        orchestratorSha256: options.orchestratorSha256,
+        rosterSha256: options.rosterSha256,
         manifestSha256: options.manifestSha256,
       };
       appendFileSync(fd, JSON.stringify(lockData, null, 2) + '\n', 'utf8');
       closeSync(fd);
+
+      // Acquire exclusive writer ownership
+      let writerFd;
+      try {
+        writerFd = openSync(this.writerLockPath, 'wx');
+      } catch (err) {
+        if (err.code === 'EEXIST') {
+          throw new Error(`CONCURRENT_WRITER_COLLISION:${this.runId}`);
+        }
+        throw err;
+      }
+      const writerData = {
+        runId: this.runId,
+        pid: process.pid,
+        acquiredAt: this.createdAt,
+      };
+      appendFileSync(writerFd, JSON.stringify(writerData, null, 2) + '\n', 'utf8');
+      closeSync(writerFd);
 
       // Initialize append-only journal with genesis event
       this.appendJournalEvent('RUN_INITIALIZED', {
@@ -270,40 +346,75 @@ export class DurableExecutionLedger {
       throw new Error(`DUPLICATE_RUN_ID_REJECTED:${this.runId}`);
     }
 
-    // Resume execution: validate existing lock and replay journal
-    const lockRaw = JSON.parse(readFileSync(this.lockPath, 'utf8'));
-    if (lockRaw.runId !== this.runId) {
-      throw new Error(`LEDGER_RUN_ID_MISMATCH:${lockRaw.runId} !== ${this.runId}`);
-    }
-    if (options.protocolSha256 && lockRaw.protocolSha256 && lockRaw.protocolSha256 !== options.protocolSha256) {
-      throw new Error(`RESUME_BLOCKED_PROTOCOL_SHA_CHANGED:${lockRaw.protocolSha256} !== ${options.protocolSha256}`);
-    }
-
-    this.replayJournal();
-
-    // Handle uncertain outcomes: any attempt that started but never committed or failed
-    for (const [key, startTime] of this.activeAttempts.entries()) {
-      const [candId, scId] = key.split('\0');
-      if (!this.records.has(key)) {
-        this.appendJournalEvent('ATTEMPT_OUTCOME_UNKNOWN', {
-          candidateId: candId,
-          scenarioId: scId,
-          startTimeMs: startTime,
-          interruptedAt: new Date().toISOString(),
-          reason: 'CRASH_BEFORE_EVIDENCE_COMMIT_DETECTED_ON_RESUME',
-        });
-        const unknownRecord = {
-          candidateId: candId,
-          scenarioId: scId,
-          status: 'ATTEMPT_OUTCOME_UNKNOWN',
-          recordedAt: new Date().toISOString(),
-          failureReason: 'CRASH_BEFORE_EVIDENCE_COMMIT_DETECTED_ON_RESUME',
-        };
-        this.records.set(key, unknownRecord);
+    // Resume execution: acquire exclusive resume writer ownership
+    let writerFd;
+    try {
+      writerFd = openSync(this.writerLockPath, 'wx');
+    } catch (err) {
+      if (err.code === 'EEXIST') {
+        throw new Error(`CONCURRENT_RESUME_WRITER_COLLISION:${this.runId}`);
       }
+      throw err;
     }
-    this.activeAttempts.clear();
-    await this.persistLedger();
+    const writerData = {
+      runId: this.runId,
+      pid: process.pid,
+      resumedAt: new Date().toISOString(),
+    };
+    appendFileSync(writerFd, JSON.stringify(writerData, null, 2) + '\n', 'utf8');
+    closeSync(writerFd);
+
+    // Resume execution: validate existing lock and replay journal
+    try {
+      const lockRaw = JSON.parse(readFileSync(this.lockPath, 'utf8'));
+      if (lockRaw.runId !== this.runId) {
+        throw new Error(`LEDGER_RUN_ID_MISMATCH:${lockRaw.runId} !== ${this.runId}`);
+      }
+      if (options.protocolSha256 && lockRaw.protocolSha256 && lockRaw.protocolSha256 !== options.protocolSha256) {
+        throw new Error(`RESUME_BLOCKED_PROTOCOL_SHA_CHANGED:${lockRaw.protocolSha256} !== ${options.protocolSha256}`);
+      }
+      if (options.scorerSha256 && lockRaw.scorerSha256 && lockRaw.scorerSha256 !== options.scorerSha256) {
+        throw new Error(`RESUME_BLOCKED_SCORER_SHA_CHANGED:${lockRaw.scorerSha256} !== ${options.scorerSha256}`);
+      }
+      if (options.orchestratorSha256 && lockRaw.orchestratorSha256 && lockRaw.orchestratorSha256 !== options.orchestratorSha256) {
+        throw new Error(`RESUME_BLOCKED_ORCHESTRATOR_SHA_CHANGED:${lockRaw.orchestratorSha256} !== ${options.orchestratorSha256}`);
+      }
+      if (options.rosterSha256 && lockRaw.rosterSha256 && lockRaw.rosterSha256 !== options.rosterSha256) {
+        throw new Error(`RESUME_BLOCKED_ROSTER_SHA_CHANGED:${lockRaw.rosterSha256} !== ${options.rosterSha256}`);
+      }
+      if (options.manifestSha256 && lockRaw.manifestSha256 && lockRaw.manifestSha256 !== options.manifestSha256) {
+        throw new Error(`RESUME_BLOCKED_MANIFEST_SHA_CHANGED:${lockRaw.manifestSha256} !== ${options.manifestSha256}`);
+      }
+
+      this.replayJournal();
+
+      // Handle uncertain outcomes: any attempt that started but never committed or failed
+      for (const [key, startTime] of this.activeAttempts.entries()) {
+        const [candId, scId] = key.split('\0');
+        if (!this.records.has(key)) {
+          this.appendJournalEvent('ATTEMPT_OUTCOME_UNKNOWN', {
+            candidateId: candId,
+            scenarioId: scId,
+            startTimeMs: startTime,
+            interruptedAt: new Date().toISOString(),
+            reason: 'CRASH_BEFORE_EVIDENCE_COMMIT_DETECTED_ON_RESUME',
+          });
+          const unknownRecord = {
+            candidateId: candId,
+            scenarioId: scId,
+            status: 'ATTEMPT_OUTCOME_UNKNOWN',
+            recordedAt: new Date().toISOString(),
+            failureReason: 'CRASH_BEFORE_EVIDENCE_COMMIT_DETECTED_ON_RESUME',
+          };
+          this.records.set(key, unknownRecord);
+        }
+      }
+      this.activeAttempts.clear();
+      await this.persistLedger();
+    } catch (err) {
+      this.releaseWriterLock();
+      throw err;
+    }
   }
 
   appendJournalEvent(eventType, payload) {
@@ -496,6 +607,18 @@ export class DurableExecutionLedger {
     };
     await atomicWriteJson(this.ledgerPath, payload);
   }
+
+  releaseWriterLock() {
+    if (existsSync(this.writerLockPath)) {
+      try {
+        unlinkSync(this.writerLockPath);
+      } catch {}
+    }
+  }
+
+  close() {
+    this.releaseWriterLock();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -519,8 +642,10 @@ export function preflightCandidateScenarioExecution({
     throw new Error('PREFLIGHT_GROUND_TRUTH_LEAKAGE_DETECTED: Nested note or strike metadata present');
   }
 
-  // 2. Validate protocol identity
+  // 2. Validate protocol identity and mandatory trusted lock
   const allowedProtocolIds = [
+    '9G-B-BLIND-V5',
+    'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V5',
     '9G-B-BLIND-V4',
     'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V4',
   ];
@@ -533,9 +658,19 @@ export function preflightCandidateScenarioExecution({
   if (protocolSha256 === 'a'.repeat(64)) {
     throw new Error('PREFLIGHT_PROTOCOL_HASH_BYPASS_FORBIDDEN: dummy fallback hash rejected');
   }
-  if (expectedProtocolSha256 && protocolSha256 !== expectedProtocolSha256) {
-    throw new Error(`PREFLIGHT_PROTOCOL_SHA_MISMATCH: got ${protocolSha256}, expected ${expectedProtocolSha256}`);
+
+  // Mandatory trusted protocol lock: cannot be omitted, cannot be self-authenticated
+  const trustedSha = getTrustedProtocolSha256(protocolId);
+  if (!trustedSha) {
+    throw new Error(`PREFLIGHT_TRUSTED_PROTOCOL_LOCK_UNRESOLVED:${protocolId}`);
   }
+  if (expectedProtocolSha256 && expectedProtocolSha256 !== trustedSha) {
+    throw new Error(`PREFLIGHT_UNTRUSTED_EXPECTED_PROTOCOL_SHA:${expectedProtocolSha256} !== ${trustedSha}`);
+  }
+  if (protocolSha256 !== trustedSha) {
+    throw new Error(`PREFLIGHT_PROTOCOL_SHA_MISMATCH: got ${protocolSha256}, expected ${trustedSha}`);
+  }
+
 
   // 3. Validate candidate belongs to frozen 3-candidate roster
   const candidateId = candidateConfig.candidateId;
@@ -573,19 +708,21 @@ export function preflightCandidateScenarioExecution({
     throw new Error('PREFLIGHT_SOURCE_PCM_SHA_REQUIRED');
   }
 
-  // 7. Performer allowlist and isolation check
-  if (authorizedScenarioIds) {
-    const idSet = Array.isArray(authorizedScenarioIds) ? new Set(authorizedScenarioIds) : authorizedScenarioIds;
-    if (!idSet.has(sanitizedScenario.scenarioId)) {
-      throw new Error(`PREFLIGHT_UNAUTHORIZED_SCENARIO_REJECTED:${sanitizedScenario.scenarioId}`);
-    }
-  }
+  // 7. Scenario allowlist and isolation check (MANDATORY)
   const performer = sanitizedScenario.scenarioId.split(':').pop()?.replace(/^performer_/, '');
   const isSynthetic = sanitizedScenario.scenarioId.includes('synthetic') || (sanitizedScenario.familyTags && sanitizedScenario.familyTags.includes('SYNTHETIC_REHEARSAL_FIXTURE'));
   if (!isSynthetic && (sanitizedScenario.split === 'BLIND' || sanitizedScenario.split === 'EVALUATION')) {
     if (performer && ['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p14'].includes(performer)) {
       throw new Error(`PREFLIGHT_CALIBRATION_PERFORMER_IN_BLIND_SPLIT_FORBIDDEN:${performer}`);
     }
+  }
+
+  if (!authorizedScenarioIds || (Array.isArray(authorizedScenarioIds) && authorizedScenarioIds.length === 0)) {
+    throw new Error('PREFLIGHT_AUTHORIZED_SCENARIOS_REQUIRED: approved scenario allowlist is mandatory at execution entrypoint');
+  }
+  const idSet = Array.isArray(authorizedScenarioIds) ? new Set(authorizedScenarioIds) : authorizedScenarioIds;
+  if (!idSet.has(sanitizedScenario.scenarioId)) {
+    throw new Error(`PREFLIGHT_UNAUTHORIZED_SCENARIO_REJECTED:${sanitizedScenario.scenarioId}`);
   }
 
   // 8. Verify ledger state and duplicate check
@@ -625,6 +762,9 @@ export function validateAcousticPublications(publications, scenarioAudio) {
 export async function executeAcousticCandidate(adapter, sanitizedScenario, candidateConfig, ledger, protocolMeta) {
   if (!protocolMeta || !protocolMeta.protocolId || !protocolMeta.protocolSha256) {
     throw new Error('PREFLIGHT_PROTOCOL_METADATA_REQUIRED: protocolId and protocolSha256 must be explicitly provided');
+  }
+  if (!protocolMeta.authorizedScenarioIds || (Array.isArray(protocolMeta.authorizedScenarioIds) && protocolMeta.authorizedScenarioIds.length === 0)) {
+    throw new Error('PREFLIGHT_AUTHORIZED_SCENARIOS_REQUIRED: approved scenario allowlist is mandatory at execution entrypoint');
   }
 
   // 1. Mandatory preflight
@@ -935,14 +1075,21 @@ export async function independentlyVerifyAndScoreCommittedEvidence(runDir, fullS
   // 1. Verify journal event chain cryptographic integrity
   challengerQual.assertJournalEventChainValid(events);
 
-  // 2. If run receipt present, verify against receipt
+  // 2. Journal completeness verification: require trusted chain tip anchor
   const receiptPath = path.resolve(runDir, 'run_receipt.json');
+  let trustedAnchor = null;
   if (existsSync(receiptPath)) {
-    const receipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
-    challengerQual.assertJournalMatchesRunReceipt(events, receipt);
+    trustedAnchor = JSON.parse(readFileSync(receiptPath, 'utf8'));
   } else if (options.expectedReceipt) {
-    challengerQual.assertJournalMatchesRunReceipt(events, options.expectedReceipt);
+    trustedAnchor = options.expectedReceipt;
+  } else if (options.expectedChainTip) {
+    trustedAnchor = { chainTipHash: options.expectedChainTip, eventCount: options.expectedEventCount };
   }
+
+  if (!trustedAnchor || !trustedAnchor.chainTipHash) {
+    throw new Error('JOURNAL_COMPLETENESS_NOT_VERIFIABLE: Missing trusted journal chain-tip anchor or run receipt');
+  }
+  challengerQual.assertJournalChainTipAndCompleteness(events, trustedAnchor);
 
   // 3. For each committed attempt, independently verify evidence on disk
   const scenariosById = new Map(fullScenariosWithTruth.map((s) => [s.scenarioId, s]));
