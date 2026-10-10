@@ -1,0 +1,11 @@
+FROM noteverse-aria-amt-bench:gpu-cu124-patched
+
+RUN pip install --no-cache-dir \
+  transkun==2.0.1 \
+  moduleconf==0.1.4 \
+  ncls==0.0.70 \
+  torch-optimizer==0.3.0 \
+  pytorch-ranger==0.1.1 \
+  einops==0.8.1 \
+  pretty_midi==0.2.11.post0 \
+  pydub==0.25.1

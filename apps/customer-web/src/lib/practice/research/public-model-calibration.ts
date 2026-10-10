@@ -152,16 +152,18 @@ export function assertViennaPublicProxyExecutionAllowed(request: Phase9GExecutio
   if (request.mode === 'CANDIDATE_INFERENCE' && includesBlindPerformer(performers)) {
     throw new Error('PHASE_9GA_BLIND_EVALUATION_INFERENCE_FORBIDDEN');
   }
-  if (request.phase !== PHASE_9GA) {
-    if (request.mode === 'CANDIDATE_INFERENCE') return;
-    throw new Error(`PHASE_9GA_TRUTH_ONLY_PHASE_REQUIRED:${request.phase}`);
+  if (!request.phase || request.phase !== PHASE_9GA) {
+    if (request.mode === 'TRUTH_ONLY') {
+      throw new Error(`PHASE_9GA_TRUTH_ONLY_PHASE_REQUIRED:${request.phase}`);
+    }
+    throw new Error(`PHASE_9GA_EXECUTION_PHASE_REQUIRED:${request.phase}`);
   }
   assertPhase9GExecutionAllowed(request);
 }
 
 export function assertPhase9GExecutionAllowed(request: Phase9GExecutionRequest): void {
   assertPublicModelCalibrationPolicyIdentity(request.policy);
-  if (request.phase !== PHASE_9GA) {
+  if (!request.phase || request.phase !== PHASE_9GA) {
     throw new Error(`PHASE_9GA_EXECUTION_PHASE_REQUIRED:${request.phase}`);
   }
   const performers = normalizedUniquePerformers(request.performers);

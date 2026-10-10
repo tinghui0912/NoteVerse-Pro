@@ -1,0 +1,12 @@
+FROM noteverse-bytedance-calibration:phase9ga21
+
+RUN python -m pip install --no-cache-dir \
+  torchaudio==2.6.0+cu124 \
+  --index-url https://download.pytorch.org/whl/cu124
+
+RUN python -m pip install --no-cache-dir \
+  transkun==2.0.1 \
+  moduleconf==0.1.4 \
+  einops==0.8.1 \
+  pretty_midi==0.2.11.post0 \
+  soxr==1.1.0

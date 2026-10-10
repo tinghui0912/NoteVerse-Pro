@@ -97,6 +97,30 @@ describe('public model calibration protocol V5', () => {
     }))).toThrow(/PHASE_9GA_BLIND_EVALUATION_INFERENCE_FORBIDDEN/);
   });
 
+  it('fails closed on absent, malformed, or non-9G-A phase on the candidate execution path', () => {
+    // Absent phase
+    expect(() => assertViennaPublicProxyExecutionAllowed(request({ phase: undefined as unknown as string })))
+      .toThrow(/PHASE_9GA_EXECUTION_PHASE_REQUIRED/);
+    expect(() => assertCandidateExecutorReachableForPhase9G(request({ phase: undefined as unknown as string })))
+      .toThrow(/PHASE_9GA_EXECUTION_PHASE_REQUIRED/);
+
+    // Empty/malformed phase
+    expect(() => assertViennaPublicProxyExecutionAllowed(request({ phase: '' })))
+      .toThrow(/PHASE_9GA_EXECUTION_PHASE_REQUIRED/);
+    expect(() => assertCandidateExecutorReachableForPhase9G(request({ phase: '' })))
+      .toThrow(/PHASE_9GA_EXECUTION_PHASE_REQUIRED/);
+
+    // Wrong phase like 9G-B
+    expect(() => assertViennaPublicProxyExecutionAllowed(request({ phase: '9G-B' })))
+      .toThrow(/PHASE_9GA_EXECUTION_PHASE_REQUIRED/);
+    expect(() => assertCandidateExecutorReachableForPhase9G(request({ phase: '9G-B' })))
+      .toThrow(/PHASE_9GA_EXECUTION_PHASE_REQUIRED/);
+
+    // Wrong phase with non-CALIBRATION split
+    expect(() => assertCandidateExecutorReachableForPhase9G(request({ phase: '9G-B', scenarioSplit: 'EVALUATION' })))
+      .toThrow(/PHASE_9GA_EXECUTION_PHASE_REQUIRED/);
+  });
+
   it('proves executor-call counters stay zero for blind, mixed, and TRUTH_ONLY requests', () => {
     let byteDanceCalls = 0;
     let onlineAmtCalls = 0;
