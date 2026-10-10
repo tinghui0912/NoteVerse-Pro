@@ -45,17 +45,28 @@ export function sha256Json(obj) {
 export const FROZEN_V4_PROTOCOL_ID = '9G-B-BLIND-V4';
 export const FROZEN_V5_PROTOCOL_ID = '9G-B-BLIND-V5';
 export const FROZEN_V6_PROTOCOL_ID = '9G-B-BLIND-V6';
+export const FROZEN_V7_PROTOCOL_ID = '9G-B-BLIND-V7';
 export const TRUSTED_BLIND_PROTOCOL_V4_SHA256 = 'f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67';
 export const TRUSTED_BLIND_PROTOCOL_V5_SHA256 = 'e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b';
-export let TRUSTED_BLIND_PROTOCOL_V6_SHA256 = null;
-
-export function setTrustedProtocolV6Sha256(sha256) {
-  TRUSTED_BLIND_PROTOCOL_V6_SHA256 = sha256;
-}
+export const TRUSTED_BLIND_PROTOCOL_V6_SHA256 = '39303325793b7ff512e051a8771c0fa6c37500e78d18409bb8192660c959c4fe';
 
 export function getTrustedProtocolSha256(protocolId) {
   if (protocolId === '9G-B-BLIND-V6' || protocolId === 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V6') {
     return TRUSTED_BLIND_PROTOCOL_V6_SHA256;
+  }
+  if (protocolId === '9G-B-BLIND-V7' || protocolId === 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V7') {
+    const v7Path = path.resolve(repoRoot, 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v7_2026-10-10.json');
+    if (existsSync(v7Path)) {
+      const v7Buf = readFileSync(v7Path);
+      try {
+        const v7Obj = JSON.parse(v7Buf.toString('utf8'));
+        const supersedesSha = v7Obj.supersedesPolicy?.sha256 ?? v7Obj.supersedesPolicySha256;
+        if (supersedesSha === TRUSTED_BLIND_PROTOCOL_V6_SHA256) {
+          return createHash('sha256').update(v7Buf).digest('hex');
+        }
+      } catch {}
+    }
+    return null;
   }
   if (protocolId === '9G-B-BLIND-V5' || protocolId === 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V5') {
     return TRUSTED_BLIND_PROTOCOL_V5_SHA256;
@@ -374,10 +385,31 @@ export function deriveAuthorizedScheduleFromMetadata({
     throw new Error(`ROBUST_BYTEDANCE_ELIGIBLE_COUNT_MISMATCH: expected 63, got ${eligibleRob.length}`);
   }
 
+  const sanitizedScenarios = scenarios.map((s) => ({
+    scenarioId: s.scenarioId,
+    performerId: s.performerId ?? s.performanceId?.split('_')?.pop(),
+    split: s.split ?? 'blind',
+    audio: {
+      sourceAudioPath: s.sourceAudioPath ?? s.audio?.sourceAudioPath ?? s.audioClip?.sourceAudioPath,
+      sourceAudioSha256: s.sourceAudioSha256 ?? s.audio?.sourceAudioSha256 ?? s.audioClip?.sourceAudioSha256,
+      performanceOriginSourceMs: s.performanceOriginSourceMs ?? s.audio?.performanceOriginSourceMs ?? s.audioClip?.performanceOriginSourceMs ?? 0,
+      clipStartMs: s.clipStartMs ?? s.audio?.clipStartMs ?? s.audioClip?.clipStartMs ?? 0,
+      clipEndMs: s.clipEndMs ?? s.audio?.clipEndMs ?? s.audioClip?.clipEndMs ?? 15000,
+      sampleRateHz: s.sampleRateHz ?? s.audio?.sampleRateHz ?? 16000,
+      channels: s.channels ?? s.audio?.channels ?? 1,
+    },
+    source: {
+      sourceAudioPath: s.sourceAudioPath ?? s.audio?.sourceAudioPath ?? s.source?.sourceAudioPath,
+      sourceAudioSha256: s.sourceAudioSha256 ?? s.audio?.sourceAudioSha256 ?? s.source?.sourceAudioSha256,
+      sourcePcmSha256: s.sourcePcmSha256 ?? s.audio?.sourcePcmSha256 ?? s.source?.sourcePcmSha256,
+    },
+    isSynthetic: false,
+  }));
+
   return {
     executionMode: 'REAL_BLIND',
     authorizedScenarioIds,
-    scenarios,
+    scenarios: sanitizedScenarios,
     totalCount: 70,
     candidateEligibility: {
       'bytedance-original-calibrated-v1': eligibleBd,
@@ -804,6 +836,25 @@ export class DurableExecutionLedger {
     return receipt;
   }
 
+  publishExternalReceiptAnchor(externalAnchorPath) {
+    const chainTipHash = this.journalEvents.length > 0 ? this.journalEvents[this.journalEvents.length - 1].eventHash : null;
+    const anchor = {
+      schemaVersion: 1,
+      artifact: 'phase9gb_external_journal_chain_tip_anchor',
+      runId: this.runId,
+      state: this.state,
+      eventCount: this.journalEvents.length,
+      chainTipHash,
+      executionBindingDigest: this.initOptions ? sha256Json(this.initOptions) : null,
+      publishedAt: new Date().toISOString(),
+    };
+    anchor.anchorSha256 = sha256Json(anchor);
+    if (externalAnchorPath) {
+      writeFileSync(externalAnchorPath, JSON.stringify(anchor, null, 2) + '\n', 'utf8');
+    }
+    return anchor;
+  }
+
   close() {
     this.releaseWriterLock();
   }
@@ -967,6 +1018,25 @@ export async function executeAcousticCandidate(adapter, sanitizedScenario, candi
     ledger,
     authorizedScenarioIds: protocolMeta.authorizedScenarioIds,
   });
+
+  // 1b. Verify physical audio bytes before inference
+  const audioVerification = verifyScenarioAudioBytes({
+    audioPath: sanitizedScenario.audio?.sourceAudioPath ?? sanitizedScenario.source?.sourceAudioPath,
+    expectedWavSha256: sanitizedScenario.source?.sourceAudioSha256 ?? sanitizedScenario.audio?.sourceAudioSha256,
+    expectedPcmSha256: sanitizedScenario.source?.sourcePcmSha256 ?? sanitizedScenario.audio?.sourcePcmSha256,
+    expectedSampleRate: sanitizedScenario.audio?.sampleRateHz ?? 16000,
+    expectedChannels: sanitizedScenario.audio?.channels ?? 1,
+    isDryRunSynthetic: protocolMeta.isSynthetic ?? false,
+  });
+
+  if (audioVerification.status === 'DEFERRED_UNTIL_AUTHORIZED_EXECUTION') {
+    throw new Error('AUDIO_VERIFICATION_DEFERRED: Real blind audio byte verification is deferred until explicit user authorization');
+  }
+
+  // 1c. Strict truth leakage guard
+  if (sanitizedScenario.expectedStrikes || sanitizedScenario.expectedEvents || sanitizedScenario.referenceMidi || sanitizedScenario.notes) {
+    throw new Error('TRUTH_LEAKAGE_DETECTED: Acoustic adapter received ground truth');
+  }
 
   // 2. Mark attempt started in ledger journal
   ledger.startAttempt(candidateConfig.candidateId, sanitizedScenario.scenarioId);
@@ -1321,8 +1391,18 @@ export async function independentlyVerifyAndScoreCommittedEvidence(runDir, fullS
       }
 
       const fullScenario = scenariosById.get(payload.scenarioId);
-      const candDef = candDefsById.get(payload.candidateId);
-      if (fullScenario && candDef) {
+      const rawCandDef = candDefsById.get(payload.candidateId);
+      if (fullScenario && rawCandDef) {
+        const candDef = {
+          candidateId: rawCandDef.candidateId,
+          strategyKind: rawCandDef.strategyKind ?? 'CHUNKED',
+          identity: {
+            modelRuntime: rawCandDef.identity?.modelRuntime ?? 'docker-research-runtime',
+            adapterVersion: rawCandDef.identity?.adapterVersion ?? 'v1',
+            configurationSha256: rawCandDef.configurationSha256 ?? rawCandDef.identity?.configurationSha256 ?? '0'.repeat(64),
+            trainingDataOverlapStatus: rawCandDef.identity?.trainingDataOverlapStatus ?? 'KNOWN_DISJOINT',
+          },
+        };
         const candidateRun = {
           candidateId: candDef.candidateId,
           scenarioId: fullScenario.scenarioId,

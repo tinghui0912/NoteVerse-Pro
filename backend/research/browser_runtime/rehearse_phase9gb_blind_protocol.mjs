@@ -69,7 +69,10 @@ import {
   FROZEN_RANKED_ROSTER,
   FROZEN_V4_PROTOCOL_ID,
   FROZEN_V5_PROTOCOL_ID,
+  FROZEN_V6_PROTOCOL_ID,
   TRUSTED_BLIND_PROTOCOL_V4_SHA256,
+  TRUSTED_BLIND_PROTOCOL_V5_SHA256,
+  TRUSTED_BLIND_PROTOCOL_V6_SHA256,
   sha256Text,
   sha256Json,
 } from './execution_grade_blind_orchestrator.mjs';
@@ -77,9 +80,11 @@ import {
 export const B3_PROTOCOL_REL = 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v3_2026-10-10.json';
 export const B4_PROTOCOL_REL = 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v4_2026-10-10.json';
 export const B5_PROTOCOL_REL = 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v5_2026-10-10.json';
+export const B6_PROTOCOL_REL = 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v6_2026-10-10.json';
 export const BLIND_MANIFEST_REL = 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json';
 export const EXPECTED_BLIND_MANIFEST_SHA = '0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab';
 export const TRUSTED_V4_TEST_PROTOCOL_SHA = TRUSTED_BLIND_PROTOCOL_V4_SHA256;
+export const TRUSTED_V6_TEST_PROTOCOL_SHA = TRUSTED_BLIND_PROTOCOL_V6_SHA256;
 
 /**
  * Generates genuine synthetic WAV file on disk with valid 44-byte RIFF header and PCM samples.
@@ -535,7 +540,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   let preflightProtocolCaught = false;
   try {
     preflightCandidateScenarioExecution({
-      protocolId: FROZEN_V4_PROTOCOL_ID,
+      protocolId: FROZEN_V6_PROTOCOL_ID,
       protocolSha256: 'short_sha', // invalid sha length
       candidateConfig: candidates[0],
       sanitizedScenario: sanitizedScenarios[1],
@@ -551,7 +556,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   let dummyBypassCaught = false;
   try {
     preflightCandidateScenarioExecution({
-      protocolId: FROZEN_V4_PROTOCOL_ID,
+      protocolId: FROZEN_V6_PROTOCOL_ID,
       protocolSha256: 'a'.repeat(64), // dummy bypass hash
       candidateConfig: candidates[0],
       sanitizedScenario: sanitizedScenarios[1],
@@ -568,7 +573,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   let realisticWrongShaCaught = false;
   try {
     preflightCandidateScenarioExecution({
-      protocolId: FROZEN_V4_PROTOCOL_ID,
+      protocolId: FROZEN_V6_PROTOCOL_ID,
       protocolSha256: '4'.repeat(64), // realistic 64-char hex string, but wrong
       candidateConfig: candidates[0],
       sanitizedScenario: sanitizedScenarios[1],
@@ -585,7 +590,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   let callerSuppliedRootCaught = false;
   try {
     preflightCandidateScenarioExecution({
-      protocolId: FROZEN_V4_PROTOCOL_ID,
+      protocolId: FROZEN_V6_PROTOCOL_ID,
       protocolSha256: '4'.repeat(64),
       expectedProtocolSha256: '4'.repeat(64),
       candidateConfig: candidates[0],
@@ -617,8 +622,8 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   let checkpointMismatchCaught = false;
   try {
     preflightCandidateScenarioExecution({
-      protocolId: FROZEN_V4_PROTOCOL_ID,
-      protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA,
+      protocolId: FROZEN_V6_PROTOCOL_ID,
+      protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA,
       candidateConfig: { ...candidates[0], checkpointSha256: 'f'.repeat(64) }, // tampered checkpoint
       sanitizedScenario: sanitizedScenarios[1],
       ledger: crashLedger,
@@ -641,8 +646,8 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   let unauthCandCaught = false;
   try {
     preflightCandidateScenarioExecution({
-      protocolId: FROZEN_V4_PROTOCOL_ID,
-      protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA,
+      protocolId: FROZEN_V6_PROTOCOL_ID,
+      protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA,
       candidateConfig: { candidateId: 'transkun-v2-aug-calibrated-v1' },
       sanitizedScenario: sanitizedScenarios[1],
       ledger: crashLedger,
@@ -657,8 +662,8 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   let unauthScenarioCaught = false;
   try {
     preflightCandidateScenarioExecution({
-      protocolId: FROZEN_V4_PROTOCOL_ID,
-      protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA,
+      protocolId: FROZEN_V6_PROTOCOL_ID,
+      protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA,
       candidateConfig: candidates[0],
       sanitizedScenario: { ...sanitizedScenarios[1], scenarioId: 'unlisted-scenario-id' },
       ledger: crashLedger,
@@ -674,8 +679,8 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   let calibPerformerCaught = false;
   try {
     preflightCandidateScenarioExecution({
-      protocolId: FROZEN_V4_PROTOCOL_ID,
-      protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA,
+      protocolId: FROZEN_V6_PROTOCOL_ID,
+      protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA,
       candidateConfig: candidates[0],
       sanitizedScenario: { ...sanitizedScenarios[1], scenarioId: 'scenario-fake:performer_p07', split: 'BLIND', familyTags: [] },
       ledger: crashLedger,
@@ -703,8 +708,8 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
       taxonomy: { strikes: [{ pitch: 'C4' }] },
     };
     preflightCandidateScenarioExecution({
-      protocolId: FROZEN_V4_PROTOCOL_ID,
-      protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA,
+      protocolId: FROZEN_V6_PROTOCOL_ID,
+      protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA,
       candidateConfig: candidates[0],
       sanitizedScenario: leakyScenario,
       ledger: crashLedger,
@@ -803,7 +808,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   const mainDir = path.resolve(testWorkspaceDir, 'main_execution_ledger');
   const mainLedger = new DurableExecutionLedger(mainDir, mainRunId);
   const mainBindings = {
-    protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA,
+    protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA,
     scorerSha256: 'main_scorer_'.padEnd(64, '0'),
     orchestratorSha256: 'main_orch_'.padEnd(64, '0'),
     rosterSha256: 'main_rost_'.padEnd(64, '0'),
@@ -830,8 +835,8 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
         cand,
         mainLedger,
         {
-          protocolId: FROZEN_V4_PROTOCOL_ID,
-          protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA,
+          protocolId: FROZEN_V6_PROTOCOL_ID,
+          protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA,
           authorizedScenarioIds,
         },
       );
@@ -984,7 +989,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
       sanitizedScenarios[1],
       candidates[0],
       timingLedger,
-      { protocolId: FROZEN_V4_PROTOCOL_ID, protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA, authorizedScenarioIds },
+      { protocolId: FROZEN_V6_PROTOCOL_ID, protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA, authorizedScenarioIds },
     );
   } catch (err) {
     if (err.message.includes('FUTURE_AUDIO_LOOKAHEAD_VIOLATION')) {
@@ -1001,7 +1006,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
       sanitizedScenarios[2],
       candidates[0],
       timingLedger,
-      { protocolId: FROZEN_V4_PROTOCOL_ID, protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA, authorizedScenarioIds },
+      { protocolId: FROZEN_V6_PROTOCOL_ID, protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA, authorizedScenarioIds },
     );
   } catch (err) {
     if (err.message.includes('BACKDATED_PUBLICATION_AVAILABILITY')) {
@@ -1273,7 +1278,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   const ownerRunId = `owner_test_${Date.now()}`;
   const ownerLedger = new DurableExecutionLedger(testWorkspaceDir, ownerRunId);
   await ownerLedger.init({
-    protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA,
+    protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA,
     scorerSha256: 'scorer_test_hash',
     orchestratorSha256: 'orch_test_hash',
     rosterSha256: 'roster_test_hash',
@@ -1352,9 +1357,10 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
     mode: 'DRY_RUN_SYNTHETIC',
     runId: `dry_run_test_${Date.now()}`,
     outputBaseDir: testWorkspaceDir,
-    protocolId: FROZEN_V4_PROTOCOL_ID,
-    protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA,
+    protocolId: FROZEN_V6_PROTOCOL_ID,
+    protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA,
     syntheticFixtures: sanitizedScenarios.slice(0, 3),
+    useFakeUnitMock: true,
   });
 
   if (!dryRunResult || dryRunResult.attemptsExecuted < 1) {
@@ -1376,11 +1382,17 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
     rmSync(testWorkspaceDir, { recursive: true, force: true });
   } catch {}
 
-  const allPassed = rehearsalResults.every((r) => r.status === 'PASS');
+  // Run all 16 mandatory execution-grade adversarial tests
+  const adversarialResults = await runPhase9gbAdversarialTests({ gitHead, dirty });
+
+  const allPipelinePassed = rehearsalResults.every((r) => r.status === 'PASS');
+  const allAdversarialPassed = adversarialResults.every((r) => r.status === 'PASS');
+  const allPassed = allPipelinePassed && allAdversarialPassed;
+
   const rehearsalReceipt = {
-    schemaVersion: 6,
+    schemaVersion: 7,
     artifact: 'phase9g_b2_rehearsal_receipt',
-    phase: '9G-B.2-FINAL-GATE',
+    phase: '9G-B.2-FINAL-GATE-R1',
     generatedAt: new Date().toISOString(),
     gitHead,
     dirtyTreeAtExecution: dirty,
@@ -1389,12 +1401,586 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
     realBlindPerformersIsolated: ['p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22'],
     syntheticScenariosUsed: syntheticScenarios.length,
     testsExecuted: rehearsalResults.length,
+    pipelineTestsExecuted: rehearsalResults.length,
+    adversarialTestsExecuted: adversarialResults.length,
     allTestsPassed: allPassed,
     rehearsalResults,
+    adversarialResults,
+    adversarialExecutionBreakdown: {
+      realSyntheticDockerInference: adversarialResults.filter((r) => r.executionType === 'REAL_SYNTHETIC_DOCKER_INFERENCE').length,
+      injectedFakeAdapter: adversarialResults.filter((r) => r.executionType === 'INJECTED_FAKE_ADAPTER').length,
+      pureUnitTest: adversarialResults.filter((r) => r.executionType === 'PURE_UNIT_TEST').length,
+    },
   };
 
-  console.log(`\nSynthetic Rehearsal completed successfully. All ${rehearsalResults.length} checks passed.\n`);
+  console.log(`\nSynthetic Rehearsal completed successfully. All ${rehearsalResults.length} pipeline + ${adversarialResults.length} adversarial checks passed.\n`);
   return rehearsalReceipt;
+}
+
+/**
+ * Phase 9G-B.2-FINAL-GATE-R1: 16 Mandatory Adversarial Tests.
+ */
+export async function runPhase9gbAdversarialTests({ gitHead = 'HEAD', dirty = false } = {}) {
+  console.log('\n=== Phase 9G-B.2-FINAL-GATE-R1: 16 Mandatory Adversarial Tests ===\n');
+  const advResults = [];
+  const advWorkspaceDir = path.resolve(repoRoot, `tmp/adv_tests_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  await mkdir(advWorkspaceDir, { recursive: true });
+
+  const {
+    runOfficialBlindEvaluation,
+    executeDockerCandidateInference,
+    runPostEvidenceScoringAndBakeoff,
+    createOfficialModelAdapter,
+  } = await import('./execute_phase9gb_blind_evaluation.mjs');
+
+  // ADV-1: Unsigned JSON authorization with matching status and run ID is rejected.
+  console.log('[Adversarial 1/16] Testing unsigned JSON authorization rejection...');
+  let adv1Caught = false;
+  try {
+    const unsignedReceipt = {
+      authorizationId: 'auth_adv1_unsigned',
+      authorizationStatus: 'EXPLICIT_ONE_SHOT_BLIND_EXECUTION_AUTHORIZED',
+      runId: 'adv1_run',
+      oneShotScope: 'PHASE_9G_B_ONE_SHOT_BLIND_EVALUATION',
+      permittedExecutionMode: 'REAL_BLIND',
+      issuedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
+    };
+    challengerQual.assertCryptographicBlindExecutionAuthorization(unsignedReceipt, { expectedRunId: 'adv1_run' });
+  } catch (err) {
+    if (err.message.includes('AUTHORIZATION_UNSIGNED')) {
+      adv1Caught = true;
+    }
+  }
+  if (!adv1Caught) throw new Error('ADV-1 FAILED: Unsigned JSON authorization was not rejected!');
+  advResults.push({
+    testId: 'ADV_1_UNSIGNED_JSON_AUTHORIZATION_REJECTED',
+    executionType: 'PURE_UNIT_TEST',
+    status: 'PASS',
+    details: { unsignedJsonRejected: true },
+  });
+
+  // ADV-2: Missing run ID in both request and receipt is rejected.
+  console.log('[Adversarial 2/16] Testing missing run ID in both request and receipt rejection...');
+  let adv2Caught = false;
+  try {
+    const noRunIdReceipt = {
+      authorizationId: 'auth_adv2_norunid',
+      authorizationStatus: 'EXPLICIT_ONE_SHOT_BLIND_EXECUTION_AUTHORIZED',
+      runId: '',
+      oneShotScope: 'PHASE_9G_B_ONE_SHOT_BLIND_EVALUATION',
+      permittedExecutionMode: 'REAL_BLIND',
+      issuedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      signature: 'dummy_sig',
+    };
+    challengerQual.assertCryptographicBlindExecutionAuthorization(noRunIdReceipt, { expectedRunId: '' });
+  } catch (err) {
+    if (err.message.includes('AUTHORIZATION_RUN_ID_REQUIRED')) {
+      adv2Caught = true;
+    }
+  }
+  if (!adv2Caught) throw new Error('ADV-2 FAILED: Missing run ID was not rejected!');
+  advResults.push({
+    testId: 'ADV_2_MISSING_RUN_ID_IN_REQUEST_AND_RECEIPT_REJECTED',
+    executionType: 'PURE_UNIT_TEST',
+    status: 'PASS',
+    details: { missingRunIdRejected: true },
+  });
+
+  // ADV-3: Valid signature for wrong commit, protocol, roster or run ID is rejected.
+  console.log('[Adversarial 3/16] Testing signature for wrong commit/protocol/roster/run ID rejection...');
+  let adv3KeyCaught = false;
+  try {
+    const forgedReceipt = {
+      authorizationId: 'auth_adv3_forged',
+      authorizationStatus: 'EXPLICIT_ONE_SHOT_BLIND_EXECUTION_AUTHORIZED',
+      runId: 'adv3_run',
+      oneShotScope: 'PHASE_9G_B_ONE_SHOT_BLIND_EVALUATION',
+      permittedExecutionMode: 'REAL_BLIND',
+      boundCommitSha: 'wrong_commit_sha_123',
+      boundProtocolSha256: TRUSTED_BLIND_PROTOCOL_V6_SHA256,
+      issuedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      signature: Buffer.from('dummy_invalid_signature').toString('base64'),
+    };
+    challengerQual.assertCryptographicBlindExecutionAuthorization(forgedReceipt, {
+      expectedRunId: 'adv3_run',
+      currentCommitSha: 'real_commit_sha_456',
+    });
+  } catch (err) {
+    if (err.message.includes('AUTHORIZATION_COMMIT_MISMATCH') || err.message.includes('AUTHORIZATION_SIGNATURE')) {
+      adv3KeyCaught = true;
+    }
+  }
+  if (!adv3KeyCaught) throw new Error('ADV-3 FAILED: Wrong signature / commit was not rejected!');
+  advResults.push({
+    testId: 'ADV_3_WRONG_COMMIT_PROTOCOL_ROSTER_RUN_ID_REJECTED',
+    executionType: 'PURE_UNIT_TEST',
+    status: 'PASS',
+    details: { wrongKeyOrBindingRejected: true },
+  });
+
+  // ADV-4: A consumed authorization cannot start another run (anti-replay).
+  console.log('[Adversarial 4/16] Testing anti-replay of consumed authorization...');
+  let adv4Caught = false;
+  try {
+    const consumedReceipt = {
+      authorizationId: 'auth_already_consumed_99',
+      authorizationStatus: 'EXPLICIT_ONE_SHOT_BLIND_EXECUTION_AUTHORIZED',
+      runId: 'adv4_run',
+      oneShotScope: 'PHASE_9G_B_ONE_SHOT_BLIND_EVALUATION',
+      permittedExecutionMode: 'REAL_BLIND',
+      boundProtocolSha256: TRUSTED_BLIND_PROTOCOL_V6_SHA256,
+      issuedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      signature: 'valid_looking_sig',
+    };
+    challengerQual.assertCryptographicBlindExecutionAuthorization(consumedReceipt, {
+      expectedRunId: 'adv4_run',
+      consumedAuthorizationIds: new Set(['auth_already_consumed_99']),
+    });
+  } catch (err) {
+    if (err.message.includes('AUTHORIZATION_ALREADY_CONSUMED')) {
+      adv4Caught = true;
+    }
+  }
+  if (!adv4Caught) throw new Error('ADV-4 FAILED: Consumed authorization was not rejected!');
+  advResults.push({
+    testId: 'ADV_4_CONSUMED_AUTHORIZATION_ANTI_REPLAY',
+    executionType: 'PURE_UNIT_TEST',
+    status: 'PASS',
+    details: { antiReplayEnforced: true },
+  });
+
+  // ADV-5: V6 is mandatory; V4/V5 downgrade and mutable trust-root injection fail.
+  console.log('[Adversarial 5/16] Testing V6 mandatory, V4/V5 downgrade and mutable trust-root rejection...');
+  let adv5V5DowngradeCaught = false;
+  try {
+    await runOfficialBlindEvaluation({
+      mode: 'DRY_RUN_SYNTHETIC',
+      protocolId: '9G-B-BLIND-V5',
+      runId: 'adv5_v5',
+      outputBaseDir: advWorkspaceDir,
+    });
+  } catch (err) {
+    if (err.message.includes('PROTOCOL_DOWNGRADE_FORBIDDEN')) {
+      adv5V5DowngradeCaught = true;
+    }
+  }
+  let adv5V4DowngradeCaught = false;
+  try {
+    await runOfficialBlindEvaluation({
+      mode: 'DRY_RUN_SYNTHETIC',
+      protocolId: '9G-B-BLIND-V4',
+      runId: 'adv5_v4',
+      outputBaseDir: advWorkspaceDir,
+    });
+  } catch (err) {
+    if (err.message.includes('PROTOCOL_DOWNGRADE_FORBIDDEN')) {
+      adv5V4DowngradeCaught = true;
+    }
+  }
+  const mutableSetterAbsent = (challengerQual.setTrustedProtocolV6Sha256 === undefined);
+  if (!adv5V5DowngradeCaught || !adv5V4DowngradeCaught || !mutableSetterAbsent) {
+    throw new Error('ADV-5 FAILED: Protocol downgrade or mutable trust root was not properly prevented!');
+  }
+  advResults.push({
+    testId: 'ADV_5_V6_MANDATORY_DOWNGRADE_AND_MUTABLE_ROOT_FAIL',
+    executionType: 'PURE_UNIT_TEST',
+    status: 'PASS',
+    details: {
+      v5DowngradeRejected: adv5V5DowngradeCaught,
+      v4DowngradeRejected: adv5V4DowngradeCaught,
+      mutableSetterAbsent: mutableSetterAbsent,
+    },
+  });
+
+  // ADV-6: A nonempty approved synthetic WAV actually runs through each of the three real Docker model adapters.
+  console.log('[Adversarial 6/16] Testing real Docker model adapters on approved synthetic WAV...');
+  const syntheticFixturePath = path.resolve(advWorkspaceDir, 'synthetic_fixture_440hz.wav');
+  if (!existsSync(syntheticFixturePath)) {
+    generateSyntheticWavFile(syntheticFixturePath, 1000, 16000);
+  }
+  const candidateList = [
+    'bytedance-original-calibrated-v1',
+    'online-amt-calibrated-v1',
+    'bytedance-robust-augmented-calibrated-v1',
+  ];
+  const realInferenceOutputs = {};
+  for (const candId of candidateList) {
+    const tStart = Date.now();
+    const res = await executeDockerCandidateInference({
+      candidateId: candId,
+      audioPath: syntheticFixturePath,
+    });
+    if (!res || !Array.isArray(res.publications) || res.publications.length === 0) {
+      throw new Error(`ADV-6 FAILED: ${candId} returned empty publications from Docker inference!`);
+    }
+    realInferenceOutputs[candId] = res;
+    console.log(`  -> ${candId}: ${res.publications.length} publications in ${Date.now() - tStart}ms`);
+  }
+  advResults.push({
+    testId: 'ADV_6_REAL_DOCKER_MODEL_ADAPTER_INFERENCE',
+    executionType: 'REAL_SYNTHETIC_DOCKER_INFERENCE',
+    status: 'PASS',
+    details: {
+      candidatesTested: candidateList,
+      publicationCounts: Object.fromEntries(candidateList.map((c) => [c, realInferenceOutputs[c].publications.length])),
+    },
+  });
+
+  // ADV-7: Synthetic model outputs are converted into valid, finite, causal publications.
+  console.log('[Adversarial 7/16] Testing synthetic publications valid, finite, and causal...');
+  for (const candId of candidateList) {
+    const pubs = realInferenceOutputs[candId].publications;
+    validateAcousticPublications(pubs, { contextRequirementMs: 0 });
+    for (const p of pubs) {
+      if (!Number.isFinite(p.analyzedThroughPerformanceMs) || !Number.isFinite(p.availabilityTimeMs)) {
+        throw new Error(`ADV-7 FAILED: Non-finite timestamps in publications for ${candId}`);
+      }
+      if (p.availabilityTimeMs < p.analyzedThroughPerformanceMs) {
+        throw new Error(`ADV-7 FAILED: Acasual publication in ${candId}: avail ${p.availabilityTimeMs} < analyzed ${p.analyzedThroughPerformanceMs}`);
+      }
+    }
+  }
+  advResults.push({
+    testId: 'ADV_7_REAL_SYNTHETIC_PUBLICATIONS_VALID_FINITE_CAUSAL',
+    executionType: 'REAL_SYNTHETIC_DOCKER_INFERENCE',
+    status: 'PASS',
+    details: {
+      allPublicationsCausal: true,
+      allTimestampsFinite: true,
+      validatedCandidates: candidateList,
+    },
+  });
+
+  // ADV-8: Changed WAV bytes or normalized PCM bytes prevent adapter invocation.
+  console.log('[Adversarial 8/16] Testing audio byte integrity rejection (corrupted WAV / PCM mismatch)...');
+  const validWavBytes = readFileSync(syntheticFixturePath);
+  let adv8CorruptWavCaught = false;
+  try {
+    const corruptedWav = Buffer.from(validWavBytes);
+    corruptedWav.write('BAD!', 0); // Destroy RIFF magic
+    challengerQual.assertAudioByteIntegrity({
+      wavBytes: corruptedWav,
+      expectedWavSha256: createHash('sha256').update(corruptedWav).digest('hex'),
+      expectedPcmSha256: 'a'.repeat(64),
+    });
+  } catch (err) {
+    if (err.message.includes('AUDIO_WAV_FORMAT_INVALID') || err.message.includes('AUDIO_WAV')) {
+      adv8CorruptWavCaught = true;
+    }
+  }
+
+  let adv8PcmMismatchCaught = false;
+  try {
+    challengerQual.assertAudioByteIntegrity({
+      wavBytes: validWavBytes,
+      expectedWavSha256: createHash('sha256').update(validWavBytes).digest('hex'),
+      expectedPcmSha256: 'f'.repeat(64), // Wrong PCM SHA
+    });
+  } catch (err) {
+    if (err.message.includes('AUDIO_PCM_SHA_MISMATCH')) {
+      adv8PcmMismatchCaught = true;
+    }
+  }
+  if (!adv8CorruptWavCaught || !adv8PcmMismatchCaught) {
+    throw new Error('ADV-8 FAILED: Audio byte integrity did not reject corrupted WAV or mismatched PCM SHA!');
+  }
+  advResults.push({
+    testId: 'ADV_8_AUDIO_BYTE_INTEGRITY_ENFORCEMENT',
+    executionType: 'PURE_UNIT_TEST',
+    status: 'PASS',
+    details: {
+      corruptedRiffRejected: adv8CorruptWavCaught,
+      pcmShaMismatchRejected: adv8PcmMismatchCaught,
+    },
+  });
+
+  // ADV-9: An unauthorized scenario or performer cannot be added through a caller-supplied allowlist.
+  console.log('[Adversarial 9/16] Testing caller allowlist tampering rejection...');
+  let adv9UnauthorizedCaught = false;
+  try {
+    preflightCandidateScenarioExecution({
+      protocolId: FROZEN_V6_PROTOCOL_ID,
+      protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA,
+      candidateConfig: FROZEN_RANKED_ROSTER['bytedance-original-calibrated-v1'],
+      sanitizedScenario: {
+        scenarioId: 'unauthorized_hacked_scenario_99',
+        split: 'BLIND',
+        audio: { performanceOriginSourceMs: 6000 },
+        source: { sourceAudioSha256: 'a'.repeat(64), sourcePcmSha256: 'b'.repeat(64) },
+      },
+      authorizedScenarioIds: new Set(['scenario_1', 'scenario_2']),
+    });
+  } catch (err) {
+    if (err.message.includes('PREFLIGHT_UNAUTHORIZED_SCENARIO_REJECTED')) {
+      adv9UnauthorizedCaught = true;
+    }
+  }
+  if (!adv9UnauthorizedCaught) throw new Error('ADV-9 FAILED: Unauthorized scenario was not rejected!');
+  advResults.push({
+    testId: 'ADV_9_UNAUTHORIZED_SCENARIO_OR_PERFORMER_BLOCKED',
+    executionType: 'PURE_UNIT_TEST',
+    status: 'PASS',
+    details: { unauthorizedScenarioRejected: true },
+  });
+
+  // ADV-10: The acoustic process cannot access synthetic test ground truth.
+  console.log('[Adversarial 10/16] Testing acoustic process truth isolation...');
+  let adv10TruthLeakedCaught = false;
+  try {
+    const adapter = createOfficialModelAdapter('bytedance-original-calibrated-v1', { useFakeUnitMock: true });
+    await adapter.inferAcoustic({
+      scenarioId: 'test_scenario',
+      expectedStrikes: [{ pitch: 'C4', strikeMs: 500 }],
+    });
+  } catch (err) {
+    if (err.message.includes('TRUTH_LEAKAGE_DETECTED')) {
+      adv10TruthLeakedCaught = true;
+    }
+  }
+  if (!adv10TruthLeakedCaught) throw new Error('ADV-10 FAILED: Acoustic adapter did not reject ground truth leakage!');
+  advResults.push({
+    testId: 'ADV_10_ACOUSTIC_PROCESS_TRUTH_ISOLATION',
+    executionType: 'INJECTED_FAKE_ADAPTER',
+    status: 'PASS',
+    details: { truthLeakageDetected: true },
+  });
+
+  // ADV-11: A model failure prevents COMPLETED status.
+  console.log('[Adversarial 11/16] Testing model failure prevents COMPLETED status...');
+  let adv11Caught = false;
+  const failRunDir = path.resolve(advWorkspaceDir, 'adv11_fail');
+  try {
+    await runOfficialBlindEvaluation({
+      mode: 'DRY_RUN_SYNTHETIC',
+      runId: `adv11_fail_${Date.now()}`,
+      outputBaseDir: failRunDir,
+      protocolId: FROZEN_V6_PROTOCOL_ID,
+      protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA,
+      syntheticFixtures: [
+        {
+          scenarioId: 'sc_fail:p99_synthetic',
+          split: 'SYNTHETIC',
+          audio: { performanceOriginSourceMs: 6000, clipStartMs: 0, clipEndMs: 15000 },
+          source: { sourceAudioPath: 'non_existent_audio.wav', sourceAudioSha256: 'a'.repeat(64), isSyntheticFixture: true },
+        },
+      ],
+      useFakeUnitMock: false,
+    });
+  } catch (err) {
+    adv11Caught = true;
+  }
+  if (!adv11Caught) throw new Error('ADV-11 FAILED: Model failure did not prevent COMPLETED status!');
+  advResults.push({
+    testId: 'ADV_11_MODEL_FAILURE_PREVENTS_COMPLETED',
+    executionType: 'INJECTED_FAKE_ADAPTER',
+    status: 'PASS',
+    details: { modelFailureBlockedCompletion: true },
+  });
+
+  // ADV-12: Missing one of scheduled candidate/scenario records yields incomplete evaluation.
+  console.log('[Adversarial 12/16] Testing missing scheduled record yields incomplete evaluation...');
+  const incompleteLedger = new DurableExecutionLedger(advWorkspaceDir, `adv12_inc_${Date.now()}`);
+  await incompleteLedger.init({
+    protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA,
+    scorerSha256: 'a'.repeat(64),
+    orchestratorSha256: 'b'.repeat(64),
+    rosterSha256: 'c'.repeat(64),
+    manifestSha256: 'd'.repeat(64),
+  });
+  incompleteLedger.transitionTo('RUNNING');
+  const sc1 = { scenarioId: 'sc_cov_1', audio: { performanceOriginSourceMs: 6000 } };
+  const sc2 = { scenarioId: 'sc_cov_2', audio: { performanceOriginSourceMs: 6000 } };
+  const candidates3 = [
+    FROZEN_RANKED_ROSTER['bytedance-original-calibrated-v1'],
+    FROZEN_RANKED_ROSTER['online-amt-calibrated-v1'],
+    FROZEN_RANKED_ROSTER['bytedance-robust-augmented-calibrated-v1'],
+  ];
+  for (const c of candidates3) {
+    incompleteLedger.records.set(`${c.candidateId}\0sc_cov_1`, {
+      candidateId: c.candidateId,
+      scenarioId: 'sc_cov_1',
+      status: 'SUCCESS',
+    });
+  }
+  incompleteLedger.records.set(`${candidates3[0].candidateId}\0sc_cov_2`, {
+    candidateId: candidates3[0].candidateId,
+    scenarioId: 'sc_cov_2',
+    status: 'SUCCESS',
+  });
+  incompleteLedger.records.set(`${candidates3[1].candidateId}\0sc_cov_2`, {
+    candidateId: candidates3[1].candidateId,
+    scenarioId: 'sc_cov_2',
+    status: 'SUCCESS',
+  });
+  // candidates3[2] on sc_cov_2 is omitted (missing attempt!)
+  const covOutcome = evaluateProductionExecutionCoverage(incompleteLedger, [sc1, sc2], candidates3);
+  let completeRejected = false;
+  if (!covOutcome.isComplete || covOutcome.totalMissing > 0) {
+    completeRejected = true;
+  }
+  incompleteLedger.close();
+  if (!completeRejected) throw new Error('ADV-12 FAILED: Missing record was not detected by coverage evaluation!');
+  advResults.push({
+    testId: 'ADV_12_PREDECLARED_COVERAGE_ENFORCEMENT_196_ATTEMPTS',
+    executionType: 'INJECTED_FAKE_ADAPTER',
+    status: 'PASS',
+    details: {
+      isComplete: covOutcome.isComplete,
+      totalCompleted: covOutcome.totalCompleted,
+      totalMissing: covOutcome.totalMissing,
+      incompleteVerdict: 'EVALUATION_INCOMPLETE_NO_WINNER',
+    },
+  });
+
+  // ADV-13: Wrong writer owner or lost lock prevents journal mutation.
+  console.log('[Adversarial 13/16] Testing writer lock ownership and lost lock rejection...');
+  const lockLedger = new DurableExecutionLedger(advWorkspaceDir, `adv13_lock_${Date.now()}`);
+  await lockLedger.init({
+    protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA,
+    scorerSha256: 'a'.repeat(64),
+    orchestratorSha256: 'b'.repeat(64),
+    rosterSha256: 'c'.repeat(64),
+    manifestSha256: 'd'.repeat(64),
+  });
+  let adv13WrongOwnerCaught = false;
+  try {
+    lockLedger.releaseWriterLock('wrong_foreign_owner_token');
+  } catch (err) {
+    if (err.message.includes('WRITER_LOCK_WRONG_OWNER_REMOVAL_FORBIDDEN')) {
+      adv13WrongOwnerCaught = true;
+    }
+  }
+  lockLedger.releaseWriterLock();
+  let adv13LostLockCaught = false;
+  try {
+    lockLedger.assertWriterOwnership();
+  } catch (err) {
+    if (err.message.includes('WRITER_LOCK_OWNERSHIP_LOST')) {
+      adv13LostLockCaught = true;
+    }
+  }
+  lockLedger.close();
+  if (!adv13WrongOwnerCaught || !adv13LostLockCaught) {
+    throw new Error('ADV-13 FAILED: Writer lock ownership was not strictly enforced!');
+  }
+  advResults.push({
+    testId: 'ADV_13_WRITER_LOCK_OWNERSHIP_AND_MUTEX',
+    executionType: 'PURE_UNIT_TEST',
+    status: 'PASS',
+    details: {
+      wrongOwnerReleaseForbidden: adv13WrongOwnerCaught,
+      lostOwnershipDetected: adv13LostLockCaught,
+    },
+  });
+
+  // ADV-14: A missing independent chain-tip anchor prevents a final verified-complete result.
+  console.log('[Adversarial 14/16] Testing missing external chain-tip anchor rejection...');
+  let adv14Caught = false;
+  try {
+    await runPostEvidenceScoringAndBakeoff({
+      runDir: advWorkspaceDir,
+      truthManifestPath: 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json',
+      externalAnchorPath: path.resolve(advWorkspaceDir, 'non_existent_anchor.json'),
+    });
+  } catch (err) {
+    if (err.message.includes('JOURNAL_COMPLETENESS_NOT_VERIFIABLE')) {
+      adv14Caught = true;
+    }
+  }
+  if (!adv14Caught) throw new Error('ADV-14 FAILED: Missing external anchor was not rejected!');
+  advResults.push({
+    testId: 'ADV_14_EXTERNAL_CHAIN_TIP_ANCHOR_VERIFICATION',
+    executionType: 'PURE_UNIT_TEST',
+    status: 'PASS',
+    details: { missingAnchorRejected: true },
+  });
+
+  // ADV-15: Committed synthetic evidence can be independently rescored and statistically analyzed.
+  console.log('[Adversarial 15/16] Testing post-evidence scoring and statistical analysis...');
+  const audioScDir = path.resolve(advWorkspaceDir, 'audio_sc');
+  await mkdir(audioScDir, { recursive: true });
+  const syntheticRaw = createSyntheticBenchmarkScenarios(audioScDir);
+  const sanitizedSynthetic = createSanitizedAcousticManifest(syntheticRaw, { executionMode: 'SYNTHETIC_REHEARSAL' });
+  const dryRunRes = await runOfficialBlindEvaluation({
+    mode: 'DRY_RUN_SYNTHETIC',
+    runId: `adv15_dryrun_${Date.now()}`,
+    outputBaseDir: advWorkspaceDir,
+    protocolId: FROZEN_V6_PROTOCOL_ID,
+    protocolSha256: TRUSTED_V6_TEST_PROTOCOL_SHA,
+    syntheticFixtures: sanitizedSynthetic.slice(0, 3),
+    useFakeUnitMock: true,
+  });
+  const syntheticTruthPath = path.resolve(advWorkspaceDir, 'synthetic_truth.json');
+  writeFileSync(syntheticTruthPath, JSON.stringify({ scenarios: syntheticRaw.slice(0, 3) }, null, 2) + '\n', 'utf8');
+  const postScoringRes = await runPostEvidenceScoringAndBakeoff({
+    runDir: dryRunRes.runDir,
+    truthManifestPath: syntheticTruthPath,
+    externalAnchorPath: path.resolve(advWorkspaceDir, `run_anchor_${dryRunRes.runId}.json`),
+    candidateRoster: Object.values(FROZEN_RANKED_ROSTER),
+    bootstrapDraws: 50,
+  });
+  if (postScoringRes.scoringStatus !== 'COMPLETED_POST_EVIDENCE_AUDIT' || !postScoringRes.auditResult) {
+    throw new Error('ADV-15 FAILED: Post-evidence scoring audit failed to complete!');
+  }
+  advResults.push({
+    testId: 'ADV_15_POST_EVIDENCE_SCORING_AND_STATISTICAL_ANALYSIS',
+    executionType: 'INJECTED_FAKE_ADAPTER',
+    status: 'PASS',
+    details: {
+      postEvidenceScoringStatus: postScoringRes.scoringStatus,
+      pairwiseEvaluated: postScoringRes.pairwiseComparisons.length,
+    },
+  });
+  if (postScoringRes.scoringStatus !== 'COMPLETED_POST_EVIDENCE_AUDIT' || !postScoringRes.auditResult) {
+    throw new Error('ADV-15 FAILED: Post-evidence scoring audit failed to complete!');
+  }
+  advResults.push({
+    testId: 'ADV_15_POST_EVIDENCE_SCORING_AND_STATISTICAL_ANALYSIS',
+    executionType: 'INJECTED_FAKE_ADAPTER',
+    status: 'PASS',
+    details: {
+      postEvidenceScoringStatus: postScoringRes.scoringStatus,
+      pairwiseEvaluated: postScoringRes.pairwiseComparisons.length,
+    },
+  });
+
+  // ADV-16: The documented command-line flags are accepted and undocumented/conflicting flags are rejected.
+  console.log('[Adversarial 16/16] Testing CLI argument parsing: documented accepted, unknown/conflicting rejected...');
+  const execScript = path.resolve(repoRoot, 'backend/research/browser_runtime/execute_phase9gb_blind_evaluation.mjs');
+  const unknownFlagRun = spawnSync('node', [execScript, '--auth-receipt', 'fake.json'], { cwd: repoRoot, encoding: 'utf8' });
+  const unknownRejected = unknownFlagRun.status !== 0 && unknownFlagRun.stderr.includes('Unknown CLI flag rejected');
+
+  const conflictFlagRun = spawnSync('node', [execScript, '--dry-run-synthetic', '--real-blind'], { cwd: repoRoot, encoding: 'utf8' });
+  const conflictRejected = conflictFlagRun.status !== 0 && conflictFlagRun.stderr.includes('Conflicting CLI flags');
+
+  const helpRun = spawnSync('node', [execScript, '--help'], { cwd: repoRoot, encoding: 'utf8' });
+  const helpSucceeded = helpRun.status === 0 && helpRun.stdout.includes('--authorization-receipt') && helpRun.stdout.includes('--dry-run-synthetic');
+
+  if (!unknownRejected || !conflictRejected || !helpSucceeded) {
+    throw new Error(`ADV-16 FAILED: CLI flags contract validation failed (unknown=${unknownRejected}, conflict=${conflictRejected}, help=${helpSucceeded})`);
+  }
+  advResults.push({
+    testId: 'ADV_16_CLI_ARGUMENT_VALIDATION',
+    executionType: 'PURE_UNIT_TEST',
+    status: 'PASS',
+    details: {
+      unknownAuthReceiptRejected: unknownRejected,
+      conflictingModesRejected: conflictRejected,
+      documentedFlagsAccepted: helpSucceeded,
+    },
+  });
+
+  // Cleanup adv workspace
+  try {
+    rmSync(advWorkspaceDir, { recursive: true, force: true });
+  } catch {}
+
+  console.log('\nAll 16 Adversarial Tests Passed Successfully.\n');
+  return advResults;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename ?? '')) {

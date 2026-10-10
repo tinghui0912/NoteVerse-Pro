@@ -10,7 +10,7 @@
  * 5. D3RM (optional offline accuracy ceiling reference)
  */
 
-import { createHash } from 'node:crypto';
+import { createHash, verify } from 'node:crypto';
 import {
   PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5_SHA256,
   selectCalibrationProfile,
@@ -47,6 +47,7 @@ export const PHASE_9GB12 = '9G-B.1.2' as const;
 export const PHASE_9GB2_PRE = '9G-B.2-PRE' as const;
 export const PHASE_9GB2_ARM = '9G-B.2-ARM' as const;
 export const PHASE_9GB2_FINAL_GATE = '9G-B.2-FINAL-GATE' as const;
+export const PHASE_9GB2_FINAL_GATE_R1 = '9G-B.2-FINAL-GATE-R1' as const;
 
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V1' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256 = '06d9811ad830bebbd0e3161c424c15ee04282756479d80868ae8aa29e6bdafb0' as const;
@@ -59,6 +60,8 @@ export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4_SHA256 = 'f0d411bc0876a5f97d
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V5' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5_SHA256 = 'e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V6' as const;
+export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6_SHA256 = '39303325793b7ff512e051a8771c0fa6c37500e78d18409bb8192660c959c4fe' as const;
+export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V7 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V7' as const;
 
 export type ChallengerFamily =
   | 'bytedance-robust-augmented'
@@ -142,7 +145,7 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
   }
 
   // 3. Fail closed on missing, malformed, or non-whitelisted phase
-  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01, PHASE_9GB1, PHASE_9GB11, PHASE_9GB12, PHASE_9GB2_PRE, PHASE_9GB2_ARM, PHASE_9GB2_FINAL_GATE] as const;
+  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01, PHASE_9GB1, PHASE_9GB11, PHASE_9GB12, PHASE_9GB2_PRE, PHASE_9GB2_ARM, PHASE_9GB2_FINAL_GATE, PHASE_9GB2_FINAL_GATE_R1] as const;
   if (!request.phase || !allowedPhases.includes(request.phase as typeof allowedPhases[number])) {
     if (request.mode === 'TRUTH_ONLY') {
       throw new Error(`CHALLENGER_TRUTH_ONLY_PHASE_REQUIRED:${request.phase}`);
@@ -150,9 +153,9 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
     throw new Error(`CHALLENGER_EXECUTION_PHASE_REQUIRED:${request.phase}`);
   }
 
-  // Phase 9G-B.0 through 9G-B.2-FINAL-GATE are non-inference preflight readiness / protocol freeze gates
-  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01 || request.phase === PHASE_9GB1 || request.phase === PHASE_9GB11 || request.phase === PHASE_9GB12 || request.phase === PHASE_9GB2_PRE || request.phase === PHASE_9GB2_ARM || request.phase === PHASE_9GB2_FINAL_GATE) && request.mode === 'CANDIDATE_INFERENCE') {
-    const prefix = request.phase === PHASE_9GB2_FINAL_GATE ? 'PHASE_9GB2_FINAL_GATE' : request.phase === PHASE_9GB2_ARM ? 'PHASE_9GB2_ARM' : request.phase === PHASE_9GB2_PRE ? 'PHASE_9GB2' : request.phase === PHASE_9GB12 ? 'PHASE_9GB12' : request.phase === PHASE_9GB11 ? 'PHASE_9GB11' : request.phase === PHASE_9GB1 ? 'PHASE_9GB1' : request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0';
+  // Phase 9G-B.0 through 9G-B.2-FINAL-GATE-R1 are non-inference preflight readiness / protocol freeze gates
+  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01 || request.phase === PHASE_9GB1 || request.phase === PHASE_9GB11 || request.phase === PHASE_9GB12 || request.phase === PHASE_9GB2_PRE || request.phase === PHASE_9GB2_ARM || request.phase === PHASE_9GB2_FINAL_GATE || request.phase === PHASE_9GB2_FINAL_GATE_R1) && request.mode === 'CANDIDATE_INFERENCE') {
+    const prefix = request.phase === PHASE_9GB2_FINAL_GATE_R1 ? 'PHASE_9GB2_FINAL_GATE_R1' : request.phase === PHASE_9GB2_FINAL_GATE ? 'PHASE_9GB2_FINAL_GATE' : request.phase === PHASE_9GB2_ARM ? 'PHASE_9GB2_ARM' : request.phase === PHASE_9GB2_PRE ? 'PHASE_9GB2' : request.phase === PHASE_9GB12 ? 'PHASE_9GB12' : request.phase === PHASE_9GB11 ? 'PHASE_9GB11' : request.phase === PHASE_9GB1 ? 'PHASE_9GB1' : request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0';
     throw new Error(`${prefix}_CANDIDATE_INFERENCE_FORBIDDEN`);
   }
 
@@ -1642,8 +1645,35 @@ export function assertBlindProtocolV6Identity(identity: {
   if (!identity.sha256 || identity.sha256.length !== 64) {
     throw new Error('BLIND_PROTOCOL_V6_SHA_REQUIRED');
   }
+  if (identity.sha256 !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6_SHA256) {
+    throw new Error(`BLIND_PROTOCOL_V6_SHA_MISMATCH: expected ${PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6_SHA256}, got ${identity.sha256}`);
+  }
   if (identity.supersedesPolicySha256 !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5_SHA256) {
     throw new Error(`BLIND_PROTOCOL_V6_SUPERSEDED_POLICY_SHA_MISMATCH:${identity.supersedesPolicySha256}`);
+  }
+}
+
+export function assertBlindProtocolV7Identity(identity: {
+  policyId: string;
+  schemaVersion: number;
+  sha256?: string;
+  supersedesPolicySha256?: string;
+  expectedSha256?: string;
+}): void {
+  if (identity.policyId !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V7 && identity.policyId !== 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V7') {
+    throw new Error(`BLIND_PROTOCOL_V7_POLICY_ID_MISMATCH:${identity.policyId}`);
+  }
+  if (identity.schemaVersion !== 7) {
+    throw new Error(`BLIND_PROTOCOL_V7_SCHEMA_VERSION_MISMATCH:${identity.schemaVersion}`);
+  }
+  if (!identity.sha256 || identity.sha256.length !== 64) {
+    throw new Error('BLIND_PROTOCOL_V7_SHA_REQUIRED');
+  }
+  if (identity.expectedSha256 && identity.sha256 !== identity.expectedSha256) {
+    throw new Error(`BLIND_PROTOCOL_V7_SHA_MISMATCH: expected ${identity.expectedSha256}, got ${identity.sha256}`);
+  }
+  if (identity.supersedesPolicySha256 !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6_SHA256) {
+    throw new Error(`BLIND_PROTOCOL_V7_SUPERSEDED_POLICY_SHA_MISMATCH:${identity.supersedesPolicySha256}`);
   }
 }
 
@@ -1680,29 +1710,54 @@ export function assertAudioByteIntegrity(check: AudioByteIntegrityVerification):
   }
 
   let offset = 12;
-  let audioFormat = 1;
-  let numChannels = 1;
-  let sampleRate = 16000;
-  let bitsPerSample = 16;
-  let dataOffset = 44;
+  let audioFormat = -1;
+  let numChannels = -1;
+  let sampleRate = -1;
+  let bitsPerSample = -1;
+  let dataOffset = -1;
   let dataSize = 0;
+  let fmtFound = false;
+  let dataFound = false;
 
   while (offset + 8 <= check.wavBytes.length) {
     const chunkId = String.fromCharCode(view.getUint8(offset), view.getUint8(offset + 1), view.getUint8(offset + 2), view.getUint8(offset + 3));
     const chunkSize = view.getUint32(offset + 4, true);
+    if (offset + 8 + chunkSize > check.wavBytes.length && chunkId !== 'data') {
+      throw new Error(`AUDIO_WAV_CHUNK_INVALID: chunk ${chunkId} overflows file boundary`);
+    }
     if (chunkId === 'fmt ') {
+      if (chunkSize < 16) {
+        throw new Error('AUDIO_WAV_FMT_CHUNK_INVALID: fmt chunk too small');
+      }
+      fmtFound = true;
       audioFormat = view.getUint16(offset + 8, true);
       numChannels = view.getUint16(offset + 10, true);
       sampleRate = view.getUint32(offset + 12, true);
       bitsPerSample = view.getUint16(offset + 22, true);
     } else if (chunkId === 'data') {
+      dataFound = true;
       dataOffset = offset + 8;
       dataSize = chunkSize;
+      if (dataOffset + dataSize > check.wavBytes.length) {
+        throw new Error('AUDIO_WAV_DATA_CHUNK_TRUNCATED: data chunk overflows file');
+      }
       break;
     }
     offset += 8 + chunkSize;
   }
 
+  if (!fmtFound) {
+    throw new Error('AUDIO_WAV_FMT_CHUNK_MISSING: fmt chunk not found');
+  }
+  if (!dataFound) {
+    throw new Error('AUDIO_WAV_DATA_CHUNK_MISSING: data chunk not found');
+  }
+  if (audioFormat !== 1) {
+    throw new Error(`AUDIO_FORMAT_UNSUPPORTED: expected linear PCM format 1, got ${audioFormat}`);
+  }
+  if (bitsPerSample !== 16) {
+    throw new Error(`AUDIO_BIT_DEPTH_UNSUPPORTED: expected 16-bit PCM, got ${bitsPerSample}`);
+  }
   if (check.expectedSampleRate !== undefined && sampleRate !== check.expectedSampleRate) {
     throw new Error(`AUDIO_SAMPLE_RATE_MISMATCH: expected ${check.expectedSampleRate}, got ${sampleRate}`);
   }
@@ -1728,6 +1783,178 @@ export function assertAudioByteIntegrity(check: AudioByteIntegrityVerification):
     sampleRate,
     channels: numChannels,
     sampleCount,
+  };
+}
+
+export const TRUSTED_BLIND_AUTHORIZATION_PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhcS3+hKdAwTo8LsbAL8jFk38V6iq
+FFjQh9lHeoS3AoMJx/34jLsZO3c+ltCVxd5yDoR8Oud/Egq20VTgfVzx4w==
+-----END PUBLIC KEY-----` as const;
+
+export interface BlindExecutionAuthorizationReceipt {
+  readonly authorizationId: string;
+  readonly issuer: string;
+  readonly approvalIdentity: string;
+  readonly issuedAt: string;
+  readonly expiresAt: string;
+  readonly oneShotScope: string;
+  readonly permittedExecutionMode: string;
+  readonly boundRunId: string;
+  readonly boundCommitSha: string;
+  readonly boundProtocolSha256: string;
+  readonly boundScorerSha256: string;
+  readonly boundRosterSha256: string;
+  readonly boundManifestSha256: string;
+  readonly signatureAlgorithm: string;
+  readonly signature: string;
+}
+
+export function computeAuthorizationCanonicalPayload(receipt: {
+  authorizationId: string;
+  issuer: string;
+  approvalIdentity: string;
+  issuedAt: string;
+  expiresAt: string;
+  oneShotScope: string;
+  permittedExecutionMode: string;
+  boundRunId: string;
+  boundCommitSha: string;
+  boundProtocolSha256: string;
+  boundScorerSha256: string;
+  boundRosterSha256: string;
+  boundManifestSha256: string;
+}): string {
+  return [
+    `AUTH_ID:${receipt.authorizationId}`,
+    `ISSUER:${receipt.issuer}`,
+    `APPROVAL_IDENTITY:${receipt.approvalIdentity}`,
+    `ISSUED_AT:${receipt.issuedAt}`,
+    `EXPIRES_AT:${receipt.expiresAt}`,
+    `SCOPE:${receipt.oneShotScope}`,
+    `MODE:${receipt.permittedExecutionMode}`,
+    `RUN_ID:${receipt.boundRunId}`,
+    `COMMIT_SHA:${receipt.boundCommitSha}`,
+    `PROTOCOL_SHA256:${receipt.boundProtocolSha256}`,
+    `SCORER_SHA256:${receipt.boundScorerSha256}`,
+    `ROSTER_SHA256:${receipt.boundRosterSha256}`,
+    `MANIFEST_SHA256:${receipt.boundManifestSha256}`,
+  ].join('\n');
+}
+
+export function assertCryptographicBlindExecutionAuthorization(
+  receipt: any,
+  options: {
+    expectedRunId?: string;
+    currentCommitSha?: string;
+    trustedPublicKeyPem?: string;
+    consumedAuthorizationIds?: Set<string> | readonly string[];
+  } = {},
+): {
+  readonly authorized: boolean;
+  readonly authorizationId: string;
+  readonly boundRunId: string;
+  readonly approvalIdentity: string;
+  readonly verifiedAt: string;
+} {
+  if (!receipt || typeof receipt !== 'object') {
+    throw new Error('AUTHORIZATION_RECEIPT_MISSING: Authorization receipt must be a non-null object');
+  }
+
+  // 1. Mandatory nonempty run ID on both sides
+  const reqRunId = options.expectedRunId?.trim();
+  const receiptRunId = typeof receipt.boundRunId === 'string' ? receipt.boundRunId.trim() : typeof receipt.runId === 'string' ? receipt.runId.trim() : '';
+  if (!reqRunId && !receiptRunId) {
+    throw new Error('AUTHORIZATION_RUN_ID_REQUIRED: Run ID must be explicitly specified in both execution request and authorization receipt');
+  }
+  if (!reqRunId || !receiptRunId) {
+    throw new Error(`AUTHORIZATION_RUN_ID_MISSING: requestRunId="${reqRunId || ''}", receiptRunId="${receiptRunId || ''}"`);
+  }
+  if (reqRunId !== receiptRunId) {
+    throw new Error(`AUTHORIZATION_RUN_ID_MISMATCH: requested run ID "${reqRunId}" does not match receipt bound run ID "${receiptRunId}"`);
+  }
+
+  // 2. Reject editable status string without cryptographic signature
+  if (!receipt.signature || typeof receipt.signature !== 'string' || receipt.signature.trim() === '') {
+    throw new Error('AUTHORIZATION_UNSIGNED: Authorization receipt is unsigned or missing cryptographic signature');
+  }
+
+  // 3. One-shot scope and mode
+  if (receipt.oneShotScope !== 'PHASE_9G_B_ONE_SHOT_BLIND_EVALUATION') {
+    throw new Error(`AUTHORIZATION_SCOPE_INVALID: expected "PHASE_9G_B_ONE_SHOT_BLIND_EVALUATION", got "${receipt.oneShotScope}"`);
+  }
+  if (receipt.permittedExecutionMode !== 'REAL_BLIND') {
+    throw new Error(`AUTHORIZATION_MODE_INVALID: expected "REAL_BLIND", got "${receipt.permittedExecutionMode}"`);
+  }
+
+  // 4. Timestamp validity & expiration
+  const now = Date.now();
+  const exp = new Date(receipt.expiresAt).getTime();
+  if (!Number.isFinite(exp) || exp < now) {
+    throw new Error(`AUTHORIZATION_EXPIRED: receipt expired at ${receipt.expiresAt}`);
+  }
+  const issued = new Date(receipt.issuedAt).getTime();
+  if (!Number.isFinite(issued) || issued > now + 60000) {
+    throw new Error(`AUTHORIZATION_ISSUED_IN_FUTURE: receipt issuedAt ${receipt.issuedAt} is in the future`);
+  }
+
+  // 5. Commit, Protocol, Scorer, Roster, Manifest binding
+  if (options.currentCommitSha && receipt.boundCommitSha !== options.currentCommitSha) {
+    throw new Error(`AUTHORIZATION_COMMIT_MISMATCH: receipt bound to commit ${receipt.boundCommitSha}, but current HEAD is ${options.currentCommitSha}`);
+  }
+  if (receipt.boundProtocolSha256 !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6_SHA256) {
+    throw new Error(`AUTHORIZATION_PROTOCOL_MISMATCH: receipt bound to protocol ${receipt.boundProtocolSha256}, but active protocol is ${PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6_SHA256}`);
+  }
+  if (receipt.boundScorerSha256 && receipt.boundScorerSha256 !== '70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea') {
+    throw new Error(`AUTHORIZATION_SCORER_MISMATCH: scorer SHA mismatch: ${receipt.boundScorerSha256}`);
+  }
+  if (receipt.boundManifestSha256 && receipt.boundManifestSha256 !== PHASE_9GB_BLIND_MANIFEST_SHA256) {
+    throw new Error(`AUTHORIZATION_MANIFEST_MISMATCH: manifest SHA mismatch: ${receipt.boundManifestSha256}`);
+  }
+
+  // 6. Anti-replay consumption check
+  const consumedSet = options.consumedAuthorizationIds instanceof Set
+    ? options.consumedAuthorizationIds
+    : new Set(options.consumedAuthorizationIds ?? []);
+  if (consumedSet.has(receipt.authorizationId)) {
+    throw new Error(`AUTHORIZATION_ALREADY_CONSUMED: authorization ${receipt.authorizationId} has already been consumed in a prior run`);
+  }
+
+  // 7. Cryptographic signature verification against pinned trust root
+  const publicKeyPem = options.trustedPublicKeyPem ?? TRUSTED_BLIND_AUTHORIZATION_PUBLIC_KEY_PEM;
+  const canonicalPayload = computeAuthorizationCanonicalPayload({
+    authorizationId: receipt.authorizationId ?? '',
+    issuer: receipt.issuer ?? '',
+    approvalIdentity: receipt.approvalIdentity ?? '',
+    issuedAt: receipt.issuedAt ?? '',
+    expiresAt: receipt.expiresAt ?? '',
+    oneShotScope: receipt.oneShotScope ?? '',
+    permittedExecutionMode: receipt.permittedExecutionMode ?? '',
+    boundRunId: receiptRunId,
+    boundCommitSha: receipt.boundCommitSha ?? '',
+    boundProtocolSha256: receipt.boundProtocolSha256 ?? '',
+    boundScorerSha256: receipt.boundScorerSha256 ?? '',
+    boundRosterSha256: receipt.boundRosterSha256 ?? '',
+    boundManifestSha256: receipt.boundManifestSha256 ?? '',
+  });
+
+  const algorithm = receipt.signatureAlgorithm ?? 'SHA256';
+  let sigValid = false;
+  try {
+    sigValid = verify(algorithm, Buffer.from(canonicalPayload, 'utf8'), publicKeyPem, Buffer.from(receipt.signature, 'base64'));
+  } catch (err: any) {
+    throw new Error(`AUTHORIZATION_SIGNATURE_VERIFICATION_ERROR: ${err.message}`);
+  }
+
+  if (!sigValid) {
+    throw new Error('AUTHORIZATION_SIGNATURE_INVALID: Cryptographic signature verification failed against trusted public key');
+  }
+
+  return {
+    authorized: true,
+    authorizationId: receipt.authorizationId,
+    boundRunId: receiptRunId,
+    approvalIdentity: receipt.approvalIdentity,
+    verifiedAt: new Date().toISOString(),
   };
 }
 

@@ -19,6 +19,7 @@ import {
   PHASE_9GB2_PRE,
   PHASE_9GB2_ARM,
   PHASE_9GB2_FINAL_GATE,
+  PHASE_9GB2_FINAL_GATE_R1,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2_SHA256,
@@ -29,6 +30,10 @@ import {
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5_SHA256,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6,
+  PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6_SHA256,
+  PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V7,
+  assertBlindProtocolV7Identity,
+  assertCryptographicBlindExecutionAuthorization,
   CHALLENGER_CALIBRATION_PERFORMERS,
   CHALLENGER_BLIND_PERFORMERS,
   assertChallengerQualificationPolicyIdentity,
@@ -2378,7 +2383,7 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       const validV6 = {
         policyId: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6,
         schemaVersion: 6,
-        sha256: '9'.repeat(64),
+        sha256: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6_SHA256,
         supersedesPolicySha256: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5_SHA256,
       };
 
@@ -2395,6 +2400,10 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       // Missing SHA fails
       expect(() => assertBlindProtocolV6Identity({ ...validV6, sha256: undefined }))
         .toThrow(/BLIND_PROTOCOL_V6_SHA_REQUIRED/);
+
+      // Mutated SHA fails
+      expect(() => assertBlindProtocolV6Identity({ ...validV6, sha256: '9'.repeat(64) }))
+        .toThrow(/BLIND_PROTOCOL_V6_SHA_MISMATCH/);
 
       // Superseded SHA mismatch fails
       expect(() => assertBlindProtocolV6Identity({ ...validV6, supersedesPolicySha256: 'wrong'.padEnd(64, '0') }))
@@ -2494,6 +2503,117 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
         expectedPcmSha256: expectedPcmSha,
         expectedSampleRate: 44100,
       })).toThrow(/AUDIO_SAMPLE_RATE_MISMATCH/);
+    });
+
+    it('B.2-FINAL-4: assertAudioByteIntegrity strictly rejects missing fmt/data chunks and invalid formats', () => {
+      // Missing fmt chunk (44 bytes with corrupted chunk id)
+      const corruptedHeader = new Uint8Array(44);
+      corruptedHeader.set([0x52, 0x49, 0x46, 0x46]); // RIFF
+      const view = new DataView(corruptedHeader.buffer);
+      view.setUint32(4, 36, true);
+      corruptedHeader.set([0x57, 0x41, 0x56, 0x45], 8); // WAVE
+      corruptedHeader.set([0x62, 0x61, 0x64, 0x20], 12); // 'bad ' instead of 'fmt '
+      view.setUint32(16, 16, true);
+      const badSha = createHash('sha256').update(corruptedHeader).digest('hex');
+
+      expect(() => assertAudioByteIntegrity({
+        wavBytes: corruptedHeader,
+        expectedWavSha256: badSha,
+        expectedPcmSha256: '0'.repeat(64),
+      })).toThrow(/AUDIO_WAV_FMT_CHUNK_MISSING/);
+    });
+
+    it('B.2-FINAL-5: assertCryptographicBlindExecutionAuthorization enforces signature, run-id, and anti-replay', () => {
+      const now = new Date().toISOString();
+      const future = new Date(Date.now() + 86400000).toISOString();
+      const past = new Date(Date.now() - 86400000).toISOString();
+
+      const baseReceipt = {
+        authorizationId: 'auth_test_001',
+        issuer: 'test-issuer',
+        approvalIdentity: 'test-user',
+        issuedAt: now,
+        expiresAt: future,
+        oneShotScope: 'PHASE_9G_B_ONE_SHOT_BLIND_EVALUATION',
+        permittedExecutionMode: 'REAL_BLIND',
+        boundRunId: 'test_run_123',
+        boundCommitSha: 'test_commit_sha',
+        boundProtocolSha256: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6_SHA256,
+        boundScorerSha256: '70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea',
+        boundRosterSha256: 'roster_sha',
+        boundManifestSha256: PHASE_9GB_BLIND_MANIFEST_SHA256,
+        signatureAlgorithm: 'SHA256',
+        signature: 'fake_base64_signature',
+      };
+
+      // 1. Missing receipt throws
+      expect(() => assertCryptographicBlindExecutionAuthorization(null, { expectedRunId: 'test_run_123' }))
+        .toThrow(/AUTHORIZATION_RECEIPT_MISSING/);
+
+      // 2. Missing run ID on both sides throws
+      expect(() => assertCryptographicBlindExecutionAuthorization({ ...baseReceipt, boundRunId: '' }, { expectedRunId: '' }))
+        .toThrow(/AUTHORIZATION_RUN_ID_REQUIRED/);
+
+      // 3. Mismatched run ID throws
+      expect(() => assertCryptographicBlindExecutionAuthorization(baseReceipt, { expectedRunId: 'different_run' }))
+        .toThrow(/AUTHORIZATION_RUN_ID_MISMATCH/);
+
+      // 4. Unsigned receipt throws
+      expect(() => assertCryptographicBlindExecutionAuthorization({ ...baseReceipt, signature: '' }, { expectedRunId: 'test_run_123' }))
+        .toThrow(/AUTHORIZATION_UNSIGNED/);
+
+      // 5. Expired receipt throws
+      expect(() => assertCryptographicBlindExecutionAuthorization({ ...baseReceipt, expiresAt: past }, { expectedRunId: 'test_run_123' }))
+        .toThrow(/AUTHORIZATION_EXPIRED/);
+
+      // 6. Protocol mismatch throws
+      expect(() => assertCryptographicBlindExecutionAuthorization({ ...baseReceipt, boundProtocolSha256: 'wrong_sha' }, { expectedRunId: 'test_run_123' }))
+        .toThrow(/AUTHORIZATION_PROTOCOL_MISMATCH/);
+
+      // 7. Already consumed throws
+      expect(() => assertCryptographicBlindExecutionAuthorization(baseReceipt, {
+        expectedRunId: 'test_run_123',
+        consumedAuthorizationIds: new Set(['auth_test_001']),
+      })).toThrow(/AUTHORIZATION_ALREADY_CONSUMED/);
+
+      // 8. Forged signature throws
+      expect(() => assertCryptographicBlindExecutionAuthorization(baseReceipt, { expectedRunId: 'test_run_123' }))
+        .toThrow(/AUTHORIZATION_SIGNATURE_INVALID/);
+    });
+
+    it('assertBlindProtocolV7Identity validates V7 identity and strict supersession of V6', () => {
+      // Valid V7 identity
+      expect(() => assertBlindProtocolV7Identity({
+        policyId: 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V7',
+        schemaVersion: 7,
+        sha256: 'a'.repeat(64),
+        supersedesPolicySha256: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6_SHA256,
+        expectedSha256: 'a'.repeat(64),
+      })).not.toThrow();
+
+      // Wrong policy ID throws
+      expect(() => assertBlindProtocolV7Identity({
+        policyId: 'WRONG_POLICY_ID',
+        schemaVersion: 7,
+        sha256: 'a'.repeat(64),
+        supersedesPolicySha256: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6_SHA256,
+      })).toThrow(/BLIND_PROTOCOL_V7_POLICY_ID_MISMATCH/);
+
+      // Wrong schema version throws
+      expect(() => assertBlindProtocolV7Identity({
+        policyId: 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V7',
+        schemaVersion: 6,
+        sha256: 'a'.repeat(64),
+        supersedesPolicySha256: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6_SHA256,
+      })).toThrow(/BLIND_PROTOCOL_V7_SCHEMA_VERSION_MISMATCH/);
+
+      // Wrong superseded SHA throws
+      expect(() => assertBlindProtocolV7Identity({
+        policyId: 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V7',
+        schemaVersion: 7,
+        sha256: 'a'.repeat(64),
+        supersedesPolicySha256: 'b'.repeat(64),
+      })).toThrow(/BLIND_PROTOCOL_V7_SUPERSEDED_POLICY_SHA_MISMATCH/);
     });
   });
 });
