@@ -1,0 +1,362 @@
+{
+  "schemaVersion": 3,
+  "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V3",
+  "artifact": "phase9g_b_blind_evaluation_protocol_v3",
+  "phase": "9G-B.1.2",
+  "generatedAt": "2026-10-10T11:00:00.000Z",
+  "protocolRole": "EXECUTION_GRADE_FROZEN_ONE_SHOT_BLIND_EVALUATION_PROTOCOL",
+  "protocolState": "PHASE_9GB12_ONE_SHOT_EXECUTION_LOCKED_AWAITING_EXPLICIT_BLIND_AUTHORIZATION",
+  "supersedesPolicy": {
+    "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V2",
+    "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v2_2026-10-10.json",
+    "sha256": "42a2777600e51e2a9d8a83fd6671d169e99d80236bb5617bc330565ee3c7b890",
+    "status": "SUPERSEDED_NOT_EXECUTION_SAFE",
+    "supersessionRationale": "Independent GitHub review confirmed that Phase 9G-B.1.1 protocol V2 provided a valuable foundation, but remained non-execution-safe: the execution ledger used non-atomic whole-file writes and lacked exclusive run reservation ('wx' lock), acoustic evidence was not durably persisted to disk before scoring, mandatory preflight guards were not enforced at the adapter invocation boundary, publication causal timing was not verified, and the decision function was not symmetric across all safety levels."
+  },
+  "predecessorPolicies": [
+    {
+      "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5",
+      "path": "backend/research/policies/public_model_calibration_protocol_v5_2026-10-09.json",
+      "sha256": "5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6"
+    },
+    {
+      "policyId": "PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V1",
+      "path": "backend/research/policies/public_challenger_qualification_protocol_v1_2026-10-09.json",
+      "sha256": "0ccd4872d6998b67d794baf96cad22c5ccbba3f8ee65a9ac02ba1ad9790ec71b"
+    },
+    {
+      "policyId": "PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2",
+      "path": "backend/research/policies/public_challenger_qualification_protocol_v2_2026-10-10.json",
+      "sha256": "b467e9aad917808f307346482477d1d4a4716aed665bd2662e87445231d12f8c"
+    },
+    {
+      "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V1",
+      "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v1_2026-10-10.json",
+      "sha256": "06d9811ad830bebbd0e3161c424c15ee04282756479d80868ae8aa29e6bdafb0"
+    },
+    {
+      "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V2",
+      "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v2_2026-10-10.json",
+      "sha256": "42a2777600e51e2a9d8a83fd6671d169e99d80236bb5617bc330565ee3c7b890"
+    }
+  ],
+  "implementationCommitBinding": {
+    "commitSha": "78d166c2e8712d0e918cc8d723d09cda5c367714",
+    "commitMessage": "feat(research): implement Phase 9G-B.1.2 atomic run lock, append-only journal, and symmetric safety closure",
+    "commitRole": "PHASE_9GB12_IMPLEMENTATION_AND_TEST_COVERAGE_LOCK"
+  },
+  "executionImplementationBindings": {
+    "scorerModule": "apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.ts",
+    "scorerSha256": "70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea",
+    "finalizerLedgerModule": "apps/customer-web/src/lib/practice/local-core/continuous-finalization-ledger.ts",
+    "finalizerLedgerSha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e",
+    "reconcilerModule": "apps/customer-web/src/lib/practice/audio-analysis/continuous/performance-reconciler.ts",
+    "reconcilerSha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146",
+    "qualificationModule": "apps/customer-web/src/lib/practice/research/public-challenger-qualification.ts",
+    "qualificationModuleSha256": "cde64ef8d4d6ae26c5a15b0511a93160c768db08c6167090e84dbc8e03409b6f",
+    "orchestratorModule": "backend/research/browser_runtime/execution_grade_blind_orchestrator.mjs",
+    "orchestratorSha256": "7aa79d3dd1606d0d799779fa6f4dfa478f58ed1f72bce4a788a660750cc6dfc9",
+    "rehearsalModule": "backend/research/browser_runtime/rehearse_phase9gb_blind_protocol.mjs",
+    "rehearsalSha256": "8249576ed46619eeb877accc36e18a7a35203cd117ec3df6a5f509a66577e97f"
+  },
+  "runtimeEnvironmentDigest": {
+    "nodeVersion": "v24.19.0",
+    "platform": "win32",
+    "arch": "x64",
+    "runtimeContainerBinding": "REAL_RUNTIME_BINDING_NOT_VERIFIABLE_IN_THIS_ENVIRONMENT"
+  },
+  "frozenIncumbentRegistry": {
+    "path": "backend/research/reports/phase9g_a25_final_incumbent_registry_2026-10-09.json",
+    "sha256": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
+    "profilesKey": "profiles",
+    "expectedProfileCount": 2
+  },
+  "frozenCalibrationManifest": {
+    "path": "backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json",
+    "sha256": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
+    "performers": ["p07", "p08", "p09", "p10", "p11", "p12", "p13", "p14"],
+    "scenarioCount": 72
+  },
+  "frozenBlindManifest": {
+    "path": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
+    "sha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+    "performers": ["p15", "p16", "p17", "p18", "p19", "p20", "p21", "p22"],
+    "scenarioCount": 70,
+    "candidateRunCount": 0
+  },
+  "rankedCandidates": [
+    {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "candidateFamily": "bytedance-original",
+      "category": "FROZEN_INCUMBENT",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+      "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+      "checkpointByteSize": 171966578,
+      "contextRequirementMs": 5000,
+      "preInferenceEligibleScenarioCount": 63,
+      "runtimeIdentity": "noteverse-bytedance-calibration:phase9ga21",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "permittedBlindRole": "FROZEN_INCUMBENT_EVALUATION",
+      "lockedForPhase9gB": true,
+      "productionSelectionEligible": true
+    },
+    {
+      "candidateId": "online-amt-calibrated-v1",
+      "candidateFamily": "online-amt",
+      "category": "FROZEN_INCUMBENT",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "checkpointByteSize": 178804960,
+      "contextRequirementMs": 0,
+      "preInferenceEligibleScenarioCount": 70,
+      "runtimeIdentity": "noteverse-online-amt-calibration:phase9ga21",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "permittedBlindRole": "FROZEN_INCUMBENT_EVALUATION",
+      "lockedForPhase9gB": true,
+      "productionSelectionEligible": true
+    },
+    {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "candidateFamily": "bytedance-robust-augmented",
+      "category": "QUALIFIED_CHALLENGER",
+      "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "configurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce",
+      "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+      "checkpointByteSize": 103815845,
+      "contextRequirementMs": 1820,
+      "preInferenceEligibleScenarioCount": 63,
+      "runtimeIdentity": "noteverse-bytedance-calibration:phase9ga3",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "permittedBlindRole": "QUALIFIED_CHALLENGER_EVALUATION",
+      "lockedForPhase9gB": true,
+      "productionSelectionEligible": true
+    }
+  ],
+  "pairwiseMutualEligibilityGeometry": {
+    "bytedance-original-calibrated-v1_vs_online-amt-calibrated-v1": {
+      "candidateAEligibleCount": 63,
+      "candidateBEligibleCount": 70,
+      "mutuallyEligibleScenarioCount": 63,
+      "geometryFilterReason": "bytedance-original requires performanceOriginSourceMs >= 5000ms; 7 scenarios lack pre-roll"
+    },
+    "bytedance-robust-augmented-calibrated-v1_vs_online-amt-calibrated-v1": {
+      "candidateAEligibleCount": 63,
+      "candidateBEligibleCount": 70,
+      "mutuallyEligibleScenarioCount": 63,
+      "geometryFilterReason": "bytedance-robust-augmented requires performanceOriginSourceMs >= 1820ms; 7 scenarios lack pre-roll"
+    },
+    "bytedance-original-calibrated-v1_vs_bytedance-robust-augmented-calibrated-v1": {
+      "candidateAEligibleCount": 63,
+      "candidateBEligibleCount": 63,
+      "mutuallyEligibleScenarioCount": 63,
+      "geometryFilterReason": "Both ByteDance candidates share identical 63 scenarios with sufficient pre-roll"
+    }
+  },
+  "nonRankingResearchReferences": [
+    {
+      "candidateId": "transkun-v2-aug-calibrated-v1",
+      "candidateFamily": "transkun",
+      "profileId": "UPSTREAM_NATIVE_V2_AUG",
+      "configurationSha256": "4d5d16200215e252d373b8300aafa890e0e2bb0247240b6e0d26fbb5d68fc277",
+      "checkpointSha256": "8bd6b4b5ddf9ce8c5f296a57859eec9f166cd337c35245ec2a2576d90be68c4c",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false,
+      "ineligibilityReason": "Offline whole-recording latency cannot support causal live practice."
+    },
+    {
+      "candidateId": "aria-amt-medium-double-v1",
+      "candidateFamily": "aria-amt",
+      "profileId": "UPSTREAM_NATIVE_PIANO_MEDIUM_DOUBLE",
+      "configurationSha256": "d8e55dd4c19e70006650da031996c113961583c2f43b1305b77b002264fb2555",
+      "checkpointSha256": "089d3129dbe93246aeda55efe668c8a48af08afaf9dd15c64cef0a07c0fb30a4",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false,
+      "ineligibilityReason": "CC-BY-NC non-commercial licensing blocks production; offline whole-recording latency incompatible."
+    },
+    {
+      "candidateId": "rtt-causal-streaming-v1",
+      "candidateFamily": "rtt",
+      "profileId": "OFFLINE_SEGMENTWISE_NATIVE",
+      "configurationSha256": "473dde00da90daa857ebc95aaf871d3efb16f4948f0eda5591a546e337e4fb54",
+      "checkpointSha256": "901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false,
+      "ineligibilityReason": "CC-BY-NC non-commercial licensing blocks production; offline segmentwise execution incompatible."
+    }
+  ],
+  "blockedCandidates": [
+    {
+      "candidateId": "d3rm-offline-ceiling-reference",
+      "candidateFamily": "d3rm",
+      "profileId": "UPSTREAM_CEILING_REFERENCE",
+      "configurationSha256": "BLOCKED",
+      "checkpointSha256": "BLOCKED",
+      "qualificationStatus": "EXECUTION_BLOCKED",
+      "permittedBlindRole": "NOT_PERMITTED",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false,
+      "ineligibilityReason": "Missing natten dependency in environment; licensing unresolved; offline ceiling reference only."
+    }
+  ],
+  "scorerContract": {
+    "scorerModule": "apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.ts",
+    "scorerSha256": "70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea",
+    "scorerIdentity": "noteverse-continuous-analyzer-bakeoff-v1",
+    "assignmentWindowMs": 250,
+    "scoringFunction": "scoreCandidate",
+    "evaluatorSchema": "CompletedContinuousEvaluation",
+    "scoringReadbackMode": "STRICTLY_FROM_DISK_EVIDENCE"
+  },
+  "durableExecutionLedgerContract": {
+    "module": "backend/research/browser_runtime/execution_grade_blind_orchestrator.mjs",
+    "className": "DurableExecutionLedger",
+    "exclusiveRunReservation": "openSync(run.lock, 'wx')",
+    "appendOnlyJournalFile": "journal.jsonl",
+    "journalChainVerification": "Chained SHA256 hashes with monotonic sequence numbers",
+    "evidenceBlobRetention": "evidence/<candidateId>__<scenarioId>.json",
+    "lifecycleStates": ["PREPARED", "RUNNING", "COMPLETED", "FAILED", "BLOCKED", "INCOMPLETE"],
+    "terminalStates": ["COMPLETED", "FAILED", "BLOCKED"],
+    "crashRecoveryOutcome": "ATTEMPT_OUTCOME_UNKNOWN"
+  },
+  "evaluationRules": {
+    "scenarioEligibility": {
+      "bytedanceOriginal": "Scenarios with performanceOriginSourceMs >= 5000ms (63 scenarios)",
+      "onlineAmt": "All valid benchmark scenarios with performanceOriginSourceMs >= 0ms (70 scenarios)",
+      "bytedanceRobustAugmented": "Scenarios with performanceOriginSourceMs >= 1820ms (63 scenarios)",
+      "mutualIntersectionRule": "Paired comparisons evaluated strictly over mutually eligible scenario intersections (63 scenarios for all pairs)"
+    },
+    "scoreIndependenceRequirement": {
+      "rawAcousticInference": "Must not receive ExpectedStrike truth, BPM hints, or note labels",
+      "preflightGuards": "preflightCandidateScenarioExecution() guards adapter boundary and rejects truth leakage",
+      "evidenceCommitment": "Raw acoustic outputs committed to disk before expected strikes accessed",
+      "scoringStage": "ExpectedStrike ground truth accessed only after acoustic observation commit"
+    },
+    "causalPublicationValidation": {
+      "noFutureAudioLookahead": "obs.performanceTimeMs <= analyzedThroughPerformanceMs strictly enforced",
+      "noBackdatedAvailability": "availabilityTimeMs >= analyzedThroughPerformanceMs strictly enforced",
+      "monotonicity": "analyzedThroughPerformanceMs must be monotonically increasing"
+    },
+    "safetyDecisionHierarchy": [
+      {
+        "priority": 1,
+        "metric": "falseMatchRateOnGroundTruthMissing",
+        "direction": "LOWER",
+        "threshold": 0.01,
+        "role": "PRIMARY_SAFETY_GATE_1",
+        "isCriticalSafetyGate": true
+      },
+      {
+        "priority": 2,
+        "metric": "falseCompleteChordAcceptanceRate",
+        "direction": "LOWER",
+        "threshold": 0.01,
+        "role": "PRIMARY_SAFETY_GATE_2",
+        "isCriticalSafetyGate": true
+      },
+      {
+        "priority": 3,
+        "metric": "verdictAgreementRate",
+        "direction": "HIGHER",
+        "threshold": 0.01,
+        "role": "PRIMARY_ACCURACY_GATE_3",
+        "isCriticalSafetyGate": true
+      },
+      {
+        "priority": 4,
+        "metric": "correctMissingRate",
+        "direction": "HIGHER",
+        "threshold": 0.01,
+        "role": "SAFETY_MISSING_DETECTION_4",
+        "isCriticalSafetyGate": true
+      },
+      {
+        "priority": 5,
+        "metric": "chordExactCompletenessRate",
+        "direction": "HIGHER",
+        "threshold": 0.01,
+        "role": "CHORD_FIDELITY_5",
+        "isCriticalSafetyGate": true
+      },
+      {
+        "priority": 6,
+        "metric": "expectedStrikeRecall",
+        "direction": "HIGHER",
+        "threshold": 0.01,
+        "role": "PRIMARY_STRIKE_RECALL_6",
+        "isCriticalSafetyGate": true
+      },
+      {
+        "priority": 7,
+        "metric": "extraPrecision",
+        "direction": "HIGHER",
+        "threshold": 0.01,
+        "role": "SPURIOUS_STRIKE_REJECTION_7",
+        "isCriticalSafetyGate": true
+      },
+      {
+        "priority": 8,
+        "metric": "extraRecall",
+        "direction": "HIGHER",
+        "threshold": 0.01,
+        "role": "EXTRA_NOTE_DETECTION_8",
+        "isCriticalSafetyGate": true
+      },
+      {
+        "priority": 9,
+        "metric": "timingAbsoluteMedianMs",
+        "direction": "LOWER",
+        "threshold": 5.0,
+        "role": "TIMING_ALIGNMENT_MEDIAN_9"
+      },
+      {
+        "priority": 10,
+        "metric": "timingAbsoluteP95Ms",
+        "direction": "LOWER",
+        "threshold": 10.0,
+        "role": "TIMING_ALIGNMENT_P95_10"
+      },
+      {
+        "priority": 11,
+        "metric": "finalizedFeedbackAgeP95Ms",
+        "direction": "LOWER",
+        "threshold": 100.0,
+        "role": "TERMINAL_LATENCY_TIE_BREAK_11"
+      }
+    ],
+    "bootstrapMethodology": {
+      "draws": 5000,
+      "seed": 13371,
+      "confidenceLevel": 0.95,
+      "method": "PERCENTILE_BOOTSTRAP",
+      "pairingMode": "SCORER_DERIVED_DIFFERENCE_VECTORS"
+    },
+    "minimumCoveragePercent": 100.0,
+    "missingDataPolicy": "PENALIZED_AS_UNOBSERVED_STRIKES",
+    "oneShotExecutionPolicy": {
+      "singleRunIdRequired": true,
+      "noSelectiveReruns": true,
+      "noCandidateDroppedAfterBlindOutcome": true
+    },
+    "decisionRules": {
+      "symmetry": "Evaluation function is invariant under candidate reversal: swap(A, B) yields inverted winner",
+      "criticalSafetyDataRequirement": "Mandatory critical safety gates (priority 1..8) require sufficient evidence; missing data blocks winner declaration (INSUFFICIENT_SAFETY_EVIDENCE)",
+      "productionWinnerThreshold": "Must achieve statistically significant and meaningful improvement on primary safety metrics without regression across the 11-level hierarchy",
+      "noWinnerDecision": "If improvement is below meaningful threshold (< 1.0%) or statistically tied, decision is NO_PRODUCTION_WINNER",
+      "incompleteCoverageDecision": "If scenario coverage < 100%, decision is EVALUATION_INCOMPLETE_NO_WINNER"
+    }
+  },
+  "executionGuards": {
+    "prohibitBlindCandidateInferenceInPhase9GB12": true,
+    "prohibitProductionWinnerSelectionInPhase9GB12": true,
+    "prohibitMicrophoneActivation": true,
+    "candidateRunCount": 0
+  }
+}
