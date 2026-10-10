@@ -42,6 +42,11 @@ export const PHASE_9GA32 = '9G-A.3.2' as const;
 export const PHASE_9GB0 = '9G-B.0' as const;
 export const PHASE_9GB01 = '9G-B.0.1' as const;
 export const PHASE_9GB1 = '9G-B.1' as const;
+export const PHASE_9GB11 = '9G-B.1.1' as const;
+
+export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V1' as const;
+export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256 = '06d9811ad830bebbd0e3161c424c15ee04282756479d80868ae8aa29e6bdafb0' as const;
+export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V2' as const;
 
 export type ChallengerFamily =
   | 'bytedance-robust-augmented'
@@ -125,7 +130,7 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
   }
 
   // 3. Fail closed on missing, malformed, or non-whitelisted phase
-  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01, PHASE_9GB1] as const;
+  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01, PHASE_9GB1, PHASE_9GB11] as const;
   if (!request.phase || !allowedPhases.includes(request.phase as typeof allowedPhases[number])) {
     if (request.mode === 'TRUTH_ONLY') {
       throw new Error(`CHALLENGER_TRUTH_ONLY_PHASE_REQUIRED:${request.phase}`);
@@ -133,9 +138,9 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
     throw new Error(`CHALLENGER_EXECUTION_PHASE_REQUIRED:${request.phase}`);
   }
 
-  // Phase 9G-B.0, 9G-B.0.1, and 9G-B.1 are non-inference preflight readiness / protocol freeze gates
-  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01 || request.phase === PHASE_9GB1) && request.mode === 'CANDIDATE_INFERENCE') {
-    const prefix = request.phase === PHASE_9GB1 ? 'PHASE_9GB1' : request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0';
+  // Phase 9G-B.0, 9G-B.0.1, 9G-B.1, and 9G-B.1.1 are non-inference preflight readiness / protocol freeze gates
+  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01 || request.phase === PHASE_9GB1 || request.phase === PHASE_9GB11) && request.mode === 'CANDIDATE_INFERENCE') {
+    const prefix = request.phase === PHASE_9GB11 ? 'PHASE_9GB11' : request.phase === PHASE_9GB1 ? 'PHASE_9GB1' : request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0';
     throw new Error(`${prefix}_CANDIDATE_INFERENCE_FORBIDDEN`);
   }
 
@@ -1474,5 +1479,81 @@ export function assertCandidateBlindRolePermitted(candidateId: string, role: str
     }
   }
 }
+
+export function assertBlindProtocolV2Identity(identity: {
+  policyId: string;
+  schemaVersion: number;
+  sha256?: string;
+  supersedesPolicySha256?: string;
+}): void {
+  if (identity.policyId !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2) {
+    throw new Error(`BLIND_PROTOCOL_V2_POLICY_ID_MISMATCH:${identity.policyId}`);
+  }
+  if (identity.schemaVersion !== 2) {
+    throw new Error(`BLIND_PROTOCOL_V2_SCHEMA_VERSION_MISMATCH:${identity.schemaVersion}`);
+  }
+  if (!identity.sha256 || identity.sha256.length !== 64) {
+    throw new Error('BLIND_PROTOCOL_V2_SHA_REQUIRED');
+  }
+  if (identity.supersedesPolicySha256 !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256) {
+    throw new Error(`BLIND_PROTOCOL_V2_SUPERSEDED_POLICY_SHA_MISMATCH:${identity.supersedesPolicySha256}`);
+  }
+}
+
+export interface ExecutionLockBindings {
+  readonly scorerSha256: string;
+  readonly finalizerSha256: string;
+  readonly orchestratorSha256: string;
+  readonly candidateCheckpoints: Record<string, { sha256: string; bytes: number }>;
+  readonly runtimeDigests: Record<string, string>;
+}
+
+export function assertExecutionLockBindingsValid(bindings: ExecutionLockBindings): void {
+  const isHex64 = (s: string) => typeof s === 'string' && /^[0-9a-f]{64}$/i.test(s);
+  if (!isHex64(bindings.scorerSha256)) throw new Error('INVALID_EXECUTION_LOCK_SCORER_SHA');
+  if (!isHex64(bindings.finalizerSha256)) throw new Error('INVALID_EXECUTION_LOCK_FINALIZER_SHA');
+  if (!isHex64(bindings.orchestratorSha256)) throw new Error('INVALID_EXECUTION_LOCK_ORCHESTRATOR_SHA');
+
+  for (const [candId, cp] of Object.entries(bindings.candidateCheckpoints)) {
+    if (!isHex64(cp.sha256)) throw new Error(`INVALID_CHECKPOINT_SHA:${candId}`);
+    if (typeof cp.bytes !== 'number' || cp.bytes <= 0) throw new Error(`INVALID_CHECKPOINT_BYTES:${candId}`);
+  }
+
+  for (const [candId, digest] of Object.entries(bindings.runtimeDigests)) {
+    if (!digest || typeof digest !== 'string') throw new Error(`INVALID_RUNTIME_DIGEST:${candId}`);
+  }
+}
+
+export const VALID_LEDGER_STATES = ['PREPARED', 'RUNNING', 'COMPLETED', 'FAILED', 'BLOCKED', 'INCOMPLETE'] as const;
+export type LedgerState = typeof VALID_LEDGER_STATES[number];
+
+export function assertLedgerStateTransitionValid(current: LedgerState, next: LedgerState): void {
+  const allowedTransitions: Record<LedgerState, readonly LedgerState[]> = {
+    PREPARED: ['RUNNING', 'BLOCKED'],
+    RUNNING: ['COMPLETED', 'FAILED', 'INCOMPLETE', 'BLOCKED'],
+    INCOMPLETE: ['RUNNING', 'FAILED', 'BLOCKED'],
+    COMPLETED: [],
+    FAILED: [],
+    BLOCKED: [],
+  };
+  const targets = allowedTransitions[current] ?? [];
+  if (!targets.includes(next)) {
+    throw new Error(`INVALID_LEDGER_STATE_TRANSITION:${current}->${next}`);
+  }
+}
+
+export function assertNoDuplicateRunAttempt(existingRunIds: Set<string>, newRunId: string): void {
+  if (existingRunIds.has(newRunId)) {
+    throw new Error(`DUPLICATE_RUN_ID_REJECTED:${newRunId}`);
+  }
+}
+
+export function assertNoDuplicateCandidateScenarioAttempt(existingKeys: Set<string>, candidateId: string, scenarioId: string): void {
+  const key = `${candidateId}\0${scenarioId}`;
+  if (existingKeys.has(key)) {
+    throw new Error(`DUPLICATE_CANDIDATE_SCENARIO_RUN_REJECTED:${candidateId}:${scenarioId}`);
+  }
+}
+
 
 

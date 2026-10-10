@@ -14,6 +14,9 @@ import {
   PHASE_9GB0,
   PHASE_9GB01,
   PHASE_9GB1,
+  PHASE_9GB11,
+  PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256,
+  PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2,
   CHALLENGER_CALIBRATION_PERFORMERS,
   CHALLENGER_BLIND_PERFORMERS,
   assertChallengerQualificationPolicyIdentity,
@@ -58,6 +61,11 @@ import {
   assertPairwiseReversalInvariants,
   assertStatisticalEvidenceClassificationValid,
   assertRequiredSafetyMetricsPresent,
+  assertBlindProtocolV2Identity,
+  assertExecutionLockBindingsValid,
+  assertLedgerStateTransitionValid,
+  assertNoDuplicateRunAttempt,
+  assertNoDuplicateCandidateScenarioAttempt,
   assertMetricSpecificDenominatorsValid,
   assertSourceReceiptShaValid,
   assertObservationDigestValid,
@@ -1706,6 +1714,118 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       });
       expect(() => assertChallengerExecutionAllowed(b1InferenceRequest))
         .toThrow(/PHASE_9GB1_CANDIDATE_INFERENCE_FORBIDDEN/);
+    });
+  });
+
+  describe('Phase 9G-B.1.1: Execution-Grade Blind Lock and Rehearsal Guards', () => {
+    it('B.1.1-1: Blind protocol V2 identity and V1 supersession verification', () => {
+      const validV2 = {
+        policyId: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2,
+        schemaVersion: 2,
+        sha256: 'a'.repeat(64),
+        supersedesPolicySha256: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256,
+      };
+      expect(() => assertBlindProtocolV2Identity(validV2)).not.toThrow();
+
+      // Mismatched policy ID
+      expect(() => assertBlindProtocolV2Identity({ ...validV2, policyId: 'WRONG' }))
+        .toThrow(/BLIND_PROTOCOL_V2_POLICY_ID_MISMATCH/);
+
+      // Wrong schema version
+      expect(() => assertBlindProtocolV2Identity({ ...validV2, schemaVersion: 1 }))
+        .toThrow(/BLIND_PROTOCOL_V2_SCHEMA_VERSION_MISMATCH/);
+
+      // Missing SHA
+      expect(() => assertBlindProtocolV2Identity({ ...validV2, sha256: undefined }))
+        .toThrow(/BLIND_PROTOCOL_V2_SHA_REQUIRED/);
+
+      // Tampered superseded V1 SHA
+      expect(() => assertBlindProtocolV2Identity({ ...validV2, supersedesPolicySha256: 'wrong_v1_sha' }))
+        .toThrow(/BLIND_PROTOCOL_V2_SUPERSEDED_POLICY_SHA_MISMATCH/);
+    });
+
+    it('B.1.1-2: Execution lock bindings validation (hex64 hashes, byte sizes, runtime digests)', () => {
+      const validBindings = {
+        scorerSha256: 'a'.repeat(64),
+        finalizerSha256: 'b'.repeat(64),
+        orchestratorSha256: 'c'.repeat(64),
+        candidateCheckpoints: {
+          'bytedance-original-calibrated-v1': { sha256: 'd'.repeat(64), bytes: 171966578 },
+          'online-amt-calibrated-v1': { sha256: 'e'.repeat(64), bytes: 178804960 },
+          'bytedance-robust-augmented-calibrated-v1': { sha256: 'f'.repeat(64), bytes: 103815845 },
+        },
+        runtimeDigests: {
+          'bytedance-original-calibrated-v1': 'noteverse-bytedance-calibration:phase9ga21',
+          'online-amt-calibrated-v1': 'sha256:daff15ede55853aedbe8ec0b2fe6924d3e87697f6e041d0f2d05f3151b1cadfb',
+          'bytedance-robust-augmented-calibrated-v1': 'noteverse-bytedance-calibration:phase9ga3',
+        },
+      };
+      expect(() => assertExecutionLockBindingsValid(validBindings)).not.toThrow();
+
+      // Invalid scorer SHA
+      expect(() => assertExecutionLockBindingsValid({ ...validBindings, scorerSha256: 'invalid' }))
+        .toThrow(/INVALID_EXECUTION_LOCK_SCORER_SHA/);
+
+      // Invalid checkpoint bytes
+      expect(() => assertExecutionLockBindingsValid({
+        ...validBindings,
+        candidateCheckpoints: {
+          ...validBindings.candidateCheckpoints,
+          'online-amt-calibrated-v1': { sha256: 'e'.repeat(64), bytes: 0 },
+        },
+      })).toThrow(/INVALID_CHECKPOINT_BYTES:online-amt-calibrated-v1/);
+    });
+
+    it('B.1.1-3: Ledger state transition state machine validation', () => {
+      expect(() => assertLedgerStateTransitionValid('PREPARED', 'RUNNING')).not.toThrow();
+      expect(() => assertLedgerStateTransitionValid('RUNNING', 'COMPLETED')).not.toThrow();
+      expect(() => assertLedgerStateTransitionValid('RUNNING', 'FAILED')).not.toThrow();
+      expect(() => assertLedgerStateTransitionValid('RUNNING', 'INCOMPLETE')).not.toThrow();
+      expect(() => assertLedgerStateTransitionValid('INCOMPLETE', 'RUNNING')).not.toThrow();
+
+      // Illegal transition: COMPLETED -> RUNNING
+      expect(() => assertLedgerStateTransitionValid('COMPLETED', 'RUNNING'))
+        .toThrow(/INVALID_LEDGER_STATE_TRANSITION:COMPLETED->RUNNING/);
+
+      // Illegal transition: FAILED -> COMPLETED
+      expect(() => assertLedgerStateTransitionValid('FAILED', 'COMPLETED'))
+        .toThrow(/INVALID_LEDGER_STATE_TRANSITION:FAILED->COMPLETED/);
+    });
+
+    it('B.1.1-4: Duplicate run ID rejection by execution ledger', () => {
+      const runs = new Set(['run-1', 'run-2']);
+      expect(() => assertNoDuplicateRunAttempt(runs, 'run-3')).not.toThrow();
+      expect(() => assertNoDuplicateRunAttempt(runs, 'run-1'))
+        .toThrow(/DUPLICATE_RUN_ID_REJECTED:run-1/);
+    });
+
+    it('B.1.1-5: Duplicate candidate/scenario attempt rejection by execution ledger', () => {
+      const records = new Set(['cand-1\0sc-1']);
+      expect(() => assertNoDuplicateCandidateScenarioAttempt(records, 'cand-1', 'sc-2')).not.toThrow();
+      expect(() => assertNoDuplicateCandidateScenarioAttempt(records, 'cand-1', 'sc-1'))
+        .toThrow(/DUPLICATE_CANDIDATE_SCENARIO_RUN_REJECTED:cand-1:sc-1/);
+    });
+
+    it('B.1.1-6: Candidate inference strictly forbidden in Phase 9G-B.1.1 preflight gate', () => {
+      const b11InferenceRequest = {
+        policy: {
+          policyId: PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2,
+          schemaVersion: 2,
+          sha256: PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2_SHA256,
+        },
+        incumbentPolicySha256: '5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6',
+        phase: PHASE_9GB11,
+        mode: 'CANDIDATE_INFERENCE' as const,
+        candidateId: 'bytedance-robust-augmented-calibrated-v1',
+        candidateFamily: 'bytedance-robust-augmented' as const,
+        scenarioSplit: 'CALIBRATION' as const,
+        performers: ['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p14'],
+        calibrationManifestSha256: PHASE_9GA1_CALIBRATION_SCENARIOS_SHA256,
+        incumbentRegistrySha256: PHASE_9GA25_REGISTRY_SHA256,
+        blindManifestSha256: PHASE_9GB_BLIND_MANIFEST_SHA256,
+      };
+      expect(() => assertChallengerExecutionAllowed(b11InferenceRequest))
+        .toThrow(/PHASE_9GB11_CANDIDATE_INFERENCE_FORBIDDEN/);
     });
   });
 });
