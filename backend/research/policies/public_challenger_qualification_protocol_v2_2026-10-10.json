@@ -1,0 +1,291 @@
+{
+  "schemaVersion": 2,
+  "policyId": "PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2",
+  "artifact": "public_challenger_qualification_protocol_v2",
+  "phase": "9G-A.3.1",
+  "generatedAt": "2026-10-10T12:00:00.000Z",
+  "protocolRole": "MODERN_CHALLENGER_QUALIFICATION_REMEDIATED",
+  "supersedesPolicy": {
+    "policyId": "PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V1",
+    "path": "backend/research/policies/public_challenger_qualification_protocol_v1_2026-10-09.json",
+    "sha256": "0ccd4872d6998b67d794baf96cad22c5ccbba3f8ee65a9ac02ba1ad9790ec71b",
+    "supersessionRationale": "Remediates RTT false causal-streaming claim, corrects whole-recording offline publication availability semantics for Transkun and Aria, enforces strict Transkun state-dict loading, establishes validated raw-cache integrity checks, reconciles physical on-disk checkpoint bytes, and fixes incumbent schema import from frozen A.2.5 registry."
+  },
+  "frozenIncumbentPolicy": {
+    "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5",
+    "path": "backend/research/policies/public_model_calibration_protocol_v5_2026-10-09.json",
+    "sha256": "5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6"
+  },
+  "frozenIncumbentRegistry": {
+    "path": "backend/research/reports/phase9g_a25_final_incumbent_registry_2026-10-09.json",
+    "sha256": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
+    "profilesKey": "profiles",
+    "expectedProfileCount": 2,
+    "incumbents": [
+      {
+        "candidateFamily": "bytedance-original",
+        "candidateId": "bytedance-original-calibrated-v1",
+        "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+        "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+        "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+        "thresholdLockMeaning": "STATISTICALLY_TIED_NEUTRAL_PREBLIND_CHOICE",
+        "qualificationStatus": "CALIBRATED_AND_LOCKED",
+        "LOCKED_FOR_PHASE_9G_B": true
+      },
+      {
+        "candidateFamily": "online-amt",
+        "candidateId": "online-amt-calibrated-v1",
+        "profileId": "online-amt-calibration-native-boost-1",
+        "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+        "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+        "thresholdLockMeaning": "NATIVE_POLICY_SURVIVOR_SELECTION",
+        "qualificationStatus": "CALIBRATED_AND_LOCKED",
+        "LOCKED_FOR_PHASE_9G_B": true
+      }
+    ]
+  },
+  "frozenCalibrationManifest": {
+    "path": "backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json",
+    "sha256": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
+    "performers": ["p07", "p08", "p09", "p10", "p11", "p12", "p13", "p14"],
+    "scenarioCount": 72,
+    "baseScenarioCount": 24,
+    "scenarioFamilies": [
+      "BASE_ORIGINAL",
+      "COUNTERFACTUAL_MISSING_NOTE",
+      "COUNTERFACTUAL_EXTRA_NOTE",
+      "COUNTERFACTUAL_WRONG_SEMITONE",
+      "COUNTERFACTUAL_INCOMPLETE_CHORD"
+    ]
+  },
+  "frozenBlindManifest": {
+    "path": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
+    "sha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+    "performers": ["p15", "p16", "p17", "p18", "p19", "p20", "p21", "p22"],
+    "scenarioCount": 70,
+    "candidateRunCount": 0
+  },
+  "executionGuards": {
+    "prohibitBlindCandidateInference": true,
+    "prohibitProductionWinnerSelectionInPhase9GA": true,
+    "prohibitCrossFamilyProfilePoolInSelection": true,
+    "prohibitScoreConditionedAcousticFiltering": true,
+    "requiredAssignmentWindowMs": 250,
+    "allowedCandidateSplits": ["CALIBRATION"],
+    "allowedCandidatePerformers": ["p07", "p08", "p09", "p10", "p11", "p12", "p13", "p14"]
+  },
+  "mandatoryChallengers": {
+    "bytedanceRobustAugmented": {
+      "candidateFamily": "bytedance-robust-augmented",
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "role": "BYTEDANCE_FAMILY_ROBUSTNESS_CHALLENGER",
+      "codeIdentity": {
+        "repository": "https://github.com/bytedance/piano_transcription",
+        "exactGitCommit": "7573f32e29e013f9603c46d3e3871308a0d95267",
+        "codeLicense": "MIT"
+      },
+      "checkpointIdentity": {
+        "source": "https://zenodo.org/records/10610212",
+        "filename": "high_resolution_MAESTRO_augmentations.pth",
+        "doi": "10.5281/zenodo.10610212",
+        "sha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+        "bytes": 103815845,
+        "checkpointLicense": "CC-BY-4.0"
+      },
+      "trainingProvenance": {
+        "knownDatasets": ["MAESTRO-v3.0.0"],
+        "knownAugmentations": ["speed_pitch", "reverb", "equalization", "noise"],
+        "overlapWithVienna": "UNKNOWN"
+      },
+      "runtimeIdentity": {
+        "modelClass": "Regress_onset_offset_frame_velocity_CRNN",
+        "hasPedalHead": false,
+        "sampleRateHz": 16000,
+        "framesPerSecond": 100,
+        "classesNum": 88
+      },
+      "licenseClassification": "PRODUCTION_LICENSE_ELIGIBLE",
+      "searchSpace": {
+        "contextsMs": [1820, 3000, 5000, 10000],
+        "onsetThresholds": [0.15, 0.20, 0.25, 0.30, 0.35],
+        "frameThresholds": [0.05, 0.10, 0.15, 0.20],
+        "totalProfiles": 80,
+        "terminalWindowGeometry": "RIGHT_ANCHORED_TERMINAL_FUTURE_BOUND_V1"
+      },
+      "withinFamilySelector": "NOTEVERSE_SAFETY_FIRST_GATE1_THEN_GATE2",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "LOCKED_FOR_PHASE_9G_B_RESEARCH": true
+    },
+    "transkunV2Aug": {
+      "candidateFamily": "transkun",
+      "candidateId": "transkun-v2-aug-calibrated-v1",
+      "role": "MODERN_OFFLINE_OR_SEGMENTWISE_CHALLENGER",
+      "codeIdentity": {
+        "repository": "https://github.com/Yujia-Yan/Transkun",
+        "exactGitCommit": "7b098197aa39c4d287bbce7d7107c11f7aeceaa7",
+        "codeLicense": "MIT"
+      },
+      "checkpointIdentity": {
+        "source": "https://github.com/Yujia-Yan/Transkun/releases/download/v2.0/checkpointMSimplerAug.pt",
+        "filename": "checkpoint.pt",
+        "sha256": "8bd6b4b5ddf9ce8c5f296a57859eec9f166cd337c35245ec2a2576d90be68c4c",
+        "bytes": 56423254,
+        "configFilename": "model.conf",
+        "configSha256": "d3d989214eb148230ee5df476d994dcde6af595904d3f968f1221d2e3bea5ac6",
+        "strictStateDictRequired": true,
+        "checkpointLicense": "MIT"
+      },
+      "trainingProvenance": {
+        "knownDatasets": ["MAESTRO-v3.0.0"],
+        "knownAugmentations": ["simpler_augmentation_v2"],
+        "overlapWithVienna": "UNKNOWN"
+      },
+      "runtimeIdentity": {
+        "modelClass": "transkun.ModelTransformer.TransKun",
+        "sampleRateHz": 44100,
+        "segmentSizeSeconds": 16,
+        "segmentHopSeconds": 8
+      },
+      "licenseClassification": "PRODUCTION_LICENSE_ELIGIBLE",
+      "searchSpace": {
+        "profiles": ["UPSTREAM_NATIVE_V2_AUG"],
+        "totalProfiles": 1
+      },
+      "latencySemantics": "WHOLE_RECORDING_OFFLINE_AFTER_SOURCE_END",
+      "withinFamilySelector": "SINGLETON_PROFILE_FREEZE",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "LOCKED_FOR_PHASE_9G_B_RESEARCH": false
+    },
+    "ariaAmt": {
+      "candidateFamily": "aria-amt",
+      "candidateId": "aria-amt-medium-double-v1",
+      "role": "MODERN_OFFLINE_TRANSCRIPTION_CHALLENGER",
+      "codeIdentity": {
+        "repository": "https://github.com/EleutherAI/aria-amt",
+        "exactGitCommit": "c88f11d13dbb38be9bb4cfb7d60515152a65f97b",
+        "codeLicense": "Apache-2.0"
+      },
+      "checkpointIdentity": {
+        "source": "https://huggingface.co/EleutherAI/aria-amt/blob/main/piano-medium-double-1.0.safetensors",
+        "filename": "piano-medium-double-1.0.safetensors",
+        "sha256": "089d3129dbe93246aeda55efe668c8a48af08afaf9dd15c64cef0a07c0fb30a4",
+        "bytes": 446577344,
+        "checkpointLicense": "CC-BY-NC-4.0"
+      },
+      "trainingProvenance": {
+        "knownDatasets": ["MAESTRO-v3.0.0", "YouTube Piano"],
+        "overlapWithVienna": "UNKNOWN"
+      },
+      "runtimeIdentity": {
+        "modelClass": "aria.amt.model.TransformerDecoder",
+        "sampleRateHz": 16000
+      },
+      "licenseClassification": "RESEARCH_VALID_PRODUCTION_LICENSE_BLOCKED",
+      "searchSpace": {
+        "profiles": ["UPSTREAM_NATIVE_PIANO_MEDIUM_DOUBLE"],
+        "totalProfiles": 1
+      },
+      "latencySemantics": "WHOLE_RECORDING_OFFLINE_AFTER_SOURCE_END",
+      "perFileLatencyMeasured": false,
+      "withinFamilySelector": "SINGLETON_PROFILE_FREEZE",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "LOCKED_FOR_PHASE_9G_B_RESEARCH": false
+    },
+    "rtt": {
+      "candidateFamily": "rtt",
+      "candidateId": "rtt-causal-streaming-v1",
+      "role": "OFFLINE_SEGMENTWISE_REFERENCE",
+      "codeIdentity": {
+        "repository": "https://github.com/huispaty/rtt",
+        "exactGitCommit": "b3197cfa538cc6f7698042b87ecee709223fc58e",
+        "codeLicense": "MIT"
+      },
+      "checkpointIdentity": {
+        "source": "https://github.com/huispaty/rtt/blob/main/ckpts/CustomAMT.ckpt",
+        "filename": "CustomAMT.ckpt",
+        "sha256": "901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1",
+        "bytes": 67843364,
+        "checkpointLicense": "RESEARCH_USE_ONLY"
+      },
+      "trainingProvenance": {
+        "knownDatasets": ["MAESTRO-v3.0.0"],
+        "overlapWithVienna": "UNKNOWN"
+      },
+      "runtimeIdentity": {
+        "modelClass": "rtt.src.models.CustomAMT",
+        "evalModeRequired": true,
+        "sampleRateHz": 16000,
+        "segmentSamples": 48000,
+        "overlapPercent": 50
+      },
+      "licenseClassification": "RESEARCH_VALID_PRODUCTION_LICENSE_BLOCKED",
+      "searchSpace": {
+        "profiles": ["OFFLINE_SEGMENTWISE_NATIVE"],
+        "totalProfiles": 1
+      },
+      "causalStreamingSupported": false,
+      "causalExecutionStatus": "EXECUTION_BLOCKED_FOR_STRICT_CAUSAL_STREAMING",
+      "latencySemantics": "OFFLINE_SEGMENTWISE_AFTER_SOURCE_END",
+      "retractedClaims": {
+        "strictCausalStreamingClaim": "INVALIDATED_UPSTREAM_REQUIRES_FUTURE_OVERLAP_AND_GLOBAL_POSTPROCESSING",
+        "historicalP95FeedbackAgeClaimMs": 794.79,
+        "historicalNominalInferenceLatencyMs": 10
+      },
+      "withinFamilySelector": "SINGLETON_PROFILE_FREEZE",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "LOCKED_FOR_PHASE_9G_B_RESEARCH": false
+    }
+  },
+  "optionalReferences": {
+    "d3rm": {
+      "candidateFamily": "d3rm",
+      "role": "OFFLINE_ACCURACY_CEILING_REFERENCE",
+      "codeIdentity": {
+        "repository": "https://github.com/hanshounsu/d3rm",
+        "codeLicense": "MIT"
+      },
+      "status": "EXECUTION_BLOCKED_DEPENDENCY_NATTEN_CUDA",
+      "licenseClassification": "LICENSE_OR_USAGE_RIGHTS_UNRESOLVED",
+      "qualificationStatus": "EXECUTION_BLOCKED",
+      "LOCKED_FOR_PHASE_9G_B_RESEARCH": false
+    }
+  },
+  "qualificationCriteria": {
+    "realCheckpointExecuted": true,
+    "assetIdentityReproducible": true,
+    "canonicalCandidateScenarioRunProduced": true,
+    "scoreIndependenceGuaranteed": true,
+    "rawCacheValidationRequired": true,
+    "minimumCalibrationCoverage": {
+      "minBaseScenarios": 8,
+      "minMissingNoteScenarios": 8,
+      "minWrongSemitoneScenarios": 8,
+      "minIncompleteChordScenarios": 8
+    },
+    "noCatastrophicFalseCorrectBehavior": true,
+    "exactRepresentativeProfileLocked": true,
+    "productionLicenseClassificationRecorded": true
+  },
+  "crossFamilyDiagnosticComparison": {
+    "role": "CALIBRATION_CROSS_FAMILY_DIAGNOSTIC_ONLY",
+    "productionWinnerAllowed": false,
+    "pairedBootstrap": {
+      "seed": 13371,
+      "draws": 5000,
+      "confidenceLevel": 0.95
+    },
+    "incumbentScenarioLevelStatus": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+    "priorityMetrics": [
+      "criticalFalseMatchRate",
+      "incompleteChordFalseCompleteRate",
+      "baseVerdictAgreementRate",
+      "criticalCorrectMissingRate",
+      "baseChordExactCompletenessRate",
+      "baseExpectedStrikeRecall",
+      "extraNoteExtraPrecision",
+      "extraNoteExtraRecall",
+      "baseTimingMedianMs",
+      "baseTimingP95Ms"
+    ]
+  }
+}

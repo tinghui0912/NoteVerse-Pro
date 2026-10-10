@@ -56,10 +56,14 @@ def main() -> int:
     checkpoint = torch.load(str(weight_path), map_location=device, weights_only=False)
     model = TransKun(conf=conf).to(device)
 
-    if "best_state_dict" in checkpoint:
-        model.load_state_dict(checkpoint["best_state_dict"], strict=False)
-    else:
-        model.load_state_dict(checkpoint["state_dict"], strict=False)
+    sd = checkpoint.get("best_state_dict", checkpoint.get("state_dict"))
+    if sd is None:
+        raise ValueError(f"No valid state_dict found in Transkun checkpoint: {weight_path}")
+    incompatible = model.load_state_dict(sd, strict=True)
+    if incompatible.missing_keys or incompatible.unexpected_keys:
+        raise RuntimeError(
+            f"Transkun state dict mismatch: missing={incompatible.missing_keys}, unexpected={incompatible.unexpected_keys}"
+        )
     model.eval()
 
     results = {}
