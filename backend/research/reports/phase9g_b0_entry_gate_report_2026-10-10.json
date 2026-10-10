@@ -1,0 +1,311 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_b0_entry_gate_report",
+  "phase": "9G-B.0",
+  "generatedAt": "2026-10-10T07:07:03.863Z",
+  "gitHead": "3db6212ea9e7b08a9929f16013f55a9db1a5e546",
+  "dirtyTreeAtExecution": false,
+  "overallStatus": "PASS",
+  "preflightGateOutcome": "READY_FOR_PHASE_9G_B_BLIND_ENTRY",
+  "checks": [
+    {
+      "checkId": "CHECK_1_SOURCE_POLICY_AND_MANIFEST_IDENTITIES",
+      "status": "PASS",
+      "details": {
+        "v5PolicySha": "5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6",
+        "v1PolicySha": "0ccd4872d6998b67d794baf96cad22c5ccbba3f8ee65a9ac02ba1ad9790ec71b",
+        "v2PolicySha": "b467e9aad917808f307346482477d1d4a4716aed665bd2662e87445231d12f8c",
+        "a25RegistrySha": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
+        "a1CalibrationManifestSha": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
+        "blindManifestSha": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+        "calibrationScenarioCount": 72,
+        "blindScenarioCount": 70
+      }
+    },
+    {
+      "checkId": "CHECK_2_COMPLETE_EXACT_CANDIDATE_REGISTRY_IDENTITIES",
+      "status": "PASS",
+      "details": {
+        "totalCandidates": 7,
+        "frozenIncumbentsCount": 2,
+        "qualifiedChallengersCount": 1,
+        "researchReferenceCount": 3,
+        "blockedCandidatesCount": 1,
+        "candidates": [
+          {
+            "id": "bytedance-original-calibrated-v1",
+            "category": "FROZEN_INCUMBENT",
+            "lockedForPhase9gB": true
+          },
+          {
+            "id": "online-amt-calibrated-v1",
+            "category": "FROZEN_INCUMBENT",
+            "lockedForPhase9gB": true
+          },
+          {
+            "id": "bytedance-robust-augmented-calibrated-v1",
+            "category": "QUALIFIED_CHALLENGER",
+            "lockedForPhase9gB": true
+          },
+          {
+            "id": "transkun-v2-aug-calibrated-v1",
+            "category": "RESEARCH_REFERENCE_ONLY",
+            "lockedForPhase9gB": false
+          },
+          {
+            "id": "aria-amt-medium-double-v1",
+            "category": "RESEARCH_REFERENCE_ONLY",
+            "lockedForPhase9gB": false
+          },
+          {
+            "id": "rtt-causal-streaming-v1",
+            "category": "RESEARCH_REFERENCE_ONLY",
+            "lockedForPhase9gB": false
+          },
+          {
+            "id": "d3rm-offline-ceiling-reference",
+            "category": "EXECUTION_BLOCKED",
+            "lockedForPhase9gB": false
+          }
+        ]
+      }
+    },
+    {
+      "checkId": "CHECK_3_IMMUTABLE_INCUMBENT_PROFILE_CONFIGURATIONS",
+      "status": "PASS",
+      "details": {
+        "byteDanceOriginal": {
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+          "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+          "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141"
+        },
+        "onlineAmt": {
+          "profileId": "online-amt-calibration-native-boost-1",
+          "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+          "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0"
+        }
+      }
+    },
+    {
+      "checkId": "CHECK_4_INCUMBENT_METRICS_MAPPED_TO_CORRECT_FROZEN_PROFILES",
+      "status": "PASS",
+      "details": {
+        "bytedanceOriginal": {
+          "candidateId": "bytedance-original-calibrated-v1",
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+          "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+          "sourceReportPath": "backend/research/reports/phase9g_a23_bytedance_online_amt_incumbent_completion_2026-10-09.json",
+          "sourceReportSha256": "fc2af48f40d18de61b72b74c2059be75442fe0ae5d0c177777b96ce7968b0c9e",
+          "metrics": {
+            "expectedStrikeRecall": {
+              "numerator": 1487,
+              "denominator": 1509,
+              "value": 0.9854208084824387,
+              "formatted": "1487/1509 (98.54%)"
+            },
+            "verdictAgreementRate": {
+              "numerator": 1519,
+              "denominator": 1567,
+              "value": 0.9693682195277601,
+              "formatted": "1519/1567 (96.94%)"
+            }
+          }
+        },
+        "onlineAmt": {
+          "candidateId": "online-amt-calibrated-v1",
+          "profileId": "online-amt-calibration-native-boost-1",
+          "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+          "sourceReportPath": "backend/research/reports/phase9g_a24_bytedance_online_amt_incumbent_completion_2026-10-09.json",
+          "sourceReportSha256": "5c2c564f30056d786c40bc40db43222ec5620e45dad1c0e38ef6ca8c54f62674",
+          "metrics": {
+            "expectedStrikeRecall": {
+              "numerator": 1655,
+              "denominator": 1800,
+              "value": 0.9194444444444444,
+              "formatted": "1655/1800 (91.94%)"
+            },
+            "verdictAgreementRate": {
+              "numerator": 1720,
+              "denominator": 1870,
+              "value": 0.9197860962566845,
+              "formatted": "1720/1870 (91.98%)"
+            }
+          }
+        }
+      }
+    },
+    {
+      "checkId": "CHECK_5_CORRECTED_DIAGNOSTIC_PAIRED_DENOMINATORS",
+      "status": "PASS",
+      "details": {
+        "totalComparisons": 30,
+        "measuredComparisons": 12,
+        "insufficientEvidenceComparisons": 18,
+        "robustByteDanceVsTranskunMutuallyEligibleCount": 61,
+        "offlineVsOfflineMutuallyEligibleCount": 72
+      }
+    },
+    {
+      "checkId": "CHECK_6_REQUIRED_MEASURED_COMPARISON_CLASSIFICATION_FIELDS",
+      "status": "PASS",
+      "details": {
+        "allMeasuredComparisonsHaveClassificationFields": true,
+        "allMeasuredComparisonsHaveSignificanceInterpretation": true
+      }
+    },
+    {
+      "checkId": "CHECK_7_CACHE_EVIDENCE_STATUS_AND_PROVENANCE_CLASSIFICATION",
+      "status": "PASS",
+      "details": {
+        "bytedanceOriginal": {
+          "candidateFamily": "bytedance-original",
+          "provenanceStatus": "MATCHED_TRUSTED_BASELINE",
+          "hasIndependentBaseline": true,
+          "baselineManifestPath": "backend/research/reports/phase9g_a24_bytedance_raw_evidence_manifest_2026-10-09.json",
+          "details": "All 300 raw windows match the frozen A.2.4 raw evidence manifest baseline."
+        },
+        "bytedanceRobustAugmented": {
+          "candidateFamily": "bytedance-robust-augmented",
+          "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+          "hasIndependentBaseline": true,
+          "totalWindowsVerified": 299,
+          "float32LeShaRecomputedAndMatched": 299,
+          "inputPcmShaVerified": 299,
+          "details": "All 299 float32 little-endian onset/frame tensor byte hashes recomputed and verified; inputPcmSha256 verified against source WAV."
+        },
+        "transkun": {
+          "candidateFamily": "transkun",
+          "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+          "hasIndependentBaseline": false,
+          "details": "24 transcription files verified against actual source WAV files on disk with canonical notes digests recomputed. No pre-A.3 baseline exists."
+        },
+        "ariaAmt": {
+          "candidateFamily": "aria-amt",
+          "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+          "hasIndependentBaseline": false,
+          "details": "24 transcription files verified against actual source WAV files on disk with canonical notes digests recomputed. No pre-A.3 baseline exists."
+        },
+        "rtt": {
+          "candidateFamily": "rtt",
+          "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+          "hasIndependentBaseline": false,
+          "details": "24 transcription files verified against actual source WAV files on disk with canonical notes digests recomputed. No pre-A.3 baseline exists."
+        }
+      }
+    },
+    {
+      "checkId": "CHECK_8_SCORE_INDEPENDENCE_RECEIPT_MEANING",
+      "status": "PASS",
+      "details": {
+        "equivalenceLevel": "CANONICAL_ACOUSTIC_OBSERVATION_DIGEST_MATCH",
+        "identicalSourcePcm": true,
+        "identicalModelConfiguration": true,
+        "identicalReusedRawAcousticOutput": true,
+        "identicalCanonicalObservations": true,
+        "independentRepeatedInferenceExecuted": false,
+        "verifiedScenarioPairsByCandidate": {
+          "bytedanceRobustAugmented": 40,
+          "transkun": 48,
+          "ariaAmt": 48,
+          "rtt": 48
+        },
+        "offScoreNotesPreserved": true,
+        "truthIndependenceVerified": true
+      }
+    },
+    {
+      "checkId": "CHECK_9_LOCK_CONSISTENCY_AND_PERMITTED_BLIND_ROLE",
+      "status": "PASS",
+      "details": {
+        "candidates": [
+          {
+            "candidateId": "bytedance-original-calibrated-v1",
+            "candidateFamily": "bytedance-original",
+            "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+            "lockedForPhase9gB": true,
+            "permittedBlindRole": "FROZEN_INCUMBENT_EVALUATION",
+            "productionSelectionEligible": true
+          },
+          {
+            "candidateId": "online-amt-calibrated-v1",
+            "candidateFamily": "online-amt",
+            "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+            "lockedForPhase9gB": true,
+            "permittedBlindRole": "FROZEN_INCUMBENT_EVALUATION",
+            "productionSelectionEligible": true
+          },
+          {
+            "candidateId": "bytedance-robust-augmented-calibrated-v1",
+            "candidateFamily": "bytedance-robust-augmented",
+            "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+            "lockedForPhase9gB": true,
+            "permittedBlindRole": "QUALIFIED_CHALLENGER_EVALUATION",
+            "productionSelectionEligible": true
+          },
+          {
+            "candidateId": "transkun-v2-aug-calibrated-v1",
+            "candidateFamily": "transkun",
+            "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+            "lockedForPhase9gB": false,
+            "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+            "productionSelectionEligible": false
+          },
+          {
+            "candidateId": "aria-amt-medium-double-v1",
+            "candidateFamily": "aria-amt",
+            "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+            "lockedForPhase9gB": false,
+            "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+            "productionSelectionEligible": false
+          },
+          {
+            "candidateId": "rtt-causal-streaming-v1",
+            "candidateFamily": "rtt",
+            "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+            "lockedForPhase9gB": false,
+            "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+            "productionSelectionEligible": false
+          },
+          {
+            "candidateId": "d3rm-offline-ceiling-reference",
+            "candidateFamily": "d3rm",
+            "qualificationStatus": "EXECUTION_BLOCKED",
+            "lockedForPhase9gB": false,
+            "permittedBlindRole": "NOT_PERMITTED",
+            "productionSelectionEligible": false
+          }
+        ],
+        "lockedCandidatesCount": 3,
+        "nonRankingReferenceCount": 3,
+        "excludedCandidatesCount": 1
+      }
+    },
+    {
+      "checkId": "CHECK_10_ABSENCE_OF_A_PRODUCTION_WINNER",
+      "status": "PASS",
+      "details": {
+        "productionWinnerSelected": false,
+        "productionMicrophoneActivated": false,
+        "role": "CALIBRATION_CROSS_FAMILY_DIAGNOSTIC_ONLY"
+      }
+    },
+    {
+      "checkId": "CHECK_11_BLIND_EVALUATION_NOT_YET_EXECUTED",
+      "status": "PASS",
+      "details": {
+        "blindCandidateRunCount": 0,
+        "blindPerformersIsolated": [
+          "p15",
+          "p16",
+          "p17",
+          "p18",
+          "p19",
+          "p20",
+          "p21",
+          "p22"
+        ],
+        "blindInferenceBlockedInPreflight": true
+      }
+    }
+  ]
+}

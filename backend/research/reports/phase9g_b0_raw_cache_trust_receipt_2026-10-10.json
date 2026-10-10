@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_b0_raw_cache_trust_receipt",
+  "phase": "9G-B.0",
+  "generatedAt": "2026-10-10T07:07:03.868Z",
+  "gitHead": "3db6212ea9e7b08a9929f16013f55a9db1a5e546",
+  "dirtyTreeAtExecution": false,
+  "cacheTrustSummary": {
+    "bytedanceOriginal": {
+      "candidateFamily": "bytedance-original",
+      "provenanceStatus": "MATCHED_TRUSTED_BASELINE",
+      "hasIndependentBaseline": true,
+      "baselineManifestPath": "backend/research/reports/phase9g_a24_bytedance_raw_evidence_manifest_2026-10-09.json",
+      "details": "All 300 raw windows match the frozen A.2.4 raw evidence manifest baseline."
+    },
+    "bytedanceRobustAugmented": {
+      "candidateFamily": "bytedance-robust-augmented",
+      "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+      "hasIndependentBaseline": true,
+      "totalWindowsVerified": 299,
+      "float32LeShaRecomputedAndMatched": 299,
+      "inputPcmShaVerified": 299,
+      "details": "All 299 float32 little-endian onset/frame tensor byte hashes recomputed and verified; inputPcmSha256 verified against source WAV."
+    },
+    "transkun": {
+      "candidateFamily": "transkun",
+      "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+      "hasIndependentBaseline": false,
+      "details": "24 transcription files verified against actual source WAV files on disk with canonical notes digests recomputed. No pre-A.3 baseline exists."
+    },
+    "ariaAmt": {
+      "candidateFamily": "aria-amt",
+      "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+      "hasIndependentBaseline": false,
+      "details": "24 transcription files verified against actual source WAV files on disk with canonical notes digests recomputed. No pre-A.3 baseline exists."
+    },
+    "rtt": {
+      "candidateFamily": "rtt",
+      "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+      "hasIndependentBaseline": false,
+      "details": "24 transcription files verified against actual source WAV files on disk with canonical notes digests recomputed. No pre-A.3 baseline exists."
+    }
+  }
+}

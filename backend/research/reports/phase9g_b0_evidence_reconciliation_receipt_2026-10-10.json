@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_b0_evidence_reconciliation_receipt",
+  "phase": "9G-B.0",
+  "generatedAt": "2026-10-10T07:07:03.866Z",
+  "gitHead": "3db6212ea9e7b08a9929f16013f55a9db1a5e546",
+  "dirtyTreeAtExecution": false,
+  "reconciledDefects": [
+    {
+      "defectId": "DEFECT_1_IMMUTABLE_V5_POLICY_SHA",
+      "status": "RESOLVED",
+      "frozenSha256": "5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6",
+      "resolvedIn": "Verified actual disk file hash equals V2 frozenIncumbentPolicy.sha256."
+    },
+    {
+      "defectId": "DEFECT_2_JS_TO_TS_COMPARISON_INTEGRATION",
+      "status": "RESOLVED",
+      "resolvedIn": "Passed (meanDiff, ci, threshold) to classifyMetricPairwiseComparison, returned structured classification with significance interpretation."
+    },
+    {
+      "defectId": "DEFECT_3_PAIRED_SCENARIO_DENOMINATORS",
+      "status": "RESOLVED",
+      "resolvedIn": "Derived eligibility from pre-inference manifest (61 for Robust ByteDance, 72 for whole-recording), mutual eligibility is exactly 61."
+    },
+    {
+      "defectId": "DEFECT_4_INCUMBENT_METRIC_PROVENANCE_MISMATCHES",
+      "status": "RESOLVED",
+      "resolvedIn": "ByteDance Original mapped to .20/.10 (1487/1509 recall, 1519/1567 verdict); Online-AMT mapped to native-boost-1 (1655/1800 recall, 1720/1870 verdict)."
+    },
+    {
+      "defectId": "DEFECT_5_RAW_CACHE_TRUST_GAP",
+      "status": "RESOLVED",
+      "resolvedIn": "Separated provenance statuses; Robust ByteDance inputPcmSha256 verified for all 299 windows; self-digest tautology rejected."
+    },
+    {
+      "defectId": "DEFECT_6_SCORE_INDEPENDENCE_CLAIM",
+      "status": "RESOLVED",
+      "resolvedIn": "Renamed equivalence level to CANONICAL_ACOUSTIC_OBSERVATION_DIGEST_MATCH; confirmed identical source PCM and reused acoustic outputs."
+    },
+    {
+      "defectId": "DEFECT_7_PRE_BLIND_CANDIDATE_ADMISSION",
+      "status": "RESOLVED",
+      "resolvedIn": "Maintained 5-dimensional qualification; 3 models locked for ranking (2 incumbents + 1 challenger), 3 models designated non-ranking research reference only."
+    }
+  ]
+}

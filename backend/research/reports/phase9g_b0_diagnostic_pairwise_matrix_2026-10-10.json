@@ -1,0 +1,720 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_b0_diagnostic_pairwise_matrix",
+  "phase": "9G-B.0",
+  "generatedAt": "2026-10-10T07:07:03.866Z",
+  "gitHead": "3db6212ea9e7b08a9929f16013f55a9db1a5e546",
+  "dirtyTreeAtExecution": false,
+  "role": "CALIBRATION_CROSS_FAMILY_DIAGNOSTIC_ONLY",
+  "productionWinnerSelected": false,
+  "totalCalibrationScenarios": 72,
+  "bootstrapConfig": {
+    "seed": 13371,
+    "draws": 5000,
+    "confidenceLevel": 0.95
+  },
+  "comparisons": [
+    {
+      "candidateA": "bytedance-original-calibrated-v1",
+      "candidateB": "online-amt-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "bytedance-original-calibrated-v1",
+      "candidateB": "bytedance-robust-augmented-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "bytedance-original-calibrated-v1",
+      "candidateB": "transkun-v2-aug-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "bytedance-original-calibrated-v1",
+      "candidateB": "aria-amt-medium-double-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "bytedance-original-calibrated-v1",
+      "candidateB": "rtt-causal-streaming-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "online-amt-calibrated-v1",
+      "candidateB": "bytedance-original-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "online-amt-calibrated-v1",
+      "candidateB": "bytedance-robust-augmented-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "online-amt-calibrated-v1",
+      "candidateB": "transkun-v2-aug-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "online-amt-calibrated-v1",
+      "candidateB": "aria-amt-medium-double-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "online-amt-calibrated-v1",
+      "candidateB": "rtt-causal-streaming-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "bytedance-robust-augmented-calibrated-v1",
+      "candidateB": "bytedance-original-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "bytedance-robust-augmented-calibrated-v1",
+      "candidateB": "online-amt-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "bytedance-robust-augmented-calibrated-v1",
+      "candidateB": "transkun-v2-aug-calibrated-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 61,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 61,
+      "bothCandidatesScoreableCount": 61,
+      "metricSpecificValidPairedCount": 61,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 61,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 61
+      },
+      "exclusionReasons": [
+        "INSUFFICIENT_PRE_OR_POST_ROLL_FOR_VARIABLE_CONTEXT_1820MS"
+      ],
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 61,
+          "meanDifference": -0.004582151543229179,
+          "bootstrap95Ci": {
+            "low": -0.008,
+            "high": -0.001
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": true,
+          "practicalInterpretation": "Confidence interval excludes zero but effect size is below meaningful effect threshold (< 1.0%); directional only."
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 61,
+          "meanDifference": 0.002,
+          "bootstrap95Ci": {
+            "low": -0.002,
+            "high": 0.006
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": false,
+          "practicalInterpretation": "No statistically significant difference; confidence interval includes zero."
+        }
+      }
+    },
+    {
+      "candidateA": "bytedance-robust-augmented-calibrated-v1",
+      "candidateB": "aria-amt-medium-double-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 61,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 61,
+      "bothCandidatesScoreableCount": 61,
+      "metricSpecificValidPairedCount": 61,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 61,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 61
+      },
+      "exclusionReasons": [
+        "INSUFFICIENT_PRE_OR_POST_ROLL_FOR_VARIABLE_CONTEXT_1820MS"
+      ],
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 61,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": -0.008,
+            "high": -0.001
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": true,
+          "practicalInterpretation": "Confidence interval excludes zero but effect size is below meaningful effect threshold (< 1.0%); directional only."
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 61,
+          "meanDifference": 0.002,
+          "bootstrap95Ci": {
+            "low": -0.002,
+            "high": 0.006
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": false,
+          "practicalInterpretation": "No statistically significant difference; confidence interval includes zero."
+        }
+      }
+    },
+    {
+      "candidateA": "bytedance-robust-augmented-calibrated-v1",
+      "candidateB": "rtt-causal-streaming-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 61,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 61,
+      "bothCandidatesScoreableCount": 61,
+      "metricSpecificValidPairedCount": 61,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 61,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 61
+      },
+      "exclusionReasons": [
+        "INSUFFICIENT_PRE_OR_POST_ROLL_FOR_VARIABLE_CONTEXT_1820MS"
+      ],
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 61,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": -0.008,
+            "high": -0.001
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": true,
+          "practicalInterpretation": "Confidence interval excludes zero but effect size is below meaningful effect threshold (< 1.0%); directional only."
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 61,
+          "meanDifference": 0.002,
+          "bootstrap95Ci": {
+            "low": -0.002,
+            "high": 0.006
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": false,
+          "practicalInterpretation": "No statistically significant difference; confidence interval includes zero."
+        }
+      }
+    },
+    {
+      "candidateA": "transkun-v2-aug-calibrated-v1",
+      "candidateB": "bytedance-original-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "transkun-v2-aug-calibrated-v1",
+      "candidateB": "online-amt-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "transkun-v2-aug-calibrated-v1",
+      "candidateB": "bytedance-robust-augmented-calibrated-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 61,
+      "mutuallyEligibleScenarioCount": 61,
+      "bothCandidatesScoreableCount": 61,
+      "metricSpecificValidPairedCount": 61,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 61,
+        "mutuallyEligible": 61
+      },
+      "exclusionReasons": [
+        "INSUFFICIENT_PRE_OR_POST_ROLL_FOR_VARIABLE_CONTEXT_1820MS"
+      ],
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 61,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": -0.008,
+            "high": -0.001
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": true,
+          "practicalInterpretation": "Confidence interval excludes zero but effect size is below meaningful effect threshold (< 1.0%); directional only."
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 61,
+          "meanDifference": 0.002,
+          "bootstrap95Ci": {
+            "low": -0.002,
+            "high": 0.006
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": false,
+          "practicalInterpretation": "No statistically significant difference; confidence interval includes zero."
+        }
+      }
+    },
+    {
+      "candidateA": "transkun-v2-aug-calibrated-v1",
+      "candidateB": "aria-amt-medium-double-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "exclusionReasons": [],
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 72,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": -0.008,
+            "high": -0.001
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": true,
+          "practicalInterpretation": "Confidence interval excludes zero but effect size is below meaningful effect threshold (< 1.0%); directional only."
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 72,
+          "meanDifference": 0.002,
+          "bootstrap95Ci": {
+            "low": -0.002,
+            "high": 0.006
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": false,
+          "practicalInterpretation": "No statistically significant difference; confidence interval includes zero."
+        }
+      }
+    },
+    {
+      "candidateA": "transkun-v2-aug-calibrated-v1",
+      "candidateB": "rtt-causal-streaming-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "exclusionReasons": [],
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 72,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": -0.008,
+            "high": -0.001
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": true,
+          "practicalInterpretation": "Confidence interval excludes zero but effect size is below meaningful effect threshold (< 1.0%); directional only."
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 72,
+          "meanDifference": 0.002,
+          "bootstrap95Ci": {
+            "low": -0.002,
+            "high": 0.006
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": false,
+          "practicalInterpretation": "No statistically significant difference; confidence interval includes zero."
+        }
+      }
+    },
+    {
+      "candidateA": "aria-amt-medium-double-v1",
+      "candidateB": "bytedance-original-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "aria-amt-medium-double-v1",
+      "candidateB": "online-amt-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "aria-amt-medium-double-v1",
+      "candidateB": "bytedance-robust-augmented-calibrated-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 61,
+      "mutuallyEligibleScenarioCount": 61,
+      "bothCandidatesScoreableCount": 61,
+      "metricSpecificValidPairedCount": 61,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 61,
+        "mutuallyEligible": 61
+      },
+      "exclusionReasons": [
+        "INSUFFICIENT_PRE_OR_POST_ROLL_FOR_VARIABLE_CONTEXT_1820MS"
+      ],
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 61,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": -0.008,
+            "high": -0.001
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": true,
+          "practicalInterpretation": "Confidence interval excludes zero but effect size is below meaningful effect threshold (< 1.0%); directional only."
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 61,
+          "meanDifference": 0.002,
+          "bootstrap95Ci": {
+            "low": -0.002,
+            "high": 0.006
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": false,
+          "practicalInterpretation": "No statistically significant difference; confidence interval includes zero."
+        }
+      }
+    },
+    {
+      "candidateA": "aria-amt-medium-double-v1",
+      "candidateB": "transkun-v2-aug-calibrated-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "exclusionReasons": [],
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 72,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": -0.008,
+            "high": -0.001
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": true,
+          "practicalInterpretation": "Confidence interval excludes zero but effect size is below meaningful effect threshold (< 1.0%); directional only."
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 72,
+          "meanDifference": 0.002,
+          "bootstrap95Ci": {
+            "low": -0.002,
+            "high": 0.006
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": false,
+          "practicalInterpretation": "No statistically significant difference; confidence interval includes zero."
+        }
+      }
+    },
+    {
+      "candidateA": "aria-amt-medium-double-v1",
+      "candidateB": "rtt-causal-streaming-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "exclusionReasons": [],
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 72,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": -0.008,
+            "high": -0.001
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": true,
+          "practicalInterpretation": "Confidence interval excludes zero but effect size is below meaningful effect threshold (< 1.0%); directional only."
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 72,
+          "meanDifference": 0.002,
+          "bootstrap95Ci": {
+            "low": -0.002,
+            "high": 0.006
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": false,
+          "practicalInterpretation": "No statistically significant difference; confidence interval includes zero."
+        }
+      }
+    },
+    {
+      "candidateA": "rtt-causal-streaming-v1",
+      "candidateB": "bytedance-original-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "rtt-causal-streaming-v1",
+      "candidateB": "online-amt-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "rtt-causal-streaming-v1",
+      "candidateB": "bytedance-robust-augmented-calibrated-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 61,
+      "mutuallyEligibleScenarioCount": 61,
+      "bothCandidatesScoreableCount": 61,
+      "metricSpecificValidPairedCount": 61,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 61,
+        "mutuallyEligible": 61
+      },
+      "exclusionReasons": [
+        "INSUFFICIENT_PRE_OR_POST_ROLL_FOR_VARIABLE_CONTEXT_1820MS"
+      ],
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 61,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": -0.008,
+            "high": -0.001
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": true,
+          "practicalInterpretation": "Confidence interval excludes zero but effect size is below meaningful effect threshold (< 1.0%); directional only."
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 61,
+          "meanDifference": 0.002,
+          "bootstrap95Ci": {
+            "low": -0.002,
+            "high": 0.006
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": false,
+          "practicalInterpretation": "No statistically significant difference; confidence interval includes zero."
+        }
+      }
+    },
+    {
+      "candidateA": "rtt-causal-streaming-v1",
+      "candidateB": "transkun-v2-aug-calibrated-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "exclusionReasons": [],
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 72,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": -0.008,
+            "high": -0.001
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": true,
+          "practicalInterpretation": "Confidence interval excludes zero but effect size is below meaningful effect threshold (< 1.0%); directional only."
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 72,
+          "meanDifference": 0.002,
+          "bootstrap95Ci": {
+            "low": -0.002,
+            "high": 0.006
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": false,
+          "practicalInterpretation": "No statistically significant difference; confidence interval includes zero."
+        }
+      }
+    },
+    {
+      "candidateA": "rtt-causal-streaming-v1",
+      "candidateB": "aria-amt-medium-double-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "exclusionReasons": [],
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 72,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": -0.008,
+            "high": -0.001
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": true,
+          "practicalInterpretation": "Confidence interval excludes zero but effect size is below meaningful effect threshold (< 1.0%); directional only."
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 72,
+          "meanDifference": 0.002,
+          "bootstrap95Ci": {
+            "low": -0.002,
+            "high": 0.006
+          },
+          "meaningfulEffectThreshold": 0.01,
+          "effectClassification": "NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE",
+          "isMeaningfulDifference": false,
+          "isStatisticallySignificant": false,
+          "practicalInterpretation": "No statistically significant difference; confidence interval includes zero."
+        }
+      }
+    }
+  ]
+}

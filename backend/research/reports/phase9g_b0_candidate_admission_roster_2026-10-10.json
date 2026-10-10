@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_b0_candidate_admission_roster",
+  "phase": "9G-B.0",
+  "generatedAt": "2026-10-10T07:07:03.867Z",
+  "gitHead": "3db6212ea9e7b08a9929f16013f55a9db1a5e546",
+  "dirtyTreeAtExecution": false,
+  "roster": [
+    {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "candidateFamily": "bytedance-original",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "lockedForPhase9gB": true,
+      "permittedBlindRole": "FROZEN_INCUMBENT_EVALUATION",
+      "productionSelectionEligible": true
+    },
+    {
+      "candidateId": "online-amt-calibrated-v1",
+      "candidateFamily": "online-amt",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "lockedForPhase9gB": true,
+      "permittedBlindRole": "FROZEN_INCUMBENT_EVALUATION",
+      "productionSelectionEligible": true
+    },
+    {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "candidateFamily": "bytedance-robust-augmented",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "lockedForPhase9gB": true,
+      "permittedBlindRole": "QUALIFIED_CHALLENGER_EVALUATION",
+      "productionSelectionEligible": true
+    },
+    {
+      "candidateId": "transkun-v2-aug-calibrated-v1",
+      "candidateFamily": "transkun",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "productionSelectionEligible": false
+    },
+    {
+      "candidateId": "aria-amt-medium-double-v1",
+      "candidateFamily": "aria-amt",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "productionSelectionEligible": false
+    },
+    {
+      "candidateId": "rtt-causal-streaming-v1",
+      "candidateFamily": "rtt",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "productionSelectionEligible": false
+    },
+    {
+      "candidateId": "d3rm-offline-ceiling-reference",
+      "candidateFamily": "d3rm",
+      "qualificationStatus": "EXECUTION_BLOCKED",
+      "lockedForPhase9gB": false,
+      "permittedBlindRole": "NOT_PERMITTED",
+      "productionSelectionEligible": false
+    }
+  ]
+}
