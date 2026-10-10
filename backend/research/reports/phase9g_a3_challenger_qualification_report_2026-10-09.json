@@ -1,0 +1,1695 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a3_challenger_qualification_report",
+  "phase": "9G-A.3",
+  "generatedAt": "2026-10-10T03:21:45.328Z",
+  "implementationGitHead": "9a4887792843ec0a6c847c20e2221d75e04e2b51",
+  "dirtyTreeAtExecution": true,
+  "policy": {
+    "policyId": "PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V1",
+    "schemaVersion": 1,
+    "sha256": "0ccd4872d6998b67d794baf96cad22c5ccbba3f8ee65a9ac02ba1ad9790ec71b"
+  },
+  "frozenBlind": {
+    "manifestPath": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
+    "manifestSha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+    "candidateRunCount": 0
+  },
+  "scenarioManifest": {
+    "manifestPath": "backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json",
+    "manifestSha256": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
+    "scenarioCount": 72,
+    "baseScenarioCount": 24
+  },
+  "challengers": {
+    "bytedanceRobustAugmented": {
+      "candidateFamily": "bytedance-robust-augmented",
+      "totalProfilesEvaluated": 80,
+      "selectedProfileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "selectionMethod": "NON_PERFORMANCE_NEUTRAL_HASH",
+      "gate1RemainingCount": 30,
+      "metrics": {
+        "expectedStrikeRecall": 0.9880715705765407,
+        "falseMatchRateOnGroundTruthMissing": 0.3620689655172414,
+        "correctMissingRate": 0.6379310344827587,
+        "verdictAgreementRate": 0.9751116783663051,
+        "chordExactCompletenessRate": 0.9571788413098237,
+        "falseCompleteChordAcceptanceRate": 0.3137254901960784,
+        "extraPrecision": 0.7838827838827839,
+        "extraRecall": 0.9224137931034483,
+        "timingAbsoluteMedianMs": 8.333333333335759,
+        "timingAbsoluteP95Ms": 20.625000000025466,
+        "finalizedFeedbackAgeP50Ms": 912.2911139998541,
+        "finalizedFeedbackAgeP95Ms": 1452.4942449998525,
+        "inferenceLatencyP50Ms": 108.98658499991143,
+        "inferenceLatencyP95Ms": 141.14893899977687,
+        "publicationDelayP50Ms": 329.24623700020675,
+        "publicationDelayP95Ms": 369.4271642860731
+      }
+    },
+    "transkunV2Aug": {
+      "candidateFamily": "transkun",
+      "profileId": "UPSTREAM_NATIVE_V2_AUG",
+      "licenseClassification": "PRODUCTION_LICENSE_ELIGIBLE",
+      "totalWallTimeSeconds": 121.411579609
+    },
+    "ariaAmt": {
+      "candidateFamily": "aria-amt",
+      "profileId": "UPSTREAM_NATIVE_PIANO_MEDIUM_DOUBLE",
+      "licenseClassification": "RESEARCH_VALID_PRODUCTION_LICENSE_BLOCKED",
+      "totalWallTimeSeconds": 829.607013094
+    },
+    "rtt": {
+      "candidateFamily": "rtt",
+      "profileId": "CAUSAL_STREAMING_NATIVE",
+      "licenseClassification": "RESEARCH_VALID_PRODUCTION_LICENSE_BLOCKED",
+      "totalWallTimeSeconds": 47.55712669499985
+    },
+    "d3rm": {
+      "candidateFamily": "d3rm",
+      "candidateId": "d3rm-offline-ceiling-reference",
+      "status": "EXECUTION_BLOCKED_DEPENDENCY_NATTEN_CUDA",
+      "licenseClassification": "LICENSE_OR_USAGE_RIGHTS_UNRESOLVED"
+    }
+  },
+  "crossFamilyDiagnosticComparison": {
+    "role": "CALIBRATION_CROSS_FAMILY_DIAGNOSTIC_ONLY",
+    "productionWinnerSelected": false,
+    "aggregateMetrics": {
+      "bytedance-robust-augmented-calibrated-v1": {
+        "DEVELOPMENT": {
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 0,
+            "missedPhysicalExtras": 0,
+            "falseCandidateExtras": 0
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 0,
+            "measuredStrikeCount": 0,
+            "missingAvailabilityCount": 0
+          }
+        },
+        "CALIBRATION": {
+          "expectedStrikeRecall": {
+            "status": "MEASURED",
+            "sampleCount": 1509,
+            "numerator": 1491,
+            "denominator": 1509,
+            "value": 0.9880715705765407
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "MEASURED",
+            "sampleCount": 58,
+            "numerator": 21,
+            "denominator": 58,
+            "value": 0.3620689655172414
+          },
+          "correctMissingRate": {
+            "status": "MEASURED",
+            "sampleCount": 58,
+            "numerator": 37,
+            "denominator": 58,
+            "value": 0.6379310344827587
+          },
+          "verdictAgreementRate": {
+            "status": "MEASURED",
+            "sampleCount": 1567,
+            "numerator": 1528,
+            "denominator": 1567,
+            "value": 0.9751116783663051
+          },
+          "chordExactCompletenessRate": {
+            "status": "MEASURED",
+            "sampleCount": 397,
+            "numerator": 380,
+            "denominator": 397,
+            "value": 0.9571788413098237
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "MEASURED",
+            "sampleCount": 51,
+            "numerator": 16,
+            "denominator": 51,
+            "value": 0.3137254901960784
+          },
+          "extraPrecision": {
+            "status": "MEASURED",
+            "sampleCount": 273,
+            "numerator": 214,
+            "denominator": 273,
+            "value": 0.7838827838827839
+          },
+          "extraRecall": {
+            "status": "MEASURED",
+            "sampleCount": 232,
+            "numerator": 214,
+            "denominator": 232,
+            "value": 0.9224137931034483
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "MEASURED",
+            "sampleCount": 1491,
+            "value": 8.333333333335759
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1491,
+            "value": 20.625000000025466
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1567,
+            "value": 912.2911139998541
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1567,
+            "value": 1452.4942449998525
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 485,
+            "value": 108.98658499991143
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 485,
+            "value": 141.14893899977687
+          },
+          "publicationDelayP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 485,
+            "value": 329.24623700020675
+          },
+          "publicationDelayP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 485,
+            "value": 369.4271642860731
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 214,
+            "missedPhysicalExtras": 18,
+            "falseCandidateExtras": 59
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 1567,
+            "measuredStrikeCount": 1567,
+            "missingAvailabilityCount": 0
+          }
+        },
+        "EVALUATION": {
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 0,
+            "missedPhysicalExtras": 0,
+            "falseCandidateExtras": 0
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 0,
+            "measuredStrikeCount": 0,
+            "missingAvailabilityCount": 0
+          }
+        },
+        "ALL_SPLITS_DIAGNOSTIC_ONLY": {
+          "expectedStrikeRecall": {
+            "status": "MEASURED",
+            "sampleCount": 1509,
+            "numerator": 1491,
+            "denominator": 1509,
+            "value": 0.9880715705765407
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "MEASURED",
+            "sampleCount": 58,
+            "numerator": 21,
+            "denominator": 58,
+            "value": 0.3620689655172414
+          },
+          "correctMissingRate": {
+            "status": "MEASURED",
+            "sampleCount": 58,
+            "numerator": 37,
+            "denominator": 58,
+            "value": 0.6379310344827587
+          },
+          "verdictAgreementRate": {
+            "status": "MEASURED",
+            "sampleCount": 1567,
+            "numerator": 1528,
+            "denominator": 1567,
+            "value": 0.9751116783663051
+          },
+          "chordExactCompletenessRate": {
+            "status": "MEASURED",
+            "sampleCount": 397,
+            "numerator": 380,
+            "denominator": 397,
+            "value": 0.9571788413098237
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "MEASURED",
+            "sampleCount": 51,
+            "numerator": 16,
+            "denominator": 51,
+            "value": 0.3137254901960784
+          },
+          "extraPrecision": {
+            "status": "MEASURED",
+            "sampleCount": 273,
+            "numerator": 214,
+            "denominator": 273,
+            "value": 0.7838827838827839
+          },
+          "extraRecall": {
+            "status": "MEASURED",
+            "sampleCount": 232,
+            "numerator": 214,
+            "denominator": 232,
+            "value": 0.9224137931034483
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "MEASURED",
+            "sampleCount": 1491,
+            "value": 8.333333333335759
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1491,
+            "value": 20.625000000025466
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1567,
+            "value": 912.2911139998541
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1567,
+            "value": 1452.4942449998525
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 485,
+            "value": 108.98658499991143
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 485,
+            "value": 141.14893899977687
+          },
+          "publicationDelayP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 485,
+            "value": 329.24623700020675
+          },
+          "publicationDelayP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 485,
+            "value": 369.4271642860731
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 214,
+            "missedPhysicalExtras": 18,
+            "falseCandidateExtras": 59
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 1567,
+            "measuredStrikeCount": 1567,
+            "missingAvailabilityCount": 0
+          }
+        }
+      },
+      "transkun-v2-aug-calibrated-v1": {
+        "DEVELOPMENT": {
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 0,
+            "missedPhysicalExtras": 0,
+            "falseCandidateExtras": 0
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 0,
+            "measuredStrikeCount": 0,
+            "missingAvailabilityCount": 0
+          }
+        },
+        "CALIBRATION": {
+          "expectedStrikeRecall": {
+            "status": "MEASURED",
+            "sampleCount": 1800,
+            "numerator": 1790,
+            "denominator": 1800,
+            "value": 0.9944444444444445
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "MEASURED",
+            "sampleCount": 70,
+            "numerator": 21,
+            "denominator": 70,
+            "value": 0.3
+          },
+          "correctMissingRate": {
+            "status": "MEASURED",
+            "sampleCount": 70,
+            "numerator": 49,
+            "denominator": 70,
+            "value": 0.7
+          },
+          "verdictAgreementRate": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "numerator": 1839,
+            "denominator": 1870,
+            "value": 0.9834224598930481
+          },
+          "chordExactCompletenessRate": {
+            "status": "MEASURED",
+            "sampleCount": 473,
+            "numerator": 464,
+            "denominator": 473,
+            "value": 0.9809725158562368
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "MEASURED",
+            "sampleCount": 57,
+            "numerator": 16,
+            "denominator": 57,
+            "value": 0.2807017543859649
+          },
+          "extraPrecision": {
+            "status": "MEASURED",
+            "sampleCount": 265,
+            "numerator": 249,
+            "denominator": 265,
+            "value": 0.939622641509434
+          },
+          "extraRecall": {
+            "status": "MEASURED",
+            "sampleCount": 286,
+            "numerator": 249,
+            "denominator": 286,
+            "value": 0.8706293706293706
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "MEASURED",
+            "sampleCount": 1790,
+            "value": 7.76885880341797
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1790,
+            "value": 21.40433036842296
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "value": 7260.16586995437
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "value": 9934.326685435217
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 5126.134143999991
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 6700.925476999999
+          },
+          "publicationDelayP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 5126.134143999991
+          },
+          "publicationDelayP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 6700.925476999999
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 249,
+            "missedPhysicalExtras": 37,
+            "falseCandidateExtras": 16
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 1870,
+            "measuredStrikeCount": 1870,
+            "missingAvailabilityCount": 0
+          }
+        },
+        "EVALUATION": {
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 0,
+            "missedPhysicalExtras": 0,
+            "falseCandidateExtras": 0
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 0,
+            "measuredStrikeCount": 0,
+            "missingAvailabilityCount": 0
+          }
+        },
+        "ALL_SPLITS_DIAGNOSTIC_ONLY": {
+          "expectedStrikeRecall": {
+            "status": "MEASURED",
+            "sampleCount": 1800,
+            "numerator": 1790,
+            "denominator": 1800,
+            "value": 0.9944444444444445
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "MEASURED",
+            "sampleCount": 70,
+            "numerator": 21,
+            "denominator": 70,
+            "value": 0.3
+          },
+          "correctMissingRate": {
+            "status": "MEASURED",
+            "sampleCount": 70,
+            "numerator": 49,
+            "denominator": 70,
+            "value": 0.7
+          },
+          "verdictAgreementRate": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "numerator": 1839,
+            "denominator": 1870,
+            "value": 0.9834224598930481
+          },
+          "chordExactCompletenessRate": {
+            "status": "MEASURED",
+            "sampleCount": 473,
+            "numerator": 464,
+            "denominator": 473,
+            "value": 0.9809725158562368
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "MEASURED",
+            "sampleCount": 57,
+            "numerator": 16,
+            "denominator": 57,
+            "value": 0.2807017543859649
+          },
+          "extraPrecision": {
+            "status": "MEASURED",
+            "sampleCount": 265,
+            "numerator": 249,
+            "denominator": 265,
+            "value": 0.939622641509434
+          },
+          "extraRecall": {
+            "status": "MEASURED",
+            "sampleCount": 286,
+            "numerator": 249,
+            "denominator": 286,
+            "value": 0.8706293706293706
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "MEASURED",
+            "sampleCount": 1790,
+            "value": 7.76885880341797
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1790,
+            "value": 21.40433036842296
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "value": 7260.16586995437
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "value": 9934.326685435217
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 5126.134143999991
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 6700.925476999999
+          },
+          "publicationDelayP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 5126.134143999991
+          },
+          "publicationDelayP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 6700.925476999999
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 249,
+            "missedPhysicalExtras": 37,
+            "falseCandidateExtras": 16
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 1870,
+            "measuredStrikeCount": 1870,
+            "missingAvailabilityCount": 0
+          }
+        }
+      },
+      "aria-amt-medium-double-v1": {
+        "DEVELOPMENT": {
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 0,
+            "missedPhysicalExtras": 0,
+            "falseCandidateExtras": 0
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 0,
+            "measuredStrikeCount": 0,
+            "missingAvailabilityCount": 0
+          }
+        },
+        "CALIBRATION": {
+          "expectedStrikeRecall": {
+            "status": "MEASURED",
+            "sampleCount": 1800,
+            "numerator": 1789,
+            "denominator": 1800,
+            "value": 0.9938888888888889
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "MEASURED",
+            "sampleCount": 70,
+            "numerator": 20,
+            "denominator": 70,
+            "value": 0.2857142857142857
+          },
+          "correctMissingRate": {
+            "status": "MEASURED",
+            "sampleCount": 70,
+            "numerator": 50,
+            "denominator": 70,
+            "value": 0.7142857142857143
+          },
+          "verdictAgreementRate": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "numerator": 1839,
+            "denominator": 1870,
+            "value": 0.9834224598930481
+          },
+          "chordExactCompletenessRate": {
+            "status": "MEASURED",
+            "sampleCount": 473,
+            "numerator": 464,
+            "denominator": 473,
+            "value": 0.9809725158562368
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "MEASURED",
+            "sampleCount": 57,
+            "numerator": 15,
+            "denominator": 57,
+            "value": 0.2631578947368421
+          },
+          "extraPrecision": {
+            "status": "MEASURED",
+            "sampleCount": 269,
+            "numerator": 249,
+            "denominator": 269,
+            "value": 0.9256505576208178
+          },
+          "extraRecall": {
+            "status": "MEASURED",
+            "sampleCount": 286,
+            "numerator": 249,
+            "denominator": 286,
+            "value": 0.8706293706293706
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "MEASURED",
+            "sampleCount": 1789,
+            "value": 6.249999999796273
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1789,
+            "value": 20.833333333401242
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "value": 37254.13149796426
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "value": 38911.65415254851
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 34566.95887891667
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 34566.95887891667
+          },
+          "publicationDelayP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 34566.95887891667
+          },
+          "publicationDelayP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 34566.95887891667
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 249,
+            "missedPhysicalExtras": 37,
+            "falseCandidateExtras": 20
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 1870,
+            "measuredStrikeCount": 1870,
+            "missingAvailabilityCount": 0
+          }
+        },
+        "EVALUATION": {
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 0,
+            "missedPhysicalExtras": 0,
+            "falseCandidateExtras": 0
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 0,
+            "measuredStrikeCount": 0,
+            "missingAvailabilityCount": 0
+          }
+        },
+        "ALL_SPLITS_DIAGNOSTIC_ONLY": {
+          "expectedStrikeRecall": {
+            "status": "MEASURED",
+            "sampleCount": 1800,
+            "numerator": 1789,
+            "denominator": 1800,
+            "value": 0.9938888888888889
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "MEASURED",
+            "sampleCount": 70,
+            "numerator": 20,
+            "denominator": 70,
+            "value": 0.2857142857142857
+          },
+          "correctMissingRate": {
+            "status": "MEASURED",
+            "sampleCount": 70,
+            "numerator": 50,
+            "denominator": 70,
+            "value": 0.7142857142857143
+          },
+          "verdictAgreementRate": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "numerator": 1839,
+            "denominator": 1870,
+            "value": 0.9834224598930481
+          },
+          "chordExactCompletenessRate": {
+            "status": "MEASURED",
+            "sampleCount": 473,
+            "numerator": 464,
+            "denominator": 473,
+            "value": 0.9809725158562368
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "MEASURED",
+            "sampleCount": 57,
+            "numerator": 15,
+            "denominator": 57,
+            "value": 0.2631578947368421
+          },
+          "extraPrecision": {
+            "status": "MEASURED",
+            "sampleCount": 269,
+            "numerator": 249,
+            "denominator": 269,
+            "value": 0.9256505576208178
+          },
+          "extraRecall": {
+            "status": "MEASURED",
+            "sampleCount": 286,
+            "numerator": 249,
+            "denominator": 286,
+            "value": 0.8706293706293706
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "MEASURED",
+            "sampleCount": 1789,
+            "value": 6.249999999796273
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1789,
+            "value": 20.833333333401242
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "value": 37254.13149796426
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "value": 38911.65415254851
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 34566.95887891667
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 34566.95887891667
+          },
+          "publicationDelayP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 34566.95887891667
+          },
+          "publicationDelayP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 72,
+            "value": 34566.95887891667
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 249,
+            "missedPhysicalExtras": 37,
+            "falseCandidateExtras": 20
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 1870,
+            "measuredStrikeCount": 1870,
+            "missingAvailabilityCount": 0
+          }
+        }
+      },
+      "rtt-causal-streaming-v1": {
+        "DEVELOPMENT": {
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 0,
+            "missedPhysicalExtras": 0,
+            "falseCandidateExtras": 0
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 0,
+            "measuredStrikeCount": 0,
+            "missingAvailabilityCount": 0
+          }
+        },
+        "CALIBRATION": {
+          "expectedStrikeRecall": {
+            "status": "MEASURED",
+            "sampleCount": 1800,
+            "numerator": 702,
+            "denominator": 1800,
+            "value": 0.39
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "MEASURED",
+            "sampleCount": 70,
+            "numerator": 11,
+            "denominator": 70,
+            "value": 0.15714285714285714
+          },
+          "correctMissingRate": {
+            "status": "MEASURED",
+            "sampleCount": 70,
+            "numerator": 59,
+            "denominator": 70,
+            "value": 0.8428571428571429
+          },
+          "verdictAgreementRate": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "numerator": 761,
+            "denominator": 1870,
+            "value": 0.406951871657754
+          },
+          "chordExactCompletenessRate": {
+            "status": "MEASURED",
+            "sampleCount": 473,
+            "numerator": 18,
+            "denominator": 473,
+            "value": 0.03805496828752643
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "MEASURED",
+            "sampleCount": 57,
+            "numerator": 0,
+            "denominator": 57,
+            "value": 0
+          },
+          "extraPrecision": {
+            "status": "MEASURED",
+            "sampleCount": 827,
+            "numerator": 121,
+            "denominator": 827,
+            "value": 0.14631197097944376
+          },
+          "extraRecall": {
+            "status": "MEASURED",
+            "sampleCount": 286,
+            "numerator": 121,
+            "denominator": 286,
+            "value": 0.4230769230769231
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "MEASURED",
+            "sampleCount": 702,
+            "value": 9.376525880121335
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 702,
+            "value": 32.08363850695605
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "value": 324.28571428571377
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "value": 794.7917715708422
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 3252,
+            "value": 10
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 3252,
+            "value": 10
+          },
+          "publicationDelayP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 3252,
+            "value": 10
+          },
+          "publicationDelayP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 3252,
+            "value": 10
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 121,
+            "missedPhysicalExtras": 165,
+            "falseCandidateExtras": 706
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 1870,
+            "measuredStrikeCount": 1870,
+            "missingAvailabilityCount": 0
+          }
+        },
+        "EVALUATION": {
+          "expectedStrikeRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "correctMissingRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "verdictAgreementRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "chordExactCompletenessRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraPrecision": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraRecall": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP50Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "publicationDelayP95Ms": {
+            "status": "NOT_EVALUATED",
+            "sampleCount": 0,
+            "reason": "zero metric sample count"
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 0,
+            "missedPhysicalExtras": 0,
+            "falseCandidateExtras": 0
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 0,
+            "measuredStrikeCount": 0,
+            "missingAvailabilityCount": 0
+          }
+        },
+        "ALL_SPLITS_DIAGNOSTIC_ONLY": {
+          "expectedStrikeRecall": {
+            "status": "MEASURED",
+            "sampleCount": 1800,
+            "numerator": 702,
+            "denominator": 1800,
+            "value": 0.39
+          },
+          "falseMatchRateOnGroundTruthMissing": {
+            "status": "MEASURED",
+            "sampleCount": 70,
+            "numerator": 11,
+            "denominator": 70,
+            "value": 0.15714285714285714
+          },
+          "correctMissingRate": {
+            "status": "MEASURED",
+            "sampleCount": 70,
+            "numerator": 59,
+            "denominator": 70,
+            "value": 0.8428571428571429
+          },
+          "verdictAgreementRate": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "numerator": 761,
+            "denominator": 1870,
+            "value": 0.406951871657754
+          },
+          "chordExactCompletenessRate": {
+            "status": "MEASURED",
+            "sampleCount": 473,
+            "numerator": 18,
+            "denominator": 473,
+            "value": 0.03805496828752643
+          },
+          "falseCompleteChordAcceptanceRate": {
+            "status": "MEASURED",
+            "sampleCount": 57,
+            "numerator": 0,
+            "denominator": 57,
+            "value": 0
+          },
+          "extraPrecision": {
+            "status": "MEASURED",
+            "sampleCount": 827,
+            "numerator": 121,
+            "denominator": 827,
+            "value": 0.14631197097944376
+          },
+          "extraRecall": {
+            "status": "MEASURED",
+            "sampleCount": 286,
+            "numerator": 121,
+            "denominator": 286,
+            "value": 0.4230769230769231
+          },
+          "timingAbsoluteMedianMs": {
+            "status": "MEASURED",
+            "sampleCount": 702,
+            "value": 9.376525880121335
+          },
+          "timingAbsoluteP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 702,
+            "value": 32.08363850695605
+          },
+          "finalizedFeedbackAgeP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "value": 324.28571428571377
+          },
+          "finalizedFeedbackAgeP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 1870,
+            "value": 794.7917715708422
+          },
+          "inferenceLatencyP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 3252,
+            "value": 10
+          },
+          "inferenceLatencyP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 3252,
+            "value": 10
+          },
+          "publicationDelayP50Ms": {
+            "status": "MEASURED",
+            "sampleCount": 3252,
+            "value": 10
+          },
+          "publicationDelayP95Ms": {
+            "status": "MEASURED",
+            "sampleCount": 3252,
+            "value": 10
+          },
+          "extraDiagnostics": {
+            "matchedPhysicalExtras": 121,
+            "missedPhysicalExtras": 165,
+            "falseCandidateExtras": 706
+          },
+          "feedbackAgeCoverage": {
+            "finalizedStrikeCount": 1870,
+            "measuredStrikeCount": 1870,
+            "missingAvailabilityCount": 0
+          }
+        }
+      }
+    }
+  },
+  "confirmations": {
+    "noBlindCandidateInferencePerformed": true,
+    "blindCandidateRunCountIsZero": true,
+    "noProductionWinnerSelected": true,
+    "allCandidatesPassedScoreIndependenceCheck": true
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a3_raw_evidence_manifest",
+  "phase": "9G-A.3",
+  "generatedAt": "2026-10-10T03:21:45.329Z",
+  "bytedanceRobust": [
+    {
+      "context": "CALIBRATED_CONTEXT_1820",
+      "outputRel": "backend/data/work/public_proxy/vienna-4x22/phase9ga3/CALIBRATED_CONTEXT_1820.bytedance-robust-raw.json",
+      "chunkCount": 165
+    },
+    {
+      "context": "CALIBRATED_CONTEXT_3S",
+      "outputRel": "backend/data/work/public_proxy/vienna-4x22/phase9ga3/CALIBRATED_CONTEXT_3S.bytedance-robust-raw.json",
+      "chunkCount": 72
+    },
+    {
+      "context": "CALIBRATED_CONTEXT_5S",
+      "outputRel": "backend/data/work/public_proxy/vienna-4x22/phase9ga3/CALIBRATED_CONTEXT_5S.bytedance-robust-raw.json",
+      "chunkCount": 42
+    },
+    {
+      "context": "CALIBRATED_CONTEXT_10S",
+      "outputRel": "backend/data/work/public_proxy/vienna-4x22/phase9ga3/CALIBRATED_CONTEXT_10S.bytedance-robust-raw.json",
+      "chunkCount": 21
+    }
+  ],
+  "transkun": {
+    "outputRel": "backend/data/work/public_proxy/vienna-4x22/phase9ga3/transkun-output.json",
+    "totalTime": 121.411579609
+  },
+  "ariaAmt": {
+    "outputRel": "backend/data/work/public_proxy/vienna-4x22/phase9ga3/aria-amt-output.json",
+    "totalTime": 829.607013094
+  },
+  "rtt": {
+    "outputRel": "backend/data/work/public_proxy/vienna-4x22/phase9ga3/rtt-output.json",
+    "totalTime": 47.55712669499985
+  }
+}
