@@ -52,11 +52,11 @@ async function main() {
 
   // Step 1: Component A (Evidence Preparation)
   console.log('>>> Executing Component A (Evidence Preparation)...');
-  await preparePhase9gb01Evidence({ gitHead, dirty: dirty && !allowDirty });
+  await preparePhase9gb01Evidence({ gitHead, dirty });
 
   // Step 2: Component B (Independent Entry-Gate Verification)
   console.log('\n>>> Executing Component B (Independent Entry-Gate Verification)...');
-  const report = await verifyPhase9gb01EntryGate({ gitHead, dirty: dirty && !allowDirty });
+  const report = await verifyPhase9gb01EntryGate({ gitHead, dirty });
 
   if (report.overallStatus !== 'PASS') {
     console.error('\n[FATAL] Phase 9G-B.0.1 Entry Gate Verification FAILED.');

@@ -13,6 +13,7 @@ import {
   PHASE_9GA32,
   PHASE_9GB0,
   PHASE_9GB01,
+  PHASE_9GB1,
   CHALLENGER_CALIBRATION_PERFORMERS,
   CHALLENGER_BLIND_PERFORMERS,
   assertChallengerQualificationPolicyIdentity,
@@ -55,6 +56,13 @@ import {
   assertScenarioSetIntersectionExact,
   assertCandidateRegistryIdentitiesExact,
   assertPairwiseReversalInvariants,
+  assertStatisticalEvidenceClassificationValid,
+  assertRequiredSafetyMetricsPresent,
+  assertMetricSpecificDenominatorsValid,
+  assertSourceReceiptShaValid,
+  assertObservationDigestValid,
+  assertCleanWorkingTreeIntegrity,
+  assertCandidateBlindRolePermitted,
   type ChallengerExecutionRequest,
 } from './public-challenger-qualification';
 import type { CandidateScenarioRun } from './continuous-analyzer-bakeoff';
@@ -1340,7 +1348,7 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
     it('B.0.1-1: Artificial identical CI copied across unrelated comparisons fails plausibility / validation', () => {
       // Comparison with mean difference 0.05 cannot have CI [-0.008, -0.001]
       expect(() => assertBootstrapCiMathematicallyPlausible(0.05, { low: -0.008, high: -0.001 }))
-        .not.toThrow(); // Inverted CI check
+        .toThrow(/BOOTSTRAP_CI_EXCLUDES_SAMPLE_MEAN/);
       expect(() => assertBootstrapCiMathematicallyPlausible(0.0, { low: -0.008, high: -0.001 }))
         .toThrow(/BOOTSTRAP_CI_CONTRADICTS_ZERO_MEAN_DIFF/);
     });
@@ -1370,11 +1378,12 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
             effectClassification: 'DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD' as const,
             practicalInterpretation: 'Directional difference.',
           },
-          // Missing other safety metrics without explicit status throws when checked
+          // Missing other 7 safety metrics
         },
       };
-      // Invariant: required fields must be present
-      expect(() => assertPairwiseMatrixDenominatorsValid(incompleteRecord)).not.toThrow();
+      // Invariant: required safety metrics must be present
+      expect(() => assertRequiredSafetyMetricsPresent(incompleteRecord.metrics))
+        .toThrow(/MISSING_REQUIRED_SAFETY_METRIC:expectedStrikeRecall/);
     });
 
     it('B.0.1-4: Different candidate scenario ID sets with equal counts do not produce a false common-set result', () => {
@@ -1554,6 +1563,152 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       expect(unavailMetric.sampleCount).toBe(0);
     });
   });
+
+  describe('Phase 9G-B.1 Protocol Freeze and Adversarial Verification Tests', () => {
+    it('B.1-1: CI metadata without independently reproducible paired evidence cannot claim independent reproduction', () => {
+      expect(() => assertStatisticalEvidenceClassificationValid({
+        provenance: 'REPRODUCED_FROM_SCENARIO_LEVEL_EVIDENCE',
+        scenarioLevelVectorsAvailable: false,
+      })).toThrow(/REPRODUCED_CLAIM_REQUIRES_SCENARIO_LEVEL_EVIDENCE/);
+
+      expect(() => assertStatisticalEvidenceClassificationValid({
+        provenance: 'SOURCE_AGGREGATE_VERIFIED_ONLY',
+        scenarioLevelVectorsAvailable: false,
+      })).not.toThrow();
+
+      expect(() => assertStatisticalEvidenceClassificationValid({
+        provenance: 'INVALID_STATUS',
+      })).toThrow(/INVALID_STATISTICAL_EVIDENCE_PROVENANCE:INVALID_STATUS/);
+    });
+
+    it('B.1-2: A missing required safety metric fails the relevant verifier contract', () => {
+      const incomplete = {
+        verdictAgreementRate: { value: 0.96 },
+        expectedStrikeRecall: { value: 0.98 },
+        // Missing falseMatchRateOnGroundTruthMissing and other 5
+      };
+      expect(() => assertRequiredSafetyMetricsPresent(incomplete))
+        .toThrow(/MISSING_REQUIRED_SAFETY_METRIC:falseMatchRateOnGroundTruthMissing/);
+
+      const complete: Record<string, unknown> = {};
+      const all8 = [
+        'verdictAgreementRate',
+        'expectedStrikeRecall',
+        'falseMatchRateOnGroundTruthMissing',
+        'correctMissingRate',
+        'falseCompleteChordAcceptanceRate',
+        'chordExactCompletenessRate',
+        'extraPrecision',
+        'extraRecall',
+      ];
+      all8.forEach((k) => { complete[k] = { value: 0.9 }; });
+      expect(() => assertRequiredSafetyMetricsPresent(complete)).not.toThrow();
+    });
+
+    it('B.1-3: Altered source receipt SHA causes verification failure', () => {
+      const expectedSha = '7ee516803628e626cd9aed1701772c8482221520a453a4db2c5667074d0d747f';
+      const alteredSha = 'tampered_receipt_sha_0000000000000000000000000000000000000000000000';
+      expect(() => assertSourceReceiptShaValid(expectedSha, alteredSha, 'phase9g_a32_raw_evidence_verification_receipt'))
+        .toThrow(/SOURCE_RECEIPT_SHA_MISMATCH:phase9g_a32_raw_evidence_verification_receipt/);
+      expect(() => assertSourceReceiptShaValid(expectedSha, expectedSha, 'phase9g_a32_raw_evidence_verification_receipt'))
+        .not.toThrow();
+    });
+
+    it('B.1-4: Altered canonical observation digest causes verification failure', () => {
+      const scenarioId = 'vienna-secondary-base:Chopin_op10_no3_p08:27.000';
+      const expectedDigest = 'fa5b2ceabf43ace37f89447900810d705be863a6f93a4d8c4c45b336f025ea2b';
+      const alteredDigest = 'corrupted_digest_1111111111111111111111111111111111111111111111111111';
+      expect(() => assertObservationDigestValid(expectedDigest, alteredDigest, scenarioId))
+        .toThrow(/CANONICAL_OBSERVATION_DIGEST_MISMATCH:vienna-secondary-base:Chopin_op10_no3_p08:27.000/);
+      expect(() => assertObservationDigestValid(expectedDigest, expectedDigest, scenarioId))
+        .not.toThrow();
+    });
+
+    it('B.1-5: Incorrect incumbent metrics fail when compared to the source artifact', () => {
+      const tamperedAmt = {
+        candidateId: 'online-amt-calibrated-v1',
+        profileId: 'online-amt-calibration-native-boost-1',
+        configurationSha256: '0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375',
+        sourceReportPath: 'backend/research/reports/phase9g_a24_bytedance_online_amt_incumbent_completion_2026-10-09.json',
+        sourceReportSha256: '5c2c564f30056d786c40bc40db43222ec5620e45dad1c0e38ef6ca8c54f62674',
+        metrics: {
+          expectedStrikeRecall: { numerator: 1700, denominator: 1800, value: 0.9444 }, // Incorrect! Expected 1655/1800
+          verdictAgreementRate: { numerator: 1720, denominator: 1870, value: 0.9198 },
+        },
+      };
+      expect(() => assertReconciledIncumbentMetricsValid(tamperedAmt))
+        .toThrow(/ONLINE_AMT_INCUMBENT_RECALL_METRIC_MISMATCH:expected 1655\/1800, got 1700\/1800/);
+    });
+
+    it('B.1-6: A dirty working tree cannot be reported as clean', () => {
+      // If git is dirty (true) but reported as clean (false), invariant must fail closed
+      expect(() => assertCleanWorkingTreeIntegrity(true, false))
+        .toThrow(/DIRTY_WORKING_TREE_CANNOT_BE_REPORTED_AS_CLEAN/);
+      // Both true (reported dirty when dirty) passes
+      expect(() => assertCleanWorkingTreeIntegrity(true, true)).not.toThrow();
+      // Both false (clean when clean) passes
+      expect(() => assertCleanWorkingTreeIntegrity(false, false)).not.toThrow();
+    });
+
+    it('B.1-7: Per-metric valid scenario counts cannot be replaced by a universal count', () => {
+      // Assuming universal count without verification fails closed
+      expect(() => assertMetricSpecificDenominatorsValid({
+        metricKey: 'correctMissingRate',
+        validScenarioCount: 43,
+        isUniversalCountAssumed: true,
+      })).toThrow(/PER_METRIC_VALID_COUNT_CANNOT_BE_REPLACED_BY_UNIVERSAL_COUNT:correctMissingRate/);
+
+      // Contributing scenario IDs length differing from validScenarioCount fails
+      expect(() => assertMetricSpecificDenominatorsValid({
+        metricKey: 'correctMissingRate',
+        validScenarioCount: 43,
+        contributingScenarioIds: ['sc-1', 'sc-2'],
+      })).toThrow(/CONTRIBUTING_SCENARIOS_COUNT_MISMATCH:correctMissingRate:ids 2 !== count 43/);
+
+      // Matching count passes
+      expect(() => assertMetricSpecificDenominatorsValid({
+        metricKey: 'correctMissingRate',
+        validScenarioCount: 2,
+        contributingScenarioIds: ['sc-1', 'sc-2'],
+      })).not.toThrow();
+    });
+
+    it('B.1-8: Mutated candidate profile or checkpoint identities prevent protocol freeze', () => {
+      const tamperedCandidate = {
+        candidateId: 'bytedance-robust-augmented-calibrated-v1',
+        candidateFamily: 'bytedance-robust-augmented',
+        profileId: 'CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05',
+        configurationSha256: 'tampered_config_sha_00000000000000000000000000000000000000000000000',
+        checkpointSha256: 'b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e',
+      };
+      expect(() => assertCandidateRegistryIdentitiesExact(tamperedCandidate))
+        .toThrow(/CANDIDATE_CONFIGURATION_SHA_MISMATCH:bytedance-robust-augmented-calibrated-v1/);
+    });
+
+    it('B.1-9: A research reference cannot silently join ranked blind candidates', () => {
+      expect(() => assertCandidateBlindRolePermitted(
+        'transkun-v2-aug-calibrated-v1',
+        'QUALIFIED_CHALLENGER_EVALUATION',
+        true,
+      )).toThrow(/RESEARCH_REFERENCE_CANNOT_JOIN_RANKED_BLIND_ROSTER:transkun-v2-aug-calibrated-v1/);
+
+      expect(() => assertCandidateBlindRolePermitted(
+        'transkun-v2-aug-calibrated-v1',
+        'SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY',
+        false,
+      )).not.toThrow();
+    });
+
+    it('B.1-10: Blind model execution remains unreachable throughout Phase 9G-B.1', () => {
+      const b1InferenceRequest = validRequest({
+        phase: PHASE_9GB1,
+        mode: 'CANDIDATE_INFERENCE',
+      });
+      expect(() => assertChallengerExecutionAllowed(b1InferenceRequest))
+        .toThrow(/PHASE_9GB1_CANDIDATE_INFERENCE_FORBIDDEN/);
+    });
+  });
 });
+
 
 

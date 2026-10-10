@@ -823,8 +823,12 @@ function getGitDirty(dir) {
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
   const allowDirty = process.argv.includes('--allow-dirty');
   const dirty = getGitDirty(repoRoot);
+  if (dirty && !allowDirty) {
+    throw new Error('PHASE_9GB01_REQUIRES_CLEAN_WORKING_TREE: Commit changes before generating evidence artifacts.');
+  }
   const gitHead = getGitHead(repoRoot);
-  preparePhase9gb01Evidence({ gitHead, dirty: dirty && !allowDirty })
+  challengerQual.assertCleanWorkingTreeIntegrity(dirty, dirty);
+  preparePhase9gb01Evidence({ gitHead, dirty })
     .then(() => process.exit(0))
     .catch((err) => {
       console.error(err);

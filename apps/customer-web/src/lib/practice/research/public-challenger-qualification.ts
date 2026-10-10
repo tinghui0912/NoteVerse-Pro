@@ -41,6 +41,7 @@ export const PHASE_9GA31 = '9G-A.3.1' as const;
 export const PHASE_9GA32 = '9G-A.3.2' as const;
 export const PHASE_9GB0 = '9G-B.0' as const;
 export const PHASE_9GB01 = '9G-B.0.1' as const;
+export const PHASE_9GB1 = '9G-B.1' as const;
 
 export type ChallengerFamily =
   | 'bytedance-robust-augmented'
@@ -124,7 +125,7 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
   }
 
   // 3. Fail closed on missing, malformed, or non-whitelisted phase
-  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01] as const;
+  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01, PHASE_9GB1] as const;
   if (!request.phase || !allowedPhases.includes(request.phase as typeof allowedPhases[number])) {
     if (request.mode === 'TRUTH_ONLY') {
       throw new Error(`CHALLENGER_TRUTH_ONLY_PHASE_REQUIRED:${request.phase}`);
@@ -132,9 +133,10 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
     throw new Error(`CHALLENGER_EXECUTION_PHASE_REQUIRED:${request.phase}`);
   }
 
-  // Phase 9G-B.0 and 9G-B.0.1 are non-inference preflight readiness gates
-  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01) && request.mode === 'CANDIDATE_INFERENCE') {
-    throw new Error(`${request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0'}_CANDIDATE_INFERENCE_FORBIDDEN`);
+  // Phase 9G-B.0, 9G-B.0.1, and 9G-B.1 are non-inference preflight readiness / protocol freeze gates
+  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01 || request.phase === PHASE_9GB1) && request.mode === 'CANDIDATE_INFERENCE') {
+    const prefix = request.phase === PHASE_9GB1 ? 'PHASE_9GB1' : request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0';
+    throw new Error(`${prefix}_CANDIDATE_INFERENCE_FORBIDDEN`);
   }
 
   // 4. Performer set and blind isolation guards
@@ -1278,6 +1280,11 @@ export function assertBootstrapCiMathematicallyPlausible(
   if (meanDiff === 0 && (ci.high < 0 || ci.low > 0)) {
     throw new Error(`BOOTSTRAP_CI_CONTRADICTS_ZERO_MEAN_DIFF:meanDiff=0 but CI=[${ci.low}, ${ci.high}] excludes zero`);
   }
+  // Sample mean must fall within bootstrap confidence interval bounds (within epsilon)
+  const epsilon = 1e-7;
+  if (meanDiff < ci.low - epsilon || meanDiff > ci.high + epsilon) {
+    throw new Error(`BOOTSTRAP_CI_EXCLUDES_SAMPLE_MEAN:meanDiff ${meanDiff} not in [${ci.low}, ${ci.high}]`);
+  }
 }
 
 export function assertScenarioSetIntersectionExact(
@@ -1378,4 +1385,94 @@ export function assertPairwiseReversalInvariants(
     }
   }
 }
+
+export type StatisticalEvidenceProvenance =
+  | 'REPRODUCED_FROM_SCENARIO_LEVEL_EVIDENCE'
+  | 'SOURCE_AGGREGATE_VERIFIED_ONLY'
+  | 'HISTORICAL_AGGREGATE_ONLY'
+  | 'INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE';
+
+export function assertStatisticalEvidenceClassificationValid(record: {
+  provenance: string;
+  scenarioLevelVectorsAvailable?: boolean;
+}): void {
+  const allowed = [
+    'REPRODUCED_FROM_SCENARIO_LEVEL_EVIDENCE',
+    'SOURCE_AGGREGATE_VERIFIED_ONLY',
+    'HISTORICAL_AGGREGATE_ONLY',
+    'INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE',
+  ];
+  if (!allowed.includes(record.provenance)) {
+    throw new Error(`INVALID_STATISTICAL_EVIDENCE_PROVENANCE:${record.provenance}`);
+  }
+  if (record.provenance === 'REPRODUCED_FROM_SCENARIO_LEVEL_EVIDENCE' && !record.scenarioLevelVectorsAvailable) {
+    throw new Error('REPRODUCED_CLAIM_REQUIRES_SCENARIO_LEVEL_EVIDENCE');
+  }
+}
+
+export const FROZEN_SAFETY_FIRST_METRICS = [
+  'verdictAgreementRate',
+  'expectedStrikeRecall',
+  'falseMatchRateOnGroundTruthMissing',
+  'correctMissingRate',
+  'falseCompleteChordAcceptanceRate',
+  'chordExactCompletenessRate',
+  'extraPrecision',
+  'extraRecall',
+] as const;
+
+export function assertRequiredSafetyMetricsPresent(metrics: Record<string, unknown>): void {
+  for (const metricKey of FROZEN_SAFETY_FIRST_METRICS) {
+    if (!metrics || metrics[metricKey] === undefined) {
+      throw new Error(`MISSING_REQUIRED_SAFETY_METRIC:${metricKey}`);
+    }
+  }
+}
+
+export function assertMetricSpecificDenominatorsValid(record: {
+  metricKey: string;
+  validScenarioCount: number;
+  contributingScenarioIds?: readonly string[];
+  numerator?: number;
+  denominator?: number;
+  isUniversalCountAssumed?: boolean;
+}): void {
+  if (record.isUniversalCountAssumed) {
+    throw new Error(`PER_METRIC_VALID_COUNT_CANNOT_BE_REPLACED_BY_UNIVERSAL_COUNT:${record.metricKey}`);
+  }
+  if (record.contributingScenarioIds && record.contributingScenarioIds.length !== record.validScenarioCount) {
+    throw new Error(
+      `CONTRIBUTING_SCENARIOS_COUNT_MISMATCH:${record.metricKey}:ids ${record.contributingScenarioIds.length} !== count ${record.validScenarioCount}`,
+    );
+  }
+}
+
+export function assertSourceReceiptShaValid(expectedSha: string, actualSha: string, receiptName: string): void {
+  if (expectedSha !== actualSha) {
+    throw new Error(`SOURCE_RECEIPT_SHA_MISMATCH:${receiptName}:expected ${expectedSha}, got ${actualSha}`);
+  }
+}
+
+export function assertObservationDigestValid(expectedDigest: string, actualDigest: string, scenarioId: string): void {
+  if (expectedDigest !== actualDigest) {
+    throw new Error(`CANONICAL_OBSERVATION_DIGEST_MISMATCH:${scenarioId}:expected ${expectedDigest}, got ${actualDigest}`);
+  }
+}
+
+export function assertCleanWorkingTreeIntegrity(isGitDirty: boolean, reportedDirty: boolean): void {
+  if (isGitDirty && !reportedDirty) {
+    throw new Error('DIRTY_WORKING_TREE_CANNOT_BE_REPORTED_AS_CLEAN');
+  }
+}
+
+export function assertCandidateBlindRolePermitted(candidateId: string, role: string, isRanked: boolean): void {
+  const NON_RANKING_FAMILIES = ['transkun', 'aria-amt', 'rtt'];
+  const isNonRankingFamily = NON_RANKING_FAMILIES.some((f) => candidateId.includes(f));
+  if (isNonRankingFamily) {
+    if (isRanked || role !== 'SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY') {
+      throw new Error(`RESEARCH_REFERENCE_CANNOT_JOIN_RANKED_BLIND_ROSTER:${candidateId}`);
+    }
+  }
+}
+
 

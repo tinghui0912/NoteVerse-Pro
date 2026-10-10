@@ -288,6 +288,22 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
     metrics: amtCand.reconciledMetrics,
   };
 
+  const bdProfileKey = 'bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10';
+  const a23Metrics = a23Report.byteDance?.metrics?.[bdProfileKey]?.CALIBRATION;
+  if (!a23Metrics) throw new Error('A.2.3 report missing ByteDance .20/.10 metrics');
+  if (bdCand.reconciledMetrics.expectedStrikeRecall.numerator !== a23Metrics.expectedStrikeRecall.numerator ||
+      bdCand.reconciledMetrics.expectedStrikeRecall.denominator !== a23Metrics.expectedStrikeRecall.denominator) {
+    throw new Error('BYTE_DANCE_INCUMBENT_METRICS_DIVERGE_FROM_A23_SOURCE_REPORT');
+  }
+
+  const amtPolicyResult = a24Report.onlineAmt?.policyResults?.find((p) => p.profileId === 'online-amt-calibration-native-boost-1');
+  const a24Metrics = amtPolicyResult?.metrics?.CALIBRATION;
+  if (!a24Metrics) throw new Error('A.2.4 report missing Online-AMT native-boost-1 metrics');
+  if (amtCand.reconciledMetrics.expectedStrikeRecall.numerator !== a24Metrics.expectedStrikeRecall.numerator ||
+      amtCand.reconciledMetrics.expectedStrikeRecall.denominator !== a24Metrics.expectedStrikeRecall.denominator) {
+    throw new Error('ONLINE_AMT_INCUMBENT_METRICS_DIVERGE_FROM_A24_SOURCE_REPORT');
+  }
+
   challengerQual.assertReconciledIncumbentMetricsValid(bdReconciledWrapper);
   challengerQual.assertReconciledIncumbentMetricsValid(amtReconciledWrapper);
 
@@ -397,6 +413,8 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   for (const comp of b01Matrix.comparisons) {
     if (comp.status !== 'MEASURED') continue;
 
+    challengerQual.assertRequiredSafetyMetricsPresent(comp.metrics);
+
     for (const mKey of priorityMetrics) {
       const m = comp.metrics[mKey];
       if (!m) throw new Error(`Missing metric ${mKey} in comparison ${comp.candidateA} vs ${comp.candidateB}`);
@@ -464,6 +482,32 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
     throw new Error('Cache trust receipt missing required candidate family summaries');
   }
 
+  // Read back and verify referenced historical manifest/receipt files
+  const a24RawManifest = await readJson(A24_RAW_MANIFEST_REL);
+  const a24ActualSha = await sha256File(A24_RAW_MANIFEST_REL);
+  challengerQual.assertSourceReceiptShaValid(
+    '8743b2069553eacd83e81ca956991f3f0c4ffa5ffdadd413bd62996aedc05554',
+    a24ActualSha,
+    'A.2.4 Raw Evidence Manifest',
+  );
+  if (a24RawManifest.rowCount !== 300) {
+    throw new Error(`Expected 300 rows in A.2.4 raw manifest, got ${a24RawManifest.rowCount}`);
+  }
+
+  const a32RawVerif = await readJson(A32_RAW_VERIF_REL);
+  const a32ActualSha = await sha256File(A32_RAW_VERIF_REL);
+  challengerQual.assertSourceReceiptShaValid(
+    '7ee516803628e626cd9aed1701772c8482221520a453a4db2c5667074d0d747f',
+    a32ActualSha,
+    'A.3.2 Raw Evidence Verification Receipt',
+  );
+  if (a32RawVerif.verificationSummary.bytedanceRobust.totalWindowsVerified !== 299) {
+    throw new Error(`Expected 299 robust windows verified, got ${a32RawVerif.verificationSummary.bytedanceRobust.totalWindowsVerified}`);
+  }
+  if (a32RawVerif.verificationSummary.transkun.audioFilesVerified !== 24) {
+    throw new Error(`Expected 24 transkun audio files verified, got ${a32RawVerif.verificationSummary.transkun.audioFilesVerified}`);
+  }
+
   for (const item of Object.values(cacheSummary)) {
     challengerQual.assertValidCacheProvenanceStatus(item.provenanceStatus);
     challengerQual.assertNoSelfDigestTautology(item.provenanceStatus, item.hasIndependentBaseline);
@@ -519,6 +563,25 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
     throw new Error(`RTT verified count must be 48, got ${b01ScoreIndep.verifiedScenarioPairsByCandidate.rtt}`);
   }
 
+  // Validate actual A.3.2 audit receipt file and canonical digests
+  const a32Audit = await readJson(A32_AUDIT_REL);
+  const a32AuditActualSha = await sha256File(A32_AUDIT_REL);
+  challengerQual.assertSourceReceiptShaValid(
+    'b79d20c576aa23a31da5f693766ebbf68a1f64aa27f6a73c1d91aa6412b509ef',
+    a32AuditActualSha,
+    'A.3.2 Score Independence Audit Receipt',
+  );
+  const sampleScenario = 'vienna-secondary-base:Chopin_op10_no3_p08:27.000';
+  const expectedObsDigest = a32Audit.canonicalObservationDigests?.bytedanceRobustAugmented?.base?.[sampleScenario];
+  if (!expectedObsDigest) {
+    throw new Error(`Missing canonical digest for ${sampleScenario} in A.3.2 audit receipt`);
+  }
+  challengerQual.assertObservationDigestValid(
+    'fa5b2ceabf43ace37f89447900810d705be863a6f93a4d8c4c45b336f025ea2b',
+    expectedObsDigest,
+    sampleScenario,
+  );
+
   checks.push({
     checkId: 'CHECK_8_SCORE_INDEPENDENCE_RECEIPT_MEANING',
     status: 'PASS',
@@ -537,6 +600,10 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   console.log('[Check 9/11] Verifying lock consistency between candidate status and blind role...');
   const b01Admission = await readJson(B01_ADMISSION_ROSTER_REL);
   const b01Lock = await readJson(B01_PRE_BLIND_LOCK_REL);
+
+  for (const r of b01Admission.roster) {
+    challengerQual.assertCandidateBlindRolePermitted(r.candidateId, r.permittedBlindRole, r.productionSelectionEligible);
+  }
 
   const lockedCandidates = b01Admission.roster.filter((r) => r.lockedForPhase9gB);
   if (lockedCandidates.length !== 3) {
@@ -674,8 +741,12 @@ function getGitDirty(dir) {
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
   const allowDirty = process.argv.includes('--allow-dirty');
   const dirty = getGitDirty(repoRoot);
+  if (dirty && !allowDirty) {
+    throw new Error('PHASE_9GB01_REQUIRES_CLEAN_WORKING_TREE: Commit changes before verifying evidence artifacts.');
+  }
   const gitHead = getGitHead(repoRoot);
-  verifyPhase9gb01EntryGate({ gitHead, dirty: dirty && !allowDirty })
+  challengerQual.assertCleanWorkingTreeIntegrity(dirty, dirty);
+  verifyPhase9gb01EntryGate({ gitHead, dirty })
     .then(() => process.exit(0))
     .catch((err) => {
       console.error(err);
