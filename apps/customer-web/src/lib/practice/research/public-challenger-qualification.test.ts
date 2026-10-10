@@ -11,6 +11,7 @@ import {
   PHASE_9GA3,
   PHASE_9GA31,
   PHASE_9GA32,
+  PHASE_9GB0,
   CHALLENGER_CALIBRATION_PERFORMERS,
   CHALLENGER_BLIND_PERFORMERS,
   assertChallengerQualificationPolicyIdentity,
@@ -46,6 +47,9 @@ import {
   assertPairwiseMatrixDenominatorsValid,
   classifyMetricPairwiseComparison,
   assertNoBelowThresholdCrossFamilyWinner,
+  assertReconciledIncumbentMetricsValid,
+  assertValidCacheProvenanceStatus,
+  assertNoSelfDigestTautology,
   type ChallengerExecutionRequest,
 } from './public-challenger-qualification';
 import type { CandidateScenarioRun } from './continuous-analyzer-bakeoff';
@@ -1004,7 +1008,11 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
     it('Case 11: statistically detectable but below-threshold difference being called a meaningful winner fails', () => {
       // 0.458 percentage point difference (0.00458) with CI excluding zero [0.001, 0.008], below 1.0% threshold (0.01)
       const classification = classifyMetricPairwiseComparison(0.00458, { low: 0.001, high: 0.008 }, 0.01);
-      expect(classification).toBe('DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD');
+      expect(classification.classification).toBe('DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD');
+      expect(classification.effectClassification).toBe('DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD');
+      expect(classification.isMeaningfulDifference).toBe(false);
+      expect(classification.isStatisticallySignificant).toBe(true);
+      expect(classification.practicalInterpretation).toContain('directional only');
 
       // Claiming a cross-family winner on below-threshold difference fails closed
       expect(() => assertNoBelowThresholdCrossFamilyWinner(classification, true))
@@ -1048,6 +1056,7 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
     it('Case 14: Phase constants and observation digest helper are well-defined', () => {
       expect(PHASE_9GA31).toBe('9G-A.3.1');
       expect(PHASE_9GA32).toBe('9G-A.3.2');
+      expect(PHASE_9GB0).toBe('9G-B.0');
       const testRun: CandidateScenarioRun = {
         candidateId: 'test-c',
         scenarioId: 'test-s',
@@ -1064,6 +1073,261 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       const digest1 = computeCanonicalAcousticObservationDigest(testRun);
       const digest2 = computeCanonicalAcousticObservationDigest(testRun);
       expect(digest1).toBe(digest2);
+    });
+  });
+
+  describe('Phase 9G-B.0 Pre-Blind Entry Gate & Evidence Reconciliation Tests', () => {
+    it('B.0-1: classifyMetricPairwiseComparison supports 2-arg and 3-arg signatures and returns structured records', () => {
+      // 3-arg call with CI excluding zero but below threshold
+      const res3 = classifyMetricPairwiseComparison(0.005, { low: 0.002, high: 0.008 }, 0.01);
+      expect(res3.classification).toBe('DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD');
+      expect(res3.effectClassification).toBe('DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD');
+      expect(res3.isStatisticallySignificant).toBe(true);
+      expect(res3.isMeaningfulDifference).toBe(false);
+      expect(res3.practicalInterpretation).toContain('below meaningful effect threshold');
+
+      // 3-arg call exceeding threshold
+      const resSig = classifyMetricPairwiseComparison(0.025, { low: 0.015, high: 0.035 }, 0.01);
+      expect(resSig.classification).toBe('STATISTICALLY_SIGNIFICANT_MEANINGFUL_DIFFERENCE');
+      expect(resSig.isMeaningfulDifference).toBe(true);
+
+      // 2-arg call (runner backwards compatibility)
+      const res2 = classifyMetricPairwiseComparison(0.005, 0.01);
+      expect(res2.classification).toBe('DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD');
+      expect(res2.isMeaningfulDifference).toBe(false);
+    });
+
+    it('B.0-2: assertPairwiseMatrixDenominatorsValid fails when measured metric lacks required fields', () => {
+      const recordMissingClassification = {
+        candidateA: 'candidate-a',
+        candidateB: 'candidate-b',
+        status: 'MEASURED' as const,
+        totalCalibrationScenarios: 72,
+        candidateAPreInferenceEligibleCount: 61,
+        candidateBPreInferenceEligibleCount: 72,
+        mutuallyEligibleScenarioCount: 61,
+        bothCandidatesScoreableCount: 61,
+        metricSpecificValidPairedCount: 61,
+        metrics: {
+          verdictAgreementRate: {
+            sampleCount: 61,
+            meanDifference: 0.005,
+            bootstrap95Ci: { low: 0.001, high: 0.009 },
+            meaningfulEffectThreshold: 0.01,
+            // Missing effectClassification and classification!
+            practicalInterpretation: 'Directional difference',
+          },
+        },
+      };
+
+      expect(() => assertPairwiseMatrixDenominatorsValid(recordMissingClassification))
+        .toThrow(/METRIC_COMPARISON_MISSING_EFFECT_CLASSIFICATION:verdictAgreementRate/);
+
+      const recordMissingCi = {
+        ...recordMissingClassification,
+        metrics: {
+          verdictAgreementRate: {
+            sampleCount: 61,
+            meanDifference: 0.005,
+            effectClassification: 'DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD' as const,
+            meaningfulEffectThreshold: 0.01,
+            practicalInterpretation: 'Directional difference',
+          },
+        },
+      };
+      expect(() => assertPairwiseMatrixDenominatorsValid(recordMissingCi))
+        .toThrow(/METRIC_COMPARISON_MISSING_BOOTSTRAP_CI:verdictAgreementRate/);
+    });
+
+    it('B.0-3: assertPairwiseMatrixDenominatorsValid fails when mutual eligibility exceeds pre-inference bound', () => {
+      const falseBoundRecord = {
+        candidateA: 'bytedance-robust-augmented',
+        candidateB: 'transkun',
+        status: 'MEASURED' as const,
+        totalCalibrationScenarios: 72,
+        candidateAPreInferenceEligibleCount: 61, // ByteDance only has 61 eligible
+        candidateBPreInferenceEligibleCount: 72, // Transkun has 72 eligible
+        mutuallyEligibleScenarioCount: 72, // FALSE! Cannot exceed 61!
+        bothCandidatesScoreableCount: 72,
+        metricSpecificValidPairedCount: 72,
+      };
+
+      expect(() => assertPairwiseMatrixDenominatorsValid(falseBoundRecord))
+        .toThrow(/(INVALID_PAIRED_SAMPLE_COUNT_MISLABELED_AS_TOTAL_SCENARIOS|MUTUAL_ELIGIBILITY_EXCEEDS_PRE_INFERENCE_BOUND)/);
+    });
+
+    it('B.0-4: ByteDance .15/.10 metrics attached to .20/.10 configuration fail validation', () => {
+      const erroneousByteDanceIncumbent = {
+        candidateId: 'bytedance-original-calibrated-v1',
+        profileId: 'bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10',
+        configurationSha256: '91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285',
+        sourceReportPath: 'backend-reports-a24.json',
+        sourceReportSha256: 'abc123',
+        metrics: {
+          // Erroneous metrics from .15/.10 profile (98.61% recall / 97.00% verdict)
+          expectedStrikeRecall: { numerator: 1488, denominator: 1509, value: 0.986083 },
+          verdictAgreementRate: { numerator: 1520, denominator: 1567, value: 0.970006 },
+        },
+      };
+
+      expect(() => assertReconciledIncumbentMetricsValid(erroneousByteDanceIncumbent))
+        .toThrow(/BYTE_DANCE_INCUMBENT_RECALL_METRIC_MISMATCH:expected 1487\/1509, got 1488\/1509/);
+
+      // Correct frozen .20/.10 metrics (1487/1509 = 98.54% recall, 1519/1567 = 96.94% verdict) pass
+      const correctByteDanceIncumbent = {
+        ...erroneousByteDanceIncumbent,
+        metrics: {
+          expectedStrikeRecall: { numerator: 1487, denominator: 1509, value: 0.985421 },
+          verdictAgreementRate: { numerator: 1519, denominator: 1567, value: 0.969368 },
+        },
+      };
+      expect(() => assertReconciledIncumbentMetricsValid(correctByteDanceIncumbent)).not.toThrow();
+    });
+
+    it('B.0-5: Online-AMT incumbent with old non-frozen metrics fails validation', () => {
+      const erroneousOnlineAmt = {
+        candidateId: 'online-amt-calibrated-v1',
+        profileId: 'online-amt-calibration-native-boost-1',
+        configurationSha256: '0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375',
+        sourceReportPath: 'backend-reports-a24.json',
+        sourceReportSha256: 'def456',
+        metrics: {
+          // Erroneous numbers (1479/1509 and 1496/1567)
+          expectedStrikeRecall: { numerator: 1479, denominator: 1509, value: 0.980119 },
+          verdictAgreementRate: { numerator: 1496, denominator: 1567, value: 0.95469 },
+        },
+      };
+
+      expect(() => assertReconciledIncumbentMetricsValid(erroneousOnlineAmt))
+        .toThrow(/ONLINE_AMT_INCUMBENT_RECALL_METRIC_MISMATCH:expected 1655\/1800, got 1479\/1509/);
+
+      // Correct frozen A.2.4 numbers (1655/1800 = 91.94% recall, 1720/1870 = 91.98% verdict) pass
+      const correctOnlineAmt = {
+        ...erroneousOnlineAmt,
+        metrics: {
+          expectedStrikeRecall: { numerator: 1655, denominator: 1800, value: 0.919444 },
+          verdictAgreementRate: { numerator: 1720, denominator: 1870, value: 0.919786 },
+        },
+      };
+      expect(() => assertReconciledIncumbentMetricsValid(correctOnlineAmt)).not.toThrow();
+    });
+
+    it('B.0-6: Cache provenance status validation and self-digest tautology protection', () => {
+      // Valid provenance statuses pass
+      expect(() => assertValidCacheProvenanceStatus('CONTENT_DIGEST_RECOMPUTED')).not.toThrow();
+      expect(() => assertValidCacheProvenanceStatus('MATCHED_TRUSTED_BASELINE')).not.toThrow();
+      expect(() => assertValidCacheProvenanceStatus('INDEPENDENT_INFERENCE_REPRODUCED')).not.toThrow();
+      expect(() => assertValidCacheProvenanceStatus('PROVENANCE_UNVERIFIED')).not.toThrow();
+
+      // Invalid provenance status throws
+      expect(() => assertValidCacheProvenanceStatus('FRAUDULENT_STATUS' as unknown as string))
+        .toThrow(/INVALID_CACHE_PROVENANCE_STATUS:FRAUDULENT_STATUS/);
+
+      // Self-computed digest claiming MATCHED_TRUSTED_BASELINE without independent baseline fails closed
+      expect(() => assertNoSelfDigestTautology('MATCHED_TRUSTED_BASELINE', false))
+        .toThrow(/SELF_COMPUTED_DIGEST_CANNOT_BE_LABELED_MATCHED_TRUSTED_BASELINE/);
+
+      // With independent baseline passes
+      expect(() => assertNoSelfDigestTautology('MATCHED_TRUSTED_BASELINE', true)).not.toThrow();
+    });
+
+    it('B.0-7: Robust ByteDance cache validation fails when requireInputPcmSha256 is true but PCM hash is missing or mismatched', () => {
+      const windowWithoutPcm = {
+        windowId: 'w1',
+        contextProfileId: 'CALIBRATED_CONTEXT_1820',
+        inputSampleCount: 29120,
+      };
+
+      const rawChunk = {
+        windowId: 'w1',
+        contextProfileId: 'CALIBRATED_CONTEXT_1820',
+        inputSampleCount: 29120,
+        inputPcmSha256: 'abc',
+        rawOutputs: {
+          frame_output: { dims: [1, 291, 88], data: new Array(291 * 88).fill(0), float32ByteSha256: '' },
+          reg_onset_output: { dims: [1, 291, 88], data: new Array(291 * 88).fill(0), float32ByteSha256: '' },
+        },
+      };
+
+      expect(() => validateRobustByteDanceRawCacheStrict(
+        { chunks: [rawChunk] },
+        [windowWithoutPcm],
+        { requireInputPcmSha256: true },
+      )).toThrow(/INPUT_PCM_SHA_REQUIRED_FOR_WINDOW:w1/);
+
+      const windowWithMismatch = {
+        ...windowWithoutPcm,
+        inputPcmSha256: 'expected_different_pcm',
+      };
+      expect(() => validateRobustByteDanceRawCacheStrict(
+        { chunks: [rawChunk] },
+        [windowWithMismatch],
+        { requireInputPcmSha256: true },
+      )).toThrow(/PCM_SHA_MISMATCH:w1/);
+    });
+
+    it('B.0-8: Phase 9G-B.0 strictly forbids candidate inference', () => {
+      const b0InferenceRequest = validRequest({
+        phase: PHASE_9GB0,
+        mode: 'CANDIDATE_INFERENCE',
+      });
+
+      expect(() => assertChallengerExecutionAllowed(b0InferenceRequest))
+        .toThrow(/PHASE_9GB0_CANDIDATE_INFERENCE_FORBIDDEN/);
+    });
+
+    it('B.0-9: Integration test: JS runner comparison record building works end-to-end', () => {
+      // Simulate real runner building a comparison record
+      const diffs = [0.002, 0.003, 0.004, 0.005, 0.006];
+      const meanDiff = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+      const ci = { low: 0.001, high: 0.007 };
+      const threshold = 0.01;
+
+      // Real runner calls 3-arg or 2-arg signature
+      const classificationResult = classifyMetricPairwiseComparison(meanDiff, ci, threshold);
+      expect(classificationResult.classification).toBe('DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD');
+
+      const metricComparisons: Record<string, unknown> = {
+        verdictAgreementRate: {
+          sampleCount: diffs.length,
+          meanDifference: meanDiff,
+          bootstrap95Ci: ci,
+          meaningfulEffectThreshold: threshold,
+          effectClassification: classificationResult.classification,
+          isMeaningfulDifference: classificationResult.isMeaningfulDifference,
+          isStatisticallySignificant: classificationResult.isStatisticallySignificant,
+          practicalInterpretation: classificationResult.practicalInterpretation,
+        },
+      };
+
+      const compRecord = {
+        candidateA: 'bytedance-robust-augmented-calibrated-v1',
+        candidateB: 'transkun-v2-aug-calibrated-v1',
+        status: 'MEASURED' as const,
+        totalCalibrationScenarios: 72,
+        candidateAPreInferenceEligibleCount: 61,
+        candidateBPreInferenceEligibleCount: 72,
+        mutuallyEligibleScenarioCount: 61,
+        bothCandidatesScoreableCount: 61,
+        metricSpecificValidPairedCount: 61,
+        sampleDenominators: {
+          totalScenarios: 72,
+          candidateAEligible: 61,
+          candidateBEligible: 72,
+          mutuallyEligible: 61,
+        },
+        isCrossFamilyWinner: false,
+        metrics: metricComparisons,
+      };
+
+      // Both validations pass
+      expect(() => assertPairwiseMatrixDenominatorsValid(compRecord)).not.toThrow();
+      expect(() => assertNoBelowThresholdCrossFamilyWinner(compRecord)).not.toThrow();
+
+      // If someone fraudulently sets isCrossFamilyWinner: true, it fails closed
+      const fraudulentRecord = { ...compRecord, isCrossFamilyWinner: true };
+      expect(() => assertNoBelowThresholdCrossFamilyWinner(fraudulentRecord))
+        .toThrow(/MEANINGLESS_EFFECT_CANNOT_BE_CROSS_FAMILY_WINNER:verdictAgreementRate/);
     });
   });
 });

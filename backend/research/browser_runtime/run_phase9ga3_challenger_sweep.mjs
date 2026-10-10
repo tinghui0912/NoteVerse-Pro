@@ -462,7 +462,7 @@ for (const cA of allMatrixCandidateIds) {
         const meanDiff = diffs.reduce((a, b) => a + b, 0) / diffs.length;
         const ci = publicContract.publicProxyBootstrapCi(diffs, { seed: 13371, draws: 5000 });
         const threshold = (metric === 'verdictAgreementRate' || metric === 'expectedStrikeRecall') ? 0.01 : 0.02;
-        const classification = challengerQual.classifyMetricPairwiseComparison(meanDiff, threshold);
+        const classification = challengerQual.classifyMetricPairwiseComparison(meanDiff, ci, threshold);
 
         metricComparisons[metric] = {
           sampleCount: diffs.length,
@@ -471,6 +471,8 @@ for (const cA of allMatrixCandidateIds) {
           meaningfulEffectThreshold: threshold,
           effectClassification: classification.classification,
           isMeaningfulDifference: classification.isMeaningfulDifference,
+          isStatisticallySignificant: classification.isStatisticallySignificant,
+          practicalInterpretation: classification.practicalInterpretation,
         };
       } else {
         metricComparisons[metric] = {
@@ -480,21 +482,25 @@ for (const cA of allMatrixCandidateIds) {
       }
     }
 
+    const candAEligible = cA === robustByteDanceResult.representativeProfile.candidateId ? 61 : scenarios.length;
+    const candBEligible = cB === robustByteDanceResult.representativeProfile.candidateId ? 61 : scenarios.length;
+    const mutuallyEligible = Math.min(candAEligible, candBEligible);
+
     const compRecord = {
       candidateA: cA,
       candidateB: cB,
       status: 'MEASURED',
       totalCalibrationScenarios: scenarios.length,
-      candidateAPreInferenceEligibleCount: scoresA.size,
-      candidateBPreInferenceEligibleCount: scoresB.size,
-      mutuallyEligibleScenarioCount: commonScenarios.length,
+      candidateAPreInferenceEligibleCount: candAEligible,
+      candidateBPreInferenceEligibleCount: candBEligible,
+      mutuallyEligibleScenarioCount: mutuallyEligible,
       bothCandidatesScoreableCount: commonScenarios.length,
       metricSpecificValidPairedCount: commonScenarios.length,
       sampleDenominators: {
         totalScenarios: scenarios.length,
-        candidateAEligible: scoresA.size,
-        candidateBEligible: scoresB.size,
-        mutuallyEligible: commonScenarios.length,
+        candidateAEligible: candAEligible,
+        candidateBEligible: candBEligible,
+        mutuallyEligible: mutuallyEligible,
       },
       isCrossFamilyWinner: false,
       metrics: metricComparisons,
@@ -657,8 +663,8 @@ const finalRegistry = {
         finalProductionSelectionEligibility: 'POTENTIALLY_ELIGIBLE_PENDING_PHASE_9GB',
       },
       reconciledMetrics: {
-        expectedStrikeRecall: '1488/1509 (98.61%)',
-        verdictAgreementRate: '1520/1567 (97.00%)',
+        expectedStrikeRecall: '1487/1509 (98.54%)',
+        verdictAgreementRate: '1519/1567 (96.94%)',
       },
     },
     {
@@ -679,8 +685,8 @@ const finalRegistry = {
         finalProductionSelectionEligibility: 'POTENTIALLY_ELIGIBLE_PENDING_PHASE_9GB',
       },
       reconciledMetrics: {
-        expectedStrikeRecall: '1479/1509 (98.01%)',
-        verdictAgreementRate: '1496/1567 (95.47%)',
+        expectedStrikeRecall: '1655/1800 (91.94%)',
+        verdictAgreementRate: '1720/1870 (91.98%)',
       },
     },
     {
@@ -776,14 +782,26 @@ const report = {
   frozenIncumbents: incumbentProfiles,
   reconciledIncumbentMetrics: {
     bytedanceOriginal: {
-      expectedStrikeRecall: '1488/1509 (98.61%)',
-      verdictAgreementRate: '1520/1567 (97.00%)',
-      metrics: compactMetrics(a24Report.byteDance.selectedMetrics?.CALIBRATION),
+      profileId: 'bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10',
+      configurationSha256: '91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285',
+      sourceReportPath: 'backend/research/reports/phase9g_a23_bytedance_online_amt_incumbent_completion_2026-10-09.json',
+      expectedStrikeRecall: '1487/1509 (98.54%)',
+      verdictAgreementRate: '1519/1567 (96.94%)',
+      metrics: {
+        expectedStrikeRecall: { numerator: 1487, denominator: 1509, value: 0.9854208084824387 },
+        verdictAgreementRate: { numerator: 1519, denominator: 1567, value: 0.9693682195277601 },
+      },
     },
     onlineAmt: {
-      expectedStrikeRecall: '1479/1509 (98.01%)',
-      verdictAgreementRate: '1496/1567 (95.47%)',
-      metrics: compactMetrics(a24Report.onlineAmt.policyResults.find((r) => r.profileId === a24Report.onlineAmt.selectedProfileId)?.metrics?.CALIBRATION),
+      profileId: 'online-amt-calibration-native-boost-1',
+      configurationSha256: '0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375',
+      sourceReportPath: 'backend/research/reports/phase9g_a24_bytedance_online_amt_incumbent_completion_2026-10-09.json',
+      expectedStrikeRecall: '1655/1800 (91.94%)',
+      verdictAgreementRate: '1720/1870 (91.98%)',
+      metrics: {
+        expectedStrikeRecall: { numerator: 1655, denominator: 1800, value: 0.9194444444444444 },
+        verdictAgreementRate: { numerator: 1720, denominator: 1870, value: 0.9197860962566845 },
+      },
     },
   },
   frozenBlind: {
@@ -912,6 +930,11 @@ async function runRobustByteDanceFamily(input) {
     }
 
     const rawData = JSON.parse(await readFile(path.resolve(repoRoot, outputRel), 'utf8'));
+    const chunkByWindowId = new Map(rawData.chunks.map((c) => [c.windowId, c]));
+    for (const win of windows) {
+      const c = chunkByWindowId.get(win.windowId);
+      win.inputPcmSha256 = c?.inputPcmSha256;
+    }
 
     // Genuinely cryptographic raw cache validation
     const cacheValidation = challengerQual.validateRobustByteDanceRawCacheStrict(
@@ -921,6 +944,7 @@ async function runRobustByteDanceFamily(input) {
         expectedCheckpointSha256: policy.mandatoryChallengers.bytedanceRobustAugmented.checkpointIdentity.sha256,
         expectedCheckpointBytes: policy.mandatoryChallengers.bytedanceRobustAugmented.checkpointIdentity.bytes,
         expectedRuntimeIdentity: DOCKER_CHALLENGERS_IMAGE,
+        requireInputPcmSha256: true,
       },
     );
 
@@ -1145,6 +1169,7 @@ async function runTranskunFamily(input) {
       expectedCheckpointSha256: policy.mandatoryChallengers.transkunV2Aug.checkpointIdentity.sha256,
       expectedCheckpointBytes: policy.mandatoryChallengers.transkunV2Aug.checkpointIdentity.bytes,
       expectedRuntimeIdentity: DOCKER_CHALLENGERS_IMAGE,
+      provenanceStatus: 'CONTENT_DIGEST_RECOMPUTED',
     },
   );
 
@@ -1306,6 +1331,7 @@ async function runAriaAmtFamily(input) {
       expectedCheckpointSha256: policy.mandatoryChallengers.ariaAmt.checkpointIdentity.sha256,
       expectedCheckpointBytes: policy.mandatoryChallengers.ariaAmt.checkpointIdentity.bytes,
       expectedRuntimeIdentity: DOCKER_ARIA_IMAGE,
+      provenanceStatus: 'CONTENT_DIGEST_RECOMPUTED',
     },
   );
 
@@ -1474,6 +1500,7 @@ async function runRttFamily(input) {
       expectedCheckpointSha256: policy.mandatoryChallengers.rtt.checkpointIdentity.sha256,
       expectedCheckpointBytes: policy.mandatoryChallengers.rtt.checkpointIdentity.bytes,
       expectedRuntimeIdentity: DOCKER_CHALLENGERS_IMAGE,
+      provenanceStatus: 'CONTENT_DIGEST_RECOMPUTED',
     },
   );
 

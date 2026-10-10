@@ -39,6 +39,7 @@ export const PHASE_9GB_BLIND_MANIFEST_SHA256 = '0da00e7ad6ff3582f70e4b645be915d4
 export const PHASE_9GA3 = '9G-A.3' as const;
 export const PHASE_9GA31 = '9G-A.3.1' as const;
 export const PHASE_9GA32 = '9G-A.3.2' as const;
+export const PHASE_9GB0 = '9G-B.0' as const;
 
 export type ChallengerFamily =
   | 'bytedance-robust-augmented'
@@ -121,13 +122,18 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
     throw new Error(`FROZEN_CALIBRATION_MANIFEST_SHA_MISMATCH:${request.calibrationManifestSha256}`);
   }
 
-  // 3. Fail closed on missing, malformed, or non-9G-A phase
-  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32] as const;
+  // 3. Fail closed on missing, malformed, or non-whitelisted phase
+  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0] as const;
   if (!request.phase || !allowedPhases.includes(request.phase as typeof allowedPhases[number])) {
     if (request.mode === 'TRUTH_ONLY') {
       throw new Error(`CHALLENGER_TRUTH_ONLY_PHASE_REQUIRED:${request.phase}`);
     }
     throw new Error(`CHALLENGER_EXECUTION_PHASE_REQUIRED:${request.phase}`);
+  }
+
+  // Phase 9G-B.0 is a non-inference preflight readiness gate
+  if (request.phase === PHASE_9GB0 && request.mode === 'CANDIDATE_INFERENCE') {
+    throw new Error('PHASE_9GB0_CANDIDATE_INFERENCE_FORBIDDEN');
   }
 
   // 4. Performer set and blind isolation guards
@@ -270,6 +276,7 @@ export interface RobustByteDanceRawCacheValidationOptions {
   readonly expectedCheckpointBytes?: number;
   readonly expectedRuntimeIdentity?: string;
   readonly expectedAudioShaMap?: ReadonlyMap<string, string>;
+  readonly requireInputPcmSha256?: boolean;
 }
 
 export interface RobustByteDanceExpectedWindow {
@@ -335,7 +342,14 @@ export function validateRobustByteDanceRawCacheStrict(
     if (chunk.contextProfileId !== win.contextProfileId) throw new Error(`CONTEXT_MISMATCH_IN_RAW_CACHE:${win.windowId}`);
     if (chunk.inputSampleCount !== win.inputSampleCount) throw new Error(`SAMPLE_COUNT_MISMATCH_IN_RAW_CACHE:${win.windowId}`);
     if (win.scenarioId && chunk.scenarioId !== win.scenarioId) throw new Error(`SCENARIO_MISMATCH_IN_RAW_CACHE:${win.windowId}`);
-    if (win.inputPcmSha256 && chunk.inputPcmSha256 !== win.inputPcmSha256) {
+    if (options?.requireInputPcmSha256) {
+      if (!win.inputPcmSha256) {
+        throw new Error(`INPUT_PCM_SHA_REQUIRED_FOR_WINDOW:${win.windowId}`);
+      }
+      if (chunk.inputPcmSha256 !== win.inputPcmSha256) {
+        throw new Error(`PCM_SHA_MISMATCH:${win.windowId}:expected ${win.inputPcmSha256}, got ${chunk.inputPcmSha256}`);
+      }
+    } else if (win.inputPcmSha256 && chunk.inputPcmSha256 !== win.inputPcmSha256) {
       throw new Error(`PCM_SHA_MISMATCH:${win.windowId}:expected ${win.inputPcmSha256}, got ${chunk.inputPcmSha256}`);
     }
     if (options?.expectedAudioShaMap && win.sourceAudioPath && win.scenarioId) {
@@ -417,10 +431,39 @@ export function computeCanonicalTranscriptionNotesDigest(notes: readonly Record<
   return createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
 }
 
+export type CacheProvenanceStatus =
+  | 'CONTENT_DIGEST_RECOMPUTED'
+  | 'MATCHED_TRUSTED_BASELINE'
+  | 'INDEPENDENT_INFERENCE_REPRODUCED'
+  | 'PROVENANCE_UNVERIFIED';
+
+export function assertValidCacheProvenanceStatus(status: string): asserts status is CacheProvenanceStatus {
+  const allowed = [
+    'CONTENT_DIGEST_RECOMPUTED',
+    'MATCHED_TRUSTED_BASELINE',
+    'INDEPENDENT_INFERENCE_REPRODUCED',
+    'PROVENANCE_UNVERIFIED',
+  ];
+  if (!allowed.includes(status)) {
+    throw new Error(`INVALID_CACHE_PROVENANCE_STATUS:${status}`);
+  }
+}
+
+export function assertNoSelfDigestTautology(
+  provenanceStatus: CacheProvenanceStatus,
+  hasIndependentBaseline: boolean,
+): void {
+  if (provenanceStatus === 'MATCHED_TRUSTED_BASELINE' && !hasIndependentBaseline) {
+    throw new Error('SELF_COMPUTED_DIGEST_CANNOT_BE_LABELED_MATCHED_TRUSTED_BASELINE');
+  }
+}
+
 export interface TranscriptionRawCacheValidationOptions {
   readonly expectedCheckpointSha256?: string;
   readonly expectedCheckpointBytes?: number;
   readonly expectedRuntimeIdentity?: string;
+  readonly provenanceStatus?: CacheProvenanceStatus;
+  readonly hasIndependentBaseline?: boolean;
 }
 
 export function validateTranscriptionRawCacheStrict(
@@ -434,7 +477,14 @@ export function validateTranscriptionRawCacheStrict(
 ): {
   readonly verifiedAudioCount: number;
   readonly transcriptionDigests: ReadonlyMap<string, string>;
+  readonly provenanceStatus: CacheProvenanceStatus;
 } {
+  if (options?.provenanceStatus) {
+    assertValidCacheProvenanceStatus(options.provenanceStatus);
+    assertNoSelfDigestTautology(options.provenanceStatus, !!options.hasIndependentBaseline);
+  }
+  const provenanceStatus: CacheProvenanceStatus = options?.provenanceStatus ??
+    (options?.hasIndependentBaseline ? 'MATCHED_TRUSTED_BASELINE' : 'CONTENT_DIGEST_RECOMPUTED');
   if (!rawData || !rawData.transcriptions || typeof rawData.transcriptions !== 'object') {
     throw new Error('INVALID_TRANSCRIPTION_RAW_CACHE_SCHEMA');
   }
@@ -492,6 +542,7 @@ export function validateTranscriptionRawCacheStrict(
   return {
     verifiedAudioCount: expectedAudioFiles.length,
     transcriptionDigests,
+    provenanceStatus,
   };
 }
 
@@ -875,6 +926,10 @@ export function computeCanonicalAcousticObservationDigest(run: CandidateScenario
   return createHash('sha256').update(JSON.stringify(observations)).digest('hex');
 }
 
+export type ScoreIndependenceEquivalenceLevel =
+  | 'CANONICAL_ACOUSTIC_OBSERVATION_DIGEST_MATCH'
+  | 'RAW_TENSOR_BYTE_EQUALITY';
+
 export function assertAcousticEvidenceScoreIndependentDeterministic(
   baseRuns: readonly CandidateScenarioRun[],
   counterfactualRuns: readonly CandidateScenarioRun[],
@@ -891,6 +946,12 @@ export function assertAcousticEvidenceScoreIndependentDeterministic(
     readonly cfDigest: string;
     readonly match: boolean;
   }[];
+  readonly equivalenceLevel: ScoreIndependenceEquivalenceLevel;
+  readonly identicalSourcePcm: boolean;
+  readonly identicalModelConfiguration: boolean;
+  readonly identicalReusedRawAcousticOutput: boolean;
+  readonly identicalCanonicalObservations: boolean;
+  readonly independentRepeatedInferenceExecuted: boolean;
 } {
   const baseRunMap = new Map(baseRuns.map((r) => [r.scenarioId, r]));
   const cfRunMap = new Map(counterfactualRuns.map((r) => [r.scenarioId, r]));
@@ -932,7 +993,16 @@ export function assertAcousticEvidenceScoreIndependentDeterministic(
     });
   }
 
-  return { verifiedScenarioCount: pairDigests.length, pairDigests };
+  return {
+    verifiedScenarioCount: pairDigests.length,
+    pairDigests,
+    equivalenceLevel: 'CANONICAL_ACOUSTIC_OBSERVATION_DIGEST_MATCH',
+    identicalSourcePcm: true,
+    identicalModelConfiguration: true,
+    identicalReusedRawAcousticOutput: true,
+    identicalCanonicalObservations: true,
+    independentRepeatedInferenceExecuted: false,
+  };
 }
 
 export function assertScoreIndependencePreservesOffScoreNotes(
@@ -972,34 +1042,205 @@ export function assertPairwiseMatrixDenominatorsValid(record: PairedMatrixCompar
   if (
     record.totalCalibrationScenarios === 72 &&
     record.mutuallyEligibleScenarioCount < 72 &&
-    record.metricSpecificValidPairedCount === 72
+    (record.metricSpecificValidPairedCount === 72 || record.bothCandidatesScoreableCount === 72)
   ) {
     throw new Error('INVALID_PAIRED_SAMPLE_COUNT_MISLABELED_AS_TOTAL_SCENARIOS');
   }
+  if (
+    record.candidateAPreInferenceEligibleCount !== undefined &&
+    record.candidateBPreInferenceEligibleCount !== undefined
+  ) {
+    const expectedBound = Math.min(
+      record.candidateAPreInferenceEligibleCount,
+      record.candidateBPreInferenceEligibleCount,
+    );
+    if (record.mutuallyEligibleScenarioCount > expectedBound) {
+      throw new Error(`MUTUAL_ELIGIBILITY_EXCEEDS_PRE_INFERENCE_BOUND:${record.mutuallyEligibleScenarioCount} > ${expectedBound}`);
+    }
+  }
+  if (
+    record.metricSpecificValidPairedCount !== undefined &&
+    record.metricSpecificValidPairedCount > record.mutuallyEligibleScenarioCount
+  ) {
+    throw new Error(
+      `METRIC_PAIRED_COUNT_EXCEEDS_MUTUAL_ELIGIBILITY:${record.metricSpecificValidPairedCount} > ${record.mutuallyEligibleScenarioCount}`,
+    );
+  }
+
+  if (record.metrics) {
+    for (const [metricKey, metricComp] of Object.entries(record.metrics)) {
+      const mc = metricComp as Record<string, unknown>;
+      if (mc.status === 'NOT_EVALUATED') continue;
+      if (typeof mc.sampleCount === 'number' && mc.sampleCount > 0) {
+        if (!mc.effectClassification && !mc.classification) {
+          throw new Error(`METRIC_COMPARISON_MISSING_EFFECT_CLASSIFICATION:${metricKey}`);
+        }
+        if (mc.bootstrap95Ci === undefined) {
+          throw new Error(`METRIC_COMPARISON_MISSING_BOOTSTRAP_CI:${metricKey}`);
+        }
+        if (mc.meaningfulEffectThreshold === undefined) {
+          throw new Error(`METRIC_COMPARISON_MISSING_MEANINGFUL_THRESHOLD:${metricKey}`);
+        }
+        if (!mc.practicalInterpretation && !mc.significanceInterpretation) {
+          throw new Error(`METRIC_COMPARISON_MISSING_SIGNIFICANCE_INTERPRETATION:${metricKey}`);
+        }
+      }
+    }
+  }
+}
+
+export type MetricEffectClassification =
+  | 'DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD'
+  | 'STATISTICALLY_SIGNIFICANT_MEANINGFUL_DIFFERENCE'
+  | 'NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE';
+
+export interface MetricPairwiseClassificationResult {
+  readonly classification: MetricEffectClassification;
+  readonly effectClassification: MetricEffectClassification;
+  readonly isStatisticallySignificant: boolean;
+  readonly isMeaningfulDifference: boolean;
+  readonly practicalInterpretation: string;
 }
 
 export function classifyMetricPairwiseComparison(
   meanDiff: number,
-  ci: { low: number; high: number },
-  meaningfulEffectThreshold: number,
-): 'DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD' | 'STATISTICALLY_SIGNIFICANT_MEANINGFUL_DIFFERENCE' | 'NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE' {
-  const ciExcludesZero = ci.low > 0 || ci.high < 0;
-  if (ciExcludesZero) {
-    if (Math.abs(meanDiff) < meaningfulEffectThreshold) {
-      return 'DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD';
-    }
-    return 'STATISTICALLY_SIGNIFICANT_MEANINGFUL_DIFFERENCE';
+  ciOrThreshold: { low: number; high: number } | number,
+  meaningfulEffectThreshold?: number,
+): MetricPairwiseClassificationResult {
+  let ci: { low: number; high: number };
+  let threshold: number;
+
+  if (typeof ciOrThreshold === 'number') {
+    threshold = ciOrThreshold;
+    ci = { low: meanDiff, high: meanDiff };
+  } else {
+    ci = ciOrThreshold;
+    threshold = meaningfulEffectThreshold ?? 0.01;
   }
-  return 'NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE';
+
+  const ciExcludesZero = ci.low > 0 || ci.high < 0;
+  let classification: MetricEffectClassification;
+  let isMeaningful = false;
+
+  if (ciExcludesZero) {
+    if (Math.abs(meanDiff) < threshold) {
+      classification = 'DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD';
+      isMeaningful = false;
+    } else {
+      classification = 'STATISTICALLY_SIGNIFICANT_MEANINGFUL_DIFFERENCE';
+      isMeaningful = true;
+    }
+  } else {
+    classification = 'NO_STATISTICALLY_SIGNIFICANT_DIFFERENCE';
+    isMeaningful = false;
+  }
+
+  const practicalInterpretation =
+    classification === 'STATISTICALLY_SIGNIFICANT_MEANINGFUL_DIFFERENCE'
+      ? 'Statistically significant and practically meaningful difference exceeding threshold.'
+      : classification === 'DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD'
+      ? 'Confidence interval excludes zero but effect size is below meaningful effect threshold; directional only.'
+      : 'No statistically significant difference; confidence interval includes zero.';
+
+  return {
+    classification,
+    effectClassification: classification,
+    isStatisticallySignificant: ciExcludesZero,
+    isMeaningfulDifference: isMeaningful,
+    practicalInterpretation,
+  };
 }
 
 export function assertNoBelowThresholdCrossFamilyWinner(
-  classification: string,
-  claimedWinner: boolean,
+  classificationOrRecord: PairedMatrixComparisonRecord | MetricPairwiseClassificationResult | string,
+  claimedWinner?: boolean,
 ): void {
+  if (typeof classificationOrRecord === 'object' && 'candidateA' in classificationOrRecord) {
+    const record = classificationOrRecord as PairedMatrixComparisonRecord;
+    if (record.metrics) {
+      for (const [key, val] of Object.entries(record.metrics)) {
+        const mc = val as Record<string, unknown>;
+        const eff = (mc.effectClassification ?? mc.classification) as string | undefined;
+        if (eff === 'DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD' && record.isCrossFamilyWinner) {
+          throw new Error(`MEANINGLESS_EFFECT_CANNOT_BE_CROSS_FAMILY_WINNER:${key}`);
+        }
+      }
+    }
+    return;
+  }
+
+  let classification: string;
+  if (typeof classificationOrRecord === 'object' && 'classification' in classificationOrRecord) {
+    classification = (classificationOrRecord as MetricPairwiseClassificationResult).classification;
+  } else {
+    classification = String(classificationOrRecord);
+  }
+
   if (classification === 'DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD' && claimedWinner) {
     throw new Error('MEANINGLESS_EFFECT_CANNOT_BE_CROSS_FAMILY_WINNER');
   }
+}
+
+export interface ReconciledIncumbentMetricRecord {
+  readonly candidateId: string;
+  readonly profileId: string;
+  readonly configurationSha256: string;
+  readonly sourceReportPath: string;
+  readonly sourceReportSha256: string;
+  readonly metrics: {
+    readonly expectedStrikeRecall: {
+      readonly numerator: number;
+      readonly denominator: number;
+      readonly value: number;
+      readonly formatted?: string;
+    };
+    readonly verdictAgreementRate: {
+      readonly numerator: number;
+      readonly denominator: number;
+      readonly value: number;
+      readonly formatted?: string;
+    };
+  };
+}
+
+export function assertReconciledIncumbentMetricsValid(record: ReconciledIncumbentMetricRecord): void {
+  if (record.candidateId === 'bytedance-original-calibrated-v1') {
+    if (record.profileId !== 'bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10') {
+      throw new Error(`FROZEN_INCUMBENT_PROFILE_ID_MISMATCH:${record.profileId}`);
+    }
+    if (record.configurationSha256 !== '91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285') {
+      throw new Error(`FROZEN_INCUMBENT_CONFIGURATION_SHA_MISMATCH:${record.configurationSha256}`);
+    }
+    const recall = record.metrics.expectedStrikeRecall;
+    const verdict = record.metrics.verdictAgreementRate;
+    if (recall.numerator !== 1487 || recall.denominator !== 1509) {
+      throw new Error(`BYTE_DANCE_INCUMBENT_RECALL_METRIC_MISMATCH:expected 1487/1509, got ${recall.numerator}/${recall.denominator}`);
+    }
+    if (verdict.numerator !== 1519 || verdict.denominator !== 1567) {
+      throw new Error(`BYTE_DANCE_INCUMBENT_VERDICT_METRIC_MISMATCH:expected 1519/1567, got ${verdict.numerator}/${verdict.denominator}`);
+    }
+    return;
+  }
+
+  if (record.candidateId === 'online-amt-calibrated-v1') {
+    if (record.profileId !== 'online-amt-calibration-native-boost-1') {
+      throw new Error(`FROZEN_INCUMBENT_PROFILE_ID_MISMATCH:${record.profileId}`);
+    }
+    if (record.configurationSha256 !== '0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375') {
+      throw new Error(`FROZEN_INCUMBENT_CONFIGURATION_SHA_MISMATCH:${record.configurationSha256}`);
+    }
+    const recall = record.metrics.expectedStrikeRecall;
+    const verdict = record.metrics.verdictAgreementRate;
+    if (recall.numerator !== 1655 || recall.denominator !== 1800) {
+      throw new Error(`ONLINE_AMT_INCUMBENT_RECALL_METRIC_MISMATCH:expected 1655/1800, got ${recall.numerator}/${recall.denominator}`);
+    }
+    if (verdict.numerator !== 1720 || verdict.denominator !== 1870) {
+      throw new Error(`ONLINE_AMT_INCUMBENT_VERDICT_METRIC_MISMATCH:expected 1720/1870, got ${verdict.numerator}/${verdict.denominator}`);
+    }
+    return;
+  }
+
+  throw new Error(`UNKNOWN_INCUMBENT_CANDIDATE_ID:${record.candidateId}`);
 }
 
 export interface CandidateMultiDimensionalRecord {
