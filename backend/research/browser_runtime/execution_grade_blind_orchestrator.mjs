@@ -1,22 +1,23 @@
 /**
- * Phase 9G-B.1.1: Execution-Grade Blind Evaluation Orchestrator & Durable Ledger.
+ * Phase 9G-B.1.2: Execution-Grade Blind Evaluation Orchestrator & Durable One-Shot Journal.
  *
  * Implements the modular, testable, score-blind evaluation pipeline:
  * - Layer 1: Pre-inference layer (manifest validation, audio geometry eligibility, code/checkpoint bindings)
- * - Layer 2: Durable execution ledger (atomic filesystem ledger, duplicate prevention, recovery)
- * - Layer 3: Acoustic execution layer (score-blind adapter receiving strictly sanitized audio metadata)
- * - Layer 4: Evidence commit layer (durable append-only raw output & observation digest commit)
- * - Layer 5: Scoring layer (shared scoreCandidate() receiving ExpectedStrike truth only after raw commit)
- * - Layer 6: Statistical & Decision layer (5000-draw seeded bootstrap & safety-first decision hierarchy)
- * - Layer 7: Audit layer (immutable receipts, digests, and one-shot run status)
+ * - Layer 2: Exclusive atomic run reservation ('wx' lock), append-only cryptographic event journal, atomic file publication
+ * - Layer 3: Acoustic execution layer (mandatory preflight, score-blind adapter receiving strictly sanitized audio metadata)
+ * - Layer 4: Evidence commit layer (durable immutable raw output blob & observation digest commit before truth access)
+ * - Layer 5: Scoring layer (shared scoreCandidate() reading publications strictly from committed disk evidence)
+ * - Layer 6: Statistical & Decision layer (5000-draw seeded bootstrap & symmetric safety-first decision hierarchy)
+ * - Layer 7: Audit layer (independent disk readback, digest verification, and one-shot run status)
  *
  * Enforces non-negotiable boundaries:
- * - Real candidate inference on blind performers p15-p22 is STRICTLY FORBIDDEN in Phase 9G-B.1.1.
+ * - Real candidate inference on blind performers p15-p22 is STRICTLY FORBIDDEN in Phase 9G-B.1.2.
  * - Score-conditioned inference is detected and rejected.
+ * - Zero production winner selected; production microphone inactive.
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, openSync, closeSync, readFileSync, appendFileSync, renameSync, unlinkSync } from 'node:fs';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -41,14 +42,89 @@ export function sha256Json(obj) {
   return sha256Text(JSON.stringify(obj));
 }
 
+// Frozen 3-candidate competitive roster constants
+export const FROZEN_RANKED_ROSTER = {
+  'bytedance-original-calibrated-v1': {
+    candidateId: 'bytedance-original-calibrated-v1',
+    candidateFamily: 'bytedance-original',
+    profileId: 'bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10',
+    configurationSha256: '91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285',
+    checkpointSha256: 'c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141',
+    checkpointBytes: 171966578,
+    checkpointByteSize: 171966578,
+    requiredContextMs: 5000,
+    eligibleScenarioCount: 63,
+  },
+  'online-amt-calibrated-v1': {
+    candidateId: 'online-amt-calibrated-v1',
+    candidateFamily: 'online-amt',
+    profileId: 'online-amt-calibration-native-boost-1',
+    configurationSha256: '0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375',
+    checkpointSha256: '54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0',
+    checkpointBytes: 178804960,
+    checkpointByteSize: 178804960,
+    requiredContextMs: 0,
+    eligibleScenarioCount: 70,
+  },
+  'bytedance-robust-augmented-calibrated-v1': {
+    candidateId: 'bytedance-robust-augmented-calibrated-v1',
+    candidateFamily: 'bytedance-robust-augmented',
+    profileId: 'CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05',
+    configurationSha256: '10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce',
+    checkpointSha256: 'b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e',
+    checkpointBytes: 103815845,
+    checkpointByteSize: 103815845,
+    requiredContextMs: 1820,
+    eligibleScenarioCount: 63,
+  },
+};
+
 // ---------------------------------------------------------------------------
-// Layer 1: Pre-inference Layer & Objective Audio Geometry Eligibility
+// Atomic File Publication Helper (same-filesystem rename)
 // ---------------------------------------------------------------------------
 
-/**
- * Derives objective scenario eligibility from audio geometry and frozen candidate profile.
- * Does not read or depend upon ExpectedStrike truth or inference outputs.
- */
+export async function atomicWriteJson(targetPath, data) {
+  const dir = path.dirname(targetPath);
+  await mkdir(dir, { recursive: true });
+  const tmpPath = `${targetPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+  await writeFile(tmpPath, JSON.stringify(data, null, 2) + '\n', 'utf8');
+
+  // On Windows, rename over an existing target can throw transient EPERM/EBUSY
+  let renamed = false;
+  let lastErr;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      renameSync(tmpPath, targetPath);
+      renamed = true;
+      break;
+    } catch (err) {
+      lastErr = err;
+      if (err.code === 'EPERM' || err.code === 'EBUSY' || err.code === 'EACCES') {
+        await new Promise((res) => setTimeout(res, 10 * (attempt + 1)));
+      } else {
+        try { unlinkSync(tmpPath); } catch {}
+        throw err;
+      }
+    }
+  }
+
+  if (!renamed) {
+    try {
+      if (existsSync(targetPath)) {
+        unlinkSync(targetPath);
+      }
+      renameSync(tmpPath, targetPath);
+    } catch (fallbackErr) {
+      try { unlinkSync(tmpPath); } catch {}
+      throw lastErr || fallbackErr;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Layer 1: Objective Audio Geometry Eligibility
+// ---------------------------------------------------------------------------
+
 export function deriveScenarioEligibility(scenario, candidateProfileId) {
   const originMs = scenario.audio?.performanceOriginSourceMs ?? scenario.performanceOriginSourceMs ?? 0;
 
@@ -78,7 +154,7 @@ export function deriveScenarioEligibility(scenario, candidateProfileId) {
     };
   }
 
-  // Streaming causal (e.g. Online-AMT native boost) or whole-recording (Transkun, Aria, RTT)
+  // Streaming causal (Online-AMT native boost)
   return {
     candidateProfileId,
     scenarioId: scenario.scenarioId,
@@ -88,9 +164,6 @@ export function deriveScenarioEligibility(scenario, candidateProfileId) {
   };
 }
 
-/**
- * Computes separate objective eligibility sets for all candidates across scheduled scenarios.
- */
 export function computeCandidateEligibilityMatrix(scenarios, candidates) {
   const candidateEligibleMap = {};
   for (const c of candidates) {
@@ -108,10 +181,6 @@ export function computeCandidateEligibilityMatrix(scenarios, candidates) {
   return candidateEligibleMap;
 }
 
-/**
- * Creates a sanitized acoustic manifest containing strictly audio geometry and PCM identities.
- * Strips all ExpectedStrike truth, annotations, groups, and physical MIDI attacks.
- */
 export function createSanitizedAcousticManifest(rawScenarios) {
   return rawScenarios.map((s) => {
     return {
@@ -121,85 +190,272 @@ export function createSanitizedAcousticManifest(rawScenarios) {
         nativeSampleRateHz: s.audio?.nativeSampleRateHz ?? 16000,
         channelPolicy: s.audio?.channelPolicy ?? 'MONO',
         clipStartMs: s.audio?.clipStartMs ?? 0,
-        clipEndMs: s.audio?.clipEndMs ?? 5000,
+        clipEndMs: s.audio?.clipEndMs ?? 15000,
         performanceOriginSourceMs: s.audio?.performanceOriginSourceMs ?? s.performanceOriginSourceMs ?? 0,
+        sourceDurationMs: s.audio?.sourceDurationMs ?? s.audio?.clipEndMs ?? 15000,
         pcmIdentity: s.audio?.pcmIdentity ?? `pcm_${s.scenarioId}`,
       },
       source: {
         sourceAudioPath: s.source?.sourceAudioPath ?? `audio/${s.scenarioId}.wav`,
         sourceAudioSha256: s.source?.sourceAudioSha256 ?? sha256Text(`audio_${s.scenarioId}`),
+        sourcePcmSha256: s.source?.sourcePcmSha256 ?? sha256Text(`pcm_${s.scenarioId}`),
       },
     };
   });
 }
 
 // ---------------------------------------------------------------------------
-// Layer 2: Durable Execution Ledger
+// Layer 2: Exclusive Atomic Run Lock & Cryptographic Event Journal
 // ---------------------------------------------------------------------------
 
 export class DurableExecutionLedger {
-  constructor(ledgerDir, runId) {
-    this.ledgerDir = ledgerDir;
+  constructor(baseDir, runId) {
     this.runId = runId;
-    this.ledgerPath = path.resolve(ledgerDir, 'execution_ledger.json');
-    this.records = new Map(); // key: `${candidateId}\0${scenarioId}` => record
+    this.runDir = path.resolve(baseDir, runId);
+    this.lockPath = path.resolve(this.runDir, 'run.lock');
+    this.journalPath = path.resolve(this.runDir, 'journal.jsonl');
+    this.ledgerPath = path.resolve(this.runDir, 'execution_ledger.json');
+    this.evidenceDir = path.resolve(this.runDir, 'evidence');
+
     this.state = 'PREPARED';
     this.createdAt = new Date().toISOString();
     this.updatedAt = this.createdAt;
+    this.records = new Map(); // key: `${candidateId}\0${scenarioId}` => record
+    this.journalEvents = [];
+    this.activeAttempts = new Map(); // candidateId:scenarioId => startTime
   }
 
   async init(options = {}) {
-    await mkdir(this.ledgerDir, { recursive: true });
-    if (existsSync(this.ledgerPath)) {
-      if (!options.allowResume) {
-        throw new Error(`DUPLICATE_RUN_ID_REJECTED:${this.runId}`);
+    await mkdir(this.runDir, { recursive: true });
+    await mkdir(this.evidenceDir, { recursive: true });
+
+    const lockExists = existsSync(this.lockPath);
+    if (!lockExists) {
+      // Exclusive atomic run reservation using 'wx' flag
+      let fd;
+      try {
+        fd = openSync(this.lockPath, 'wx');
+      } catch (err) {
+        if (err.code === 'EEXIST') {
+          throw new Error(`CONCURRENT_RUN_LOCK_COLLISION:${this.runId}`);
+        }
+        throw err;
       }
-      const raw = JSON.parse(await readFile(this.ledgerPath, 'utf8'));
-      if (raw.runId !== this.runId) {
-        throw new Error(`LEDGER_RUN_ID_MISMATCH:${raw.runId} !== ${this.runId}`);
-      }
-      this.state = raw.state;
-      this.createdAt = raw.createdAt;
-      for (const rec of raw.records) {
-        this.records.set(`${rec.candidateId}\0${rec.scenarioId}`, rec);
-      }
+      const lockData = {
+        runId: this.runId,
+        pid: process.pid,
+        createdAt: this.createdAt,
+        protocolSha256: options.protocolSha256,
+        scorerSha256: options.scorerSha256,
+        manifestSha256: options.manifestSha256,
+      };
+      appendFileSync(fd, JSON.stringify(lockData, null, 2) + '\n', 'utf8');
+      closeSync(fd);
+
+      // Initialize append-only journal with genesis event
+      this.appendJournalEvent('RUN_INITIALIZED', {
+        runId: this.runId,
+        pid: process.pid,
+        bindings: lockData,
+      });
+
+      await this.persistLedger();
       return;
     }
-    await this.persist();
+
+    // Lock exists
+    if (!options.allowResume) {
+      throw new Error(`DUPLICATE_RUN_ID_REJECTED:${this.runId}`);
+    }
+
+    // Resume execution: validate existing lock and replay journal
+    const lockRaw = JSON.parse(readFileSync(this.lockPath, 'utf8'));
+    if (lockRaw.runId !== this.runId) {
+      throw new Error(`LEDGER_RUN_ID_MISMATCH:${lockRaw.runId} !== ${this.runId}`);
+    }
+    if (options.protocolSha256 && lockRaw.protocolSha256 && lockRaw.protocolSha256 !== options.protocolSha256) {
+      throw new Error(`RESUME_BLOCKED_PROTOCOL_SHA_CHANGED:${lockRaw.protocolSha256} !== ${options.protocolSha256}`);
+    }
+
+    this.replayJournal();
+
+    // Handle uncertain outcomes: any attempt that started but never committed or failed
+    for (const [key, startTime] of this.activeAttempts.entries()) {
+      const [candId, scId] = key.split('\0');
+      if (!this.records.has(key)) {
+        this.appendJournalEvent('ATTEMPT_OUTCOME_UNKNOWN', {
+          candidateId: candId,
+          scenarioId: scId,
+          startTimeMs: startTime,
+          interruptedAt: new Date().toISOString(),
+          reason: 'CRASH_BEFORE_EVIDENCE_COMMIT_DETECTED_ON_RESUME',
+        });
+        const unknownRecord = {
+          candidateId: candId,
+          scenarioId: scId,
+          status: 'ATTEMPT_OUTCOME_UNKNOWN',
+          recordedAt: new Date().toISOString(),
+          failureReason: 'CRASH_BEFORE_EVIDENCE_COMMIT_DETECTED_ON_RESUME',
+        };
+        this.records.set(key, unknownRecord);
+      }
+    }
+    this.activeAttempts.clear();
+    await this.persistLedger();
+  }
+
+  appendJournalEvent(eventType, payload) {
+    const seq = this.journalEvents.length;
+    const prevEventHash = seq === 0
+      ? '0'.repeat(64)
+      : this.journalEvents[seq - 1].eventHash;
+    const timestamp = new Date().toISOString();
+
+    const unsignedContent = {
+      seq,
+      prevEventHash,
+      timestamp,
+      eventType,
+      runId: this.runId,
+      payload,
+    };
+    const eventHash = sha256Json(unsignedContent);
+    const event = { ...unsignedContent, eventHash };
+
+    appendFileSync(this.journalPath, JSON.stringify(event) + '\n', 'utf8');
+    this.journalEvents.push(event);
+    this.updatedAt = timestamp;
+    return event;
+  }
+
+  replayJournal() {
+    if (!existsSync(this.journalPath)) return;
+    const lines = readFileSync(this.journalPath, 'utf8').trim().split('\n').filter(Boolean);
+    this.journalEvents = lines.map((line) => JSON.parse(line));
+
+    challengerQual.assertJournalEventChainValid(this.journalEvents);
+
+    this.records.clear();
+    this.activeAttempts.clear();
+
+    for (const ev of this.journalEvents) {
+      if (ev.eventType === 'STATE_TRANSITION') {
+        this.state = ev.payload.toState;
+      } else if (ev.eventType === 'ATTEMPT_STARTED') {
+        const key = `${ev.payload.candidateId}\0${ev.payload.scenarioId}`;
+        this.activeAttempts.set(key, ev.payload.startTimeMs);
+      } else if (ev.eventType === 'ATTEMPT_COMMITTED') {
+        const key = `${ev.payload.candidateId}\0${ev.payload.scenarioId}`;
+        this.activeAttempts.delete(key);
+        this.records.set(key, ev.payload);
+      } else if (ev.eventType === 'ATTEMPT_FAILED' || ev.eventType === 'ATTEMPT_BLOCKED' || ev.eventType === 'ATTEMPT_OUTCOME_UNKNOWN') {
+        const key = `${ev.payload.candidateId}\0${ev.payload.scenarioId}`;
+        this.activeAttempts.delete(key);
+        this.records.set(key, ev.payload);
+      }
+    }
   }
 
   transitionTo(nextState) {
     challengerQual.assertLedgerStateTransitionValid(this.state, nextState);
+    const prevState = this.state;
     this.state = nextState;
-    this.updatedAt = new Date().toISOString();
+    this.appendJournalEvent('STATE_TRANSITION', { fromState: prevState, toState: nextState });
+    this.persistLedgerSync();
   }
 
-  hasRecord(candidateId, scenarioId) {
-    return this.records.has(`${candidateId}\0${scenarioId}`);
+  startAttempt(candidateId, scenarioId) {
+    if (this.state !== 'RUNNING') {
+      throw new Error(`LEDGER_NOT_IN_RUNNING_STATE:${this.state}`);
+    }
+    const key = `${candidateId}\0${scenarioId}`;
+    if (this.records.has(key)) {
+      throw new Error(`DUPLICATE_CANDIDATE_SCENARIO_RUN_REJECTED:${candidateId}:${scenarioId}`);
+    }
+    this.activeAttempts.set(key, Date.now());
+    this.appendJournalEvent('ATTEMPT_STARTED', {
+      candidateId,
+      scenarioId,
+      startTimeMs: Date.now(),
+    });
+  }
+
+  async commitAttempt(attemptRecord, evidenceBlob) {
+    if (this.state !== 'RUNNING') {
+      throw new Error(`LEDGER_NOT_IN_RUNNING_STATE:${this.state}`);
+    }
+    const key = `${attemptRecord.candidateId}\0${attemptRecord.scenarioId}`;
+    if (this.records.has(key)) {
+      throw new Error(`RECORD_ALREADY_COMMITTED_CANNOT_OVERWRITE:${attemptRecord.candidateId}:${attemptRecord.scenarioId}`);
+    }
+
+    // 1. Durably write evidence blob atomically (sanitize colons for Windows paths)
+    const safeCandId = attemptRecord.candidateId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeScId = attemptRecord.scenarioId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const evidencePath = path.resolve(this.evidenceDir, `${safeCandId}__${safeScId}.json`);
+    await atomicWriteJson(evidencePath, evidenceBlob);
+
+    // 2. Append commit event to journal
+    this.appendJournalEvent('ATTEMPT_COMMITTED', {
+      ...attemptRecord,
+      evidencePath: path.relative(this.runDir, evidencePath),
+      evidenceSha256: evidenceBlob.evidenceRecordSha256,
+    });
+
+    this.activeAttempts.delete(key);
+    this.records.set(key, attemptRecord);
+
+    // 3. Atomically update ledger snapshot
+    await this.persistLedger();
+  }
+
+  recordFailedAttempt(candidateId, scenarioId, errorDetails) {
+    const key = `${candidateId}\0${scenarioId}`;
+    this.activeAttempts.delete(key);
+    const failedRecord = {
+      candidateId,
+      scenarioId,
+      status: 'FAILED',
+      recordedAt: new Date().toISOString(),
+      failureReason: errorDetails.message ?? String(errorDetails),
+    };
+    this.appendJournalEvent('ATTEMPT_FAILED', failedRecord);
+    this.records.set(key, failedRecord);
+    this.persistLedgerSync();
   }
 
   getRecord(candidateId, scenarioId) {
     return this.records.get(`${candidateId}\0${scenarioId}`);
   }
 
-  recordAttempt(record) {
-    const key = `${record.candidateId}\0${record.scenarioId}`;
-    if (this.records.has(key)) {
-      throw new Error(`DUPLICATE_CANDIDATE_SCENARIO_RUN_REJECTED:${record.candidateId}:${record.scenarioId}`);
-    }
-    const fullRecord = {
-      runId: this.runId,
-      attemptIndex: 1,
-      recordedAt: new Date().toISOString(),
-      ...record,
-    };
-    this.records.set(key, fullRecord);
-    this.updatedAt = fullRecord.recordedAt;
+  hasRecord(candidateId, scenarioId) {
+    return this.records.has(`${candidateId}\0${scenarioId}`);
   }
 
-  async persist() {
+  readCommittedEvidence(candidateId, scenarioId) {
+    const safeCandId = candidateId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeScId = scenarioId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const evidencePath = path.resolve(this.evidenceDir, `${safeCandId}__${safeScId}.json`);
+    if (!existsSync(evidencePath)) {
+      throw new Error(`COMMITTED_EVIDENCE_NOT_FOUND_ON_DISK:${candidateId}:${scenarioId}`);
+    }
+    const raw = readFileSync(evidencePath, 'utf8');
+    const blob = JSON.parse(raw);
+
+    // Verify evidence blob integrity
+    if (blob.candidateId !== candidateId || blob.scenarioId !== scenarioId) {
+      throw new Error(`EVIDENCE_IDENTITY_MISMATCH:${candidateId}:${scenarioId}`);
+    }
+    const recomputedObservationDigest = sha256Json(blob.publications);
+    if (blob.observationDigest !== recomputedObservationDigest) {
+      throw new Error(`EVIDENCE_OBSERVATION_DIGEST_CORRUPTED:${candidateId}:${scenarioId}`);
+    }
+    return blob;
+  }
+
+  persistLedgerSync() {
     const payload = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       artifact: 'phase9gb_durable_execution_ledger',
       runId: this.runId,
       state: this.state,
@@ -208,177 +464,254 @@ export class DurableExecutionLedger {
       recordCount: this.records.size,
       records: Array.from(this.records.values()),
     };
-    await writeFile(this.ledgerPath, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+    const tmpPath = `${this.ledgerPath}.${process.pid}.tmp`;
+    appendFileSync(tmpPath, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+    renameSync(tmpPath, this.ledgerPath);
+  }
+
+  async persistLedger() {
+    const payload = {
+      schemaVersion: 2,
+      artifact: 'phase9gb_durable_execution_ledger',
+      runId: this.runId,
+      state: this.state,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+      recordCount: this.records.size,
+      records: Array.from(this.records.values()),
+    };
+    await atomicWriteJson(this.ledgerPath, payload);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Layer 3 & 4: Score-Blind Acoustic Execution & Evidence Commit
+// Layer 3: Mandatory Pre-Inference Guard & Causal Publication Validation
 // ---------------------------------------------------------------------------
 
-/**
- * Executes a candidate against a sanitized scenario without exposing ExpectedStrike truth.
- */
-export async function executeAcousticCandidate(adapter, sanitizedScenario, candidateConfig) {
-  // Guard against score leakage
+export function preflightCandidateScenarioExecution({
+  protocolId,
+  protocolSha256,
+  candidateConfig,
+  sanitizedScenario,
+  ledger,
+}) {
+  // 1. Strict schema isolation: ensure NO ExpectedStrike truth or hidden notes reach inference
   if (sanitizedScenario.expectedStrikes || sanitizedScenario.physicalGroundTruth) {
-    throw new Error('SCORE_CONDITIONED_INFERENCE_DETECTED: Sanitized scenario contains ground truth fields');
+    throw new Error('PREFLIGHT_GROUND_TRUTH_LEAKAGE_DETECTED: Sanitized scenario contains ExpectedStrike or physicalGroundTruth');
+  }
+  if (sanitizedScenario.taxonomy?.strikes || sanitizedScenario.notes) {
+    throw new Error('PREFLIGHT_GROUND_TRUTH_LEAKAGE_DETECTED: Nested note or strike metadata present');
   }
 
+  // 2. Validate protocol identity
+  if (protocolId !== 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V3') {
+    throw new Error(`PREFLIGHT_PROTOCOL_ID_MISMATCH:${protocolId}`);
+  }
+  if (!protocolSha256 || protocolSha256.length !== 64) {
+    throw new Error('PREFLIGHT_PROTOCOL_SHA_REQUIRED');
+  }
+
+  // 3. Validate candidate belongs to frozen 3-candidate roster
+  const candidateId = candidateConfig.candidateId;
+  const lockedSpec = FROZEN_RANKED_ROSTER[candidateId];
+  if (!lockedSpec) {
+    throw new Error(`UNAUTHORIZED_CANDIDATE_REJECTED_FROM_RANKED_BLIND_RUN:${candidateId}`);
+  }
+
+  // 4. Validate profile, config SHA, checkpoint SHA, and byte size
+  if (candidateConfig.profileId !== lockedSpec.profileId) {
+    throw new Error(`PREFLIGHT_PROFILE_MISMATCH:${candidateConfig.profileId} !== ${lockedSpec.profileId}`);
+  }
+  if (candidateConfig.configurationSha256 !== lockedSpec.configurationSha256) {
+    throw new Error(`PREFLIGHT_CONFIGURATION_SHA_MISMATCH:${candidateConfig.configurationSha256} !== ${lockedSpec.configurationSha256}`);
+  }
+  if (candidateConfig.checkpointSha256 !== lockedSpec.checkpointSha256) {
+    throw new Error(`PREFLIGHT_CHECKPOINT_SHA_MISMATCH:${candidateConfig.checkpointSha256} !== ${lockedSpec.checkpointSha256}`);
+  }
+  const candBytes = candidateConfig.checkpointByteSize ?? candidateConfig.checkpointBytes;
+  if (candBytes !== lockedSpec.checkpointBytes) {
+    throw new Error(`PREFLIGHT_CHECKPOINT_BYTES_MISMATCH:${candBytes} !== ${lockedSpec.checkpointBytes}`);
+  }
+
+  // 5. Validate objective scenario eligibility from audio geometry
+  const eligibility = deriveScenarioEligibility(sanitizedScenario, lockedSpec.profileId);
+  if (!eligibility.isEligible) {
+    throw new Error(`PREFLIGHT_SCENARIO_INELIGIBLE:${candidateId}:${sanitizedScenario.scenarioId}:${eligibility.exclusionReason}`);
+  }
+
+  // 6. Ensure audio file SHA and decoded PCM SHA are separate valid hashes
+  if (!sanitizedScenario.source?.sourceAudioSha256 || sanitizedScenario.source.sourceAudioSha256.length !== 64) {
+    throw new Error('PREFLIGHT_SOURCE_AUDIO_SHA_REQUIRED');
+  }
+  if (!sanitizedScenario.source?.sourcePcmSha256 || sanitizedScenario.source.sourcePcmSha256.length !== 64) {
+    throw new Error('PREFLIGHT_SOURCE_PCM_SHA_REQUIRED');
+  }
+
+  // 7. Verify ledger state and duplicate check
+  if (ledger.state !== 'RUNNING') {
+    throw new Error(`PREFLIGHT_LEDGER_NOT_RUNNING:${ledger.state}`);
+  }
+  if (ledger.hasRecord(candidateId, sanitizedScenario.scenarioId)) {
+    throw new Error(`PREFLIGHT_DUPLICATE_SCENARIO_ATTEMPT:${candidateId}:${sanitizedScenario.scenarioId}`);
+  }
+}
+
+export function validateAcousticPublications(publications, scenarioAudio) {
+  if (!Array.isArray(publications) || publications.length === 0) {
+    throw new Error('EMPTY_PUBLICATIONS_REJECTED');
+  }
+
+  let prevAnalyzedMs = -1;
+  for (const pub of publications) {
+    challengerQual.assertAcousticPublicationCausalTimingValid(pub);
+
+    if (pub.analyzedThroughPerformanceMs < prevAnalyzedMs) {
+      throw new Error(`NON_MONOTONIC_PUBLICATION_SEQUENCE: ${pub.analyzedThroughPerformanceMs} < ${prevAnalyzedMs}`);
+    }
+    prevAnalyzedMs = pub.analyzedThroughPerformanceMs;
+
+    // Boundary check against scenario clip bounds
+    if (scenarioAudio?.clipEndMs && pub.analyzedThroughPerformanceMs > scenarioAudio.clipEndMs + 100) {
+      throw new Error(`PUBLICATION_EXCEEDS_CLIP_BOUNDS:${pub.analyzedThroughPerformanceMs} > ${scenarioAudio.clipEndMs}`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Layer 3 & 4: Execution & Evidence Commit
+// ---------------------------------------------------------------------------
+
+export async function executeAcousticCandidate(adapter, sanitizedScenario, candidateConfig, ledger, protocolMeta = {}) {
+  // 1. Mandatory preflight
+  preflightCandidateScenarioExecution({
+    protocolId: protocolMeta.protocolId ?? 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V3',
+    protocolSha256: protocolMeta.protocolSha256 ?? 'a'.repeat(64),
+    candidateConfig,
+    sanitizedScenario,
+    ledger,
+  });
+
+  // 2. Mark attempt started in ledger journal
+  ledger.startAttempt(candidateConfig.candidateId, sanitizedScenario.scenarioId);
+
   const startTime = Date.now();
-  const runResult = await adapter.inferAcoustic(sanitizedScenario, candidateConfig);
+  let runResult;
+  try {
+    runResult = await adapter.inferAcoustic(sanitizedScenario, candidateConfig);
+  } catch (err) {
+    ledger.recordFailedAttempt(candidateConfig.candidateId, sanitizedScenario.scenarioId, err);
+    throw err;
+  }
   const endTime = Date.now();
+
+  // 3. Validate causal publication timing
+  try {
+    validateAcousticPublications(runResult.publications, sanitizedScenario.audio);
+  } catch (err) {
+    ledger.recordFailedAttempt(candidateConfig.candidateId, sanitizedScenario.scenarioId, err);
+    throw err;
+  }
 
   const observationDigest = sha256Json(runResult.publications);
   return {
     candidateId: candidateConfig.candidateId,
     scenarioId: sanitizedScenario.scenarioId,
+    profileId: candidateConfig.profileId,
+    configurationSha256: candidateConfig.configurationSha256,
     checkpointSha256: candidateConfig.checkpointSha256,
+    checkpointByteSize: candidateConfig.checkpointByteSize,
     startTimeMs: startTime,
     endTimeMs: endTime,
     durationMs: endTime - startTime,
-    sourcePcmSha256: sanitizedScenario.source.sourceAudioSha256,
+    sourceAudioSha256: sanitizedScenario.source.sourceAudioSha256,
+    sourcePcmSha256: sanitizedScenario.source.sourcePcmSha256,
     acousticOutputDigest: observationDigest,
     publications: runResult.publications,
     exitCode: runResult.exitCode ?? 0,
     status: runResult.status ?? 'SUCCESS',
-    failureReason: runResult.failureReason,
   };
 }
 
-/**
- * Commits raw acoustic output to the durable ledger before scoring.
- */
-export async function commitAcousticEvidence(ledger, executionResult) {
-  ledger.recordAttempt({
+export async function commitAcousticEvidence(ledger, executionResult, sanitizedScenario) {
+  const evidenceRecord = {
+    schemaVersion: 2,
+    artifact: 'phase9gb_raw_acoustic_evidence_blob',
+    candidateId: executionResult.candidateId,
+    scenarioId: executionResult.scenarioId,
+    profileId: executionResult.profileId,
+    configurationSha256: executionResult.configurationSha256,
+    checkpointSha256: executionResult.checkpointSha256,
+    checkpointByteSize: executionResult.checkpointByteSize,
+    sourceAudioSha256: executionResult.sourceAudioSha256,
+    sourcePcmSha256: executionResult.sourcePcmSha256,
+    sourceAudioPath: sanitizedScenario?.source?.sourceAudioPath ?? `audio/${executionResult.scenarioId}.wav`,
+    clipStartMs: sanitizedScenario?.audio?.clipStartMs ?? 0,
+    clipEndMs: sanitizedScenario?.audio?.clipEndMs ?? 15000,
+    performanceOriginSourceMs: sanitizedScenario?.audio?.performanceOriginSourceMs ?? 0,
+    executionTiming: {
+      startTimeMs: executionResult.startTimeMs,
+      endTimeMs: executionResult.endTimeMs,
+      durationMs: executionResult.durationMs,
+    },
+    runtimeIdentity: 'noteverse-research-runtime-v3',
+    observationDigest: executionResult.acousticOutputDigest,
+    publications: executionResult.publications,
+    exitCode: executionResult.exitCode,
+    status: executionResult.status,
+  };
+
+  evidenceRecord.evidenceRecordSha256 = sha256Json(evidenceRecord);
+
+  const attemptSummary = {
     candidateId: executionResult.candidateId,
     scenarioId: executionResult.scenarioId,
     checkpointSha256: executionResult.checkpointSha256,
     startTimeMs: executionResult.startTimeMs,
     endTimeMs: executionResult.endTimeMs,
     durationMs: executionResult.durationMs,
+    sourceAudioSha256: executionResult.sourceAudioSha256,
     sourcePcmSha256: executionResult.sourcePcmSha256,
     acousticOutputDigest: executionResult.acousticOutputDigest,
+    evidenceSha256: evidenceRecord.evidenceRecordSha256,
     exitCode: executionResult.exitCode,
     status: executionResult.status,
-    failureReason: executionResult.failureReason,
-  });
-  await ledger.persist();
+  };
+
+  await ledger.commitAttempt(attemptSummary, evidenceRecord);
+  return evidenceRecord;
 }
 
 // ---------------------------------------------------------------------------
-// Layer 5: Shared Scorer Invocation (ExpectedStrike accessed ONLY after commit)
+// Layer 5: Shared Scorer Invocation Reading Strictly From Disk Evidence
 // ---------------------------------------------------------------------------
 
-export function scoreCommittedAcousticOutput(ledger, fullScenarioWithTruth, candidateDef, publications) {
-  // Validate evidence is committed in ledger
+export function scoreCommittedAcousticOutput(ledger, fullScenarioWithTruth, candidateDef) {
+  // 1. Read committed evidence blob from disk
+  const evidenceBlob = ledger.readCommittedEvidence(candidateDef.candidateId, fullScenarioWithTruth.scenarioId);
+
+  // 2. Validate ledger record matches disk blob
   const record = ledger.getRecord(candidateDef.candidateId, fullScenarioWithTruth.scenarioId);
   if (!record || record.status !== 'SUCCESS') {
     throw new Error(`UNCOMMITTED_EVIDENCE_CANNOT_BE_SCORED:${candidateDef.candidateId}:${fullScenarioWithTruth.scenarioId}`);
   }
-
-  // Validate digest match
-  const recomputedDigest = sha256Json(publications);
-  if (record.acousticOutputDigest !== recomputedDigest) {
+  if (record.acousticOutputDigest !== evidenceBlob.observationDigest) {
     throw new Error(`ACOUSTIC_DIGEST_MISMATCH_ON_SCORING:${candidateDef.candidateId}:${fullScenarioWithTruth.scenarioId}`);
   }
 
+  // 3. Construct candidate run exclusively from disk-loaded publications
   const candidateScenarioRun = {
     candidateId: candidateDef.candidateId,
     scenarioId: fullScenarioWithTruth.scenarioId,
-    publications,
+    publications: evidenceBlob.publications,
   };
 
   return bakeoffScorer.scoreCandidate(fullScenarioWithTruth, candidateDef, candidateScenarioRun);
 }
 
 // ---------------------------------------------------------------------------
-// Layer 6: Statistical Paired Bootstrap & Executable Safety Hierarchy
+// Layer 6: Statistical Paired Bootstrap & Symmetric Safety Hierarchy
 // ---------------------------------------------------------------------------
 
-export const FROZEN_V2_SAFETY_FIRST_DECISION_HIERARCHY = [
-  {
-    priorityIndex: 1,
-    metricKey: 'falseMatchRateOnGroundTruthMissing',
-    direction: 'LOWER_IS_BETTER',
-    meaningfulThreshold: 0.01,
-    description: 'Lower critical false-match rate on ground-truth missing notes',
-  },
-  {
-    priorityIndex: 2,
-    metricKey: 'falseCompleteChordAcceptanceRate',
-    direction: 'LOWER_IS_BETTER',
-    meaningfulThreshold: 0.01,
-    description: 'Lower incomplete-chord false-complete acceptance rate',
-  },
-  {
-    priorityIndex: 3,
-    metricKey: 'verdictAgreementRate',
-    direction: 'HIGHER_IS_BETTER',
-    meaningfulThreshold: 0.01,
-    description: 'Higher verdict agreement rate across all evaluated strikes',
-  },
-  {
-    priorityIndex: 4,
-    metricKey: 'correctMissingRate',
-    direction: 'HIGHER_IS_BETTER',
-    meaningfulThreshold: 0.01,
-    description: 'Higher critical correct-missing detection rate',
-  },
-  {
-    priorityIndex: 5,
-    metricKey: 'chordExactCompletenessRate',
-    direction: 'HIGHER_IS_BETTER',
-    meaningfulThreshold: 0.01,
-    description: 'Higher exact chord completeness rate',
-  },
-  {
-    priorityIndex: 6,
-    metricKey: 'expectedStrikeRecall',
-    direction: 'HIGHER_IS_BETTER',
-    meaningfulThreshold: 0.01,
-    description: 'Higher expected strike recall rate',
-  },
-  {
-    priorityIndex: 7,
-    metricKey: 'extraPrecision',
-    direction: 'HIGHER_IS_BETTER',
-    meaningfulThreshold: 0.01,
-    description: 'Higher extra note discrimination precision',
-  },
-  {
-    priorityIndex: 8,
-    metricKey: 'extraRecall',
-    direction: 'HIGHER_IS_BETTER',
-    meaningfulThreshold: 0.01,
-    description: 'Higher extra note discrimination recall',
-  },
-  {
-    priorityIndex: 9,
-    metricKey: 'timingAbsoluteMedianMs',
-    direction: 'LOWER_IS_BETTER',
-    meaningfulThreshold: 5.0,
-    description: 'Lower absolute timing offset median (milliseconds)',
-  },
-  {
-    priorityIndex: 10,
-    metricKey: 'timingAbsoluteP95Ms',
-    direction: 'LOWER_IS_BETTER',
-    meaningfulThreshold: 10.0,
-    description: 'Lower absolute timing offset 95th percentile (milliseconds)',
-  },
-  {
-    priorityIndex: 11,
-    metricKey: 'finalizedFeedbackAgeP95Ms',
-    direction: 'LOWER_IS_BETTER',
-    meaningfulThreshold: 100.0,
-    description: 'Lower finalized feedback age 95th percentile latency tie-break (milliseconds)',
-  },
-];
-
-/**
- * Deterministic seeded bootstrap on scenario-level diffs (5000 draws).
- */
 export function computeSeededBootstrapCi(diffs, seed = 13371, draws = 5000, confidence = 0.95) {
   if (diffs.length === 0) {
     return { low: 0, high: 0, mean: 0 };
@@ -415,61 +748,10 @@ export function computeSeededBootstrapCi(diffs, seed = 13371, draws = 5000, conf
   };
 }
 
-/**
- * Evaluates pairwise dominance between Candidate A and Candidate B according to frozen V2 hierarchy.
- */
-export function evaluateSafetyHierarchyDominance(diffVectorsByMetric) {
-  const gateDecisions = [];
-  let dominantCandidate = undefined;
-  let regressionDetected = false;
-
-  for (const rule of FROZEN_V2_SAFETY_FIRST_DECISION_HIERARCHY) {
-    const diffs = diffVectorsByMetric[rule.metricKey] ?? [];
-    if (diffs.length < 8) {
-      gateDecisions.push({
-        ...rule,
-        status: 'INSUFFICIENT_PAIRED_SCENARIOS',
-        sampleCount: diffs.length,
-      });
-      continue;
-    }
-
-    const ci = computeSeededBootstrapCi(diffs);
-    challengerQual.assertBootstrapCiMathematicallyPlausible(ci.mean, ci);
-
-    const isSuperior = rule.direction === 'LOWER_IS_BETTER'
-      ? ci.mean <= -rule.meaningfulThreshold && ci.high < 0
-      : ci.mean >= rule.meaningfulThreshold && ci.low > 0;
-
-    const isInferior = rule.direction === 'LOWER_IS_BETTER'
-      ? ci.mean >= rule.meaningfulThreshold && ci.low > 0
-      : ci.mean <= -rule.meaningfulThreshold && ci.high < 0;
-
-    if (isInferior) {
-      regressionDetected = true;
-    }
-
-    if (isSuperior && !regressionDetected && !dominantCandidate) {
-      dominantCandidate = 'CANDIDATE_A';
-    }
-
-    gateDecisions.push({
-      ...rule,
-      meanDiff: ci.mean,
-      ci95: { low: ci.low, high: ci.high },
-      isSuperior,
-      isInferior,
-      status: 'EVALUATED',
-    });
-  }
-
-  const finalOutcome = dominantCandidate === 'CANDIDATE_A' && !regressionDetected
-    ? 'CANDIDATE_A_DOMINATES'
-    : 'NO_WINNER_OR_TIED';
-
-  return {
-    finalOutcome,
-    regressionDetected,
-    gateDecisions,
-  };
+export function evaluateSafetyHierarchyDominance(diffVectorsByMetric, options = {}) {
+  return challengerQual.evaluateSymmetricSafetyDominance(
+    diffVectorsByMetric,
+    (diffs) => computeSeededBootstrapCi(diffs),
+    options,
+  );
 }

@@ -43,10 +43,13 @@ export const PHASE_9GB0 = '9G-B.0' as const;
 export const PHASE_9GB01 = '9G-B.0.1' as const;
 export const PHASE_9GB1 = '9G-B.1' as const;
 export const PHASE_9GB11 = '9G-B.1.1' as const;
+export const PHASE_9GB12 = '9G-B.1.2' as const;
 
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V1' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256 = '06d9811ad830bebbd0e3161c424c15ee04282756479d80868ae8aa29e6bdafb0' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V2' as const;
+export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2_SHA256 = '42a2777600e51e2a9d8a83fd6671d169e99d80236bb5617bc330565ee3c7b890' as const;
+export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V3' as const;
 
 export type ChallengerFamily =
   | 'bytedance-robust-augmented'
@@ -130,7 +133,7 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
   }
 
   // 3. Fail closed on missing, malformed, or non-whitelisted phase
-  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01, PHASE_9GB1, PHASE_9GB11] as const;
+  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01, PHASE_9GB1, PHASE_9GB11, PHASE_9GB12] as const;
   if (!request.phase || !allowedPhases.includes(request.phase as typeof allowedPhases[number])) {
     if (request.mode === 'TRUTH_ONLY') {
       throw new Error(`CHALLENGER_TRUTH_ONLY_PHASE_REQUIRED:${request.phase}`);
@@ -138,9 +141,9 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
     throw new Error(`CHALLENGER_EXECUTION_PHASE_REQUIRED:${request.phase}`);
   }
 
-  // Phase 9G-B.0, 9G-B.0.1, 9G-B.1, and 9G-B.1.1 are non-inference preflight readiness / protocol freeze gates
-  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01 || request.phase === PHASE_9GB1 || request.phase === PHASE_9GB11) && request.mode === 'CANDIDATE_INFERENCE') {
-    const prefix = request.phase === PHASE_9GB11 ? 'PHASE_9GB11' : request.phase === PHASE_9GB1 ? 'PHASE_9GB1' : request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0';
+  // Phase 9G-B.0, 9G-B.0.1, 9G-B.1, 9G-B.1.1, and 9G-B.1.2 are non-inference preflight readiness / protocol freeze gates
+  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01 || request.phase === PHASE_9GB1 || request.phase === PHASE_9GB11 || request.phase === PHASE_9GB12) && request.mode === 'CANDIDATE_INFERENCE') {
+    const prefix = request.phase === PHASE_9GB12 ? 'PHASE_9GB12' : request.phase === PHASE_9GB11 ? 'PHASE_9GB11' : request.phase === PHASE_9GB1 ? 'PHASE_9GB1' : request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0';
     throw new Error(`${prefix}_CANDIDATE_INFERENCE_FORBIDDEN`);
   }
 
@@ -1554,6 +1557,250 @@ export function assertNoDuplicateCandidateScenarioAttempt(existingKeys: Set<stri
     throw new Error(`DUPLICATE_CANDIDATE_SCENARIO_RUN_REJECTED:${candidateId}:${scenarioId}`);
   }
 }
+
+export function assertBlindProtocolV3Identity(identity: {
+  policyId: string;
+  schemaVersion: number;
+  sha256?: string;
+  supersedesPolicySha256?: string;
+}): void {
+  if (identity.policyId !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3) {
+    throw new Error(`BLIND_PROTOCOL_V3_POLICY_ID_MISMATCH:${identity.policyId}`);
+  }
+  if (identity.schemaVersion !== 3) {
+    throw new Error(`BLIND_PROTOCOL_V3_SCHEMA_VERSION_MISMATCH:${identity.schemaVersion}`);
+  }
+  if (!identity.sha256 || identity.sha256.length !== 64) {
+    throw new Error('BLIND_PROTOCOL_V3_SHA_REQUIRED');
+  }
+  if (identity.supersedesPolicySha256 !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2_SHA256) {
+    throw new Error(`BLIND_PROTOCOL_V3_SUPERSEDED_POLICY_SHA_MISMATCH:${identity.supersedesPolicySha256}`);
+  }
+}
+
+export interface JournalEvent {
+  readonly seq: number;
+  readonly prevEventHash: string;
+  readonly timestamp: string;
+  readonly eventType: string;
+  readonly runId: string;
+  readonly payload: Record<string, unknown>;
+  readonly eventHash: string;
+}
+
+export function assertJournalEventChainValid(events: readonly JournalEvent[]): void {
+  if (!Array.isArray(events) || events.length === 0) {
+    throw new Error('JOURNAL_EMPTY_OR_INVALID');
+  }
+  const genesisPrev = '0'.repeat(64);
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+    if (ev.seq !== i) {
+      throw new Error(`JOURNAL_SEQUENCE_GAP_OR_REORDER: expected ${i}, got ${ev.seq}`);
+    }
+    const expectedPrev = i === 0 ? genesisPrev : events[i - 1].eventHash;
+    if (ev.prevEventHash !== expectedPrev) {
+      throw new Error(`JOURNAL_HASH_CHAIN_BROKEN_AT_SEQ_${i}: expected ${expectedPrev}, got ${ev.prevEventHash}`);
+    }
+    if (!ev.eventHash || ev.eventHash.length !== 64) {
+      throw new Error(`JOURNAL_INVALID_EVENT_HASH_AT_SEQ_${i}`);
+    }
+  }
+}
+
+export function assertAcousticPublicationCausalTimingValid(
+  publication: {
+    analyzedThroughPerformanceMs: number;
+    availabilityTimeMs: number;
+    observations: readonly { performanceTimeMs: number; pitch?: string; observationId?: string }[];
+  },
+  contextBounds?: { clipStartMs?: number; clipEndMs?: number },
+): void {
+  if (!Number.isFinite(publication.analyzedThroughPerformanceMs) || publication.analyzedThroughPerformanceMs < 0) {
+    throw new Error('INVALID_ANALYZED_THROUGH_TIMESTAMP');
+  }
+  if (!Number.isFinite(publication.availabilityTimeMs) || publication.availabilityTimeMs < 0) {
+    throw new Error('INVALID_AVAILABILITY_TIMESTAMP');
+  }
+  if (publication.availabilityTimeMs < publication.analyzedThroughPerformanceMs) {
+    throw new Error(`BACKDATED_PUBLICATION_AVAILABILITY: availability ${publication.availabilityTimeMs} < analyzed ${publication.analyzedThroughPerformanceMs}`);
+  }
+  for (const obs of publication.observations) {
+    if (!Number.isFinite(obs.performanceTimeMs) || obs.performanceTimeMs < 0) {
+      throw new Error('INVALID_OBSERVATION_TIMESTAMP');
+    }
+    if (obs.performanceTimeMs > publication.analyzedThroughPerformanceMs) {
+      throw new Error(`FUTURE_AUDIO_LOOKAHEAD_VIOLATION: observation ${obs.performanceTimeMs} > analyzed ${publication.analyzedThroughPerformanceMs}`);
+    }
+  }
+}
+
+export interface MetricHierarchyRule {
+  readonly priority: number;
+  readonly metric: string;
+  readonly direction: 'LOWER' | 'HIGHER';
+  readonly threshold: number;
+  readonly role: string;
+  readonly isCriticalSafetyGate?: boolean;
+}
+
+export const FROZEN_V3_SAFETY_DECISION_HIERARCHY: readonly MetricHierarchyRule[] = [
+  { priority: 1, metric: 'falseMatchRateOnGroundTruthMissing', direction: 'LOWER', threshold: 0.01, role: 'PRIMARY_SAFETY_GATE_1', isCriticalSafetyGate: true },
+  { priority: 2, metric: 'falseCompleteChordAcceptanceRate', direction: 'LOWER', threshold: 0.01, role: 'PRIMARY_SAFETY_GATE_2', isCriticalSafetyGate: true },
+  { priority: 3, metric: 'verdictAgreementRate', direction: 'HIGHER', threshold: 0.01, role: 'PRIMARY_ACCURACY_GATE_3', isCriticalSafetyGate: true },
+  { priority: 4, metric: 'correctMissingRate', direction: 'HIGHER', threshold: 0.01, role: 'SAFETY_MISSING_DETECTION_4', isCriticalSafetyGate: true },
+  { priority: 5, metric: 'chordExactCompletenessRate', direction: 'HIGHER', threshold: 0.01, role: 'CHORD_FIDELITY_5', isCriticalSafetyGate: true },
+  { priority: 6, metric: 'expectedStrikeRecall', direction: 'HIGHER', threshold: 0.01, role: 'PRIMARY_STRIKE_RECALL_6', isCriticalSafetyGate: true },
+  { priority: 7, metric: 'extraPrecision', direction: 'HIGHER', threshold: 0.01, role: 'SPURIOUS_STRIKE_REJECTION_7', isCriticalSafetyGate: true },
+  { priority: 8, metric: 'extraRecall', direction: 'HIGHER', threshold: 0.01, role: 'EXTRA_NOTE_DETECTION_8', isCriticalSafetyGate: true },
+  { priority: 9, metric: 'timingAbsoluteMedianMs', direction: 'LOWER', threshold: 5.0, role: 'TIMING_ALIGNMENT_MEDIAN_9' },
+  { priority: 10, metric: 'timingAbsoluteP95Ms', direction: 'LOWER', threshold: 10.0, role: 'TIMING_ALIGNMENT_P95_10' },
+  { priority: 11, metric: 'finalizedFeedbackAgeP95Ms', direction: 'LOWER', threshold: 100.0, role: 'TERMINAL_LATENCY_TIE_BREAK_11' },
+];
+
+export interface PairwiseComparisonGateDetail {
+  readonly priority: number;
+  readonly metric: string;
+  readonly direction: 'LOWER' | 'HIGHER';
+  readonly threshold: number;
+  readonly sampleCount: number;
+  readonly status: 'EVALUATED' | 'INSUFFICIENT_DATA';
+  readonly meanDiff?: number;
+  readonly ciLow?: number;
+  readonly ciHigh?: number;
+  readonly candidateASuperior?: boolean;
+  readonly candidateBSuperior?: boolean;
+  readonly regressionAgainstA?: boolean;
+  readonly regressionAgainstB?: boolean;
+}
+
+export interface PairwiseSafetyDominanceDecision {
+  readonly outcome: 'CANDIDATE_A_DOMINATES' | 'CANDIDATE_B_DOMINATES' | 'STATISTICAL_TIE' | 'NO_PRODUCTION_WINNER' | 'INSUFFICIENT_SAFETY_EVIDENCE';
+  readonly winner?: 'CANDIDATE_A' | 'CANDIDATE_B';
+  readonly criticalSafetyEvidenceSufficient: boolean;
+  readonly gates: readonly PairwiseComparisonGateDetail[];
+  readonly rationale: string;
+}
+
+export function evaluateSymmetricSafetyDominance(
+  diffVectorsByMetric: Record<string, readonly number[]>,
+  ciComputer: (diffs: readonly number[]) => { mean: number; low: number; high: number },
+  options: { minimumPairedScenarios?: number } = {},
+): PairwiseSafetyDominanceDecision {
+  const minSamples = options.minimumPairedScenarios ?? 8;
+  const gates: PairwiseComparisonGateDetail[] = [];
+  let criticalSafetyMissing = false;
+
+  for (const rule of FROZEN_V3_SAFETY_DECISION_HIERARCHY) {
+    const diffs = diffVectorsByMetric[rule.metric] ?? [];
+    if (diffs.length < minSamples) {
+      if (rule.isCriticalSafetyGate) {
+        criticalSafetyMissing = true;
+      }
+      gates.push({
+        priority: rule.priority,
+        metric: rule.metric,
+        direction: rule.direction,
+        threshold: rule.threshold,
+        sampleCount: diffs.length,
+        status: 'INSUFFICIENT_DATA',
+      });
+      continue;
+    }
+
+    const ci = ciComputer(diffs);
+    const meanDiff = ci.mean;
+
+    const candidateASuperior = rule.direction === 'LOWER'
+      ? meanDiff <= -rule.threshold && ci.high < 0
+      : meanDiff >= rule.threshold && ci.low > 0;
+
+    const candidateBSuperior = rule.direction === 'LOWER'
+      ? meanDiff >= rule.threshold && ci.low > 0
+      : meanDiff <= -rule.threshold && ci.high < 0;
+
+    const regressionAgainstA = candidateBSuperior;
+    const regressionAgainstB = candidateASuperior;
+
+    gates.push({
+      priority: rule.priority,
+      metric: rule.metric,
+      direction: rule.direction,
+      threshold: rule.threshold,
+      sampleCount: diffs.length,
+      status: 'EVALUATED',
+      meanDiff,
+      ciLow: ci.low,
+      ciHigh: ci.high,
+      candidateASuperior,
+      candidateBSuperior,
+      regressionAgainstA,
+      regressionAgainstB,
+    });
+  }
+
+  if (criticalSafetyMissing) {
+    return {
+      outcome: 'INSUFFICIENT_SAFETY_EVIDENCE',
+      criticalSafetyEvidenceSufficient: false,
+      gates,
+      rationale: 'Mandatory critical safety gates have insufficient paired scenario measurements; winner cannot be declared.',
+    };
+  }
+
+  let aDominatesCandidate = false;
+  let bDominatesCandidate = false;
+
+  const aHasSafetyRegression = gates.filter((g) => g.priority <= 8).some((g) => g.regressionAgainstA);
+  const bHasSafetyRegression = gates.filter((g) => g.priority <= 8).some((g) => g.regressionAgainstB);
+
+  for (const gate of gates) {
+    if (gate.status !== 'EVALUATED') continue;
+
+    if (gate.candidateASuperior && !aHasSafetyRegression) {
+      aDominatesCandidate = true;
+      break;
+    }
+    if (gate.candidateBSuperior && !bHasSafetyRegression) {
+      bDominatesCandidate = true;
+      break;
+    }
+    if (gate.candidateASuperior && aHasSafetyRegression) {
+      break;
+    }
+    if (gate.candidateBSuperior && bHasSafetyRegression) {
+      break;
+    }
+  }
+
+  if (aDominatesCandidate && !bDominatesCandidate) {
+    return {
+      outcome: 'CANDIDATE_A_DOMINATES',
+      winner: 'CANDIDATE_A',
+      criticalSafetyEvidenceSufficient: true,
+      gates,
+      rationale: 'Candidate A achieved statistically significant and meaningful improvement on higher-priority metric without regression.',
+    };
+  }
+
+  if (bDominatesCandidate && !aDominatesCandidate) {
+    return {
+      outcome: 'CANDIDATE_B_DOMINATES',
+      winner: 'CANDIDATE_B',
+      criticalSafetyEvidenceSufficient: true,
+      gates,
+      rationale: 'Candidate B achieved statistically significant and meaningful improvement on higher-priority metric without regression.',
+    };
+  }
+
+  return {
+    outcome: 'STATISTICAL_TIE',
+    criticalSafetyEvidenceSufficient: true,
+    gates,
+    rationale: 'Neither candidate demonstrated statistically significant non-regressive dominance across the safety decision hierarchy.',
+  };
+}
+
 
 
 

@@ -15,8 +15,11 @@ import {
   PHASE_9GB01,
   PHASE_9GB1,
   PHASE_9GB11,
+  PHASE_9GB12,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2,
+  PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2_SHA256,
+  PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3,
   CHALLENGER_CALIBRATION_PERFORMERS,
   CHALLENGER_BLIND_PERFORMERS,
   assertChallengerQualificationPolicyIdentity,
@@ -62,10 +65,14 @@ import {
   assertStatisticalEvidenceClassificationValid,
   assertRequiredSafetyMetricsPresent,
   assertBlindProtocolV2Identity,
+  assertBlindProtocolV3Identity,
   assertExecutionLockBindingsValid,
   assertLedgerStateTransitionValid,
   assertNoDuplicateRunAttempt,
   assertNoDuplicateCandidateScenarioAttempt,
+  assertJournalEventChainValid,
+  assertAcousticPublicationCausalTimingValid,
+  evaluateSymmetricSafetyDominance,
   assertMetricSpecificDenominatorsValid,
   assertSourceReceiptShaValid,
   assertObservationDigestValid,
@@ -1826,6 +1833,158 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       };
       expect(() => assertChallengerExecutionAllowed(b11InferenceRequest))
         .toThrow(/PHASE_9GB11_CANDIDATE_INFERENCE_FORBIDDEN/);
+    });
+
+    it('B.1.2-1: assertBlindProtocolV3Identity validates V3 policy ID, schemaVersion 3, sha256, and V2 predecessor', () => {
+      const validV3 = {
+        policyId: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3,
+        schemaVersion: 3,
+        sha256: 'a'.repeat(64),
+        supersedesPolicySha256: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2_SHA256,
+      };
+      expect(() => assertBlindProtocolV3Identity(validV3)).not.toThrow();
+
+      // Policy ID mismatch
+      expect(() => assertBlindProtocolV3Identity({ ...validV3, policyId: 'WRONG' }))
+        .toThrow(/BLIND_PROTOCOL_V3_POLICY_ID_MISMATCH/);
+
+      // Schema version mismatch
+      expect(() => assertBlindProtocolV3Identity({ ...validV3, schemaVersion: 2 }))
+        .toThrow(/BLIND_PROTOCOL_V3_SCHEMA_VERSION_MISMATCH/);
+
+      // Predecessor SHA mismatch
+      expect(() => assertBlindProtocolV3Identity({ ...validV3, supersedesPolicySha256: 'wrong' }))
+        .toThrow(/BLIND_PROTOCOL_V3_SUPERSEDED_POLICY_SHA_MISMATCH/);
+    });
+
+    it('B.1.2-2: Candidate inference strictly forbidden in Phase 9G-B.1.2 preflight gate', () => {
+      const b12InferenceRequest = {
+        policy: {
+          policyId: PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2,
+          schemaVersion: 2,
+          sha256: PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2_SHA256,
+        },
+        incumbentPolicySha256: '5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6',
+        phase: PHASE_9GB12,
+        mode: 'CANDIDATE_INFERENCE' as const,
+        candidateId: 'bytedance-robust-augmented-calibrated-v1',
+        candidateFamily: 'bytedance-robust-augmented' as const,
+        scenarioSplit: 'CALIBRATION' as const,
+        performers: ['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p14'],
+        calibrationManifestSha256: PHASE_9GA1_CALIBRATION_SCENARIOS_SHA256,
+        incumbentRegistrySha256: PHASE_9GA25_REGISTRY_SHA256,
+        blindManifestSha256: PHASE_9GB_BLIND_MANIFEST_SHA256,
+      };
+      expect(() => assertChallengerExecutionAllowed(b12InferenceRequest))
+        .toThrow(/PHASE_9GB12_CANDIDATE_INFERENCE_FORBIDDEN/);
+    });
+
+    it('B.1.2-3: assertJournalEventChainValid detects sequence gaps, reordering, and broken hash chains', () => {
+      const ev0 = {
+        seq: 0,
+        prevEventHash: '0'.repeat(64),
+        timestamp: '2026-10-10T00:00:00Z',
+        eventType: 'RUN_INITIALIZED',
+        runId: 'run-1',
+        payload: { test: true },
+        eventHash: '1'.repeat(64),
+      };
+      const ev1 = {
+        seq: 1,
+        prevEventHash: '1'.repeat(64),
+        timestamp: '2026-10-10T00:00:01Z',
+        eventType: 'ATTEMPT_STARTED',
+        runId: 'run-1',
+        payload: { scenario: 'sc1' },
+        eventHash: '2'.repeat(64),
+      };
+
+      // Valid 2-event chain
+      expect(() => assertJournalEventChainValid([ev0, ev1])).not.toThrow();
+
+      // Sequence gap: seq 0 then seq 2
+      expect(() => assertJournalEventChainValid([ev0, { ...ev1, seq: 2 }]))
+        .toThrow(/JOURNAL_SEQUENCE_GAP_OR_REORDER/);
+
+      // Broken hash chain: ev1 prevEventHash doesn't match ev0 eventHash
+      expect(() => assertJournalEventChainValid([ev0, { ...ev1, prevEventHash: 'wrong'.padEnd(64, '0') }]))
+        .toThrow(/JOURNAL_HASH_CHAIN_BROKEN_AT_SEQ_1/);
+    });
+
+    it('B.1.2-4: assertAcousticPublicationCausalTimingValid rejects future-audio lookahead and backdated availability', () => {
+      // Valid publication
+      expect(() => assertAcousticPublicationCausalTimingValid({
+        analyzedThroughPerformanceMs: 1000,
+        availabilityTimeMs: 1050,
+        observations: [{ performanceTimeMs: 500 }],
+      })).not.toThrow();
+
+      // Future lookahead: observation at 1200ms when analyzed through 1000ms
+      expect(() => assertAcousticPublicationCausalTimingValid({
+        analyzedThroughPerformanceMs: 1000,
+        availabilityTimeMs: 1050,
+        observations: [{ performanceTimeMs: 1200 }],
+      })).toThrow(/FUTURE_AUDIO_LOOKAHEAD_VIOLATION/);
+
+      // Backdated availability: availability at 900ms when analyzed through 1000ms
+      expect(() => assertAcousticPublicationCausalTimingValid({
+        analyzedThroughPerformanceMs: 1000,
+        availabilityTimeMs: 900,
+        observations: [{ performanceTimeMs: 500 }],
+      })).toThrow(/BACKDATED_PUBLICATION_AVAILABILITY/);
+    });
+
+    it('B.1.2-5: evaluateSymmetricSafetyDominance refuses winner declaration when critical safety evidence is missing', () => {
+      const mockCiComputer = (diffs: readonly number[]) => {
+        const mean = diffs.reduce((a, b) => a + b, 0) / (diffs.length || 1);
+        return { mean, low: mean - 0.005, high: mean + 0.005 };
+      };
+
+      // Critical safety metric (priority 1: falseMatchRateOnGroundTruthMissing) has only 2 samples (< 8)
+      // Even though expectedStrikeRecall has huge +5% gain, decision MUST NOT declare A winner!
+      const missingSafetyVectors = {
+        falseMatchRateOnGroundTruthMissing: [0.0, 0.0], // < 8 samples!
+        expectedStrikeRecall: [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05],
+      };
+
+      const result = evaluateSymmetricSafetyDominance(missingSafetyVectors, mockCiComputer);
+      expect(result.outcome).toBe('INSUFFICIENT_SAFETY_EVIDENCE');
+      expect(result.winner).toBeUndefined();
+      expect(result.criticalSafetyEvidenceSufficient).toBe(false);
+    });
+
+    it('B.1.2-6: evaluateSymmetricSafetyDominance produces exact symmetric decisions under Candidate A / Candidate B reversal', () => {
+      const mockCiComputer = (diffs: readonly number[]) => {
+        const mean = diffs.reduce((a, b) => a + b, 0) / (diffs.length || 1);
+        return { mean, low: mean - 0.002, high: mean + 0.002 };
+      };
+
+      const diffsAB: Record<string, number[]> = {
+        falseMatchRateOnGroundTruthMissing: [-0.02, -0.02, -0.02, -0.02, -0.02, -0.02, -0.02, -0.02],
+        falseCompleteChordAcceptanceRate: [0, 0, 0, 0, 0, 0, 0, 0],
+        verdictAgreementRate: [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03],
+        correctMissingRate: [0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02],
+        chordExactCompletenessRate: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
+        expectedStrikeRecall: [0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04],
+        extraPrecision: [0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02],
+        extraRecall: [0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02],
+      };
+
+      // Reversed diffs: diffsBA = -diffsAB
+      const diffsBA: Record<string, number[]> = {};
+      for (const [k, v] of Object.entries(diffsAB)) {
+        diffsBA[k] = v.map((x) => -x);
+      }
+
+      const resAB = evaluateSymmetricSafetyDominance(diffsAB, mockCiComputer);
+      const resBA = evaluateSymmetricSafetyDominance(diffsBA, mockCiComputer);
+
+      expect(resAB.outcome).toBe('CANDIDATE_A_DOMINATES');
+      expect(resAB.winner).toBe('CANDIDATE_A');
+
+      // Under reversal: B dominates A in the BA comparison!
+      expect(resBA.outcome).toBe('CANDIDATE_B_DOMINATES');
+      expect(resBA.winner).toBe('CANDIDATE_B');
     });
   });
 });
