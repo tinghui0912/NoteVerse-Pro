@@ -1,25 +1,24 @@
 /**
- * Phase 9G-B.0.1 Component B: Independent Entry-Gate Verifier.
+ * Phase 9G-B.1 Independent Protocol Verifier.
  *
- * Independently reads back all Phase 9G-B.0.1 generated artifacts and frozen source manifests,
- * validating all 11 deterministic preflight entry gate checks without executing any neural inference.
- *
- * Verifies:
- * 1. Source policy and manifest SHA256 identities & performer isolation (Check 1)
+ * Independently validates all 12 frozen blind evaluation protocol requirements
+ * prior to any blind inference execution:
+ * 1. Source policy, protocol, and manifest SHA256 identities & performer isolation (Check 1)
  * 2. Complete exact candidate registry identities & multi-dimensional qualification (Check 2)
  * 3. Immutable incumbent profile configurations in A.2.5 registry (Check 3)
  * 4. Incumbent metrics mapped to correct frozen profiles via direct historical extraction (Check 4)
- * 5. Corrected diagnostic paired denominators & exact scenario set intersections (Check 5)
- * 6. Required measured comparison classification fields, all 8 safety metrics & CI plausibility (Check 6)
+ * 5. Diagnostic paired denominators & exact scenario set intersections (Check 5)
+ * 6. Required measured comparison classification fields, safety contract & CI plausibility (Check 6)
  * 7. Cache evidence status and provenance classification against disk manifests (Check 7)
  * 8. Score-independence receipt meaning & narrow observation equivalence (Check 8)
- * 9. Lock consistency between candidate status and permitted blind role (Check 9)
- * 10. Absence of a production winner & no microphone activation (Check 10)
- * 11. Blind evaluation not yet executed (run count == 0) & candidate inference blocked (Check 11)
+ * 9. Admission roster and three officially admitted ranked candidate locks (Check 9)
+ * 10. Synthetic-data protocol rehearsal execution and verification (Check 10)
+ * 11. Absence of a production winner & microphone inactive (Check 11)
+ * 12. Blind evaluation not yet executed (run count == 0) & candidate inference blocked (Check 12)
  *
- * Preflight Gate Outcome:
- * - PASS: 'READY_FOR_PHASE_9GB_PROTOCOL_AND_EXPLICIT_INFERENCE_AUTHORIZATION'
- * - FAIL: 'PHASE_9GB_ENTRY_GATE_BLOCKED'
+ * Preflight Protocol Outcome:
+ * - PASS: 'PHASE_9GB1_PROTOCOL_FROZEN_AWAITING_EXPLICIT_BLIND_INFERENCE_AUTHORIZATION'
+ * - FAIL: 'PHASE_9GB1_PROTOCOL_VERIFICATION_FAILED'
  */
 
 import { createHash } from 'node:crypto';
@@ -41,6 +40,7 @@ const challengerQual = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/pr
 export const V5_POLICY_REL = 'backend/research/policies/public_model_calibration_protocol_v5_2026-10-09.json';
 export const V1_POLICY_REL = 'backend/research/policies/public_challenger_qualification_protocol_v1_2026-10-09.json';
 export const V2_POLICY_REL = 'backend/research/policies/public_challenger_qualification_protocol_v2_2026-10-10.json';
+export const B1_PROTOCOL_REL = 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v1_2026-10-10.json';
 export const A25_REGISTRY_REL = 'backend/research/reports/phase9g_a25_final_incumbent_registry_2026-10-09.json';
 export const A1_SCENARIOS_REL = 'backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json';
 export const BLIND_MANIFEST_REL = 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json';
@@ -55,22 +55,23 @@ export const A32_ELIGIBILITY_REL = 'backend/research/reports/phase9g_a32_context
 export const A32_AUDIT_REL = 'backend/research/reports/phase9g_a32_score_independence_audit_receipt_2026-10-10.json';
 export const A32_RAW_VERIF_REL = 'backend/research/reports/phase9g_a32_raw_evidence_verification_receipt_2026-10-10.json';
 
-// Target B.0.1 Artifacts to verify
-export const B01_INVALIDATION_RECEIPT_REL = 'backend/research/reports/phase9g_b01_historical_invalidation_receipt_2026-10-10.json';
-export const B01_FINAL_REGISTRY_REL = 'backend/research/reports/phase9g_b01_final_candidate_registry_2026-10-10.json';
-export const B01_PAIRWISE_MATRIX_REL = 'backend/research/reports/phase9g_b01_diagnostic_pairwise_matrix_2026-10-10.json';
-export const B01_RECONCILIATION_RECEIPT_REL = 'backend/research/reports/phase9g_b01_evidence_reconciliation_receipt_2026-10-10.json';
-export const B01_ADMISSION_ROSTER_REL = 'backend/research/reports/phase9g_b01_candidate_admission_roster_2026-10-10.json';
-export const B01_PRE_BLIND_LOCK_REL = 'backend/research/reports/phase9g_b01_pre_blind_lock_receipt_2026-10-10.json';
-export const B01_RAW_CACHE_TRUST_REL = 'backend/research/reports/phase9g_b01_raw_cache_trust_receipt_2026-10-10.json';
-export const B01_SCORE_INDEPENDENCE_REL = 'backend/research/reports/phase9g_b01_score_independence_receipt_2026-10-10.json';
-export const B01_ENTRY_GATE_REPORT_REL = 'backend/research/reports/phase9g_b01_entry_gate_report_2026-10-10.json';
+// Target B.1 Artifacts to verify
+export const B1_RECONCILIATION_RECEIPT_REL = 'backend/research/reports/phase9g_b1_evidence_reconciliation_receipt_2026-10-10.json';
+export const B1_FINAL_REGISTRY_REL = 'backend/research/reports/phase9g_b1_final_candidate_registry_2026-10-10.json';
+export const B1_PAIRWISE_MATRIX_REL = 'backend/research/reports/phase9g_b1_diagnostic_pairwise_matrix_2026-10-10.json';
+export const B1_ADMISSION_ROSTER_REL = 'backend/research/reports/phase9g_b1_candidate_admission_roster_2026-10-10.json';
+export const B1_CACHE_EVIDENCE_REL = 'backend/research/reports/phase9g_b1_cache_evidence_verification_receipt_2026-10-10.json';
+export const B1_SCORE_INDEPENDENCE_REL = 'backend/research/reports/phase9g_b1_score_independence_verification_receipt_2026-10-10.json';
+export const B1_PRE_BLIND_LOCK_REL = 'backend/research/reports/phase9g_b1_pre_blind_lock_receipt_2026-10-10.json';
+export const B1_REHEARSAL_RECEIPT_REL = 'backend/research/reports/phase9g_b1_rehearsal_receipt_2026-10-10.json';
+export const B1_PROTOCOL_FREEZE_REPORT_REL = 'backend/research/reports/phase9g_b1_protocol_freeze_report_2026-10-10.json';
 
 // Expected Content Digests
 export const EXPECTED_HASHES = {
   v5Policy: '5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6',
   v1Policy: '0ccd4872d6998b67d794baf96cad22c5ccbba3f8ee65a9ac02ba1ad9790ec71b',
   v2Policy: 'b467e9aad917808f307346482477d1d4a4716aed665bd2662e87445231d12f8c',
+  b1Protocol: '06d9811ad830bebbd0e3161c424c15ee04282756479d80868ae8aa29e6bdafb0',
   a25Registry: '935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439',
   a1Scenarios: '56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e',
   blindManifest: '0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab',
@@ -101,18 +102,19 @@ export async function writeJson(relPath, data) {
   console.log(`Wrote: ${relPath}`);
 }
 
-export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
-  console.log('=== Phase 9G-B.0.1: Component B (Independent Entry-Gate Verifier) ===');
+export async function verifyPhase9gb1Protocol({ gitHead, dirty }) {
+  console.log('=== Phase 9G-B.1: Independent Protocol Verifier ===');
 
   const checks = [];
 
   // -------------------------------------------------------------------------
-  // Check 1: Source Policy and Manifest SHA256 Identities & Performer Isolation
+  // Check 1: Immutable Source Policies, Protocols, and Manifest Identities
   // -------------------------------------------------------------------------
-  console.log('[Check 1/11] Verifying source policies and manifest hashes...');
+  console.log('[Check 1/12] Verifying source policies, protocol, and manifest hashes...');
   const v5ActualSha = await sha256File(V5_POLICY_REL);
   const v1ActualSha = await sha256File(V1_POLICY_REL);
   const v2ActualSha = await sha256File(V2_POLICY_REL);
+  const b1ActualSha = await sha256File(B1_PROTOCOL_REL);
   const a25ActualSha = await sha256File(A25_REGISTRY_REL);
   const a1ActualSha = await sha256File(A1_SCENARIOS_REL);
   const blindActualSha = await sha256File(BLIND_MANIFEST_REL);
@@ -121,6 +123,7 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   if (v5ActualSha !== EXPECTED_HASHES.v5Policy) hashMismatches.push(`V5 policy hash mismatch: ${v5ActualSha} !== ${EXPECTED_HASHES.v5Policy}`);
   if (v1ActualSha !== EXPECTED_HASHES.v1Policy) hashMismatches.push(`V1 policy hash mismatch: ${v1ActualSha} !== ${EXPECTED_HASHES.v1Policy}`);
   if (v2ActualSha !== EXPECTED_HASHES.v2Policy) hashMismatches.push(`V2 policy hash mismatch: ${v2ActualSha} !== ${EXPECTED_HASHES.v2Policy}`);
+  if (b1ActualSha !== EXPECTED_HASHES.b1Protocol) hashMismatches.push(`Phase 9G-B protocol hash mismatch: ${b1ActualSha} !== ${EXPECTED_HASHES.b1Protocol}`);
   if (a25ActualSha !== EXPECTED_HASHES.a25Registry) hashMismatches.push(`A.2.5 registry hash mismatch: ${a25ActualSha} !== ${EXPECTED_HASHES.a25Registry}`);
   if (a1ActualSha !== EXPECTED_HASHES.a1Scenarios) hashMismatches.push(`A.1 calibration manifest hash mismatch: ${a1ActualSha} !== ${EXPECTED_HASHES.a1Scenarios}`);
   if (blindActualSha !== EXPECTED_HASHES.blindManifest) hashMismatches.push(`Blind manifest hash mismatch: ${blindActualSha} !== ${EXPECTED_HASHES.blindManifest}`);
@@ -148,12 +151,13 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   }
 
   checks.push({
-    checkId: 'CHECK_1_SOURCE_POLICY_AND_MANIFEST_IDENTITIES',
+    checkId: 'CHECK_1_IMMUTABLE_SOURCE_POLICIES_AND_MANIFESTS_IDENTITIES',
     status: 'PASS',
     details: {
       v5PolicySha: v5ActualSha,
       v1PolicySha: v1ActualSha,
       v2PolicySha: v2ActualSha,
+      b1ProtocolSha: b1ActualSha,
       a25RegistrySha: a25ActualSha,
       a1CalibrationManifestSha: a1ActualSha,
       blindManifestSha: blindActualSha,
@@ -166,16 +170,16 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Check 2: Complete Exact Candidate Registry Identities
   // -------------------------------------------------------------------------
-  console.log('[Check 2/11] Verifying complete exact candidate registry identities...');
-  const b01Registry = await readJson(B01_FINAL_REGISTRY_REL);
+  console.log('[Check 2/12] Verifying complete exact candidate registry identities...');
+  const b1Registry = await readJson(B1_FINAL_REGISTRY_REL);
 
-  if (b01Registry.phase !== '9G-B.0.1') throw new Error(`Invalid registry phase: ${b01Registry.phase}`);
-  if (b01Registry.productionWinnerSelected !== false) throw new Error('Registry falsely selected a production winner!');
-  if (!Array.isArray(b01Registry.candidates) || b01Registry.candidates.length !== 7) {
-    throw new Error(`Registry candidate roster must contain exactly 7 candidates, found ${b01Registry.candidates?.length}`);
+  if (b1Registry.phase !== '9G-B.1') throw new Error(`Invalid registry phase: ${b1Registry.phase}`);
+  if (b1Registry.productionWinnerSelected !== false) throw new Error('Registry falsely selected a production winner!');
+  if (!Array.isArray(b1Registry.candidates) || b1Registry.candidates.length !== 7) {
+    throw new Error(`Registry candidate roster must contain exactly 7 candidates, found ${b1Registry.candidates?.length}`);
   }
 
-  for (const c of b01Registry.candidates) {
+  for (const c of b1Registry.candidates) {
     challengerQual.assertCandidateRegistryIdentitiesExact(c);
     challengerQual.assertCandidateMultiDimensionalQualification({
       candidateFamily: c.candidateFamily,
@@ -190,12 +194,12 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
     checkId: 'CHECK_2_COMPLETE_EXACT_CANDIDATE_REGISTRY_IDENTITIES',
     status: 'PASS',
     details: {
-      totalCandidates: b01Registry.candidates.length,
-      frozenIncumbentsCount: b01Registry.candidates.filter((c) => c.category === 'FROZEN_INCUMBENT').length,
-      qualifiedChallengersCount: b01Registry.candidates.filter((c) => c.category === 'QUALIFIED_CHALLENGER').length,
-      researchReferenceCount: b01Registry.candidates.filter((c) => c.category === 'RESEARCH_REFERENCE_ONLY').length,
-      blockedCandidatesCount: b01Registry.candidates.filter((c) => c.category === 'EXECUTION_BLOCKED').length,
-      candidates: b01Registry.candidates.map((c) => ({
+      totalCandidates: b1Registry.candidates.length,
+      frozenIncumbentsCount: b1Registry.candidates.filter((c) => c.category === 'FROZEN_INCUMBENT').length,
+      qualifiedChallengersCount: b1Registry.candidates.filter((c) => c.category === 'QUALIFIED_CHALLENGER').length,
+      researchReferenceCount: b1Registry.candidates.filter((c) => c.category === 'RESEARCH_REFERENCE_ONLY').length,
+      blockedCandidatesCount: b1Registry.candidates.filter((c) => c.category === 'EXECUTION_BLOCKED').length,
+      candidates: b1Registry.candidates.map((c) => ({
         id: c.candidateId,
         profileId: c.profileId,
         configSha256: c.configurationSha256,
@@ -208,7 +212,7 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Check 3: Immutable Incumbent Profile Configurations in A.2.5 Registry
   // -------------------------------------------------------------------------
-  console.log('[Check 3/11] Verifying immutable incumbent profile configurations...');
+  console.log('[Check 3/12] Verifying immutable incumbent profile configurations...');
   const a25Registry = await readJson(A25_REGISTRY_REL);
   const a25Profiles = a25Registry.profiles;
   if (!Array.isArray(a25Profiles) || a25Profiles.length !== 2) {
@@ -259,14 +263,14 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   });
 
   // -------------------------------------------------------------------------
-  // Check 4: Incumbent Metrics Mapped to Correct Frozen Profiles
+  // Check 4: Incumbent Metrics Mapped to Correct Frozen Profiles via Direct Historical Extraction
   // -------------------------------------------------------------------------
-  console.log('[Check 4/11] Verifying incumbent metrics mapped to correct frozen profiles...');
+  console.log('[Check 4/12] Verifying incumbent metrics mapped to correct frozen profiles...');
   const a23Report = await readJson(A23_REPORT_REL);
   const a24Report = await readJson(A24_REPORT_REL);
 
-  const bdCand = b01Registry.candidates.find((c) => c.candidateId === 'bytedance-original-calibrated-v1');
-  const amtCand = b01Registry.candidates.find((c) => c.candidateId === 'online-amt-calibrated-v1');
+  const bdCand = b1Registry.candidates.find((c) => c.candidateId === 'bytedance-original-calibrated-v1');
+  const amtCand = b1Registry.candidates.find((c) => c.candidateId === 'online-amt-calibrated-v1');
 
   if (!bdCand?.reconciledMetrics) throw new Error('Missing reconciled metrics for ByteDance Original');
   if (!amtCand?.reconciledMetrics) throw new Error('Missing reconciled metrics for Online-AMT');
@@ -308,7 +312,7 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   challengerQual.assertReconciledIncumbentMetricsValid(amtReconciledWrapper);
 
   checks.push({
-    checkId: 'CHECK_4_INCUMBENT_METRICS_MAPPED_TO_CORRECT_FROZEN_PROFILES',
+    checkId: 'CHECK_4_INCUMBENT_METRICS_DYNAMIC_HISTORICAL_VERIFICATION',
     status: 'PASS',
     details: {
       byteDanceOriginal: {
@@ -325,10 +329,10 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   });
 
   // -------------------------------------------------------------------------
-  // Check 5: Corrected Diagnostic Paired Denominators & Exact Set Intersections
+  // Check 5: Diagnostic Paired Denominators & Exact Set Intersections
   // -------------------------------------------------------------------------
-  console.log('[Check 5/11] Verifying corrected diagnostic paired denominators & exact intersections...');
-  const b01Matrix = await readJson(B01_PAIRWISE_MATRIX_REL);
+  console.log('[Check 5/12] Verifying diagnostic paired denominators & exact intersections...');
+  const b1Matrix = await readJson(B1_PAIRWISE_MATRIX_REL);
   const a32Eligibility = await readJson(A32_ELIGIBILITY_REL);
 
   const robust1820EligibleIds = a32Eligibility.records
@@ -353,7 +357,7 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
     'rtt-causal-streaming-v1': wholeRecordingEligibleIds,
   };
 
-  for (const comp of b01Matrix.comparisons) {
+  for (const comp of b1Matrix.comparisons) {
     const isIncumbentA = comp.candidateA.includes('bytedance-original') || comp.candidateA.includes('online-amt');
     const isIncumbentB = comp.candidateB.includes('bytedance-original') || comp.candidateB.includes('online-amt');
 
@@ -383,12 +387,12 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   }
 
   checks.push({
-    checkId: 'CHECK_5_CORRECTED_DIAGNOSTIC_PAIRED_DENOMINATORS',
+    checkId: 'CHECK_5_DIAGNOSTIC_PAIRED_DENOMINATORS_AND_EXACT_INTERSECTIONS',
     status: 'PASS',
     details: {
-      totalComparisons: b01Matrix.comparisons.length,
-      measuredComparisons: b01Matrix.comparisons.filter((c) => c.status === 'MEASURED').length,
-      insufficientEvidenceComparisons: b01Matrix.comparisons.filter((c) => c.status === 'INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE').length,
+      totalComparisons: b1Matrix.comparisons.length,
+      measuredComparisons: b1Matrix.comparisons.filter((c) => c.status === 'MEASURED').length,
+      insufficientEvidenceComparisons: b1Matrix.comparisons.filter((c) => c.status === 'INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE').length,
       robustByteDanceEligibleCount: 61,
       wholeRecordingEligibleCount: 72,
       exactIntersectionVerifiedAcrossAllComparisons: true,
@@ -398,7 +402,7 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Check 6: Required Measured Comparison Classification Fields & Safety Contract
   // -------------------------------------------------------------------------
-  console.log('[Check 6/11] Verifying measured comparison classification fields & safety contract...');
+  console.log('[Check 6/12] Verifying measured comparison classification fields & safety contract...');
   const priorityMetrics = [
     'verdictAgreementRate',
     'expectedStrikeRecall',
@@ -410,7 +414,7 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
     'extraRecall',
   ];
 
-  for (const comp of b01Matrix.comparisons) {
+  for (const comp of b1Matrix.comparisons) {
     if (comp.status !== 'MEASURED') continue;
 
     challengerQual.assertRequiredSafetyMetricsPresent(comp.metrics);
@@ -428,6 +432,12 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
 
       // Assert CI plausibility
       challengerQual.assertBootstrapCiMathematicallyPlausible(m.meanDifference, m.bootstrap95Ci);
+
+      // Assert statistical evidence classification
+      challengerQual.assertStatisticalEvidenceClassificationValid({
+        provenance: m.statisticalEvidenceClassification,
+        scenarioLevelVectorsAvailable: false, // challenger bakeoff comparisons are source-aggregate verified from A.3.2, not raw scenario bootstrap rerun
+      });
 
       if (!m.effectClassification) throw new Error(`Missing effectClassification for ${comp.candidateA} vs ${comp.candidateB} on ${mKey}`);
       if (m.isMeaningfulDifference === undefined) throw new Error(`Missing isMeaningfulDifference for ${comp.candidateA} vs ${comp.candidateB} on ${mKey}`);
@@ -451,21 +461,22 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   }
 
   // Verify pairwise reversal invariant across all measured pairs
-  for (const cAB of b01Matrix.comparisons) {
+  for (const cAB of b1Matrix.comparisons) {
     if (cAB.status !== 'MEASURED') continue;
-    const cBA = b01Matrix.comparisons.find((c) => c.candidateA === cAB.candidateB && c.candidateB === cAB.candidateA);
+    const cBA = b1Matrix.comparisons.find((c) => c.candidateA === cAB.candidateB && c.candidateB === cAB.candidateA);
     if (cBA && cBA.status === 'MEASURED') {
       challengerQual.assertPairwiseReversalInvariants(cAB, cBA);
     }
   }
 
   checks.push({
-    checkId: 'CHECK_6_REQUIRED_MEASURED_COMPARISON_CLASSIFICATION_FIELDS',
+    checkId: 'CHECK_6_MEASURED_COMPARISON_STATISTICAL_PROVENANCE_AND_SAFETY',
     status: 'PASS',
     details: {
       priorityMetricsEvaluated: priorityMetrics.length,
       allMeasuredComparisonsHaveClassificationFields: true,
       allBootstrapCisPlausible: true,
+      statisticalEvidenceClassification: 'SOURCE_AGGREGATE_VERIFIED_ONLY',
       allPairwiseReversalsInverted: true,
       noCrossFamilyWinnerAsserted: true,
     },
@@ -474,9 +485,9 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Check 7: Cache Evidence Status & Provenance Classification
   // -------------------------------------------------------------------------
-  console.log('[Check 7/11] Verifying cache evidence status & provenance classification...');
-  const b01CacheTrust = await readJson(B01_RAW_CACHE_TRUST_REL);
-  const cacheSummary = b01CacheTrust.cacheTrustSummary;
+  console.log('[Check 7/12] Verifying cache evidence status & provenance classification...');
+  const b1CacheEvidence = await readJson(B1_CACHE_EVIDENCE_REL);
+  const cacheSummary = b1CacheEvidence.cacheTrustSummary;
 
   if (!cacheSummary.bytedanceOriginal || !cacheSummary.bytedanceRobustAugmented || !cacheSummary.transkun || !cacheSummary.ariaAmt || !cacheSummary.rtt) {
     throw new Error('Cache trust receipt missing required candidate family summaries');
@@ -530,7 +541,7 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   }
 
   checks.push({
-    checkId: 'CHECK_7_CACHE_EVIDENCE_STATUS_AND_PROVENANCE_CLASSIFICATION',
+    checkId: 'CHECK_7_CACHE_EVIDENCE_PROVENANCE_AND_BASELINE_AUTHENTICATION',
     status: 'PASS',
     details: cacheSummary,
   });
@@ -538,29 +549,29 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   // -------------------------------------------------------------------------
   // Check 8: Score-Independence Receipt Meaning
   // -------------------------------------------------------------------------
-  console.log('[Check 8/11] Verifying score-independence receipt meaning...');
-  const b01ScoreIndep = await readJson(B01_SCORE_INDEPENDENCE_REL);
+  console.log('[Check 8/12] Verifying score-independence receipt meaning...');
+  const b1ScoreIndep = await readJson(B1_SCORE_INDEPENDENCE_REL);
 
-  if (b01ScoreIndep.equivalenceLevel !== 'CANONICAL_ACOUSTIC_OBSERVATION_DIGEST_MATCH') {
-    throw new Error(`Score independence equivalence level must be CANONICAL_ACOUSTIC_OBSERVATION_DIGEST_MATCH, got ${b01ScoreIndep.equivalenceLevel}`);
+  if (b1ScoreIndep.equivalenceLevel !== 'CANONICAL_ACOUSTIC_OBSERVATION_DIGEST_MATCH') {
+    throw new Error(`Score independence equivalence level must be CANONICAL_ACOUSTIC_OBSERVATION_DIGEST_MATCH, got ${b1ScoreIndep.equivalenceLevel}`);
   }
-  if (!b01ScoreIndep.identicalSourcePcm || !b01ScoreIndep.identicalModelConfiguration || !b01ScoreIndep.identicalReusedRawAcousticOutput || !b01ScoreIndep.identicalCanonicalObservations) {
+  if (!b1ScoreIndep.identicalSourcePcm || !b1ScoreIndep.identicalModelConfiguration || !b1ScoreIndep.identicalReusedRawAcousticOutput || !b1ScoreIndep.identicalCanonicalObservations) {
     throw new Error('Score independence receipt missing required identical execution flags');
   }
-  if (b01ScoreIndep.independentRepeatedInferenceExecuted !== false) {
+  if (b1ScoreIndep.independentRepeatedInferenceExecuted !== false) {
     throw new Error('Score independence falsely claims independent repeated inference!');
   }
-  if (b01ScoreIndep.verifiedScenarioPairsByCandidate.bytedanceRobustAugmented !== 40) {
-    throw new Error(`Robust ByteDance verified count must be 40, got ${b01ScoreIndep.verifiedScenarioPairsByCandidate.bytedanceRobustAugmented}`);
+  if (b1ScoreIndep.verifiedScenarioPairsByCandidate.bytedanceRobustAugmented !== 40) {
+    throw new Error(`Robust ByteDance verified count must be 40, got ${b1ScoreIndep.verifiedScenarioPairsByCandidate.bytedanceRobustAugmented}`);
   }
-  if (b01ScoreIndep.verifiedScenarioPairsByCandidate.transkun !== 48) {
-    throw new Error(`Transkun verified count must be 48, got ${b01ScoreIndep.verifiedScenarioPairsByCandidate.transkun}`);
+  if (b1ScoreIndep.verifiedScenarioPairsByCandidate.transkun !== 48) {
+    throw new Error(`Transkun verified count must be 48, got ${b1ScoreIndep.verifiedScenarioPairsByCandidate.transkun}`);
   }
-  if (b01ScoreIndep.verifiedScenarioPairsByCandidate.ariaAmt !== 48) {
-    throw new Error(`Aria-AMT verified count must be 48, got ${b01ScoreIndep.verifiedScenarioPairsByCandidate.ariaAmt}`);
+  if (b1ScoreIndep.verifiedScenarioPairsByCandidate.ariaAmt !== 48) {
+    throw new Error(`Aria-AMT verified count must be 48, got ${b1ScoreIndep.verifiedScenarioPairsByCandidate.ariaAmt}`);
   }
-  if (b01ScoreIndep.verifiedScenarioPairsByCandidate.rtt !== 48) {
-    throw new Error(`RTT verified count must be 48, got ${b01ScoreIndep.verifiedScenarioPairsByCandidate.rtt}`);
+  if (b1ScoreIndep.verifiedScenarioPairsByCandidate.rtt !== 48) {
+    throw new Error(`RTT verified count must be 48, got ${b1ScoreIndep.verifiedScenarioPairsByCandidate.rtt}`);
   }
 
   // Validate actual A.3.2 audit receipt file and canonical digests
@@ -583,29 +594,29 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   );
 
   checks.push({
-    checkId: 'CHECK_8_SCORE_INDEPENDENCE_RECEIPT_MEANING',
+    checkId: 'CHECK_8_SCORE_INDEPENDENCE_AUDIT_VERIFICATION',
     status: 'PASS',
     details: {
-      equivalenceLevel: b01ScoreIndep.equivalenceLevel,
-      identicalSourcePcm: b01ScoreIndep.identicalSourcePcm,
-      identicalCanonicalObservations: b01ScoreIndep.identicalCanonicalObservations,
-      independentRepeatedInferenceExecuted: b01ScoreIndep.independentRepeatedInferenceExecuted,
-      verifiedScenarioPairs: b01ScoreIndep.verifiedScenarioPairsByCandidate,
+      equivalenceLevel: b1ScoreIndep.equivalenceLevel,
+      identicalSourcePcm: b1ScoreIndep.identicalSourcePcm,
+      identicalCanonicalObservations: b1ScoreIndep.identicalCanonicalObservations,
+      independentRepeatedInferenceExecuted: b1ScoreIndep.independentRepeatedInferenceExecuted,
+      verifiedScenarioPairs: b1ScoreIndep.verifiedScenarioPairsByCandidate,
     },
   });
 
   // -------------------------------------------------------------------------
-  // Check 9: Lock Consistency Between Candidate Status and Permitted Blind Role
+  // Check 9: Candidate Admission Roster and Three Officially Admitted Ranked Candidate Locks
   // -------------------------------------------------------------------------
-  console.log('[Check 9/11] Verifying lock consistency between candidate status and blind role...');
-  const b01Admission = await readJson(B01_ADMISSION_ROSTER_REL);
-  const b01Lock = await readJson(B01_PRE_BLIND_LOCK_REL);
+  console.log('[Check 9/12] Verifying candidate admission roster and candidate locks...');
+  const b1Admission = await readJson(B1_ADMISSION_ROSTER_REL);
+  const b1Lock = await readJson(B1_PRE_BLIND_LOCK_REL);
 
-  for (const r of b01Admission.roster) {
+  for (const r of b1Admission.roster) {
     challengerQual.assertCandidateBlindRolePermitted(r.candidateId, r.permittedBlindRole, r.productionSelectionEligible);
   }
 
-  const lockedCandidates = b01Admission.roster.filter((r) => r.lockedForPhase9gB);
+  const lockedCandidates = b1Admission.roster.filter((r) => r.lockedForPhase9gB);
   if (lockedCandidates.length !== 3) {
     throw new Error(`Expected exactly 3 locked candidates for Phase 9G-B, found ${lockedCandidates.length}`);
   }
@@ -620,18 +631,18 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
     if (!lockedIds.includes(expId)) throw new Error(`Missing expected locked candidate: ${expId}`);
   }
 
-  const nonRankingRefs = b01Admission.roster.filter((r) => r.permittedBlindRole.includes('NON_RANKING'));
+  const nonRankingRefs = b1Admission.roster.filter((r) => r.permittedBlindRole.includes('NON_RANKING'));
   if (nonRankingRefs.length !== 3) {
     throw new Error(`Expected exactly 3 non-ranking research references, found ${nonRankingRefs.length}`);
   }
 
-  const blockedCands = b01Admission.roster.filter((r) => r.permittedBlindRole === 'NOT_PERMITTED');
+  const blockedCands = b1Admission.roster.filter((r) => r.permittedBlindRole === 'NOT_PERMITTED');
   if (blockedCands.length !== 1 || blockedCands[0].candidateId !== 'd3rm-offline-ceiling-reference') {
     throw new Error('D3RM must be the single NOT_PERMITTED candidate');
   }
 
   checks.push({
-    checkId: 'CHECK_9_LOCK_CONSISTENCY_AND_PERMITTED_BLIND_ROLE',
+    checkId: 'CHECK_9_ADMISSION_ROSTER_AND_THREE_OFFICIAL_RANKED_CANDIDATE_LOCKS',
     status: 'PASS',
     details: {
       lockedCandidatesCount: lockedCandidates.length,
@@ -642,83 +653,163 @@ export async function verifyPhase9gb01EntryGate({ gitHead, dirty }) {
   });
 
   // -------------------------------------------------------------------------
-  // Check 10: Absence of a Production Winner
+  // Check 10: Synthetic-Data Protocol Rehearsal Verification
   // -------------------------------------------------------------------------
-  console.log('[Check 10/11] Verifying absence of a production winner...');
-  if (b01Registry.productionWinnerSelected !== false) {
-    throw new Error('Production winner falsely selected in candidate registry!');
+  console.log('[Check 10/12] Verifying synthetic-data protocol rehearsal receipt...');
+  const b1Rehearsal = await readJson(B1_REHEARSAL_RECEIPT_REL);
+
+  if (b1Rehearsal.artifact !== 'phase9g_b1_rehearsal_receipt') {
+    throw new Error(`Invalid rehearsal receipt artifact: ${b1Rehearsal.artifact}`);
   }
-  if (b01Matrix.productionWinnerSelected !== false) {
-    throw new Error('Production winner falsely selected in pairwise matrix!');
+  if (b1Rehearsal.rehearsalMode !== 'SYNTHETIC_DATA_ONLY') {
+    throw new Error(`Rehearsal mode must be SYNTHETIC_DATA_ONLY, got ${b1Rehearsal.rehearsalMode}`);
   }
-  if (b01Lock.noProductionWinnerSelected !== true) {
-    throw new Error('noProductionWinnerSelected must be true in pre-blind lock receipt!');
+  if (b1Rehearsal.realBlindInferenceExecuted !== false) {
+    throw new Error('Rehearsal falsely claims real blind inference execution!');
+  }
+  if (b1Rehearsal.allTestsPassed !== true) {
+    throw new Error('Rehearsal did not pass all tests!');
+  }
+  if (b1Rehearsal.testsExecuted !== 12 || !Array.isArray(b1Rehearsal.rehearsalResults) || b1Rehearsal.rehearsalResults.length !== 12) {
+    throw new Error(`Expected exactly 12 rehearsal test results, found ${b1Rehearsal.rehearsalResults?.length}`);
+  }
+  for (const t of b1Rehearsal.rehearsalResults) {
+    if (t.status !== 'PASS') {
+      throw new Error(`Rehearsal test ${t.testId} failed: ${JSON.stringify(t)}`);
+    }
   }
 
   checks.push({
-    checkId: 'CHECK_10_ABSENCE_OF_A_PRODUCTION_WINNER',
+    checkId: 'CHECK_10_SYNTHETIC_DATA_PROTOCOL_REHEARSAL',
     status: 'PASS',
     details: {
-      productionWinnerSelected: false,
-      productionMicrophoneActivated: false,
-      diagnosticOnlyRole: 'CALIBRATION_CROSS_FAMILY_DIAGNOSTIC_ONLY',
+      rehearsalMode: b1Rehearsal.rehearsalMode,
+      testsExecuted: b1Rehearsal.testsExecuted,
+      allTestsPassed: b1Rehearsal.allTestsPassed,
+      syntheticScenariosUsed: b1Rehearsal.syntheticScenariosUsed,
+      realBlindInferenceExecuted: b1Rehearsal.realBlindInferenceExecuted,
     },
   });
 
   // -------------------------------------------------------------------------
-  // Check 11: Blind Evaluation Not Yet Executed
+  // Check 11: Absence of a Production Winner & Microphone Inactive
   // -------------------------------------------------------------------------
-  console.log('[Check 11/11] Verifying blind evaluation not yet executed...');
-  if (b01Lock.candidateRunCount !== 0) {
-    throw new Error(`Blind evaluation run count must be 0, found ${b01Lock.candidateRunCount}`);
+  console.log('[Check 11/12] Verifying absence of a production winner & microphone inactive...');
+  if (b1Registry.productionWinnerSelected !== false) {
+    throw new Error('Production winner falsely selected in candidate registry!');
   }
-  if (b01Lock.noBlindInferenceExecuted !== true) {
-    throw new Error('noBlindInferenceExecuted must be true in pre-blind lock receipt!');
+  if (b1Matrix.productionWinnerSelected !== false) {
+    throw new Error('Production winner falsely selected in pairwise matrix!');
+  }
+  if (b1Admission.productionWinnerSelected !== false) {
+    throw new Error('Production winner falsely selected in admission roster!');
+  }
+  if (b1Lock.noProductionWinnerSelected !== true) {
+    throw new Error('noProductionWinnerSelected must be true in pre-blind lock receipt!');
+  }
+  if (b1Lock.productionMicrophoneActivated !== false) {
+    throw new Error('productionMicrophoneActivated must be false in pre-blind lock receipt!');
   }
 
   checks.push({
-    checkId: 'CHECK_11_BLIND_EVALUATION_NOT_YET_EXECUTED',
+    checkId: 'CHECK_11_ABSENCE_OF_A_PRODUCTION_WINNER_AND_MICROPHONE_INACTIVE',
+    status: 'PASS',
+    details: {
+      productionWinnerSelected: false,
+      productionMicrophoneActivated: false,
+      diagnosticOnlyRole: 'PROTOCOL_FREEZE_REHEARSAL_ONLY',
+    },
+  });
+
+  // -------------------------------------------------------------------------
+  // Check 12: Blind Evaluation Not Yet Executed & Candidate Inference Blocked
+  // -------------------------------------------------------------------------
+  console.log('[Check 12/12] Verifying blind evaluation not yet executed and inference blocked...');
+  if (b1Lock.candidateRunCount !== 0) {
+    throw new Error(`Blind evaluation run count must be 0, found ${b1Lock.candidateRunCount}`);
+  }
+  if (b1Lock.noBlindInferenceExecuted !== true) {
+    throw new Error('noBlindInferenceExecuted must be true in pre-blind lock receipt!');
+  }
+
+  // Verify that candidate inference in Phase 9G-B.1 is programmatically forbidden by the qualification engine
+  let candidateInferenceBlockedProperly = false;
+  try {
+    challengerQual.assertChallengerExecutionAllowed({
+      policy: {
+        schemaVersion: 2,
+        policyId: 'PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2',
+        sha256: EXPECTED_HASHES.v2Policy,
+      },
+      incumbentPolicySha256: EXPECTED_HASHES.v5Policy,
+      phase: '9G-B.1',
+      mode: 'CANDIDATE_INFERENCE',
+      candidateId: 'bytedance-robust-augmented-calibrated-v1',
+      candidateFamily: 'bytedance',
+      scenarioSplit: 'CALIBRATION',
+      performers: ['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p14'],
+      calibrationManifestSha256: EXPECTED_HASHES.a1Scenarios,
+      incumbentRegistrySha256: EXPECTED_HASHES.a25Registry,
+      blindManifestSha256: EXPECTED_HASHES.blindManifest,
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message === 'PHASE_9GB1_CANDIDATE_INFERENCE_FORBIDDEN') {
+      candidateInferenceBlockedProperly = true;
+    } else {
+      throw err;
+    }
+  }
+
+  if (!candidateInferenceBlockedProperly) {
+    throw new Error('FAIL_CLOSED_VIOLATION: Candidate inference in Phase 9G-B.1 was not blocked!');
+  }
+
+  checks.push({
+    checkId: 'CHECK_12_BLIND_EVALUATION_NOT_YET_EXECUTED_AND_INFERENCE_BLOCKED',
     status: 'PASS',
     details: {
       blindCandidateRunCount: 0,
       blindPerformersIsolated: expectedBlind,
       blindInferenceBlockedInPreflight: true,
+      phase9gb1CandidateInferenceForbiddenAsserted: true,
     },
   });
 
   // -------------------------------------------------------------------------
-  // Final Entry Gate Decision
+  // Final Protocol Freeze Decision
   // -------------------------------------------------------------------------
   const allPassed = checks.every((c) => c.status === 'PASS');
   const preflightGateOutcome = allPassed
-    ? 'READY_FOR_PHASE_9GB_PROTOCOL_AND_EXPLICIT_INFERENCE_AUTHORIZATION'
-    : 'PHASE_9GB_ENTRY_GATE_BLOCKED';
+    ? 'PHASE_9GB1_PROTOCOL_FROZEN_AWAITING_EXPLICIT_BLIND_INFERENCE_AUTHORIZATION'
+    : 'PHASE_9GB1_PROTOCOL_VERIFICATION_FAILED';
 
-  const entryGateReport = {
-    schemaVersion: 2,
-    artifact: 'phase9g_b01_entry_gate_report',
-    phase: '9G-B.0.1',
+  const protocolFreezeReport = {
+    schemaVersion: 1,
+    artifact: 'phase9g_b1_protocol_freeze_report',
+    phase: '9G-B.1',
     generatedAt: new Date().toISOString(),
     gitHead,
     dirtyTreeAtExecution: dirty,
     overallStatus: allPassed ? 'PASS' : 'FAIL',
     preflightGateOutcome,
-    supersededGateReport: {
-      path: 'backend/research/reports/phase9g_b0_entry_gate_report_2026-10-10.json',
-      supersededOutcome: 'READY_FOR_PHASE_9G_B_BLIND_ENTRY',
-      supersessionReason: 'Invalidated due to synthetic pairwise statistics, profile/config SHA mutations, and cache trust gaps; superseded by Phase 9G-B.0.1.',
-    },
+    frozenProtocolPath: B1_PROTOCOL_REL,
+    frozenProtocolSha256: b1ActualSha,
+    admittedRankedCandidatesCount: 3,
+    nonRankingResearchReferencesCount: 3,
+    blockedCandidatesCount: 1,
+    candidateRunCount: 0,
+    noBlindInferenceExecuted: true,
     checks,
   };
 
-  await writeJson(B01_ENTRY_GATE_REPORT_REL, entryGateReport);
+  await writeJson(B1_PROTOCOL_FREEZE_REPORT_REL, protocolFreezeReport);
   console.log(`\n===============================================================`);
-  console.log(`  Phase 9G-B.0.1 Independent Entry-Gate Verification`);
-  console.log(`  Overall Status: ${entryGateReport.overallStatus}`);
+  console.log(`  Phase 9G-B.1 Independent Protocol Freeze Verification`);
+  console.log(`  Overall Status: ${protocolFreezeReport.overallStatus}`);
   console.log(`  Preflight Gate Outcome: ${preflightGateOutcome}`);
   console.log(`===============================================================\n`);
 
-  return entryGateReport;
+  return protocolFreezeReport;
 }
 
 function getGitHead(dir) {
@@ -742,11 +833,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToP
   const allowDirty = process.argv.includes('--allow-dirty');
   const dirty = getGitDirty(repoRoot);
   if (dirty && !allowDirty) {
-    throw new Error('PHASE_9GB01_REQUIRES_CLEAN_WORKING_TREE: Commit changes before verifying evidence artifacts.');
+    throw new Error('PHASE_9GB1_REQUIRES_CLEAN_WORKING_TREE: Commit changes before verifying evidence artifacts.');
   }
   const gitHead = getGitHead(repoRoot);
   challengerQual.assertCleanWorkingTreeIntegrity(dirty, dirty);
-  verifyPhase9gb01EntryGate({ gitHead, dirty })
+  verifyPhase9gb1Protocol({ gitHead, dirty })
     .then(() => process.exit(0))
     .catch((err) => {
       console.error(err);

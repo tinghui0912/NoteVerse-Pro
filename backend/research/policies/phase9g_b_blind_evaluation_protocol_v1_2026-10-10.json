@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V1",
+  "artifact": "phase9g_b_blind_evaluation_protocol_v1",
+  "phase": "9G-B.1",
+  "generatedAt": "2026-10-10T08:30:00.000Z",
+  "protocolRole": "FROZEN_ONE_SHOT_BLIND_EVALUATION_PROTOCOL",
+  "protocolState": "FROZEN_AWAITING_EXPLICIT_BLIND_INFERENCE_AUTHORIZATION",
+  "predecessorPolicies": [
+    {
+      "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5",
+      "path": "backend/research/policies/public_model_calibration_protocol_v5_2026-10-09.json",
+      "sha256": "5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6"
+    },
+    {
+      "policyId": "PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V1",
+      "path": "backend/research/policies/public_challenger_qualification_protocol_v1_2026-10-09.json",
+      "sha256": "0ccd4872d6998b67d794baf96cad22c5ccbba3f8ee65a9ac02ba1ad9790ec71b"
+    },
+    {
+      "policyId": "PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2",
+      "path": "backend/research/policies/public_challenger_qualification_protocol_v2_2026-10-10.json",
+      "sha256": "b467e9aad917808f307346482477d1d4a4716aed665bd2662e87445231d12f8c"
+    }
+  ],
+  "frozenIncumbentRegistry": {
+    "path": "backend/research/reports/phase9g_a25_final_incumbent_registry_2026-10-09.json",
+    "sha256": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
+    "profilesKey": "profiles",
+    "expectedProfileCount": 2
+  },
+  "frozenCalibrationManifest": {
+    "path": "backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json",
+    "sha256": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
+    "performers": ["p07", "p08", "p09", "p10", "p11", "p12", "p13", "p14"],
+    "scenarioCount": 72
+  },
+  "frozenBlindManifest": {
+    "path": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
+    "sha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+    "performers": ["p15", "p16", "p17", "p18", "p19", "p20", "p21", "p22"],
+    "scenarioCount": 70,
+    "candidateRunCount": 0
+  },
+  "rankedCandidates": [
+    {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "candidateFamily": "bytedance-original",
+      "category": "FROZEN_INCUMBENT",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+      "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+      "runtimeIdentity": "noteverse-bytedance-calibration:phase9ga21",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "permittedBlindRole": "FROZEN_INCUMBENT_EVALUATION",
+      "lockedForPhase9gB": true,
+      "productionSelectionEligible": true
+    },
+    {
+      "candidateId": "online-amt-calibrated-v1",
+      "candidateFamily": "online-amt",
+      "category": "FROZEN_INCUMBENT",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "runtimeIdentity": "noteverse-online-amt-calibration:phase9ga21",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "permittedBlindRole": "FROZEN_INCUMBENT_EVALUATION",
+      "lockedForPhase9gB": true,
+      "productionSelectionEligible": true
+    },
+    {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "candidateFamily": "bytedance-robust-augmented",
+      "category": "QUALIFIED_CHALLENGER",
+      "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "configurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce",
+      "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+      "runtimeIdentity": "noteverse-bytedance-calibration:phase9ga3",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "permittedBlindRole": "QUALIFIED_CHALLENGER_EVALUATION",
+      "lockedForPhase9gB": true,
+      "productionSelectionEligible": true
+    }
+  ],
+  "nonRankingResearchReferences": [
+    {
+      "candidateId": "transkun-v2-aug-calibrated-v1",
+      "candidateFamily": "transkun",
+      "profileId": "UPSTREAM_NATIVE_V2_AUG",
+      "configurationSha256": "4d5d16200215e252d373b8300aafa890e0e2bb0247240b6e0d26fbb5d68fc277",
+      "checkpointSha256": "8bd6b4b5ddf9ce8c5f296a57859eec9f166cd337c35245ec2a2576d90be68c4c",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false,
+      "ineligibilityReason": "Offline whole-recording latency cannot support causal live practice."
+    },
+    {
+      "candidateId": "aria-amt-medium-double-v1",
+      "candidateFamily": "aria-amt",
+      "profileId": "UPSTREAM_NATIVE_PIANO_MEDIUM_DOUBLE",
+      "configurationSha256": "d8e55dd4c19e70006650da031996c113961583c2f43b1305b77b002264fb2555",
+      "checkpointSha256": "089d3129dbe93246aeda55efe668c8a48af08afaf9dd15c64cef0a07c0fb30a4",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false,
+      "ineligibilityReason": "CC-BY-NC non-commercial licensing blocks production; offline whole-recording latency incompatible."
+    },
+    {
+      "candidateId": "rtt-causal-streaming-v1",
+      "candidateFamily": "rtt",
+      "profileId": "OFFLINE_SEGMENTWISE_NATIVE",
+      "configurationSha256": "473dde00da90daa857ebc95aaf871d3efb16f4948f0eda5591a546e337e4fb54",
+      "checkpointSha256": "901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false,
+      "ineligibilityReason": "CC-BY-NC non-commercial licensing blocks production; offline segmentwise execution incompatible."
+    }
+  ],
+  "blockedCandidates": [
+    {
+      "candidateId": "d3rm-offline-ceiling-reference",
+      "candidateFamily": "d3rm",
+      "profileId": "UPSTREAM_CEILING_REFERENCE",
+      "configurationSha256": "BLOCKED",
+      "checkpointSha256": "BLOCKED",
+      "qualificationStatus": "EXECUTION_BLOCKED",
+      "permittedBlindRole": "NOT_PERMITTED",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false,
+      "ineligibilityReason": "Missing natten dependency in environment; licensing unresolved; offline ceiling reference only."
+    }
+  ],
+  "scorerContract": {
+    "scorerModule": "apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.ts",
+    "scorerIdentity": "noteverse-continuous-analyzer-bakeoff-v1",
+    "assignmentWindowMs": 250,
+    "scoringFunction": "scoreCandidate"
+  },
+  "evaluationRules": {
+    "scenarioEligibility": {
+      "bytedanceOriginal": "Scenarios with sufficient pre-roll for 5.0s context window",
+      "onlineAmt": "All valid benchmark scenarios",
+      "bytedanceRobustAugmented": "Scenarios with sufficient pre-roll for 1820ms context window",
+      "mutualIntersectionRule": "Paired comparisons evaluated strictly over mutually eligible scenario intersections"
+    },
+    "scoreIndependenceRequirement": {
+      "rawAcousticInference": "Must not receive ExpectedStrike truth, BPM hints, or note labels",
+      "scoringStage": "ExpectedStrike ground truth accessed only after acoustic observation commit"
+    },
+    "safetyFirstMetricsPriority": [
+      "verdictAgreementRate",
+      "expectedStrikeRecall",
+      "falseMatchRateOnGroundTruthMissing",
+      "correctMissingRate",
+      "falseCompleteChordAcceptanceRate",
+      "chordExactCompletenessRate",
+      "extraPrecision",
+      "extraRecall"
+    ],
+    "secondaryQualityMetrics": [
+      "timingAbsoluteMedianMs",
+      "timingAbsoluteP95Ms",
+      "finalizedFeedbackAgeP50Ms",
+      "finalizedFeedbackAgeP95Ms",
+      "inferenceLatencyP50Ms",
+      "inferenceLatencyP95Ms"
+    ],
+    "bootstrapMethodology": {
+      "draws": 5000,
+      "seed": 13371,
+      "confidenceLevel": 0.95,
+      "method": "PERCENTILE_BOOTSTRAP"
+    },
+    "meaningfulEffectThreshold": 0.01,
+    "minimumCoveragePercent": 100.0,
+    "missingDataPolicy": "PENALIZED_AS_UNOBSERVED_STRIKES",
+    "oneShotExecutionPolicy": {
+      "singleRunIdRequired": true,
+      "noSelectiveReruns": true,
+      "noCandidateDroppedAfterBlindOutcome": true
+    },
+    "decisionRules": {
+      "productionWinnerThreshold": "Must achieve statistically significant and meaningful improvement on primary safety metrics without regression",
+      "noWinnerDecision": "If improvement is below meaningful threshold (< 1.0%) or statistically tied, decision is NO_PRODUCTION_WINNER",
+      "incompleteCoverageDecision": "If scenario coverage < 100%, decision is EVALUATION_INCOMPLETE_NO_WINNER"
+    }
+  },
+  "executionGuards": {
+    "prohibitBlindCandidateInferenceInPhase9GB1": true,
+    "prohibitProductionWinnerSelectionInPhase9GB1": true,
+    "prohibitMicrophoneActivation": true,
+    "candidateRunCount": 0
+  }
+}
