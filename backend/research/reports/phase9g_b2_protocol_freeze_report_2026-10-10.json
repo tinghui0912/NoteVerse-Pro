@@ -1,11 +1,11 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "artifact": "phase9g_b2_protocol_freeze_report",
-  "phase": "9G-B.2-ARM",
-  "generatedAt": "2026-10-10T13:08:38.133Z",
-  "gitHead": "a6538bd3e437b9ce939696467f93d368b4e2d3ea",
+  "phase": "9G-B.2-FINAL-GATE",
+  "generatedAt": "2026-10-10T14:06:30.980Z",
+  "gitHead": "8eb7b676bc980fb31c98e371ab16b72c08e8e60f",
   "dirtyTreeAtGeneration": false,
-  "authorizationGateOutcome": "PHASE_9GB2_ARM_READY_FOR_SEPARATE_ONE_SHOT_BLIND_AUTHORIZATION",
+  "authorizationGateOutcome": "PHASE_9GB2_FINAL_GATE_READY_TO_REQUEST_EXPLICIT_ONE_SHOT_AUTHORIZATION",
   "allConditionsSatisfied": true,
   "verificationsCount": 14,
   "verificationChecks": [
@@ -21,6 +21,7 @@
         "v3ProtocolSha": "6a0f664af87bdcf773f6dbeb767ad0e4ba59b7b2518b41964f66773709191363",
         "v4ProtocolSha": "f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67",
         "v5ProtocolSha": "e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b",
+        "v6ProtocolSha": "39303325793b7ff512e051a8771c0fa6c37500e78d18409bb8192660c959c4fe",
         "a25RegistrySha": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
         "a1CalibrationManifestSha": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
         "blindManifestSha": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
@@ -34,10 +35,11 @@
         "scorerSourceSha256": "70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea",
         "finalizerLedgerSha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e",
         "reconcilerSha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146",
-        "qualificationModuleSha256": "4f110a594a1aa94cc69b0cad8482df0e502582eb22e0e298035ba941f6d8b99e",
-        "orchestratorModuleSha256": "32243830bdcda34a0597bc3b82d686e41233fbf1551909a273fd9597cce9205b",
-        "rehearsalModuleSha256": "d0ddcacccd1683abb272b1f0bbab18f3730ef05c51229b408912c1bc33d70502",
-        "attestationModuleSha256": "78be3143bcbfa471f2f273454e48086086d9b21cad68742ced503d92d7e4f9bb"
+        "qualificationModuleSha256": "42a3917d943adf83043f436b5b7f309808fd0df1055b33d5949dfda9ec2d056b",
+        "orchestratorModuleSha256": "226fda45ec2933859522b8d449712f6023045fef88e8129fe24b368563c6ab8b",
+        "executionEntrypointSha256": "68cb001a8cccd50df94009375fddf37bcb7e83863d3414452404d567d73b698a",
+        "rehearsalModuleSha256": "02e070939a1be0497bd0c9209d1f0c705234a606bf9f82c7fff608e13fa17b7e",
+        "attestationModuleSha256": "b7065282855460ca2de2df2ddadb6ce6b36158c0887df9d87ea1218fcbf612ca"
       }
     },
     {
@@ -149,7 +151,7 @@
       "status": "PASS",
       "details": {
         "rehearsalMode": "TRUE_SYNTHETIC_END_TO_END_PIPELINE",
-        "testsExecuted": 18,
+        "testsExecuted": 20,
         "allTestsPassed": true,
         "realBlindInferenceExecuted": false
       }
@@ -170,7 +172,7 @@
       "checkId": "CHECK_13_CLEAN_WORKING_TREE_INTEGRITY",
       "status": "PASS",
       "details": {
-        "gitHead": "a6538bd3e437b9ce939696467f93d368b4e2d3ea",
+        "gitHead": "8eb7b676bc980fb31c98e371ab16b72c08e8e60f",
         "dirty": false,
         "allowDirty": false
       }
@@ -183,7 +185,7 @@
         "productionWinnerSelected": false,
         "productionMicrophoneActive": false,
         "programmaticInferenceBlocked": true,
-        "gateOutcome": "PHASE_9GB2_ARM_READY_FOR_SEPARATE_ONE_SHOT_BLIND_AUTHORIZATION"
+        "gateOutcome": "PHASE_9GB2_FINAL_GATE_READY_TO_REQUEST_EXPLICIT_ONE_SHOT_AUTHORIZATION"
       }
     }
   ],
@@ -196,16 +198,18 @@
     "v3BlindProtocolSha256": "6a0f664af87bdcf773f6dbeb767ad0e4ba59b7b2518b41964f66773709191363",
     "v4BlindProtocolSha256": "f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67",
     "v5BlindProtocolSha256": "e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b",
+    "v6BlindProtocolSha256": "39303325793b7ff512e051a8771c0fa6c37500e78d18409bb8192660c959c4fe",
     "a25IncumbentRegistrySha256": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
     "a1CalibrationManifestSha256": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
     "blindManifestSha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
     "scorerSourceSha256": "70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea",
     "finalizerLedgerSha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e",
     "reconcilerSha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146",
-    "qualificationModuleSha256": "4f110a594a1aa94cc69b0cad8482df0e502582eb22e0e298035ba941f6d8b99e",
-    "orchestratorModuleSha256": "32243830bdcda34a0597bc3b82d686e41233fbf1551909a273fd9597cce9205b",
-    "rehearsalModuleSha256": "d0ddcacccd1683abb272b1f0bbab18f3730ef05c51229b408912c1bc33d70502",
-    "attestationModuleSha256": "78be3143bcbfa471f2f273454e48086086d9b21cad68742ced503d92d7e4f9bb"
+    "qualificationModuleSha256": "42a3917d943adf83043f436b5b7f309808fd0df1055b33d5949dfda9ec2d056b",
+    "orchestratorModuleSha256": "226fda45ec2933859522b8d449712f6023045fef88e8129fe24b368563c6ab8b",
+    "executionEntrypointSha256": "68cb001a8cccd50df94009375fddf37bcb7e83863d3414452404d567d73b698a",
+    "rehearsalModuleSha256": "02e070939a1be0497bd0c9209d1f0c705234a606bf9f82c7fff608e13fa17b7e",
+    "attestationModuleSha256": "b7065282855460ca2de2df2ddadb6ce6b36158c0887df9d87ea1218fcbf612ca"
   },
   "executionGuards": {
     "candidateRunCount": 0,

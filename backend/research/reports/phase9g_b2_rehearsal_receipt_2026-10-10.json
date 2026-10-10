@@ -1,9 +1,9 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "artifact": "phase9g_b2_rehearsal_receipt",
-  "phase": "9G-B.2-ARM",
-  "generatedAt": "2026-10-10T13:08:38.111Z",
-  "gitHead": "a6538bd3e437b9ce939696467f93d368b4e2d3ea",
+  "phase": "9G-B.2-FINAL-GATE",
+  "generatedAt": "2026-10-10T14:06:30.959Z",
+  "gitHead": "8eb7b676bc980fb31c98e371ab16b72c08e8e60f",
   "dirtyTreeAtExecution": false,
   "rehearsalMode": "TRUE_SYNTHETIC_END_TO_END_PIPELINE",
   "realBlindInferenceExecuted": false,
@@ -18,7 +18,7 @@
     "p22"
   ],
   "syntheticScenariosUsed": 8,
-  "testsExecuted": 18,
+  "testsExecuted": 20,
   "allTestsPassed": true,
   "rehearsalResults": [
     {
@@ -48,8 +48,8 @@
       "testId": "REHEARSAL_4_CHANGED_PROTOCOL_HASH_PREVENTS_RESUME",
       "status": "PASS",
       "details": {
-        "protocolShaMismatchBlocked": true,
-        "scorerShaMismatchBlocked": true
+        "allFiveBindingsIndependentlyVerified": true,
+        "missingBindingBlocked": true
       }
     },
     {
@@ -143,6 +143,24 @@
         "syntheticFlagInProdRejected": true,
         "fabricatedDigestRejected": true,
         "syntheticFixtureFlagEnforced": true
+      }
+    },
+    {
+      "testId": "REHEARSAL_19_WRITER_LOCK_OWNERSHIP_AND_RECOVERY_GUARANTEES",
+      "status": "PASS",
+      "details": {
+        "wrongOwnerReleaseRejected": true,
+        "unauthorizedDeletionPrevented": true,
+        "ownershipAssertionVerified": true
+      }
+    },
+    {
+      "testId": "REHEARSAL_20_OFFICIAL_EXECUTION_ENTRYPOINT_AUTHORIZATION_GATE",
+      "status": "PASS",
+      "details": {
+        "unauthorizedRealBlindBlocked": true,
+        "dryRunSyntheticSucceeded": true,
+        "attemptsExecuted": 7
       }
     }
   ]

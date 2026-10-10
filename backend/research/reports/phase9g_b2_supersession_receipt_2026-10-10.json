@@ -1,31 +1,34 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "artifact": "phase9g_b2_supersession_receipt",
-  "phase": "9G-B.2-ARM",
-  "generatedAt": "2026-10-10T13:07:53.762Z",
-  "gitHead": "a6538bd3e437b9ce939696467f93d368b4e2d3ea",
+  "phase": "9G-B.2-FINAL-GATE",
+  "generatedAt": "2026-10-10T14:05:46.624Z",
+  "gitHead": "8eb7b676bc980fb31c98e371ab16b72c08e8e60f",
   "dirtyTreeAtGeneration": false,
   "supersededProtocol": {
-    "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V4",
-    "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v4_2026-10-10.json",
-    "sha256": "f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67",
-    "status": "SUPERSEDED_BY_V5_ARM",
-    "supersessionReason": "Independent source review confirmed that Phase 9G-B.2-PRE protocol V4 established atomic run reservation, journal event hashing, and physical-checkpoint checks, but trusted protocol SHA comparison was still optional, production audio identities could still be fabricated from scenario IDs, Online-AMT attestation lacked a real model forward pass, and resume lacked exclusive writer ownership verification."
-  },
-  "activeProtocol": {
     "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V5",
     "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v5_2026-10-10.json",
     "sha256": "e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b",
+    "status": "SUPERSEDED_BY_V6_FINAL_GATE",
+    "supersessionReason": "Independent source review established that while Phase 9G-B.2-ARM completed model forward passes and writer lock tokens, Phase 9G-B.2-FINAL-GATE establishes the authoritative blind execution entrypoint (execute_phase9gb_blind_evaluation.mjs), enforces independent immutable protocol trust roots, executes physical audio byte integrity verification, eliminates synthetic fallbacks, and establishes fail-closed writer ownership assertions."
+  },
+  "activeProtocol": {
+    "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V6",
+    "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v6_2026-10-10.json",
+    "sha256": "39303325793b7ff512e051a8771c0fa6c37500e78d18409bb8192660c959c4fe",
     "status": "ACTIVE_AUTHORIZATION_GATED"
   },
-  "materialAmendmentsInV5": [
-    "Made trusted protocol SHA256 comparison strictly mandatory at preflight execution boundary: untrusted caller-supplied expected SHA cannot serve as its own trust root, and realistic-looking wrong hashes are rejected.",
-    "Enforced production audio manifest schema requiring real 64-character SHA256 digests for WAV and decoded PCM, explicitly rejecting fabricated audio_${id} digests and synthetic rehearsal fixtures.",
-    "Completed end-to-end target runtime attestation for all three candidate models in production Docker containers on CUDA, including genuine OnlineTranscriber forward pass.",
-    "Bound immutable Docker container image IDs and RepoDigests to runtime attestation receipts.",
-    "Implemented exclusive resume writer ownership mutex (writer.lock with \"wx\" mode) and verified complete run bindings on resume.",
-    "Enforced trusted chain-tip anchor requirement for independent disk evidence audit completeness (JOURNAL_COMPLETENESS_NOT_VERIFIABLE).",
-    "Expanded synthetic rehearsal to 18 comprehensive adversarial test cases, verifying concurrency, crash preservation, tampering detection, and manifest schema separation.",
-    "Established Phase 9G-B.2-ARM execution authorization gate outcome: PHASE_9GB2_ARM_READY_FOR_SEPARATE_ONE_SHOT_BLIND_AUTHORIZATION."
+  "materialAmendmentsInV6": [
+    "Established independently pinned immutable protocol trust root for V5 (e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b) and V6: caller-supplied path or SHA cannot act as own root.",
+    "Implemented authoritative official blind execution entrypoint (execute_phase9gb_blind_evaluation.mjs) with strict authorization gate blocking unauthorized --real-blind launches (BLIND_EXECUTION_UNAUTHORIZED).",
+    "Implemented dry-run synthetic execution mode exercising official adapter wiring, input normalization, preflight guards, ledger mutex, and evidence durability using synthetic audio fixtures only.",
+    "Implemented physical audio byte integrity preflight (assertAudioByteIntegrity) verifying RIFF WAV headers, 16kHz mono PCM, sample counts, and SHA256; deferred for real blind audio until authorized.",
+    "Derived authorized scenario schedule strictly from immutable metadata (deriveAuthorizedScheduleFromMetadata), isolating performers p15–p22 and verifying 70 total / 63 pairwise intersection geometry.",
+    "Completed genuine runtime attestation across all three candidate models with synthetic forward passes in target Docker containers, verifying output shapes (1001, 88), (88,), and (1, 183, 88) on NVIDIA GeForce RTX 4080 Laptop GPU.",
+    "Hardened writer lock with unique owner token, PID, and lock generation in writer.lock; enforced ownership assertion before writes and fail-closed release.",
+    "Enforced fail-closed resume on missing or altered identity bindings (protocolSha256, scorerSha256, orchestratorSha256, rosterSha256, manifestSha256).",
+    "Required external independent trusted anchor for journal chain tip verification, rejecting mutable run-directory receipt as trusted anchor (JOURNAL_COMPLETENESS_NOT_VERIFIABLE).",
+    "Expanded adversarial synthetic rehearsal to 20 comprehensive test cases demonstrating end-to-end execution-readiness.",
+    "Established Phase 9G-B.2-FINAL-GATE execution authorization gate outcome: PHASE_9GB2_FINAL_GATE_READY_TO_REQUEST_EXPLICIT_ONE_SHOT_AUTHORIZATION."
   ]
 }
