@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a31_score_independence_audit_receipt",
+  "phase": "9G-A.3.1",
+  "generatedAt": "2026-10-10T04:20:44.817Z",
+  "counterfactualPairCount": 48,
+  "resultsByCandidate": {
+    "bytedanceRobustAugmented": {
+      "verifiedScenarioCount": 40,
+      "identicalRunsCount": 40,
+      "scoreIndependent": true
+    },
+    "transkun": {
+      "verifiedScenarioCount": 48,
+      "identicalRunsCount": 48,
+      "scoreIndependent": true
+    },
+    "ariaAmt": {
+      "verifiedScenarioCount": 48,
+      "identicalRunsCount": 48,
+      "scoreIndependent": true
+    },
+    "rtt": {
+      "verifiedScenarioCount": 48,
+      "identicalRunsCount": 48,
+      "scoreIndependent": true
+    }
+  },
+  "allCandidatesPassedScoreIndependenceCheck": true,
+  "bitwiseObservationDigestMatch": true
+}

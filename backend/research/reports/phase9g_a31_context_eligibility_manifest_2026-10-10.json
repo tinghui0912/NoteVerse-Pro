@@ -1,0 +1,4876 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a31_context_eligibility_manifest",
+  "phase": "9G-A.3.1",
+  "records": [
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 1820,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 3000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 5000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 10000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 1820,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 3000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 5000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 10000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p11:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": false,
+      "preRollMs": 1743.7499999999986,
+      "postRollMs": 47510.80782312926,
+      "requiredWindowMs": 1820,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p11:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": false,
+      "preRollMs": 1743.7499999999986,
+      "postRollMs": 47510.80782312926,
+      "requiredWindowMs": 3000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p11:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": false,
+      "preRollMs": 1743.7499999999986,
+      "postRollMs": 47510.80782312926,
+      "requiredWindowMs": 5000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p11:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": false,
+      "preRollMs": 1743.7499999999986,
+      "postRollMs": 47510.80782312926,
+      "requiredWindowMs": 10000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p11:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 8781.249999999998,
+      "postRollMs": 134199.75320588006,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p11:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 8781.249999999998,
+      "postRollMs": 134199.75320588006,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p11:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 8781.249999999998,
+      "postRollMs": 134199.75320588006,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p11:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 8781.249999999998,
+      "postRollMs": 134199.75320588006,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p11:15.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 7430.208333333332,
+      "postRollMs": 109282.07368861999,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p11:15.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 7430.208333333332,
+      "postRollMs": 109282.07368861999,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p11:15.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 7430.208333333332,
+      "postRollMs": 109282.07368861999,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p11:15.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": false,
+      "preRollMs": 7430.208333333332,
+      "postRollMs": 109282.07368861999,
+      "requiredWindowMs": 10000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p12:81.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 38480.20833333335,
+      "postRollMs": 4159.997345182186,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p12:81.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 38480.20833333335,
+      "postRollMs": 4159.997345182186,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p12:81.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 38480.20833333335,
+      "postRollMs": 4159.997345182186,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p12:81.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 38480.20833333335,
+      "postRollMs": 4159.997345182186,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p12:150.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 62377.08333333337,
+      "postRollMs": 54541.89625850337,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p12:150.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 62377.08333333337,
+      "postRollMs": 54541.89625850337,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p12:150.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 62377.08333333337,
+      "postRollMs": 54541.89625850337,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p12:150.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 62377.08333333337,
+      "postRollMs": 54541.89625850337,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p12:15.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 8445.833333333334,
+      "postRollMs": 100543.13230420374,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p12:15.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 8445.833333333334,
+      "postRollMs": 100543.13230420374,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p12:15.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 8445.833333333334,
+      "postRollMs": 100543.13230420374,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p12:15.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 8445.833333333334,
+      "postRollMs": 100543.13230420374,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p13:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 21111.458333333336,
+      "postRollMs": 16086.636904761905,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p13:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 21111.458333333336,
+      "postRollMs": 16086.636904761905,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p13:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 21111.458333333336,
+      "postRollMs": 16086.636904761905,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p13:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 21111.458333333336,
+      "postRollMs": 16086.636904761905,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p13:246.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 102895.83333333334,
+      "postRollMs": 19439.154546876205,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p13:246.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 102895.83333333334,
+      "postRollMs": 19439.154546876205,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p13:246.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 102895.83333333334,
+      "postRollMs": 19439.154546876205,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p13:246.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 102895.83333333334,
+      "postRollMs": 19439.154546876205,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p13:63.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 45693.74999999999,
+      "postRollMs": 104622.67276422767,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p13:63.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 45693.74999999999,
+      "postRollMs": 104622.67276422767,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p13:63.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 45693.74999999999,
+      "postRollMs": 104622.67276422767,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p13:63.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 45693.74999999999,
+      "postRollMs": 104622.67276422767,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p14:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 23828.124999999985,
+      "postRollMs": 19641.627953813117,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p14:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 23828.124999999985,
+      "postRollMs": 19641.627953813117,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p14:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 23828.124999999985,
+      "postRollMs": 19641.627953813117,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p14:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 23828.124999999985,
+      "postRollMs": 19641.627953813117,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p14:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 32922.91666666667,
+      "postRollMs": 114053.61394557824,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p14:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 32922.91666666667,
+      "postRollMs": 114053.61394557824,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p14:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 32922.91666666667,
+      "postRollMs": 114053.61394557824,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p14:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 32922.91666666667,
+      "postRollMs": 114053.61394557824,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p14:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 12690.625000000002,
+      "postRollMs": 83063.29790249432,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p14:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 12690.625000000002,
+      "postRollMs": 83063.29790249432,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p14:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 12690.625000000002,
+      "postRollMs": 83063.29790249432,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p14:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 12690.625000000002,
+      "postRollMs": 83063.29790249432,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 1820,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 3000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 5000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 10000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 1820,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 3000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 5000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 10000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 1820,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 3000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 5000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 10000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 1820,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 3000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 5000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 10000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 1820,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 3000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 5000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 10000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 1820,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 3000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 5000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 10000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p07:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p08:17.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 1820,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 3000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 5000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": false,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 10000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p09:66.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 1820,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 3000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 5000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p10:0.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": false,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 10000,
+      "missingContextReason": "INSUFFICIENT_PRE_OR_POST_ROLL_AUDIO",
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_1820",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 1820,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_3S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 3000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_5S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 5000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "bytedance-robust-augmented",
+      "contextProfileId": "CALIBRATED_CONTEXT_10S",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 10000,
+      "scopeKind": "VARIABLE_CONTEXT_WINDOW"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p07:17.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p08:17.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p09:66.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p10:0.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p11:0.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 1743.7499999999986,
+      "postRollMs": 47510.80782312926,
+      "requiredWindowMs": 53968.84353741497,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p11:17.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 8781.249999999998,
+      "postRollMs": 134199.75320588006,
+      "requiredWindowMs": 147118.9342403628,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p11:15.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 7430.208333333332,
+      "postRollMs": 109282.07368861999,
+      "requiredWindowMs": 121491.04308390022,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p12:81.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 38480.20833333335,
+      "postRollMs": 4159.997345182186,
+      "requiredWindowMs": 47076.8253968254,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p12:150.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 62377.08333333337,
+      "postRollMs": 54541.89625850337,
+      "requiredWindowMs": 121502.31292517007,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p12:15.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 8445.833333333334,
+      "postRollMs": 100543.13230420374,
+      "requiredWindowMs": 113142.81179138322,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p13:49.500",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 21111.458333333336,
+      "postRollMs": 16086.636904761905,
+      "requiredWindowMs": 41483.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p13:246.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 102895.83333333334,
+      "postRollMs": 19439.154546876205,
+      "requiredWindowMs": 126886.71201814059,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p13:63.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 45693.74999999999,
+      "postRollMs": 104622.67276422767,
+      "requiredWindowMs": 154706.6666666667,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p14:49.500",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 23828.124999999985,
+      "postRollMs": 19641.627953813117,
+      "requiredWindowMs": 47614.489795918365,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p14:66.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 32922.91666666667,
+      "postRollMs": 114053.61394557824,
+      "requiredWindowMs": 151262.2448979592,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p14:30.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 12690.625000000002,
+      "postRollMs": 83063.29790249432,
+      "requiredWindowMs": 100468.20861678004,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p07:17.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p08:17.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p09:66.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p10:0.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p07:17.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p08:17.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p09:66.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p10:0.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p07:17.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p08:17.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p09:66.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p10:0.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p07:17.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p08:17.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p09:66.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p10:0.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "transkun",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p07:17.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p08:17.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p09:66.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p10:0.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p11:0.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 1743.7499999999986,
+      "postRollMs": 47510.80782312926,
+      "requiredWindowMs": 53968.84353741497,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p11:17.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 8781.249999999998,
+      "postRollMs": 134199.75320588006,
+      "requiredWindowMs": 147118.9342403628,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p11:15.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 7430.208333333332,
+      "postRollMs": 109282.07368861999,
+      "requiredWindowMs": 121491.04308390022,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p12:81.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 38480.20833333335,
+      "postRollMs": 4159.997345182186,
+      "requiredWindowMs": 47076.8253968254,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p12:150.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 62377.08333333337,
+      "postRollMs": 54541.89625850337,
+      "requiredWindowMs": 121502.31292517007,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p12:15.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 8445.833333333334,
+      "postRollMs": 100543.13230420374,
+      "requiredWindowMs": 113142.81179138322,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p13:49.500",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 21111.458333333336,
+      "postRollMs": 16086.636904761905,
+      "requiredWindowMs": 41483.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p13:246.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 102895.83333333334,
+      "postRollMs": 19439.154546876205,
+      "requiredWindowMs": 126886.71201814059,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p13:63.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 45693.74999999999,
+      "postRollMs": 104622.67276422767,
+      "requiredWindowMs": 154706.6666666667,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p14:49.500",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 23828.124999999985,
+      "postRollMs": 19641.627953813117,
+      "requiredWindowMs": 47614.489795918365,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p14:66.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 32922.91666666667,
+      "postRollMs": 114053.61394557824,
+      "requiredWindowMs": 151262.2448979592,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p14:30.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 12690.625000000002,
+      "postRollMs": 83063.29790249432,
+      "requiredWindowMs": 100468.20861678004,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p07:17.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p08:17.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p09:66.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p10:0.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p07:17.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p08:17.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p09:66.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p10:0.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p07:17.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p08:17.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p09:66.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p10:0.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p07:17.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p08:17.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p09:66.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p10:0.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "aria-amt",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p07:17.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p08:17.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p09:66.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p10:0.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p11:0.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 1743.7499999999986,
+      "postRollMs": 47510.80782312926,
+      "requiredWindowMs": 53968.84353741497,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p11:17.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 8781.249999999998,
+      "postRollMs": 134199.75320588006,
+      "requiredWindowMs": 147118.9342403628,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p11:15.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 7430.208333333332,
+      "postRollMs": 109282.07368861999,
+      "requiredWindowMs": 121491.04308390022,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p12:81.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 38480.20833333335,
+      "postRollMs": 4159.997345182186,
+      "requiredWindowMs": 47076.8253968254,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p12:150.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 62377.08333333337,
+      "postRollMs": 54541.89625850337,
+      "requiredWindowMs": 121502.31292517007,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p12:15.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 8445.833333333334,
+      "postRollMs": 100543.13230420374,
+      "requiredWindowMs": 113142.81179138322,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p13:49.500",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 21111.458333333336,
+      "postRollMs": 16086.636904761905,
+      "requiredWindowMs": 41483.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p13:246.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 102895.83333333334,
+      "postRollMs": 19439.154546876205,
+      "requiredWindowMs": 126886.71201814059,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p13:63.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 45693.74999999999,
+      "postRollMs": 104622.67276422767,
+      "requiredWindowMs": 154706.6666666667,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Schubert_D783_no15_p14:49.500",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 23828.124999999985,
+      "postRollMs": 19641.627953813117,
+      "requiredWindowMs": 47614.489795918365,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p14:66.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 32922.91666666667,
+      "postRollMs": 114053.61394557824,
+      "requiredWindowMs": 151262.2448979592,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-base:Mozart_K331_1st-mov_p14:30.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 12690.625000000002,
+      "postRollMs": 83063.29790249432,
+      "requiredWindowMs": 100468.20861678004,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p07:17.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p08:17.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p09:66.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Chopin_op38_p10:0.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_missing_note:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p07:17.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p08:17.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p09:66.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Chopin_op38_p10:0.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_extra_note:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p07:17.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p08:17.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p09:66.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Chopin_op38_p10:0.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_wrong_semitone:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op10_no3_p08:27.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 45386.45833333335,
+      "postRollMs": 21722.748015873003,
+      "requiredWindowMs": 71394.92063492064,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p07:17.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 8317.70833333333,
+      "postRollMs": 109512.02235346193,
+      "requiredWindowMs": 121939.31972789115,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p07:78.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 33404.16666666667,
+      "postRollMs": 55917.48199279711,
+      "requiredWindowMs": 93635.37414965987,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p07:39.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 15502.08333333334,
+      "postRollMs": 19264.91089014681,
+      "requiredWindowMs": 39584.51247165533,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p08:17.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 8077.083333333336,
+      "postRollMs": 122625.16867194638,
+      "requiredWindowMs": 135179.86394557822,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p08:30.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 14813.54166666667,
+      "postRollMs": 88784.33065740419,
+      "requiredWindowMs": 107665.66893424036,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p08:0.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 1438.5416666666679,
+      "postRollMs": 34351.4635762783,
+      "requiredWindowMs": 40472.08616780046,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p09:66.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 30744.79166666668,
+      "postRollMs": 99626.6369047619,
+      "requiredWindowMs": 135085.7142857143,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p09:134.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 58885.41666666667,
+      "postRollMs": 33217.230066445176,
+      "requiredWindowMs": 96753.80952380953,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Schubert_D783_no15_p09:49.500",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 26298.958333333336,
+      "postRollMs": 21835.23667800453,
+      "requiredWindowMs": 52658.00453514739,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Chopin_op38_p10:0.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 1544.7916666666674,
+      "postRollMs": 131405.19356773718,
+      "requiredWindowMs": 137136.03174603175,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    },
+    {
+      "scenarioId": "vienna-secondary-counterfactual_incomplete_chord:Mozart_K331_1st-mov_p10:48.000",
+      "candidateFamily": "rtt",
+      "isEligible": true,
+      "preRollMs": 23219.791666666675,
+      "postRollMs": 74797.92475323462,
+      "requiredWindowMs": 102870.65759637188,
+      "scopeKind": "WHOLE_RECORDING_SOURCE_CONSUMED"
+    }
+  ]
+}

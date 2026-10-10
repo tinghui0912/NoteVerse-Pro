@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_a3_historical_invalidation_receipt",
+  "phase": "9G-A.3.1",
+  "generatedAt": "2026-10-10T04:20:45.826Z",
+  "supersededArtifacts": [
+    {
+      "path": "backend/research/policies/public_challenger_qualification_protocol_v1_2026-10-09.json",
+      "sha256": "0ccd4872d6998b67d794baf96cad22c5ccbba3f8ee65a9ac02ba1ad9790ec71b",
+      "supersededBy": "backend/research/policies/public_challenger_qualification_protocol_v2_2026-10-10.json",
+      "supersedingSha256": "b467e9aad917808f307346482477d1d4a4716aed665bd2662e87445231d12f8c",
+      "reasons": [
+        "RTT was improperly classified as causal streaming instead of offline segmentwise reference",
+        "Transkun and Aria publication availability times were backdated to practice scope completion rather than whole-recording source end",
+        "Transkun model loading used unchecked strict=False rather than strict=True",
+        "Incumbent registry schema binding read registryRaw.incumbents instead of registryRaw.profiles",
+        "Raw cache reuse was unverified against file hashes and tensor digests"
+      ]
+    },
+    {
+      "path": "backend/research/reports/phase9g_a3_challenger_qualification_report_2026-10-09.json",
+      "provenanceFailure": "dirtyTreeAtExecution: true (historical execution provenance failure)",
+      "retractedClaims": [
+        "RTT 10ms frame latency and 794.79ms P95 feedback age retracted (model is offline segmentwise)",
+        "Aria batch-average runtime masquerading as measured per-file latency retracted (marked NOT_MEASURED)",
+        "Unverified raw cache reuse retracted (replaced by validated raw evidence manifest)",
+        "Incumbent metric confusion in previous chat summary reconciled against immutable A.2.4/A.2.5 evidence"
+      ]
+    },
+    {
+      "path": "backend/research/reports/phase9g_a3_final_candidate_registry_2026-10-09.json",
+      "defect": "Omitted frozen incumbents due to reading registryRaw.incumbents instead of registryRaw.profiles",
+      "remediatedIn": "backend/research/reports/phase9g_a31_final_candidate_registry_2026-10-10.json"
+    }
+  ]
+}
