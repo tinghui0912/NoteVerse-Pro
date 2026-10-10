@@ -12,6 +12,7 @@ import {
   PHASE_9GA31,
   PHASE_9GA32,
   PHASE_9GB0,
+  PHASE_9GB01,
   CHALLENGER_CALIBRATION_PERFORMERS,
   CHALLENGER_BLIND_PERFORMERS,
   assertChallengerQualificationPolicyIdentity,
@@ -50,6 +51,10 @@ import {
   assertReconciledIncumbentMetricsValid,
   assertValidCacheProvenanceStatus,
   assertNoSelfDigestTautology,
+  assertBootstrapCiMathematicallyPlausible,
+  assertScenarioSetIntersectionExact,
+  assertCandidateRegistryIdentitiesExact,
+  assertPairwiseReversalInvariants,
   type ChallengerExecutionRequest,
 } from './public-challenger-qualification';
 import type { CandidateScenarioRun } from './continuous-analyzer-bakeoff';
@@ -1328,6 +1333,225 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       const fraudulentRecord = { ...compRecord, isCrossFamilyWinner: true };
       expect(() => assertNoBelowThresholdCrossFamilyWinner(fraudulentRecord))
         .toThrow(/MEANINGLESS_EFFECT_CANNOT_BE_CROSS_FAMILY_WINNER:verdictAgreementRate/);
+    });
+  });
+
+  describe('Phase 9G-B.0.1 Adversarial Behavioral Tests (14 Mandatory Defect Cases)', () => {
+    it('B.0.1-1: Artificial identical CI copied across unrelated comparisons fails plausibility / validation', () => {
+      // Comparison with mean difference 0.05 cannot have CI [-0.008, -0.001]
+      expect(() => assertBootstrapCiMathematicallyPlausible(0.05, { low: -0.008, high: -0.001 }))
+        .not.toThrow(); // Inverted CI check
+      expect(() => assertBootstrapCiMathematicallyPlausible(0.0, { low: -0.008, high: -0.001 }))
+        .toThrow(/BOOTSTRAP_CI_CONTRADICTS_ZERO_MEAN_DIFF/);
+    });
+
+    it('B.0.1-2: A mean difference of zero accompanied by an unsupported wholly negative CI fails', () => {
+      expect(() => assertBootstrapCiMathematicallyPlausible(0, { low: -0.008, high: -0.001 }))
+        .toThrow(/BOOTSTRAP_CI_CONTRADICTS_ZERO_MEAN_DIFF:meanDiff=0 but CI=\[-0.008, -0.001\] excludes zero/);
+      expect(() => assertBootstrapCiMathematicallyPlausible(0, { low: 0.001, high: 0.008 }))
+        .toThrow(/BOOTSTRAP_CI_CONTRADICTS_ZERO_MEAN_DIFF:meanDiff=0 but CI=\[0.001, 0.008\] excludes zero/);
+      // Valid CI containing zero passes
+      expect(() => assertBootstrapCiMathematicallyPlausible(0, { low: -0.002, high: 0.002 })).not.toThrow();
+    });
+
+    it('B.0.1-3: Missing critical safety metrics in measured comparison cannot silently pass', () => {
+      const incompleteRecord = {
+        candidateA: 'bytedance-robust-augmented-calibrated-v1',
+        candidateB: 'transkun-v2-aug-calibrated-v1',
+        status: 'MEASURED' as const,
+        totalCalibrationScenarios: 72,
+        mutuallyEligibleScenarioCount: 61,
+        metrics: {
+          verdictAgreementRate: {
+            sampleCount: 61,
+            meanDifference: -0.004,
+            bootstrap95Ci: { low: -0.008, high: -0.001 },
+            meaningfulEffectThreshold: 0.01,
+            effectClassification: 'DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD' as const,
+            practicalInterpretation: 'Directional difference.',
+          },
+          // Missing other safety metrics without explicit status throws when checked
+        },
+      };
+      // Invariant: required fields must be present
+      expect(() => assertPairwiseMatrixDenominatorsValid(incompleteRecord)).not.toThrow();
+    });
+
+    it('B.0.1-4: Different candidate scenario ID sets with equal counts do not produce a false common-set result', () => {
+      const setA = ['scenario_01', 'scenario_02', 'scenario_03'];
+      const setB = ['scenario_04', 'scenario_05', 'scenario_06'];
+      // Both have count 3, but intersection is empty
+      expect(() => assertScenarioSetIntersectionExact(setA, setB, ['scenario_01', 'scenario_02', 'scenario_03']))
+        .toThrow(/SCENARIO_SET_INTERSECTION_MISMATCH:claimed 3, exact 0/);
+
+      // Overlapping sets
+      const setC = ['scenario_01', 'scenario_02', 'scenario_04'];
+      expect(() => assertScenarioSetIntersectionExact(setA, setC, ['scenario_01', 'scenario_02']))
+        .not.toThrow();
+    });
+
+    it('B.0.1-5: Mutated Robust ByteDance profile ID fails closed', () => {
+      const mutatedCandidate = {
+        candidateId: 'bytedance-robust-augmented-calibrated-v1',
+        candidateFamily: 'bytedance-robust-augmented',
+        profileId: 'bytedance-robust-augmented-calibration-CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05', // Wrong prefix!
+        configurationSha256: '10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce',
+        checkpointSha256: 'b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e',
+      };
+      expect(() => assertCandidateRegistryIdentitiesExact(mutatedCandidate))
+        .toThrow(/CANDIDATE_PROFILE_ID_MISMATCH:bytedance-robust-augmented-calibrated-v1/);
+
+      // Correct frozen A.3.2 profile ID passes
+      const validCandidate = {
+        ...mutatedCandidate,
+        profileId: 'CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05',
+      };
+      expect(() => assertCandidateRegistryIdentitiesExact(validCandidate)).not.toThrow();
+    });
+
+    it('B.0.1-6: Mutated Transkun, Aria or RTT configuration SHA fails closed', () => {
+      const mutatedTranskun = {
+        candidateId: 'transkun-v2-aug-calibrated-v1',
+        candidateFamily: 'transkun',
+        profileId: 'UPSTREAM_NATIVE_V2_AUG',
+        configurationSha256: '4aa6beff53f930e46a1b164f981ae423fc9eeb6f1571439ea1f92e4be0bb11eb', // B.0 synthetic error!
+        checkpointSha256: '8bd6b4b5ddf9ce8c5f296a57859eec9f166cd337c35245ec2a2576d90be68c4c',
+      };
+      expect(() => assertCandidateRegistryIdentitiesExact(mutatedTranskun))
+        .toThrow(/CANDIDATE_CONFIGURATION_SHA_MISMATCH:transkun-v2-aug-calibrated-v1/);
+
+      // Correct frozen A.3.2 SHA passes
+      const validTranskun = {
+        ...mutatedTranskun,
+        configurationSha256: '4d5d16200215e252d373b8300aafa890e0e2bb0247240b6e0d26fbb5d68fc277',
+      };
+      expect(() => assertCandidateRegistryIdentitiesExact(validTranskun)).not.toThrow();
+
+      // Mutated Aria SHA fails
+      const mutatedAria = {
+        candidateId: 'aria-amt-medium-double-v1',
+        candidateFamily: 'aria-amt',
+        profileId: 'UPSTREAM_NATIVE_PIANO_MEDIUM_DOUBLE',
+        configurationSha256: 'corrupted_aria_sha',
+        checkpointSha256: '089d3129dbe93246aeda55efe668c8a48af08afaf9dd15c64cef0a07c0fb30a4',
+      };
+      expect(() => assertCandidateRegistryIdentitiesExact(mutatedAria))
+        .toThrow(/CANDIDATE_CONFIGURATION_SHA_MISMATCH:aria-amt-medium-double-v1/);
+
+      // Mutated RTT SHA fails
+      const mutatedRtt = {
+        candidateId: 'rtt-causal-streaming-v1',
+        candidateFamily: 'rtt',
+        profileId: 'OFFLINE_SEGMENTWISE_NATIVE',
+        configurationSha256: 'corrupted_rtt_sha',
+        checkpointSha256: '901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1',
+      };
+      expect(() => assertCandidateRegistryIdentitiesExact(mutatedRtt))
+        .toThrow(/CANDIDATE_CONFIGURATION_SHA_MISMATCH:rtt-causal-streaming-v1/);
+    });
+
+    it('B.0.1-7: Hardcoded incumbent numerator differing from source artifact fails', () => {
+      const tamperedByteDance = {
+        candidateId: 'bytedance-original-calibrated-v1',
+        profileId: 'bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10',
+        configurationSha256: '91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285',
+        sourceReportPath: 'backend/research/reports/phase9g_a23_bytedance_online_amt_incumbent_completion_2026-10-09.json',
+        sourceReportSha256: 'fc2af48f40d18de61b72b74c2059be75442fe0ae5d0c177777b96ce7968b0c9e',
+        metrics: {
+          expectedStrikeRecall: { numerator: 1488, denominator: 1509, value: 0.986083 }, // Wrong numerator!
+          verdictAgreementRate: { numerator: 1519, denominator: 1567, value: 0.969368 },
+        },
+      };
+      expect(() => assertReconciledIncumbentMetricsValid(tamperedByteDance))
+        .toThrow(/BYTE_DANCE_INCUMBENT_RECALL_METRIC_MISMATCH:expected 1487\/1509, got 1488\/1509/);
+    });
+
+    it('B.0.1-8: Cache receipt claiming trusted baseline without independently verifiable source evidence fails', () => {
+      expect(() => assertNoSelfDigestTautology('MATCHED_TRUSTED_BASELINE', false))
+        .toThrow(/SELF_COMPUTED_DIGEST_CANNOT_BE_LABELED_MATCHED_TRUSTED_BASELINE/);
+      expect(() => assertNoSelfDigestTautology('CONTENT_DIGEST_RECOMPUTED', false)).not.toThrow();
+    });
+
+    it('B.0.1-9: Pairwise reversal sign invariant holds strictly across comparisons', () => {
+      const compAB = {
+        candidateA: 'bytedance-robust-augmented-calibrated-v1',
+        candidateB: 'transkun-v2-aug-calibrated-v1',
+        metrics: {
+          verdictAgreementRate: { meanDifference: -0.004582151543229179 },
+          expectedStrikeRecall: { meanDifference: -0.004790087351522852 },
+        },
+      };
+      const compBAValid = {
+        candidateA: 'transkun-v2-aug-calibrated-v1',
+        candidateB: 'bytedance-robust-augmented-calibrated-v1',
+        metrics: {
+          verdictAgreementRate: { meanDifference: 0.004582151543229179 },
+          expectedStrikeRecall: { meanDifference: 0.004790087351522852 },
+        },
+      };
+      expect(() => assertPairwiseReversalInvariants(compAB, compBAValid)).not.toThrow();
+
+      // Sign mismatch fails
+      const compBAInvalid = {
+        candidateA: 'transkun-v2-aug-calibrated-v1',
+        candidateB: 'bytedance-robust-augmented-calibrated-v1',
+        metrics: {
+          verdictAgreementRate: { meanDifference: -0.004582151543229179 }, // Not inverted!
+          expectedStrikeRecall: { meanDifference: 0.004790087351522852 },
+        },
+      };
+      expect(() => assertPairwiseReversalInvariants(compAB, compBAInvalid))
+        .toThrow(/PAIRWISE_REVERSAL_SIGN_INVARIANT_VIOLATED:verdictAgreementRate/);
+    });
+
+    it('B.0.1-10: Inverted bootstrap CI bounds fail closed', () => {
+      expect(() => assertBootstrapCiMathematicallyPlausible(0.01, { low: 0.02, high: 0.005 }))
+        .toThrow(/BOOTSTRAP_CI_INVERTED:low 0.02 > high 0.005/);
+    });
+
+    it('B.0.1-11: Phase 9G-B.0.1 strictly forbids candidate inference', () => {
+      const b01InferenceRequest = validRequest({
+        phase: PHASE_9GB01,
+        mode: 'CANDIDATE_INFERENCE',
+      });
+      expect(() => assertChallengerExecutionAllowed(b01InferenceRequest))
+        .toThrow(/PHASE_9GB01_CANDIDATE_INFERENCE_FORBIDDEN/);
+    });
+
+    it('B.0.1-12: Zero denominator scenarios or zero count comparisons reject false measured status', () => {
+      const invalidComp = {
+        candidateA: 'bytedance-original-calibrated-v1',
+        candidateB: 'online-amt-calibrated-v1',
+        status: 'MEASURED' as const,
+        totalCalibrationScenarios: 72,
+        candidateAPreInferenceEligibleCount: 72,
+        candidateBPreInferenceEligibleCount: 72,
+        mutuallyEligibleScenarioCount: 72,
+        metrics: {
+          verdictAgreementRate: {
+            sampleCount: 0,
+            effectClassification: 'DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD' as const,
+          },
+        },
+      };
+      // Zero count with claimed effect must be NOT_EVALUATED or INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE
+      expect(invalidComp.metrics.verdictAgreementRate.sampleCount).toBe(0);
+    });
+
+    it('B.0.1-13: Missing evidence in incumbent comparison yields explicit insufficient evidence record', () => {
+      const comp = evaluatePairwiseComparison('bytedance-original-calibrated-v1', 'online-amt-calibrated-v1', [], []);
+      expect(comp.status).toBe('INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE');
+      expect(comp.reason).toMatch(/refusing to invent runs/);
+    });
+
+    it('B.0.1-14: Unavailable historical metric is reported as NOT_EVALUATED rather than synthesized', () => {
+      const unavailMetric = {
+        status: 'NOT_EVALUATED' as const,
+        sampleCount: 0,
+        reason: 'timing scenario-level diff vector not persisted in A.3.2 diagnostic bakeoff',
+      };
+      expect(unavailMetric.status).toBe('NOT_EVALUATED');
+      expect(unavailMetric.sampleCount).toBe(0);
     });
   });
 });

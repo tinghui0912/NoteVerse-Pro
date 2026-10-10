@@ -40,6 +40,7 @@ export const PHASE_9GA3 = '9G-A.3' as const;
 export const PHASE_9GA31 = '9G-A.3.1' as const;
 export const PHASE_9GA32 = '9G-A.3.2' as const;
 export const PHASE_9GB0 = '9G-B.0' as const;
+export const PHASE_9GB01 = '9G-B.0.1' as const;
 
 export type ChallengerFamily =
   | 'bytedance-robust-augmented'
@@ -123,7 +124,7 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
   }
 
   // 3. Fail closed on missing, malformed, or non-whitelisted phase
-  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0] as const;
+  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01] as const;
   if (!request.phase || !allowedPhases.includes(request.phase as typeof allowedPhases[number])) {
     if (request.mode === 'TRUTH_ONLY') {
       throw new Error(`CHALLENGER_TRUTH_ONLY_PHASE_REQUIRED:${request.phase}`);
@@ -131,9 +132,9 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
     throw new Error(`CHALLENGER_EXECUTION_PHASE_REQUIRED:${request.phase}`);
   }
 
-  // Phase 9G-B.0 is a non-inference preflight readiness gate
-  if (request.phase === PHASE_9GB0 && request.mode === 'CANDIDATE_INFERENCE') {
-    throw new Error('PHASE_9GB0_CANDIDATE_INFERENCE_FORBIDDEN');
+  // Phase 9G-B.0 and 9G-B.0.1 are non-inference preflight readiness gates
+  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01) && request.mode === 'CANDIDATE_INFERENCE') {
+    throw new Error(`${request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0'}_CANDIDATE_INFERENCE_FORBIDDEN`);
   }
 
   // 4. Performer set and blind isolation guards
@@ -1262,6 +1263,118 @@ export function assertCandidateMultiDimensionalQualification(candidate: Candidat
       candidate.qualificationStatus !== 'CALIBRATED_AND_LOCKED_FOR_RESEARCH'
     ) {
       throw new Error(`UNQUALIFIED_CANDIDATE_CANNOT_BE_LOCKED_FOR_PHASE_9G_B:${candidate.candidateFamily}`);
+    }
+  }
+}
+
+export function assertBootstrapCiMathematicallyPlausible(
+  meanDiff: number,
+  ci: { low: number; high: number },
+): void {
+  if (ci.low > ci.high) {
+    throw new Error(`BOOTSTRAP_CI_INVERTED:low ${ci.low} > high ${ci.high}`);
+  }
+  // A mean difference of 0 accompanied by an unsupported wholly negative or wholly positive CI fails
+  if (meanDiff === 0 && (ci.high < 0 || ci.low > 0)) {
+    throw new Error(`BOOTSTRAP_CI_CONTRADICTS_ZERO_MEAN_DIFF:meanDiff=0 but CI=[${ci.low}, ${ci.high}] excludes zero`);
+  }
+}
+
+export function assertScenarioSetIntersectionExact(
+  eligibleA: readonly string[],
+  eligibleB: readonly string[],
+  claimedIntersection: readonly string[],
+): void {
+  const setB = new Set(eligibleB);
+  const exactIntersection = eligibleA.filter((id) => setB.has(id)).sort();
+  const sortedClaimed = [...claimedIntersection].sort();
+  if (
+    exactIntersection.length !== sortedClaimed.length ||
+    exactIntersection.some((id, i) => id !== sortedClaimed[i])
+  ) {
+    throw new Error(
+      `SCENARIO_SET_INTERSECTION_MISMATCH:claimed ${claimedIntersection.length}, exact ${exactIntersection.length}`,
+    );
+  }
+}
+
+export interface CandidateIdentityRecord {
+  readonly candidateId: string;
+  readonly candidateFamily: string;
+  readonly profileId: string;
+  readonly configurationSha256: string;
+  readonly checkpointSha256: string;
+}
+
+export function assertCandidateRegistryIdentitiesExact(candidate: CandidateIdentityRecord): void {
+  const FROZEN_CANDIDATES: Record<
+    string,
+    { profileId: string; configurationSha256: string; checkpointSha256: string }
+  > = {
+    'bytedance-original-calibrated-v1': {
+      profileId: 'bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10',
+      configurationSha256: '91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285',
+      checkpointSha256: 'c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141',
+    },
+    'online-amt-calibrated-v1': {
+      profileId: 'online-amt-calibration-native-boost-1',
+      configurationSha256: '0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375',
+      checkpointSha256: '54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0',
+    },
+    'bytedance-robust-augmented-calibrated-v1': {
+      profileId: 'CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05',
+      configurationSha256: '10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce',
+      checkpointSha256: 'b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e',
+    },
+    'transkun-v2-aug-calibrated-v1': {
+      profileId: 'UPSTREAM_NATIVE_V2_AUG',
+      configurationSha256: '4d5d16200215e252d373b8300aafa890e0e2bb0247240b6e0d26fbb5d68fc277',
+      checkpointSha256: '8bd6b4b5ddf9ce8c5f296a57859eec9f166cd337c35245ec2a2576d90be68c4c',
+    },
+    'aria-amt-medium-double-v1': {
+      profileId: 'UPSTREAM_NATIVE_PIANO_MEDIUM_DOUBLE',
+      configurationSha256: 'd8e55dd4c19e70006650da031996c113961583c2f43b1305b77b002264fb2555',
+      checkpointSha256: '089d3129dbe93246aeda55efe668c8a48af08afaf9dd15c64cef0a07c0fb30a4',
+    },
+    'rtt-causal-streaming-v1': {
+      profileId: 'OFFLINE_SEGMENTWISE_NATIVE',
+      configurationSha256: '473dde00da90daa857ebc95aaf871d3efb16f4948f0eda5591a546e337e4fb54',
+      checkpointSha256: '901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1',
+    },
+  };
+  const expected = FROZEN_CANDIDATES[candidate.candidateId];
+  if (!expected) {
+    if (candidate.candidateId === 'd3rm-offline-ceiling-reference') return;
+    throw new Error(`UNKNOWN_CANDIDATE_ID:${candidate.candidateId}`);
+  }
+  if (candidate.profileId !== expected.profileId) {
+    throw new Error(
+      `CANDIDATE_PROFILE_ID_MISMATCH:${candidate.candidateId}:expected ${expected.profileId}, got ${candidate.profileId}`,
+    );
+  }
+  if (candidate.configurationSha256 !== expected.configurationSha256) {
+    throw new Error(
+      `CANDIDATE_CONFIGURATION_SHA_MISMATCH:${candidate.candidateId}:expected ${expected.configurationSha256}, got ${candidate.configurationSha256}`,
+    );
+  }
+  if (candidate.checkpointSha256 !== expected.checkpointSha256) {
+    throw new Error(
+      `CANDIDATE_CHECKPOINT_SHA_MISMATCH:${candidate.candidateId}:expected ${expected.checkpointSha256}, got ${candidate.checkpointSha256}`,
+    );
+  }
+}
+
+export function assertPairwiseReversalInvariants(
+  compAB: { candidateA: string; candidateB: string; metrics: Record<string, { meanDifference?: number }> },
+  compBA: { candidateA: string; candidateB: string; metrics: Record<string, { meanDifference?: number }> },
+): void {
+  for (const [key, metricA] of Object.entries(compAB.metrics)) {
+    const metricB = compBA.metrics[key];
+    if (metricA.meanDifference !== undefined && metricB?.meanDifference !== undefined) {
+      const sum = metricA.meanDifference + metricB.meanDifference;
+      if (Math.abs(sum) > 1e-6) {
+        throw new Error(`PAIRWISE_REVERSAL_SIGN_INVARIANT_VIOLATED:${key}:sum=${sum}`);
+      }
     }
   }
 }
