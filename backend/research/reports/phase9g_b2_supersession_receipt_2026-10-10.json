@@ -1,34 +1,31 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "artifact": "phase9g_b2_supersession_receipt",
-  "phase": "9G-B.2-PRE",
-  "generatedAt": "2026-10-10T11:15:10.397Z",
-  "gitHead": "a070f94ddaf8efdf24410a1963da162a95a8cbfc",
+  "phase": "9G-B.2-ARM",
+  "generatedAt": "2026-10-10T13:07:53.762Z",
+  "gitHead": "a6538bd3e437b9ce939696467f93d368b4e2d3ea",
   "dirtyTreeAtGeneration": false,
   "supersededProtocol": {
-    "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V3",
-    "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v3_2026-10-10.json",
-    "sha256": "6a0f664af87bdcf773f6dbeb767ad0e4ba59b7b2518b41964f66773709191363",
-    "status": "SUPERSEDED_NOT_RUNTIME_ATTESTED",
-    "supersessionReason": "Independent source review confirmed that Phase 9G-B.1.2 protocol V3 introduced valuable atomic file creation, durable acoustic publications, scorer readback, and causal timing checks, but contained protocol-hash fallbacks, untested real Docker runtime container bindings, non-cross-verified evidence-to-journal cryptographic hashes, and lacked genuine non-zero scorer-derived paired bootstrap vectors."
-  },
-  "activeProtocol": {
     "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V4",
     "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v4_2026-10-10.json",
     "sha256": "f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67",
+    "status": "SUPERSEDED_BY_V5_ARM",
+    "supersessionReason": "Independent source review confirmed that Phase 9G-B.2-PRE protocol V4 established atomic run reservation, journal event hashing, and physical-checkpoint checks, but trusted protocol SHA comparison was still optional, production audio identities could still be fabricated from scenario IDs, Online-AMT attestation lacked a real model forward pass, and resume lacked exclusive writer ownership verification."
+  },
+  "activeProtocol": {
+    "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V5",
+    "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v5_2026-10-10.json",
+    "sha256": "e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b",
     "status": "ACTIVE_AUTHORIZATION_GATED"
   },
-  "materialAmendmentsInV4": [
-    "Eliminated all protocol-hash fallbacks and bypasses: exact V4 protocol SHA256 is strictly required in all execution requests.",
-    "Enforced preflight scenario and performer allowlist verification, strictly rejecting calibration performers (p07-p14) relabeled as blind.",
-    "Implemented full cryptographic journal event verification: canonical unsigned payload SHA256 recomputation, genesis event enforcement, sequential attempt ordering, and run receipt truncation checking.",
-    "Bound durable evidence blobs directly to journal ATTEMPT_COMMITTED events, cross-verifying evidenceSha256 and acousticOutputDigest before scoring.",
-    "Enforced evidence file overwrite protection, rejecting duplicate writes to existing evidence files.",
-    "Corrected shared scorer schema integration: read status === \"MEASURED\" and numeric metric values, matching paired vectors on exact scenarioId without zero-filling unmeasured values.",
-    "Implemented production coverage evaluation deriving counts directly from durable execution ledger (eligible, completed, failed, uncertain, missing).",
-    "Implemented independent disk evidence auditor (independentlyVerifyAndScoreCommittedEvidence) verifying event chains, evidence hashes, and score readbacks.",
-    "Verified physical checkpoints on disk (171.9MB, 178.8MB, 103.8MB) and attested synthetic zero-input forward passes in target Docker containers with CUDA GPU.",
-    "Exercised genuine two-process concurrency race test spawning a separate Node.js process to verify lock collision.",
-    "Established immutable authorization gate: PHASE_9GB2_PRE_READY_FOR_SEPARATE_EXPLICIT_BLIND_EXECUTION_AUTHORIZATION."
+  "materialAmendmentsInV5": [
+    "Made trusted protocol SHA256 comparison strictly mandatory at preflight execution boundary: untrusted caller-supplied expected SHA cannot serve as its own trust root, and realistic-looking wrong hashes are rejected.",
+    "Enforced production audio manifest schema requiring real 64-character SHA256 digests for WAV and decoded PCM, explicitly rejecting fabricated audio_${id} digests and synthetic rehearsal fixtures.",
+    "Completed end-to-end target runtime attestation for all three candidate models in production Docker containers on CUDA, including genuine OnlineTranscriber forward pass.",
+    "Bound immutable Docker container image IDs and RepoDigests to runtime attestation receipts.",
+    "Implemented exclusive resume writer ownership mutex (writer.lock with \"wx\" mode) and verified complete run bindings on resume.",
+    "Enforced trusted chain-tip anchor requirement for independent disk evidence audit completeness (JOURNAL_COMPLETENESS_NOT_VERIFIABLE).",
+    "Expanded synthetic rehearsal to 18 comprehensive adversarial test cases, verifying concurrency, crash preservation, tampering detection, and manifest schema separation.",
+    "Established Phase 9G-B.2-ARM execution authorization gate outcome: PHASE_9GB2_ARM_READY_FOR_SEPARATE_ONE_SHOT_BLIND_AUTHORIZATION."
   ]
 }

@@ -1,9 +1,9 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "artifact": "phase9g_b2_candidate_lock_receipt",
-  "phase": "9G-B.2-PRE",
-  "generatedAt": "2026-10-10T11:15:46.994Z",
-  "gitHead": "a070f94ddaf8efdf24410a1963da162a95a8cbfc",
+  "phase": "9G-B.2-ARM",
+  "generatedAt": "2026-10-10T13:08:37.708Z",
+  "gitHead": "a6538bd3e437b9ce939696467f93d368b4e2d3ea",
   "dirtyTreeAtGeneration": false,
   "runtimeAttestationStatus": "TARGET_RUNTIME_ENVIRONMENT_AND_MODELS_ATTESTED",
   "runtimeAttestationSummary": {
@@ -11,6 +11,7 @@
     "dockerDaemonRunning": true,
     "targetImagesAvailable": true,
     "cudaGpuAvailable": true,
+    "cudaDeviceName": "NVIDIA GeForce RTX 4080 Laptop GPU",
     "syntheticExecutionVerified": true
   },
   "rankedCandidates": [

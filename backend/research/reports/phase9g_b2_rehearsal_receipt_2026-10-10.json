@@ -1,9 +1,9 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "artifact": "phase9g_b2_rehearsal_receipt",
-  "phase": "9G-B.2-PRE",
-  "generatedAt": "2026-10-10T11:15:47.335Z",
-  "gitHead": "a070f94ddaf8efdf24410a1963da162a95a8cbfc",
+  "phase": "9G-B.2-ARM",
+  "generatedAt": "2026-10-10T13:08:38.111Z",
+  "gitHead": "a6538bd3e437b9ce939696467f93d368b4e2d3ea",
   "dirtyTreeAtExecution": false,
   "rehearsalMode": "TRUE_SYNTHETIC_END_TO_END_PIPELINE",
   "realBlindInferenceExecuted": false,
@@ -18,14 +18,15 @@
     "p22"
   ],
   "syntheticScenariosUsed": 8,
-  "testsExecuted": 17,
+  "testsExecuted": 18,
   "allTestsPassed": true,
   "rehearsalResults": [
     {
       "testId": "REHEARSAL_1_EXCLUSIVE_ATOMIC_RUN_LOCK_COLLISION",
       "status": "PASS",
       "details": {
-        "twoProcessConcurrencyVerified": true
+        "twoProcessConcurrencyVerified": true,
+        "concurrentResumeCollisionVerified": true
       }
     },
     {
@@ -45,11 +46,21 @@
     },
     {
       "testId": "REHEARSAL_4_CHANGED_PROTOCOL_HASH_PREVENTS_RESUME",
-      "status": "PASS"
+      "status": "PASS",
+      "details": {
+        "protocolShaMismatchBlocked": true,
+        "scorerShaMismatchBlocked": true
+      }
     },
     {
       "testId": "REHEARSAL_5_CHANGED_SCORER_OR_ADAPTER_HASH_PREVENTS_INVOCATION",
-      "status": "PASS"
+      "status": "PASS",
+      "details": {
+        "lengthValidationEnforced": true,
+        "dummyBypassRejected": true,
+        "realisticWrongShaRejected": true,
+        "untrustedExpectedShaRejected": true
+      }
     },
     {
       "testId": "REHEARSAL_6_CHANGED_CHECKPOINT_OR_PCM_SHA_PREVENTS_INVOCATION",
@@ -71,7 +82,9 @@
       "testId": "REHEARSAL_10_INDEPENDENT_DISK_EVIDENCE_RECONSTRUCTION_AND_SCORING",
       "status": "PASS",
       "details": {
-        "totalAttemptsVerified": 21
+        "totalAttemptsVerified": 21,
+        "missingAnchorRejected": true,
+        "jointTamperingDetected": true
       }
     },
     {
@@ -122,6 +135,15 @@
     {
       "testId": "REHEARSAL_17_COMMITTED_EVIDENCE_OVERWRITE_PROTECTION",
       "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_18_AUDIO_MANIFEST_SCHEMA_SEPARATION_AND_REAL_DIGEST_VERIFICATION",
+      "status": "PASS",
+      "details": {
+        "syntheticFlagInProdRejected": true,
+        "fabricatedDigestRejected": true,
+        "syntheticFixtureFlagEnforced": true
+      }
     }
   ]
 }

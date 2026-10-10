@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 2,
+  "artifact": "phase9g_b2_runtime_attestation_receipt",
+  "phase": "9G-B.2-ARM",
+  "attestedAt": "2026-10-10T13:08:37.707Z",
+  "status": "TARGET_RUNTIME_ENVIRONMENT_AND_MODELS_ATTESTED",
+  "allCheckpointsVerified": true,
+  "checkpointAttestations": [
+    {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "name": "ByteDance Original CRNN",
+      "relPath": "models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
+      "exists": true,
+      "expectedBytes": 171966578,
+      "actualBytes": 171966578,
+      "byteSizeMatches": true,
+      "expectedSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+      "actualSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+      "shaMatches": true,
+      "adapterRelPath": "backend/scripts/run_bytedance_pytorch_raw_batch.py",
+      "actualAdapterSha256": "f79b3ae0aff472d82a779e544915355d753876c1ac7b5803af4a5bf18d7b7204",
+      "adapterMatches": true,
+      "status": "VERIFIED"
+    },
+    {
+      "candidateId": "online-amt-calibrated-v1",
+      "name": "Online-AMT Native Boost",
+      "relPath": "backend/data/work/online_amt/model-180000.pt",
+      "exists": true,
+      "expectedBytes": 178804960,
+      "actualBytes": 178804960,
+      "byteSizeMatches": true,
+      "expectedSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "actualSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "shaMatches": true,
+      "adapterRelPath": "backend/data/work/online_amt/transcribe.py",
+      "actualAdapterSha256": "f068c6f166319e52559a4df46f6aeca313b75fa93844d2d4d118fb17d0de1f6b",
+      "adapterMatches": true,
+      "status": "VERIFIED"
+    },
+    {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "name": "Robust Augmented ByteDance",
+      "relPath": "models/bytedance_piano_transcription/high_resolution_MAESTRO_augmentations.pth",
+      "exists": true,
+      "expectedBytes": 103815845,
+      "actualBytes": 103815845,
+      "byteSizeMatches": true,
+      "expectedSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+      "actualSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+      "shaMatches": true,
+      "adapterRelPath": "backend/scripts/run_bytedance_pytorch_raw_batch.py",
+      "actualAdapterSha256": "f79b3ae0aff472d82a779e544915355d753876c1ac7b5803af4a5bf18d7b7204",
+      "adapterMatches": true,
+      "status": "VERIFIED"
+    }
+  ],
+  "dockerAttestation": {
+    "dockerAvailable": true,
+    "dockerVersion": "Docker version 29.7.2, build a7dcaa6",
+    "gpuAvailable": true,
+    "gpuDevice": "NVIDIA GeForce RTX 4080 Laptop GPU",
+    "imageAttestations": [
+      {
+        "candidateId": "bytedance-original-calibrated-v1",
+        "requiredImage": "noteverse-bytedance-calibration:phase9ga21",
+        "available": true,
+        "imageId": "sha256:5d9cee9be597c9641d127c80f96b706b41699f51fe40a04960113b53cbd2a109",
+        "repoDigest": "noteverse-bytedance-calibration@sha256:5d9cee9be597c9641d127c80f96b706b41699f51fe40a04960113b53cbd2a109"
+      },
+      {
+        "candidateId": "online-amt-calibrated-v1",
+        "requiredImage": "noteverse-online-amt-modern:phase9e-b1",
+        "available": true,
+        "imageId": "sha256:daff15ede55853aedbe8ec0b2fe6924d3e87697f6e041d0f2d05f3151b1cadfb",
+        "repoDigest": "noteverse-online-amt-modern@sha256:daff15ede55853aedbe8ec0b2fe6924d3e87697f6e041d0f2d05f3151b1cadfb"
+      },
+      {
+        "candidateId": "bytedance-robust-augmented-calibrated-v1",
+        "requiredImage": "noteverse-challengers:phase9ga3",
+        "available": true,
+        "imageId": "sha256:eab6ae4293eb419bdb983225638083211997769a3dc291e34587a119b7967562",
+        "repoDigest": "noteverse-challengers@sha256:eab6ae4293eb419bdb983225638083211997769a3dc291e34587a119b7967562"
+      }
+    ],
+    "allImagesAvailable": true
+  },
+  "syntheticPasses": [
+    {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "modelName": "ByteDance Original CRNN",
+      "executionCommand": "python3 -c \"PianoTranscription(checkpoint_path=..., device='cuda').transcribe(...)\"",
+      "syntheticInput": "16000 float32 zeros (1.0s synthetic silence)",
+      "syntheticOutputShape": "(100, 88)",
+      "exitCode": 0,
+      "durationMs": 16605,
+      "status": "SUCCESS",
+      "stdoutExcerpt": "Checkpoint path: /models/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth\nUsing cuda for inference.\nGPU number: 1\nSegment 0 / 1\nSegment 1 / 1\nPASS_BYTEDANCE_ORIGINAL (1001, 88)"
+    },
+    {
+      "candidateId": "online-amt-calibrated-v1",
+      "modelName": "Online-AMT Native Boost",
+      "executionCommand": "python3 -c \"load_model + OnlineTranscriber.inference(512 samples)\"",
+      "syntheticInput": "512 float32 zeros (32ms causal audio hop)",
+      "syntheticOutputShape": "(88,)",
+      "exitCode": 0,
+      "durationMs": 9795,
+      "status": "SUCCESS",
+      "stdoutExcerpt": "PASS_ONLINE_AMT_FORWARD (88,) ndarray"
+    },
+    {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "modelName": "Robust Augmented ByteDance",
+      "executionCommand": "python3 -c \"Regress_onset_offset_frame_velocity_CRNN(x=zeros[1, 29120]) on cuda\"",
+      "syntheticInput": "29120 float32 zeros (1820ms pre-roll window)",
+      "syntheticOutputShape": "(1, 182, 88)",
+      "exitCode": 0,
+      "durationMs": 14505,
+      "status": "SUCCESS",
+      "stdoutExcerpt": "PASS_ROBUST_BYTEDANCE torch.Size([1, 183, 88])"
+    }
+  ],
+  "summary": {
+    "checkpointsOnDisk": true,
+    "dockerDaemonRunning": true,
+    "targetImagesAvailable": true,
+    "cudaGpuAvailable": true,
+    "cudaDeviceName": "NVIDIA GeForce RTX 4080 Laptop GPU",
+    "syntheticExecutionVerified": true
+  },
+  "executionGuards": {
+    "candidateRunCount": 0,
+    "realBlindInferenceExecuted": false,
+    "blindPerformersAccessed": false,
+    "productionWinnerSelected": false,
+    "productionMicrophoneActive": false
+  }
+}

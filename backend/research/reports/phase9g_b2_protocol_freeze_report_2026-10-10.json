@@ -1,16 +1,16 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "artifact": "phase9g_b2_protocol_freeze_report",
-  "phase": "9G-B.2-PRE",
-  "generatedAt": "2026-10-10T11:15:47.355Z",
-  "gitHead": "a070f94ddaf8efdf24410a1963da162a95a8cbfc",
+  "phase": "9G-B.2-ARM",
+  "generatedAt": "2026-10-10T13:08:38.133Z",
+  "gitHead": "a6538bd3e437b9ce939696467f93d368b4e2d3ea",
   "dirtyTreeAtGeneration": false,
-  "authorizationGateOutcome": "PHASE_9GB2_PRE_READY_FOR_SEPARATE_EXPLICIT_BLIND_EXECUTION_AUTHORIZATION",
+  "authorizationGateOutcome": "PHASE_9GB2_ARM_READY_FOR_SEPARATE_ONE_SHOT_BLIND_AUTHORIZATION",
   "allConditionsSatisfied": true,
-  "verificationsCount": 12,
+  "verificationsCount": 14,
   "verificationChecks": [
     {
-      "checkId": "CHECK_1_IMMUTABLE_SOURCE_POLICIES_V4_PROTOCOL_AND_MANIFESTS_IDENTITIES",
+      "checkId": "CHECK_1_IMMUTABLE_SOURCE_POLICIES_V5_PROTOCOL_AND_MANIFESTS_IDENTITIES",
       "status": "PASS",
       "details": {
         "v5PolicySha": "5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6",
@@ -20,6 +20,7 @@
         "v2ProtocolSha": "42a2777600e51e2a9d8a83fd6671d169e99d80236bb5617bc330565ee3c7b890",
         "v3ProtocolSha": "6a0f664af87bdcf773f6dbeb767ad0e4ba59b7b2518b41964f66773709191363",
         "v4ProtocolSha": "f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67",
+        "v5ProtocolSha": "e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b",
         "a25RegistrySha": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
         "a1CalibrationManifestSha": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
         "blindManifestSha": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
@@ -33,10 +34,10 @@
         "scorerSourceSha256": "70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea",
         "finalizerLedgerSha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e",
         "reconcilerSha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146",
-        "qualificationModuleSha256": "6ca6d5705ac4dbb1aee34ffb182b1a68e46ff874705fcac6d73958582845accf",
-        "orchestratorModuleSha256": "05183f6d2f0d1905851dda3d4a7de902b582ae0078d00f3b4e527143e06f19c5",
-        "rehearsalModuleSha256": "1f07b6a2e3634af210bb17795c1b4d626abc9215f14a55d2fa6c87cf4eff38e9",
-        "attestationModuleSha256": "e34117536a01b21188866a8cd812f4f8d61d34d8fc5ebd2118344839dc4868f0"
+        "qualificationModuleSha256": "4f110a594a1aa94cc69b0cad8482df0e502582eb22e0e298035ba941f6d8b99e",
+        "orchestratorModuleSha256": "32243830bdcda34a0597bc3b82d686e41233fbf1551909a273fd9597cce9205b",
+        "rehearsalModuleSha256": "d0ddcacccd1683abb272b1f0bbab18f3730ef05c51229b408912c1bc33d70502",
+        "attestationModuleSha256": "78be3143bcbfa471f2f273454e48086086d9b21cad68742ced503d92d7e4f9bb"
       }
     },
     {
@@ -77,10 +78,11 @@
       }
     },
     {
-      "checkId": "CHECK_5_ATOMIC_RUN_LOCK_AND_CRYPTOGRAPHIC_JOURNAL_CONTRACT",
+      "checkId": "CHECK_5_ATOMIC_RUN_LOCK_EXCLUSIVE_RESUME_WRITER_AND_JOURNAL_CONTRACT",
       "status": "PASS",
       "details": {
-        "exclusiveAtomicLockMechanism": "openSync(path, \"wx\")",
+        "exclusiveAtomicLockMechanism": "openSync(run.lock, \"wx\")",
+        "exclusiveResumeWriterMutex": "openSync(writer.lock, \"wx\")",
         "appendOnlyJournalFile": "journal.jsonl",
         "cryptographicChainEnforced": true,
         "canonicalPayloadHashEnforced": true,
@@ -94,11 +96,22 @@
         "futureAudioLookaheadGuardsVerified": true,
         "backdatedAvailabilityGuardsVerified": true,
         "truthLeakageGuardsVerified": true,
-        "protocolHashBypassProhibited": true
+        "protocolHashBypassProhibited": true,
+        "realisticWrongShaRejected": true,
+        "untrustedCallerExpectedShaRejected": true
       }
     },
     {
-      "checkId": "CHECK_7_RAW_EVIDENCE_DURABILITY_AND_DISK_READBACK_SCORING",
+      "checkId": "CHECK_7_AUDIO_MANIFEST_SCHEMA_SEPARATION_AND_REAL_DIGEST_VERIFICATION",
+      "status": "PASS",
+      "details": {
+        "syntheticFixturesRejectedInProduction": true,
+        "fabricatedScenarioIdDigestsRejected": true,
+        "realSha256Enforced": true
+      }
+    },
+    {
+      "checkId": "CHECK_8_RAW_EVIDENCE_DURABILITY_AND_DISK_READBACK_SCORING",
       "status": "PASS",
       "details": {
         "evidenceDirectory": "evidence/<candidateId>__<scenarioId>.json",
@@ -110,7 +123,17 @@
       }
     },
     {
-      "checkId": "CHECK_8_SYMMETRIC_11_LEVEL_SAFETY_HIERARCHY_AND_BOOTSTRAP",
+      "checkId": "CHECK_9_JOURNAL_COMPLETENESS_AND_CHAIN_TIP_ANCHOR_VERIFICATION",
+      "status": "PASS",
+      "details": {
+        "trustedChainTipRequired": true,
+        "missingAnchorThrowsNotVerifiable": true,
+        "chainTipHashVerificationEnforced": true,
+        "eventCountVerificationEnforced": true
+      }
+    },
+    {
+      "checkId": "CHECK_10_SYMMETRIC_11_LEVEL_SAFETY_HIERARCHY_AND_BOOTSTRAP",
       "status": "PASS",
       "details": {
         "hierarchyRuleCount": 11,
@@ -122,17 +145,17 @@
       }
     },
     {
-      "checkId": "CHECK_9_TRUE_SYNTHETIC_END_TO_END_REHEARSAL",
+      "checkId": "CHECK_11_TRUE_SYNTHETIC_END_TO_END_REHEARSAL",
       "status": "PASS",
       "details": {
         "rehearsalMode": "TRUE_SYNTHETIC_END_TO_END_PIPELINE",
-        "testsExecuted": 17,
+        "testsExecuted": 18,
         "allTestsPassed": true,
         "realBlindInferenceExecuted": false
       }
     },
     {
-      "checkId": "CHECK_10_TARGET_RUNTIME_ENVIRONMENT_AND_MODELS_ATTESTATION",
+      "checkId": "CHECK_12_TARGET_RUNTIME_ENVIRONMENT_AND_MODELS_ATTESTATION",
       "status": "PASS",
       "details": {
         "status": "TARGET_RUNTIME_ENVIRONMENT_AND_MODELS_ATTESTED",
@@ -144,23 +167,23 @@
       }
     },
     {
-      "checkId": "CHECK_11_CLEAN_WORKING_TREE_INTEGRITY",
+      "checkId": "CHECK_13_CLEAN_WORKING_TREE_INTEGRITY",
       "status": "PASS",
       "details": {
-        "gitHead": "a070f94ddaf8efdf24410a1963da162a95a8cbfc",
+        "gitHead": "a6538bd3e437b9ce939696467f93d368b4e2d3ea",
         "dirty": false,
         "allowDirty": false
       }
     },
     {
-      "checkId": "CHECK_12_NON_NEGOTIABLE_PREFLIGHT_BOUNDARIES",
+      "checkId": "CHECK_14_NON_NEGOTIABLE_PREFLIGHT_BOUNDARIES",
       "status": "PASS",
       "details": {
         "candidateRunCount": 0,
         "productionWinnerSelected": false,
         "productionMicrophoneActive": false,
         "programmaticInferenceBlocked": true,
-        "gateOutcome": "PHASE_9GB2_PRE_READY_FOR_SEPARATE_EXPLICIT_BLIND_EXECUTION_AUTHORIZATION"
+        "gateOutcome": "PHASE_9GB2_ARM_READY_FOR_SEPARATE_ONE_SHOT_BLIND_AUTHORIZATION"
       }
     }
   ],
@@ -172,16 +195,17 @@
     "v2BlindProtocolSha256": "42a2777600e51e2a9d8a83fd6671d169e99d80236bb5617bc330565ee3c7b890",
     "v3BlindProtocolSha256": "6a0f664af87bdcf773f6dbeb767ad0e4ba59b7b2518b41964f66773709191363",
     "v4BlindProtocolSha256": "f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67",
+    "v5BlindProtocolSha256": "e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b",
     "a25IncumbentRegistrySha256": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
     "a1CalibrationManifestSha256": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
     "blindManifestSha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
     "scorerSourceSha256": "70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea",
     "finalizerLedgerSha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e",
     "reconcilerSha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146",
-    "qualificationModuleSha256": "6ca6d5705ac4dbb1aee34ffb182b1a68e46ff874705fcac6d73958582845accf",
-    "orchestratorModuleSha256": "05183f6d2f0d1905851dda3d4a7de902b582ae0078d00f3b4e527143e06f19c5",
-    "rehearsalModuleSha256": "1f07b6a2e3634af210bb17795c1b4d626abc9215f14a55d2fa6c87cf4eff38e9",
-    "attestationModuleSha256": "e34117536a01b21188866a8cd812f4f8d61d34d8fc5ebd2118344839dc4868f0"
+    "qualificationModuleSha256": "4f110a594a1aa94cc69b0cad8482df0e502582eb22e0e298035ba941f6d8b99e",
+    "orchestratorModuleSha256": "32243830bdcda34a0597bc3b82d686e41233fbf1551909a273fd9597cce9205b",
+    "rehearsalModuleSha256": "d0ddcacccd1683abb272b1f0bbab18f3730ef05c51229b408912c1bc33d70502",
+    "attestationModuleSha256": "78be3143bcbfa471f2f273454e48086086d9b21cad68742ced503d92d7e4f9bb"
   },
   "executionGuards": {
     "candidateRunCount": 0,
