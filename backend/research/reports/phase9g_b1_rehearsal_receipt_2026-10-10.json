@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_b1_rehearsal_receipt",
+  "phase": "9G-B.1",
+  "generatedAt": "2026-10-10T08:40:57.304Z",
+  "gitHead": "314979f2566157dd498316528d132d53694d20b3",
+  "dirtyTreeAtExecution": false,
+  "rehearsalMode": "SYNTHETIC_DATA_ONLY",
+  "realBlindInferenceExecuted": false,
+  "realBlindPerformersIsolated": [
+    "p15",
+    "p16",
+    "p17",
+    "p18",
+    "p19",
+    "p20",
+    "p21",
+    "p22"
+  ],
+  "syntheticScenariosUsed": 6,
+  "testsExecuted": 12,
+  "allTestsPassed": true,
+  "rehearsalResults": [
+    {
+      "testId": "REHEARSAL_1_THREE_CANDIDATE_ORCHESTRATION",
+      "status": "PASS",
+      "details": {
+        "totalCandidates": 3,
+        "orchestratedRuns": 18
+      }
+    },
+    {
+      "testId": "REHEARSAL_2_CANDIDATE_LOCK_MISMATCH_REJECTION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_3_BLIND_MANIFEST_CHECKSUM_REJECTION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_4_WRONG_SPLIT_AND_PERFORMER_REJECTION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_5_SCORE_CONDITIONED_INFERENCE_REJECTION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_6_MISSING_RAW_OUTPUT_AND_DUPLICATE_REJECTION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_7_CORRECT_SCORER_DENOMINATOR_ACCOUNTING",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_8_TIMING_AND_LATENCY_ACCOUNTING",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_9_BOOTSTRAP_CONSISTENCY_AND_REVERSALS",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_10_ALL_SAFETY_METRICS_REPORTING",
+      "status": "PASS",
+      "details": {
+        "totalSafetyMetrics": 8
+      }
+    },
+    {
+      "testId": "REHEARSAL_11_MODEL_FAILURE_AND_INSUFFICIENT_COVERAGE",
+      "status": "PASS",
+      "details": {
+        "simulatedOutcome": "EVALUATION_INCOMPLETE_NO_WINNER"
+      }
+    },
+    {
+      "testId": "REHEARSAL_12_CLEAN_COMMIT_AND_RECEIPT_GENERATION",
+      "status": "PASS",
+      "details": {
+        "gitHead": "314979f2566157dd498316528d132d53694d20b3",
+        "dirty": false
+      }
+    }
+  ]
+}

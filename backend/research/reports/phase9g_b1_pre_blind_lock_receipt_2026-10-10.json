@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 2,
+  "artifact": "phase9g_b1_pre_blind_lock_receipt",
+  "phase": "9G-B.1",
+  "generatedAt": "2026-10-10T08:40:57.300Z",
+  "gitHead": "314979f2566157dd498316528d132d53694d20b3",
+  "dirtyTreeAtExecution": false,
+  "protocolPath": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v1_2026-10-10.json",
+  "protocolSha256": "06d9811ad830bebbd0e3161c424c15ee04282756479d80868ae8aa29e6bdafb0",
+  "blindManifestPath": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
+  "blindManifestSha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+  "candidateRunCount": 0,
+  "lockedCandidates": [
+    "bytedance-original-calibrated-v1",
+    "online-amt-calibrated-v1",
+    "bytedance-robust-augmented-calibrated-v1"
+  ],
+  "nonRankingResearchReferences": [
+    "transkun-v2-aug-calibrated-v1",
+    "aria-amt-medium-double-v1",
+    "rtt-causal-streaming-v1"
+  ],
+  "blockedCandidates": [
+    "d3rm-offline-ceiling-reference"
+  ],
+  "noBlindInferenceExecuted": true,
+  "noProductionWinnerSelected": true,
+  "productionMicrophoneActivated": false
+}

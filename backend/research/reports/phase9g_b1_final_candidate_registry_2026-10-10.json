@@ -1,0 +1,357 @@
+{
+  "schemaVersion": 2,
+  "artifact": "phase9g_b1_final_candidate_registry",
+  "phase": "9G-B.1",
+  "generatedAt": "2026-10-10T08:40:57.294Z",
+  "gitHead": "314979f2566157dd498316528d132d53694d20b3",
+  "dirtyTreeAtExecution": false,
+  "activeProtocol": {
+    "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V1",
+    "sha256": "06d9811ad830bebbd0e3161c424c15ee04282756479d80868ae8aa29e6bdafb0"
+  },
+  "incumbentRegistrySha256": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
+  "productionWinnerSelected": false,
+  "candidates": [
+    {
+      "candidateFamily": "bytedance-original",
+      "candidateId": "bytedance-original-calibrated-v1",
+      "category": "FROZEN_INCUMBENT",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+      "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "lockedForPhase9gB": true,
+      "fiveDimensionalQualification": {
+        "scientificCalibrationValidity": "VALID",
+        "eligibilityForResearchBlindComparison": "ELIGIBLE_AND_LOCKED",
+        "causalLiveRuntimeCompatibility": "CAUSAL_STREAMING_COMPATIBLE",
+        "productionCheckpointLicensing": "PRODUCTION_LICENSE_ELIGIBLE",
+        "finalProductionSelectionEligibility": "POTENTIALLY_ELIGIBLE_PENDING_PHASE_9GB"
+      },
+      "reconciledMetrics": {
+        "expectedStrikeRecall": {
+          "numerator": 1487,
+          "denominator": 1509,
+          "value": 0.9854208084824387,
+          "formatted": "1487/1509 (98.54%)"
+        },
+        "verdictAgreementRate": {
+          "numerator": 1519,
+          "denominator": 1567,
+          "value": 0.9693682195277601,
+          "formatted": "1519/1567 (96.94%)"
+        },
+        "falseMatchRateOnGroundTruthMissing": {
+          "status": "MEASURED",
+          "sampleCount": 58,
+          "numerator": 26,
+          "denominator": 58,
+          "value": 0.4482758620689655
+        },
+        "correctMissingRate": {
+          "status": "MEASURED",
+          "sampleCount": 58,
+          "numerator": 32,
+          "denominator": 58,
+          "value": 0.5517241379310345
+        },
+        "chordExactCompletenessRate": {
+          "status": "MEASURED",
+          "sampleCount": 397,
+          "numerator": 375,
+          "denominator": 397,
+          "value": 0.9445843828715366
+        },
+        "falseCompleteChordAcceptanceRate": {
+          "status": "MEASURED",
+          "sampleCount": 51,
+          "numerator": 21,
+          "denominator": 51,
+          "value": 0.4117647058823529
+        },
+        "extraPrecision": {
+          "status": "MEASURED",
+          "sampleCount": 303,
+          "numerator": 212,
+          "denominator": 303,
+          "value": 0.6996699669966997
+        },
+        "extraRecall": {
+          "status": "MEASURED",
+          "sampleCount": 232,
+          "numerator": 212,
+          "denominator": 232,
+          "value": 0.9137931034482759
+        },
+        "timingAbsoluteMedianMs": {
+          "status": "MEASURED",
+          "sampleCount": 1487,
+          "value": 8.333333333397604
+        },
+        "timingAbsoluteP95Ms": {
+          "status": "MEASURED",
+          "sampleCount": 1487,
+          "value": 21.874999997831765
+        },
+        "finalizedFeedbackAgeP50Ms": {
+          "status": "MEASURED",
+          "sampleCount": 1567,
+          "value": 3306.3851359999535
+        },
+        "finalizedFeedbackAgeP95Ms": {
+          "status": "MEASURED",
+          "sampleCount": 1567,
+          "value": 4288.551912000098
+        }
+      }
+    },
+    {
+      "candidateFamily": "online-amt",
+      "candidateId": "online-amt-calibrated-v1",
+      "category": "FROZEN_INCUMBENT",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "lockedForPhase9gB": true,
+      "fiveDimensionalQualification": {
+        "scientificCalibrationValidity": "VALID",
+        "eligibilityForResearchBlindComparison": "ELIGIBLE_AND_LOCKED",
+        "causalLiveRuntimeCompatibility": "CAUSAL_STREAMING_COMPATIBLE",
+        "productionCheckpointLicensing": "PRODUCTION_LICENSE_ELIGIBLE",
+        "finalProductionSelectionEligibility": "POTENTIALLY_ELIGIBLE_PENDING_PHASE_9GB"
+      },
+      "reconciledMetrics": {
+        "expectedStrikeRecall": {
+          "numerator": 1655,
+          "denominator": 1800,
+          "value": 0.9194444444444444,
+          "formatted": "1655/1800 (91.94%)"
+        },
+        "verdictAgreementRate": {
+          "numerator": 1720,
+          "denominator": 1870,
+          "value": 0.9197860962566845,
+          "formatted": "1720/1870 (91.98%)"
+        },
+        "falseMatchRateOnGroundTruthMissing": {
+          "status": "MEASURED",
+          "sampleCount": 70,
+          "numerator": 5,
+          "denominator": 70,
+          "value": 0.07142857142857142
+        },
+        "correctMissingRate": {
+          "status": "MEASURED",
+          "sampleCount": 70,
+          "numerator": 65,
+          "denominator": 70,
+          "value": 0.9285714285714286
+        },
+        "chordExactCompletenessRate": {
+          "status": "MEASURED",
+          "sampleCount": 473,
+          "numerator": 370,
+          "denominator": 473,
+          "value": 0.7822410147991543
+        },
+        "falseCompleteChordAcceptanceRate": {
+          "status": "MEASURED",
+          "sampleCount": 57,
+          "numerator": 5,
+          "denominator": 57,
+          "value": 0.08771929824561403
+        },
+        "extraPrecision": {
+          "status": "MEASURED",
+          "sampleCount": 459,
+          "numerator": 258,
+          "denominator": 459,
+          "value": 0.5620915032679739
+        },
+        "extraRecall": {
+          "status": "MEASURED",
+          "sampleCount": 286,
+          "numerator": 258,
+          "denominator": 286,
+          "value": 0.9020979020979021
+        },
+        "timingAbsoluteMedianMs": {
+          "status": "MEASURED",
+          "sampleCount": 1655,
+          "value": 9.312500000037517
+        },
+        "timingAbsoluteP95Ms": {
+          "status": "MEASURED",
+          "sampleCount": 1655,
+          "value": 25.645833333389646
+        },
+        "finalizedFeedbackAgeP50Ms": {
+          "status": "MEASURED",
+          "sampleCount": 1870,
+          "value": 454.1771700000136
+        },
+        "finalizedFeedbackAgeP95Ms": {
+          "status": "MEASURED",
+          "sampleCount": 1870,
+          "value": 934.4667200000611
+        }
+      }
+    },
+    {
+      "candidateFamily": "bytedance-robust-augmented",
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "category": "QUALIFIED_CHALLENGER",
+      "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "configurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce",
+      "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "lockedForPhase9gB": true,
+      "fiveDimensionalQualification": {
+        "scientificCalibrationValidity": "VALID",
+        "eligibilityForResearchBlindComparison": "ELIGIBLE_AND_LOCKED",
+        "causalLiveRuntimeCompatibility": "CAUSAL_STREAMING_COMPATIBLE",
+        "productionCheckpointLicensing": "PRODUCTION_LICENSE_ELIGIBLE",
+        "finalProductionSelectionEligibility": "POTENTIALLY_ELIGIBLE_PENDING_PHASE_9GB"
+      },
+      "metrics": {
+        "expectedStrikeRecall": 0.9880715705765407,
+        "falseMatchRateOnGroundTruthMissing": 0.3620689655172414,
+        "correctMissingRate": 0.6379310344827587,
+        "verdictAgreementRate": 0.9751116783663051,
+        "chordExactCompletenessRate": 0.9571788413098237,
+        "falseCompleteChordAcceptanceRate": 0.3137254901960784,
+        "extraPrecision": 0.7838827838827839,
+        "extraRecall": 0.9224137931034483,
+        "timingAbsoluteMedianMs": 8.333333333335759,
+        "timingAbsoluteP95Ms": 20.625000000025466,
+        "finalizedFeedbackAgeP50Ms": 912.2911139998541,
+        "finalizedFeedbackAgeP95Ms": 1452.4942449998525,
+        "inferenceLatencyP50Ms": 108.98658499991143,
+        "inferenceLatencyP95Ms": 141.14893899977687,
+        "publicationDelayP50Ms": 329.24623700020675,
+        "publicationDelayP95Ms": 369.4271642860731
+      }
+    },
+    {
+      "candidateFamily": "transkun",
+      "candidateId": "transkun-v2-aug-calibrated-v1",
+      "category": "RESEARCH_REFERENCE_ONLY",
+      "profileId": "UPSTREAM_NATIVE_V2_AUG",
+      "configurationSha256": "4d5d16200215e252d373b8300aafa890e0e2bb0247240b6e0d26fbb5d68fc277",
+      "checkpointSha256": "8bd6b4b5ddf9ce8c5f296a57859eec9f166cd337c35245ec2a2576d90be68c4c",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "fiveDimensionalQualification": {
+        "scientificCalibrationValidity": "VALID",
+        "eligibilityForResearchBlindComparison": "RESEARCH_REFERENCE_ONLY",
+        "causalLiveRuntimeCompatibility": "OFFLINE_WHOLE_RECORDING_INCOMPATIBLE",
+        "productionCheckpointLicensing": "PRODUCTION_LICENSE_ELIGIBLE",
+        "finalProductionSelectionEligibility": "INELIGIBLE_DUE_TO_OFFLINE_LATENCY"
+      },
+      "metrics": {
+        "expectedStrikeRecall": 0.9944444444444445,
+        "falseMatchRateOnGroundTruthMissing": 0.3,
+        "correctMissingRate": 0.7,
+        "verdictAgreementRate": 0.9834224598930481,
+        "chordExactCompletenessRate": 0.9809725158562368,
+        "falseCompleteChordAcceptanceRate": 0.2807017543859649,
+        "extraPrecision": 0.939622641509434,
+        "extraRecall": 0.8706293706293706,
+        "timingAbsoluteMedianMs": 7.76885880341797,
+        "timingAbsoluteP95Ms": 21.40433036842296,
+        "finalizedFeedbackAgeP50Ms": 53051.33813623528,
+        "finalizedFeedbackAgeP95Ms": 138616.95524181123,
+        "inferenceLatencyP50Ms": 5126.134143999991,
+        "inferenceLatencyP95Ms": 6700.925476999999,
+        "publicationDelayP50Ms": 5126.134143999991,
+        "publicationDelayP95Ms": 6700.925476999999
+      }
+    },
+    {
+      "candidateFamily": "aria-amt",
+      "candidateId": "aria-amt-medium-double-v1",
+      "category": "RESEARCH_REFERENCE_ONLY",
+      "profileId": "UPSTREAM_NATIVE_PIANO_MEDIUM_DOUBLE",
+      "configurationSha256": "d8e55dd4c19e70006650da031996c113961583c2f43b1305b77b002264fb2555",
+      "checkpointSha256": "089d3129dbe93246aeda55efe668c8a48af08afaf9dd15c64cef0a07c0fb30a4",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "fiveDimensionalQualification": {
+        "scientificCalibrationValidity": "VALID",
+        "eligibilityForResearchBlindComparison": "RESEARCH_REFERENCE_ONLY",
+        "causalLiveRuntimeCompatibility": "OFFLINE_WHOLE_RECORDING_INCOMPATIBLE",
+        "productionCheckpointLicensing": "RESEARCH_VALID_PRODUCTION_LICENSE_BLOCKED",
+        "finalProductionSelectionEligibility": "INELIGIBLE_DUE_TO_LICENSE_AND_LATENCY"
+      },
+      "metrics": {
+        "expectedStrikeRecall": 0.9938888888888889,
+        "falseMatchRateOnGroundTruthMissing": 0.2857142857142857,
+        "correctMissingRate": 0.7142857142857143,
+        "verdictAgreementRate": 0.9834224598930481,
+        "chordExactCompletenessRate": 0.9809725158562368,
+        "falseCompleteChordAcceptanceRate": 0.2631578947368421,
+        "extraPrecision": 0.9256505576208178,
+        "extraRecall": 0.8706293706293706,
+        "timingAbsoluteMedianMs": 6.249999999796273,
+        "timingAbsoluteP95Ms": 20.833333333401242,
+        "finalizedFeedbackAgeP50Ms": 879645.8435374149,
+        "finalizedFeedbackAgeP95Ms": 961523.0317460317,
+        "inferenceLatencyP50Ms": null,
+        "inferenceLatencyP95Ms": null
+      }
+    },
+    {
+      "candidateFamily": "rtt",
+      "candidateId": "rtt-causal-streaming-v1",
+      "category": "RESEARCH_REFERENCE_ONLY",
+      "profileId": "OFFLINE_SEGMENTWISE_NATIVE",
+      "configurationSha256": "473dde00da90daa857ebc95aaf871d3efb16f4948f0eda5591a546e337e4fb54",
+      "checkpointSha256": "901fc3da306fb4cffd96c55298d1439447e5a79f48cf436b4e76fde46db569f1",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "fiveDimensionalQualification": {
+        "scientificCalibrationValidity": "VALID",
+        "eligibilityForResearchBlindComparison": "RESEARCH_REFERENCE_ONLY",
+        "causalLiveRuntimeCompatibility": "OFFLINE_SEGMENTWISE_INCOMPATIBLE",
+        "productionCheckpointLicensing": "RESEARCH_VALID_PRODUCTION_LICENSE_BLOCKED",
+        "finalProductionSelectionEligibility": "INELIGIBLE_DUE_TO_LICENSE_AND_LATENCY"
+      },
+      "metrics": {
+        "expectedStrikeRecall": 0.39,
+        "falseMatchRateOnGroundTruthMissing": 0.15714285714285714,
+        "correctMissingRate": 0.8428571428571429,
+        "verdictAgreementRate": 0.406951871657754,
+        "chordExactCompletenessRate": 0.03805496828752643,
+        "falseCompleteChordAcceptanceRate": 0,
+        "extraPrecision": 0.14631197097944376,
+        "extraRecall": 0.4230769230769231,
+        "timingAbsoluteMedianMs": 9.376525880121335,
+        "timingAbsoluteP95Ms": 32.08363850695605,
+        "finalizedFeedbackAgeP50Ms": 51008.000638557816,
+        "finalizedFeedbackAgeP95Ms": 134176.37282184008,
+        "inferenceLatencyP50Ms": 1838.401474999955,
+        "inferenceLatencyP95Ms": 2360.3614339999694,
+        "publicationDelayP50Ms": 1838.401474999955,
+        "publicationDelayP95Ms": 2360.3614339999694
+      }
+    },
+    {
+      "candidateFamily": "d3rm",
+      "candidateId": "d3rm-offline-ceiling-reference",
+      "category": "EXECUTION_BLOCKED",
+      "profileId": "UPSTREAM_CEILING_REFERENCE",
+      "configurationSha256": "BLOCKED",
+      "checkpointSha256": "BLOCKED",
+      "qualificationStatus": "EXECUTION_BLOCKED",
+      "lockedForPhase9gB": false,
+      "fiveDimensionalQualification": {
+        "scientificCalibrationValidity": "BLOCKED",
+        "eligibilityForResearchBlindComparison": "NOT_ELIGIBLE",
+        "causalLiveRuntimeCompatibility": "OFFLINE_WHOLE_RECORDING_INCOMPATIBLE",
+        "productionCheckpointLicensing": "LICENSE_OR_USAGE_RIGHTS_UNRESOLVED",
+        "finalProductionSelectionEligibility": "INELIGIBLE"
+      }
+    }
+  ]
+}

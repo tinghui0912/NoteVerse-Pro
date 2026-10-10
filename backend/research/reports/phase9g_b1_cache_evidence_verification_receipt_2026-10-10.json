@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 2,
+  "artifact": "phase9g_b1_cache_evidence_verification_receipt",
+  "phase": "9G-B.1",
+  "generatedAt": "2026-10-10T08:40:57.301Z",
+  "gitHead": "314979f2566157dd498316528d132d53694d20b3",
+  "dirtyTreeAtExecution": false,
+  "cacheTrustSummary": {
+    "bytedanceOriginal": {
+      "candidateFamily": "bytedance-original",
+      "provenanceStatus": "MATCHED_TRUSTED_BASELINE",
+      "hasIndependentBaseline": true,
+      "baselineManifestPath": "backend/research/reports/phase9g_a24_bytedance_raw_evidence_manifest_2026-10-09.json",
+      "baselineManifestSha256": "8743b2069553eacd83e81ca956991f3f0c4ffa5ffdadd413bd62996aedc05554",
+      "details": "All 300 raw windows match the frozen A.2.4 raw evidence manifest baseline."
+    },
+    "bytedanceRobustAugmented": {
+      "candidateFamily": "bytedance-robust-augmented",
+      "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+      "hasIndependentBaseline": true,
+      "verificationReceiptPath": "backend/research/reports/phase9g_a32_raw_evidence_verification_receipt_2026-10-10.json",
+      "verificationReceiptSha256": "7ee516803628e626cd9aed1701772c8482221520a453a4db2c5667074d0d747f",
+      "totalWindowsVerified": 299,
+      "float32LeShaRecomputedAndMatched": 299,
+      "details": "All 299 float32 little-endian onset/frame tensor byte hashes recomputed and verified; inputPcmSha256 verified against source WAV."
+    },
+    "transkun": {
+      "candidateFamily": "transkun",
+      "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+      "hasIndependentBaseline": false,
+      "verificationReceiptPath": "backend/research/reports/phase9g_a32_raw_evidence_verification_receipt_2026-10-10.json",
+      "verificationReceiptSha256": "7ee516803628e626cd9aed1701772c8482221520a453a4db2c5667074d0d747f",
+      "audioFilesVerified": 24,
+      "notesDigestsVerified": 24,
+      "details": "24 transcription files verified against actual source WAV files on disk with canonical notes digests recomputed. No pre-A.3 baseline exists."
+    },
+    "ariaAmt": {
+      "candidateFamily": "aria-amt",
+      "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+      "hasIndependentBaseline": false,
+      "verificationReceiptPath": "backend/research/reports/phase9g_a32_raw_evidence_verification_receipt_2026-10-10.json",
+      "verificationReceiptSha256": "7ee516803628e626cd9aed1701772c8482221520a453a4db2c5667074d0d747f",
+      "audioFilesVerified": 24,
+      "notesDigestsVerified": 24,
+      "details": "24 transcription files verified against actual source WAV files on disk with canonical notes digests recomputed. No pre-A.3 baseline exists."
+    },
+    "rtt": {
+      "candidateFamily": "rtt",
+      "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+      "hasIndependentBaseline": false,
+      "verificationReceiptPath": "backend/research/reports/phase9g_a32_raw_evidence_verification_receipt_2026-10-10.json",
+      "verificationReceiptSha256": "7ee516803628e626cd9aed1701772c8482221520a453a4db2c5667074d0d747f",
+      "audioFilesVerified": 24,
+      "notesDigestsVerified": 24,
+      "details": "24 transcription files verified against actual source WAV files on disk with canonical notes digests recomputed. No pre-A.3 baseline exists."
+    }
+  }
+}
