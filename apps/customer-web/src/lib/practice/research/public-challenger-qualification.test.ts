@@ -16,10 +16,13 @@ import {
   PHASE_9GB1,
   PHASE_9GB11,
   PHASE_9GB12,
+  PHASE_9GB2_PRE,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2_SHA256,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3,
+  PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3_SHA256,
+  PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4,
   CHALLENGER_CALIBRATION_PERFORMERS,
   CHALLENGER_BLIND_PERFORMERS,
   assertChallengerQualificationPolicyIdentity,
@@ -66,11 +69,14 @@ import {
   assertRequiredSafetyMetricsPresent,
   assertBlindProtocolV2Identity,
   assertBlindProtocolV3Identity,
+  assertBlindProtocolV4Identity,
   assertExecutionLockBindingsValid,
   assertLedgerStateTransitionValid,
   assertNoDuplicateRunAttempt,
   assertNoDuplicateCandidateScenarioAttempt,
+  computeJournalEventHash,
   assertJournalEventChainValid,
+  assertJournalMatchesRunReceipt,
   assertAcousticPublicationCausalTimingValid,
   evaluateSymmetricSafetyDominance,
   assertMetricSpecificDenominatorsValid,
@@ -1880,23 +1886,29 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
     });
 
     it('B.1.2-3: assertJournalEventChainValid detects sequence gaps, reordering, and broken hash chains', () => {
-      const ev0 = {
+      const ev0Base = {
         seq: 0,
         prevEventHash: '0'.repeat(64),
         timestamp: '2026-10-10T00:00:00Z',
         eventType: 'RUN_INITIALIZED',
         runId: 'run-1',
         payload: { test: true },
-        eventHash: '1'.repeat(64),
       };
-      const ev1 = {
+      const ev0 = {
+        ...ev0Base,
+        eventHash: computeJournalEventHash(ev0Base),
+      };
+      const ev1Base = {
         seq: 1,
-        prevEventHash: '1'.repeat(64),
+        prevEventHash: ev0.eventHash,
         timestamp: '2026-10-10T00:00:01Z',
         eventType: 'ATTEMPT_STARTED',
         runId: 'run-1',
         payload: { scenario: 'sc1' },
-        eventHash: '2'.repeat(64),
+      };
+      const ev1 = {
+        ...ev1Base,
+        eventHash: computeJournalEventHash(ev1Base),
       };
 
       // Valid 2-event chain
@@ -1907,7 +1919,13 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
         .toThrow(/JOURNAL_SEQUENCE_GAP_OR_REORDER/);
 
       // Broken hash chain: ev1 prevEventHash doesn't match ev0 eventHash
-      expect(() => assertJournalEventChainValid([ev0, { ...ev1, prevEventHash: 'wrong'.padEnd(64, '0') }]))
+      const brokenPrev = 'a'.repeat(64);
+      const ev1Broken = {
+        ...ev1Base,
+        prevEventHash: brokenPrev,
+        eventHash: computeJournalEventHash({ ...ev1Base, prevEventHash: brokenPrev }),
+      };
+      expect(() => assertJournalEventChainValid([ev0, ev1Broken]))
         .toThrow(/JOURNAL_HASH_CHAIN_BROKEN_AT_SEQ_1/);
     });
 
@@ -1985,6 +2003,206 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       // Under reversal: B dominates A in the BA comparison!
       expect(resBA.outcome).toBe('CANDIDATE_B_DOMINATES');
       expect(resBA.winner).toBe('CANDIDATE_B');
+    });
+  });
+
+  describe('Phase 9G-B.2-PRE: Final Integrity and Real-Runtime Authorization Gate', () => {
+    it('B.2-PRE-1: assertBlindProtocolV4Identity validates V4 policy ID, schemaVersion 4, sha256, and V3 predecessor', () => {
+      const validV4 = {
+        policyId: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4,
+        schemaVersion: 4,
+        sha256: '4'.repeat(64),
+        supersedesPolicySha256: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3_SHA256,
+      };
+
+      expect(() => assertBlindProtocolV4Identity(validV4)).not.toThrow();
+
+      expect(() => assertBlindProtocolV4Identity({ ...validV4, policyId: 'WRONG' }))
+        .toThrow(/BLIND_PROTOCOL_V4_POLICY_ID_MISMATCH/);
+
+      expect(() => assertBlindProtocolV4Identity({ ...validV4, schemaVersion: 3 }))
+        .toThrow(/BLIND_PROTOCOL_V4_SCHEMA_VERSION_MISMATCH/);
+
+      expect(() => assertBlindProtocolV4Identity({ ...validV4, sha256: undefined }))
+        .toThrow(/BLIND_PROTOCOL_V4_SHA_REQUIRED/);
+
+      expect(() => assertBlindProtocolV4Identity({ ...validV4, supersedesPolicySha256: 'wrong'.padEnd(64, '0') }))
+        .toThrow(/BLIND_PROTOCOL_V4_SUPERSEDED_POLICY_SHA_MISMATCH/);
+    });
+
+    it('B.2-PRE-2: Candidate inference strictly forbidden in Phase 9G-B.2-PRE preflight gate', () => {
+      const b2PreInferenceRequest: ChallengerExecutionRequest = {
+        phase: PHASE_9GB2_PRE,
+        mode: 'CANDIDATE_INFERENCE',
+        policy: {
+          policyId: PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2,
+          schemaVersion: 2,
+          sha256: PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2_SHA256,
+        },
+        incumbentPolicySha256: PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5_SHA256,
+        candidateId: 'bytedance-robust-augmented-calibrated-v1',
+        candidateFamily: 'bytedance-robust-augmented',
+        scenarioSplit: 'CALIBRATION',
+        performers: ['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p14'],
+        calibrationManifestSha256: PHASE_9GA1_CALIBRATION_SCENARIOS_SHA256,
+        incumbentRegistrySha256: PHASE_9GA25_REGISTRY_SHA256,
+        blindManifestSha256: PHASE_9GB_BLIND_MANIFEST_SHA256,
+      };
+      expect(() => assertChallengerExecutionAllowed(b2PreInferenceRequest))
+        .toThrow(/PHASE_9GB2_CANDIDATE_INFERENCE_FORBIDDEN/);
+    });
+
+    it('B.2-PRE-3: assertJournalEventChainValid detects payload tampering even when sequence and prevEventHash are intact', () => {
+      const ev0Base = {
+        seq: 0,
+        prevEventHash: '0'.repeat(64),
+        timestamp: '2026-10-10T00:00:00Z',
+        eventType: 'RUN_INITIALIZED',
+        runId: 'run-b2',
+        payload: { test: true },
+      };
+      const ev0 = {
+        ...ev0Base,
+        eventHash: computeJournalEventHash(ev0Base),
+      };
+
+      const ev1Base = {
+        seq: 1,
+        prevEventHash: ev0.eventHash,
+        timestamp: '2026-10-10T00:00:01Z',
+        eventType: 'ATTEMPT_STARTED',
+        runId: 'run-b2',
+        payload: { candidateId: 'c1', scenarioId: 's1' },
+      };
+      const ev1 = {
+        ...ev1Base,
+        eventHash: computeJournalEventHash(ev1Base),
+      };
+
+      // Both valid
+      expect(() => assertJournalEventChainValid([ev0, ev1])).not.toThrow();
+
+      // Tamper with payload of ev1 without updating eventHash
+      const tamperedEv1 = {
+        ...ev1,
+        payload: { candidateId: 'c1', scenarioId: 's1', extraTamper: 'malicious' },
+      };
+      expect(() => assertJournalEventChainValid([ev0, tamperedEv1]))
+        .toThrow(/JOURNAL_EVENT_PAYLOAD_TAMPERED_AT_SEQ_1/);
+    });
+
+    it('B.2-PRE-4: assertJournalEventChainValid enforces attempt ordering and rejects duplicate terminal attempt records', () => {
+      const ev0Base = {
+        seq: 0,
+        prevEventHash: '0'.repeat(64),
+        timestamp: '2026-10-10T00:00:00Z',
+        eventType: 'RUN_INITIALIZED',
+        runId: 'run-b2-ordering',
+        payload: {},
+      };
+      const ev0 = { ...ev0Base, eventHash: computeJournalEventHash(ev0Base) };
+
+      // Attempt committed without ATTEMPT_STARTED
+      const evUnstartedBase = {
+        seq: 1,
+        prevEventHash: ev0.eventHash,
+        timestamp: '2026-10-10T00:00:01Z',
+        eventType: 'ATTEMPT_COMMITTED',
+        runId: 'run-b2-ordering',
+        payload: { candidateId: 'c1', scenarioId: 's1' },
+      };
+      const evUnstarted = { ...evUnstartedBase, eventHash: computeJournalEventHash(evUnstartedBase) };
+      expect(() => assertJournalEventChainValid([ev0, evUnstarted]))
+        .toThrow(/JOURNAL_ATTEMPT_TERMINATED_WITHOUT_START:c1\0s1/);
+
+      // Duplicate attempt start
+      const evStart1Base = {
+        seq: 1,
+        prevEventHash: ev0.eventHash,
+        timestamp: '2026-10-10T00:00:01Z',
+        eventType: 'ATTEMPT_STARTED',
+        runId: 'run-b2-ordering',
+        payload: { candidateId: 'c1', scenarioId: 's1' },
+      };
+      const evStart1 = { ...evStart1Base, eventHash: computeJournalEventHash(evStart1Base) };
+
+      const evStart2Base = {
+        seq: 2,
+        prevEventHash: evStart1.eventHash,
+        timestamp: '2026-10-10T00:00:02Z',
+        eventType: 'ATTEMPT_STARTED',
+        runId: 'run-b2-ordering',
+        payload: { candidateId: 'c1', scenarioId: 's1' },
+      };
+      const evStart2 = { ...evStart2Base, eventHash: computeJournalEventHash(evStart2Base) };
+      expect(() => assertJournalEventChainValid([ev0, evStart1, evStart2]))
+        .toThrow(/JOURNAL_DUPLICATE_ATTEMPT_STARTED:c1\0s1/);
+
+      // Terminal commit followed by duplicate terminal commit
+      const evCommit1Base = {
+        seq: 2,
+        prevEventHash: evStart1.eventHash,
+        timestamp: '2026-10-10T00:00:02Z',
+        eventType: 'ATTEMPT_COMMITTED',
+        runId: 'run-b2-ordering',
+        payload: { candidateId: 'c1', scenarioId: 's1' },
+      };
+      const evCommit1 = { ...evCommit1Base, eventHash: computeJournalEventHash(evCommit1Base) };
+
+      const evCommit2Base = {
+        seq: 3,
+        prevEventHash: evCommit1.eventHash,
+        timestamp: '2026-10-10T00:00:03Z',
+        eventType: 'ATTEMPT_COMMITTED',
+        runId: 'run-b2-ordering',
+        payload: { candidateId: 'c1', scenarioId: 's1' },
+      };
+      const evCommit2 = { ...evCommit2Base, eventHash: computeJournalEventHash(evCommit2Base) };
+      expect(() => assertJournalEventChainValid([ev0, evStart1, evCommit1, evCommit2]))
+        .toThrow(/JOURNAL_DUPLICATE_TERMINAL_ATTEMPT_RECORD:c1\0s1/);
+    });
+
+    it('B.2-PRE-5: assertJournalMatchesRunReceipt detects valid-prefix truncation and count mismatch', () => {
+      const ev0Base = {
+        seq: 0,
+        prevEventHash: '0'.repeat(64),
+        timestamp: '2026-10-10T00:00:00Z',
+        eventType: 'RUN_INITIALIZED',
+        runId: 'run-receipt-check',
+        payload: {},
+      };
+      const ev0 = { ...ev0Base, eventHash: computeJournalEventHash(ev0Base) };
+
+      const ev1Base = {
+        seq: 1,
+        prevEventHash: ev0.eventHash,
+        timestamp: '2026-10-10T00:00:01Z',
+        eventType: 'RUN_COMPLETED',
+        runId: 'run-receipt-check',
+        payload: {},
+      };
+      const ev1 = { ...ev1Base, eventHash: computeJournalEventHash(ev1Base) };
+
+      const events = [ev0, ev1];
+      const validReceipt = {
+        eventCount: 2,
+        chainTipHash: ev1.eventHash,
+        runId: 'run-receipt-check',
+      };
+
+      expect(() => assertJournalMatchesRunReceipt(events, validReceipt)).not.toThrow();
+
+      // Truncated events: only ev0 provided when receipt expects 2
+      expect(() => assertJournalMatchesRunReceipt([ev0], validReceipt))
+        .toThrow(/JOURNAL_TRUNCATION_OR_COUNT_MISMATCH: expected 2, got 1/);
+
+      // Tip hash mismatch
+      expect(() => assertJournalMatchesRunReceipt(events, { ...validReceipt, chainTipHash: 'wrong'.padEnd(64, '0') }))
+        .toThrow(/JOURNAL_CHAIN_TIP_MISMATCH/);
+
+      // Run ID mismatch
+      expect(() => assertJournalMatchesRunReceipt(events, { ...validReceipt, runId: 'different-run' }))
+        .toThrow(/JOURNAL_RUN_ID_MISMATCH/);
     });
   });
 });

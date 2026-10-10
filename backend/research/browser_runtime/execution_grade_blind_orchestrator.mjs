@@ -1,5 +1,5 @@
 /**
- * Phase 9G-B.1.2: Execution-Grade Blind Evaluation Orchestrator & Durable One-Shot Journal.
+ * Phase 9G-B.2-PRE: Execution-Grade Blind Evaluation Orchestrator & Durable One-Shot Journal.
  *
  * Implements the modular, testable, score-blind evaluation pipeline:
  * - Layer 1: Pre-inference layer (manifest validation, audio geometry eligibility, code/checkpoint bindings)
@@ -11,7 +11,7 @@
  * - Layer 7: Audit layer (independent disk readback, digest verification, and one-shot run status)
  *
  * Enforces non-negotiable boundaries:
- * - Real candidate inference on blind performers p15-p22 is STRICTLY FORBIDDEN in Phase 9G-B.1.2.
+ * - Real candidate inference on blind performers p15-p22 is STRICTLY FORBIDDEN in Phase 9G-B.2-PRE.
  * - Score-conditioned inference is detected and rejected.
  * - Zero production winner selected; production microphone inactive.
  */
@@ -41,6 +41,8 @@ export function sha256Text(text) {
 export function sha256Json(obj) {
   return sha256Text(JSON.stringify(obj));
 }
+
+export const FROZEN_V4_PROTOCOL_ID = '9G-B-BLIND-V4';
 
 // Frozen 3-candidate competitive roster constants
 export const FROZEN_RANKED_ROSTER = {
@@ -393,6 +395,9 @@ export class DurableExecutionLedger {
     const safeCandId = attemptRecord.candidateId.replace(/[^a-zA-Z0-9_-]/g, '_');
     const safeScId = attemptRecord.scenarioId.replace(/[^a-zA-Z0-9_-]/g, '_');
     const evidencePath = path.resolve(this.evidenceDir, `${safeCandId}__${safeScId}.json`);
+    if (existsSync(evidencePath)) {
+      throw new Error(`EVIDENCE_FILE_ALREADY_EXISTS_CANNOT_OVERWRITE:${evidencePath}`);
+    }
     await atomicWriteJson(evidencePath, evidenceBlob);
 
     // 2. Append commit event to journal
@@ -450,6 +455,15 @@ export class DurableExecutionLedger {
     if (blob.observationDigest !== recomputedObservationDigest) {
       throw new Error(`EVIDENCE_OBSERVATION_DIGEST_CORRUPTED:${candidateId}:${scenarioId}`);
     }
+    const record = this.records.get(`${candidateId}\0${scenarioId}`);
+    if (record) {
+      if (record.evidenceSha256 && record.evidenceSha256 !== blob.evidenceRecordSha256) {
+        throw new Error(`EVIDENCE_SHA256_MISMATCH_WITH_LEDGER:${blob.evidenceRecordSha256} !== ${record.evidenceSha256}`);
+      }
+      if (record.acousticOutputDigest && record.acousticOutputDigest !== blob.observationDigest) {
+        throw new Error(`EVIDENCE_DIGEST_MISMATCH_WITH_LEDGER:${blob.observationDigest} !== ${record.acousticOutputDigest}`);
+      }
+    }
     return blob;
   }
 
@@ -491,9 +505,11 @@ export class DurableExecutionLedger {
 export function preflightCandidateScenarioExecution({
   protocolId,
   protocolSha256,
+  expectedProtocolSha256,
   candidateConfig,
   sanitizedScenario,
   ledger,
+  authorizedScenarioIds,
 }) {
   // 1. Strict schema isolation: ensure NO ExpectedStrike truth or hidden notes reach inference
   if (sanitizedScenario.expectedStrikes || sanitizedScenario.physicalGroundTruth) {
@@ -504,11 +520,21 @@ export function preflightCandidateScenarioExecution({
   }
 
   // 2. Validate protocol identity
-  if (protocolId !== 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V3') {
+  const allowedProtocolIds = [
+    '9G-B-BLIND-V4',
+    'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V4',
+  ];
+  if (!allowedProtocolIds.includes(protocolId)) {
     throw new Error(`PREFLIGHT_PROTOCOL_ID_MISMATCH:${protocolId}`);
   }
   if (!protocolSha256 || protocolSha256.length !== 64) {
     throw new Error('PREFLIGHT_PROTOCOL_SHA_REQUIRED');
+  }
+  if (protocolSha256 === 'a'.repeat(64)) {
+    throw new Error('PREFLIGHT_PROTOCOL_HASH_BYPASS_FORBIDDEN: dummy fallback hash rejected');
+  }
+  if (expectedProtocolSha256 && protocolSha256 !== expectedProtocolSha256) {
+    throw new Error(`PREFLIGHT_PROTOCOL_SHA_MISMATCH: got ${protocolSha256}, expected ${expectedProtocolSha256}`);
   }
 
   // 3. Validate candidate belongs to frozen 3-candidate roster
@@ -547,7 +573,22 @@ export function preflightCandidateScenarioExecution({
     throw new Error('PREFLIGHT_SOURCE_PCM_SHA_REQUIRED');
   }
 
-  // 7. Verify ledger state and duplicate check
+  // 7. Performer allowlist and isolation check
+  if (authorizedScenarioIds) {
+    const idSet = Array.isArray(authorizedScenarioIds) ? new Set(authorizedScenarioIds) : authorizedScenarioIds;
+    if (!idSet.has(sanitizedScenario.scenarioId)) {
+      throw new Error(`PREFLIGHT_UNAUTHORIZED_SCENARIO_REJECTED:${sanitizedScenario.scenarioId}`);
+    }
+  }
+  const performer = sanitizedScenario.scenarioId.split(':').pop()?.replace(/^performer_/, '');
+  const isSynthetic = sanitizedScenario.scenarioId.includes('synthetic') || (sanitizedScenario.familyTags && sanitizedScenario.familyTags.includes('SYNTHETIC_REHEARSAL_FIXTURE'));
+  if (!isSynthetic && (sanitizedScenario.split === 'BLIND' || sanitizedScenario.split === 'EVALUATION')) {
+    if (performer && ['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p14'].includes(performer)) {
+      throw new Error(`PREFLIGHT_CALIBRATION_PERFORMER_IN_BLIND_SPLIT_FORBIDDEN:${performer}`);
+    }
+  }
+
+  // 8. Verify ledger state and duplicate check
   if (ledger.state !== 'RUNNING') {
     throw new Error(`PREFLIGHT_LEDGER_NOT_RUNNING:${ledger.state}`);
   }
@@ -581,14 +622,20 @@ export function validateAcousticPublications(publications, scenarioAudio) {
 // Layer 3 & 4: Execution & Evidence Commit
 // ---------------------------------------------------------------------------
 
-export async function executeAcousticCandidate(adapter, sanitizedScenario, candidateConfig, ledger, protocolMeta = {}) {
+export async function executeAcousticCandidate(adapter, sanitizedScenario, candidateConfig, ledger, protocolMeta) {
+  if (!protocolMeta || !protocolMeta.protocolId || !protocolMeta.protocolSha256) {
+    throw new Error('PREFLIGHT_PROTOCOL_METADATA_REQUIRED: protocolId and protocolSha256 must be explicitly provided');
+  }
+
   // 1. Mandatory preflight
   preflightCandidateScenarioExecution({
-    protocolId: protocolMeta.protocolId ?? 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V3',
-    protocolSha256: protocolMeta.protocolSha256 ?? 'a'.repeat(64),
+    protocolId: protocolMeta.protocolId,
+    protocolSha256: protocolMeta.protocolSha256,
+    expectedProtocolSha256: protocolMeta.expectedProtocolSha256,
     candidateConfig,
     sanitizedScenario,
     ledger,
+    authorizedScenarioIds: protocolMeta.authorizedScenarioIds,
   });
 
   // 2. Mark attempt started in ledger journal
@@ -697,6 +744,9 @@ export function scoreCommittedAcousticOutput(ledger, fullScenarioWithTruth, cand
   if (record.acousticOutputDigest !== evidenceBlob.observationDigest) {
     throw new Error(`ACOUSTIC_DIGEST_MISMATCH_ON_SCORING:${candidateDef.candidateId}:${fullScenarioWithTruth.scenarioId}`);
   }
+  if (record.evidenceSha256 && record.evidenceSha256 !== evidenceBlob.evidenceRecordSha256) {
+    throw new Error(`EVIDENCE_SHA256_MISMATCH_ON_SCORING:${candidateDef.candidateId}:${fullScenarioWithTruth.scenarioId}`);
+  }
 
   // 3. Construct candidate run exclusively from disk-loaded publications
   const candidateScenarioRun = {
@@ -754,4 +804,198 @@ export function evaluateSafetyHierarchyDominance(diffVectorsByMetric, options = 
     (diffs) => computeSeededBootstrapCi(diffs),
     options,
   );
+}
+
+// ---------------------------------------------------------------------------
+// Layer 7: Metric Vector Extraction, Coverage Derivation & Independent Audit
+// ---------------------------------------------------------------------------
+
+export function buildPairwiseCandidateMetricVectors(candidateAScores, candidateBScores, metricNames) {
+  const scoreMapA = new Map();
+  for (const s of candidateAScores) {
+    scoreMapA.set(s.scenarioId, s);
+  }
+  const scoreMapB = new Map();
+  for (const s of candidateBScores) {
+    scoreMapB.set(s.scenarioId, s);
+  }
+
+  // Find common scenarios
+  const commonScenarioIds = [];
+  for (const scId of scoreMapA.keys()) {
+    if (scoreMapB.has(scId)) {
+      commonScenarioIds.push(scId);
+    }
+  }
+
+  const diffVectorsByMetric = {};
+  const validCountsByMetric = {};
+
+  for (const metric of metricNames) {
+    const diffs = [];
+    for (const scId of commonScenarioIds) {
+      const recA = scoreMapA.get(scId);
+      const recB = scoreMapB.get(scId);
+      const mA = recA?.metrics?.[metric];
+      const mB = recB?.metrics?.[metric];
+
+      if (mA && mB && mA.status === 'MEASURED' && mB.status === 'MEASURED') {
+        const valA = typeof mA.value === 'number' ? mA.value : mA.mean;
+        const valB = typeof mB.value === 'number' ? mB.value : mB.mean;
+        if (Number.isFinite(valA) && Number.isFinite(valB)) {
+          diffs.push(valA - valB);
+        }
+      }
+    }
+    diffVectorsByMetric[metric] = diffs;
+    validCountsByMetric[metric] = diffs.length;
+  }
+
+  return {
+    diffVectorsByMetric,
+    validCountsByMetric,
+    candidateAScenarioCount: candidateAScores.length,
+    candidateBScenarioCount: candidateBScores.length,
+    pairedScenarioCount: commonScenarioIds.length,
+  };
+}
+
+export function evaluateProductionExecutionCoverage(ledger, scenarios, candidateRoster) {
+  const candidateCoverage = {};
+  let totalEligible = 0;
+  let totalCompleted = 0;
+  let totalFailed = 0;
+  let totalUncertain = 0;
+  let totalMissing = 0;
+
+  for (const cand of candidateRoster) {
+    const eligibleScenarios = scenarios.filter((s) => deriveScenarioEligibility(s, cand.profileId).isEligible);
+    let completed = 0;
+    let failed = 0;
+    let uncertain = 0;
+    let missing = 0;
+
+    for (const sc of eligibleScenarios) {
+      const rec = ledger.getRecord(cand.candidateId, sc.scenarioId);
+      if (!rec) {
+        missing++;
+      } else if (rec.status === 'SUCCESS') {
+        completed++;
+      } else if (rec.status === 'FAILED') {
+        failed++;
+      } else if (rec.status === 'ATTEMPT_OUTCOME_UNKNOWN') {
+        uncertain++;
+      } else {
+        missing++;
+      }
+    }
+
+    const coverageFraction = eligibleScenarios.length > 0 ? completed / eligibleScenarios.length : 0;
+    candidateCoverage[cand.candidateId] = {
+      candidateId: cand.candidateId,
+      eligibleCount: eligibleScenarios.length,
+      completedCount: completed,
+      failedCount: failed,
+      uncertainCount: uncertain,
+      missingCount: missing,
+      coveragePercent: coverageFraction * 100,
+    };
+
+    totalEligible += eligibleScenarios.length;
+    totalCompleted += completed;
+    totalFailed += failed;
+    totalUncertain += uncertain;
+    totalMissing += missing;
+  }
+
+  const overallFraction = totalEligible > 0 ? totalCompleted / totalEligible : 0;
+  const isComplete = totalCompleted === totalEligible && totalFailed === 0 && totalUncertain === 0 && totalMissing === 0;
+
+  return {
+    isComplete,
+    totalEligible,
+    totalCompleted,
+    totalFailed,
+    totalUncertain,
+    totalMissing,
+    overallCoveragePercent: overallFraction * 100,
+    candidateCoverage,
+    coverageOutcome: isComplete ? 'EVALUATION_COVERAGE_COMPLETE' : 'EVALUATION_INCOMPLETE_NO_WINNER',
+  };
+}
+
+export async function independentlyVerifyAndScoreCommittedEvidence(runDir, fullScenariosWithTruth, candidateDefs, options = {}) {
+  const journalPath = path.resolve(runDir, 'journal.jsonl');
+  if (!existsSync(journalPath)) {
+    throw new Error(`JOURNAL_NOT_FOUND_FOR_AUDIT:${journalPath}`);
+  }
+  const lines = readFileSync(journalPath, 'utf8').trim().split('\n').filter(Boolean);
+  const events = lines.map((l) => JSON.parse(l));
+
+  // 1. Verify journal event chain cryptographic integrity
+  challengerQual.assertJournalEventChainValid(events);
+
+  // 2. If run receipt present, verify against receipt
+  const receiptPath = path.resolve(runDir, 'run_receipt.json');
+  if (existsSync(receiptPath)) {
+    const receipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
+    challengerQual.assertJournalMatchesRunReceipt(events, receipt);
+  } else if (options.expectedReceipt) {
+    challengerQual.assertJournalMatchesRunReceipt(events, options.expectedReceipt);
+  }
+
+  // 3. For each committed attempt, independently verify evidence on disk
+  const scenariosById = new Map(fullScenariosWithTruth.map((s) => [s.scenarioId, s]));
+  const candDefsById = new Map(candidateDefs.map((c) => [c.candidateId, c]));
+  const verifiedScores = [];
+
+  for (const ev of events) {
+    if (ev.eventType === 'ATTEMPT_COMMITTED') {
+      const payload = ev.payload;
+      const safeCandId = payload.candidateId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const safeScId = payload.scenarioId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const evidencePath = path.resolve(runDir, 'evidence', `${safeCandId}__${safeScId}.json`);
+      if (!existsSync(evidencePath)) {
+        throw new Error(`COMMITTED_EVIDENCE_MISSING_FROM_DISK:${evidencePath}`);
+      }
+      const raw = readFileSync(evidencePath, 'utf8');
+      const blob = JSON.parse(raw);
+
+      // Verify SHA256 matches journal
+      const unsignedBlob = { ...blob };
+      delete unsignedBlob.evidenceRecordSha256;
+      const blobSha = sha256Json(unsignedBlob);
+      if (blob.evidenceRecordSha256 !== blobSha) {
+        throw new Error(`EVIDENCE_RECORD_SELF_SHA_MISMATCH:${blob.evidenceRecordSha256} !== ${blobSha}`);
+      }
+      if (payload.evidenceSha256 && payload.evidenceSha256 !== blobSha) {
+        throw new Error(`EVIDENCE_SHA_MISMATCH_WITH_JOURNAL:${payload.evidenceSha256} !== ${blobSha}`);
+      }
+
+      // Verify observation digest
+      const recomputedDigest = sha256Json(blob.publications);
+      if (recomputedDigest !== blob.observationDigest || recomputedDigest !== payload.acousticOutputDigest) {
+        throw new Error(`EVIDENCE_OBSERVATION_DIGEST_MISMATCH:${blob.observationDigest} !== ${recomputedDigest}`);
+      }
+
+      const fullScenario = scenariosById.get(payload.scenarioId);
+      const candDef = candDefsById.get(payload.candidateId);
+      if (fullScenario && candDef) {
+        const candidateRun = {
+          candidateId: candDef.candidateId,
+          scenarioId: fullScenario.scenarioId,
+          publications: blob.publications,
+        };
+        const score = bakeoffScorer.scoreCandidate(fullScenario, candDef, candidateRun);
+        verifiedScores.push(score);
+      }
+    }
+  }
+
+  return {
+    verifiedJournal: true,
+    totalEvents: events.length,
+    totalAttemptsVerified: verifiedScores.length,
+    verifiedScores,
+  };
 }

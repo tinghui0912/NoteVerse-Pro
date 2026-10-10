@@ -44,12 +44,15 @@ export const PHASE_9GB01 = '9G-B.0.1' as const;
 export const PHASE_9GB1 = '9G-B.1' as const;
 export const PHASE_9GB11 = '9G-B.1.1' as const;
 export const PHASE_9GB12 = '9G-B.1.2' as const;
+export const PHASE_9GB2_PRE = '9G-B.2-PRE' as const;
 
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V1' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256 = '06d9811ad830bebbd0e3161c424c15ee04282756479d80868ae8aa29e6bdafb0' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V2' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2_SHA256 = '42a2777600e51e2a9d8a83fd6671d169e99d80236bb5617bc330565ee3c7b890' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V3' as const;
+export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3_SHA256 = '6a0f664af87bdcf773f6dbeb767ad0e4ba59b7b2518b41964f66773709191363' as const;
+export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V4' as const;
 
 export type ChallengerFamily =
   | 'bytedance-robust-augmented'
@@ -133,7 +136,7 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
   }
 
   // 3. Fail closed on missing, malformed, or non-whitelisted phase
-  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01, PHASE_9GB1, PHASE_9GB11, PHASE_9GB12] as const;
+  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01, PHASE_9GB1, PHASE_9GB11, PHASE_9GB12, PHASE_9GB2_PRE] as const;
   if (!request.phase || !allowedPhases.includes(request.phase as typeof allowedPhases[number])) {
     if (request.mode === 'TRUTH_ONLY') {
       throw new Error(`CHALLENGER_TRUTH_ONLY_PHASE_REQUIRED:${request.phase}`);
@@ -141,9 +144,9 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
     throw new Error(`CHALLENGER_EXECUTION_PHASE_REQUIRED:${request.phase}`);
   }
 
-  // Phase 9G-B.0, 9G-B.0.1, 9G-B.1, 9G-B.1.1, and 9G-B.1.2 are non-inference preflight readiness / protocol freeze gates
-  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01 || request.phase === PHASE_9GB1 || request.phase === PHASE_9GB11 || request.phase === PHASE_9GB12) && request.mode === 'CANDIDATE_INFERENCE') {
-    const prefix = request.phase === PHASE_9GB12 ? 'PHASE_9GB12' : request.phase === PHASE_9GB11 ? 'PHASE_9GB11' : request.phase === PHASE_9GB1 ? 'PHASE_9GB1' : request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0';
+  // Phase 9G-B.0 through 9G-B.2-PRE are non-inference preflight readiness / protocol freeze gates
+  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01 || request.phase === PHASE_9GB1 || request.phase === PHASE_9GB11 || request.phase === PHASE_9GB12 || request.phase === PHASE_9GB2_PRE) && request.mode === 'CANDIDATE_INFERENCE') {
+    const prefix = request.phase === PHASE_9GB2_PRE ? 'PHASE_9GB2' : request.phase === PHASE_9GB12 ? 'PHASE_9GB12' : request.phase === PHASE_9GB11 ? 'PHASE_9GB11' : request.phase === PHASE_9GB1 ? 'PHASE_9GB1' : request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0';
     throw new Error(`${prefix}_CANDIDATE_INFERENCE_FORBIDDEN`);
   }
 
@@ -1578,21 +1581,84 @@ export function assertBlindProtocolV3Identity(identity: {
   }
 }
 
+export function assertBlindProtocolV4Identity(identity: {
+  policyId: string;
+  schemaVersion: number;
+  sha256?: string;
+  supersedesPolicySha256?: string;
+}): void {
+  if (identity.policyId !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4) {
+    throw new Error(`BLIND_PROTOCOL_V4_POLICY_ID_MISMATCH:${identity.policyId}`);
+  }
+  if (identity.schemaVersion !== 4) {
+    throw new Error(`BLIND_PROTOCOL_V4_SCHEMA_VERSION_MISMATCH:${identity.schemaVersion}`);
+  }
+  if (!identity.sha256 || identity.sha256.length !== 64) {
+    throw new Error('BLIND_PROTOCOL_V4_SHA_REQUIRED');
+  }
+  if (identity.supersedesPolicySha256 !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3_SHA256) {
+    throw new Error(`BLIND_PROTOCOL_V4_SUPERSEDED_POLICY_SHA_MISMATCH:${identity.supersedesPolicySha256}`);
+  }
+}
+
 export interface JournalEvent {
   readonly seq: number;
   readonly prevEventHash: string;
-  readonly timestamp: string;
+  readonly timestamp?: string;
   readonly eventType: string;
-  readonly runId: string;
-  readonly payload: Record<string, unknown>;
+  readonly runId?: string;
+  readonly payload?: Record<string, unknown>;
+  readonly data?: Record<string, unknown>;
   readonly eventHash: string;
 }
 
-export function assertJournalEventChainValid(events: readonly JournalEvent[]): void {
+export const ALLOWED_JOURNAL_EVENT_TYPES = [
+  'RUN_INITIALIZED',
+  'STATE_TRANSITION',
+  'ATTEMPT_STARTED',
+  'ATTEMPT_COMMITTED',
+  'ATTEMPT_FAILED',
+  'ATTEMPT_OUTCOME_UNKNOWN',
+  'RUN_COMPLETED',
+  'RUN_BLOCKED',
+  'RUN_FAILED',
+] as const;
+
+export function canonicalJournalEventUnsigned(ev: JournalEvent): {
+  seq: number;
+  prevEventHash: string;
+  timestamp?: string;
+  eventType: string;
+  runId?: string;
+  payload: Record<string, unknown>;
+} {
+  return {
+    seq: ev.seq,
+    prevEventHash: ev.prevEventHash,
+    ...(ev.timestamp !== undefined ? { timestamp: ev.timestamp } : {}),
+    eventType: ev.eventType,
+    ...(ev.runId !== undefined ? { runId: ev.runId } : {}),
+    payload: (ev.payload ?? ev.data ?? {}) as Record<string, unknown>,
+  };
+}
+
+export function computeJournalEventHash(ev: Omit<JournalEvent, 'eventHash'>): string {
+  const unsigned = canonicalJournalEventUnsigned(ev as JournalEvent);
+  return createHash('sha256').update(JSON.stringify(unsigned), 'utf8').digest('hex');
+}
+
+export function assertJournalEventChainValid(
+  events: readonly JournalEvent[],
+  options?: { expectedRunId?: string },
+): void {
   if (!Array.isArray(events) || events.length === 0) {
     throw new Error('JOURNAL_EMPTY_OR_INVALID');
   }
   const genesisPrev = '0'.repeat(64);
+  const activeAttempts = new Set<string>();
+  const terminalAttempts = new Set<string>();
+  const runId = options?.expectedRunId ?? events[0].runId;
+
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
     if (ev.seq !== i) {
@@ -1605,6 +1671,75 @@ export function assertJournalEventChainValid(events: readonly JournalEvent[]): v
     if (!ev.eventHash || ev.eventHash.length !== 64) {
       throw new Error(`JOURNAL_INVALID_EVENT_HASH_AT_SEQ_${i}`);
     }
+
+    // 1. Genesis check
+    if (i === 0) {
+      if (ev.eventType !== 'RUN_INITIALIZED') {
+        throw new Error(`JOURNAL_GENESIS_EVENT_TYPE_INVALID: expected RUN_INITIALIZED, got ${ev.eventType}`);
+      }
+      if (ev.prevEventHash !== genesisPrev) {
+        throw new Error(`JOURNAL_GENESIS_PREV_HASH_INVALID: got ${ev.prevEventHash}`);
+      }
+    }
+
+    // 2. Allowed event types
+    if (!ALLOWED_JOURNAL_EVENT_TYPES.includes(ev.eventType as typeof ALLOWED_JOURNAL_EVENT_TYPES[number])) {
+      throw new Error(`JOURNAL_UNAUTHORIZED_EVENT_TYPE_AT_SEQ_${i}:${ev.eventType}`);
+    }
+
+    // 3. Consistent runId check
+    if (runId && ev.runId && ev.runId !== runId) {
+      throw new Error(`JOURNAL_RUN_ID_MISMATCH_AT_SEQ_${i}: expected ${runId}, got ${ev.runId}`);
+    }
+
+    // 4. Recompute canonical unsigned hash and verify exact cryptographic match
+    const unsigned = canonicalJournalEventUnsigned(ev);
+    const recomputedHash = createHash('sha256').update(JSON.stringify(unsigned), 'utf8').digest('hex');
+    if (ev.eventHash !== recomputedHash) {
+      throw new Error(`JOURNAL_EVENT_PAYLOAD_TAMPERED_AT_SEQ_${i}: stored ${ev.eventHash} !== recomputed ${recomputedHash}`);
+    }
+
+    // 5. Attempt ordering and terminal record uniqueness
+    const payload = (ev.payload ?? ev.data ?? {}) as Record<string, unknown>;
+    const candidateId = payload.candidateId as string | undefined;
+    const scenarioId = payload.scenarioId as string | undefined;
+    if (candidateId && scenarioId) {
+      const attemptKey = `${candidateId}\0${scenarioId}`;
+      if (ev.eventType === 'ATTEMPT_STARTED') {
+        if (activeAttempts.has(attemptKey) || terminalAttempts.has(attemptKey)) {
+          throw new Error(`JOURNAL_DUPLICATE_ATTEMPT_STARTED:${attemptKey}`);
+        }
+        activeAttempts.add(attemptKey);
+      } else if (ev.eventType === 'ATTEMPT_COMMITTED' || ev.eventType === 'ATTEMPT_FAILED' || ev.eventType === 'ATTEMPT_OUTCOME_UNKNOWN') {
+        if (!activeAttempts.has(attemptKey) && !terminalAttempts.has(attemptKey)) {
+          throw new Error(`JOURNAL_ATTEMPT_TERMINATED_WITHOUT_START:${attemptKey}`);
+        }
+        if (terminalAttempts.has(attemptKey)) {
+          throw new Error(`JOURNAL_DUPLICATE_TERMINAL_ATTEMPT_RECORD:${attemptKey}`);
+        }
+        activeAttempts.delete(attemptKey);
+        terminalAttempts.add(attemptKey);
+      }
+    }
+  }
+}
+
+export function assertJournalMatchesRunReceipt(
+  events: readonly JournalEvent[],
+  receipt: { eventCount: number; chainTipHash: string; runId?: string },
+): void {
+  if (!Array.isArray(events) || events.length === 0) {
+    throw new Error('JOURNAL_EMPTY_CANNOT_MATCH_RECEIPT');
+  }
+  if (events.length !== receipt.eventCount) {
+    throw new Error(`JOURNAL_TRUNCATION_OR_COUNT_MISMATCH: expected ${receipt.eventCount}, got ${events.length}`);
+  }
+  const actualTip = events[events.length - 1].eventHash;
+  if (actualTip !== receipt.chainTipHash) {
+    throw new Error(`JOURNAL_CHAIN_TIP_MISMATCH: expected ${receipt.chainTipHash}, got ${actualTip}`);
+  }
+  if (receipt.runId && events[0].runId && events[0].runId !== receipt.runId) {
+    throw new Error(`JOURNAL_RUN_ID_MISMATCH: expected ${receipt.runId}, got ${events[0].runId}`);
   }
 }
 
