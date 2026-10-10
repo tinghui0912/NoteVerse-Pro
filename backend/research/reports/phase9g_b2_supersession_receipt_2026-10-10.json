@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 4,
+  "artifact": "phase9g_b2_supersession_receipt",
+  "phase": "9G-B.2-PRE",
+  "generatedAt": "2026-10-10T11:15:10.397Z",
+  "gitHead": "a070f94ddaf8efdf24410a1963da162a95a8cbfc",
+  "dirtyTreeAtGeneration": false,
+  "supersededProtocol": {
+    "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V3",
+    "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v3_2026-10-10.json",
+    "sha256": "6a0f664af87bdcf773f6dbeb767ad0e4ba59b7b2518b41964f66773709191363",
+    "status": "SUPERSEDED_NOT_RUNTIME_ATTESTED",
+    "supersessionReason": "Independent source review confirmed that Phase 9G-B.1.2 protocol V3 introduced valuable atomic file creation, durable acoustic publications, scorer readback, and causal timing checks, but contained protocol-hash fallbacks, untested real Docker runtime container bindings, non-cross-verified evidence-to-journal cryptographic hashes, and lacked genuine non-zero scorer-derived paired bootstrap vectors."
+  },
+  "activeProtocol": {
+    "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V4",
+    "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v4_2026-10-10.json",
+    "sha256": "f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67",
+    "status": "ACTIVE_AUTHORIZATION_GATED"
+  },
+  "materialAmendmentsInV4": [
+    "Eliminated all protocol-hash fallbacks and bypasses: exact V4 protocol SHA256 is strictly required in all execution requests.",
+    "Enforced preflight scenario and performer allowlist verification, strictly rejecting calibration performers (p07-p14) relabeled as blind.",
+    "Implemented full cryptographic journal event verification: canonical unsigned payload SHA256 recomputation, genesis event enforcement, sequential attempt ordering, and run receipt truncation checking.",
+    "Bound durable evidence blobs directly to journal ATTEMPT_COMMITTED events, cross-verifying evidenceSha256 and acousticOutputDigest before scoring.",
+    "Enforced evidence file overwrite protection, rejecting duplicate writes to existing evidence files.",
+    "Corrected shared scorer schema integration: read status === \"MEASURED\" and numeric metric values, matching paired vectors on exact scenarioId without zero-filling unmeasured values.",
+    "Implemented production coverage evaluation deriving counts directly from durable execution ledger (eligible, completed, failed, uncertain, missing).",
+    "Implemented independent disk evidence auditor (independentlyVerifyAndScoreCommittedEvidence) verifying event chains, evidence hashes, and score readbacks.",
+    "Verified physical checkpoints on disk (171.9MB, 178.8MB, 103.8MB) and attested synthetic zero-input forward passes in target Docker containers with CUDA GPU.",
+    "Exercised genuine two-process concurrency race test spawning a separate Node.js process to verify lock collision.",
+    "Established immutable authorization gate: PHASE_9GB2_PRE_READY_FOR_SEPARATE_EXPLICIT_BLIND_EXECUTION_AUTHORIZATION."
+  ]
+}
