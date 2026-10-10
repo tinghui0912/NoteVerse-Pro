@@ -1,0 +1,357 @@
+{
+  "schemaVersion": 7,
+  "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V7",
+  "artifact": "phase9g_b_blind_evaluation_protocol_v7",
+  "phase": "9G-B.2-FINAL-GATE-R1",
+  "generatedAt": "2026-10-10T23:30:00.000Z",
+  "protocolRole": "EXECUTION_GRADE_FROZEN_ONE_SHOT_BLIND_EVALUATION_PROTOCOL",
+  "protocolState": "PHASE_9GB2_FINAL_GATE_R1_READY_TO_REQUEST_EXPLICIT_AUTHORIZATION",
+  "supersedesPolicy": {
+    "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V6",
+    "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v6_2026-10-10.json",
+    "sha256": "39303325793b7ff512e051a8771c0fa6c37500e78d18409bb8192660c959c4fe",
+    "status": "SUPERSEDED_NOT_EXECUTION_READY",
+    "supersessionRationale": "Phase 9G-B.2-FINAL-GATE-R1 cures all 4 defects identified in independent review: binds real Docker candidate adapters for all three frozen neural models (ByteDance Original, Online-AMT, Robust Augmented ByteDance) rather than stubs; enforces non-forgeable ECDSA P-256 cryptographic authorization with anti-replay and mandatory run ID; integrates physical WAV/PCM byte integrity checks into the mandatory execution path; makes V6/V7 trust roots immutable constants; enforces 100% execution coverage gate; isolates ground truth from acoustic execution; and anchors external receipts outside the run directory."
+  },
+  "predecessorPolicies": [
+    {
+      "policyId": "PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5",
+      "path": "backend/research/policies/public_model_calibration_protocol_v5_2026-10-09.json",
+      "sha256": "5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6"
+    },
+    {
+      "policyId": "PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V1",
+      "path": "backend/research/policies/public_challenger_qualification_protocol_v1_2026-10-09.json",
+      "sha256": "0ccd4872d6998b67d794baf96cad22c5ccbba3f8ee65a9ac02ba1ad9790ec71b"
+    },
+    {
+      "policyId": "PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2",
+      "path": "backend/research/policies/public_challenger_qualification_protocol_v2_2026-10-10.json",
+      "sha256": "b467e9aad917808f307346482477d1d4a4716aed665bd2662e87445231d12f8c"
+    },
+    {
+      "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V1",
+      "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v1_2026-10-10.json",
+      "sha256": "06d9811ad830bebbd0e3161c424c15ee04282756479d80868ae8aa29e6bdafb0"
+    },
+    {
+      "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V2",
+      "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v2_2026-10-10.json",
+      "sha256": "42a2777600e51e2a9d8a83fd6671d169e99d80236bb5617bc330565ee3c7b890"
+    },
+    {
+      "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V3",
+      "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v3_2026-10-10.json",
+      "sha256": "6a0f664af87bdcf773f6dbeb767ad0e4ba59b7b2518b41964f66773709191363"
+    },
+    {
+      "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V4",
+      "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v4_2026-10-10.json",
+      "sha256": "f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67"
+    },
+    {
+      "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V5",
+      "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v5_2026-10-10.json",
+      "sha256": "e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b"
+    },
+    {
+      "policyId": "PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V6",
+      "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v6_2026-10-10.json",
+      "sha256": "39303325793b7ff512e051a8771c0fa6c37500e78d18409bb8192660c959c4fe"
+    }
+  ],
+  "implementationCommitBinding": {
+    "commitSha": "dcd4643bbbd0ff859d8b53f25b2ea99476e35279",
+    "commitMessage": "feat(research): implement Phase 9G-B.2-FINAL-GATE-R1 cryptographic authorization, real Docker adapters, and coverage validation",
+    "commitRole": "PHASE_9GB2_FINAL_GATE_R1_IMPLEMENTATION_AND_ATTESTATION_LOCK"
+  },
+  "executionImplementationBindings": {
+    "scorerModule": "apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.ts",
+    "scorerSha256": "70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea",
+    "finalizerLedgerModule": "apps/customer-web/src/lib/practice/local-core/continuous-finalization-ledger.ts",
+    "finalizerLedgerSha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e",
+    "reconcilerModule": "apps/customer-web/src/lib/practice/audio-analysis/continuous/performance-reconciler.ts",
+    "reconcilerSha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146",
+    "qualificationModule": "apps/customer-web/src/lib/practice/research/public-challenger-qualification.ts",
+    "qualificationModuleSha256": "e552ca31022069d50c7d29b49d49bf9b886e1ac8de499abdad4acbc0c575980d",
+    "orchestratorModule": "backend/research/browser_runtime/execution_grade_blind_orchestrator.mjs",
+    "orchestratorSha256": "d9feb981937fd470e099c7afe3856eadc5f089c994dd96283259dc019e619eb6",
+    "executionEntrypointModule": "backend/research/browser_runtime/execute_phase9gb_blind_evaluation.mjs",
+    "executionEntrypointSha256": "2df08dbadda4473ad809087c8615f188875affe360ba39b3eabcf8db9b3c7e57",
+    "rehearsalModule": "backend/research/browser_runtime/rehearse_phase9gb_blind_protocol.mjs",
+    "rehearsalSha256": "11be0bc2de253751df41643e570bde62e12f729f06bcc12bb06f75352b586820",
+    "attestationModule": "backend/research/browser_runtime/attest_inference_runtime.mjs",
+    "attestationSha256": "b7065282855460ca2de2df2ddadb6ce6b36158c0887df9d87ea1218fcbf612ca"
+  },
+  "runtimeEnvironmentDigest": {
+    "nodeVersion": "v24.19.0",
+    "platform": "win32",
+    "arch": "x64",
+    "cudaGpu": "NVIDIA GeForce RTX 4080 Laptop GPU",
+    "cudaDriverVersion": "555.97",
+    "runtimeContainers": [
+      "noteverse-bytedance-calibration:phase9ga21",
+      "noteverse-online-amt-modern:phase9e-b1",
+      "noteverse-challengers:phase9ga3"
+    ],
+    "containerImageDigests": {
+      "noteverse-bytedance-calibration:phase9ga21": "noteverse-bytedance-calibration@sha256:5d9cee9be597c9641d127c80f96b706b41699f51fe40a04960113b53cbd2a109",
+      "noteverse-online-amt-modern:phase9e-b1": "noteverse-online-amt-modern@sha256:daff15ede55853aedbe8ec0b2fe6924d3e87697f6e041d0f2d05f3151b1cadfb",
+      "noteverse-challengers:phase9ga3": "noteverse-challengers@sha256:eab6ae4293eb419bdb983225638083211997769a3dc291e34587a119b7967562"
+    }
+  },
+  "frozenIncumbentRegistry": {
+    "path": "backend/research/reports/phase9g_a25_final_incumbent_registry_2026-10-09.json",
+    "sha256": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
+    "profilesKey": "profiles",
+    "expectedProfileCount": 2
+  },
+  "frozenCalibrationManifest": {
+    "path": "backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json",
+    "sha256": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
+    "performers": [
+      "p07",
+      "p08",
+      "p09",
+      "p10",
+      "p11",
+      "p12",
+      "p13",
+      "p14"
+    ],
+    "scenarioCount": 72
+  },
+  "frozenBlindManifest": {
+    "path": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
+    "sha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+    "performers": [
+      "p15",
+      "p16",
+      "p17",
+      "p18",
+      "p19",
+      "p20",
+      "p21",
+      "p22"
+    ],
+    "scenarioCount": 70,
+    "candidateRunCount": 0
+  },
+  "rankedCandidates": [
+    {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "candidateFamily": "bytedance-original",
+      "category": "FROZEN_INCUMBENT",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+      "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+      "checkpointByteSize": 171966578,
+      "contextRequirementMs": 5000,
+      "preInferenceEligibleScenarioCount": 63,
+      "runtimeIdentity": "noteverse-bytedance-calibration:phase9ga21",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "permittedBlindRole": "FROZEN_INCUMBENT_EVALUATION",
+      "lockedForPhase9gB": true,
+      "productionSelectionEligible": true
+    },
+    {
+      "candidateId": "online-amt-calibrated-v1",
+      "candidateFamily": "online-amt",
+      "category": "FROZEN_INCUMBENT",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "checkpointByteSize": 178804960,
+      "contextRequirementMs": 0,
+      "preInferenceEligibleScenarioCount": 70,
+      "runtimeIdentity": "noteverse-online-amt-modern:phase9e-b1",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "permittedBlindRole": "FROZEN_INCUMBENT_EVALUATION",
+      "lockedForPhase9gB": true,
+      "productionSelectionEligible": true
+    },
+    {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "candidateFamily": "bytedance-robust-augmented",
+      "category": "QUALIFIED_CHALLENGER",
+      "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "configurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce",
+      "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+      "checkpointByteSize": 103815845,
+      "contextRequirementMs": 1820,
+      "preInferenceEligibleScenarioCount": 63,
+      "runtimeIdentity": "noteverse-challengers:phase9ga3",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "permittedBlindRole": "QUALIFIED_CHALLENGER_EVALUATION",
+      "lockedForPhase9gB": true,
+      "productionSelectionEligible": true
+    }
+  ],
+  "pairwiseMutualEligibilityGeometry": {
+    "bytedance-original-calibrated-v1_vs_online-amt-calibrated-v1": {
+      "candidateAEligibleCount": 63,
+      "candidateBEligibleCount": 70,
+      "mutuallyEligibleScenarioCount": 63,
+      "geometryFilterReason": "bytedance-original requires performanceOriginSourceMs >= 5000ms; 7 scenarios lack pre-roll"
+    },
+    "bytedance-robust-augmented-calibrated-v1_vs_online-amt-calibrated-v1": {
+      "candidateAEligibleCount": 63,
+      "candidateBEligibleCount": 70,
+      "mutuallyEligibleScenarioCount": 63,
+      "geometryFilterReason": "bytedance-robust-augmented requires performanceOriginSourceMs >= 1820ms; 7 scenarios lack pre-roll"
+    },
+    "bytedance-original-calibrated-v1_vs_bytedance-robust-augmented-calibrated-v1": {
+      "candidateAEligibleCount": 63,
+      "candidateBEligibleCount": 63,
+      "mutuallyEligibleScenarioCount": 63,
+      "geometryFilterReason": "Both ByteDance candidates share identical 63 scenarios with sufficient pre-roll"
+    }
+  },
+  "nonRankingResearchReferences": [
+    {
+      "candidateId": "transkun-v2-aug-calibrated-v1",
+      "candidateFamily": "transkun",
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false
+    },
+    {
+      "candidateId": "aria-amt-medium-double-v1",
+      "candidateFamily": "aria-amt",
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false
+    },
+    {
+      "candidateId": "rtt-causal-streaming-v1",
+      "candidateFamily": "rtt",
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false
+    }
+  ],
+  "blockedCandidates": [
+    {
+      "candidateId": "d3rm-offline-ceiling-reference",
+      "permittedBlindRole": "NOT_PERMITTED",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false,
+      "ineligibilityReason": "Missing natten dependency in environment; licensing unresolved; offline ceiling reference only."
+    }
+  ],
+  "sharedEvaluationProtocol": {
+    "scorer": "apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.ts",
+    "toleranceWindowMs": 50,
+    "metricsHierarchy": [
+      {
+        "priority": 1,
+        "metric": "falsePositiveRateStrict",
+        "direction": "LOWER",
+        "threshold": 0.05,
+        "role": "CRITICAL_SAFETY_GATE_1"
+      },
+      {
+        "priority": 2,
+        "metric": "spuriousStrikeRateStrict",
+        "direction": "LOWER",
+        "threshold": 0.05,
+        "role": "CRITICAL_SAFETY_GATE_2"
+      },
+      {
+        "priority": 3,
+        "metric": "wrongNoteRejectionRateStrict",
+        "direction": "HIGHER",
+        "threshold": 0.85,
+        "role": "CRITICAL_SAFETY_GATE_3"
+      },
+      {
+        "priority": 4,
+        "metric": "octaveJumpErrorRateStrict",
+        "direction": "LOWER",
+        "threshold": 0.02,
+        "role": "CRITICAL_SAFETY_GATE_4"
+      },
+      {
+        "priority": 5,
+        "metric": "harmonicErrorRateStrict",
+        "direction": "LOWER",
+        "threshold": 0.03,
+        "role": "CRITICAL_SAFETY_GATE_5"
+      },
+      {
+        "priority": 6,
+        "metric": "repeatSuppressionIntegrityRateStrict",
+        "direction": "HIGHER",
+        "threshold": 0.9,
+        "role": "CRITICAL_SAFETY_GATE_6"
+      },
+      {
+        "priority": 7,
+        "metric": "rapidOnsetUnderreportingRateStrict",
+        "direction": "LOWER",
+        "threshold": 0.05,
+        "role": "CRITICAL_SAFETY_GATE_7"
+      },
+      {
+        "priority": 8,
+        "metric": "reversionFrequencyStrict",
+        "direction": "LOWER",
+        "threshold": 0.02,
+        "role": "CRITICAL_SAFETY_GATE_8"
+      },
+      {
+        "priority": 9,
+        "metric": "noteRecallStrict",
+        "direction": "HIGHER",
+        "threshold": 0.7,
+        "role": "PERFORMANCE_RECALL_9"
+      },
+      {
+        "priority": 10,
+        "metric": "timingAbsoluteP95Ms",
+        "direction": "LOWER",
+        "threshold": 10,
+        "role": "TIMING_ALIGNMENT_P95_10"
+      },
+      {
+        "priority": 11,
+        "metric": "finalizedFeedbackAgeP95Ms",
+        "direction": "LOWER",
+        "threshold": 100,
+        "role": "TERMINAL_LATENCY_TIE_BREAK_11"
+      }
+    ],
+    "bootstrapMethodology": {
+      "draws": 5000,
+      "seed": 13371,
+      "confidenceLevel": 0.95,
+      "method": "PERCENTILE_BOOTSTRAP",
+      "pairingMode": "SCORER_DERIVED_DIFFERENCE_VECTORS"
+    },
+    "minimumCoveragePercent": 100,
+    "missingDataPolicy": "PENALIZED_AS_UNOBSERVED_STRIKES",
+    "oneShotExecutionPolicy": {
+      "singleRunIdRequired": true,
+      "noSelectiveReruns": true,
+      "noCandidateDroppedAfterBlindOutcome": true
+    },
+    "decisionRules": {
+      "symmetry": "Evaluation function is invariant under candidate reversal: swap(A, B) yields inverted winner",
+      "criticalSafetyDataRequirement": "Mandatory critical safety gates (priority 1..8) require sufficient evidence; missing data blocks winner declaration (INSUFFICIENT_SAFETY_EVIDENCE)",
+      "productionWinnerThreshold": "Must achieve statistically significant and meaningful improvement on primary safety metrics without regression across the 11-level hierarchy",
+      "noWinnerDecision": "If improvement is below meaningful threshold (< 1.0%) or statistically tied, decision is NO_PRODUCTION_WINNER",
+      "incompleteCoverageDecision": "If scenario coverage < 100%, decision is EVALUATION_INCOMPLETE_NO_WINNER"
+    }
+  },
+  "executionGuards": {
+    "prohibitBlindCandidateInferenceInPhase9GB2FinalGateR1": true,
+    "prohibitBlindCandidateInferenceInPhase9GB2FinalGate": true,
+    "prohibitBlindCandidateInferenceInPhase9GB2": true,
+    "prohibitProductionWinnerSelectionInPhase9GB2FinalGateR1": true,
+    "prohibitProductionWinnerSelectionInPhase9GB2FinalGate": true,
+    "prohibitMicrophoneActivation": true,
+    "candidateRunCount": 0,
+    "explicitBlindInferenceAuthorizationRequired": true,
+    "authorizationGateOutcome": "PHASE_9GB2_FINAL_GATE_R1_READY_TO_REQUEST_EXPLICIT_AUTHORIZATION"
+  }
+}

@@ -74,8 +74,8 @@ function getGitDirty(dir) {
   }
 }
 
-export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV6 = false, allowUnwrittenV5 = false, allowDirty = false } = {}) {
-  console.log('>>> Preparing Phase 9G-B.2-FINAL-GATE Evidence Receipts...');
+export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV7 = false, allowUnwrittenV6 = false, allowUnwrittenV5 = false, allowDirty = false } = {}) {
+  console.log('>>> Preparing Phase 9G-B.2-FINAL-GATE-R1 Evidence Receipts...');
 
   const v5ActualSha = await sha256File(V5_POLICY_REL);
   const v1PolicySha = await sha256File(V1_POLICY_REL);
