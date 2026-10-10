@@ -47,6 +47,7 @@ export const B2_PROTOCOL_REL = 'backend/research/policies/phase9g_b_blind_evalua
 export const B3_PROTOCOL_REL = 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v3_2026-10-10.json';
 export const B4_PROTOCOL_REL = 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v4_2026-10-10.json';
 export const B5_PROTOCOL_REL = 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v5_2026-10-10.json';
+export const B6_PROTOCOL_REL = 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v6_2026-10-10.json';
 export const A25_REGISTRY_REL = 'backend/research/reports/phase9g_a25_final_incumbent_registry_2026-10-09.json';
 export const A1_SCENARIOS_REL = 'backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json';
 export const BLIND_MANIFEST_REL = 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json';
@@ -57,6 +58,7 @@ export const FINALIZER_LEDGER_REL = 'apps/customer-web/src/lib/practice/local-co
 export const RECONCILER_REL = 'apps/customer-web/src/lib/practice/audio-analysis/continuous/performance-reconciler.ts';
 export const QUALIFICATION_MODULE_REL = 'apps/customer-web/src/lib/practice/research/public-challenger-qualification.ts';
 export const ORCHESTRATOR_MODULE_REL = 'backend/research/browser_runtime/execution_grade_blind_orchestrator.mjs';
+export const EXECUTION_ENTRYPOINT_REL = 'backend/research/browser_runtime/execute_phase9gb_blind_evaluation.mjs';
 export const REHEARSAL_MODULE_REL = 'backend/research/browser_runtime/rehearse_phase9gb_blind_protocol.mjs';
 export const ATTESTATION_MODULE_REL = 'backend/research/browser_runtime/attest_inference_runtime.mjs';
 
@@ -75,6 +77,7 @@ export const EXPECTED_HASHES = {
   b2Protocol: '42a2777600e51e2a9d8a83fd6671d169e99d80236bb5617bc330565ee3c7b890',
   b3Protocol: '6a0f664af87bdcf773f6dbeb767ad0e4ba59b7b2518b41964f66773709191363',
   b4Protocol: 'f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67',
+  b5Protocol: 'e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b',
   a25Registry: '935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439',
   a1Scenarios: '56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e',
   blindManifest: '0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab',
@@ -133,15 +136,15 @@ export async function writeJson(relPath, data) {
   console.log(`Wrote: ${relPath}`);
 }
 
-export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV5 = false, allowUnwrittenV4 = false, allowDirty = false, existingAttestation = null, existingRehearsal = null } = {}) {
-  console.log('=== Phase 9G-B.2-ARM: Independent Protocol & Runtime Gate Verifier ===');
+export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV6 = false, allowUnwrittenV5 = false, allowDirty = false, existingAttestation = null, existingRehearsal = null } = {}) {
+  console.log('=== Phase 9G-B.2-FINAL-GATE: Independent Protocol & Runtime Gate Verifier ===');
 
   const checks = [];
 
   // -------------------------------------------------------------------------
-  // Check 1: Immutable source policies, V5 protocol, and manifests identities
+  // Check 1: Immutable source policies, V5/V6 protocols, and manifests identities
   // -------------------------------------------------------------------------
-  console.log('[Check 1/14] Verifying source policies, V4/V5 protocols, and manifest identities...');
+  console.log('[Check 1/14] Verifying source policies, V5/V6 protocols, and manifest identities...');
   const v5ActualSha = await sha256File(V5_POLICY_REL);
   const v1ActualSha = await sha256File(V1_POLICY_REL);
   const v2ActualSha = await sha256File(V2_POLICY_REL);
@@ -149,6 +152,7 @@ export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV5
   const b2ActualSha = await sha256File(B2_PROTOCOL_REL);
   const b3ActualSha = await sha256File(B3_PROTOCOL_REL);
   const b4ActualSha = await sha256File(B4_PROTOCOL_REL);
+  const b5ActualSha = await sha256File(B5_PROTOCOL_REL);
   const a25ActualSha = await sha256File(A25_REGISTRY_REL);
   const a1ActualSha = await sha256File(A1_SCENARIOS_REL);
   const blindActualSha = await sha256File(BLIND_MANIFEST_REL);
@@ -161,27 +165,28 @@ export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV5
   if (b2ActualSha !== EXPECTED_HASHES.b2Protocol) hashMismatches.push(`V2 protocol hash mismatch: ${b2ActualSha} !== ${EXPECTED_HASHES.b2Protocol}`);
   if (b3ActualSha !== EXPECTED_HASHES.b3Protocol) hashMismatches.push(`V3 protocol hash mismatch: ${b3ActualSha} !== ${EXPECTED_HASHES.b3Protocol}`);
   if (b4ActualSha !== EXPECTED_HASHES.b4Protocol) hashMismatches.push(`V4 protocol hash mismatch: ${b4ActualSha} !== ${EXPECTED_HASHES.b4Protocol}`);
+  if (b5ActualSha !== EXPECTED_HASHES.b5Protocol) hashMismatches.push(`V5 protocol hash mismatch: ${b5ActualSha} !== ${EXPECTED_HASHES.b5Protocol}`);
   if (a25ActualSha !== EXPECTED_HASHES.a25Registry) hashMismatches.push(`A.2.5 registry hash mismatch: ${a25ActualSha} !== ${EXPECTED_HASHES.a25Registry}`);
   if (a1ActualSha !== EXPECTED_HASHES.a1Scenarios) hashMismatches.push(`A.1 calibration manifest hash mismatch: ${a1ActualSha} !== ${EXPECTED_HASHES.a1Scenarios}`);
   if (blindActualSha !== EXPECTED_HASHES.blindManifest) hashMismatches.push(`Blind manifest hash mismatch: ${blindActualSha} !== ${EXPECTED_HASHES.blindManifest}`);
 
-  // V5 Blind Protocol Verification (superseding V4 f0d411bc...)
-  const v5Exists = existsSync(path.resolve(repoRoot, B5_PROTOCOL_REL));
-  let b5ActualSha = null;
-  let b5ProtocolObj = null;
+  // V6 Blind Protocol Verification (superseding V5 e5400fd4...)
+  const v6Exists = existsSync(path.resolve(repoRoot, B6_PROTOCOL_REL));
+  let b6ActualSha = null;
+  let b6ProtocolObj = null;
 
-  if (v5Exists) {
-    b5ActualSha = await sha256File(B5_PROTOCOL_REL);
-    b5ProtocolObj = await readJson(B5_PROTOCOL_REL);
+  if (v6Exists) {
+    b6ActualSha = await sha256File(B6_PROTOCOL_REL);
+    b6ProtocolObj = await readJson(B6_PROTOCOL_REL);
 
-    challengerQual.assertBlindProtocolV5Identity({
-      policyId: b5ProtocolObj.policyId,
-      schemaVersion: b5ProtocolObj.schemaVersion,
-      sha256: b5ActualSha,
-      supersedesPolicySha256: b5ProtocolObj.supersedesPolicy?.sha256 ?? b5ProtocolObj.supersedesPolicySha256,
+    challengerQual.assertBlindProtocolV6Identity({
+      policyId: b6ProtocolObj.policyId,
+      schemaVersion: b6ProtocolObj.schemaVersion,
+      sha256: b6ActualSha,
+      supersedesPolicySha256: b6ProtocolObj.supersedesPolicy?.sha256 ?? b6ProtocolObj.supersedesPolicySha256,
     });
-  } else if (!allowUnwrittenV5 && !allowUnwrittenV4) {
-    hashMismatches.push(`Missing V5 blind protocol file: ${B5_PROTOCOL_REL}`);
+  } else if (!allowUnwrittenV6 && !allowUnwrittenV5) {
+    hashMismatches.push(`Missing V6 blind protocol file: ${B6_PROTOCOL_REL}`);
   }
 
   // Performer isolation validation
@@ -219,6 +224,7 @@ export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV5
       v3ProtocolSha: b3ActualSha,
       v4ProtocolSha: b4ActualSha,
       v5ProtocolSha: b5ActualSha,
+      v6ProtocolSha: b6ActualSha,
       a25RegistrySha: a25ActualSha,
       a1CalibrationManifestSha: a1ActualSha,
       blindManifestSha: blindActualSha,
@@ -235,11 +241,14 @@ export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV5
   const reconcilerActualSha = await sha256File(RECONCILER_REL);
   const qualModuleActualSha = await sha256File(QUALIFICATION_MODULE_REL);
   const orchModuleActualSha = await sha256File(ORCHESTRATOR_MODULE_REL);
+  const entrypointActualSha = await sha256File(EXECUTION_ENTRYPOINT_REL);
   const rehearsalActualSha = await sha256File(REHEARSAL_MODULE_REL);
   const attestationActualSha = await sha256File(ATTESTATION_MODULE_REL);
 
-  if (b5ProtocolObj) {
-    const bound = b5ProtocolObj.executionImplementationBindings ?? {};
+  const activeProtocolObj = b6ProtocolObj ?? (existsSync(path.resolve(repoRoot, B5_PROTOCOL_REL)) ? await readJson(B5_PROTOCOL_REL) : null);
+
+  if (activeProtocolObj) {
+    const bound = activeProtocolObj.executionImplementationBindings ?? {};
     if (bound.scorerSha256 && bound.scorerSha256 !== scorerActualSha) {
       throw new Error(`Scorer SHA mismatch: bound ${bound.scorerSha256} !== actual ${scorerActualSha}`);
     }
@@ -254,6 +263,9 @@ export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV5
     }
     if (bound.orchestratorSha256 && bound.orchestratorSha256 !== orchModuleActualSha) {
       throw new Error(`Orchestrator SHA mismatch: bound ${bound.orchestratorSha256} !== actual ${orchModuleActualSha}`);
+    }
+    if (bound.executionEntrypointSha256 && bound.executionEntrypointSha256 !== entrypointActualSha) {
+      throw new Error(`Execution entrypoint SHA mismatch: bound ${bound.executionEntrypointSha256} !== actual ${entrypointActualSha}`);
     }
     if (bound.rehearsalSha256 && bound.rehearsalSha256 !== rehearsalActualSha) {
       throw new Error(`Rehearsal SHA mismatch: bound ${bound.rehearsalSha256} !== actual ${rehearsalActualSha}`);
@@ -272,6 +284,7 @@ export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV5
       reconcilerSha256: reconcilerActualSha,
       qualificationModuleSha256: qualModuleActualSha,
       orchestratorModuleSha256: orchModuleActualSha,
+      executionEntrypointSha256: entrypointActualSha,
       rehearsalModuleSha256: rehearsalActualSha,
       attestationModuleSha256: attestationActualSha,
     },
@@ -282,10 +295,10 @@ export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV5
   // -------------------------------------------------------------------------
   console.log('[Check 3/14] Verifying admitted candidates and checkpoint locks...');
   for (const expected of EXPECTED_RANKED_CANDIDATES) {
-    if (b5ProtocolObj) {
-      const candInProtocol = b5ProtocolObj.rankedCandidates?.find((c) => c.candidateId === expected.candidateId);
+    if (activeProtocolObj) {
+      const candInProtocol = activeProtocolObj.rankedCandidates?.find((c) => c.candidateId === expected.candidateId);
       if (!candInProtocol) {
-        throw new Error(`Candidate ${expected.candidateId} missing in V5 protocol rankedCandidates`);
+        throw new Error(`Candidate ${expected.candidateId} missing in protocol rankedCandidates`);
       }
       if (candInProtocol.profileId !== expected.profileId) {
         throw new Error(`Candidate ${expected.candidateId} profile mismatch: ${candInProtocol.profileId} !== ${expected.profileId}`);
@@ -614,13 +627,13 @@ export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV5
   });
 
   // -------------------------------------------------------------------------
-  // Check 11: True Synthetic End-to-End 18-Case Protocol Rehearsal Verification
+  // Check 11: True Synthetic End-to-End 20-Case Protocol Rehearsal Verification
   // -------------------------------------------------------------------------
   console.log('[Check 11/14] Verifying true synthetic end-to-end rehearsal receipt...');
   let rehearsalReceipt = existingRehearsal;
   if (!rehearsalReceipt && existsSync(path.resolve(repoRoot, B2_REHEARSAL_RECEIPT_REL))) {
     const candidate = await readJson(B2_REHEARSAL_RECEIPT_REL);
-    if (candidate.phase === '9G-B.2-ARM' && candidate.testsExecuted === 18 && candidate.allTestsPassed === true) {
+    if ((candidate.phase === '9G-B.2-ARM' || candidate.phase === '9G-B.2-FINAL-GATE') && candidate.testsExecuted === 20 && candidate.allTestsPassed === true) {
       rehearsalReceipt = candidate;
     }
   }
@@ -632,7 +645,7 @@ export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV5
   if (rehearsalReceipt.artifact !== 'phase9g_b2_rehearsal_receipt') {
     throw new Error(`Invalid rehearsal receipt artifact: ${rehearsalReceipt.artifact}`);
   }
-  if (rehearsalReceipt.testsExecuted !== 18 || rehearsalReceipt.allTestsPassed !== true) {
+  if (rehearsalReceipt.testsExecuted !== 20 || rehearsalReceipt.allTestsPassed !== true) {
     throw new Error(`Rehearsal receipt indicates test failures or incomplete test count: ${rehearsalReceipt.testsExecuted}`);
   }
 
@@ -687,28 +700,28 @@ export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV5
   // Check 14: Non-Negotiable Blind Preflight Boundaries
   // -------------------------------------------------------------------------
   console.log('[Check 14/14] Verifying non-negotiable execution boundaries...');
-  if (b5ProtocolObj?.executionGuards) {
-    if (b5ProtocolObj.executionGuards.candidateRunCount !== 0) {
-      throw new Error(`candidateRunCount must be 0, found ${b5ProtocolObj.executionGuards.candidateRunCount}`);
+  if (activeProtocolObj?.executionGuards) {
+    if (activeProtocolObj.executionGuards.candidateRunCount !== 0) {
+      throw new Error(`candidateRunCount must be 0, found ${activeProtocolObj.executionGuards.candidateRunCount}`);
     }
-    if (b5ProtocolObj.executionGuards.prohibitBlindCandidateInferenceInPhase9GB2 !== true && b5ProtocolObj.executionGuards.prohibitBlindCandidateInferenceInPhase9GB2Arm !== true) {
-      throw new Error('prohibitBlindCandidateInferenceInPhase9GB2Arm must be true');
+    if (activeProtocolObj.executionGuards.prohibitBlindCandidateInferenceInPhase9GB2FinalGate !== true && activeProtocolObj.executionGuards.prohibitBlindCandidateInferenceInPhase9GB2Arm !== true) {
+      throw new Error('prohibitBlindCandidateInferenceInPhase9GB2FinalGate must be true');
     }
-    if (b5ProtocolObj.executionGuards.prohibitProductionWinnerSelectionInPhase9GB2 !== true && b5ProtocolObj.executionGuards.prohibitProductionWinnerSelectionInPhase9GB2Arm !== true) {
-      throw new Error('prohibitProductionWinnerSelectionInPhase9GB2Arm must be true');
+    if (activeProtocolObj.executionGuards.prohibitProductionWinnerSelectionInPhase9GB2FinalGate !== true && activeProtocolObj.executionGuards.prohibitProductionWinnerSelectionInPhase9GB2Arm !== true) {
+      throw new Error('prohibitProductionWinnerSelectionInPhase9GB2FinalGate must be true');
     }
-    if (b5ProtocolObj.executionGuards.prohibitMicrophoneActivation !== true) {
+    if (activeProtocolObj.executionGuards.prohibitMicrophoneActivation !== true) {
       throw new Error('prohibitMicrophoneActivation must be true');
     }
   }
 
-  // Programmatic inference blocking check for Phase 9G-B.2-ARM
+  // Programmatic inference blocking check for Phase 9G-B.2-FINAL-GATE
   let inferenceBlocked = false;
   try {
     challengerQual.assertChallengerExecutionAllowed({
       policy: { schemaVersion: 2, policyId: 'PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2', sha256: EXPECTED_HASHES.v2Policy },
       incumbentPolicySha256: EXPECTED_HASHES.v5Policy,
-      phase: '9G-B.2-ARM',
+      phase: '9G-B.2-FINAL-GATE',
       mode: 'CANDIDATE_INFERENCE',
       candidateId: 'bytedance-robust-augmented-calibrated-v1',
       candidateFamily: 'bytedance-robust-augmented',
@@ -719,12 +732,12 @@ export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV5
       blindManifestSha256: EXPECTED_HASHES.blindManifest,
     });
   } catch (err) {
-    if (err.message.includes('PHASE_9GB2_ARM_CANDIDATE_INFERENCE_FORBIDDEN')) {
+    if (err.message.includes('PHASE_9GB2_FINAL_GATE_CANDIDATE_INFERENCE_FORBIDDEN') || err.message.includes('PHASE_9GB2_ARM_CANDIDATE_INFERENCE_FORBIDDEN')) {
       inferenceBlocked = true;
     }
   }
   if (!inferenceBlocked) {
-    throw new Error('Candidate inference for Phase 9G-B.2-ARM was not programmatically blocked!');
+    throw new Error('Candidate inference for Phase 9G-B.2-FINAL-GATE was not programmatically blocked!');
   }
 
   checks.push({
@@ -735,19 +748,19 @@ export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV5
       productionWinnerSelected: false,
       productionMicrophoneActive: false,
       programmaticInferenceBlocked: true,
-      gateOutcome: 'PHASE_9GB2_ARM_READY_FOR_SEPARATE_ONE_SHOT_BLIND_AUTHORIZATION',
+      gateOutcome: 'PHASE_9GB2_FINAL_GATE_READY_TO_REQUEST_EXPLICIT_ONE_SHOT_AUTHORIZATION',
     },
   });
 
   const allPassed = checks.every((c) => c.status === 'PASS');
   const finalOutcome = allPassed
-    ? 'PHASE_9GB2_ARM_READY_FOR_SEPARATE_ONE_SHOT_BLIND_AUTHORIZATION'
-    : 'PHASE_9GB2_ARM_BLOCKED';
+    ? 'PHASE_9GB2_FINAL_GATE_READY_TO_REQUEST_EXPLICIT_ONE_SHOT_AUTHORIZATION'
+    : 'PHASE_9GB2_FINAL_GATE_BLOCKED';
 
   console.log(`\nVerification Result: ${finalOutcome} (${checks.filter((c) => c.status === 'PASS').length}/${checks.length} checks passed)\n`);
 
   return {
-    phase: '9G-B.2-ARM',
+    phase: '9G-B.2-FINAL-GATE',
     verifiedAt: new Date().toISOString(),
     gitHead,
     dirtyTreeAtVerification: dirty,
@@ -759,9 +772,9 @@ export async function verifyPhase9gb2Protocol({ gitHead, dirty, allowUnwrittenV5
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename ?? '')) {
-  const allowUnwrittenV5 = process.argv.includes('--allow-unwritten-v5') || process.argv.includes('--allow-unwritten-v4');
+  const allowUnwrittenV6 = process.argv.includes('--allow-unwritten-v6') || process.argv.includes('--allow-unwritten-v5') || process.argv.includes('--allow-unwritten-v4');
   const allowDirty = process.argv.includes('--allow-dirty');
-  verifyPhase9gb2Protocol({ gitHead: 'STANDALONE_CLI', dirty: false, allowUnwrittenV5, allowDirty })
+  verifyPhase9gb2Protocol({ gitHead: 'STANDALONE_CLI', dirty: false, allowUnwrittenV6, allowDirty })
     .then((report) => {
       process.exit(report.allChecksPassed ? 0 : 1);
     })

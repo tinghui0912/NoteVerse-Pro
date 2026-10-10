@@ -18,6 +18,7 @@ import {
   PHASE_9GB12,
   PHASE_9GB2_PRE,
   PHASE_9GB2_ARM,
+  PHASE_9GB2_FINAL_GATE,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2_SHA256,
@@ -26,6 +27,8 @@ import {
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4_SHA256,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5,
+  PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5_SHA256,
+  PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6,
   CHALLENGER_CALIBRATION_PERFORMERS,
   CHALLENGER_BLIND_PERFORMERS,
   assertChallengerQualificationPolicyIdentity,
@@ -74,6 +77,8 @@ import {
   assertBlindProtocolV3Identity,
   assertBlindProtocolV4Identity,
   assertBlindProtocolV5Identity,
+  assertBlindProtocolV6Identity,
+  assertAudioByteIntegrity,
   assertExecutionLockBindingsValid,
   assertLedgerStateTransitionValid,
   assertNoDuplicateRunAttempt,
@@ -2367,6 +2372,128 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       // Truncated events count fails
       expect(() => assertJournalChainTipAndCompleteness(events, { chainTipHash: ev1.eventHash, eventCount: 3 }))
         .toThrow(/JOURNAL_TRUNCATION_OR_COUNT_MISMATCH/);
+    });
+
+    it('B.2-FINAL-1: assertBlindProtocolV6Identity validates schema 6 and supersedes V5 SHA', () => {
+      const validV6 = {
+        policyId: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6,
+        schemaVersion: 6,
+        sha256: '9'.repeat(64),
+        supersedesPolicySha256: PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5_SHA256,
+      };
+
+      expect(() => assertBlindProtocolV6Identity(validV6)).not.toThrow();
+
+      // Policy ID mismatch fails
+      expect(() => assertBlindProtocolV6Identity({ ...validV6, policyId: 'WRONG_POLICY' }))
+        .toThrow(/BLIND_PROTOCOL_V6_POLICY_ID_MISMATCH/);
+
+      // Schema version mismatch fails
+      expect(() => assertBlindProtocolV6Identity({ ...validV6, schemaVersion: 5 }))
+        .toThrow(/BLIND_PROTOCOL_V6_SCHEMA_VERSION_MISMATCH/);
+
+      // Missing SHA fails
+      expect(() => assertBlindProtocolV6Identity({ ...validV6, sha256: undefined }))
+        .toThrow(/BLIND_PROTOCOL_V6_SHA_REQUIRED/);
+
+      // Superseded SHA mismatch fails
+      expect(() => assertBlindProtocolV6Identity({ ...validV6, supersedesPolicySha256: 'wrong'.padEnd(64, '0') }))
+        .toThrow(/BLIND_PROTOCOL_V6_SUPERSEDED_POLICY_SHA_MISMATCH/);
+    });
+
+    it('B.2-FINAL-2: assertChallengerExecutionAllowed strictly blocks candidate inference in PHASE_9GB2_FINAL_GATE', () => {
+      const request = {
+        policy: {
+          policyId: PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2,
+          schemaVersion: 2,
+          sha256: PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V2_SHA256,
+        },
+        incumbentPolicySha256: '5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6',
+        incumbentRegistrySha256: PHASE_9GA25_REGISTRY_SHA256,
+        calibrationManifestSha256: PHASE_9GA1_CALIBRATION_SCENARIOS_SHA256,
+        blindManifestSha256: PHASE_9GB_BLIND_MANIFEST_SHA256,
+        phase: PHASE_9GB2_FINAL_GATE,
+        mode: 'CANDIDATE_INFERENCE' as const,
+        candidateId: 'bytedance-robust-augmented-calibrated-v1',
+        candidateFamily: 'bytedance-robust-augmented' as const,
+        scenarioSplit: 'CALIBRATION' as const,
+        performers: ['p07'],
+      };
+
+      expect(() => assertChallengerExecutionAllowed(request))
+        .toThrow(/PHASE_9GB2_FINAL_GATE_CANDIDATE_INFERENCE_FORBIDDEN/);
+    });
+
+    it('B.2-FINAL-3: assertAudioByteIntegrity performs physical byte, RIFF header, and PCM SHA verification', () => {
+      // Build a minimal valid 16kHz mono 16-bit PCM WAV fixture in memory
+      const sampleRate = 16000;
+      const numChannels = 1;
+      const bitsPerSample = 16;
+      const numSamples = 160; // 10ms
+      const pcmData = new Uint8Array(numSamples * (bitsPerSample / 8));
+      for (let i = 0; i < pcmData.length; i++) pcmData[i] = (i * 7) & 0xff;
+
+      const wavHeader = new Uint8Array(44);
+      const view = new DataView(wavHeader.buffer);
+      // "RIFF"
+      wavHeader.set([0x52, 0x49, 0x46, 0x46], 0);
+      view.setUint32(4, 36 + pcmData.length, true);
+      // "WAVE"
+      wavHeader.set([0x57, 0x41, 0x56, 0x45], 8);
+      // "fmt "
+      wavHeader.set([0x66, 0x6d, 0x74, 0x20], 12);
+      view.setUint32(16, 16, true); // PCM subchunk size
+      view.setUint16(20, 1, true); // PCM format
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true);
+      view.setUint16(32, numChannels * (bitsPerSample / 8), true);
+      view.setUint16(34, bitsPerSample, true);
+      // "data"
+      wavHeader.set([0x64, 0x61, 0x74, 0x61], 36);
+      view.setUint32(40, pcmData.length, true);
+
+      const fullWav = new Uint8Array(44 + pcmData.length);
+      fullWav.set(wavHeader, 0);
+      fullWav.set(pcmData, 44);
+
+      const expectedWavSha = createHash('sha256').update(fullWav).digest('hex');
+      const expectedPcmSha = createHash('sha256').update(pcmData).digest('hex');
+
+      // Valid byte check succeeds
+      const result = assertAudioByteIntegrity({
+        wavBytes: fullWav,
+        expectedWavSha256: expectedWavSha,
+        expectedPcmSha256: expectedPcmSha,
+        expectedSampleRate: 16000,
+        expectedChannels: 1,
+        expectedSampleCount: numSamples,
+      });
+      expect(result.actualWavSha256).toBe(expectedWavSha);
+      expect(result.actualPcmSha256).toBe(expectedPcmSha);
+      expect(result.sampleCount).toBe(numSamples);
+
+      // Mismatched WAV SHA throws
+      expect(() => assertAudioByteIntegrity({
+        wavBytes: fullWav,
+        expectedWavSha256: '0'.repeat(64),
+        expectedPcmSha256: expectedPcmSha,
+      })).toThrow(/AUDIO_WAV_SHA_MISMATCH/);
+
+      // Corrupted PCM throws
+      expect(() => assertAudioByteIntegrity({
+        wavBytes: fullWav,
+        expectedWavSha256: expectedWavSha,
+        expectedPcmSha256: '0'.repeat(64),
+      })).toThrow(/AUDIO_PCM_SHA_MISMATCH/);
+
+      // Sample rate mismatch throws
+      expect(() => assertAudioByteIntegrity({
+        wavBytes: fullWav,
+        expectedWavSha256: expectedWavSha,
+        expectedPcmSha256: expectedPcmSha,
+        expectedSampleRate: 44100,
+      })).toThrow(/AUDIO_SAMPLE_RATE_MISMATCH/);
     });
   });
 });

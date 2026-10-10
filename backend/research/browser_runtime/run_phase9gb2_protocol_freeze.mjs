@@ -31,6 +31,7 @@ import {
   B3_PROTOCOL_REL,
   B4_PROTOCOL_REL,
   B5_PROTOCOL_REL,
+  B6_PROTOCOL_REL,
   A25_REGISTRY_REL,
   A1_SCENARIOS_REL,
   BLIND_MANIFEST_REL,
@@ -39,6 +40,7 @@ import {
   RECONCILER_REL,
   QUALIFICATION_MODULE_REL,
   ORCHESTRATOR_MODULE_REL,
+  EXECUTION_ENTRYPOINT_REL,
   REHEARSAL_MODULE_REL,
   ATTESTATION_MODULE_REL,
   B2_SUPERSESSION_RECEIPT_REL,
@@ -71,8 +73,8 @@ function getGitDirty(dir) {
   }
 }
 
-export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV5 = false, allowUnwrittenV4 = false, allowDirty = false } = {}) {
-  console.log('>>> Preparing Phase 9G-B.2-ARM Evidence Receipts...');
+export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV6 = false, allowUnwrittenV5 = false, allowDirty = false } = {}) {
+  console.log('>>> Preparing Phase 9G-B.2-FINAL-GATE Evidence Receipts...');
 
   const v5ActualSha = await sha256File(V5_POLICY_REL);
   const v1PolicySha = await sha256File(V1_POLICY_REL);
@@ -81,8 +83,9 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
   const b2ProtocolSha = await sha256File(B2_PROTOCOL_REL);
   const b3ProtocolSha = await sha256File(B3_PROTOCOL_REL);
   const b4ProtocolSha = await sha256File(B4_PROTOCOL_REL);
-  const b5ProtocolSha = existsSync(path.resolve(repoRoot, B5_PROTOCOL_REL))
-    ? await sha256File(B5_PROTOCOL_REL)
+  const b5ProtocolSha = await sha256File(B5_PROTOCOL_REL);
+  const b6ProtocolSha = existsSync(path.resolve(repoRoot, B6_PROTOCOL_REL))
+    ? await sha256File(B6_PROTOCOL_REL)
     : null;
   const a25Sha = await sha256File(A25_REGISTRY_REL);
   const a1Sha = await sha256File(A1_SCENARIOS_REL);
@@ -93,39 +96,43 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
   const reconcilerSha = await sha256File(RECONCILER_REL);
   const qualSha = await sha256File(QUALIFICATION_MODULE_REL);
   const orchSha = await sha256File(ORCHESTRATOR_MODULE_REL);
+  const entrypointSha = await sha256File(EXECUTION_ENTRYPOINT_REL);
   const rehearsalSha = await sha256File(REHEARSAL_MODULE_REL);
   const attestationSha = await sha256File(ATTESTATION_MODULE_REL);
 
   // 1. Supersession Receipt
   const supersessionReceipt = {
-    schemaVersion: 5,
+    schemaVersion: 6,
     artifact: 'phase9g_b2_supersession_receipt',
-    phase: '9G-B.2-ARM',
+    phase: '9G-B.2-FINAL-GATE',
     generatedAt: new Date().toISOString(),
     gitHead,
     dirtyTreeAtGeneration: dirty,
     supersededProtocol: {
-      policyId: 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V4',
-      path: B4_PROTOCOL_REL,
-      sha256: b4ProtocolSha,
-      status: 'SUPERSEDED_BY_V5_ARM',
-      supersessionReason: 'Independent source review confirmed that Phase 9G-B.2-PRE protocol V4 established atomic run reservation, journal event hashing, and physical-checkpoint checks, but trusted protocol SHA comparison was still optional, production audio identities could still be fabricated from scenario IDs, Online-AMT attestation lacked a real model forward pass, and resume lacked exclusive writer ownership verification.',
-    },
-    activeProtocol: {
       policyId: 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V5',
       path: B5_PROTOCOL_REL,
       sha256: b5ProtocolSha,
+      status: 'SUPERSEDED_BY_V6_FINAL_GATE',
+      supersessionReason: 'Independent source review established that while Phase 9G-B.2-ARM completed model forward passes and writer lock tokens, Phase 9G-B.2-FINAL-GATE establishes the authoritative blind execution entrypoint (execute_phase9gb_blind_evaluation.mjs), enforces independent immutable protocol trust roots, executes physical audio byte integrity verification, eliminates synthetic fallbacks, and establishes fail-closed writer ownership assertions.',
+    },
+    activeProtocol: {
+      policyId: 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V6',
+      path: B6_PROTOCOL_REL,
+      sha256: b6ProtocolSha,
       status: 'ACTIVE_AUTHORIZATION_GATED',
     },
-    materialAmendmentsInV5: [
-      'Made trusted protocol SHA256 comparison strictly mandatory at preflight execution boundary: untrusted caller-supplied expected SHA cannot serve as its own trust root, and realistic-looking wrong hashes are rejected.',
-      'Enforced production audio manifest schema requiring real 64-character SHA256 digests for WAV and decoded PCM, explicitly rejecting fabricated audio_${id} digests and synthetic rehearsal fixtures.',
-      'Completed end-to-end target runtime attestation for all three candidate models in production Docker containers on CUDA, including genuine OnlineTranscriber forward pass.',
-      'Bound immutable Docker container image IDs and RepoDigests to runtime attestation receipts.',
-      'Implemented exclusive resume writer ownership mutex (writer.lock with "wx" mode) and verified complete run bindings on resume.',
-      'Enforced trusted chain-tip anchor requirement for independent disk evidence audit completeness (JOURNAL_COMPLETENESS_NOT_VERIFIABLE).',
-      'Expanded synthetic rehearsal to 18 comprehensive adversarial test cases, verifying concurrency, crash preservation, tampering detection, and manifest schema separation.',
-      'Established Phase 9G-B.2-ARM execution authorization gate outcome: PHASE_9GB2_ARM_READY_FOR_SEPARATE_ONE_SHOT_BLIND_AUTHORIZATION.',
+    materialAmendmentsInV6: [
+      'Established independently pinned immutable protocol trust root for V5 (e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b) and V6: caller-supplied path or SHA cannot act as own root.',
+      'Implemented authoritative official blind execution entrypoint (execute_phase9gb_blind_evaluation.mjs) with strict authorization gate blocking unauthorized --real-blind launches (BLIND_EXECUTION_UNAUTHORIZED).',
+      'Implemented dry-run synthetic execution mode exercising official adapter wiring, input normalization, preflight guards, ledger mutex, and evidence durability using synthetic audio fixtures only.',
+      'Implemented physical audio byte integrity preflight (assertAudioByteIntegrity) verifying RIFF WAV headers, 16kHz mono PCM, sample counts, and SHA256; deferred for real blind audio until authorized.',
+      'Derived authorized scenario schedule strictly from immutable metadata (deriveAuthorizedScheduleFromMetadata), isolating performers p15–p22 and verifying 70 total / 63 pairwise intersection geometry.',
+      'Completed genuine runtime attestation across all three candidate models with synthetic forward passes in target Docker containers, verifying output shapes (1001, 88), (88,), and (1, 183, 88) on NVIDIA GeForce RTX 4080 Laptop GPU.',
+      'Hardened writer lock with unique owner token, PID, and lock generation in writer.lock; enforced ownership assertion before writes and fail-closed release.',
+      'Enforced fail-closed resume on missing or altered identity bindings (protocolSha256, scorerSha256, orchestratorSha256, rosterSha256, manifestSha256).',
+      'Required external independent trusted anchor for journal chain tip verification, rejecting mutable run-directory receipt as trusted anchor (JOURNAL_COMPLETENESS_NOT_VERIFIABLE).',
+      'Expanded adversarial synthetic rehearsal to 20 comprehensive test cases demonstrating end-to-end execution-readiness.',
+      'Established Phase 9G-B.2-FINAL-GATE execution authorization gate outcome: PHASE_9GB2_FINAL_GATE_READY_TO_REQUEST_EXPLICIT_ONE_SHOT_AUTHORIZATION.',
     ],
   };
   await writeJson(B2_SUPERSESSION_RECEIPT_REL, supersessionReceipt);
@@ -134,9 +141,9 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
   const runtimeAttestation = attestRuntimeEnvironment();
 
   const candidateLockReceipt = {
-    schemaVersion: 5,
+    schemaVersion: 6,
     artifact: 'phase9g_b2_candidate_lock_receipt',
-    phase: '9G-B.2-ARM',
+    phase: '9G-B.2-FINAL-GATE',
     generatedAt: new Date().toISOString(),
     gitHead,
     dirtyTreeAtGeneration: dirty,
@@ -219,16 +226,16 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
   const verifierReport = await verifyPhase9gb2Protocol({
     gitHead,
     dirty,
-    allowUnwrittenV5: allowUnwrittenV5 || allowUnwrittenV4,
+    allowUnwrittenV6: allowUnwrittenV6 || allowUnwrittenV5,
     allowDirty,
     existingAttestation: runtimeAttestation,
     existingRehearsal: rehearsalReceipt,
   });
 
   const freezeReport = {
-    schemaVersion: 5,
+    schemaVersion: 6,
     artifact: 'phase9g_b2_protocol_freeze_report',
-    phase: '9G-B.2-ARM',
+    phase: '9G-B.2-FINAL-GATE',
     generatedAt: new Date().toISOString(),
     gitHead,
     dirtyTreeAtGeneration: dirty,
@@ -245,6 +252,7 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
       v3BlindProtocolSha256: b3ProtocolSha,
       v4BlindProtocolSha256: b4ProtocolSha,
       v5BlindProtocolSha256: b5ProtocolSha,
+      v6BlindProtocolSha256: b6ProtocolSha,
       a25IncumbentRegistrySha256: a25Sha,
       a1CalibrationManifestSha256: a1Sha,
       blindManifestSha256: blindSha,
@@ -253,6 +261,7 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
       reconcilerSha256: reconcilerSha,
       qualificationModuleSha256: qualSha,
       orchestratorModuleSha256: orchSha,
+      executionEntrypointSha256: entrypointSha,
       rehearsalModuleSha256: rehearsalSha,
       attestationModuleSha256: attestationSha,
     },
@@ -266,7 +275,7 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
   };
   await writeJson(B2_PROTOCOL_FREEZE_REPORT_REL, freezeReport);
 
-  console.log(`\nPhase 9G-B.2-ARM Artifacts Successfully Prepared. Gate Status: ${verifierReport.protocolState}\n`);
+  console.log(`\nPhase 9G-B.2-FINAL-GATE Artifacts Successfully Prepared. Gate Status: ${verifierReport.protocolState}\n`);
   return {
     supersessionReceipt,
     candidateLockReceipt,
@@ -278,7 +287,7 @@ export async function preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename ?? '')) {
   const allowDirty = process.argv.includes('--allow-dirty');
-  const allowUnwrittenV5 = process.argv.includes('--allow-unwritten-v5') || process.argv.includes('--allow-unwritten-v4');
+  const allowUnwrittenV6 = process.argv.includes('--allow-unwritten-v6') || process.argv.includes('--allow-unwritten-v5') || process.argv.includes('--allow-unwritten-v4');
   const gitHead = getGitHead(repoRoot);
   const dirty = getGitDirty(repoRoot);
 
@@ -287,7 +296,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.met
     process.exit(1);
   }
 
-  preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV5, allowDirty })
+  preparePhase9gb2Receipts({ gitHead, dirty, allowUnwrittenV6, allowDirty })
     .then((res) => {
       process.exit(res.verifierReport.allChecksPassed ? 0 : 1);
     })

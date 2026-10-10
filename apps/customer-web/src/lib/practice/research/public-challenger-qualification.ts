@@ -46,6 +46,7 @@ export const PHASE_9GB11 = '9G-B.1.1' as const;
 export const PHASE_9GB12 = '9G-B.1.2' as const;
 export const PHASE_9GB2_PRE = '9G-B.2-PRE' as const;
 export const PHASE_9GB2_ARM = '9G-B.2-ARM' as const;
+export const PHASE_9GB2_FINAL_GATE = '9G-B.2-FINAL-GATE' as const;
 
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V1' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256 = '06d9811ad830bebbd0e3161c424c15ee04282756479d80868ae8aa29e6bdafb0' as const;
@@ -56,6 +57,8 @@ export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3_SHA256 = '6a0f664af87bdcf773
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V4' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4_SHA256 = 'f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67' as const;
 export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V5' as const;
+export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5_SHA256 = 'e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b' as const;
+export const PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6 = 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V6' as const;
 
 export type ChallengerFamily =
   | 'bytedance-robust-augmented'
@@ -139,7 +142,7 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
   }
 
   // 3. Fail closed on missing, malformed, or non-whitelisted phase
-  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01, PHASE_9GB1, PHASE_9GB11, PHASE_9GB12, PHASE_9GB2_PRE, PHASE_9GB2_ARM] as const;
+  const allowedPhases = [PHASE_9GA3, PHASE_9GA31, PHASE_9GA32, PHASE_9GB0, PHASE_9GB01, PHASE_9GB1, PHASE_9GB11, PHASE_9GB12, PHASE_9GB2_PRE, PHASE_9GB2_ARM, PHASE_9GB2_FINAL_GATE] as const;
   if (!request.phase || !allowedPhases.includes(request.phase as typeof allowedPhases[number])) {
     if (request.mode === 'TRUTH_ONLY') {
       throw new Error(`CHALLENGER_TRUTH_ONLY_PHASE_REQUIRED:${request.phase}`);
@@ -147,9 +150,9 @@ export function assertChallengerExecutionAllowed(request: ChallengerExecutionReq
     throw new Error(`CHALLENGER_EXECUTION_PHASE_REQUIRED:${request.phase}`);
   }
 
-  // Phase 9G-B.0 through 9G-B.2-ARM are non-inference preflight readiness / protocol freeze gates
-  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01 || request.phase === PHASE_9GB1 || request.phase === PHASE_9GB11 || request.phase === PHASE_9GB12 || request.phase === PHASE_9GB2_PRE || request.phase === PHASE_9GB2_ARM) && request.mode === 'CANDIDATE_INFERENCE') {
-    const prefix = request.phase === PHASE_9GB2_ARM ? 'PHASE_9GB2_ARM' : request.phase === PHASE_9GB2_PRE ? 'PHASE_9GB2' : request.phase === PHASE_9GB12 ? 'PHASE_9GB12' : request.phase === PHASE_9GB11 ? 'PHASE_9GB11' : request.phase === PHASE_9GB1 ? 'PHASE_9GB1' : request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0';
+  // Phase 9G-B.0 through 9G-B.2-FINAL-GATE are non-inference preflight readiness / protocol freeze gates
+  if ((request.phase === PHASE_9GB0 || request.phase === PHASE_9GB01 || request.phase === PHASE_9GB1 || request.phase === PHASE_9GB11 || request.phase === PHASE_9GB12 || request.phase === PHASE_9GB2_PRE || request.phase === PHASE_9GB2_ARM || request.phase === PHASE_9GB2_FINAL_GATE) && request.mode === 'CANDIDATE_INFERENCE') {
+    const prefix = request.phase === PHASE_9GB2_FINAL_GATE ? 'PHASE_9GB2_FINAL_GATE' : request.phase === PHASE_9GB2_ARM ? 'PHASE_9GB2_ARM' : request.phase === PHASE_9GB2_PRE ? 'PHASE_9GB2' : request.phase === PHASE_9GB12 ? 'PHASE_9GB12' : request.phase === PHASE_9GB11 ? 'PHASE_9GB11' : request.phase === PHASE_9GB1 ? 'PHASE_9GB1' : request.phase === PHASE_9GB01 ? 'PHASE_9GB01' : 'PHASE_9GB0';
     throw new Error(`${prefix}_CANDIDATE_INFERENCE_FORBIDDEN`);
   }
 
@@ -1622,6 +1625,110 @@ export function assertBlindProtocolV5Identity(identity: {
   if (identity.supersedesPolicySha256 !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V4_SHA256) {
     throw new Error(`BLIND_PROTOCOL_V5_SUPERSEDED_POLICY_SHA_MISMATCH:${identity.supersedesPolicySha256}`);
   }
+}
+
+export function assertBlindProtocolV6Identity(identity: {
+  policyId: string;
+  schemaVersion: number;
+  sha256?: string;
+  supersedesPolicySha256?: string;
+}): void {
+  if (identity.policyId !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V6 && identity.policyId !== 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V6') {
+    throw new Error(`BLIND_PROTOCOL_V6_POLICY_ID_MISMATCH:${identity.policyId}`);
+  }
+  if (identity.schemaVersion !== 6) {
+    throw new Error(`BLIND_PROTOCOL_V6_SCHEMA_VERSION_MISMATCH:${identity.schemaVersion}`);
+  }
+  if (!identity.sha256 || identity.sha256.length !== 64) {
+    throw new Error('BLIND_PROTOCOL_V6_SHA_REQUIRED');
+  }
+  if (identity.supersedesPolicySha256 !== PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V5_SHA256) {
+    throw new Error(`BLIND_PROTOCOL_V6_SUPERSEDED_POLICY_SHA_MISMATCH:${identity.supersedesPolicySha256}`);
+  }
+}
+
+export interface AudioByteIntegrityVerification {
+  readonly wavBytes: Uint8Array;
+  readonly expectedWavSha256: string;
+  readonly expectedPcmSha256: string;
+  readonly expectedSampleRate?: number;
+  readonly expectedChannels?: number;
+  readonly expectedSampleCount?: number;
+}
+
+export function assertAudioByteIntegrity(check: AudioByteIntegrityVerification): {
+  readonly actualWavSha256: string;
+  readonly actualPcmSha256: string;
+  readonly sampleRate: number;
+  readonly channels: number;
+  readonly sampleCount: number;
+} {
+  const actualWavSha = createHash('sha256').update(check.wavBytes).digest('hex');
+  if (actualWavSha !== check.expectedWavSha256) {
+    throw new Error(`AUDIO_WAV_SHA_MISMATCH: expected ${check.expectedWavSha256}, got ${actualWavSha}`);
+  }
+
+  // Parse RIFF WAV header
+  if (check.wavBytes.length < 44) {
+    throw new Error('AUDIO_WAV_HEADER_INVALID: file too short');
+  }
+  const view = new DataView(check.wavBytes.buffer, check.wavBytes.byteOffset, check.wavBytes.byteLength);
+  const riff = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3));
+  const wave = String.fromCharCode(view.getUint8(8), view.getUint8(9), view.getUint8(10), view.getUint8(11));
+  if (riff !== 'RIFF' || wave !== 'WAVE') {
+    throw new Error('AUDIO_WAV_FORMAT_INVALID: missing RIFF/WAVE header');
+  }
+
+  let offset = 12;
+  let audioFormat = 1;
+  let numChannels = 1;
+  let sampleRate = 16000;
+  let bitsPerSample = 16;
+  let dataOffset = 44;
+  let dataSize = 0;
+
+  while (offset + 8 <= check.wavBytes.length) {
+    const chunkId = String.fromCharCode(view.getUint8(offset), view.getUint8(offset + 1), view.getUint8(offset + 2), view.getUint8(offset + 3));
+    const chunkSize = view.getUint32(offset + 4, true);
+    if (chunkId === 'fmt ') {
+      audioFormat = view.getUint16(offset + 8, true);
+      numChannels = view.getUint16(offset + 10, true);
+      sampleRate = view.getUint32(offset + 12, true);
+      bitsPerSample = view.getUint16(offset + 22, true);
+    } else if (chunkId === 'data') {
+      dataOffset = offset + 8;
+      dataSize = chunkSize;
+      break;
+    }
+    offset += 8 + chunkSize;
+  }
+
+  if (check.expectedSampleRate !== undefined && sampleRate !== check.expectedSampleRate) {
+    throw new Error(`AUDIO_SAMPLE_RATE_MISMATCH: expected ${check.expectedSampleRate}, got ${sampleRate}`);
+  }
+  if (check.expectedChannels !== undefined && numChannels !== check.expectedChannels) {
+    throw new Error(`AUDIO_CHANNEL_COUNT_MISMATCH: expected ${check.expectedChannels}, got ${numChannels}`);
+  }
+
+  const pcmBytes = check.wavBytes.slice(dataOffset, dataOffset + dataSize);
+  const actualPcmSha = createHash('sha256').update(pcmBytes).digest('hex');
+  if (actualPcmSha !== check.expectedPcmSha256) {
+    throw new Error(`AUDIO_PCM_SHA_MISMATCH: expected ${check.expectedPcmSha256}, got ${actualPcmSha}`);
+  }
+
+  const bytesPerSample = bitsPerSample / 8;
+  const sampleCount = dataSize / (bytesPerSample * numChannels);
+  if (check.expectedSampleCount !== undefined && sampleCount !== check.expectedSampleCount) {
+    throw new Error(`AUDIO_SAMPLE_COUNT_MISMATCH: expected ${check.expectedSampleCount}, got ${sampleCount}`);
+  }
+
+  return {
+    actualWavSha256: actualWavSha,
+    actualPcmSha256: actualPcmSha,
+    sampleRate,
+    channels: numChannels,
+    sampleCount,
+  };
 }
 
 export function assertJournalChainTipAndCompleteness(

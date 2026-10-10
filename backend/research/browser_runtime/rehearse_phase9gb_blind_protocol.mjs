@@ -322,7 +322,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   await mkdir(audioDir, { recursive: true });
 
   const syntheticScenarios = createSyntheticBenchmarkScenarios(audioDir);
-  const sanitizedScenarios = createSanitizedAcousticManifest(syntheticScenarios);
+  const sanitizedScenarios = createSanitizedAcousticManifest(syntheticScenarios, { executionMode: 'SYNTHETIC_REHEARSAL' });
   const authorizedScenarioIds = new Set(syntheticScenarios.map((s) => s.scenarioId));
   const candidates = Object.values(FROZEN_RANKED_ROSTER);
 
@@ -471,42 +471,61 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   const hashRunId = 'phase9gb-hash-check-run';
   const hashDir = path.resolve(testWorkspaceDir, 'hash_check_ledger');
   const hashLedger = new DurableExecutionLedger(hashDir, hashRunId);
-  await hashLedger.init({
-    protocolSha256: 'orig_'.padEnd(64, '0'),
-    scorerSha256: 'scorer_'.padEnd(64, '0'),
-  });
+  const baseBindings = {
+    protocolSha256: 'orig_prot_'.padEnd(64, '0'),
+    scorerSha256: 'orig_scor_'.padEnd(64, '0'),
+    orchestratorSha256: 'orig_orch_'.padEnd(64, '0'),
+    rosterSha256: 'orig_rost_'.padEnd(64, '0'),
+    manifestSha256: 'orig_mani_'.padEnd(64, '0'),
+  };
+  await hashLedger.init(baseBindings);
   hashLedger.close();
 
-  let alteredProtocolCaught = false;
-  try {
-    const alteredLedger = new DurableExecutionLedger(hashDir, hashRunId);
-    await alteredLedger.init({ allowResume: true, protocolSha256: 'diff_'.padEnd(64, '0') });
-  } catch (err) {
-    if (err.message.includes('RESUME_BLOCKED_PROTOCOL_SHA_CHANGED')) {
-      alteredProtocolCaught = true;
-    }
-  }
-  if (!alteredProtocolCaught) throw new Error('Failed to block resume when protocol hash changed!');
+  const hashTestCases = [
+    { key: 'protocolSha256', expectedErr: 'RESUME_BLOCKED_PROTOCOL_SHA_CHANGED' },
+    { key: 'scorerSha256', expectedErr: 'RESUME_BLOCKED_SCORER_SHA_CHANGED' },
+    { key: 'orchestratorSha256', expectedErr: 'RESUME_BLOCKED_ORCHESTRATOR_SHA_CHANGED' },
+    { key: 'rosterSha256', expectedErr: 'RESUME_BLOCKED_ROSTER_SHA_CHANGED' },
+    { key: 'manifestSha256', expectedErr: 'RESUME_BLOCKED_MANIFEST_SHA_CHANGED' },
+  ];
 
-  let alteredScorerCaught = false;
+  for (const tc of hashTestCases) {
+    let caught = false;
+    try {
+      const alteredLedger = new DurableExecutionLedger(hashDir, hashRunId);
+      await alteredLedger.init({
+        allowResume: true,
+        ...baseBindings,
+        [tc.key]: 'diff_'.padEnd(64, '0'),
+      });
+    } catch (err) {
+      if (err.message.includes(tc.expectedErr)) {
+        caught = true;
+      }
+    }
+    if (!caught) throw new Error(`Failed to block resume when ${tc.key} changed!`);
+  }
+
+  let missingBindingCaught = false;
   try {
-    const alteredScorerLedger = new DurableExecutionLedger(hashDir, hashRunId);
-    await alteredScorerLedger.init({
-      allowResume: true,
-      protocolSha256: 'orig_'.padEnd(64, '0'),
-      scorerSha256: 'diff_scorer_'.padEnd(64, '0'),
-    });
+    const incompleteLedger = new DurableExecutionLedger(hashDir, hashRunId);
+    const incompleteBindings = { ...baseBindings };
+    delete incompleteBindings.scorerSha256;
+    await incompleteLedger.init({ allowResume: true, ...incompleteBindings });
   } catch (err) {
-    if (err.message.includes('RESUME_BLOCKED_SCORER_SHA_CHANGED')) {
-      alteredScorerCaught = true;
+    if (err.message.includes('RESUME_BLOCKED_MISSING_REQUIRED_BINDING:scorerSha256')) {
+      missingBindingCaught = true;
     }
   }
-  if (!alteredScorerCaught) throw new Error('Failed to block resume when scorer hash changed!');
+  if (!missingBindingCaught) throw new Error('Failed to block resume when required binding omitted!');
 
   rehearsalResults.push({
     testId: 'REHEARSAL_4_CHANGED_PROTOCOL_HASH_PREVENTS_RESUME',
     status: 'PASS',
-    details: { protocolShaMismatchBlocked: true, scorerShaMismatchBlocked: true },
+    details: {
+      allFiveBindingsIndependentlyVerified: true,
+      missingBindingBlocked: true,
+    },
   });
 
   // -------------------------------------------------------------------------
@@ -783,7 +802,14 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   const mainRunId = 'phase9gb-main-synthetic-run';
   const mainDir = path.resolve(testWorkspaceDir, 'main_execution_ledger');
   const mainLedger = new DurableExecutionLedger(mainDir, mainRunId);
-  await mainLedger.init({ protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA });
+  const mainBindings = {
+    protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA,
+    scorerSha256: 'main_scorer_'.padEnd(64, '0'),
+    orchestratorSha256: 'main_orch_'.padEnd(64, '0'),
+    rosterSha256: 'main_rost_'.padEnd(64, '0'),
+    manifestSha256: 'main_mani_'.padEnd(64, '0'),
+  };
+  await mainLedger.init(mainBindings);
   mainLedger.transitionTo('RUNNING');
 
   const candidateScores = {};
@@ -857,6 +883,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   if (!missingAnchorCaught) throw new Error('Audit failed to throw JOURNAL_COMPLETENESS_NOT_VERIFIABLE when anchor missing!');
 
   // Create trusted run receipt on disk
+  // 10b. Create external trusted run receipt outside mutable run directory
   const chainTipHash = mainLedger.journalEvents[mainLedger.journalEvents.length - 1].eventHash;
   const eventCount = mainLedger.journalEvents.length;
   const receiptPayload = {
@@ -865,10 +892,28 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
     chainTipHash,
     generatedAt: new Date().toISOString(),
   };
-  writeFileSync(path.resolve(mainLedger.runDir, 'run_receipt.json'), JSON.stringify(receiptPayload, null, 2) + '\n');
+  const externalReceiptPath = path.resolve(testWorkspaceDir, 'external_trusted_receipt.json');
+  writeFileSync(externalReceiptPath, JSON.stringify(receiptPayload, null, 2) + '\n');
 
-  // 10b. Audit succeeds with trusted receipt
-  const auditResult = await independentlyVerifyAndScoreCommittedEvidence(mainLedger.runDir, syntheticScenarios, candDefs);
+  // Verify that pointing to unanchored receipt inside mutable runDir fails closed
+  const internalReceiptPath = path.resolve(mainLedger.runDir, 'run_receipt.json');
+  writeFileSync(internalReceiptPath, JSON.stringify(receiptPayload, null, 2) + '\n');
+  let internalAnchorRejected = false;
+  try {
+    await independentlyVerifyAndScoreCommittedEvidence(mainLedger.runDir, syntheticScenarios, candDefs, {
+      externalReceiptPath: internalReceiptPath,
+    });
+  } catch (err) {
+    if (err.message.includes('Cannot use mutable run-directory receipt as trusted anchor')) {
+      internalAnchorRejected = true;
+    }
+  }
+  if (!internalAnchorRejected) throw new Error('Audit failed to reject mutable run-directory receipt as trusted anchor!');
+
+  // Audit succeeds with genuine external trusted anchor
+  const auditResult = await independentlyVerifyAndScoreCommittedEvidence(mainLedger.runDir, syntheticScenarios, candDefs, {
+    externalReceiptPath,
+  });
   if (!auditResult.verifiedJournal || auditResult.totalAttemptsVerified !== 21) {
     throw new Error(`Independent disk evidence verification failed: ${JSON.stringify(auditResult)}`);
   }
@@ -901,7 +946,9 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
 
   let tamperedEvCaught = false;
   try {
-    await independentlyVerifyAndScoreCommittedEvidence(mainLedger.runDir, syntheticScenarios, candDefs);
+    await independentlyVerifyAndScoreCommittedEvidence(mainLedger.runDir, syntheticScenarios, candDefs, {
+      externalReceiptPath,
+    });
   } catch (err) {
     if (err.message.includes('EVIDENCE_SHA_MISMATCH_WITH_JOURNAL')) {
       tamperedEvCaught = true;
@@ -1093,7 +1140,7 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
   mainLedger.close();
 
   const resumedCompletedLedger = new DurableExecutionLedger(mainDir, mainRunId);
-  await resumedCompletedLedger.init({ allowResume: true });
+  await resumedCompletedLedger.init({ allowResume: true, ...mainBindings });
 
   let dupAfterRestartCaught = false;
   try {
@@ -1219,6 +1266,111 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
     },
   });
 
+  // -------------------------------------------------------------------------
+  // Case 19: Writer lock ownership token verification, wrong-owner release rejection, & ownership assertion
+  // -------------------------------------------------------------------------
+  console.log('[Rehearsal 19/20] Testing writer lock ownership token, wrong-owner release rejection, and ownership assertion...');
+  const ownerRunId = `owner_test_${Date.now()}`;
+  const ownerLedger = new DurableExecutionLedger(testWorkspaceDir, ownerRunId);
+  await ownerLedger.init({
+    protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA,
+    scorerSha256: 'scorer_test_hash',
+    orchestratorSha256: 'orch_test_hash',
+    rosterSha256: 'roster_test_hash',
+    manifestSha256: 'manifest_test_hash',
+  });
+
+  // Releasing with wrong owner token must throw WRITER_LOCK_WRONG_OWNER_REMOVAL_FORBIDDEN
+  let wrongOwnerReleaseCaught = false;
+  try {
+    ownerLedger.releaseWriterLock('wrong_foreign_owner_token');
+  } catch (err) {
+    if (err.message.includes('WRITER_LOCK_WRONG_OWNER_REMOVAL_FORBIDDEN')) {
+      wrongOwnerReleaseCaught = true;
+    }
+  }
+  if (!wrongOwnerReleaseCaught) throw new Error('releaseWriterLock failed to reject wrong owner token!');
+
+  // File must still exist after rejected release
+  if (!existsSync(ownerLedger.writerLockPath)) {
+    throw new Error('Writer lock file was deleted by unauthorized owner!');
+  }
+
+  // Ownership assertion passes for rightful owner
+  ownerLedger.assertWriterOwnership();
+
+  // Releasing with correct owner token succeeds
+  ownerLedger.releaseWriterLock();
+  if (existsSync(ownerLedger.writerLockPath)) {
+    throw new Error('Writer lock was not released by rightful owner!');
+  }
+
+  // Ownership assertion fails once lock is gone
+  let ownershipLostCaught = false;
+  try {
+    ownerLedger.assertWriterOwnership();
+  } catch (err) {
+    if (err.message.includes('WRITER_LOCK_OWNERSHIP_LOST')) {
+      ownershipLostCaught = true;
+    }
+  }
+  if (!ownershipLostCaught) throw new Error('assertWriterOwnership failed to detect lost ownership!');
+
+  rehearsalResults.push({
+    testId: 'REHEARSAL_19_WRITER_LOCK_OWNERSHIP_AND_RECOVERY_GUARANTEES',
+    status: 'PASS',
+    details: {
+      wrongOwnerReleaseRejected: true,
+      unauthorizedDeletionPrevented: true,
+      ownershipAssertionVerified: true,
+    },
+  });
+
+  // -------------------------------------------------------------------------
+  // Case 20: Official execution entrypoint authorization gate and dry-run synthetic mode
+  // -------------------------------------------------------------------------
+  console.log('[Rehearsal 20/20] Testing authoritative execution entrypoint authorization gate and dry-run synthetic execution...');
+  const { runOfficialBlindEvaluation } = await import('./execute_phase9gb_blind_evaluation.mjs');
+
+  // 20a. REAL_BLIND mode without authorization receipt must fail closed
+  let unauthorizedBlindCaught = false;
+  try {
+    await runOfficialBlindEvaluation({
+      mode: 'REAL_BLIND',
+      runId: 'unauthorized_attempt',
+      outputBaseDir: testWorkspaceDir,
+    });
+  } catch (err) {
+    if (err.message.includes('BLIND_EXECUTION_UNAUTHORIZED')) {
+      unauthorizedBlindCaught = true;
+    }
+  }
+  if (!unauthorizedBlindCaught) throw new Error('Official execution entrypoint failed to block unauthorized REAL_BLIND mode!');
+
+  // 20b. DRY_RUN_SYNTHETIC mode succeeds end-to-end with synthetic fixtures
+  const dryRunResult = await runOfficialBlindEvaluation({
+    mode: 'DRY_RUN_SYNTHETIC',
+    runId: `dry_run_test_${Date.now()}`,
+    outputBaseDir: testWorkspaceDir,
+    protocolId: FROZEN_V4_PROTOCOL_ID,
+    protocolSha256: TRUSTED_V4_TEST_PROTOCOL_SHA,
+    syntheticFixtures: sanitizedScenarios.slice(0, 3),
+  });
+
+  if (!dryRunResult || dryRunResult.attemptsExecuted < 1) {
+    throw new Error('Official entrypoint DRY_RUN_SYNTHETIC execution failed or committed zero attempts!');
+  }
+
+  rehearsalResults.push({
+    testId: 'REHEARSAL_20_OFFICIAL_EXECUTION_ENTRYPOINT_AUTHORIZATION_GATE',
+    status: 'PASS',
+    details: {
+      unauthorizedRealBlindBlocked: true,
+      dryRunSyntheticSucceeded: true,
+      attemptsExecuted: dryRunResult.attemptsExecuted,
+    },
+  });
+
   // Cleanup test workspace
   try {
     rmSync(testWorkspaceDir, { recursive: true, force: true });
@@ -1226,9 +1378,9 @@ export async function runPhase9gbSyntheticRehearsal({ gitHead, dirty }) {
 
   const allPassed = rehearsalResults.every((r) => r.status === 'PASS');
   const rehearsalReceipt = {
-    schemaVersion: 5,
+    schemaVersion: 6,
     artifact: 'phase9g_b2_rehearsal_receipt',
-    phase: '9G-B.2-ARM',
+    phase: '9G-B.2-FINAL-GATE',
     generatedAt: new Date().toISOString(),
     gitHead,
     dirtyTreeAtExecution: dirty,

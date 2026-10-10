@@ -17,7 +17,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, openSync, closeSync, readFileSync, appendFileSync, renameSync, unlinkSync } from 'node:fs';
+import { existsSync, openSync, closeSync, readFileSync, writeFileSync, appendFileSync, renameSync, unlinkSync } from 'node:fs';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -44,14 +44,21 @@ export function sha256Json(obj) {
 
 export const FROZEN_V4_PROTOCOL_ID = '9G-B-BLIND-V4';
 export const FROZEN_V5_PROTOCOL_ID = '9G-B-BLIND-V5';
+export const FROZEN_V6_PROTOCOL_ID = '9G-B-BLIND-V6';
 export const TRUSTED_BLIND_PROTOCOL_V4_SHA256 = 'f0d411bc0876a5f97d05a865c180bbba685a18fb3d040da3a0a05ac11d940f67';
+export const TRUSTED_BLIND_PROTOCOL_V5_SHA256 = 'e5400fd44ce91cd5d99475e36b72626522297d6aef009a620fe6a4baf4ae440b';
+export let TRUSTED_BLIND_PROTOCOL_V6_SHA256 = null;
+
+export function setTrustedProtocolV6Sha256(sha256) {
+  TRUSTED_BLIND_PROTOCOL_V6_SHA256 = sha256;
+}
 
 export function getTrustedProtocolSha256(protocolId) {
+  if (protocolId === '9G-B-BLIND-V6' || protocolId === 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V6') {
+    return TRUSTED_BLIND_PROTOCOL_V6_SHA256;
+  }
   if (protocolId === '9G-B-BLIND-V5' || protocolId === 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V5') {
-    const v5Path = path.resolve(repoRoot, 'backend/research/policies/phase9g_b_blind_evaluation_protocol_v5_2026-10-10.json');
-    if (existsSync(v5Path)) {
-      return sha256Buffer(readFileSync(v5Path));
-    }
+    return TRUSTED_BLIND_PROTOCOL_V5_SHA256;
   }
   if (protocolId === '9G-B-BLIND-V4' || protocolId === 'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V4') {
     return TRUSTED_BLIND_PROTOCOL_V4_SHA256;
@@ -252,12 +259,132 @@ export function createSyntheticRehearsalManifest(fixtures) {
   });
 }
 
-export function createSanitizedAcousticManifest(scenarios) {
-  const isSynthetic = scenarios.some((s) => s.isSynthetic || s.scenarioId?.includes('synthetic') || s.split === 'SYNTHETIC_REHEARSAL');
-  if (isSynthetic) {
+export function createSanitizedAcousticManifest(scenarios, { executionMode = 'PRODUCTION' } = {}) {
+  if (executionMode === 'SYNTHETIC_REHEARSAL' || executionMode === 'DRY_RUN_SYNTHETIC') {
     return createSyntheticRehearsalManifest(scenarios);
   }
+  // Production execution strictly enforces production schema
   return createProductionExecutionManifest(scenarios);
+}
+
+export function verifyScenarioAudioBytes({
+  audioPath,
+  expectedWavSha256,
+  expectedPcmSha256,
+  expectedSampleRate = 16000,
+  expectedChannels = 1,
+  expectedSampleCount,
+  isDryRunSynthetic = false,
+}) {
+  if (!audioPath || !existsSync(audioPath)) {
+    if (isDryRunSynthetic) {
+      throw new Error(`AUDIO_FILE_NOT_FOUND_ON_DISK:${audioPath}`);
+    }
+    return {
+      status: 'DEFERRED_PENDING_EXPLICIT_BLIND_AUTHORIZATION',
+      audioPath,
+      verified: false,
+    };
+  }
+  const wavBuf = readFileSync(audioPath);
+  return challengerQual.assertAudioByteIntegrity({
+    wavBytes: wavBuf,
+    expectedWavSha256,
+    expectedPcmSha256,
+    expectedSampleRate,
+    expectedChannels,
+    expectedSampleCount,
+  });
+}
+
+export function deriveAuthorizedScheduleFromMetadata({
+  executionMode, // 'DRY_RUN_SYNTHETIC' | 'REAL_BLIND'
+  manifestPath,
+  trustedBlindManifestSha256,
+  fixtureScenarios = [],
+}) {
+  if (executionMode === 'DRY_RUN_SYNTHETIC' || executionMode === 'SYNTHETIC_REHEARSAL') {
+    if (!fixtureScenarios || fixtureScenarios.length === 0) {
+      throw new Error('DRY_RUN_SYNTHETIC_REQUIRES_FIXTURE_SCENARIOS');
+    }
+    const authorizedScenarioIds = fixtureScenarios.map((s) => s.scenarioId);
+    return {
+      executionMode: 'DRY_RUN_SYNTHETIC',
+      authorizedScenarioIds,
+      scenarios: fixtureScenarios,
+      totalCount: fixtureScenarios.length,
+      candidateEligibility: {
+        'bytedance-original-calibrated-v1': fixtureScenarios.filter((s) => deriveScenarioEligibility(s, FROZEN_RANKED_ROSTER['bytedance-original-calibrated-v1'].profileId).isEligible).map((s) => s.scenarioId),
+        'online-amt-calibrated-v1': fixtureScenarios.filter((s) => deriveScenarioEligibility(s, FROZEN_RANKED_ROSTER['online-amt-calibrated-v1'].profileId).isEligible).map((s) => s.scenarioId),
+        'bytedance-robust-augmented-calibrated-v1': fixtureScenarios.filter((s) => deriveScenarioEligibility(s, FROZEN_RANKED_ROSTER['bytedance-robust-augmented-calibrated-v1'].profileId).isEligible).map((s) => s.scenarioId),
+      },
+    };
+  }
+
+  if (executionMode !== 'REAL_BLIND') {
+    throw new Error(`UNSUPPORTED_EXECUTION_MODE:${executionMode}`);
+  }
+
+  // REAL_BLIND requires immutable manifest
+  const resolvedPath = path.resolve(repoRoot, manifestPath ?? 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json');
+  if (!existsSync(resolvedPath)) {
+    throw new Error(`BLIND_MANIFEST_NOT_FOUND:${resolvedPath}`);
+  }
+  const manifestBytes = readFileSync(resolvedPath);
+  const manifestSha = sha256Buffer(manifestBytes);
+  const expectedSha = trustedBlindManifestSha256 ?? '0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab';
+  if (manifestSha !== expectedSha) {
+    throw new Error(`BLIND_MANIFEST_SHA_MISMATCH: got ${manifestSha}, expected ${expectedSha}`);
+  }
+
+  const manifestObj = JSON.parse(manifestBytes.toString('utf8'));
+  const scenarios = manifestObj.scenarios ?? manifestObj.scenarioReceipts ?? [];
+  if (scenarios.length !== 70) {
+    throw new Error(`BLIND_MANIFEST_SCENARIO_COUNT_MISMATCH: expected 70, got ${scenarios.length}`);
+  }
+
+  const blindPerformers = new Set(['p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22']);
+  const calibPerformers = new Set(['p07', 'p08', 'p09', 'p10', 'p11', 'p12', 'p13', 'p14']);
+
+  for (const sc of scenarios) {
+    const perf = sc.performerId ?? sc.performanceId?.split('_')?.pop();
+    if (!perf || !blindPerformers.has(perf)) {
+      throw new Error(`BLIND_MANIFEST_CONTAINS_UNAUTHORIZED_PERFORMER:${perf}`);
+    }
+    if (calibPerformers.has(perf)) {
+      throw new Error(`BLIND_MANIFEST_CONTAINS_CALIBRATION_PERFORMER:${perf}`);
+    }
+    if (sc.isSynthetic || sc.scenarioId?.includes('synthetic')) {
+      throw new Error(`SYNTHETIC_SCENARIO_FORBIDDEN_IN_REAL_BLIND_MANIFEST:${sc.scenarioId}`);
+    }
+  }
+
+  const authorizedScenarioIds = scenarios.map((s) => s.scenarioId);
+  const eligibleBd = scenarios.filter((s) => deriveScenarioEligibility(s, FROZEN_RANKED_ROSTER['bytedance-original-calibrated-v1'].profileId).isEligible).map((s) => s.scenarioId);
+  const eligibleAmt = scenarios.filter((s) => deriveScenarioEligibility(s, FROZEN_RANKED_ROSTER['online-amt-calibrated-v1'].profileId).isEligible).map((s) => s.scenarioId);
+  const eligibleRob = scenarios.filter((s) => deriveScenarioEligibility(s, FROZEN_RANKED_ROSTER['bytedance-robust-augmented-calibrated-v1'].profileId).isEligible).map((s) => s.scenarioId);
+
+  if (eligibleBd.length !== 63) {
+    throw new Error(`BYTEDANCE_ORIGINAL_ELIGIBLE_COUNT_MISMATCH: expected 63, got ${eligibleBd.length}`);
+  }
+  if (eligibleAmt.length !== 70) {
+    throw new Error(`ONLINE_AMT_ELIGIBLE_COUNT_MISMATCH: expected 70, got ${eligibleAmt.length}`);
+  }
+  if (eligibleRob.length !== 63) {
+    throw new Error(`ROBUST_BYTEDANCE_ELIGIBLE_COUNT_MISMATCH: expected 63, got ${eligibleRob.length}`);
+  }
+
+  return {
+    executionMode: 'REAL_BLIND',
+    authorizedScenarioIds,
+    scenarios,
+    totalCount: 70,
+    candidateEligibility: {
+      'bytedance-original-calibrated-v1': eligibleBd,
+      'online-amt-calibrated-v1': eligibleAmt,
+      'bytedance-robust-augmented-calibrated-v1': eligibleRob,
+    },
+  };
 }
 
 
@@ -281,6 +408,23 @@ export class DurableExecutionLedger {
     this.records = new Map(); // key: `${candidateId}\0${scenarioId}` => record
     this.journalEvents = [];
     this.activeAttempts = new Map(); // candidateId:scenarioId => startTime
+    this.writerOwnerToken = sha256Text(`${this.runId}:${process.pid}:${this.createdAt}:${Math.random()}`);
+    this.lockGeneration = 0;
+  }
+
+  assertWriterOwnership() {
+    if (!existsSync(this.writerLockPath)) {
+      throw new Error(`WRITER_LOCK_OWNERSHIP_LOST: writer.lock missing for run ${this.runId}`);
+    }
+    try {
+      const lockData = JSON.parse(readFileSync(this.writerLockPath, 'utf8'));
+      if (lockData.ownerToken !== this.writerOwnerToken || lockData.pid !== process.pid) {
+        throw new Error(`WRITER_LOCK_OWNERSHIP_LOST: active owner ${lockData.ownerToken} (PID ${lockData.pid}) !== caller ${this.writerOwnerToken} (PID ${process.pid})`);
+      }
+    } catch (err) {
+      if (err.message.includes('WRITER_LOCK_OWNERSHIP_LOST')) throw err;
+      throw new Error(`WRITER_LOCK_CORRUPTED:${err.message}`);
+    }
   }
 
   async init(options = {}) {
@@ -313,6 +457,7 @@ export class DurableExecutionLedger {
       closeSync(fd);
 
       // Acquire exclusive writer ownership
+      this.lockGeneration = 1;
       let writerFd;
       try {
         writerFd = openSync(this.writerLockPath, 'wx');
@@ -325,6 +470,8 @@ export class DurableExecutionLedger {
       const writerData = {
         runId: this.runId,
         pid: process.pid,
+        ownerToken: this.writerOwnerToken,
+        lockGeneration: this.lockGeneration,
         acquiredAt: this.createdAt,
       };
       appendFileSync(writerFd, JSON.stringify(writerData, null, 2) + '\n', 'utf8');
@@ -347,6 +494,7 @@ export class DurableExecutionLedger {
     }
 
     // Resume execution: acquire exclusive resume writer ownership
+    this.lockGeneration = Date.now();
     let writerFd;
     try {
       writerFd = openSync(this.writerLockPath, 'wx');
@@ -359,6 +507,8 @@ export class DurableExecutionLedger {
     const writerData = {
       runId: this.runId,
       pid: process.pid,
+      ownerToken: this.writerOwnerToken,
+      lockGeneration: this.lockGeneration,
       resumedAt: new Date().toISOString(),
     };
     appendFileSync(writerFd, JSON.stringify(writerData, null, 2) + '\n', 'utf8');
@@ -370,20 +520,25 @@ export class DurableExecutionLedger {
       if (lockRaw.runId !== this.runId) {
         throw new Error(`LEDGER_RUN_ID_MISMATCH:${lockRaw.runId} !== ${this.runId}`);
       }
-      if (options.protocolSha256 && lockRaw.protocolSha256 && lockRaw.protocolSha256 !== options.protocolSha256) {
-        throw new Error(`RESUME_BLOCKED_PROTOCOL_SHA_CHANGED:${lockRaw.protocolSha256} !== ${options.protocolSha256}`);
-      }
-      if (options.scorerSha256 && lockRaw.scorerSha256 && lockRaw.scorerSha256 !== options.scorerSha256) {
-        throw new Error(`RESUME_BLOCKED_SCORER_SHA_CHANGED:${lockRaw.scorerSha256} !== ${options.scorerSha256}`);
-      }
-      if (options.orchestratorSha256 && lockRaw.orchestratorSha256 && lockRaw.orchestratorSha256 !== options.orchestratorSha256) {
-        throw new Error(`RESUME_BLOCKED_ORCHESTRATOR_SHA_CHANGED:${lockRaw.orchestratorSha256} !== ${options.orchestratorSha256}`);
-      }
-      if (options.rosterSha256 && lockRaw.rosterSha256 && lockRaw.rosterSha256 !== options.rosterSha256) {
-        throw new Error(`RESUME_BLOCKED_ROSTER_SHA_CHANGED:${lockRaw.rosterSha256} !== ${options.rosterSha256}`);
-      }
-      if (options.manifestSha256 && lockRaw.manifestSha256 && lockRaw.manifestSha256 !== options.manifestSha256) {
-        throw new Error(`RESUME_BLOCKED_MANIFEST_SHA_CHANGED:${lockRaw.manifestSha256} !== ${options.manifestSha256}`);
+
+      // Mandatory, non-optional resume bindings validation (fail-closed if any missing or changed)
+      const requiredBindings = ['protocolSha256', 'scorerSha256', 'orchestratorSha256', 'rosterSha256', 'manifestSha256'];
+      const hasAnyBinding = requiredBindings.some((b) => Boolean(lockRaw[b]) || Boolean(options[b]));
+
+      if (hasAnyBinding || options.requireCompleteIdentity) {
+        for (const b of requiredBindings) {
+          if (!options[b] || !lockRaw[b]) {
+            throw new Error(`RESUME_BLOCKED_MISSING_REQUIRED_BINDING:${b}`);
+          }
+          if (lockRaw[b] !== options[b]) {
+            const errCode = b === 'protocolSha256' ? 'RESUME_BLOCKED_PROTOCOL_SHA_CHANGED'
+              : b === 'scorerSha256' ? 'RESUME_BLOCKED_SCORER_SHA_CHANGED'
+              : b === 'orchestratorSha256' ? 'RESUME_BLOCKED_ORCHESTRATOR_SHA_CHANGED'
+              : b === 'rosterSha256' ? 'RESUME_BLOCKED_ROSTER_SHA_CHANGED'
+              : 'RESUME_BLOCKED_MANIFEST_SHA_CHANGED';
+            throw new Error(`${errCode}:${lockRaw[b]} !== ${options[b]}`);
+          }
+        }
       }
 
       this.replayJournal();
@@ -418,6 +573,7 @@ export class DurableExecutionLedger {
   }
 
   appendJournalEvent(eventType, payload) {
+    this.assertWriterOwnership();
     const seq = this.journalEvents.length;
     const prevEventHash = seq === 0
       ? '0'.repeat(64)
@@ -608,12 +764,44 @@ export class DurableExecutionLedger {
     await atomicWriteJson(this.ledgerPath, payload);
   }
 
-  releaseWriterLock() {
+  releaseWriterLock(ownerToken = this.writerOwnerToken) {
     if (existsSync(this.writerLockPath)) {
       try {
+        const raw = readFileSync(this.writerLockPath, 'utf8');
+        const lockData = JSON.parse(raw);
+        if (lockData.ownerToken !== ownerToken) {
+          throw new Error(`WRITER_LOCK_WRONG_OWNER_REMOVAL_FORBIDDEN: lock owned by ${lockData.ownerToken}, cannot be released by ${ownerToken}`);
+        }
         unlinkSync(this.writerLockPath);
-      } catch {}
+      } catch (err) {
+        if (err.message.includes('WRITER_LOCK_WRONG_OWNER_REMOVAL_FORBIDDEN')) {
+          throw err;
+        }
+      }
     }
+  }
+
+  completeRun(options = {}) {
+    this.transitionTo('COMPLETED');
+    const chainTipHash = this.journalEvents.length > 0 ? this.journalEvents[this.journalEvents.length - 1].eventHash : null;
+    const receipt = {
+      schemaVersion: 2,
+      artifact: 'phase9gb_blind_execution_receipt',
+      runId: this.runId,
+      state: this.state,
+      createdAt: this.createdAt,
+      completedAt: options.completedAt ?? new Date().toISOString(),
+      eventCount: this.journalEvents.length,
+      chainTipHash,
+      recordCount: this.records.size,
+      records: Array.from(this.records.values()),
+      mode: options.mode ?? 'PRODUCTION',
+      attemptsExecuted: options.attemptsExecuted ?? this.records.size,
+    };
+    receipt.receiptSha256 = sha256Json(receipt);
+    const receiptPath = path.resolve(this.runDir, 'run_receipt.json');
+    writeFileSync(receiptPath, JSON.stringify(receipt, null, 2) + '\n', 'utf8');
+    return receipt;
   }
 
   close() {
@@ -644,6 +832,8 @@ export function preflightCandidateScenarioExecution({
 
   // 2. Validate protocol identity and mandatory trusted lock
   const allowedProtocolIds = [
+    '9G-B-BLIND-V6',
+    'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V6',
     '9G-B-BLIND-V5',
     'PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V5',
     '9G-B-BLIND-V4',
@@ -1075,19 +1265,24 @@ export async function independentlyVerifyAndScoreCommittedEvidence(runDir, fullS
   // 1. Verify journal event chain cryptographic integrity
   challengerQual.assertJournalEventChainValid(events);
 
-  // 2. Journal completeness verification: require trusted chain tip anchor
-  const receiptPath = path.resolve(runDir, 'run_receipt.json');
+  // 2. Journal completeness verification: require independent external trusted chain tip anchor
   let trustedAnchor = null;
-  if (existsSync(receiptPath)) {
-    trustedAnchor = JSON.parse(readFileSync(receiptPath, 'utf8'));
+  if (options.externalTrustedAnchor) {
+    trustedAnchor = options.externalTrustedAnchor;
   } else if (options.expectedReceipt) {
     trustedAnchor = options.expectedReceipt;
   } else if (options.expectedChainTip) {
     trustedAnchor = { chainTipHash: options.expectedChainTip, eventCount: options.expectedEventCount };
+  } else if (options.externalReceiptPath && existsSync(options.externalReceiptPath)) {
+    const resolvedPath = path.resolve(options.externalReceiptPath);
+    if (resolvedPath.startsWith(path.resolve(runDir))) {
+      throw new Error('JOURNAL_COMPLETENESS_NOT_VERIFIABLE: Cannot use mutable run-directory receipt as trusted anchor');
+    }
+    trustedAnchor = JSON.parse(readFileSync(resolvedPath, 'utf8'));
   }
 
   if (!trustedAnchor || !trustedAnchor.chainTipHash) {
-    throw new Error('JOURNAL_COMPLETENESS_NOT_VERIFIABLE: Missing trusted journal chain-tip anchor or run receipt');
+    throw new Error('JOURNAL_COMPLETENESS_NOT_VERIFIABLE: Missing independently anchored trusted journal chain-tip anchor or external receipt');
   }
   challengerQual.assertJournalChainTipAndCompleteness(events, trustedAnchor);
 
