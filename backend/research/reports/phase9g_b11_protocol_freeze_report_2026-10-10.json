@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 2,
+  "artifact": "phase9g_b11_protocol_freeze_report",
+  "phase": "9G-B.1.1",
+  "generatedAt": "2026-10-10T09:29:42.570Z",
+  "gitHead": "f215a103a604b00a6e9e52aa58cdb83c71db6637",
+  "dirtyTreeAtFreeze": false,
+  "protocolState": "PHASE_9GB11_EXECUTION_GRADE_PROTOCOL_LOCKED_AWAITING_EXPLICIT_BLIND_RUN_AUTHORIZATION",
+  "allChecksPassed": true,
+  "checksCount": 8,
+  "checks": [
+    {
+      "checkId": "CHECK_1_IMMUTABLE_SOURCE_POLICIES_V2_PROTOCOL_AND_MANIFESTS_IDENTITIES",
+      "status": "PASS",
+      "details": {
+        "v5PolicySha": "5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6",
+        "v1PolicySha": "0ccd4872d6998b67d794baf96cad22c5ccbba3f8ee65a9ac02ba1ad9790ec71b",
+        "v2PolicySha": "b467e9aad917808f307346482477d1d4a4716aed665bd2662e87445231d12f8c",
+        "v1ProtocolSha": "06d9811ad830bebbd0e3161c424c15ee04282756479d80868ae8aa29e6bdafb0",
+        "v2ProtocolSha": "42a2777600e51e2a9d8a83fd6671d169e99d80236bb5617bc330565ee3c7b890",
+        "a25RegistrySha": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
+        "a1CalibrationManifestSha": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
+        "blindManifestSha": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+        "performerIsolationVerified": true
+      }
+    },
+    {
+      "checkId": "CHECK_2_IMMUTABLE_SOURCE_CODE_AND_SCORER_BINDINGS",
+      "status": "PASS",
+      "details": {
+        "scorerSourceSha256": "70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea",
+        "finalizerLedgerSha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e",
+        "reconcilerSha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146",
+        "qualificationModuleSha256": "d7b5bbde1f509ba2095c89c469b326c7cbe2a988ddff6f7c3d005cfc5e85342d",
+        "orchestratorModuleSha256": "7645a82c0d2f97e51812a7366d5be734905692383f9b36aa400cf8fdabdce9ba"
+      }
+    },
+    {
+      "checkId": "CHECK_3_ADMITTED_CANDIDATES_CHECKPOINT_LOCKS_AND_BYTE_SIZES",
+      "status": "PASS",
+      "details": {
+        "rankedCandidatesCount": 3,
+        "rankedCandidates": [
+          {
+            "candidateId": "bytedance-original-calibrated-v1",
+            "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+            "checkpointBytes": 171966578
+          },
+          {
+            "candidateId": "online-amt-calibrated-v1",
+            "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+            "checkpointBytes": 178804960
+          },
+          {
+            "candidateId": "bytedance-robust-augmented-calibrated-v1",
+            "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+            "checkpointBytes": 103815845
+          }
+        ],
+        "nonRankingReferencesCount": 3,
+        "blockedCandidatesCount": 1
+      }
+    },
+    {
+      "checkId": "CHECK_4_OBJECTIVE_SCENARIO_ELIGIBILITY_DERIVED_FROM_AUDIO_GEOMETRY",
+      "status": "PASS",
+      "details": {
+        "totalBlindScenarios": 70,
+        "eligibleByteDanceOriginal": 63,
+        "eligibleOnlineAmt": 70,
+        "eligibleRobustAugmented": 63,
+        "ineligibleDueToZeroPreRoll": 7,
+        "mutualIntersectionCounts": {
+          "bytedance-original_vs_online-amt": 63,
+          "bytedance-robust-augmented_vs_online-amt": 63,
+          "bytedance-original_vs_bytedance-robust-augmented": 63
+        }
+      }
+    },
+    {
+      "checkId": "CHECK_5_DURABLE_EXECUTION_LEDGER_LIFECYCLE_SPECIFICATION",
+      "status": "PASS",
+      "details": {
+        "validTransitionsTested": 6,
+        "terminalStateGuardsVerified": true,
+        "atomicPersistenceRequired": true
+      }
+    },
+    {
+      "checkId": "CHECK_6_SAFETY_FIRST_DECISION_HIERARCHY_CONTRACT",
+      "status": "PASS",
+      "details": {
+        "hierarchyLevelsCount": 11,
+        "topSafetyLevel": "falseMatchRateOnGroundTruthMissing",
+        "terminalLatencyTieBreak": "finalizedFeedbackAgeP95Ms",
+        "allThresholdsPredeclared": true
+      }
+    },
+    {
+      "checkId": "CHECK_7_TRUE_SYNTHETIC_END_TO_END_REHEARSAL",
+      "status": "PASS",
+      "details": {
+        "rehearsalMode": "TRUE_SYNTHETIC_END_TO_END_PIPELINE",
+        "testsExecuted": 16,
+        "allTestsPassed": true,
+        "syntheticScenariosUsed": 6,
+        "realBlindInferenceExecuted": false
+      }
+    },
+    {
+      "checkId": "CHECK_8_SINGLE_RUN_EXECUTION_LOCK_AND_PREFLIGHT_BOUNDARIES",
+      "status": "PASS",
+      "details": {
+        "candidateRunCount": 0,
+        "productionWinnerSelected": false,
+        "productionMicrophoneActivated": false,
+        "blindPerformerInferenceAttempted": false,
+        "programmaticInferenceBlocked": true,
+        "protocolState": "PHASE_9GB11_EXECUTION_GRADE_PROTOCOL_LOCKED_AWAITING_EXPLICIT_BLIND_RUN_AUTHORIZATION"
+      }
+    }
+  ],
+  "activeV2Protocol": {
+    "path": "backend/research/policies/phase9g_b_blind_evaluation_protocol_v2_2026-10-10.json",
+    "sha256": "42a2777600e51e2a9d8a83fd6671d169e99d80236bb5617bc330565ee3c7b890",
+    "supersedesPolicySha256": "06d9811ad830bebbd0e3161c424c15ee04282756479d80868ae8aa29e6bdafb0"
+  },
+  "boundImplementationFiles": {
+    "scorerSource": {
+      "path": "apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.ts",
+      "sha256": "70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea"
+    },
+    "finalizerLedger": {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalization-ledger.ts",
+      "sha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e"
+    },
+    "performanceReconciler": {
+      "path": "apps/customer-web/src/lib/practice/audio-analysis/continuous/performance-reconciler.ts",
+      "sha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146"
+    },
+    "qualificationEngine": {
+      "path": "apps/customer-web/src/lib/practice/research/public-challenger-qualification.ts",
+      "sha256": "d7b5bbde1f509ba2095c89c469b326c7cbe2a988ddff6f7c3d005cfc5e85342d"
+    },
+    "executionOrchestrator": {
+      "path": "backend/research/browser_runtime/execution_grade_blind_orchestrator.mjs",
+      "sha256": "7645a82c0d2f97e51812a7366d5be734905692383f9b36aa400cf8fdabdce9ba"
+    }
+  },
+  "lockedCandidates": [
+    {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+      "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+      "checkpointBytes": 171966578,
+      "eligibleScenarios": 63
+    },
+    {
+      "candidateId": "online-amt-calibrated-v1",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "checkpointBytes": 178804960,
+      "eligibleScenarios": 70
+    },
+    {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "configurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce",
+      "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+      "checkpointBytes": 103815845,
+      "eligibleScenarios": 63
+    }
+  ],
+  "preflightConfirmation": {
+    "blindPerformerInferenceExecuted": false,
+    "blindExpectedStrikeTruthReadForInference": false,
+    "productionWinnerSelected": false,
+    "productionMicrophoneActive": false,
+    "candidateRunCount": 0,
+    "readinessStatus": "PHASE_9GB11_EXECUTION_GRADE_PROTOCOL_LOCKED_AWAITING_EXPLICIT_BLIND_RUN_AUTHORIZATION"
+  }
+}

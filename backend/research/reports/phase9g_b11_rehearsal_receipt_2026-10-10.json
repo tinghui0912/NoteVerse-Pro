@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 2,
+  "artifact": "phase9g_b11_rehearsal_receipt",
+  "phase": "9G-B.1.1",
+  "generatedAt": "2026-10-10T09:29:42.551Z",
+  "gitHead": "f215a103a604b00a6e9e52aa58cdb83c71db6637",
+  "dirtyTreeAtExecution": false,
+  "rehearsalMode": "TRUE_SYNTHETIC_END_TO_END_PIPELINE",
+  "realBlindInferenceExecuted": false,
+  "realBlindPerformersIsolated": [
+    "p15",
+    "p16",
+    "p17",
+    "p18",
+    "p19",
+    "p20",
+    "p21",
+    "p22"
+  ],
+  "syntheticScenariosUsed": 6,
+  "testsExecuted": 16,
+  "allTestsPassed": true,
+  "rehearsalResults": [
+    {
+      "testId": "REHEARSAL_1_THREE_CANDIDATE_SYNTHETIC_RUN",
+      "status": "PASS",
+      "details": {
+        "totalScoredScenarios": 18,
+        "candidatesScored": 3
+      }
+    },
+    {
+      "testId": "REHEARSAL_2_MUTATED_CHECKPOINT_OR_PROFILE_REJECTION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_3_ALTERED_PROTOCOL_OR_SCORER_SHA_REJECTION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_4_WRONG_SPLIT_OR_PERFORMER_REJECTION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_5_SCORE_CONDITIONED_INFERENCE_REJECTION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_6_MISSING_ACOUSTIC_EVIDENCE_REJECTION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_7_DUPLICATE_CANDIDATE_SCENARIO_RUN_REJECTION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_8_DUPLICATE_RUN_ID_REJECTION",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_9_SIMULATED_INTERRUPTION_AND_RECOVERY",
+      "status": "PASS",
+      "details": {
+        "recoveredRecords": 2,
+        "totalFinalRecords": 6
+      }
+    },
+    {
+      "testId": "REHEARSAL_10_SHARED_SCORER_SAFETY_METRICS_AND_DENOMINATORS",
+      "status": "PASS",
+      "details": {
+        "safetyMetricsCount": 8,
+        "strikesScored": 4
+      }
+    },
+    {
+      "testId": "REHEARSAL_11_SEEDED_BOOTSTRAP_AND_RECIPROCAL_REVERSAL",
+      "status": "PASS",
+      "details": {
+        "draws": 5000,
+        "seed": 13371,
+        "meanAB": -0.013625,
+        "meanBA": 0.013625
+      }
+    },
+    {
+      "testId": "REHEARSAL_12_TIMING_AND_LATENCY_GUARDS",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_13_PARTIAL_OR_FAILED_EXECUTION_OUTCOME",
+      "status": "PASS",
+      "details": {
+        "simulatedCoverage": "83.3%",
+        "outcome": "EVALUATION_INCOMPLETE_NO_WINNER"
+      }
+    },
+    {
+      "testId": "REHEARSAL_14_INDEPENDENT_VERIFIABILITY_OF_DIGESTS",
+      "status": "PASS",
+      "details": {
+        "sampleDigest": "df4f5376106886da563c091ac02790a1ba0b3a96ab50293d739166808ba151f1"
+      }
+    },
+    {
+      "testId": "REHEARSAL_15_UNSUPPORTED_RESEARCH_REFERENCES_BLOCKED",
+      "status": "PASS"
+    },
+    {
+      "testId": "REHEARSAL_16_THROWAWAY_WORKSPACE_ISOLATION_AND_RECEIPT_PUBLICATION",
+      "status": "PASS",
+      "details": {
+        "workspaceTested": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\node_modules\\.tmp\\phase9gb_rehearsal_1791624582523"
+      }
+    }
+  ]
+}

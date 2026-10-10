@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 2,
+  "artifact": "phase9g_b11_candidate_lock_receipt",
+  "phase": "9G-B.1.1",
+  "generatedAt": "2026-10-10T09:29:42.521Z",
+  "gitHead": "f215a103a604b00a6e9e52aa58cdb83c71db6637",
+  "dirtyTreeAtGeneration": false,
+  "rankedCandidates": [
+    {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+      "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+      "checkpointBytes": 171966578,
+      "contextRequirementMs": 5000,
+      "eligibleScenarioCount": 63,
+      "category": "FROZEN_INCUMBENT",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "permittedBlindRole": "FROZEN_INCUMBENT_EVALUATION",
+      "lockedForPhase9gB": true,
+      "productionSelectionEligible": true
+    },
+    {
+      "candidateId": "online-amt-calibrated-v1",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "checkpointBytes": 178804960,
+      "contextRequirementMs": 0,
+      "eligibleScenarioCount": 70,
+      "category": "FROZEN_INCUMBENT",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "permittedBlindRole": "FROZEN_INCUMBENT_EVALUATION",
+      "lockedForPhase9gB": true,
+      "productionSelectionEligible": true
+    },
+    {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "configurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce",
+      "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+      "checkpointBytes": 103815845,
+      "contextRequirementMs": 1820,
+      "eligibleScenarioCount": 63,
+      "category": "QUALIFIED_CHALLENGER",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "permittedBlindRole": "QUALIFIED_CHALLENGER_EVALUATION",
+      "lockedForPhase9gB": true,
+      "productionSelectionEligible": true
+    }
+  ],
+  "pairwiseMutualEligibilityGeometry": {
+    "bytedance-original-calibrated-v1_vs_online-amt-calibrated-v1": {
+      "candidateAEligibleCount": 63,
+      "candidateBEligibleCount": 70,
+      "mutuallyEligibleScenarioCount": 63,
+      "geometryFilterReason": "bytedance-original requires performanceOriginSourceMs >= 5000ms; 7 scenarios lack pre-roll"
+    },
+    "bytedance-robust-augmented-calibrated-v1_vs_online-amt-calibrated-v1": {
+      "candidateAEligibleCount": 63,
+      "candidateBEligibleCount": 70,
+      "mutuallyEligibleScenarioCount": 63,
+      "geometryFilterReason": "bytedance-robust-augmented requires performanceOriginSourceMs >= 1820ms; 7 scenarios lack pre-roll"
+    },
+    "bytedance-original-calibrated-v1_vs_bytedance-robust-augmented-calibrated-v1": {
+      "candidateAEligibleCount": 63,
+      "candidateBEligibleCount": 63,
+      "mutuallyEligibleScenarioCount": 63,
+      "geometryFilterReason": "Both ByteDance candidates share identical 63 scenarios with sufficient pre-roll"
+    }
+  },
+  "nonRankingResearchReferences": [
+    {
+      "candidateId": "transkun-v2-aug-calibrated-v1",
+      "candidateFamily": "transkun",
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false
+    },
+    {
+      "candidateId": "aria-amt-medium-double-v1",
+      "candidateFamily": "aria-amt",
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false
+    },
+    {
+      "candidateId": "rtt-causal-streaming-v1",
+      "candidateFamily": "rtt",
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false
+    }
+  ],
+  "blockedCandidates": [
+    {
+      "candidateId": "d3rm-offline-ceiling-reference",
+      "permittedBlindRole": "NOT_PERMITTED",
+      "lockedForPhase9gB": false,
+      "productionSelectionEligible": false,
+      "ineligibilityReason": "Missing natten dependency in environment; licensing unresolved; offline ceiling reference only."
+    }
+  ],
+  "executionImplementationBindings": {
+    "scorerSourceSha256": "70f77a9e790edf0489d9299d413f03e5f8dffb5f388227a087099381a2b419ea",
+    "finalizerLedgerSha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e",
+    "reconcilerSha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146",
+    "qualificationModuleSha256": "d7b5bbde1f509ba2095c89c469b326c7cbe2a988ddff6f7c3d005cfc5e85342d",
+    "orchestratorSha256": "7645a82c0d2f97e51812a7366d5be734905692383f9b36aa400cf8fdabdce9ba"
+  },
+  "preflightBoundaries": {
+    "candidateRunCount": 0,
+    "productionWinnerSelected": false,
+    "productionMicrophoneActive": false,
+    "blindPerformerInferenceAttempted": false
+  }
+}
