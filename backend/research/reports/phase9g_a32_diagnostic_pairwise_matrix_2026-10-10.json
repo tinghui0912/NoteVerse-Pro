@@ -1,0 +1,1449 @@
+{
+  "schemaVersion": 2,
+  "artifact": "phase9g_a32_diagnostic_pairwise_matrix",
+  "phase": "9G-A.3.2",
+  "generatedAt": "2026-10-10T05:49:24.873Z",
+  "role": "CALIBRATION_CROSS_FAMILY_DIAGNOSTIC_ONLY",
+  "productionWinnerSelected": false,
+  "totalCalibrationScenarios": 72,
+  "bootstrapConfig": {
+    "seed": 13371,
+    "draws": 5000,
+    "confidenceLevel": 0.95
+  },
+  "priorityMetrics": [
+    "verdictAgreementRate",
+    "expectedStrikeRecall",
+    "falseMatchRateOnGroundTruthMissing",
+    "correctMissingRate",
+    "falseCompleteChordAcceptanceRate",
+    "chordExactCompletenessRate",
+    "extraPrecision",
+    "extraRecall"
+  ],
+  "incumbentPairwiseStatus": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+  "comparisons": [
+    {
+      "candidateA": "bytedance-original-calibrated-v1",
+      "candidateB": "online-amt-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "bytedance-original-calibrated-v1",
+      "candidateB": "bytedance-robust-augmented-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "bytedance-original-calibrated-v1",
+      "candidateB": "transkun-v2-aug-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "bytedance-original-calibrated-v1",
+      "candidateB": "aria-amt-medium-double-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "bytedance-original-calibrated-v1",
+      "candidateB": "rtt-causal-streaming-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "online-amt-calibrated-v1",
+      "candidateB": "bytedance-original-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "online-amt-calibrated-v1",
+      "candidateB": "bytedance-robust-augmented-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "online-amt-calibrated-v1",
+      "candidateB": "transkun-v2-aug-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "online-amt-calibrated-v1",
+      "candidateB": "aria-amt-medium-double-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "online-amt-calibrated-v1",
+      "candidateB": "rtt-causal-streaming-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "bytedance-robust-augmented-calibrated-v1",
+      "candidateB": "bytedance-original-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "bytedance-robust-augmented-calibrated-v1",
+      "candidateB": "online-amt-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "bytedance-robust-augmented-calibrated-v1",
+      "candidateB": "transkun-v2-aug-calibrated-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 61,
+          "meanDifference": -0.004582151543229179,
+          "bootstrap95Ci": {
+            "low": -0.008071240036474627,
+            "high": -0.0014264060210336864,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 61,
+          "meanDifference": -0.004790087351522852,
+          "bootstrap95Ci": {
+            "low": -0.008405961873155739,
+            "high": -0.0015134070901594483,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "falseMatchRateOnGroundTruthMissing": {
+          "sampleCount": 43,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": 0,
+            "high": 0,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "correctMissingRate": {
+          "sampleCount": 43,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": 0,
+            "high": 0,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "falseCompleteChordAcceptanceRate": {
+          "sampleCount": 39,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": 0,
+            "high": 0,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "chordExactCompletenessRate": {
+          "sampleCount": 61,
+          "meanDifference": -0.02058997468833534,
+          "bootstrap95Ci": {
+            "low": -0.03643696922385446,
+            "high": -0.006258486504388149,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraPrecision": {
+          "sampleCount": 53,
+          "meanDifference": -0.11484553182666389,
+          "bootstrap95Ci": {
+            "low": -0.1600931013431013,
+            "high": -0.07397539567350897,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraRecall": {
+          "sampleCount": 57,
+          "meanDifference": 0.043810916179337224,
+          "bootstrap95Ci": {
+            "low": 0.0007785087719298224,
+            "high": 0.09327729044834301,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        }
+      }
+    },
+    {
+      "candidateA": "bytedance-robust-augmented-calibrated-v1",
+      "candidateB": "aria-amt-medium-double-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 61,
+          "meanDifference": -0.004461409871245935,
+          "bootstrap95Ci": {
+            "low": -0.00805283969218395,
+            "high": -0.0014988290398126462,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 61,
+          "meanDifference": -0.004271479024760435,
+          "bootstrap95Ci": {
+            "low": -0.008076375451790732,
+            "high": -0.0009900351677079554,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "falseMatchRateOnGroundTruthMissing": {
+          "sampleCount": 43,
+          "meanDifference": 0.023255813953488372,
+          "bootstrap95Ci": {
+            "low": 0,
+            "high": 0.06976744186046512,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "correctMissingRate": {
+          "sampleCount": 43,
+          "meanDifference": -0.023255813953488372,
+          "bootstrap95Ci": {
+            "low": -0.06976744186046512,
+            "high": 0,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "falseCompleteChordAcceptanceRate": {
+          "sampleCount": 39,
+          "meanDifference": 0.02564102564102564,
+          "bootstrap95Ci": {
+            "low": 0,
+            "high": 0.07692307692307693,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "chordExactCompletenessRate": {
+          "sampleCount": 61,
+          "meanDifference": -0.020218579234972674,
+          "bootstrap95Ci": {
+            "low": -0.037158469945355176,
+            "high": -0.006010928961748633,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraPrecision": {
+          "sampleCount": 54,
+          "meanDifference": -0.12946960446960445,
+          "bootstrap95Ci": {
+            "low": -0.19162832794777238,
+            "high": -0.07485113137890925,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraRecall": {
+          "sampleCount": 57,
+          "meanDifference": 0.029775828460038987,
+          "bootstrap95Ci": {
+            "low": -0.0026803118908382047,
+            "high": 0.06052631578947367,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        }
+      }
+    },
+    {
+      "candidateA": "bytedance-robust-augmented-calibrated-v1",
+      "candidateB": "rtt-causal-streaming-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 61,
+          "meanDifference": 0.5833695068005035,
+          "bootstrap95Ci": {
+            "low": 0.5688229643785565,
+            "high": 0.5973285538691546,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 61,
+          "meanDifference": 0.6129627649155212,
+          "bootstrap95Ci": {
+            "low": 0.5980185206412414,
+            "high": 0.6272178184593465,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "falseMatchRateOnGroundTruthMissing": {
+          "sampleCount": 43,
+          "meanDifference": 0.18604651162790697,
+          "bootstrap95Ci": {
+            "low": 0.09302325581395349,
+            "high": 0.3023255813953488,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "correctMissingRate": {
+          "sampleCount": 43,
+          "meanDifference": -0.18604651162790697,
+          "bootstrap95Ci": {
+            "low": -0.3023255813953488,
+            "high": -0.09302325581395349,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "falseCompleteChordAcceptanceRate": {
+          "sampleCount": 39,
+          "meanDifference": 0.2948717948717949,
+          "bootstrap95Ci": {
+            "low": 0.1794871794871795,
+            "high": 0.4230769230769231,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "chordExactCompletenessRate": {
+          "sampleCount": 61,
+          "meanDifference": 0.9166524732098503,
+          "bootstrap95Ci": {
+            "low": 0.8838862571854375,
+            "high": 0.9479174650486124,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraPrecision": {
+          "sampleCount": 57,
+          "meanDifference": 0.6379203155518943,
+          "bootstrap95Ci": {
+            "low": 0.5637651322848694,
+            "high": 0.707386032583401,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraRecall": {
+          "sampleCount": 57,
+          "meanDifference": 0.4957602339181288,
+          "bootstrap95Ci": {
+            "low": 0.41281432748538016,
+            "high": 0.5762707115009745,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        }
+      }
+    },
+    {
+      "candidateA": "transkun-v2-aug-calibrated-v1",
+      "candidateB": "bytedance-original-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "transkun-v2-aug-calibrated-v1",
+      "candidateB": "online-amt-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "transkun-v2-aug-calibrated-v1",
+      "candidateB": "bytedance-robust-augmented-calibrated-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 61,
+          "meanDifference": 0.004582151543229179,
+          "bootstrap95Ci": {
+            "low": 0.0014264060210336853,
+            "high": 0.008071240036474627,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 61,
+          "meanDifference": 0.004790087351522852,
+          "bootstrap95Ci": {
+            "low": 0.0015134070901594461,
+            "high": 0.008405961873155737,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "falseMatchRateOnGroundTruthMissing": {
+          "sampleCount": 43,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": 0,
+            "high": 0,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "correctMissingRate": {
+          "sampleCount": 43,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": 0,
+            "high": 0,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "falseCompleteChordAcceptanceRate": {
+          "sampleCount": 39,
+          "meanDifference": 0,
+          "bootstrap95Ci": {
+            "low": 0,
+            "high": 0,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "chordExactCompletenessRate": {
+          "sampleCount": 61,
+          "meanDifference": 0.02058997468833534,
+          "bootstrap95Ci": {
+            "low": 0.006258486504388137,
+            "high": 0.03643696922385446,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraPrecision": {
+          "sampleCount": 53,
+          "meanDifference": 0.11484553182666389,
+          "bootstrap95Ci": {
+            "low": 0.0739753956735089,
+            "high": 0.16009310134310126,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraRecall": {
+          "sampleCount": 57,
+          "meanDifference": -0.043810916179337224,
+          "bootstrap95Ci": {
+            "low": -0.09327729044834306,
+            "high": -0.0007785087719298396,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        }
+      }
+    },
+    {
+      "candidateA": "transkun-v2-aug-calibrated-v1",
+      "candidateB": "aria-amt-medium-double-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 72,
+          "meanDifference": 0.00010229502765247052,
+          "bootstrap95Ci": {
+            "low": -0.0012857230845035718,
+            "high": 0.0015163068872067957,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 72,
+          "meanDifference": 0.00043937649906260353,
+          "bootstrap95Ci": {
+            "low": -0.0006855455360438717,
+            "high": 0.0017202283212135415,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "falseMatchRateOnGroundTruthMissing": {
+          "sampleCount": 52,
+          "meanDifference": 0.019230769230769232,
+          "bootstrap95Ci": {
+            "low": 0,
+            "high": 0.057692307692307696,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "correctMissingRate": {
+          "sampleCount": 52,
+          "meanDifference": -0.019230769230769232,
+          "bootstrap95Ci": {
+            "low": -0.057692307692307696,
+            "high": 0,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "falseCompleteChordAcceptanceRate": {
+          "sampleCount": 45,
+          "meanDifference": 0.022222222222222223,
+          "bootstrap95Ci": {
+            "low": 0,
+            "high": 0.06666666666666667,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "chordExactCompletenessRate": {
+          "sampleCount": 72,
+          "meanDifference": 0.00031465448132114715,
+          "bootstrap95Ci": {
+            "low": -0.005709876543209876,
+            "high": 0.006493506493506492,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraPrecision": {
+          "sampleCount": 64,
+          "meanDifference": -0.006321022727272724,
+          "bootstrap95Ci": {
+            "low": -0.036105192550505046,
+            "high": 0.0271863162878788,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraRecall": {
+          "sampleCount": 68,
+          "meanDifference": -0.011764705882352941,
+          "bootstrap95Ci": {
+            "low": -0.04411764705882353,
+            "high": 0.00882352941176471,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        }
+      }
+    },
+    {
+      "candidateA": "transkun-v2-aug-calibrated-v1",
+      "candidateB": "rtt-causal-streaming-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 72,
+          "meanDifference": 0.5709433620841828,
+          "bootstrap95Ci": {
+            "low": 0.5547708593179024,
+            "high": 0.586529816948083,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 72,
+          "meanDifference": 0.5981846925300495,
+          "bootstrap95Ci": {
+            "low": 0.5810237555928682,
+            "high": 0.6153370709709026,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "falseMatchRateOnGroundTruthMissing": {
+          "sampleCount": 52,
+          "meanDifference": 0.1346153846153846,
+          "bootstrap95Ci": {
+            "low": 0.04807692307692308,
+            "high": 0.23076923076923078,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "correctMissingRate": {
+          "sampleCount": 52,
+          "meanDifference": -0.1346153846153846,
+          "bootstrap95Ci": {
+            "low": -0.23076923076923078,
+            "high": -0.04807692307692308,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "falseCompleteChordAcceptanceRate": {
+          "sampleCount": 45,
+          "meanDifference": 0.25555555555555554,
+          "bootstrap95Ci": {
+            "low": 0.15555555555555556,
+            "high": 0.36666666666666664,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "chordExactCompletenessRate": {
+          "sampleCount": 72,
+          "meanDifference": 0.933404481321148,
+          "bootstrap95Ci": {
+            "low": 0.9097440927128426,
+            "high": 0.9546226400913901,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraPrecision": {
+          "sampleCount": 64,
+          "meanDifference": 0.7954100586913084,
+          "bootstrap95Ci": {
+            "low": 0.7550991521499334,
+            "high": 0.8317907017028103,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraRecall": {
+          "sampleCount": 68,
+          "meanDifference": 0.43104575163398695,
+          "bootstrap95Ci": {
+            "low": 0.3515339052287582,
+            "high": 0.5072732843137254,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        }
+      }
+    },
+    {
+      "candidateA": "aria-amt-medium-double-v1",
+      "candidateB": "bytedance-original-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "aria-amt-medium-double-v1",
+      "candidateB": "online-amt-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "aria-amt-medium-double-v1",
+      "candidateB": "bytedance-robust-augmented-calibrated-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 61,
+          "meanDifference": 0.004461409871245935,
+          "bootstrap95Ci": {
+            "low": 0.0014988290398126462,
+            "high": 0.00805283969218395,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 61,
+          "meanDifference": 0.004271479024760435,
+          "bootstrap95Ci": {
+            "low": 0.0009900351677079517,
+            "high": 0.008076375451790732,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "falseMatchRateOnGroundTruthMissing": {
+          "sampleCount": 43,
+          "meanDifference": -0.023255813953488372,
+          "bootstrap95Ci": {
+            "low": -0.06976744186046512,
+            "high": 0,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "correctMissingRate": {
+          "sampleCount": 43,
+          "meanDifference": 0.023255813953488372,
+          "bootstrap95Ci": {
+            "low": 0,
+            "high": 0.06976744186046512,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "falseCompleteChordAcceptanceRate": {
+          "sampleCount": 39,
+          "meanDifference": -0.02564102564102564,
+          "bootstrap95Ci": {
+            "low": -0.07692307692307693,
+            "high": 0,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "chordExactCompletenessRate": {
+          "sampleCount": 61,
+          "meanDifference": 0.020218579234972674,
+          "bootstrap95Ci": {
+            "low": 0.006010928961748633,
+            "high": 0.037158469945355176,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraPrecision": {
+          "sampleCount": 54,
+          "meanDifference": 0.12946960446960445,
+          "bootstrap95Ci": {
+            "low": 0.07485113137890917,
+            "high": 0.19162832794777232,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraRecall": {
+          "sampleCount": 57,
+          "meanDifference": -0.029775828460038987,
+          "bootstrap95Ci": {
+            "low": -0.06052631578947367,
+            "high": 0.0026803118908382047,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        }
+      }
+    },
+    {
+      "candidateA": "aria-amt-medium-double-v1",
+      "candidateB": "transkun-v2-aug-calibrated-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 72,
+          "meanDifference": -0.00010229502765247052,
+          "bootstrap95Ci": {
+            "low": -0.0015163068872068005,
+            "high": 0.0012857230845035718,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 72,
+          "meanDifference": -0.00043937649906260353,
+          "bootstrap95Ci": {
+            "low": -0.0017202283212135415,
+            "high": 0.0006855455360438717,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "falseMatchRateOnGroundTruthMissing": {
+          "sampleCount": 52,
+          "meanDifference": -0.019230769230769232,
+          "bootstrap95Ci": {
+            "low": -0.057692307692307696,
+            "high": 0,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "correctMissingRate": {
+          "sampleCount": 52,
+          "meanDifference": 0.019230769230769232,
+          "bootstrap95Ci": {
+            "low": 0,
+            "high": 0.057692307692307696,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "falseCompleteChordAcceptanceRate": {
+          "sampleCount": 45,
+          "meanDifference": -0.022222222222222223,
+          "bootstrap95Ci": {
+            "low": -0.06666666666666667,
+            "high": 0,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "chordExactCompletenessRate": {
+          "sampleCount": 72,
+          "meanDifference": -0.00031465448132114715,
+          "bootstrap95Ci": {
+            "low": -0.006493506493506492,
+            "high": 0.005709876543209876,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraPrecision": {
+          "sampleCount": 64,
+          "meanDifference": 0.006321022727272724,
+          "bootstrap95Ci": {
+            "low": -0.027186316287878803,
+            "high": 0.03610519255050502,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraRecall": {
+          "sampleCount": 68,
+          "meanDifference": 0.011764705882352941,
+          "bootstrap95Ci": {
+            "low": -0.00882352941176471,
+            "high": 0.04411764705882353,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        }
+      }
+    },
+    {
+      "candidateA": "aria-amt-medium-double-v1",
+      "candidateB": "rtt-causal-streaming-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 72,
+          "meanDifference": 0.5708410670565303,
+          "bootstrap95Ci": {
+            "low": 0.5547916774445656,
+            "high": 0.5864239543503053,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 72,
+          "meanDifference": 0.5977453160309868,
+          "bootstrap95Ci": {
+            "low": 0.5804849832506144,
+            "high": 0.614758162437871,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "falseMatchRateOnGroundTruthMissing": {
+          "sampleCount": 52,
+          "meanDifference": 0.11538461538461539,
+          "bootstrap95Ci": {
+            "low": 0.028846153846153848,
+            "high": 0.21153846153846154,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "correctMissingRate": {
+          "sampleCount": 52,
+          "meanDifference": -0.11538461538461539,
+          "bootstrap95Ci": {
+            "low": -0.21153846153846154,
+            "high": -0.028846153846153848,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "falseCompleteChordAcceptanceRate": {
+          "sampleCount": 45,
+          "meanDifference": 0.23333333333333334,
+          "bootstrap95Ci": {
+            "low": 0.13333333333333333,
+            "high": 0.3333333333333333,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "chordExactCompletenessRate": {
+          "sampleCount": 72,
+          "meanDifference": 0.9330898268398266,
+          "bootstrap95Ci": {
+            "low": 0.9100739538239535,
+            "high": 0.9541346500721501,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraPrecision": {
+          "sampleCount": 66,
+          "meanDifference": 0.7912103048466683,
+          "bootstrap95Ci": {
+            "low": 0.7368902425436514,
+            "high": 0.8376754295788382,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraRecall": {
+          "sampleCount": 68,
+          "meanDifference": 0.44281045751633985,
+          "bootstrap95Ci": {
+            "low": 0.37630514705882345,
+            "high": 0.5105433006535948,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        }
+      }
+    },
+    {
+      "candidateA": "rtt-causal-streaming-v1",
+      "candidateB": "bytedance-original-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "rtt-causal-streaming-v1",
+      "candidateB": "online-amt-calibrated-v1",
+      "status": "INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE",
+      "totalCalibrationScenarios": 72,
+      "reason": "Scenario-level runs for incumbents not persisted in A.2.4/A.2.5; aggregate percentages cannot be reconstructed into paired difference vectors without neural reruns"
+    },
+    {
+      "candidateA": "rtt-causal-streaming-v1",
+      "candidateB": "bytedance-robust-augmented-calibrated-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 61,
+          "meanDifference": -0.5833695068005035,
+          "bootstrap95Ci": {
+            "low": -0.5973285538691546,
+            "high": -0.5688229643785565,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 61,
+          "meanDifference": -0.6129627649155212,
+          "bootstrap95Ci": {
+            "low": -0.6272178184593465,
+            "high": -0.5980185206412415,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "falseMatchRateOnGroundTruthMissing": {
+          "sampleCount": 43,
+          "meanDifference": -0.18604651162790697,
+          "bootstrap95Ci": {
+            "low": -0.3023255813953488,
+            "high": -0.09302325581395349,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "correctMissingRate": {
+          "sampleCount": 43,
+          "meanDifference": 0.18604651162790697,
+          "bootstrap95Ci": {
+            "low": 0.09302325581395349,
+            "high": 0.3023255813953488,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "falseCompleteChordAcceptanceRate": {
+          "sampleCount": 39,
+          "meanDifference": -0.2948717948717949,
+          "bootstrap95Ci": {
+            "low": -0.4230769230769231,
+            "high": -0.1794871794871795,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "chordExactCompletenessRate": {
+          "sampleCount": 61,
+          "meanDifference": -0.9166524732098503,
+          "bootstrap95Ci": {
+            "low": -0.9479174650486124,
+            "high": -0.8838862571854375,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraPrecision": {
+          "sampleCount": 57,
+          "meanDifference": -0.6379203155518943,
+          "bootstrap95Ci": {
+            "low": -0.707386032583401,
+            "high": -0.5637651322848695,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraRecall": {
+          "sampleCount": 57,
+          "meanDifference": -0.4957602339181288,
+          "bootstrap95Ci": {
+            "low": -0.5762707115009746,
+            "high": -0.41281432748538016,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        }
+      }
+    },
+    {
+      "candidateA": "rtt-causal-streaming-v1",
+      "candidateB": "transkun-v2-aug-calibrated-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 72,
+          "meanDifference": -0.5709433620841828,
+          "bootstrap95Ci": {
+            "low": -0.5865298169480831,
+            "high": -0.5547708593179024,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 72,
+          "meanDifference": -0.5981846925300495,
+          "bootstrap95Ci": {
+            "low": -0.6153370709709026,
+            "high": -0.5810237555928682,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "falseMatchRateOnGroundTruthMissing": {
+          "sampleCount": 52,
+          "meanDifference": -0.1346153846153846,
+          "bootstrap95Ci": {
+            "low": -0.23076923076923078,
+            "high": -0.04807692307692308,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "correctMissingRate": {
+          "sampleCount": 52,
+          "meanDifference": 0.1346153846153846,
+          "bootstrap95Ci": {
+            "low": 0.04807692307692308,
+            "high": 0.23076923076923078,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "falseCompleteChordAcceptanceRate": {
+          "sampleCount": 45,
+          "meanDifference": -0.25555555555555554,
+          "bootstrap95Ci": {
+            "low": -0.36666666666666664,
+            "high": -0.15555555555555556,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "chordExactCompletenessRate": {
+          "sampleCount": 72,
+          "meanDifference": -0.933404481321148,
+          "bootstrap95Ci": {
+            "low": -0.9546226400913901,
+            "high": -0.9097440927128426,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraPrecision": {
+          "sampleCount": 64,
+          "meanDifference": -0.7954100586913084,
+          "bootstrap95Ci": {
+            "low": -0.8317907017028104,
+            "high": -0.7550991521499334,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraRecall": {
+          "sampleCount": 68,
+          "meanDifference": -0.43104575163398695,
+          "bootstrap95Ci": {
+            "low": -0.5072732843137254,
+            "high": -0.35153390522875844,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        }
+      }
+    },
+    {
+      "candidateA": "rtt-causal-streaming-v1",
+      "candidateB": "aria-amt-medium-double-v1",
+      "status": "MEASURED",
+      "totalCalibrationScenarios": 72,
+      "candidateAPreInferenceEligibleCount": 72,
+      "candidateBPreInferenceEligibleCount": 72,
+      "mutuallyEligibleScenarioCount": 72,
+      "bothCandidatesScoreableCount": 72,
+      "metricSpecificValidPairedCount": 72,
+      "sampleDenominators": {
+        "totalScenarios": 72,
+        "candidateAEligible": 72,
+        "candidateBEligible": 72,
+        "mutuallyEligible": 72
+      },
+      "isCrossFamilyWinner": false,
+      "metrics": {
+        "verdictAgreementRate": {
+          "sampleCount": 72,
+          "meanDifference": -0.5708410670565303,
+          "bootstrap95Ci": {
+            "low": -0.5864239543503053,
+            "high": -0.5547916774445656,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "expectedStrikeRecall": {
+          "sampleCount": 72,
+          "meanDifference": -0.5977453160309868,
+          "bootstrap95Ci": {
+            "low": -0.6147581624378711,
+            "high": -0.5804849832506144,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.01
+        },
+        "falseMatchRateOnGroundTruthMissing": {
+          "sampleCount": 52,
+          "meanDifference": -0.11538461538461539,
+          "bootstrap95Ci": {
+            "low": -0.21153846153846154,
+            "high": -0.028846153846153848,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "correctMissingRate": {
+          "sampleCount": 52,
+          "meanDifference": 0.11538461538461539,
+          "bootstrap95Ci": {
+            "low": 0.028846153846153848,
+            "high": 0.21153846153846154,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "falseCompleteChordAcceptanceRate": {
+          "sampleCount": 45,
+          "meanDifference": -0.23333333333333334,
+          "bootstrap95Ci": {
+            "low": -0.3333333333333333,
+            "high": -0.13333333333333333,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "chordExactCompletenessRate": {
+          "sampleCount": 72,
+          "meanDifference": -0.9330898268398266,
+          "bootstrap95Ci": {
+            "low": -0.9541346500721501,
+            "high": -0.9100739538239535,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraPrecision": {
+          "sampleCount": 66,
+          "meanDifference": -0.7912103048466683,
+          "bootstrap95Ci": {
+            "low": -0.8376754295788383,
+            "high": -0.7368902425436514,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        },
+        "extraRecall": {
+          "sampleCount": 68,
+          "meanDifference": -0.44281045751633985,
+          "bootstrap95Ci": {
+            "low": -0.5105433006535949,
+            "high": -0.3763051470588235,
+            "seed": 13371,
+            "draws": 5000
+          },
+          "meaningfulEffectThreshold": 0.02
+        }
+      }
+    }
+  ]
+}

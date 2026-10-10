@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 2,
+  "artifact": "phase9g_a32_raw_evidence_verification_receipt",
+  "phase": "9G-A.3.2",
+  "generatedAt": "2026-10-10T05:49:25.120Z",
+  "cleanExecutionGitHead": "b39366c4b2cb0d55dc48fb2c97fd688b20b1148b",
+  "dirtyTreeAtExecution": false,
+  "verificationSummary": {
+    "bytedanceRobust": {
+      "contextsVerified": 4,
+      "totalWindowsVerified": 299,
+      "float32LeShaRecomputedAndMatched": 299,
+      "zeroOutputsRecomputed": true,
+      "cachedOutputsValidated": 299,
+      "perContextWindows": {
+        "CALIBRATED_CONTEXT_1820": 165,
+        "CALIBRATED_CONTEXT_3S": 72,
+        "CALIBRATED_CONTEXT_5S": 42,
+        "CALIBRATED_CONTEXT_10S": 20
+      },
+      "mozartScenarioExcludedFrom10S": true
+    },
+    "transkun": {
+      "audioFilesVerified": 24,
+      "notesDigestsVerified": 24,
+      "zeroOutputsRecomputed": true,
+      "cachedOutputsValidated": 24,
+      "strictModelLoadingEnforced": true
+    },
+    "ariaAmt": {
+      "audioFilesVerified": 24,
+      "notesDigestsVerified": 24,
+      "zeroOutputsRecomputed": true,
+      "cachedOutputsValidated": 24,
+      "perFileLatencyMarkedNotMeasured": true
+    },
+    "rtt": {
+      "audioFilesVerified": 24,
+      "notesDigestsVerified": 24,
+      "zeroOutputsRecomputed": true,
+      "cachedOutputsValidated": 24,
+      "classifiedOfflineSegmentwise": true
+    },
+    "d3rm": {
+      "probedInDockerContainer": "noteverse-challengers:phase9ga3",
+      "probeCommand": "docker run --rm --entrypoint python3 noteverse-challengers:phase9ga3 -c \"import natten\"",
+      "probeExitCode": 1,
+      "probeStderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nModuleNotFoundError: No module named 'natten'",
+      "dependencyFailure": "natten"
+    }
+  }
+}

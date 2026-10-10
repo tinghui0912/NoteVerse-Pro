@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 2,
+  "artifact": "phase9g_a31_historical_invalidation_receipt",
+  "phase": "9G-A.3.2",
+  "generatedAt": "2026-10-10T05:49:25.122Z",
+  "supersededArtifacts": [
+    {
+      "path": "backend/research/reports/phase9g_a31_challenger_qualification_report_2026-10-10.json",
+      "defectsRemediated": [
+        "Robust ByteDance context eligibility contradiction: Mozart K.331 p11 15s was reported as 60/72 eligible for 10s context, but was incorrectly scored over 61 scenarios; now strictly excluded from 10s context planning and scoring (60/72 scenarios)",
+        "Cache validation was non-cryptographic (checked digest field existence, did not recompute float32 LE byte SHA256 or canonical notes digests); now genuinely cryptographic with bitwise verification of all float32 LE tensors and canonical sorted notes digests",
+        "Cross-family paired matrix conflated 72 total scenarios with mutually eligible scenarios (61); now distinct denominators are recorded",
+        "Directional sub-threshold differences (< 1.0%) were not classified with meaningful effect threshold; now classified as DIRECTIONAL_BELOW_MEANINGFUL_EFFECT_THRESHOLD with isCrossFamilyWinner=false",
+        "Missing 5-dimensional qualification separation; now explicit across all 5 dimensions",
+        "D3RM missing reproducible container probe; now verified with python3 -c \"import natten\" exiting with code 1 in container"
+      ],
+      "supersededBy": "backend/research/reports/phase9g_a32_challenger_qualification_report_2026-10-10.json"
+    },
+    {
+      "path": "backend/research/reports/phase9g_a31_final_candidate_registry_2026-10-10.json",
+      "defectsRemediated": [
+        "Missing 5-dimensional qualification breakdown per candidate",
+        "Omitted explicit verification receipt link"
+      ],
+      "supersededBy": "backend/research/reports/phase9g_a32_final_candidate_registry_2026-10-10.json"
+    },
+    {
+      "path": "backend/research/reports/phase9g_a31_context_eligibility_manifest_2026-10-10.json",
+      "defectsRemediated": [
+        "Mozart K.331 p11 15s divergence between pre-inference eligibility and profile scoring"
+      ],
+      "supersededBy": "backend/research/reports/phase9g_a32_context_eligibility_manifest_2026-10-10.json"
+    },
+    {
+      "path": "backend/research/reports/phase9g_a31_diagnostic_pairwise_matrix_2026-10-10.json",
+      "defectsRemediated": [
+        "Conflated sample denominators and missing meaningful effect threshold classification"
+      ],
+      "supersededBy": "backend/research/reports/phase9g_a32_diagnostic_pairwise_matrix_2026-10-10.json"
+    },
+    {
+      "path": "backend/research/reports/phase9g_a31_score_independence_audit_receipt_2026-10-10.json",
+      "defectsRemediated": [
+        "Missing canonical acoustic observation SHA256 digests"
+      ],
+      "supersededBy": "backend/research/reports/phase9g_a32_score_independence_audit_receipt_2026-10-10.json"
+    },
+    {
+      "path": "backend/research/reports/phase9g_a31_challenger_raw_evidence_manifest_2026-10-10.json",
+      "supersededBy": "backend/research/reports/phase9g_a32_challenger_raw_evidence_manifest_2026-10-10.json"
+    },
+    {
+      "path": "backend/research/reports/phase9g_a31_blind_lock_receipt_2026-10-10.json",
+      "supersededBy": "backend/research/reports/phase9g_a32_blind_lock_receipt_2026-10-10.json"
+    }
+  ]
+}
