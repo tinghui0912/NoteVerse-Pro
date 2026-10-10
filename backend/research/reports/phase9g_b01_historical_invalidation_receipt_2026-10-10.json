@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_b01_historical_invalidation_receipt",
+  "phase": "9G-B.0.1",
+  "generatedAt": "2026-10-10T07:46:21.787Z",
+  "gitHead": "8e3d85c3a4b5ab110bda1ff65be7cb33ae5ea6fb",
+  "dirtyTreeAtExecution": false,
+  "invalidatedArtifact": "phase9g_b0_entry_gate_report",
+  "invalidatedReportPath": "backend/research/reports/phase9g_b0_entry_gate_report_2026-10-10.json",
+  "invalidatedReportSha256": "d9462d6ceb2f494b24d86e78f8943d78aeff37091128557632ab3bb8e7e268da",
+  "invalidationReason": "Phase 9G-B.0 READY_FOR_PHASE_9G_B_BLIND_ENTRY status was premature and unaccepted by independent audit because the pairwise matrix contained synthetic placeholder differences and artificial confidence intervals, candidate registry contained mutated profile/config identifiers, and cache provenance was built in-memory rather than verified from frozen source records.",
+  "identifiedB0Defects": [
+    {
+      "defectId": "B0_DEFECT_1_SYNTHETIC_PAIRWISE_DIAGNOSTICS",
+      "description": "B.0 Check 5 generated synthetic meanDifference=0.0 and identical artificial confidence intervals [-0.008, -0.001] across unrelated candidate pairs instead of reproducing them from authenticated scenario-level differences.",
+      "resolution": "B.0.1 replaces synthetic pairwise generator with exact scenario-level records from A.3.2 bakeoff, preserving authenticated bootstrap CIs and requiring explicit INSUFFICIENT_REPRODUCIBLE_PAIRED_EVIDENCE where source run vectors are absent."
+    },
+    {
+      "defectId": "B0_DEFECT_2_CANDIDATE_IDENTITY_MUTATIONS",
+      "description": "B.0 mutated Robust ByteDance profile ID with an unapproved prefix and recorded divergent configuration SHAs for Transkun, Aria, and RTT.",
+      "resolution": "B.0.1 assembles registry directly from validated frozen A.2.5 and A.3.2 source records, restoring exact profile ID CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05 and exact configuration SHAs."
+    },
+    {
+      "defectId": "B0_DEFECT_3_SELF_AUTHORED_CACHE_TRUST",
+      "description": "B.0 Check 7 created cache provenance statements in memory rather than binding to verified disk evidence.",
+      "resolution": "B.0.1 validates provenance against A.24 raw manifest and A.3.2 raw evidence verification receipt, strictly enforcing that self-computed digests cannot claim MATCHED_TRUSTED_BASELINE."
+    },
+    {
+      "defectId": "B0_DEFECT_4_MISSING_SAFETY_METRICS",
+      "description": "B.0 pairwise matrix included only 2 metrics, silently dropping 6 frozen product safety metrics and timing median/P95.",
+      "resolution": "B.0.1 restores all 8 frozen product safety metrics, explicitly marking unavailable timing vectors as NOT_EVALUATED and non-comparable offline latency as LATENCY_NOT_COMPARABLE."
+    }
+  ],
+  "preservationNote": "Prior B.0 reports are preserved unchanged for historical audit trail. B.0.1 supersedes B.0 readiness status."
+}

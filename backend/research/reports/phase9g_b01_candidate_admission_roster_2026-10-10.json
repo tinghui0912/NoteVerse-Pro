@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_b01_candidate_admission_roster",
+  "phase": "9G-B.0.1",
+  "generatedAt": "2026-10-10T07:46:21.795Z",
+  "gitHead": "8e3d85c3a4b5ab110bda1ff65be7cb33ae5ea6fb",
+  "dirtyTreeAtExecution": false,
+  "roster": [
+    {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "candidateFamily": "bytedance-original",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "lockedForPhase9gB": true,
+      "permittedBlindRole": "FROZEN_INCUMBENT_EVALUATION",
+      "productionSelectionEligible": true
+    },
+    {
+      "candidateId": "online-amt-calibrated-v1",
+      "candidateFamily": "online-amt",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "lockedForPhase9gB": true,
+      "permittedBlindRole": "FROZEN_INCUMBENT_EVALUATION",
+      "productionSelectionEligible": true
+    },
+    {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "candidateFamily": "bytedance-robust-augmented",
+      "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "configurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce",
+      "qualificationStatus": "CALIBRATED_AND_LOCKED_FOR_RESEARCH",
+      "lockedForPhase9gB": true,
+      "permittedBlindRole": "QUALIFIED_CHALLENGER_EVALUATION",
+      "productionSelectionEligible": true
+    },
+    {
+      "candidateId": "transkun-v2-aug-calibrated-v1",
+      "candidateFamily": "transkun",
+      "profileId": "UPSTREAM_NATIVE_V2_AUG",
+      "configurationSha256": "4d5d16200215e252d373b8300aafa890e0e2bb0247240b6e0d26fbb5d68fc277",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "productionSelectionEligible": false
+    },
+    {
+      "candidateId": "aria-amt-medium-double-v1",
+      "candidateFamily": "aria-amt",
+      "profileId": "UPSTREAM_NATIVE_PIANO_MEDIUM_DOUBLE",
+      "configurationSha256": "d8e55dd4c19e70006650da031996c113961583c2f43b1305b77b002264fb2555",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "productionSelectionEligible": false
+    },
+    {
+      "candidateId": "rtt-causal-streaming-v1",
+      "candidateFamily": "rtt",
+      "profileId": "OFFLINE_SEGMENTWISE_NATIVE",
+      "configurationSha256": "473dde00da90daa857ebc95aaf871d3efb16f4948f0eda5591a546e337e4fb54",
+      "qualificationStatus": "RESEARCH_REFERENCE_ONLY",
+      "lockedForPhase9gB": false,
+      "permittedBlindRole": "SEPARATELY_LABELED_NON_RANKING_RESEARCH_REFERENCE_ONLY",
+      "productionSelectionEligible": false
+    },
+    {
+      "candidateId": "d3rm-offline-ceiling-reference",
+      "candidateFamily": "d3rm",
+      "profileId": "UPSTREAM_CEILING_REFERENCE",
+      "configurationSha256": "BLOCKED",
+      "qualificationStatus": "EXECUTION_BLOCKED",
+      "lockedForPhase9gB": false,
+      "permittedBlindRole": "NOT_PERMITTED",
+      "productionSelectionEligible": false
+    }
+  ]
+}

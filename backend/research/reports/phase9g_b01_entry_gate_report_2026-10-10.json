@@ -1,0 +1,260 @@
+{
+  "schemaVersion": 2,
+  "artifact": "phase9g_b01_entry_gate_report",
+  "phase": "9G-B.0.1",
+  "generatedAt": "2026-10-10T07:46:21.843Z",
+  "gitHead": "8e3d85c3a4b5ab110bda1ff65be7cb33ae5ea6fb",
+  "dirtyTreeAtExecution": false,
+  "overallStatus": "PASS",
+  "preflightGateOutcome": "READY_FOR_PHASE_9GB_PROTOCOL_AND_EXPLICIT_INFERENCE_AUTHORIZATION",
+  "supersededGateReport": {
+    "path": "backend/research/reports/phase9g_b0_entry_gate_report_2026-10-10.json",
+    "supersededOutcome": "READY_FOR_PHASE_9G_B_BLIND_ENTRY",
+    "supersessionReason": "Invalidated due to synthetic pairwise statistics, profile/config SHA mutations, and cache trust gaps; superseded by Phase 9G-B.0.1."
+  },
+  "checks": [
+    {
+      "checkId": "CHECK_1_SOURCE_POLICY_AND_MANIFEST_IDENTITIES",
+      "status": "PASS",
+      "details": {
+        "v5PolicySha": "5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6",
+        "v1PolicySha": "0ccd4872d6998b67d794baf96cad22c5ccbba3f8ee65a9ac02ba1ad9790ec71b",
+        "v2PolicySha": "b467e9aad917808f307346482477d1d4a4716aed665bd2662e87445231d12f8c",
+        "a25RegistrySha": "935fc1df28652b0927bc788e43e4ff89a2b9f76c2d0b5c7f58e307c5570d2439",
+        "a1CalibrationManifestSha": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e",
+        "blindManifestSha": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+        "calibrationScenarioCount": 72,
+        "blindScenarioCount": 70,
+        "performerIsolationVerified": true
+      }
+    },
+    {
+      "checkId": "CHECK_2_COMPLETE_EXACT_CANDIDATE_REGISTRY_IDENTITIES",
+      "status": "PASS",
+      "details": {
+        "totalCandidates": 7,
+        "frozenIncumbentsCount": 2,
+        "qualifiedChallengersCount": 1,
+        "researchReferenceCount": 3,
+        "blockedCandidatesCount": 1,
+        "candidates": [
+          {
+            "id": "bytedance-original-calibrated-v1",
+            "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+            "configSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+            "category": "FROZEN_INCUMBENT",
+            "lockedForPhase9gB": true
+          },
+          {
+            "id": "online-amt-calibrated-v1",
+            "profileId": "online-amt-calibration-native-boost-1",
+            "configSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+            "category": "FROZEN_INCUMBENT",
+            "lockedForPhase9gB": true
+          },
+          {
+            "id": "bytedance-robust-augmented-calibrated-v1",
+            "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+            "configSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce",
+            "category": "QUALIFIED_CHALLENGER",
+            "lockedForPhase9gB": true
+          },
+          {
+            "id": "transkun-v2-aug-calibrated-v1",
+            "profileId": "UPSTREAM_NATIVE_V2_AUG",
+            "configSha256": "4d5d16200215e252d373b8300aafa890e0e2bb0247240b6e0d26fbb5d68fc277",
+            "category": "RESEARCH_REFERENCE_ONLY",
+            "lockedForPhase9gB": false
+          },
+          {
+            "id": "aria-amt-medium-double-v1",
+            "profileId": "UPSTREAM_NATIVE_PIANO_MEDIUM_DOUBLE",
+            "configSha256": "d8e55dd4c19e70006650da031996c113961583c2f43b1305b77b002264fb2555",
+            "category": "RESEARCH_REFERENCE_ONLY",
+            "lockedForPhase9gB": false
+          },
+          {
+            "id": "rtt-causal-streaming-v1",
+            "profileId": "OFFLINE_SEGMENTWISE_NATIVE",
+            "configSha256": "473dde00da90daa857ebc95aaf871d3efb16f4948f0eda5591a546e337e4fb54",
+            "category": "RESEARCH_REFERENCE_ONLY",
+            "lockedForPhase9gB": false
+          },
+          {
+            "id": "d3rm-offline-ceiling-reference",
+            "profileId": "UPSTREAM_CEILING_REFERENCE",
+            "configSha256": "BLOCKED",
+            "category": "EXECUTION_BLOCKED",
+            "lockedForPhase9gB": false
+          }
+        ]
+      }
+    },
+    {
+      "checkId": "CHECK_3_IMMUTABLE_INCUMBENT_PROFILE_CONFIGURATIONS",
+      "status": "PASS",
+      "details": {
+        "byteDanceOriginal": {
+          "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+          "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+          "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141"
+        },
+        "onlineAmt": {
+          "profileId": "online-amt-calibration-native-boost-1",
+          "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+          "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0"
+        }
+      }
+    },
+    {
+      "checkId": "CHECK_4_INCUMBENT_METRICS_MAPPED_TO_CORRECT_FROZEN_PROFILES",
+      "status": "PASS",
+      "details": {
+        "byteDanceOriginal": {
+          "sourceReport": "backend/research/reports/phase9g_a23_bytedance_online_amt_incumbent_completion_2026-10-09.json",
+          "recall": "1487/1509 (98.54%)",
+          "verdict": "1519/1567 (96.94%)"
+        },
+        "onlineAmt": {
+          "sourceReport": "backend/research/reports/phase9g_a24_bytedance_online_amt_incumbent_completion_2026-10-09.json",
+          "recall": "1655/1800 (91.94%)",
+          "verdict": "1720/1870 (91.98%)"
+        }
+      }
+    },
+    {
+      "checkId": "CHECK_5_CORRECTED_DIAGNOSTIC_PAIRED_DENOMINATORS",
+      "status": "PASS",
+      "details": {
+        "totalComparisons": 30,
+        "measuredComparisons": 12,
+        "insufficientEvidenceComparisons": 18,
+        "robustByteDanceEligibleCount": 61,
+        "wholeRecordingEligibleCount": 72,
+        "exactIntersectionVerifiedAcrossAllComparisons": true
+      }
+    },
+    {
+      "checkId": "CHECK_6_REQUIRED_MEASURED_COMPARISON_CLASSIFICATION_FIELDS",
+      "status": "PASS",
+      "details": {
+        "priorityMetricsEvaluated": 8,
+        "allMeasuredComparisonsHaveClassificationFields": true,
+        "allBootstrapCisPlausible": true,
+        "allPairwiseReversalsInverted": true,
+        "noCrossFamilyWinnerAsserted": true
+      }
+    },
+    {
+      "checkId": "CHECK_7_CACHE_EVIDENCE_STATUS_AND_PROVENANCE_CLASSIFICATION",
+      "status": "PASS",
+      "details": {
+        "bytedanceOriginal": {
+          "candidateFamily": "bytedance-original",
+          "provenanceStatus": "MATCHED_TRUSTED_BASELINE",
+          "hasIndependentBaseline": true,
+          "baselineManifestPath": "backend/research/reports/phase9g_a24_bytedance_raw_evidence_manifest_2026-10-09.json",
+          "baselineManifestSha256": "8743b2069553eacd83e81ca956991f3f0c4ffa5ffdadd413bd62996aedc05554",
+          "details": "All 300 raw windows match the frozen A.2.4 raw evidence manifest baseline."
+        },
+        "bytedanceRobustAugmented": {
+          "candidateFamily": "bytedance-robust-augmented",
+          "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+          "hasIndependentBaseline": true,
+          "verificationReceiptPath": "backend/research/reports/phase9g_a32_raw_evidence_verification_receipt_2026-10-10.json",
+          "verificationReceiptSha256": "7ee516803628e626cd9aed1701772c8482221520a453a4db2c5667074d0d747f",
+          "totalWindowsVerified": 299,
+          "float32LeShaRecomputedAndMatched": 299,
+          "details": "All 299 float32 little-endian onset/frame tensor byte hashes recomputed and verified; inputPcmSha256 verified against source WAV."
+        },
+        "transkun": {
+          "candidateFamily": "transkun",
+          "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+          "hasIndependentBaseline": false,
+          "verificationReceiptPath": "backend/research/reports/phase9g_a32_raw_evidence_verification_receipt_2026-10-10.json",
+          "verificationReceiptSha256": "7ee516803628e626cd9aed1701772c8482221520a453a4db2c5667074d0d747f",
+          "audioFilesVerified": 24,
+          "notesDigestsVerified": 24,
+          "details": "24 transcription files verified against actual source WAV files on disk with canonical notes digests recomputed. No pre-A.3 baseline exists."
+        },
+        "ariaAmt": {
+          "candidateFamily": "aria-amt",
+          "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+          "hasIndependentBaseline": false,
+          "verificationReceiptPath": "backend/research/reports/phase9g_a32_raw_evidence_verification_receipt_2026-10-10.json",
+          "verificationReceiptSha256": "7ee516803628e626cd9aed1701772c8482221520a453a4db2c5667074d0d747f",
+          "audioFilesVerified": 24,
+          "notesDigestsVerified": 24,
+          "details": "24 transcription files verified against actual source WAV files on disk with canonical notes digests recomputed. No pre-A.3 baseline exists."
+        },
+        "rtt": {
+          "candidateFamily": "rtt",
+          "provenanceStatus": "CONTENT_DIGEST_RECOMPUTED",
+          "hasIndependentBaseline": false,
+          "verificationReceiptPath": "backend/research/reports/phase9g_a32_raw_evidence_verification_receipt_2026-10-10.json",
+          "verificationReceiptSha256": "7ee516803628e626cd9aed1701772c8482221520a453a4db2c5667074d0d747f",
+          "audioFilesVerified": 24,
+          "notesDigestsVerified": 24,
+          "details": "24 transcription files verified against actual source WAV files on disk with canonical notes digests recomputed. No pre-A.3 baseline exists."
+        }
+      }
+    },
+    {
+      "checkId": "CHECK_8_SCORE_INDEPENDENCE_RECEIPT_MEANING",
+      "status": "PASS",
+      "details": {
+        "equivalenceLevel": "CANONICAL_ACOUSTIC_OBSERVATION_DIGEST_MATCH",
+        "identicalSourcePcm": true,
+        "identicalCanonicalObservations": true,
+        "independentRepeatedInferenceExecuted": false,
+        "verifiedScenarioPairs": {
+          "bytedanceRobustAugmented": 40,
+          "transkun": 48,
+          "ariaAmt": 48,
+          "rtt": 48
+        }
+      }
+    },
+    {
+      "checkId": "CHECK_9_LOCK_CONSISTENCY_AND_PERMITTED_BLIND_ROLE",
+      "status": "PASS",
+      "details": {
+        "lockedCandidatesCount": 3,
+        "lockedCandidates": [
+          "bytedance-original-calibrated-v1",
+          "online-amt-calibrated-v1",
+          "bytedance-robust-augmented-calibrated-v1"
+        ],
+        "nonRankingReferenceCount": 3,
+        "blockedCandidateCount": 1
+      }
+    },
+    {
+      "checkId": "CHECK_10_ABSENCE_OF_A_PRODUCTION_WINNER",
+      "status": "PASS",
+      "details": {
+        "productionWinnerSelected": false,
+        "productionMicrophoneActivated": false,
+        "diagnosticOnlyRole": "CALIBRATION_CROSS_FAMILY_DIAGNOSTIC_ONLY"
+      }
+    },
+    {
+      "checkId": "CHECK_11_BLIND_EVALUATION_NOT_YET_EXECUTED",
+      "status": "PASS",
+      "details": {
+        "blindCandidateRunCount": 0,
+        "blindPerformersIsolated": [
+          "p15",
+          "p16",
+          "p17",
+          "p18",
+          "p19",
+          "p20",
+          "p21",
+          "p22"
+        ],
+        "blindInferenceBlockedInPreflight": true
+      }
+    }
+  ]
+}

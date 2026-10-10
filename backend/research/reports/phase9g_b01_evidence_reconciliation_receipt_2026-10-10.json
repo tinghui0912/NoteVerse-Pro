@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 2,
+  "artifact": "phase9g_b01_evidence_reconciliation_receipt",
+  "phase": "9G-B.0.1",
+  "generatedAt": "2026-10-10T07:46:21.794Z",
+  "gitHead": "8e3d85c3a4b5ab110bda1ff65be7cb33ae5ea6fb",
+  "dirtyTreeAtExecution": false,
+  "reconciledDefects": [
+    {
+      "defectId": "DEFECT_1_IMMUTABLE_V5_POLICY_SHA",
+      "status": "RESOLVED",
+      "frozenSha256": "5dc9b2cf5f77a3f9276034bb8800b139ee2a03e837f2da32aac969e64b794eb6",
+      "resolvedIn": "Verified actual disk file hash equals V2 frozenIncumbentPolicy.sha256 (5dc9b2cf...)."
+    },
+    {
+      "defectId": "DEFECT_2_JS_TO_TS_COMPARISON_INTEGRATION",
+      "status": "RESOLVED",
+      "resolvedIn": "Unified calling convention with structured MetricPairwiseClassificationResult and verified classification/significance fields."
+    },
+    {
+      "defectId": "DEFECT_3_PAIRED_SCENARIO_DENOMINATORS",
+      "status": "RESOLVED",
+      "resolvedIn": "Derived eligibility from pre-inference manifest (Robust ByteDance: 61, whole-recording: 72); mutual intersection is exact set of 61 scenario IDs."
+    },
+    {
+      "defectId": "DEFECT_4_INCUMBENT_METRIC_PROVENANCE_MISMATCHES",
+      "status": "RESOLVED",
+      "resolvedIn": "Direct historical extraction: ByteDance Original from A.2.3 report (1487/1509 recall, 1519/1567 verdict); Online-AMT from A.2.4 report (1655/1800 recall, 1720/1870 verdict)."
+    },
+    {
+      "defectId": "DEFECT_5_RAW_CACHE_TRUST_GAP",
+      "status": "RESOLVED",
+      "resolvedIn": "Validated against A.24 raw manifest and A.3.2 raw evidence verification receipt; self-digest tautology rejected."
+    },
+    {
+      "defectId": "DEFECT_6_SCORE_INDEPENDENCE_CLAIM",
+      "status": "RESOLVED",
+      "resolvedIn": "Validated against A.3.2 score independence receipt (40/48 verified pairs); narrow equivalence claim CANONICAL_ACOUSTIC_OBSERVATION_DIGEST_MATCH maintained."
+    },
+    {
+      "defectId": "DEFECT_7_PRE_BLIND_CANDIDATE_ADMISSION",
+      "status": "RESOLVED",
+      "resolvedIn": "Exact profile and config SHAs restored from A.2.5 and A.3.2; 3 locked ranked candidates, 3 non-ranking research references, 1 blocked candidate."
+    }
+  ]
+}

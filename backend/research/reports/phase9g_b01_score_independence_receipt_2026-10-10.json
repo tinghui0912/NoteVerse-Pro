@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "artifact": "phase9g_b01_score_independence_receipt",
+  "phase": "9G-B.0.1",
+  "generatedAt": "2026-10-10T07:46:21.800Z",
+  "gitHead": "8e3d85c3a4b5ab110bda1ff65be7cb33ae5ea6fb",
+  "dirtyTreeAtExecution": false,
+  "sourceAuditReceiptPath": "backend/research/reports/phase9g_a32_score_independence_audit_receipt_2026-10-10.json",
+  "sourceAuditReceiptSha256": "8507b12919b3bbe1057c2685782e6db401e5ef52c5cd84c49dbcdec7e34f7ea9",
+  "equivalenceLevel": "CANONICAL_ACOUSTIC_OBSERVATION_DIGEST_MATCH",
+  "identicalSourcePcm": true,
+  "identicalModelConfiguration": true,
+  "identicalReusedRawAcousticOutput": true,
+  "identicalCanonicalObservations": true,
+  "independentRepeatedInferenceExecuted": false,
+  "verifiedScenarioPairsByCandidate": {
+    "bytedanceRobustAugmented": 40,
+    "transkun": 48,
+    "ariaAmt": 48,
+    "rtt": 48
+  },
+  "offScoreNotesPreserved": true,
+  "truthIndependenceVerified": true
+}
