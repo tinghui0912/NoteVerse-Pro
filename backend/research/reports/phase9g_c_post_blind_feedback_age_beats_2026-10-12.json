@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_c_post_blind_feedback_age_beats",
+  "phase": "9G-C",
+  "sourceResultPath": "backend/research/reports/phase9g_b3_official_product_blind_replacement_result_2026-10-11.json",
+  "sourceResultSha256": "8dba0ef149dcf6f5c995f8ab4e07df85a41b48b81bd2323d8dc39e1b67e8c706",
+  "correction": "The sealed official result is not modified. This derived report uses fixed BPM from the verified Stage A truth-free projection because the original Stage B beat helper looked for BPM in the wrong truth-object location.",
+  "candidates": {
+    "bytedance-original-calibrated-v1": {
+      "source": "SEALED_CANDIDATE_SCENARIO_RUN_SCORECANDIDATE_FINALIZED_FEEDBACK_SAMPLES_AND_STAGE_A_PROJECTION_BPM",
+      "sampleCount": 1748,
+      "officialFinalizedFeedbackAgeP50Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 3229.5127019999336
+      },
+      "officialFinalizedFeedbackAgeP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 4266.760172999866
+      },
+      "derivedFeedbackAgeP50Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 3229.5127019999336
+      },
+      "derivedFeedbackAgeP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 4266.760172999866
+      },
+      "derivedFeedbackAgeP50Beats": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 7.5381943275670835
+      },
+      "derivedFeedbackAgeP95Beats": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 10.833761060983564
+      }
+    },
+    "online-amt-calibrated-v1": {
+      "source": "SEALED_CANDIDATE_SCENARIO_RUN_SCORECANDIDATE_FINALIZED_FEEDBACK_SAMPLES_AND_STAGE_A_PROJECTION_BPM",
+      "sampleCount": 1880,
+      "officialFinalizedFeedbackAgeP50Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1880,
+        "value": 454.4700780000194
+      },
+      "officialFinalizedFeedbackAgeP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1880,
+        "value": 935.1837399999722
+      },
+      "derivedFeedbackAgeP50Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1880,
+        "value": 454.4700780000194
+      },
+      "derivedFeedbackAgeP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1880,
+        "value": 935.1837399999722
+      },
+      "derivedFeedbackAgeP50Beats": {
+        "status": "MEASURED",
+        "sampleCount": 1880,
+        "value": 1.0560216267002325
+      },
+      "derivedFeedbackAgeP95Beats": {
+        "status": "MEASURED",
+        "sampleCount": 1880,
+        "value": 2.2852407750666917
+      }
+    },
+    "bytedance-robust-augmented-calibrated-v1": {
+      "source": "SEALED_CANDIDATE_SCENARIO_RUN_SCORECANDIDATE_FINALIZED_FEEDBACK_SAMPLES_AND_STAGE_A_PROJECTION_BPM",
+      "sampleCount": 1748,
+      "officialFinalizedFeedbackAgeP50Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 941.7090404442679
+      },
+      "officialFinalizedFeedbackAgeP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 1463.3843599998545
+      },
+      "derivedFeedbackAgeP50Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 941.7090404442679
+      },
+      "derivedFeedbackAgeP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 1463.3843599998545
+      },
+      "derivedFeedbackAgeP50Beats": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 2.198411945333816
+      },
+      "derivedFeedbackAgeP95Beats": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 3.6577170484167847
+      }
+    }
+  },
+  "acousticInferenceExecuted": false,
+  "p15p22CandidateInferenceExecuted": false,
+  "createdAt": "2026-10-11T17:01:14.607Z"
+}
