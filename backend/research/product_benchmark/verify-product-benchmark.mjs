@@ -44,6 +44,12 @@ import {
   getCandidateDefinition,
   chooseThreeCandidateWinner,
 } from './score-and-compare.mjs';
+import {
+  evidenceFileName,
+  evidenceFilePath,
+  scenarioFileKey,
+  prevalidateEvidencePaths,
+} from './evidence-paths.mjs';
 
 const repoRoot = process.cwd();
 const require = createRequire(import.meta.url);
@@ -914,7 +920,7 @@ async function runAllChecks() {
     const evidenceDir = path.resolve(realRunDir, 'evidence');
     const evidence = [];
     for (const candidateId of ACTIVE_CANDIDATE_IDS) {
-      const canonicalPath = path.resolve(evidenceDir, `${candidateId}__${scenario.scenarioId}.json`);
+      const canonicalPath = evidenceFilePath(evidenceDir, candidateId, scenario.scenarioId);
       if (existsSync(canonicalPath)) {
         evidence.push(JSON.parse(await readFile(canonicalPath, 'utf8')));
       }
@@ -1082,7 +1088,7 @@ async function runAllChecks() {
       && projection.candidateEligibilityCounts['online-amt-calibrated-v1'] === 70
       && projection.candidateEligibilityCounts['bytedance-robust-augmented-calibrated-v1'] === 63;
     const missingEligible = projection.scenarios.find((scenario) => scenario.candidateEligibility['online-amt-calibrated-v1']);
-    await rm(path.resolve(dryDir, 'evidence', `online-amt-calibrated-v1__${missingEligible.scenarioId}.json`), { force: true });
+    await rm(evidenceFilePath(path.resolve(dryDir, 'evidence'), 'online-amt-calibrated-v1', missingEligible.scenarioId), { force: true });
     const incomplete = await scoreAndCompareBenchmark({ runDir: dryDir, truthScenariosPath: dryTruthPath });
     record(31, 'Stage A/Stage B exact 63/70/63 eligibility binding expects 196 runs and 14 NOT_ELIGIBLE cells', pass && incomplete.evaluationStatus === 'EVALUATION_INCOMPLETE_NO_WINNER', `runs=${expectedRuns}, notEligible=${notEligible}`);
   } catch (err) {
@@ -1145,6 +1151,87 @@ async function runAllChecks() {
     record(33, 'Three-candidate no-winner precedence is deterministic and pair-order invariant', pass);
   } catch (err) {
     record(33, 'Three-candidate no-winner precedence is deterministic and pair-order invariant', false, err.message);
+  }
+
+  // 34. Evidence file keys are cross-platform safe while preserving raw scenarioId in records
+  try {
+    const pathDir = path.resolve(testWorkDir, 'evidence_path_regression');
+    await rm(pathDir, { recursive: true, force: true });
+    const bugScenarioId = 'vienna-secondary-base:Chopin_op38_p15:17.000';
+    const forbiddenScenarioIds = [
+      bugScenarioId,
+      'contains/slash',
+      'contains\\backslash',
+      'contains?question',
+      'contains*star',
+      'contains|pipe',
+      'contains<lt',
+      'contains>gt',
+      'contains"quote',
+    ];
+    const fileNames = forbiddenScenarioIds.map((scenarioId) => evidenceFileName('bytedance-original-calibrated-v1', scenarioId));
+    const forbiddenPattern = /[<>:"/\\|?*\x00-\x1F]/;
+    const safeNames = fileNames.every((fileName) => !forbiddenPattern.test(fileName) && !fileName.includes(bugScenarioId));
+    const deterministic = evidenceFileName('bytedance-original-calibrated-v1', bugScenarioId)
+      === evidenceFileName('bytedance-original-calibrated-v1', bugScenarioId);
+    const scenario = {
+      schemaVersion: 1,
+      scenarioId: bugScenarioId,
+      performerId: 'p01',
+      pieceId: 'path-regression',
+      fixedBpm: 120,
+      source: { sourceAudioPath: path.relative(repoRoot, wavPath).replace(/\\/g, '/'), sourceAudioSha256: createHash('sha256').update(wavBuffer).digest('hex') },
+      audio: {
+        sourceAudioPath: path.relative(repoRoot, wavPath).replace(/\\/g, '/'),
+        sourceAudioSha256: createHash('sha256').update(wavBuffer).digest('hex'),
+        nativeSampleRateHz: 16000,
+        channelPolicy: 'MONO',
+        clipStartMs: 0,
+        clipEndMs: 6000,
+        sourceDurationMs: 6000,
+        performanceOriginSourceMs: 5000,
+      },
+      completion: { performanceTimeMs: 1000 },
+      candidateEligibility: {
+        'bytedance-original-calibrated-v1': true,
+        'online-amt-calibrated-v1': false,
+        'bytedance-robust-augmented-calibrated-v1': false,
+      },
+    };
+    await runAcousticInference({
+      manifestObject: { scenarios: [scenario] },
+      runDir: pathDir,
+      executionMode: 'SYNTHETIC',
+      candidateIds: ['bytedance-original-calibrated-v1'],
+    });
+    const evidencePathForBug = evidenceFilePath(path.resolve(pathDir, 'evidence'), 'bytedance-original-calibrated-v1', bugScenarioId);
+    const recordData = JSON.parse(await readFile(evidencePathForBug, 'utf8'));
+    const truthPath = path.resolve(pathDir, 'truth.json');
+    await writeFile(truthPath, JSON.stringify({ scenarios: [{
+      ...createTestScenario({ scenarioId: bugScenarioId, expectedStrikes: [{ pitch: 'C4', expectedPerformanceTimeMs: 500 }] }),
+      source: scenario.source,
+      audio: scenario.audio,
+      completion: scenario.completion,
+    }] }, null, 2), 'utf8');
+    const analysis = await scoreAndCompareBenchmark({
+      runDir: pathDir,
+      truthScenariosPath: truthPath,
+      candidateIds: ['bytedance-original-calibrated-v1'],
+    });
+    const preflight = await prevalidateEvidencePaths({
+      evidenceDir: path.resolve(pathDir, 'evidence'),
+      scenarios: [scenario],
+      candidateIds: ['bytedance-original-calibrated-v1'],
+    });
+    const pass = safeNames
+      && deterministic
+      && recordData.scenarioId === bugScenarioId
+      && recordData.scenarioFileKey === scenarioFileKey(bugScenarioId)
+      && preflight.eligibleEvidencePathCount === 1
+      && analysis.evaluationStatus === 'EVALUATION_COMPLETED';
+    record(34, 'Cross-platform evidence path key preserves raw scenarioId and fixes Attempt 1 colon filename bug', pass);
+  } catch (err) {
+    record(34, 'Cross-platform evidence path key preserves raw scenarioId and fixes Attempt 1 colon filename bug', false, err.message);
   }
 
   // Summary

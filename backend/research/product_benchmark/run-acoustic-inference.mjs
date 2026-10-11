@@ -11,7 +11,7 @@
  *   run.json
  *   coverage.json
  *   evidence/
- *     <candidateId>__<scenarioId>.json
+ *     <candidateId>__<sha256(scenarioId)>.json
  */
 
 import { createHash } from 'node:crypto';
@@ -26,6 +26,14 @@ import {
   createCandidateAdapter,
   assertTruthIsolation,
 } from './candidate-adapters.mjs';
+import {
+  assertEvidenceRecordPathBinding,
+  evidenceFilePath,
+  evidenceStorageKey,
+  nonCanonicalEvidenceFileName,
+  prevalidateEvidencePaths,
+  scenarioFileKey,
+} from './evidence-paths.mjs';
 
 const repoRoot = process.cwd();
 
@@ -264,6 +272,7 @@ export async function runAcousticInference({
   await mkdir(evidenceDir, { recursive: true });
 
   const scenarios = manifest.scenarios ?? [];
+  const evidencePathPreflight = await prevalidateEvidencePaths({ evidenceDir, scenarios, candidateIds });
   const coverage = {
     schemaVersion: 1,
     artifact: 'product_benchmark_coverage',
@@ -277,6 +286,10 @@ export async function runAcousticInference({
       failedRuns: 0,
       notEligibleRuns: 0,
       notRunCount: 0,
+    },
+    evidencePathPreflight: {
+      eligibleEvidencePathCount: evidencePathPreflight.eligibleEvidencePathCount,
+      pathFormat: '<candidateId>__<sha256_utf8_scenarioId>.json',
     },
   };
 
@@ -295,8 +308,9 @@ export async function runAcousticInference({
     for (const scenario of scenarios) {
       coverage.summary.totalExpectedRuns += 1;
       const scenarioId = scenario.scenarioId;
-      const evidenceFileName = `${candidateId}__${scenarioId}.json`;
-      let evidenceFilePath = path.resolve(evidenceDir, evidenceFileName);
+      const scenarioKey = scenarioFileKey(scenarioId);
+      const canonicalEvidenceFilePath = evidenceFilePath(evidenceDir, candidateId, scenarioId);
+      let writePath = canonicalEvidenceFilePath;
 
       // Check candidate eligibility
       if (scenario.candidateEligibility && scenario.candidateEligibility[candidateId] === false) {
@@ -323,18 +337,19 @@ export async function runAcousticInference({
       }
 
       // Write-once store invariant: Never overwrite an existing successful evidence file
-      if (existsSync(evidenceFilePath)) {
-        const existing = JSON.parse(await readFile(evidenceFilePath, 'utf8'));
+      if (existsSync(canonicalEvidenceFilePath)) {
+        const existing = JSON.parse(await readFile(canonicalEvidenceFilePath, 'utf8'));
+        assertEvidenceRecordPathBinding({ filePath: canonicalEvidenceFilePath, record: existing, candidateId, scenarioId });
         if (existing.status === 'SUCCESS') {
           coverage.candidates[candidateId].successfulScenarios.push(scenarioId);
           coverage.summary.successfulRuns += 1;
-          evidenceHashes[`${candidateId}__${scenarioId}`] = existing.evidenceSha256;
+          evidenceHashes[evidenceStorageKey(candidateId, scenarioId)] = existing.evidenceSha256;
           continue;
         }
         if (executionMode === 'REAL_BLIND') {
           throw new Error(`REAL_BLIND_CANONICAL_EVIDENCE_SLOT_ALREADY_USED:${candidateId}:${scenarioId}`);
         }
-        evidenceFilePath = path.resolve(evidenceDir, `${candidateId}__${scenarioId}__attempt-${Date.now()}.json`);
+        writePath = path.resolve(evidenceDir, nonCanonicalEvidenceFileName(candidateId, scenarioId, 'attempt', Date.now()));
       }
 
       // Execute inference via adapter
@@ -352,6 +367,7 @@ export async function runAcousticInference({
           schemaVersion: 1,
           candidateId,
           scenarioId,
+          scenarioFileKey: scenarioKey,
           profileId: CANDIDATE_CONFIGS[candidateId].profileId,
           configurationSha256: CANDIDATE_CONFIGS[candidateId].identity.configurationSha256,
           checkpointSha256: CANDIDATE_CONFIGS[candidateId].checkpoint.sha256,
@@ -366,11 +382,14 @@ export async function runAcousticInference({
         };
 
         // Write evidence write-once
-        await writeExclusiveJson(evidenceFilePath, evidenceRecord);
+        await writeExclusiveJson(writePath, evidenceRecord);
+        if (writePath === canonicalEvidenceFilePath) {
+          assertEvidenceRecordPathBinding({ filePath: writePath, record: evidenceRecord, candidateId, scenarioId });
+        }
 
         coverage.candidates[candidateId].successfulScenarios.push(scenarioId);
         coverage.summary.successfulRuns += 1;
-        evidenceHashes[`${candidateId}__${scenarioId}`] = evidenceSha256;
+        evidenceHashes[evidenceStorageKey(candidateId, scenarioId)] = evidenceSha256;
         actualRuntimeDeviceByCandidate[candidateId] ??= extractRuntimeDevice(candidateRun.runProvenance?.runtime);
       } catch (err) {
         coverage.candidates[candidateId].failedScenarios.push({
@@ -380,17 +399,26 @@ export async function runAcousticInference({
         coverage.summary.failedRuns += 1;
 
         const failureRecord = {
+          schemaVersion: 1,
           candidateId,
           scenarioId,
+          scenarioFileKey: scenarioKey,
           status: executionMode === 'REAL_BLIND' ? 'ATTEMPT_OUTCOME_UNKNOWN' : 'FAILED',
           error: err.message,
           executionMode,
           timestamp: new Date().toISOString(),
         };
         const failedPath = executionMode === 'REAL_BLIND'
-          ? evidenceFilePath
-          : path.resolve(evidenceDir, `${candidateId}__${scenarioId}__FAILED__${Date.now()}.json`);
-        await writeExclusiveJson(failedPath, failureRecord);
+          ? canonicalEvidenceFilePath
+          : path.resolve(evidenceDir, nonCanonicalEvidenceFileName(candidateId, scenarioId, 'FAILED', Date.now()));
+        try {
+          await writeExclusiveJson(failedPath, failureRecord);
+          if (failedPath === canonicalEvidenceFilePath) {
+            assertEvidenceRecordPathBinding({ filePath: failedPath, record: failureRecord, candidateId, scenarioId });
+          }
+        } catch (recordErr) {
+          throw new Error(`ATTEMPT_TERMINAL_RECORD_WRITE_FAILED:primary=${err.message};secondary=${recordErr.message}`);
+        }
       }
     }
   }
@@ -430,6 +458,10 @@ export async function runAcousticInference({
     scenarioCount: scenarios.length,
     completedAt: new Date().toISOString(),
     evidenceHashes,
+    evidencePathPreflight: {
+      eligibleEvidencePathCount: evidencePathPreflight.eligibleEvidencePathCount,
+      pathFormat: '<candidateId>__<sha256_utf8_scenarioId>.json',
+    },
     coverageSummary: coverage.summary,
   };
   const runPath = path.resolve(runDir, 'run.json');

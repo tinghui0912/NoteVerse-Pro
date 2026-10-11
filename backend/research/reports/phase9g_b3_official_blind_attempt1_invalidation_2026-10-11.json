@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_b3_official_blind_attempt1_invalidation",
+  "phase": "9G-B.3",
+  "status": "INVALIDATED_INFRASTRUCTURE_ABORT_NO_SCIENTIFIC_RESULT",
+  "abortedExecutionGitHead": "6b26c366bc7f7e37d7e9b105f757a936ad61c1e8",
+  "resultRecordCommit": "7ef32516009c2e1ac848f91b9ccd01453bcb85be",
+  "attempt1ResultArtifact": "backend/research/reports/phase9g_b3_official_product_blind_result_2026-10-11.json",
+  "attempt1ExecutionReceipt": "backend/research/reports/phase9g_b3_official_product_blind_execution_receipt_2026-10-11.json",
+  "firstScenarioId": "vienna-secondary-base:Chopin_op38_p15:17.000",
+  "reason": "FILESYSTEM_INCOMPATIBLE_EVIDENCE_FILENAME_RAW_SCENARIO_ID_CONTAINED_COLON",
+  "sealedEvidenceCount": 0,
+  "stageBExecuted": false,
+  "blindMetricsInspected": false,
+  "modelScorerCalibrationChangesResultingFromAttempt1": "NONE",
+  "replacementAuthorizationScope": "ONE_FRESH_REPLACEMENT_OFFICIAL_PHASE_9G_B_BLIND_BENCHMARK_AFTER_PATH_REPAIR_AND_PREFLIGHT"
+}

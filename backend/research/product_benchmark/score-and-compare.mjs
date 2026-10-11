@@ -14,6 +14,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ACTIVE_CANDIDATE_IDS, CANDIDATE_CONFIGS } from './candidate-adapters.mjs';
+import {
+  assertEvidenceRecordPathBinding,
+  evidenceFilePath,
+} from './evidence-paths.mjs';
 import { projectTruthFreeBlindManifest } from './run-acoustic-inference.mjs';
 
 const repoRoot = process.cwd();
@@ -130,13 +134,14 @@ export async function scoreAndCompareBenchmark({
     for (const scenario of scenarios) {
       const candidateEligibility = eligibilityByScenarioId.get(scenario.scenarioId) ?? scenario.candidateEligibility ?? {};
       if (candidateEligibility[candidateId] === false) continue;
-      const evidenceFile = path.resolve(evidenceDir, `${candidateId}__${scenario.scenarioId}.json`);
+      const evidenceFile = evidenceFilePath(evidenceDir, candidateId, scenario.scenarioId);
       if (!existsSync(evidenceFile)) {
         coverageIncomplete = true;
         missingEvidence.push({ candidateId, scenarioId: scenario.scenarioId });
         continue;
       }
       const evidenceRecord = JSON.parse(await readFile(evidenceFile, 'utf8'));
+      assertEvidenceRecordPathBinding({ filePath: evidenceFile, record: evidenceRecord, candidateId, scenarioId: scenario.scenarioId });
       if (evidenceRecord.status !== 'SUCCESS' || !evidenceRecord.candidateRun) {
         coverageIncomplete = true;
         missingEvidence.push({ candidateId, scenarioId: scenario.scenarioId, status: evidenceRecord.status });
