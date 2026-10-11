@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_b3_official_product_blind_result",
+  "phase": "9G-B",
+  "status": "EVALUATION_INCOMPLETE_NO_WINNER",
+  "benchmarkOutcome": "EVALUATION_INCOMPLETE_NO_WINNER",
+  "winner": null,
+  "reason": "OFFICIAL_STAGE_A_ABORTED_AFTER_POSSIBLE_FIRST_BLIND_INFERENCE_BEFORE_WRITE_ONCE_EVIDENCE_SEAL",
+  "startingGitHead": "6b26c366bc7f7e37d7e9b105f757a936ad61c1e8",
+  "workingTreeCleanAtStart": true,
+  "preflightVerifier": {
+    "command": "node backend/research/product_benchmark/verify-product-benchmark.mjs",
+    "status": "PASS",
+    "checksPassed": 33,
+    "checksTotal": 33,
+    "verdict": "PHASE_9GB3_FINAL_PREFLIGHT_READY_FOR_USER_AUTHORIZATION"
+  },
+  "sourceTruthManifest": {
+    "path": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
+    "sha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+    "scenarioCount": 70
+  },
+  "truthFreeProjection": {
+    "path": "backend/data/work/phase9gb_official_truth_free_projection_20261011T135239Z.json",
+    "fileSha256": "87dd7a55adc41dfa44f27a888828c6dd8ea1610af51d8d4d75d8f4b1b34bf18b",
+    "projectionSha256": "871eb414d666fa338887c31fe4ea8c5fd9378f00b4848200ce68aa5aabb6e3b3",
+    "scenarioCount": 70,
+    "candidateRunCountBeforeStageA": 0,
+    "candidateEligibilityCounts": {
+      "bytedance-original-calibrated-v1": 63,
+      "online-amt-calibrated-v1": 70,
+      "bytedance-robust-augmented-calibrated-v1": 63
+    },
+    "allThreeIntersectionCount": 63
+  },
+  "candidateRoster": [
+    {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+      "checkpointSha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+      "expectedEligibleScenarioCount": 63
+    },
+    {
+      "candidateId": "online-amt-calibrated-v1",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "pseudoIntensity": "NATIVE",
+      "onsetBoost": 1.0,
+      "timingCorrectionMs": -162.93750000004252,
+      "expectedEligibleScenarioCount": 70
+    },
+    {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "configurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce",
+      "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+      "device": "CUDA",
+      "expectedEligibleScenarioCount": 63
+    }
+  ],
+  "stageA": {
+    "command": "node backend/research/product_benchmark/run-acoustic-inference.mjs --manifest backend/data/work/phase9gb_official_truth_free_projection_20261011T135239Z.json --run-dir backend/data/work/phase9gb_official_blind_20261011T135239Z --mode REAL_BLIND --i-authorize-real-blind-inference",
+    "runDir": "backend/data/work/phase9gb_official_blind_20261011T135239Z",
+    "executionMode": "REAL_BLIND",
+    "sealedSuccessEvidenceCount": 0,
+    "failedEligibleAttemptCount": 0,
+    "unknownEligibleAttemptCount": 1,
+    "unknownAttempt": {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "scenarioId": "vienna-secondary-base:Chopin_op38_p15:17.000",
+      "classification": "ATTEMPT_OUTCOME_UNKNOWN",
+      "reason": "Evidence write failed on Windows because canonical evidence filename used a raw scenario ID containing colon characters. The failure occurred after the adapter may have completed neural inference, so the one-shot run was not retried."
+    },
+    "coverageComplete": false
+  },
+  "stageB": {
+    "executed": false,
+    "reason": "Stage A did not produce sealed complete write-once evidence. Scoring was not run."
+  },
+  "metrics": null,
+  "pairwiseComparisons": null,
+  "bootstrap": {
+    "seed": 13371,
+    "draws": 5000,
+    "executed": false
+  },
+  "latencyGateStatus": "ABSOLUTE_PRODUCT_LATENCY_GATE_NOT_YET_DEFINED",
+  "nonRankingReferencesNotExecuted": [
+    "Transkun V2 Aug",
+    "Aria-AMT",
+    "RTT"
+  ],
+  "blockedCandidatesNotExecuted": [
+    "D3RM"
+  ],
+  "productionMicrophoneEnabled": false
+}
