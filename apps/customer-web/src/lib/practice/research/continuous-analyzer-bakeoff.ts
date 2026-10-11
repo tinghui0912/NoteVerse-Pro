@@ -178,6 +178,8 @@ export type BakeoffScore = {
     inferenceLatencyP95Ms: MetricNumber;
     publicationDelayP50Ms: MetricNumber;
     publicationDelayP95Ms: MetricNumber;
+    wrongNoteFalseCorrectRate: MetricNumber;
+    wrongNoteDetectionRate: MetricNumber;
   };
   extraDiagnostics: ExtraDiagnostics;
   metricSamples: MetricSamples;
@@ -206,6 +208,8 @@ type AggregateMetricVector = {
   falseCompleteChordAcceptanceRate: MetricNumber;
   extraPrecision: MetricNumber;
   extraRecall: MetricNumber;
+  wrongNoteFalseCorrectRate: MetricNumber;
+  wrongNoteDetectionRate: MetricNumber;
   timingAbsoluteMedianMs: MetricNumber;
   timingAbsoluteP95Ms: MetricNumber;
   finalizedFeedbackAgeP50Ms: MetricNumber;
@@ -975,6 +979,59 @@ function computeMetrics(
   samples.timingAbsoluteErrorsMs = timingAbsoluteErrorsMs;
   const groupMetrics = chordCompleteness(scenario, groundTruth, candidate);
   const extras = extraDiagnostics(groundTruth, candidate);
+
+  const wrongNoteGroupIds = new Set(
+    Object.entries(scenario.taxonomy?.groups ?? {})
+      .filter(([, tags]) => tags.includes('COUNTERFACTUAL_WRONG_SEMITONE'))
+      .map(([groupId]) => groupId)
+  );
+  const isWrongNoteScenario = scenario.familyTags.includes('COUNTERFACTUAL_WRONG_SEMITONE') || wrongNoteGroupIds.size > 0;
+
+  let wrongNoteFalseCorrectRate: MetricNumber;
+  let wrongNoteDetectionRate: MetricNumber;
+
+  if (!isWrongNoteScenario) {
+    wrongNoteFalseCorrectRate = notEvaluated('scenario does not contain wrong-note counterfactual mutations');
+    wrongNoteDetectionRate = notEvaluated('scenario does not contain wrong-note counterfactual mutations');
+  } else {
+    const wrongNoteStrikes = groundTruth.strikes.filter((strike) =>
+      wrongNoteGroupIds.size === 0 || wrongNoteGroupIds.has(strike.expectedGroupId)
+    );
+    const wrongNoteGtMissing = wrongNoteStrikes.filter((strike) => strike.result === 'MISSING');
+
+    if (wrongNoteGtMissing.length === 0) {
+      wrongNoteFalseCorrectRate = notEvaluated('no physically missing wrong-note expected strikes in scenario');
+      wrongNoteDetectionRate = notEvaluated('no physically missing wrong-note expected strikes in scenario');
+    } else {
+      const falseCorrectCount = wrongNoteGtMissing.filter(
+        (strike) => candidateByStrike.get(strike.strikeId)?.result === 'MATCHED'
+      ).length;
+      wrongNoteFalseCorrectRate = ratioMetric(falseCorrectCount, wrongNoteGtMissing.length);
+
+      let detectedCount = 0;
+      for (const strike of wrongNoteGtMissing) {
+        const candStrike = candidateByStrike.get(strike.strikeId);
+        if (candStrike?.result === 'MATCHED') continue;
+        const physicalExtrasNear = groundTruth.extras.filter(
+          (e) => Math.abs(e.performanceTimeMs - strike.expectedPerformanceTimeMs) <= DEFAULT_ASSIGNMENT_WINDOW_MS
+        );
+        if (physicalExtrasNear.length > 0) {
+          const candidatePreserved = candidate.extras.some((ce) =>
+            physicalExtrasNear.some(
+              (pe) => pe.pitch === ce.pitch && Math.abs(pe.performanceTimeMs - ce.performanceTimeMs) <= DEFAULT_ASSIGNMENT_WINDOW_MS
+            )
+          );
+          if (candidatePreserved) {
+            detectedCount += 1;
+          }
+        } else {
+          detectedCount += 1;
+        }
+      }
+      wrongNoteDetectionRate = ratioMetric(detectedCount, wrongNoteGtMissing.length);
+    }
+  }
+
   return {
     expectedStrikeRecall: ratioMetric(candidateTrueMatched.length, gtMatched.length),
     falseMatchRateOnGroundTruthMissing: ratioMetric(falseMatches.length, gtMissing.length),
@@ -992,6 +1049,8 @@ function computeMetrics(
     inferenceLatencyP95Ms: distributionMetric(samples.inferenceLatencyMs, 'p95'),
     publicationDelayP50Ms: distributionMetric(samples.publicationDelayMs, 'median'),
     publicationDelayP95Ms: distributionMetric(samples.publicationDelayMs, 'p95'),
+    wrongNoteFalseCorrectRate,
+    wrongNoteDetectionRate,
   };
 }
 
@@ -1103,6 +1162,8 @@ function aggregateCandidateMetrics(scores: readonly BakeoffScore[]): AggregateMe
   const verdictAgreementRate = pooledRatio(scores, (score) => score.metrics.verdictAgreementRate);
   const chordExactCompletenessRate = pooledRatio(scores, (score) => score.metrics.chordExactCompletenessRate);
   const falseCompleteChordAcceptanceRate = pooledRatio(scores, (score) => score.metrics.falseCompleteChordAcceptanceRate);
+  const wrongNoteFalseCorrectRate = pooledRatio(scores, (score) => score.metrics.wrongNoteFalseCorrectRate);
+  const wrongNoteDetectionRate = pooledRatio(scores, (score) => score.metrics.wrongNoteDetectionRate);
   const extraDiagnostics = scores.reduce<ExtraDiagnostics>((totals, score) => ({
     matchedPhysicalExtras: totals.matchedPhysicalExtras + score.extraDiagnostics.matchedPhysicalExtras,
     missedPhysicalExtras: totals.missedPhysicalExtras + score.extraDiagnostics.missedPhysicalExtras,
@@ -1122,6 +1183,8 @@ function aggregateCandidateMetrics(scores: readonly BakeoffScore[]): AggregateMe
     falseCompleteChordAcceptanceRate,
     extraPrecision: ratioMetric(extraDiagnostics.matchedPhysicalExtras, extraDiagnostics.matchedPhysicalExtras + extraDiagnostics.falseCandidateExtras),
     extraRecall: ratioMetric(extraDiagnostics.matchedPhysicalExtras, extraDiagnostics.matchedPhysicalExtras + extraDiagnostics.missedPhysicalExtras),
+    wrongNoteFalseCorrectRate,
+    wrongNoteDetectionRate,
     timingAbsoluteMedianMs: distributionMetric(scores.flatMap((score) => score.metricSamples.timingAbsoluteErrorsMs), 'median'),
     timingAbsoluteP95Ms: distributionMetric(scores.flatMap((score) => score.metricSamples.timingAbsoluteErrorsMs), 'p95'),
     finalizedFeedbackAgeP50Ms: distributionMetric(scores.flatMap((score) => score.metricSamples.finalizedFeedbackAgesMs), 'median'),
@@ -1229,6 +1292,8 @@ function notEvaluatedMetrics(reason: string): BakeoffScore['metrics'] {
     inferenceLatencyP95Ms: notEvaluated(reason),
     publicationDelayP50Ms: notEvaluated(reason),
     publicationDelayP95Ms: notEvaluated(reason),
+    wrongNoteFalseCorrectRate: notEvaluated(reason),
+    wrongNoteDetectionRate: notEvaluated(reason),
   };
 }
 
@@ -1250,6 +1315,8 @@ function missingDataMetrics(reason: string): BakeoffScore['metrics'] {
     inferenceLatencyP95Ms: missingDataMetric(reason),
     publicationDelayP50Ms: missingDataMetric(reason),
     publicationDelayP95Ms: missingDataMetric(reason),
+    wrongNoteFalseCorrectRate: missingDataMetric(reason),
+    wrongNoteDetectionRate: missingDataMetric(reason),
   };
 }
 

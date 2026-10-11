@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": 1,
+  "artifact": "product_benchmark_config",
+  "phase": "9G-B.3-PREP",
+  "description": "Simplified product-aligned benchmark configuration freezing acoustic candidates, context geometries, thresholds, shared scorer, and bootstrap settings.",
+  "question": "Which frozen acoustic model provides the most reliable and safe feedback for fixed-BPM Continuous Practice across correct notes, missing notes, wrong notes, incomplete chords, and extra notes, while keeping feedback latency acceptable?",
+  "candidates": [
+    {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "family": "bytedance-original",
+      "rank": 1,
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "strategyKind": "CHUNKED",
+      "contextGeometry": {
+        "profileId": "CALIBRATED_CONTEXT_5S",
+        "modelInputMs": 5000,
+        "nominalOwnedRegionMs": 2500,
+        "interiorPastContextMs": 1250,
+        "maximumFutureContextMs": 1250,
+        "noFakeZeroPadding": true
+      },
+      "thresholds": {
+        "onsetThreshold": 0.20,
+        "frameThreshold": 0.10
+      },
+      "checkpoint": {
+        "path": "models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
+        "sha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
+        "bytes": 171966578
+      },
+      "dockerImage": "noteverse-bytedance-calibration:phase9ga21",
+      "dockerScript": "backend/scripts/run_bytedance_pytorch_raw_batch.py",
+      "targetDevice": "cpu",
+      "sampleRateHz": 16000
+    },
+    {
+      "candidateId": "online-amt-calibrated-v1",
+      "family": "online-amt",
+      "rank": 2,
+      "profileId": "online-amt-stateful-streaming-native-boost-2.0",
+      "strategyKind": "STREAMING",
+      "streaming": {
+        "sampleRateHz": 16000,
+        "hopSamples": 512,
+        "hopMs": 32,
+        "timingCorrectionMs": -158,
+        "publishedOnsetBoost": 2.0,
+        "pseudoIntensityShortcut": "NATIVE",
+        "statefulContinuity": true
+      },
+      "checkpoint": {
+        "path": "models/online_amt/stateful/model-180000.pt",
+        "sha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+        "bytes": 178804960
+      },
+      "dockerImage": "noteverse-online-amt-modern:phase9e-b1",
+      "dockerScript": "backend/research/online_amt/run_online_amt_modern_smoke.py",
+      "targetDevice": "cpu",
+      "sampleRateHz": 16000
+    },
+    {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "family": "bytedance-robust-augmented",
+      "rank": 3,
+      "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "strategyKind": "CHUNKED",
+      "contextGeometry": {
+        "profileId": "CALIBRATED_CONTEXT_1820",
+        "modelInputMs": 1820,
+        "nominalOwnedRegionMs": 600,
+        "maximumFutureContextMs": 220,
+        "noFakeZeroPadding": true
+      },
+      "thresholds": {
+        "onsetThreshold": 0.30,
+        "frameThreshold": 0.05
+      },
+      "checkpoint": {
+        "path": "models/bytedance_piano_transcription/high_resolution_MAESTRO_augmentations.pth",
+        "sha256": "08400494cf071fe0e9649b1fa9f1f0a2ca3e77f0d06f69ad93e87834bcabcebe",
+        "bytes": 171966578
+      },
+      "dockerImage": "noteverse-challengers:phase9ga3",
+      "dockerScript": "backend/scripts/run_bytedance_robust_pytorch_raw_batch.py",
+      "targetDevice": "cuda",
+      "sampleRateHz": 16000
+    }
+  ],
+  "historicalNonRankingReferences": [
+    "transkun",
+    "aria-amt",
+    "rtt"
+  ],
+  "blockedCandidates": [
+    "d3rm"
+  ],
+  "manifest": {
+    "frozenScenarioCount": 70,
+    "frozenBlindManifestSha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+    "candidateEligibilities": {
+      "bytedance-original-calibrated-v1": 63,
+      "online-amt-calibrated-v1": 70,
+      "bytedance-robust-augmented-calibrated-v1": 63
+    },
+    "pairwiseIntersectionCount": 63
+  },
+  "scorer": {
+    "scorerModule": "apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.ts"
+  },
+  "bootstrap": {
+    "seed": 13371,
+    "draws": 5000
+  },
+  "productLatencyPolicy": {
+    "absoluteProductLatencyGate": "ABSOLUTE_PRODUCT_LATENCY_GATE_NOT_YET_DEFINED"
+  }
+}

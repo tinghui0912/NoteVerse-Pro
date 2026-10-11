@@ -880,4 +880,80 @@ describe('Continuous analyzer bake-off harness', () => {
     expect(session.snapshot()).toEqual(ledger.snapshot());
     expect(session.completedEvaluation()).toEqual(ledger.completedEvaluation());
   });
+
+  it('correctly scores wrongNoteFalseCorrectRate and wrongNoteDetectionRate on wrong-semitone counterfactuals', () => {
+    const wrongNoteScenario: BenchmarkScenario = {
+      scenarioId: 'test-wrong-semitone-scenario',
+      schemaVersion: 1,
+      split: 'CALIBRATION',
+      familyTags: ['COUNTERFACTUAL_WRONG_SEMITONE'],
+      source: {
+        sourceAudioPath: 'fake.wav',
+        sourceAudioSha256: 'a'.repeat(64),
+        sourceMidiPath: 'fake.mid',
+        sourceMidiSha256: 'b'.repeat(64),
+        provenance: 'TEST',
+      },
+      audio: {
+        nativeSampleRateHz: 16000,
+        channelPolicy: 'mono',
+        clipStartMs: 0,
+        clipEndMs: 2000,
+        performanceOriginSourceMs: 0,
+        pcmIdentity: 'test-pcm',
+      },
+      expectedStrikes: [
+        { strikeId: 's1', groupId: 'g1', pitch: 'C#4', expectedPerformanceTimeMs: 500, renderNoteIds: ['n1'] },
+      ],
+      physicalGroundTruth: {
+        status: 'RECORDED',
+        sourceKind: 'PAIRED_PHYSICAL_MIDI',
+        source: 'TEST',
+        attacks: [
+          { physicalEventId: 'p1', pitch: 'C4', performanceTimeMs: 500 }, // student actually played C4
+        ],
+      },
+      completion: { kind: 'NATURAL', performanceTimeMs: 1000 },
+      corpusOverlapStatus: 'KNOWN_DISJOINT',
+      taxonomy: {
+        groups: {
+          g1: ['COUNTERFACTUAL_WRONG_SEMITONE'],
+        },
+      },
+    };
+
+    // Candidate 1: Accurately transcribes C4. Does NOT falsely accept C#4, and preserves played C4 as extra.
+    const candDetectedRun = candidateRun('cand-detected', wrongNoteScenario.scenarioId, [
+      { observationId: 'obs-c4', pitch: 'C4', performanceTimeMs: 505 },
+    ], 1000);
+    const scoreDetected = scoreCandidate(wrongNoteScenario, candidateDefinition('cand-detected'), candDetectedRun);
+
+    expect(scoreDetected.metrics.wrongNoteFalseCorrectRate).toMatchObject({
+      status: 'MEASURED',
+      sampleCount: 1,
+      value: 0, // 0 false matches on wrong note
+    });
+    expect(scoreDetected.metrics.wrongNoteDetectionRate).toMatchObject({
+      status: 'MEASURED',
+      sampleCount: 1,
+      value: 1, // correctly detected wrong note
+    });
+
+    // Candidate 2: Hallucinates/falsely accepts C#4 as MATCHED.
+    const candFalseMatchRun = candidateRun('cand-false-correct', wrongNoteScenario.scenarioId, [
+      { observationId: 'obs-cs4', pitch: 'C#4', performanceTimeMs: 500 },
+    ], 1000);
+    const scoreFalseMatch = scoreCandidate(wrongNoteScenario, candidateDefinition('cand-false-correct'), candFalseMatchRun);
+
+    expect(scoreFalseMatch.metrics.wrongNoteFalseCorrectRate).toMatchObject({
+      status: 'MEASURED',
+      sampleCount: 1,
+      value: 1, // 100% false correct
+    });
+    expect(scoreFalseMatch.metrics.wrongNoteDetectionRate).toMatchObject({
+      status: 'MEASURED',
+      sampleCount: 1,
+      value: 0, // 0% detected
+    });
+  });
 });
