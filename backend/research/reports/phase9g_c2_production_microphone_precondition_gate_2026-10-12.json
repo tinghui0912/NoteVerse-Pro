@@ -1,0 +1,238 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_c2_production_microphone_precondition_gate",
+  "phase": "9G-C.2",
+  "gitHead": "3e59e551588f4d1c12f852e09863afb16238d967",
+  "phase9gBClosure": {
+    "permanentlyClosed": true,
+    "scientificConclusion": "STATISTICAL_TIE",
+    "winner": null,
+    "sealedArtifactsPreservedByteForByte": {
+      "replacementResult": {
+        "path": "backend/research/reports/phase9g_b3_official_product_blind_replacement_result_2026-10-11.json",
+        "sha256": "8dba0ef149dcf6f5c995f8ab4e07df85a41b48b81bd2323d8dc39e1b67e8c706",
+        "actualSha256": "8dba0ef149dcf6f5c995f8ab4e07df85a41b48b81bd2323d8dc39e1b67e8c706",
+        "byteForByteUnchanged": true
+      },
+      "replacementReceipt": {
+        "path": "backend/research/reports/phase9g_b3_official_product_blind_replacement_execution_receipt_2026-10-11.json",
+        "sha256": "42a92eab2dca96de328aefa786283c6dcae477ba155775b54caea4964e2ee0eb",
+        "actualSha256": "42a92eab2dca96de328aefa786283c6dcae477ba155775b54caea4964e2ee0eb",
+        "byteForByteUnchanged": true
+      },
+      "attempt1Result": {
+        "path": "backend/research/reports/phase9g_b3_official_product_blind_result_2026-10-11.json",
+        "sha256": "f94c133d496a6bdf89204d59bd9d7fb07ed1c800bebfb3ee195e2f939b059eb1",
+        "actualSha256": "f94c133d496a6bdf89204d59bd9d7fb07ed1c800bebfb3ee195e2f939b059eb1",
+        "byteForByteUnchanged": true
+      },
+      "attempt1Receipt": {
+        "path": "backend/research/reports/phase9g_b3_official_product_blind_execution_receipt_2026-10-11.json",
+        "sha256": "deac086db5654ae71deceae7c659a8307ff85e01f652a776144b757170f6dfca",
+        "actualSha256": "deac086db5654ae71deceae7c659a8307ff85e01f652a776144b757170f6dfca",
+        "byteForByteUnchanged": true
+      },
+      "attempt1Invalidation": {
+        "path": "backend/research/reports/phase9g_b3_official_blind_attempt1_invalidation_2026-10-11.json",
+        "sha256": "949bfdb930c07d5037b9ce9ec0e4c86685c3745f7d1c3f0458c817319ade25d8",
+        "actualSha256": "949bfdb930c07d5037b9ce9ec0e4c86685c3745f7d1c3f0458c817319ade25d8",
+        "byteForByteUnchanged": true
+      }
+    },
+    "p15p22InferenceIncrease": 0,
+    "noAdditionalBlindInference": true,
+    "officialReplacementProtocolExceptionPreserved": true,
+    "strictOriginalOneShotNoRetryComplianceClaimed": false
+  },
+  "phase9gC1FoundationStatus": {
+    "sourceArtifact": {
+      "path": "backend/research/reports/phase9g_c1_audit_history_and_runtime_boundary_2026-10-12.json",
+      "sha256": "7860d29f8f46272e08164f7fa4d68222006762283c5d034bd8f6fecefe0f1b4f"
+    },
+    "productPathOutcome": "PHASE_9GC_GATE2_BLOCKED",
+    "actualRepositoryBoundaryFound": "Continuous microphone analysis is explicitly unavailable in customer-web; historical browser ByteDance worker code is documented as not the authoritative Practice v2 acoustic architecture. The executable acoustic model boundary currently present for these finalists is the research/product_benchmark Docker adapter path, not a production Practice runtime.",
+    "noNewAuthenticationSubsystemIntroduced": true,
+    "noNewInfrastructureSubsystemIntroduced": true,
+    "runtimeStateOwnershipRecorded": {
+      "modelProcessLifetime": {
+        "robust": "Weights may remain resident in a persistent CUDA worker process across acoustic sessions.",
+        "onlineAmt": "Weights may remain resident in a persistent Online-AMT worker process across acoustic sessions."
+      },
+      "acousticSessionLifetime": {
+        "robust": "Session owns source-segment boundaries and publication stream; closing the session releases mutable session buffers.",
+        "onlineAmt": "Session owns streaming state container; closing the session resets all mutable recurrent state."
+      },
+      "sourceSegmentLifetime": {
+        "robust": "No inference window may cross pause/resume or invalid source-segment boundaries.",
+        "onlineAmt": "Recurrent state persists only across chronological hops inside one RUNNING source segment and resets on pause/resume boundaries."
+      },
+      "mutableStateLeakageAllowedBetweenSessions": false
+    }
+  },
+  "preconditionChecks": [
+    {
+      "id": "model_agnostic_continuous_acoustic_session_contract",
+      "status": "BLOCKED",
+      "evidence": "No ContinuousAcousticSession / ContinuousAcousticPublication production contract symbol found in apps/customer-web/src or backend/app."
+    },
+    {
+      "id": "browser_chronological_pcm_capture",
+      "status": "PASS",
+      "evidence": "performance-pcm-timeline capture helper exists."
+    },
+    {
+      "id": "persistent_robust_runtime",
+      "status": "BLOCKED",
+      "evidence": "Robust finalist currently executes through research/product_benchmark Docker adapter; no product persistent runtime process boundary is wired."
+    },
+    {
+      "id": "persistent_online_amt_runtime",
+      "status": "BLOCKED",
+      "evidence": "Online-AMT finalist currently executes through research/product_benchmark Docker adapter; no product persistent runtime process boundary is wired."
+    },
+    {
+      "id": "segment_aware_pause_resume_behavior",
+      "status": "PARTIAL",
+      "evidence": "PCM timeline tests preserve pause/resume segments, but no production acoustic runtime consumes them."
+    },
+    {
+      "id": "drain_behavior",
+      "status": "BLOCKED",
+      "evidence": "use-local-practice.ts still throws Continuous microphone analysis is unavailable."
+    },
+    {
+      "id": "fail_closed_runtime_semantics",
+      "status": "PASS",
+      "evidence": "Practice fails closed with CONTINUOUS_ANALYSIS_UNAVAILABLE instead of manufacturing verdicts."
+    },
+    {
+      "id": "development_paired_microphone_midi_capture_tooling",
+      "status": "BLOCKED",
+      "evidence": "backend/research/fixtures/continuous_paired_take_manifest_v2_empty_development_2026-10-08.json contains 0 takes; genuine product microphone evidence is unavailable."
+    },
+    {
+      "id": "phase_9gc1_gate2_foundation",
+      "status": "BLOCKED",
+      "evidence": "Phase 9G-C.1 product path outcome: PHASE_9GC_GATE2_BLOCKED."
+    }
+  ],
+  "blockers": [
+    {
+      "id": "model_agnostic_continuous_acoustic_session_contract",
+      "status": "BLOCKED",
+      "evidence": "No ContinuousAcousticSession / ContinuousAcousticPublication production contract symbol found in apps/customer-web/src or backend/app."
+    },
+    {
+      "id": "persistent_robust_runtime",
+      "status": "BLOCKED",
+      "evidence": "Robust finalist currently executes through research/product_benchmark Docker adapter; no product persistent runtime process boundary is wired."
+    },
+    {
+      "id": "persistent_online_amt_runtime",
+      "status": "BLOCKED",
+      "evidence": "Online-AMT finalist currently executes through research/product_benchmark Docker adapter; no product persistent runtime process boundary is wired."
+    },
+    {
+      "id": "segment_aware_pause_resume_behavior",
+      "status": "PARTIAL",
+      "evidence": "PCM timeline tests preserve pause/resume segments, but no production acoustic runtime consumes them."
+    },
+    {
+      "id": "drain_behavior",
+      "status": "BLOCKED",
+      "evidence": "use-local-practice.ts still throws Continuous microphone analysis is unavailable."
+    },
+    {
+      "id": "development_paired_microphone_midi_capture_tooling",
+      "status": "BLOCKED",
+      "evidence": "backend/research/fixtures/continuous_paired_take_manifest_v2_empty_development_2026-10-08.json contains 0 takes; genuine product microphone evidence is unavailable."
+    },
+    {
+      "id": "phase_9gc1_gate2_foundation",
+      "status": "BLOCKED",
+      "evidence": "Phase 9G-C.1 product path outcome: PHASE_9GC_GATE2_BLOCKED."
+    }
+  ],
+  "preservedFinalists": {
+    "robust": {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "frozenRepresentativeProfile": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "geometry": {
+        "modelInputMs": 1820,
+        "futureContextMs": 220,
+        "commitWidthMs": 600
+      },
+      "note": "Frozen selected representative profile; not described as globally optimal."
+    },
+    "onlineAmt": {
+      "candidateId": "online-amt-calibrated-v1",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "timingCorrectionMs": -162.93750000004252
+    }
+  },
+  "requestedWorkDeferredBecauseBlocked": {
+    "robustCpuCudaSemanticParity": "NOT_RUN_BLOCKED_ON_RUNTIME_FOUNDATION",
+    "rttCausalRequalification": "NOT_RUN_BLOCKED_ON_RUNTIME_FOUNDATION",
+    "transkunStreamingFeasibility": "NOT_RUN_BLOCKED_ON_RUNTIME_FOUNDATION",
+    "productionMicrophoneDecisionPolicy": "NOT_FROZEN_BLOCKED_ON_RUNTIME_FOUNDATION",
+    "productionMicrophoneEvaluationCandidateRuns": "NOT_RUN"
+  },
+  "microphoneEvidenceDomain": {
+    "splits": [
+      "MICROPHONE_DEVELOPMENT",
+      "MICROPHONE_CALIBRATION",
+      "MICROPHONE_EVALUATION"
+    ],
+    "genuinePairedMicrophoneTakeCounts": {
+      "MICROPHONE_DEVELOPMENT": 0,
+      "MICROPHONE_CALIBRATION": 0,
+      "MICROPHONE_EVALUATION": 0
+    },
+    "existingCommittedDevelopmentManifest": {
+      "path": "backend/research/fixtures/continuous_paired_take_manifest_v2_empty_development_2026-10-08.json",
+      "takeCount": 0,
+      "status": "PRODUCTION_MICROPHONE_EVALUATION_DATA_REQUIRED"
+    },
+    "requiredCaptureFields": [
+      "microphone WAV",
+      "physical MIDI or browser MIDI/capture truth",
+      "shared captureSessionId",
+      "performer identity",
+      "piano/device identity",
+      "microphone/device identity",
+      "room/placement condition",
+      "fixed BPM",
+      "PracticeScoreArtifact identity",
+      "PracticeScope",
+      "source/performance segment boundaries",
+      "synchronization evidence",
+      "authoritative completion"
+    ],
+    "splitPolicy": "BLOCKED_NOT_FROZEN: split primarily by performer and recording condition before MICROPHONE_EVALUATION is unsealed."
+  },
+  "runtimeEligibility": {
+    "bytedance-robust-augmented-calibrated-v1": {
+      "status": "NOT_EVALUATED_BLOCKED_ON_RUNTIME_FOUNDATION",
+      "reason": "No production ContinuousAcousticSession / persistent runtime boundary is wired into Practice."
+    },
+    "online-amt-calibrated-v1": {
+      "status": "NOT_EVALUATED_BLOCKED_ON_RUNTIME_FOUNDATION",
+      "reason": "No production ContinuousAcousticSession / persistent runtime boundary is wired into Practice."
+    }
+  },
+  "productionMicrophoneEvaluationResults": {
+    "safetyMetricsPerCandidate": "NOT_EVALUATED",
+    "sameTakePairedStatisticalComparisons": "NOT_EVALUATED",
+    "finalizedFeedbackLatencyMsAndBeats": "NOT_EVALUATED",
+    "cpuRamGpuNetworkConcurrency": "NOT_EVALUATED",
+    "productionWinner": null,
+    "productionWinnerStatus": "NO_PRODUCTION_WINNER_BLOCKED_ON_RUNTIME_FOUNDATION"
+  },
+  "productionRolloutReadiness": {
+    "status": "NOT_READY",
+    "productionMicrophoneUiEnabled": false,
+    "rolloutPlanNotStarted": true
+  },
+  "outcome": "PHASE_9GC2_BLOCKED_ON_RUNTIME_FOUNDATION",
+  "createdAt": "2026-10-11T18:33:59.138Z"
+}
