@@ -1,0 +1,1174 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_b3_official_product_blind_replacement_result",
+  "phase": "9G-B.3",
+  "status": "PHASE_9GB_REPLACEMENT_OFFICIAL_BLIND_COMPLETED",
+  "replacementForAbortedAttempt": true,
+  "runId": "phase9gb_official_blind_restart_20261011T143145Z",
+  "runPath": "backend/data/work/phase9gb_official_blind_restart_20261011T143145Z",
+  "executionGitHead": "0e1cca83086f6edf13f3d39e67bc8772061d3e13",
+  "sourceTruthManifestSha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab",
+  "truthFreeProjectionSha256": "871eb414d666fa338887c31fe4ea8c5fd9378f00b4848200ce68aa5aabb6e3b3",
+  "candidateIdentities": {
+    "bytedance-original-calibrated-v1": {
+      "candidateId": "bytedance-original-calibrated-v1",
+      "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
+      "targetDevice": "cpu"
+    },
+    "online-amt-calibrated-v1": {
+      "candidateId": "online-amt-calibrated-v1",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+      "targetDevice": "cpu"
+    },
+    "bytedance-robust-augmented-calibrated-v1": {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "configurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce",
+      "targetDevice": "cuda"
+    }
+  },
+  "executionCoverage": {
+    "summary": {
+      "totalExpectedRuns": 210,
+      "successfulRuns": 196,
+      "failedRuns": 0,
+      "notEligibleRuns": 14,
+      "notRunCount": 0
+    },
+    "candidates": {
+      "bytedance-original-calibrated-v1": {
+        "success": 63,
+        "notEligible": 7,
+        "failed": 0
+      },
+      "online-amt-calibrated-v1": {
+        "success": 70,
+        "notEligible": 0,
+        "failed": 0
+      },
+      "bytedance-robust-augmented-calibrated-v1": {
+        "success": 63,
+        "notEligible": 7,
+        "failed": 0
+      }
+    }
+  },
+  "dockerImageIdentityByCandidate": {
+    "bytedance-original-calibrated-v1": {
+      "configuredImageTag": "noteverse-bytedance-calibration:phase9ga21",
+      "imageId": "sha256:5d9cee9be597c9641d127c80f96b706b41699f51fe40a04960113b53cbd2a109",
+      "repoDigests": [
+        "noteverse-bytedance-calibration@sha256:5d9cee9be597c9641d127c80f96b706b41699f51fe40a04960113b53cbd2a109"
+      ],
+      "targetDevice": "cpu"
+    },
+    "online-amt-calibrated-v1": {
+      "configuredImageTag": "noteverse-online-amt-modern:phase9e-b1",
+      "imageId": "sha256:daff15ede55853aedbe8ec0b2fe6924d3e87697f6e041d0f2d05f3151b1cadfb",
+      "repoDigests": [
+        "noteverse-online-amt-modern@sha256:daff15ede55853aedbe8ec0b2fe6924d3e87697f6e041d0f2d05f3151b1cadfb"
+      ],
+      "targetDevice": "cpu"
+    },
+    "bytedance-robust-augmented-calibrated-v1": {
+      "configuredImageTag": "noteverse-challengers:phase9ga3",
+      "imageId": "sha256:eab6ae4293eb419bdb983225638083211997769a3dc291e34587a119b7967562",
+      "repoDigests": [
+        "noteverse-challengers@sha256:eab6ae4293eb419bdb983225638083211997769a3dc291e34587a119b7967562"
+      ],
+      "targetDevice": "cuda"
+    }
+  },
+  "actualRuntimeDeviceByCandidate": {
+    "bytedance-original-calibrated-v1": "cpu",
+    "online-amt-calibrated-v1": "real-online-amt-modern-docker",
+    "bytedance-robust-augmented-calibrated-v1": "cuda"
+  },
+  "metricSummary": {
+    "bytedance-original-calibrated-v1": {
+      "expectedStrikeRecall": {
+        "status": "MEASURED",
+        "sampleCount": 1687,
+        "numerator": 1635,
+        "denominator": 1687,
+        "value": 0.969176052163604
+      },
+      "verdictAgreementRate": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "numerator": 1681,
+        "denominator": 1748,
+        "value": 0.9616704805491991
+      },
+      "falseMatchRateOnGroundTruthMissing": {
+        "status": "MEASURED",
+        "sampleCount": 61,
+        "numerator": 15,
+        "denominator": 61,
+        "value": 0.2459016393442623
+      },
+      "correctMissingRate": {
+        "status": "MEASURED",
+        "sampleCount": 61,
+        "numerator": 46,
+        "denominator": 61,
+        "value": 0.7540983606557377
+      },
+      "wrongNoteFalseCorrectRate": {
+        "status": "MEASURED",
+        "sampleCount": 16,
+        "numerator": 3,
+        "denominator": 16,
+        "value": 0.1875
+      },
+      "wrongNoteDetectionRate": {
+        "status": "MEASURED",
+        "sampleCount": 10,
+        "numerator": 10,
+        "denominator": 10,
+        "value": 1
+      },
+      "falseCompleteChordAcceptanceRate": {
+        "status": "MEASURED",
+        "sampleCount": 55,
+        "numerator": 15,
+        "denominator": 55,
+        "value": 0.2727272727272727
+      },
+      "chordExactCompletenessRate": {
+        "status": "MEASURED",
+        "sampleCount": 411,
+        "numerator": 361,
+        "denominator": 411,
+        "value": 0.878345498783455
+      },
+      "extraPrecision": {
+        "status": "MEASURED",
+        "sampleCount": 288,
+        "numerator": 221,
+        "denominator": 288,
+        "value": 0.7673611111111112
+      },
+      "extraRecall": {
+        "status": "MEASURED",
+        "sampleCount": 261,
+        "numerator": 221,
+        "denominator": 261,
+        "value": 0.8467432950191571
+      },
+      "timingAbsoluteMedianMs": {
+        "status": "MEASURED",
+        "sampleCount": 1635,
+        "value": 6.04166666655874
+      },
+      "timingAbsoluteP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1635,
+        "value": 15.208333333539485
+      },
+      "finalizedFeedbackAgeP50Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 3229.5127019999336
+      },
+      "finalizedFeedbackAgeP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 4266.760172999866
+      },
+      "inferenceLatencyP50Ms": {
+        "status": "MEASURED",
+        "sampleCount": 132,
+        "value": 599.4605130000537
+      },
+      "inferenceLatencyP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 132,
+        "value": 653.9806309999676
+      },
+      "publicationDelayP50Ms": {
+        "status": "MEASURED",
+        "sampleCount": 132,
+        "value": 1852.872762000061
+      },
+      "publicationDelayP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 132,
+        "value": 1960.029514594693
+      },
+      "feedbackAgeInBeats": {
+        "policy": "PER_EVENT_FEEDBACK_AGE_MS_NORMALIZED_BY_SCENARIO_FIXED_BPM_THEN_POOLED",
+        "p50Beats": null,
+        "p95Beats": null,
+        "sampleCount": 0
+      },
+      "absoluteProductLatencyGate": "ABSOLUTE_PRODUCT_LATENCY_GATE_NOT_YET_DEFINED"
+    },
+    "online-amt-calibrated-v1": {
+      "expectedStrikeRecall": {
+        "status": "MEASURED",
+        "sampleCount": 1815,
+        "numerator": 1663,
+        "denominator": 1815,
+        "value": 0.9162534435261708
+      },
+      "verdictAgreementRate": {
+        "status": "MEASURED",
+        "sampleCount": 1880,
+        "numerator": 1723,
+        "denominator": 1880,
+        "value": 0.9164893617021277
+      },
+      "falseMatchRateOnGroundTruthMissing": {
+        "status": "MEASURED",
+        "sampleCount": 65,
+        "numerator": 5,
+        "denominator": 65,
+        "value": 0.07692307692307693
+      },
+      "correctMissingRate": {
+        "status": "MEASURED",
+        "sampleCount": 65,
+        "numerator": 60,
+        "denominator": 65,
+        "value": 0.9230769230769231
+      },
+      "wrongNoteFalseCorrectRate": {
+        "status": "MEASURED",
+        "sampleCount": 17,
+        "numerator": 1,
+        "denominator": 17,
+        "value": 0.058823529411764705
+      },
+      "wrongNoteDetectionRate": {
+        "status": "MEASURED",
+        "sampleCount": 11,
+        "numerator": 11,
+        "denominator": 11,
+        "value": 1
+      },
+      "falseCompleteChordAcceptanceRate": {
+        "status": "MEASURED",
+        "sampleCount": 58,
+        "numerator": 0,
+        "denominator": 58,
+        "value": 0
+      },
+      "chordExactCompletenessRate": {
+        "status": "MEASURED",
+        "sampleCount": 451,
+        "numerator": 331,
+        "denominator": 451,
+        "value": 0.7339246119733924
+      },
+      "extraPrecision": {
+        "status": "MEASURED",
+        "sampleCount": 465,
+        "numerator": 232,
+        "denominator": 465,
+        "value": 0.4989247311827957
+      },
+      "extraRecall": {
+        "status": "MEASURED",
+        "sampleCount": 291,
+        "numerator": 232,
+        "denominator": 291,
+        "value": 0.7972508591065293
+      },
+      "timingAbsoluteMedianMs": {
+        "status": "MEASURED",
+        "sampleCount": 1663,
+        "value": 9.562500000177124
+      },
+      "timingAbsoluteP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1663,
+        "value": 21.104166666615356
+      },
+      "finalizedFeedbackAgeP50Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1880,
+        "value": 454.4700780000194
+      },
+      "finalizedFeedbackAgeP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1880,
+        "value": 935.1837399999722
+      },
+      "inferenceLatencyP50Ms": {
+        "status": "NOT_EVALUATED",
+        "sampleCount": 0,
+        "reason": "zero metric sample count"
+      },
+      "inferenceLatencyP95Ms": {
+        "status": "NOT_EVALUATED",
+        "sampleCount": 0,
+        "reason": "zero metric sample count"
+      },
+      "publicationDelayP50Ms": {
+        "status": "MEASURED",
+        "sampleCount": 9624,
+        "value": 166.60670400033177
+      },
+      "publicationDelayP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 9624,
+        "value": 168.65130100022634
+      },
+      "feedbackAgeInBeats": {
+        "policy": "PER_EVENT_FEEDBACK_AGE_MS_NORMALIZED_BY_SCENARIO_FIXED_BPM_THEN_POOLED",
+        "p50Beats": null,
+        "p95Beats": null,
+        "sampleCount": 0
+      },
+      "absoluteProductLatencyGate": "ABSOLUTE_PRODUCT_LATENCY_GATE_NOT_YET_DEFINED"
+    },
+    "bytedance-robust-augmented-calibrated-v1": {
+      "expectedStrikeRecall": {
+        "status": "MEASURED",
+        "sampleCount": 1687,
+        "numerator": 1654,
+        "denominator": 1687,
+        "value": 0.980438648488441
+      },
+      "verdictAgreementRate": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "numerator": 1710,
+        "denominator": 1748,
+        "value": 0.9782608695652174
+      },
+      "falseMatchRateOnGroundTruthMissing": {
+        "status": "MEASURED",
+        "sampleCount": 61,
+        "numerator": 5,
+        "denominator": 61,
+        "value": 0.08196721311475409
+      },
+      "correctMissingRate": {
+        "status": "MEASURED",
+        "sampleCount": 61,
+        "numerator": 56,
+        "denominator": 61,
+        "value": 0.9180327868852459
+      },
+      "wrongNoteFalseCorrectRate": {
+        "status": "MEASURED",
+        "sampleCount": 16,
+        "numerator": 1,
+        "denominator": 16,
+        "value": 0.0625
+      },
+      "wrongNoteDetectionRate": {
+        "status": "MEASURED",
+        "sampleCount": 10,
+        "numerator": 10,
+        "denominator": 10,
+        "value": 1
+      },
+      "falseCompleteChordAcceptanceRate": {
+        "status": "MEASURED",
+        "sampleCount": 55,
+        "numerator": 5,
+        "denominator": 55,
+        "value": 0.09090909090909091
+      },
+      "chordExactCompletenessRate": {
+        "status": "MEASURED",
+        "sampleCount": 411,
+        "numerator": 387,
+        "denominator": 411,
+        "value": 0.9416058394160584
+      },
+      "extraPrecision": {
+        "status": "MEASURED",
+        "sampleCount": 243,
+        "numerator": 215,
+        "denominator": 243,
+        "value": 0.8847736625514403
+      },
+      "extraRecall": {
+        "status": "MEASURED",
+        "sampleCount": 261,
+        "numerator": 215,
+        "denominator": 261,
+        "value": 0.8237547892720306
+      },
+      "timingAbsoluteMedianMs": {
+        "status": "MEASURED",
+        "sampleCount": 1654,
+        "value": 6.249999999992724
+      },
+      "timingAbsoluteP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1654,
+        "value": 15.833333333546761
+      },
+      "finalizedFeedbackAgeP50Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 941.7090404442679
+      },
+      "finalizedFeedbackAgeP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 1748,
+        "value": 1463.3843599998545
+      },
+      "inferenceLatencyP50Ms": {
+        "status": "MEASURED",
+        "sampleCount": 487,
+        "value": 101.58156899979076
+      },
+      "inferenceLatencyP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 487,
+        "value": 183.72333300021637
+      },
+      "publicationDelayP50Ms": {
+        "status": "MEASURED",
+        "sampleCount": 487,
+        "value": 322.3673449999478
+      },
+      "publicationDelayP95Ms": {
+        "status": "MEASURED",
+        "sampleCount": 487,
+        "value": 408.77386399981333
+      },
+      "feedbackAgeInBeats": {
+        "policy": "PER_EVENT_FEEDBACK_AGE_MS_NORMALIZED_BY_SCENARIO_FIXED_BPM_THEN_POOLED",
+        "p50Beats": null,
+        "p95Beats": null,
+        "sampleCount": 0
+      },
+      "absoluteProductLatencyGate": "ABSOLUTE_PRODUCT_LATENCY_GATE_NOT_YET_DEFINED"
+    }
+  },
+  "pairwiseComparisons": {
+    "bytedance-original-calibrated-v1_vs_online-amt-calibrated-v1": {
+      "candidateA": "bytedance-original-calibrated-v1",
+      "candidateB": "online-amt-calibrated-v1",
+      "candidateAEligibleCount": 63,
+      "candidateBEligibleCount": 70,
+      "mutuallyEligibleScenarioCount": 63,
+      "pairedMeasuredCounts": {
+        "falseMatchRateOnGroundTruthMissing": 45,
+        "falseCompleteChordAcceptanceRate": 43,
+        "wrongNoteFalseCorrectRate": 11,
+        "verdictAgreementRate": 63,
+        "correctMissingRate": 45,
+        "wrongNoteDetectionRate": 9,
+        "chordExactCompletenessRate": 63,
+        "expectedStrikeRecall": 63,
+        "extraPrecision": 63,
+        "extraRecall": 62,
+        "timingAbsoluteMedianMs": 63,
+        "timingAbsoluteP95Ms": 63,
+        "finalizedFeedbackAgeP95Ms": 63
+      },
+      "bootstrapSeed": 13371,
+      "bootstrapDraws": 5000,
+      "decision": {
+        "outcome": "STATISTICAL_TIE",
+        "criticalSafetyEvidenceSufficient": true,
+        "gates": [
+          {
+            "priority": 1,
+            "metric": "falseMatchRateOnGroundTruthMissing",
+            "direction": "LOWER",
+            "threshold": 0.01,
+            "sampleCount": 45,
+            "status": "EVALUATED",
+            "meanDiff": 0.15555555555555556,
+            "ciLow": 0.06666666666666667,
+            "ciHigh": 0.25555555555555554,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 2,
+            "metric": "falseCompleteChordAcceptanceRate",
+            "direction": "LOWER",
+            "threshold": 0.01,
+            "sampleCount": 43,
+            "status": "EVALUATED",
+            "meanDiff": 0.2441860465116279,
+            "ciLow": 0.13953488372093023,
+            "ciHigh": 0.36046511627906974,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 3,
+            "metric": "wrongNoteFalseCorrectRate",
+            "direction": "LOWER",
+            "threshold": 0.01,
+            "sampleCount": 11,
+            "status": "EVALUATED",
+            "meanDiff": 0.09090909090909091,
+            "ciLow": 0,
+            "ciHigh": 0.22727272727272727,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 4,
+            "metric": "verdictAgreementRate",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": 0.057256074007192057,
+            "ciLow": 0.0441133468533822,
+            "ciHigh": 0.0701475025739342,
+            "candidateASuperior": true,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": true,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 5,
+            "metric": "correctMissingRate",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 45,
+            "status": "EVALUATED",
+            "meanDiff": -0.15555555555555556,
+            "ciLow": -0.25555555555555554,
+            "ciHigh": -0.06666666666666667,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 6,
+            "metric": "wrongNoteDetectionRate",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 9,
+            "status": "EVALUATED",
+            "meanDiff": 0,
+            "ciLow": 0,
+            "ciHigh": 0,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 7,
+            "metric": "chordExactCompletenessRate",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": 0.1927815570672714,
+            "ciLow": 0.15087553539934498,
+            "ciHigh": 0.23573318216175368,
+            "candidateASuperior": true,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": true,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 8,
+            "metric": "expectedStrikeRecall",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": 0.06691135206096216,
+            "ciLow": 0.054925323644922336,
+            "ciHigh": 0.07909559072751693,
+            "candidateASuperior": true,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": true,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 9,
+            "metric": "extraPrecision",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": 0.1839598672932006,
+            "ciLow": 0.11508011388963778,
+            "ciHigh": 0.2533358836930265,
+            "candidateASuperior": true,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": true,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 10,
+            "metric": "extraRecall",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 62,
+            "status": "EVALUATED",
+            "meanDiff": 0.02899385560675884,
+            "ciLow": 0.013920890937019972,
+            "ciHigh": 0.047331029185867894,
+            "candidateASuperior": true,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": true,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 11,
+            "metric": "timingAbsoluteMedianMs",
+            "direction": "LOWER",
+            "threshold": 5,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": -3.401427125293399,
+            "ciLow": -4.306805577758475,
+            "ciHigh": -2.5025023868740774,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false
+          },
+          {
+            "priority": 12,
+            "metric": "timingAbsoluteP95Ms",
+            "direction": "LOWER",
+            "threshold": 10,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": -8.929110464118002,
+            "ciLow": -10.604041464084611,
+            "ciHigh": -7.384352429487633,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false
+          },
+          {
+            "priority": 13,
+            "metric": "finalizedFeedbackAgeP95Ms",
+            "direction": "LOWER",
+            "threshold": 100,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": 3445.7182180577847,
+            "ciLow": 3394.992576107522,
+            "ciHigh": 3497.858253664476,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false
+          }
+        ],
+        "rationale": "Neither candidate demonstrated statistically significant non-regressive dominance across the safety decision hierarchy."
+      }
+    },
+    "bytedance-original-calibrated-v1_vs_bytedance-robust-augmented-calibrated-v1": {
+      "candidateA": "bytedance-original-calibrated-v1",
+      "candidateB": "bytedance-robust-augmented-calibrated-v1",
+      "candidateAEligibleCount": 63,
+      "candidateBEligibleCount": 63,
+      "mutuallyEligibleScenarioCount": 63,
+      "pairedMeasuredCounts": {
+        "falseMatchRateOnGroundTruthMissing": 45,
+        "falseCompleteChordAcceptanceRate": 43,
+        "wrongNoteFalseCorrectRate": 11,
+        "verdictAgreementRate": 63,
+        "correctMissingRate": 45,
+        "wrongNoteDetectionRate": 9,
+        "chordExactCompletenessRate": 63,
+        "expectedStrikeRecall": 63,
+        "extraPrecision": 62,
+        "extraRecall": 62,
+        "timingAbsoluteMedianMs": 63,
+        "timingAbsoluteP95Ms": 63,
+        "finalizedFeedbackAgeP95Ms": 63
+      },
+      "bootstrapSeed": 13371,
+      "bootstrapDraws": 5000,
+      "decision": {
+        "outcome": "STATISTICAL_TIE",
+        "criticalSafetyEvidenceSufficient": true,
+        "gates": [
+          {
+            "priority": 1,
+            "metric": "falseMatchRateOnGroundTruthMissing",
+            "direction": "LOWER",
+            "threshold": 0.01,
+            "sampleCount": 45,
+            "status": "EVALUATED",
+            "meanDiff": 0.15555555555555556,
+            "ciLow": 0.06666666666666667,
+            "ciHigh": 0.25555555555555554,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 2,
+            "metric": "falseCompleteChordAcceptanceRate",
+            "direction": "LOWER",
+            "threshold": 0.01,
+            "sampleCount": 43,
+            "status": "EVALUATED",
+            "meanDiff": 0.16279069767441862,
+            "ciLow": 0.06976744186046512,
+            "ciHigh": 0.26744186046511625,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 3,
+            "metric": "wrongNoteFalseCorrectRate",
+            "direction": "LOWER",
+            "threshold": 0.01,
+            "sampleCount": 11,
+            "status": "EVALUATED",
+            "meanDiff": 0.09090909090909091,
+            "ciLow": 0,
+            "ciHigh": 0.22727272727272727,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 4,
+            "metric": "verdictAgreementRate",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": -0.013565534647611566,
+            "ciLow": -0.0200351296802051,
+            "ciHigh": -0.007422684363286699,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 5,
+            "metric": "correctMissingRate",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 45,
+            "status": "EVALUATED",
+            "meanDiff": -0.15555555555555556,
+            "ciLow": -0.25555555555555554,
+            "ciHigh": -0.06666666666666667,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 6,
+            "metric": "wrongNoteDetectionRate",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 9,
+            "status": "EVALUATED",
+            "meanDiff": 0,
+            "ciLow": 0,
+            "ciHigh": 0,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 7,
+            "metric": "chordExactCompletenessRate",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": -0.04033990700657368,
+            "ciLow": -0.06373256373256374,
+            "ciHigh": -0.018999518999519002,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 8,
+            "metric": "expectedStrikeRecall",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": -0.0069252717698374995,
+            "ciLow": -0.012575215394389576,
+            "ciHigh": -0.0016196954972465124,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 9,
+            "metric": "extraPrecision",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 62,
+            "status": "EVALUATED",
+            "meanDiff": -0.10101126472094216,
+            "ciLow": -0.13276369687660008,
+            "ciHigh": -0.07103814644137223,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 10,
+            "metric": "extraRecall",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 62,
+            "status": "EVALUATED",
+            "meanDiff": 0.013632872503840248,
+            "ciLow": 0.004320276497695853,
+            "ciHigh": 0.02467357910906298,
+            "candidateASuperior": true,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": true,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 11,
+            "metric": "timingAbsoluteMedianMs",
+            "direction": "LOWER",
+            "threshold": 5,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": -0.16630807768694741,
+            "ciLow": -0.5462751245364156,
+            "ciHigh": 0.2105770165204405,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false
+          },
+          {
+            "priority": 12,
+            "metric": "timingAbsoluteP95Ms",
+            "direction": "LOWER",
+            "threshold": 10,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": -0.4294411519016042,
+            "ciLow": -1.173791993114791,
+            "ciHigh": 0.381359261300127,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false
+          },
+          {
+            "priority": 13,
+            "metric": "finalizedFeedbackAgeP95Ms",
+            "direction": "LOWER",
+            "threshold": 100,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": 2888.2196523722314,
+            "ciLow": 2841.460761533645,
+            "ciHigh": 2933.9992027198778,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false
+          }
+        ],
+        "rationale": "Neither candidate demonstrated statistically significant non-regressive dominance across the safety decision hierarchy."
+      }
+    },
+    "online-amt-calibrated-v1_vs_bytedance-robust-augmented-calibrated-v1": {
+      "candidateA": "online-amt-calibrated-v1",
+      "candidateB": "bytedance-robust-augmented-calibrated-v1",
+      "candidateAEligibleCount": 70,
+      "candidateBEligibleCount": 63,
+      "mutuallyEligibleScenarioCount": 63,
+      "pairedMeasuredCounts": {
+        "falseMatchRateOnGroundTruthMissing": 45,
+        "falseCompleteChordAcceptanceRate": 43,
+        "wrongNoteFalseCorrectRate": 11,
+        "verdictAgreementRate": 63,
+        "correctMissingRate": 45,
+        "wrongNoteDetectionRate": 9,
+        "chordExactCompletenessRate": 63,
+        "expectedStrikeRecall": 63,
+        "extraPrecision": 62,
+        "extraRecall": 62,
+        "timingAbsoluteMedianMs": 63,
+        "timingAbsoluteP95Ms": 63,
+        "finalizedFeedbackAgeP95Ms": 63
+      },
+      "bootstrapSeed": 13371,
+      "bootstrapDraws": 5000,
+      "decision": {
+        "outcome": "STATISTICAL_TIE",
+        "criticalSafetyEvidenceSufficient": true,
+        "gates": [
+          {
+            "priority": 1,
+            "metric": "falseMatchRateOnGroundTruthMissing",
+            "direction": "LOWER",
+            "threshold": 0.01,
+            "sampleCount": 45,
+            "status": "EVALUATED",
+            "meanDiff": 0,
+            "ciLow": -0.1,
+            "ciHigh": 0.1,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 2,
+            "metric": "falseCompleteChordAcceptanceRate",
+            "direction": "LOWER",
+            "threshold": 0.01,
+            "sampleCount": 43,
+            "status": "EVALUATED",
+            "meanDiff": -0.08139534883720931,
+            "ciLow": -0.16279069767441862,
+            "ciHigh": -0.023255813953488372,
+            "candidateASuperior": true,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": true,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 3,
+            "metric": "wrongNoteFalseCorrectRate",
+            "direction": "LOWER",
+            "threshold": 0.01,
+            "sampleCount": 11,
+            "status": "EVALUATED",
+            "meanDiff": 0,
+            "ciLow": -0.13636363636363635,
+            "ciHigh": 0.13636363636363635,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 4,
+            "metric": "verdictAgreementRate",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": -0.07082160865480364,
+            "ciLow": -0.08488043401693288,
+            "ciHigh": -0.05634190604530919,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 5,
+            "metric": "correctMissingRate",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 45,
+            "status": "EVALUATED",
+            "meanDiff": 0,
+            "ciLow": -0.1,
+            "ciHigh": 0.1,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 6,
+            "metric": "wrongNoteDetectionRate",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 9,
+            "status": "EVALUATED",
+            "meanDiff": 0,
+            "ciLow": 0,
+            "ciHigh": 0,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 7,
+            "metric": "chordExactCompletenessRate",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": -0.23312146407384504,
+            "ciLow": -0.269016124968506,
+            "ciHigh": -0.1972886460981699,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 8,
+            "metric": "expectedStrikeRecall",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": -0.07383662383079966,
+            "ciLow": -0.08544585074510515,
+            "ciHigh": -0.06171968491585563,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 9,
+            "metric": "extraPrecision",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 62,
+            "status": "EVALUATED",
+            "meanDiff": -0.287938226647904,
+            "ciLow": -0.3496774506855151,
+            "ciHigh": -0.22867508835250763,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 10,
+            "metric": "extraRecall",
+            "direction": "HIGHER",
+            "threshold": 0.01,
+            "sampleCount": 62,
+            "status": "EVALUATED",
+            "meanDiff": -0.01536098310291859,
+            "ciLow": -0.032642089093702,
+            "ciHigh": -0.0019201228878648218,
+            "candidateASuperior": false,
+            "candidateBSuperior": true,
+            "regressionAgainstA": true,
+            "regressionAgainstB": false,
+            "isCriticalSafetyGate": true
+          },
+          {
+            "priority": 11,
+            "metric": "timingAbsoluteMedianMs",
+            "direction": "LOWER",
+            "threshold": 5,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": 3.2351190476064517,
+            "ciLow": 2.4183201057664756,
+            "ciHigh": 4.05985449730176,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false
+          },
+          {
+            "priority": 12,
+            "metric": "timingAbsoluteP95Ms",
+            "direction": "LOWER",
+            "threshold": 10,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": 8.499669312216398,
+            "ciLow": 6.722552910103461,
+            "ciHigh": 10.329034391583596,
+            "candidateASuperior": false,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": false
+          },
+          {
+            "priority": 13,
+            "metric": "finalizedFeedbackAgeP95Ms",
+            "direction": "LOWER",
+            "threshold": 100,
+            "sampleCount": 63,
+            "status": "EVALUATED",
+            "meanDiff": -557.4985656855525,
+            "ciLow": -585.9082586855814,
+            "ciHigh": -527.3051649236273,
+            "candidateASuperior": true,
+            "candidateBSuperior": false,
+            "regressionAgainstA": false,
+            "regressionAgainstB": true
+          }
+        ],
+        "rationale": "Neither candidate demonstrated statistically significant non-regressive dominance across the safety decision hierarchy."
+      }
+    }
+  },
+  "benchmarkOutcome": "STATISTICAL_TIE",
+  "winner": null,
+  "rationale": "At least one candidate pair remains statistically tied.",
+  "absoluteProductLatencyGate": "ABSOLUTE_PRODUCT_LATENCY_GATE_NOT_YET_DEFINED",
+  "nonRankingReferencesNotExecuted": [
+    "Transkun V2 Aug",
+    "Aria-AMT",
+    "RTT",
+    "D3RM"
+  ],
+  "transkunAriaRttStatus": "RESEARCH_REFERENCE_ONLY_NOT_EXECUTED",
+  "d3rmStatus": "BLOCKED_NOT_EXECUTED",
+  "modelScorerCalibrationChangesAfterAttempt1": "NONE",
+  "productionMicrophoneEnabled": false,
+  "stageBCompleted": true,
+  "completedAt": "2026-10-11T15:29:24.719Z"
+}
