@@ -87,6 +87,8 @@ export interface ChallengerExecutionRequest {
   readonly incumbentRegistrySha256: string;
   readonly blindManifestSha256: string;
   readonly calibrationManifestSha256?: string;
+  readonly candidateId?: string;
+  readonly candidateFamily?: string;
   readonly phase: string;
   readonly mode: 'CANDIDATE_INFERENCE' | 'TRUTH_ONLY';
   readonly scenarioSplit: 'CALIBRATION' | 'EVALUATION';
@@ -1434,7 +1436,9 @@ export const FROZEN_SAFETY_FIRST_METRICS = [
   'verdictAgreementRate',
   'expectedStrikeRecall',
   'falseMatchRateOnGroundTruthMissing',
+  'wrongNoteFalseCorrectRate',
   'correctMissingRate',
+  'wrongNoteDetectionRate',
   'falseCompleteChordAcceptanceRate',
   'chordExactCompletenessRate',
   'extraPrecision',
@@ -1612,7 +1616,7 @@ export function assertAcousticPublicationCausalTimingValid(
     availabilityTimeMs: number;
     observations: readonly { performanceTimeMs: number; pitch?: string; observationId?: string }[];
   },
-  contextBounds?: { clipStartMs?: number; clipEndMs?: number },
+  _contextBounds?: { clipStartMs?: number; clipEndMs?: number },
 ): void {
   if (!Number.isFinite(publication.analyzedThroughPerformanceMs) || publication.analyzedThroughPerformanceMs < 0) {
     throw new Error('INVALID_ANALYZED_THROUGH_TIMESTAMP');
@@ -1645,15 +1649,17 @@ export interface MetricHierarchyRule {
 export const FROZEN_V3_SAFETY_DECISION_HIERARCHY: readonly MetricHierarchyRule[] = [
   { priority: 1, metric: 'falseMatchRateOnGroundTruthMissing', direction: 'LOWER', threshold: 0.01, role: 'PRIMARY_SAFETY_GATE_1', isCriticalSafetyGate: true },
   { priority: 2, metric: 'falseCompleteChordAcceptanceRate', direction: 'LOWER', threshold: 0.01, role: 'PRIMARY_SAFETY_GATE_2', isCriticalSafetyGate: true },
-  { priority: 3, metric: 'verdictAgreementRate', direction: 'HIGHER', threshold: 0.01, role: 'PRIMARY_ACCURACY_GATE_3', isCriticalSafetyGate: true },
-  { priority: 4, metric: 'correctMissingRate', direction: 'HIGHER', threshold: 0.01, role: 'SAFETY_MISSING_DETECTION_4', isCriticalSafetyGate: true },
-  { priority: 5, metric: 'chordExactCompletenessRate', direction: 'HIGHER', threshold: 0.01, role: 'CHORD_FIDELITY_5', isCriticalSafetyGate: true },
-  { priority: 6, metric: 'expectedStrikeRecall', direction: 'HIGHER', threshold: 0.01, role: 'PRIMARY_STRIKE_RECALL_6', isCriticalSafetyGate: true },
-  { priority: 7, metric: 'extraPrecision', direction: 'HIGHER', threshold: 0.01, role: 'SPURIOUS_STRIKE_REJECTION_7', isCriticalSafetyGate: true },
-  { priority: 8, metric: 'extraRecall', direction: 'HIGHER', threshold: 0.01, role: 'EXTRA_NOTE_DETECTION_8', isCriticalSafetyGate: true },
-  { priority: 9, metric: 'timingAbsoluteMedianMs', direction: 'LOWER', threshold: 5.0, role: 'TIMING_ALIGNMENT_MEDIAN_9' },
-  { priority: 10, metric: 'timingAbsoluteP95Ms', direction: 'LOWER', threshold: 10.0, role: 'TIMING_ALIGNMENT_P95_10' },
-  { priority: 11, metric: 'finalizedFeedbackAgeP95Ms', direction: 'LOWER', threshold: 100.0, role: 'TERMINAL_LATENCY_TIE_BREAK_11' },
+  { priority: 3, metric: 'wrongNoteFalseCorrectRate', direction: 'LOWER', threshold: 0.01, role: 'PRIMARY_WRONG_NOTE_FALSE_CORRECT_GATE_3', isCriticalSafetyGate: true },
+  { priority: 4, metric: 'verdictAgreementRate', direction: 'HIGHER', threshold: 0.01, role: 'PRIMARY_ACCURACY_GATE_4', isCriticalSafetyGate: true },
+  { priority: 5, metric: 'correctMissingRate', direction: 'HIGHER', threshold: 0.01, role: 'SAFETY_MISSING_DETECTION_5', isCriticalSafetyGate: true },
+  { priority: 6, metric: 'wrongNoteDetectionRate', direction: 'HIGHER', threshold: 0.01, role: 'WRONG_NOTE_POSITIVE_DETECTION_6', isCriticalSafetyGate: true },
+  { priority: 7, metric: 'chordExactCompletenessRate', direction: 'HIGHER', threshold: 0.01, role: 'CHORD_FIDELITY_7', isCriticalSafetyGate: true },
+  { priority: 8, metric: 'expectedStrikeRecall', direction: 'HIGHER', threshold: 0.01, role: 'PRIMARY_STRIKE_RECALL_8', isCriticalSafetyGate: true },
+  { priority: 9, metric: 'extraPrecision', direction: 'HIGHER', threshold: 0.01, role: 'SPURIOUS_STRIKE_REJECTION_9', isCriticalSafetyGate: true },
+  { priority: 10, metric: 'extraRecall', direction: 'HIGHER', threshold: 0.01, role: 'EXTRA_NOTE_DETECTION_10', isCriticalSafetyGate: true },
+  { priority: 11, metric: 'timingAbsoluteMedianMs', direction: 'LOWER', threshold: 5.0, role: 'TIMING_ALIGNMENT_MEDIAN_11' },
+  { priority: 12, metric: 'timingAbsoluteP95Ms', direction: 'LOWER', threshold: 10.0, role: 'TIMING_ALIGNMENT_P95_12' },
+  { priority: 13, metric: 'finalizedFeedbackAgeP95Ms', direction: 'LOWER', threshold: 100.0, role: 'TERMINAL_LATENCY_TIE_BREAK_13' },
 ];
 
 export interface PairwiseComparisonGateDetail {

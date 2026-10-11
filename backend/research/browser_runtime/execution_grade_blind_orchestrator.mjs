@@ -1,4 +1,8 @@
 /**
+ * HISTORICAL-ONLY: superseded by backend/research/product_benchmark for the
+ * Phase 9G-B.3 product benchmark main path. Do not import or execute this file
+ * from active product-benchmark commands.
+ *
  * Phase 9G-B.2-PRE: Execution-Grade Blind Evaluation Orchestrator & Durable One-Shot Journal.
  *
  * Implements the modular, testable, score-blind evaluation pipeline:

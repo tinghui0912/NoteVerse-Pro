@@ -1,4 +1,8 @@
 /**
+ * HISTORICAL-ONLY: superseded by backend/research/product_benchmark for the
+ * Phase 9G-B.3 product benchmark main path. Do not import or execute this file
+ * from active product-benchmark commands.
+ *
  * Phase 9G-B: Official Authoritative Blind Evaluation Execution Entrypoint.
  *
  * Implements the authoritative execution bridge connecting the three frozen neural candidate

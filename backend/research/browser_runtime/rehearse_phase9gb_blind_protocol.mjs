@@ -1,4 +1,8 @@
 /**
+ * HISTORICAL-ONLY: superseded by backend/research/product_benchmark for the
+ * Phase 9G-B.3 product benchmark main path. Do not import or execute this file
+ * from active product-benchmark commands.
+ *
  * Phase 9G-B.2-ARM: True Synthetic End-to-End Evaluation Protocol Rehearsal Engine.
  *
  * Implements a true end-to-end rehearsal of the future Phase 9G-B blind evaluation execution path:

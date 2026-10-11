@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildBakeoffReport,
+  aggregateCandidateMetricsForResearch,
   classifyExistingPracticeAudioCorpus,
   detectSplitLeakage,
   fakeCandidate,
@@ -955,5 +956,23 @@ describe('Continuous analyzer bake-off harness', () => {
       sampleCount: 1,
       value: 0, // 0% detected
     });
+  });
+
+  it('exports the research aggregate API with the same semantics used by buildBakeoffReport', () => {
+    const inputScenario = scenario();
+    const candidate = fakeCandidate(inputScenario, 'PERFECT');
+    const score = scoreCandidate(inputScenario, candidate.definition, candidate.run);
+    const aggregate = aggregateCandidateMetricsForResearch([score]);
+    const report = buildBakeoffReport({
+      scenarios: [inputScenario],
+      candidateDefinitions: [candidate.definition],
+      scenarioRuns: [candidate.run],
+      gitHead: 'test',
+      command: 'vitest',
+      policy: { policyId: 'test-policy', path: 'test-policy.json', schemaVersion: 1, sha256: 'a'.repeat(64) },
+      benchmarkManifest: { manifestId: 'test-manifest', path: 'test-manifest.json', schemaVersion: 1, sha256: 'b'.repeat(64) },
+      dirtyTree: false,
+    });
+    expect(aggregate).toEqual(report.aggregateMetrics[candidate.definition.candidateId].DEVELOPMENT);
   });
 });

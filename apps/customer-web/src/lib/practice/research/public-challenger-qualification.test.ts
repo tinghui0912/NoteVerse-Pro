@@ -21,6 +21,7 @@ import {
   PHASE_9GB2_FINAL_GATE,
   PHASE_9GB2_FINAL_GATE_R1,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1_SHA256,
+  PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V2_SHA256,
   PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V3,
@@ -84,6 +85,14 @@ import {
   assertObservationDigestValid,
   assertCleanWorkingTreeIntegrity,
   assertCandidateBlindRolePermitted,
+  PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5,
+  FROZEN_SAFETY_FIRST_METRICS,
+  FROZEN_V3_SAFETY_DECISION_HIERARCHY,
+  type ProductionLicenseStatus,
+  type MetricEffectClassification,
+  type StatisticalEvidenceProvenance,
+  type MetricHierarchyRule,
+  type PairwiseComparisonGateDetail,
   type ChallengerExecutionRequest,
 } from './public-challenger-qualification';
 import {
@@ -104,11 +113,19 @@ import {
   assertJournalChainTipAndCompleteness,
   assertProductionAudioManifestValid,
   assertSyntheticRehearsalManifestValid,
+  VALID_LEDGER_STATES,
+  TRUSTED_BLIND_AUTHORIZATION_PUBLIC_KEY_PEM,
+  computeAuthorizationCanonicalPayload,
+  ALLOWED_JOURNAL_EVENT_TYPES,
+  canonicalJournalEventUnsigned,
+  type BlindExecutionAuthorizationReceipt,
 } from './public-challenger-qualification-historical';
 import type { CandidateScenarioRun } from './continuous-analyzer-bakeoff';
 import {
   PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5_SHA256,
 } from './public-model-calibration';
+
+type ProductionAudioManifestRecord = Parameters<typeof assertProductionAudioManifestValid>[0];
 
 function validRequest(overrides: Partial<ChallengerExecutionRequest> = {}): ChallengerExecutionRequest {
   return {
@@ -130,6 +147,65 @@ function validRequest(overrides: Partial<ChallengerExecutionRequest> = {}): Chal
 }
 
 describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
+  it('keeps historical research contract exports reachable for audit tooling', () => {
+    const license: ProductionLicenseStatus = 'PRODUCTION_LICENSE_ELIGIBLE';
+    const effect: MetricEffectClassification = 'STATISTICALLY_SIGNIFICANT_MEANINGFUL_DIFFERENCE';
+    const provenance: StatisticalEvidenceProvenance = 'REPRODUCED_FROM_SCENARIO_LEVEL_EVIDENCE';
+    const rule: MetricHierarchyRule = FROZEN_V3_SAFETY_DECISION_HIERARCHY[0];
+    const gate: PairwiseComparisonGateDetail = {
+      priority: rule.priority,
+      metric: rule.metric,
+      direction: rule.direction,
+      threshold: rule.threshold,
+      sampleCount: 8,
+      status: 'EVALUATED',
+      meanDiff: 0,
+      ciLow: -0.001,
+      ciHigh: 0.001,
+    };
+    const auth: BlindExecutionAuthorizationReceipt = {
+      authorizationId: 'auth-audit',
+      issuer: 'vitest',
+      approvalIdentity: 'audit',
+      issuedAt: '2026-10-10T00:00:00.000Z',
+      expiresAt: '2026-10-11T00:00:00.000Z',
+      oneShotScope: 'PHASE_9GB_PRODUCT_BENCHMARK',
+      permittedExecutionMode: 'REAL_BLIND',
+      boundRunId: 'audit',
+      boundCommitSha: 'a'.repeat(40),
+      boundProtocolSha256: 'b'.repeat(64),
+      boundScorerSha256: 'c'.repeat(64),
+      boundRosterSha256: 'd'.repeat(64),
+      boundManifestSha256: 'e'.repeat(64),
+      signatureAlgorithm: 'ECDSA_P256_SHA256',
+      signature: 'signature',
+    };
+    expect(PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5).toBe('PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5');
+    expect(PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V1).toBe('PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V1');
+    expect(PHASE_9GB_BLIND_EVALUATION_PROTOCOL_V7).toBe('PHASE_9G_B_BLIND_EVALUATION_PROTOCOL_V7');
+    expect(PHASE_9GB2_FINAL_GATE_R1).toBe('9G-B.2-FINAL-GATE-R1');
+    expect(FROZEN_SAFETY_FIRST_METRICS).toContain('wrongNoteFalseCorrectRate');
+    expect(VALID_LEDGER_STATES).toContain('PREPARED');
+    expect(ALLOWED_JOURNAL_EVENT_TYPES).toContain('RUN_INITIALIZED');
+    expect(TRUSTED_BLIND_AUTHORIZATION_PUBLIC_KEY_PEM).toContain('BEGIN PUBLIC KEY');
+    expect(computeAuthorizationCanonicalPayload(auth).length).toBeGreaterThan(0);
+    expect(canonicalJournalEventUnsigned({
+      seq: 0,
+      prevEventHash: '0'.repeat(64),
+      timestamp: '2026-10-10T00:00:00.000Z',
+      eventType: 'RUN_INITIALIZED',
+      runId: 'audit',
+      payload: {},
+      eventHash: 'f'.repeat(64),
+    }).eventType).toBe('RUN_INITIALIZED');
+    expect([license, effect, provenance, gate.status]).toEqual([
+      'PRODUCTION_LICENSE_ELIGIBLE',
+      'STATISTICALLY_SIGNIFICANT_MEANINGFUL_DIFFERENCE',
+      'REPRODUCED_FROM_SCENARIO_LEVEL_EVIDENCE',
+      'EVALUATED',
+    ]);
+  });
+
   it('enforces exact Challenger V1 policy identity and SHA256', () => {
     expect(() => assertChallengerQualificationPolicyIdentity({
       policyId: PUBLIC_CHALLENGER_QUALIFICATION_PROTOCOL_V1,
@@ -1625,23 +1701,25 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       const incomplete = {
         verdictAgreementRate: { value: 0.96 },
         expectedStrikeRecall: { value: 0.98 },
-        // Missing falseMatchRateOnGroundTruthMissing and other 5
+        // Missing falseMatchRateOnGroundTruthMissing and the remaining safety metrics.
       };
       expect(() => assertRequiredSafetyMetricsPresent(incomplete))
         .toThrow(/MISSING_REQUIRED_SAFETY_METRIC:falseMatchRateOnGroundTruthMissing/);
 
       const complete: Record<string, unknown> = {};
-      const all8 = [
+      const allRequired = [
         'verdictAgreementRate',
         'expectedStrikeRecall',
         'falseMatchRateOnGroundTruthMissing',
+        'wrongNoteFalseCorrectRate',
         'correctMissingRate',
+        'wrongNoteDetectionRate',
         'falseCompleteChordAcceptanceRate',
         'chordExactCompletenessRate',
         'extraPrecision',
         'extraRecall',
       ];
-      all8.forEach((k) => { complete[k] = { value: 0.9 }; });
+      allRequired.forEach((k) => { complete[k] = { value: 0.9 }; });
       expect(() => assertRequiredSafetyMetricsPresent(complete)).not.toThrow();
     });
 
@@ -1999,8 +2077,10 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       const diffsAB: Record<string, number[]> = {
         falseMatchRateOnGroundTruthMissing: [-0.02, -0.02, -0.02, -0.02, -0.02, -0.02, -0.02, -0.02],
         falseCompleteChordAcceptanceRate: [0, 0, 0, 0, 0, 0, 0, 0],
+        wrongNoteFalseCorrectRate: [0, 0, 0, 0, 0, 0, 0, 0],
         verdictAgreementRate: [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03],
         correctMissingRate: [0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02],
+        wrongNoteDetectionRate: [0, 0, 0, 0, 0, 0, 0, 0],
         chordExactCompletenessRate: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
         expectedStrikeRecall: [0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04],
         extraPrecision: [0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02],

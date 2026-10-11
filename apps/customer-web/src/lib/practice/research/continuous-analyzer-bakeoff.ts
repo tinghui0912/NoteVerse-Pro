@@ -65,6 +65,11 @@ export type BenchmarkScenario = {
   taxonomy?: {
     groups?: Record<string, readonly string[]>;
   };
+  counterfactualMutation?: {
+    mutationType?: string;
+    physicalPlayedPitch?: string;
+    originalPitch?: string;
+  };
   corpusOverlapStatus: CorpusOverlapStatus;
 };
 
@@ -571,7 +576,7 @@ export function buildBakeoffReport(input: {
   }]));
   const aggregateMetrics = Object.fromEntries(input.candidateDefinitions.map((definition) => [
     definition.candidateId,
-    aggregateBySplit(scores.filter((score) => score.candidateId === definition.candidateId), aggregateCandidateMetrics),
+    aggregateBySplit(scores.filter((score) => score.candidateId === definition.candidateId), aggregateCandidateMetricsForResearch),
   ])) as Record<string, Record<AggregateSplit, AggregateMetricVector>>;
   const familyAggregates = Object.fromEntries(input.candidateDefinitions.map((definition) => [
     definition.candidateId,
@@ -1009,26 +1014,30 @@ function computeMetrics(
       wrongNoteFalseCorrectRate = ratioMetric(falseCorrectCount, wrongNoteGtMissing.length);
 
       let detectedCount = 0;
+      let evaluableWrongPhysicalCount = 0;
       for (const strike of wrongNoteGtMissing) {
         const candStrike = candidateByStrike.get(strike.strikeId);
-        if (candStrike?.result === 'MATCHED') continue;
-        const physicalExtrasNear = groundTruth.extras.filter(
-          (e) => Math.abs(e.performanceTimeMs - strike.expectedPerformanceTimeMs) <= DEFAULT_ASSIGNMENT_WINDOW_MS
+        const wrongPitch = wrongPhysicalPitchForStrike(scenario, strike);
+        if (!wrongPitch) continue;
+        const strikeTimeMs = strike.performanceTimeMs;
+        const physicalWrongAttack = groundTruth.extras.find(
+          (extra) => extra.pitch === wrongPitch
+            && Math.abs(extra.performanceTimeMs - strikeTimeMs) <= DEFAULT_ASSIGNMENT_WINDOW_MS
         );
-        if (physicalExtrasNear.length > 0) {
-          const candidatePreserved = candidate.extras.some((ce) =>
-            physicalExtrasNear.some(
-              (pe) => pe.pitch === ce.pitch && Math.abs(pe.performanceTimeMs - ce.performanceTimeMs) <= DEFAULT_ASSIGNMENT_WINDOW_MS
-            )
-          );
-          if (candidatePreserved) {
-            detectedCount += 1;
-          }
-        } else {
+        if (!physicalWrongAttack) continue;
+        evaluableWrongPhysicalCount += 1;
+        if (candStrike?.result === 'MATCHED') continue;
+        const candidatePreserved = candidate.extras.some((candidateExtra) =>
+          candidateExtra.pitch === physicalWrongAttack.pitch
+          && Math.abs(candidateExtra.performanceTimeMs - physicalWrongAttack.performanceTimeMs) <= DEFAULT_ASSIGNMENT_WINDOW_MS
+        );
+        if (candidatePreserved) {
           detectedCount += 1;
         }
       }
-      wrongNoteDetectionRate = ratioMetric(detectedCount, wrongNoteGtMissing.length);
+      wrongNoteDetectionRate = evaluableWrongPhysicalCount === 0
+        ? notEvaluated('wrong-note physical event could not be established from truth data')
+        : ratioMetric(detectedCount, evaluableWrongPhysicalCount);
     }
   }
 
@@ -1052,6 +1061,31 @@ function computeMetrics(
     wrongNoteFalseCorrectRate,
     wrongNoteDetectionRate,
   };
+}
+
+function wrongPhysicalPitchForStrike(
+  scenario: BenchmarkScenario,
+  strike: { readonly pitch: string; readonly expectedPerformanceTimeMs?: number; readonly performanceTimeMs?: number }
+): string | undefined {
+  const strikeTimeMs = strike.expectedPerformanceTimeMs ?? strike.performanceTimeMs;
+  if (!Number.isFinite(strikeTimeMs)) return undefined;
+  const finiteStrikeTimeMs = strikeTimeMs as number;
+  const mutation = scenario.counterfactualMutation as {
+    readonly physicalPlayedPitch?: string;
+    readonly originalPitch?: string;
+  } | undefined;
+  if (mutation?.physicalPlayedPitch && mutation.physicalPlayedPitch !== strike.pitch) {
+    return mutation.physicalPlayedPitch;
+  }
+  if (mutation?.originalPitch && mutation.originalPitch !== strike.pitch) {
+    return mutation.originalPitch;
+  }
+  return scenario.physicalGroundTruth?.status === 'RECORDED'
+    ? scenario.physicalGroundTruth.attacks.find((attack) =>
+        attack.pitch !== strike.pitch
+        && Math.abs(attack.performanceTimeMs - finiteStrikeTimeMs) <= DEFAULT_ASSIGNMENT_WINDOW_MS
+      )?.pitch
+    : undefined;
 }
 
 function familyMetrics(
@@ -1155,7 +1189,7 @@ function oneToOneExtraMatches(
   return assignments.size;
 }
 
-function aggregateCandidateMetrics(scores: readonly BakeoffScore[]): AggregateMetricVector {
+export function aggregateCandidateMetricsForResearch(scores: readonly BakeoffScore[]): AggregateMetricVector {
   const expectedStrikeRecall = pooledRatio(scores, (score) => score.metrics.expectedStrikeRecall);
   const falseMatchRateOnGroundTruthMissing = pooledRatio(scores, (score) => score.metrics.falseMatchRateOnGroundTruthMissing);
   const correctMissingRate = pooledRatio(scores, (score) => score.metrics.correctMissingRate);

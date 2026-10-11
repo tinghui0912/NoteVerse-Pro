@@ -15,10 +15,11 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdir, open, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
+  ACTIVE_CANDIDATE_IDS,
   CANDIDATE_CONFIGS,
   createCandidateAdapter,
   assertTruthIsolation,
@@ -31,42 +32,166 @@ const BLIND_PERFORMERS = ['p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22'
 /**
  * Asserts that the manifest is completely truth-free.
  */
+const SCENARIO_ALLOWED_TOP_LEVEL_KEYS = new Set([
+  'schemaVersion',
+  'scenarioId',
+  'performerId',
+  'pieceId',
+  'fixedBpm',
+  'audio',
+  'source',
+  'completion',
+  'candidateEligibility',
+]);
+
+const SCENARIO_ALLOWED_AUDIO_KEYS = new Set([
+  'sourceAudioPath',
+  'sourceAudioSha256',
+  'nativeSampleRateHz',
+  'channelPolicy',
+  'clipStartMs',
+  'clipEndMs',
+  'sourceDurationMs',
+  'performanceOriginSourceMs',
+]);
+
+const SCENARIO_ALLOWED_SOURCE_KEYS = new Set([
+  'sourceAudioPath',
+  'sourceAudioSha256',
+]);
+
+const FORBIDDEN_TRUTH_KEYS = new Set([
+  'expectedStrikes',
+  'expectedEvents',
+  'physicalGroundTruth',
+  'sourceMidiPath',
+  'sourceMidiSha256',
+  'referenceMidi',
+  'taxonomy',
+  'familyTags',
+  'counterfactualMutation',
+  'counterfactualReceipt',
+  'groundTruthStrikes',
+  'truthReceipts',
+  'notes',
+  'notesTruth',
+  'midiEvents',
+]);
+
 export function assertTruthFreeManifest(manifest) {
   if (!manifest || typeof manifest !== 'object') {
     throw new Error('TRUTH_FREE_MANIFEST_REQUIRED: Manifest must be a non-null object');
   }
   const scenarios = manifest.scenarios ?? [];
   for (const scen of scenarios) {
-    if (scen.expectedStrikes || scen.expectedEvents || scen.referenceMidi || scen.notes || scen.counterfactualReceipt) {
-      throw new Error(`TRUTH_LEAKAGE_DETECTED: Scenario ${scen.scenarioId} contains ground truth data`);
+    assertTruthIsolation(scen);
+    for (const key of Object.keys(scen)) {
+      if (FORBIDDEN_TRUTH_KEYS.has(key)) {
+        throw new Error(`TRUTH_LEAKAGE_DETECTED:${scen.scenarioId}:${key}`);
+      }
+      if (!SCENARIO_ALLOWED_TOP_LEVEL_KEYS.has(key)) {
+        throw new Error(`TRUTH_FREE_UNKNOWN_FIELD_REJECTED:${scen.scenarioId}:${key}`);
+      }
     }
-    if (scen.notesTruth || scen.midiEvents || scen.groundTruthStrikes) {
-      throw new Error(`TRUTH_LEAKAGE_DETECTED: Scenario ${scen.scenarioId} contains forbidden ground truth keys`);
+    for (const key of Object.keys(scen.audio ?? {})) {
+      if (!SCENARIO_ALLOWED_AUDIO_KEYS.has(key)) {
+        throw new Error(`TRUTH_FREE_UNKNOWN_AUDIO_FIELD_REJECTED:${scen.scenarioId}:${key}`);
+      }
     }
+    for (const key of Object.keys(scen.source ?? {})) {
+      if (!SCENARIO_ALLOWED_SOURCE_KEYS.has(key)) {
+        throw new Error(`TRUTH_FREE_UNKNOWN_SOURCE_FIELD_REJECTED:${scen.scenarioId}:${key}`);
+      }
+    }
+    sanitizeToTruthFreeScenario(scen, { official: true });
   }
 }
 
 /**
  * Strips ground truth from a scenario to produce a truth-free inference scenario.
  */
-export function sanitizeToTruthFreeScenario(scenario) {
+export function sanitizeToTruthFreeScenario(scenario, { official = true } = {}) {
+  const fixedBpm = scenario.fixedBpm ?? scenario.performance?.fixedBpm;
+  const sourceAudioPath = scenario.audio?.sourceAudioPath ?? scenario.source?.sourceAudioPath;
+  const sourceAudioSha256 = scenario.audio?.sourceAudioSha256 ?? scenario.source?.sourceAudioSha256;
+  const nativeSampleRateHz = scenario.audio?.nativeSampleRateHz;
+  const completionMs = scenario.completion?.performanceTimeMs;
+  const originMs = scenario.audio?.performanceOriginSourceMs ?? scenario.performanceOriginSourceMs;
+  const clipStartMs = scenario.audio?.clipStartMs;
+  const clipEndMs = scenario.audio?.clipEndMs;
+  if (official) {
+    const missing = [];
+    if (!scenario.scenarioId) missing.push('scenarioId');
+    if (!scenario.performerId) missing.push('performerId');
+    if (!Number.isFinite(fixedBpm)) missing.push('fixedBpm');
+    if (!sourceAudioPath) missing.push('audio.sourceAudioPath');
+    if (!sourceAudioSha256) missing.push('audio.sourceAudioSha256');
+    if (!Number.isFinite(nativeSampleRateHz)) missing.push('audio.nativeSampleRateHz');
+    if (!Number.isFinite(originMs)) missing.push('audio.performanceOriginSourceMs');
+    if (!Number.isFinite(clipStartMs)) missing.push('audio.clipStartMs');
+    if (!Number.isFinite(clipEndMs)) missing.push('audio.clipEndMs');
+    if (!Number.isFinite(completionMs)) missing.push('completion.performanceTimeMs');
+    if (missing.length > 0) {
+      throw new Error(`TRUTH_FREE_REQUIRED_METADATA_MISSING:${scenario.scenarioId ?? 'unknown'}:${missing.join(',')}`);
+    }
+  }
   return {
     scenarioId: scenario.scenarioId,
     performerId: scenario.performerId,
-    fixedBpm: scenario.fixedBpm ?? scenario.performance?.fixedBpm ?? 60,
-    performanceOriginSourceMs: scenario.audio?.performanceOriginSourceMs ?? 0,
+    fixedBpm,
     completion: {
-      performanceTimeMs: scenario.completion?.performanceTimeMs ?? scenario.audio?.clipEndMs ?? 15000,
+      performanceTimeMs: completionMs,
     },
     audio: {
-      sourceAudioPath: scenario.audio?.sourceAudioPath ?? scenario.source?.sourceAudioPath,
-      sourceAudioSha256: scenario.audio?.sourceAudioSha256 ?? scenario.source?.sourceAudioSha256,
-      clipStartMs: scenario.audio?.clipStartMs ?? 0,
-      clipEndMs: scenario.audio?.clipEndMs ?? scenario.completion?.performanceTimeMs ?? 15000,
-      nativeSampleRateHz: scenario.audio?.nativeSampleRateHz ?? 44100,
+      sourceAudioPath,
+      sourceAudioSha256,
+      clipStartMs,
+      clipEndMs,
+      sourceDurationMs: scenario.audio?.sourceDurationMs,
+      nativeSampleRateHz,
+      performanceOriginSourceMs: originMs,
     },
     candidateEligibility: scenario.candidateEligibility ?? {},
   };
+}
+
+export function projectTruthFreeBlindManifest(truthManifest) {
+  const receiptByScenarioId = new Map((truthManifest.scenarioReceipts ?? []).map((receipt) => [receipt.scenarioId, receipt]));
+  const scenarios = (truthManifest.scenarios ?? []).map((scenario) => {
+    const receipt = receiptByScenarioId.get(scenario.scenarioId);
+    const performerId = scenario.performerId
+      ?? receipt?.performanceId?.match(/_p\d{2}$/)?.[0]?.slice(1)
+      ?? scenario.scenarioId.match(/_p\d{2}/)?.[0]?.slice(1);
+    return sanitizeToTruthFreeScenario({
+      ...scenario,
+      performerId,
+      fixedBpm: receipt?.configuredIntegerBpm ?? scenario.fixedBpm,
+      source: {
+        sourceAudioPath: scenario.source?.sourceAudioPath,
+        sourceAudioSha256: scenario.source?.sourceAudioSha256,
+      },
+      audio: {
+        ...scenario.audio,
+        sourceAudioPath: scenario.source?.sourceAudioPath,
+        sourceAudioSha256: scenario.source?.sourceAudioSha256,
+      },
+    }, { official: true });
+  });
+  assertTruthFreeManifest({ scenarios });
+  const performers = [...new Set(scenarios.map((scenario) => scenario.performerId))].sort();
+  const scenarioIds = scenarios.map((scenario) => scenario.scenarioId);
+  const projection = {
+    schemaVersion: 1,
+    artifact: 'phase9gb3_fix_truth_free_blind_projection',
+    sourceTruthManifestSha256: createHash('sha256').update(JSON.stringify(truthManifest)).digest('hex'),
+    scenarioCount: scenarios.length,
+    performers,
+    scenarioIds,
+    scenarios,
+    candidateRunCount: 0,
+  };
+  const projectionSha256 = createHash('sha256').update(JSON.stringify(projection)).digest('hex');
+  return { ...projection, projectionSha256 };
 }
 
 /**
@@ -76,11 +201,18 @@ export async function runAcousticInference({
   manifestPath,
   manifestObject,
   runDir,
-  executionMode = 'SYNTHETIC', // 'SYNTHETIC' | 'REAL_BLIND' | 'DOCKER'
-  candidateIds = Object.keys(CANDIDATE_CONFIGS),
+  executionMode, // 'SYNTHETIC' | 'REAL_BLIND' | 'DOCKER'
+  candidateIds = ACTIVE_CANDIDATE_IDS,
   allowBlindExecution = false,
+  realBlindUserAuthorization = false,
   simulatedLatencyMs = 25,
 }) {
+  if (!executionMode) {
+    throw new Error('PRODUCT_BENCHMARK_EXECUTION_MODE_REQUIRED');
+  }
+  if (executionMode === 'REAL_BLIND' && (!allowBlindExecution || !realBlindUserAuthorization)) {
+    throw new Error('REAL_BLIND_REQUIRES_EXPLICIT_USER_AUTHORIZATION_SWITCH');
+  }
   const manifest = manifestObject ?? JSON.parse(await readFile(manifestPath, 'utf8'));
   assertTruthFreeManifest(manifest);
 
@@ -119,7 +251,7 @@ export async function runAcousticInference({
       coverage.summary.totalExpectedRuns += 1;
       const scenarioId = scenario.scenarioId;
       const evidenceFileName = `${candidateId}__${scenarioId}.json`;
-      const evidenceFilePath = path.resolve(evidenceDir, evidenceFileName);
+      let evidenceFilePath = path.resolve(evidenceDir, evidenceFileName);
 
       // Check candidate eligibility
       if (scenario.candidateEligibility && scenario.candidateEligibility[candidateId] === false) {
@@ -151,6 +283,7 @@ export async function runAcousticInference({
           evidenceHashes[`${candidateId}__${scenarioId}`] = existing.evidenceSha256;
           continue;
         }
+        evidenceFilePath = path.resolve(evidenceDir, `${candidateId}__${scenarioId}__attempt-${Date.now()}.json`);
       }
 
       // Execute inference via adapter
@@ -165,16 +298,24 @@ export async function runAcousticInference({
         const evidenceSha256 = createHash('sha256').update(rawContent, 'utf8').digest('hex');
 
         const evidenceRecord = {
+          schemaVersion: 1,
           candidateId,
           scenarioId,
+          profileId: CANDIDATE_CONFIGS[candidateId].profileId,
+          configurationSha256: CANDIDATE_CONFIGS[candidateId].identity.configurationSha256,
+          checkpointSha256: CANDIDATE_CONFIGS[candidateId].checkpoint.sha256,
+          sourceAudioSha256: sanitized.audio.sourceAudioSha256,
+          runtimeIdentity: candidateRun.runProvenance?.runtime,
+          executionMode,
           status: 'SUCCESS',
           evidenceSha256,
+          candidateRunDigestSha256: evidenceSha256,
           timestamp: new Date().toISOString(),
           candidateRun,
         };
 
         // Write evidence write-once
-        await writeFile(evidenceFilePath, JSON.stringify(evidenceRecord, null, 2), 'utf8');
+        await writeExclusiveJson(evidenceFilePath, evidenceRecord);
 
         coverage.candidates[candidateId].successfulScenarios.push(scenarioId);
         coverage.summary.successfulRuns += 1;
@@ -193,7 +334,8 @@ export async function runAcousticInference({
           error: err.message,
           timestamp: new Date().toISOString(),
         };
-        await writeFile(evidenceFilePath, JSON.stringify(failureRecord, null, 2), 'utf8');
+        const failedPath = path.resolve(evidenceDir, `${candidateId}__${scenarioId}__FAILED__${Date.now()}.json`);
+        await writeExclusiveJson(failedPath, failureRecord);
       }
     }
   }
@@ -225,6 +367,15 @@ export async function runAcousticInference({
   };
 }
 
+async function writeExclusiveJson(filePath, value) {
+  const handle = await open(filePath, 'wx');
+  try {
+    await handle.writeFile(JSON.stringify(value, null, 2), 'utf8');
+  } finally {
+    await handle.close();
+  }
+}
+
 if (process.argv[1] && import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
   const args = process.argv.slice(2);
   const manifestIdx = args.indexOf('--manifest');
@@ -238,9 +389,14 @@ if (process.argv[1] && import.meta.url === `file:///${process.argv[1].replace(/\
 
   const manifestPath = args[manifestIdx + 1];
   const runDir = args[runDirIdx + 1];
-  const executionMode = modeIdx !== -1 ? args[modeIdx + 1] : 'SYNTHETIC';
+  if (modeIdx === -1) {
+    console.error('Stage A requires explicit --mode SYNTHETIC|DOCKER|REAL_BLIND.');
+    process.exit(1);
+  }
+  const executionMode = args[modeIdx + 1];
+  const realBlindUserAuthorization = args.includes('--i-authorize-real-blind-inference');
 
-  runAcousticInference({ manifestPath, runDir, executionMode })
+  runAcousticInference({ manifestPath, runDir, executionMode, realBlindUserAuthorization })
     .then((res) => {
       console.log(`Stage A Acoustic Inference finished: ${res.coverage.summary.successfulRuns} runs successful.`);
     })

@@ -9,8 +9,8 @@
     {
       "candidateId": "bytedance-original-calibrated-v1",
       "family": "bytedance-original",
-      "rank": 1,
       "profileId": "bytedance-original-calibration-CALIBRATED_CONTEXT_5S-onset-0.20-frame-0.10",
+      "configurationSha256": "91a6fc6d33575edf9b8eb3adc78a21a4ea28d7581e3c7eb56a882e0fe6dd9285",
       "strategyKind": "CHUNKED",
       "contextGeometry": {
         "profileId": "CALIBRATED_CONTEXT_5S",
@@ -27,7 +27,7 @@
       "checkpoint": {
         "path": "models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
         "sha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
-        "bytes": 171966578
+        "bytes": 103815845
       },
       "dockerImage": "noteverse-bytedance-calibration:phase9ga21",
       "dockerScript": "backend/scripts/run_bytedance_pytorch_raw_batch.py",
@@ -37,20 +37,20 @@
     {
       "candidateId": "online-amt-calibrated-v1",
       "family": "online-amt",
-      "rank": 2,
-      "profileId": "online-amt-stateful-streaming-native-boost-2.0",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
       "strategyKind": "STREAMING",
       "streaming": {
         "sampleRateHz": 16000,
         "hopSamples": 512,
         "hopMs": 32,
         "timingCorrectionMs": -158,
-        "publishedOnsetBoost": 2.0,
+      "publishedOnsetBoost": 1.0,
         "pseudoIntensityShortcut": "NATIVE",
         "statefulContinuity": true
       },
       "checkpoint": {
-        "path": "models/online_amt/stateful/model-180000.pt",
+        "path": "backend/data/work/online_amt/model-180000.pt",
         "sha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
         "bytes": 178804960
       },
@@ -62,8 +62,8 @@
     {
       "candidateId": "bytedance-robust-augmented-calibrated-v1",
       "family": "bytedance-robust-augmented",
-      "rank": 3,
       "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "configurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce",
       "strategyKind": "CHUNKED",
       "contextGeometry": {
         "profileId": "CALIBRATED_CONTEXT_1820",
@@ -78,7 +78,7 @@
       },
       "checkpoint": {
         "path": "models/bytedance_piano_transcription/high_resolution_MAESTRO_augmentations.pth",
-        "sha256": "08400494cf071fe0e9649b1fa9f1f0a2ca3e77f0d06f69ad93e87834bcabcebe",
+        "sha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
         "bytes": 171966578
       },
       "dockerImage": "noteverse-challengers:phase9ga3",

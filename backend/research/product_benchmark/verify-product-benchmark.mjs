@@ -15,9 +15,14 @@ import path from 'node:path';
 
 import {
   CANDIDATE_CONFIGS,
+  ACTIVE_CANDIDATE_IDS,
+  assertActiveCandidateRegistryIdentitiesExact,
   createCandidateAdapter,
   planByteDanceVariableContext,
   assertTruthIsolation,
+  verifyPhysicalCheckpointIdentity,
+  verifySourceAudioForScenario,
+  extractResampleLinear,
   ByteDanceOriginalAdapter,
   OnlineAmtStreamingAdapter,
   RobustByteDanceAdapter,
@@ -27,6 +32,7 @@ import {
   runAcousticInference,
   assertTruthFreeManifest,
   sanitizeToTruthFreeScenario,
+  projectTruthFreeBlindManifest,
 } from './run-acoustic-inference.mjs';
 
 import {
@@ -172,7 +178,7 @@ async function runAllChecks() {
     console.log(`[Item ${itemNumber.toString().padStart(2, '0')}] ${mark}: ${title} ${detail ? `(${detail})` : ''}`);
   }
 
-  console.log('--- Phase 9G-B.3-PREP 20-Item Product Benchmark Verification Suite ---');
+  console.log('--- Phase 9G-B.3-FIX Product Benchmark Verification Suite ---');
 
   // 1. CUSTOM_FIXED_BPM ExpectedStrike generation
   try {
@@ -427,8 +433,8 @@ async function runAllChecks() {
     const monotonic = run.publications.length > 0 && run.publications.every((p, idx, arr) =>
       idx === 0 || p.analyzedThroughPerformanceMs >= arr[idx - 1].analyzedThroughPerformanceMs
     );
-    const pass = run.publications.length === 6 && monotonic; // 10 hops (320ms) minus 4 pre-event hops (-158ms timing correction) = 6 positive publications
-    record(10, 'Online-AMT stateful hop continuity', pass, `Hops: 10 input hops -> ${run.publications.length} publications with non-decreasing coverage (-158ms timing correction)`);
+    const pass = run.publications.length === 5 && monotonic; // boost-1 calibrated profile uses -162.9375ms correction
+    record(10, 'Online-AMT boost-1 stateful hop continuity', pass, `Hops: 10 input hops -> ${run.publications.length} publications with non-decreasing coverage (-162.9375ms timing correction)`);
   } catch (err) {
     record(10, 'Online-AMT stateful hop continuity', false, err.message);
   }
@@ -618,16 +624,244 @@ async function runAllChecks() {
     record(20, 'Missing evidence yields incomplete evaluation', false, err.message);
   }
 
+  // 21. Exact frozen candidate identity for all three active candidates
+  try {
+    assertActiveCandidateRegistryIdentitiesExact();
+    const pass = ACTIVE_CANDIDATE_IDS.length === 3
+      && CANDIDATE_CONFIGS['online-amt-calibrated-v1'].profileId === 'online-amt-calibration-native-boost-1'
+      && CANDIDATE_CONFIGS['online-amt-calibrated-v1'].streaming.publishedOnsetBoost === 1.0
+      && CANDIDATE_CONFIGS['bytedance-robust-augmented-calibrated-v1'].checkpoint.sha256 === 'b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e'
+      && !Object.values(CANDIDATE_CONFIGS).some((cfg) => Object.prototype.hasOwnProperty.call(cfg, 'rank'));
+    record(21, 'Exact frozen candidate identity for all three active candidates', pass, ACTIVE_CANDIDATE_IDS.join(', '));
+  } catch (err) {
+    record(21, 'Exact frozen candidate identity for all three active candidates', false, err.message);
+  }
+
+  // 22. Strict truth-free allow-list and no fabricated defaults
+  try {
+    let rejectedTruth = false;
+    let rejectedMissingMetadata = false;
+    try {
+      assertTruthFreeManifest({ scenarios: [{ scenarioId: 'leaky', expectedStrikes: [] }] });
+    } catch {
+      rejectedTruth = true;
+    }
+    try {
+      sanitizeToTruthFreeScenario({ scenarioId: 'missing' }, { official: true });
+    } catch {
+      rejectedMissingMetadata = true;
+    }
+    record(22, 'Strict truth-free allow-list rejects truth and missing official metadata', rejectedTruth && rejectedMissingMetadata);
+  } catch (err) {
+    record(22, 'Strict truth-free allow-list rejects truth and missing official metadata', false, err.message);
+  }
+
+  // 23. Source audio hash verification and non-16k/nonzero-origin resampling
+  try {
+    const wav44Path = path.resolve(testWorkDir, 'origin_44k.wav');
+    const wav44 = createSyntheticWavBuffer(2.0, 220.0, 44100);
+    await writeFile(wav44Path, wav44);
+    const wav44Sha = createHash('sha256').update(wav44).digest('hex');
+    const scen = {
+      scenarioId: 'origin_resample',
+      audio: {
+        sourceAudioPath: path.relative(repoRoot, wav44Path).replace(/\\/g, '/'),
+        sourceAudioSha256: wav44Sha,
+        nativeSampleRateHz: 44100,
+        clipStartMs: 0,
+        clipEndMs: 2000,
+        sourceDurationMs: 2000,
+        performanceOriginSourceMs: 500,
+      },
+      completion: { performanceTimeMs: 500 },
+    };
+    const verified = await verifySourceAudioForScenario(scen);
+    const resampled = extractResampleLinear({
+      sourcePcm: verified.wav.pcm,
+      sourceSampleRateHz: verified.wav.sampleRateHz,
+      sourceStartMs: 500,
+      sourceEndMs: 1000,
+      outputSamples: 8000,
+    });
+    const expectedFirstNativeIndex = Math.floor(0.5 * 44100);
+    const pass = verified.wav.sampleRateHz === 44100
+      && resampled.length === 8000
+      && Math.abs(resampled[0] - verified.wav.pcm[expectedFirstNativeIndex]) < 0.01;
+    record(23, 'Online-AMT source PCM starts at nonzero performance origin before 16k resampling', pass);
+  } catch (err) {
+    record(23, 'Online-AMT source PCM starts at nonzero performance origin before 16k resampling', false, err.message);
+  }
+
+  // 24. Complete Stage A -> Stage B rehearsal reaches scoring and pairwise comparison
+  try {
+    const runDir = path.resolve(testWorkDir, 'complete_rehearsal');
+    await rm(runDir, { recursive: true, force: true });
+    const wavSha = createHash('sha256').update(wavBuffer).digest('hex');
+    const truthScenarios = ['BASE_ORIGINAL', 'COUNTERFACTUAL_MISSING_NOTE', 'COUNTERFACTUAL_WRONG_SEMITONE'].flatMap((family, familyIndex) =>
+      Array.from({ length: 8 }, (_, index) => {
+        const expected = [{ strikeId: `es_${familyIndex}_${index}`, pitch: 'C4', expectedPerformanceTimeMs: 1000, status: family === 'COUNTERFACTUAL_MISSING_NOTE' || family === 'COUNTERFACTUAL_WRONG_SEMITONE' ? 'MISSING' : 'PENDING' }];
+        const physicalAttacks = family === 'COUNTERFACTUAL_MISSING_NOTE'
+          ? []
+          : family === 'COUNTERFACTUAL_WRONG_SEMITONE'
+            ? [{ physicalEventId: `wrong_${index}`, pitch: 'C#4', performanceTimeMs: 1000 }]
+            : [{ physicalEventId: `ok_${index}`, pitch: 'C4', performanceTimeMs: 1000 }];
+        return {
+          ...createTestScenario({
+            scenarioId: `rehearsal_${family}_${index}`,
+            expectedStrikes: expected,
+            physicalAttacks,
+            counterfactualMutation: family === 'COUNTERFACTUAL_WRONG_SEMITONE'
+              ? { mutationType: family, physicalPlayedPitch: 'C#4' }
+              : family === 'COUNTERFACTUAL_MISSING_NOTE'
+                ? { mutationType: family }
+                : null,
+          }),
+          split: 'DEVELOPMENT',
+          performerId: 'p01',
+          familyTags: [family],
+          source: {
+            sourceAudioPath: path.relative(repoRoot, wavPath).replace(/\\/g, '/'),
+            sourceAudioSha256: wavSha,
+            provenance: 'PRODUCT_BENCHMARK_REHEARSAL',
+          },
+          audio: {
+            nativeSampleRateHz: 16000,
+            channelPolicy: 'MONO',
+            clipStartMs: 0,
+            clipEndMs: 6000,
+            sourceDurationMs: 6000,
+            performanceOriginSourceMs: 0,
+            pcmIdentity: 'rehearsal_pcm',
+          },
+          completion: { kind: 'NATURAL', performanceTimeMs: 6000 },
+        };
+      })
+    );
+    const manifestObject = { scenarios: truthScenarios.map((scenario) => sanitizeToTruthFreeScenario(scenario, { official: true })) };
+    const stageA = await runAcousticInference({
+      manifestObject,
+      runDir,
+      executionMode: 'SYNTHETIC',
+      simulatedLatencyMs: 25,
+    });
+    const analysis = await scoreAndCompareBenchmark({
+      runDir,
+      truthScenariosObject: truthScenarios,
+    });
+    const pass = stageA.coverage.summary.successfulRuns === 72
+      && analysis.evaluationStatus === 'EVALUATION_COMPLETED'
+      && Object.keys(analysis.pairwiseComparisons).length === 3;
+    record(24, 'Complete Stage A -> Stage B rehearsal reaches three-candidate comparison', pass, `Outcome: ${analysis.benchmarkOutcome}`);
+  } catch (err) {
+    record(24, 'Complete Stage A -> Stage B rehearsal reaches three-candidate comparison', false, err.message);
+  }
+
+  // 25. Pairwise MetricNumber extraction is A-minus-B and reversal-invariant
+  try {
+    const scenario = createTestScenario({
+      scenarioId: 'pair_metricnumber',
+      expectedStrikes: [{ strikeId: 'es_1', pitch: 'C4', expectedPerformanceTimeMs: 1000, status: 'PENDING' }],
+    });
+    const defA = getCandidateDefinition('bytedance-original-calibrated-v1');
+    const defB = getCandidateDefinition('online-amt-calibrated-v1');
+    const runA = { candidateId: defA.candidateId, scenarioId: scenario.scenarioId, publications: [{ publicationId: 'a', analyzedThroughPerformanceMs: 6000, availabilityTimeMs: 6000, observations: [{ observationId: 'a1', pitch: 'C4', performanceTimeMs: 1000 }] }] };
+    const runB = { candidateId: defB.candidateId, scenarioId: scenario.scenarioId, publications: [{ publicationId: 'b', analyzedThroughPerformanceMs: 6000, availabilityTimeMs: 6000, observations: [] }] };
+    const scoreA = bakeoffModule.scoreCandidate(scenario, defA, runA);
+    const scoreB = bakeoffModule.scoreCandidate(scenario, defB, runB);
+    const ab = scoreA.metrics.expectedStrikeRecall.value - scoreB.metrics.expectedStrikeRecall.value;
+    const ba = scoreB.metrics.expectedStrikeRecall.value - scoreA.metrics.expectedStrikeRecall.value;
+    record(25, 'MetricNumber value paired extraction is reversal-invariant', ab === -ba && ab === 1);
+  } catch (err) {
+    record(25, 'MetricNumber value paired extraction is reversal-invariant', false, err.message);
+  }
+
+  // 26. Truth-free blind projection has 70 p15-p22 scenarios and zero candidate runs
+  try {
+    const blind = JSON.parse(await readFile(path.resolve(repoRoot, 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json'), 'utf8'));
+    const projection = projectTruthFreeBlindManifest(blind);
+    const allowedPerformers = ['p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22'];
+    const pass = projection.scenarioCount === 70
+      && projection.candidateRunCount === 0
+      && projection.performers.every((p) => allowedPerformers.includes(p))
+      && !JSON.stringify(projection.scenarios).includes('expectedStrikes')
+      && !JSON.stringify(projection.scenarios).includes('physicalGroundTruth');
+    const outPath = path.resolve(testWorkDir, 'phase9gb3_fix_truth_free_blind_projection.json');
+    await writeFile(outPath, JSON.stringify(projection, null, 2), 'utf8');
+    record(26, 'Truth-free blind projection preserves safe identities only and candidate run count remains zero', pass, `sha=${projection.projectionSha256}`);
+  } catch (err) {
+    record(26, 'Truth-free blind projection preserves safe identities only and candidate run count remains zero', false, err.message);
+  }
+
+  // 27. Physical checkpoint byte/hash verification for all active candidates
+  try {
+    const checks = ACTIVE_CANDIDATE_IDS.map((candidateId) => verifyPhysicalCheckpointIdentity(CANDIDATE_CONFIGS[candidateId]));
+    const pass = checks.length === 3
+      && checks.every((check) => /^[a-f0-9]{64}$/.test(check.sha256))
+      && checks.every((check) => check.bytes > 0);
+    record(27, 'Physical checkpoint byte/hash verification for all active candidates', pass, checks.map((check) => `${check.sha256.slice(0, 8)}:${check.bytes}`).join(', '));
+  } catch (err) {
+    record(27, 'Physical checkpoint byte/hash verification for all active candidates', false, err.message);
+  }
+
+  // 28. Real neural non-blind integration for all three adapters
+  try {
+    const realRunDir = path.resolve(testWorkDir, 'real_neural_nonblind_smoke');
+    await rm(realRunDir, { recursive: true, force: true });
+    const realWavPath = path.resolve(realRunDir, 'nonblind_dev_synthetic.wav');
+    await mkdir(realRunDir, { recursive: true });
+    const realBytes = createSyntheticWavBuffer(12.0, 440.0, 16000);
+    await writeFile(realWavPath, realBytes);
+    const realSha = createHash('sha256').update(realBytes).digest('hex');
+    const audioRel = path.relative(repoRoot, realWavPath).replace(/\\/g, '/');
+    const scenario = {
+      schemaVersion: 1,
+      scenarioId: 'phase9gb3-fix-real-neural-dev-smoke',
+      performerId: 'p01',
+      pieceId: 'synthetic-dev',
+      fixedBpm: 120,
+      source: { sourceAudioPath: audioRel, sourceAudioSha256: realSha },
+      audio: {
+        sourceAudioPath: audioRel,
+        sourceAudioSha256: realSha,
+        nativeSampleRateHz: 16000,
+        channelPolicy: 'MONO',
+        clipStartMs: 0,
+        clipEndMs: 12000,
+        sourceDurationMs: 12000,
+        performanceOriginSourceMs: 5000,
+      },
+      completion: { performanceTimeMs: 1000 },
+      candidateEligibility: Object.fromEntries(ACTIVE_CANDIDATE_IDS.map((candidateId) => [candidateId, true])),
+    };
+    const result = await runAcousticInference({
+      manifestObject: { scenarios: [scenario] },
+      runDir: realRunDir,
+      executionMode: 'DOCKER',
+      candidateIds: ACTIVE_CANDIDATE_IDS,
+    });
+    const evidenceDir = path.resolve(realRunDir, 'evidence');
+    const evidence = await Promise.all(ACTIVE_CANDIDATE_IDS.map(async (candidateId) =>
+      JSON.parse(await readFile(path.resolve(evidenceDir, `${candidateId}__${scenario.scenarioId}.json`), 'utf8'))
+    ));
+    const pass = result.coverage.summary.successfulRuns === 3
+      && evidence.every((record) => record.status === 'SUCCESS')
+      && evidence.every((record) => record.candidateRun?.publications?.length > 0)
+      && evidence.every((record) => record.executionMode === 'DOCKER');
+    record(28, 'Real neural non-blind integration for all three adapters', pass, `runs=${result.coverage.summary.successfulRuns}, blindRuns=0`);
+  } catch (err) {
+    record(28, 'Real neural non-blind integration for all three adapters', false, err.message);
+  }
+
   // Summary
   const allPassed = results.every((r) => r.pass);
   console.log('----------------------------------------------------------------------');
   console.log(`Verification completed: ${results.filter((r) => r.pass).length}/${results.length} checks passed.`);
-  console.log(`Gate Verdict: ${allPassed ? 'PHASE_9GB3_PREP_READY_FOR_EXPLICIT_PRODUCT_BLIND_BENCHMARK' : 'PHASE_9GB3_PREP_BLOCKED'}`);
+  console.log(`Gate Verdict: ${allPassed ? 'PHASE_9GB3_FIX_READY_FOR_EXPLICIT_PRODUCT_BLIND_BENCHMARK' : 'PHASE_9GB3_FIX_BLOCKED'}`);
 
   return {
     allPassed,
     results,
-    verdict: allPassed ? 'PHASE_9GB3_PREP_READY_FOR_EXPLICIT_PRODUCT_BLIND_BENCHMARK' : 'PHASE_9GB3_PREP_BLOCKED',
+    verdict: allPassed ? 'PHASE_9GB3_FIX_READY_FOR_EXPLICIT_PRODUCT_BLIND_BENCHMARK' : 'PHASE_9GB3_FIX_BLOCKED',
   };
 }
 
