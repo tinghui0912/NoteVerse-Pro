@@ -24,7 +24,9 @@ def main() -> int:
     request = json.loads(args.input.read_text(encoding="utf-8"))
     checkpoint_sha = sha256(args.checkpoint)
 
-    device = torch.device(args.device if (args.device == "cpu" or torch.cuda.is_available()) else "cpu")
+    if args.device == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("REQUESTED_CUDA_DEVICE_UNAVAILABLE")
+    device = torch.device(args.device)
     checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=False)
     model = Regress_onset_offset_frame_velocity_CRNN(frames_per_second=100, classes_num=88)
     model.load_state_dict(checkpoint["model"], strict=True)

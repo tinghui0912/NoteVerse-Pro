@@ -1649,6 +1649,20 @@ export interface MetricHierarchyRule {
 export const FROZEN_V3_SAFETY_DECISION_HIERARCHY: readonly MetricHierarchyRule[] = [
   { priority: 1, metric: 'falseMatchRateOnGroundTruthMissing', direction: 'LOWER', threshold: 0.01, role: 'PRIMARY_SAFETY_GATE_1', isCriticalSafetyGate: true },
   { priority: 2, metric: 'falseCompleteChordAcceptanceRate', direction: 'LOWER', threshold: 0.01, role: 'PRIMARY_SAFETY_GATE_2', isCriticalSafetyGate: true },
+  { priority: 3, metric: 'verdictAgreementRate', direction: 'HIGHER', threshold: 0.01, role: 'PRIMARY_ACCURACY_GATE_3', isCriticalSafetyGate: true },
+  { priority: 4, metric: 'correctMissingRate', direction: 'HIGHER', threshold: 0.01, role: 'SAFETY_MISSING_DETECTION_4', isCriticalSafetyGate: true },
+  { priority: 5, metric: 'chordExactCompletenessRate', direction: 'HIGHER', threshold: 0.01, role: 'CHORD_FIDELITY_5', isCriticalSafetyGate: true },
+  { priority: 6, metric: 'expectedStrikeRecall', direction: 'HIGHER', threshold: 0.01, role: 'PRIMARY_STRIKE_RECALL_6', isCriticalSafetyGate: true },
+  { priority: 7, metric: 'extraPrecision', direction: 'HIGHER', threshold: 0.01, role: 'SPURIOUS_STRIKE_REJECTION_7', isCriticalSafetyGate: true },
+  { priority: 8, metric: 'extraRecall', direction: 'HIGHER', threshold: 0.01, role: 'EXTRA_NOTE_DETECTION_8', isCriticalSafetyGate: true },
+  { priority: 9, metric: 'timingAbsoluteMedianMs', direction: 'LOWER', threshold: 5.0, role: 'TIMING_ALIGNMENT_MEDIAN_9' },
+  { priority: 10, metric: 'timingAbsoluteP95Ms', direction: 'LOWER', threshold: 10.0, role: 'TIMING_ALIGNMENT_P95_10' },
+  { priority: 11, metric: 'finalizedFeedbackAgeP95Ms', direction: 'LOWER', threshold: 100.0, role: 'TERMINAL_LATENCY_TIE_BREAK_11' },
+];
+
+export const PRODUCT_BENCHMARK_SAFETY_HIERARCHY_V1: readonly MetricHierarchyRule[] = [
+  { priority: 1, metric: 'falseMatchRateOnGroundTruthMissing', direction: 'LOWER', threshold: 0.01, role: 'PRIMARY_SAFETY_GATE_1', isCriticalSafetyGate: true },
+  { priority: 2, metric: 'falseCompleteChordAcceptanceRate', direction: 'LOWER', threshold: 0.01, role: 'PRIMARY_SAFETY_GATE_2', isCriticalSafetyGate: true },
   { priority: 3, metric: 'wrongNoteFalseCorrectRate', direction: 'LOWER', threshold: 0.01, role: 'PRIMARY_WRONG_NOTE_FALSE_CORRECT_GATE_3', isCriticalSafetyGate: true },
   { priority: 4, metric: 'verdictAgreementRate', direction: 'HIGHER', threshold: 0.01, role: 'PRIMARY_ACCURACY_GATE_4', isCriticalSafetyGate: true },
   { priority: 5, metric: 'correctMissingRate', direction: 'HIGHER', threshold: 0.01, role: 'SAFETY_MISSING_DETECTION_5', isCriticalSafetyGate: true },
@@ -1676,6 +1690,7 @@ export interface PairwiseComparisonGateDetail {
   readonly candidateBSuperior?: boolean;
   readonly regressionAgainstA?: boolean;
   readonly regressionAgainstB?: boolean;
+  readonly isCriticalSafetyGate?: boolean;
 }
 
 export interface PairwiseSafetyDominanceDecision {
@@ -1689,13 +1704,14 @@ export interface PairwiseSafetyDominanceDecision {
 export function evaluateSymmetricSafetyDominance(
   diffVectorsByMetric: Record<string, readonly number[]>,
   ciComputer: (diffs: readonly number[]) => { mean: number; low: number; high: number },
-  options: { minimumPairedScenarios?: number } = {},
+  options: { minimumPairedScenarios?: number; hierarchy?: readonly MetricHierarchyRule[] } = {},
 ): PairwiseSafetyDominanceDecision {
   const minSamples = options.minimumPairedScenarios ?? 8;
+  const hierarchy = options.hierarchy ?? PRODUCT_BENCHMARK_SAFETY_HIERARCHY_V1;
   const gates: PairwiseComparisonGateDetail[] = [];
   let criticalSafetyMissing = false;
 
-  for (const rule of FROZEN_V3_SAFETY_DECISION_HIERARCHY) {
+  for (const rule of hierarchy) {
     const diffs = diffVectorsByMetric[rule.metric] ?? [];
     if (diffs.length < minSamples) {
       if (rule.isCriticalSafetyGate) {
@@ -1708,6 +1724,7 @@ export function evaluateSymmetricSafetyDominance(
         threshold: rule.threshold,
         sampleCount: diffs.length,
         status: 'INSUFFICIENT_DATA',
+        isCriticalSafetyGate: rule.isCriticalSafetyGate,
       });
       continue;
     }
@@ -1740,6 +1757,7 @@ export function evaluateSymmetricSafetyDominance(
       candidateBSuperior,
       regressionAgainstA,
       regressionAgainstB,
+      isCriticalSafetyGate: rule.isCriticalSafetyGate,
     });
   }
 
@@ -1755,8 +1773,8 @@ export function evaluateSymmetricSafetyDominance(
   let aDominatesCandidate = false;
   let bDominatesCandidate = false;
 
-  const aHasSafetyRegression = gates.filter((g) => g.priority <= 8).some((g) => g.regressionAgainstA);
-  const bHasSafetyRegression = gates.filter((g) => g.priority <= 8).some((g) => g.regressionAgainstB);
+  const aHasSafetyRegression = gates.filter((g) => g.isCriticalSafetyGate).some((g) => g.regressionAgainstA);
+  const bHasSafetyRegression = gates.filter((g) => g.isCriticalSafetyGate).some((g) => g.regressionAgainstB);
 
   for (const gate of gates) {
     if (gate.status !== 'EVALUATED') continue;

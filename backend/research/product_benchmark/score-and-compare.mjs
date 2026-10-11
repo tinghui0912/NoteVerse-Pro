@@ -8,8 +8,9 @@
  */
 
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ACTIVE_CANDIDATE_IDS, CANDIDATE_CONFIGS } from './candidate-adapters.mjs';
@@ -92,6 +93,7 @@ export async function scoreAndCompareBenchmark({
   candidateIds = ACTIVE_CANDIDATE_IDS,
   bootstrapDraws = 5000,
   bootstrapSeed = 13371,
+  expectedExecutionMode,
 }) {
   const coveragePath = path.resolve(runDir, 'coverage.json');
   if (!existsSync(coveragePath)) {
@@ -127,7 +129,7 @@ export async function scoreAndCompareBenchmark({
         missingEvidence.push({ candidateId, scenarioId: scenario.scenarioId, status: evidenceRecord.status });
         continue;
       }
-      verifyEvidenceRecord(evidenceRecord, scenario, candidateId);
+      verifyEvidenceRecord(evidenceRecord, scenario, candidateId, expectedExecutionMode);
       const score = bakeoffModule.scoreCandidate(scenario, candidateDefinitions[candidateId], evidenceRecord.candidateRun);
       scenarioScores.push(score);
       perScenarioScoresByCandidate[candidateId].set(scenario.scenarioId, score);
@@ -151,6 +153,7 @@ export async function scoreAndCompareBenchmark({
       missingEvidence,
       candidateScores,
       absoluteProductLatencyGate: 'ABSOLUTE_PRODUCT_LATENCY_GATE_NOT_YET_DEFINED',
+      provenance: await benchmarkProvenance(),
     };
     await writeFile(path.resolve(runDir, 'analysis.json'), JSON.stringify(analysis, null, 2), 'utf8');
     return analysis;
@@ -188,13 +191,14 @@ export async function scoreAndCompareBenchmark({
     evaluatedCandidateCount: candidateIds.length,
     candidateScores,
     pairwiseComparisons,
+    provenance: await benchmarkProvenance(),
     completedAt: new Date().toISOString(),
   };
   await writeFile(path.resolve(runDir, 'analysis.json'), JSON.stringify(analysis, null, 2), 'utf8');
   return analysis;
 }
 
-function verifyEvidenceRecord(record, scenario, candidateId) {
+function verifyEvidenceRecord(record, scenario, candidateId, expectedExecutionMode) {
   const cfg = CANDIDATE_CONFIGS[candidateId];
   if (record.candidateId !== candidateId || record.scenarioId !== scenario.scenarioId) {
     throw new Error(`EVIDENCE_BINDING_MISMATCH:${candidateId}:${scenario.scenarioId}`);
@@ -205,6 +209,9 @@ function verifyEvidenceRecord(record, scenario, candidateId) {
   if (record.checkpointSha256 !== cfg.checkpoint.sha256) {
     throw new Error(`EVIDENCE_CHECKPOINT_SHA_MISMATCH:${candidateId}:${scenario.scenarioId}`);
   }
+  if (expectedExecutionMode && record.executionMode !== expectedExecutionMode) {
+    throw new Error(`EVIDENCE_EXECUTION_MODE_MISMATCH:${candidateId}:${scenario.scenarioId}:expected ${expectedExecutionMode}, got ${record.executionMode}`);
+  }
   const scenarioAudioSha = scenario.audio?.sourceAudioSha256 ?? scenario.source?.sourceAudioSha256;
   if (record.sourceAudioSha256 !== scenarioAudioSha) {
     throw new Error(`EVIDENCE_SOURCE_AUDIO_SHA_MISMATCH:${candidateId}:${scenario.scenarioId}`);
@@ -213,6 +220,20 @@ function verifyEvidenceRecord(record, scenario, candidateId) {
   if (digest !== record.evidenceSha256 || digest !== record.candidateRunDigestSha256) {
     throw new Error(`EVIDENCE_CANDIDATE_RUN_DIGEST_MISMATCH:${candidateId}:${scenario.scenarioId}`);
   }
+}
+
+async function benchmarkProvenance() {
+  return {
+    gitHead: gitHead(),
+    benchmarkConfigSha256: CANDIDATE_CONFIGS[ACTIVE_CANDIDATE_IDS[0]]?.identity?.benchmarkConfigSha256,
+    candidateRegistrySha256: CANDIDATE_CONFIGS[ACTIVE_CANDIDATE_IDS[0]]?.identity?.registrySha256,
+    candidateAdapterSha256: await fileSha256('backend/research/product_benchmark/candidate-adapters.mjs'),
+    scorerSha256: await fileSha256('apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.ts'),
+    rawInferenceScriptSha256ByCandidate: Object.fromEntries(ACTIVE_CANDIDATE_IDS.map((candidateId) => [
+      candidateId,
+      fileSha256Sync(CANDIDATE_CONFIGS[candidateId].dockerScript),
+    ])),
+  };
 }
 
 function comparePair({ candidateA, candidateB, scoresA, scoresB, candidateAEligibleCount, candidateBEligibleCount, bootstrapDraws, bootstrapSeed }) {
@@ -294,6 +315,19 @@ function percentile(values, p) {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(p * sorted.length) - 1))];
+}
+
+function gitHead() {
+  const run = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' });
+  return run.status === 0 ? run.stdout.trim() : undefined;
+}
+
+async function fileSha256(relPath) {
+  return createHash('sha256').update(await readFile(path.resolve(repoRoot, relPath))).digest('hex');
+}
+
+function fileSha256Sync(relPath) {
+  return createHash('sha256').update(readFileSync(path.resolve(repoRoot, relPath))).digest('hex');
 }
 
 if (process.argv[1] && import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {

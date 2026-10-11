@@ -23,8 +23,11 @@ const onlineAmtModule = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/p
 const qualModule = jiti(path.resolve(repoRoot, 'apps/customer-web/src/lib/practice/research/public-challenger-qualification.ts'));
 
 const REGISTRY_PATH = 'backend/research/reports/phase9g_a32_final_candidate_registry_2026-10-10.json';
+const PRODUCT_BENCHMARK_CONFIG_PATH = 'backend/research/product_benchmark/product_benchmark_config.json';
 const registryBytes = readFileSync(path.resolve(repoRoot, REGISTRY_PATH));
 const registry = JSON.parse(registryBytes.toString('utf8'));
+const benchmarkConfigBytes = readFileSync(path.resolve(repoRoot, PRODUCT_BENCHMARK_CONFIG_PATH));
+const benchmarkConfig = JSON.parse(benchmarkConfigBytes.toString('utf8'));
 
 export const ACTIVE_CANDIDATE_IDS = [
   'bytedance-original-calibrated-v1',
@@ -52,80 +55,92 @@ for (const candidate of activeRegistryRecords.values()) {
   });
 }
 
-const FROZEN_EXECUTION_PROFILES = {
-  'bytedance-original-calibrated-v1': {
-    family: 'bytedance-original',
-    strategyKind: 'CHUNKED',
-    contextGeometry: {
-      profileId: 'CALIBRATED_CONTEXT_5S',
-      modelInputMs: 5000,
-      nominalOwnedRegionMs: 2500,
-      interiorPastContextMs: 1250,
-      maximumFutureContextMs: 1250,
-      terminalWindowPolicy: 'RIGHT_ANCHORED_TERMINAL_FUTURE_BOUND_V1',
-      plannerVersion: 'phase9gb3-fix-bytedance-variable-context-v1',
-    },
-    thresholds: { onsetThreshold: 0.20, frameThreshold: 0.10 },
-    checkpoint: {
-      path: 'models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth',
-      bytes: 171966578,
-    },
-    dockerImage: 'noteverse-bytedance-calibration:phase9ga21',
-    dockerScript: 'backend/scripts/run_bytedance_pytorch_raw_batch.py',
-    targetDevice: 'cpu',
-    sampleRateHz: 16000,
-    runtimeIdentity: 'noteverse-bytedance-calibration:phase9ga21',
-    preprocessingIdentity: 'deterministic_wav_pcm16_mono_linear_resample_16k_v1',
-  },
-  'online-amt-calibrated-v1': {
-    family: 'online-amt',
-    strategyKind: 'STREAMING',
-    streaming: {
-      sampleRateHz: 16000,
-      hopSamples: 512,
-      hopMs: 32,
-      timingCorrectionMs: -162.9375,
-      publishedOnsetBoost: 1.0,
-      pseudoIntensityShortcut: 'NATIVE',
-    },
-    checkpoint: {
-      path: 'backend/data/work/online_amt/model-180000.pt',
-      bytes: 178804960,
-    },
-    dockerImage: 'noteverse-online-amt-modern:phase9e-b1',
-    dockerScript: 'backend/research/online_amt/run_online_amt_modern_smoke.py',
-    targetDevice: 'cpu',
-    sampleRateHz: 16000,
-    runtimeIdentity: 'noteverse-online-amt-modern:phase9e-b1',
-  },
-  'bytedance-robust-augmented-calibrated-v1': {
-    family: 'bytedance-robust-augmented',
-    strategyKind: 'CHUNKED',
-    contextGeometry: {
-      profileId: 'CALIBRATED_CONTEXT_1820',
-      modelInputMs: 1820,
-      nominalOwnedRegionMs: 600,
-      maximumFutureContextMs: 220,
-      terminalWindowPolicy: 'FIXED_1820_RIGHT_ANCHORED_COMMIT_V1',
-      plannerVersion: 'phase9gb3-fix-bytedance-1820-v1',
-    },
-    thresholds: { onsetThreshold: 0.30, frameThreshold: 0.05 },
-    checkpoint: {
-      path: 'models/bytedance_piano_transcription/high_resolution_MAESTRO_augmentations.pth',
-      bytes: 103815845,
-    },
-    dockerImage: 'noteverse-challengers:phase9ga3',
-    dockerScript: 'backend/scripts/run_bytedance_robust_pytorch_raw_batch.py',
-    targetDevice: 'cpu',
-    sampleRateHz: 16000,
-    runtimeIdentity: 'noteverse-challengers:phase9ga3',
-    preprocessingIdentity: 'deterministic_wav_pcm16_mono_linear_resample_16k_v1',
-  },
-};
+const benchmarkConfigByCandidateId = new Map((benchmarkConfig.candidates ?? []).map((candidate) => [candidate.candidateId, candidate]));
+
+function executionProfileFromBenchmarkConfig(candidateId) {
+  const candidate = benchmarkConfigByCandidateId.get(candidateId);
+  if (!candidate) throw new Error(`PRODUCT_BENCHMARK_CONFIG_CANDIDATE_MISSING:${candidateId}`);
+  const profile = {
+    family: candidate.family,
+    strategyKind: candidate.strategyKind,
+    contextGeometry: candidate.contextGeometry ? {
+      ...candidate.contextGeometry,
+      terminalWindowPolicy: candidate.terminalWindowPolicy,
+      plannerVersion: candidate.plannerVersion,
+    } : undefined,
+    thresholds: candidate.thresholds,
+    streaming: candidate.streaming,
+    checkpoint: candidate.checkpoint,
+    dockerImage: candidate.dockerImage,
+    dockerScript: candidate.dockerScript,
+    targetDevice: candidate.targetDevice,
+    sampleRateHz: candidate.sampleRateHz,
+    runtimeIdentity: candidate.runtimeIdentity ?? candidate.dockerImage,
+    preprocessingIdentity: candidate.preprocessingIdentity,
+  };
+  assertBenchmarkConfigCandidateExact(candidateId, candidate, profile);
+  return profile;
+}
+
+function assertBenchmarkConfigCandidateExact(candidateId, candidate, profile) {
+  const registryRecord = activeRegistryRecords.get(candidateId);
+  if (!registryRecord) throw new Error(`PRODUCT_BENCHMARK_CONFIG_UNKNOWN_ACTIVE_CANDIDATE:${candidateId}`);
+  const checks = [
+    ['profileId', candidate.profileId, registryRecord.profileId],
+    ['configurationSha256', candidate.configurationSha256, registryRecord.configurationSha256],
+    ['checkpoint.sha256', candidate.checkpoint?.sha256, registryRecord.checkpointSha256],
+  ];
+  for (const [field, actual, expected] of checks) {
+    if (actual !== expected) {
+      throw new Error(`PRODUCT_BENCHMARK_CONFIG_REGISTRY_DRIFT:${candidateId}:${field}:expected ${expected}, got ${actual}`);
+    }
+  }
+  if (candidateId === 'bytedance-original-calibrated-v1') {
+    assertExactFields(candidateId, {
+      checkpointBytes: [candidate.checkpoint?.bytes, 171966578],
+      targetDevice: [profile.targetDevice, 'cpu'],
+      modelInputMs: [profile.contextGeometry?.modelInputMs, 5000],
+      nominalOwnedRegionMs: [profile.contextGeometry?.nominalOwnedRegionMs, 2500],
+      maximumFutureContextMs: [profile.contextGeometry?.maximumFutureContextMs, 1250],
+      onsetThreshold: [profile.thresholds?.onsetThreshold, 0.20],
+      frameThreshold: [profile.thresholds?.frameThreshold, 0.10],
+      runtimeIdentity: [profile.runtimeIdentity, 'noteverse-bytedance-calibration:phase9ga21'],
+    });
+  } else if (candidateId === 'online-amt-calibrated-v1') {
+    assertExactFields(candidateId, {
+      checkpointBytes: [candidate.checkpoint?.bytes, 178804960],
+      timingCorrectionMs: [profile.streaming?.timingCorrectionMs, -162.93750000004252],
+      pseudoIntensityShortcut: [profile.streaming?.pseudoIntensityShortcut, 'NATIVE'],
+      publishedOnsetBoost: [profile.streaming?.publishedOnsetBoost, 1.0],
+      hopSamples: [profile.streaming?.hopSamples, 512],
+      sampleRateHz: [profile.streaming?.sampleRateHz, 16000],
+      runtimeIdentity: [profile.runtimeIdentity, 'noteverse-online-amt-modern:phase9e-b1'],
+    });
+  } else if (candidateId === 'bytedance-robust-augmented-calibrated-v1') {
+    assertExactFields(candidateId, {
+      checkpointBytes: [candidate.checkpoint?.bytes, 103815845],
+      targetDevice: [profile.targetDevice, 'cuda'],
+      modelInputMs: [profile.contextGeometry?.modelInputMs, 1820],
+      nominalOwnedRegionMs: [profile.contextGeometry?.nominalOwnedRegionMs, 600],
+      maximumFutureContextMs: [profile.contextGeometry?.maximumFutureContextMs, 220],
+      onsetThreshold: [profile.thresholds?.onsetThreshold, 0.30],
+      frameThreshold: [profile.thresholds?.frameThreshold, 0.05],
+      runtimeIdentity: [profile.runtimeIdentity, 'noteverse-challengers:phase9ga3'],
+    });
+  }
+}
+
+function assertExactFields(candidateId, entries) {
+  for (const [field, [actual, expected]] of Object.entries(entries)) {
+    if (actual !== expected) {
+      throw new Error(`PRODUCT_BENCHMARK_CONFIG_FIELD_DRIFT:${candidateId}:${field}:expected ${expected}, got ${actual}`);
+    }
+  }
+}
 
 export const CANDIDATE_CONFIGS = Object.fromEntries(ACTIVE_CANDIDATE_IDS.map((candidateId) => {
   const registryRecord = activeRegistryRecords.get(candidateId);
-  const execution = FROZEN_EXECUTION_PROFILES[candidateId];
+  const execution = executionProfileFromBenchmarkConfig(candidateId);
   return [candidateId, {
     candidateId,
     candidateFamily: registryRecord.candidateFamily,
@@ -138,6 +153,8 @@ export const CANDIDATE_CONFIGS = Object.fromEntries(ACTIVE_CANDIDATE_IDS.map((ca
       trainingDataOverlapStatus: registryRecord.trainingDataOverlapStatus ?? 'UNKNOWN',
       registryPath: REGISTRY_PATH,
       registrySha256: sha256Buffer(registryBytes),
+      benchmarkConfigPath: PRODUCT_BENCHMARK_CONFIG_PATH,
+      benchmarkConfigSha256: sha256Buffer(benchmarkConfigBytes),
     },
     ...execution,
     checkpoint: {
@@ -347,6 +364,10 @@ function validateByteDanceRawBatch(rawData, requests, config) {
   const runtimeImage = typeof rawData.runtimeIdentity === 'string' ? rawData.runtimeIdentity : rawData.runtimeIdentity?.image;
   if (runtimeImage !== config.runtimeIdentity) {
     throw new Error(`BYTEDANCE_RAW_RUNTIME_MISMATCH:${config.candidateId}:expected ${config.runtimeIdentity}, got ${runtimeImage}`);
+  }
+  const runtimeDevice = typeof rawData.runtimeIdentity === 'object' ? rawData.runtimeIdentity?.device : undefined;
+  if (runtimeDevice && runtimeDevice !== config.targetDevice) {
+    throw new Error(`BYTEDANCE_RAW_DEVICE_MISMATCH:${config.candidateId}:expected ${config.targetDevice}, got ${runtimeDevice}`);
   }
   const byWindow = new Map();
   for (const chunk of rawData.chunks) {

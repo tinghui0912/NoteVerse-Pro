@@ -178,7 +178,7 @@ async function runAllChecks() {
     console.log(`[Item ${itemNumber.toString().padStart(2, '0')}] ${mark}: ${title} ${detail ? `(${detail})` : ''}`);
   }
 
-  console.log('--- Phase 9G-B.3-FIX Product Benchmark Verification Suite ---');
+  console.log('--- Phase 9G-B.3-FINAL-PREFLIGHT Product Benchmark Verification Suite ---');
 
   // 1. CUSTOM_FIXED_BPM ExpectedStrike generation
   try {
@@ -627,14 +627,35 @@ async function runAllChecks() {
   // 21. Exact frozen candidate identity for all three active candidates
   try {
     assertActiveCandidateRegistryIdentitiesExact();
-    const pass = ACTIVE_CANDIDATE_IDS.length === 3
+    const productConfig = JSON.parse(await readFile(path.resolve(repoRoot, 'backend/research/product_benchmark/product_benchmark_config.json'), 'utf8'));
+    const configById = new Map(productConfig.candidates.map((candidate) => [candidate.candidateId, candidate]));
+    const original = configById.get('bytedance-original-calibrated-v1');
+    const online = configById.get('online-amt-calibrated-v1');
+    const robust = configById.get('bytedance-robust-augmented-calibrated-v1');
+    const pass = productConfig.phase === '9G-B.3-FINAL-PREFLIGHT'
+      && ACTIVE_CANDIDATE_IDS.length === 3
       && CANDIDATE_CONFIGS['online-amt-calibrated-v1'].profileId === 'online-amt-calibration-native-boost-1'
       && CANDIDATE_CONFIGS['online-amt-calibrated-v1'].streaming.publishedOnsetBoost === 1.0
+      && CANDIDATE_CONFIGS['online-amt-calibrated-v1'].streaming.timingCorrectionMs === -162.93750000004252
       && CANDIDATE_CONFIGS['bytedance-robust-augmented-calibrated-v1'].checkpoint.sha256 === 'b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e'
+      && original.checkpoint.bytes === 171966578
+      && robust.checkpoint.bytes === 103815845
+      && robust.targetDevice === 'cuda'
+      && online.streaming.timingCorrectionMs === -162.93750000004252
+      && ACTIVE_CANDIDATE_IDS.every((candidateId) => {
+        const cfg = CANDIDATE_CONFIGS[candidateId];
+        const json = configById.get(candidateId);
+        return json.profileId === cfg.profileId
+          && json.configurationSha256 === cfg.identity.configurationSha256
+          && json.checkpoint.sha256 === cfg.checkpoint.sha256
+          && json.checkpoint.bytes === cfg.checkpoint.bytes
+          && json.targetDevice === cfg.targetDevice
+          && json.runtimeIdentity === cfg.runtimeIdentity;
+      })
       && !Object.values(CANDIDATE_CONFIGS).some((cfg) => Object.prototype.hasOwnProperty.call(cfg, 'rank'));
-    record(21, 'Exact frozen candidate identity for all three active candidates', pass, ACTIVE_CANDIDATE_IDS.join(', '));
+    record(21, 'Exact frozen candidate identity and config-vs-adapter semantics for all three active candidates', pass, ACTIVE_CANDIDATE_IDS.join(', '));
   } catch (err) {
-    record(21, 'Exact frozen candidate identity for all three active candidates', false, err.message);
+    record(21, 'Exact frozen candidate identity and config-vs-adapter semantics for all three active candidates', false, err.message);
   }
 
   // 22. Strict truth-free allow-list and no fabricated defaults
@@ -775,21 +796,45 @@ async function runAllChecks() {
     record(25, 'MetricNumber value paired extraction is reversal-invariant', false, err.message);
   }
 
-  // 26. Truth-free blind projection has 70 p15-p22 scenarios and zero candidate runs
+  // 26. Truth-free blind projection has exact frozen identity, geometry-derived eligibility, and zero candidate runs
   try {
-    const blind = JSON.parse(await readFile(path.resolve(repoRoot, 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json'), 'utf8'));
-    const projection = projectTruthFreeBlindManifest(blind);
+    const blindPath = path.resolve(repoRoot, 'backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json');
+    const blindBytes = await readFile(blindPath);
+    const blindSha = createHash('sha256').update(blindBytes).digest('hex');
+    const blind = JSON.parse(blindBytes.toString('utf8'));
+    const projection = projectTruthFreeBlindManifest(blind, { sourceTruthManifestSha256: blindSha });
     const allowedPerformers = ['p15', 'p16', 'p17', 'p18', 'p19', 'p20', 'p21', 'p22'];
+    const expectedScenarioIds = [...blind.publicManifest.scenarioIds].sort();
+    const projectionScenarioIds = [...projection.scenarioIds].sort();
+    const commonScenarios = projection.scenarios.filter((scenario) =>
+      ACTIVE_CANDIDATE_IDS.every((candidateId) => scenario.candidateEligibility?.[candidateId] === true)
+    );
+    const familyCounts = Object.fromEntries(['missing_note', 'extra_note', 'wrong_semitone', 'incomplete_chord'].map((family) => [
+      family,
+      commonScenarios.filter((scenario) => scenario.scenarioId.includes(`counterfactual_${family}`)).length,
+    ]));
     const pass = projection.scenarioCount === 70
+      && blindSha === '0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab'
+      && JSON.stringify(expectedScenarioIds) === JSON.stringify(projectionScenarioIds)
       && projection.candidateRunCount === 0
+      && projection.sourceTruthManifestSha256 === blindSha
       && projection.performers.every((p) => allowedPerformers.includes(p))
+      && projection.performers.length === allowedPerformers.length
+      && projection.candidateEligibilityCounts['bytedance-original-calibrated-v1'] === 63
+      && projection.candidateEligibilityCounts['online-amt-calibrated-v1'] === 70
+      && projection.candidateEligibilityCounts['bytedance-robust-augmented-calibrated-v1'] === 63
+      && projection.allThreeIntersectionCount === 63
+      && familyCounts.missing_note >= 8
+      && familyCounts.extra_note >= 8
+      && familyCounts.wrong_semitone >= 8
+      && familyCounts.incomplete_chord >= 8
       && !JSON.stringify(projection.scenarios).includes('expectedStrikes')
       && !JSON.stringify(projection.scenarios).includes('physicalGroundTruth');
-    const outPath = path.resolve(testWorkDir, 'phase9gb3_fix_truth_free_blind_projection.json');
+    const outPath = path.resolve(testWorkDir, 'phase9gb3_final_preflight_truth_free_blind_projection.json');
     await writeFile(outPath, JSON.stringify(projection, null, 2), 'utf8');
-    record(26, 'Truth-free blind projection preserves safe identities only and candidate run count remains zero', pass, `sha=${projection.projectionSha256}`);
+    record(26, 'Truth-free blind projection preserves exact frozen identity, eligibility 63/70/63, common 63, and zero candidate runs', pass, `sha=${projection.projectionSha256}`);
   } catch (err) {
-    record(26, 'Truth-free blind projection preserves safe identities only and candidate run count remains zero', false, err.message);
+    record(26, 'Truth-free blind projection preserves exact frozen identity, eligibility 63/70/63, common 63, and zero candidate runs', false, err.message);
   }
 
   // 27. Physical checkpoint byte/hash verification for all active candidates
@@ -840,28 +885,129 @@ async function runAllChecks() {
       candidateIds: ACTIVE_CANDIDATE_IDS,
     });
     const evidenceDir = path.resolve(realRunDir, 'evidence');
-    const evidence = await Promise.all(ACTIVE_CANDIDATE_IDS.map(async (candidateId) =>
-      JSON.parse(await readFile(path.resolve(evidenceDir, `${candidateId}__${scenario.scenarioId}.json`), 'utf8'))
-    ));
+    const evidence = [];
+    for (const candidateId of ACTIVE_CANDIDATE_IDS) {
+      const canonicalPath = path.resolve(evidenceDir, `${candidateId}__${scenario.scenarioId}.json`);
+      if (existsSync(canonicalPath)) {
+        evidence.push(JSON.parse(await readFile(canonicalPath, 'utf8')));
+      }
+    }
+    const robustFailure = result.coverage.candidates['bytedance-robust-augmented-calibrated-v1']?.failedScenarios?.[0]?.error;
+    const robustEvidence = evidence.find((record) => record.candidateId === 'bytedance-robust-augmented-calibrated-v1');
+    const onlineEvidence = evidence.find((record) => record.candidateId === 'online-amt-calibrated-v1');
     const pass = result.coverage.summary.successfulRuns === 3
       && evidence.every((record) => record.status === 'SUCCESS')
       && evidence.every((record) => record.candidateRun?.publications?.length > 0)
-      && evidence.every((record) => record.executionMode === 'DOCKER');
-    record(28, 'Real neural non-blind integration for all three adapters', pass, `runs=${result.coverage.summary.successfulRuns}, blindRuns=0`);
+      && evidence.every((record) => record.executionMode === 'DOCKER')
+      && robustEvidence?.candidateRun?.runProvenance?.runtime?.includes('real-pytorch-raw-batch')
+      && CANDIDATE_CONFIGS['bytedance-robust-augmented-calibrated-v1'].targetDevice === 'cuda'
+      && onlineEvidence?.candidateRun?.candidateId === 'online-amt-calibrated-v1'
+      && CANDIDATE_CONFIGS['online-amt-calibrated-v1'].streaming.pseudoIntensityShortcut === 'NATIVE'
+      && CANDIDATE_CONFIGS['online-amt-calibrated-v1'].streaming.publishedOnsetBoost === 1.0;
+    record(28, 'Real neural non-blind integration for all three adapters with Robust CUDA identity', pass, pass
+      ? `runs=${result.coverage.summary.successfulRuns}, blindRuns=0, robustDevice=${CANDIDATE_CONFIGS['bytedance-robust-augmented-calibrated-v1'].targetDevice}`
+      : `runs=${result.coverage.summary.successfulRuns}, robustError=${robustFailure ?? 'missing robust evidence'}`);
   } catch (err) {
-    record(28, 'Real neural non-blind integration for all three adapters', false, err.message);
+    record(28, 'Real neural non-blind integration for all three adapters with Robust CUDA identity', false, err.message);
+  }
+
+  // 29. REAL_BLIND operator path reaches pre-inference stop only with explicit authorization
+  try {
+    const runDirNoAuth = path.resolve(testWorkDir, 'real_blind_no_auth');
+    const runDirAuth = path.resolve(testWorkDir, 'real_blind_auth_stop');
+    await rm(runDirNoAuth, { recursive: true, force: true });
+    await rm(runDirAuth, { recursive: true, force: true });
+    const blindScenario = {
+      schemaVersion: 1,
+      scenarioId: 'vienna-secondary-base:Chopin_op38_p15:17.000',
+      performerId: 'p15',
+      fixedBpm: 120,
+      audio: {
+        sourceAudioPath: 'backend/data/work/does-not-open-for-preflight.wav',
+        sourceAudioSha256: 'a'.repeat(64),
+        nativeSampleRateHz: 44100,
+        channelPolicy: 'MONO',
+        clipStartMs: 0,
+        clipEndMs: 1000,
+        performanceOriginSourceMs: 0,
+      },
+      source: {
+        sourceAudioPath: 'backend/data/work/does-not-open-for-preflight.wav',
+        sourceAudioSha256: 'a'.repeat(64),
+      },
+      completion: { performanceTimeMs: 1000 },
+      candidateEligibility: Object.fromEntries(ACTIVE_CANDIDATE_IDS.map((candidateId) => [candidateId, true])),
+    };
+    let noAuthRejected = false;
+    try {
+      await runAcousticInference({
+        manifestObject: { scenarios: [blindScenario] },
+        runDir: runDirNoAuth,
+        executionMode: 'REAL_BLIND',
+      });
+    } catch (err) {
+      noAuthRejected = /REAL_BLIND_REQUIRES_EXPLICIT_USER_AUTHORIZATION_SWITCH/.test(err.message);
+    }
+    let reachedStop = false;
+    try {
+      await runAcousticInference({
+        manifestObject: { scenarios: [blindScenario] },
+        runDir: runDirAuth,
+        executionMode: 'REAL_BLIND',
+        realBlindUserAuthorization: true,
+        allowBlindExecution: true,
+        stopBeforeFirstBlindInferenceForPreflightTest: true,
+      });
+    } catch (err) {
+      reachedStop = /STOP_BEFORE_FIRST_BLIND_INFERENCE_FOR_PREFLIGHT_TEST/.test(err.message);
+    }
+    record(29, 'REAL_BLIND operator guard rejects missing authorization and reaches pre-inference stop with explicit switch', noAuthRejected && reachedStop);
+  } catch (err) {
+    record(29, 'REAL_BLIND operator guard rejects missing authorization and reaches pre-inference stop with explicit switch', false, err.message);
+  }
+
+  // 30. Extra-note critical safety regressions block dominance under product hierarchy
+  try {
+    const ciComputer = (diffs) => {
+      const mean = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+      return { mean, low: mean - 0.002, high: mean + 0.002 };
+    };
+    const base = {
+      falseMatchRateOnGroundTruthMissing: Array(8).fill(0),
+      falseCompleteChordAcceptanceRate: Array(8).fill(0),
+      wrongNoteFalseCorrectRate: Array(8).fill(0),
+      verdictAgreementRate: Array(8).fill(0.04),
+      correctMissingRate: Array(8).fill(0),
+      wrongNoteDetectionRate: Array(8).fill(0),
+      chordExactCompletenessRate: Array(8).fill(0),
+      expectedStrikeRecall: Array(8).fill(0),
+    };
+    const precision = qualModule.evaluateSymmetricSafetyDominance({
+      ...base,
+      extraPrecision: Array(8).fill(-0.03),
+      extraRecall: Array(8).fill(0),
+    }, ciComputer);
+    const recall = qualModule.evaluateSymmetricSafetyDominance({
+      ...base,
+      extraPrecision: Array(8).fill(0),
+      extraRecall: Array(8).fill(-0.03),
+    }, ciComputer);
+    const pass = precision.outcome !== 'CANDIDATE_A_DOMINATES' && recall.outcome !== 'CANDIDATE_A_DOMINATES';
+    record(30, 'Critical safety regression blocking includes extraPrecision and extraRecall', pass, `precision=${precision.outcome}, recall=${recall.outcome}`);
+  } catch (err) {
+    record(30, 'Critical safety regression blocking includes extraPrecision and extraRecall', false, err.message);
   }
 
   // Summary
   const allPassed = results.every((r) => r.pass);
   console.log('----------------------------------------------------------------------');
   console.log(`Verification completed: ${results.filter((r) => r.pass).length}/${results.length} checks passed.`);
-  console.log(`Gate Verdict: ${allPassed ? 'PHASE_9GB3_FIX_READY_FOR_EXPLICIT_PRODUCT_BLIND_BENCHMARK' : 'PHASE_9GB3_FIX_BLOCKED'}`);
+  console.log(`Gate Verdict: ${allPassed ? 'PHASE_9GB3_FINAL_PREFLIGHT_READY_FOR_USER_AUTHORIZATION' : 'PHASE_9GB3_FINAL_PREFLIGHT_BLOCKED'}`);
 
   return {
     allPassed,
     results,
-    verdict: allPassed ? 'PHASE_9GB3_FIX_READY_FOR_EXPLICIT_PRODUCT_BLIND_BENCHMARK' : 'PHASE_9GB3_FIX_BLOCKED',
+    verdict: allPassed ? 'PHASE_9GB3_FINAL_PREFLIGHT_READY_FOR_USER_AUTHORIZATION' : 'PHASE_9GB3_FINAL_PREFLIGHT_BLOCKED',
   };
 }
 

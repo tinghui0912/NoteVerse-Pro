@@ -15,8 +15,9 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import { mkdir, open, readFile, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { mkdir, open, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   ACTIVE_CANDIDATE_IDS,
@@ -155,14 +156,31 @@ export function sanitizeToTruthFreeScenario(scenario, { official = true } = {}) 
   };
 }
 
-export function projectTruthFreeBlindManifest(truthManifest) {
+export function deriveCandidateEligibilityFromAudioGeometry(scenario) {
+  const originMs = scenario.audio?.performanceOriginSourceMs;
+  if (!Number.isFinite(originMs)) {
+    throw new Error(`CANDIDATE_ELIGIBILITY_ORIGIN_REQUIRED:${scenario.scenarioId}`);
+  }
+  const eligibility = {};
+  for (const candidateId of ACTIVE_CANDIDATE_IDS) {
+    const cfg = CANDIDATE_CONFIGS[candidateId];
+    if (cfg.strategyKind === 'STREAMING') {
+      eligibility[candidateId] = true;
+    } else {
+      eligibility[candidateId] = originMs >= cfg.contextGeometry.modelInputMs;
+    }
+  }
+  return eligibility;
+}
+
+export function projectTruthFreeBlindManifest(truthManifest, options = {}) {
   const receiptByScenarioId = new Map((truthManifest.scenarioReceipts ?? []).map((receipt) => [receipt.scenarioId, receipt]));
   const scenarios = (truthManifest.scenarios ?? []).map((scenario) => {
     const receipt = receiptByScenarioId.get(scenario.scenarioId);
     const performerId = scenario.performerId
       ?? receipt?.performanceId?.match(/_p\d{2}$/)?.[0]?.slice(1)
       ?? scenario.scenarioId.match(/_p\d{2}/)?.[0]?.slice(1);
-    return sanitizeToTruthFreeScenario({
+    const sanitized = sanitizeToTruthFreeScenario({
       ...scenario,
       performerId,
       fixedBpm: receipt?.configuredIntegerBpm ?? scenario.fixedBpm,
@@ -176,17 +194,32 @@ export function projectTruthFreeBlindManifest(truthManifest) {
         sourceAudioSha256: scenario.source?.sourceAudioSha256,
       },
     }, { official: true });
+    return {
+      ...sanitized,
+      pieceId: receipt?.pieceId,
+      candidateEligibility: deriveCandidateEligibilityFromAudioGeometry(sanitized),
+    };
   });
   assertTruthFreeManifest({ scenarios });
   const performers = [...new Set(scenarios.map((scenario) => scenario.performerId))].sort();
   const scenarioIds = scenarios.map((scenario) => scenario.scenarioId);
+  const candidateEligibilityCounts = Object.fromEntries(ACTIVE_CANDIDATE_IDS.map((candidateId) => [
+    candidateId,
+    scenarios.filter((scenario) => scenario.candidateEligibility?.[candidateId] === true).length,
+  ]));
+  const allThreeIntersectionIds = scenarios
+    .filter((scenario) => ACTIVE_CANDIDATE_IDS.every((candidateId) => scenario.candidateEligibility?.[candidateId] === true))
+    .map((scenario) => scenario.scenarioId);
   const projection = {
     schemaVersion: 1,
-    artifact: 'phase9gb3_fix_truth_free_blind_projection',
-    sourceTruthManifestSha256: createHash('sha256').update(JSON.stringify(truthManifest)).digest('hex'),
+    artifact: 'phase9gb3_final_preflight_truth_free_blind_projection',
+    sourceTruthManifestSha256: options.sourceTruthManifestSha256 ?? createHash('sha256').update(JSON.stringify(truthManifest)).digest('hex'),
     scenarioCount: scenarios.length,
     performers,
     scenarioIds,
+    candidateEligibilityCounts,
+    allThreeIntersectionCount: allThreeIntersectionIds.length,
+    allThreeIntersectionIds,
     scenarios,
     candidateRunCount: 0,
   };
@@ -205,6 +238,7 @@ export async function runAcousticInference({
   candidateIds = ACTIVE_CANDIDATE_IDS,
   allowBlindExecution = false,
   realBlindUserAuthorization = false,
+  stopBeforeFirstBlindInferenceForPreflightTest = false,
   simulatedLatencyMs = 25,
 }) {
   if (!executionMode) {
@@ -212,6 +246,15 @@ export async function runAcousticInference({
   }
   if (executionMode === 'REAL_BLIND' && (!allowBlindExecution || !realBlindUserAuthorization)) {
     throw new Error('REAL_BLIND_REQUIRES_EXPLICIT_USER_AUTHORIZATION_SWITCH');
+  }
+  if (executionMode !== 'REAL_BLIND' && realBlindUserAuthorization) {
+    throw new Error('REAL_BLIND_AUTHORIZATION_SWITCH_ONLY_ALLOWED_WITH_REAL_BLIND_MODE');
+  }
+  if (executionMode === 'REAL_BLIND' && existsSync(runDir)) {
+    const existing = await readdir(runDir);
+    if (existing.length > 0) {
+      throw new Error(`REAL_BLIND_RUN_DIRECTORY_MUST_BE_NEW_EMPTY:${runDir}`);
+    }
   }
   const manifest = manifestObject ?? JSON.parse(await readFile(manifestPath, 'utf8'));
   assertTruthFreeManifest(manifest);
@@ -260,7 +303,7 @@ export async function runAcousticInference({
         continue;
       }
 
-      // Phase 9G-B.3-PREP safety guard: Real blind inference on p15-p22 is forbidden
+      // Phase 9G-B.3 final-preflight safety guard: Real blind inference on p15-p22 is forbidden
       const isBlindPerformer = BLIND_PERFORMERS.includes(scenario.performerId)
         || scenarioId.startsWith('p15_') || scenarioId.startsWith('p16_')
         || scenarioId.startsWith('p17_') || scenarioId.startsWith('p18_')
@@ -270,8 +313,11 @@ export async function runAcousticInference({
       if (isBlindPerformer && !allowBlindExecution) {
         throw new Error(
           `REAL_BLIND_EXECUTION_FORBIDDEN_IN_PREP_PHASE: Attempted inference on blind scenario ${scenarioId}. ` +
-          `Phase 9G-B.3-PREP forbids candidate execution on p15-p22 until explicit blind benchmark instruction.`
+          `Phase 9G-B.3-FINAL-PREFLIGHT forbids candidate execution on p15-p22 until explicit blind benchmark instruction.`
         );
+      }
+      if (executionMode === 'REAL_BLIND' && stopBeforeFirstBlindInferenceForPreflightTest) {
+        throw new Error('STOP_BEFORE_FIRST_BLIND_INFERENCE_FOR_PREFLIGHT_TEST');
       }
 
       // Write-once store invariant: Never overwrite an existing successful evidence file
@@ -282,6 +328,9 @@ export async function runAcousticInference({
           coverage.summary.successfulRuns += 1;
           evidenceHashes[`${candidateId}__${scenarioId}`] = existing.evidenceSha256;
           continue;
+        }
+        if (executionMode === 'REAL_BLIND') {
+          throw new Error(`REAL_BLIND_CANONICAL_EVIDENCE_SLOT_ALREADY_USED:${candidateId}:${scenarioId}`);
         }
         evidenceFilePath = path.resolve(evidenceDir, `${candidateId}__${scenarioId}__attempt-${Date.now()}.json`);
       }
@@ -330,11 +379,14 @@ export async function runAcousticInference({
         const failureRecord = {
           candidateId,
           scenarioId,
-          status: 'FAILED',
+          status: executionMode === 'REAL_BLIND' ? 'ATTEMPT_OUTCOME_UNKNOWN' : 'FAILED',
           error: err.message,
+          executionMode,
           timestamp: new Date().toISOString(),
         };
-        const failedPath = path.resolve(evidenceDir, `${candidateId}__${scenarioId}__FAILED__${Date.now()}.json`);
+        const failedPath = executionMode === 'REAL_BLIND'
+          ? evidenceFilePath
+          : path.resolve(evidenceDir, `${candidateId}__${scenarioId}__FAILED__${Date.now()}.json`);
         await writeExclusiveJson(failedPath, failureRecord);
       }
     }
@@ -348,9 +400,18 @@ export async function runAcousticInference({
   const runRecord = {
     schemaVersion: 1,
     artifact: 'product_benchmark_run_metadata',
-    phase: '9G-B.3-PREP',
+    phase: '9G-B.3-FINAL-PREFLIGHT',
     runDir: path.relative(repoRoot, runDir).replace(/\\/g, '/'),
     executionMode,
+    implementationGitHead: gitHead(),
+    productBenchmarkConfigSha256: CANDIDATE_CONFIGS[candidateIds[0]]?.identity?.benchmarkConfigSha256,
+    candidateRegistrySha256: CANDIDATE_CONFIGS[candidateIds[0]]?.identity?.registrySha256,
+    candidateAdapterSha256: await fileSha256('backend/research/product_benchmark/candidate-adapters.mjs'),
+    scorerSha256: await fileSha256('apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.ts'),
+    rawInferenceScriptSha256ByCandidate: Object.fromEntries(candidateIds.map((candidateId) => [
+      candidateId,
+      fileSha256Sync(CANDIDATE_CONFIGS[candidateId].dockerScript),
+    ])),
     candidateIds,
     scenarioCount: scenarios.length,
     completedAt: new Date().toISOString(),
@@ -395,8 +456,12 @@ if (process.argv[1] && import.meta.url === `file:///${process.argv[1].replace(/\
   }
   const executionMode = args[modeIdx + 1];
   const realBlindUserAuthorization = args.includes('--i-authorize-real-blind-inference');
+  if (realBlindUserAuthorization && executionMode !== 'REAL_BLIND') {
+    console.error('--i-authorize-real-blind-inference is only valid with --mode REAL_BLIND.');
+    process.exit(1);
+  }
 
-  runAcousticInference({ manifestPath, runDir, executionMode, realBlindUserAuthorization })
+  runAcousticInference({ manifestPath, runDir, executionMode, realBlindUserAuthorization, allowBlindExecution: realBlindUserAuthorization })
     .then((res) => {
       console.log(`Stage A Acoustic Inference finished: ${res.coverage.summary.successfulRuns} runs successful.`);
     })
@@ -404,4 +469,24 @@ if (process.argv[1] && import.meta.url === `file:///${process.argv[1].replace(/\
       console.error('Stage A Acoustic Inference failed:', err);
       process.exit(1);
     });
+}
+
+function gitHead() {
+  const run = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' });
+  if (run.status !== 0) {
+    return undefined;
+  }
+  return run.stdout.trim();
+}
+
+async function fileSha256(relPath) {
+  return sha256Buffer(await readFile(path.resolve(repoRoot, relPath)));
+}
+
+function fileSha256Sync(relPath) {
+  return createHash('sha256').update(readFileSync(path.resolve(repoRoot, relPath))).digest('hex');
+}
+
+function sha256Buffer(buffer) {
+  return createHash('sha256').update(buffer).digest('hex');
 }

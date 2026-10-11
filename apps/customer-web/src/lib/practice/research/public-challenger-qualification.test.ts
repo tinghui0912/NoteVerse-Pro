@@ -88,6 +88,7 @@ import {
   PUBLIC_MODEL_CALIBRATION_PROTOCOL_V5,
   FROZEN_SAFETY_FIRST_METRICS,
   FROZEN_V3_SAFETY_DECISION_HIERARCHY,
+  PRODUCT_BENCHMARK_SAFETY_HIERARCHY_V1,
   type ProductionLicenseStatus,
   type MetricEffectClassification,
   type StatisticalEvidenceProvenance,
@@ -2102,6 +2103,69 @@ describe('Phase 9G-A.3 Modern Challenger Qualification Protocol', () => {
       // Under reversal: B dominates A in the BA comparison!
       expect(resBA.outcome).toBe('CANDIDATE_B_DOMINATES');
       expect(resBA.winner).toBe('CANDIDATE_B');
+    });
+
+    it('B.1.2-7: product benchmark hierarchy is separate from historical V3 and includes wrong-note gates', () => {
+      expect(FROZEN_V3_SAFETY_DECISION_HIERARCHY.map((rule) => rule.metric))
+        .not.toContain('wrongNoteFalseCorrectRate');
+      expect(PRODUCT_BENCHMARK_SAFETY_HIERARCHY_V1.map((rule) => rule.metric))
+        .toEqual([
+          'falseMatchRateOnGroundTruthMissing',
+          'falseCompleteChordAcceptanceRate',
+          'wrongNoteFalseCorrectRate',
+          'verdictAgreementRate',
+          'correctMissingRate',
+          'wrongNoteDetectionRate',
+          'chordExactCompletenessRate',
+          'expectedStrikeRecall',
+          'extraPrecision',
+          'extraRecall',
+          'timingAbsoluteMedianMs',
+          'timingAbsoluteP95Ms',
+          'finalizedFeedbackAgeP95Ms',
+        ]);
+    });
+
+    it('B.1.2-8: extraPrecision and extraRecall critical regressions block dominance', () => {
+      const mockCiComputer = (diffs: readonly number[]) => {
+        const mean = diffs.reduce((a, b) => a + b, 0) / (diffs.length || 1);
+        return { mean, low: mean - 0.002, high: mean + 0.002 };
+      };
+      const neutralCriticals = {
+        falseMatchRateOnGroundTruthMissing: Array(8).fill(0),
+        falseCompleteChordAcceptanceRate: Array(8).fill(0),
+        wrongNoteFalseCorrectRate: Array(8).fill(0),
+        correctMissingRate: Array(8).fill(0),
+        wrongNoteDetectionRate: Array(8).fill(0),
+        chordExactCompletenessRate: Array(8).fill(0),
+        expectedStrikeRecall: Array(8).fill(0),
+      };
+      const withExtraPrecisionRegression = {
+        ...neutralCriticals,
+        verdictAgreementRate: Array(8).fill(0.04),
+        extraPrecision: Array(8).fill(-0.03),
+        extraRecall: Array(8).fill(0),
+      };
+      const precisionDecision = evaluateSymmetricSafetyDominance(withExtraPrecisionRegression, mockCiComputer);
+      expect(precisionDecision.outcome).toBe('STATISTICAL_TIE');
+      expect(precisionDecision.winner).toBeUndefined();
+
+      const withExtraRecallRegression = {
+        ...neutralCriticals,
+        verdictAgreementRate: Array(8).fill(0.04),
+        extraPrecision: Array(8).fill(0),
+        extraRecall: Array(8).fill(-0.03),
+      };
+      const recallDecision = evaluateSymmetricSafetyDominance(withExtraRecallRegression, mockCiComputer);
+      expect(recallDecision.outcome).toBe('STATISTICAL_TIE');
+      expect(recallDecision.winner).toBeUndefined();
+
+      const reversed = Object.fromEntries(
+        Object.entries(withExtraRecallRegression).map(([metric, values]) => [metric, values.map((value) => -value)]),
+      );
+      const reversedDecision = evaluateSymmetricSafetyDominance(reversed, mockCiComputer);
+      expect(reversedDecision.outcome).toBe('STATISTICAL_TIE');
+      expect(reversedDecision.winner).toBeUndefined();
     });
   });
 

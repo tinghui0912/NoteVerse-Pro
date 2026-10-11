@@ -2,8 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "schemaVersion": 1,
   "artifact": "product_benchmark_config",
-  "phase": "9G-B.3-PREP",
-  "description": "Simplified product-aligned benchmark configuration freezing acoustic candidates, context geometries, thresholds, shared scorer, and bootstrap settings.",
+  "phase": "9G-B.3-FINAL-PREFLIGHT",
+  "description": "Final pre-authorization product-aligned benchmark configuration freezing acoustic candidates, context geometries, thresholds, shared scorer, runtime identities, and bootstrap settings.",
   "question": "Which frozen acoustic model provides the most reliable and safe feedback for fixed-BPM Continuous Practice across correct notes, missing notes, wrong notes, incomplete chords, and extra notes, while keeping feedback latency acceptable?",
   "candidates": [
     {
@@ -27,10 +27,14 @@
       "checkpoint": {
         "path": "models/bytedance_piano_transcription/CRNN_note_F1_0.9677_pedal_F1_0.9186.pth",
         "sha256": "c3fa9730725bf4a762f1c14bc80cd5986eacda01b026f5a4a2525cd607876141",
-        "bytes": 103815845
+        "bytes": 171966578
       },
       "dockerImage": "noteverse-bytedance-calibration:phase9ga21",
       "dockerScript": "backend/scripts/run_bytedance_pytorch_raw_batch.py",
+      "runtimeIdentity": "noteverse-bytedance-calibration:phase9ga21",
+      "preprocessingIdentity": "deterministic_wav_pcm16_mono_linear_resample_16k_v1",
+      "terminalWindowPolicy": "RIGHT_ANCHORED_TERMINAL_FUTURE_BOUND_V1",
+      "plannerVersion": "phase9gb3-final-preflight-bytedance-variable-context-v1",
       "targetDevice": "cpu",
       "sampleRateHz": 16000
     },
@@ -44,8 +48,8 @@
         "sampleRateHz": 16000,
         "hopSamples": 512,
         "hopMs": 32,
-        "timingCorrectionMs": -158,
-      "publishedOnsetBoost": 1.0,
+        "timingCorrectionMs": -162.93750000004252,
+        "publishedOnsetBoost": 1.0,
         "pseudoIntensityShortcut": "NATIVE",
         "statefulContinuity": true
       },
@@ -56,6 +60,7 @@
       },
       "dockerImage": "noteverse-online-amt-modern:phase9e-b1",
       "dockerScript": "backend/research/online_amt/run_online_amt_modern_smoke.py",
+      "runtimeIdentity": "noteverse-online-amt-modern:phase9e-b1",
       "targetDevice": "cpu",
       "sampleRateHz": 16000
     },
@@ -79,10 +84,14 @@
       "checkpoint": {
         "path": "models/bytedance_piano_transcription/high_resolution_MAESTRO_augmentations.pth",
         "sha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
-        "bytes": 171966578
+        "bytes": 103815845
       },
       "dockerImage": "noteverse-challengers:phase9ga3",
       "dockerScript": "backend/scripts/run_bytedance_robust_pytorch_raw_batch.py",
+      "runtimeIdentity": "noteverse-challengers:phase9ga3",
+      "preprocessingIdentity": "deterministic_wav_pcm16_mono_linear_resample_16k_v1",
+      "terminalWindowPolicy": "FIXED_1820_RIGHT_ANCHORED_COMMIT_V1",
+      "plannerVersion": "phase9gb3-final-preflight-bytedance-1820-v1",
       "targetDevice": "cuda",
       "sampleRateHz": 16000
     }
