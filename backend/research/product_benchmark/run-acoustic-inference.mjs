@@ -249,6 +249,7 @@ export async function runAcousticInference({
   realBlindUserAuthorization = false,
   stopBeforeFirstBlindInferenceForPreflightTest = false,
   simulatedLatencyMs = 25,
+  replacementForAbortedAttempt = null,
 }) {
   if (!executionMode) {
     throw new Error('PRODUCT_BENCHMARK_EXECUTION_MODE_REQUIRED');
@@ -454,6 +455,7 @@ export async function runAcousticInference({
       dockerImageIdentity(CANDIDATE_CONFIGS[candidateId]),
     ])),
     actualRuntimeDeviceByCandidate,
+    replacementForAbortedAttempt,
     candidateIds,
     scenarioCount: scenarios.length,
     completedAt: new Date().toISOString(),
@@ -508,12 +510,21 @@ if (process.argv[1] && import.meta.url === `file:///${process.argv[1].replace(/\
   }
   const executionMode = args[modeIdx + 1];
   const realBlindUserAuthorization = args.includes('--i-authorize-real-blind-inference');
+  const replacementForAbortedAttempt = args.includes('--replacement-for-aborted-attempt')
+    ? {
+      replacementForAbortedAttempt: true,
+      attempt1ResultArtifact: 'backend/research/reports/phase9g_b3_official_product_blind_result_2026-10-11.json',
+      attempt1ExecutionReceipt: 'backend/research/reports/phase9g_b3_official_product_blind_execution_receipt_2026-10-11.json',
+      abortedExecutionGitHead: '6b26c366bc7f7e37d7e9b105f757a936ad61c1e8',
+      invalidationReason: 'INVALIDATED_INFRASTRUCTURE_ABORT_NO_SCIENTIFIC_RESULT',
+    }
+    : null;
   if (realBlindUserAuthorization && executionMode !== 'REAL_BLIND') {
     console.error('--i-authorize-real-blind-inference is only valid with --mode REAL_BLIND.');
     process.exit(1);
   }
 
-  runAcousticInference({ manifestPath, runDir, executionMode, realBlindUserAuthorization, allowBlindExecution: realBlindUserAuthorization })
+  runAcousticInference({ manifestPath, runDir, executionMode, realBlindUserAuthorization, allowBlindExecution: realBlindUserAuthorization, replacementForAbortedAttempt })
     .then((res) => {
       console.log(`Stage A Acoustic Inference finished: ${res.coverage.summary.successfulRuns} runs successful.`);
     })
