@@ -22,6 +22,7 @@ import path from 'node:path';
 import {
   ACTIVE_CANDIDATE_IDS,
   CANDIDATE_CONFIGS,
+  dockerImageIdentity,
   createCandidateAdapter,
   assertTruthIsolation,
 } from './candidate-adapters.mjs';
@@ -280,6 +281,7 @@ export async function runAcousticInference({
   };
 
   const evidenceHashes = {};
+  const actualRuntimeDeviceByCandidate = {};
 
   for (const candidateId of candidateIds) {
     const adapter = createCandidateAdapter(candidateId);
@@ -369,6 +371,7 @@ export async function runAcousticInference({
         coverage.candidates[candidateId].successfulScenarios.push(scenarioId);
         coverage.summary.successfulRuns += 1;
         evidenceHashes[`${candidateId}__${scenarioId}`] = evidenceSha256;
+        actualRuntimeDeviceByCandidate[candidateId] ??= extractRuntimeDevice(candidateRun.runProvenance?.runtime);
       } catch (err) {
         coverage.candidates[candidateId].failedScenarios.push({
           scenarioId,
@@ -412,6 +415,17 @@ export async function runAcousticInference({
       candidateId,
       fileSha256Sync(CANDIDATE_CONFIGS[candidateId].dockerScript),
     ])),
+    sourceTruthManifestSha256: manifest.sourceTruthManifestSha256,
+    truthFreeProjectionSha256: manifest.projectionSha256,
+    projectionArtifact: manifest.artifact,
+    projectionSchemaVersion: manifest.schemaVersion,
+    candidateEligibilityCounts: manifest.candidateEligibilityCounts,
+    allThreeIntersectionCount: manifest.allThreeIntersectionCount,
+    dockerImageIdentityByCandidate: Object.fromEntries(candidateIds.map((candidateId) => [
+      candidateId,
+      dockerImageIdentity(CANDIDATE_CONFIGS[candidateId]),
+    ])),
+    actualRuntimeDeviceByCandidate,
     candidateIds,
     scenarioCount: scenarios.length,
     completedAt: new Date().toISOString(),
@@ -426,6 +440,12 @@ export async function runAcousticInference({
     coverage,
     runRecord,
   };
+}
+
+function extractRuntimeDevice(runtime) {
+  if (typeof runtime !== 'string') return undefined;
+  const parts = runtime.split(':');
+  return parts.at(-1);
 }
 
 async function writeExclusiveJson(filePath, value) {

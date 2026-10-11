@@ -8,6 +8,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile, rm } from 'node:fs/promises';
@@ -23,6 +24,8 @@ import {
   verifyPhysicalCheckpointIdentity,
   verifySourceAudioForScenario,
   extractResampleLinear,
+  buildDockerRunArgs,
+  probeCudaDockerRuntime,
   ByteDanceOriginalAdapter,
   OnlineAmtStreamingAdapter,
   RobustByteDanceAdapter,
@@ -39,6 +42,7 @@ import {
   scoreAndCompareBenchmark,
   computeBootstrapConfidenceInterval,
   getCandidateDefinition,
+  chooseThreeCandidateWinner,
 } from './score-and-compare.mjs';
 
 const repoRoot = process.cwd();
@@ -609,6 +613,14 @@ async function runAllChecks() {
     const dummyRunDir = path.resolve(testWorkDir, 'dummy_run');
     await mkdir(dummyRunDir, { recursive: true });
     await writeFile(path.resolve(dummyRunDir, 'coverage.json'), JSON.stringify({ summary: { totalExpectedRuns: 10 } }), 'utf8');
+    await writeFile(path.resolve(dummyRunDir, 'run.json'), JSON.stringify({
+      schemaVersion: 1,
+      artifact: 'product_benchmark_run_metadata',
+      phase: '9G-B.3-FINAL-PREFLIGHT-R1',
+      executionMode: 'SYNTHETIC',
+      candidateIds: ['bytedance-original-calibrated-v1'],
+      scenarioCount: 1,
+    }, null, 2), 'utf8');
 
     // Call Stage B with missing evidence
     const scen = createTestScenario({ scenarioId: 'scen_missing_ev' });
@@ -850,6 +862,21 @@ async function runAllChecks() {
 
   // 28. Real neural non-blind integration for all three adapters
   try {
+    const robustCommandShape = buildDockerRunArgs(CANDIDATE_CONFIGS['bytedance-robust-augmented-calibrated-v1'], {
+      entrypoint: 'python',
+      extraArgs: ['-v', `${repoRoot}:/workspace`, '-w', '/workspace'],
+    });
+    const gpuFlagIndex = robustCommandShape.indexOf('--gpus');
+    const hasGpuPassthrough = gpuFlagIndex !== -1
+      && robustCommandShape[gpuFlagIndex + 1] === 'all'
+      && gpuFlagIndex < robustCommandShape.indexOf(CANDIDATE_CONFIGS['bytedance-robust-augmented-calibrated-v1'].dockerImage);
+    if (!hasGpuPassthrough) {
+      throw new Error(`ROBUST_DOCKER_GPU_PASSTHROUGH_MISSING:${robustCommandShape.join(' ')}`);
+    }
+    const cudaProbe = probeCudaDockerRuntime();
+    if (cudaProbe.status !== 'PASS') {
+      record(28, 'Real neural non-blind integration for all three adapters with Robust CUDA identity', false, `CUDA_RUNTIME_ENVIRONMENT_UNAVAILABLE:${cudaProbe.stderr || cudaProbe.stdout || 'probe failed'}`);
+    } else {
     const realRunDir = path.resolve(testWorkDir, 'real_neural_nonblind_smoke');
     await rm(realRunDir, { recursive: true, force: true });
     const realWavPath = path.resolve(realRunDir, 'nonblind_dev_synthetic.wav');
@@ -899,14 +926,15 @@ async function runAllChecks() {
       && evidence.every((record) => record.status === 'SUCCESS')
       && evidence.every((record) => record.candidateRun?.publications?.length > 0)
       && evidence.every((record) => record.executionMode === 'DOCKER')
-      && robustEvidence?.candidateRun?.runProvenance?.runtime?.includes('real-pytorch-raw-batch')
+      && robustEvidence?.candidateRun?.runProvenance?.runtime?.endsWith(':cuda')
       && CANDIDATE_CONFIGS['bytedance-robust-augmented-calibrated-v1'].targetDevice === 'cuda'
       && onlineEvidence?.candidateRun?.candidateId === 'online-amt-calibrated-v1'
       && CANDIDATE_CONFIGS['online-amt-calibrated-v1'].streaming.pseudoIntensityShortcut === 'NATIVE'
       && CANDIDATE_CONFIGS['online-amt-calibrated-v1'].streaming.publishedOnsetBoost === 1.0;
     record(28, 'Real neural non-blind integration for all three adapters with Robust CUDA identity', pass, pass
-      ? `runs=${result.coverage.summary.successfulRuns}, blindRuns=0, robustDevice=${CANDIDATE_CONFIGS['bytedance-robust-augmented-calibrated-v1'].targetDevice}`
+      ? `runs=${result.coverage.summary.successfulRuns}, blindRuns=0, cudaDevice=${cudaProbe.deviceName}`
       : `runs=${result.coverage.summary.successfulRuns}, robustError=${robustFailure ?? 'missing robust evidence'}`);
+    }
   } catch (err) {
     record(28, 'Real neural non-blind integration for all three adapters with Robust CUDA identity', false, err.message);
   }
@@ -996,6 +1024,127 @@ async function runAllChecks() {
     record(30, 'Critical safety regression blocking includes extraPrecision and extraRecall', pass, `precision=${precision.outcome}, recall=${recall.outcome}`);
   } catch (err) {
     record(30, 'Critical safety regression blocking includes extraPrecision and extraRecall', false, err.message);
+  }
+
+  // 31. Official 63/70/63 eligibility matrix yields 196 expected runs and 14 NOT_ELIGIBLE cells
+  try {
+    const dryDir = path.resolve(testWorkDir, 'coverage_63_70_63_dry');
+    await rm(dryDir, { recursive: true, force: true });
+    const dryWavSha = createHash('sha256').update(wavBuffer).digest('hex');
+    const dryTruth = {
+      publicManifest: { scenarioIds: [] },
+      scenarioReceipts: [],
+      scenarios: [],
+    };
+    for (let i = 0; i < 70; i += 1) {
+      const id = `dry-coverage-scenario-${i.toString().padStart(2, '0')}`;
+      const origin = i < 7 ? 0 : 6000;
+      dryTruth.publicManifest.scenarioIds.push(id);
+      dryTruth.scenarioReceipts.push({
+        scenarioId: id,
+        performanceId: `Dry_p01_${i}`,
+        pieceId: 'Dry',
+        configuredIntegerBpm: 120,
+      });
+      dryTruth.scenarios.push({
+        ...createTestScenario({
+          scenarioId: id,
+          expectedStrikes: [{ strikeId: `es_${i}`, pitch: 'C4', expectedPerformanceTimeMs: 500, status: 'PENDING' }],
+          durationMs: 1000,
+        }),
+        performerId: 'p01',
+        fixedBpm: 120,
+        source: { sourceAudioPath: path.relative(repoRoot, wavPath).replace(/\\/g, '/'), sourceAudioSha256: dryWavSha },
+        audio: {
+          nativeSampleRateHz: 16000,
+          channelPolicy: 'MONO',
+          clipStartMs: 0,
+          clipEndMs: 12000,
+          sourceDurationMs: 12000,
+          performanceOriginSourceMs: origin,
+        },
+        completion: { kind: 'NATURAL', performanceTimeMs: 1000 },
+      });
+    }
+    const dryTruthPath = path.resolve(dryDir, 'dry_truth.json');
+    await mkdir(dryDir, { recursive: true });
+    await writeFile(dryTruthPath, JSON.stringify(dryTruth, null, 2), 'utf8');
+    const dryTruthSha = createHash('sha256').update(await readFile(dryTruthPath)).digest('hex');
+    const projection = projectTruthFreeBlindManifest(dryTruth, { sourceTruthManifestSha256: dryTruthSha });
+    const stageA = await runAcousticInference({ manifestObject: projection, runDir: dryDir, executionMode: 'SYNTHETIC' });
+    const analysis = await scoreAndCompareBenchmark({ runDir: dryDir, truthScenariosPath: dryTruthPath });
+    const expectedRuns = stageA.coverage.summary.successfulRuns;
+    const notEligible = stageA.coverage.summary.notEligibleRuns;
+    const pass = expectedRuns === 196
+      && notEligible === 14
+      && analysis.evaluationStatus === 'EVALUATION_COMPLETED'
+      && projection.candidateEligibilityCounts['bytedance-original-calibrated-v1'] === 63
+      && projection.candidateEligibilityCounts['online-amt-calibrated-v1'] === 70
+      && projection.candidateEligibilityCounts['bytedance-robust-augmented-calibrated-v1'] === 63;
+    const missingEligible = projection.scenarios.find((scenario) => scenario.candidateEligibility['online-amt-calibrated-v1']);
+    await rm(path.resolve(dryDir, 'evidence', `online-amt-calibrated-v1__${missingEligible.scenarioId}.json`), { force: true });
+    const incomplete = await scoreAndCompareBenchmark({ runDir: dryDir, truthScenariosPath: dryTruthPath });
+    record(31, 'Stage A/Stage B exact 63/70/63 eligibility binding expects 196 runs and 14 NOT_ELIGIBLE cells', pass && incomplete.evaluationStatus === 'EVALUATION_INCOMPLETE_NO_WINNER', `runs=${expectedRuns}, notEligible=${notEligible}`);
+  } catch (err) {
+    record(31, 'Stage A/Stage B exact 63/70/63 eligibility binding expects 196 runs and 14 NOT_ELIGIBLE cells', false, err.message);
+  }
+
+  // 32. Stage B executionMode binding rejects synthetic evidence under REAL_BLIND run provenance
+  try {
+    const modeDir = path.resolve(testWorkDir, 'execution_mode_binding');
+    await rm(modeDir, { recursive: true, force: true });
+    const scen = createTestScenario({ scenarioId: 'mode_binding_scenario' });
+    const manifest = { scenarios: [sanitizeToTruthFreeScenario(scen, { official: true })] };
+    await runAcousticInference({
+      manifestObject: manifest,
+      runDir: modeDir,
+      executionMode: 'SYNTHETIC',
+      candidateIds: ['bytedance-original-calibrated-v1'],
+    });
+    const runJsonPath = path.resolve(modeDir, 'run.json');
+    const runJson = JSON.parse(await readFile(runJsonPath, 'utf8'));
+    runJson.executionMode = 'REAL_BLIND';
+    await writeFile(runJsonPath, JSON.stringify(runJson, null, 2), 'utf8');
+    const truthPath = path.resolve(modeDir, 'truth.json');
+    await writeFile(truthPath, JSON.stringify({ scenarios: [scen] }, null, 2), 'utf8');
+    let rejected = false;
+    try {
+      await scoreAndCompareBenchmark({
+        runDir: modeDir,
+        truthScenariosObject: [scen],
+        candidateIds: ['bytedance-original-calibrated-v1'],
+      });
+    } catch (err) {
+      rejected = /EVIDENCE_EXECUTION_MODE_MISMATCH/.test(err.message);
+    }
+    const cli = spawnSync('node', [
+      'backend/research/product_benchmark/score-and-compare.mjs',
+      '--run-dir', modeDir,
+      '--truth-scenarios', truthPath,
+    ], { cwd: repoRoot, encoding: 'utf8', timeout: 30000, maxBuffer: 4 * 1024 * 1024 });
+    const cliRejected = cli.status !== 0 && /EVIDENCE_EXECUTION_MODE_MISMATCH/.test(`${cli.stderr}\n${cli.stdout}`);
+    record(32, 'Stage B automatically enforces run.json executionMode for official evidence, including CLI path', rejected && cliRejected);
+  } catch (err) {
+    record(32, 'Stage B automatically enforces run.json executionMode for official evidence, including CLI path', false, err.message);
+  }
+
+  // 33. Three-candidate no-winner precedence is order-invariant
+  try {
+    const ids = ['A', 'B', 'C'];
+    const pairAB = { candidateA: 'A', candidateB: 'B', decision: { outcome: 'STATISTICAL_TIE' } };
+    const pairAC = { candidateA: 'A', candidateB: 'C', decision: { outcome: 'CANDIDATE_A_DOMINATES' } };
+    const pairBC = { candidateA: 'B', candidateB: 'C', decision: { outcome: 'INSUFFICIENT_SAFETY_EVIDENCE' } };
+    const order1 = chooseThreeCandidateWinner(ids, { AB: pairAB, AC: pairAC, BC: pairBC });
+    const order2 = chooseThreeCandidateWinner(ids, { AC: pairAC, BC: pairBC, AB: pairAB });
+    const tieOnly = chooseThreeCandidateWinner(ids, { AB: pairAB, AC: pairAC, BC: { candidateA: 'B', candidateB: 'C', decision: { outcome: 'CANDIDATE_A_DOMINATES' } } });
+    const pass = order1.benchmarkOutcome === 'INSUFFICIENT_SAFETY_EVIDENCE'
+      && order2.benchmarkOutcome === 'INSUFFICIENT_SAFETY_EVIDENCE'
+      && order1.winner === null
+      && tieOnly.benchmarkOutcome === 'STATISTICAL_TIE'
+      && tieOnly.winner === null;
+    record(33, 'Three-candidate no-winner precedence is deterministic and pair-order invariant', pass);
+  } catch (err) {
+    record(33, 'Three-candidate no-winner precedence is deterministic and pair-order invariant', false, err.message);
   }
 
   // Summary

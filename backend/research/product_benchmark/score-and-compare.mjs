@@ -14,6 +14,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ACTIVE_CANDIDATE_IDS, CANDIDATE_CONFIGS } from './candidate-adapters.mjs';
+import { projectTruthFreeBlindManifest } from './run-acoustic-inference.mjs';
 
 const repoRoot = process.cwd();
 const require = createRequire(import.meta.url);
@@ -101,9 +102,20 @@ export async function scoreAndCompareBenchmark({
   }
 
   const coverage = JSON.parse(await readFile(coveragePath, 'utf8'));
-  const scenarios = Array.isArray(truthScenariosObject)
+  const runPath = path.resolve(runDir, 'run.json');
+  if (!existsSync(runPath)) {
+    throw new Error(`STAGE_B_ERROR: Missing run.json in ${runDir}. Stage A run provenance is required.`);
+  }
+  const runRecord = JSON.parse(await readFile(runPath, 'utf8'));
+  const truthPayload = Array.isArray(truthScenariosObject) || truthScenariosObject
     ? truthScenariosObject
-    : truthScenariosObject?.scenarios ?? JSON.parse(await readFile(truthScenariosPath, 'utf8')).scenarios;
+    : JSON.parse(await readFile(truthScenariosPath, 'utf8'));
+  const scenarios = Array.isArray(truthPayload)
+    ? truthPayload
+    : truthPayload?.scenarios ?? [];
+  const stageAProjection = await verifyStageAProjectionBinding({ runRecord, truthPayload, truthScenariosPath, candidateIds });
+  const eligibilityByScenarioId = new Map((stageAProjection?.scenarios ?? []).map((scenario) => [scenario.scenarioId, scenario.candidateEligibility ?? {}]));
+  const boundExecutionMode = expectedExecutionMode ?? runRecord.executionMode;
 
   const evidenceDir = path.resolve(runDir, 'evidence');
   const candidateScores = {};
@@ -116,7 +128,8 @@ export async function scoreAndCompareBenchmark({
     perScenarioScoresByCandidate[candidateId] = new Map();
     const scenarioScores = [];
     for (const scenario of scenarios) {
-      if (scenario.candidateEligibility && scenario.candidateEligibility[candidateId] === false) continue;
+      const candidateEligibility = eligibilityByScenarioId.get(scenario.scenarioId) ?? scenario.candidateEligibility ?? {};
+      if (candidateEligibility[candidateId] === false) continue;
       const evidenceFile = path.resolve(evidenceDir, `${candidateId}__${scenario.scenarioId}.json`);
       if (!existsSync(evidenceFile)) {
         coverageIncomplete = true;
@@ -129,7 +142,7 @@ export async function scoreAndCompareBenchmark({
         missingEvidence.push({ candidateId, scenarioId: scenario.scenarioId, status: evidenceRecord.status });
         continue;
       }
-      verifyEvidenceRecord(evidenceRecord, scenario, candidateId, expectedExecutionMode);
+      verifyEvidenceRecord(evidenceRecord, scenario, candidateId, boundExecutionMode);
       const score = bakeoffModule.scoreCandidate(scenario, candidateDefinitions[candidateId], evidenceRecord.candidateRun);
       scenarioScores.push(score);
       perScenarioScoresByCandidate[candidateId].set(scenario.scenarioId, score);
@@ -146,14 +159,15 @@ export async function scoreAndCompareBenchmark({
     const analysis = {
       schemaVersion: 2,
       artifact: 'product_benchmark_analysis',
-      phase: '9G-B.3-FIX',
+      phase: '9G-B.3-FINAL-PREFLIGHT-R1',
       evaluationStatus: 'EVALUATION_INCOMPLETE_NO_WINNER',
       winner: null,
       rationale: `Evidence coverage incomplete; missing ${missingEvidence.length} candidate-scenario runs`,
       missingEvidence,
       candidateScores,
       absoluteProductLatencyGate: 'ABSOLUTE_PRODUCT_LATENCY_GATE_NOT_YET_DEFINED',
-      provenance: await benchmarkProvenance(),
+      runProvenance: runRecord,
+      provenance: await benchmarkProvenance(runRecord),
     };
     await writeFile(path.resolve(runDir, 'analysis.json'), JSON.stringify(analysis, null, 2), 'utf8');
     return analysis;
@@ -182,7 +196,7 @@ export async function scoreAndCompareBenchmark({
   const analysis = {
     schemaVersion: 2,
     artifact: 'product_benchmark_analysis',
-    phase: '9G-B.3-FIX',
+    phase: '9G-B.3-FINAL-PREFLIGHT-R1',
     evaluationStatus: 'EVALUATION_COMPLETED',
     benchmarkOutcome,
     winner,
@@ -191,11 +205,51 @@ export async function scoreAndCompareBenchmark({
     evaluatedCandidateCount: candidateIds.length,
     candidateScores,
     pairwiseComparisons,
-    provenance: await benchmarkProvenance(),
+    runProvenance: runRecord,
+    provenance: await benchmarkProvenance(runRecord),
     completedAt: new Date().toISOString(),
   };
   await writeFile(path.resolve(runDir, 'analysis.json'), JSON.stringify(analysis, null, 2), 'utf8');
   return analysis;
+}
+
+async function verifyStageAProjectionBinding({ runRecord, truthPayload, truthScenariosPath, candidateIds }) {
+  if (!runRecord.truthFreeProjectionSha256) return null;
+  if (!truthScenariosPath) {
+    throw new Error('STAGE_B_TRUTH_FILE_REQUIRED_FOR_PROJECTION_BINDING');
+  }
+  const truthBytes = await readFile(path.resolve(repoRoot, truthScenariosPath));
+  const truthSha = createHash('sha256').update(truthBytes).digest('hex');
+  if (runRecord.sourceTruthManifestSha256 !== truthSha) {
+    throw new Error(`STAGE_B_SOURCE_TRUTH_SHA_MISMATCH:expected ${runRecord.sourceTruthManifestSha256}, got ${truthSha}`);
+  }
+  const projection = projectTruthFreeBlindManifest(truthPayload, { sourceTruthManifestSha256: truthSha });
+  if (projection.projectionSha256 !== runRecord.truthFreeProjectionSha256) {
+    throw new Error(`STAGE_B_TRUTH_FREE_PROJECTION_SHA_MISMATCH:expected ${runRecord.truthFreeProjectionSha256}, got ${projection.projectionSha256}`);
+  }
+  if (projection.scenarioCount !== runRecord.scenarioCount) {
+    throw new Error(`STAGE_B_PROJECTION_SCENARIO_COUNT_MISMATCH:${projection.scenarioCount}:${runRecord.scenarioCount}`);
+  }
+  if (JSON.stringify(projection.scenarioIds) !== JSON.stringify((truthPayload.publicManifest?.scenarioIds ?? projection.scenarioIds))) {
+    throw new Error('STAGE_B_PROJECTION_SCENARIO_ID_SET_MISMATCH');
+  }
+  if (JSON.stringify(candidateIds) !== JSON.stringify(runRecord.candidateIds)) {
+    throw new Error('STAGE_B_CANDIDATE_ROSTER_MISMATCH');
+  }
+  const expectedCounts = {
+    'bytedance-original-calibrated-v1': 63,
+    'online-amt-calibrated-v1': 70,
+    'bytedance-robust-augmented-calibrated-v1': 63,
+  };
+  for (const [candidateId, expected] of Object.entries(expectedCounts)) {
+    if (projection.candidateEligibilityCounts?.[candidateId] !== expected) {
+      throw new Error(`STAGE_B_ELIGIBILITY_COUNT_MISMATCH:${candidateId}:${projection.candidateEligibilityCounts?.[candidateId]}:${expected}`);
+    }
+  }
+  if (projection.allThreeIntersectionCount !== 63) {
+    throw new Error(`STAGE_B_COMMON_INTERSECTION_MISMATCH:${projection.allThreeIntersectionCount}`);
+  }
+  return projection;
 }
 
 function verifyEvidenceRecord(record, scenario, candidateId, expectedExecutionMode) {
@@ -222,7 +276,7 @@ function verifyEvidenceRecord(record, scenario, candidateId, expectedExecutionMo
   }
 }
 
-async function benchmarkProvenance() {
+async function benchmarkProvenance(runRecord) {
   return {
     gitHead: gitHead(),
     benchmarkConfigSha256: CANDIDATE_CONFIGS[ACTIVE_CANDIDATE_IDS[0]]?.identity?.benchmarkConfigSha256,
@@ -233,6 +287,10 @@ async function benchmarkProvenance() {
       candidateId,
       fileSha256Sync(CANDIDATE_CONFIGS[candidateId].dockerScript),
     ])),
+    sourceTruthManifestSha256: runRecord?.sourceTruthManifestSha256,
+    truthFreeProjectionSha256: runRecord?.truthFreeProjectionSha256,
+    dockerImageIdentityByCandidate: runRecord?.dockerImageIdentityByCandidate,
+    actualRuntimeDeviceByCandidate: runRecord?.actualRuntimeDeviceByCandidate,
   };
 }
 
@@ -272,15 +330,16 @@ function metricValue(metric) {
   return metric.value;
 }
 
-function chooseThreeCandidateWinner(candidateIds, pairwiseComparisons) {
+export function chooseThreeCandidateWinner(candidateIds, pairwiseComparisons) {
   const wins = new Map(candidateIds.map((id) => [id, 0]));
-  for (const comparison of Object.values(pairwiseComparisons)) {
-    if (comparison.decision.outcome === 'INSUFFICIENT_SAFETY_EVIDENCE') {
-      return { benchmarkOutcome: 'INSUFFICIENT_SAFETY_EVIDENCE', winner: null, rationale: 'At least one required candidate pair has insufficient critical safety evidence.' };
-    }
-    if (comparison.decision.outcome === 'STATISTICAL_TIE') {
-      return { benchmarkOutcome: 'STATISTICAL_TIE', winner: null, rationale: 'At least one candidate pair remains statistically tied.' };
-    }
+  const comparisons = Object.values(pairwiseComparisons);
+  if (comparisons.some((comparison) => comparison.decision.outcome === 'INSUFFICIENT_SAFETY_EVIDENCE')) {
+    return { benchmarkOutcome: 'INSUFFICIENT_SAFETY_EVIDENCE', winner: null, rationale: 'At least one required candidate pair has insufficient critical safety evidence.' };
+  }
+  if (comparisons.some((comparison) => comparison.decision.outcome === 'STATISTICAL_TIE')) {
+    return { benchmarkOutcome: 'STATISTICAL_TIE', winner: null, rationale: 'At least one candidate pair remains statistically tied.' };
+  }
+  for (const comparison of comparisons) {
     if (comparison.decision.outcome === 'CANDIDATE_A_DOMINATES') wins.set(comparison.candidateA, wins.get(comparison.candidateA) + 1);
     if (comparison.decision.outcome === 'CANDIDATE_B_DOMINATES') wins.set(comparison.candidateB, wins.get(comparison.candidateB) + 1);
   }

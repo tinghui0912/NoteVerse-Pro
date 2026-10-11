@@ -391,6 +391,77 @@ function validateByteDanceRawBatch(rawData, requests, config) {
   return byWindow;
 }
 
+export function buildDockerRunArgs(config, { entrypoint = 'python', extraArgs = [] } = {}) {
+  const args = ['run', '--rm'];
+  if (config.targetDevice === 'cuda') {
+    args.push('--gpus', 'all');
+  }
+  if (entrypoint) {
+    args.push('--entrypoint', entrypoint);
+  }
+  args.push(...extraArgs, config.dockerImage);
+  return args;
+}
+
+export function dockerImageIdentity(config) {
+  const run = spawnSync('docker', ['image', 'inspect', config.dockerImage, '--format', '{{json .}}'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    timeout: 30000,
+    maxBuffer: 4 * 1024 * 1024,
+  });
+  if (run.status !== 0) {
+    return {
+      configuredImageTag: config.dockerImage,
+      targetDevice: config.targetDevice,
+      status: 'DOCKER_IMAGE_IDENTITY_UNAVAILABLE',
+      error: run.stderr || run.stdout,
+    };
+  }
+  const inspected = JSON.parse(run.stdout);
+  return {
+    configuredImageTag: config.dockerImage,
+    imageId: inspected.Id,
+    repoDigests: inspected.RepoDigests ?? [],
+    targetDevice: config.targetDevice,
+  };
+}
+
+export function probeCudaDockerRuntime(config = CANDIDATE_CONFIGS['bytedance-robust-augmented-calibrated-v1']) {
+  const dockerArgs = buildDockerRunArgs(config, {
+    entrypoint: 'python',
+    extraArgs: [
+      '-v', `${repoRoot}:/workspace`,
+      '-w', '/workspace',
+    ],
+  });
+  dockerArgs.push('-c', [
+    'import json, torch',
+    'print(json.dumps({"cudaAvailable": torch.cuda.is_available(), "deviceCount": torch.cuda.device_count(), "deviceName": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None, "cudaRuntimeVersion": torch.version.cuda}))',
+  ].join('; '));
+  const run = spawnSync('docker', dockerArgs, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    timeout: 60000,
+    maxBuffer: 4 * 1024 * 1024,
+  });
+  const result = {
+    commandShape: ['docker', ...dockerArgs],
+    configuredImageTag: config.dockerImage,
+    targetDevice: config.targetDevice,
+    status: run.status === 0 ? 'PASS' : 'CUDA_RUNTIME_ENVIRONMENT_UNAVAILABLE',
+    stdout: run.stdout,
+    stderr: run.stderr,
+  };
+  if (run.status !== 0) return result;
+  const parsed = JSON.parse(run.stdout.trim().split(/\r?\n/).at(-1));
+  return {
+    ...result,
+    ...parsed,
+    status: parsed.cudaAvailable === true && parsed.deviceCount >= 1 ? 'PASS' : 'CUDA_RUNTIME_ENVIRONMENT_UNAVAILABLE',
+  };
+}
+
 function validateTensorDigest(chunk, key, windowId) {
   const tensor = chunk.rawOutputs?.[key];
   if (!tensor || !Array.isArray(tensor.dims) || !Array.isArray(tensor.data)) {
@@ -508,19 +579,21 @@ class ByteDanceBaseAdapter {
     const outputPath = path.resolve(workDir, `${this.config.family}_out_${runHash}.json`);
     await writeFile(inputPath, JSON.stringify({ windows }, null, 2), 'utf8');
 
-    const dockerArgs = [
-      'run', '--rm',
-      '--entrypoint', 'python',
+    const dockerArgs = buildDockerRunArgs(this.config, {
+      entrypoint: 'python',
+      extraArgs: [
       '-v', `${repoRoot}:/workspace`,
       '-w', '/workspace',
-      this.config.dockerImage,
+      ],
+    });
+    dockerArgs.push(
       this.config.dockerScript,
       '--input', path.relative(repoRoot, inputPath).replace(/\\/g, '/'),
       '--output', path.relative(repoRoot, outputPath).replace(/\\/g, '/'),
       '--checkpoint', this.config.checkpoint.path,
       '--device', this.config.targetDevice,
       '--runtime-identity', this.config.runtimeIdentity,
-    ];
+    );
     const run = spawnSync('docker', dockerArgs, {
       cwd: repoRoot,
       encoding: 'utf8',
@@ -532,12 +605,13 @@ class ByteDanceBaseAdapter {
     }
     const rawData = JSON.parse(await readFile(outputPath, 'utf8'));
     const chunkByWindowId = validateByteDanceRawBatch(rawData, windows, this.config);
+    const actualRuntimeDevice = typeof rawData.runtimeIdentity === 'object' ? rawData.runtimeIdentity?.device : undefined;
     return buildRunFromByteDanceChunks({
       scenario,
       config: this.config,
       plans,
       chunkByWindowId,
-      runtime: `${this.config.runtimeIdentity}:real-pytorch-raw-batch`,
+      runtime: `${this.config.runtimeIdentity}:real-pytorch-raw-batch:${actualRuntimeDevice ?? this.config.targetDevice}`,
     });
   }
 
