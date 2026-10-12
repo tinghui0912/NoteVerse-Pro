@@ -1,0 +1,270 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_d2_online_amt_browser_step_parity",
+  "phase": "9G-D.2",
+  "pythonOracle": {
+    "hopCount": 320,
+    "totalPitchHopComparisons": 28160,
+    "chosenStateDigestSequenceSha256": "0e89c04886fa1d38029f4c4ad69708e8b01a5b558a987c7cb0aff3c57fb9a049",
+    "stateDigestManifest": "backend/data/work/phase9gd2_online_amt_browser/python_oracle_state_digests.json",
+    "probabilityDigestFirstHop": "2395b2a0e65d62fe256421c68687df232c16f75697c6c52df43d523d3cfa1dd5",
+    "probabilityDigestLastHop": "db151b91dc3935ee0555a52a7ddfe1e12f2c42a17f47d5af86615f26e01ca32b"
+  },
+  "parityHierarchy": {
+    "mel": "MEASURED_IN_MEL_REPORT",
+    "acousticCache": "PYTHON_ORACLE_DIGESTED; BROWSER_PARITY_NOT_EXECUTED",
+    "languageState": "PYTHON_ORACLE_DIGESTED; BROWSER_PARITY_NOT_EXECUTED",
+    "discreteChosenState": "BROWSER_PARITY_NOT_EXECUTED",
+    "productResearchBridge": "BROWSER_HOP_ARTIFACT_NOT_AVAILABLE"
+  },
+  "chosenStateParity": {
+    "status": "NOT_EXECUTED",
+    "mismatchCount": null,
+    "firstMismatch": null,
+    "reason": "complete browser step not available"
+  },
+  "timingCorrectionMs": -162.93750000004252,
+  "segmentTailParity": {
+    "timingCorrectionMs": -162.93750000004252,
+    "correctionDelaySamples": 2608,
+    "requiredProcessedSamples": 166912,
+    "requiredContextTailSamples": 3072,
+    "finalAnalyzedThroughTimeMs": 10432.0
+  },
+  "runtimeTimingPythonOracleMs": {
+    "completeHop": {
+      "min": 5.717814000007593,
+      "p50": 10.841211500000725,
+      "p95": 46.33652219999649,
+      "max": 108.47641899999871
+    },
+    "mel": {
+      "min": 0.4599319999982754,
+      "p50": 0.6675639999969007,
+      "p95": 3.202644650006193,
+      "max": 12.349366999998779
+    },
+    "acoustic": {
+      "min": 1.4781529999936538,
+      "p50": 2.9107645000010507,
+      "p95": 22.70595724999259,
+      "max": 89.38257399999827
+    },
+    "language": {
+      "min": 1.3398920000042835,
+      "p50": 2.4955610000034767,
+      "p95": 9.878769349999326,
+      "max": 64.28576999999791
+    }
+  },
+  "singleWorkerScheduleAt32MsArrival": {
+    "arrivalCadenceMs": 32,
+    "rowsSample": [
+      {
+        "hopIndex": 0,
+        "inputReadyAtMs": 0,
+        "processingStartAtMs": 0,
+        "totalStepLatencyMs": 59.33060700000681,
+        "processingFinishAtMs": 59.33060700000681,
+        "queueDelayMs": 0,
+        "publicationDelayMs": 59.33060700000681
+      },
+      {
+        "hopIndex": 1,
+        "inputReadyAtMs": 32,
+        "processingStartAtMs": 59.33060700000681,
+        "totalStepLatencyMs": 101.47174400000836,
+        "processingFinishAtMs": 160.80235100001516,
+        "queueDelayMs": 27.330607000006808,
+        "publicationDelayMs": 128.80235100001516
+      },
+      {
+        "hopIndex": 2,
+        "inputReadyAtMs": 64,
+        "processingStartAtMs": 160.80235100001516,
+        "totalStepLatencyMs": 8.668903000000228,
+        "processingFinishAtMs": 169.4712540000154,
+        "queueDelayMs": 96.80235100001516,
+        "publicationDelayMs": 105.47125400001539
+      },
+      {
+        "hopIndex": 3,
+        "inputReadyAtMs": 96,
+        "processingStartAtMs": 169.4712540000154,
+        "totalStepLatencyMs": 7.749787000008723,
+        "processingFinishAtMs": 177.22104100002412,
+        "queueDelayMs": 73.47125400001539,
+        "publicationDelayMs": 81.22104100002412
+      },
+      {
+        "hopIndex": 4,
+        "inputReadyAtMs": 128,
+        "processingStartAtMs": 177.22104100002412,
+        "totalStepLatencyMs": 14.554538999988154,
+        "processingFinishAtMs": 191.77558000001227,
+        "queueDelayMs": 49.221041000024115,
+        "publicationDelayMs": 63.77558000001227
+      },
+      {
+        "hopIndex": 5,
+        "inputReadyAtMs": 160,
+        "processingStartAtMs": 191.77558000001227,
+        "totalStepLatencyMs": 57.908056999991686,
+        "processingFinishAtMs": 249.68363700000396,
+        "queueDelayMs": 31.77558000001227,
+        "publicationDelayMs": 89.68363700000396
+      },
+      {
+        "hopIndex": 6,
+        "inputReadyAtMs": 192,
+        "processingStartAtMs": 249.68363700000396,
+        "totalStepLatencyMs": 108.47641899999871,
+        "processingFinishAtMs": 358.16005600000267,
+        "queueDelayMs": 57.683637000003955,
+        "publicationDelayMs": 166.16005600000267
+      },
+      {
+        "hopIndex": 7,
+        "inputReadyAtMs": 224,
+        "processingStartAtMs": 358.16005600000267,
+        "totalStepLatencyMs": 15.91670100000897,
+        "processingFinishAtMs": 374.07675700001164,
+        "queueDelayMs": 134.16005600000267,
+        "publicationDelayMs": 150.07675700001164
+      },
+      {
+        "hopIndex": 317,
+        "inputReadyAtMs": 10144,
+        "processingStartAtMs": 10144,
+        "totalStepLatencyMs": 10.135013999999387,
+        "processingFinishAtMs": 10154.135014,
+        "queueDelayMs": 0,
+        "publicationDelayMs": 10.1350139999995
+      },
+      {
+        "hopIndex": 318,
+        "inputReadyAtMs": 10176,
+        "processingStartAtMs": 10176,
+        "totalStepLatencyMs": 8.208107000001519,
+        "processingFinishAtMs": 10184.208107000002,
+        "queueDelayMs": 0,
+        "publicationDelayMs": 8.208107000002201
+      },
+      {
+        "hopIndex": 319,
+        "inputReadyAtMs": 10208,
+        "processingStartAtMs": 10208,
+        "totalStepLatencyMs": 9.454959000009922,
+        "processingFinishAtMs": 10217.45495900001,
+        "queueDelayMs": 0,
+        "publicationDelayMs": 9.454959000009694
+      }
+    ],
+    "hopCount": 320,
+    "queueDelayMs": {
+      "min": 0.0,
+      "p50": 0.0,
+      "p95": 48.456450600007244,
+      "max": 134.16005600000267
+    },
+    "finalQueueDelayMs": 0,
+    "maximumModeledQueueDepth": 6,
+    "queueGrowthStable": true,
+    "outcome": "ONLINE_AMT_BROWSER_REALTIME_BACKLOG_UNPROVEN_PYTHON_ORACLE_ONLY"
+  },
+  "statefulContinuity": true,
+  "p15p22InferenceIncrease": 0,
+  "onnxExport": {
+    "status": "EXPORTED_LM_STEP_ONLY",
+    "path": "/workspace/backend/data/work/phase9gd2_online_amt_browser/online_amt_lm_step_opset18.onnx",
+    "sha256": "1f0b2384ad63d1f21a77c119cda090a9b6b07c684be739660e77cfab99556edc",
+    "byteSize": 23354199,
+    "opset": 18,
+    "onnxVersion": "1.17.0",
+    "onnxRuntimeVersion": "1.20.1",
+    "graphScope": "language_model_step_only",
+    "browserCompleteness": "INCOMPLETE_ACOUSTIC_MEL_NATIVE_GATE_STATEFUL_WORKER_NOT_EXPORTED",
+    "outputShapes": [
+      [
+        1,
+        1,
+        88,
+        5
+      ],
+      [
+        2,
+        1,
+        512
+      ],
+      [
+        2,
+        1,
+        512
+      ]
+    ]
+  },
+  "browserWebGpuParity": {
+    "status": "NOT_EXECUTED",
+    "reason": "Full browser-local stateful Online-AMT requires the mel step, acoustic CNN cache, LSTM recurrent state, native gate, and bridge to be implemented together. D.2 generated the Python oracle and LM-step ONNX export attempt, but no complete browser worker step was available to execute without inventing semantics."
+  },
+  "nativeGateBoundaryParity": {
+    "status": "PYTHON_REFERENCE_RECORDED_BROWSER_PARITY_NOT_EXECUTED",
+    "threshold": 0.05,
+    "patience": 100,
+    "boundary": "num_under_thr > patience",
+    "rows": [
+      {
+        "silentHopCount": 99,
+        "numUnderThr": 99,
+        "shortCircuitExpected": false,
+        "prevOutputDigest": "2dd23156fbb26642d6f2194611e536f77213eb212f6a23654f9d5319a82ac556",
+        "hDigest": "1863a7939a59dd78a5a172250a186fb4a172826a06462c0e2fb10b67b3ceabbb",
+        "cDigest": "cc1bd185211272df601570481b50a858d6af1abfa1c65548c4b18180112e161d"
+      },
+      {
+        "silentHopCount": 100,
+        "numUnderThr": 100,
+        "shortCircuitExpected": false,
+        "prevOutputDigest": "2dd23156fbb26642d6f2194611e536f77213eb212f6a23654f9d5319a82ac556",
+        "hDigest": "d81f284b175e6f19b01d6dcdada2d6fa3fcc92b73879c4f5af2cb40ad1c85936",
+        "cDigest": "22edaf09a148af5fd16c829d69d6044ea2e28d0ace2470a5f6c8abb4b94008e2"
+      },
+      {
+        "silentHopCount": 101,
+        "numUnderThr": 101,
+        "shortCircuitExpected": true,
+        "prevOutputDigest": "2dd23156fbb26642d6f2194611e536f77213eb212f6a23654f9d5319a82ac556",
+        "hDigest": "d81f284b175e6f19b01d6dcdada2d6fa3fcc92b73879c4f5af2cb40ad1c85936",
+        "cDigest": "22edaf09a148af5fd16c829d69d6044ea2e28d0ace2470a5f6c8abb4b94008e2"
+      },
+      {
+        "silentHopCount": 102,
+        "numUnderThr": 102,
+        "shortCircuitExpected": true,
+        "prevOutputDigest": "2dd23156fbb26642d6f2194611e536f77213eb212f6a23654f9d5319a82ac556",
+        "hDigest": "d81f284b175e6f19b01d6dcdada2d6fa3fcc92b73879c4f5af2cb40ad1c85936",
+        "cDigest": "22edaf09a148af5fd16c829d69d6044ea2e28d0ace2470a5f6c8abb4b94008e2"
+      }
+    ],
+    "nonSilentRecovery": {
+      "numUnderThrBefore": 101,
+      "numUnderThrAfter": 0,
+      "hChanged": true,
+      "prevOutputChanged": false
+    }
+  },
+  "segmentReset": {
+    "initialStateDeterministic": true,
+    "stateChangesAfterHop": true,
+    "freshSegmentResetRestoresInitialState": true
+  },
+  "statefulMattersDiagnostic": {
+    "statefulEffectDemonstrated": true,
+    "firstDivergenceHop": 4
+  },
+  "publicationBridgeParity": {
+    "status": "NOT_EXECUTED",
+    "reason": "No browser hop artifact exists because complete browser step parity is blocked.",
+    "timingCorrectionMs": -162.93750000004252
+  }
+}
