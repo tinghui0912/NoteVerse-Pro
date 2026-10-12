@@ -1,0 +1,250 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_d2r_online_amt_browser_step_parity",
+  "phase": "9G-D.2R",
+  "hopCount": 320,
+  "totalPitchHopComparisons": 28160,
+  "nativeLmWebGpuAttempt": {
+    "status": "PASS",
+    "error": null,
+    "probabilities": {
+      "meanAbsDelta": 4.670556253668937e-08,
+      "p95AbsDelta": 1.4156103134155273e-07,
+      "maxAbsDelta": 4.172325134277344e-07
+    },
+    "h": {
+      "meanAbsDelta": 4.0716216176406306e-08,
+      "p95AbsDelta": 1.0989606380462646e-07,
+      "maxAbsDelta": 2.384185791015625e-07
+    },
+    "c": {
+      "meanAbsDelta": 5.573072314746241e-08,
+      "p95AbsDelta": 1.4901161193847656e-07,
+      "maxAbsDelta": 2.980232238769531e-07
+    },
+    "runtime": {
+      "mode": "native-lm",
+      "browser_channel": "chrome",
+      "headed": false,
+      "browser_version": "155.0.8059.39",
+      "launch_args": [],
+      "os": {
+        "platform": "win32",
+        "release": "10.0.26200",
+        "arch": "x64"
+      }
+    },
+    "ort": {
+      "version": "1.20.1",
+      "package_path": "apps/customer-web/node_modules/onnxruntime-web/package.json",
+      "dist_directory": "apps/customer-web/node_modules/onnxruntime-web/dist",
+      "script": "ort.webgpu.min.js"
+    }
+  },
+  "manualFloatLstmNeeded": false,
+  "manualFloatGraphExportedForFallbackDiagnosis": {
+    "status": "PASS",
+    "file": "online_amt_lm_manual_float_step_opset18.onnx",
+    "path": "backend/data/work/phase9gd2r_online_amt_browser/graphs/online_amt_lm_manual_float_step_opset18.onnx",
+    "sha256": "5f40a2b8b463979fd3c1f2abd05d6725e21ab1fb07f0113b5c83c8ed7ec95c12",
+    "byteSize": 23356499,
+    "opset": 18,
+    "inputNames": [
+      "acoustic_out",
+      "h_in",
+      "c_in",
+      "prev_embedding_in"
+    ],
+    "outputNames": [
+      "probabilities",
+      "h_out",
+      "c_out"
+    ],
+    "operators": [
+      "Add",
+      "Concat",
+      "Constant",
+      "Div",
+      "Gather",
+      "Gemm",
+      "Mul",
+      "Reshape",
+      "Shape",
+      "Sigmoid",
+      "Slice",
+      "Softmax",
+      "Tanh",
+      "Unsqueeze"
+    ]
+  },
+  "chrome": {
+    "status": "PASS",
+    "chosenState": {
+      "totalPitchHopComparisons": 28160,
+      "mismatchCount": 0,
+      "firstMismatches": []
+    },
+    "pipelineLm": "native",
+    "webgpuAdapter": {
+      "acquired": true,
+      "isFallbackAdapter": null,
+      "features": [
+        "depth32float-stencil8",
+        "rg11b10ufloat-renderable",
+        "bgra8unorm-storage",
+        "texture-formats-tier1",
+        "texture-compression-bc",
+        "dual-source-blending",
+        "core-features-and-limits",
+        "float32-filterable",
+        "indirect-first-instance",
+        "float32-blendable",
+        "subgroup-size-control",
+        "depth-clip-control",
+        "texture-compression-bc-sliced-3d",
+        "shader-f16",
+        "clip-distances",
+        "timestamp-query",
+        "texture-formats-tier2",
+        "primitive-index",
+        "texture-component-swizzle",
+        "subgroups"
+      ],
+      "info": {}
+    }
+  },
+  "edge": {
+    "status": "PASS",
+    "chosenState": {
+      "totalPitchHopComparisons": 28160,
+      "mismatchCount": 0,
+      "firstMismatches": []
+    },
+    "pipelineLm": "native",
+    "webgpuAdapter": {
+      "acquired": true,
+      "isFallbackAdapter": null,
+      "features": [
+        "depth32float-stencil8",
+        "rg11b10ufloat-renderable",
+        "texture-formats-tier1",
+        "bgra8unorm-storage",
+        "texture-compression-bc",
+        "dual-source-blending",
+        "core-features-and-limits",
+        "float32-filterable",
+        "indirect-first-instance",
+        "float32-blendable",
+        "subgroup-size-control",
+        "depth-clip-control",
+        "texture-compression-bc-sliced-3d",
+        "shader-f16",
+        "timestamp-query",
+        "texture-formats-tier2",
+        "clip-distances",
+        "primitive-index",
+        "texture-component-swizzle",
+        "subgroups"
+      ],
+      "info": {}
+    }
+  },
+  "nativeGateBrowserParity": {
+    "status": "PASS",
+    "boundaryFixture": {
+      "status": "PASS",
+      "threshold": 0.05,
+      "patience": 100,
+      "boundary": "num_under_thr > patience",
+      "rows": [
+        {
+          "silentHopCount": 99,
+          "numUnderThr": 99,
+          "shortCircuit": false,
+          "melAdvanced": 99,
+          "cacheAdvanced": 99,
+          "hAdvanced": 99,
+          "prevAdvanced": 99,
+          "probabilitiesState0Sum": 0,
+          "chosenStateSum": 0
+        },
+        {
+          "silentHopCount": 100,
+          "numUnderThr": 100,
+          "shortCircuit": false,
+          "melAdvanced": 100,
+          "cacheAdvanced": 100,
+          "hAdvanced": 100,
+          "prevAdvanced": 100,
+          "probabilitiesState0Sum": 0,
+          "chosenStateSum": 0
+        },
+        {
+          "silentHopCount": 101,
+          "numUnderThr": 101,
+          "shortCircuit": true,
+          "melAdvanced": 100,
+          "cacheAdvanced": 100,
+          "hAdvanced": 100,
+          "prevAdvanced": 100,
+          "probabilitiesState0Sum": 88,
+          "chosenStateSum": 0
+        },
+        {
+          "silentHopCount": 102,
+          "numUnderThr": 102,
+          "shortCircuit": true,
+          "melAdvanced": 100,
+          "cacheAdvanced": 100,
+          "hAdvanced": 100,
+          "prevAdvanced": 100,
+          "probabilitiesState0Sum": 88,
+          "chosenStateSum": 0
+        }
+      ],
+      "nonSilentRecovery": {
+        "before": {
+          "numUnderThr": 101,
+          "melAdvanceCount": 100,
+          "cacheAdvanceCount": 100,
+          "hAdvanceCount": 100,
+          "prevAdvanceCount": 100
+        },
+        "after": {
+          "numUnderThr": 0,
+          "melAdvanceCount": 101,
+          "cacheAdvanceCount": 101,
+          "hAdvanceCount": 101,
+          "prevAdvanceCount": 101
+        },
+        "shortCircuitAfterRecovery": false
+      }
+    },
+    "activeSequenceRows": [
+      {
+        "hopIndex": 98,
+        "numUnderThr": 0,
+        "shortCircuit": false
+      },
+      {
+        "hopIndex": 99,
+        "numUnderThr": 0,
+        "shortCircuit": false
+      },
+      {
+        "hopIndex": 100,
+        "numUnderThr": 0,
+        "shortCircuit": false
+      },
+      {
+        "hopIndex": 101,
+        "numUnderThr": 0,
+        "shortCircuit": false
+      }
+    ],
+    "comparedAgainstD2PythonBoundary": true
+  },
+  "unsafeWebGpuFlagUsed": false,
+  "wasmFallbackUsed": false,
+  "p15p22InferenceIncrease": 0
+}

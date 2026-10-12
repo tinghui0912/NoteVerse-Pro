@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_d2r_correction_receipt",
+  "phase": "9G-D.2R",
+  "d2HistoricalReportedOutcome": "ONLINE_AMT_BROWSER_EXPORT_BLOCKED",
+  "d2rCorrectedInterpretation": "ONLINE_AMT_BROWSER_FEASIBILITY_UNRESOLVED_IMPLEMENTATION_INCOMPLETE",
+  "retainedD2Evidence": {
+    "frozenSourceIdentity": "PASS",
+    "explicitPythonStateContract": "RECORDED",
+    "pythonFormulaMelOracle": "PASS",
+    "pythonChronologicalOracle": "RECORDED",
+    "lmStepOnnxExport": "PASS"
+  },
+  "d2MelEvidenceReclassifiedAs": "PYTHON_MEL_FORMULA_ORACLE_PARITY",
+  "sourceIdentity": {
+    "candidateId": "online-amt-calibrated-v1",
+    "profileId": "online-amt-calibration-native-boost-1",
+    "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+    "repo": "https://github.com/jdasam/online_amt",
+    "expectedRepoCommit": "ad12550909a1d86f699097d11885f427054a5ac2",
+    "actualRepoCommit": "ad12550909a1d86f699097d11885f427054a5ac2",
+    "upstreamWorkingTreeStatus": [
+      "?? phase9e_b1_runtime_smoke.json"
+    ],
+    "checkpoint": {
+      "path": "backend/data/work/online_amt/model-180000.pt",
+      "byteSize": 178804960,
+      "sha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0"
+    }
+  },
+  "p15p22InferenceIncrease": 0
+}

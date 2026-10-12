@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_d2r_online_amt_default_browser_runtime",
+  "phase": "9G-D.2R",
+  "chromeDefaultWebGpu": {
+    "status": "PASS",
+    "runtime": {
+      "mode": "pipeline",
+      "browser_channel": "chrome",
+      "headed": false,
+      "browser_version": "155.0.8059.39",
+      "launch_args": [],
+      "os": {
+        "platform": "win32",
+        "release": "10.0.26200",
+        "arch": "x64"
+      }
+    },
+    "ort": {
+      "version": "1.20.1",
+      "package_path": "apps/customer-web/node_modules/onnxruntime-web/package.json",
+      "dist_directory": "apps/customer-web/node_modules/onnxruntime-web/dist",
+      "script": "ort.webgpu.min.js"
+    },
+    "sessionLoadCount": 3,
+    "graphLoadMs": {
+      "mel": 442.10000002384186,
+      "acoustic": 128.69999998807907,
+      "lmFloat": 80.10000002384186,
+      "total": 650.9000000357628
+    },
+    "firstGraphExecutionMs": 160.30000001192093,
+    "firstCompleteHopMs": 422.30000001192093,
+    "completeHopLatencyMs": {
+      "min": 31.69999998807907,
+      "p50": 64.19999998807907,
+      "p95": 72.70500004589557,
+      "max": 422.30000001192093
+    },
+    "queueDelayMs": {
+      "min": 0,
+      "p50": 4262.549999982119,
+      "p95": 9098.090000033379,
+      "max": 9627.600000023842
+    },
+    "finalQueueDelayMs": 9627.600000023842,
+    "maximumQueueDepth": 304,
+    "tailQueueDelayMs": {
+      "min": 8643.699999988079,
+      "p50": 9113.300000011921,
+      "p95": 9584.510000014305,
+      "max": 9627.600000023842
+    },
+    "backlogClassification": "BACKLOG_PRESENT_OR_GROWING"
+  },
+  "edgeDefaultWebGpu": {
+    "status": "PASS",
+    "runtime": {
+      "mode": "pipeline",
+      "browser_channel": "msedge",
+      "headed": false,
+      "browser_version": "155.0.4283.45",
+      "launch_args": [],
+      "os": {
+        "platform": "win32",
+        "release": "10.0.26200",
+        "arch": "x64"
+      }
+    },
+    "ort": {
+      "version": "1.20.1",
+      "package_path": "apps/customer-web/node_modules/onnxruntime-web/package.json",
+      "dist_directory": "apps/customer-web/node_modules/onnxruntime-web/dist",
+      "script": "ort.webgpu.min.js"
+    },
+    "sessionLoadCount": 3,
+    "graphLoadMs": {
+      "mel": 351.19999998807907,
+      "acoustic": 135.5,
+      "lmFloat": 84,
+      "total": 570.6999999880791
+    },
+    "firstGraphExecutionMs": 200.5,
+    "firstCompleteHopMs": 471.5,
+    "completeHopLatencyMs": {
+      "min": 45.39999997615814,
+      "p50": 57.04999998211861,
+      "p95": 65.80000001192093,
+      "max": 471.5
+    },
+    "queueDelayMs": {
+      "min": 0,
+      "p50": 4323.549999982119,
+      "p95": 7961.070000073314,
+      "max": 8426.200000107288
+    },
+    "finalQueueDelayMs": 8426.200000107288,
+    "maximumQueueDepth": 266,
+    "tailQueueDelayMs": {
+      "min": 7565.500000119209,
+      "p50": 7977.000000089407,
+      "p95": 8384.815000101924,
+      "max": 8426.200000107288
+    },
+    "backlogClassification": "BACKLOG_PRESENT_OR_GROWING"
+  },
+  "unsafeWebGpuFlagUsed": false,
+  "wasmFallbackUsed": false,
+  "memoryTelemetry": {
+    "status": "NOT_MEASURED",
+    "reason": "browser API did not expose trustworthy process memory for this research harness"
+  },
+  "vramTelemetry": {
+    "status": "NOT_MEASURED",
+    "reason": "WebGPU adapter does not expose trustworthy VRAM utilization"
+  },
+  "networkTelemetry": {
+    "status": "NOT_MEASURED",
+    "reason": "local static harness; no production network transport"
+  },
+  "p15p22InferenceIncrease": 0
+}
