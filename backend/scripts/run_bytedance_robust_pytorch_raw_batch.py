@@ -18,6 +18,8 @@ import numpy as np
 import torch
 from piano_transcription_inference.models import Regress_onset_offset_frame_velocity_CRNN
 
+from bytedance_pcm_preprocessing import extract_resample_linear
+
 
 def main() -> int:
     args = parse_args()
@@ -139,24 +141,6 @@ def read_wav_mono(path: Path) -> dict[str, object]:
     if channels > 1:
         pcm = pcm.reshape(-1, channels).mean(axis=1)
     return {"pcm": pcm.astype(np.float32, copy=False), "sampleRateHz": sample_rate}
-
-
-def extract_resample_linear(
-    source: np.ndarray,
-    source_rate: int,
-    start_ms: float,
-    end_ms: float,
-    output_samples: int,
-) -> np.ndarray:
-    start = start_ms / 1000.0 * source_rate
-    end = end_ms / 1000.0 * source_rate
-    if start < -1e-6 or end > source.shape[0] + 1e-6 or end <= start:
-        raise ValueError(f"Requested source window outside WAV: {start_ms}..{end_ms} ms")
-    positions = np.linspace(start, end, output_samples, endpoint=False)
-    left = np.floor(positions).astype(np.int64)
-    right = np.minimum(source.shape[0] - 1, left + 1)
-    frac = positions - left
-    return (source[left] * (1.0 - frac) + source[right] * frac).astype(np.float32)
 
 
 def sha256(path: Path) -> str:

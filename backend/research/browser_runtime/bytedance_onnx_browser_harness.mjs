@@ -8,6 +8,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { createReadStream, existsSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -51,6 +52,8 @@ const graphOptimizationLevel = args['graph-optimization-level'] ?? 'disabled';
 const inputName = args['input-name'] ?? 'audio';
 const onsetOutputName = args['onset-output-name'] ?? 'reg_onset_output';
 const frameOutputName = args['frame-output-name'] ?? 'frame_output';
+const allowUnsafeWebGpu = Object.prototype.hasOwnProperty.call(args, 'allow-unsafe-webgpu');
+const dumpOutputDir = args['dump-output-dir'] ? path.resolve(args['dump-output-dir']) : null;
 
 if (!existsSync(modelPath)) throw new Error(`Missing --model: ${modelPath}`);
 if (!existsSync(fixtureDir)) throw new Error(`Missing --fixture-dir: ${fixtureDir}`);
@@ -99,6 +102,7 @@ const GRAPH_OPTIMIZATION_LEVEL = ${JSON.stringify(graphOptimizationLevel)};
 const INPUT_NAME = ${JSON.stringify(inputName)};
 const ONSET_OUTPUT_NAME = ${JSON.stringify(onsetOutputName)};
 const FRAME_OUTPUT_NAME = ${JSON.stringify(frameOutputName)};
+const DUMP_OUTPUTS = ${JSON.stringify(Boolean(dumpOutputDir))};
 const LOCAL_PRE_SECONDS = 0.05;
 const LOCAL_POST_SECONDS = 0.12;
 const TARGET_ANCHOR_SECONDS = 1.6;
@@ -273,18 +277,28 @@ async function main() {
     }
     const browserDecision = expectedDecision(onset, frame, fixture);
     const referenceDecision = expectedDecision(onsetRef, frameRef, fixture);
-    comparisons.push({
+    const comparison = {
       fixture_id: fixture.fixture_id,
       onset_shape_equal: JSON.stringify(onset.shape) === JSON.stringify(onsetRef.shape),
       frame_shape_equal: JSON.stringify(frame.shape) === JSON.stringify(frameRef.shape),
       onset: compareFloatArrays(onset.data, onsetRef.data),
       frame: compareFloatArrays(frame.data, frameRef.data),
+      inference_ms: inferenceMs,
       verifier_decision_agree:
         browserDecision === null || referenceDecision === null ? null : browserDecision === referenceDecision,
       decoded_event_parity: decodedEventParity,
       reference_decoded_event_count: referenceDecodedEventCount,
       actual_decoded_event_count: actualDecodedEventCount,
-    });
+    };
+    if (DUMP_OUTPUTS) {
+      comparison.browser_raw_outputs = {
+        reg_onset_shape: onset.shape,
+        reg_onset_output: Array.from(onset.data),
+        frame_shape: frame.shape,
+        frame_output: Array.from(frame.data),
+      };
+    }
+    comparisons.push(comparison);
     if (fixtureIndex === 0) {
       for (let i = 0; i < WARM_RUNS; i += 1) {
         const warmStarted = performance.now();
@@ -372,7 +386,7 @@ server.listen(0, '127.0.0.1', async () => {
   const address = server.address();
   const launchOptions = {
     headless: !headed,
-    args: backend === 'webgpu' ? ['--enable-unsafe-webgpu'] : [],
+    args: backend === 'webgpu' && allowUnsafeWebGpu ? ['--enable-unsafe-webgpu'] : [],
   };
   if (browserChannel) {
     launchOptions.channel = browserChannel;
@@ -419,6 +433,24 @@ server.listen(0, '127.0.0.1', async () => {
       byte_size: modelIdentity.byteSize,
       sha256: modelIdentity.sha256,
     };
+    if (dumpOutputDir && result.result?.comparisons) {
+      await mkdir(dumpOutputDir, { recursive: true });
+      for (const comparison of result.result.comparisons) {
+        if (!comparison.browser_raw_outputs) continue;
+        const raw = comparison.browser_raw_outputs;
+        const onsetPath = path.join(dumpOutputDir, `${comparison.fixture_id}_browser_webgpu_reg_onset_output.npy`);
+        const framePath = path.join(dumpOutputDir, `${comparison.fixture_id}_browser_webgpu_frame_output.npy`);
+        await writeNpyFloat32(onsetPath, raw.reg_onset_output, raw.reg_onset_shape);
+        await writeNpyFloat32(framePath, raw.frame_output, raw.frame_shape);
+        comparison.browser_output_files = {
+          reg_onset_output_npy: path.basename(onsetPath),
+          frame_output_npy: path.basename(framePath),
+          reg_onset_shape: raw.reg_onset_shape,
+          frame_shape: raw.frame_shape,
+        };
+        delete comparison.browser_raw_outputs;
+      }
+    }
     result.browser_console = browserConsole;
     if (outputPath) {
       await import('node:fs/promises').then((fs) =>
@@ -446,4 +478,22 @@ async function statAndHash(filePath) {
     stream.on('end', resolve);
   });
   return { byteSize, sha256: hash.digest('hex') };
+}
+
+async function writeNpyFloat32(filePath, values, shape) {
+  const data = Float32Array.from(values);
+  const headerText = `{'descr': '<f4', 'fortran_order': False, 'shape': (${shape.join(', ')}${shape.length === 1 ? ',' : ''}), }`;
+  let header = `${headerText}\n`;
+  const magicLength = 10;
+  const padding = (16 - ((magicLength + header.length) % 16)) % 16;
+  header = `${headerText}${' '.repeat(padding)}\n`;
+  const headerBuffer = Buffer.from(header, 'latin1');
+  const out = Buffer.alloc(10 + headerBuffer.length + data.byteLength);
+  out.write('\x93NUMPY', 0, 'latin1');
+  out[6] = 1;
+  out[7] = 0;
+  out.writeUInt16LE(headerBuffer.length, 8);
+  headerBuffer.copy(out, 10);
+  Buffer.from(data.buffer, data.byteOffset, data.byteLength).copy(out, 10 + headerBuffer.length);
+  await writeFile(filePath, out);
 }

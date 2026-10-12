@@ -20,6 +20,8 @@ import wave
 
 import numpy as np
 
+from bytedance_pcm_preprocessing import extract_resample_linear
+
 
 EXPECTED_CHECKPOINT_SHA256 = "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e"
 EXPECTED_CHECKPOINT_BYTES = 103815845
@@ -61,17 +63,6 @@ def read_wav_mono(path: Path) -> tuple[np.ndarray, int]:
     return audio.astype(np.float32, copy=False), sample_rate
 
 
-def resample_linear(audio: np.ndarray, source_rate: int, target_rate: int) -> np.ndarray:
-    if source_rate == target_rate:
-        return audio.astype(np.float32, copy=False)
-    target_len = int(round(audio.shape[0] * target_rate / source_rate))
-    if target_len <= 1:
-        raise ValueError("cannot resample empty/near-empty audio")
-    old_x = np.arange(audio.shape[0], dtype=np.float64)
-    new_x = np.linspace(0, audio.shape[0] - 1, target_len, dtype=np.float64)
-    return np.interp(new_x, old_x, audio.astype(np.float64)).astype(np.float32)
-
-
 def select_nonblind_vienna_windows(root: Path, count: int) -> list[dict[str, object]]:
     audio_root = root / "backend" / "data" / "work" / "public_proxy" / "vienna-4x22" / "audio-extracted" / "audio"
     if not audio_root.exists():
@@ -98,7 +89,7 @@ def select_nonblind_vienna_windows(root: Path, count: int) -> list[dict[str, obj
             end_sample = int(round(input_end_ms / 1000.0 * sample_rate))
             if start_sample < 0 or end_sample > audio.shape[0]:
                 raise ValueError(f"fixture would require missing source audio: {rel}")
-            region = resample_linear(audio[start_sample:end_sample], sample_rate, SAMPLE_RATE)
+            region = extract_resample_linear(audio, sample_rate, input_start_ms, input_end_ms, INPUT_SAMPLES)
             if region.shape[0] != INPUT_SAMPLES:
                 if region.shape[0] < INPUT_SAMPLES:
                     raise ValueError(f"fixture would require padding: {rel}")
@@ -192,8 +183,8 @@ def export_onnx(note_model, onnx_path: Path, opset: int) -> dict[str, object]:
         "opset": opset,
         "input": {"name": "audio", "shape": [1, INPUT_SAMPLES], "dtype": "float32"},
         "outputs": [
-            {"name": "reg_onset_output", "shape": [1, None, 88], "dtype": "float32"},
-            {"name": "frame_output", "shape": [1, None, 88], "dtype": "float32"},
+            {"name": "reg_onset_output", "exportedShape": [1, None, 88], "observedRuntimeShape": [1, 183, 88], "dtype": "float32"},
+            {"name": "frame_output", "exportedShape": [1, None, 88], "observedRuntimeShape": [1, 183, 88], "dtype": "float32"},
         ],
     }
 
@@ -253,33 +244,107 @@ def threshold_mask_parity(a: dict[str, np.ndarray], b: dict[str, np.ndarray]) ->
     }
 
 
-def decode_events(raw: dict[str, np.ndarray]) -> list[dict[str, object]]:
-    onset = raw["reg_onset_output"]
-    frame = raw["frame_output"]
-    events: list[dict[str, object]] = []
-    for frame_index in range(onset.shape[0]):
-        active = np.nonzero((onset[frame_index] >= ONSET_THRESHOLD) & (frame[frame_index] >= FRAME_THRESHOLD))[0]
-        for pitch_index in active.tolist():
-            events.append(
-                {
-                    "pitch": int(pitch_index + MIDI_OFFSET),
-                    "onsetFrame": int(frame_index),
-                    "onsetTimeMs": round(frame_index * 10.0, 6),
-                }
-            )
-    return events
-
-
 def compare_raw(ref: dict[str, np.ndarray], actual: dict[str, np.ndarray]) -> dict[str, object]:
-    ref_events = decode_events(ref)
-    actual_events = decode_events(actual)
     return {
         "reg_onset_output": compare_arrays(ref["reg_onset_output"], actual["reg_onset_output"]),
         "frame_output": compare_arrays(ref["frame_output"], actual["frame_output"]),
         "thresholdMaskParityAtOnset030Frame005": threshold_mask_parity(ref, actual),
-        "decodedEventParityAtOnset030Frame005": ref_events == actual_events,
-        "referenceDecodedEventCount": len(ref_events),
-        "actualDecodedEventCount": len(actual_events),
+        "canonicalDecodedEventParityAtOnset030Frame005": "MEASURED_BY_TYPESCRIPT_DECODER_RECEIPT",
+    }
+
+
+def write_runtime_output(output_dir: Path, fixture_id: str, runtime_id: str, raw: dict[str, np.ndarray]) -> dict[str, object]:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    onset_name = f"{fixture_id}_{runtime_id}_reg_onset_output.npy"
+    frame_name = f"{fixture_id}_{runtime_id}_frame_output.npy"
+    np.save(output_dir / onset_name, raw["reg_onset_output"].astype(np.float32, copy=False))
+    np.save(output_dir / frame_name, raw["frame_output"].astype(np.float32, copy=False))
+    return {
+        "reg_onset_output_npy": onset_name,
+        "frame_output_npy": frame_name,
+        "regOnsetFloat32Sha256": sha256_float32(raw["reg_onset_output"]),
+        "frameFloat32Sha256": sha256_float32(raw["frame_output"]),
+        "reg_onset_shape": list(raw["reg_onset_output"].shape),
+        "frame_shape": list(raw["frame_output"].shape),
+    }
+
+
+def run_frozen_runner_preprocessing_check(
+    *,
+    repo_root: Path,
+    checkpoint_path: Path,
+    fixtures: list[dict[str, object]],
+    fixture_rows: list[dict[str, object]],
+    output_dir: Path,
+) -> dict[str, object]:
+    import subprocess
+
+    request_path = output_dir / "frozen_runner_preprocessing_request.json"
+    output_path = output_dir / "frozen_runner_preprocessing_output.json"
+    windows = []
+    for fixture in fixtures:
+        windows.append(
+            {
+                "windowId": fixture["fixture_id"],
+                "scenarioId": "phase9gd1r-nonblind-robust-browser-fixture",
+                "contextProfileId": "CALIBRATED_CONTEXT_1820",
+                "sourceAudioPath": fixture["source_audio_relpath"],
+                "inputStartSourceMs": fixture["input_start_source_ms"],
+                "inputEndSourceMs": fixture["input_end_source_ms"],
+                "inputSampleCount": INPUT_SAMPLES,
+                "identity": {
+                    "schemaVersion": 1,
+                    "candidateFamily": "bytedance-robust-augmented",
+                    "preprocessingIdentity": "deterministic_wav_pcm16_mono_linear_resample_16k_v1",
+                },
+            }
+        )
+    request_path.write_text(json.dumps({"windows": windows}, indent=2), encoding="utf-8")
+    subprocess.run(
+        [
+            sys.executable,
+            str(repo_root / "backend/scripts/run_bytedance_robust_pytorch_raw_batch.py"),
+            "--input",
+            str(request_path),
+            "--output",
+            str(output_path),
+            "--checkpoint",
+            str(checkpoint_path),
+            "--device",
+            "cpu",
+            "--runtime-identity",
+            "phase9gd1r-frozen-preprocessing-parity",
+        ],
+        check=True,
+        cwd=str(repo_root),
+    )
+    frozen_output = json.loads(output_path.read_text(encoding="utf-8"))
+    chunks = {chunk["windowId"]: chunk for chunk in frozen_output["chunks"]}
+    rows = []
+    all_equal = True
+    for row in fixture_rows:
+        chunk = chunks[row["fixture_id"]]
+        equal = row["inputPcmSha256"] == chunk["inputPcmSha256"]
+        all_equal = all_equal and equal
+        rows.append(
+            {
+                "fixtureId": row["fixture_id"],
+                "sourceAudioPath": row["source_audio_relpath"],
+                "sourceAudioSha256": row["source_audio_sha256"],
+                "sourceSampleRateHz": row["source_sample_rate"],
+                "inputStartSourceMs": row["input_start_source_ms"],
+                "inputEndSourceMs": row["input_end_source_ms"],
+                "requestedOutputSampleCount": row["input_samples"],
+                "fixtureInputPcmSha256": row["inputPcmSha256"],
+                "frozenRunnerInputPcmSha256": chunk["inputPcmSha256"],
+                "preprocessingShaEqual": equal,
+            }
+        )
+    return {
+        "status": "PASS" if all_equal else "ROBUST_PREPROCESSING_PARITY_FAILED",
+        "preprocessingIdentity": "deterministic_wav_pcm16_mono_linear_resample_16k_v1",
+        "frozenRunnerOutputPath": output_path.relative_to(repo_root).as_posix(),
+        "rows": rows,
     }
 
 
@@ -298,6 +363,7 @@ def main() -> int:
     checkpoint_path = (repo_root / args.checkpoint).resolve()
     output_dir = (repo_root / args.output_dir).resolve()
     fixture_dir = output_dir / "browser_fixtures"
+    runtime_output_dir = output_dir / "runtime_outputs"
     reports_dir = (repo_root / args.reports_dir).resolve()
     fixture_dir.mkdir(parents=True, exist_ok=True)
     reports_dir.mkdir(parents=True, exist_ok=True)
@@ -327,26 +393,43 @@ def main() -> int:
         input_name = f"{fixture['fixture_id']}_input.npy"
         onset_name = f"{fixture['fixture_id']}_reg_onset_output.npy"
         frame_name = f"{fixture['fixture_id']}_frame_output.npy"
-        decoded_name = f"{fixture['fixture_id']}_decoded_events.json"
         np.save(fixture_dir / input_name, fixture["pcm"].astype(np.float32, copy=False))
         np.save(fixture_dir / onset_name, raw["reg_onset_output"].astype(np.float32, copy=False))
         np.save(fixture_dir / frame_name, raw["frame_output"].astype(np.float32, copy=False))
-        (fixture_dir / decoded_name).write_text(json.dumps(decode_events(raw), indent=2), encoding="utf-8")
+        threshold_active_cells = int(
+            np.count_nonzero(
+                (raw["reg_onset_output"] >= ONSET_THRESHOLD)
+                & (raw["frame_output"] >= FRAME_THRESHOLD)
+            )
+        )
         row = {key: value for key, value in fixture.items() if key != "pcm"}
         row.update(
             {
                 "input_tensor_npy": input_name,
                 "reg_onset_output_npy": onset_name,
                 "frame_output_npy": frame_name,
-                "decoded_events_json": decoded_name,
                 "inputPcmSha256": sha256_float32(fixture["pcm"]),
                 "regOnsetFloat32Sha256": sha256_float32(raw["reg_onset_output"]),
                 "frameFloat32Sha256": sha256_float32(raw["frame_output"]),
                 "torchCpuForwardMs": latency_ms,
-                "decodedEventCountAtOnset030Frame005": len(decode_events(raw)),
+                "thresholdActiveCellCountAtOnset030Frame005": threshold_active_cells,
+                "canonicalDecodedEventCountAtOnset030Frame005": "MEASURED_BY_TYPESCRIPT_DECODER_RECEIPT",
+                "runtimeOutputs": {
+                    "pytorch_cpu": write_runtime_output(runtime_output_dir, fixture["fixture_id"], "pytorch_cpu", raw),
+                },
             }
         )
         fixture_rows.append(row)
+
+    preprocessing_parity = run_frozen_runner_preprocessing_check(
+        repo_root=repo_root,
+        checkpoint_path=checkpoint_path,
+        fixtures=fixtures,
+        fixture_rows=fixture_rows,
+        output_dir=output_dir,
+    )
+    if preprocessing_parity["status"] != "PASS":
+        raise SystemExit(json.dumps(preprocessing_parity, indent=2))
 
     manifest = {
         "schemaVersion": 1,
@@ -360,14 +443,18 @@ def main() -> int:
         "noFakeZeroPadding": True,
         "fixtures": fixture_rows,
     }
-    (fixture_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-
     ort_results = []
     ort_status = {"status": "NOT_RUN"}
     try:
         for fixture, cpu_raw in zip(fixtures, cpu_outputs):
             ort_raw, ort_meta = run_ort(onnx_path, fixture["pcm"], "default")
             ort_results.append({"fixtureId": fixture["fixture_id"], **compare_raw(cpu_raw, ort_raw)})
+            fixture_rows[fixtures.index(fixture)]["runtimeOutputs"]["python_ort"] = write_runtime_output(
+                runtime_output_dir,
+                fixture["fixture_id"],
+                "python_ort",
+                ort_raw,
+            )
             ort_status = {"status": "PASS", **ort_meta}
     except Exception as error:
         default_error = repr(error)
@@ -375,6 +462,12 @@ def main() -> int:
         for fixture, cpu_raw in zip(fixtures, cpu_outputs):
             ort_raw, ort_meta = run_ort(onnx_path, fixture["pcm"], "disabled")
             ort_results.append({"fixtureId": fixture["fixture_id"], **compare_raw(cpu_raw, ort_raw)})
+            fixture_rows[fixtures.index(fixture)]["runtimeOutputs"]["python_ort"] = write_runtime_output(
+                runtime_output_dir,
+                fixture["fixture_id"],
+                "python_ort",
+                ort_raw,
+            )
             ort_status = {"status": "PASS_WITH_GRAPH_OPTIMIZATION_DISABLED", "defaultLoadError": default_error, **ort_meta}
 
     cuda_status: dict[str, object]
@@ -395,15 +488,23 @@ def main() -> int:
                 }
                 for fixture, cpu_raw in zip(fixtures, cpu_outputs):
                     cuda_raw, latency_ms = run_torch(cuda_model, fixture["pcm"], "cuda")
+                    fixture_rows[fixtures.index(fixture)]["runtimeOutputs"]["pytorch_cuda"] = write_runtime_output(
+                        runtime_output_dir,
+                        fixture["fixture_id"],
+                        "pytorch_cuda",
+                        cuda_raw,
+                    )
                     cuda_results.append({"fixtureId": fixture["fixture_id"], "cudaForwardMs": latency_ms, **compare_raw(cpu_raw, cuda_raw)})
         except Exception as error:
             cuda_status = {"status": "CUDA_PARITY_NOT_MEASURED", "reason": repr(error)}
     else:
         cuda_status = {"status": "CUDA_PARITY_NOT_MEASURED", "reason": "--try-cuda was not supplied"}
 
+    (fixture_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
     export_report = {
-        "artifact": "phase9g_d1_robust_browser_candidate_identity_export",
-        "phase": "9G-D.1",
+        "artifact": "phase9g_d1r_robust_browser_candidate_identity_export",
+        "phase": "9G-D.1R",
         "checkpointIdentity": checkpoint_identity,
         "modelArchitecture": {
             "class": "piano_transcription_inference.models.Regress_onset_offset_frame_velocity_CRNN",
@@ -425,6 +526,7 @@ def main() -> int:
         },
         "onnxExport": export_identity,
         "fixtureManifest": fixture_dir.relative_to(repo_root).joinpath("manifest.json").as_posix(),
+        "runtimeOutputDirectory": runtime_output_dir.relative_to(repo_root).as_posix(),
         "toolVersions": {},
     }
     try:
@@ -447,11 +549,12 @@ def main() -> int:
         pass
 
     parity_report = {
-        "artifact": "phase9g_d1_robust_parity_chain",
-        "phase": "9G-D.1",
+        "artifact": "phase9g_d1r_robust_parity_chain",
+        "phase": "9G-D.1R",
         "referenceRuntime": "PyTorch CPU",
         "fixtureCount": len(fixtures),
         "fixtures": fixture_rows,
+        "preprocessingParity": preprocessing_parity,
         "cpuPyTorch": {
             "status": "REFERENCE_EXECUTED",
             "allOutputsFinite": all(
@@ -465,11 +568,11 @@ def main() -> int:
         "p15p22InferenceIncrease": 0,
         "fixturePolicy": "Only non-blind p07-p14 Vienna public-proxy WAV files were eligible; complete real 1820 ms windows were required; no fake zero padding was used.",
     }
-    (reports_dir / "phase9g_d1_robust_browser_candidate_identity_export_2026-10-12.json").write_text(
+    (reports_dir / "phase9g_d1r_robust_browser_candidate_identity_export_2026-10-12.json").write_text(
         json.dumps(export_report, indent=2),
         encoding="utf-8",
     )
-    (reports_dir / "phase9g_d1_robust_parity_chain_2026-10-12.json").write_text(
+    (reports_dir / "phase9g_d1r_robust_parity_chain_2026-10-12.json").write_text(
         json.dumps(parity_report, indent=2),
         encoding="utf-8",
     )

@@ -1,0 +1,41 @@
+{
+  "artifact": "phase9g_d1r_correction_receipt",
+  "phase": "9G-D.1R",
+  "retainedD1Evidence": {
+    "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+    "checkpointBytes": 103815845,
+    "onnxSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "onnxBytes": 98689283,
+    "opset": 18,
+    "inputShape": [
+      1,
+      29120
+    ],
+    "observedOutputShape": [
+      1,
+      183,
+      88
+    ],
+    "ortWebVersion": "1.20.1",
+    "retainedConclusion": "D.1 established export/raw numerical feasibility."
+  },
+  "correctedClaims": {
+    "customDecoderIssue": "D.1 approximate Python frame/onset scan was not the frozen ByteDance decoder.",
+    "preprocessingMismatchIssue": "D.1 fixture PCM used sliced endpoint-inclusive resampling instead of frozen source-space endpoint-false interpolation.",
+    "forcedWebGpuIssue": "D.1 WebGPU evidence used --enable-unsafe-webgpu; D.1R records default browser WebGPU separately.",
+    "backlogWordingIssue": "D.1 no-backlog wording was a capacity estimate; D.1R adds chronological single-worker scheduling."
+  },
+  "correctedArtifacts": {
+    "parityReport": "backend/research/reports/phase9g_d1r_robust_parity_chain_2026-10-12.json",
+    "preprocessingReceipt": "backend/research/reports/phase9g_d1r_robust_frozen_preprocessing_receipt_2026-10-12.json",
+    "semanticParityReceipt": "backend/research/reports/phase9g_d1r_robust_canonical_semantic_parity_2026-10-12.json",
+    "browserRuntimeReceipt": "backend/research/reports/phase9g_d1r_robust_default_browser_runtime_2026-10-12.json"
+  },
+  "canonicalDecoderPath": "apps/customer-web/src/lib/practice/research/bytedance-score-aware-chunked.ts::decodeByteDanceChunkRawOutputs",
+  "ownedObservationParity": {
+    "pytorch_cuda": false,
+    "python_ort": true,
+    "browser_webgpu": true
+  },
+  "p15p22InferenceIncrease": 0
+}

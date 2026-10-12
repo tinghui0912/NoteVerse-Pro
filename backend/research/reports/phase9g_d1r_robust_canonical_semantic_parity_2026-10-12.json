@@ -1,0 +1,1001 @@
+{
+  "artifact": "phase9g_d1r_robust_canonical_semantic_parity",
+  "phase": "9G-D.1R",
+  "canonicalDecoderPath": "apps/customer-web/src/lib/practice/research/bytedance-score-aware-chunked.ts::decodeByteDanceChunkRawOutputs",
+  "ownershipPath": "apps/customer-web/src/lib/practice/research/bytedance-score-aware-chunked.ts::observationsForByteDanceChunk",
+  "fixtureCount": 20,
+  "referenceRuntime": "pytorch_cpu",
+  "cpuCanonicalDecodedEventCounts": [
+    {
+      "fixtureId": "robust_chronological_01",
+      "count": 6
+    },
+    {
+      "fixtureId": "robust_chronological_02",
+      "count": 8
+    },
+    {
+      "fixtureId": "robust_chronological_03",
+      "count": 10
+    },
+    {
+      "fixtureId": "robust_chronological_04",
+      "count": 12
+    },
+    {
+      "fixtureId": "robust_chronological_05",
+      "count": 12
+    },
+    {
+      "fixtureId": "robust_chronological_06",
+      "count": 12
+    },
+    {
+      "fixtureId": "robust_chronological_07",
+      "count": 13
+    },
+    {
+      "fixtureId": "robust_chronological_08",
+      "count": 13
+    },
+    {
+      "fixtureId": "robust_chronological_09",
+      "count": 12
+    },
+    {
+      "fixtureId": "robust_chronological_10",
+      "count": 10
+    },
+    {
+      "fixtureId": "robust_chronological_11",
+      "count": 10
+    },
+    {
+      "fixtureId": "robust_chronological_12",
+      "count": 10
+    },
+    {
+      "fixtureId": "robust_chronological_13",
+      "count": 11
+    },
+    {
+      "fixtureId": "robust_chronological_14",
+      "count": 11
+    },
+    {
+      "fixtureId": "robust_chronological_15",
+      "count": 11
+    },
+    {
+      "fixtureId": "robust_chronological_16",
+      "count": 10
+    },
+    {
+      "fixtureId": "robust_chronological_17",
+      "count": 9
+    },
+    {
+      "fixtureId": "robust_chronological_18",
+      "count": 11
+    },
+    {
+      "fixtureId": "robust_chronological_19",
+      "count": 12
+    },
+    {
+      "fixtureId": "robust_chronological_20",
+      "count": 12
+    }
+  ],
+  "parity": {
+    "pytorch_cuda": {
+      "scoreTolerance": 0.0001,
+      "canonicalDecoderParity": false,
+      "ownedObservationParity": false,
+      "rows": [
+        {
+          "fixtureId": "robust_chronological_01",
+          "rawTensorParity": true,
+          "thresholdMaskParity": false,
+          "rawMaxAbsDelta": 0.012483954429626465,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 6,
+          "candidateEventCount": 6,
+          "maxDecoderScoreDelta": 0.0007360000000000699,
+          "maxOwnedObservationConfidenceDelta": 0.00027199999999993896
+        },
+        {
+          "fixtureId": "robust_chronological_02",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.01908305287361145,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 8,
+          "candidateEventCount": 8,
+          "maxDecoderScoreDelta": 0.003846000000000016,
+          "maxOwnedObservationConfidenceDelta": 0.0009190000000000031
+        },
+        {
+          "fixtureId": "robust_chronological_03",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.021686315536499023,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": true,
+          "referenceEventCount": 10,
+          "candidateEventCount": 10,
+          "maxDecoderScoreDelta": 0.00043800000000004946,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_04",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0329098105430603,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.0008070000000000022,
+          "maxOwnedObservationConfidenceDelta": 0.0003970000000000917
+        },
+        {
+          "fixtureId": "robust_chronological_05",
+          "rawTensorParity": true,
+          "thresholdMaskParity": false,
+          "rawMaxAbsDelta": 0.038301169872283936,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.0005779999999999674,
+          "maxOwnedObservationConfidenceDelta": 0.00040200000000001346
+        },
+        {
+          "fixtureId": "robust_chronological_06",
+          "rawTensorParity": true,
+          "thresholdMaskParity": false,
+          "rawMaxAbsDelta": 0.03621399402618408,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.0014280000000000959,
+          "maxOwnedObservationConfidenceDelta": 0.0003809999999999647
+        },
+        {
+          "fixtureId": "robust_chronological_07",
+          "rawTensorParity": true,
+          "thresholdMaskParity": false,
+          "rawMaxAbsDelta": 0.019302725791931152,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 13,
+          "candidateEventCount": 13,
+          "maxDecoderScoreDelta": 0.000260000000000038,
+          "maxOwnedObservationConfidenceDelta": 0.0007629999999999582
+        },
+        {
+          "fixtureId": "robust_chronological_08",
+          "rawTensorParity": true,
+          "thresholdMaskParity": false,
+          "rawMaxAbsDelta": 0.029817640781402588,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 13,
+          "candidateEventCount": 13,
+          "maxDecoderScoreDelta": 0.0005429999999999602,
+          "maxOwnedObservationConfidenceDelta": 0.005357999999999974
+        },
+        {
+          "fixtureId": "robust_chronological_09",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.08304448425769806,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": true,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.00016799999999994597,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_10",
+          "rawTensorParity": true,
+          "thresholdMaskParity": false,
+          "rawMaxAbsDelta": 0.03319188952445984,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 10,
+          "candidateEventCount": 10,
+          "maxDecoderScoreDelta": 0.00047599999999992093,
+          "maxOwnedObservationConfidenceDelta": 0.0010280000000000289
+        },
+        {
+          "fixtureId": "robust_chronological_11",
+          "rawTensorParity": true,
+          "thresholdMaskParity": false,
+          "rawMaxAbsDelta": 0.03269214183092117,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 10,
+          "candidateEventCount": 10,
+          "maxDecoderScoreDelta": 0.0011820000000000164,
+          "maxOwnedObservationConfidenceDelta": 0.0007759999999999989
+        },
+        {
+          "fixtureId": "robust_chronological_12",
+          "rawTensorParity": true,
+          "thresholdMaskParity": false,
+          "rawMaxAbsDelta": 0.0487191379070282,
+          "eventCountEqual": false,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 10,
+          "candidateEventCount": 11,
+          "maxDecoderScoreDelta": null,
+          "maxOwnedObservationConfidenceDelta": 0.003717999999999999
+        },
+        {
+          "fixtureId": "robust_chronological_13",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.056660473346710205,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 11,
+          "candidateEventCount": 11,
+          "maxDecoderScoreDelta": 0.0010030000000000039,
+          "maxOwnedObservationConfidenceDelta": 0.0012429999999999941
+        },
+        {
+          "fixtureId": "robust_chronological_14",
+          "rawTensorParity": true,
+          "thresholdMaskParity": false,
+          "rawMaxAbsDelta": 0.05340859293937683,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 11,
+          "candidateEventCount": 11,
+          "maxDecoderScoreDelta": 0.010309000000000013,
+          "maxOwnedObservationConfidenceDelta": 0.000980000000000092
+        },
+        {
+          "fixtureId": "robust_chronological_15",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.02798163890838623,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": true,
+          "referenceEventCount": 11,
+          "candidateEventCount": 11,
+          "maxDecoderScoreDelta": 0.00019499999999994522,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_16",
+          "rawTensorParity": true,
+          "thresholdMaskParity": false,
+          "rawMaxAbsDelta": 0.13129928708076477,
+          "eventCountEqual": false,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 10,
+          "candidateEventCount": 9,
+          "maxDecoderScoreDelta": null,
+          "maxOwnedObservationConfidenceDelta": null
+        },
+        {
+          "fixtureId": "robust_chronological_17",
+          "rawTensorParity": true,
+          "thresholdMaskParity": false,
+          "rawMaxAbsDelta": 0.06011402606964111,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": true,
+          "referenceEventCount": 9,
+          "candidateEventCount": 9,
+          "maxDecoderScoreDelta": 0.0003700000000000925,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_18",
+          "rawTensorParity": true,
+          "thresholdMaskParity": false,
+          "rawMaxAbsDelta": 0.02254772186279297,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 11,
+          "candidateEventCount": 11,
+          "maxDecoderScoreDelta": 0.0038970000000000393,
+          "maxOwnedObservationConfidenceDelta": 0.0006180000000000074
+        },
+        {
+          "fixtureId": "robust_chronological_19",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.01547667384147644,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": true,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.0006589999999999652,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_20",
+          "rawTensorParity": true,
+          "thresholdMaskParity": false,
+          "rawMaxAbsDelta": 0.02594369649887085,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": false,
+          "ownedObservationParity": false,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.00241900000000006,
+          "maxOwnedObservationConfidenceDelta": 0.007871000000000072
+        }
+      ]
+    },
+    "python_ort": {
+      "scoreTolerance": 0.0001,
+      "canonicalDecoderParity": true,
+      "ownedObservationParity": true,
+      "rows": [
+        {
+          "fixtureId": "robust_chronological_01",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000024437904357910156,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 6,
+          "candidateEventCount": 6,
+          "maxDecoderScoreDelta": 9.999999999177334e-7,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_02",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000016093254089355469,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 8,
+          "candidateEventCount": 8,
+          "maxDecoderScoreDelta": 0.0000010000000000287557,
+          "maxOwnedObservationConfidenceDelta": 9.999999999732445e-7
+        },
+        {
+          "fixtureId": "robust_chronological_03",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000002086162567138672,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 10,
+          "candidateEventCount": 10,
+          "maxDecoderScoreDelta": 0.0000010000000000287557,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_04",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000003337860107421875,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.000002000000000002,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_05",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000030100345611572266,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.0000010000000000287557,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_06",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000024139881134033203,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.0000010000000000287557,
+          "maxOwnedObservationConfidenceDelta": 9.999999999177334e-7
+        },
+        {
+          "fixtureId": "robust_chronological_07",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000001430511474609375,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 13,
+          "candidateEventCount": 13,
+          "maxDecoderScoreDelta": 0.0000010000000000287557,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_08",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000003844499588012695,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 13,
+          "candidateEventCount": 13,
+          "maxDecoderScoreDelta": 0.0000020000000000575113,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_09",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000004783272743225098,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.0000029999999999752447,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_10",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000005140900611877441,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 10,
+          "candidateEventCount": 10,
+          "maxDecoderScoreDelta": 0.0000010000000000287557,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_11",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000006210058927536011,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 10,
+          "candidateEventCount": 10,
+          "maxDecoderScoreDelta": 0.0000020000000000575113,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_12",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000011354684829711914,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 10,
+          "candidateEventCount": 10,
+          "maxDecoderScoreDelta": 0.0000020000000000575113,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_13",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000005900859832763672,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 11,
+          "candidateEventCount": 11,
+          "maxDecoderScoreDelta": 0.000001999999999946489,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_14",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000032186508178710938,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 11,
+          "candidateEventCount": 11,
+          "maxDecoderScoreDelta": 0.000002000000000002,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_15",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000003993511199951172,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 11,
+          "candidateEventCount": 11,
+          "maxDecoderScoreDelta": 0.000004000000000004,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_16",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000063478946685791016,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 10,
+          "candidateEventCount": 10,
+          "maxDecoderScoreDelta": 0.0000029999999999752447,
+          "maxOwnedObservationConfidenceDelta": 0.000002000000000002
+        },
+        {
+          "fixtureId": "robust_chronological_17",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000006273388862609863,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 9,
+          "candidateEventCount": 9,
+          "maxDecoderScoreDelta": 0.0000020000000000575113,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_18",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000004649162292480469,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 11,
+          "candidateEventCount": 11,
+          "maxDecoderScoreDelta": 0.0000020000000000575113,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_19",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000005632638931274414,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.000001999999999946489,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_20",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000007867813110351562,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.000006000000000061512,
+          "maxOwnedObservationConfidenceDelta": 0.000006000000000061512
+        }
+      ]
+    },
+    "browser_webgpu": {
+      "scoreTolerance": 0.0001,
+      "canonicalDecoderParity": true,
+      "ownedObservationParity": true,
+      "rows": [
+        {
+          "fixtureId": "robust_chronological_01",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000002384185791015625,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 6,
+          "candidateEventCount": 6,
+          "maxDecoderScoreDelta": 0.0000020000000000575113,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_02",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000024437904357910156,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 8,
+          "candidateEventCount": 8,
+          "maxDecoderScoreDelta": 0.0000029999999999752447,
+          "maxOwnedObservationConfidenceDelta": 0.0000029999999999752447
+        },
+        {
+          "fixtureId": "robust_chronological_03",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000016093254089355469,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 10,
+          "candidateEventCount": 10,
+          "maxDecoderScoreDelta": 0.0000010000000000287557,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_04",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000025033950805664062,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.0000010000000000287557,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_05",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000009000301361083984,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.000001999999999946489,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_06",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000040531158447265625,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.0000010000000000287557,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_07",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000030994415283203125,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 13,
+          "candidateEventCount": 13,
+          "maxDecoderScoreDelta": 0.0000010000000000287557,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_08",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000004976987838745117,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 13,
+          "candidateEventCount": 13,
+          "maxDecoderScoreDelta": 0.0000020000000000575113,
+          "maxOwnedObservationConfidenceDelta": 0.0000020000000000575113
+        },
+        {
+          "fixtureId": "robust_chronological_09",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000006735324859619141,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.0000020000000000575113,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_10",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000005304813385009766,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 10,
+          "candidateEventCount": 10,
+          "maxDecoderScoreDelta": 0.0000010000000000287557,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_11",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000006027519702911377,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 10,
+          "candidateEventCount": 10,
+          "maxDecoderScoreDelta": 0.000001999999999946489,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_12",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000036954879760742188,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 10,
+          "candidateEventCount": 10,
+          "maxDecoderScoreDelta": 0.0000020000000000575113,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_13",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000023245811462402344,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 11,
+          "candidateEventCount": 11,
+          "maxDecoderScoreDelta": 0.0000010000000000287557,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_14",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000004976987838745117,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 11,
+          "candidateEventCount": 11,
+          "maxDecoderScoreDelta": 0.000002000000000002,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_15",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000026226043701171875,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 11,
+          "candidateEventCount": 11,
+          "maxDecoderScoreDelta": 0.0000010000000000287557,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_16",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000013470649719238281,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 10,
+          "candidateEventCount": 10,
+          "maxDecoderScoreDelta": 0.000006000000000061512,
+          "maxOwnedObservationConfidenceDelta": 0.0000050000000000050004
+        },
+        {
+          "fixtureId": "robust_chronological_17",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000004947185516357422,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 9,
+          "candidateEventCount": 9,
+          "maxDecoderScoreDelta": 0.000003000000000086267,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_18",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.00000286102294921875,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 11,
+          "candidateEventCount": 11,
+          "maxDecoderScoreDelta": 0.000001999999999946489,
+          "maxOwnedObservationConfidenceDelta": 0.0000010000000000287557
+        },
+        {
+          "fixtureId": "robust_chronological_19",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.000001426786184310913,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.0000010000000000287557,
+          "maxOwnedObservationConfidenceDelta": 0
+        },
+        {
+          "fixtureId": "robust_chronological_20",
+          "rawTensorParity": true,
+          "thresholdMaskParity": true,
+          "rawMaxAbsDelta": 0.0000035762786865234375,
+          "eventCountEqual": true,
+          "canonicalDecoderParity": true,
+          "ownedObservationParity": true,
+          "referenceEventCount": 12,
+          "candidateEventCount": 12,
+          "maxDecoderScoreDelta": 0.0000020000000000575113,
+          "maxOwnedObservationConfidenceDelta": 0.0000020000000000575113
+        }
+      ]
+    }
+  },
+  "exactFixedOutputShape": [
+    1,
+    183,
+    88
+  ],
+  "d1rThresholdActiveCellCounts": [
+    {
+      "fixtureId": "robust_chronological_01",
+      "thresholdActiveCellCount": 38,
+      "canonicalCount": 6
+    },
+    {
+      "fixtureId": "robust_chronological_02",
+      "thresholdActiveCellCount": 47,
+      "canonicalCount": 8
+    },
+    {
+      "fixtureId": "robust_chronological_03",
+      "thresholdActiveCellCount": 64,
+      "canonicalCount": 10
+    },
+    {
+      "fixtureId": "robust_chronological_04",
+      "thresholdActiveCellCount": 75,
+      "canonicalCount": 12
+    },
+    {
+      "fixtureId": "robust_chronological_05",
+      "thresholdActiveCellCount": 74,
+      "canonicalCount": 12
+    },
+    {
+      "fixtureId": "robust_chronological_06",
+      "thresholdActiveCellCount": 70,
+      "canonicalCount": 12
+    },
+    {
+      "fixtureId": "robust_chronological_07",
+      "thresholdActiveCellCount": 74,
+      "canonicalCount": 13
+    },
+    {
+      "fixtureId": "robust_chronological_08",
+      "thresholdActiveCellCount": 74,
+      "canonicalCount": 13
+    },
+    {
+      "fixtureId": "robust_chronological_09",
+      "thresholdActiveCellCount": 62,
+      "canonicalCount": 12
+    },
+    {
+      "fixtureId": "robust_chronological_10",
+      "thresholdActiveCellCount": 52,
+      "canonicalCount": 10
+    },
+    {
+      "fixtureId": "robust_chronological_11",
+      "thresholdActiveCellCount": 55,
+      "canonicalCount": 10
+    },
+    {
+      "fixtureId": "robust_chronological_12",
+      "thresholdActiveCellCount": 59,
+      "canonicalCount": 10
+    },
+    {
+      "fixtureId": "robust_chronological_13",
+      "thresholdActiveCellCount": 58,
+      "canonicalCount": 11
+    },
+    {
+      "fixtureId": "robust_chronological_14",
+      "thresholdActiveCellCount": 60,
+      "canonicalCount": 11
+    },
+    {
+      "fixtureId": "robust_chronological_15",
+      "thresholdActiveCellCount": 60,
+      "canonicalCount": 11
+    },
+    {
+      "fixtureId": "robust_chronological_16",
+      "thresholdActiveCellCount": 50,
+      "canonicalCount": 10
+    },
+    {
+      "fixtureId": "robust_chronological_17",
+      "thresholdActiveCellCount": 48,
+      "canonicalCount": 9
+    },
+    {
+      "fixtureId": "robust_chronological_18",
+      "thresholdActiveCellCount": 59,
+      "canonicalCount": 11
+    },
+    {
+      "fixtureId": "robust_chronological_19",
+      "thresholdActiveCellCount": 63,
+      "canonicalCount": 12
+    },
+    {
+      "fixtureId": "robust_chronological_20",
+      "thresholdActiveCellCount": 76,
+      "canonicalCount": 12
+    }
+  ],
+  "p15p22InferenceIncrease": 0
+}

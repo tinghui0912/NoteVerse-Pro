@@ -1,0 +1,37 @@
+{
+  "artifact": "phase9g_d1r_robust_default_browser_webgpu_matrix",
+  "phase": "9G-D.1R",
+  "normalQualificationRequiresUnsafeFlag": false,
+  "chromeDefault": {
+    "status": "PASS",
+    "browserVersion": "155.0.8059.39",
+    "headed": true,
+    "launchArgs": [],
+    "adapterInfo": null,
+    "backend": "webgpu",
+    "graphOptimizationLevel": "disabled",
+    "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "modelLoadMs": 806.3999999761581,
+    "firstInferenceMs": 680.2999999523163,
+    "comparisonCount": 20,
+    "error": null
+  },
+  "edgeDefault": {
+    "status": "PASS",
+    "browserVersion": "155.0.4283.45",
+    "headed": true,
+    "launchArgs": [],
+    "adapterInfo": null,
+    "backend": "webgpu",
+    "graphOptimizationLevel": "disabled",
+    "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "modelLoadMs": 732.6000000238419,
+    "firstInferenceMs": 811.1000000238419,
+    "comparisonCount": 20,
+    "error": null
+  },
+  "forcedWebGpuDiagnostic": {
+    "status": "NOT_RUN"
+  },
+  "productionMicrophoneEnabled": false
+}
