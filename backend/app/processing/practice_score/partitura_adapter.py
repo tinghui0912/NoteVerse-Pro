@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import builtins
 from contextlib import contextmanager
-import os
 from typing import Iterator
-
-from app.processing.resources import ensure_partitura_default_soundfont
 
 
 def load_score_as_part_for_practice(prepared_musicxml_path: str):
@@ -14,17 +11,11 @@ def load_score_as_part_for_practice(prepared_musicxml_path: str):
     Partitura imports its optional FluidSynth audio path from the package root.
     When FluidSynth is importable and the bundled default SoundFont is missing,
     that import path tries to download a SoundFont even though score parsing does
-    not need synthesis. The adapter blocks only that optional import when no
-    real Practice SoundFont is configured.
+    not need synthesis. Practice score parsing therefore always blocks that
+    optional synthesis import instead of requiring a deployment SoundFont.
     """
 
-    soundfont_path = os.getenv("PRACTICE_SOUNDFONT_PATH")
-    if soundfont_path:
-        ensure_partitura_default_soundfont(soundfont_path)
-
-    with configure_partitura_for_offline_score_parsing(
-        block_optional_fluidsynth=not bool(soundfont_path)
-    ):
+    with configure_partitura_for_offline_score_parsing(block_optional_fluidsynth=True):
         try:
             import partitura
         except ImportError as exc:

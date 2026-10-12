@@ -25,7 +25,6 @@ def _seed_minimal_backend_env() -> None:
         "AUTH_COOKIE_SAMESITE": "lax",
         "LOG_FORMAT": "console",
         "FRONTEND_BASE_URL": "http://localhost:3000",
-        "PRACTICE_SOUNDFONT_PATH": "",
         "PLAYBACK_SOUNDFONT_PATH": "",
         "REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS": "60",
         "REALTIME_EVENT_RETENTION_DAYS": "1",

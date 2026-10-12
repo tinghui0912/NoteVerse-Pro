@@ -17,7 +17,7 @@ or supply compatibility aliases.
 | Worker scheduling and reliability | Worker | Worker, Beat, API dispatch/outbox writers | import, render, playback, mail, notification, realtime, retention, and scheduler timing settings |
 | Object storage and file lifecycle | Storage | API, Worker | `FILE_STORAGE_BACKEND`, `S3_*`, storage/work roots, upload extensions |
 | OMR, OCR, rendering, playback | Worker | Worker and runtime checks | `LEGATO_*`, `PADDLEOCR_*`, Hugging Face cache settings, playback soundfont settings; source-owned LEGATO and Verovio profiles |
-| Practice score artifacts | API | API source/artifact delivery and score-preparation tooling | optional Practice score SoundFont for Partitura score parsing |
+| Practice score artifacts | API | API source/artifact delivery and score-preparation tooling | revision-bound `PracticeScoreArtifact`, practice-ready content, and target/source delivery; no live Practice runtime settings |
 | Account email | API | API auth/account and Worker mail delivery | `RESEND_*`, sender, password-reset and verification lifetimes |
 | Interactive fingering | API | API fingering service | `FINGERING_*` |
 
@@ -53,15 +53,15 @@ truth according to **what changes the value** and **how it must be released**.
 | Kind | Examples | Source of truth | Change control |
 | --- | --- | --- | --- |
 | Deployment/runtime configuration | URLs, credentials, replica capacity, queue timing, timeouts, model locations, tracing endpoint | Local: untracked `.env.docker`; production: reviewed deployment configuration plus secret store | Environment promotion and operational change review |
-| Versioned domain/algorithm profile | `PracticeAudioProfile` gates and frame rate; OCR classification thresholds; MusicXML layout constants | Typed source module adjacent to its owning algorithm, with fixtures/tests | Normal code review and application release |
+| Versioned domain/algorithm profile | OCR classification thresholds; MusicXML layout constants; Verovio rendering profile | Typed source module adjacent to its owning algorithm, with fixtures/tests | Normal code review and application release |
 | Product policy that operators or customers must change without a deployment | entitlement limits, tenant rules, feature rollout state | Audited database-backed configuration or feature-flag service | Explicit administration workflow, audit trail, validation, rollout and rollback |
 
 `app.processing.engines.render.verovio_render_profile` owns the SVG output
 semantics, while `app.processing.text.config` owns deterministic OCR,
-classification, and MusicXML layout rules. Practice score-artifact preparation
-may use `PRACTICE_SOUNDFONT_PATH` for optional Partitura score parsing support,
-but that setting is not a backend live Practice runtime or an alignment profile.
-These domain profiles must not be copied into `.env.docker`, because an
+classification, and MusicXML layout rules. Practice score-artifact parsing uses
+MusicXML/Partitura score data only; it must not require a SoundFont or synthesis
+asset merely to build a browser-local Practice artifact. These domain profiles
+must not be copied into `.env.docker`, because an
 unreviewed per-environment threshold change would make the same source revision
 produce different recognition or notation output.
 
@@ -100,15 +100,14 @@ configuration through a separately coordinated credential-rotation task.
 
 ## Extraction status
 
-- **Complete:** Observability, Playback synthesis, Practice score-asset
-  configuration, and
-  Worker model/engine configuration. `PlaybackSettings` owns only the deployed
+- **Complete:** Observability, Playback synthesis, and Worker model/engine
+  configuration. `PlaybackSettings` owns only the deployed
   SoundFont location used by API delivery and Worker generation; sample rate
   and output duration live in the versioned `PlaybackProfile`.
   `WorkerModelEngineSettings` owns Hugging Face/PaddleOCR model locations and
   offline mode, LEGATO selection/runtime parameters, and Verovio rendering.
-  It intentionally does not own either playback or Practice score-artifact
-  soundfonts.
+  It intentionally does not own playback synthesis configuration, and Practice
+  score-artifact parsing has no SoundFont environment setting.
 - **Complete:** Task-reliability deadline configuration. `TaskReliabilitySettings`
   owns the ordered processing, Celery soft-limit, and Celery hard-limit
   envelope. It remains shared because API pipeline contexts, Worker execution,
@@ -157,7 +156,8 @@ configuration through a separately coordinated credential-rotation task.
   normalization, and the prohibition on trusting every address for forwarded
   client-address resolution.
 - **Complete:** Browser CORS policy. `BrowserCorsSettings` owns the customer
-  API/Practice origin list and retains the valid explicit-empty-list state.
+  backend API origins allowed by Customer Web and retains the valid
+  explicit-empty-list state.
   It is independent of trusted proxies, public frontend URL, and control-plane
   CORS.
 - **Complete:** Token signing secret. `TokenSigningSettings` owns `SECRET_KEY`

@@ -284,7 +284,8 @@ Recommended core concepts:
 - Do not support both `ScoreEntity` and the new event model indefinitely.
 - Do not preserve `0 pitches = rest` as a hidden domain conversion rule.
 - Do not expose MusicXML `<forward>` or `<backup>` labels in user-facing editor UI.
-- Do not refactor unrelated backend, deployment, or Practice runtime code as part of this plan.
+- Do not refactor unrelated backend, deployment, or browser-local Practice execution
+  code as part of this plan.
 
 ## Invariants to enforce
 

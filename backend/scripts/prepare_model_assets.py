@@ -232,17 +232,12 @@ def prepare_soundfont(target_path: Path) -> None:
 
 
 def prepare_soundfonts() -> None:
-    from app.core.settings.practice_score_assets import get_practice_score_asset_settings
     from app.core.settings.worker_runtime import get_worker_runtime_settings
 
     targets = {
         "PLAYBACK_SOUNDFONT_PATH": _require_path(
             get_worker_runtime_settings().PLAYBACK_SOUNDFONT_PATH,
             "PLAYBACK_SOUNDFONT_PATH",
-        ),
-        "PRACTICE_SOUNDFONT_PATH": _require_path(
-            get_practice_score_asset_settings().PRACTICE_SOUNDFONT_PATH,
-            "PRACTICE_SOUNDFONT_PATH",
         ),
     }
     prepared_paths: set[Path] = set()

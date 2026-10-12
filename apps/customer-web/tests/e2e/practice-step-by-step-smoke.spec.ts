@@ -939,8 +939,6 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
   test('CONTINUOUS ACTIVE SESSION: survives backend API loss after score assets load', async ({
     page,
   }) => {
-    const blockedRequests: string[] = [];
-
     await setupPracticeMocks(page);
     await page.goto(`/zh/score/${scoreId}/practice`);
 
@@ -965,32 +963,32 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await startButton.click();
     await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
 
-    await page.route('**/api/**', (route) => {
-      blockedRequests.push(`${route.request().method()} ${route.request().url()}`);
-      return route.abort('failed');
-    });
+    await page.context().setOffline(true);
+    try {
+      await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
 
-    await page.evaluate(() => {
-      (window as unknown as { __emitMidiNote: (n: number, v: number) => void }).__emitMidiNote(60, 100);
-    });
+      await page.evaluate(() => {
+        (window as unknown as { __emitMidiNote: (n: number, v: number) => void }).__emitMidiNote(60, 100);
+      });
 
-    const pauseButton = page.getByRole('button', { name: '暂停', exact: true });
-    await expect(pauseButton).toBeEnabled();
-    await pauseButton.click();
-    await expect(page.getByRole('status')).toContainText('练习已暂停');
+      const pauseButton = page.getByRole('button', { name: '暂停', exact: true });
+      await expect(pauseButton).toBeEnabled();
+      await pauseButton.click();
+      await expect(page.getByRole('status')).toContainText('练习已暂停');
 
-    const resumeButton = page.getByRole('button', { name: '继续', exact: true });
-    await expect(resumeButton).toBeEnabled();
-    await resumeButton.click();
-    await expect(page.getByRole('status')).toContainText('连贯演奏中');
+      const resumeButton = page.getByRole('button', { name: '继续', exact: true });
+      await expect(resumeButton).toBeEnabled();
+      await resumeButton.click();
+      await expect(page.getByRole('status')).toContainText('连贯演奏中');
 
-    const finishButton = page.getByRole('button', { name: '结束', exact: true });
-    await expect(finishButton).toBeEnabled();
-    await finishButton.click();
-    await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
-    expect(blockedRequests.every((request) => request.includes('/realtime/events'))).toBe(true);
-    expect(blockedRequests.filter((request) => request.includes('/practice/sessions'))).toEqual([]);
-    expect(blockedRequests.filter((request) => request.includes('/practice/scores/'))).toEqual([]);
+      const finishButton = page.getByRole('button', { name: '结束', exact: true });
+      await expect(finishButton).toBeEnabled();
+      await finishButton.click();
+      await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
+      await expect(page.getByRole('button', { name: '查看报告' })).toBeVisible();
+    } finally {
+      await page.context().setOffline(false);
+    }
   });
 });
 

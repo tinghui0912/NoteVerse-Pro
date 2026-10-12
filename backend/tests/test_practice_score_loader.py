@@ -23,7 +23,6 @@ def test_practice_score_timeline_loader_does_not_require_soundfont(
     sentinel = object()
     loaded_paths: list[str] = []
 
-    monkeypatch.delenv("PRACTICE_SOUNDFONT_PATH", raising=False)
     monkeypatch.setattr(
         score_loader,
         "prepared_musicxml_path_for_practice",
@@ -49,7 +48,7 @@ def test_practice_score_timeline_loader_does_not_require_soundfont(
     assert loaded_paths == [str(prepared_path)]
 
 
-def test_partitura_adapter_prepares_real_default_soundfont_when_configured(
+def test_partitura_adapter_always_blocks_optional_fluidsynth_for_score_parsing(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -59,10 +58,8 @@ def test_partitura_adapter_prepares_real_default_soundfont_when_configured(
 
     score_path = tmp_path / "prepared.musicxml"
     score_path.write_text("<score-partwise version='4.0' />", encoding="utf-8")
-    soundfont_path = tmp_path / "practice.sf2"
-    soundfont_path.write_bytes(b"soundfont")
 
-    calls: list[str | None] = []
+    block_modes: list[bool] = []
     loaded_paths: list[str] = []
     fake_partitura = SimpleNamespace(
         load_score_as_part=lambda path: (
@@ -71,18 +68,23 @@ def test_partitura_adapter_prepares_real_default_soundfont_when_configured(
         ),
     )
 
-    monkeypatch.setenv("PRACTICE_SOUNDFONT_PATH", str(soundfont_path))
     monkeypatch.setitem(sys.modules, "partitura", fake_partitura)
+
+    @contextmanager
+    def fake_configure_partitura_for_offline_score_parsing(*, block_optional_fluidsynth: bool):
+        block_modes.append(block_optional_fluidsynth)
+        yield
+
     monkeypatch.setattr(
         partitura_adapter,
-        "ensure_partitura_default_soundfont",
-        lambda path: calls.append(path),
+        "configure_partitura_for_offline_score_parsing",
+        fake_configure_partitura_for_offline_score_parsing,
     )
 
     score_part = partitura_adapter.load_score_as_part_for_practice(str(score_path))
 
     assert score_part.note_array() == ("note-array",)
-    assert calls == [str(soundfont_path)]
+    assert block_modes == [True]
     assert loaded_paths == [str(score_path)]
 
 

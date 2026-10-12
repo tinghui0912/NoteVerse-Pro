@@ -477,7 +477,9 @@ For score-domain changes, add focused coverage for the relevant behavior:
 - authorization matrix for owner, member, share, public, and anonymous paths;
 - share token hashing, expiry, revocation, redemption, and bookmark separation;
 - publication pin, republish, and unpublish;
-- practice revision pinning and runtime registration;
+- revision-bound `PracticeScoreArtifact`, practice-ready content, and target/source
+  delivery;
+- browser-local active Practice state remains outside backend session authority;
 - job retry, heartbeat, stale recovery, and orphan cleanup;
 - Alembic upgrade and backfill idempotency when migrations are involved.
 
