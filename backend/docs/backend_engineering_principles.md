@@ -520,7 +520,8 @@ Before finalizing backend work, check:
 - no endpoint reconstructs score permissions outside `modules/score_access`;
 - no raw share token persistence beyond one-time token return;
 - no public access follows mutable head revision without explicit republish;
-- no practice session can drift with later score edits, share revocation, or republication;
+- revision-bound PracticeScoreArtifact/source delivery preserves immutable revision
+  identity while active Practice execution remains browser-local;
 - no direct durable file path construction outside `app/storage`;
 - no Celery payload contains an API-local path;
 - routers stay thin;

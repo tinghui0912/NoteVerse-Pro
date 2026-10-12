@@ -1,0 +1,225 @@
+{
+  "artifact": "phase9g_d1_local_public_dataset_inventory",
+  "phase": "9G-D.1",
+  "scannedRoots": [
+    "backend/data/work/public_proxy",
+    "backend/data/work/datasets",
+    "models"
+  ],
+  "privacyBoundary": "Repository-local research/work roots only; no unrelated personal directories scanned.",
+  "p15p22CandidateInferenceIncrease": 0,
+  "datasets": [
+    {
+      "datasetId": "vienna-4x22",
+      "name": "Vienna 4x22 public proxy",
+      "localRoot": "backend/data/work/public_proxy/vienna-4x22",
+      "localRootExists": true,
+      "fileCount": 799,
+      "audioCount": 136,
+      "midiCount": 136,
+      "musicXmlScoreCount": 4,
+      "matchAlignmentCount": 88,
+      "metadataCount": 391,
+      "otherCount": 44,
+      "totalBytes": 11491095313,
+      "formats": {
+        ".idx": 1,
+        ".json": 384,
+        ".match": 88,
+        ".md": 2,
+        ".mid": 136,
+        ".musicxml": 4,
+        ".pack": 1,
+        ".pdf": 4,
+        ".png": 4,
+        ".py": 4,
+        ".rev": 1,
+        ".sample": 14,
+        ".sh": 1,
+        ".txt": 4,
+        ".wav": 136,
+        ".zip": 1,
+        "<none>": 14
+      },
+      "audioMidiPairingEvidence": "Real piano audio is locally present; MIDI/alignment availability is counted separately and must be verified before fixed-BPM proxy scoring.",
+      "representativeIdentities": [
+        {
+          "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Ballade/Chopin_op38_FirstOnsets.txt",
+          "byteSize": 350,
+          "kind": "metadata",
+          "sha256FirstMiB": "76f0dec017625ac7c17d4a202b1226adf9e0aaa9eb3f0e0d6edf0c6a2380e955"
+        },
+        {
+          "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Ballade/Chopin_op38_p01.wav",
+          "byteSize": 22614396,
+          "kind": "audio",
+          "sha256FirstMiB": "abe497ec1347b82a554e536965b5ebf5d42f1e6c1ce5e392012cdebbacf0df15"
+        },
+        {
+          "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Ballade/Chopin_op38_p02.wav",
+          "byteSize": 23417148,
+          "kind": "audio",
+          "sha256FirstMiB": "366c4d5779b4ca34a88716a66541f47aa1482e029d6864c69d7f20c59c84440a"
+        },
+        {
+          "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Ballade/Chopin_op38_p03.wav",
+          "byteSize": 23957476,
+          "kind": "audio",
+          "sha256FirstMiB": "c87438d3ce4a7197b6f3e372211c24b95e554259fa004623911ae8e238b31643"
+        },
+        {
+          "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Ballade/Chopin_op38_p04.wav",
+          "byteSize": 24197664,
+          "kind": "audio",
+          "sha256FirstMiB": "2549083029072b73873fd20ccc12211b03d6a2850d7e18247d476925c32d2f74"
+        },
+        {
+          "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Ballade/Chopin_op38_p05.wav",
+          "byteSize": 19621868,
+          "kind": "audio",
+          "sha256FirstMiB": "203c92d87174b68f56acb71cf2bbb8ad7cb9e0c2227c667cd736dba76c75fbde"
+        },
+        {
+          "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Ballade/Chopin_op38_p06.wav",
+          "byteSize": 25461220,
+          "kind": "audio",
+          "sha256FirstMiB": "fab29a3b1d2cf57f27680bddd079df39e79e20588f8d2ef387fdf8a99903307f"
+        },
+        {
+          "path": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Ballade/Chopin_op38_p07.wav",
+          "byteSize": 21510140,
+          "kind": "audio",
+          "sha256FirstMiB": "2c66d4dc0acaab5471244574aeee8a168d0ace208a77673180c6d5ecca286de7"
+        }
+      ],
+      "metadataVersionEvidence": {
+        "type": "archive",
+        "path": "backend/data/work/public_proxy/vienna-4x22/audio.zip"
+      },
+      "knownLicenseEvidence": "LOCAL_LICENSE_EVIDENCE_NOT_VERIFIED_IN_THIS_PHASE",
+      "trainingOverlapStatus": "UNKNOWN_REQUIRES_VERIFICATION",
+      "currentlyAllowedResearchRole": "PUBLIC_EXTERNAL_PROXY_CANDIDATE_AFTER_OVERLAP_AND_ALIGNMENT_VERIFICATION"
+    },
+    {
+      "datasetId": "maestro-v3.0.0",
+      "name": "MAESTRO v3.0.0",
+      "localRoot": "backend/data/work/datasets/maestro-v3.0.0",
+      "localRootExists": true,
+      "fileCount": 5528,
+      "audioCount": 5382,
+      "midiCount": 79,
+      "musicXmlScoreCount": 0,
+      "matchAlignmentCount": 0,
+      "metadataCount": 67,
+      "otherCount": 0,
+      "totalBytes": 879445225,
+      "formats": {
+        ".csv": 1,
+        ".json": 66,
+        ".mid": 61,
+        ".midi": 18,
+        ".wav": 5382
+      },
+      "audioMidiPairingEvidence": "MAESTRO CSV and mirrored audio/MIDI names are locally present; known training-domain overlap excludes final ranking use.",
+      "representativeIdentities": [
+        {
+          "path": "backend/data/work/datasets/maestro-v3.0.0/2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.midi",
+          "byteSize": 20115,
+          "kind": "midi",
+          "sha256FirstMiB": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4"
+        },
+        {
+          "path": "backend/data/work/datasets/maestro-v3.0.0/2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.wav",
+          "byteSize": 23891996,
+          "kind": "audio",
+          "sha256FirstMiB": "bf379fc4de0243c181b743165a01651dc1d8613ac6fbd3dceec8fbe3f01069a0"
+        },
+        {
+          "path": "backend/data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_07_R1_2008_01-04_ORIG_MID--AUDIO_07_R1_2008_wav--3.wav",
+          "byteSize": 39845888,
+          "kind": "audio",
+          "sha256FirstMiB": "de16b342923b0ed01f6ac3d8ebb416ee76dd90dadc966448b1834eebfe327c3a"
+        },
+        {
+          "path": "backend/data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.midi",
+          "byteSize": 6879,
+          "kind": "midi",
+          "sha256FirstMiB": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc"
+        },
+        {
+          "path": "backend/data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.wav",
+          "byteSize": 11845452,
+          "kind": "audio",
+          "sha256FirstMiB": "7a5f98fbc925703856578d853833bb53deed599395ec991915b367135f211058"
+        },
+        {
+          "path": "backend/data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.midi",
+          "byteSize": 7508,
+          "kind": "midi",
+          "sha256FirstMiB": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50"
+        },
+        {
+          "path": "backend/data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.wav",
+          "byteSize": 17137212,
+          "kind": "audio",
+          "sha256FirstMiB": "f631f7965e4e0f245801659aee0f9ec7e6a6807037fc4772207b5869cff583c9"
+        },
+        {
+          "path": "backend/data/work/datasets/maestro-v3.0.0/2009/MIDI-Unprocessed_02_R1_2009_03-06_ORIG_MID--AUDIO_02_R1_2009_02_R1_2009_04_WAV.midi",
+          "byteSize": 15629,
+          "kind": "midi",
+          "sha256FirstMiB": "56185241888bd2a7620ddb784d352f999eca32e410ef20887668d64a49e03af9"
+        }
+      ],
+      "metadataVersionEvidence": {
+        "type": "csv",
+        "path": "backend/data/work/datasets/maestro-v3.0.0/maestro-v3.0.0.csv"
+      },
+      "knownLicenseEvidence": "PUBLIC_DATASET_LICENSE_EVIDENCE_EXPECTED_FROM_UPSTREAM_METADATA; LOCAL_LICENSE_FILE_NOT_REQUIRED_FOR_THIS_DEV_ONLY_ROLE",
+      "trainingOverlapStatus": "KNOWN_TRAINING_DOMAIN_OVERLAP",
+      "currentlyAllowedResearchRole": "DEVELOPMENT_ADAPTER_VALIDATION_ONNX_PARITY_PIPELINE_DEBUGGING_ONLY"
+    },
+    {
+      "datasetId": "smd",
+      "name": "Saarland Music Data / SMD",
+      "localRoot": "backend/data/work/datasets/smd",
+      "localRootExists": false,
+      "fileCount": 0,
+      "audioCount": 0,
+      "midiCount": 0,
+      "musicXmlScoreCount": 0,
+      "matchAlignmentCount": 0,
+      "metadataCount": 0,
+      "otherCount": 0,
+      "totalBytes": 0,
+      "formats": {},
+      "audioMidiPairingEvidence": "No local files found.",
+      "representativeIdentities": [],
+      "metadataVersionEvidence": null,
+      "knownLicenseEvidence": "NOT_LOCALLY_VERIFIED",
+      "trainingOverlapStatus": "UNKNOWN_NOT_LOCALLY_VERIFIED",
+      "currentlyAllowedResearchRole": "POTENTIAL_NATIVE_PAIRED_AMT_TRUTH_AFTER_LICENSE_AND_OVERLAP_VERIFICATION"
+    },
+    {
+      "datasetId": "maps",
+      "name": "MAPS",
+      "localRoot": "backend/data/work/datasets/maps",
+      "localRootExists": false,
+      "fileCount": 0,
+      "audioCount": 0,
+      "midiCount": 0,
+      "musicXmlScoreCount": 0,
+      "matchAlignmentCount": 0,
+      "metadataCount": 0,
+      "otherCount": 0,
+      "totalBytes": 0,
+      "formats": {},
+      "audioMidiPairingEvidence": "No local files found.",
+      "representativeIdentities": [],
+      "metadataVersionEvidence": null,
+      "knownLicenseEvidence": "NOT_LOCALLY_VERIFIED",
+      "trainingOverlapStatus": "UNKNOWN_NOT_LOCALLY_VERIFIED",
+      "currentlyAllowedResearchRole": "ACOUSTIC_TRANSCRIPTION_STRESS_REFERENCE_NOT_NATIVE_FIXED_BPM_PRACTICE"
+    }
+  ]
+}

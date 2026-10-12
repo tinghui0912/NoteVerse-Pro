@@ -1,0 +1,322 @@
+{
+  "artifact": "phase9g_d1_robust_parity_chain",
+  "phase": "9G-D.1",
+  "referenceRuntime": "PyTorch CPU",
+  "fixtureCount": 3,
+  "fixtures": [
+    {
+      "fixture_id": "robust_chronological_01",
+      "sequenceIndex": 0,
+      "source_audio_relpath": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Ballade/Chopin_op38_p07.wav",
+      "source_audio_sha256": "2b7d5699ddb325d122ec55eb5f1567d5bda9ab05c3d51531169a7ec2bbc75caa",
+      "source_sample_rate": 44100,
+      "source_duration_ms": 121939.319728,
+      "input_start_source_ms": 2000.0,
+      "input_end_source_ms": 3820.0,
+      "commit_start_source_ms": 3000.0,
+      "commit_end_source_ms": 3600.0,
+      "future_context_ms": 220.0,
+      "input_samples": 29120,
+      "no_fake_zero_padding": true,
+      "input_tensor_npy": "robust_chronological_01_input.npy",
+      "reg_onset_output_npy": "robust_chronological_01_reg_onset_output.npy",
+      "frame_output_npy": "robust_chronological_01_frame_output.npy",
+      "decoded_events_json": "robust_chronological_01_decoded_events.json",
+      "inputPcmSha256": "4a4409735598f7c6657435274a9299f85745a909d1bc0e4549a21772b8cc8e82",
+      "regOnsetFloat32Sha256": "6d0f27a0718a3726c66ce5d7f68f723c472f4b4aef3716bc1788e0ac38f47255",
+      "frameFloat32Sha256": "9720b6e5b21cd7576849ba9680c59e460c33b6fe5762a347e7eb583b5b55be82",
+      "torchCpuForwardMs": 228.19940700003372,
+      "decodedEventCountAtOnset030Frame005": 39
+    },
+    {
+      "fixture_id": "robust_chronological_02",
+      "sequenceIndex": 1,
+      "source_audio_relpath": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Ballade/Chopin_op38_p07.wav",
+      "source_audio_sha256": "2b7d5699ddb325d122ec55eb5f1567d5bda9ab05c3d51531169a7ec2bbc75caa",
+      "source_sample_rate": 44100,
+      "source_duration_ms": 121939.319728,
+      "input_start_source_ms": 2600.0,
+      "input_end_source_ms": 4420.0,
+      "commit_start_source_ms": 3600.0,
+      "commit_end_source_ms": 4200.0,
+      "future_context_ms": 220.0,
+      "input_samples": 29120,
+      "no_fake_zero_padding": true,
+      "input_tensor_npy": "robust_chronological_02_input.npy",
+      "reg_onset_output_npy": "robust_chronological_02_reg_onset_output.npy",
+      "frame_output_npy": "robust_chronological_02_frame_output.npy",
+      "decoded_events_json": "robust_chronological_02_decoded_events.json",
+      "inputPcmSha256": "710034107f846aa67683ac897857820fb940b85b41a4caf1d8ba6cbe8d3421a1",
+      "regOnsetFloat32Sha256": "7e54c43a9a84290db28be7eed1b29a55bc31f3251162e2252221496241e68846",
+      "frameFloat32Sha256": "c29b7b882f94299ef332e69f5552edb80a0a7cb0b6ee9c88e35d6ef9be309956",
+      "torchCpuForwardMs": 211.3182090000123,
+      "decodedEventCountAtOnset030Frame005": 47
+    },
+    {
+      "fixture_id": "robust_chronological_03",
+      "sequenceIndex": 2,
+      "source_audio_relpath": "backend/data/work/public_proxy/vienna-4x22/audio-extracted/audio/Chopin_Ballade/Chopin_op38_p07.wav",
+      "source_audio_sha256": "2b7d5699ddb325d122ec55eb5f1567d5bda9ab05c3d51531169a7ec2bbc75caa",
+      "source_sample_rate": 44100,
+      "source_duration_ms": 121939.319728,
+      "input_start_source_ms": 3200.0,
+      "input_end_source_ms": 5020.0,
+      "commit_start_source_ms": 4200.0,
+      "commit_end_source_ms": 4800.0,
+      "future_context_ms": 220.0,
+      "input_samples": 29120,
+      "no_fake_zero_padding": true,
+      "input_tensor_npy": "robust_chronological_03_input.npy",
+      "reg_onset_output_npy": "robust_chronological_03_reg_onset_output.npy",
+      "frame_output_npy": "robust_chronological_03_frame_output.npy",
+      "decoded_events_json": "robust_chronological_03_decoded_events.json",
+      "inputPcmSha256": "d89b01ca375f972558c700d7efc44e34b53c3e6610a3b0612f313a8f450c657b",
+      "regOnsetFloat32Sha256": "991d8d0aed57767370e94a17f5f481b9ab0b548e0a34723f18baf48d65230aa0",
+      "frameFloat32Sha256": "0f643e84adbe4428a516c203212282846fac4bfa14e2934f74e011bdc0063312",
+      "torchCpuForwardMs": 232.68069799996738,
+      "decodedEventCountAtOnset030Frame005": 64
+    }
+  ],
+  "cpuPyTorch": {
+    "status": "REFERENCE_EXECUTED",
+    "allOutputsFinite": true
+  },
+  "cudaPyTorch": {
+    "status": {
+      "status": "PASS",
+      "deviceCount": 1,
+      "deviceName": "NVIDIA GeForce RTX 4080 Laptop GPU",
+      "torchCudaVersion": "12.4"
+    },
+    "comparisons": [
+      {
+        "fixtureId": "robust_chronological_01",
+        "cudaForwardMs": 279.3783299999859,
+        "reg_onset_output": {
+          "shapeEqual": true,
+          "shape": [
+            183,
+            88
+          ],
+          "meanAbsDelta": 5.147897733036811e-06,
+          "maxAbsDelta": 0.00402909517288208,
+          "p95AbsDelta": 3.006572569574903e-07
+        },
+        "frame_output": {
+          "shapeEqual": true,
+          "shape": [
+            183,
+            88
+          ],
+          "meanAbsDelta": 3.30796038104258e-05,
+          "maxAbsDelta": 0.004948079586029053,
+          "p95AbsDelta": 3.446821210673076e-07
+        },
+        "thresholdMaskParityAtOnset030Frame005": {
+          "onsetThreshold": 0.3,
+          "frameThreshold": 0.05,
+          "onsetMaskEqual": true,
+          "frameMaskEqual": true,
+          "onsetMismatchCount": 0,
+          "frameMismatchCount": 0
+        },
+        "decodedEventParityAtOnset030Frame005": true,
+        "referenceDecodedEventCount": 39,
+        "actualDecodedEventCount": 39
+      },
+      {
+        "fixtureId": "robust_chronological_02",
+        "cudaForwardMs": 91.11910400002898,
+        "reg_onset_output": {
+          "shapeEqual": true,
+          "shape": [
+            183,
+            88
+          ],
+          "meanAbsDelta": 9.352492831055594e-06,
+          "maxAbsDelta": 0.006803631782531738,
+          "p95AbsDelta": 5.144863280293059e-07
+        },
+        "frame_output": {
+          "shapeEqual": true,
+          "shape": [
+            183,
+            88
+          ],
+          "meanAbsDelta": 3.539467476081869e-05,
+          "maxAbsDelta": 0.018556922674179077,
+          "p95AbsDelta": 1.9994493413832934e-06
+        },
+        "thresholdMaskParityAtOnset030Frame005": {
+          "onsetThreshold": 0.3,
+          "frameThreshold": 0.05,
+          "onsetMaskEqual": true,
+          "frameMaskEqual": true,
+          "onsetMismatchCount": 0,
+          "frameMismatchCount": 0
+        },
+        "decodedEventParityAtOnset030Frame005": true,
+        "referenceDecodedEventCount": 47,
+        "actualDecodedEventCount": 47
+      },
+      {
+        "fixtureId": "robust_chronological_03",
+        "cudaForwardMs": 81.78898699998172,
+        "reg_onset_output": {
+          "shapeEqual": true,
+          "shape": [
+            183,
+            88
+          ],
+          "meanAbsDelta": 1.2176862625433702e-05,
+          "maxAbsDelta": 0.004861384630203247,
+          "p95AbsDelta": 2.071425114991141e-07
+        },
+        "frame_output": {
+          "shapeEqual": true,
+          "shape": [
+            183,
+            88
+          ],
+          "meanAbsDelta": 5.529095654285691e-05,
+          "maxAbsDelta": 0.010160714387893677,
+          "p95AbsDelta": 2.4536857381463017e-06
+        },
+        "thresholdMaskParityAtOnset030Frame005": {
+          "onsetThreshold": 0.3,
+          "frameThreshold": 0.05,
+          "onsetMaskEqual": true,
+          "frameMaskEqual": true,
+          "onsetMismatchCount": 0,
+          "frameMismatchCount": 0
+        },
+        "decodedEventParityAtOnset030Frame005": true,
+        "referenceDecodedEventCount": 64,
+        "actualDecodedEventCount": 64
+      }
+    ]
+  },
+  "pythonOnnxRuntime": {
+    "status": {
+      "status": "PASS_WITH_GRAPH_OPTIMIZATION_DISABLED",
+      "defaultLoadError": "Fail('[ONNXRuntimeError] : 1 : FAIL : Node (MatMulBnFusion_Gemm) Op (Gemm) [ShapeInferenceError] First input does not have rank 2')",
+      "version": "1.20.1",
+      "providers": [
+        "CPUExecutionProvider"
+      ],
+      "graphOptimizationLevel": "disabled",
+      "modelLoadMs": 369.22032499995794,
+      "inferenceMs": 178.30080700002782
+    },
+    "comparisons": [
+      {
+        "fixtureId": "robust_chronological_01",
+        "reg_onset_output": {
+          "shapeEqual": true,
+          "shape": [
+            183,
+            88
+          ],
+          "meanAbsDelta": 1.1165137418144005e-08,
+          "maxAbsDelta": 2.2649765014648438e-06,
+          "p95AbsDelta": 4.770985668756111e-08
+        },
+        "frame_output": {
+          "shapeEqual": true,
+          "shape": [
+            183,
+            88
+          ],
+          "meanAbsDelta": 2.0721031809382773e-08,
+          "maxAbsDelta": 1.296401023864746e-06,
+          "p95AbsDelta": 6.083134707068884e-08
+        },
+        "thresholdMaskParityAtOnset030Frame005": {
+          "onsetThreshold": 0.3,
+          "frameThreshold": 0.05,
+          "onsetMaskEqual": true,
+          "frameMaskEqual": true,
+          "onsetMismatchCount": 0,
+          "frameMismatchCount": 0
+        },
+        "decodedEventParityAtOnset030Frame005": true,
+        "referenceDecodedEventCount": 39,
+        "actualDecodedEventCount": 39
+      },
+      {
+        "fixtureId": "robust_chronological_02",
+        "reg_onset_output": {
+          "shapeEqual": true,
+          "shape": [
+            183,
+            88
+          ],
+          "meanAbsDelta": 1.1994723362584466e-08,
+          "maxAbsDelta": 9.834766387939453e-07,
+          "p95AbsDelta": 5.049338209772706e-08
+        },
+        "frame_output": {
+          "shapeEqual": true,
+          "shape": [
+            183,
+            88
+          ],
+          "meanAbsDelta": 3.505771139495163e-08,
+          "maxAbsDelta": 2.1457672119140625e-06,
+          "p95AbsDelta": 6.519336466226372e-08
+        },
+        "thresholdMaskParityAtOnset030Frame005": {
+          "onsetThreshold": 0.3,
+          "frameThreshold": 0.05,
+          "onsetMaskEqual": true,
+          "frameMaskEqual": true,
+          "onsetMismatchCount": 0,
+          "frameMismatchCount": 0
+        },
+        "decodedEventParityAtOnset030Frame005": true,
+        "referenceDecodedEventCount": 47,
+        "actualDecodedEventCount": 47
+      },
+      {
+        "fixtureId": "robust_chronological_03",
+        "reg_onset_output": {
+          "shapeEqual": true,
+          "shape": [
+            183,
+            88
+          ],
+          "meanAbsDelta": 9.926187652247961e-09,
+          "maxAbsDelta": 1.0132789611816406e-06,
+          "p95AbsDelta": 4.586677633255925e-08
+        },
+        "frame_output": {
+          "shapeEqual": true,
+          "shape": [
+            183,
+            88
+          ],
+          "meanAbsDelta": 3.233548872994033e-08,
+          "maxAbsDelta": 1.8477439880371094e-06,
+          "p95AbsDelta": 6.56371867080452e-08
+        },
+        "thresholdMaskParityAtOnset030Frame005": {
+          "onsetThreshold": 0.3,
+          "frameThreshold": 0.05,
+          "onsetMaskEqual": true,
+          "frameMaskEqual": true,
+          "onsetMismatchCount": 0,
+          "frameMismatchCount": 0
+        },
+        "decodedEventParityAtOnset030Frame005": true,
+        "referenceDecodedEventCount": 64,
+        "actualDecodedEventCount": 64
+      }
+    ]
+  },
+  "decisionThresholds": {
+    "onset": 0.3,
+    "frame": 0.05
+  },
+  "p15p22InferenceIncrease": 0,
+  "fixturePolicy": "Only non-blind p07-p14 Vienna public-proxy WAV files were eligible; complete real 1820 ms windows were required; no fake zero padding was used."
+}

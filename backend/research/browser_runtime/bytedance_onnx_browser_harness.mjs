@@ -45,6 +45,12 @@ const outputPath = args.output ? path.resolve(args.output) : null;
 const browserChannel = args['browser-channel'] ?? null;
 const headed = Object.prototype.hasOwnProperty.call(args, 'headed');
 const ortLogLevel = args['ort-log-level'] ?? null;
+const onsetThreshold = Number(args['onset-threshold'] ?? 0.2);
+const frameThreshold = Number(args['frame-threshold'] ?? 0.2);
+const graphOptimizationLevel = args['graph-optimization-level'] ?? 'disabled';
+const inputName = args['input-name'] ?? 'audio';
+const onsetOutputName = args['onset-output-name'] ?? 'reg_onset_output';
+const frameOutputName = args['frame-output-name'] ?? 'frame_output';
 
 if (!existsSync(modelPath)) throw new Error(`Missing --model: ${modelPath}`);
 if (!existsSync(fixtureDir)) throw new Error(`Missing --fixture-dir: ${fixtureDir}`);
@@ -87,8 +93,12 @@ const pageHtml = `<!doctype html>
 const BACKEND = ${JSON.stringify(backend)};
 const WARM_RUNS = ${JSON.stringify(warmRuns)};
 const ORT_LOG_LEVEL = ${JSON.stringify(ortLogLevel)};
-const ONSET_THRESHOLD = 0.2;
-const FRAME_THRESHOLD = 0.2;
+const ONSET_THRESHOLD = ${JSON.stringify(onsetThreshold)};
+const FRAME_THRESHOLD = ${JSON.stringify(frameThreshold)};
+const GRAPH_OPTIMIZATION_LEVEL = ${JSON.stringify(graphOptimizationLevel)};
+const INPUT_NAME = ${JSON.stringify(inputName)};
+const ONSET_OUTPUT_NAME = ${JSON.stringify(onsetOutputName)};
+const FRAME_OUTPUT_NAME = ${JSON.stringify(frameOutputName)};
 const LOCAL_PRE_SECONDS = 0.05;
 const LOCAL_POST_SECONDS = 0.12;
 const TARGET_ANCHOR_SECONDS = 1.6;
@@ -144,6 +154,7 @@ function pitchToMidi(pitch) {
 }
 
 function expectedDecision(onset, frame, fixture) {
+  if (!Array.isArray(fixture.expected_pitches)) return null;
   const frameCount = onset.shape[0];
   const clipStart = fixture.target_second - TARGET_ANCHOR_SECONDS;
   for (const pitch of fixture.expected_pitches) {
@@ -161,6 +172,24 @@ function expectedDecision(onset, frame, fixture) {
     if (!(onsetMax >= ONSET_THRESHOLD && frameMax >= FRAME_THRESHOLD)) return false;
   }
   return true;
+}
+
+function decodeEvents(onset, frame) {
+  const events = [];
+  const frameCount = onset.shape[0];
+  for (let t = 0; t < frameCount; t += 1) {
+    for (let pitchIndex = 0; pitchIndex < 88; pitchIndex += 1) {
+      const valueIndex = t * 88 + pitchIndex;
+      if (onset.data[valueIndex] >= ONSET_THRESHOLD && frame.data[valueIndex] >= FRAME_THRESHOLD) {
+        events.push({
+          pitch: pitchIndex + MIDI_OFFSET,
+          onsetFrame: t,
+          onsetTimeMs: Math.round(t * 10.0 * 1e6) / 1e6,
+        });
+      }
+    }
+  }
+  return events;
 }
 
 function compareFloatArrays(actual, expected) {
@@ -214,7 +243,7 @@ async function main() {
   const startedLoad = performance.now();
   const session = await ort.InferenceSession.create('/model.onnx', {
     executionProviders: [BACKEND],
-    graphOptimizationLevel: 'disabled',
+    graphOptimizationLevel: GRAPH_OPTIMIZATION_LEVEL,
   });
   const loadMs = performance.now() - startedLoad;
   const manifest = await (await fetch('/fixtures/manifest.json')).json();
@@ -227,11 +256,23 @@ async function main() {
     const frameRef = await fetchNpy('/fixtures/' + fixture.frame_output_npy);
     const tensor = new ort.Tensor('float32', input.data, [1, input.shape[0]]);
     const started = performance.now();
-    const output = await session.run({ audio: tensor });
+    const output = await session.run({ [INPUT_NAME]: tensor });
     const inferenceMs = performance.now() - started;
     if (fixtureIndex === 0) firstInferenceMs = inferenceMs;
-    const onset = { shape: Array.from(output.reg_onset_output.dims).slice(1), data: output.reg_onset_output.data };
-    const frame = { shape: Array.from(output.frame_output.dims).slice(1), data: output.frame_output.data };
+    const onset = { shape: Array.from(output[ONSET_OUTPUT_NAME].dims).slice(1), data: output[ONSET_OUTPUT_NAME].data };
+    const frame = { shape: Array.from(output[FRAME_OUTPUT_NAME].dims).slice(1), data: output[FRAME_OUTPUT_NAME].data };
+    let decodedEventParity = null;
+    let referenceDecodedEventCount = null;
+    let actualDecodedEventCount = null;
+    if (fixture.decoded_events_json) {
+      const expectedEvents = await (await fetch('/fixtures/' + fixture.decoded_events_json)).json();
+      const actualEvents = decodeEvents(onset, frame);
+      decodedEventParity = JSON.stringify(actualEvents) === JSON.stringify(expectedEvents);
+      referenceDecodedEventCount = expectedEvents.length;
+      actualDecodedEventCount = actualEvents.length;
+    }
+    const browserDecision = expectedDecision(onset, frame, fixture);
+    const referenceDecision = expectedDecision(onsetRef, frameRef, fixture);
     comparisons.push({
       fixture_id: fixture.fixture_id,
       onset_shape_equal: JSON.stringify(onset.shape) === JSON.stringify(onsetRef.shape),
@@ -239,12 +280,15 @@ async function main() {
       onset: compareFloatArrays(onset.data, onsetRef.data),
       frame: compareFloatArrays(frame.data, frameRef.data),
       verifier_decision_agree:
-        expectedDecision(onset, frame, fixture) === expectedDecision(onsetRef, frameRef, fixture),
+        browserDecision === null || referenceDecision === null ? null : browserDecision === referenceDecision,
+      decoded_event_parity: decodedEventParity,
+      reference_decoded_event_count: referenceDecodedEventCount,
+      actual_decoded_event_count: actualDecodedEventCount,
     });
     if (fixtureIndex === 0) {
       for (let i = 0; i < WARM_RUNS; i += 1) {
         const warmStarted = performance.now();
-        await session.run({ audio: tensor });
+        await session.run({ [INPUT_NAME]: tensor });
         warmLatencies.push(performance.now() - warmStarted);
       }
     }
@@ -254,7 +298,16 @@ async function main() {
   return {
     backend: BACKEND,
     execution_provider_requested: BACKEND,
-    graph_optimization_level: 'disabled',
+    graph_optimization_level: GRAPH_OPTIMIZATION_LEVEL,
+    input_name: INPUT_NAME,
+    output_names: {
+      reg_onset_output: ONSET_OUTPUT_NAME,
+      frame_output: FRAME_OUTPUT_NAME,
+    },
+    thresholds: {
+      onset: ONSET_THRESHOLD,
+      frame: FRAME_THRESHOLD,
+    },
     ort_version: ort.version ?? null,
     ort_log_level: ORT_LOG_LEVEL,
     user_agent: navigator.userAgent,

@@ -1,0 +1,35 @@
+{
+  "artifact": "phase9g_d1_public_external_selection_gap",
+  "phase": "9G-D.1",
+  "noFinalWinnerSelected": true,
+  "phase9gBHistoricalConclusion": {
+    "outcome": "STATISTICAL_TIE",
+    "winner": null
+  },
+  "laneA_nativePairedAmtTruth": {
+    "definition": "real audio + synchronized same-performance MIDI; evaluates recovered notes/onsets independently of score following",
+    "status": "PROTOCOL_NOT_FROZEN",
+    "missingBeforeUse": [
+      "training-overlap verification for non-MAESTRO corpora",
+      "license/provenance verification",
+      "take/piece/source-level statistical unit inventory",
+      "candidate identities and browser runtime identities frozen prospectively"
+    ]
+  },
+  "laneB_fixedBpmPracticeProxy": {
+    "definition": "deterministic fixed-BPM proxy only where score/performance alignment can transform audio, MIDI truth, and score timing identically",
+    "status": "PROTOCOL_NOT_FROZEN",
+    "missingBeforeUse": [
+      "trustworthy score-to-performance alignment availability by take",
+      "candidate-independent transformation policy",
+      "public-proxy labeling that does not imply native NoteVerse microphone capture",
+      "pre-registered safety/latency/resource metrics and tie policy before final scoring"
+    ]
+  },
+  "datasetUseConstraints": {
+    "maestro": "Development/parity/debugging only because training-domain overlap is known.",
+    "vienna4x22": "Promising public proxy; overlap, license, and alignment sufficiency remain to be verified.",
+    "smd": "Potential native paired AMT truth; local presence/license/overlap not established here.",
+    "maps": "Useful stress reference; not assumed to represent human fixed-BPM Practice."
+  }
+}
