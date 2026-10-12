@@ -27,6 +27,14 @@ Practice runtime, score-following runtime, or clock-controlling acoustic path.
 - ONNX Runtime Web: `1.20.1`
 - Sample rate: 16 kHz mono PCM
 
+`apps/customer-web/package.json` intentionally pins
+`onnxruntime-web = 1.20.1`. The controlled same-machine A/B documented in
+`backend/research/reports/bytedance_ort_webgpu_regression.md` found a major
+WebGPU latency regression for this fixed ByteDance ONNX model in the tested
+newer ORT version under otherwise identical browser, model, input, provider,
+graph-optimization, and machine conditions. This is an implementation pin for
+the tested versions, not a claim about every future ONNX Runtime Web release.
+
 The production ONNX binary is not committed here. The runtime consumes a
 versioned manifest with model URL/path, expected byte size, SHA256,
 input/output descriptors, preprocessing version, and decoder version.
@@ -68,6 +76,11 @@ The browser construction boundary is
 `createByteDanceBrowserWorkerClient()`, which creates a module Worker with
 `new URL('./bytedance-worker.entry.ts', import.meta.url)`. This keeps the Worker
 entry and `onnxruntime-web/webgpu` import visible to the frontend bundler.
+
+The current Worker requests WebGPU explicitly through
+`loadOnnxRuntimeWeb({ executionProvider: 'webgpu' })`. If WebGPU is unavailable
+or session creation fails, load fails closed; the active implementation does not
+automatically fall back to WASM.
 
 ## Timing Ownership
 

@@ -21,7 +21,7 @@ def practice_score_artifact_from_timeline(
     revision_id: str,
     score_tempo_segments: Sequence[PracticeTempoSegment],
 ) -> dict[str, Any]:
-    """Serialize the canonical backend practice timeline for browser-local runtimes."""
+    """Serialize the practice-ready score timeline for browser-local execution."""
 
     payload: dict[str, Any] = {
         "schemaVersion": PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION,

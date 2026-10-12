@@ -166,6 +166,9 @@ describe('practice architecture boundaries', () => {
     expect(bytedanceReadme).toMatch(/not the\s+authoritative Practice v2 acoustic architecture/);
     expect(bytedanceReadme).toMatch(/must not be restored as a\s+fallback product path/);
     expect(bytedanceReadme).toContain('low-level');
+    expect(bytedanceReadme).toContain('onnxruntime-web = 1.20.1');
+    expect(bytedanceReadme).toContain('bytedance_ort_webgpu_regression.md');
+    expect(bytedanceReadme).toMatch(/does not\s+automatically fall back to WASM/);
   });
 
   it('keeps PerformanceClockRuntime independent from acoustic model implementations', () => {

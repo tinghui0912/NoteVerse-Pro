@@ -92,8 +92,6 @@ ScoreRevision ---- ScoreRevisionMetadata
   |  \---- ScoreRevisionSource
   |  \---- ScoreRenderAsset
   |  `---- ScorePlaybackAsset
-
-PracticeSession ---- pinned ScoreRevision
 ```
 
 Core rules:
@@ -112,7 +110,11 @@ Core rules:
 - `ScoreRevisionMetadata` is a rebuildable typed projection from canonical MusicXML.
 - `ScoreShareGrant`, `ScoreMembership`, `ScoreLibraryEntry`, `ShareGrantRedemption`, and
   `ScorePublication` have distinct authorization and product semantics.
-- `PracticeSession` pins `score_id`, `revision_id`, and `access_origin` at creation time.
+- `modules/practice` serves revision-bound PracticeScoreArtifact, practice-ready
+  score content, and target/source delivery for Customer Web.
+- Active Practice state, STEP/Continuous execution, the local clock, MIDI input,
+  and finalization live in Customer Web local-core, not in a backend
+  PracticeSession.
 
 Job identity and score identity are deliberately separate:
 
@@ -156,7 +158,8 @@ Do not put durable score editing, publication, or sharing rules here.
 - render engines;
 - MusicXML extraction and normalization helpers;
 - text recognition and text integration processors;
-- real-time practice matching and reports.
+- source processing, score preparation, rendering, and research/diagnostic
+  helpers.
 
 `app.processing` should remain product-agnostic. It must not import `ImportJob`,
 `ImportArtifact`, Score memberships, sharing, notifications, or API schemas. Product
@@ -258,12 +261,18 @@ Editing a score head must not change public content until explicit republish.
 
 ### `modules/practice`
 
-Owns REST lifecycle for practice sessions.
+Owns Practice score/source/artifact delivery:
 
-Practice runtime, audio buffers, realtime message codecs, frame classification, and score
-following belong under `app/processing/*`, not in the REST module.
+- revision-bound `PracticeScoreArtifact` access;
+- practice-ready MusicXML/content;
+- target catalog/source delivery for browser-local Practice;
+- authorization through the score-domain access boundary.
 
-Practice sessions must not store raw share tokens or current/final source strings.
+It does not own active Practice execution. Customer Web local-core owns
+`PerformanceClockRuntime`, STEP/Continuous session state, browser-local MIDI,
+the Continuous evaluator, and finalization. Do not recreate backend
+PracticeSession lifecycle, Practice WebSocket, backend score-following,
+server-owned audio buffers, or realtime Practice message codecs.
 
 ## 5. Storage And Artifact Rules
 
@@ -305,9 +314,10 @@ Keep these boundaries:
 - OMR uses engine abstractions, not hard-coded tool details in business modules;
 - rendering uses `ScoreRenderEngine` abstractions;
 - MusicXML normalization and metadata extraction live under processing;
-- realtime practice runtime stays out of Celery;
+- live Practice execution stays in Customer Web local-core and out of Celery;
 - long-running offline work belongs in workers;
-- websocket/session state belongs in realtime runtime.
+- generic application realtime/SSE remains notification infrastructure, not a
+  Practice execution runtime.
 
 Engine selection is a boundary. Do not add hidden fallback behavior that masks failure of
 the selected engine.

@@ -10,14 +10,14 @@ or supply compatibility aliases.
 
 | Configuration group | Primary owner | Runtime consumers | Representative fields |
 | --- | --- | --- | --- |
-| Service identity and customer HTTP | API | API, Practice, Control Plane, observability, shared delivery/auth helpers | `PROJECT_NAME`, `API_V1_STR`, `DEBUG`, customer cookie/CSRF settings, `BACKEND_CORS_ORIGINS`, `TRUSTED_PROXY_CIDRS` |
+| Service identity and customer HTTP | API | API, Control Plane, observability, shared delivery/auth helpers | `PROJECT_NAME`, `API_V1_STR`, `DEBUG`, customer cookie/CSRF settings, `BACKEND_CORS_ORIGINS`, `TRUSTED_PROXY_CIDRS` |
 | Control-plane identity | Control Plane | Control Plane only | `CONTROL_PLANE_*`; loaded only by `app.core.control_plane_settings` from the Control Plane environment contract |
-| Observability | Platform | API, Practice, Control Plane, observability exporter | `LOG_FORMAT`, `OTEL_*` |
-| Database and cache | Platform | API, Practice, Worker, Beat | `DATABASE_URL`, `SYNC_DATABASE_URL`, `SCHEDULER_LOCK_DATABASE_URL`, Redis and Celery URLs |
+| Observability | Platform | API, Control Plane, observability exporter | `LOG_FORMAT`, `OTEL_*` |
+| Database and cache | Platform | API, Worker, Beat | `DATABASE_URL`, `SYNC_DATABASE_URL`, `SCHEDULER_LOCK_DATABASE_URL`, Redis and Celery URLs |
 | Worker scheduling and reliability | Worker | Worker, Beat, API dispatch/outbox writers | import, render, playback, mail, notification, realtime, retention, and scheduler timing settings |
-| Object storage and file lifecycle | Storage | API, Worker, Practice | `FILE_STORAGE_BACKEND`, `S3_*`, storage/work roots, upload extensions |
+| Object storage and file lifecycle | Storage | API, Worker | `FILE_STORAGE_BACKEND`, `S3_*`, storage/work roots, upload extensions |
 | OMR, OCR, rendering, playback | Worker | Worker and runtime checks | `LEGATO_*`, `PADDLEOCR_*`, Hugging Face cache settings, playback soundfont settings; source-owned LEGATO and Verovio profiles |
-| Practice alignment | Practice | Practice runtime and API-side session helpers | practice soundfont, alignment and diagnostics settings |
+| Practice score artifacts | API | API source/artifact delivery and score-preparation tooling | optional Practice score SoundFont for Partitura score parsing |
 | Account email | API | API auth/account and Worker mail delivery | `RESEND_*`, sender, password-reset and verification lifetimes |
 | Interactive fingering | API | API fingering service | `FINGERING_*` |
 
@@ -56,13 +56,14 @@ truth according to **what changes the value** and **how it must be released**.
 | Versioned domain/algorithm profile | `PracticeAudioProfile` gates and frame rate; OCR classification thresholds; MusicXML layout constants | Typed source module adjacent to its owning algorithm, with fixtures/tests | Normal code review and application release |
 | Product policy that operators or customers must change without a deployment | entitlement limits, tenant rules, feature rollout state | Audited database-backed configuration or feature-flag service | Explicit administration workflow, audit trail, validation, rollout and rollback |
 
-`app.processing.engines.practice_alignment.profile` is correctly a versioned
-practice-alignment profile: every value is coupled to the 30 fps pipeline and its
-fixture matrix. `app.processing.engines.render.verovio_render_profile` owns the
-SVG output semantics, while `app.processing.text.config` owns deterministic
-OCR, classification, and MusicXML layout rules. They must not be copied into
-`.env.docker`, because an unreviewed per-environment threshold change would
-make the same source revision produce different recognition or notation output.
+`app.processing.engines.render.verovio_render_profile` owns the SVG output
+semantics, while `app.processing.text.config` owns deterministic OCR,
+classification, and MusicXML layout rules. Practice score-artifact preparation
+may use `PRACTICE_SOUNDFONT_PATH` for optional Partitura score parsing support,
+but that setting is not a backend live Practice runtime or an alignment profile.
+These domain profiles must not be copied into `.env.docker`, because an
+unreviewed per-environment threshold change would make the same source revision
+produce different recognition or notation output.
 
 For these domain profiles, maintain one typed, immutable owner module per
 algorithm; give values domain units in their names; document the empirical or
@@ -86,13 +87,11 @@ configuration-validation libraries, but must not import `app` runtime modules.
 
 1. **Observability settings:** small, cohesive, and cross-runtime without
    business-domain behavior.
-2. **Practice diagnostics settings:** cohesive and already bounded by the
-   Practice runtime.
-3. **Worker model and engine settings:** migrate OMR/OCR/rendering/playback as
+2. **Worker model and engine settings:** migrate OMR/OCR/rendering/playback as
    one validated group after Worker model smoke coverage is available.
-4. **Storage and database/queue settings:** move only after their cross-runtime
+3. **Storage and database/queue settings:** move only after their cross-runtime
    consumers are explicitly mapped in code, because they are release-critical.
-5. **Worker scheduler/reliability settings:** split by outbox domain only when
+4. **Worker scheduler/reliability settings:** split by outbox domain only when
    dispatch services have stable ownership modules.
 
 This order deliberately does not start with database or secret settings. Those
@@ -101,13 +100,15 @@ configuration through a separately coordinated credential-rotation task.
 
 ## Extraction status
 
-- **Complete:** Observability, Practice diagnostics, Playback synthesis, and
+- **Complete:** Observability, Playback synthesis, Practice score-asset
+  configuration, and
   Worker model/engine configuration. `PlaybackSettings` owns only the deployed
   SoundFont location used by API delivery and Worker generation; sample rate
   and output duration live in the versioned `PlaybackProfile`.
   `WorkerModelEngineSettings` owns Hugging Face/PaddleOCR model locations and
   offline mode, LEGATO selection/runtime parameters, and Verovio rendering.
-  It intentionally does not own either playback or Practice soundfonts.
+  It intentionally does not own either playback or Practice score-artifact
+  soundfonts.
 - **Complete:** Task-reliability deadline configuration. `TaskReliabilitySettings`
   owns the ordered processing, Celery soft-limit, and Celery hard-limit
   envelope. It remains shared because API pipeline contexts, Worker execution,
@@ -169,9 +170,9 @@ configuration through a separately coordinated credential-rotation task.
   `ServiceIdentitySettings` owns `PROJECT_NAME`, `API_V1_STR`, and `DEBUG`.
   It rejects blank product names and ambiguous customer API prefixes before
   application factories use them. The Python 3.12 quality-image rebuild
-  restored Docs/OpenAPI and API regression coverage. API, Practice, Control
-  Plane, and observability factory contracts explicitly test their intended
-  routing boundaries; no runtime baseline change is required.
+  restored Docs/OpenAPI and API regression coverage. API, Control Plane, and
+  observability factory contracts explicitly test their intended routing
+  boundaries; no runtime baseline change is required.
 
 ## Worker runtime-loader migration boundary
 
@@ -186,7 +187,7 @@ complete direct-consumer boundary was measured on 2026-08-10:
 - `app.processing.engines.omr.factory` and `.omr.legato`;
 - `app.processing.engines.render.factory` and `.render.verovio`.
 
-No API route, Practice runtime, Beat scheduler, or playback synthesis module
+No API route, Beat scheduler, or playback synthesis module
 may import the Worker loader. Migrate this whole list in one change, remove
 `WorkerModelEngineSettings` from shared `Settings`, then move the corresponding
 model variables to the Worker-only Docker manifest. Do not make fields optional
@@ -243,10 +244,10 @@ already isolated `CONTROL_PLANE_*` settings.
 | Proposed settings group | Fields | Direct production consumers | Boundary |
 | --- | --- | --- | --- |
 | Token signing secret | `SECRET_KEY` | JWT creation/verification and signed authentication dependencies | Security-secret rotation boundary; it must not be bundled with browser policy. |
-| Browser CORS policy | `BACKEND_CORS_ORIGINS` | customer API and Practice HTTP app factories | Browser-origin allowlist, shared by the two customer HTTP surfaces. |
+| Browser CORS policy | `BACKEND_CORS_ORIGINS` | customer API app factory | Browser-origin allowlist for customer HTTP access. |
 | Trusted proxy policy | `TRUSTED_PROXY_CIDRS` | client-address resolution | Forwarded-address trust boundary, independent of CORS origins. |
 | Public frontend URL | `FRONTEND_BASE_URL` | account links and score invites | Public absolute link origin; independent of the backend's API mount prefix. |
-| Service identity and routing | `PROJECT_NAME`, `API_V1_STR`, `DEBUG` | API, Practice, Control Plane, observability, static delivery, templates | Shared application identity/routing contract; retain together only after its wide surface is explicitly tested. |
+| Service identity and routing | `PROJECT_NAME`, `API_V1_STR`, `DEBUG` | API, Control Plane, observability, static delivery, templates | Shared application identity/routing contract; retain together only after its wide surface is explicitly tested. |
 
 `BACKEND_CORS_ORIGINS` and `TRUSTED_PROXY_CIDRS` are both security-sensitive,
 but they answer different trust questions and must not become a combined
@@ -276,11 +277,11 @@ This group has four deliberately separate runtime projections:
 
 | Projection | Required settings | Consumers |
 | --- | --- | --- |
-| API/Practice data access | `DATABASE_URL`, `REDIS_URL`, storage backend and read/write roots | async session, HTTP readiness, API storage, Practice persistence |
+| API data access | `DATABASE_URL`, `REDIS_URL`, storage backend and read/write roots | async session, HTTP readiness, API storage, score/source/artifact delivery |
 | Sync SQLAlchemy data access | `SYNC_DATABASE_URL` | API import-job sync helpers, Celery tasks, import/render/playback processing, sync runtime checks |
 | Worker queue and work directory | `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `WORK_ROOT`, storage backend | Celery tasks, import/render/playback processing, Worker runtime checks |
 | Beat leadership | `SCHEDULER_LOCK_DATABASE_URL`, Redis/Celery broker, `WORK_ROOT` | scheduler leader advisory lock and Beat state |
-| Shared storage contract | `FILE_STORAGE_BACKEND`, `S3_*`, `STORAGE_ROOT`, `WORK_ROOT` | API upload/download, Worker artifact generation, Practice score access |
+| Shared storage contract | `FILE_STORAGE_BACKEND`, `S3_*`, `STORAGE_ROOT`, `WORK_ROOT` | API upload/download, Worker artifact generation, Practice score/source/artifact delivery |
 
 The first migration must extract typed groups without changing deployment
 projections: `StorageSettings`, `AsyncDatabaseSettings`, `SyncDatabaseSettings`,

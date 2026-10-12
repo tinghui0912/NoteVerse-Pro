@@ -37,8 +37,9 @@ diagnostics, but they must remain structured, searchable, and safe for Loki card
 - Avatar processing logs now use structured events under `account.avatar.*`.
 - Notification and realtime best-effort failures now use structured loguru events rather
   than standard-library `logging` extras.
-- Practice runtime registration failure is now structured as
-  `practice.session_runtime.registration_failed`.
+- Historical Practice runtime registration failures were structured as
+  `practice.session_runtime.registration_failed`; current Practice execution is
+  browser-local and does not have an active backend Practice runtime.
 - Import job execution start/failure is structured as:
   - `import_job.pipeline_started`
   - `import_job.pipeline_failed`

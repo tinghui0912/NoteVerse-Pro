@@ -8,30 +8,22 @@ browser-local runtime.
 Real recordings should be 16-bit PCM `.wav` files. Stereo files should be
 downmixed by whichever test or script consumes the sample.
 
-`tests/test_practice_microphone_capability_matrix.py` is the first microphone
-recognition capability baseline. It is not a score-following replay manifest and
-does not claim product-level chord support. It records the current conservative
-observer's actual boundary:
-
-- real public C4/C5 piano single notes should match;
-- synthetic rolled C/E/G observations can be accumulated into one expected-group
-  match;
-- repeated same-pitch attacks require a release boundary before they become a
-  second attempt, so sustained energy is not double-counted as another strike;
-- simultaneous synthetic C/E/G and real C4+C5 octave mixtures are not treated as
-  strict microphone chord support, because the live PCM observer still emits at
-  most one dominant pitch.
-
-Keep this matrix separate from evaluator unit tests. Evaluator tests that pass
-known pitch sets such as `("C4", "E4")` prove business logic only; they do not
-prove that real microphone PCM can produce those pitch sets.
+The surviving fixtures are neutral acoustic samples and a planned physical
+same-take microphone/MIDI contract. They are not a current product microphone
+capability gate and they are not evidence that production microphone analysis is
+enabled.
 
 ## Paired MIDI + Microphone Ground Truth
 
-`paired_ground_truth_manifest.json` defines the next recognition benchmark
-source of truth. These scenarios are allowed to produce physical accuracy
-metrics such as `expected_strike_recall` and `expected_strike_precision` only
-after their status becomes `recorded`.
+`paired_ground_truth_manifest.json` defines a future same-take microphone/MIDI
+contract. It remains useful as a schema fixture for physical truth, but it is
+not a blocker requiring the repository owner to possess a MIDI piano. Final
+product model selection may use properly governed public paired audio/MIDI
+datasets or newly captured product takes.
+
+These scenarios are allowed to produce physical accuracy metrics such as
+`expected_strike_recall` and `expected_strike_precision` only after their status
+becomes `recorded`.
 
 A recorded paired fixture must contain:
 

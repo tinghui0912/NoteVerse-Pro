@@ -232,8 +232,8 @@ The API image includes:
   gate keeps the blocking engine off the event loop and limits concurrent work;
   a dedicated CPU worker is a future scale decision, not a second HTTP service.
 
-It does not include realtime practice alignment dependencies, LEGATO, PaddleOCR,
-or worker model-cache tooling.
+It does not include retired Practice score-following dependencies, LEGATO,
+PaddleOCR, or worker model-cache tooling.
 
 ### Backend Beat Image
 
@@ -459,16 +459,15 @@ CI/CD should:
 
 1. run quality gates;
 2. build or select the pinned ML base image;
-3. build or select the pinned practice dependency base image;
-4. build backend worker image from that ML base;
-5. build backend API, backend practice, backend beat, and Customer Web images with
+3. build backend worker image from that ML base;
+4. build backend API, backend beat, and Customer Web images with
    their dedicated image workflows;
-6. push commit SHA tags;
-7. capture image digests;
-8. render private staging overlay with the captured digests;
-9. run strict manifest validation;
-10. deploy staging and run smoke tests;
-11. promote the same digests to production after approval.
+5. push commit SHA tags;
+6. capture image digests;
+7. render private staging overlay with the captured digests;
+8. run strict manifest validation;
+9. deploy staging and run smoke tests;
+10. promote the same digests to production after approval.
 
 The public templates under `deploy/application/overlays/*` intentionally keep
 placeholder image tags. Deployable overlays must replace them.

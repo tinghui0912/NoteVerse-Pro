@@ -106,7 +106,11 @@ describe('Architecture Guard: No Legacy Practice Realtime Files, Imports, or Pro
       'docs/product/practice-following-improvement-plan.md',
       'docs/architecture/continuous-performance-analysis.md',
       'backend/research/product_benchmark/run-phase9gc1-audit-boundary.mjs',
+      'backend/research/reports/phase9g_c1_audit_history_and_runtime_boundary_2026-10-12.json',
       'backend/research/product_benchmark/run-phase9gc2-precondition-gate.mjs',
+      'backend/research/reports/phase9g_c2_production_microphone_precondition_gate_2026-10-12.json',
+      'backend/.env.docker.practice.example',
+      'backend/app/core/settings/practice_runtime.py',
     ];
 
     expect(removedPaths.filter((file) => existsSync(resolve(repoRoot, file)))).toEqual([]);

@@ -1,9 +1,8 @@
-"""Practice score-asset settings projection.
+"""Practice score-asset settings.
 
-This module is for source/artifact delivery assets such as the practice
-SoundFont used while preparing score content. It is not a live backend Practice
-session runtime and must not be used to reintroduce backend-authoritative
-Practice execution.
+These settings support backend score/source/artifact delivery, such as the
+optional SoundFont Partitura may need while preparing practice-ready score
+content. They are not a live backend Practice runtime contract.
 """
 
 from __future__ import annotations
@@ -15,8 +14,8 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class PracticeRuntimeSettings(BaseSettings):
-    """Strict Practice score-asset environment contract."""
+class PracticeScoreAssetSettings(BaseSettings):
+    """Strict environment contract for Practice score-asset tooling."""
 
     PRACTICE_SOUNDFONT_PATH: str
 
@@ -29,7 +28,7 @@ class PracticeRuntimeSettings(BaseSettings):
 
 
 @lru_cache
-def get_practice_runtime_settings() -> PracticeRuntimeSettings:
+def get_practice_score_asset_settings() -> PracticeScoreAssetSettings:
     """Load Practice score-asset configuration for source/artifact tooling."""
 
-    return PracticeRuntimeSettings()
+    return PracticeScoreAssetSettings()

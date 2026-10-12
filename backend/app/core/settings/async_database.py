@@ -1,4 +1,4 @@
-"""Async database connection settings for API and Practice runtimes."""
+"""Async database connection settings for backend API data access."""
 
 from __future__ import annotations
 

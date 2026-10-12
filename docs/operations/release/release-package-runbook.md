@@ -261,7 +261,7 @@ After applying:
 - API health passes;
 - upload/import/review/score/share smoke path passes;
 - realtime events are received;
-- practice API health passes;
+- practice score/source/artifact delivery endpoints pass through the backend API;
 - logs, metrics, and traces are visible in Grafana.
 
 ## Promote A Downloaded Package Into GitOps Desired State

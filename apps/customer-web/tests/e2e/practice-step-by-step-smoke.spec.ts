@@ -68,8 +68,8 @@ const smokeArtifact = {
       renderNoteIds: ['select-start-note'],
       measureNumbers: ['1'],
       eventIds: ['e-0'],
-      expectedNotes: [{ pitch: 'C4', midiPitch: 60 }],
-      strikeTargets: [{ pitch: 'C4', midiPitch: 60 }],
+      expectedNotes: [{ expectedNoteId: 'note-0', eventId: 'e-0', pitch: 'C4', midiPitch: 60, measureNumbers: ['1'], renderNoteIds: ['select-start-note'] }],
+      strikeTargets: [{ strikeId: 'strike-0', pitch: 'C4', eventIds: ['e-0'], expectedNotes: [{ expectedNoteId: 'note-0', eventId: 'e-0', pitch: 'C4', midiPitch: 60, measureNumbers: ['1'], renderNoteIds: ['select-start-note'] }], measureNumbers: ['1'], renderNoteIds: ['select-start-note'] }],
       staffIds: ['1'],
       voiceIds: ['1'],
     },
@@ -81,8 +81,8 @@ const smokeArtifact = {
       renderNoteIds: ['middle-note'],
       measureNumbers: ['1'],
       eventIds: ['e-1'],
-      expectedNotes: [{ pitch: 'D4', midiPitch: 62 }],
-      strikeTargets: [{ pitch: 'D4', midiPitch: 62 }],
+      expectedNotes: [{ expectedNoteId: 'note-1', eventId: 'e-1', pitch: 'D4', midiPitch: 62, measureNumbers: ['1'], renderNoteIds: ['middle-note'] }],
+      strikeTargets: [{ strikeId: 'strike-1', pitch: 'D4', eventIds: ['e-1'], expectedNotes: [{ expectedNoteId: 'note-1', eventId: 'e-1', pitch: 'D4', midiPitch: 62, measureNumbers: ['1'], renderNoteIds: ['middle-note'] }], measureNumbers: ['1'], renderNoteIds: ['middle-note'] }],
       staffIds: ['1'],
       voiceIds: ['1'],
     },
@@ -94,8 +94,8 @@ const smokeArtifact = {
       renderNoteIds: ['select-end-note'],
       measureNumbers: ['1'],
       eventIds: ['e-2'],
-      expectedNotes: [{ pitch: 'E4', midiPitch: 64 }],
-      strikeTargets: [{ pitch: 'E4', midiPitch: 64 }],
+      expectedNotes: [{ expectedNoteId: 'note-2', eventId: 'e-2', pitch: 'E4', midiPitch: 64, measureNumbers: ['1'], renderNoteIds: ['select-end-note'] }],
+      strikeTargets: [{ strikeId: 'strike-2', pitch: 'E4', eventIds: ['e-2'], expectedNotes: [{ expectedNoteId: 'note-2', eventId: 'e-2', pitch: 'E4', midiPitch: 64, measureNumbers: ['1'], renderNoteIds: ['select-end-note'] }], measureNumbers: ['1'], renderNoteIds: ['select-end-note'] }],
       staffIds: ['1'],
       voiceIds: ['1'],
     },
@@ -105,21 +105,21 @@ const smokeArtifact = {
       stepId: 'step-0',
       expectedGroupIndex: 0,
       onsetBeat: 0.0,
-      attackTargets: [{ pitch: 'C4', midiPitch: 60 }],
+      attackTargets: [{ attackId: 'attack-0', pitch: 'C4', eventIds: ['e-0'], notes: [{ expectedNoteId: 'note-0', eventId: 'e-0', pitch: 'C4', midiPitch: 60, measureNumbers: ['1'], renderNoteIds: ['select-start-note'] }], measureNumbers: ['1'], renderNoteIds: ['select-start-note'] }],
       continuation: [],
     },
     {
       stepId: 'step-1',
       expectedGroupIndex: 1,
       onsetBeat: 1.0,
-      attackTargets: [{ pitch: 'D4', midiPitch: 62 }],
+      attackTargets: [{ attackId: 'attack-1', pitch: 'D4', eventIds: ['e-1'], notes: [{ expectedNoteId: 'note-1', eventId: 'e-1', pitch: 'D4', midiPitch: 62, measureNumbers: ['1'], renderNoteIds: ['middle-note'] }], measureNumbers: ['1'], renderNoteIds: ['middle-note'] }],
       continuation: [],
     },
     {
       stepId: 'step-2',
       expectedGroupIndex: 2,
       onsetBeat: 2.0,
-      attackTargets: [{ pitch: 'E4', midiPitch: 64 }],
+      attackTargets: [{ attackId: 'attack-2', pitch: 'E4', eventIds: ['e-2'], notes: [{ expectedNoteId: 'note-2', eventId: 'e-2', pitch: 'E4', midiPitch: 64, measureNumbers: ['1'], renderNoteIds: ['select-end-note'] }], measureNumbers: ['1'], renderNoteIds: ['select-end-note'] }],
       continuation: [],
     },
   ],
@@ -832,23 +832,30 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
   });
 
-  test('START CAPABILITY GATING & MIDI RETRY: missing OPFS disables mic, MIDI 0-device fails start, connecting device enables retry', async ({
+  test('START CAPABILITY GATING & MIDI RETRY: microphone analysis unavailable, MIDI 0-device fails start, connecting device enables retry', async ({
     page,
   }) => {
+    const modelAssetRequests: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/model-assets')) {
+        modelAssetRequests.push(`${request.method()} ${request.url()}`);
+      }
+    });
+
     await setupPracticeMocks(page, {
-      disableOpfs: true,
       initialMidiInputs: 0,
     });
 
     await page.goto(`/zh/score/${scoreId}/practice`);
 
-    // 1. Initial load with default MICROPHONE: OPFS missing -> storage unavailable
+    // 1. Initial load with default MICROPHONE: STEP analysis is unavailable by product policy.
     const status = page.getByRole('status');
     await expect(status).toBeVisible();
-    await expect(status).toContainText('本地模型存储不可用');
+    await expect(status).toContainText('逐步练习的麦克风分析暂不可用');
 
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeDisabled();
+    expect(modelAssetRequests).toEqual([]);
 
     // 2. Open Settings, switch to MIDI
     const settingsButton = page.getByRole('button', { name: '设置' });
@@ -891,9 +898,10 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await expect(finishButton).toBeEnabled();
     await finishButton.click();
     await expect(page.getByRole('heading', { name: /练习已完成|选段练习已完成/i })).toBeVisible();
+    expect(modelAssetRequests).toEqual([]);
   });
 
-  test('MICROPHONE START: fetches fresh model-assets descriptor on Start with zero preload, handles descriptor failure', async ({
+  test('MICROPHONE ANALYSIS: continuous microphone remains unavailable without model-asset fetch', async ({
     page,
   }) => {
     const modelAssetRequests: string[] = [];
@@ -906,23 +914,83 @@ test.describe('Browser-Local Practice E2E Smoke', () => {
     await setupPracticeMocks(page, { modelAccessOverride: 'error' });
     await page.goto(`/zh/score/${scoreId}/practice`);
 
-    // 1. Page load must NOT preload signed URL
+    // Page load must not preload or fetch retired ByteDance model assets.
     await page.waitForTimeout(300);
     expect(modelAssetRequests.length).toBe(0);
 
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await settingsButton.click();
+    const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
+    await expect(continuousOption).toBeEnabled();
+    await continuousOption.click();
+
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
+
+    const status = page.getByRole('status');
+    await expect(status).toContainText('连贯演奏的麦克风分析暂不可用');
+    const startButton = page.getByRole('button', { name: '开始', exact: true });
+    await expect(startButton).toBeDisabled();
+    await page.waitForTimeout(300);
+    expect(modelAssetRequests).toEqual([]);
+  });
+
+  test('CONTINUOUS ACTIVE SESSION: survives backend API loss after score assets load', async ({
+    page,
+  }) => {
+    const blockedRequests: string[] = [];
+
+    await setupPracticeMocks(page);
+    await page.goto(`/zh/score/${scoreId}/practice`);
+
+    const settingsButton = page.getByRole('button', { name: '设置' });
+    await expect(settingsButton).toBeVisible();
+    await settingsButton.click();
+
+    const continuousOption = page.getByRole('button', { name: /连贯演奏/i });
+    await expect(continuousOption).toBeEnabled();
+    await continuousOption.click();
+
+    const midiInputOption = page.getByRole('button', { name: /MIDI/i });
+    await expect(midiInputOption).toBeEnabled();
+    await midiInputOption.click();
+
+    const sheetClose = page.getByRole('button', { name: /close/i });
+    await expect(sheetClose).toBeVisible();
+    await sheetClose.click();
+
     const startButton = page.getByRole('button', { name: '开始', exact: true });
     await expect(startButton).toBeEnabled();
-
-    // 2. Click Start: dispatches fresh descriptor request
     await startButton.click();
-    await page.waitForTimeout(300);
-    expect(modelAssetRequests.length).toBe(1);
+    await expect(page.getByRole('status')).toContainText('连贯演奏中', { timeout: 10_000 });
 
-    // 3. Descriptor failed: inputState = ERROR, message visible, lifecycle stays READY
-    const status = page.getByRole('status');
-    await expect(status).toBeVisible();
-    await expect(status).toContainText('模型资源暂时不可用');
-    await expect(startButton).toBeEnabled();
+    await page.route('**/api/**', (route) => {
+      blockedRequests.push(`${route.request().method()} ${route.request().url()}`);
+      return route.abort('failed');
+    });
+
+    await page.evaluate(() => {
+      (window as unknown as { __emitMidiNote: (n: number, v: number) => void }).__emitMidiNote(60, 100);
+    });
+
+    const pauseButton = page.getByRole('button', { name: '暂停', exact: true });
+    await expect(pauseButton).toBeEnabled();
+    await pauseButton.click();
+    await expect(page.getByRole('status')).toContainText('练习已暂停');
+
+    const resumeButton = page.getByRole('button', { name: '继续', exact: true });
+    await expect(resumeButton).toBeEnabled();
+    await resumeButton.click();
+    await expect(page.getByRole('status')).toContainText('连贯演奏中');
+
+    const finishButton = page.getByRole('button', { name: '结束', exact: true });
+    await expect(finishButton).toBeEnabled();
+    await finishButton.click();
+    await expect(page.getByRole('heading', { name: /演奏已完成|练习已完成/i })).toBeVisible();
+    expect(blockedRequests.every((request) => request.includes('/realtime/events'))).toBe(true);
+    expect(blockedRequests.filter((request) => request.includes('/practice/sessions'))).toEqual([]);
+    expect(blockedRequests.filter((request) => request.includes('/practice/scores/'))).toEqual([]);
   });
 });
 

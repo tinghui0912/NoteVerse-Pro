@@ -169,8 +169,8 @@ Current temporary boundary:
 
 - Kubernetes GPU worker validation is paused until a real GPU node is
   available.
-- Minikube staging validates frontend, API, practice API, beat, Gateway, TLS,
-  S3, and release package flow.
+- Minikube staging validates frontend, backend API, Beat, Gateway, TLS, S3, and
+  release package flow.
 - `backend-worker` can be scaled to zero in minikube and run locally through
   Docker Compose against the same PostgreSQL, Redis, and S3 settings.
 - A local VM Kubernetes lab is the recommended next step for validating real

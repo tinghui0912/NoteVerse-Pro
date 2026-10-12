@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.core.config import Settings
-from app.core.settings.practice_runtime import PracticeRuntimeSettings
+from app.core.settings.practice_score_assets import PracticeScoreAssetSettings
 from app.core.settings.worker_runtime import WorkerRuntimeSettings
 
 
@@ -58,8 +58,8 @@ def test_settings_compose_public_frontend_url_policy() -> None:
     )
 
 
-def test_practice_soundfont_path_expands_user_home() -> None:
-    settings = PracticeRuntimeSettings(
+def test_practice_score_asset_soundfont_path_expands_user_home() -> None:
+    settings = PracticeScoreAssetSettings(
         PRACTICE_SOUNDFONT_PATH="~/sounds/default.sf2",
     )
 
