@@ -1,4 +1,10 @@
-"""Strict Practice runtime settings projection."""
+"""Practice score-asset settings projection.
+
+This module is for source/artifact delivery assets such as the practice
+SoundFont used while preparing score content. It is not a live backend Practice
+session runtime and must not be used to reintroduce backend-authoritative
+Practice execution.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +16,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class PracticeRuntimeSettings(BaseSettings):
-    """Strict Practice score-audio environment contract."""
+    """Strict Practice score-asset environment contract."""
 
     PRACTICE_SOUNDFONT_PATH: str
 
@@ -24,6 +30,6 @@ class PracticeRuntimeSettings(BaseSettings):
 
 @lru_cache
 def get_practice_runtime_settings() -> PracticeRuntimeSettings:
-    """Load Practice alignment configuration only in Practice-owned paths."""
+    """Load Practice score-asset configuration for source/artifact tooling."""
 
     return PracticeRuntimeSettings()

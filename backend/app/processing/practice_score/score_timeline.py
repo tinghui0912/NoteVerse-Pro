@@ -1,4 +1,4 @@
-"""Minimal music-domain timeline for practice score following."""
+"""Minimal music-domain timeline for Practice score artifacts."""
 
 from __future__ import annotations
 

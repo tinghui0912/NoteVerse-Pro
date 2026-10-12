@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { join, resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 
@@ -13,16 +13,22 @@ const FORBIDDEN_IMPORT_PATTERNS = [
   /from\s+['"].*use-practice-targets['"]/,
   /from\s+['"].*practice\/audio-stream['"]/,
   /from\s+['"].*follow-controller['"]/,
+  /from\s+['"].*routeWebSocket['"]/,
   /practice-pcm-processor\.js/,
 ];
 
 const FORBIDDEN_TOKEN_PATTERNS = [
+  /\busePracticeSocket\b/,
+  /\busePracticeSession\b/,
+  /\busePracticeAudioStream\b/,
+  /\bfollow-controller\b/,
   /routeWebSocket\(/,
   /PRACTICE_WEBSOCKET_PROTOCOL_VERSION/,
   /['"]client\.init['"]/,
   /['"]client\.midi_event['"]/,
   /['"]alignment\.update['"]/,
   /['"]performance\.clock_sync['"]/,
+  /\bFOLLOW_PERFORMER\b/,
   /\bPracticeConnectionStatus\b/,
 ];
 
@@ -90,6 +96,20 @@ describe('Architecture Guard: No Legacy Practice Realtime Files, Imports, or Pro
     }
 
     expect(violations).toEqual([]);
+  });
+
+  it('ensures obsolete Practice WebSocket and score-following documents do not reappear', () => {
+    const removedPaths = [
+      'backend/docs/contracts/realtime/practice-websocket-v1.json',
+      'backend/scripts/export_realtime_protocol.py',
+      'docs/engineering/plans/practice-score-following-optimization-plan.md',
+      'docs/product/practice-following-improvement-plan.md',
+      'docs/architecture/continuous-performance-analysis.md',
+      'backend/research/product_benchmark/run-phase9gc1-audit-boundary.mjs',
+      'backend/research/product_benchmark/run-phase9gc2-precondition-gate.mjs',
+    ];
+
+    expect(removedPaths.filter((file) => existsSync(resolve(repoRoot, file)))).toEqual([]);
   });
 
   it('ensures practice page uses browser-local practice architecture', () => {

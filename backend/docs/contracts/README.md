@@ -25,6 +25,7 @@ does not replace OpenAPI and should not duplicate every request/response DTO.
 
 OpenAPI is the source of truth for HTTP DTOs. Generated types and client code
 will replace hand-maintained frontend API DTOs incrementally. Frontend-only
-view models, form state, and presentation helpers remain owned by the frontend;
-Practice WebSocket messages are a versioned cross-runtime contract rather than
-a frontend-only type.
+view models, form state, and presentation helpers remain owned by the frontend.
+Generic application realtime notifications use SSE under the normal API/auth
+boundary; Practice execution is browser-local and does not have an active
+Practice WebSocket contract.

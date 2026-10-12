@@ -524,8 +524,10 @@ field to be classified. This policy passed the backend quality gate and its
 digest-pinned staging release: runtime stdout contains the reviewed HTTP event
 fields but no forbidden file/storage/text fields, raw exception value, or stack
 trace. The Loki datasource now derives Tempo navigation only from a validated
-32-character trace ID, and Practice WebSockets record bounded accepted/ready/
-terminal lifecycle events without audio or control payloads. P3 is implemented
+32-character trace ID, and application realtime/SSE notifications record
+bounded lifecycle events without audio or Practice control payloads. Practice
+execution itself is browser-local and does not have an active Practice WebSocket
+runtime. P3 is implemented
 locally: the four durable operation records persist vetted `traceparent` and
 optional `tracestate`, relay dispatches create producer spans, worker attempts
 create fresh consumer spans, and each relay delivery gets a unique Celery task

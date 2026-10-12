@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import canonicalArtifactJson from './__fixtures__/canonical-practice-score-artifact.json';
 import {
@@ -738,6 +738,70 @@ describe('local CONTINUOUS practice runtime', () => {
         result: 'MATCHED',
         matchedObservationId: `${manual.timebase.domainId}:0:C4`,
       });
+    }
+  });
+
+  it('keeps an active browser-local Continuous session running after network loss', () => {
+    const originalFetch = globalThis.fetch;
+    const originalEventSource = (globalThis as typeof globalThis & { EventSource?: unknown }).EventSource;
+    const unavailableFetch = vi.fn(() => Promise.reject(new Error('network unavailable')));
+    const UnavailableEventSource = class extends EventTarget {
+      static readonly CONNECTING = 0;
+      static readonly OPEN = 1;
+      static readonly CLOSED = 2;
+      readonly CONNECTING = 0;
+      readonly OPEN = 1;
+      readonly CLOSED = 2;
+      url = '';
+      withCredentials = false;
+      readyState = 2;
+      onerror: ((this: EventSource, event: Event) => unknown) | null = null;
+      onmessage: ((this: EventSource, event: MessageEvent) => unknown) | null = null;
+      onopen: ((this: EventSource, event: Event) => unknown) | null = null;
+
+      constructor() {
+        super();
+        throw new Error('SSE unavailable');
+      }
+      close(): void {}
+    } as unknown as typeof EventSource;
+    globalThis.fetch = unavailableFetch as unknown as typeof fetch;
+    (globalThis as typeof globalThis & { EventSource?: unknown }).EventSource = UnavailableEventSource;
+
+    try {
+      const offlineClock = new ManualClock(0);
+      const session = new ContinuousPracticeSession({
+        artifact,
+        tempoPlan: defaultTempoPlan,
+        scope: { kind: 'FULL' },
+        clock: offlineClock,
+        inputSource: 'MIDI',
+        countInBeats: 0,
+        localSessionId: 'active-session-network-loss',
+      });
+
+      expect(session.start()).toMatchObject({ state: 'RUNNING', performanceTimeMs: 0 });
+      expect(session.observeCapturedAttack(performanceEvidence(session.timebase.domainId, 0, ['C4'], 'MIDI'))).toBe(true);
+      offlineClock.advance(500);
+      expect(session.snapshot()).toMatchObject({ state: 'RUNNING', performanceTimeMs: 500 });
+      session.pause();
+      offlineClock.advance(1_000);
+      expect(session.snapshot()).toMatchObject({ state: 'PAUSED', performanceTimeMs: 500 });
+      session.resume();
+      offlineClock.advance(600);
+      expect(session.snapshot()).toMatchObject({ state: 'RUNNING', performanceTimeMs: 1100 });
+      session.end('STOPPED_BY_USER');
+
+      const evaluation = session.completedEvaluation();
+      expect(evaluation.status).toBe('COMPLETE');
+      if (evaluation.status === 'COMPLETE') {
+        expect(evaluation.strikes[0]).toMatchObject({ result: 'MATCHED' });
+        expect(evaluation.strikes.some((strike) => strike.result === 'NOT_REACHED')).toBe(true);
+      }
+      expect(unavailableFetch).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
+      (globalThis as typeof globalThis & { EventSource?: unknown }).EventSource = originalEventSource;
     }
   });
 

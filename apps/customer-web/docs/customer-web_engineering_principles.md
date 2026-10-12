@@ -17,7 +17,7 @@
 
 当前维护方向是：
 
-- practice 页继续作为 Verovio 渲染和实时跟随的先行实现
+- practice 页继续作为浏览器本地 Practice 执行、Verovio 渲染和本地高亮的先行实现
 - editor 使用浏览器端 MusicXML/Verovio 能力服务编辑和校验
 - score detail、share、public 使用后端 render assets 和 playback audio assets
 - 不再新增第二套浏览器端乐谱 renderer 或 renderer-specific 页面逻辑
@@ -39,8 +39,8 @@
 - 统一 `ApiResponse<T>`、`PaginatedResponse<T>` 等类型入口到 `src/types/api/index.ts`
 - 拆分大型编辑器组件和复杂 hook，降低单文件复杂度
 - 评估状态管理方案，保留当前 Provider 架构，同时拆出高频 hover 状态减少编辑器重渲染
-- practice 页从占位 score viewer 迁移到 practice-specific Verovio viewer
-- practice 页已经接入后端 REST、WebSocket、AudioWorklet PCM、alignment highlighting、measure/page emphasis 和基础滚动跟随
+- practice 页从占位 score viewer 迁移到 browser-local Practice runtime 和 practice-specific Verovio viewer
+- practice 页已经接入 PracticeScoreArtifact、本地 clock、MIDI/metronome/playhead、本地 review 与 Continuous evaluator；后端只负责 score/source/artifact delivery
 
 最重要的经验是：前端质量问题往往不是“UI 不够漂亮”，而是 UI 声称的能力和真实状态不一致。分享权限、profile 编辑、下载权限、订阅切换、practice 分析等地方都必须避免假交互。
 
@@ -106,7 +106,7 @@ apps/customer-web/
 - 页面主要状态编排
 - 调用 API hooks 或 API helper
 - 组合页面 sections
-- 连接 WebSocket、AudioWorklet 等页面生命周期资源
+- 连接当前页面真实需要的生命周期资源，例如查询、SSE 通知、MediaStream 或 AudioWorklet
 
 页面文件不适合负责：
 
@@ -117,7 +117,7 @@ apps/customer-web/
 - 可复用 UI primitives
 - 高频 DOM highlighting 或 scroll control
 
-经验：practice 页是典型例子。页面应编排 session、WebSocket、麦克风、报告请求和 UI 区块，但 Verovio toolkit、SVG 节点高亮和滚动跟随不应塞进 page component。
+经验：practice 页是典型例子。页面应编排已加载的 score artifact、本地模式/输入/scope、完成 UI 和局部副作用，但 Verovio toolkit、SVG 节点高亮、本地 clock/evaluator 细节不应塞进 page component。
 
 ### 2. `src/components/*`
 
@@ -214,16 +214,17 @@ practice 页专属非 React 逻辑。
 
 当前边界：
 
+- `local-core/`：browser-local Practice execution，包含 `PerformanceClockRuntime`、`ContinuousPracticeSession`、`ContinuousEvaluationSession` 和 `ContinuousFinalizationLedger`
 - `verovio-adapter.ts`：唯一直接理解 Verovio toolkit API 的地方
-- `follow-controller.ts`：消费 backend `alignment.update`，决定 note/measure/page highlighting
 - `practice-scroll.ts`：滚动阈值和 viewport 跟随策略
 - `verovio-types.ts`：practice 渲染相关类型
+- `acoustic-inference/`：历史候选/低层声学实现笔记与可复用 primitives，不是当前产品执行架构
 
 规则：
 
 - page 不直接操作 Verovio
 - React state 不承载高频 SVG highlighting 细节
-- follow controller 应操作 committed alignment，不直接把 raw backend candidate 展示给用户
+- Continuous playhead 只能由本地 fixed-tempo clock 推进，MIDI/acoustic evidence 只作为 downstream correctness/timing evidence
 - scroll 逻辑要有 hysteresis，不要每帧跳动
 
 ### 8. `src/lib/musicxml/*`
@@ -339,7 +340,7 @@ React state 适合：
 需要显式清理的资源包括：
 
 - blob object URL
-- WebSocket
+- EventSource / WebSocket connections for non-Practice features
 - MediaStream tracks
 - AudioContext
 - AudioWorklet node
@@ -347,7 +348,7 @@ React state 适合：
 - pending fetch / AbortController
 - Verovio-rendered DOM side effects
 
-经验：大谱、多页预览、长练习会话会放大资源泄漏。创建 object URL 后必须考虑 revoke；打开 WebSocket 后必须考虑 pause/finish/unmount；获取麦克风后必须 stop tracks。
+经验：大谱、多页预览、长练习会话会放大资源泄漏。创建 object URL 后必须考虑 revoke；打开 EventSource/WebSocket 后必须考虑 unmount cleanup；获取麦克风后必须 stop tracks。
 
 ## 四、架构设计原则
 
@@ -368,11 +369,11 @@ React state 适合：
 
 ### 2. 浏览器端 Verovio 只服务交互式乐谱链路
 
-practice 页是实时跟随和高亮的主要浏览器端 Verovio 场景；editor 使用浏览器端 MusicXML/Verovio 能力服务编辑体验。score detail、share、public 页面不再是完整播放器页，它们使用后端 render assets 和 playback audio assets。
+practice 页是 browser-local 练习、高亮和本地 playhead 控制的主要浏览器端 Verovio 场景；editor 使用浏览器端 MusicXML/Verovio 能力服务编辑体验。score detail、share、public 页面不再是完整播放器页，它们使用后端 render assets 和 playback audio assets。
 
 第一阶段选择 practice 先行的原因：
 
-- practice 需要实时 score following、SVG element targeting、time lookup、DOM-level highlighting、auto-scroll
+- practice 需要固定节拍 playhead、SVG element targeting、time lookup、DOM-level highlighting、auto-scroll
 - Verovio 更适合 practice 的实时反馈和 DOM 操作
 - 交互式播放通过独立 controller 保持 cursor、seek、tempo 和 soundfont 行为
 
@@ -398,10 +399,10 @@ practice 页是实时跟随和高亮的主要浏览器端 Verovio 场景；edito
 
 推荐边界：
 
-1. Page orchestration：session、WebSocket、麦克风、报告、页面 UI
-2. Practice score container：初始化 Verovio、加载 MusicXML、渲染 SVG、暴露高亮入口
-3. Verovio adapter：封装 toolkit API、时间/元素映射、DOM helper
-4. Follow controller：消费 alignment.update，执行 committed highlighting 和 scroll/page follow
+1. Page orchestration：已加载 score artifact、模式/输入/scope、完成 UI 和局部副作用
+2. Local Practice runtime：`PerformanceClockRuntime`、STEP/Continuous session、evaluator 和 finalization ledger
+3. Practice score container / Verovio adapter：初始化 Verovio、加载 MusicXML、渲染 SVG、暴露 beat/element mapping 和高亮入口
+4. Evidence adapters：browser MIDI 与未来 acoustic publication 只输入 evaluator，不控制 clock、tempo、playhead 或 scope
 
 任何修改 practice 页时，都要先判断自己改的是哪一层。
 
@@ -413,7 +414,7 @@ practice 页是实时跟随和高亮的主要浏览器端 Verovio 场景；edito
 
 - share 权限以后端返回的 `canDownload` / `canEdit` 为准
 - authenticated share flow 要等 auth 初始化结束后再 fetch share data
-- practice session state 以后端 REST/WebSocket 消息为准
+- practice score/source/artifact delivery 以后端返回为准；active Practice session state 由 browser-local runtime 拥有
 - report payload 使用后端结构化字段，不继续旧 mock 卡片模型
 - rendered file 显示以 MIME type 为准，不假设一定是 PNG
 
@@ -430,30 +431,30 @@ practice 页是实时跟随和高亮的主要浏览器端 Verovio 场景；edito
 - practice 未完成却不标 beta
 - 错误状态只显示技术错误而不给下一步动作
 
-## 五、Practice Verovio 和实时练习规则
+## 五、Practice Verovio 和浏览器本地练习规则
 
 ### 1. 数据流
 
 后端到前端：
 
-1. page 创建 practice session
-2. page 打开 practice WebSocket
-3. 后端发送 `alignment.update`
-4. page 保存 latest alignment summary
-5. `PracticeScoreViewer` 转发给 `follow-controller`
-6. controller 更新 SVG class 和 scroll state
+1. page 在网络可用时获取 PracticeScoreArtifact、score content 和 targets
+2. Customer Web 创建 browser-local STEP 或 Continuous session
+3. `PerformanceClockRuntime` 使用本地 monotonic clock、fixed BPM、pause/resume 语义推进 Continuous performance time
+4. MIDI 或未来 acoustic evidence 进入 shared evaluator
+5. `ContinuousFinalizationLedger` 产出 immutable finalized feedback
+6. score viewer 根据本地 beat/performance time 更新 SVG class、playhead 和 scroll state
 
 score load：
 
 1. page 解析 task/source/share context
-2. 获取与 backend practice session 一致的 MusicXML
+2. 获取与 PracticeScoreArtifact 一致的 MusicXML / practice-ready score content
 3. `verovio-adapter` 加载 MusicXML
 4. 多页 SVG stacked rendering
 5. 准备 time lookup 和 element mapping
 
 ### 2. Highlighting
 
-使用 CSS class 操作 SVG，不要每次 alignment 都全量重渲染。
+使用 CSS class 操作 SVG，不要每次 clock tick 或 evidence update 都全量重渲染。
 
 推荐类名：
 
@@ -466,21 +467,21 @@ score load：
 
 ### 3. Mapping 策略
 
-MVP 优先：
+Continuous 优先：
 
-- 使用 backend `timestamp_ms`
-- 调用 Verovio `getElementsAtTime(timestamp_ms)`
-- 高亮返回元素
+- 使用 PracticeScoreArtifact、resolved PracticeScope 和 fixed BPM 得到 performance time / musical beat
+- 调用 Verovio/time mapping 定位当前 beat 所属元素
+- STEP progression 由本地 correctness-driven state 推进
+- MIDI/acoustic evidence 只影响 correctness/timing evaluation，不移动 playhead
 
 Fallback：
 
-- 使用 `measure_number`
-- 高亮对应 measure
-- 保留上一 note，避免视觉反馈完全消失
+- 使用当前 scope / measure mapping 高亮对应区域
+- 保留上一可解释位置，避免视觉反馈完全消失
 
 未来：
 
-- 如果后端提供更丰富 timeline 或 xml id，再直接定位 rendered element
+- 如果后端提供更丰富 source artifact 或 durable xml id，仍作为 score/source data 输入；不得成为 live execution authority
 
 ### 4. Scroll 策略
 
@@ -496,15 +497,14 @@ Fallback：
 
 ### 5. Audio pipeline
 
-当前 practice 页要求 `AudioWorklet`。
+当前 production Practice 不依赖 microphone/acoustic model execution。低层 microphone 或 acoustic primitives 若用于研究或未来产品集成，必须遵守 browser-local fixed-clock boundary。
 
 规则：
 
-- 不保留 `ScriptProcessorNode` fallback
-- unsupported browser fail fast，并显示明确提示
-- 客户端继续发送 16k PCM binary frames
-- WebSocket heartbeat 保持长会话活跃
-- 后续优化 frame sizing 和 supported browser baseline
+- 不保留旧 WebSocket PCM streaming 产品路径
+- 不恢复 backend score-following 或 backend PracticeSession execution
+- AudioWorklet / browser worker 等低层组件只能产生 model-agnostic acoustic evidence
+- 任何未来 microphone analysis 都不得让 acoustic model 控制 clock、tempo、playhead、scope 或 completion
 
 ## 六、测试和质量门禁
 
@@ -530,7 +530,7 @@ npm run test
 - i18n/copy：检查 `messages/en` 和 `messages/zh` 都有对应 key
 - route protection：验证 logged-out direct visit 和 `returnUrl`
 - editor：验证 autosave、entity update、hover 性能和大文件交互
-- practice：验证 session create、WebSocket init、PCM streaming、alignment highlight、pause/resume/finish、report request
+- practice：验证 artifact load、本地 clock progression、MIDI evidence、playhead、pause/resume/finish、本地 Review state、active-session network-loss regression
 - Verovio：验证真实 MusicXML、多页 SVG、highlight、scroll、shared-link entry
 - blob/image pages：验证 object URL cleanup 和多页响应性
 
@@ -548,7 +548,7 @@ npm run test
 更新规则：
 
 - 新任务状态优先更新当前权威执行计划，避免在历史 roadmap 或已完成计划里重复维护两套状态
-- 如果 renderer/following 架构变化，同步更新本文和当前执行计划
+- 如果 Practice renderer/local-runtime 架构变化，同步更新本文和当前执行计划
 - 如果 UI 行为从 mock 变真实或从真实变 beta，必须同步文案和 docs
 - 不要让 docs 保留 starter/scaffold 语义
 
@@ -566,9 +566,9 @@ npm run test
 8. 大组件继续膨胀，而不是拆成 domain components、hooks、lib helpers。
 9. 高频状态放进全局/页面 React state，造成重渲染。
 10. object URL、WebSocket、AudioContext、MediaStream 没有 cleanup。
-11. practice page 直接操作 Verovio toolkit 或 SVG DOM，而不是走 adapter/controller。
+11. practice page 直接操作 Verovio toolkit 或 SVG DOM，而不是走 adapter/runtime boundary。
 12. 页面绕过共享 Verovio controller 直接操作 toolkit 或播放引擎。
-13. alignment.update 被直接用于 UI 高亮，没有 committed/guard/fallback 策略。
+13. MIDI/acoustic evidence 被用于控制 clock、tempo、playhead、scope 或 completion。
 14. subscription、password reset、practice report 等功能保留模拟逻辑但 UI 未说明。
 15. 新增文档不更新旧优先级状态，导致团队分不清当前问题和历史问题。
 
@@ -582,7 +582,7 @@ npm run test
 4. 在 `src/lib/api/<domain>.ts` 封装 API。
 5. 页面只负责组合和生命周期，不承载复杂领域逻辑。
 6. 如果逻辑可复用或可测试，拆到 hook 或 `src/lib/<domain>`。
-7. 如果是 practice 渲染/跟随，保持 page/viewer/adapter/controller 分层。
+7. 如果是 practice 渲染/本地执行，保持 page/local-core/viewer/adapter/evidence 分层。
 8. 补齐 loading、empty、error、permission denied、auth redirect 状态。
 9. 同步 `messages/en` 和 `messages/zh`。
 10. 运行 lint/typecheck/build，并做核心行为验证。
@@ -600,7 +600,7 @@ npm run test
 - 加载、错误、空状态和权限状态清楚
 - 高频交互不会拖垮 React render
 - 资源生命周期有 cleanup
-- practice 相关逻辑遵守 Verovio adapter 和 follow controller 边界
+- practice 相关逻辑遵守 browser-local runtime、Verovio adapter 和 evidence-only 边界
 - 测试或手动验证覆盖用户能感知的行为
 
 反过来，如果一个改动需要解释“这个按钮现在只是假的”“这里先直接 fetch”“这个类型先 any”“这个页面先不做错误态”“这个资源暂时不用清理”，它很可能正在制造下一轮前端债。

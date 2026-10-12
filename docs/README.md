@@ -32,6 +32,7 @@ runtime contracts.
 - [ADR 0005: Review Pipeline Before Score](adr/0005-review-pipeline-before-score.md)
 - [ADR 0007: Editor Domain Model](adr/0007-editor-domain-model.md)
 - [Architecture Index](architecture/README.md)
+- [Practice Product Contract v2](architecture/practice-product-contract-v2.md)
 - [External Dependencies](architecture/integrations/external-dependencies.md)
 - [Kubernetes Application Runtime Contract](architecture/runtime/k8s-application-runtime-contract.md)
 - [Backend Settings Ownership](architecture/runtime/settings-ownership.md)
@@ -48,7 +49,6 @@ quality gates.
 - [Automatic Beam v2 Plan](engineering/plans/automatic-beam-v2-plan.md)
 - [Editor Domain Model Refactoring Plan](engineering/plans/editor-domain-model-refactoring-plan.md)
 - [Pending Invites And Notifications Plan](engineering/plans/pending-invites-notifications-plan.md)
-- [Practice Score Following Optimization Plan](engineering/plans/practice-score-following-optimization-plan.md)
 - [Backend Structured Logging Audit](engineering/reviews/backend-structured-logging-audit.md)
 
 ## Security

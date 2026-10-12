@@ -1,35 +1,39 @@
 # ByteDance Browser Acoustic Inference Boundary (Historical Candidate)
 
-This package preserves historical ByteDance research candidate infrastructure.
-It is not the authoritative Practice v2 acoustic architecture. See
-`docs/architecture/practice-product-contract-v2.md` for the current product
-contract.
+This package contains low-level browser acoustic inference components and
+research fixtures for the historical ByteDance candidate. It is not the
+authoritative Practice v2 acoustic architecture. The current product contract is
+`docs/architecture/practice-product-contract-v2.md`.
 
-The old rolling/fixed-anchor scheduling code and fixtures must not be restored
-as a fallback product path. Historical fixtures and research reports remain
-preserved so the repository continues to tell the truth about what was tested.
+The old rolling/fixed-anchor Practice product flow must not be restored as a
+fallback product path. The useful parts here are low-level implementation
+primitives:
 
-## Model identity
+- AudioWorklet PCM capture and source-sample identity helpers;
+- deterministic preprocessing;
+- ONNX/WebGPU session loading;
+- raw tensor output descriptors;
+- decoder behavior for generic pitch/time evidence;
+- browser Worker protocol tests and compact reference fixtures.
+
+Those primitives may be reused only if a future local acoustic runtime preserves
+the browser-local fixed-clock Practice boundary. They must not create a backend
+Practice runtime, score-following runtime, or clock-controlling acoustic path.
+
+## Model Identity
 
 - Model ID: `bytedance-piano-transcription-note-model`
 - Model version: `CRNN_note_F1_0.9677_pedal_F1_0.9186`
 - ONNX Runtime Web: `1.20.1`
-- Execution provider: explicit per session. The production browser worker
-  currently selects `webgpu`; session creation failure is an error, not an
-  automatic provider fallback.
 - Sample rate: 16 kHz mono PCM
 
 The production ONNX binary is not committed here. The runtime consumes a
-versioned manifest with model URL/path, expected byte size, SHA256, input/output
-descriptors, preprocessing version, and decoder version.
+versioned manifest with model URL/path, expected byte size, SHA256,
+input/output descriptors, preprocessing version, and decoder version.
 
-The ORT runtime is intentionally pinned to `1.20.1`: a controlled same-machine
-WebGPU A/B reproduced subsecond warm inference on 1.20.1 and a severe multi-
-second regression on 1.30.0 for this exact fixed-anchor ONNX export.
+## Low-Level Input And Output Contract
 
-## Input contract
-
-The deterministic input is the fixed-anchor waveform validated in research:
+The fixed-anchor research tensor is:
 
 - input tensor name: `audio`
 - dtype: `float32`
@@ -37,12 +41,7 @@ The deterministic input is the fixed-anchor waveform validated in research:
 - target anchor: 1600 ms
 - future context: 220 ms
 
-The model core is target-independent. It sees PCM only and produces generic
-acoustic note evidence.
-
-## Output descriptors
-
-Output tensors are bound by name, never by array position:
+Output tensors are bound by name:
 
 - `reg_onset_output`
 - `frame_output`
@@ -50,92 +49,35 @@ Output tensors are bound by name, never by array position:
 Both are interpreted as batch-1 matrices with 88 piano pitches, lowest MIDI
 pitch 21, and 100 Hz frame timing.
 
-## Worker lifecycle
+The model sees PCM only and produces acoustic evidence only. It must never
+control fixed BPM, playhead movement, scope, completion, or score position.
 
-The worker protocol is:
+## Worker Lifecycle
+
+The low-level Worker protocol is:
 
 - `LOAD` -> `READY`
 - `INFER` -> `RESULT`
 - `DISPOSE` -> `DISPOSED`
 - failures -> `ERROR`
 
-The ONNX session is created once and reused. Concurrent inference is explicitly
-rejected for deterministic ordering.
+The ONNX session is created once and reused. Concurrent inference is rejected
+for deterministic ordering.
 
 The browser construction boundary is
 `createByteDanceBrowserWorkerClient()`, which creates a module Worker with
 `new URL('./bytedance-worker.entry.ts', import.meta.url)`. This keeps the Worker
 entry and `onnxruntime-web/webgpu` import visible to the frontend bundler.
 
-## Timing
+## Timing Ownership
 
-Physical attack time comes from capture/sample timing mapped into the frozen
+Physical event time comes from capture/sample timing mapped into the frozen
 `PracticeTimebase` session domain. Inference completion time is diagnostic only.
+Any future product integration must publish model-agnostic acoustic evidence
+into the existing local Continuous evaluator; it must not move the local
+`PerformanceClockRuntime`.
 
-Fixed-anchor input construction permits left-side zero padding when the session
-does not yet have 1000 ms of real lookback, but it never pads missing right-side
-future context. A window is not ready until the full `+220 ms` future prefix is
-captured.
-
-## Historical live capture pipeline
-
-The historical production-shaped live path was:
-
-```text
-AudioWorklet capture
--> deterministic mono PCM chunks with source sample indexes
--> streaming 16 kHz resampler
--> bounded absolute-indexed 16 kHz sample ring
--> 150 ms fixed-anchor scheduler
--> production ByteDance Worker
--> decoder
--> AcousticEventStreamNormalizer
--> STEP adapter
-```
-
-The AudioWorklet only captures audio and posts PCM chunks. It does not run
-inference, pitch recognition, onset detection, matching, progression, or score
-logic.
-
-Each capture lifecycle gets a capture-domain/session-time identity. One
-PracticeTimebase anchor maps normalized 16 kHz sample indexes into the local
-practice session domain. The controller does not continuously re-anchor based on
-callback time or Worker latency. Restarting capture creates a new generation and
-resets the stream normalizer so late results and old per-pitch dedupe state
-cannot cross into the new domain.
-
-The rolling scheduler used the frozen 150 ms grid (`2400` samples at 16 kHz).
-Because current warm WebGPU inference is slower than the grid, the old rolling
-CONTINUOUS microphone path is not a product path. Practice v2 also does not
-require STEP microphone to consume a continuous generic onset stream; future
-STEP microphone work is a bounded-attempt analyzer, not this scheduler.
-
-## Historical event stream normalization
-
-Per-window decoded events pass through `AcousticEventStreamNormalizer` before
-STEP consumption. It reuses the validated rolling verifier
-identity rule:
-
-- event identity is pitch + capture sample index;
-- duplicate same-pitch events within `50 ms` are suppressed;
-- same-pitch retriggers after that boundary are emitted as new attacks;
-- inference completion time is not part of physical attack identity.
-
-The decoder itself collapses adjacent above-threshold onset frames into one
-peak event before stream normalization.
-
-## Historical adapters
-
-The previous STEP adapter converted generic acoustic events into a
-`StepVerifierObservation` only when all expected physical attack pitches form one
-fresh coherent post-activation gesture for the current target. STEP progression
-remained owned by `StepPracticeRuntime`.
-
-MICROPHONE + CONTINUOUS_PLAY remains unavailable until a separate Continuous
-Practice v2 integration proves a mode-appropriate acoustic contract. Do not
-reconnect the old rolling adapter as a fallback.
-
-## Reference fixtures
+## Reference Fixtures
 
 `__fixtures__/bytedance-python-reference-contract.json` is generated from the
 existing non-frozen dev/cal PyTorch golden fixture under
@@ -143,6 +85,7 @@ existing non-frozen dev/cal PyTorch golden fixture under
 Those research artifacts are local and gitignored; materialize them first with
 the existing backend feasibility workflow before regenerating the checked
 compact contract fixture.
+
 Regenerate it with:
 
 ```bash
@@ -152,9 +95,9 @@ node apps/customer-web/scripts/generate-bytedance-reference-contract-fixture.mjs
 It stores source tensor hashes, raw output shapes, and the minimal local raw
 values needed to lock the validated temporally-bound event interpretation.
 
-## Production Worker WebGPU smoke
+## Production Worker WebGPU Smoke
 
-The production-facing smoke must exercise the real Worker factory:
+The browser Worker smoke exercises the real Worker factory:
 
 ```bash
 node apps/customer-web/scripts/bytedance-worker-webgpu-smoke.mjs \
@@ -166,41 +109,5 @@ node apps/customer-web/scripts/bytedance-worker-webgpu-smoke.mjs \
   --output backend/research/reports/bytedance_worker_webgpu_smoke_latest.json
 ```
 
-The script recomputes the local model byte size and SHA256 before loading. It
-uses `createByteDanceBrowserWorkerClient()`, so the Vite/Next-visible Worker
-entry and `onnxruntime-web/webgpu` import are part of the browser bundle. The
-older `backend/research/browser_runtime/bytedance_onnx_browser_harness.mjs`
-remains useful as a direct ORT feasibility comparator, but it does not prove the
-production Worker boundary.
-
-## Continuous microphone feasibility
-
-The previous rolling live-capture smoke exercised an architecture that is not
-the product path anymore: 150 ms anchors, one active Worker inference, latest
-pending coalescing, and skipped-anchor coverage holes. Its final evidence is
-kept as a research artifact in
-`backend/research/reports/bytedance_rolling_anchor_feasibility_2026-10-03.json`.
-See `docs/architecture/practice-product-contract-v2.md` for the authoritative
-Practice v2 product boundary and `docs/architecture/continuous-performance-analysis.md`
-for historical Continuous analysis notes.
-
-## STEP microphone status
-
-ByteDance is rejected for the old generic Continuous transcription architecture;
-scheduled score-aware target verification was historical research, not Practice
-v2 production approval. The previous production STEP microphone path used blind
-fixed-cadence polling and may silently lose relevant physical attacks under
-backpressure.
-
-Practice v2 STEP microphone is a future bounded-attempt flow:
-
-```text
-Target -> READY -> CAPTURING one bounded attempt -> ANALYZING
--> MATCH / MISMATCH / RETRY_TOO_QUIET / RETRY_UNCERTAIN -> RESET -> READY
-```
-
-That future flow does not require a continuous generic physical-onset stream.
-STEP microphone therefore stays disabled until a later attempt-analyzer gate and
-integration phase validate it. MIDI STEP remains the supported
-correctness-driven learning path.
-
+This proves low-level Worker/runtime wiring only. It does not prove product
+microphone eligibility.

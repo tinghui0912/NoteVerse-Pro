@@ -12,6 +12,43 @@ Recording and input source are orthogonal. User-selected audio or video recordin
 
 Production microphone Practice remains disabled until a later model gate and integration phase explicitly validates and enables the relevant mode.
 
+## Offline-First Practice Execution Boundary
+
+The active Practice execution boundary is browser-local:
+
+```text
+Backend while data is available
+-> PracticeScoreArtifact + practice-ready score content
+-> Customer Web local runtime
+-> Practice execution
+```
+
+The backend owns canonical score/source/artifact delivery. It is not the live
+Practice execution authority. After the required score assets are loaded, an
+active Practice session must not require a Practice WebSocket, backend Practice
+session runtime, backend clock synchronization, Matchmaker, score-following, or
+continuous network availability.
+
+`PerformanceClockRuntime` is browser-local. Losing network connectivity after
+the required score assets are loaded must not stop an already active Practice
+session. This is a session execution guarantee, not a cold-start guarantee:
+cold-start fully offline availability would require separately validated
+persisted score assets and application caching.
+
+Generic application realtime/SSE notifications are orthogonal to Practice. They
+may invalidate score metadata, derived assets, notifications, or import-job
+state, but they are not a Practice transport and are not allowed to drive the
+Practice clock, playhead, scope, or verdicts.
+
+Future microphone acoustic analysis must preserve this offline/local execution
+boundary unless a future explicit product decision changes it. A model is not
+production-eligible for Offline-First Practice merely because a Docker/GPU
+benchmark is strong. Production eligibility requires a validated local/browser
+execution path, or another explicitly approved architecture that preserves this
+boundary. Server-only Robust CUDA, Online-AMT, RTT, or Transkun runtimes may
+remain scientific or research candidates, but they are not automatically
+production-eligible.
+
 ## STEP_BY_STEP v2
 
 STEP is correctness-driven. STEP has no performance clock.

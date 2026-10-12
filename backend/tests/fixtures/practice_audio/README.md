@@ -85,44 +85,10 @@ performance is needed.
 | `cough_esc50_16k.wav` | ESC-50, `1-19111-A-24.wav` | ESC-50 public dataset | Cough negative |
 | `desk_knock_esc50_16k.wav` | ESC-50, `1-101336-A-30.wav` | ESC-50 public dataset | Desk-knock negative |
 | `speech_fsd_0_jackson_0_16k.wav` | Free Spoken Digit Dataset, `0_jackson_0.wav` | Public GitHub dataset | Speech negative |
-| `local_recordings/once_again_excerpt_16k.wav` | Derived from the local Once Again recording | Local test fixture | Real loudspeaker positive and mixed-input base |
-
 Speech is included as a negative example because spoken vowels can look tonal in
 short FFT windows. This guards against overly permissive low-level start paths.
 
-## Mixed Scenarios
-
-`manifest.json` can build deterministic mixtures at replay time:
-
-```json
-{
-  "type": "mix_wav",
-  "duration_seconds": 4,
-  "sources": [
-    { "path": "public_samples/piano_uiowa_mf_c5_16k.wav" },
-    {
-      "path": "public_samples/speech_fsd_0_jackson_0_16k.wav",
-      "gain_db": -18,
-      "offset_seconds": 0
-    }
-  ]
-}
-```
-
-Use mixtures when the expected timing must be controlled, such as "tap before
-piano" or "speech before piano". The current public samples are enough for the
-first gate-level mixed tests:
-
-- piano with keyboard typing
-- piano with low-level speech
-- piano with low-level rain
-- tap before piano
-- speech before piano
-- tap during piano
-- speech during piano
-- strong keyboard typing during piano
-- delayed tap without piano
-
-They are not enough to evaluate full score-following quality. For that, add
-longer real piano phrases, multiple pitches, tempo variation, pauses, and
-recordings captured through the browser-local practice path.
+The removed local Once Again files and old mixture manifests belonged to the
+retired score-following/alignment runtime. Add new local recordings only when
+they are tied to current browser-local Practice or model-research tests with
+explicit non-score-following semantics.

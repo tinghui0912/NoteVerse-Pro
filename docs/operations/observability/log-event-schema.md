@@ -40,11 +40,12 @@ instead.
 `outbox_id`), bounded counters/durations, `status_code`, `public_code`, task
 attempt metadata, and scheduler identifiers are allowed when needed.
 
-Practice WebSocket records use `practice.websocket.accepted`,
-`practice.websocket.ready`, and one terminal `practice.websocket.closed` or
-`practice.websocket.failed` event. They may include opaque session/user IDs,
-duration, close status, and a stable public code. They never include control
-payloads, audio bytes, alignment content, or client headers.
+Application realtime notification records use bounded event names for SSE
+connection open/close and domain notifications. They may include opaque
+session/user IDs, durations, close status, and a stable public code. They never
+include control payloads, audio bytes, score content, or client headers.
+Practice execution is browser-local and does not emit a Practice WebSocket log
+contract.
 
 This policy concerns logs only. Full diagnostics required for a privileged
 operator workflow remain in the controlled operations data contract and are

@@ -34,8 +34,8 @@ const forbiddenProductionTokens = [
   'STEP_ACOUSTIC_TRIGGER_NOT_VALIDATED',
   'TRIGGER_NOT_VALIDATED',
   'micStepTriggerNotValidated',
-  'follow-controller',
-  'Practice WebSocket',
+  'follow' + '-controller',
+  'Practice ' + 'WebSocket',
 ];
 
 describe('practice architecture boundaries', () => {
@@ -118,6 +118,17 @@ describe('practice architecture boundaries', () => {
     expect(content).toContain('STEP is correctness-driven. STEP has no performance clock.');
     expect(content).toContain('CAPTURING one bounded attempt');
     expect(content).toContain('Continuous is tempo-clock practice. It is not score-following.');
+    expect(content).toContain('## Offline-First Practice Execution Boundary');
+    expect(content).toContain('The active Practice execution boundary is browser-local');
+    expect(content).toContain('The backend owns canonical score/source/artifact delivery. It is not the live');
+    expect(content).toContain('active Practice session must not require a ' + 'Practice WebSocket');
+    expect(content).toMatch(/backend Practice\s+session runtime/);
+    expect(content).toContain('backend clock synchronization');
+    expect(content).toContain('Losing network connectivity after');
+    expect(content).toContain('session execution guarantee, not a cold-start guarantee');
+    expect(content).toContain('Generic application realtime/SSE notifications are orthogonal to Practice');
+    expect(content).toContain('A model is not');
+    expect(content).toContain('production-eligible for Offline-First Practice merely because a Docker/GPU');
     expect(content).toContain('A Continuous performance has exactly one accumulated evaluation truth.');
     expect(content).toContain('Review displays the same accumulated finalized truth');
     expect(content).toContain('There is no second whole-performance inference pass for the same Continuous performance evaluation.');
@@ -148,22 +159,13 @@ describe('practice architecture boundaries', () => {
     expect(oneTruthSection).not.toContain('canonical Review may come from another analysis pass');
   });
 
-  it('marks older Continuous and ByteDance architecture notes as superseded or historical', () => {
-    const continuousDoc = readFileSync(
-      path.resolve(__dirname, '../../../../../docs/architecture/continuous-performance-analysis.md'),
-      'utf8'
-    );
+  it('keeps low-level ByteDance acoustic notes historical and implementation-owned', () => {
     const bytedanceReadme = readFileSync(path.resolve(__dirname, 'acoustic-inference/README.md'), 'utf8');
 
-    expect(continuousDoc).toContain('Superseded Scope');
-    expect(continuousDoc).toContain('does not require STEP and Continuous to share one acoustic event stream');
-    expect(continuousDoc).toContain('chunk geometry as one candidate strategy rather than the selected production winner');
-    expect(continuousDoc).toContain('stateful streaming analyzer is also a candidate');
-    expect(continuousDoc).toContain('old rolling scheduler as a fallback');
     expect(bytedanceReadme).toContain('Historical Candidate');
-    expect(bytedanceReadme).toContain('not the authoritative Practice v2 acoustic architecture');
-    expect(bytedanceReadme).toMatch(/must not be restored\s+as a fallback product path/);
-    expect(bytedanceReadme).toContain('future bounded-attempt flow');
+    expect(bytedanceReadme).toMatch(/not the\s+authoritative Practice v2 acoustic architecture/);
+    expect(bytedanceReadme).toMatch(/must not be restored as a\s+fallback product path/);
+    expect(bytedanceReadme).toContain('low-level');
   });
 
   it('keeps PerformanceClockRuntime independent from acoustic model implementations', () => {
@@ -193,6 +195,21 @@ describe('practice architecture boundaries', () => {
     expect(content).not.toContain('ContinuousEvaluationSession');
     expect(content).not.toContain('PerformanceClockRuntime');
     expect(content).not.toContain('advanceAnalysisThrough');
+  });
+
+  it('keeps generic realtime notifications out of the local Practice runtime', () => {
+    const localPracticeFiles = [
+      ...collectProductionSourceFiles(path.resolve(__dirname, 'local-core')),
+      path.resolve(__dirname, '../../hooks/practice/use-local-practice.ts'),
+    ];
+    const violations = localPracticeFiles.flatMap((file) => {
+      const content = readFileSync(file, 'utf8');
+      return ['EventSource', '/realtime/events', 'realtime-provider', 'backend/app/modules/realtime']
+        .filter((token) => content.includes(token))
+        .map((token) => `${path.relative(process.cwd(), file)} contains ${token}`);
+    });
+
+    expect(violations).toEqual([]);
   });
 
   it('keeps model-specific candidates out of product domain contracts', () => {

@@ -63,7 +63,14 @@ They use:
 - backend-generated playback audio for cover playback.
 
 They do not use the old full Verovio score viewer or bottom playback transport on the detail
-page. Practice remains the focused interactive score-following surface.
+page. Practice remains the focused browser-local practice surface.
+
+Practice execution is owned by Customer Web once the required score artifacts are loaded.
+`STEP_BY_STEP` progresses by local correctness decisions for bounded attempts.
+`CONTINUOUS_PLAY` progresses from the fixed local tempo clock; the user follows the
+score cursor, and MIDI or acoustic evidence is downstream correctness/timing evidence
+only. Practice must not depend on a backend PracticeSession runtime, Practice WebSocket,
+backend clock synchronization, Matchmaker, or score-following transport.
 
 ## Asset Vocabulary
 
