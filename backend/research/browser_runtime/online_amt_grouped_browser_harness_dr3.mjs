@@ -148,8 +148,20 @@ async function getWebGpuPreflight() {
   return {
     navigatorGpu: true,
     adapterAvailable: Boolean(adapter),
-    adapterInfo: adapter?.info ?? null,
+    adapterInfo: plainAdapterInfo(adapter?.info),
   };
+}
+function plainAdapterInfo(info) {
+  if (!info) return null;
+  const out = {};
+  for (const key of ['vendor', 'architecture', 'device', 'description']) {
+    try {
+      if (info[key] !== undefined) out[key] = String(info[key]);
+    } catch {
+      // Adapter info may expose browser-specific opaque fields.
+    }
+  }
+  return out;
 }
 function buildGroupPlan() {
   const plan = [];

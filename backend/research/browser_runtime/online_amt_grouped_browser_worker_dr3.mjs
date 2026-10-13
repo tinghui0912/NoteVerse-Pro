@@ -287,7 +287,7 @@ async function initRuntime(message) {
     sessionLoads,
     warmup,
     adapterInfoAvailable: Boolean(adapter.info),
-    adapterInfo: adapter.info ?? null,
+    adapterInfo: plainAdapterInfo(adapter.info),
     graphKeys: [...sessions.keys()],
     initialStateSnapshot: stateSnapshot(),
   };
@@ -428,6 +428,19 @@ function discreteDigest(values) {
     if (Number(value) !== 0) nonzero += 1;
   }
   return { length: values.length, sum, nonzero };
+}
+
+function plainAdapterInfo(info) {
+  if (!info) return null;
+  const out = {};
+  for (const key of ['vendor', 'architecture', 'device', 'description']) {
+    try {
+      if (info[key] !== undefined) out[key] = String(info[key]);
+    } catch {
+      // Some browser implementations expose opaque adapter fields.
+    }
+  }
+  return out;
 }
 
 function concatFloat(rows) {
