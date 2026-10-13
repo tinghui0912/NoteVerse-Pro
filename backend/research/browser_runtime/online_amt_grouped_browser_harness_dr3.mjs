@@ -99,6 +99,7 @@ worker.onmessage = (event) => {
   else item.resolve(event.data.result);
 };
 async function runProducer() {
+  const webgpuPreflight = await getWebGpuPreflight();
   const init = await callWorker({
     type: 'init',
     artificialDelayMs: ARTIFICIAL_DELAY_MS,
@@ -108,7 +109,10 @@ async function runProducer() {
     manifestFile: 'grouped_manifest_dr3r.json',
     targetK: K,
   });
+  const reset = MODE === 'overload-proof' ? null : await callWorker({ type: 'reset' });
   const hops = MODE === 'overload-proof' ? null : await fetchNpy('hops.npy');
+  const referenceChosen = MODE === 'overload-proof' ? null : await fetchNpy('reference_chosen_states.npy');
+  const referenceProbabilities = MODE === 'overload-proof' ? null : await fetchNpy('reference_probabilities.npy');
   const feedStartTimestamp = nowAbs();
   const intervalMs = K * 32;
   const promises = [];
@@ -135,7 +139,17 @@ async function runProducer() {
     }));
   }
   const rows = await Promise.all(promises);
-  return summarize(init, rows, intervalMs, plan);
+  const finalSnapshot = MODE === 'overload-proof' ? null : await callWorker({ type: 'snapshot' });
+  return summarize(init, reset, finalSnapshot, webgpuPreflight, rows, intervalMs, plan, referenceChosen, referenceProbabilities);
+}
+async function getWebGpuPreflight() {
+  if (!navigator.gpu) return { navigatorGpu: false, adapterAvailable: false, adapterInfo: null };
+  const adapter = await navigator.gpu.requestAdapter();
+  return {
+    navigatorGpu: true,
+    adapterAvailable: Boolean(adapter),
+    adapterInfo: adapter?.info ?? null,
+  };
 }
 function buildGroupPlan() {
   const plan = [];
@@ -168,6 +182,7 @@ function parseNpy(buffer) {
   const shape = shapeMatch ? shapeMatch[1].split(',').map((part) => part.trim()).filter(Boolean).map(Number) : [];
   const dataOffset = offset + headerLen;
   if (header.includes("'descr': '<f4'")) return { dtype: 'float32', shape, data: new Float32Array(buffer, dataOffset) };
+  if (header.includes("'descr': '<i8'")) return { dtype: 'int64', shape, data: Array.from(new BigInt64Array(buffer, dataOffset), Number) };
   throw new Error('unsupported npy dtype: ' + header);
 }
 function percentile(sorted, p) {
@@ -182,11 +197,12 @@ function summary(values) {
   const sorted = [...values].sort((a, b) => a - b);
   return { p50: percentile(sorted, 0.5), p95: percentile(sorted, 0.95), max: sorted.at(-1) ?? null };
 }
-function summarize(init, rows, intervalMs, plan) {
+function summarize(init, reset, finalSnapshot, webgpuPreflight, rows, intervalMs, plan, referenceChosen, referenceProbabilities) {
   const queue = rows.map((row) => row.queueDelayMs);
   const groupedRows = rows.filter((row) => row.k === K);
   const tailRows = rows.filter((row) => row.k !== K);
   const processing = groupedRows.map((row) => row.groupedProcessingDurationMs);
+  const ortDurations = groupedRows.map((row) => row.ortSessionRunDurationMs);
   const ages = rows.flatMap((row) => row.internalHops.map((hop) => hop.captureToPublicationAgeMs));
   const oldestAges = rows.map((row) => row.internalHops[0]?.captureToPublicationAgeMs).filter((value) => Number.isFinite(value));
   const tail = queue.slice(Math.max(0, queue.length - 4));
@@ -196,6 +212,9 @@ function summarize(init, rows, intervalMs, plan) {
     k: K,
     intervalMs,
     init,
+    reset,
+    finalSnapshot,
+    webgpuPreflight,
     producerDoesNotAwaitPriorCompletion: true,
     futureAudioPostPolicy: 'GROUP_POSTS_AT_LAST_INTERNAL_HOP_READY',
     plan,
@@ -203,7 +222,9 @@ function summarize(init, rows, intervalMs, plan) {
     fullGroupedHopCount: groupedRows.reduce((sum, row) => sum + row.internalHops.length, 0),
     tailFallbackHopCount: tailRows.reduce((sum, row) => sum + row.internalHops.length, 0),
     rows,
+    rawSemanticParity: compareReference(rows, referenceChosen, referenceProbabilities),
     groupedProcessingMs: summary(processing),
+    ortSessionRunMs: summary(ortDurations),
     tailFallbackProcessingMs: summary(tailRows.map((row) => row.groupedProcessingDurationMs)),
     queueDelayMs: summary(queue),
     finalQueueDelayMs: queue.at(-1) ?? null,
@@ -214,6 +235,47 @@ function summarize(init, rows, intervalMs, plan) {
     strictRealtime: classifyBacklog(queue, rows),
     headroomPass: (summary(processing).p95 ?? Infinity) <= 0.8 * intervalMs,
     overloadDetected: ARTIFICIAL_DELAY_MS > intervalMs && (queue.at(-1) ?? 0) > (queue[0] ?? 0),
+  };
+}
+function compareReference(rows, referenceChosen, referenceProbabilities) {
+  if (!referenceChosen || !referenceProbabilities) return null;
+  const chosen = new Int32Array(HOP_COUNT * 88);
+  const probabilities = new Float32Array(HOP_COUNT * 88 * 5);
+  for (const row of rows) {
+    const hopOffset = row.startHopIndex * 88;
+    const probOffset = row.startHopIndex * 88 * 5;
+    chosen.set(Int32Array.from(row.chosenStates), hopOffset);
+    probabilities.set(Float32Array.from(row.probabilities), probOffset);
+  }
+  let mismatch = 0;
+  let firstMismatch = null;
+  for (let index = 0; index < chosen.length; index += 1) {
+    const expected = Number(referenceChosen.data[index]);
+    if (chosen[index] !== expected) {
+      mismatch += 1;
+      if (!firstMismatch) {
+        firstMismatch = {
+          hopIndex: Math.floor(index / 88),
+          pitchIndex: index % 88,
+          browserChosen: chosen[index],
+          referenceChosen: expected,
+        };
+      }
+    }
+  }
+  let sum = 0;
+  let max = 0;
+  for (let index = 0; index < probabilities.length; index += 1) {
+    const delta = Math.abs(probabilities[index] - referenceProbabilities.data[index]);
+    sum += delta;
+    if (delta > max) max = delta;
+  }
+  return {
+    semanticHopCount: HOP_COUNT,
+    chosenStateMismatchCount: mismatch,
+    firstChosenStateMismatch: firstMismatch,
+    probabilityMeanAbsDelta: sum / probabilities.length,
+    probabilityMaxAbsDelta: max,
   };
 }
 function classifyBacklog(queue, rows) {
@@ -262,6 +324,8 @@ const launchOptions = {
 };
 let browser;
 try {
+  const browserType = chromium;
+  const executablePath = browserType.executablePath ? browserType.executablePath() : null;
   browser = await chromium.launch(launchOptions);
   const page = await browser.newPage();
   await page.goto(url);
@@ -271,11 +335,16 @@ try {
   const result = await page.evaluate(() => window.__DR3_RESULT__);
   result.browser = {
     channel: browserChannel,
+    executablePath,
     version: browser.version(),
     headed,
+    launchArgs: launchOptions.args,
     unsafeWebGpu: false,
     wasmFallback: false,
     os: `${os.type()} ${os.release()}`,
+    arch: os.arch(),
+    nodeVersion: process.version,
+    playwrightVersion: playwright.version ?? null,
   };
   if (outputPath) await writeFile(outputPath, JSON.stringify(result, null, 2) + '\\n', 'utf8');
   console.log(JSON.stringify(result, null, 2));

@@ -341,11 +341,61 @@ def run_browser_command(cmd: list[str], output_path: Path, cwd: Path, attempted:
 
 
 def decide(ort_parity: dict[str, Any], browser: dict[str, Any]) -> str:
-    if not any(row.get("status") in {"PASS", "SEMANTIC_PASS"} and row.get("chosenStateMismatchCount") == 0 and row.get("semanticHopCount") == 326 for row in ort_parity.values()):
+    semantic_ks = [
+        int(k)
+        for k, row in ort_parity.items()
+        if row.get("status") in {"PASS", "SEMANTIC_PASS"}
+        and row.get("chosenStateMismatchCount") == 0
+        and row.get("semanticHopCount") == 326
+    ]
+    if not semantic_ks:
         return "ONLINE_AMT_GROUPED_SEMANTIC_PARITY_FAILED"
-    if browser.get("status", "").startswith("ONLINE_AMT_GROUPED_RUNTIME_BLOCKED") or browser.get("status", "").startswith("NOT_"):
-        return browser.get("status", "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_CONTAINER_BROWSER_WEBGPU")
-    return "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_CONTAINER_BROWSER_WEBGPU"
+    status = browser.get("status", "")
+    if status.startswith("ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_HOST_BROWSER_MISSING"):
+        return "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_HOST_BROWSER_MISSING"
+    if status.startswith("ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_HOST_WEBGPU_UNAVAILABLE"):
+        return "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_HOST_WEBGPU_UNAVAILABLE"
+    if status.startswith("ONLINE_AMT_GROUPED_RUNTIME_BLOCKED") or status.startswith("NOT_"):
+        return status
+
+    eligible: list[int] = []
+    realtime: list[int] = []
+    headroom: list[int] = []
+    runs = browser.get("runs", {})
+    for k in sorted(semantic_ks):
+        chrome = run_semantic_runtime(runs.get(f"chrome:k{k}"))
+        edge = run_semantic_runtime(runs.get(f"msedge:k{k}"))
+        if not chrome["semantic"] or not edge["semantic"]:
+            continue
+        eligible.append(k)
+        if chrome["realtime"] and edge["realtime"]:
+            realtime.append(k)
+        if chrome["realtime"] and edge["realtime"] and chrome["headroom"] and edge["headroom"]:
+            headroom.append(k)
+    if not eligible:
+        return "ONLINE_AMT_GROUPED_SEMANTIC_PARITY_FAILED"
+    if not realtime:
+        return "ONLINE_AMT_GROUPED_BROWSER_REALTIME_NOT_VIABLE"
+    if not headroom:
+        return "ONLINE_AMT_GROUPED_REALTIME_PASS_NO_HEADROOM"
+    return "ONLINE_AMT_GROUPED_BROWSER_REALTIME_PASS"
+
+
+def run_semantic_runtime(row: Any) -> dict[str, bool]:
+    if not isinstance(row, dict) or row.get("exitCode") != 0:
+        return {"semantic": False, "realtime": False, "headroom": False}
+    structured = row.get("structuredOutput")
+    if not isinstance(structured, dict):
+        return {"semantic": False, "realtime": False, "headroom": False}
+    raw = structured.get("rawSemanticParity") or {}
+    semantic = (
+        structured.get("semanticHopCount") == 326
+        and raw.get("chosenStateMismatchCount") == 0
+        and raw.get("semanticHopCount") == 326
+    )
+    realtime = structured.get("strictRealtime") == "NO_SUSTAINED_BACKLOG"
+    headroom = structured.get("headroomPass") is True
+    return {"semantic": semantic, "realtime": realtime, "headroom": headroom}
 
 
 def container_runtime_identity(repo_root: Path) -> dict[str, Any]:

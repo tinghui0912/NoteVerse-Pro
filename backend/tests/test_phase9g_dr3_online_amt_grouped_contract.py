@@ -8,8 +8,10 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "backend" / "research"))
+sys.path.insert(0, str(REPO_ROOT / "backend" / "scripts"))
 
 from online_amt_grouped_manifest_dr3 import GroupedGraphIdentity, build_grouped_browser_manifest  # noqa: E402
+from qualify_online_amt_grouped_browser_dr3 import decide  # noqa: E402
 
 
 def graph(k: int, file: str | None = None) -> GroupedGraphIdentity:
@@ -140,8 +142,69 @@ def test_dr3r_decide_distinguishes_partial_ort_from_full_semantic_parity() -> No
     assert "ONLINE_AMT_GROUPED_SEMANTIC_PARITY_FAILED" in source
 
 
+def _ort_pass() -> dict[str, object]:
+    return {"1": {"status": "SEMANTIC_PASS", "chosenStateMismatchCount": 0, "semanticHopCount": 326}}
+
+
+def _run(strict: str = "NO_SUSTAINED_BACKLOG", headroom: bool = True, mismatch: int = 0, exit_code: int = 0) -> dict[str, object]:
+    return {
+        "exitCode": exit_code,
+        "structuredOutput": {
+            "semanticHopCount": 326,
+            "rawSemanticParity": {
+                "semanticHopCount": 326,
+                "chosenStateMismatchCount": mismatch,
+            },
+            "strictRealtime": strict,
+            "headroomPass": headroom,
+        },
+    }
+
+
+def test_decide_host_browser_missing_result_is_not_container_blocker() -> None:
+    assert decide(_ort_pass(), {"status": "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_HOST_BROWSER_MISSING"}) == "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_HOST_BROWSER_MISSING"
+
+
+def test_decide_host_webgpu_result_is_not_container_blocker() -> None:
+    assert decide(_ort_pass(), {"status": "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_HOST_WEBGPU_UNAVAILABLE"}) == "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_HOST_WEBGPU_UNAVAILABLE"
+
+
+def test_decide_browser_semantic_failure() -> None:
+    browser = {"runs": {"chrome:k1": _run(mismatch=1), "msedge:k1": _run()}}
+    assert decide(_ort_pass(), browser) == "ONLINE_AMT_GROUPED_SEMANTIC_PARITY_FAILED"
+
+
+def test_decide_realtime_failure_and_no_headroom_are_distinct() -> None:
+    browser_backlog = {"runs": {"chrome:k1": _run(strict="BACKLOG_PRESENT"), "msedge:k1": _run()}}
+    assert decide(_ort_pass(), browser_backlog) == "ONLINE_AMT_GROUPED_BROWSER_REALTIME_NOT_VIABLE"
+    browser_no_headroom = {"runs": {"chrome:k1": _run(headroom=False), "msedge:k1": _run()}}
+    assert decide(_ort_pass(), browser_no_headroom) == "ONLINE_AMT_GROUPED_REALTIME_PASS_NO_HEADROOM"
+
+
+def test_decide_full_realtime_headroom_pass() -> None:
+    browser = {"runs": {"chrome:k1": _run(), "msedge:k1": _run()}}
+    assert decide(_ort_pass(), browser) == "ONLINE_AMT_GROUPED_BROWSER_REALTIME_PASS"
+
+
 def test_worker_uses_start_hop_identity_and_loads_only_required_sessions() -> None:
     worker = (REPO_ROOT / "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs").read_text(encoding="utf-8")
     assert "startHopIndex" in worker
     assert "hopCountInMessage" in worker
     assert "requiredKeys = targetK === 1 ? ['1'] : ['1', String(targetK)]" in worker
+
+
+def test_worker_records_actual_ort_run_boundaries_and_snapshot_reset() -> None:
+    worker = (REPO_ROOT / "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs").read_text(encoding="utf-8")
+    assert "ortSessionRunStartTimestamp" in worker
+    assert "ortSessionRunFinishTimestamp" in worker
+    assert "resetStateFromInitial()" in worker
+    assert "stateSnapshot()" in worker
+
+
+def test_harness_compares_browser_rows_to_reference_and_records_host_identity() -> None:
+    harness = (REPO_ROOT / "backend/research/browser_runtime/online_amt_grouped_browser_harness_dr3.mjs").read_text(encoding="utf-8")
+    assert "reference_chosen_states.npy" in harness
+    assert "reference_probabilities.npy" in harness
+    assert "rawSemanticParity" in harness
+    assert "executablePath" in harness
+    assert "webgpuPreflight" in harness

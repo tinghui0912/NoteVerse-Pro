@@ -11,6 +11,7 @@ let manifest = null;
 let sessions = new Map();
 let k1Session = null;
 let state = null;
+let initialState = null;
 let fixtureRoot = '/fixtures/';
 let ortReady = false;
 
@@ -32,9 +33,11 @@ async function processGroup(message) {
   const hopCountInMessage = Number(message.hopCountInMessage ?? k);
   const processingStartTimestamp = nowAbs();
   const groupPcm = message.pcm ? new Float32Array(message.pcm) : new Float32Array(hopCountInMessage * 512);
-  const ortInferenceStartTimestamp = nowAbs();
+  const preprocessStartTimestamp = nowAbs();
+  const preprocessFinishTimestamp = nowAbs();
   let probabilities = [];
   let chosenStates = [];
+  let ortRuns = [];
   let usedSyntheticDelay = false;
   if (artificialDelayMs > 0) {
     usedSyntheticDelay = true;
@@ -43,10 +46,12 @@ async function processGroup(message) {
     const result = await runModelGroup(k, hopCountInMessage, groupPcm);
     probabilities = result.probabilities;
     chosenStates = result.chosenStates;
+    ortRuns = result.ortRuns;
   } else if (ortReady) {
     throw new Error(`No grouped ORT session for K=${k}`);
   }
-  const ortInferenceFinishTimestamp = nowAbs();
+  const ortSessionRunStartTimestamp = ortRuns.length ? ortRuns[0].ortSessionRunStartTimestamp : null;
+  const ortSessionRunFinishTimestamp = ortRuns.length ? ortRuns.at(-1).ortSessionRunFinishTimestamp : null;
   const publicationFinishTimestamp = nowAbs();
   const hopRows = [];
   for (let offset = 0; offset < hopCountInMessage; offset += 1) {
@@ -70,11 +75,16 @@ async function processGroup(message) {
     workerReceiveTimestamp,
     workerQueueEnterTimestamp: queueEnterTimestamp,
     workerProcessingStartTimestamp: processingStartTimestamp,
-    ortInferenceStartTimestamp,
-    ortInferenceFinishTimestamp,
+    groupProcessingStartTimestamp: processingStartTimestamp,
+    preprocessStartTimestamp,
+    preprocessFinishTimestamp,
+    ortSessionRunStartTimestamp,
+    ortSessionRunFinishTimestamp,
+    ortRuns,
     publicationFinishTimestamp,
     outstandingPostedNotCompletedDepth: outstanding,
     groupedProcessingDurationMs: publicationFinishTimestamp - processingStartTimestamp,
+    ortSessionRunDurationMs: ortRuns.reduce((sum, run) => sum + run.ortSessionRunDurationMs, 0),
     queueDelayMs: processingStartTimestamp - workerReceiveTimestamp,
     receiveToStartQueueDelayMs: processingStartTimestamp - workerReceiveTimestamp,
     enqueueToStartQueueDelayMs: processingStartTimestamp - queueEnterTimestamp,
@@ -99,6 +109,7 @@ async function runModelGroup(k, hopCountInMessage, groupPcm) {
   }
   if (!active) return runSequentialFallback(hopCountInMessage, groupPcm);
   const session = sessions.get(k);
+  const ortSessionRunStartTimestamp = nowAbs();
   const output = await session.run({
     audio_last_2048_sequence: new ort.Tensor('float32', concatFloat(windows), [k, 1, 2048]),
     mel_buffer_in: new ort.Tensor('float32', state.mel, [1, 229, 7]),
@@ -108,6 +119,7 @@ async function runModelGroup(k, hopCountInMessage, groupPcm) {
     c_in: new ort.Tensor('float32', state.c, [2, 1, 512]),
     prev_output_in: new ort.Tensor('int64', toBigInt64(state.prev), [1, 1, 88]),
   });
+  const ortSessionRunFinishTimestamp = nowAbs();
   state.audio = probe.audio;
   state.numUnderThr = probe.numUnderThr;
   state.mel = new Float32Array(output.mel_buffer_out.data);
@@ -118,12 +130,25 @@ async function runModelGroup(k, hopCountInMessage, groupPcm) {
   const probabilities = Array.from(output.probabilities_sequence.data);
   const chosen = Array.from(output.chosen_state_sequence.data, Number);
   state.prev = Int32Array.from(chosen.slice((k - 1) * 88, k * 88));
-  return { probabilities, chosenStates: chosen };
+  return {
+    probabilities,
+    chosenStates: chosen,
+    ortRuns: [{
+      k,
+      hopOffset: 0,
+      hopCount: k,
+      graphKind: 'grouped',
+      ortSessionRunStartTimestamp,
+      ortSessionRunFinishTimestamp,
+      ortSessionRunDurationMs: ortSessionRunFinishTimestamp - ortSessionRunStartTimestamp,
+    }],
+  };
 }
 
 async function runSequentialFallback(hopCountInMessage, groupPcm) {
   const probabilities = [];
   const chosen = [];
+  const ortRuns = [];
   for (let offset = 0; offset < hopCountInMessage; offset += 1) {
     const hop = groupPcm.subarray(offset * 512, (offset + 1) * 512);
     updateAudioBuffer(state.audio, hop);
@@ -136,6 +161,7 @@ async function runSequentialFallback(hopCountInMessage, groupPcm) {
       }
       continue;
     }
+    const ortSessionRunStartTimestamp = nowAbs();
     const output = await k1Session.run({
       audio_last_2048_sequence: new ort.Tensor('float32', state.audio.slice(state.audio.length - 2048), [1, 1, 2048]),
       mel_buffer_in: new ort.Tensor('float32', state.mel, [1, 229, 7]),
@@ -144,6 +170,16 @@ async function runSequentialFallback(hopCountInMessage, groupPcm) {
       h_in: new ort.Tensor('float32', state.h, [2, 1, 512]),
       c_in: new ort.Tensor('float32', state.c, [2, 1, 512]),
       prev_output_in: new ort.Tensor('int64', toBigInt64(state.prev), [1, 1, 88]),
+    });
+    const ortSessionRunFinishTimestamp = nowAbs();
+    ortRuns.push({
+      k: 1,
+      hopOffset: offset,
+      hopCount: 1,
+      graphKind: 'k1-fallback',
+      ortSessionRunStartTimestamp,
+      ortSessionRunFinishTimestamp,
+      ortSessionRunDurationMs: ortSessionRunFinishTimestamp - ortSessionRunStartTimestamp,
     });
     state.mel = new Float32Array(output.mel_buffer_out.data);
     state.cache0 = new Float32Array(output.cache0_out.data);
@@ -156,7 +192,50 @@ async function runSequentialFallback(hopCountInMessage, groupPcm) {
     chosen.push(...states);
     state.prev = Int32Array.from(states);
   }
-  return { probabilities, chosenStates: chosen };
+  return { probabilities, chosenStates: chosen, ortRuns };
+}
+
+function resetStateFromInitial() {
+  if (!initialState) throw new Error('DR3R initial state unavailable for reset');
+  state = cloneState(initialState);
+}
+
+function stateSnapshot() {
+  return {
+    audio: numericDigest(state.audio),
+    mel: numericDigest(state.mel),
+    cache0: numericDigest(state.cache0),
+    cache1: numericDigest(state.cache1),
+    h: numericDigest(state.h),
+    c: numericDigest(state.c),
+    prev: discreteDigest(state.prev),
+    numUnderThr: state.numUnderThr,
+  };
+}
+
+async function warmupSessions(targetK) {
+  const rows = [];
+  const keys = targetK === 1 ? [1] : [targetK, 1];
+  for (const key of keys) {
+    const session = sessions.get(key);
+    if (!session) continue;
+    const warm = cloneState(initialState);
+    const sequence = new Float32Array(key * 2048);
+    const started = nowAbs();
+    await session.run({
+      audio_last_2048_sequence: new ort.Tensor('float32', sequence, [key, 1, 2048]),
+      mel_buffer_in: new ort.Tensor('float32', warm.mel, [1, 229, 7]),
+      cache0_in: new ort.Tensor('float32', warm.cache0, [1, 64, 5, 229]),
+      cache1_in: new ort.Tensor('float32', warm.cache1, [1, 64, 3, 114]),
+      h_in: new ort.Tensor('float32', warm.h, [2, 1, 512]),
+      c_in: new ort.Tensor('float32', warm.c, [2, 1, 512]),
+      prev_output_in: new ort.Tensor('int64', toBigInt64(warm.prev), [1, 1, 88]),
+    });
+    const finished = nowAbs();
+    rows.push({ k: key, warmupDurationMs: finished - started });
+  }
+  resetStateFromInitial();
+  return rows;
 }
 
 async function initRuntime(message) {
@@ -169,7 +248,7 @@ async function initRuntime(message) {
   manifest = await fetchJson(message.manifestFile || 'grouped_manifest_dr3r.json');
   const targetK = Number(message.targetK ?? 1);
   const initial = await loadInitial(manifest.fixtures.initialState);
-  state = {
+  initialState = {
     audio: initial.audio,
     mel: initial.mel,
     cache0: initial.cache0,
@@ -179,19 +258,39 @@ async function initRuntime(message) {
     prev: initial.prev,
     numUnderThr: 0,
   };
+  resetStateFromInitial();
   const requiredKeys = targetK === 1 ? ['1'] : ['1', String(targetK)];
+  const sessionLoads = [];
   for (const key of requiredKeys) {
     const graph = manifest.graphs.grouped[key];
     if (!graph) throw new Error(`DR3R manifest missing graph K=${key}`);
+    const loadStartTimestamp = nowAbs();
     const session = await ort.InferenceSession.create(fixtureRoot + graph.file, {
       executionProviders: ['webgpu'],
       graphOptimizationLevel: 'disabled',
+    });
+    const loadFinishTimestamp = nowAbs();
+    sessionLoads.push({
+      k: Number(key),
+      graphFile: graph.file,
+      graphSha256: graph.sha256,
+      sessionLoadDurationMs: loadFinishTimestamp - loadStartTimestamp,
     });
     sessions.set(Number(key), session);
   }
   k1Session = sessions.get(1);
   ortReady = true;
-  return { status: 'PASS', sessionCount: sessions.size, adapterInfoAvailable: Boolean(adapter.info), graphKeys: [...sessions.keys()] };
+  const warmup = await warmupSessions(targetK);
+  return {
+    status: 'PASS',
+    sessionCount: sessions.size,
+    sessionLoads,
+    warmup,
+    adapterInfoAvailable: Boolean(adapter.info),
+    adapterInfo: adapter.info ?? null,
+    graphKeys: [...sessions.keys()],
+    initialStateSnapshot: stateSnapshot(),
+  };
 }
 
 self.onmessage = (event) => {
@@ -204,6 +303,23 @@ self.onmessage = (event) => {
     init.then((result) => self.postMessage({ id: message.id, result })).catch((error) => {
       self.postMessage({ id: message.id, error: String(error && error.stack ? error.stack : error) });
     });
+    return;
+  }
+  if (message.type === 'reset') {
+    try {
+      resetStateFromInitial();
+      self.postMessage({ id: message.id, result: { status: 'PASS', stateSnapshot: stateSnapshot() } });
+    } catch (error) {
+      self.postMessage({ id: message.id, error: String(error && error.stack ? error.stack : error) });
+    }
+    return;
+  }
+  if (message.type === 'snapshot') {
+    try {
+      self.postMessage({ id: message.id, result: { status: 'PASS', stateSnapshot: stateSnapshot() } });
+    } catch (error) {
+      self.postMessage({ id: message.id, error: String(error && error.stack ? error.stack : error) });
+    }
     return;
   }
   if (message.type !== 'group') {
@@ -289,6 +405,29 @@ function cloneState(input) {
     prev: new Int32Array(input.prev),
     numUnderThr: input.numUnderThr,
   };
+}
+
+function numericDigest(values) {
+  let sum = 0;
+  let absSum = 0;
+  let maxAbs = 0;
+  for (const value of values) {
+    sum += value;
+    const abs = Math.abs(value);
+    absSum += abs;
+    if (abs > maxAbs) maxAbs = abs;
+  }
+  return { length: values.length, sum, absSum, maxAbs };
+}
+
+function discreteDigest(values) {
+  let sum = 0;
+  let nonzero = 0;
+  for (const value of values) {
+    sum += Number(value);
+    if (Number(value) !== 0) nonzero += 1;
+  }
+  return { length: values.length, sum, nonzero };
 }
 
 function concatFloat(rows) {
