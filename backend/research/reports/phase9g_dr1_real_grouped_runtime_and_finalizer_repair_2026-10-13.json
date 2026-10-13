@@ -1,0 +1,338 @@
+{
+  "schemaVersion": 2,
+  "artifact": "phase9g_dr1_real_grouped_runtime_and_finalizer_repair",
+  "phase": "PHASE_9G_DR1_REAL_GROUPED_RUNTIME_AND_FINALIZER_REPAIR",
+  "date": "2026-10-13",
+  "startGitHead": "a925d6f66c20bba2d4cb7b93577797454cf7a7c5",
+  "historicalPhase9gBConclusion": {
+    "outcome": "STATISTICAL_TIE",
+    "winner": null
+  },
+  "productionMicrophoneEnabled": false,
+  "productionWinnerSelected": false,
+  "p15p22InferenceIncrease": 0,
+  "runtimeIdentities": {
+    "onnxruntimeWebHistoricalPinned": "1.20.1",
+    "onnxruntimeWebResearchTarget": {
+      "version": "1.30.0",
+      "dist.integrity": "sha512-q0y+JrrtukXSzsBWEMccVfqX25LRmosXHF+CaRJmg8pZClzcV7svNc4rKY3jL02Vb7QmRMDs1SigqR4CXAfKYQ==",
+      "dist.tarball": "https://registry.npmjs.org/onnxruntime-web/-/onnxruntime-web-1.30.0.tgz"
+    },
+    "customerWebPackageLockSha256": "c5e4058eff368e4ad5e0d74ad59fd8abf92112fdfc1cbb6eb300cf9510dc4b03"
+  },
+  "onlineAmt": {
+    "candidateId": "online-amt-calibrated-v1",
+    "frozenIdentity": {
+      "sampleRateHz": 16000,
+      "hopSamples": 512,
+      "hopMs": 32,
+      "timingCorrectionMs": -162.93750000004252,
+      "onsetBoost": 1.0,
+      "pseudoIntensity": "NATIVE"
+    },
+    "syntheticContractTests": {
+      "K=1": {
+        "evidenceStatus": "SYNTHETIC_CONTRACT_TEST_ONLY",
+        "semanticContract": "PASS",
+        "chosenStateMismatchCount": 0,
+        "skippedIntermediateTransitionMismatchCount": 0,
+        "mayPopulateRuntimeEvidence": false,
+        "mayRankCandidate": false
+      },
+      "K=2": {
+        "evidenceStatus": "SYNTHETIC_CONTRACT_TEST_ONLY",
+        "semanticContract": "PASS",
+        "chosenStateMismatchCount": 0,
+        "skippedIntermediateTransitionMismatchCount": 32,
+        "mayPopulateRuntimeEvidence": false,
+        "mayRankCandidate": false
+      },
+      "K=4": {
+        "evidenceStatus": "SYNTHETIC_CONTRACT_TEST_ONLY",
+        "semanticContract": "PASS",
+        "chosenStateMismatchCount": 0,
+        "skippedIntermediateTransitionMismatchCount": 48,
+        "mayPopulateRuntimeEvidence": false,
+        "mayRankCandidate": false
+      },
+      "K=8": {
+        "evidenceStatus": "SYNTHETIC_CONTRACT_TEST_ONLY",
+        "semanticContract": "PASS",
+        "chosenStateMismatchCount": 0,
+        "skippedIntermediateTransitionMismatchCount": 56,
+        "mayPopulateRuntimeEvidence": false,
+        "mayRankCandidate": false
+      }
+    },
+    "realGroupedGraphExecution": {
+      "status": "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED",
+      "missingPrerequisite": "Real static K-hop ONNX unroll exporter and browser worker execution for K=1/2/4/8 were not present in this repair commit.",
+      "requiredSourceInfrastructure": [
+        "backend/scripts/qualify_online_amt_browser_stateful_d2r1.py",
+        "backend/research/browser_runtime/online_amt_stateful_browser_worker.mjs",
+        "backend/research/browser_runtime/online_amt_stateful_browser_harness.mjs"
+      ],
+      "kHopGraphIdentities": {
+        "K=1": {
+          "status": "NOT_EXPORTED",
+          "path": null,
+          "sha256": null,
+          "byteSize": null,
+          "opset": null,
+          "inputNames": [],
+          "outputNames": [],
+          "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0"
+        },
+        "K=2": {
+          "status": "NOT_EXPORTED",
+          "path": null,
+          "sha256": null,
+          "byteSize": null,
+          "opset": null,
+          "inputNames": [],
+          "outputNames": [],
+          "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0"
+        },
+        "K=4": {
+          "status": "NOT_EXPORTED",
+          "path": null,
+          "sha256": null,
+          "byteSize": null,
+          "opset": null,
+          "inputNames": [],
+          "outputNames": [],
+          "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0"
+        },
+        "K=8": {
+          "status": "NOT_EXPORTED",
+          "path": null,
+          "sha256": null,
+          "byteSize": null,
+          "opset": null,
+          "inputNames": [],
+          "outputNames": [],
+          "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0"
+        }
+      },
+      "semanticParity": "NOT_MEASURED_REAL_MODEL",
+      "chromeRuntime": "NOT_MEASURED",
+      "edgeRuntime": "NOT_MEASURED",
+      "timerDrivenBrowserFeeder": "NOT_MEASURED_REAL_BROWSER",
+      "decision": "REBASELINE_RUNTIME_EVIDENCE_INCOMPLETE"
+    }
+  },
+  "robustByteDance": {
+    "candidateId": "robust-browser-v1",
+    "sourceIdentitySha256": "196a9a2ceb03569f6e266c4f5973125bb8596146882079105ee94ef7e621deed",
+    "ortWebHistorical": "1.20.1",
+    "ortWebRebaselineTarget": "1.30.0",
+    "ortWeb130RuntimeExecution": "NOT_EXECUTED_IN_THIS_REPAIR_COMMIT",
+    "runtimeEvidenceRetained": {
+      "sourceReport": "backend/research/reports/phase9g_d1r_robust_default_browser_runtime_2026-10-12.json",
+      "modelLoadLatencyMs": 806.3999999761581,
+      "firstInferenceLatencyMs": 680.2999999523163,
+      "distinctWindowInferenceLatencyMs": {
+        "min": 281.30000001192093,
+        "p50": 291.39999997615814,
+        "p95": 320,
+        "max": 680.2999999523163
+      }
+    },
+    "preprocessingSensitivity": {
+      "linearInterpolationContractSha256": "bf8865ff7ca8eb823fd3e8bdabc9dcd500fdd56173d8deff78c0565fa869fe64",
+      "toyWindowedSincContractSha256": "55462d21fe51590cb24b46b4d33a5105256e7b214d7f86e5ebc2040aaca9742d",
+      "selectionStatus": "TOY_RESAMPLER_CONTRACT_ONLY_NO_ROBUST_PREPROCESSING_SELECTION",
+      "productionValidationRequired": [
+        "48000_to_16000",
+        "44100_to_16000",
+        "impulse",
+        "swept_frequency",
+        "near_nyquist",
+        "piano_like_multitone"
+      ]
+    },
+    "decoderSensitivity": {
+      "contiguousThresholdPeak": [
+        {
+          "pitch": 60,
+          "frame": 2,
+          "onset_time_ms": 20.0,
+          "confidence": 0.44
+        },
+        {
+          "pitch": 60,
+          "frame": 5,
+          "onset_time_ms": 50.0,
+          "confidence": 0.07
+        }
+      ],
+      "toyRegressedLocalPeakNotUpstreamEquivalent": [
+        {
+          "pitch": 60,
+          "frame": 2,
+          "onset_time_ms": 19.0,
+          "confidence": 0.44
+        },
+        {
+          "pitch": 60,
+          "frame": 5,
+          "onset_time_ms": 51.5,
+          "confidence": 0.07
+        }
+      ],
+      "conservativeHybrid": [
+        {
+          "pitch": 60,
+          "frame": 2,
+          "onset_time_ms": 19.0,
+          "confidence": 0.44
+        },
+        {
+          "pitch": 60,
+          "frame": 5,
+          "onset_time_ms": 51.5,
+          "confidence": 0.07
+        }
+      ],
+      "upstreamRegressionPostProcessorStatus": "NOT_IMPLEMENTED_IN_THIS_REPAIR_COMMIT",
+      "pinnedUpstreamReference": {
+        "repository": "qiuqiangkong/piano_transcription_inference",
+        "commit": "0226e74cbc805660e34bbd6a8fed2083890ebb88",
+        "file": "piano_transcription_inference/utilities.py",
+        "symbols": [
+          "RegressionPostProcessor.get_binarized_output_from_regression",
+          "RegressionPostProcessor.is_monotonic_neighbour"
+        ]
+      },
+      "selectionStatus": "TOY_DECODER_CONTRACT_ONLY_NO_ROBUST_DECODER_SELECTION"
+    },
+    "cadenceSweep": {
+      "cadencesMs": [
+        320,
+        400,
+        500,
+        600
+      ],
+      "status": "NOT_EXECUTED_IN_THIS_REPAIR_COMMIT"
+    }
+  },
+  "basicPitch": {
+    "candidateId": "spotify-basic-pitch-browser",
+    "upstreamPackage": "@spotify/basic-pitch",
+    "npmVersionObserved": {
+      "version": "1.0.1",
+      "dist.integrity": "sha512-SAxiFi9ZnyhGdhWEOS9YVhdunZiKzI3I5zOccZzDzQRr4s00Ii9lphqlPMMfby3iYa7TSupB2g8yuu1kJ6gL+Q==",
+      "dist.tarball": "https://registry.npmjs.org/@spotify/basic-pitch/-/basic-pitch-1.0.1.tgz"
+    },
+    "historicalReport": "backend/research/reports/basic_pitch_browser_feasibility.md",
+    "currentPhaseBrowserExecution": "NOT_EXECUTED_IN_THIS_REPAIR_COMMIT",
+    "productionCandidateStatus": "LIGHTWEIGHT_CHALLENGER_REQUIRES_CURRENT_BROWSER_RUNTIME_AND_OBSERVATION_BRIDGE"
+  },
+  "offlineReferences": {
+    "transkunV2": "NOT_RUN_IN_THIS_REPAIR_COMMIT",
+    "ariaAmt": "NOT_RUN_IN_THIS_REPAIR_COMMIT"
+  },
+  "productScorerArchitecture": {
+    "audioOnlyNeuralInputs": true,
+    "forbiddenAdapterInputs": [
+      "expected pitch",
+      "score note",
+      "truth MIDI",
+      "target timestamp",
+      "correctness label",
+      "scenario category"
+    ],
+    "oneToOneAssignmentRequired": true,
+    "verdictsCoveredByTests": [
+      "correct",
+      "missing",
+      "wrong",
+      "incomplete_chord",
+      "extra"
+    ],
+    "timeAwareFinalizerFixture": {
+      "evidenceStatus": "SYNTHETIC_CONTRACT_TEST_ONLY",
+      "result": {
+        "strikes": {
+          "correct": {
+            "state": "correct",
+            "matchedObservationIds": [
+              "obs-correct"
+            ],
+            "wrongObservationIds": [],
+            "deadlineMs": 1120
+          },
+          "wrong": {
+            "state": "wrong",
+            "matchedObservationIds": [],
+            "wrongObservationIds": [
+              "obs-wrong"
+            ],
+            "deadlineMs": 1420
+          },
+          "incomplete": {
+            "state": "incomplete_chord",
+            "matchedObservationIds": [
+              "obs-partial"
+            ],
+            "wrongObservationIds": [],
+            "deadlineMs": 1720
+          },
+          "missing": {
+            "state": "missing",
+            "matchedObservationIds": [],
+            "wrongObservationIds": [],
+            "deadlineMs": 2020
+          }
+        },
+        "extras": [
+          "obs-extra"
+        ],
+        "observationRoles": [
+          {
+            "observation_id": "obs-correct",
+            "disposition": "assigned_expected",
+            "strike_id": "correct",
+            "pitch": 60
+          },
+          {
+            "observation_id": "obs-partial",
+            "disposition": "assigned_expected",
+            "strike_id": "incomplete",
+            "pitch": 64
+          },
+          {
+            "observation_id": "obs-wrong",
+            "disposition": "wrong_evidence",
+            "strike_id": "wrong",
+            "pitch": null
+          },
+          {
+            "observation_id": "obs-extra",
+            "disposition": "extra",
+            "strike_id": null,
+            "pitch": null
+          }
+        ],
+        "consumedObservationIds": [
+          "obs-correct",
+          "obs-partial",
+          "obs-wrong"
+        ],
+        "duplicateSuppressedObservationIds": []
+      }
+    },
+    "latencyByVerdict": {
+      "status": "NO_PRODUCT_LATENCY_EVIDENCE_REPORTED",
+      "note": "Hard-coded latency samples from a925d6f6 were removed. Synthetic latency formatting may only be used in unit tests."
+    }
+  },
+  "sourceFileHashes": {
+    "rebaselineHelper": "29d3c141270bcdca096520181f4df345c68a66ec8e45d29ffc8421b81ae74aa3",
+    "reportGenerator": "7c40fe3982f63e1fd01db17761d0568592a9e9b248631f5a5b22310e8f6e40fa"
+  },
+  "githubStatuses": "NOT_QUERIED",
+  "githubWorkflowRuns": "NOT_QUERIED",
+  "recommendation": "REBASELINE_RUNTIME_EVIDENCE_INCOMPLETE",
+  "recommendationScope": "Repair phase only; not a final production winner and not D4 final qualification. Synthetic contracts are explicitly separated from model/runtime evidence. Required real Online-AMT K-hop ONNX/browser executions did not complete."
+}

@@ -8,7 +8,9 @@ from typing import Iterable, Literal
 
 
 Pitch = int
-Verdict = Literal["correct", "missing", "wrong", "incomplete_chord"]
+StrikeState = Literal["PENDING", "correct", "missing", "wrong", "incomplete_chord"]
+ObservationDisposition = Literal["assigned_expected", "wrong_evidence", "extra", "duplicate_retrigger_suppressed", "unresolved"]
+SYNTHETIC_CONTRACT_STATUS = "SYNTHETIC_CONTRACT_TEST_ONLY"
 
 
 @dataclass(frozen=True)
@@ -52,7 +54,7 @@ def initial_online_amt_toy_state(pitch_count: int = 4) -> OnlineAmtToyState:
 def online_amt_original_transition(state: OnlineAmtToyState, hop: Iterable[float], hop_index: int) -> OnlineAmtToyHop:
     samples = tuple(float(value) for value in hop)
     if not samples:
-      raise ValueError("hop must not be empty")
+        raise ValueError("hop must not be empty")
     energy = sum(abs(value) for value in samples) / len(samples)
     audio_tail = (state.audio_tail + samples)[-8:]
     mel = 0.82 * state.mel_accumulator + energy
@@ -228,6 +230,7 @@ def run_timer_feeder(service_times_ms: list[float], arrival_interval_ms: float) 
         "rows": rows,
         "queueDelayMs": summarize_ms(queue_delays),
         "actualTimerDriven": True,
+        "evidenceStatus": SYNTHETIC_CONTRACT_STATUS,
     }
 
 
@@ -246,7 +249,7 @@ def linear_resample(samples: list[float], output_count: int) -> list[float]:
     return result
 
 
-def windowed_sinc_resample(samples: list[float], output_count: int, radius: int = 4) -> list[float]:
+def toy_windowed_sinc_resample_contract(samples: list[float], output_count: int, radius: int = 4) -> list[float]:
     if output_count <= 0:
         raise ValueError("output_count must be positive")
     ratio = len(samples) / output_count
@@ -293,7 +296,7 @@ def decode_contiguous_peak(onset: list[float], frame: list[float], threshold: fl
     return events
 
 
-def decode_upstream_regressed(onset: list[float], frame: list[float], regression: list[float], threshold: float, frame_threshold: float) -> list[DecoderEvent]:
+def decode_toy_regressed_local_peak(onset: list[float], frame: list[float], regression: list[float], threshold: float, frame_threshold: float) -> list[DecoderEvent]:
     events = []
     for index in range(1, len(onset) - 1):
         is_peak = onset[index] >= threshold and onset[index] >= onset[index - 1] and onset[index] > onset[index + 1]
@@ -303,7 +306,7 @@ def decode_upstream_regressed(onset: list[float], frame: list[float], regression
 
 
 def decode_conservative_hybrid(onset: list[float], frame: list[float], regression: list[float], threshold: float, frame_threshold: float, refractory_frames: int = 2) -> list[DecoderEvent]:
-    events = decode_upstream_regressed(onset, frame, regression, threshold, frame_threshold)
+    events = decode_toy_regressed_local_peak(onset, frame, regression, threshold, frame_threshold)
     kept: list[DecoderEvent] = []
     for event in events:
         if kept and event.frame - kept[-1].frame <= refractory_frames:
@@ -330,42 +333,174 @@ class AcousticObservation:
     confidence: float = 1.0
 
 
-def assign_observations(expected: list[ExpectedStrike], observations: list[AcousticObservation], window_ms: float) -> dict[str, object]:
-    consumed: set[str] = set()
-    strike_results: dict[str, dict[str, object]] = {}
-    for strike in expected:
-        in_window = [
-            obs for obs in observations
-            if obs.observation_id not in consumed and abs(obs.time_ms - strike.time_ms) <= window_ms
-        ]
-        matched = [obs for obs in in_window if obs.pitch in strike.pitches]
-        wrong = [obs for obs in in_window if obs.pitch not in strike.pitches]
-        matched_pitches = {obs.pitch for obs in matched}
-        for obs in matched:
-            consumed.add(obs.observation_id)
-        if matched_pitches == strike.pitches:
-            verdict: Verdict = "correct"
-        elif matched_pitches:
-            verdict = "incomplete_chord"
-        elif wrong:
-            verdict = "wrong"
-        else:
-            verdict = "missing"
-        strike_results[strike.strike_id] = {
-            "verdict": verdict,
-            "matchedObservationIds": [obs.observation_id for obs in matched],
-            "wrongObservationIds": [obs.observation_id for obs in wrong],
+@dataclass(frozen=True)
+class ObservationRole:
+    observation_id: str
+    disposition: ObservationDisposition
+    strike_id: str | None = None
+    pitch: Pitch | None = None
+
+
+def finalize_observations(
+    expected: list[ExpectedStrike],
+    observations: list[AcousticObservation],
+    window_ms: float,
+    analyzed_through_ms: float,
+    duplicate_window_ms: float = 25.0,
+) -> dict[str, object]:
+    """Deterministic time-aware product finalizer for acoustic observations.
+
+    The acoustic model remains audio-only; score structure is used only here.
+    Every observation receives at most one semantic role.
+    """
+
+    duplicate_suppressed = duplicate_observation_ids(observations, duplicate_window_ms)
+    active_observations = [obs for obs in observations if obs.observation_id not in duplicate_suppressed]
+    assignments = assign_expected_pitch_matches(expected, active_observations, window_ms)
+    consumed = {obs_id for obs_id in assignments}
+    strike_results: dict[str, dict[str, object]] = {
+        strike.strike_id: {
+            "state": "PENDING",
+            "matchedObservationIds": [],
+            "wrongObservationIds": [],
+            "deadlineMs": strike.deadline_ms,
         }
-    extras = [
-        obs for obs in observations
-        if obs.observation_id not in consumed
-        and not any(obs.observation_id in result["wrongObservationIds"] for result in strike_results.values())
+        for strike in expected
+    }
+
+    matched_by_strike: dict[str, list[AcousticObservation]] = {strike.strike_id: [] for strike in expected}
+    for obs_id, strike_id in assignments.items():
+        obs = next(obs for obs in active_observations if obs.observation_id == obs_id)
+        matched_by_strike[strike_id].append(obs)
+
+    for strike in expected:
+        matched = matched_by_strike[strike.strike_id]
+        matched_pitches = {obs.pitch for obs in matched}
+        strike_results[strike.strike_id]["matchedObservationIds"] = [obs.observation_id for obs in matched]
+        if matched_pitches == strike.pitches:
+            strike_results[strike.strike_id]["state"] = "correct"
+        elif analyzed_through_ms < strike.deadline_ms:
+            strike_results[strike.strike_id]["state"] = "PENDING"
+        elif matched_pitches:
+            strike_results[strike.strike_id]["state"] = "incomplete_chord"
+
+    wrong_assignments = assign_wrong_observations(expected, active_observations, window_ms, consumed, analyzed_through_ms)
+    consumed.update(wrong_assignments.keys())
+    for obs_id, strike_id in wrong_assignments.items():
+        result = strike_results[strike_id]
+        if result["state"] == "PENDING" and analyzed_through_ms >= result["deadlineMs"]:
+            result["state"] = "wrong"
+        result["wrongObservationIds"].append(obs_id)
+
+    for strike in expected:
+        result = strike_results[strike.strike_id]
+        if result["state"] == "PENDING" and analyzed_through_ms >= strike.deadline_ms:
+            result["state"] = "missing"
+
+    observation_by_id = {obs.observation_id: obs for obs in active_observations}
+    roles = [
+        ObservationRole(obs_id, "assigned_expected", strike_id, observation_by_id[obs_id].pitch)
+        for obs_id, strike_id in sorted(assignments.items())
     ]
+    roles.extend(ObservationRole(obs_id, "wrong_evidence", strike_id) for obs_id, strike_id in sorted(wrong_assignments.items()))
+    roles.extend(ObservationRole(obs_id, "duplicate_retrigger_suppressed") for obs_id in sorted(duplicate_suppressed))
+    extras = [
+        obs for obs in active_observations
+        if obs.observation_id not in consumed
+        and obs.time_ms <= analyzed_through_ms
+    ]
+    roles.extend(ObservationRole(obs.observation_id, "extra") for obs in sorted(extras, key=lambda item: item.observation_id))
+
     return {
         "strikes": strike_results,
-        "extras": [obs.observation_id for obs in extras],
+        "extras": [obs.observation_id for obs in sorted(extras, key=lambda item: item.observation_id)],
+        "observationRoles": [role.__dict__ for role in roles],
         "consumedObservationIds": sorted(consumed),
+        "duplicateSuppressedObservationIds": sorted(duplicate_suppressed),
     }
+
+
+def duplicate_observation_ids(observations: list[AcousticObservation], duplicate_window_ms: float) -> set[str]:
+    suppressed: set[str] = set()
+    by_pitch: dict[Pitch, list[AcousticObservation]] = {}
+    for obs in observations:
+        by_pitch.setdefault(obs.pitch, []).append(obs)
+    for pitch_observations in by_pitch.values():
+        kept: list[AcousticObservation] = []
+        for obs in sorted(pitch_observations, key=lambda item: (item.time_ms, -item.confidence, item.observation_id)):
+            duplicate_of = next((kept_obs for kept_obs in kept if abs(obs.time_ms - kept_obs.time_ms) <= duplicate_window_ms), None)
+            if duplicate_of is None:
+                kept.append(obs)
+                continue
+            if obs.confidence > duplicate_of.confidence:
+                suppressed.add(duplicate_of.observation_id)
+                kept.remove(duplicate_of)
+                kept.append(obs)
+            else:
+                suppressed.add(obs.observation_id)
+    return suppressed
+
+
+def assign_expected_pitch_matches(expected: list[ExpectedStrike], observations: list[AcousticObservation], window_ms: float) -> dict[str, str]:
+    candidates: list[tuple[float, str, str, AcousticObservation]] = []
+    for strike in expected:
+        for obs in observations:
+            if obs.pitch in strike.pitches and abs(obs.time_ms - strike.time_ms) <= window_ms:
+                candidates.append((abs(obs.time_ms - strike.time_ms), strike.strike_id, obs.observation_id, obs))
+    assigned_obs: set[str] = set()
+    satisfied_pitches: set[tuple[str, Pitch]] = set()
+    assignments: dict[str, str] = {}
+    for _error, strike_id, obs_id, obs in sorted(candidates, key=lambda item: (item[0], item[1], item[2])):
+        if obs_id in assigned_obs or (strike_id, obs.pitch) in satisfied_pitches:
+            continue
+        assigned_obs.add(obs_id)
+        satisfied_pitches.add((strike_id, obs.pitch))
+        assignments[obs_id] = strike_id
+    return assignments
+
+
+def assign_wrong_observations(
+    expected: list[ExpectedStrike],
+    observations: list[AcousticObservation],
+    window_ms: float,
+    consumed: set[str],
+    analyzed_through_ms: float,
+) -> dict[str, str]:
+    candidates: list[tuple[float, str, str]] = []
+    for strike in expected:
+        if analyzed_through_ms < strike.deadline_ms:
+            continue
+        for obs in observations:
+            if obs.observation_id in consumed or obs.pitch in strike.pitches:
+                continue
+            if abs(obs.time_ms - strike.time_ms) <= window_ms:
+                candidates.append((abs(obs.time_ms - strike.time_ms), strike.strike_id, obs.observation_id))
+    assignments: dict[str, str] = {}
+    assigned_strikes: set[str] = set()
+    for _error, strike_id, obs_id in sorted(candidates, key=lambda item: (item[0], item[1], item[2])):
+        if obs_id in assignments or strike_id in assigned_strikes:
+            continue
+        assignments[obs_id] = strike_id
+        assigned_strikes.add(strike_id)
+    return assignments
+
+
+def validate_audio_only_candidate_input(candidate_input: dict[str, object]) -> None:
+    forbidden = {
+        "expectedPitch",
+        "expectedPitches",
+        "scoreNote",
+        "scoreNotes",
+        "truthMidi",
+        "targetTimestamp",
+        "correctnessLabel",
+        "scenarioCategory",
+        "expected pitch",
+        "truth MIDI",
+    }
+    found = sorted(key for key in candidate_input if key in forbidden)
+    if found:
+        raise ValueError(f"SCORE_TRUTH_FIELD_FORBIDDEN_IN_ACOUSTIC_ADAPTER_INPUT:{','.join(found)}")
 
 
 def latency_by_verdict(samples: dict[str, list[float]]) -> dict[str, dict[str, object]]:
