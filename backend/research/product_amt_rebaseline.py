@@ -1,0 +1,386 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from math import cos, pi, sin
+from statistics import median
+from time import perf_counter, sleep
+from typing import Iterable, Literal
+
+
+Pitch = int
+Verdict = Literal["correct", "missing", "wrong", "incomplete_chord"]
+
+
+@dataclass(frozen=True)
+class OnlineAmtToyState:
+    """Small deterministic state machine that mirrors Online-AMT ownership rules.
+
+    It is not a neural model. It exists to test the K-hop unrolling contract:
+    every 512-sample recurrent transition must occur and each chosen state must
+    feed the next step.
+    """
+
+    audio_tail: tuple[float, ...]
+    mel_accumulator: float
+    cache0: tuple[float, ...]
+    cache1: tuple[float, ...]
+    h: tuple[float, ...]
+    c: tuple[float, ...]
+    prev_output: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class OnlineAmtToyHop:
+    hop_index: int
+    chosen_states: tuple[int, ...]
+    probabilities: tuple[tuple[float, ...], ...]
+    state: OnlineAmtToyState
+
+
+def initial_online_amt_toy_state(pitch_count: int = 4) -> OnlineAmtToyState:
+    return OnlineAmtToyState(
+        audio_tail=(0.0,) * 8,
+        mel_accumulator=0.0,
+        cache0=(0.0, 0.0, 0.0),
+        cache1=(0.0, 0.0),
+        h=(0.0,) * pitch_count,
+        c=(0.0,) * pitch_count,
+        prev_output=(0,) * pitch_count,
+    )
+
+
+def online_amt_original_transition(state: OnlineAmtToyState, hop: Iterable[float], hop_index: int) -> OnlineAmtToyHop:
+    samples = tuple(float(value) for value in hop)
+    if not samples:
+      raise ValueError("hop must not be empty")
+    energy = sum(abs(value) for value in samples) / len(samples)
+    audio_tail = (state.audio_tail + samples)[-8:]
+    mel = 0.82 * state.mel_accumulator + energy
+    cache0 = (
+        0.70 * state.cache0[1] + mel * 0.11,
+        0.70 * state.cache0[2] + mel * 0.07,
+        mel,
+    )
+    cache1 = (
+        0.65 * state.cache1[1] + cache0[0] * 0.09,
+        cache0[1],
+    )
+    h_values: list[float] = []
+    c_values: list[float] = []
+    chosen: list[int] = []
+    probabilities: list[tuple[float, ...]] = []
+    for pitch, previous in enumerate(state.prev_output):
+        drive = mel * (pitch + 1) + cache1[0] - previous * 0.17 + hop_index * 0.013
+        c_value = 0.73 * state.c[pitch] + drive
+        h_value = 0.61 * state.h[pitch] + c_value * 0.19
+        logits = tuple(h_value + state_index * 0.31 - abs(state_index - previous) * 0.07 for state_index in range(5))
+        best = max(range(5), key=lambda state_index: logits[state_index])
+        total = sum(abs(value) for value in logits) or 1.0
+        probabilities.append(tuple(abs(value) / total for value in logits))
+        chosen.append(best)
+        h_values.append(h_value)
+        c_values.append(c_value)
+    next_state = OnlineAmtToyState(
+        audio_tail=audio_tail,
+        mel_accumulator=mel,
+        cache0=cache0,
+        cache1=cache1,
+        h=tuple(h_values),
+        c=tuple(c_values),
+        prev_output=tuple(chosen),
+    )
+    return OnlineAmtToyHop(hop_index=hop_index, chosen_states=tuple(chosen), probabilities=tuple(probabilities), state=next_state)
+
+
+def run_online_amt_sequential(state: OnlineAmtToyState, hops: list[Iterable[float]]) -> list[OnlineAmtToyHop]:
+    rows: list[OnlineAmtToyHop] = []
+    current = state
+    for index, hop in enumerate(hops):
+        row = online_amt_original_transition(current, hop, index)
+        rows.append(row)
+        current = row.state
+    return rows
+
+
+def run_online_amt_grouped(state: OnlineAmtToyState, hops: list[Iterable[float]], k: int) -> list[OnlineAmtToyHop]:
+    if k not in {1, 2, 4, 8}:
+        raise ValueError("k must be one of 1, 2, 4, 8")
+    rows: list[OnlineAmtToyHop] = []
+    current = state
+    for group_start in range(0, len(hops), k):
+        for offset, hop in enumerate(hops[group_start:group_start + k]):
+            row = online_amt_original_transition(current, hop, group_start + offset)
+            rows.append(row)
+            current = row.state
+    return rows
+
+
+def run_online_amt_bad_skip_intermediate(state: OnlineAmtToyState, hops: list[Iterable[float]], k: int) -> list[OnlineAmtToyHop]:
+    rows: list[OnlineAmtToyHop] = []
+    current = state
+    for group_start in range(0, len(hops), k):
+        merged = [value for hop in hops[group_start:group_start + k] for value in hop]
+        row = online_amt_original_transition(current, merged, group_start)
+        rows.append(row)
+        current = row.state
+    return rows
+
+
+def chosen_state_mismatch_count(left: list[OnlineAmtToyHop], right: list[OnlineAmtToyHop]) -> int:
+    count = 0
+    for left_row, right_row in zip(left, right):
+        count += sum(1 for a, b in zip(left_row.chosen_states, right_row.chosen_states) if a != b)
+    count += abs(len(left) - len(right)) * (len(left[0].chosen_states) if left else 0)
+    return count
+
+
+def summarize_ms(values: list[float]) -> dict[str, float | None]:
+    if not values:
+        return {"p50": None, "p95": None, "max": None}
+    ordered = sorted(values)
+    return {"p50": median(ordered), "p95": percentile(ordered, 0.95), "max": ordered[-1]}
+
+
+def percentile(ordered: list[float], fraction: float) -> float:
+    if len(ordered) == 1:
+        return ordered[0]
+    index = (len(ordered) - 1) * fraction
+    low = int(index)
+    high = min(low + 1, len(ordered) - 1)
+    if low == high:
+        return ordered[low]
+    return ordered[low] + (ordered[high] - ordered[low]) * (index - low)
+
+
+def classify_realtime_queue(service_times_ms: list[float], arrival_interval_ms: float) -> dict[str, object]:
+    rows = []
+    available_at = 0.0
+    max_depth = 0
+    queue_delays: list[float] = []
+    for index, service_time in enumerate(service_times_ms):
+        scheduled = index * arrival_interval_ms
+        start = max(scheduled, available_at)
+        finish = start + service_time
+        queue_delay = start - scheduled
+        available_at = finish
+        pending = max(0, int((finish - scheduled) // arrival_interval_ms))
+        max_depth = max(max_depth, pending)
+        queue_delays.append(queue_delay)
+        rows.append({
+            "index": index,
+            "scheduledArrivalMs": scheduled,
+            "inferenceStartMs": start,
+            "inferenceFinishMs": finish,
+            "queueDelayMs": queue_delay,
+            "queueDepth": pending,
+            "serviceTimeMs": service_time,
+        })
+    tail = queue_delays[-min(8, len(queue_delays)):] if queue_delays else []
+    grows = len(tail) >= 2 and tail[-1] > tail[0]
+    p95 = summarize_ms(service_times_ms)["p95"]
+    return {
+        "rows": rows,
+        "serviceMs": summarize_ms(service_times_ms),
+        "queueDelayMs": summarize_ms(queue_delays),
+        "finalQueueDelayMs": queue_delays[-1] if queue_delays else 0,
+        "maximumQueueDepth": max_depth,
+        "classification": "SUSTAINED_BACKLOG" if grows or (queue_delays and queue_delays[-1] > arrival_interval_ms) else "NO_SUSTAINED_BACKLOG",
+        "twentyPercentHeadroomPass": bool(p95 is not None and p95 <= 0.8 * arrival_interval_ms),
+    }
+
+
+def run_timer_feeder(service_times_ms: list[float], arrival_interval_ms: float) -> dict[str, object]:
+    """Run a small real timer-driven feeder and record wall-clock arrivals.
+
+    This is intentionally generic so tests can use millisecond-scale fixtures
+    without waiting for a full browser model run.
+    """
+
+    start_time = perf_counter()
+    rows = []
+    worker_available = start_time
+    queue_delays = []
+    for index, service_time in enumerate(service_times_ms):
+        scheduled_at = start_time + (arrival_interval_ms / 1000.0) * index
+        while perf_counter() < scheduled_at:
+            sleep(min(0.001, scheduled_at - perf_counter()))
+        actual_arrival = perf_counter()
+        worker_start = max(actual_arrival, worker_available)
+        if worker_start > perf_counter():
+            sleep(worker_start - perf_counter())
+        queue_delay = max(0.0, worker_start - actual_arrival) * 1000.0
+        sleep(service_time / 1000.0)
+        finish = perf_counter()
+        worker_available = finish
+        queue_delays.append(queue_delay)
+        rows.append({
+            "index": index,
+            "scheduledArrivalMs": (scheduled_at - start_time) * 1000.0,
+            "actualArrivalMs": (actual_arrival - start_time) * 1000.0,
+            "workerReceiveMs": (actual_arrival - start_time) * 1000.0,
+            "inferenceStartMs": (worker_start - start_time) * 1000.0,
+            "inferenceFinishMs": (finish - start_time) * 1000.0,
+            "publicationTimeMs": (finish - start_time) * 1000.0,
+            "queueDelayMs": queue_delay,
+            "groupProcessingTimeMs": service_time,
+        })
+    return {
+        "rows": rows,
+        "queueDelayMs": summarize_ms(queue_delays),
+        "actualTimerDriven": True,
+    }
+
+
+def linear_resample(samples: list[float], output_count: int) -> list[float]:
+    if output_count <= 0:
+        raise ValueError("output_count must be positive")
+    if len(samples) == 1:
+        return [samples[0]] * output_count
+    result = []
+    for output_index in range(output_count):
+        pos = output_index * len(samples) / output_count
+        left = min(int(pos), len(samples) - 1)
+        right = min(left + 1, len(samples) - 1)
+        frac = pos - left
+        result.append(samples[left] * (1 - frac) + samples[right] * frac)
+    return result
+
+
+def windowed_sinc_resample(samples: list[float], output_count: int, radius: int = 4) -> list[float]:
+    if output_count <= 0:
+        raise ValueError("output_count must be positive")
+    ratio = len(samples) / output_count
+    result = []
+    for output_index in range(output_count):
+        center = output_index * ratio
+        acc = 0.0
+        weight_sum = 0.0
+        for source_index in range(max(0, int(center) - radius), min(len(samples), int(center) + radius + 1)):
+            x = center - source_index
+            sinc = 1.0 if x == 0 else sin(pi * x) / (pi * x)
+            window = 0.5 + 0.5 * cos(pi * x / (radius + 1))
+            weight = sinc * window
+            acc += samples[source_index] * weight
+            weight_sum += weight
+        result.append(acc / weight_sum if weight_sum else 0.0)
+    return result
+
+
+@dataclass(frozen=True)
+class DecoderEvent:
+    pitch: int
+    frame: int
+    onset_time_ms: float
+    confidence: float
+
+
+def decode_contiguous_peak(onset: list[float], frame: list[float], threshold: float, frame_threshold: float) -> list[DecoderEvent]:
+    events: list[DecoderEvent] = []
+    index = 0
+    while index < len(onset):
+        while index < len(onset) and onset[index] < threshold:
+            index += 1
+        if index >= len(onset):
+            break
+        peak = index
+        while index + 1 < len(onset) and onset[index + 1] >= threshold:
+            index += 1
+            if onset[index] > onset[peak]:
+                peak = index
+        if frame[peak] >= frame_threshold:
+            events.append(DecoderEvent(pitch=60, frame=peak, onset_time_ms=peak * 10.0, confidence=min(onset[peak], frame[peak])))
+        index += 1
+    return events
+
+
+def decode_upstream_regressed(onset: list[float], frame: list[float], regression: list[float], threshold: float, frame_threshold: float) -> list[DecoderEvent]:
+    events = []
+    for index in range(1, len(onset) - 1):
+        is_peak = onset[index] >= threshold and onset[index] >= onset[index - 1] and onset[index] > onset[index + 1]
+        if is_peak and frame[index] >= frame_threshold:
+            events.append(DecoderEvent(pitch=60, frame=index, onset_time_ms=(index + regression[index]) * 10.0, confidence=min(onset[index], frame[index])))
+    return events
+
+
+def decode_conservative_hybrid(onset: list[float], frame: list[float], regression: list[float], threshold: float, frame_threshold: float, refractory_frames: int = 2) -> list[DecoderEvent]:
+    events = decode_upstream_regressed(onset, frame, regression, threshold, frame_threshold)
+    kept: list[DecoderEvent] = []
+    for event in events:
+        if kept and event.frame - kept[-1].frame <= refractory_frames:
+            if event.confidence > kept[-1].confidence:
+                kept[-1] = event
+            continue
+        kept.append(event)
+    return kept
+
+
+@dataclass(frozen=True)
+class ExpectedStrike:
+    strike_id: str
+    pitches: frozenset[Pitch]
+    time_ms: float
+    deadline_ms: float
+
+
+@dataclass(frozen=True)
+class AcousticObservation:
+    observation_id: str
+    pitch: Pitch
+    time_ms: float
+    confidence: float = 1.0
+
+
+def assign_observations(expected: list[ExpectedStrike], observations: list[AcousticObservation], window_ms: float) -> dict[str, object]:
+    consumed: set[str] = set()
+    strike_results: dict[str, dict[str, object]] = {}
+    for strike in expected:
+        in_window = [
+            obs for obs in observations
+            if obs.observation_id not in consumed and abs(obs.time_ms - strike.time_ms) <= window_ms
+        ]
+        matched = [obs for obs in in_window if obs.pitch in strike.pitches]
+        wrong = [obs for obs in in_window if obs.pitch not in strike.pitches]
+        matched_pitches = {obs.pitch for obs in matched}
+        for obs in matched:
+            consumed.add(obs.observation_id)
+        if matched_pitches == strike.pitches:
+            verdict: Verdict = "correct"
+        elif matched_pitches:
+            verdict = "incomplete_chord"
+        elif wrong:
+            verdict = "wrong"
+        else:
+            verdict = "missing"
+        strike_results[strike.strike_id] = {
+            "verdict": verdict,
+            "matchedObservationIds": [obs.observation_id for obs in matched],
+            "wrongObservationIds": [obs.observation_id for obs in wrong],
+        }
+    extras = [
+        obs for obs in observations
+        if obs.observation_id not in consumed
+        and not any(obs.observation_id in result["wrongObservationIds"] for result in strike_results.values())
+    ]
+    return {
+        "strikes": strike_results,
+        "extras": [obs.observation_id for obs in extras],
+        "consumedObservationIds": sorted(consumed),
+    }
+
+
+def latency_by_verdict(samples: dict[str, list[float]]) -> dict[str, dict[str, object]]:
+    beat_bpms = [60, 90, 120, 160]
+    out: dict[str, dict[str, object]] = {}
+    for verdict, values in samples.items():
+        summary = summarize_ms(values)
+        out[verdict] = {
+            "ms": summary,
+            "beats": {
+                str(bpm): {
+                    "p50": None if summary["p50"] is None else summary["p50"] / (60000 / bpm),
+                    "p95": None if summary["p95"] is None else summary["p95"] / (60000 / bpm),
+                }
+                for bpm in beat_bpms
+            },
+        }
+    return out

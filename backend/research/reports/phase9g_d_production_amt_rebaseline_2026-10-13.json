@@ -1,0 +1,514 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_d_production_amt_rebaseline",
+  "phase": "9G-D-production-amt-rebaseline",
+  "date": "2026-10-13",
+  "startGitHead": "03eaf9822ddcafbb331f281d4e3f497f20b84257",
+  "historicalPhase9gBConclusion": {
+    "outcome": "STATISTICAL_TIE",
+    "winner": null
+  },
+  "productionMicrophoneEnabled": false,
+  "productionWinnerSelected": false,
+  "p15p22InferenceIncrease": 0,
+  "runtimeIdentities": {
+    "onnxruntimeWebHistoricalPinned": "1.20.1",
+    "onnxruntimeWebCurrentStableObserved": "1.30.0",
+    "customerWebPackageLockSha256": "c5e4058eff368e4ad5e0d74ad59fd8abf92112fdfc1cbb6eb300cf9510dc4b03"
+  },
+  "onlineAmt": {
+    "candidateId": "online-amt-calibrated-v1",
+    "frozenIdentity": {
+      "sampleRateHz": 16000,
+      "hopSamples": 512,
+      "hopMs": 32,
+      "timingCorrectionMs": -162.93750000004252,
+      "onsetBoost": 1.0,
+      "pseudoIntensity": "NATIVE"
+    },
+    "groupedKResults": {
+      "K=1": {
+        "semanticContract": "PASS",
+        "chosenStateMismatchCount": 0,
+        "skippedIntermediateTransitionMismatchCount": 0,
+        "browserGroupedGraphExport": "NOT_EXECUTED_IN_THIS_REBASELINE_COMMIT",
+        "realTimerDrivenBrowserFeeder": "NOT_EXECUTED_IN_THIS_REBASELINE_COMMIT",
+        "queueClassificationFromMeasuredD2R1AndGroupedCapacityTargets": {
+          "rows": [
+            {
+              "index": 0,
+              "scheduledArrivalMs": 0,
+              "inferenceStartMs": 0,
+              "inferenceFinishMs": 54.75,
+              "queueDelayMs": 0,
+              "queueDepth": 1,
+              "serviceTimeMs": 54.75
+            },
+            {
+              "index": 1,
+              "scheduledArrivalMs": 32,
+              "inferenceStartMs": 54.75,
+              "inferenceFinishMs": 107.55,
+              "queueDelayMs": 22.75,
+              "queueDepth": 2,
+              "serviceTimeMs": 52.8
+            },
+            {
+              "index": 2,
+              "scheduledArrivalMs": 64,
+              "inferenceStartMs": 107.55,
+              "inferenceFinishMs": 163.65,
+              "queueDelayMs": 43.55,
+              "queueDepth": 3,
+              "serviceTimeMs": 56.1
+            },
+            {
+              "index": 3,
+              "scheduledArrivalMs": 96,
+              "inferenceStartMs": 163.65,
+              "inferenceFinishMs": 218.65,
+              "queueDelayMs": 67.65,
+              "queueDepth": 3,
+              "serviceTimeMs": 55.0
+            }
+          ],
+          "serviceMs": {
+            "p50": 54.875,
+            "p95": 55.935,
+            "max": 56.1
+          },
+          "queueDelayMs": {
+            "p50": 33.15,
+            "p95": 64.035,
+            "max": 67.65
+          },
+          "finalQueueDelayMs": 67.65,
+          "maximumQueueDepth": 3,
+          "classification": "SUSTAINED_BACKLOG",
+          "twentyPercentHeadroomPass": false
+        }
+      },
+      "K=2": {
+        "semanticContract": "PASS",
+        "chosenStateMismatchCount": 0,
+        "skippedIntermediateTransitionMismatchCount": 32,
+        "browserGroupedGraphExport": "NOT_EXECUTED_IN_THIS_REBASELINE_COMMIT",
+        "realTimerDrivenBrowserFeeder": "NOT_EXECUTED_IN_THIS_REBASELINE_COMMIT",
+        "queueClassificationFromMeasuredD2R1AndGroupedCapacityTargets": {
+          "rows": [
+            {
+              "index": 0,
+              "scheduledArrivalMs": 0,
+              "inferenceStartMs": 0,
+              "inferenceFinishMs": 78.0,
+              "queueDelayMs": 0,
+              "queueDepth": 1,
+              "serviceTimeMs": 78.0
+            },
+            {
+              "index": 1,
+              "scheduledArrivalMs": 64,
+              "inferenceStartMs": 78.0,
+              "inferenceFinishMs": 158.0,
+              "queueDelayMs": 14.0,
+              "queueDepth": 1,
+              "serviceTimeMs": 80.0
+            },
+            {
+              "index": 2,
+              "scheduledArrivalMs": 128,
+              "inferenceStartMs": 158.0,
+              "inferenceFinishMs": 235.0,
+              "queueDelayMs": 30.0,
+              "queueDepth": 1,
+              "serviceTimeMs": 77.0
+            },
+            {
+              "index": 3,
+              "scheduledArrivalMs": 192,
+              "inferenceStartMs": 235.0,
+              "inferenceFinishMs": 317.0,
+              "queueDelayMs": 43.0,
+              "queueDepth": 1,
+              "serviceTimeMs": 82.0
+            }
+          ],
+          "serviceMs": {
+            "p50": 79.0,
+            "p95": 81.7,
+            "max": 82.0
+          },
+          "queueDelayMs": {
+            "p50": 22.0,
+            "p95": 41.05,
+            "max": 43.0
+          },
+          "finalQueueDelayMs": 43.0,
+          "maximumQueueDepth": 1,
+          "classification": "SUSTAINED_BACKLOG",
+          "twentyPercentHeadroomPass": false
+        }
+      },
+      "K=4": {
+        "semanticContract": "PASS",
+        "chosenStateMismatchCount": 0,
+        "skippedIntermediateTransitionMismatchCount": 48,
+        "browserGroupedGraphExport": "NOT_EXECUTED_IN_THIS_REBASELINE_COMMIT",
+        "realTimerDrivenBrowserFeeder": "NOT_EXECUTED_IN_THIS_REBASELINE_COMMIT",
+        "queueClassificationFromMeasuredD2R1AndGroupedCapacityTargets": {
+          "rows": [
+            {
+              "index": 0,
+              "scheduledArrivalMs": 0,
+              "inferenceStartMs": 0,
+              "inferenceFinishMs": 119.0,
+              "queueDelayMs": 0,
+              "queueDepth": 0,
+              "serviceTimeMs": 119.0
+            },
+            {
+              "index": 1,
+              "scheduledArrivalMs": 128,
+              "inferenceStartMs": 128,
+              "inferenceFinishMs": 250.0,
+              "queueDelayMs": 0,
+              "queueDepth": 0,
+              "serviceTimeMs": 122.0
+            },
+            {
+              "index": 2,
+              "scheduledArrivalMs": 256,
+              "inferenceStartMs": 256,
+              "inferenceFinishMs": 374.0,
+              "queueDelayMs": 0,
+              "queueDepth": 0,
+              "serviceTimeMs": 118.0
+            },
+            {
+              "index": 3,
+              "scheduledArrivalMs": 384,
+              "inferenceStartMs": 384,
+              "inferenceFinishMs": 505.0,
+              "queueDelayMs": 0,
+              "queueDepth": 0,
+              "serviceTimeMs": 121.0
+            }
+          ],
+          "serviceMs": {
+            "p50": 120.0,
+            "p95": 121.85,
+            "max": 122.0
+          },
+          "queueDelayMs": {
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0
+          },
+          "finalQueueDelayMs": 0,
+          "maximumQueueDepth": 0,
+          "classification": "NO_SUSTAINED_BACKLOG",
+          "twentyPercentHeadroomPass": false
+        }
+      },
+      "K=8": {
+        "semanticContract": "PASS",
+        "chosenStateMismatchCount": 0,
+        "skippedIntermediateTransitionMismatchCount": 56,
+        "browserGroupedGraphExport": "NOT_EXECUTED_IN_THIS_REBASELINE_COMMIT",
+        "realTimerDrivenBrowserFeeder": "NOT_EXECUTED_IN_THIS_REBASELINE_COMMIT",
+        "queueClassificationFromMeasuredD2R1AndGroupedCapacityTargets": {
+          "rows": [
+            {
+              "index": 0,
+              "scheduledArrivalMs": 0,
+              "inferenceStartMs": 0,
+              "inferenceFinishMs": 211.0,
+              "queueDelayMs": 0,
+              "queueDepth": 0,
+              "serviceTimeMs": 211.0
+            },
+            {
+              "index": 1,
+              "scheduledArrivalMs": 256,
+              "inferenceStartMs": 256,
+              "inferenceFinishMs": 470.0,
+              "queueDelayMs": 0,
+              "queueDepth": 0,
+              "serviceTimeMs": 214.0
+            },
+            {
+              "index": 2,
+              "scheduledArrivalMs": 512,
+              "inferenceStartMs": 512,
+              "inferenceFinishMs": 721.0,
+              "queueDelayMs": 0,
+              "queueDepth": 0,
+              "serviceTimeMs": 209.0
+            },
+            {
+              "index": 3,
+              "scheduledArrivalMs": 768,
+              "inferenceStartMs": 768,
+              "inferenceFinishMs": 984.0,
+              "queueDelayMs": 0,
+              "queueDepth": 0,
+              "serviceTimeMs": 216.0
+            }
+          ],
+          "serviceMs": {
+            "p50": 212.5,
+            "p95": 215.7,
+            "max": 216.0
+          },
+          "queueDelayMs": {
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0
+          },
+          "finalQueueDelayMs": 0,
+          "maximumQueueDepth": 0,
+          "classification": "NO_SUSTAINED_BACKLOG",
+          "twentyPercentHeadroomPass": false
+        }
+      }
+    },
+    "phaseConclusion": "ONLINE_AMT_GROUPED_BROWSER_REALTIME_UNRESOLVED_GRAPH_EXPORT_REQUIRED"
+  },
+  "robustByteDance": {
+    "candidateId": "robust-browser-v1",
+    "sourceIdentitySha256": "196a9a2ceb03569f6e266c4f5973125bb8596146882079105ee94ef7e621deed",
+    "ortWebHistorical": "1.20.1",
+    "ortWebRebaselineTarget": "1.30.0",
+    "ortWeb130RuntimeExecution": "NOT_EXECUTED_IN_THIS_REBASELINE_COMMIT",
+    "runtimeEvidenceRetained": {
+      "sourceReport": "backend/research/reports/phase9g_d1r_robust_default_browser_runtime_2026-10-12.json",
+      "modelLoadLatencyMs": 806.3999999761581,
+      "firstInferenceLatencyMs": 680.2999999523163,
+      "distinctWindowInferenceLatencyMs": {
+        "min": 281.30000001192093,
+        "p50": 291.39999997615814,
+        "p95": 320,
+        "max": 680.2999999523163
+      }
+    },
+    "preprocessingSensitivity": {
+      "linearInterpolationSha256": "bf8865ff7ca8eb823fd3e8bdabc9dcd500fdd56173d8deff78c0565fa869fe64",
+      "windowedSincSha256": "55462d21fe51590cb24b46b4d33a5105256e7b214d7f86e5ebc2040aaca9742d",
+      "selectionStatus": "DEFINITIONS_FROZEN_NO_EXTERNAL_ACCURACY_INSPECTED"
+    },
+    "decoderSensitivity": {
+      "contiguousThresholdPeak": [
+        {
+          "pitch": 60,
+          "frame": 2,
+          "onset_time_ms": 20.0,
+          "confidence": 0.44
+        },
+        {
+          "pitch": 60,
+          "frame": 5,
+          "onset_time_ms": 50.0,
+          "confidence": 0.07
+        }
+      ],
+      "upstreamRegressed": [
+        {
+          "pitch": 60,
+          "frame": 2,
+          "onset_time_ms": 19.0,
+          "confidence": 0.44
+        },
+        {
+          "pitch": 60,
+          "frame": 5,
+          "onset_time_ms": 51.5,
+          "confidence": 0.07
+        }
+      ],
+      "conservativeHybrid": [
+        {
+          "pitch": 60,
+          "frame": 2,
+          "onset_time_ms": 19.0,
+          "confidence": 0.44
+        },
+        {
+          "pitch": 60,
+          "frame": 5,
+          "onset_time_ms": 51.5,
+          "confidence": 0.07
+        }
+      ],
+      "selectionStatus": "VARIANT_DEFINITIONS_FROZEN_NO_EXTERNAL_ACCURACY_INSPECTED"
+    },
+    "cadenceSweep": {
+      "cadencesMs": [
+        320,
+        400,
+        500,
+        600
+      ],
+      "status": "PLANNED_FOR_BROWSER_EXECUTION_AFTER_ORT_130_HARNESS"
+    }
+  },
+  "basicPitch": {
+    "candidateId": "spotify-basic-pitch-browser",
+    "upstreamPackage": "@spotify/basic-pitch",
+    "npmVersionObserved": "1.0.1",
+    "historicalReport": "backend/research/reports/basic_pitch_browser_feasibility.md",
+    "currentPhaseBrowserExecution": "NOT_EXECUTED_IN_THIS_REBASELINE_COMMIT",
+    "productionCandidateStatus": "LIGHTWEIGHT_CHALLENGER_REQUIRES_CURRENT_BROWSER_RUNTIME_AND_OBSERVATION_BRIDGE"
+  },
+  "offlineReferences": {
+    "transkunV2": "SKIPPED_SETUP_EXPENSIVE_NOT_BLOCKING_REBASELINE",
+    "ariaAmt": "SKIPPED_SETUP_EXPENSIVE_NOT_BLOCKING_REBASELINE"
+  },
+  "productScorerArchitecture": {
+    "audioOnlyNeuralInputs": true,
+    "forbiddenAdapterInputs": [
+      "expected pitch",
+      "score note",
+      "truth MIDI",
+      "target timestamp",
+      "correctness label",
+      "scenario category"
+    ],
+    "oneToOneAssignmentRequired": true,
+    "verdictsCoveredByTests": [
+      "correct",
+      "missing",
+      "wrong",
+      "incomplete_chord",
+      "extra"
+    ],
+    "latencyByVerdict": {
+      "correct": {
+        "ms": {
+          "p50": 340,
+          "p95": 403.0,
+          "max": 410
+        },
+        "beats": {
+          "60": {
+            "p50": 0.34,
+            "p95": 0.403
+          },
+          "90": {
+            "p50": 0.51,
+            "p95": 0.6045
+          },
+          "120": {
+            "p50": 0.68,
+            "p95": 0.806
+          },
+          "160": {
+            "p50": 0.9066666666666666,
+            "p95": 1.0746666666666667
+          }
+        }
+      },
+      "missing": {
+        "ms": {
+          "p50": 720,
+          "p95": 801.0,
+          "max": 810
+        },
+        "beats": {
+          "60": {
+            "p50": 0.72,
+            "p95": 0.801
+          },
+          "90": {
+            "p50": 1.08,
+            "p95": 1.2015
+          },
+          "120": {
+            "p50": 1.44,
+            "p95": 1.602
+          },
+          "160": {
+            "p50": 1.92,
+            "p95": 2.136
+          }
+        }
+      },
+      "wrong": {
+        "ms": {
+          "p50": 390,
+          "p95": 489.0,
+          "max": 500
+        },
+        "beats": {
+          "60": {
+            "p50": 0.39,
+            "p95": 0.489
+          },
+          "90": {
+            "p50": 0.5850000000000001,
+            "p95": 0.7335
+          },
+          "120": {
+            "p50": 0.78,
+            "p95": 0.978
+          },
+          "160": {
+            "p50": 1.04,
+            "p95": 1.304
+          }
+        }
+      },
+      "incomplete_chord": {
+        "ms": {
+          "p50": 690,
+          "p95": 753.0,
+          "max": 760
+        },
+        "beats": {
+          "60": {
+            "p50": 0.69,
+            "p95": 0.753
+          },
+          "90": {
+            "p50": 1.0350000000000001,
+            "p95": 1.1295000000000002
+          },
+          "120": {
+            "p50": 1.38,
+            "p95": 1.506
+          },
+          "160": {
+            "p50": 1.84,
+            "p95": 2.008
+          }
+        }
+      },
+      "extra": {
+        "ms": {
+          "p50": 360,
+          "p95": 441.0,
+          "max": 450
+        },
+        "beats": {
+          "60": {
+            "p50": 0.36,
+            "p95": 0.441
+          },
+          "90": {
+            "p50": 0.54,
+            "p95": 0.6615000000000001
+          },
+          "120": {
+            "p50": 0.72,
+            "p95": 0.882
+          },
+          "160": {
+            "p50": 0.96,
+            "p95": 1.176
+          }
+        }
+      }
+    }
+  },
+  "recommendation": "NO_EXISTING_CANDIDATE_MEETS_PRODUCT_GATE_CUSTOM_MODEL_REQUIRED",
+  "recommendationScope": "Architecture rebaseline only; not a final production winner and not D4 final qualification. The executable safety contracts are in place, but this commit did not complete the required ORT Web 1.30 browser executions or real browser grouped Online-AMT graph feeder runs."
+}
