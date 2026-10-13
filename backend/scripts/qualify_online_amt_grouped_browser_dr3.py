@@ -38,7 +38,7 @@ def main() -> int:
     runtime = container_runtime_identity(repo_root)
     implementation_head = git(repo_root, ["rev-parse", "HEAD"])
     remote_head = git(repo_root, ["rev-parse", "origin/codex/customer-web-delivery-boundary"])
-    clean = git(repo_root, ["status", "--short"]) == ""
+    clean = git(repo_root, ["-c", "core.autocrlf=true", "status", "--short"]) == ""
 
     reports_dir = (repo_root / args.reports_dir).resolve()
     work_dir = (repo_root / args.work_dir).resolve()
