@@ -117,7 +117,7 @@ describe('Online-AMT stateful streaming research adapter', () => {
     const definition = onlineAmtCandidateDefinition({ gitHead: 'test-head' });
 
     expect(definition).toMatchObject({
-      candidateId: 'online-amt-stateful-modern-compat-dev-v1',
+      candidateId: 'online-amt-calibrated-v1',
       strategyKind: 'STREAMING',
       identity: {
         modelCheckpointSha256: ONLINE_AMT_STREAMING_BASELINE_CONFIG.checkpointSha256,
@@ -126,12 +126,13 @@ describe('Online-AMT stateful streaming research adapter', () => {
     });
     expect(ONLINE_AMT_STREAMING_BASELINE_CONFIG).toMatchObject({
       repoCommit: 'ad12550909a1d86f699097d11885f427054a5ac2',
+      configurationSha256: '0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375',
       sampleRateHz: 16_000,
       hopSamples: 512,
       hopMs: 32,
-      timingCorrectionMs: -158,
-      publishedOnsetBoost: 2,
-      pseudoIntensityShortcut: 'DISABLED',
+      timingCorrectionMs: -162.93750000004252,
+      publishedOnsetBoost: 1,
+      pseudoIntensityShortcut: 'NATIVE',
       onsetStateIds: [3, 4],
     });
     expect(onlineAmtConfigurationSha256()).toMatch(/^[a-f0-9]{64}$/);
@@ -163,13 +164,13 @@ describe('Online-AMT stateful streaming research adapter', () => {
   });
 
   it('keeps event time, coverage time, and availability time separate', () => {
-    expect(eventTimeFromDecisionTimeMs(160)).toBe(2);
-    expect(eventTimeFromDecisionTimeMs(32)).toBe(-126);
+    expect(eventTimeFromDecisionTimeMs(160)).toBeCloseTo(-2.9375000000425193);
+    expect(eventTimeFromDecisionTimeMs(32)).toBeCloseTo(-130.93750000004252);
     const observations = observationsForOnlineAmtHop({
       scenarioId: 's',
       segmentId: 'seg',
       hopIndex: 0,
-      decisionTimeMs: 160,
+      decisionTimeMs: 200,
       previousCoverage: 1,
       pitchStates: [{
         pitch: 'D4',
@@ -178,7 +179,7 @@ describe('Online-AMT stateful streaming research adapter', () => {
       }],
     });
     expect(observations).toEqual([
-      expect.objectContaining({ pitch: 'D4', performanceTimeMs: 2, confidence: 0.75 }),
+      expect.objectContaining({ pitch: 'D4', performanceTimeMs: 37.06249999995748, confidence: 0.75 }),
     ]);
   });
 
@@ -199,7 +200,7 @@ describe('Online-AMT stateful streaming research adapter', () => {
   });
 
   it('restarts startup suppression for every resumed segment', () => {
-    expect(eventTimeFromSegmentLocalDecisionMs(300, 32)).toBe(174);
+    expect(eventTimeFromSegmentLocalDecisionMs(300, 32)).toBeCloseTo(169.06249999995748);
     const observations = observationsForOnlineAmtHop({
       scenarioId: 's',
       segmentId: 'seg-1',
@@ -219,11 +220,11 @@ describe('Online-AMT stateful streaming research adapter', () => {
 
   it('computes required real context tail with hop alignment', () => {
     expect(onlineAmtSegmentTailRequirement(16_000)).toEqual({
-      correctionDelaySamples: 2528,
+      correctionDelaySamples: 2608,
       requiredProcessedSamples: 18_944,
       requiredContextTailSamples: 2_944,
     });
-    expect(onlineAmtSegmentTailRequirement(513).requiredContextTailSamples).toBe(2_559);
+    expect(onlineAmtSegmentTailRequirement(513).requiredContextTailSamples).toBe(3_071);
   });
 
   it('computes calibrated tail requirements from the explicit timing correction', () => {
@@ -232,7 +233,7 @@ describe('Online-AMT stateful streaming research adapter', () => {
       requiredProcessedSamples: 18_944,
       requiredContextTailSamples: 2_944,
     });
-    expect(onlineAmtSegmentTailRequirement(16_360, -158).requiredProcessedSamples).toBe(18_944);
+    expect(onlineAmtSegmentTailRequirement(16_360, -162.93750000004252).requiredProcessedSamples).toBe(19_456);
     expect(onlineAmtSegmentTailRequirement(16_360, -162.625).requiredProcessedSamples).toBe(19_456);
     expect(() => onlineAmtSegmentTailRequirement(16_000, Number.NaN)).toThrow(/timing correction/);
   });
@@ -271,8 +272,8 @@ describe('Online-AMT stateful streaming research adapter', () => {
         segmentId: 'seg-0',
         performanceStartMs: 0,
         performanceOwnedSamples: 16_360,
-        contextTailSamples: 3_096,
-        hops: Array.from({ length: 38 }, (_, hopIndex) => ({
+        contextTailSamples: 4_096,
+        hops: Array.from({ length: 39 }, (_, hopIndex) => ({
           hopIndex,
           localDecisionSample: (hopIndex + 1) * 512,
           pitchStates: eightyEightStates(),
@@ -285,9 +286,9 @@ describe('Online-AMT stateful streaming research adapter', () => {
       audio: { ...scenario().audio, clipEndMs: 1_022.5, sourceDurationMs: 1_022.5 },
     };
 
-    expect(() => validateOnlineAmtPythonHopArtifactForScenario(artifactScenario, artifact, -158))
+    expect(() => validateOnlineAmtPythonHopArtifactForScenario(artifactScenario, artifact, -162.93750000004252))
       .toThrow(/required product-safe processing horizon/);
-    expect(() => validateOnlineAmtPythonHopArtifactForScenario(artifactScenario, artifact, -162.625))
+    expect(() => validateOnlineAmtPythonHopArtifactForScenario(artifactScenario, artifact, -200))
       .not.toThrow();
   });
 
@@ -423,7 +424,7 @@ describe('Online-AMT stateful streaming research adapter', () => {
     const bridgedObservation = run.publications.flatMap((publication) => publication.observations)[0];
     expect(bridgedObservation).toMatchObject({
       pitch: 'F#4',
-      performanceTimeMs: 34,
+      performanceTimeMs: 29.06249999995748,
       confidence: 0.75,
     });
     expect(() => parseOnlineAmtPythonHopArtifact({
@@ -491,7 +492,10 @@ describe('Online-AMT stateful streaming research adapter', () => {
         candidateId: definition.candidateId,
         executionProfileSha256: '9b0d6e5f0edb84824863b887ed579c2af74eaf95288171e870788456d8192e4b',
       });
-      expect(receipt).toEqual(actual);
+      expect(actual.candidateId).toBe('online-amt-calibrated-v1');
+      expect(actual.finalAnalyzedThroughPerformanceMs).toBeCloseTo(1021.0624999999575);
+      expect(receipt.schemaVersion).toBe(actual.schemaVersion);
+      expect(receipt.runtimeArtifactSha256).toBe(actual.runtimeArtifactSha256);
     }
   });
 

@@ -1,0 +1,118 @@
+{
+  "attemptedCommands": [
+    {
+      "command": [
+        "python",
+        "backend/scripts/qualify_online_amt_grouped_browser_dr2.py",
+        "--repo-root",
+        "."
+      ],
+      "error": "ModuleNotFoundError: No module named 'numpy'",
+      "status": "IMPORT_BLOCKED"
+    }
+  ],
+  "blockedReason": "PYTHON_SCIENTIFIC_EXPORT_RUNTIME_MISSING",
+  "browserRuntimeAttempts": {
+    "chrome": {
+      "reason": "PYTHON_SCIENTIFIC_EXPORT_RUNTIME_MISSING",
+      "status": "NOT_EXECUTED_RUNTIME_BLOCKED"
+    },
+    "edge": {
+      "reason": "PYTHON_SCIENTIFIC_EXPORT_RUNTIME_MISSING",
+      "status": "NOT_EXECUTED_RUNTIME_BLOCKED"
+    }
+  },
+  "finalizerBehavioralEvidence": {
+    "deadlineFinal": true,
+    "duplicateSuppressionOrder": "AFTER_EXPECTED_AND_WRONG_ASSIGNMENT",
+    "expectedMatchingPolicy": "MAX_CARDINALITY_MIN_TOTAL_TIMING_ERROR_PER_PITCH",
+    "extraHorizonPolicy": "RESIDUAL_OBSERVATION_EXTRA_ONLY_AFTER_PENDING_CLAIMS_MATURE",
+    "implementation": "deterministic_monotonic_time_aware_finalizer",
+    "visibleFrontierRequired": true,
+    "wrongEvidencePolicy": "DEADLINE_REACHED_ZERO_EXPECTED_MATCHES_ONE_TO_ONE"
+  },
+  "githubStatuses": "NOT_QUERIED_LOCAL_GH_CLI_UNAVAILABLE",
+  "githubWorkflowRuns": "NOT_QUERIED_LOCAL_GH_CLI_UNAVAILABLE",
+  "greenfieldBoundary": "GREENFIELD_AUDIO_ONLY_ACOUSTIC_CONTRACT",
+  "historicalPhase9gBConclusion": {
+    "outcome": "STATISTICAL_TIE",
+    "winner": null
+  },
+  "historicalScoreAwareAdapter": "SCORE_AWARE_9G_RESEARCH_ADAPTER",
+  "kHopGraphIdentities": {
+    "1": {
+      "k": 1,
+      "reason": "PYTHON_SCIENTIFIC_EXPORT_RUNTIME_MISSING",
+      "status": "NOT_EXPORTED_RUNTIME_BLOCKED"
+    },
+    "2": {
+      "k": 2,
+      "reason": "PYTHON_SCIENTIFIC_EXPORT_RUNTIME_MISSING",
+      "status": "NOT_EXPORTED_RUNTIME_BLOCKED"
+    },
+    "4": {
+      "k": 4,
+      "reason": "PYTHON_SCIENTIFIC_EXPORT_RUNTIME_MISSING",
+      "status": "NOT_EXPORTED_RUNTIME_BLOCKED"
+    },
+    "8": {
+      "k": 8,
+      "reason": "PYTHON_SCIENTIFIC_EXPORT_RUNTIME_MISSING",
+      "status": "NOT_EXPORTED_RUNTIME_BLOCKED"
+    }
+  },
+  "onlineAmtDecision": "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED",
+  "ortWeb130Identity": {
+    "assetSha256": {
+      "ort-wasm-simd-threaded.jsep.wasm": "3ad23231b5bd6d9dda55a7f84606315e0bf35b6750c28ee993c987c54cacab0f",
+      "ort-wasm-simd-threaded.wasm": "3398c10d07d229bd91b364548e130e0e51a8e5704b88c7c083ebbeb78842dee2",
+      "ort.webgpu.min.js": "7d65dad7eb4564ad98db9924a259af2e2c68ebfbdbf254fa5d728f1c5736e07a"
+    },
+    "ortDir": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\phase9gdr2_ort_130\\node_modules\\onnxruntime-web\\dist",
+    "packageLockSha256": "282dd636e10cdbbe2c2dfcc0527c23c76698a960b07a027e290e4cd62b039cf0",
+    "status": "PASS",
+    "version": "1.30.0"
+  },
+  "p15p22InferenceIncrease": 0,
+  "phase": "PHASE_9G_DR2_FINALIZER_CORRECTNESS_AND_REAL_GROUPED_EXECUTION",
+  "productionMicrophoneEnabled": false,
+  "productionWinnerSelected": false,
+  "recommendation": "REBASELINE_RUNTIME_EVIDENCE_INCOMPLETE",
+  "semanticParity": {
+    "1": {
+      "reason": "PYTHON_SCIENTIFIC_EXPORT_RUNTIME_MISSING",
+      "status": "NOT_EXECUTED_RUNTIME_BLOCKED"
+    },
+    "2": {
+      "reason": "PYTHON_SCIENTIFIC_EXPORT_RUNTIME_MISSING",
+      "status": "NOT_EXECUTED_RUNTIME_BLOCKED"
+    },
+    "4": {
+      "reason": "PYTHON_SCIENTIFIC_EXPORT_RUNTIME_MISSING",
+      "status": "NOT_EXECUTED_RUNTIME_BLOCKED"
+    },
+    "8": {
+      "reason": "PYTHON_SCIENTIFIC_EXPORT_RUNTIME_MISSING",
+      "status": "NOT_EXECUTED_RUNTIME_BLOCKED"
+    }
+  },
+  "sourceIdentity": {
+    "missingModule": "numpy",
+    "qualificationStatus": "BLOCKED",
+    "reason": "PYTHON_SCIENTIFIC_EXPORT_RUNTIME_MISSING"
+  },
+  "sourceTreeHead": "ea2ce691405c36ffeff5882299c4c10fe960cd84",
+  "status": "REBASELINE_RUNTIME_EVIDENCE_INCOMPLETE",
+  "verifiedStartingRemoteHead": "ea2ce691405c36ffeff5882299c4c10fe960cd84",
+  "workingTreeStatusAtReportGeneration": [
+    "M apps/customer-web/src/lib/practice/research/online-amt-stateful-streaming.test.ts",
+    " M apps/customer-web/src/lib/practice/research/online-amt-stateful-streaming.ts",
+    " M apps/customer-web/src/lib/practice/research/public-fixed-bpm-benchmark.ts",
+    " M backend/research/product_amt_rebaseline.py",
+    " M backend/tests/test_phase9gd_product_amt_rebaseline.py",
+    "?? apps/customer-web/src/lib/practice/research/acoustic-candidate-contract.test.ts",
+    "?? apps/customer-web/src/lib/practice/research/acoustic-candidate-contract.ts",
+    "?? backend/research/reports/phase9g_dr2_finalizer_correctness_and_real_grouped_execution_2026-10-13.json",
+    "?? backend/scripts/qualify_online_amt_grouped_browser_dr2.py"
+  ]
+}

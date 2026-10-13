@@ -9,7 +9,14 @@ from typing import Iterable, Literal
 
 Pitch = int
 StrikeState = Literal["PENDING", "correct", "missing", "wrong", "incomplete_chord"]
-ObservationDisposition = Literal["assigned_expected", "wrong_evidence", "extra", "duplicate_retrigger_suppressed", "unresolved"]
+ObservationDisposition = Literal[
+    "assigned_expected",
+    "wrong_evidence",
+    "extra",
+    "duplicate_retrigger_suppressed",
+    "unresolved",
+    "NOT_YET_VISIBLE",
+]
 SYNTHETIC_CONTRACT_STATUS = "SYNTHETIC_CONTRACT_TEST_ONLY"
 
 
@@ -354,9 +361,9 @@ def finalize_observations(
     Every observation receives at most one semantic role.
     """
 
-    duplicate_suppressed = duplicate_observation_ids(observations, duplicate_window_ms)
-    active_observations = [obs for obs in observations if obs.observation_id not in duplicate_suppressed]
-    assignments = assign_expected_pitch_matches(expected, active_observations, window_ms)
+    visible_observations = [obs for obs in observations if obs.time_ms <= analyzed_through_ms]
+    future_observations = [obs for obs in observations if obs.time_ms > analyzed_through_ms]
+    assignments = assign_expected_pitch_matches(expected, visible_observations, window_ms)
     consumed = {obs_id for obs_id in assignments}
     strike_results: dict[str, dict[str, object]] = {
         strike.strike_id: {
@@ -370,7 +377,7 @@ def finalize_observations(
 
     matched_by_strike: dict[str, list[AcousticObservation]] = {strike.strike_id: [] for strike in expected}
     for obs_id, strike_id in assignments.items():
-        obs = next(obs for obs in active_observations if obs.observation_id == obs_id)
+        obs = next(obs for obs in visible_observations if obs.observation_id == obs_id)
         matched_by_strike[strike_id].append(obs)
 
     for strike in expected:
@@ -384,7 +391,15 @@ def finalize_observations(
         elif matched_pitches:
             strike_results[strike.strike_id]["state"] = "incomplete_chord"
 
-    wrong_assignments = assign_wrong_observations(expected, active_observations, window_ms, consumed, analyzed_through_ms)
+    wrong_assignments = assign_wrong_observations(
+        expected,
+        visible_observations,
+        window_ms,
+        consumed,
+        matched_by_strike,
+        strike_results,
+        analyzed_through_ms,
+    )
     consumed.update(wrong_assignments.keys())
     for obs_id, strike_id in wrong_assignments.items():
         result = strike_results[strike_id]
@@ -397,19 +412,31 @@ def finalize_observations(
         if result["state"] == "PENDING" and analyzed_through_ms >= strike.deadline_ms:
             result["state"] = "missing"
 
-    observation_by_id = {obs.observation_id: obs for obs in active_observations}
+    observation_by_id = {obs.observation_id: obs for obs in visible_observations}
     roles = [
         ObservationRole(obs_id, "assigned_expected", strike_id, observation_by_id[obs_id].pitch)
         for obs_id, strike_id in sorted(assignments.items())
     ]
     roles.extend(ObservationRole(obs_id, "wrong_evidence", strike_id) for obs_id, strike_id in sorted(wrong_assignments.items()))
+    residual = [obs for obs in visible_observations if obs.observation_id not in consumed]
+    duplicate_suppressed = duplicate_residual_observation_ids(
+        residual,
+        visible_observations,
+        consumed,
+        duplicate_window_ms,
+    )
     roles.extend(ObservationRole(obs_id, "duplicate_retrigger_suppressed") for obs_id in sorted(duplicate_suppressed))
-    extras = [
-        obs for obs in active_observations
-        if obs.observation_id not in consumed
-        and obs.time_ms <= analyzed_through_ms
-    ]
-    roles.extend(ObservationRole(obs.observation_id, "extra") for obs in sorted(extras, key=lambda item: item.observation_id))
+    residual_after_duplicates = [obs for obs in residual if obs.observation_id not in duplicate_suppressed]
+    extras = []
+    unresolved = []
+    for obs in sorted(residual_after_duplicates, key=lambda item: (item.time_ms, item.pitch, item.observation_id)):
+        if residual_observation_has_pending_claim(obs, expected, window_ms, analyzed_through_ms):
+            unresolved.append(obs)
+        else:
+            extras.append(obs)
+    roles.extend(ObservationRole(obs.observation_id, "unresolved") for obs in unresolved)
+    roles.extend(ObservationRole(obs.observation_id, "extra") for obs in extras)
+    roles.extend(ObservationRole(obs.observation_id, "NOT_YET_VISIBLE") for obs in sorted(future_observations, key=lambda item: item.observation_id))
 
     return {
         "strikes": strike_results,
@@ -420,17 +447,30 @@ def finalize_observations(
     }
 
 
-def duplicate_observation_ids(observations: list[AcousticObservation], duplicate_window_ms: float) -> set[str]:
+def duplicate_residual_observation_ids(
+    residual_observations: list[AcousticObservation],
+    all_visible_observations: list[AcousticObservation],
+    consumed_observation_ids: set[str],
+    duplicate_window_ms: float,
+) -> set[str]:
     suppressed: set[str] = set()
-    by_pitch: dict[Pitch, list[AcousticObservation]] = {}
-    for obs in observations:
-        by_pitch.setdefault(obs.pitch, []).append(obs)
-    for pitch_observations in by_pitch.values():
-        kept: list[AcousticObservation] = []
+    accepted_by_pitch: dict[Pitch, list[AcousticObservation]] = {}
+    for obs in all_visible_observations:
+        if obs.observation_id in consumed_observation_ids:
+            accepted_by_pitch.setdefault(obs.pitch, []).append(obs)
+    residual_by_pitch: dict[Pitch, list[AcousticObservation]] = {}
+    for obs in residual_observations:
+        residual_by_pitch.setdefault(obs.pitch, []).append(obs)
+
+    for pitch, pitch_observations in residual_by_pitch.items():
+        kept: list[AcousticObservation] = sorted(accepted_by_pitch.get(pitch, []), key=lambda item: (item.time_ms, item.observation_id))
         for obs in sorted(pitch_observations, key=lambda item: (item.time_ms, -item.confidence, item.observation_id)):
             duplicate_of = next((kept_obs for kept_obs in kept if abs(obs.time_ms - kept_obs.time_ms) <= duplicate_window_ms), None)
             if duplicate_of is None:
                 kept.append(obs)
+                continue
+            if duplicate_of.observation_id in consumed_observation_ids:
+                suppressed.add(obs.observation_id)
                 continue
             if obs.confidence > duplicate_of.confidence:
                 suppressed.add(duplicate_of.observation_id)
@@ -442,21 +482,81 @@ def duplicate_observation_ids(observations: list[AcousticObservation], duplicate
 
 
 def assign_expected_pitch_matches(expected: list[ExpectedStrike], observations: list[AcousticObservation], window_ms: float) -> dict[str, str]:
-    candidates: list[tuple[float, str, str, AcousticObservation]] = []
-    for strike in expected:
-        for obs in observations:
-            if obs.pitch in strike.pitches and abs(obs.time_ms - strike.time_ms) <= window_ms:
-                candidates.append((abs(obs.time_ms - strike.time_ms), strike.strike_id, obs.observation_id, obs))
-    assigned_obs: set[str] = set()
-    satisfied_pitches: set[tuple[str, Pitch]] = set()
     assignments: dict[str, str] = {}
-    for _error, strike_id, obs_id, obs in sorted(candidates, key=lambda item: (item[0], item[1], item[2])):
-        if obs_id in assigned_obs or (strike_id, obs.pitch) in satisfied_pitches:
-            continue
-        assigned_obs.add(obs_id)
-        satisfied_pitches.add((strike_id, obs.pitch))
-        assignments[obs_id] = strike_id
+    pitches = sorted({pitch for strike in expected for pitch in strike.pitches})
+    for pitch in pitches:
+        slots = sorted(
+            (
+                (strike.time_ms, strike.strike_id, pitch, strike.deadline_ms)
+                for strike in expected
+                if pitch in strike.pitches
+            ),
+            key=lambda item: (item[0], item[1], item[2]),
+        )
+        pitch_observations = sorted(
+            [obs for obs in observations if obs.pitch == pitch],
+            key=lambda item: (item.time_ms, item.observation_id),
+        )
+        pitch_assignments = match_pitch_slots(slots, pitch_observations, window_ms)
+        assignments.update(pitch_assignments)
     return assignments
+
+
+def match_pitch_slots(
+    slots: list[tuple[float, str, Pitch, float]],
+    observations: list[AcousticObservation],
+    window_ms: float,
+) -> dict[str, str]:
+    from functools import lru_cache
+
+    @lru_cache(maxsize=None)
+    def solve(slot_index: int, obs_index: int) -> tuple[int, float, tuple[tuple[str, str], ...]]:
+        if slot_index >= len(slots) or obs_index >= len(observations):
+            return (0, 0.0, ())
+        best = solve(slot_index + 1, obs_index)
+        skip_obs = solve(slot_index, obs_index + 1)
+        best = better_match_result(best, skip_obs)
+        slot_time, strike_id, _pitch, deadline_ms = slots[slot_index]
+        obs = observations[obs_index]
+        if abs(obs.time_ms - slot_time) <= window_ms and obs.time_ms <= deadline_ms:
+            count, cost, pairs = solve(slot_index + 1, obs_index + 1)
+            candidate = (
+                count + 1,
+                cost + abs(obs.time_ms - slot_time),
+                ((obs.observation_id, strike_id),) + pairs,
+            )
+            best = better_match_result(best, candidate)
+        return best
+
+    return dict(solve(0, 0)[2])
+
+
+def better_match_result(
+    left: tuple[int, float, tuple[tuple[str, str], ...]],
+    right: tuple[int, float, tuple[tuple[str, str], ...]],
+) -> tuple[int, float, tuple[tuple[str, str], ...]]:
+    if right[0] != left[0]:
+        return right if right[0] > left[0] else left
+    if right[1] != left[1]:
+        return right if right[1] < left[1] else left
+    return right if right[2] < left[2] else left
+
+
+def residual_observation_has_pending_claim(
+    obs: AcousticObservation,
+    expected: list[ExpectedStrike],
+    window_ms: float,
+    analyzed_through_ms: float,
+) -> bool:
+    for strike in expected:
+        if analyzed_through_ms >= strike.deadline_ms:
+            continue
+        if abs(obs.time_ms - strike.time_ms) > window_ms:
+            continue
+        if obs.pitch in strike.pitches:
+            return True
+        return True
+    return False
 
 
 def assign_wrong_observations(
@@ -464,11 +564,17 @@ def assign_wrong_observations(
     observations: list[AcousticObservation],
     window_ms: float,
     consumed: set[str],
+    matched_by_strike: dict[str, list[AcousticObservation]],
+    strike_results: dict[str, dict[str, object]],
     analyzed_through_ms: float,
 ) -> dict[str, str]:
     candidates: list[tuple[float, str, str]] = []
     for strike in expected:
         if analyzed_through_ms < strike.deadline_ms:
+            continue
+        if matched_by_strike[strike.strike_id]:
+            continue
+        if strike_results[strike.strike_id]["state"] != "PENDING":
             continue
         for obs in observations:
             if obs.observation_id in consumed or obs.pitch in strike.pitches:

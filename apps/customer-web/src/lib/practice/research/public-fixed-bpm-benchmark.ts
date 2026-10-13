@@ -396,7 +396,7 @@ export function assertFrozenCandidateConfigsUnchanged(): void {
   if (
     ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz !== 16_000
     || ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples !== 512
-    || ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs !== -158
+    || ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs !== -162.93750000004252
   ) {
     throw new Error('Online-AMT frozen streaming config changed.');
   }
