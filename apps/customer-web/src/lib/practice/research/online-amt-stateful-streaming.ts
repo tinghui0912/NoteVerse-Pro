@@ -8,7 +8,7 @@ import type {
   CandidateScenarioRun,
 } from './continuous-analyzer-bakeoff';
 
-export const ONLINE_AMT_STREAMING_BASELINE_CONFIG = {
+export const ONLINE_AMT_CALIBRATED_BROWSER_CONFIG = {
   adapterVersion: 'phase9g-d2-calibrated-stateful-browser-v1',
   candidateId: 'online-amt-calibrated-v1',
   strategyKind: 'STREAMING' as const,
@@ -25,6 +25,27 @@ export const ONLINE_AMT_STREAMING_BASELINE_CONFIG = {
   timingCorrectionMs: -162.93750000004252,
   publishedOnsetBoost: 1.0,
   pseudoIntensityShortcut: 'NATIVE',
+  onsetStateIds: [3, 4],
+  offsetStateIds: [1],
+  confidenceDefinition: 'P_STATE_3_PLUS_P_STATE_4',
+} as const;
+
+export const ONLINE_AMT_HISTORICAL_PHASE9E_STREAMING_CONFIG = {
+  adapterVersion: 'phase9e-b-stateful-streaming-v1',
+  candidateId: 'online-amt-stateful-modern-compat-dev-v1',
+  strategyKind: 'STREAMING' as const,
+  label: 'ONLINE_AMT_STATEFUL_STREAMING_RESEARCH_BASELINE',
+  repo: 'https://github.com/jdasam/online_amt',
+  repoCommit: 'ad12550909a1d86f699097d11885f427054a5ac2',
+  checkpointRelativePath: 'model-180000.pt',
+  checkpointSha256: '54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0',
+  checkpointBytes: 178_804_960,
+  sampleRateHz: 16_000,
+  hopSamples: 512,
+  hopMs: 32,
+  timingCorrectionMs: -158,
+  publishedOnsetBoost: 2.0,
+  pseudoIntensityShortcut: 'DISABLED',
   onsetStateIds: [3, 4],
   offsetStateIds: [1],
   confidenceDefinition: 'P_STATE_3_PLUS_P_STATE_4',
@@ -106,17 +127,17 @@ export function onlineAmtCandidateDefinition(input: {
   configurationSha256?: string;
   trainingDataOverlapStatus?: 'KNOWN_OVERLAP' | 'KNOWN_DISJOINT' | 'UNKNOWN';
 }): CandidateDefinition {
-  const configurationSha256 = input.configurationSha256 ?? onlineAmtConfigurationSha256();
+  const configurationSha256 = input.configurationSha256 ?? ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.configurationSha256;
   if (!/^[a-f0-9]{64}$/i.test(configurationSha256)) {
     throw new Error('Online-AMT candidate configurationSha256 must be a 64-character SHA256 hex digest.');
   }
   return {
-    candidateId: ONLINE_AMT_STREAMING_BASELINE_CONFIG.candidateId,
+    candidateId: ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.candidateId,
     strategyKind: 'STREAMING',
     identity: {
       modelRuntime: 'Online-AMT stateful Python modern-compat research adapter',
-      modelCheckpointSha256: ONLINE_AMT_STREAMING_BASELINE_CONFIG.checkpointSha256,
-      adapterVersion: ONLINE_AMT_STREAMING_BASELINE_CONFIG.adapterVersion,
+      modelCheckpointSha256: ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.checkpointSha256,
+      adapterVersion: ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.adapterVersion,
       sourceGitHead: input.gitHead,
       configurationSha256,
       trainingDataOverlapStatus: input.trainingDataOverlapStatus ?? 'UNKNOWN',
@@ -125,7 +146,12 @@ export function onlineAmtCandidateDefinition(input: {
 }
 
 export function onlineAmtConfigurationSha256(): string {
-  return sha256Hex(canonicalJson(ONLINE_AMT_STREAMING_BASELINE_CONFIG));
+  return ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.configurationSha256;
+}
+
+export function onlineAmtAdapterConfigDigestSha256(): string {
+  const { configurationSha256: _externalConfigurationSha256, ...adapterConfig } = ONLINE_AMT_CALIBRATED_BROWSER_CONFIG;
+  return sha256Hex(canonicalJson(adapterConfig));
 }
 
 export function runOnlineAmtStreamingCandidate(input: {
@@ -141,18 +167,18 @@ export function runOnlineAmtStreamingCandidate(input: {
   const hopSegments = input.segments.map((segment) => {
     const required = onlineAmtSegmentTailRequirement(segment.performancePcm16k.length, input.timingCorrectionMs);
     const stream = concatFloat32(segment.performancePcm16k, segment.contextTailPcm16k);
-    const hopCount = Math.floor(Math.min(stream.length, required.requiredProcessedSamples) / ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples);
+    const hopCount = Math.floor(Math.min(stream.length, required.requiredProcessedSamples) / ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.hopSamples);
     input.engine.reset();
     return {
       segmentId: segment.segmentId,
       performanceStartMs: segment.performanceStartMs,
       performanceOwnedSamples: segment.performancePcm16k.length,
       hops: Array.from({ length: hopCount }, (_, hopIndex) => {
-        const hopStartSample = hopIndex * ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples;
-        const hop = stream.slice(hopStartSample, hopStartSample + ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples);
+        const hopStartSample = hopIndex * ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.hopSamples;
+        const hop = stream.slice(hopStartSample, hopStartSample + ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.hopSamples);
         return {
           hopIndex,
-          localDecisionSample: hopStartSample + ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples,
+          localDecisionSample: hopStartSample + ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.hopSamples,
           output: input.engine.processHop(hop),
         };
       }),
@@ -355,7 +381,7 @@ export function observationsForOnlineAmtHop(input: {
     return [];
   }
   return input.pitchStates
-    .filter((state) => ONLINE_AMT_STREAMING_BASELINE_CONFIG.onsetStateIds.includes(state.chosenState as 3 | 4))
+    .filter((state) => ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.onsetStateIds.includes(state.chosenState as 3 | 4))
     .map((state, ordinal) => ({
       observationId: [
         'oamt',
@@ -373,7 +399,7 @@ export function observationsForOnlineAmtHop(input: {
 
 export function eventTimeFromDecisionTimeMs(
   decisionTimeMs: number,
-  timingCorrectionMs: number = ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs,
+  timingCorrectionMs: number = ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.timingCorrectionMs,
 ): number {
   return decisionTimeMs + timingCorrectionMs;
 }
@@ -381,14 +407,14 @@ export function eventTimeFromDecisionTimeMs(
 export function eventTimeFromSegmentLocalDecisionMs(
   segmentPerformanceStartMs: number,
   localDecisionTimeMs: number,
-  timingCorrectionMs: number = ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs,
+  timingCorrectionMs: number = ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.timingCorrectionMs,
 ): number {
   return segmentPerformanceStartMs + localDecisionTimeMs + timingCorrectionMs;
 }
 
 export function onlineAmtSegmentTailRequirement(
   performanceOwnedSamples: number,
-  timingCorrectionMs: number = ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs,
+  timingCorrectionMs: number = ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.timingCorrectionMs,
 ): {
   correctionDelaySamples: number;
   requiredProcessedSamples: number;
@@ -403,11 +429,11 @@ export function onlineAmtSegmentTailRequirement(
   const correctionDelaySamples = Math.ceil(
     Math.abs(timingCorrectionMs)
     / 1000
-    * ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz,
+    * ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.sampleRateHz,
   );
   const requiredProcessedSamples = Math.ceil(
-    (performanceOwnedSamples + correctionDelaySamples) / ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples,
-  ) * ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples;
+    (performanceOwnedSamples + correctionDelaySamples) / ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.hopSamples,
+  ) * ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.hopSamples;
   return {
     correctionDelaySamples,
     requiredProcessedSamples,
@@ -418,7 +444,7 @@ export function onlineAmtSegmentTailRequirement(
 export function validateOnlineAmtSegments(
   scenario: BenchmarkScenario,
   segments: readonly OnlineAmtSegment[],
-  timingCorrectionMs: number = ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs,
+  timingCorrectionMs: number = ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.timingCorrectionMs,
 ): readonly OnlineAmtSegmentDiagnostics[] {
   const seen = new Set<string>();
   const completion = scenario.completion?.performanceTimeMs ?? scenario.audio.clipEndMs - scenario.audio.performanceOriginSourceMs;
@@ -443,8 +469,8 @@ export function validateOnlineAmtSegments(
     const requirement = onlineAmtSegmentTailRequirement(segment.performancePcm16k.length, timingCorrectionMs);
     const availableSamples = segment.performancePcm16k.length + segment.contextTailPcm16k.length;
     const processedSamples = Math.floor(
-      Math.min(availableSamples, requirement.requiredProcessedSamples) / ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples,
-    ) * ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples;
+      Math.min(availableSamples, requirement.requiredProcessedSamples) / ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.hopSamples,
+    ) * ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.hopSamples;
     const lastSafeCoverage = Math.min(
       segmentEnd,
       eventTimeFromSegmentLocalDecisionMs(segment.performanceStartMs, samplesToMs(processedSamples), timingCorrectionMs),
@@ -501,7 +527,7 @@ export function parseOnlineAmtPythonHopArtifact(value: unknown): OnlineAmtPython
 export function validateOnlineAmtPythonHopArtifactForScenario(
   scenario: BenchmarkScenario,
   artifact: OnlineAmtPythonHopArtifact,
-  timingCorrectionMs: number = ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs,
+  timingCorrectionMs: number = ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.timingCorrectionMs,
 ): void {
   const seenSegments = new Set<string>();
   const completion = scenario.completion?.performanceTimeMs ?? scenario.audio.clipEndMs - scenario.audio.performanceOriginSourceMs;
@@ -518,8 +544,8 @@ export function validateOnlineAmtPythonHopArtifactForScenario(
     }
     previousEndMs = segmentEndMs;
     const availableProcessedSamples = Math.floor(
-      (segment.performanceOwnedSamples + segment.contextTailSamples) / ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples,
-    ) * ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples;
+      (segment.performanceOwnedSamples + segment.contextTailSamples) / ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.hopSamples,
+    ) * ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.hopSamples;
     const required = onlineAmtSegmentTailRequirement(segment.performanceOwnedSamples, timingCorrectionMs);
     const maxRequiredSample = Math.min(availableProcessedSamples, required.requiredProcessedSamples);
     const seenHops = new Set<number>();
@@ -527,7 +553,7 @@ export function validateOnlineAmtPythonHopArtifactForScenario(
       if (seenHops.has(hop.hopIndex)) throw new Error('Online-AMT hop indexes must be unique.');
       seenHops.add(hop.hopIndex);
       if (hop.hopIndex !== ordinal) throw new Error('Online-AMT hopIndex must equal chronological ordinal.');
-      const expectedDecisionSample = (hop.hopIndex + 1) * ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples;
+      const expectedDecisionSample = (hop.hopIndex + 1) * ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.hopSamples;
       if (hop.localDecisionSample !== expectedDecisionSample) {
         throw new Error('Online-AMT localDecisionSample must be hop-aligned and equal to (hopIndex + 1) * 512.');
       }
@@ -590,7 +616,7 @@ function sanitize(value: string): string {
 }
 
 function samplesToMs(samples: number): number {
-  return samples / ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz * 1000;
+  return samples / ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.sampleRateHz * 1000;
 }
 
 function performanceEndMs(performanceStartMs: number, performanceOwnedSamples: number): number {

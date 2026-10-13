@@ -130,6 +130,25 @@ def test_matching_pitch_after_deadline_cannot_retroactively_correct() -> None:
     assert "late" not in result["consumedObservationIds"]
 
 
+def test_late_wrong_note_cannot_rewrite_missing_after_deadline() -> None:
+    expected = [ExpectedStrike("a", frozenset({60}), 1000, 1040)]
+    before_late_visible = finalize_observations(expected, [AcousticObservation("late-wrong", 62, 1050)], 60, analyzed_through_ms=1040)
+    after_late_visible = finalize_observations(expected, [AcousticObservation("late-wrong", 62, 1050)], 60, analyzed_through_ms=1100)
+    assert before_late_visible["strikes"]["a"]["state"] == "missing"
+    assert after_late_visible["strikes"]["a"]["state"] == "missing"
+    assert role_by_observation(after_late_visible)["late-wrong"] == "extra"
+
+
+def test_pre_deadline_wrong_note_can_finalize_wrong_after_deadline() -> None:
+    expected = [ExpectedStrike("a", frozenset({60}), 1000, 1040)]
+    pending = finalize_observations(expected, [AcousticObservation("wrong", 62, 1030)], 60, analyzed_through_ms=1035)
+    finalized = finalize_observations(expected, [AcousticObservation("wrong", 62, 1030)], 60, analyzed_through_ms=1100)
+    assert pending["strikes"]["a"]["state"] == "PENDING"
+    assert role_by_observation(pending)["wrong"] == "unresolved"
+    assert finalized["strikes"]["a"]["state"] == "wrong"
+    assert role_by_observation(finalized)["wrong"] == "wrong_evidence"
+
+
 def test_same_pitch_matching_uses_global_minimum_timing_error() -> None:
     expected = [
         ExpectedStrike("a", frozenset({60}), 0, 20),

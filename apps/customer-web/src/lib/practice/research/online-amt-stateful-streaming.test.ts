@@ -5,12 +5,14 @@ import { resolve } from 'node:path';
 
 import { buildBakeoffReport, scoreCandidate, type BenchmarkScenario } from './continuous-analyzer-bakeoff';
 import {
-  ONLINE_AMT_STREAMING_BASELINE_CONFIG,
+  ONLINE_AMT_CALIBRATED_BROWSER_CONFIG,
+  ONLINE_AMT_HISTORICAL_PHASE9E_STREAMING_CONFIG,
   assertOnlineAmtAssetIdentity,
   createOnlineAmtBridgeReceipt,
   eventTimeFromSegmentLocalDecisionMs,
   eventTimeFromDecisionTimeMs,
   observationsForOnlineAmtHop,
+  onlineAmtAdapterConfigDigestSha256,
   onlineAmtCandidateDefinition,
   onlineAmtConfigurationSha256,
   onlineAmtSegmentTailRequirement,
@@ -120,11 +122,11 @@ describe('Online-AMT stateful streaming research adapter', () => {
       candidateId: 'online-amt-calibrated-v1',
       strategyKind: 'STREAMING',
       identity: {
-        modelCheckpointSha256: ONLINE_AMT_STREAMING_BASELINE_CONFIG.checkpointSha256,
+        modelCheckpointSha256: ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.checkpointSha256,
         trainingDataOverlapStatus: 'UNKNOWN',
       },
     });
-    expect(ONLINE_AMT_STREAMING_BASELINE_CONFIG).toMatchObject({
+    expect(ONLINE_AMT_CALIBRATED_BROWSER_CONFIG).toMatchObject({
       repoCommit: 'ad12550909a1d86f699097d11885f427054a5ac2',
       configurationSha256: '0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375',
       sampleRateHz: 16_000,
@@ -135,7 +137,16 @@ describe('Online-AMT stateful streaming research adapter', () => {
       pseudoIntensityShortcut: 'NATIVE',
       onsetStateIds: [3, 4],
     });
-    expect(onlineAmtConfigurationSha256()).toMatch(/^[a-f0-9]{64}$/);
+    expect(definition.identity.configurationSha256).toBe('0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375');
+    expect(onlineAmtConfigurationSha256()).toBe('0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375');
+    expect(onlineAmtAdapterConfigDigestSha256()).toMatch(/^[a-f0-9]{64}$/);
+    expect(onlineAmtAdapterConfigDigestSha256()).not.toBe(onlineAmtConfigurationSha256());
+    expect(ONLINE_AMT_HISTORICAL_PHASE9E_STREAMING_CONFIG).toMatchObject({
+      candidateId: 'online-amt-stateful-modern-compat-dev-v1',
+      timingCorrectionMs: -158,
+      publishedOnsetBoost: 2,
+      pseudoIntensityShortcut: 'DISABLED',
+    });
   });
 
   it('uses one canonical Online-AMT execution-profile digest in policy and reports', () => {
@@ -152,14 +163,14 @@ describe('Online-AMT stateful streaming research adapter', () => {
 
   it('fails closed on repo or checkpoint identity mismatch', () => {
     expect(() => assertOnlineAmtAssetIdentity({
-      expectedRepoCommit: ONLINE_AMT_STREAMING_BASELINE_CONFIG.repoCommit,
+      expectedRepoCommit: ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.repoCommit,
       actualRepoCommit: 'wrong',
     })).toThrow(/repo commit/);
     expect(() => assertOnlineAmtAssetIdentity({
-      expectedCheckpointSha256: ONLINE_AMT_STREAMING_BASELINE_CONFIG.checkpointSha256,
+      expectedCheckpointSha256: ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.checkpointSha256,
     })).toThrow(/missing/);
     expect(() => assertOnlineAmtAssetIdentity({
-      expectedCheckpointBytes: ONLINE_AMT_STREAMING_BASELINE_CONFIG.checkpointBytes,
+      expectedCheckpointBytes: ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.checkpointBytes,
     })).toThrow(/byte size missing/);
   });
 

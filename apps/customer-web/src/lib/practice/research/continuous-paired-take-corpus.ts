@@ -5,7 +5,7 @@ import { Midi } from '@tonejs/midi';
 
 import { planByteDanceScoreAwareChunks, validateByteDanceSourceContext } from './bytedance-score-aware-chunked';
 import { validateBenchmarkScenario, type BenchmarkScenario } from './continuous-analyzer-bakeoff';
-import { ONLINE_AMT_STREAMING_BASELINE_CONFIG, onlineAmtSegmentTailRequirement } from './online-amt-stateful-streaming';
+import { ONLINE_AMT_CALIBRATED_BROWSER_CONFIG, onlineAmtSegmentTailRequirement } from './online-amt-stateful-streaming';
 import { assertPracticeScoreArtifact, type PracticeScope, type PracticeScoreArtifact } from '../local-core/artifact';
 import { resolveContinuousPracticeContract } from '../local-core/continuous-expected-strikes';
 import type { PracticeTempoSelection } from '../local-core/practice-tempo';
@@ -486,10 +486,10 @@ function onlineAmtEligible(take: ContinuousPairedTake, scenario: BenchmarkScenar
   const completion = scenario.completion?.performanceTimeMs ?? 0;
   for (const segment of take.segments) {
     const ownedMs = segment.performanceEndMs - segment.performanceStartMs;
-    const ownedSamples = Math.round((ownedMs / 1000) * ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz);
+    const ownedSamples = Math.round((ownedMs / 1000) * ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.sampleRateHz);
     const required = onlineAmtSegmentTailRequirement(ownedSamples);
     const tailMs = ((segment.sourceContextTailEndSampleBoundary - segment.sourcePerformanceEndSampleBoundary) / take.audio.sampleRateHz) * 1000;
-    const requiredTailMs = (required.requiredContextTailSamples / ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz) * 1000;
+    const requiredTailMs = (required.requiredContextTailSamples / ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.sampleRateHz) * 1000;
     if (tailMs + 1e-9 < requiredTailMs) return 'INELIGIBLE_INSUFFICIENT_CONTEXT';
     if (segment.performanceEndMs > completion + 1e-9) return 'INELIGIBLE_INVALID_CORPUS_TAKE';
   }

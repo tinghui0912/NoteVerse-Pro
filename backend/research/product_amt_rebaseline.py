@@ -579,7 +579,7 @@ def assign_wrong_observations(
         for obs in observations:
             if obs.observation_id in consumed or obs.pitch in strike.pitches:
                 continue
-            if abs(obs.time_ms - strike.time_ms) <= window_ms:
+            if obs.time_ms <= strike.deadline_ms and abs(obs.time_ms - strike.time_ms) <= window_ms:
                 candidates.append((abs(obs.time_ms - strike.time_ms), strike.strike_id, obs.observation_id))
     assignments: dict[str, str] = {}
     assigned_strikes: set[str] = set()

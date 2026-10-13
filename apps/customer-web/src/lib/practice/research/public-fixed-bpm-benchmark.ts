@@ -15,7 +15,7 @@ import {
   type CandidateScenarioRun,
 } from './continuous-analyzer-bakeoff';
 import { BYTEDANCE_CHUNKED_BASELINE_CONFIG } from './bytedance-score-aware-chunked';
-import { ONLINE_AMT_STREAMING_BASELINE_CONFIG } from './online-amt-stateful-streaming';
+import { ONLINE_AMT_CALIBRATED_BROWSER_CONFIG } from './online-amt-stateful-streaming';
 
 type PublicBenchmarkLayer = 'PRIMARY_FIXED_GRID_PROXY' | 'SECONDARY_HUMAN_FIXED_BPM_PROXY';
 type PublicScenarioFamily =
@@ -311,7 +311,7 @@ export function buildPublicPairedComparison(input: {
   bootstrap?: PublicBootstrapConfig;
 }): PublicPairedComparison {
   const byteDanceCandidateId = input.byteDanceCandidateId ?? 'bytedance-score-aware-chunked-dev-v1';
-  const onlineAmtCandidateId = input.onlineAmtCandidateId ?? 'online-amt-stateful-modern-compat-dev-v1';
+  const onlineAmtCandidateId = input.onlineAmtCandidateId ?? 'online-amt-calibrated-v1';
   const bootstrap = input.bootstrap ?? PUBLIC_PROXY_BOOTSTRAP_CONFIG;
   if (bootstrap.draws < 5_000) throw new Error('Public proxy paired bootstrap requires at least 5000 draws.');
   const byScenario = new Map<string, Partial<Record<string, BakeoffScore>>>();
@@ -394,9 +394,9 @@ export function assertFrozenCandidateConfigsUnchanged(): void {
     throw new Error('ByteDance frozen thresholds changed.');
   }
   if (
-    ONLINE_AMT_STREAMING_BASELINE_CONFIG.sampleRateHz !== 16_000
-    || ONLINE_AMT_STREAMING_BASELINE_CONFIG.hopSamples !== 512
-    || ONLINE_AMT_STREAMING_BASELINE_CONFIG.timingCorrectionMs !== -162.93750000004252
+    ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.sampleRateHz !== 16_000
+    || ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.hopSamples !== 512
+    || ONLINE_AMT_CALIBRATED_BROWSER_CONFIG.timingCorrectionMs !== -162.93750000004252
   ) {
     throw new Error('Online-AMT frozen streaming config changed.');
   }

@@ -1,0 +1,95 @@
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT / "backend" / "research"))
+
+from online_amt_grouped_manifest_dr3 import GroupedGraphIdentity, build_grouped_browser_manifest  # noqa: E402
+
+
+def graph(k: int, file: str | None = None) -> GroupedGraphIdentity:
+    return GroupedGraphIdentity(
+        k=k,
+        file=f"online_amt_grouped_k{k}_opset18.onnx" if file is None else file,
+        sha256=("0" * 63) + str(k),
+        byte_size=1000 + k,
+    )
+
+
+def manifest() -> dict[str, object]:
+    return build_grouped_browser_manifest(
+        graphs={k: graph(k) for k in [1, 2, 4, 8]},
+        k1_fallback=graph(1),
+        hop_fixture="hops.npy",
+        initial_state={"h": "initial_h.npy"},
+        reference={"chosen": "reference_chosen.npy"},
+        checkpoint_sha256="54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+        ort_version="1.30.0",
+    )
+
+
+def test_grouped_manifest_binds_correct_k_graphs() -> None:
+    result = manifest()
+    grouped = result["graphs"]["grouped"]  # type: ignore[index]
+    assert grouped["2"]["file"] == "online_amt_grouped_k2_opset18.onnx"
+    assert grouped["4"]["file"] == "online_amt_grouped_k4_opset18.onnx"
+    assert grouped["8"]["file"] == "online_amt_grouped_k8_opset18.onnx"
+    assert result["graphs"]["k1Fallback"]["file"] == "online_amt_grouped_k1_opset18.onnx"  # type: ignore[index]
+
+
+def test_grouped_manifest_rejects_null_graph_filename() -> None:
+    graphs = {k: graph(k) for k in [1, 2, 4, 8]}
+    graphs[2] = graph(2, "")
+    with pytest.raises(ValueError, match="filename"):
+        build_grouped_browser_manifest(
+            graphs=graphs,
+            k1_fallback=graph(1),
+            hop_fixture="hops.npy",
+            initial_state={},
+            reference={},
+            checkpoint_sha256="sha",
+            ort_version="1.30.0",
+        )
+
+
+def test_grouped_manifest_rejects_routing_k_greater_than_one_through_k1_graph() -> None:
+    graphs = {k: graph(k) for k in [1, 2, 4, 8]}
+    graphs[4] = graph(4, "online_amt_grouped_k1_opset18.onnx")
+    with pytest.raises(ValueError, match="K=4"):
+        build_grouped_browser_manifest(
+            graphs=graphs,
+            k1_fallback=graph(1),
+            hop_fixture="hops.npy",
+            initial_state={},
+            reference={},
+            checkpoint_sha256="sha",
+            ort_version="1.30.0",
+        )
+
+
+def test_grouped_worker_serializes_jobs_with_explicit_queue() -> None:
+    worker = (REPO_ROOT / "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs").read_text(encoding="utf-8")
+    assert "let chain = Promise.resolve()" in worker
+    assert ".then(() => processGroup" in worker
+    assert "outstandingPostedNotCompletedDepth" in worker
+    assert "captureToPublicationAgeMs" in worker
+
+
+def test_grouped_harness_producer_does_not_await_prior_completion_and_respects_group_ready_time() -> None:
+    harness = (REPO_ROOT / "backend/research/browser_runtime/online_amt_grouped_browser_harness_dr3.mjs").read_text(encoding="utf-8")
+    assert "producerDoesNotAwaitPriorCompletion: true" in harness
+    assert "scheduledGroupReadyTimestamp = feedStartTimestamp + ((groupIndex + 1) * intervalMs)" in harness
+    assert "futureAudioPostPolicy: 'GROUP_POSTS_AT_LAST_INTERNAL_HOP_READY'" in harness
+    assert "overloadDetected" in harness
+
+
+def test_browser_evidence_cannot_claim_pass_without_grouped_worker_result() -> None:
+    harness = (REPO_ROOT / "backend/research/browser_runtime/online_amt_grouped_browser_harness_dr3.mjs").read_text(encoding="utf-8")
+    assert "window.__DR3_RESULT__" in harness
+    assert "online_amt_grouped_browser_worker_dr3.mjs" in harness
+    assert "worker-combined" not in harness

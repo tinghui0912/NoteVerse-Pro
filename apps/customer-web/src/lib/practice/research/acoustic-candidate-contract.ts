@@ -44,7 +44,7 @@ const forbiddenScoreTruthFields = new Set([
 ]);
 
 export type GreenfieldAcousticInferenceRequest = {
-  pcm: Float32Array | readonly number[];
+  pcm: Float32Array;
   sampleRateHz: number;
   channelCount: number;
   sourceId: string;
@@ -62,6 +62,8 @@ export type GreenfieldAcousticInferenceRequest = {
   candidateId?: string;
   deploymentId?: string;
 };
+
+export type GreenfieldAcousticExecutor<T> = (request: GreenfieldAcousticInferenceRequest) => T | Promise<T>;
 
 export function validateGreenfieldAudioOnlyAcousticRequest(input: unknown): GreenfieldAcousticInferenceRequest {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
@@ -92,15 +94,54 @@ export function validateGreenfieldAudioOnlyAcousticRequest(input: unknown): Gree
       throw new Error(`ACOUSTIC_REQUEST_NUMERIC_FIELD_INVALID:${key}`);
     }
   }
+  if (record.sampleRateHz as number <= 0) {
+    throw new Error('ACOUSTIC_REQUEST_SAMPLE_RATE_INVALID');
+  }
+  if (!Number.isInteger(record.channelCount) || (record.channelCount as number) <= 0) {
+    throw new Error('ACOUSTIC_REQUEST_CHANNEL_COUNT_INVALID');
+  }
+  if (!Number.isInteger(record.captureStartSample) || (record.captureStartSample as number) < 0) {
+    throw new Error('ACOUSTIC_REQUEST_CAPTURE_START_SAMPLE_INVALID');
+  }
+  if ((record.ownershipStartMs as number) > (record.ownershipEndMs as number)) {
+    throw new Error('ACOUSTIC_REQUEST_OWNERSHIP_RANGE_INVALID');
+  }
+  if ((record.contextStartMs as number) > (record.ownershipStartMs as number)) {
+    throw new Error('ACOUSTIC_REQUEST_CONTEXT_START_INVALID');
+  }
+  if ((record.contextEndMs as number) < (record.ownershipEndMs as number)) {
+    throw new Error('ACOUSTIC_REQUEST_CONTEXT_END_INVALID');
+  }
+  if ((record.modelContextMs as number) < 0 || (record.futureContextMs as number) < 0) {
+    throw new Error('ACOUSTIC_REQUEST_CONTEXT_GEOMETRY_INVALID');
+  }
   for (const key of ['sourceId', 'captureSessionId', 'acousticChunkId', 'runtimeRequestId']) {
     if (typeof record[key] !== 'string' || record[key].length === 0) {
       throw new Error(`ACOUSTIC_REQUEST_STRING_FIELD_INVALID:${key}`);
     }
   }
-  if (!(record.pcm instanceof Float32Array) && !Array.isArray(record.pcm)) {
+  for (const key of ['candidateId', 'deploymentId']) {
+    if (record[key] !== undefined && (typeof record[key] !== 'string' || record[key].length === 0)) {
+      throw new Error(`ACOUSTIC_REQUEST_OPTIONAL_STRING_FIELD_INVALID:${key}`);
+    }
+  }
+  if (!(record.pcm instanceof Float32Array)) {
     throw new Error('ACOUSTIC_REQUEST_PCM_INVALID');
   }
+  for (const value of record.pcm) {
+    if (!Number.isFinite(value)) {
+      throw new Error('ACOUSTIC_REQUEST_PCM_NONFINITE');
+    }
+  }
   return record as GreenfieldAcousticInferenceRequest;
+}
+
+export function executeGreenfieldAcousticCandidate<T>(
+  rawRequest: unknown,
+  executor: GreenfieldAcousticExecutor<T>,
+): T | Promise<T> {
+  const request = validateGreenfieldAudioOnlyAcousticRequest(rawRequest);
+  return executor(request);
 }
 
 function collectForbiddenScoreTruthFields(value: unknown, path = ''): string[] {
