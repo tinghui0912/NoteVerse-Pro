@@ -20,8 +20,8 @@ from pathlib import Path
 from typing import Any
 
 
-REPORT_DATE = "2026-10-13"
-REPORT_NAME = f"phase9g_dr3r_container_only_real_grouped_execution_repair_{REPORT_DATE}.json"
+REPORT_DATE = "2026-10-14"
+REPORT_NAME = f"phase9g_dr3r1_docker_browser_completion_and_full_online_amt_closure_{REPORT_DATE}.json"
 
 
 def main() -> int:
@@ -29,7 +29,7 @@ def main() -> int:
     parser.add_argument("--repo-root", type=Path, default=Path("/workspace"))
     parser.add_argument("--work-dir", type=Path, default=Path("backend/data/work/phase9g_dr3r_online_amt_grouped"))
     parser.add_argument("--reports-dir", type=Path, default=Path("backend/research/reports"))
-    parser.add_argument("--ort-dir", type=Path, default=Path("backend/data/work/phase9gdr3r_ort_130/node_modules/onnxruntime-web/dist"))
+    parser.add_argument("--ort-dir", type=Path, default=Path(os.environ.get("DR3R_ORT_WEB_DIST", "/opt/dr3r-browser-runtime/node_modules/onnxruntime-web/dist")))
     parser.add_argument("--headed", action="store_true")
     args = parser.parse_args()
 
@@ -108,8 +108,13 @@ def main() -> int:
             sha256=graph["sha256"],
             byte_size=graph["byteSize"],
         )
+    for k in [1, 2, 4, 8]:
+        graph = graph_results.get(str(k), {})
+        k1_graph = graph_results.get("1", {})
+        if graph.get("status") != "PASS" or k1_graph.get("status") != "PASS":
+            continue
         pytorch_parity[str(k)] = dr2.compare_grouped_pytorch(model, OnlineTranscriber, pcm, reference, k)
-        ort_parity[str(k)] = run_grouped_python_ort(ort, graph, pcm, reference, k)
+        ort_parity[str(k)] = run_grouped_python_ort(ort, graph, k1_graph, pcm, reference, fixtures_dir, k)
 
     manifest_status: dict[str, Any]
     if set(manifest_graphs) == {1, 2, 4, 8}:
@@ -137,13 +142,15 @@ def main() -> int:
             },
             checkpoint_sha256=d2.EXPECTED_CHECKPOINT_SHA256,
             ort_version=ort.__version__,
+            hop_count=reference["hopCount"],
+            hop_samples=d2.HOP_SAMPLES,
         )
         (fixtures_dir / "grouped_manifest_dr3r.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         manifest_status = {"status": "PASS", "path": rel(repo_root, fixtures_dir / "grouped_manifest_dr3r.json")}
     else:
         manifest_status = {"status": "NOT_CREATED_GRAPH_EXPORT_INCOMPLETE"}
 
-    browser = run_browser_matrix(repo_root, fixtures_dir, repo_root / args.ort_dir, attempted, args.headed) if manifest_status["status"] == "PASS" else {
+    browser = run_browser_matrix(repo_root, fixtures_dir, Path(args.ort_dir), work_dir / "browser_results", attempted, args.headed) if manifest_status["status"] == "PASS" else {
         "status": "NOT_EXECUTED_MANIFEST_UNAVAILABLE",
     }
     decision = decide(ort_parity, browser)
@@ -167,10 +174,11 @@ def main() -> int:
     return 0 if decision == "ONLINE_AMT_GROUPED_BROWSER_REALTIME_PASS" else 2
 
 
-def run_grouped_python_ort(ort: Any, graph: dict[str, Any], pcm: Any, reference: dict[str, Any], k: int) -> dict[str, Any]:
+def run_grouped_python_ort(ort: Any, graph: dict[str, Any], k1_graph: dict[str, Any], pcm: Any, reference: dict[str, Any], fixtures_dir: Path, k: int) -> dict[str, Any]:
     import numpy as np
 
-    session = ort.InferenceSession(graph["path"], providers=["CPUExecutionProvider"])
+    target_session = ort.InferenceSession(graph["path"], providers=["CPUExecutionProvider"])
+    k1_session = target_session if k == 1 else ort.InferenceSession(k1_graph["path"], providers=["CPUExecutionProvider"])
     state = {
         "audio": reference["initial"]["audio_buffer"].copy(),
         "mel": reference["initial"]["mel_buffer"].copy(),
@@ -179,18 +187,63 @@ def run_grouped_python_ort(ort: Any, graph: dict[str, Any], pcm: Any, reference:
         "h": reference["initial"]["h"].copy(),
         "c": reference["initial"]["c"].copy(),
         "prev": reference["initial"]["prev"].copy(),
+        "num": 0,
     }
+    reference_mel = np.load(fixtures_dir / "reference_mel_buffer.npy")
+    reference_cache0 = np.load(fixtures_dir / "reference_cache0.npy")
+    reference_cache1 = np.load(fixtures_dir / "reference_cache1.npy")
     chosen_rows = []
     prob_deltas = []
-    for group_start in range(0, reference["hopCount"], k):
-        if group_start + k > reference["hopCount"]:
-            break
+    recurrent_deltas = []
+    final_tail_fallback_hops = 0
+    full_grouped_hops = 0
+    group_start = 0
+    while group_start < reference["hopCount"]:
+        remaining = reference["hopCount"] - group_start
+        actual_k = min(k, remaining)
+        use_grouped = actual_k == k
+        probe_audio = state["audio"].copy()
+        probe_num = int(state["num"])
         windows = []
-        for offset in range(k):
+        for offset in range(actual_k):
             hop = pcm[(group_start + offset) * 512:(group_start + offset + 1) * 512].astype(np.float32)
-            state["audio"] = np.concatenate([state["audio"][:, 512:], hop.reshape(1, 512)], axis=1)
-            windows.append(state["audio"][:, -2048:].copy())
-        outputs = session.run(None, {
+            probe_audio = np.concatenate([probe_audio[:, 512:], hop.reshape(1, 512)], axis=1)
+            intensity = float(probe_audio.max() - probe_audio.min()) if float(np.abs(probe_audio).max()) > 0 else 0.0
+            probe_num = probe_num + 1 if intensity < 0.05 else 0
+            windows.append(probe_audio[:, -2048:].copy())
+            if probe_num > 100:
+                use_grouped = False
+        if not use_grouped:
+            final_tail_fallback_hops += actual_k
+            for offset in range(actual_k):
+                hop_index = group_start + offset
+                hop = pcm[hop_index * 512:(hop_index + 1) * 512].astype(np.float32)
+                state["audio"] = np.concatenate([state["audio"][:, 512:], hop.reshape(1, 512)], axis=1)
+                intensity = float(state["audio"].max() - state["audio"].min()) if float(np.abs(state["audio"]).max()) > 0 else 0.0
+                state["num"] = state["num"] + 1 if intensity < 0.05 else 0
+                if state["num"] > 100:
+                    probabilities = np.zeros((1, 88, 5), dtype=np.float32)
+                    probabilities[:, :, 0] = 1.0
+                    chosen = np.zeros((1, 88), dtype=np.int64)
+                else:
+                    outputs = k1_session.run(None, {
+                        "audio_last_2048_sequence": state["audio"][:, -2048:].reshape(1, 1, 2048).astype(np.float32),
+                        "mel_buffer_in": state["mel"].astype(np.float32),
+                        "cache0_in": state["cache0"].astype(np.float32),
+                        "cache1_in": state["cache1"].astype(np.float32),
+                        "h_in": state["h"].astype(np.float32),
+                        "c_in": state["c"].astype(np.float32),
+                        "prev_output_in": state["prev"].astype(np.int64),
+                    })
+                    probabilities, chosen, mel, cache0, cache1, h, c = outputs
+                    state.update({"mel": mel, "cache0": cache0, "cache1": cache1, "h": h, "c": c, "prev": chosen[-1:]})
+                chosen_rows.append(chosen[0].reshape(88))
+                prob_deltas.append(compare_np(probabilities[0].reshape(88, 5), reference["probabilities"][hop_index]))
+                recurrent_deltas.append(compare_recurrent_state(state, reference, reference_mel, reference_cache0, reference_cache1, hop_index))
+            group_start += actual_k
+            continue
+
+        outputs = target_session.run(None, {
             "audio_last_2048_sequence": np.stack(windows, axis=0).astype(np.float32),
             "mel_buffer_in": state["mel"].astype(np.float32),
             "cache0_in": state["cache0"].astype(np.float32),
@@ -200,32 +253,48 @@ def run_grouped_python_ort(ort: Any, graph: dict[str, Any], pcm: Any, reference:
             "prev_output_in": state["prev"].astype(np.int64),
         })
         probabilities, chosen, mel, cache0, cache1, h, c = outputs
-        state.update({"mel": mel, "cache0": cache0, "cache1": cache1, "h": h, "c": c, "prev": chosen[-1:]})
+        state.update({"audio": probe_audio, "num": probe_num, "mel": mel, "cache0": cache0, "cache1": cache1, "h": h, "c": c, "prev": chosen[-1:]})
+        full_grouped_hops += actual_k
         for offset in range(k):
             hop_index = group_start + offset
             chosen_rows.append(chosen[offset].reshape(88))
             prob_deltas.append(compare_np(probabilities[offset].reshape(88, 5), reference["probabilities"][hop_index]))
+        recurrent_deltas.append(compare_recurrent_state(state, reference, reference_mel, reference_cache0, reference_cache1, group_start + actual_k - 1))
+        group_start += actual_k
     chosen_arr = np.asarray(chosen_rows, dtype=np.int64)
     expected = reference["chosen"][: len(chosen_rows)]
     mismatch = np.argwhere(chosen_arr != expected)
+    final_hop = len(chosen_rows) - 1
+    final_state_delta = compare_recurrent_state(state, reference, reference_mel, reference_cache0, reference_cache1, final_hop)
+    expected_num = reference["nativeGate"][final_hop]["numUnderThr"] if final_hop >= 0 else None
     return {
-        "status": "PASS" if len(mismatch) == 0 else "FAIL",
+        "status": "SEMANTIC_PASS" if len(mismatch) == 0 and len(chosen_rows) == reference["hopCount"] else "FAIL",
         "k": k,
         "hopCount": int(len(chosen_rows)),
+        "fullGroupedHopCount": int(full_grouped_hops),
+        "tailFallbackHopCount": int(final_tail_fallback_hops),
+        "semanticHopCount": int(len(chosen_rows)),
         "chosenStateMismatchCount": int(len(mismatch)),
         "probabilityDelta": summarize_deltas(prob_deltas),
-        "providers": session.get_providers(),
+        "recurrentBoundaryDelta": summarize_recurrent_deltas(recurrent_deltas),
+        "finalStateDelta": final_state_delta,
+        "finalNumUnderThr": int(state["num"]),
+        "expectedFinalNumUnderThr": int(expected_num) if expected_num is not None else None,
+        "finalNumUnderThrMatches": bool(expected_num is not None and int(state["num"]) == int(expected_num)),
+        "providers": target_session.get_providers(),
     }
 
 
-def run_browser_matrix(repo_root: Path, fixture_dir: Path, ort_dir: Path, attempted: list[dict[str, Any]], headed: bool) -> dict[str, Any]:
+def run_browser_matrix(repo_root: Path, fixture_dir: Path, ort_dir: Path, output_dir: Path, attempted: list[dict[str, Any]], headed: bool) -> dict[str, Any]:
+    output_dir.mkdir(parents=True, exist_ok=True)
     if not (repo_root / "backend/research/browser_runtime/online_amt_grouped_browser_harness_dr3.mjs").exists():
         return {"status": "NOT_EXECUTED_HARNESS_MISSING"}
     node = shutil_which("node")
     if node is None:
         return {"status": "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_CONTAINER_BROWSER_NODE_MISSING"}
     result: dict[str, Any] = {"status": "ATTEMPTED", "runs": {}}
-    overload_cmd = [
+    overload_output = output_dir / "overload_proof.json"
+    overload_cmd = browser_command_prefix(headed) + [
         node,
         "backend/research/browser_runtime/online_amt_grouped_browser_harness_dr3.mjs",
         "--fixture-dir", str(fixture_dir),
@@ -233,13 +302,15 @@ def run_browser_matrix(repo_root: Path, fixture_dir: Path, ort_dir: Path, attemp
         "--mode", "overload-proof",
         "--k", "1",
         "--artificial-delay-ms", "80",
+        "--output", str(overload_output),
     ]
     if headed:
         overload_cmd.append("--headed")
-    result["overloadProof"] = run_command(overload_cmd, repo_root, attempted, 180)
+    result["overloadProof"] = run_browser_command(overload_cmd, overload_output, repo_root, attempted, 180)
     for browser in ["chrome", "msedge"]:
         for k in [1, 2, 4, 8]:
-            cmd = [
+            output = output_dir / f"{browser}_k{k}.json"
+            cmd = browser_command_prefix(headed) + [
                 node,
                 "backend/research/browser_runtime/online_amt_grouped_browser_harness_dr3.mjs",
                 "--fixture-dir", str(fixture_dir),
@@ -247,15 +318,30 @@ def run_browser_matrix(repo_root: Path, fixture_dir: Path, ort_dir: Path, attemp
                 "--mode", "model",
                 "--browser-channel", browser,
                 "--k", str(k),
+                "--output", str(output),
             ]
             if headed:
                 cmd.append("--headed")
-            result["runs"][f"{browser}:k{k}"] = run_command(cmd, repo_root, attempted, 240)
+            result["runs"][f"{browser}:k{k}"] = run_browser_command(cmd, output, repo_root, attempted, 240)
     return result
 
 
+def browser_command_prefix(headed: bool) -> list[str]:
+    return ["xvfb-run", "-a"] if headed and shutil_which("xvfb-run") else []
+
+
+def run_browser_command(cmd: list[str], output_path: Path, cwd: Path, attempted: list[dict[str, Any]], timeout: int) -> dict[str, Any]:
+    row = run_command(cmd, cwd, attempted, timeout)
+    if output_path.exists():
+        try:
+            row["structuredOutput"] = json.loads(output_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            row["structuredOutputError"] = repr(exc)
+    return row
+
+
 def decide(ort_parity: dict[str, Any], browser: dict[str, Any]) -> str:
-    if not any(row.get("status") == "PASS" and row.get("chosenStateMismatchCount") == 0 for row in ort_parity.values()):
+    if not any(row.get("status") in {"PASS", "SEMANTIC_PASS"} and row.get("chosenStateMismatchCount") == 0 and row.get("semanticHopCount") == 326 for row in ort_parity.values()):
         return "ONLINE_AMT_GROUPED_SEMANTIC_PARITY_FAILED"
     if browser.get("status", "").startswith("ONLINE_AMT_GROUPED_RUNTIME_BLOCKED") or browser.get("status", "").startswith("NOT_"):
         return browser.get("status", "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_CONTAINER_BROWSER_WEBGPU")
@@ -283,7 +369,7 @@ def container_runtime_identity(repo_root: Path) -> dict[str, Any]:
 
 def base_report(repo_root: Path, runtime: dict[str, Any], implementation_head: str, remote_head: str, clean: bool, attempted: list[dict[str, Any]]) -> dict[str, Any]:
     return {
-        "phase": "PHASE_9G_DR3R_CONTAINER_ONLY_REAL_GROUPED_EXECUTION_REPAIR",
+        "phase": "PHASE_9G_DR3R1_DOCKER_BROWSER_COMPLETION_AND_FULL_ONLINE_AMT_CLOSURE",
         "implementationGitHead": implementation_head,
         "implementationWorkingTreeCleanBeforeExecution": clean,
         "verifiedStartingRemoteHead": remote_head,
@@ -313,6 +399,9 @@ def critical_hashes(repo_root: Path) -> dict[str, str]:
         "backend/research/browser_runtime/online_amt_grouped_browser_harness_dr3.mjs",
         "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs",
         "backend/research/online_amt_grouped_manifest_dr3.py",
+        "backend/research/browser_runtime/dr3r_browser_runtime/package.json",
+        "backend/research/browser_runtime/dr3r_browser_runtime/package-lock.json",
+        "docker/research/Dockerfile.online-amt-dr3r-browser",
     ]
     return {path: sha256_file(repo_root / path) for path in paths}
 
@@ -321,6 +410,31 @@ def compare_np(left: Any, right: Any) -> dict[str, float]:
     import numpy as np
     delta = np.abs(left.astype(np.float64) - right.astype(np.float64))
     return {"meanAbsDelta": float(delta.mean()), "p95AbsDelta": float(np.percentile(delta, 95)), "maxAbsDelta": float(delta.max())}
+
+
+def compare_recurrent_state(state: dict[str, Any], reference: dict[str, Any], reference_mel: Any, reference_cache0: Any, reference_cache1: Any, hop_index: int) -> dict[str, Any]:
+    return {
+        "hopIndex": int(hop_index),
+        "mel": compare_np(state["mel"], reference_mel[hop_index]),
+        "cache0": compare_np(state["cache0"], reference_cache0[hop_index]),
+        "cache1": compare_np(state["cache1"], reference_cache1[hop_index]),
+        "h": compare_np(state["h"], reference["h"][hop_index]),
+        "c": compare_np(state["c"], reference["c"][hop_index]),
+        "prevMismatchCount": int((state["prev"].reshape(88) != reference["chosen"][hop_index]).sum()),
+    }
+
+
+def summarize_recurrent_deltas(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    if not rows:
+        return {}
+    out: dict[str, Any] = {}
+    for key in ["mel", "cache0", "cache1", "h", "c"]:
+        out[key] = {
+            "maxAbsDelta": max(row[key]["maxAbsDelta"] for row in rows),
+            "meanAbsDeltaMax": max(row[key]["meanAbsDelta"] for row in rows),
+        }
+    out["prevMismatchCountMax"] = max(row["prevMismatchCount"] for row in rows)
+    return out
 
 
 def summarize_deltas(rows: list[dict[str, float]]) -> dict[str, float | None]:

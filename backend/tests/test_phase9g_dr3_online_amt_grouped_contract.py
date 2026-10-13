@@ -83,7 +83,9 @@ def test_grouped_worker_serializes_jobs_with_explicit_queue() -> None:
 def test_grouped_harness_producer_does_not_await_prior_completion_and_respects_group_ready_time() -> None:
     harness = (REPO_ROOT / "backend/research/browser_runtime/online_amt_grouped_browser_harness_dr3.mjs").read_text(encoding="utf-8")
     assert "producerDoesNotAwaitPriorCompletion: true" in harness
-    assert "scheduledGroupReadyTimestamp = feedStartTimestamp + ((groupIndex + 1) * intervalMs)" in harness
+    assert "scheduledGroupReadyTimestamp = feedStartTimestamp + ((startHopIndex + hopCountInMessage) * 32)" in harness
+    assert "buildGroupPlan()" in harness
+    assert "hopCountInMessage = remaining >= K ? K : 1" in harness
     assert "futureAudioPostPolicy: 'GROUP_POSTS_AT_LAST_INTERNAL_HOP_READY'" in harness
     assert "overloadDetected" in harness
 
@@ -120,4 +122,26 @@ def test_harness_group_messages_contain_pcm_and_overload_is_synthetic_only() -> 
     harness = (REPO_ROOT / "backend/research/browser_runtime/online_amt_grouped_browser_harness_dr3.mjs").read_text(encoding="utf-8")
     assert "pcm: transfer" in harness
     assert "fetchNpy('hops.npy')" in harness
+    assert "const HOP_SAMPLES" in harness
+    assert "hopSamples !== 512" in harness
     assert "SYNTHETIC_QUEUE_INSTRUMENTATION_PROOF_ONLY" in (REPO_ROOT / "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs").read_text(encoding="utf-8")
+
+
+def test_manifest_declares_full_fixture_hop_count_and_hop_samples() -> None:
+    result = manifest()
+    fixtures = result["fixtures"]  # type: ignore[index]
+    assert fixtures["hopCount"] == 326
+    assert fixtures["hopSamples"] == 512
+
+
+def test_dr3r_decide_distinguishes_partial_ort_from_full_semantic_parity() -> None:
+    source = (REPO_ROOT / "backend/scripts/qualify_online_amt_grouped_browser_dr3.py").read_text(encoding="utf-8")
+    assert 'row.get("semanticHopCount") == 326' in source
+    assert "ONLINE_AMT_GROUPED_SEMANTIC_PARITY_FAILED" in source
+
+
+def test_worker_uses_start_hop_identity_and_loads_only_required_sessions() -> None:
+    worker = (REPO_ROOT / "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs").read_text(encoding="utf-8")
+    assert "startHopIndex" in worker
+    assert "hopCountInMessage" in worker
+    assert "requiredKeys = targetK === 1 ? ['1'] : ['1', String(targetK)]" in worker

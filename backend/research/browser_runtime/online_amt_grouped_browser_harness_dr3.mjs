@@ -4,11 +4,16 @@
 import { createServer } from 'node:http';
 import { createReadStream, existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import playwright from '../../../apps/customer-web/node_modules/playwright/index.js';
 
+const require = createRequire(import.meta.url);
+const runtimeNodeModules = process.env.DR3R_BROWSER_NODE_MODULES;
+const playwright = runtimeNodeModules
+  ? require(path.join(runtimeNodeModules, 'playwright'))
+  : require('../../../apps/customer-web/node_modules/playwright');
 const { chromium } = playwright;
 
 function parseArgs(argv) {
@@ -57,6 +62,14 @@ function serveFile(res, filePath) {
   createReadStream(filePath).pipe(res);
 }
 
+const manifest = mode === 'overload-proof'
+  ? { fixtures: { hopCount: Number(args.groups ?? 16), hopSamples: 512 } }
+  : JSON.parse(await readFile(path.join(fixtureDir, 'grouped_manifest_dr3r.json'), 'utf8'));
+const hopSamples = Number(manifest.fixtures?.hopSamples);
+const hopCount = Number(manifest.fixtures?.hopCount);
+if (hopSamples !== 512) throw new Error('DR3R grouped manifest hopSamples must equal frozen value 512.');
+if (!Number.isInteger(hopCount) || hopCount <= 0) throw new Error('DR3R grouped manifest must declare positive hopCount.');
+
 const pageHtml = `<!doctype html>
 <meta charset="utf-8">
 <title>DR3 Online-AMT grouped harness</title>
@@ -64,7 +77,8 @@ const pageHtml = `<!doctype html>
 const K = ${JSON.stringify(k)};
 const MODE = ${JSON.stringify(mode)};
 const ARTIFICIAL_DELAY_MS = ${JSON.stringify(artificialDelayMs)};
-const GROUP_COUNT = Number(${JSON.stringify(args.groups ?? 12)});
+const HOP_SAMPLES = ${JSON.stringify(hopSamples)};
+const HOP_COUNT = ${JSON.stringify(hopCount)};
 const worker = new Worker('/worker/online_amt_grouped_browser_worker_dr3.mjs');
 const pending = new Map();
 let id = 0;
@@ -92,23 +106,28 @@ async function runProducer() {
     wasmPaths: '/ort/',
     fixtureRoot: '/fixtures/',
     manifestFile: 'grouped_manifest_dr3r.json',
+    targetK: K,
   });
   const hops = MODE === 'overload-proof' ? null : await fetchNpy('hops.npy');
   const feedStartTimestamp = nowAbs();
   const intervalMs = K * 32;
   const promises = [];
-  for (let groupIndex = 0; groupIndex < GROUP_COUNT; groupIndex += 1) {
-    const scheduledGroupReadyTimestamp = feedStartTimestamp + ((groupIndex + 1) * intervalMs);
+  const plan = buildGroupPlan();
+  for (const item of plan) {
+    const { groupIndex, graphK, startHopIndex, hopCountInMessage } = item;
+    const scheduledGroupReadyTimestamp = feedStartTimestamp + ((startHopIndex + hopCountInMessage) * 32);
     const wait = Math.max(0, scheduledGroupReadyTimestamp - nowAbs());
     if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
     const pagePostTimestamp = nowAbs();
-    const pcm = hops ? hops.data.slice(groupIndex * K * HOP_SAMPLES, (groupIndex + 1) * K * HOP_SAMPLES) : new Float32Array(K * HOP_SAMPLES);
+    const pcm = hops ? hops.data.slice(startHopIndex * HOP_SAMPLES, (startHopIndex + hopCountInMessage) * HOP_SAMPLES) : new Float32Array(hopCountInMessage * HOP_SAMPLES);
     const transfer = pcm.buffer.slice(0);
     // Do not await the previous group; the Worker queue is responsible for serial execution.
     promises.push(callWorker({
       type: 'group',
-      k: K,
+      k: graphK,
       groupIndex,
+      startHopIndex,
+      hopCountInMessage,
       scheduledGroupReadyTimestamp,
       pagePostTimestamp,
       feedStartTimestamp,
@@ -116,7 +135,21 @@ async function runProducer() {
     }));
   }
   const rows = await Promise.all(promises);
-  return summarize(init, rows, intervalMs);
+  return summarize(init, rows, intervalMs, plan);
+}
+function buildGroupPlan() {
+  const plan = [];
+  let startHopIndex = 0;
+  let groupIndex = 0;
+  while (startHopIndex < HOP_COUNT) {
+    const remaining = HOP_COUNT - startHopIndex;
+    const hopCountInMessage = remaining >= K ? K : 1;
+    const graphK = remaining >= K ? K : 1;
+    plan.push({ groupIndex, graphK, startHopIndex, hopCountInMessage });
+    startHopIndex += hopCountInMessage;
+    groupIndex += 1;
+  }
+  return plan;
 }
 async function fetchNpy(name) {
   const response = await fetch('/fixtures/' + name);
@@ -149,10 +182,13 @@ function summary(values) {
   const sorted = [...values].sort((a, b) => a - b);
   return { p50: percentile(sorted, 0.5), p95: percentile(sorted, 0.95), max: sorted.at(-1) ?? null };
 }
-function summarize(init, rows, intervalMs) {
+function summarize(init, rows, intervalMs, plan) {
   const queue = rows.map((row) => row.queueDelayMs);
-  const processing = rows.map((row) => row.groupedProcessingDurationMs);
+  const groupedRows = rows.filter((row) => row.k === K);
+  const tailRows = rows.filter((row) => row.k !== K);
+  const processing = groupedRows.map((row) => row.groupedProcessingDurationMs);
   const ages = rows.flatMap((row) => row.internalHops.map((hop) => hop.captureToPublicationAgeMs));
+  const oldestAges = rows.map((row) => row.internalHops[0]?.captureToPublicationAgeMs).filter((value) => Number.isFinite(value));
   const tail = queue.slice(Math.max(0, queue.length - 4));
   return {
     status: 'PASS',
@@ -162,17 +198,31 @@ function summarize(init, rows, intervalMs) {
     init,
     producerDoesNotAwaitPriorCompletion: true,
     futureAudioPostPolicy: 'GROUP_POSTS_AT_LAST_INTERNAL_HOP_READY',
+    plan,
+    semanticHopCount: rows.reduce((sum, row) => sum + row.internalHops.length, 0),
+    fullGroupedHopCount: groupedRows.reduce((sum, row) => sum + row.internalHops.length, 0),
+    tailFallbackHopCount: tailRows.reduce((sum, row) => sum + row.internalHops.length, 0),
     rows,
     groupedProcessingMs: summary(processing),
+    tailFallbackProcessingMs: summary(tailRows.map((row) => row.groupedProcessingDurationMs)),
     queueDelayMs: summary(queue),
     finalQueueDelayMs: queue.at(-1) ?? null,
     maximumOutstandingDepth: Math.max(...rows.map((row) => row.outstandingPostedNotCompletedDepth)),
     tailQueueTrend: tail.length >= 2 && tail.at(-1) > tail[0] ? 'GROWING' : 'NOT_GROWING',
     internalHopCaptureToPublicationAgeMs: summary(ages),
-    strictRealtime: queue.at(-1) === 0 ? 'NO_SUSTAINED_BACKLOG' : 'BACKLOG_PRESENT',
+    oldestInternalHopCaptureToPublicationAgeMs: summary(oldestAges),
+    strictRealtime: classifyBacklog(queue, rows),
     headroomPass: (summary(processing).p95 ?? Infinity) <= 0.8 * intervalMs,
     overloadDetected: ARTIFICIAL_DELAY_MS > intervalMs && (queue.at(-1) ?? 0) > (queue[0] ?? 0),
   };
+}
+function classifyBacklog(queue, rows) {
+  if (queue.length < 4) return 'INSUFFICIENT_ROWS';
+  const tail = queue.slice(Math.max(0, queue.length - 8));
+  const finalDelay = queue.at(-1) ?? 0;
+  const firstTail = tail[0] ?? 0;
+  const maxOutstanding = Math.max(...rows.map((row) => row.outstandingPostedNotCompletedDepth));
+  return finalDelay <= Math.max(8, firstTail + 8) && maxOutstanding <= 2 ? 'NO_SUSTAINED_BACKLOG' : 'BACKLOG_PRESENT';
 }
 runProducer()
   .then((result) => { window.__DR3_RESULT__ = result; document.body.textContent = JSON.stringify(result); })

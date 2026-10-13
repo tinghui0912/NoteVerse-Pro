@@ -28,8 +28,10 @@ async function processGroup(message) {
   const queueEnterTimestamp = message.workerQueueEnterTimestamp ?? workerReceiveTimestamp;
   const k = Number(message.k);
   const groupIndex = Number(message.groupIndex);
+  const startHopIndex = Number(message.startHopIndex ?? groupIndex * k);
+  const hopCountInMessage = Number(message.hopCountInMessage ?? k);
   const processingStartTimestamp = nowAbs();
-  const groupPcm = message.pcm ? new Float32Array(message.pcm) : new Float32Array(k * 512);
+  const groupPcm = message.pcm ? new Float32Array(message.pcm) : new Float32Array(hopCountInMessage * 512);
   const ortInferenceStartTimestamp = nowAbs();
   let probabilities = [];
   let chosenStates = [];
@@ -38,7 +40,7 @@ async function processGroup(message) {
     usedSyntheticDelay = true;
     await delay(artificialDelayMs);
   } else if (ortReady && sessions.has(k)) {
-    const result = await runModelGroup(k, groupPcm);
+    const result = await runModelGroup(k, hopCountInMessage, groupPcm);
     probabilities = result.probabilities;
     chosenStates = result.chosenStates;
   } else if (ortReady) {
@@ -47,8 +49,8 @@ async function processGroup(message) {
   const ortInferenceFinishTimestamp = nowAbs();
   const publicationFinishTimestamp = nowAbs();
   const hopRows = [];
-  for (let offset = 0; offset < k; offset += 1) {
-    const hopIndex = groupIndex * k + offset;
+  for (let offset = 0; offset < hopCountInMessage; offset += 1) {
+    const hopIndex = startHopIndex + offset;
     const hopAudioReadyTimestamp = Number(message.feedStartTimestamp) + (hopIndex + 1) * 32;
     hopRows.push({
       hopIndex,
@@ -61,6 +63,8 @@ async function processGroup(message) {
     type: 'group-result',
     groupIndex,
     k,
+    startHopIndex,
+    hopCountInMessage,
     scheduledGroupReadyTimestamp: message.scheduledGroupReadyTimestamp,
     pagePostTimestamp: message.pagePostTimestamp,
     workerReceiveTimestamp,
@@ -81,11 +85,11 @@ async function processGroup(message) {
   };
 }
 
-async function runModelGroup(k, groupPcm) {
+async function runModelGroup(k, hopCountInMessage, groupPcm) {
   const probe = cloneState(state);
   const windows = [];
-  let active = true;
-  for (let offset = 0; offset < k; offset += 1) {
+  let active = hopCountInMessage === k;
+  for (let offset = 0; offset < hopCountInMessage; offset += 1) {
     const hop = groupPcm.subarray(offset * 512, (offset + 1) * 512);
     updateAudioBuffer(probe.audio, hop);
     if (pseudoIntensity(probe.audio) < 0.05) probe.numUnderThr += 1;
@@ -93,7 +97,7 @@ async function runModelGroup(k, groupPcm) {
     windows.push(probe.audio.slice(probe.audio.length - 2048));
     if (probe.numUnderThr > 100) active = false;
   }
-  if (!active) return runSequentialFallback(k, groupPcm);
+  if (!active) return runSequentialFallback(hopCountInMessage, groupPcm);
   const session = sessions.get(k);
   const output = await session.run({
     audio_last_2048_sequence: new ort.Tensor('float32', concatFloat(windows), [k, 1, 2048]),
@@ -117,10 +121,10 @@ async function runModelGroup(k, groupPcm) {
   return { probabilities, chosenStates: chosen };
 }
 
-async function runSequentialFallback(k, groupPcm) {
+async function runSequentialFallback(hopCountInMessage, groupPcm) {
   const probabilities = [];
   const chosen = [];
-  for (let offset = 0; offset < k; offset += 1) {
+  for (let offset = 0; offset < hopCountInMessage; offset += 1) {
     const hop = groupPcm.subarray(offset * 512, (offset + 1) * 512);
     updateAudioBuffer(state.audio, hop);
     if (pseudoIntensity(state.audio) < 0.05) state.numUnderThr += 1;
@@ -163,6 +167,7 @@ async function initRuntime(message) {
   const adapter = await self.navigator.gpu.requestAdapter();
   if (!adapter) throw new Error('CONTAINER_BROWSER_WEBGPU_UNAVAILABLE:adapter unavailable');
   manifest = await fetchJson(message.manifestFile || 'grouped_manifest_dr3r.json');
+  const targetK = Number(message.targetK ?? 1);
   const initial = await loadInitial(manifest.fixtures.initialState);
   state = {
     audio: initial.audio,
@@ -174,7 +179,10 @@ async function initRuntime(message) {
     prev: initial.prev,
     numUnderThr: 0,
   };
-  for (const [key, graph] of Object.entries(manifest.graphs.grouped)) {
+  const requiredKeys = targetK === 1 ? ['1'] : ['1', String(targetK)];
+  for (const key of requiredKeys) {
+    const graph = manifest.graphs.grouped[key];
+    if (!graph) throw new Error(`DR3R manifest missing graph K=${key}`);
     const session = await ort.InferenceSession.create(fixtureRoot + graph.file, {
       executionProviders: ['webgpu'],
       graphOptimizationLevel: 'disabled',

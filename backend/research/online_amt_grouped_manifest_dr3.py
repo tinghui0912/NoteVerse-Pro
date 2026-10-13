@@ -22,6 +22,8 @@ def build_grouped_browser_manifest(
     reference: dict[str, str],
     checkpoint_sha256: str,
     ort_version: str,
+    hop_count: int = 326,
+    hop_samples: int = 512,
 ) -> dict[str, Any]:
     if set(graphs) != {1, 2, 4, 8}:
         raise ValueError("DR3 grouped manifest must bind K=1,2,4,8 graphs.")
@@ -56,6 +58,8 @@ def build_grouped_browser_manifest(
         },
         "fixtures": {
             "hops": hop_fixture,
+            "hopCount": hop_count,
+            "hopSamples": hop_samples,
             "initialState": initial_state,
             "reference": reference,
         },
