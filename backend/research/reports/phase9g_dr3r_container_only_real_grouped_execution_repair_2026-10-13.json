@@ -1,0 +1,422 @@
+{
+  "attemptedCommands": [],
+  "containerRuntimeIdentity": {
+    "cgroupEvidence": "0::/\n",
+    "dockerenv": true,
+    "dockerfileOnlineAmtModernSha256": "22b431fc231b73e7e606b3fe03a5d689cdf131db3f371442bb263c24ba5e4835",
+    "insideContainer": true,
+    "platformRelease": "6.18.33.2-microsoft-standard-WSL2",
+    "platformSystem": "Linux",
+    "pythonExecutable": "/usr/local/bin/python",
+    "pythonVersion": "3.11.10",
+    "requirementsDr3rSha256": "a1ffb71f7786efd34b4f0f7aa95b28f04f5919d2aa916f04b80d3de3c4e9ca80",
+    "requirementsOnlineAmtModernSha256": "e9a111ded6955940aa714bab69e9b4e0c124bbaad4bde94b4bb30bf6c16b750d",
+    "workingDirectory": "/workspace"
+  },
+  "criticalImplementationFileSha256": {
+    "backend/research/browser_runtime/online_amt_grouped_browser_harness_dr3.mjs": "3530bfd1eb952b517d1e5efd3d560732d1fbf8b105cdbaa8cb382e2ccfe6a241",
+    "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs": "a8c27f9c4bc99aaaa661492bddf75143fa308fa8195538f7fd537efdaf3b023f",
+    "backend/research/online_amt_grouped_manifest_dr3.py": "2d60a945f52f4a0379589b983cd60571ef225e5d3b667ad6752b299349352af7",
+    "backend/scripts/qualify_online_amt_grouped_browser_dr3.py": "f190f0360f668d0d235729d1dc865b67e4408374b22f96c3b6212b12fdc8ac08"
+  },
+  "groupedManifest": {
+    "path": "backend/data/work/phase9g_dr3r/fixtures/grouped_manifest_dr3r.json",
+    "status": "PASS"
+  },
+  "historicalPhase9gBConclusion": {
+    "outcome": "STATISTICAL_TIE",
+    "winner": null
+  },
+  "implementationGitHead": "251f24fda86a0f02581a4917f5f3bd5cbd9c1538",
+  "implementationWorkingTreeCleanBeforeExecution": true,
+  "nativeGateParity": "SEE_BROWSER_RESULT",
+  "onlineAmtClosureDecision": "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_CONTAINER_BROWSER_NODE_MISSING",
+  "p15p22InferenceIncrease": 0,
+  "phase": "PHASE_9G_DR3R_CONTAINER_ONLY_REAL_GROUPED_EXECUTION_REPAIR",
+  "pipFreezeSha256": "8a5e182b0f772e4af11919405bfee88fe5fb694062a195147f7d46bd84cf6857",
+  "productionMicrophoneEnabled": false,
+  "productionWinnerSelected": false,
+  "publicationParity": "SEE_BROWSER_RESULT",
+  "pythonGroupedGraphIdentity": {
+    "1": {
+      "byteSize": 71433948,
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "exporterSourceSha256": "5ebd274b3daec1b8d5006d0983384f5122f2c041ba2450a9ef0179334936ab0e",
+      "file": "online_amt_grouped_k1_opset18.onnx",
+      "graphKind": "staticGroupedActiveHop",
+      "inputNames": [
+        "audio_last_2048_sequence",
+        "mel_buffer_in",
+        "cache0_in",
+        "cache1_in",
+        "h_in",
+        "c_in",
+        "prev_output_in"
+      ],
+      "k": 1,
+      "operators": [
+        "Add",
+        "ArgMax",
+        "Clip",
+        "Concat",
+        "Constant",
+        "Conv",
+        "Gather",
+        "LSTM",
+        "Log",
+        "MatMul",
+        "MaxPool",
+        "Mul",
+        "Relu",
+        "Reshape",
+        "Shape",
+        "Slice",
+        "Softmax",
+        "Sqrt",
+        "Squeeze",
+        "Transpose",
+        "Unsqueeze"
+      ],
+      "opset": 18,
+      "outputNames": [
+        "probabilities_sequence",
+        "chosen_state_sequence",
+        "mel_buffer_out",
+        "cache0_out",
+        "cache1_out",
+        "h_out",
+        "c_out"
+      ],
+      "path": "/workspace/backend/data/work/phase9g_dr3r/graphs/online_amt_grouped_k1_opset18.onnx",
+      "sha256": "1924789c64595a5b8c1ff2f745089613b2ba6108676952c4bb6f60f28d9cd301",
+      "sourceTransitionsPreservedPerInvocation": 1,
+      "status": "PASS"
+    },
+    "2": {
+      "byteSize": 71452801,
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "exporterSourceSha256": "5ebd274b3daec1b8d5006d0983384f5122f2c041ba2450a9ef0179334936ab0e",
+      "file": "online_amt_grouped_k2_opset18.onnx",
+      "graphKind": "staticGroupedActiveHop",
+      "inputNames": [
+        "audio_last_2048_sequence",
+        "mel_buffer_in",
+        "cache0_in",
+        "cache1_in",
+        "h_in",
+        "c_in",
+        "prev_output_in"
+      ],
+      "k": 2,
+      "operators": [
+        "Add",
+        "ArgMax",
+        "Clip",
+        "Concat",
+        "Constant",
+        "Conv",
+        "Gather",
+        "Identity",
+        "LSTM",
+        "Log",
+        "MatMul",
+        "MaxPool",
+        "Mul",
+        "Relu",
+        "Reshape",
+        "Shape",
+        "Slice",
+        "Softmax",
+        "Sqrt",
+        "Squeeze",
+        "Transpose",
+        "Unsqueeze"
+      ],
+      "opset": 18,
+      "outputNames": [
+        "probabilities_sequence",
+        "chosen_state_sequence",
+        "mel_buffer_out",
+        "cache0_out",
+        "cache1_out",
+        "h_out",
+        "c_out"
+      ],
+      "path": "/workspace/backend/data/work/phase9g_dr3r/graphs/online_amt_grouped_k2_opset18.onnx",
+      "sha256": "9be7e5de035dd54470895ca5f8873992cb086612f78482e12d7a06ed9901d617",
+      "sourceTransitionsPreservedPerInvocation": 2,
+      "status": "PASS"
+    },
+    "4": {
+      "byteSize": 71490742,
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "exporterSourceSha256": "5ebd274b3daec1b8d5006d0983384f5122f2c041ba2450a9ef0179334936ab0e",
+      "file": "online_amt_grouped_k4_opset18.onnx",
+      "graphKind": "staticGroupedActiveHop",
+      "inputNames": [
+        "audio_last_2048_sequence",
+        "mel_buffer_in",
+        "cache0_in",
+        "cache1_in",
+        "h_in",
+        "c_in",
+        "prev_output_in"
+      ],
+      "k": 4,
+      "operators": [
+        "Add",
+        "ArgMax",
+        "Clip",
+        "Concat",
+        "Constant",
+        "Conv",
+        "Gather",
+        "Identity",
+        "LSTM",
+        "Log",
+        "MatMul",
+        "MaxPool",
+        "Mul",
+        "Relu",
+        "Reshape",
+        "Shape",
+        "Slice",
+        "Softmax",
+        "Sqrt",
+        "Squeeze",
+        "Transpose",
+        "Unsqueeze"
+      ],
+      "opset": 18,
+      "outputNames": [
+        "probabilities_sequence",
+        "chosen_state_sequence",
+        "mel_buffer_out",
+        "cache0_out",
+        "cache1_out",
+        "h_out",
+        "c_out"
+      ],
+      "path": "/workspace/backend/data/work/phase9g_dr3r/graphs/online_amt_grouped_k4_opset18.onnx",
+      "sha256": "4f161515c6e6b3ac614b396b0b2225ce416a02cee72e8aa31ccd99060121cfc9",
+      "sourceTransitionsPreservedPerInvocation": 4,
+      "status": "PASS"
+    },
+    "8": {
+      "byteSize": 71566300,
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "exporterSourceSha256": "5ebd274b3daec1b8d5006d0983384f5122f2c041ba2450a9ef0179334936ab0e",
+      "file": "online_amt_grouped_k8_opset18.onnx",
+      "graphKind": "staticGroupedActiveHop",
+      "inputNames": [
+        "audio_last_2048_sequence",
+        "mel_buffer_in",
+        "cache0_in",
+        "cache1_in",
+        "h_in",
+        "c_in",
+        "prev_output_in"
+      ],
+      "k": 8,
+      "operators": [
+        "Add",
+        "ArgMax",
+        "Clip",
+        "Concat",
+        "Constant",
+        "Conv",
+        "Gather",
+        "Identity",
+        "LSTM",
+        "Log",
+        "MatMul",
+        "MaxPool",
+        "Mul",
+        "Relu",
+        "Reshape",
+        "Shape",
+        "Slice",
+        "Softmax",
+        "Sqrt",
+        "Squeeze",
+        "Transpose",
+        "Unsqueeze"
+      ],
+      "opset": 18,
+      "outputNames": [
+        "probabilities_sequence",
+        "chosen_state_sequence",
+        "mel_buffer_out",
+        "cache0_out",
+        "cache1_out",
+        "h_out",
+        "c_out"
+      ],
+      "path": "/workspace/backend/data/work/phase9g_dr3r/graphs/online_amt_grouped_k8_opset18.onnx",
+      "sha256": "818c095a3e96f507f45fe5f394169660cb3848fb7e496699a99c1957b51e9f18",
+      "sourceTransitionsPreservedPerInvocation": 8,
+      "status": "PASS"
+    }
+  },
+  "pythonOrtSemanticParity": {
+    "1": {
+      "chosenStateMismatchCount": 0,
+      "hopCount": 326,
+      "k": 1,
+      "probabilityDelta": {
+        "maxAbsDelta": 5.054473876953125e-05,
+        "meanAbsDeltaMax": 4.2292300612470943e-07,
+        "p95AbsDeltaMax": 9.310431778430586e-07
+      },
+      "providers": [
+        "CPUExecutionProvider"
+      ],
+      "status": "PASS"
+    },
+    "2": {
+      "chosenStateMismatchCount": 0,
+      "hopCount": 326,
+      "k": 2,
+      "probabilityDelta": {
+        "maxAbsDelta": 5.054473876953125e-05,
+        "meanAbsDeltaMax": 4.2292300612470943e-07,
+        "p95AbsDeltaMax": 9.310431778430586e-07
+      },
+      "providers": [
+        "CPUExecutionProvider"
+      ],
+      "status": "PASS"
+    },
+    "4": {
+      "chosenStateMismatchCount": 0,
+      "hopCount": 324,
+      "k": 4,
+      "probabilityDelta": {
+        "maxAbsDelta": 5.054473876953125e-05,
+        "meanAbsDeltaMax": 4.2292300612470943e-07,
+        "p95AbsDeltaMax": 9.310431778430586e-07
+      },
+      "providers": [
+        "CPUExecutionProvider"
+      ],
+      "status": "PASS"
+    },
+    "8": {
+      "chosenStateMismatchCount": 0,
+      "hopCount": 320,
+      "k": 8,
+      "probabilityDelta": {
+        "maxAbsDelta": 5.054473876953125e-05,
+        "meanAbsDeltaMax": 4.2292300612470943e-07,
+        "p95AbsDeltaMax": 9.310431778430586e-07
+      },
+      "providers": [
+        "CPUExecutionProvider"
+      ],
+      "status": "PASS"
+    }
+  },
+  "pytorchGroupedParity": {
+    "1": {
+      "chosenStateMismatchCount": 0,
+      "fallbackSequentialGroups": 0,
+      "firstMismatch": null,
+      "hopCount": 326,
+      "k": 1,
+      "probabilityDelta": {
+        "maxAbsDelta": 6.29425048828125e-05,
+        "meanAbsDeltaMax": 3.870423411410845e-07,
+        "p95AbsDeltaMax": 1.0132789611816406e-06
+      },
+      "status": "PASS"
+    },
+    "2": {
+      "chosenStateMismatchCount": 0,
+      "fallbackSequentialGroups": 0,
+      "firstMismatch": null,
+      "hopCount": 326,
+      "k": 2,
+      "probabilityDelta": {
+        "maxAbsDelta": 6.29425048828125e-05,
+        "meanAbsDeltaMax": 3.870423411410845e-07,
+        "p95AbsDeltaMax": 1.0132789611816406e-06
+      },
+      "status": "PASS"
+    },
+    "4": {
+      "chosenStateMismatchCount": 0,
+      "fallbackSequentialGroups": 1,
+      "firstMismatch": null,
+      "hopCount": 326,
+      "k": 4,
+      "probabilityDelta": {
+        "maxAbsDelta": 6.29425048828125e-05,
+        "meanAbsDeltaMax": 3.870423411410845e-07,
+        "p95AbsDeltaMax": 1.0132789611816406e-06
+      },
+      "status": "PASS"
+    },
+    "8": {
+      "chosenStateMismatchCount": 0,
+      "fallbackSequentialGroups": 1,
+      "firstMismatch": null,
+      "hopCount": 326,
+      "k": 8,
+      "probabilityDelta": {
+        "maxAbsDelta": 6.29425048828125e-05,
+        "meanAbsDeltaMax": 3.870423411410845e-07,
+        "p95AbsDeltaMax": 1.0132789611816406e-06
+      },
+      "status": "PASS"
+    }
+  },
+  "realGroupedBrowserRuntime": {
+    "status": "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_CONTAINER_BROWSER_NODE_MISSING"
+  },
+  "realtimeDecision": "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_CONTAINER_BROWSER_NODE_MISSING",
+  "scopeProtections": {
+    "backendPracticeInferenceRestored": false,
+    "d4QualificationPerformed": false,
+    "p15p22InferenceIncrease": 0,
+    "phase9gBOutcome": "STATISTICAL_TIE",
+    "phase9gBWinner": null,
+    "practiceWebSocketRestored": false,
+    "productionMicrophoneEnabled": false,
+    "productionWinnerSelected": false
+  },
+  "sourceIdentity": {
+    "artifact": "phase9g_d2_online_amt_browser_source_identity",
+    "configSource": "backend/research/product_benchmark/product_benchmark_config.json",
+    "frozenConfigValues": {
+      "hopSamples": 512,
+      "pseudoIntensityShortcut": "NATIVE",
+      "publishedOnsetBoost": 1.0,
+      "sampleRateHz": 16000,
+      "timingCorrectionMs": -162.93750000004252
+    },
+    "p15p22InferenceIncrease": 0,
+    "phase": "9G-D.2",
+    "problems": [],
+    "productBenchmarkConfigSha256": "9a888b77af6cb8574c7d4439cbc1ef0a4dd819f8ba4055f73ffc8c30bd7a9b37",
+    "qualificationStatus": "PASS",
+    "schemaVersion": 1,
+    "sourceCandidate": {
+      "actualRepoCommit": "ad12550909a1d86f699097d11885f427054a5ac2",
+      "candidateId": "online-amt-calibrated-v1",
+      "checkpoint": {
+        "byteSize": 178804960,
+        "path": "/workspace/backend/data/work/online_amt/model-180000.pt",
+        "sha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0"
+      },
+      "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+      "expectedRepoCommit": "ad12550909a1d86f699097d11885f427054a5ac2",
+      "profileId": "online-amt-calibration-native-boost-1",
+      "repo": "https://github.com/jdasam/online_amt",
+      "upstreamWorkingTreeStatus": [
+        "?? phase9e_b1_runtime_smoke.json"
+      ]
+    }
+  },
+  "syntheticQueueInstrumentationProof": null,
+  "verifiedStartingRemoteHead": "251f24fda86a0f02581a4917f5f3bd5cbd9c1538"
+}
