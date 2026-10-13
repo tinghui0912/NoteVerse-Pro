@@ -65,7 +65,7 @@ const K = ${JSON.stringify(k)};
 const MODE = ${JSON.stringify(mode)};
 const ARTIFICIAL_DELAY_MS = ${JSON.stringify(artificialDelayMs)};
 const GROUP_COUNT = Number(${JSON.stringify(args.groups ?? 12)});
-const worker = new Worker('/worker/online_amt_grouped_browser_worker_dr3.mjs', { type: 'module' });
+const worker = new Worker('/worker/online_amt_grouped_browser_worker_dr3.mjs');
 const pending = new Map();
 let id = 0;
 function nowAbs() { return performance.timeOrigin + performance.now(); }
@@ -73,7 +73,8 @@ function callWorker(message) {
   const callId = ++id;
   return new Promise((resolve, reject) => {
     pending.set(callId, { resolve, reject });
-    worker.postMessage({ id: callId, ...message });
+    const transfer = message.pcm instanceof ArrayBuffer ? [message.pcm] : [];
+    worker.postMessage({ id: callId, ...message }, transfer);
   });
 }
 worker.onmessage = (event) => {
@@ -84,7 +85,15 @@ worker.onmessage = (event) => {
   else item.resolve(event.data.result);
 };
 async function runProducer() {
-  const init = await callWorker({ type: 'init', artificialDelayMs: ARTIFICIAL_DELAY_MS });
+  const init = await callWorker({
+    type: 'init',
+    artificialDelayMs: ARTIFICIAL_DELAY_MS,
+    ortScript: '/ort/ort.webgpu.min.js',
+    wasmPaths: '/ort/',
+    fixtureRoot: '/fixtures/',
+    manifestFile: 'grouped_manifest_dr3r.json',
+  });
+  const hops = MODE === 'overload-proof' ? null : await fetchNpy('hops.npy');
   const feedStartTimestamp = nowAbs();
   const intervalMs = K * 32;
   const promises = [];
@@ -93,6 +102,8 @@ async function runProducer() {
     const wait = Math.max(0, scheduledGroupReadyTimestamp - nowAbs());
     if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
     const pagePostTimestamp = nowAbs();
+    const pcm = hops ? hops.data.slice(groupIndex * K * HOP_SAMPLES, (groupIndex + 1) * K * HOP_SAMPLES) : new Float32Array(K * HOP_SAMPLES);
+    const transfer = pcm.buffer.slice(0);
     // Do not await the previous group; the Worker queue is responsible for serial execution.
     promises.push(callWorker({
       type: 'group',
@@ -101,10 +112,30 @@ async function runProducer() {
       scheduledGroupReadyTimestamp,
       pagePostTimestamp,
       feedStartTimestamp,
+      pcm: transfer,
     }));
   }
   const rows = await Promise.all(promises);
   return summarize(init, rows, intervalMs);
+}
+async function fetchNpy(name) {
+  const response = await fetch('/fixtures/' + name);
+  if (!response.ok) throw new Error('fetch failed: ' + name);
+  return parseNpy(await response.arrayBuffer());
+}
+function parseNpy(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const magic = String.fromCharCode(...bytes.slice(0, 6));
+  if (magic !== '\\x93NUMPY') throw new Error('not an npy file');
+  const major = bytes[6];
+  const headerLen = major === 1 ? bytes[8] | (bytes[9] << 8) : bytes[8] | (bytes[9] << 8) | (bytes[10] << 16) | (bytes[11] << 24);
+  const offset = major === 1 ? 10 : 12;
+  const header = new TextDecoder('latin1').decode(bytes.slice(offset, offset + headerLen));
+  const shapeMatch = header.match(/'shape': \\(([^)]*)\\)/);
+  const shape = shapeMatch ? shapeMatch[1].split(',').map((part) => part.trim()).filter(Boolean).map(Number) : [];
+  const dataOffset = offset + headerLen;
+  if (header.includes("'descr': '<f4'")) return { dtype: 'float32', shape, data: new Float32Array(buffer, dataOffset) };
+  throw new Error('unsupported npy dtype: ' + header);
 }
 function percentile(sorted, p) {
   if (sorted.length === 0) return null;

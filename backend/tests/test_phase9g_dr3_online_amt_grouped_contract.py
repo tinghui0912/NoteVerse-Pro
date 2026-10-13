@@ -93,3 +93,31 @@ def test_browser_evidence_cannot_claim_pass_without_grouped_worker_result() -> N
     assert "window.__DR3_RESULT__" in harness
     assert "online_amt_grouped_browser_worker_dr3.mjs" in harness
     assert "worker-combined" not in harness
+
+
+def test_dr3r_entrypoint_does_not_subprocess_dr2_qualifier() -> None:
+    source = (REPO_ROOT / "backend/scripts/qualify_online_amt_grouped_browser_dr3.py").read_text(encoding="utf-8")
+    assert "backend/scripts/qualify_online_amt_grouped_browser_dr2.py" not in source
+    assert "import qualify_online_amt_grouped_browser_dr2 as dr2" in source
+
+
+def test_dr3r_entrypoint_refuses_host_runtime_before_scientific_execution() -> None:
+    source = (REPO_ROOT / "backend/scripts/qualify_online_amt_grouped_browser_dr3.py").read_text(encoding="utf-8")
+    assert "HOST_RUNTIME_FORBIDDEN_FOR_DR3R" in source
+    assert "insideContainer" in source
+    assert "has_drive_letter" in source
+
+
+def test_grouped_worker_init_loads_real_ort_session_or_fails_closed() -> None:
+    worker = (REPO_ROOT / "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs").read_text(encoding="utf-8")
+    assert "ort.InferenceSession.create" in worker
+    assert "CONTAINER_BROWSER_WEBGPU_UNAVAILABLE" in worker
+    assert "executionProviders: ['webgpu']" in worker
+    assert "REAL_GROUPED_MODEL_RUNTIME" in worker
+
+
+def test_harness_group_messages_contain_pcm_and_overload_is_synthetic_only() -> None:
+    harness = (REPO_ROOT / "backend/research/browser_runtime/online_amt_grouped_browser_harness_dr3.mjs").read_text(encoding="utf-8")
+    assert "pcm: transfer" in harness
+    assert "fetchNpy('hops.npy')" in harness
+    assert "SYNTHETIC_QUEUE_INSTRUMENTATION_PROOF_ONLY" in (REPO_ROOT / "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs").read_text(encoding="utf-8")
