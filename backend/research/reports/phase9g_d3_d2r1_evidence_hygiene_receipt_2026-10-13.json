@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_d3_d2r1_evidence_hygiene_receipt",
+  "phase": "9G-D.3",
+  "date": "2026-10-13",
+  "supersedesOnlyInterpretationOf": [
+    "backend/research/reports/phase9g_d2r1_online_amt_worker_runtime_2026-10-13.json",
+    "backend/research/reports/phase9g_d2r1_online_amt_publication_bridge_parity_2026-10-13.json",
+    "backend/research/reports/phase9g_d2r1_online_amt_real_native_gate_parity_2026-10-13.json"
+  ],
+  "d2r1ConclusionPreserved": "ONLINE_AMT_BROWSER_REALTIME_BACKLOG_UNSTABLE",
+  "onlineAmtBrowserProductionEligibilityPreserved": "NOT_ELIGIBLE_FOR_CURRENT_OFFLINE_FIRST_PRODUCTION_FINAL",
+  "queueEvidenceCorrection": {
+    "previousRisk": "Worker report field names could be misread as a real wall-clock 32 ms feeder.",
+    "correctedLabel": "MEASURED_WORKER_SERVICE_TIMES_PLUS_DETERMINISTIC_32MS_CAUSAL_QUEUE_SIMULATION",
+    "arrivalIntervalMs": 32,
+    "realTimerDrivenFeederExecuted": false,
+    "chromeMedianServiceMs": 54.75,
+    "edgeMedianServiceMs": 52.80000001192093,
+    "chromeQueueConclusion": "BACKLOG_PRESENT_OR_GROWING",
+    "edgeQueueConclusion": "BACKLOG_PRESENT_OR_GROWING"
+  },
+  "misleadingFeederFieldsDisposition": {
+    "fields": [
+      "scheduledAtMs",
+      "postedAtMs",
+      "workerStartedAtMs",
+      "workerFinishedAtMs"
+    ],
+    "status": "RELABELED_AS_SIMULATED_OR_MODEL_DERIVED_FOR_D3_AND_LATER",
+    "noOnlineAmtOptimizationRerun": true
+  },
+  "publicationSemanticComparisonLayer": {
+    "existingStrictDigestEqual": false,
+    "eventSemanticParityIgnoringConfidence": {
+      "status": "PASS_EVENT_SEMANTIC_DIGEST_IGNORING_CONFIDENCE",
+      "bridgeSource": "RECOMPUTED_FROM_EXISTING_D2R1_HOP_ARTIFACTS_NO_MODEL_INFERENCE",
+      "eventSemanticDigestEqual": true,
+      "digestFields": [
+        "publicationId",
+        "observationId",
+        "pitch",
+        "performanceTimeMs",
+        "analyzedThroughPerformanceMs"
+      ],
+      "excludedFields": [
+        "confidence",
+        "availabilityTimeMs",
+        "runtime diagnostics"
+      ]
+    },
+    "confidenceParity": {
+      "status": "COMPUTED_FROM_EXISTING_FULL_D2R1_HOP_ARTIFACTS_NO_MODEL_INFERENCE",
+      "count": 65,
+      "meanAbsDelta": 7.891220425685438e-7,
+      "p95AbsDelta": 0.000003069825470447538,
+      "maxAbsDelta": 0.000009420808055438101
+    },
+    "runtimeTimingParity": {
+      "status": "NOT_REQUIRED_FOR_SEMANTIC_PARITY",
+      "reason": "Python and browser artifacts intentionally carry different measured service latencies and availability diagnostics."
+    }
+  },
+  "nativeGateEvidenceTerminology": {
+    "label": "BROWSER_NATIVE_GATE_BEHAVIORAL_CONTRACT_PASS",
+    "exactPythonBrowserStateDigestParityClaimed": false,
+    "basis": {
+      "report": "backend/research/reports/phase9g_d2r1_online_amt_real_native_gate_parity_2026-10-13.json",
+      "behavior": "99/100 execute neural state update; 101/102 short-circuit while freezing mel/cache/h/c/prev_output; recovery resumes normal neural progression."
+    }
+  },
+  "p15p22InferenceIncrease": 0
+}

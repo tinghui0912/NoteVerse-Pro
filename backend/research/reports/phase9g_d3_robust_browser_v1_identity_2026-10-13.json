@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_d3_robust_browser_v1_identity",
+  "phase": "9G-D.3",
+  "date": "2026-10-13",
+  "identity": {
+    "deploymentId": "robust-browser-v1",
+    "sourceCandidateId": "bytedance-robust-augmented-calibrated-v1",
+    "sourceProfileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+    "sourceConfigurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce",
+    "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+    "checkpointBytes": 103815845,
+    "onnxSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "onnxBytes": 98689283,
+    "opset": 18,
+    "input": {
+      "dtype": "float32",
+      "shape": [
+        1,
+        29120
+      ]
+    },
+    "observedOutput": {
+      "shape": [
+        1,
+        183,
+        88
+      ],
+      "tensors": [
+        "reg_onset_output",
+        "frame_output"
+      ]
+    },
+    "sampleRateHz": 16000,
+    "modelInputMs": 1820,
+    "ownedRegionMs": 600,
+    "futureContextMs": 220,
+    "onsetThreshold": 0.3,
+    "frameThreshold": 0.05,
+    "ortWebVersion": "1.20.1",
+    "primaryProvider": "webgpu",
+    "automaticWasmFallback": false,
+    "preprocessingIdentity": {
+      "name": "deterministic_wav_pcm16_mono_linear_resample_16k_v1",
+      "receipt": "backend/research/reports/phase9g_d1r_robust_frozen_preprocessing_receipt_2026-10-12.json",
+      "receiptSha256": "8314cbbed5e84bf0fdf689bddfa6b1507cc56cb714a3108a7186b3f7be640887"
+    },
+    "canonicalDecoderIdentity": {
+      "path": "apps/customer-web/src/lib/practice/research/bytedance-score-aware-chunked.ts::decodeByteDanceChunkRawOutputs",
+      "receipt": "backend/research/reports/phase9g_d1r_robust_canonical_semantic_parity_2026-10-12.json",
+      "receiptSha256": "98c06d8f3b53d4ee83cdaee664996a5507f2feebda94367ff3b1d5938b361c18"
+    },
+    "ownershipFilteringIdentity": {
+      "path": "apps/customer-web/src/lib/practice/research/bytedance-score-aware-chunked.ts::observationsForByteDanceChunk",
+      "receipt": "backend/research/reports/phase9g_d1r_robust_canonical_semantic_parity_2026-10-12.json",
+      "receiptSha256": "98c06d8f3b53d4ee83cdaee664996a5507f2feebda94367ff3b1d5938b361c18"
+    },
+    "browserRuntimeEvidence": {
+      "candidateIdentityReceipt": "backend/research/reports/phase9g_d1r_robust_browser_candidate_identity_export_2026-10-12.json",
+      "candidateIdentityReceiptSha256": "cc079d8be22f50c9ad616c194a8f27a07e17747a314d728d2e3d22458aca1837",
+      "browserRuntimeReceipt": "backend/research/reports/phase9g_d1r_robust_default_browser_runtime_2026-10-12.json"
+    },
+    "historicalCudaDeploymentEquivalent": false,
+    "cudaRelationship": {
+      "cpuPythonOrtBrowserCanonicalSemantics": "PASS_ON_D1R_FIXTURES",
+      "historicalCudaToCpuBrowser": "NOT_STRICTLY_EQUIVALENT",
+      "note": "Phase 9G-B CUDA/PyTorch scores must not be transferred as browser deployment scores."
+    }
+  },
+  "deploymentIdentitySha256": "196a9a2ceb03569f6e266c4f5973125bb8596146882079105ee94ef7e621deed"
+}

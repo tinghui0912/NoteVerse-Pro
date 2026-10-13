@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "artifact": "phase9g_d3_historical_dataset_exposure_registry",
+  "phase": "9G-D.3",
+  "date": "2026-10-13",
+  "datasets": [
+    {
+      "datasetId": "vienna-4x22",
+      "role": "DEVELOPMENT_CALIBRATION_REGRESSION_PUBLIC_PROXY_ONLY",
+      "eligibleAsNewFinalExternalCorpus": false,
+      "performerExposure": [
+        {
+          "performers": "p01-p14",
+          "roles": [
+            "DEVELOPMENT",
+            "CALIBRATION"
+          ],
+          "evidence": [
+            {
+              "path": "backend/research/reports/phase9g_a_vienna_calibration_scenarios_2026-10-09.json",
+              "sha256": "2b43c3f8ed6d517496aa0fc466e67de946dad3a43c50a968d4d442a88683db51"
+            },
+            {
+              "path": "backend/research/reports/phase9g_a1_vienna_calibration_scenarios_2026-10-09.json",
+              "sha256": "56ef9dfcbb3cfbb64b8e87f9f4dd2d3a519be14412b4908f836926375560067e"
+            }
+          ]
+        },
+        {
+          "performers": "p07-p14",
+          "roles": [
+            "PHASE_9G_CALIBRATION"
+          ],
+          "evidence": [
+            {
+              "path": "backend/research/reports/phase9g_a_vienna_calibration_current_baselines_2026-10-09.json",
+              "sha256": "692a67fbdc0e00a7fd181e0e0f161c395c933f4cf242b0469b7330d6f4885f44"
+            }
+          ]
+        },
+        {
+          "performers": "p15-p22",
+          "roles": [
+            "BLIND_HISTORICAL"
+          ],
+          "evidence": [
+            {
+              "path": "backend/research/reports/phase9g_b_blind_truth_only_scenarios_2026-10-09.json",
+              "sha256": "0da00e7ad6ff3582f70e4b645be915d44e5dcb30fd4773b69372433e99a1d0ab"
+            },
+            {
+              "path": "backend/research/reports/phase9g_b3_official_product_blind_replacement_result_2026-10-11.json",
+              "sha256": "8dba0ef149dcf6f5c995f8ab4e07df85a41b48b81bd2323d8dc39e1b67e8c706"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "datasetId": "maestro",
+      "role": "DEVELOPMENT_PARITY_DEBUG_REGRESSION_ONLY",
+      "eligibleAsNewFinalExternalCorpus": false,
+      "reason": "KNOWN_TRAINING_DOMAIN_OVERLAP"
+    }
+  ],
+  "p15p22InferenceIncrease": 0
+}
