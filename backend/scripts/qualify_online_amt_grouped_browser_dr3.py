@@ -106,7 +106,7 @@ def main() -> int:
             k=k,
             file=Path(graph["path"]).name,
             sha256=graph["sha256"],
-            byte_size=graph["bytes"],
+            byte_size=graph["byteSize"],
         )
         pytorch_parity[str(k)] = dr2.compare_grouped_pytorch(model, OnlineTranscriber, pcm, reference, k)
         ort_parity[str(k)] = run_grouped_python_ort(ort, graph, pcm, reference, k)
