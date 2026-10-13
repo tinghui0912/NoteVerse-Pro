@@ -1,0 +1,16 @@
+{
+  "phase": "9G-D.2R.1",
+  "schemaVersion": 1,
+  "p15p22InferenceIncrease": 0,
+  "productionMicrophoneEnabled": false,
+  "productionWinnerSelected": false,
+  "phase9gBHistoricalConclusion": {
+    "outcome": "STATISTICAL_TIE",
+    "winner": null
+  },
+  "artifact": "phase9g_d2r1_online_amt_final_feasibility",
+  "outcome": "ONLINE_AMT_BROWSER_REALTIME_BACKLOG_UNSTABLE",
+  "onlineAmtEligibleForCurrentOfflineFirstProductionFinal": false,
+  "noFurtherOnlineAmtOptimizationPhaseRequired": true,
+  "browserDeploymentIdentity": null
+}

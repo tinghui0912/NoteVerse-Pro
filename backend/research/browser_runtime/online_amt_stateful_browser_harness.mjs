@@ -12,6 +12,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import playwright from '../../../apps/customer-web/node_modules/playwright/index.js';
 
 const { chromium } = playwright;
@@ -43,6 +44,7 @@ const backend = args.backend ?? 'webgpu';
 const graphOptimizationLevel = args['graph-optimization-level'] ?? 'disabled';
 const allowUnsafeWebGpu = Object.prototype.hasOwnProperty.call(args, 'allow-unsafe-webgpu');
 const pipelineLm = args['pipeline-lm'] ?? 'float';
+const workerPath = path.resolve(args['worker'] ?? path.join(path.dirname(fileURLToPath(import.meta.url)), 'online_amt_stateful_browser_worker.mjs'));
 
 if (!existsSync(fixtureDir)) throw new Error(`Missing --fixture-dir: ${fixtureDir}`);
 if (!existsSync(ortDir)) throw new Error(`Missing --ort-dir: ${ortDir}`);
@@ -404,7 +406,6 @@ async function runPipeline(manifest) {
       probabilities = new Float32Array(88 * 5);
       for (let pitch = 0; pitch < 88; pitch += 1) {
         probabilities[pitch * 5] = 1;
-        state.prev[pitch] = 0;
       }
     } else {
       const last2048 = state.audio.subarray(state.audio.length - 2048);
@@ -555,6 +556,40 @@ function summarizeDeltas(rows) {
 
 async function main() {
   ort.env.wasm.wasmPaths = '/ort/';
+  if (MODE === 'worker-combined' || MODE === 'worker-gate') {
+    const manifest = await (await fetch('/fixtures/manifest.json')).json();
+    const worker = new Worker('/worker.js');
+    let nextId = 1;
+    function request(type, payload) {
+      const id = nextId++;
+      return new Promise((resolve, reject) => {
+        const listener = (event) => {
+          if (event.data?.id !== id) return;
+          worker.removeEventListener('message', listener);
+          if (event.data.error) reject(new Error(event.data.error));
+          else resolve(event.data.result);
+        };
+        worker.addEventListener('message', listener);
+        worker.postMessage({ id, type, ...payload });
+      });
+    }
+    const init = await request('init', {
+      backend: BACKEND,
+      graphOptimizationLevel: GRAPH_OPTIMIZATION_LEVEL,
+      combinedGraph: manifest.graphs.combined.file,
+      ortScript: '/ort/${ortScript}',
+      wasmPaths: '/ort/',
+      fixtureRoot: '/fixtures/',
+    });
+    if (MODE === 'worker-gate') {
+      const gate = await request('run-gate', { manifest });
+      worker.terminate();
+      return { status: 'PASS', workerInit: init, realNativeGateParity: gate, unsafeWebGpuFlagUsed: ${JSON.stringify(allowUnsafeWebGpu)}, wasmFallbackUsed: false };
+    }
+    const sequence = await request('run-sequence', { manifest });
+    worker.terminate();
+    return { ...sequence, workerInit: init, unsafeWebGpuFlagUsed: ${JSON.stringify(allowUnsafeWebGpu)}, wasmFallbackUsed: false };
+  }
   if (MODE === 'native-gate') {
     return runNativeGateBrowser();
   }
@@ -583,6 +618,9 @@ const server = createServer(async (req, res) => {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.end(pageHtml);
       return;
+    }
+    if (url.pathname === '/worker.js') {
+      return serveFile(res, workerPath);
     }
     if (url.pathname === '/favicon.ico') {
       res.statusCode = 204;
