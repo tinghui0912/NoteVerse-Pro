@@ -34,18 +34,18 @@ def main() -> int:
     args = parser.parse_args()
 
     repo_root = args.repo_root.resolve()
+    attempted: list[dict[str, Any]] = []
+    runtime = container_runtime_identity(repo_root)
+    implementation_head = git(repo_root, ["rev-parse", "HEAD"])
+    remote_head = git(repo_root, ["rev-parse", "origin/codex/customer-web-delivery-boundary"])
+    clean = git(repo_root, ["status", "--short"]) == ""
+
     reports_dir = (repo_root / args.reports_dir).resolve()
     work_dir = (repo_root / args.work_dir).resolve()
     graphs_dir = work_dir / "graphs"
     fixtures_dir = work_dir / "fixtures"
     for directory in [reports_dir, work_dir, graphs_dir, fixtures_dir]:
         directory.mkdir(parents=True, exist_ok=True)
-
-    attempted: list[dict[str, Any]] = []
-    runtime = container_runtime_identity(repo_root)
-    implementation_head = git(repo_root, ["rev-parse", "HEAD"])
-    remote_head = git(repo_root, ["rev-parse", "origin/codex/customer-web-delivery-boundary"])
-    clean = git(repo_root, ["status", "--short"]) == ""
 
     if not runtime["insideContainer"] or runtime["platformSystem"] == "Windows" or has_drive_letter(runtime["pythonExecutable"]):
         report = base_report(repo_root, runtime, implementation_head, remote_head, clean, attempted)
@@ -258,7 +258,7 @@ def decide(ort_parity: dict[str, Any], browser: dict[str, Any]) -> str:
     if not any(row.get("status") == "PASS" and row.get("chosenStateMismatchCount") == 0 for row in ort_parity.values()):
         return "ONLINE_AMT_GROUPED_SEMANTIC_PARITY_FAILED"
     if browser.get("status", "").startswith("ONLINE_AMT_GROUPED_RUNTIME_BLOCKED") or browser.get("status", "").startswith("NOT_"):
-        return "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_CONTAINER_BROWSER_WEBGPU"
+        return browser.get("status", "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_CONTAINER_BROWSER_WEBGPU")
     return "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED_CONTAINER_BROWSER_WEBGPU"
 
 
