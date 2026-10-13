@@ -1,0 +1,121 @@
+{
+  "attemptedCommands": [
+    {
+      "command": [
+        "D:\\Python\\Python313\\python.exe",
+        "-m",
+        "venv",
+        "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\phase9g_dr3_online_amt_grouped\\venv"
+      ],
+      "exitCode": 0,
+      "stderrTail": "",
+      "stdoutTail": ""
+    },
+    {
+      "command": [
+        "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\phase9g_dr3_online_amt_grouped\\venv\\Scripts\\python.exe",
+        "-m",
+        "pip",
+        "install",
+        "-r",
+        "docker/research/requirements.online-amt-modern.txt",
+        "onnx==1.17.0",
+        "onnxruntime==1.20.1"
+      ],
+      "exitCode": 1,
+      "stderrTail": "  error: subprocess-exited-with-error\n  \n  Preparing metadata (pyproject.toml) did not run successfully.\n  exit code: 1\n  \n  [21 lines of output]\n  + C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\phase9g_dr3_online_amt_grouped\\venv\\Scripts\\python.exe C:\\Users\\tinghuilin\\AppData\\Local\\Temp\\pip-install-x5bbezh3\\numpy_a433db6591b14058a00567682f1d9515\\vendored-meson\\meson\\meson.py setup C:\\Users\\tinghuilin\\AppData\\Local\\Temp\\pip-install-x5bbezh3\\numpy_a433db6591b14058a00567682f1d9515 C:\\Users\\tinghuilin\\AppData\\Local\\Temp\\pip-install-x5bbezh3\\numpy_a433db6591b14058a00567682f1d9515\\.mesonpy-ve_6kxq9 -Dbuildtype=release -Db_ndebug=if-release -Db_vscrt=md --native-file=C:\\Users\\tinghuilin\\AppData\\Local\\Temp\\pip-install-x5bbezh3\\numpy_a433db6591b14058a00567682f1d9515\\.mesonpy-ve_6kxq9\\meson-python-native-file.ini\n  The Meson build system\n  Version: 1.2.99\n  Source dir: C:\\Users\\tinghuilin\\AppData\\Local\\Temp\\pip-install-x5bbezh3\\numpy_a433db6591b14058a00567682f1d9515\n  Build dir: C:\\Users\\tinghuilin\\AppData\\Local\\Temp\\pip-install-x5bbezh3\\numpy_a433db6591b14058a00567682f1d9515\\.mesonpy-ve_6kxq9\n  Build type: native build\n  Project name: NumPy\n  Project version: 1.26.4\n  WARNING: Failed to activate VS environment: Could not parse vswhere.exe output\n  \n  ..\\meson.build:1:0: ERROR: Unknown compiler(s): [['icl'], ['cl'], ['cc'], ['gcc'], ['clang'], ['clang-cl'], ['pgcc']]\n  The following exception(s) were encountered:\n  Running `icl \"\"` gave \"[WinError 2] 系统找不到指定的文件。\"\n  Running `cl /?` gave \"[WinError 2] 系统找不到指定的文件。\"\n  Running `cc --version` gave \"[WinError 2] 系统找不到指定的文件。\"\n  Running `gcc --version` gave \"[WinError 2] 系统找不到指定的文件。\"\n  Running `clang --version` gave \"[WinError 2] 系统找不到指定的文件。\"\n  Running `clang-cl /?` gave \"[WinError 2] 系统找不到指定的文件。\"\n  Running `pgcc --version` gave \"[WinError 2] 系统找不到指定的文件。\"\n  \n  A full log can be found at C:\\Users\\tinghuilin\\AppData\\Local\\Temp\\pip-install-x5bbezh3\\numpy_a433db6591b14058a00567682f1d9515\\.mesonpy-ve_6kxq9\\meson-logs\\meson-log.txt\n  [end of output]\n  \n  note: This error originates from a subprocess, and is likely not a problem with pip.\nerror: metadata-generation-failed\n\nEncountered error while generating package metadata.\n\nnumpy\n\nnote: This is an issue with the package mentioned above, not pip.\nhint: See above for details.\n",
+      "stdoutTail": "Looking in indexes: https://pypi.org/simple, https://download.pytorch.org/whl/cpu\nCollecting onnx==1.17.0\n  Downloading onnx-1.17.0.tar.gz (12.2 MB)\n     ---------------------------------------- 12.2/12.2 MB 584.8 kB/s  0:00:22\n  Installing build dependencies: started\n  Installing build dependencies: still running...\n  Installing build dependencies: finished with status 'done'\n  Getting requirements to build wheel: started\n  Getting requirements to build wheel: finished with status 'done'\n  Preparing metadata (pyproject.toml): started\n  Preparing metadata (pyproject.toml): finished with status 'done'\nCollecting onnxruntime==1.20.1\n  Downloading onnxruntime-1.20.1-cp313-cp313-win_amd64.whl.metadata (4.7 kB)\nCollecting torch==2.6.0+cpu (from -r docker/research/requirements.online-amt-modern.txt (line 2))\n  Downloading torch-2.6.0%2Bcpu-cp313-cp313-win_amd64.whl.metadata (28 kB)\nCollecting numpy==1.26.4 (from -r docker/research/requirements.online-amt-modern.txt (line 3))\n  Using cached numpy-1.26.4.tar.gz (15.8 MB)\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Getting requirements to build wheel: started\n  Getting requirements to build wheel: finished with status 'done'\n  Installing backend dependencies: started\n  Installing backend dependencies: finished with status 'done'\n  Preparing metadata (pyproject.toml): started\n  Preparing metadata (pyproject.toml): finished with status 'error'\n"
+    }
+  ],
+  "blocker": {
+    "python": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\phase9g_dr3_online_amt_grouped\\venv\\Scripts\\python.exe",
+    "reason": "PIP_INSTALL_FAILED",
+    "status": "FAILED"
+  },
+  "criticalImplementationFileSha256": {
+    "apps/customer-web/src/lib/practice/research/acoustic-candidate-contract.ts": "f5d07744b57169b60af764a6ab7c77d5b7915bd4ecbad957e78b048cf68cbe5a",
+    "apps/customer-web/src/lib/practice/research/online-amt-stateful-streaming.ts": "93562fb5a16f22475838e4fafde55ce509298e6fdb95d5ed49b78a231c5d5f5c",
+    "backend/research/browser_runtime/online_amt_grouped_browser_harness_dr3.mjs": "d89fa588e1f0d74844193a865d123ca2c9c78abeb8870eb80f821ba02c6eda71",
+    "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs": "c71a74c3a86c18b2e30fae968f68fbbfc38ca83f894c10464e3869e686ae4246",
+    "backend/research/online_amt_grouped_manifest_dr3.py": "2d60a945f52f4a0379589b983cd60571ef225e5d3b667ad6752b299349352af7",
+    "backend/research/product_amt_rebaseline.py": "aaf58ca6687cf2e3937daf8106ee8f09fcd5828b1ac5828b04ef6f448c86471d",
+    "backend/scripts/qualify_online_amt_grouped_browser_dr2.py": "5ebd274b3daec1b8d5006d0983384f5122f2c041ba2450a9ef0179334936ab0e",
+    "backend/scripts/qualify_online_amt_grouped_browser_dr3.py": "2b64cc97c9de2da33d3cb931fec28f95a5fc11d6e366405534c5aa8349371036"
+  },
+  "historicalPhase9gBConclusion": {
+    "outcome": "STATISTICAL_TIE",
+    "winner": null
+  },
+  "implementationGitHead": "55aede810356531ac0f7bbc794f1b336598490c9",
+  "implementationWorkingTreeCleanBeforeExecution": true,
+  "onlineAmtClosureDecision": "ONLINE_AMT_GROUPED_RUNTIME_BLOCKED",
+  "p15p22InferenceIncrease": 0,
+  "phase": "PHASE_9G_DR3_COMPLETE_GROUPED_BROWSER_RUNTIME_AND_CLOSE_ONLINE_AMT",
+  "productionMicrophoneEnabled": false,
+  "productionWinnerSelected": false,
+  "verifiedStartingRemoteHead": "55aede810356531ac0f7bbc794f1b336598490c9",
+  "phaseRequiredStartingRemoteHead": "41e6f7496a3d6fa698078305c36e02ba2d863d44",
+  "implementationCommitParent": "41e6f7496a3d6fa698078305c36e02ba2d863d44",
+  "localValidation": {
+    "implementationCommitA": [
+      {
+        "command": "python -m py_compile backend/research/product_amt_rebaseline.py backend/scripts/qualify_online_amt_grouped_browser_dr2.py backend/scripts/qualify_online_amt_grouped_browser_dr3.py backend/research/online_amt_grouped_manifest_dr3.py",
+        "result": "PASS"
+      },
+      {
+        "command": "pytest backend/tests/test_phase9gd_product_amt_rebaseline.py backend/tests/test_phase9g_dr3_online_amt_grouped_contract.py -q",
+        "result": "PASS",
+        "summary": "33 passed, 1 warning"
+      },
+      {
+        "command": "npm test -- src/lib/practice/research/acoustic-candidate-contract.test.ts src/lib/practice/research/online-amt-stateful-streaming.test.ts src/lib/practice/research/public-fixed-bpm-benchmark.test.ts",
+        "cwd": "apps/customer-web",
+        "result": "PASS",
+        "summary": "50 passed"
+      },
+      {
+        "command": "npm run typecheck",
+        "cwd": "apps/customer-web",
+        "result": "PASS"
+      },
+      {
+        "command": "npm run lint",
+        "cwd": "apps/customer-web",
+        "result": "PASS_WITH_WARNINGS",
+        "summary": "0 errors, 2 pre-existing warnings in public-challenger-qualification-historical.ts"
+      }
+    ]
+  },
+  "githubStatuses": "NOT_QUERIED_LOCAL_GH_CLI_UNAVAILABLE",
+  "githubWorkflowRuns": "NOT_QUERIED_LOCAL_GH_CLI_UNAVAILABLE",
+  "browserMatrix": {
+    "chrome": {
+      "k1": "NOT_EXECUTED_BOOTSTRAP_BLOCKED",
+      "k2": "NOT_EXECUTED_BOOTSTRAP_BLOCKED",
+      "k4": "NOT_EXECUTED_BOOTSTRAP_BLOCKED",
+      "k8": "NOT_EXECUTED_BOOTSTRAP_BLOCKED"
+    },
+    "edge": {
+      "k1": "NOT_EXECUTED_BOOTSTRAP_BLOCKED",
+      "k2": "NOT_EXECUTED_BOOTSTRAP_BLOCKED",
+      "k4": "NOT_EXECUTED_BOOTSTRAP_BLOCKED",
+      "k8": "NOT_EXECUTED_BOOTSTRAP_BLOCKED"
+    }
+  },
+  "semanticParity": {
+    "k1": "NOT_EXECUTED_BOOTSTRAP_BLOCKED",
+    "k2": "NOT_EXECUTED_BOOTSTRAP_BLOCKED",
+    "k4": "NOT_EXECUTED_BOOTSTRAP_BLOCKED",
+    "k8": "NOT_EXECUTED_BOOTSTRAP_BLOCKED"
+  },
+  "scopeProtections": {
+    "p15p22InferenceIncrease": 0,
+    "phase9gBOutcome": "STATISTICAL_TIE",
+    "phase9gBWinner": null,
+    "productionMicrophoneEnabled": false,
+    "practiceWebSocketRestored": false,
+    "backendPracticeInferenceRestored": false,
+    "productionWinnerSelected": false,
+    "d4QualificationPerformed": false
+  }
+}
