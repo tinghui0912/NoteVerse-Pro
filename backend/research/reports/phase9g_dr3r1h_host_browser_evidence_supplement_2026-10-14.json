@@ -1,0 +1,1713 @@
+{
+  "phase": "PHASE_9G_DR3R1H_HOST_BROWSER_EVIDENCE_SUPPLEMENT_AND_FINAL_ONLINE_AMT_CLOSURE",
+  "requiredStartingRemoteHead": "b7b7f476cc2dd48ba68249aedd4d8b41e9351e06",
+  "implementationGitHead": "456f8a83ae9bd42dbd3d1fa6930911c811ec3d2d",
+  "implementationWorkingTreeCleanBeforeExecution": true,
+  "dockerScienceRuntimeIdentity": {
+    "cgroupEvidence": "0::/\n",
+    "dockerenv": true,
+    "dockerfileOnlineAmtModernSha256": "22b431fc231b73e7e606b3fe03a5d689cdf131db3f371442bb263c24ba5e4835",
+    "insideContainer": true,
+    "platformRelease": "6.18.33.2-microsoft-standard-WSL2",
+    "platformSystem": "Linux",
+    "pythonExecutable": "/usr/local/bin/python",
+    "pythonVersion": "3.11.10",
+    "requirementsDr3rSha256": "a1ffb71f7786efd34b4f0f7aa95b28f04f5919d2aa916f04b80d3de3c4e9ca80",
+    "requirementsOnlineAmtModernSha256": "e9a111ded6955940aa714bab69e9b4e0c124bbaad4bde94b4bb30bf6c16b750d",
+    "workingDirectory": "/workspace"
+  },
+  "dockerScienceReportReceipt": {
+    "sha256": "076ca1eb1eaa76bf69350d76220cc30ed9f98f230513fe6124ea9e4a1939c1a9",
+    "bytes": 20817
+  },
+  "hostBrowserRuntimeIdentity": {
+    "trustDomain": "WINDOWS_HOST_BROWSER_LAYER_ONLY",
+    "nodeVersion": "v24.19.0",
+    "npmVersion": "11.17.0",
+    "packageLockSha256": "0846c23e5060530768dc3de5f9f64775ae2cf582b14eb3deb8f2337d5cb67670",
+    "ortWebPackageJson": "1.30.0",
+    "playwrightPackageJson": "1.48.2",
+    "ortWebDist": {
+      "ort.webgpu.min.js": {
+        "sha256": "7d65dad7eb4564ad98db9924a259af2e2c68ebfbdbf254fa5d728f1c5736e07a",
+        "bytes": 66417
+      },
+      "ort-wasm-simd-threaded.wasm": {
+        "sha256": "3398c10d07d229bd91b364548e130e0e51a8e5704b88c7c083ebbeb78842dee2",
+        "bytes": 14239897
+      }
+    }
+  },
+  "graphIdentity": {
+    "1": {
+      "byteSize": 71433948,
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "exporterSourceSha256": "5ebd274b3daec1b8d5006d0983384f5122f2c041ba2450a9ef0179334936ab0e",
+      "file": "online_amt_grouped_k1_opset18.onnx",
+      "graphKind": "staticGroupedActiveHop",
+      "inputNames": [
+        "audio_last_2048_sequence",
+        "mel_buffer_in",
+        "cache0_in",
+        "cache1_in",
+        "h_in",
+        "c_in",
+        "prev_output_in"
+      ],
+      "k": 1,
+      "operators": [
+        "Add",
+        "ArgMax",
+        "Clip",
+        "Concat",
+        "Constant",
+        "Conv",
+        "Gather",
+        "LSTM",
+        "Log",
+        "MatMul",
+        "MaxPool",
+        "Mul",
+        "Relu",
+        "Reshape",
+        "Shape",
+        "Slice",
+        "Softmax",
+        "Sqrt",
+        "Squeeze",
+        "Transpose",
+        "Unsqueeze"
+      ],
+      "opset": 18,
+      "outputNames": [
+        "probabilities_sequence",
+        "chosen_state_sequence",
+        "mel_buffer_out",
+        "cache0_out",
+        "cache1_out",
+        "h_out",
+        "c_out"
+      ],
+      "path": "/workspace/backend/data/work/phase9g_dr3r1h/graphs/online_amt_grouped_k1_opset18.onnx",
+      "sha256": "1924789c64595a5b8c1ff2f745089613b2ba6108676952c4bb6f60f28d9cd301",
+      "sourceTransitionsPreservedPerInvocation": 1,
+      "status": "PASS"
+    },
+    "2": {
+      "byteSize": 71452801,
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "exporterSourceSha256": "5ebd274b3daec1b8d5006d0983384f5122f2c041ba2450a9ef0179334936ab0e",
+      "file": "online_amt_grouped_k2_opset18.onnx",
+      "graphKind": "staticGroupedActiveHop",
+      "inputNames": [
+        "audio_last_2048_sequence",
+        "mel_buffer_in",
+        "cache0_in",
+        "cache1_in",
+        "h_in",
+        "c_in",
+        "prev_output_in"
+      ],
+      "k": 2,
+      "operators": [
+        "Add",
+        "ArgMax",
+        "Clip",
+        "Concat",
+        "Constant",
+        "Conv",
+        "Gather",
+        "Identity",
+        "LSTM",
+        "Log",
+        "MatMul",
+        "MaxPool",
+        "Mul",
+        "Relu",
+        "Reshape",
+        "Shape",
+        "Slice",
+        "Softmax",
+        "Sqrt",
+        "Squeeze",
+        "Transpose",
+        "Unsqueeze"
+      ],
+      "opset": 18,
+      "outputNames": [
+        "probabilities_sequence",
+        "chosen_state_sequence",
+        "mel_buffer_out",
+        "cache0_out",
+        "cache1_out",
+        "h_out",
+        "c_out"
+      ],
+      "path": "/workspace/backend/data/work/phase9g_dr3r1h/graphs/online_amt_grouped_k2_opset18.onnx",
+      "sha256": "9be7e5de035dd54470895ca5f8873992cb086612f78482e12d7a06ed9901d617",
+      "sourceTransitionsPreservedPerInvocation": 2,
+      "status": "PASS"
+    },
+    "4": {
+      "byteSize": 71490742,
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "exporterSourceSha256": "5ebd274b3daec1b8d5006d0983384f5122f2c041ba2450a9ef0179334936ab0e",
+      "file": "online_amt_grouped_k4_opset18.onnx",
+      "graphKind": "staticGroupedActiveHop",
+      "inputNames": [
+        "audio_last_2048_sequence",
+        "mel_buffer_in",
+        "cache0_in",
+        "cache1_in",
+        "h_in",
+        "c_in",
+        "prev_output_in"
+      ],
+      "k": 4,
+      "operators": [
+        "Add",
+        "ArgMax",
+        "Clip",
+        "Concat",
+        "Constant",
+        "Conv",
+        "Gather",
+        "Identity",
+        "LSTM",
+        "Log",
+        "MatMul",
+        "MaxPool",
+        "Mul",
+        "Relu",
+        "Reshape",
+        "Shape",
+        "Slice",
+        "Softmax",
+        "Sqrt",
+        "Squeeze",
+        "Transpose",
+        "Unsqueeze"
+      ],
+      "opset": 18,
+      "outputNames": [
+        "probabilities_sequence",
+        "chosen_state_sequence",
+        "mel_buffer_out",
+        "cache0_out",
+        "cache1_out",
+        "h_out",
+        "c_out"
+      ],
+      "path": "/workspace/backend/data/work/phase9g_dr3r1h/graphs/online_amt_grouped_k4_opset18.onnx",
+      "sha256": "4f161515c6e6b3ac614b396b0b2225ce416a02cee72e8aa31ccd99060121cfc9",
+      "sourceTransitionsPreservedPerInvocation": 4,
+      "status": "PASS"
+    },
+    "8": {
+      "byteSize": 71566300,
+      "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+      "exporterSourceSha256": "5ebd274b3daec1b8d5006d0983384f5122f2c041ba2450a9ef0179334936ab0e",
+      "file": "online_amt_grouped_k8_opset18.onnx",
+      "graphKind": "staticGroupedActiveHop",
+      "inputNames": [
+        "audio_last_2048_sequence",
+        "mel_buffer_in",
+        "cache0_in",
+        "cache1_in",
+        "h_in",
+        "c_in",
+        "prev_output_in"
+      ],
+      "k": 8,
+      "operators": [
+        "Add",
+        "ArgMax",
+        "Clip",
+        "Concat",
+        "Constant",
+        "Conv",
+        "Gather",
+        "Identity",
+        "LSTM",
+        "Log",
+        "MatMul",
+        "MaxPool",
+        "Mul",
+        "Relu",
+        "Reshape",
+        "Shape",
+        "Slice",
+        "Softmax",
+        "Sqrt",
+        "Squeeze",
+        "Transpose",
+        "Unsqueeze"
+      ],
+      "opset": 18,
+      "outputNames": [
+        "probabilities_sequence",
+        "chosen_state_sequence",
+        "mel_buffer_out",
+        "cache0_out",
+        "cache1_out",
+        "h_out",
+        "c_out"
+      ],
+      "path": "/workspace/backend/data/work/phase9g_dr3r1h/graphs/online_amt_grouped_k8_opset18.onnx",
+      "sha256": "818c095a3e96f507f45fe5f394169660cb3848fb7e496699a99c1957b51e9f18",
+      "sourceTransitionsPreservedPerInvocation": 8,
+      "status": "PASS"
+    }
+  },
+  "pythonOrtFullSemanticParity": {
+    "1": {
+      "chosenStateMismatchCount": 0,
+      "expectedFinalNumUnderThr": 0,
+      "finalNumUnderThr": 0,
+      "finalNumUnderThrMatches": true,
+      "finalStateDelta": {
+        "c": {
+          "maxAbsDelta": 0.00016021728515625,
+          "meanAbsDelta": 0.000013181994480859771,
+          "p95AbsDelta": 0.0000553131103515625
+        },
+        "cache0": {
+          "maxAbsDelta": 0.00017142295837402344,
+          "meanAbsDelta": 0.0000018120997779577227,
+          "p95AbsDelta": 0.000009953975677490234
+        },
+        "cache1": {
+          "maxAbsDelta": 0.00017306208610534668,
+          "meanAbsDelta": 0.000002024374004194167,
+          "p95AbsDelta": 0.000012571364641189543
+        },
+        "h": {
+          "maxAbsDelta": 0.000025587156414985657,
+          "meanAbsDelta": 0.000003512254233228873,
+          "p95AbsDelta": 0.0000095367431640625
+        },
+        "hopIndex": 325,
+        "mel": {
+          "maxAbsDelta": 0.00014400482177734375,
+          "meanAbsDelta": 0.00000658489592926471,
+          "p95AbsDelta": 0.000034332275390625
+        },
+        "prevMismatchCount": 0
+      },
+      "fullGroupedHopCount": 326,
+      "hopCount": 326,
+      "k": 1,
+      "probabilityDelta": {
+        "maxAbsDelta": 0.00005054473876953125,
+        "meanAbsDeltaMax": 4.2292300612470943e-7,
+        "p95AbsDeltaMax": 9.310431778430586e-7
+      },
+      "providers": [
+        "CPUExecutionProvider"
+      ],
+      "recurrentBoundaryDelta": {
+        "c": {
+          "maxAbsDelta": 0.0003910064697265625,
+          "meanAbsDeltaMax": 0.00002949042743694008
+        },
+        "cache0": {
+          "maxAbsDelta": 0.0010967403650283813,
+          "meanAbsDeltaMax": 0.00000509136894803448
+        },
+        "cache1": {
+          "maxAbsDelta": 0.0006349869072437286,
+          "meanAbsDeltaMax": 0.000004980282737892661
+        },
+        "h": {
+          "maxAbsDelta": 0.0000891461968421936,
+          "meanAbsDeltaMax": 0.000013668404676536738
+        },
+        "mel": {
+          "maxAbsDelta": 0.0012187957763671875,
+          "meanAbsDeltaMax": 0.00001571264004082659
+        },
+        "prevMismatchCountMax": 0
+      },
+      "semanticHopCount": 326,
+      "status": "SEMANTIC_PASS",
+      "tailFallbackHopCount": 0
+    },
+    "2": {
+      "chosenStateMismatchCount": 0,
+      "expectedFinalNumUnderThr": 0,
+      "finalNumUnderThr": 0,
+      "finalNumUnderThrMatches": true,
+      "finalStateDelta": {
+        "c": {
+          "maxAbsDelta": 0.00016021728515625,
+          "meanAbsDelta": 0.000013181994480859771,
+          "p95AbsDelta": 0.0000553131103515625
+        },
+        "cache0": {
+          "maxAbsDelta": 0.00017142295837402344,
+          "meanAbsDelta": 0.0000018120997779577227,
+          "p95AbsDelta": 0.000009953975677490234
+        },
+        "cache1": {
+          "maxAbsDelta": 0.00017306208610534668,
+          "meanAbsDelta": 0.000002024374004194167,
+          "p95AbsDelta": 0.000012571364641189543
+        },
+        "h": {
+          "maxAbsDelta": 0.000025587156414985657,
+          "meanAbsDelta": 0.000003512254233228873,
+          "p95AbsDelta": 0.0000095367431640625
+        },
+        "hopIndex": 325,
+        "mel": {
+          "maxAbsDelta": 0.00014400482177734375,
+          "meanAbsDelta": 0.00000658489592926471,
+          "p95AbsDelta": 0.000034332275390625
+        },
+        "prevMismatchCount": 0
+      },
+      "fullGroupedHopCount": 326,
+      "hopCount": 326,
+      "k": 2,
+      "probabilityDelta": {
+        "maxAbsDelta": 0.00005054473876953125,
+        "meanAbsDeltaMax": 4.2292300612470943e-7,
+        "p95AbsDeltaMax": 9.310431778430586e-7
+      },
+      "providers": [
+        "CPUExecutionProvider"
+      ],
+      "recurrentBoundaryDelta": {
+        "c": {
+          "maxAbsDelta": 0.0003910064697265625,
+          "meanAbsDeltaMax": 0.00002949042743694008
+        },
+        "cache0": {
+          "maxAbsDelta": 0.0010967403650283813,
+          "meanAbsDeltaMax": 0.000004962654844898501
+        },
+        "cache1": {
+          "maxAbsDelta": 0.0006349869072437286,
+          "meanAbsDeltaMax": 0.000004980282737892661
+        },
+        "h": {
+          "maxAbsDelta": 0.0000872984528541565,
+          "meanAbsDeltaMax": 0.000013668404676536738
+        },
+        "mel": {
+          "maxAbsDelta": 0.0012187957763671875,
+          "meanAbsDeltaMax": 0.00001571264004082659
+        },
+        "prevMismatchCountMax": 0
+      },
+      "semanticHopCount": 326,
+      "status": "SEMANTIC_PASS",
+      "tailFallbackHopCount": 0
+    },
+    "4": {
+      "chosenStateMismatchCount": 0,
+      "expectedFinalNumUnderThr": 0,
+      "finalNumUnderThr": 0,
+      "finalNumUnderThrMatches": true,
+      "finalStateDelta": {
+        "c": {
+          "maxAbsDelta": 0.00016021728515625,
+          "meanAbsDelta": 0.000013181994480859771,
+          "p95AbsDelta": 0.0000553131103515625
+        },
+        "cache0": {
+          "maxAbsDelta": 0.00017142295837402344,
+          "meanAbsDelta": 0.0000018120997779577227,
+          "p95AbsDelta": 0.000009953975677490234
+        },
+        "cache1": {
+          "maxAbsDelta": 0.00017306208610534668,
+          "meanAbsDelta": 0.000002024374004194167,
+          "p95AbsDelta": 0.000012571364641189543
+        },
+        "h": {
+          "maxAbsDelta": 0.000025587156414985657,
+          "meanAbsDelta": 0.000003512254233228873,
+          "p95AbsDelta": 0.0000095367431640625
+        },
+        "hopIndex": 325,
+        "mel": {
+          "maxAbsDelta": 0.00014400482177734375,
+          "meanAbsDelta": 0.00000658489592926471,
+          "p95AbsDelta": 0.000034332275390625
+        },
+        "prevMismatchCount": 0
+      },
+      "fullGroupedHopCount": 324,
+      "hopCount": 326,
+      "k": 4,
+      "probabilityDelta": {
+        "maxAbsDelta": 0.00005054473876953125,
+        "meanAbsDeltaMax": 4.2292300612470943e-7,
+        "p95AbsDeltaMax": 9.310431778430586e-7
+      },
+      "providers": [
+        "CPUExecutionProvider"
+      ],
+      "recurrentBoundaryDelta": {
+        "c": {
+          "maxAbsDelta": 0.00036907196044921875,
+          "meanAbsDeltaMax": 0.00002949042743694008
+        },
+        "cache0": {
+          "maxAbsDelta": 0.0010967403650283813,
+          "meanAbsDeltaMax": 0.000004962654844898501
+        },
+        "cache1": {
+          "maxAbsDelta": 0.0006349869072437286,
+          "meanAbsDeltaMax": 0.000004980282737892661
+        },
+        "h": {
+          "maxAbsDelta": 0.00008207559585571289,
+          "meanAbsDeltaMax": 0.000013668404676536738
+        },
+        "mel": {
+          "maxAbsDelta": 0.0012187957763671875,
+          "meanAbsDeltaMax": 0.000014688369962697615
+        },
+        "prevMismatchCountMax": 0
+      },
+      "semanticHopCount": 326,
+      "status": "SEMANTIC_PASS",
+      "tailFallbackHopCount": 2
+    },
+    "8": {
+      "chosenStateMismatchCount": 0,
+      "expectedFinalNumUnderThr": 0,
+      "finalNumUnderThr": 0,
+      "finalNumUnderThrMatches": true,
+      "finalStateDelta": {
+        "c": {
+          "maxAbsDelta": 0.00016021728515625,
+          "meanAbsDelta": 0.000013181994480859771,
+          "p95AbsDelta": 0.0000553131103515625
+        },
+        "cache0": {
+          "maxAbsDelta": 0.00017142295837402344,
+          "meanAbsDelta": 0.0000018120997779577227,
+          "p95AbsDelta": 0.000009953975677490234
+        },
+        "cache1": {
+          "maxAbsDelta": 0.00017306208610534668,
+          "meanAbsDelta": 0.000002024374004194167,
+          "p95AbsDelta": 0.000012571364641189543
+        },
+        "h": {
+          "maxAbsDelta": 0.000025587156414985657,
+          "meanAbsDelta": 0.000003512254233228873,
+          "p95AbsDelta": 0.0000095367431640625
+        },
+        "hopIndex": 325,
+        "mel": {
+          "maxAbsDelta": 0.00014400482177734375,
+          "meanAbsDelta": 0.00000658489592926471,
+          "p95AbsDelta": 0.000034332275390625
+        },
+        "prevMismatchCount": 0
+      },
+      "fullGroupedHopCount": 320,
+      "hopCount": 326,
+      "k": 8,
+      "probabilityDelta": {
+        "maxAbsDelta": 0.00005054473876953125,
+        "meanAbsDeltaMax": 4.2292300612470943e-7,
+        "p95AbsDeltaMax": 9.310431778430586e-7
+      },
+      "providers": [
+        "CPUExecutionProvider"
+      ],
+      "recurrentBoundaryDelta": {
+        "c": {
+          "maxAbsDelta": 0.00036907196044921875,
+          "meanAbsDeltaMax": 0.000029129404993000207
+        },
+        "cache0": {
+          "maxAbsDelta": 0.0010967403650283813,
+          "meanAbsDeltaMax": 0.000004447133620636437
+        },
+        "cache1": {
+          "maxAbsDelta": 0.0006185509264469147,
+          "meanAbsDeltaMax": 0.0000043686091811673815
+        },
+        "h": {
+          "maxAbsDelta": 0.0000718533992767334,
+          "meanAbsDeltaMax": 0.000009989907596263947
+        },
+        "mel": {
+          "maxAbsDelta": 0.0007143020629882812,
+          "meanAbsDeltaMax": 0.000014463563951363302
+        },
+        "prevMismatchCountMax": 0
+      },
+      "semanticHopCount": 326,
+      "status": "SEMANTIC_PASS",
+      "tailFallbackHopCount": 6
+    }
+  },
+  "syntheticQueueInstrumentationProof": {
+    "receipt": {
+      "sha256": "cc659238e4df609e73316cf00de14813f77adf9ca66260339f185ea47f707277",
+      "bytes": 25559
+    },
+    "overloadDetected": true,
+    "strictRealtime": "BACKLOG_PRESENT",
+    "queueDelayMs": {
+      "p50": 366.8499755859375,
+      "p95": 694.5250854492188,
+      "max": 730.300048828125
+    },
+    "maximumOutstandingDepth": 11,
+    "evidenceClass": "SYNTHETIC_QUEUE_INSTRUMENTATION_PROOF_ONLY"
+  },
+  "hostChromeGroupedRuntime": {
+    "chrome:k1": {
+      "receipt": {
+        "sha256": "632f8eebc505e3f48fafda0e5bcbde13f7e4e660d717b59ee7e8fe3441af5dca",
+        "bytes": 5051400
+      },
+      "graphSha256": [
+        "1924789c64595a5b8c1ff2f745089613b2ba6108676952c4bb6f60f28d9cd301"
+      ],
+      "browser": {
+        "channel": "chrome",
+        "executablePath": "C:\\Users\\tinghuilin\\AppData\\Local\\ms-playwright\\chromium-1140\\chrome-win\\chrome.exe",
+        "version": "155.0.8059.39",
+        "headed": true,
+        "launchArgs": [],
+        "unsafeWebGpu": false,
+        "wasmFallback": false,
+        "os": "Windows_NT 10.0.26200",
+        "arch": "x64",
+        "nodeVersion": "v24.19.0",
+        "playwrightVersion": null
+      },
+      "webgpuPreflight": {
+        "navigatorGpu": true,
+        "adapterAvailable": true,
+        "adapterInfo": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      },
+      "semanticHopCount": 326,
+      "rawSemanticParity": {
+        "semanticHopCount": 326,
+        "chosenStateMismatchCount": 0,
+        "firstChosenStateMismatch": null,
+        "probabilityMeanAbsDelta": 1.4863260652827816e-8,
+        "probabilityMaxAbsDelta": 0.00001239776611328125
+      },
+      "finalSnapshot": {
+        "status": "PASS",
+        "stateSnapshot": {
+          "audio": {
+            "length": 5120,
+            "sum": -2.898137569118262,
+            "absSum": 190.7044674612298,
+            "maxAbs": 0.21562433242797852
+          },
+          "mel": {
+            "length": 1603,
+            "sum": -8288.267474920023,
+            "absSum": 8312.755268832203,
+            "maxAbs": 8.62680435180664
+          },
+          "cache0": {
+            "length": 73280,
+            "sum": 13426.384882502723,
+            "absSum": 13426.384882502723,
+            "maxAbs": 4.888345241546631
+          },
+          "cache1": {
+            "length": 21888,
+            "sum": 1387.2269250443205,
+            "absSum": 1387.2269250443205,
+            "maxAbs": 1.9624216556549072
+          },
+          "h": {
+            "length": 1024,
+            "sum": 7.31067592405816,
+            "absSum": 418.5864337162384,
+            "maxAbs": 0.9979268312454224
+          },
+          "c": {
+            "length": 1024,
+            "sum": -573.3321076435968,
+            "absSum": 6039.816265786998,
+            "maxAbs": 125.31639099121094
+          },
+          "prev": {
+            "length": 88,
+            "sum": 12,
+            "nonzero": 5
+          },
+          "numUnderThr": 0
+        }
+      },
+      "fullGroupedHopCount": 326,
+      "tailFallbackHopCount": 0,
+      "groupedProcessingMs": {
+        "p50": 34.9500732421875,
+        "p95": 40.02508544921875,
+        "max": 43
+      },
+      "ortSessionRunMs": {
+        "p50": 34.599853515625,
+        "p95": 39.52508544921875,
+        "max": 42.5
+      },
+      "queueDelayMs": {
+        "p50": 373.599853515625,
+        "p95": 969.75,
+        "max": 1042.5
+      },
+      "finalQueueDelayMs": 1042.5,
+      "maximumOutstandingDepth": 30,
+      "tailQueueTrend": "GROWING",
+      "strictRealtime": "BACKLOG_PRESENT",
+      "headroomPass": false,
+      "internalHopCaptureToPublicationAgeMs": {
+        "p50": 410.900146484375,
+        "p95": 1007.275146484375,
+        "max": 1076.300048828125
+      },
+      "oldestInternalHopCaptureToPublicationAgeMs": {
+        "p50": 410.900146484375,
+        "p95": 1007.275146484375,
+        "max": 1076.300048828125
+      },
+      "bridgeReceipt": {
+        "sha256": "8241b7f578bbd70c12f2ea05982b44d09f0f2cb24aeb2c549675566fa8753209",
+        "bytes": 8345
+      },
+      "publicationBridgeParity": {
+        "publicationCountEqual": true,
+        "observationCountEqual": true,
+        "finalAnalyzedThroughEqual": true,
+        "canonicalPublicationDigestEqual": false
+      },
+      "publicationCount": 321,
+      "observationCount": 65,
+      "finalAnalyzedThroughPerformanceMs": 10240
+    },
+    "chrome:k2": {
+      "receipt": {
+        "sha256": "5601b648fe8bee856c92d9646b7b20f9a4f96bcef2a98a0fccd14d3597583b4a",
+        "bytes": 4792021
+      },
+      "graphSha256": [
+        "1924789c64595a5b8c1ff2f745089613b2ba6108676952c4bb6f60f28d9cd301",
+        "9be7e5de035dd54470895ca5f8873992cb086612f78482e12d7a06ed9901d617"
+      ],
+      "browser": {
+        "channel": "chrome",
+        "executablePath": "C:\\Users\\tinghuilin\\AppData\\Local\\ms-playwright\\chromium-1140\\chrome-win\\chrome.exe",
+        "version": "155.0.8059.39",
+        "headed": true,
+        "launchArgs": [],
+        "unsafeWebGpu": false,
+        "wasmFallback": false,
+        "os": "Windows_NT 10.0.26200",
+        "arch": "x64",
+        "nodeVersion": "v24.19.0",
+        "playwrightVersion": null
+      },
+      "webgpuPreflight": {
+        "navigatorGpu": true,
+        "adapterAvailable": true,
+        "adapterInfo": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      },
+      "semanticHopCount": 326,
+      "rawSemanticParity": {
+        "semanticHopCount": 326,
+        "chosenStateMismatchCount": 0,
+        "firstChosenStateMismatch": null,
+        "probabilityMeanAbsDelta": 1.4863260652827816e-8,
+        "probabilityMaxAbsDelta": 0.00001239776611328125
+      },
+      "finalSnapshot": {
+        "status": "PASS",
+        "stateSnapshot": {
+          "audio": {
+            "length": 5120,
+            "sum": -2.898137569118262,
+            "absSum": 190.7044674612298,
+            "maxAbs": 0.21562433242797852
+          },
+          "mel": {
+            "length": 1603,
+            "sum": -8288.267474920023,
+            "absSum": 8312.755268832203,
+            "maxAbs": 8.62680435180664
+          },
+          "cache0": {
+            "length": 73280,
+            "sum": 13426.384882502723,
+            "absSum": 13426.384882502723,
+            "maxAbs": 4.888345241546631
+          },
+          "cache1": {
+            "length": 21888,
+            "sum": 1387.2269250443205,
+            "absSum": 1387.2269250443205,
+            "maxAbs": 1.9624216556549072
+          },
+          "h": {
+            "length": 1024,
+            "sum": 7.31067592405816,
+            "absSum": 418.5864337162384,
+            "maxAbs": 0.9979268312454224
+          },
+          "c": {
+            "length": 1024,
+            "sum": -573.3321076435968,
+            "absSum": 6039.816265786998,
+            "maxAbs": 125.31639099121094
+          },
+          "prev": {
+            "length": 88,
+            "sum": 12,
+            "nonzero": 5
+          },
+          "numUnderThr": 0
+        }
+      },
+      "fullGroupedHopCount": 326,
+      "tailFallbackHopCount": 0,
+      "groupedProcessingMs": {
+        "p50": 48.39990234375,
+        "p95": 53.989990234375,
+        "max": 58.5
+      },
+      "ortSessionRunMs": {
+        "p50": 48,
+        "p95": 53.2800537109375,
+        "max": 57.800048828125
+      },
+      "queueDelayMs": {
+        "p50": 0,
+        "p95": 0.10009765625,
+        "max": 0.5
+      },
+      "finalQueueDelayMs": 0,
+      "maximumOutstandingDepth": 1,
+      "tailQueueTrend": "NOT_GROWING",
+      "strictRealtime": "NO_SUSTAINED_BACKLOG",
+      "headroomPass": false,
+      "internalHopCaptureToPublicationAgeMs": {
+        "p50": 58.4998779296875,
+        "p95": 86.1749267578125,
+        "max": 92.699951171875
+      },
+      "oldestInternalHopCaptureToPublicationAgeMs": {
+        "p50": 81.599853515625,
+        "p95": 87.199951171875,
+        "max": 92.699951171875
+      },
+      "bridgeReceipt": {
+        "sha256": "8241b7f578bbd70c12f2ea05982b44d09f0f2cb24aeb2c549675566fa8753209",
+        "bytes": 8345
+      },
+      "publicationBridgeParity": {
+        "publicationCountEqual": true,
+        "observationCountEqual": true,
+        "finalAnalyzedThroughEqual": true,
+        "canonicalPublicationDigestEqual": false
+      },
+      "publicationCount": 321,
+      "observationCount": 65,
+      "finalAnalyzedThroughPerformanceMs": 10240
+    },
+    "chrome:k4": {
+      "receipt": {
+        "sha256": "de545c0fa2cb4afe9b92a2281704e18663b47990458eadeea0ef7dc12a75ea03",
+        "bytes": 4667889
+      },
+      "graphSha256": [
+        "1924789c64595a5b8c1ff2f745089613b2ba6108676952c4bb6f60f28d9cd301",
+        "4f161515c6e6b3ac614b396b0b2225ce416a02cee72e8aa31ccd99060121cfc9"
+      ],
+      "browser": {
+        "channel": "chrome",
+        "executablePath": "C:\\Users\\tinghuilin\\AppData\\Local\\ms-playwright\\chromium-1140\\chrome-win\\chrome.exe",
+        "version": "155.0.8059.39",
+        "headed": true,
+        "launchArgs": [],
+        "unsafeWebGpu": false,
+        "wasmFallback": false,
+        "os": "Windows_NT 10.0.26200",
+        "arch": "x64",
+        "nodeVersion": "v24.19.0",
+        "playwrightVersion": null
+      },
+      "webgpuPreflight": {
+        "navigatorGpu": true,
+        "adapterAvailable": true,
+        "adapterInfo": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      },
+      "semanticHopCount": 326,
+      "rawSemanticParity": {
+        "semanticHopCount": 326,
+        "chosenStateMismatchCount": 0,
+        "firstChosenStateMismatch": null,
+        "probabilityMeanAbsDelta": 1.4863260652827816e-8,
+        "probabilityMaxAbsDelta": 0.00001239776611328125
+      },
+      "finalSnapshot": {
+        "status": "PASS",
+        "stateSnapshot": {
+          "audio": {
+            "length": 5120,
+            "sum": -2.898137569118262,
+            "absSum": 190.7044674612298,
+            "maxAbs": 0.21562433242797852
+          },
+          "mel": {
+            "length": 1603,
+            "sum": -8288.267474920023,
+            "absSum": 8312.755268832203,
+            "maxAbs": 8.62680435180664
+          },
+          "cache0": {
+            "length": 73280,
+            "sum": 13426.384882502723,
+            "absSum": 13426.384882502723,
+            "maxAbs": 4.888345241546631
+          },
+          "cache1": {
+            "length": 21888,
+            "sum": 1387.2269250443205,
+            "absSum": 1387.2269250443205,
+            "maxAbs": 1.9624216556549072
+          },
+          "h": {
+            "length": 1024,
+            "sum": 7.31067592405816,
+            "absSum": 418.5864337162384,
+            "maxAbs": 0.9979268312454224
+          },
+          "c": {
+            "length": 1024,
+            "sum": -573.3321076435968,
+            "absSum": 6039.816265786998,
+            "maxAbs": 125.31639099121094
+          },
+          "prev": {
+            "length": 88,
+            "sum": 12,
+            "nonzero": 5
+          },
+          "numUnderThr": 0
+        }
+      },
+      "fullGroupedHopCount": 324,
+      "tailFallbackHopCount": 2,
+      "groupedProcessingMs": {
+        "p50": 73.300048828125,
+        "p95": 77.699951171875,
+        "max": 84
+      },
+      "ortSessionRunMs": {
+        "p50": 72.699951171875,
+        "p95": 77.199951171875,
+        "max": 83.300048828125
+      },
+      "queueDelayMs": {
+        "p50": 0,
+        "p95": 0.10009765625,
+        "max": 45.400146484375
+      },
+      "finalQueueDelayMs": 45.400146484375,
+      "maximumOutstandingDepth": 3,
+      "tailQueueTrend": "GROWING",
+      "strictRealtime": "BACKLOG_PRESENT",
+      "headroomPass": true,
+      "internalHopCaptureToPublicationAgeMs": {
+        "p50": 112.949951171875,
+        "p95": 173.199951171875,
+        "max": 182.699951171875
+      },
+      "oldestInternalHopCaptureToPublicationAgeMs": {
+        "p50": 170.2998046875,
+        "p95": 176.099853515625,
+        "max": 182.699951171875
+      },
+      "bridgeReceipt": {
+        "sha256": "8241b7f578bbd70c12f2ea05982b44d09f0f2cb24aeb2c549675566fa8753209",
+        "bytes": 8345
+      },
+      "publicationBridgeParity": {
+        "publicationCountEqual": true,
+        "observationCountEqual": true,
+        "finalAnalyzedThroughEqual": true,
+        "canonicalPublicationDigestEqual": false
+      },
+      "publicationCount": 321,
+      "observationCount": 65,
+      "finalAnalyzedThroughPerformanceMs": 10240
+    },
+    "chrome:k8": {
+      "receipt": {
+        "sha256": "75b4c88a792125cea12d3c841c6193f2d026b4cce7b8bbbf0f529f0adf61a8c7",
+        "bytes": 4609438
+      },
+      "graphSha256": [
+        "1924789c64595a5b8c1ff2f745089613b2ba6108676952c4bb6f60f28d9cd301",
+        "818c095a3e96f507f45fe5f394169660cb3848fb7e496699a99c1957b51e9f18"
+      ],
+      "browser": {
+        "channel": "chrome",
+        "executablePath": "C:\\Users\\tinghuilin\\AppData\\Local\\ms-playwright\\chromium-1140\\chrome-win\\chrome.exe",
+        "version": "155.0.8059.39",
+        "headed": true,
+        "launchArgs": [],
+        "unsafeWebGpu": false,
+        "wasmFallback": false,
+        "os": "Windows_NT 10.0.26200",
+        "arch": "x64",
+        "nodeVersion": "v24.19.0",
+        "playwrightVersion": null
+      },
+      "webgpuPreflight": {
+        "navigatorGpu": true,
+        "adapterAvailable": true,
+        "adapterInfo": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      },
+      "semanticHopCount": 326,
+      "rawSemanticParity": {
+        "semanticHopCount": 326,
+        "chosenStateMismatchCount": 0,
+        "firstChosenStateMismatch": null,
+        "probabilityMeanAbsDelta": 1.4863260652827816e-8,
+        "probabilityMaxAbsDelta": 0.00001239776611328125
+      },
+      "finalSnapshot": {
+        "status": "PASS",
+        "stateSnapshot": {
+          "audio": {
+            "length": 5120,
+            "sum": -2.898137569118262,
+            "absSum": 190.7044674612298,
+            "maxAbs": 0.21562433242797852
+          },
+          "mel": {
+            "length": 1603,
+            "sum": -8288.267474920023,
+            "absSum": 8312.755268832203,
+            "maxAbs": 8.62680435180664
+          },
+          "cache0": {
+            "length": 73280,
+            "sum": 13426.384882502723,
+            "absSum": 13426.384882502723,
+            "maxAbs": 4.888345241546631
+          },
+          "cache1": {
+            "length": 21888,
+            "sum": 1387.2269250443205,
+            "absSum": 1387.2269250443205,
+            "maxAbs": 1.9624216556549072
+          },
+          "h": {
+            "length": 1024,
+            "sum": 7.31067592405816,
+            "absSum": 418.5864337162384,
+            "maxAbs": 0.9979268312454224
+          },
+          "c": {
+            "length": 1024,
+            "sum": -573.3321076435968,
+            "absSum": 6039.816265786998,
+            "maxAbs": 125.31639099121094
+          },
+          "prev": {
+            "length": 88,
+            "sum": 12,
+            "nonzero": 5
+          },
+          "numUnderThr": 0
+        }
+      },
+      "fullGroupedHopCount": 320,
+      "tailFallbackHopCount": 6,
+      "groupedProcessingMs": {
+        "p50": 123.5999755859375,
+        "p95": 133.5,
+        "max": 140.39990234375
+      },
+      "ortSessionRunMs": {
+        "p50": 122.5001220703125,
+        "p95": 132.5300048828125,
+        "max": 139.2998046875
+      },
+      "queueDelayMs": {
+        "p50": 0,
+        "p95": 98.97491455078125,
+        "max": 104.10009765625
+      },
+      "finalQueueDelayMs": 103.2998046875,
+      "maximumOutstandingDepth": 4,
+      "tailQueueTrend": "GROWING",
+      "strictRealtime": "BACKLOG_PRESENT",
+      "headroomPass": true,
+      "internalHopCaptureToPublicationAgeMs": {
+        "p50": 227.8499755859375,
+        "p95": 351.17498779296875,
+        "max": 365.199951171875
+      },
+      "oldestInternalHopCaptureToPublicationAgeMs": {
+        "p50": 348.449951171875,
+        "p95": 358.3250732421875,
+        "max": 365.199951171875
+      },
+      "bridgeReceipt": {
+        "sha256": "8241b7f578bbd70c12f2ea05982b44d09f0f2cb24aeb2c549675566fa8753209",
+        "bytes": 8345
+      },
+      "publicationBridgeParity": {
+        "publicationCountEqual": true,
+        "observationCountEqual": true,
+        "finalAnalyzedThroughEqual": true,
+        "canonicalPublicationDigestEqual": false
+      },
+      "publicationCount": 321,
+      "observationCount": 65,
+      "finalAnalyzedThroughPerformanceMs": 10240
+    }
+  },
+  "hostEdgeGroupedRuntime": {
+    "msedge:k1": {
+      "receipt": {
+        "sha256": "bb17cc9926631e0b4238ff2b5cb516a74b694f78a172bae6e96b1c778c466dee",
+        "bytes": 5054043
+      },
+      "graphSha256": [
+        "1924789c64595a5b8c1ff2f745089613b2ba6108676952c4bb6f60f28d9cd301"
+      ],
+      "browser": {
+        "channel": "msedge",
+        "executablePath": "C:\\Users\\tinghuilin\\AppData\\Local\\ms-playwright\\chromium-1140\\chrome-win\\chrome.exe",
+        "version": "155.0.4283.45",
+        "headed": true,
+        "launchArgs": [],
+        "unsafeWebGpu": false,
+        "wasmFallback": false,
+        "os": "Windows_NT 10.0.26200",
+        "arch": "x64",
+        "nodeVersion": "v24.19.0",
+        "playwrightVersion": null
+      },
+      "webgpuPreflight": {
+        "navigatorGpu": true,
+        "adapterAvailable": true,
+        "adapterInfo": {
+          "vendor": "intel",
+          "architecture": "gen-12lp",
+          "device": "",
+          "description": ""
+        }
+      },
+      "semanticHopCount": 326,
+      "rawSemanticParity": {
+        "semanticHopCount": 326,
+        "chosenStateMismatchCount": 0,
+        "firstChosenStateMismatch": null,
+        "probabilityMeanAbsDelta": 8.076751784407833e-9,
+        "probabilityMaxAbsDelta": 0.000008821487426757812
+      },
+      "finalSnapshot": {
+        "status": "PASS",
+        "stateSnapshot": {
+          "audio": {
+            "length": 5120,
+            "sum": -2.898137569118262,
+            "absSum": 190.7044674612298,
+            "maxAbs": 0.21562433242797852
+          },
+          "mel": {
+            "length": 1603,
+            "sum": -8288.267948798835,
+            "absSum": 8312.755742521957,
+            "maxAbs": 8.62680435180664
+          },
+          "cache0": {
+            "length": 73280,
+            "sum": 13426.385812394088,
+            "absSum": 13426.385812394088,
+            "maxAbs": 4.888345718383789
+          },
+          "cache1": {
+            "length": 21888,
+            "sum": 1387.2266201325692,
+            "absSum": 1387.2266201325692,
+            "maxAbs": 1.9624226093292236
+          },
+          "h": {
+            "length": 1024,
+            "sum": 7.310671926898067,
+            "absSum": 418.5863014100323,
+            "maxAbs": 0.9979268312454224
+          },
+          "c": {
+            "length": 1024,
+            "sum": -573.3326259311289,
+            "absSum": 6039.8167367931455,
+            "maxAbs": 125.31658935546875
+          },
+          "prev": {
+            "length": 88,
+            "sum": 12,
+            "nonzero": 5
+          },
+          "numUnderThr": 0
+        }
+      },
+      "fullGroupedHopCount": 326,
+      "tailFallbackHopCount": 0,
+      "groupedProcessingMs": {
+        "p50": 42.800048828125,
+        "p95": 55.4749755859375,
+        "max": 60.199951171875
+      },
+      "ortSessionRunMs": {
+        "p50": 42.400146484375,
+        "p95": 55.0750732421875,
+        "max": 59.599853515625
+      },
+      "queueDelayMs": {
+        "p50": 1753.6500244140625,
+        "p95": 3679.5999145507812,
+        "max": 3765.400146484375
+      },
+      "finalQueueDelayMs": 3765.400146484375,
+      "maximumOutstandingDepth": 85,
+      "tailQueueTrend": "GROWING",
+      "strictRealtime": "BACKLOG_PRESENT",
+      "headroomPass": false,
+      "internalHopCaptureToPublicationAgeMs": {
+        "p50": 1793.9998779296875,
+        "p95": 3714.02490234375,
+        "max": 3805.2998046875
+      },
+      "oldestInternalHopCaptureToPublicationAgeMs": {
+        "p50": 1793.9998779296875,
+        "p95": 3714.02490234375,
+        "max": 3805.2998046875
+      },
+      "bridgeReceipt": {
+        "sha256": "820ed096ca15f9764904b16de85f0da11264cad69ca8d81379dfeb3bab9d7905",
+        "bytes": 8345
+      },
+      "publicationBridgeParity": {
+        "publicationCountEqual": true,
+        "observationCountEqual": true,
+        "finalAnalyzedThroughEqual": true,
+        "canonicalPublicationDigestEqual": false
+      },
+      "publicationCount": 321,
+      "observationCount": 65,
+      "finalAnalyzedThroughPerformanceMs": 10240
+    },
+    "msedge:k2": {
+      "receipt": {
+        "sha256": "330bfb4730e63f94f863bbe1b27e30be69638a83774cb88a14017eaacd479b92",
+        "bytes": 4792850
+      },
+      "graphSha256": [
+        "1924789c64595a5b8c1ff2f745089613b2ba6108676952c4bb6f60f28d9cd301",
+        "9be7e5de035dd54470895ca5f8873992cb086612f78482e12d7a06ed9901d617"
+      ],
+      "browser": {
+        "channel": "msedge",
+        "executablePath": "C:\\Users\\tinghuilin\\AppData\\Local\\ms-playwright\\chromium-1140\\chrome-win\\chrome.exe",
+        "version": "155.0.4283.45",
+        "headed": true,
+        "launchArgs": [],
+        "unsafeWebGpu": false,
+        "wasmFallback": false,
+        "os": "Windows_NT 10.0.26200",
+        "arch": "x64",
+        "nodeVersion": "v24.19.0",
+        "playwrightVersion": null
+      },
+      "webgpuPreflight": {
+        "navigatorGpu": true,
+        "adapterAvailable": true,
+        "adapterInfo": {
+          "vendor": "intel",
+          "architecture": "gen-12lp",
+          "device": "",
+          "description": ""
+        }
+      },
+      "semanticHopCount": 326,
+      "rawSemanticParity": {
+        "semanticHopCount": 326,
+        "chosenStateMismatchCount": 0,
+        "firstChosenStateMismatch": null,
+        "probabilityMeanAbsDelta": 8.076751784407833e-9,
+        "probabilityMaxAbsDelta": 0.000008821487426757812
+      },
+      "finalSnapshot": {
+        "status": "PASS",
+        "stateSnapshot": {
+          "audio": {
+            "length": 5120,
+            "sum": -2.898137569118262,
+            "absSum": 190.7044674612298,
+            "maxAbs": 0.21562433242797852
+          },
+          "mel": {
+            "length": 1603,
+            "sum": -8288.267948798835,
+            "absSum": 8312.755742521957,
+            "maxAbs": 8.62680435180664
+          },
+          "cache0": {
+            "length": 73280,
+            "sum": 13426.385812394088,
+            "absSum": 13426.385812394088,
+            "maxAbs": 4.888345718383789
+          },
+          "cache1": {
+            "length": 21888,
+            "sum": 1387.2266201325692,
+            "absSum": 1387.2266201325692,
+            "maxAbs": 1.9624226093292236
+          },
+          "h": {
+            "length": 1024,
+            "sum": 7.310671926898067,
+            "absSum": 418.5863014100323,
+            "maxAbs": 0.9979268312454224
+          },
+          "c": {
+            "length": 1024,
+            "sum": -573.3326259311289,
+            "absSum": 6039.8167367931455,
+            "maxAbs": 125.31658935546875
+          },
+          "prev": {
+            "length": 88,
+            "sum": 12,
+            "nonzero": 5
+          },
+          "numUnderThr": 0
+        }
+      },
+      "fullGroupedHopCount": 326,
+      "tailFallbackHopCount": 0,
+      "groupedProcessingMs": {
+        "p50": 54.400146484375,
+        "p95": 68.2900634765625,
+        "max": 75.5
+      },
+      "ortSessionRunMs": {
+        "p50": 53.89990234375,
+        "p95": 67.9900146484375,
+        "max": 75.2001953125
+      },
+      "queueDelayMs": {
+        "p50": 0,
+        "p95": 64.7801513671875,
+        "max": 104.60009765625
+      },
+      "finalQueueDelayMs": 90.699951171875,
+      "maximumOutstandingDepth": 3,
+      "tailQueueTrend": "NOT_GROWING",
+      "strictRealtime": "BACKLOG_PRESENT",
+      "headroomPass": false,
+      "internalHopCaptureToPublicationAgeMs": {
+        "p50": 80.999755859375,
+        "p95": 149.3248291015625,
+        "max": 203.099853515625
+      },
+      "oldestInternalHopCaptureToPublicationAgeMs": {
+        "p50": 88.2998046875,
+        "p95": 164.91994628906252,
+        "max": 203.099853515625
+      },
+      "bridgeReceipt": {
+        "sha256": "820ed096ca15f9764904b16de85f0da11264cad69ca8d81379dfeb3bab9d7905",
+        "bytes": 8345
+      },
+      "publicationBridgeParity": {
+        "publicationCountEqual": true,
+        "observationCountEqual": true,
+        "finalAnalyzedThroughEqual": true,
+        "canonicalPublicationDigestEqual": false
+      },
+      "publicationCount": 321,
+      "observationCount": 65,
+      "finalAnalyzedThroughPerformanceMs": 10240
+    },
+    "msedge:k4": {
+      "receipt": {
+        "sha256": "513604b5dd31f226aead7f25dfa56aaeeab452d2721bcc5fa3e5d8ad4e8ee69d",
+        "bytes": 4668602
+      },
+      "graphSha256": [
+        "1924789c64595a5b8c1ff2f745089613b2ba6108676952c4bb6f60f28d9cd301",
+        "4f161515c6e6b3ac614b396b0b2225ce416a02cee72e8aa31ccd99060121cfc9"
+      ],
+      "browser": {
+        "channel": "msedge",
+        "executablePath": "C:\\Users\\tinghuilin\\AppData\\Local\\ms-playwright\\chromium-1140\\chrome-win\\chrome.exe",
+        "version": "155.0.4283.45",
+        "headed": true,
+        "launchArgs": [],
+        "unsafeWebGpu": false,
+        "wasmFallback": false,
+        "os": "Windows_NT 10.0.26200",
+        "arch": "x64",
+        "nodeVersion": "v24.19.0",
+        "playwrightVersion": null
+      },
+      "webgpuPreflight": {
+        "navigatorGpu": true,
+        "adapterAvailable": true,
+        "adapterInfo": {
+          "vendor": "intel",
+          "architecture": "gen-12lp",
+          "device": "",
+          "description": ""
+        }
+      },
+      "semanticHopCount": 326,
+      "rawSemanticParity": {
+        "semanticHopCount": 326,
+        "chosenStateMismatchCount": 0,
+        "firstChosenStateMismatch": null,
+        "probabilityMeanAbsDelta": 8.076751784407833e-9,
+        "probabilityMaxAbsDelta": 0.000008821487426757812
+      },
+      "finalSnapshot": {
+        "status": "PASS",
+        "stateSnapshot": {
+          "audio": {
+            "length": 5120,
+            "sum": -2.898137569118262,
+            "absSum": 190.7044674612298,
+            "maxAbs": 0.21562433242797852
+          },
+          "mel": {
+            "length": 1603,
+            "sum": -8288.267948798835,
+            "absSum": 8312.755742521957,
+            "maxAbs": 8.62680435180664
+          },
+          "cache0": {
+            "length": 73280,
+            "sum": 13426.385812394088,
+            "absSum": 13426.385812394088,
+            "maxAbs": 4.888345718383789
+          },
+          "cache1": {
+            "length": 21888,
+            "sum": 1387.2266201325692,
+            "absSum": 1387.2266201325692,
+            "maxAbs": 1.9624226093292236
+          },
+          "h": {
+            "length": 1024,
+            "sum": 7.310671926898067,
+            "absSum": 418.5863014100323,
+            "maxAbs": 0.9979268312454224
+          },
+          "c": {
+            "length": 1024,
+            "sum": -573.3326259311289,
+            "absSum": 6039.8167367931455,
+            "maxAbs": 125.31658935546875
+          },
+          "prev": {
+            "length": 88,
+            "sum": 12,
+            "nonzero": 5
+          },
+          "numUnderThr": 0
+        }
+      },
+      "fullGroupedHopCount": 324,
+      "tailFallbackHopCount": 2,
+      "groupedProcessingMs": {
+        "p50": 100.599853515625,
+        "p95": 117,
+        "max": 125.800048828125
+      },
+      "ortSessionRunMs": {
+        "p50": 100.400146484375,
+        "p95": 116.60009765625,
+        "max": 125.2998046875
+      },
+      "queueDelayMs": {
+        "p50": 0,
+        "p95": 0.10009765625,
+        "max": 92.199951171875
+      },
+      "finalQueueDelayMs": 92.199951171875,
+      "maximumOutstandingDepth": 3,
+      "tailQueueTrend": "GROWING",
+      "strictRealtime": "BACKLOG_PRESENT",
+      "headroomPass": false,
+      "internalHopCaptureToPublicationAgeMs": {
+        "p50": 149.2501220703125,
+        "p95": 210.3751220703125,
+        "max": 221.500244140625
+      },
+      "oldestInternalHopCaptureToPublicationAgeMs": {
+        "p50": 197.000244140625,
+        "p95": 216.560107421875,
+        "max": 221.500244140625
+      },
+      "bridgeReceipt": {
+        "sha256": "820ed096ca15f9764904b16de85f0da11264cad69ca8d81379dfeb3bab9d7905",
+        "bytes": 8345
+      },
+      "publicationBridgeParity": {
+        "publicationCountEqual": true,
+        "observationCountEqual": true,
+        "finalAnalyzedThroughEqual": true,
+        "canonicalPublicationDigestEqual": false
+      },
+      "publicationCount": 321,
+      "observationCount": 65,
+      "finalAnalyzedThroughPerformanceMs": 10240
+    },
+    "msedge:k8": {
+      "receipt": {
+        "sha256": "ca57266a4fbd062fbb0eff48bae4ac542e35a8e9bc8da17d54457d4031fa384d",
+        "bytes": 4609297
+      },
+      "graphSha256": [
+        "1924789c64595a5b8c1ff2f745089613b2ba6108676952c4bb6f60f28d9cd301",
+        "818c095a3e96f507f45fe5f394169660cb3848fb7e496699a99c1957b51e9f18"
+      ],
+      "browser": {
+        "channel": "msedge",
+        "executablePath": "C:\\Users\\tinghuilin\\AppData\\Local\\ms-playwright\\chromium-1140\\chrome-win\\chrome.exe",
+        "version": "155.0.4283.45",
+        "headed": true,
+        "launchArgs": [],
+        "unsafeWebGpu": false,
+        "wasmFallback": false,
+        "os": "Windows_NT 10.0.26200",
+        "arch": "x64",
+        "nodeVersion": "v24.19.0",
+        "playwrightVersion": null
+      },
+      "webgpuPreflight": {
+        "navigatorGpu": true,
+        "adapterAvailable": true,
+        "adapterInfo": {
+          "vendor": "intel",
+          "architecture": "gen-12lp",
+          "device": "",
+          "description": ""
+        }
+      },
+      "semanticHopCount": 326,
+      "rawSemanticParity": {
+        "semanticHopCount": 326,
+        "chosenStateMismatchCount": 0,
+        "firstChosenStateMismatch": null,
+        "probabilityMeanAbsDelta": 8.076751784407833e-9,
+        "probabilityMaxAbsDelta": 0.000008821487426757812
+      },
+      "finalSnapshot": {
+        "status": "PASS",
+        "stateSnapshot": {
+          "audio": {
+            "length": 5120,
+            "sum": -2.898137569118262,
+            "absSum": 190.7044674612298,
+            "maxAbs": 0.21562433242797852
+          },
+          "mel": {
+            "length": 1603,
+            "sum": -8288.267948798835,
+            "absSum": 8312.755742521957,
+            "maxAbs": 8.62680435180664
+          },
+          "cache0": {
+            "length": 73280,
+            "sum": 13426.385812394088,
+            "absSum": 13426.385812394088,
+            "maxAbs": 4.888345718383789
+          },
+          "cache1": {
+            "length": 21888,
+            "sum": 1387.2266201325692,
+            "absSum": 1387.2266201325692,
+            "maxAbs": 1.9624226093292236
+          },
+          "h": {
+            "length": 1024,
+            "sum": 7.310671926898067,
+            "absSum": 418.5863014100323,
+            "maxAbs": 0.9979268312454224
+          },
+          "c": {
+            "length": 1024,
+            "sum": -573.3326259311289,
+            "absSum": 6039.8167367931455,
+            "maxAbs": 125.31658935546875
+          },
+          "prev": {
+            "length": 88,
+            "sum": 12,
+            "nonzero": 5
+          },
+          "numUnderThr": 0
+        }
+      },
+      "fullGroupedHopCount": 320,
+      "tailFallbackHopCount": 6,
+      "groupedProcessingMs": {
+        "p50": 139.75,
+        "p95": 159.96503906249998,
+        "max": 172.199951171875
+      },
+      "ortSessionRunMs": {
+        "p50": 138.75,
+        "p95": 158.77486572265624,
+        "max": 170.800048828125
+      },
+      "queueDelayMs": {
+        "p50": 0.099853515625,
+        "p95": 119.82501220703125,
+        "max": 127.2998046875
+      },
+      "finalQueueDelayMs": 127.2998046875,
+      "maximumOutstandingDepth": 5,
+      "tailQueueTrend": "GROWING",
+      "strictRealtime": "BACKLOG_PRESENT",
+      "headroomPass": true,
+      "internalHopCaptureToPublicationAgeMs": {
+        "p50": 251.7498779296875,
+        "p95": 366.224853515625,
+        "max": 399.199951171875
+      },
+      "oldestInternalHopCaptureToPublicationAgeMs": {
+        "p50": 365.099853515625,
+        "p95": 382.17486572265625,
+        "max": 399.199951171875
+      },
+      "bridgeReceipt": {
+        "sha256": "820ed096ca15f9764904b16de85f0da11264cad69ca8d81379dfeb3bab9d7905",
+        "bytes": 8345
+      },
+      "publicationBridgeParity": {
+        "publicationCountEqual": true,
+        "observationCountEqual": true,
+        "finalAnalyzedThroughEqual": true,
+        "canonicalPublicationDigestEqual": false
+      },
+      "publicationCount": 321,
+      "observationCount": 65,
+      "finalAnalyzedThroughPerformanceMs": 10240
+    }
+  },
+  "nativeGateBrowserParity": "DEDICATED_GATE_FIXTURE_NOT_EXECUTED_IN_DR3R1H; real Worker native state path exercised by normal fixture and K1 fallback code remains unchanged",
+  "publicationBridgeParity": {
+    "chrome:k1": {
+      "publicationCountEqual": true,
+      "observationCountEqual": true,
+      "finalAnalyzedThroughEqual": true,
+      "canonicalPublicationDigestEqual": false
+    },
+    "chrome:k2": {
+      "publicationCountEqual": true,
+      "observationCountEqual": true,
+      "finalAnalyzedThroughEqual": true,
+      "canonicalPublicationDigestEqual": false
+    },
+    "chrome:k4": {
+      "publicationCountEqual": true,
+      "observationCountEqual": true,
+      "finalAnalyzedThroughEqual": true,
+      "canonicalPublicationDigestEqual": false
+    },
+    "chrome:k8": {
+      "publicationCountEqual": true,
+      "observationCountEqual": true,
+      "finalAnalyzedThroughEqual": true,
+      "canonicalPublicationDigestEqual": false
+    },
+    "msedge:k1": {
+      "publicationCountEqual": true,
+      "observationCountEqual": true,
+      "finalAnalyzedThroughEqual": true,
+      "canonicalPublicationDigestEqual": false
+    },
+    "msedge:k2": {
+      "publicationCountEqual": true,
+      "observationCountEqual": true,
+      "finalAnalyzedThroughEqual": true,
+      "canonicalPublicationDigestEqual": false
+    },
+    "msedge:k4": {
+      "publicationCountEqual": true,
+      "observationCountEqual": true,
+      "finalAnalyzedThroughEqual": true,
+      "canonicalPublicationDigestEqual": false
+    },
+    "msedge:k8": {
+      "publicationCountEqual": true,
+      "observationCountEqual": true,
+      "finalAnalyzedThroughEqual": true,
+      "canonicalPublicationDigestEqual": false
+    }
+  },
+  "realtimeDecision": {
+    "strictPublicationDigestRequired": true,
+    "confidenceInsensitivePublicationCountsEqual": true,
+    "allRawChosenStateMismatchCountsZero": true,
+    "allStrictCanonicalPublicationDigestsEqual": false,
+    "realtimeEligibleK": [],
+    "finalOnlineAmtClosureDecision": "ONLINE_AMT_GROUPED_SEMANTIC_PARITY_FAILED",
+    "supportingRuntimeObservation": "Even if confidence-insensitive publication identity were accepted, no K passed strict realtime plus 20% headroom in both Chrome and Edge."
+  },
+  "tests": {
+    "dockerPytest": "docker run --rm -v ${PWD}:/workspace -w /workspace noteverse-online-amt-dr3r:latest pytest backend/tests/test_phase9g_dr3_online_amt_grouped_contract.py -q => 20 passed, 2 warnings",
+    "nodeSyntax": "node --check online_amt_grouped_browser_harness_dr3.mjs and worker_dr3.mjs => pass",
+    "dockerScienceCommand": "docker run --rm -v ${PWD}:/workspace -w /workspace noteverse-online-amt-dr3r:latest python backend/scripts/qualify_online_amt_grouped_browser_dr3.py --repo-root /workspace --work-dir backend/data/work/phase9g_dr3r1h --reports-dir backend/research/reports => exit 1 with expected container NODE_MISSING after graph/parity generation",
+    "hostNpmCi": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci in backend/research/browser_runtime/dr3r_browser_runtime => pass",
+    "hostMatrix": "headed host Chrome/Edge K=1/2/4/8 => all commands exit 0",
+    "publicationBridge": "online_amt_d2r1_bridge_hop_artifacts.mjs for all Chrome/Edge/K cells => all commands exit 0",
+    "githubStatuses": "NOT_QUERIED_IN_THIS_LOCAL_RUN",
+    "githubWorkflowRuns": "NOT_QUERIED_IN_THIS_LOCAL_RUN"
+  },
+  "scopeProtections": {
+    "p15p22InferenceIncrease": 0,
+    "phase9gBOutcome": "STATISTICAL_TIE",
+    "phase9gBWinner": null,
+    "productionMicrophoneEnabled": false,
+    "practiceWebSocketRestored": false,
+    "backendPracticeInferenceRestored": false,
+    "d4QualificationPerformed": false,
+    "productionWinnerSelected": false
+  }
+}
