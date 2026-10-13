@@ -358,7 +358,7 @@ try {
     nodeVersion: process.version,
     playwrightVersion: playwright.version ?? null,
   };
-  if (outputPath) await writeFile(outputPath, JSON.stringify(result, null, 2) + '\\n', 'utf8');
+  if (outputPath) await writeFile(outputPath, JSON.stringify(result, null, 2) + '\n', 'utf8');
   console.log(JSON.stringify(result, null, 2));
 } finally {
   if (browser) await browser.close();
