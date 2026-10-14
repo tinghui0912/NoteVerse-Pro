@@ -15,13 +15,16 @@ export const BASIC_PITCH_DECODER_EXECUTION_IDENTITY = Object.freeze({
   noteFramesToTimeCalled: true,
 });
 
-export async function executeBasicPitchBrowserExecutor(page) {
-  const result = await page.evaluate(() => {
+export async function executeBasicPitchBrowserExecutor(page, request = {}) {
+  const result = await page.evaluate(({ acousticInput }) => {
     if (typeof window.runXc1BasicPitchExecutor !== 'function') {
       throw new Error('XC1_BASIC_PITCH_BROWSER_EXECUTOR_BUNDLE_MISSING');
     }
-    return window.runXc1BasicPitchExecutor();
-  });
+    return window.runXc1BasicPitchExecutor({ takeId: acousticInput.takeId, windowId: 'window0' });
+  }, { acousticInput: request.acousticInput });
+  if (result.browserReceivedPcm?.sha256 !== request.acousticInput?.pcmSha256) {
+    throw new Error('XC1_BROWSER_PCM_IDENTITY_MISMATCH');
+  }
   return {
     ...result,
     decoderExecutionIdentity: BASIC_PITCH_DECODER_EXECUTION_IDENTITY,

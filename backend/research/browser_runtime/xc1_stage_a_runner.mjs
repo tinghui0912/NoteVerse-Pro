@@ -49,12 +49,14 @@ async function main() {
   const deploymentId = requireArg(args, 'deployment-id');
   const takeId = requireArg(args, 'take-id');
   const stageARoot = path.resolve(requireArg(args, 'stage-a-root'));
+  const stageAManifestPath = path.resolve(requireArg(args, 'manifest'));
   const outputPath = path.resolve(requireArg(args, 'output'));
   const request = {
     deploymentId,
     candidateId: args['candidate-id'],
     takeId,
     stageARoot,
+    stageAManifestPath,
     outputPath,
     browserChannel: args['browser-channel'] ?? 'chrome',
     headed: args.headed === true,

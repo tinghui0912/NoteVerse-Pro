@@ -14,6 +14,7 @@ import {
   assertNoSmokeStatus,
   launchXc1Browser,
   moduleIdentity,
+  resolveFrozenAcousticInput,
   sha256File,
   startXc1BrowserAssetServer,
   verifySha,
@@ -129,6 +130,7 @@ function validateOfficialRequest(request) {
   if (typeof request.deploymentId !== 'string') throw new Error('XC1_STAGE_A_DEPLOYMENT_REQUIRED');
   if (typeof request.takeId !== 'string') throw new Error('XC1_STAGE_A_TAKE_REQUIRED');
   if (typeof request.stageARoot !== 'string') throw new Error('XC1_STAGE_A_ROOT_REQUIRED');
+  if (typeof request.stageAManifestPath !== 'string') throw new Error('XC1_STAGE_A_MANIFEST_REQUIRED');
   if (typeof request.outputPath !== 'string') throw new Error('XC1_STAGE_A_OUTPUT_REQUIRED');
 }
 
@@ -338,11 +340,17 @@ async function runOfficialBrowserExecutor(request, identity, {
   assetVerification,
   executePage,
 }) {
+  const acousticInput = await resolveFrozenAcousticInput({
+    stageARoot: request.stageARoot,
+    manifestPath: request.stageAManifestPath,
+    takeId: request.takeId,
+  });
   const { server, url } = await startXc1BrowserAssetServer({
     robustOnnxPath,
     onlineAmtK8OnnxPath,
     onlineAmtK1OnnxPath,
     basicPitchWorkDir,
+    stageARoot: request.stageARoot,
   });
   const { browser, identity: browserIdentity } = await launchXc1Browser({
     channel: request.browserChannel ?? 'chrome',
@@ -352,7 +360,7 @@ async function runOfficialBrowserExecutor(request, identity, {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     const startedAtUnixMs = Date.now();
-    const result = await executePage(page, request);
+    const result = await executePage(page, { ...request, acousticInput });
     const registryModulePath = fileURLToPath(import.meta.url);
     const sharedModulePath = path.join(path.dirname(registryModulePath), 'xc1_browser_runtime_shared.mjs');
     const receipt = {
@@ -375,6 +383,16 @@ async function runOfficialBrowserExecutor(request, identity, {
         decoder: decoderIdentity,
       },
       assetIdentity: assetVerification,
+      frozenAcousticInput: {
+        takeId: acousticInput.takeId,
+        pcmSha256: acousticInput.pcmSha256,
+        byteSize: acousticInput.byteSize,
+        sampleCount: acousticInput.sampleCount,
+        sampleRateHz: acousticInput.sampleRateHz,
+        dtype: acousticInput.dtype,
+        scoreableInterval: acousticInput.scoreableInterval,
+        sourceAcousticWavSha256: acousticInput.sourceAcousticWavSha256,
+      },
       executorExport,
       ...result,
     };

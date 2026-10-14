@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { executeOfficialXc1StageACell } from './xc1_stage_a_candidate_registry.mjs';
-import { assertNoSmokeStatus, REPO_ROOT } from './xc1_browser_runtime_shared.mjs';
+import { assertNoSmokeStatus, materializeSyntheticStageARoot, REPO_ROOT } from './xc1_browser_runtime_shared.mjs';
 
 function parseArgs(argv) {
   const args = { channel: 'chrome', headed: true };
@@ -24,12 +24,13 @@ function parseArgs(argv) {
   return args;
 }
 
-async function runCell({ deploymentId, outputDir, channel, headed }) {
+async function runCell({ deploymentId, outputDir, channel, headed, stageARoot, stageAManifestPath, takeId }) {
   const cellOutput = path.join(outputDir, `${deploymentId}.json`);
   const receipt = await executeOfficialXc1StageACell({
     deploymentId,
-    takeId: 'pre-f4-non-smd-synthetic-smoke',
-    stageARoot: REPO_ROOT,
+    takeId,
+    stageARoot,
+    stageAManifestPath,
     outputPath: cellOutput,
     browserChannel: channel,
     headed,
@@ -43,6 +44,10 @@ async function main() {
   const outputPath = path.resolve(args.output);
   const outputDir = path.join(path.dirname(outputPath), 'official_stage_a_cells');
   await mkdir(outputDir, { recursive: true });
+  const stageA = await materializeSyntheticStageARoot({
+    root: path.join(path.dirname(outputPath), 'stage_a_root'),
+    fixtureId: 'pre-f4-non-smd-synthetic-piano-like',
+  });
 
   const cells = {};
   for (const deploymentId of [
@@ -57,6 +62,9 @@ async function main() {
         outputDir,
         channel: args.channel,
         headed: args.headed !== false,
+        stageARoot: stageA.root,
+        stageAManifestPath: stageA.manifestPath,
+        takeId: stageA.take.takeId,
       });
       cells[deploymentId] = {
         ...receipt,
@@ -81,15 +89,21 @@ async function main() {
       currentRequirement: 'OFFICIAL_STAGE_A_EXECUTOR_ACCEPTANCE_PASS',
     },
     acceptanceCommandUsesOfficialRegistry: true,
+    acceptanceUsesExternalPcmManifest: true,
+    fixtureClass: 'NON_SMD_SYNTHETIC_PRE_F4_ACCEPTANCE',
+    stageARoot: path.relative(REPO_ROOT, stageA.root).replaceAll('\\', '/'),
+    stageAManifestPath: path.relative(REPO_ROOT, stageA.manifestPath).replaceAll('\\', '/'),
     acceptanceScript: path.relative(REPO_ROOT, fileURLToPath(import.meta.url)).replaceAll('\\', '/'),
     environment: { os: `${os.platform()} ${os.release()} ${os.arch()}`, node: process.version },
     cells,
-    overallStatus: Object.values(cells).every((cell) => cell.status === 'OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS')
-      ? 'OFFICIAL_STAGE_A_EXECUTOR_ACCEPTANCE_PASS'
-      : 'OFFICIAL_STAGE_A_EXECUTOR_ACCEPTANCE_FAILED',
+    gateAStatus: Object.values(cells).every((cell) => cell.status === 'OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS'
+      && cell.browserReceivedPcm?.sha256 === cell.frozenAcousticInput?.pcmSha256)
+      ? 'OFFICIAL_REAL_PCM_EXECUTOR_ACCEPTANCE_PASS'
+      : 'OFFICIAL_REAL_PCM_EXECUTOR_ACCEPTANCE_FAILED',
   };
+  report.overallStatus = report.gateAStatus;
   await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-  if (report.overallStatus !== 'OFFICIAL_STAGE_A_EXECUTOR_ACCEPTANCE_PASS') process.exitCode = 2;
+  if (report.overallStatus !== 'OFFICIAL_REAL_PCM_EXECUTOR_ACCEPTANCE_PASS') process.exitCode = 2;
 }
 
 main().catch((error) => {

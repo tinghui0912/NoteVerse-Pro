@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { createReadStream, existsSync } from 'node:fs';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
@@ -72,11 +72,8 @@ window.runXc1BasicPitchExecutor = async function(options = {}) {
   await tf.setBackend('webgl');
   await tf.ready();
   const model = new BasicPitch('/basic/model/model.json');
-  const inputLength = options.inputLength ?? 44100;
-  const input = new Float32Array(inputLength);
-  for (let i = 0; i < input.length; i += 1) {
-    input[i] = Math.sin(i / 40) * 0.02;
-  }
+  const pcm = await window.loadXc1ExternalPcm();
+  const input = window.resampleLinear(pcm.samples, 16000, 22050);
   let frames = [];
   let onsets = [];
   let callbackCount = 0;
@@ -91,6 +88,11 @@ window.runXc1BasicPitchExecutor = async function(options = {}) {
   const timedNotes = noteFramesToTime(notes);
   return {
     backend: tf.getBackend(),
+    browserReceivedPcm: {
+      sha256: pcm.sha256,
+      byteLength: pcm.byteLength,
+      sampleCount: pcm.sampleCount,
+    },
     decoderImportPath: 'node_modules/@spotify/basic-pitch/esm/toMidi.js',
     outputToNotesPolyCalled: true,
     noteFramesToTimeCalled: true,
@@ -102,7 +104,7 @@ window.runXc1BasicPitchExecutor = async function(options = {}) {
       pitch: note.pitchMidi ?? note.pitch_midi ?? note.pitch,
       performanceTimeMs: note.startTimeSeconds * 1000,
       confidence: note.amplitude ?? 1,
-      candidateObservationId: 'basic-pitch-browser-v1:acceptance:' + index,
+      candidateObservationId: ['basic-pitch-browser-v1', options.takeId ?? 'unknown-take', options.windowId ?? 'window0', note.pitchMidi ?? note.pitch_midi ?? note.pitch, Math.round(note.startTimeSeconds * 16000), index].join(':'),
     })),
   };
 };
@@ -127,6 +129,7 @@ export async function startXc1BrowserAssetServer({
   onlineAmtK1OnnxPath = XC1_DEFAULT_ASSET_PATHS.onlineAmtK1OnnxPath,
   basicPitchWorkDir = BASIC_PITCH_WORK,
   basicBundlePath,
+  stageARoot,
 } = {}) {
   const ortDist = path.join(RUNTIME_NODE_MODULES, 'onnxruntime-web/dist');
   const basicRoot = path.join(basicPitchWorkDir, 'node_modules/@spotify/basic-pitch');
@@ -137,10 +140,43 @@ export async function startXc1BrowserAssetServer({
       let filePath;
       if (url.pathname === '/') {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-        res.end(`<!doctype html><meta charset="utf-8"><script src="/ort/ort.webgpu.min.js"></script><script type="module" src="/basic-bundle.js"></script>`);
+        res.end(`<!doctype html><meta charset="utf-8"><script>
+window.sha256Hex = async function(buffer) {
+  const digest = await crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+};
+window.loadXc1ExternalPcm = async function() {
+  const response = await fetch('/audio/input.pcm', { cache: 'no-store' });
+  if (!response.ok) throw new Error('XC1_BROWSER_PCM_FETCH_FAILED:' + response.status);
+  const buffer = await response.arrayBuffer();
+  if (buffer.byteLength % 4 !== 0) throw new Error('XC1_BROWSER_PCM_BYTES_NOT_FLOAT32_ALIGNED');
+  return {
+    byteLength: buffer.byteLength,
+    sampleCount: buffer.byteLength / 4,
+    sha256: await window.sha256Hex(buffer.slice(0)),
+    samples: new Float32Array(buffer),
+  };
+};
+window.resampleLinear = function(input, sourceRate, targetRate) {
+  const outputLength = Math.max(1, Math.floor(input.length * targetRate / sourceRate));
+  const output = new Float32Array(outputLength);
+  for (let i = 0; i < output.length; i += 1) {
+    const sourceIndex = i * sourceRate / targetRate;
+    const left = Math.floor(sourceIndex);
+    const right = Math.min(input.length - 1, left + 1);
+    const frac = sourceIndex - left;
+    output[i] = (input[left] ?? 0) * (1 - frac) + (input[right] ?? 0) * frac;
+  }
+  return output;
+};
+</script><script src="/ort/ort.webgpu.min.js"></script><script type="module" src="/basic-bundle.js"></script>`);
         return;
       }
       if (url.pathname === '/basic-bundle.js') filePath = bundlePath;
+      else if (url.pathname === '/audio/input.pcm') {
+        if (!stageARoot) throw new Error('XC1_STAGE_A_ROOT_REQUIRED_FOR_PCM');
+        filePath = safeResolve(path.join(stageARoot, 'audio'), 'input.pcm');
+      }
       else if (url.pathname.startsWith('/ort/')) filePath = safeResolve(ortDist, url.pathname.slice('/ort/'.length));
       else if (url.pathname === '/robust.onnx') filePath = robustOnnxPath;
       else if (url.pathname === '/online-k8.onnx') filePath = onlineAmtK8OnnxPath;
@@ -164,6 +200,91 @@ export async function startXc1BrowserAssetServer({
       resolve({ server, url: `http://127.0.0.1:${address.port}/` });
     });
   });
+}
+
+export async function materializeSyntheticStageARoot({
+  root,
+  fixtureId = 'synthetic-piano-like',
+  sampleRateHz = 16000,
+  durationMs = 2200,
+} = {}) {
+  if (!root) throw new Error('XC1_STAGE_A_ROOT_REQUIRED');
+  await rm(root, { recursive: true, force: true });
+  const audioDir = path.join(root, 'audio');
+  const manifestsDir = path.join(root, 'manifests');
+  await mkdir(audioDir, { recursive: true });
+  await mkdir(manifestsDir, { recursive: true });
+  const sampleCount = Math.floor(sampleRateHz * durationMs / 1000);
+  const pcm = new Float32Array(sampleCount);
+  for (let i = 0; i < sampleCount; i += 1) {
+    const t = i / sampleRateHz;
+    const envelope = t > 0.2 && t < 1.6 ? Math.exp(-(t - 0.2) * 2.0) : 0;
+    pcm[i] = envelope * (Math.sin(2 * Math.PI * 261.625565 * t) * 0.08 + Math.sin(2 * Math.PI * 329.627557 * t) * 0.04);
+  }
+  const pcmPath = path.join(audioDir, 'input.pcm');
+  await writeFile(pcmPath, Buffer.from(pcm.buffer));
+  const sha256 = await sha256File(pcmPath);
+  const manifest = {
+    schemaVersion: 1,
+    fixtureClass: 'NON_SMD_SYNTHETIC_PRE_F4_ACCEPTANCE',
+    takes: [{
+      takeId: fixtureId,
+      sourceAcousticWavSha256: 'synthetic-non-smd-generated-pcm',
+      canonicalPcm: {
+        relativeStageAPath: 'audio/input.pcm',
+        sha256,
+        byteSize: sampleCount * 4,
+        sampleCount,
+        sampleRateHz,
+        dtype: 'float32-le-raw',
+      },
+      scoreableInterior: {
+        startMs: 1000,
+        endMs: durationMs - 220,
+        pastContextMs: 1000,
+        futureContextMs: 220,
+      },
+    }],
+  };
+  const manifestPath = path.join(manifestsDir, 'stage_a_manifest.json');
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  return { root, manifestPath, take: manifest.takes[0] };
+}
+
+export async function resolveFrozenAcousticInput({ stageARoot, manifestPath, takeId }) {
+  if (!stageARoot) throw new Error('XC1_STAGE_A_ROOT_REQUIRED');
+  if (!manifestPath) throw new Error('XC1_STAGE_A_MANIFEST_REQUIRED');
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const take = (manifest.takes ?? []).find((candidate) => candidate.takeId === takeId);
+  if (!take) throw new Error(`XC1_STAGE_A_TAKE_NOT_IN_MANIFEST:${takeId}`);
+  const pcm = take.canonicalPcm;
+  if (!pcm || pcm.sampleRateHz !== 16000 || pcm.dtype !== 'float32-le-raw') {
+    throw new Error('XC1_STAGE_A_FROZEN_INPUT_IDENTITY_DRIFT:pcm-contract');
+  }
+  const relative = pcm.relativeStageAPath?.replaceAll('\\', '/');
+  if (!relative || !relative.startsWith('audio/')) {
+    throw new Error('XC1_STAGE_A_FROZEN_INPUT_IDENTITY_DRIFT:pcm-path');
+  }
+  const pcmPath = safeResolve(stageARoot, relative);
+  const bytes = (await readFile(pcmPath)).byteLength;
+  if (bytes !== pcm.byteSize) throw new Error(`XC1_STAGE_A_FROZEN_INPUT_IDENTITY_DRIFT:byteSize:${bytes}:${pcm.byteSize}`);
+  const actualSha = await sha256File(pcmPath);
+  if (actualSha !== pcm.sha256) throw new Error(`XC1_STAGE_A_FROZEN_INPUT_IDENTITY_DRIFT:sha256:${actualSha}:${pcm.sha256}`);
+  if (bytes / 4 !== pcm.sampleCount) throw new Error(`XC1_STAGE_A_FROZEN_INPUT_IDENTITY_DRIFT:sampleCount:${bytes / 4}:${pcm.sampleCount}`);
+  return {
+    takeId,
+    stageARoot,
+    manifestPath,
+    pcmPath,
+    pcmUrl: '/audio/input.pcm',
+    pcmSha256: pcm.sha256,
+    byteSize: pcm.byteSize,
+    sampleCount: pcm.sampleCount,
+    sampleRateHz: pcm.sampleRateHz,
+    dtype: pcm.dtype,
+    scoreableInterval: take.scoreableInterior,
+    sourceAcousticWavSha256: take.acousticWavSha256 ?? take.sourceAcousticWavSha256,
+  };
 }
 
 export async function launchXc1Browser({ channel = 'chrome', headed = true } = {}) {
