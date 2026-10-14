@@ -1,0 +1,33 @@
+{
+  "artifact": "scoringPolicyFreezeF2",
+  "bootstrap": {
+    "draws": 5000,
+    "seed": 13371,
+    "unit": "performance_take"
+  },
+  "frontRunnerPolicy": "runtime eligible + complete coverage + F1 CI above 0 versus both + no FP/min or missed-rate CI regression",
+  "matching": "pitch-aware one-to-one max-cardinality min-total-error deterministic tie-break",
+  "metrics": [
+    "precision",
+    "recall",
+    "f1",
+    "falsePositiveOnsetsPerMinute",
+    "missedOnsetRate",
+    "onsetAbsTimingMedianMs",
+    "onsetAbsTimingP95Ms",
+    "duplicateRetriggerFalseDetections",
+    "chordNoteCompletenessDiagnostic"
+  ],
+  "phase": "PHASE_9G_XC1_R1_EXECUTABLE_CANDIDATE_WIRING_TRUE_SMD_FREEZE_AND_FULL_SCIENTIFIC_BAKEOFF",
+  "primaryToleranceMs": 50,
+  "runtimeEligibility": {
+    "onlineAmtK8P95GroupedProcessingMsMax": 204.8,
+    "requiresNoSustainedBacklog": true,
+    "robustAndBasicPitchP95ProcessingMsMax": 480
+  },
+  "scoringPolicySha256": "92721835e64e74599c0395e735e2c94a2573e140be8fdd909038f6da149cf652",
+  "sensitivityTolerancesMs": [
+    25,
+    100
+  ]
+}
