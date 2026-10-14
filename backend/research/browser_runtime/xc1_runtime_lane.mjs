@@ -15,8 +15,10 @@ export function runtimeReceipt(artifact) {
     pureOrtMs: row.ortSessionRunDurationMs })) : artifact.runtimeRows.map(row => ({ ...row, pureOrtMs: row.ortSessionRunDurationMs }));
   const steady = online ? rows.filter(row => row.k === 8 && row.hopCountInMessage === 8) : rows.filter(row => !row.shiftedFinalWindow);
   const residual = online ? rows.filter(row => row.k === 1) : rows.filter(row => row.shiftedFinalWindow);
+  const activeGrouped = online ? steady.filter(row => row.ortRuns.length === 1 && row.ortRuns[0].k === 8) : steady;
+  const nativeFallback = online ? steady.filter(row => row.ortRuns.length !== 1 || row.ortRuns[0].k !== 8) : [];
   const cadenceMs = online ? 256 : 600;
-  const processing = distribution(steady.map(row => row.processingMs));
+  const processing = distribution(activeGrouped.map(row => row.processingMs));
   const backlog = classifyBacklog(steady, cadenceMs);
   const age = online ? steady.flatMap(row => row.internalHops.map(hop => hop.captureToPublicationAgeMs))
     : steady.map(row => row.captureToPublicationAgeMs);
@@ -27,13 +29,14 @@ export function runtimeReceipt(artifact) {
     schedulingMode: artifact.schedulingMode, modelLoadMs: artifact.modelLoadMs ?? artifact.modelLoadAndWarmupMs,
     warmup: artifact.warmup ?? { count: artifact.warmupCount },
     firstTimedProcessingMs: rows[0]?.processingMs, warmProcessingMs: processing,
-    pureOrtMs: artifact.deploymentId === 'basic-pitch-browser-v1' ? null : distribution(steady.map(row => row.pureOrtMs)),
+    pureOrtMs: artifact.deploymentId === 'basic-pitch-browser-v1' ? null : distribution(activeGrouped.map(row => row.pureOrtMs)),
     tensorflowJsInferenceMs: artifact.deploymentId === 'basic-pitch-browser-v1'
       ? distribution(steady.map(row => row.tensorflowJsInferenceDurationMs)) : null,
     backlog,
     captureReadyToPublicationAgeMs: distribution(age.filter(Number.isFinite)),
     oldestOwnedSourceTimeToPublicationAgeMs: distribution(oldestAge.filter(Number.isFinite)),
     terminalResidualRows: residual, steadyRows: steady,
+    nativeFallbackGroupCount: nativeFallback.length, nativeFallbackProcessingMs: distribution(nativeFallback.map(row => row.processingMs)),
     headroomThresholdMs: threshold, headroomPass: processing.p95 !== null && processing.p95 <= threshold,
     runtimeEligible: artifact.schedulingMode === 'causal' && processing.count >= 20
       && processing.p95 <= threshold && backlog.noSustainedBacklog };
@@ -41,7 +44,7 @@ export function runtimeReceipt(artifact) {
 
 export async function runSyntheticRuntime({ root, durationMs = 30220, channel = 'chrome', deployments = DEPLOYMENTS }) {
   const stageA = await materializeSyntheticStageARoot({ root: path.join(root, 'audio_only'), durationMs,
-    fixtureId: 'non-smd-runtime-tone' });
+    fixtureId: 'non-smd-runtime-tone', continuousSignal: true });
   const candidates = {};
   for (const deploymentId of deployments) {
     const artifact = await executeOfficialXc1StageACell({ deploymentId, takeId: stageA.take.takeId,

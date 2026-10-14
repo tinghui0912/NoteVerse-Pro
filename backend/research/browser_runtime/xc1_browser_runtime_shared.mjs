@@ -292,6 +292,7 @@ export async function materializeSyntheticStageARoot({
   fixtureId = 'synthetic-piano-like',
   sampleRateHz = 16000,
   durationMs = 4200,
+  continuousSignal = false,
 } = {}) {
   if (!root) throw new Error('XC1_STAGE_A_ROOT_REQUIRED');
   await rm(root, { recursive: true, force: true });
@@ -303,7 +304,8 @@ export async function materializeSyntheticStageARoot({
   const pcm = new Float32Array(sampleCount);
   for (let i = 0; i < sampleCount; i += 1) {
     const t = i / sampleRateHz;
-    const envelope = t > 0.2 && t < 1.6 ? Math.exp(-(t - 0.2) * 2.0) : 0;
+    const envelope = continuousSignal ? (t > 0.2 ? 1 : 0)
+      : t > 0.2 && t < 1.6 ? Math.exp(-(t - 0.2) * 2.0) : 0;
     pcm[i] = envelope * (Math.sin(2 * Math.PI * 261.625565 * t) * 0.08 + Math.sin(2 * Math.PI * 329.627557 * t) * 0.04);
   }
   const pcmPath = path.join(audioDir, 'input.pcm');

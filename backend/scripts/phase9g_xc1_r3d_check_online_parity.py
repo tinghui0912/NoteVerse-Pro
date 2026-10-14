@@ -61,7 +61,16 @@ def main():
             expected_persistent_prev = np.load(reference / 'reference_prev.npy').reshape(-1) if (reference / 'reference_prev.npy').exists() else expected_chosen[-1]
             result['persistentPrevMismatchCount'] = int(np.count_nonzero(np.asarray(browser['finalStateValues']['prev']) != expected_persistent_prev))
             result['elementwiseFinalStateParity'] = elementwise
-            summary_pass = summary_pass and all(row['pass'] for row in elementwise.values()) and result['persistentPrevMismatchCount'] == 0
+            original_fixture = ROOT / f'backend/data/work/phase9g_dr3r1h/{source}'
+            expected_audio = np.load(original_fixture / 'initial_audio_buffer.npy').reshape(-1).copy()
+            expected_counter = 0
+            for hop in np.load(original_fixture / 'hops.npy').reshape(-1, 512):
+                expected_audio[:-512] = expected_audio[512:]; expected_audio[-512:] = hop
+                expected_counter = expected_counter + 1 if float(expected_audio.max() - expected_audio.min()) < .05 else 0
+            result['audioBufferMismatchCount'] = int(np.count_nonzero(np.asarray(browser['finalStateValues']['audio']) != expected_audio))
+            result['nativeCounterEqual'] = expected_counter == browser['finalStateValues']['numUnderThr']
+            summary_pass = (summary_pass and all(row['pass'] for row in elementwise.values()) and result['persistentPrevMismatchCount'] == 0
+                            and result['audioBufferMismatchCount'] == 0 and result['nativeCounterEqual'])
         result['status'] = 'PASS' if mismatch == 0 and float(delta.max()) <= .001 and summary_pass and prev_pass else 'FAIL'
         results[name] = result
     write_immutable(ROOT / ('backend/data/work/xc1_r3d_validation/online_semantic_parity_f5_gate.json' if final else 'backend/data/work/xc1_r3d_validation/online_semantic_parity_final.json'), {
