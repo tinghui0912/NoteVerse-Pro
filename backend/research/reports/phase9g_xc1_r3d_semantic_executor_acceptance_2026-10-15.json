@@ -1,0 +1,451 @@
+{
+  "phase": "PHASE_9G_XC1_R3D_F5_RECOVERY_AND_FULL_SEALED_BAKEOFF",
+  "implementationHead": "a75e11ada043859c1fb07e992cfd6bdd94b5c521",
+  "status": "R3D_SEMANTIC_EXECUTOR_PARITY_PASS",
+  "candidates": {
+    "robust-browser-v1": {
+      "status": "PASS",
+      "sourceIdentity": {
+        "officialRegistry": {
+          "file": "backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs",
+          "sha256": "f74b1e4ceea0c4eccf4a4ea5c166605a8ce2106f7833aba4d614edf09ecfd758",
+          "exportName": "executeOfficialXc1StageACell"
+        },
+        "realExecutor": {
+          "file": "backend/research/browser_runtime/xc1_robust_browser_executor.mjs",
+          "sha256": "86f6f457227b108494d8e3d86ddea350db6f910c111bb80d9676e67d47f598fc",
+          "exportName": "executeRobustBrowserExecutor"
+        },
+        "sharedBrowserRuntime": {
+          "file": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+          "sha256": "cf5757e276774a75f2f402c3c120ccc3b1a69bb83bc899ffcfdd6e9bfc6f745e",
+          "exportName": "startXc1BrowserAssetServer"
+        },
+        "decoder": {
+          "decoderId": "noteverse-bytedance-decodeByteDanceRawOutputs-parity-v1",
+          "onsetThreshold": 0.3,
+          "frameThreshold": 0.05,
+          "outputFrameRateHz": 100,
+          "midiLowestPianoKey": 21,
+          "inputSamples": 29120,
+          "ownershipFiltering": "half-open-600ms-region"
+        }
+      },
+      "coverage": {
+        "scoreableInterval": {
+          "startMs": 1000,
+          "endMs": 3980,
+          "pastContextMs": 1000,
+          "futureContextMs": 220
+        },
+        "completedThroughMs": 3980,
+        "complete": true
+      },
+      "sessionLoadCount": 1,
+      "inferenceRunCount": 8,
+      "xc1DeploymentIdentitySha256": "e1e40b43ebbc76436d5bf05b66e0dfc250d54197dc5f333d5501e7924b84620a"
+    },
+    "online-amt-k8-browser-v1": {
+      "status": "PASS",
+      "sourceIdentity": {
+        "officialRegistry": {
+          "file": "backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs",
+          "sha256": "f74b1e4ceea0c4eccf4a4ea5c166605a8ce2106f7833aba4d614edf09ecfd758",
+          "exportName": "executeOfficialXc1StageACell"
+        },
+        "realExecutor": {
+          "file": "backend/research/browser_runtime/xc1_online_amt_k8_browser_executor.mjs",
+          "sha256": "e1555728d9b7d1e972c98cea53cf1993d86b6b92c11e10de4687b34fe878a000",
+          "exportName": "executeOnlineAmtK8BrowserExecutor"
+        },
+        "sharedBrowserRuntime": {
+          "file": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+          "sha256": "cf5757e276774a75f2f402c3c120ccc3b1a69bb83bc899ffcfdd6e9bfc6f745e",
+          "exportName": "startXc1BrowserAssetServer"
+        },
+        "decoder": {
+          "publicationProjection": "runOnlineAmtStreamingCandidateFromHopArtifact",
+          "authoritativeBridge": {
+            "file": "apps/customer-web/src/lib/practice/research/online-amt-stateful-streaming.ts",
+            "sha256": "93562fb5a16f22475838e4fafde55ce509298e6fdb95d5ed49b78a231c5d5f5c",
+            "exportName": "runOnlineAmtStreamingCandidateFromHopArtifact"
+          },
+          "worker": {
+            "file": "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs",
+            "sha256": "1d9d4fed4305186b256c2b7f2aa75ea63bb12a6516fea96c1dfdc48ded5aa756",
+            "exportName": "processGroup"
+          }
+        }
+      },
+      "coverage": {
+        "scoreableInterval": {
+          "startMs": 1000,
+          "endMs": 3980,
+          "pastContextMs": 1000,
+          "futureContextMs": 220
+        },
+        "completedThroughMs": 4029.0624999999573,
+        "complete": true
+      },
+      "sessionLoadCount": 2,
+      "inferenceRunCount": 19,
+      "xc1DeploymentIdentitySha256": "27a81e5852d8c2baeb898716d10afc096bfd48a3c9608c322a2ccc00dd227845"
+    },
+    "basic-pitch-browser-v1": {
+      "status": "PASS",
+      "sourceIdentity": {
+        "officialRegistry": {
+          "file": "backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs",
+          "sha256": "f74b1e4ceea0c4eccf4a4ea5c166605a8ce2106f7833aba4d614edf09ecfd758",
+          "exportName": "executeOfficialXc1StageACell"
+        },
+        "realExecutor": {
+          "file": "backend/research/browser_runtime/xc1_basic_pitch_browser_executor.mjs",
+          "sha256": "c4470fda03b17724dc6be1b2a3f112432b43ce14c70dd4062fa6a677445d1d69",
+          "exportName": "executeBasicPitchBrowserExecutor"
+        },
+        "sharedBrowserRuntime": {
+          "file": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+          "sha256": "cf5757e276774a75f2f402c3c120ccc3b1a69bb83bc899ffcfdd6e9bfc6f745e",
+          "exportName": "startXc1BrowserAssetServer"
+        },
+        "decoder": {
+          "decoderImportPath": "node_modules/@spotify/basic-pitch/esm/toMidi.js",
+          "outputToNotesPolyArgs": {
+            "onsetThreshold": 0.5,
+            "frameThreshold": 0.3,
+            "minNoteLenFrames": 5,
+            "inferOnsets": true,
+            "maxFreq": null,
+            "minFreq": null,
+            "melodiaTrick": true,
+            "energyTolerance": 11
+          },
+          "noteFramesToTimeCalled": true,
+          "sourceSha256": "c6492ceae181d24fb254a152d0853f2a60f27e78547db96258026ddcd81ef618"
+        }
+      },
+      "coverage": {
+        "scoreableInterval": {
+          "startMs": 1000,
+          "endMs": 3980,
+          "pastContextMs": 1000,
+          "futureContextMs": 220
+        },
+        "completedThroughMs": 3980,
+        "complete": true
+      },
+      "sessionLoadCount": 1,
+      "inferenceRunCount": 16,
+      "xc1DeploymentIdentitySha256": "8b83916cb886ee95fb9b442b6c5ea1f95e98333f54b153e1f477185b9694243c"
+    }
+  },
+  "authoritativeOnlineParity": {
+    "dockerScienceRuntimeIdentity": {
+      "containerEvidence": "/.dockerenv",
+      "cwd": "/workspace",
+      "executable": "/usr/local/bin/python",
+      "python": "3.11.10 (main, Dec  3 2024, 02:25:00) [GCC 12.2.0]",
+      "system": "Linux"
+    },
+    "results": {
+      "gate_fixture": {
+        "audioBufferMismatchCount": 0,
+        "authoritativePublicationBridge": {
+          "analyzedThroughPerformanceMs": 3421.0624999999573,
+          "canonicalPublicationDigest": "9b4b188a62b7f5cac18cc4180959cef44d1f5a185afbb799423a1585fd21db79",
+          "observationCount": 0,
+          "phase": "PHASE_9G_XC1_R3D_F5_RECOVERY_AND_FULL_SEALED_BAKEOFF",
+          "publicationCount": 107,
+          "sourceIdentity": {
+            "decoder": {
+              "authoritativeBridge": {
+                "exportName": "runOnlineAmtStreamingCandidateFromHopArtifact",
+                "file": "apps/customer-web/src/lib/practice/research/online-amt-stateful-streaming.ts",
+                "sha256": "93562fb5a16f22475838e4fafde55ce509298e6fdb95d5ed49b78a231c5d5f5c"
+              },
+              "publicationProjection": "runOnlineAmtStreamingCandidateFromHopArtifact",
+              "worker": {
+                "exportName": "processGroup",
+                "file": "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs",
+                "sha256": "1d9d4fed4305186b256c2b7f2aa75ea63bb12a6516fea96c1dfdc48ded5aa756"
+              }
+            },
+            "officialRegistry": {
+              "exportName": "executeOfficialXc1StageACell",
+              "file": "backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs",
+              "sha256": "f74b1e4ceea0c4eccf4a4ea5c166605a8ce2106f7833aba4d614edf09ecfd758"
+            },
+            "realExecutor": {
+              "exportName": "executeOnlineAmtK8BrowserExecutor",
+              "file": "backend/research/browser_runtime/xc1_online_amt_k8_browser_executor.mjs",
+              "sha256": "e1555728d9b7d1e972c98cea53cf1993d86b6b92c11e10de4687b34fe878a000"
+            },
+            "sharedBrowserRuntime": {
+              "exportName": "startXc1BrowserAssetServer",
+              "file": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+              "sha256": "cf5757e276774a75f2f402c3c120ccc3b1a69bb83bc899ffcfdd6e9bfc6f745e"
+            }
+          },
+          "status": "AUTHORITATIVE_BRIDGE_PARITY_PASS",
+          "terminalResidualHopCount": 0,
+          "totalHopCount": 112
+        },
+        "chosenStateMismatchCount": 0,
+        "discretePrevSummaryParity": true,
+        "elementwiseFinalStateParity": {
+          "c": {
+            "absoluteTolerance": 0.001,
+            "maxAbsDelta": 0.000396728515625,
+            "meanAbsDelta": 0.000018481994629837573,
+            "pass": true
+          },
+          "cache0": {
+            "absoluteTolerance": 0.001,
+            "maxAbsDelta": 0.00003337860107421875,
+            "meanAbsDelta": 1.8806384335471294e-7,
+            "pass": true
+          },
+          "cache1": {
+            "absoluteTolerance": 0.001,
+            "maxAbsDelta": 0.00001811981201171875,
+            "meanAbsDelta": 3.033287160109445e-7,
+            "pass": true
+          },
+          "h": {
+            "absoluteTolerance": 0.001,
+            "maxAbsDelta": 0.00004857778549194336,
+            "meanAbsDelta": 0.0000028719016995637503,
+            "pass": true
+          },
+          "mel": {
+            "absoluteTolerance": 0.001,
+            "maxAbsDelta": 0.000025272369384765625,
+            "meanAbsDelta": 9.804369134599539e-7,
+            "pass": true
+          }
+        },
+        "finalNativeCounter": 0,
+        "finalStateEvidenceLimitation": "Numeric summaries, not independent elementwise recurrent equivalence.",
+        "finalStateSummaryDeltas": {
+          "c": {
+            "absSumDelta": 0.002307554706931114,
+            "lengthEqual": true,
+            "maxAbsDelta": 0.000091552734375,
+            "sumDelta": 0.00019278749823570251
+          },
+          "cache0": {
+            "absSumDelta": 0.005023220553994179,
+            "lengthEqual": true,
+            "maxAbsDelta": 0.0000019073486328125,
+            "sumDelta": 0.005023220553994179
+          },
+          "cache1": {
+            "absSumDelta": 0.00023362599313259125,
+            "lengthEqual": true,
+            "maxAbsDelta": 4.76837158203125e-7,
+            "sumDelta": 0.00023362599313259125
+          },
+          "h": {
+            "absSumDelta": 0.00004225998418405652,
+            "lengthEqual": true,
+            "maxAbsDelta": 3.5762786865234375e-7,
+            "sumDelta": 0.00023784261429682374
+          },
+          "mel": {
+            "absSumDelta": 0.0011935383081436157,
+            "lengthEqual": true,
+            "maxAbsDelta": 9.5367431640625e-7,
+            "sumDelta": 0.0011939853429794312
+          }
+        },
+        "finalStateSummaryParity": true,
+        "nativeCounterEqual": true,
+        "persistentPrevMismatchCount": 0,
+        "probabilityAbsoluteTolerance": 0.001,
+        "probabilityMaxAbsDelta": 0.000004291534423828125,
+        "probabilityMeanAbsDelta": 1.3678353002390195e-8,
+        "semanticHopCount": 112,
+        "status": "PASS"
+      },
+      "reference_fixture": {
+        "audioBufferMismatchCount": 0,
+        "authoritativePublicationBridge": {
+          "analyzedThroughPerformanceMs": 10269.062499999958,
+          "canonicalPublicationDigest": "32d1ecb50901dbce352d632bf4f8a527d28e60325e562463d5640084426c7da7",
+          "observationCount": 63,
+          "phase": "PHASE_9G_XC1_R3D_F5_RECOVERY_AND_FULL_SEALED_BAKEOFF",
+          "publicationCount": 321,
+          "sourceIdentity": {
+            "decoder": {
+              "authoritativeBridge": {
+                "exportName": "runOnlineAmtStreamingCandidateFromHopArtifact",
+                "file": "apps/customer-web/src/lib/practice/research/online-amt-stateful-streaming.ts",
+                "sha256": "93562fb5a16f22475838e4fafde55ce509298e6fdb95d5ed49b78a231c5d5f5c"
+              },
+              "publicationProjection": "runOnlineAmtStreamingCandidateFromHopArtifact",
+              "worker": {
+                "exportName": "processGroup",
+                "file": "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs",
+                "sha256": "1d9d4fed4305186b256c2b7f2aa75ea63bb12a6516fea96c1dfdc48ded5aa756"
+              }
+            },
+            "officialRegistry": {
+              "exportName": "executeOfficialXc1StageACell",
+              "file": "backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs",
+              "sha256": "f74b1e4ceea0c4eccf4a4ea5c166605a8ce2106f7833aba4d614edf09ecfd758"
+            },
+            "realExecutor": {
+              "exportName": "executeOnlineAmtK8BrowserExecutor",
+              "file": "backend/research/browser_runtime/xc1_online_amt_k8_browser_executor.mjs",
+              "sha256": "e1555728d9b7d1e972c98cea53cf1993d86b6b92c11e10de4687b34fe878a000"
+            },
+            "sharedBrowserRuntime": {
+              "exportName": "startXc1BrowserAssetServer",
+              "file": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+              "sha256": "cf5757e276774a75f2f402c3c120ccc3b1a69bb83bc899ffcfdd6e9bfc6f745e"
+            }
+          },
+          "status": "AUTHORITATIVE_BRIDGE_PARITY_PASS",
+          "terminalResidualHopCount": 6,
+          "totalHopCount": 326
+        },
+        "chosenStateMismatchCount": 0,
+        "discretePrevSummaryParity": true,
+        "elementwiseFinalStateParity": {
+          "c": {
+            "absoluteTolerance": 0.001,
+            "maxAbsDelta": 0.000133514404296875,
+            "meanAbsDelta": 0.0000063355030679446145,
+            "pass": true
+          },
+          "cache0": {
+            "absoluteTolerance": 0.001,
+            "maxAbsDelta": 0.000027105212211608887,
+            "meanAbsDelta": 4.1803480940876774e-7,
+            "pass": true
+          },
+          "cache1": {
+            "absoluteTolerance": 0.001,
+            "maxAbsDelta": 0.000019669532775878906,
+            "meanAbsDelta": 4.470460795101639e-7,
+            "pass": true
+          },
+          "h": {
+            "absoluteTolerance": 0.001,
+            "maxAbsDelta": 0.000010132789611816406,
+            "meanAbsDelta": 0.0000018346364214494315,
+            "pass": true
+          },
+          "mel": {
+            "absoluteTolerance": 0.001,
+            "maxAbsDelta": 0.00002574920654296875,
+            "meanAbsDelta": 0.0000016944127358352104,
+            "pass": true
+          }
+        },
+        "finalNativeCounter": 0,
+        "finalStateEvidenceLimitation": "Numeric summaries, not independent elementwise recurrent equivalence.",
+        "finalStateSummaryDeltas": {
+          "c": {
+            "absSumDelta": 0.001730560596115538,
+            "lengthEqual": true,
+            "maxAbsDelta": 0.0001068115234375,
+            "sumDelta": 0.00015471809638256673
+          },
+          "cache0": {
+            "absSumDelta": 0.0020285465234337607,
+            "lengthEqual": true,
+            "maxAbsDelta": 0.000001430511474609375,
+            "sumDelta": 0.0020285465234337607
+          },
+          "cache1": {
+            "absSumDelta": 0.0008814878092380241,
+            "lengthEqual": true,
+            "maxAbsDelta": 7.152557373046875e-7,
+            "sumDelta": 0.0008814878092380241
+          },
+          "h": {
+            "absSumDelta": 0.0001568800798850134,
+            "lengthEqual": true,
+            "maxAbsDelta": 5.960464477539063e-8,
+            "sumDelta": 0.000013381635653786361
+          },
+          "mel": {
+            "absSumDelta": 0.0005075884982943535,
+            "lengthEqual": true,
+            "maxAbsDelta": 0.00000286102294921875,
+            "sumDelta": 0.0005110427737236023
+          }
+        },
+        "finalStateSummaryParity": true,
+        "nativeCounterEqual": true,
+        "persistentPrevMismatchCount": 0,
+        "probabilityAbsoluteTolerance": 0.001,
+        "probabilityMaxAbsDelta": 0.00001239776611328125,
+        "probabilityMeanAbsDelta": 1.486326065282865e-8,
+        "semanticHopCount": 326,
+        "status": "PASS"
+      }
+    },
+    "status": "PASS"
+  },
+  "officialBasicPitchDecoderParity": {
+    "equal": true,
+    "actual": {
+      "notes": [
+        {
+          "startFrame": 5,
+          "durationFrames": 15,
+          "pitchMidi": 60,
+          "amplitude": 0.8000000000000002
+        }
+      ],
+      "timedNotes": [
+        {
+          "pitchMidi": 60,
+          "amplitude": 0.8000000000000002,
+          "startTimeSeconds": 0.058049886621315196,
+          "durationSeconds": 0.1741496598639456
+        }
+      ]
+    },
+    "expected": {
+      "notes": [
+        {
+          "startFrame": 5,
+          "durationFrames": 15,
+          "pitchMidi": 60,
+          "amplitude": 0.8000000000000002
+        }
+      ],
+      "timedNotes": [
+        {
+          "pitchMidi": 60,
+          "amplitude": 0.8000000000000002,
+          "startTimeSeconds": 0.058049886621315196,
+          "durationSeconds": 0.1741496598639456
+        }
+      ]
+    }
+  },
+  "directRobustDecoderAndOwnershipTests": [
+    {
+      "executable": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-v",
+        "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro:/workspace",
+        "-w",
+        "/workspace",
+        "node:24-bookworm",
+        "node",
+        "--test",
+        "backend/research/browser_runtime/test_xc1_r3d.mjs"
+      ],
+      "stdout": "✔ ownership covers 600ms without gaps (0.721562ms)\n✔ ownership covers 1200ms without gaps (0.097692ms)\n✔ ownership covers 1801ms without gaps (0.086405ms)\n✔ ownership covers 1900ms without gaps (0.110297ms)\n✔ ownership covers 2380ms without gaps (0.110514ms)\n✔ ownership covers 2400.0625ms without gaps (0.079701ms)\n✔ direct authoritative Robust decoder parity including timing, confidence and ordering (1.480442ms)\n✔ output parent exists and is writable before artifact writes (23.964806ms)\n✔ read-only Linux filesystem preflight refuses qualification output (0.563802ms)\n✔ scientific sealer rejects wrong freeze, wrong commit, acceptance and failure (6.253001ms)\n✔ official matrix has no executor or model override option (0.2496ms)\n✔ bounded backlog gate detects growing queue without exact-zero requirement (0.284429ms)\n✔ candidate and deployment bindings reject masquerading before inference (0.466352ms)\n✔ Basic Pitch secondary linear resampler matches frozen interpolation including last sample (7.296575ms)\n✔ real sealer detects mutation, missing/duplicate cell and wrong identity (270.943624ms)\nℹ tests 15\nℹ suites 0\nℹ pass 15\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 806.174893\n",
+      "exitCode": 0
+    }
+  ]
+}

@@ -1,0 +1,327 @@
+{
+  "phase": "PHASE_9G_XC1_R3D_F5_RECOVERY_AND_FULL_SEALED_BAKEOFF",
+  "status": "R3D_PRODUCTION_PATH_COMPLETE_DRY_RUN_PASS",
+  "dockerImageId": "sha256:7feadf65b7763a9ee94880218e3e80f8566ec242ffff7e9ca99d10bb85d76a6f",
+  "receipts": [
+    {
+      "executable": "D:\\Program Files\\nodejs\\node.exe",
+      "argv": [
+        "backend/research/browser_runtime/xc1_r3d_validation.mjs",
+        "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\xc1_r3d_validation\\dry_run_i5"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 133954,
+      "stdout": "1/6 robust-browser-v1 non-smd-exact COMPLETE\n2/6 robust-browser-v1 non-smd-partial COMPLETE\n3/6 online-amt-k8-browser-v1 non-smd-exact COMPLETE\n4/6 online-amt-k8-browser-v1 non-smd-partial COMPLETE\n5/6 basic-pitch-browser-v1 non-smd-exact COMPLETE\n6/6 basic-pitch-browser-v1 non-smd-partial COMPLETE\nrobust-browser-v1 P95=315.720068359375 eligible=true\nonline-amt-k8-browser-v1 P95=137.52015380859373 eligible=true\nbasic-pitch-browser-v1 P95=203.4899169921875 eligible=true\n{\"root\":\"C:\\\\Users\\\\tinghuilin\\\\Downloads\\\\NoteVerse-Pro\\\\backend\\\\data\\\\work\\\\xc1_r3d_validation\\\\dry_run_i5\",\"candidates\":{\"robust-browser-v1\":\"PASS\",\"online-amt-k8-browser-v1\":\"PASS\",\"basic-pitch-browser-v1\":\"PASS\"}}\n"
+    },
+    {
+      "executable": "docker",
+      "argv": [
+        "run",
+        "--rm",
+        "-v",
+        "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro:/workspace",
+        "-w",
+        "/workspace",
+        "sha256:7feadf65b7763a9ee94880218e3e80f8566ec242ffff7e9ca99d10bb85d76a6f",
+        "python",
+        "-m",
+        "backend.scripts.phase9g_xc1_r3d_synthetic_truth",
+        "--root",
+        "/workspace/backend/data/work/xc1_r3d_validation/dry_run_i5"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 1183,
+      "stdout": ""
+    },
+    {
+      "executable": "docker",
+      "argv": [
+        "run",
+        "--rm",
+        "-v",
+        "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro:/workspace",
+        "-w",
+        "/workspace",
+        "sha256:7feadf65b7763a9ee94880218e3e80f8566ec242ffff7e9ca99d10bb85d76a6f",
+        "python",
+        "-m",
+        "backend.scripts.phase9g_xc1_r3d_stage_b",
+        "--seal",
+        "/workspace/backend/data/work/xc1_r3d_validation/dry_run_i5/seal.json",
+        "--manifest",
+        "/workspace/backend/data/work/xc1_r3d_validation/dry_run_i5/manifest.json",
+        "--truth-manifest",
+        "/workspace/backend/data/work/xc1_r3d_validation/dry_run_i5/truth_manifest.json",
+        "--archive",
+        "/workspace/backend/data/work/xc1_r3d_validation/dry_run_i5/synthetic_truth.zip",
+        "--runtime",
+        "/workspace/backend/data/work/xc1_r3d_validation/dry_run_i5/runtime_bound.json",
+        "--truth-reveal",
+        "/workspace/backend/data/work/xc1_r3d_validation/dry_run_i5/truth_reveal.json",
+        "--output",
+        "/workspace/backend/data/work/xc1_r3d_validation/dry_run_i5/stage_b.json",
+        "--f5-commit",
+        "NON_SMD_DRY_RUN_NOT_PROSPECTIVE",
+        "--f5-freeze-sha256",
+        "6a782b7c0c4ee7a932ffbce82f0624fbf0caec91adb6045b6fd9bdc13f7f258a"
+      ],
+      "exitCode": 0,
+      "elapsedMs": 2355,
+      "stdout": "{\"scientificFrontRunnerDecision\": \"NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER\", \"primaryRows\": 6}\n"
+    }
+  ],
+  "sealMutationDetection": "PASS",
+  "sealFilesystemSha256": "298964f10326695c2ce30e85faa1f5e054229a57bb13e4742268b3387fbb842b",
+  "scoresFilesystemSha256": "7e4d27095752646028cd50d4793fd37498d0f924ad5607c2565f8c324ff68432",
+  "truthReveal": {
+    "f5Commit": "NON_SMD_DRY_RUN_NOT_PROSPECTIVE",
+    "f5FreezeSha256": "6a782b7c0c4ee7a932ffbce82f0624fbf0caec91adb6045b6fd9bdc13f7f258a",
+    "phase": "PHASE_9G_XC1_R3D_F5_RECOVERY_AND_FULL_SEALED_BAKEOFF",
+    "priorMidiReadsByThisScoringInvocation": 0,
+    "sealCanonicalSha256": "c61416d262b82943e5bd2a04c8fc16d3c93600d5904ce93d1e4be44101fcea4f",
+    "sealFilesystemSha256": "298964f10326695c2ce30e85faa1f5e054229a57bb13e4742268b3387fbb842b",
+    "sealVerificationTimestamp": "2026-10-14T16:08:02.247325+00:00",
+    "truthRevealTimestamp": "2026-10-14T16:08:02.253116+00:00"
+  },
+  "primaryMetricRows": 6,
+  "pairedBootstrap": {
+    "basic-pitch-browser-v1__online-amt-k8-browser-v1__f1": {
+      "candidateA": "basic-pitch-browser-v1",
+      "candidateB": "online-amt-k8-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "f1",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "basic-pitch-browser-v1__online-amt-k8-browser-v1__falsePositiveOnsetsPerMinute": {
+      "candidateA": "basic-pitch-browser-v1",
+      "candidateB": "online-amt-k8-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "falsePositiveOnsetsPerMinute",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "basic-pitch-browser-v1__online-amt-k8-browser-v1__missedOnsetRate": {
+      "candidateA": "basic-pitch-browser-v1",
+      "candidateB": "online-amt-k8-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "missedOnsetRate",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "basic-pitch-browser-v1__robust-browser-v1__f1": {
+      "candidateA": "basic-pitch-browser-v1",
+      "candidateB": "robust-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "f1",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "basic-pitch-browser-v1__robust-browser-v1__falsePositiveOnsetsPerMinute": {
+      "candidateA": "basic-pitch-browser-v1",
+      "candidateB": "robust-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "falsePositiveOnsetsPerMinute",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "basic-pitch-browser-v1__robust-browser-v1__missedOnsetRate": {
+      "candidateA": "basic-pitch-browser-v1",
+      "candidateB": "robust-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "missedOnsetRate",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "online-amt-k8-browser-v1__basic-pitch-browser-v1__f1": {
+      "candidateA": "online-amt-k8-browser-v1",
+      "candidateB": "basic-pitch-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "f1",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "online-amt-k8-browser-v1__basic-pitch-browser-v1__falsePositiveOnsetsPerMinute": {
+      "candidateA": "online-amt-k8-browser-v1",
+      "candidateB": "basic-pitch-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "falsePositiveOnsetsPerMinute",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "online-amt-k8-browser-v1__basic-pitch-browser-v1__missedOnsetRate": {
+      "candidateA": "online-amt-k8-browser-v1",
+      "candidateB": "basic-pitch-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "missedOnsetRate",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "online-amt-k8-browser-v1__robust-browser-v1__f1": {
+      "candidateA": "online-amt-k8-browser-v1",
+      "candidateB": "robust-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "f1",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "online-amt-k8-browser-v1__robust-browser-v1__falsePositiveOnsetsPerMinute": {
+      "candidateA": "online-amt-k8-browser-v1",
+      "candidateB": "robust-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "falsePositiveOnsetsPerMinute",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "online-amt-k8-browser-v1__robust-browser-v1__missedOnsetRate": {
+      "candidateA": "online-amt-k8-browser-v1",
+      "candidateB": "robust-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "missedOnsetRate",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "robust-browser-v1__basic-pitch-browser-v1__f1": {
+      "candidateA": "robust-browser-v1",
+      "candidateB": "basic-pitch-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "f1",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "robust-browser-v1__basic-pitch-browser-v1__falsePositiveOnsetsPerMinute": {
+      "candidateA": "robust-browser-v1",
+      "candidateB": "basic-pitch-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "falsePositiveOnsetsPerMinute",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "robust-browser-v1__basic-pitch-browser-v1__missedOnsetRate": {
+      "candidateA": "robust-browser-v1",
+      "candidateB": "basic-pitch-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "missedOnsetRate",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "robust-browser-v1__online-amt-k8-browser-v1__f1": {
+      "candidateA": "robust-browser-v1",
+      "candidateB": "online-amt-k8-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "f1",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "robust-browser-v1__online-amt-k8-browser-v1__falsePositiveOnsetsPerMinute": {
+      "candidateA": "robust-browser-v1",
+      "candidateB": "online-amt-k8-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "falsePositiveOnsetsPerMinute",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    },
+    "robust-browser-v1__online-amt-k8-browser-v1__missedOnsetRate": {
+      "candidateA": "robust-browser-v1",
+      "candidateB": "online-amt-k8-browser-v1",
+      "ci95": [
+        0,
+        0
+      ],
+      "draws": 5000,
+      "meanDiff": 0,
+      "metric": "missedOnsetRate",
+      "outputDigest": "549f2b181c3bbc95f357bb1bfd0a51dcd44abf59393da00d111471f81b5718cb",
+      "seed": 13371
+    }
+  },
+  "scientificDryRunDisposition": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+  "completedCellCount": 6,
+  "stageBReportSha256": "7e4d27095752646028cd50d4793fd37498d0f924ad5607c2565f8c324ff68432",
+  "sourceReceipt": "backend/data/work/xc1_r3d_validation/dry_run_i5/complete_dry_run_report.json"
+}

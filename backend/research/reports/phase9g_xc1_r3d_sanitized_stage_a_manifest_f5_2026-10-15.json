@@ -1,0 +1,1015 @@
+{
+  "phase": "PHASE_9G_XC1_R3D_F5_RECOVERY_AND_FULL_SEALED_BAKEOFF",
+  "fixtureClass": "SMD_V2_REAL_ACOUSTIC_ONLY",
+  "implementationCommit": "a75e11ada043859c1fb07e992cfd6bdd94b5c521",
+  "truthFieldsExcluded": true,
+  "midiPathsExcluded": true,
+  "candidateInferenceStarted": false,
+  "candidateIdentities": {
+    "robust-browser-v1": "e1e40b43ebbc76436d5bf05b66e0dfc250d54197dc5f333d5501e7924b84620a",
+    "online-amt-k8-browser-v1": "27a81e5852d8c2baeb898716d10afc096bfd48a3c9608c322a2ccc00dd227845",
+    "basic-pitch-browser-v1": "8b83916cb886ee95fb9b442b6c5ea1f95e98333f54b153e1f477185b9694243c"
+  },
+  "takes": [
+    {
+      "takeId": "bach_bwv849-01_001_20090916-smd",
+      "durationSeconds": 157,
+      "workId": "bach_bwv849_01",
+      "sourceAcousticWavSha256": "a539240eb5544ab007475d73f2bf8ffeeea88c6d96f8601f08bdf276f11cf284",
+      "scoreableInterior": {
+        "endMs": 156780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "8aee56a4c22b79afa6392c435f6797216fb40eeaacdabe5f71cf0e8a911b1558",
+        "byteSize": 10048000,
+        "sampleCount": 2512000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv849-01_001_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "bach_bwv849-02_001_20090916-smd",
+      "durationSeconds": 238.89,
+      "workId": "bach_bwv849_02",
+      "sourceAcousticWavSha256": "3db2dada28209a22b9029f76654666d0f392468c6957f3d946a322e0ea239133",
+      "scoreableInterior": {
+        "endMs": 238670,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "2c7ed6240cfe947271952484c1602de641d3aafffa3d6915f1e000e1b77d7c4f",
+        "byteSize": 15288960,
+        "sampleCount": 3822240,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv849-02_001_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "bach_bwv871-01_002_20090916-smd",
+      "durationSeconds": 140,
+      "workId": "bach_bwv871_01",
+      "sourceAcousticWavSha256": "708284e0a670990ed368881bd8bdc57c22504bc6b69e90e10cb028e6cd76b5dd",
+      "scoreableInterior": {
+        "endMs": 139780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "d1e0f240a0046294a4589d8db45ec349624273a87522fdc668b5caad4f5e1c98",
+        "byteSize": 8960000,
+        "sampleCount": 2240000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv871-01_002_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "bach_bwv871-02_002_20090916-smd",
+      "durationSeconds": 127,
+      "workId": "bach_bwv871_02",
+      "sourceAcousticWavSha256": "8a2b3956e2c127d5e5bcf19559087d8bc11f3004f374ce145453f2873ef898d7",
+      "scoreableInterior": {
+        "endMs": 126780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "1c8dccccab5868d4f5cdc4c9449d69f21349ca7a61f4824771c793bd1ff128d8",
+        "byteSize": 8128000,
+        "sampleCount": 2032000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv871-02_002_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "bach_bwv875-01_002_20090916-smd",
+      "durationSeconds": 102,
+      "workId": "bach_bwv875_01",
+      "sourceAcousticWavSha256": "5e9eb90ef90d7f0a2fe8113a14aeeff6bda691f410d979de67d3744debb9ff6a",
+      "scoreableInterior": {
+        "endMs": 101780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "f0b9423f8e48cb838c6d7a7099e85aefc51a58dba5a2f1e598554189edce83a3",
+        "byteSize": 6528000,
+        "sampleCount": 1632000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv875-01_002_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "bach_bwv875-02_002_20090916-smd",
+      "durationSeconds": 119,
+      "workId": "bach_bwv875_02",
+      "sourceAcousticWavSha256": "b1a79b39f6e8b1b04daba9b19f6c4d15a99702a9bbaf309ebb8c2b46a2ae8b0a",
+      "scoreableInterior": {
+        "endMs": 118780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "5dd402679c4fd7a52d2c9dd83963b2984afa8352c9c8845d10ef20e76769acad",
+        "byteSize": 7616000,
+        "sampleCount": 1904000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv875-02_002_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "bach_bwv888-01_008_20110315-smd",
+      "durationSeconds": 134.59,
+      "workId": "bach_bwv888_01",
+      "sourceAcousticWavSha256": "a06dcc04692f4e8f53789f753997fd2df664296af0243d4c6ada6f2656281e92",
+      "scoreableInterior": {
+        "endMs": 134370,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "f4684142206518df325bd04048ffa76e3cbd08b982e74861f512d630392cbd40",
+        "byteSize": 8613760,
+        "sampleCount": 2153440,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv888-01_008_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "bach_bwv888-02_008_20110315-smd",
+      "durationSeconds": 75.9,
+      "workId": "bach_bwv888_02",
+      "sourceAcousticWavSha256": "17d6f1eea2d8044d2402a0a1467e1e529f98c0ca06f422317e5651ce9b85c4af",
+      "scoreableInterior": {
+        "endMs": 75680,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "098ca79e70572b2abceb73cc05e47f7fa114da57d273b46ebd4abdaf3624ddb5",
+        "byteSize": 4857600,
+        "sampleCount": 1214400,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv888-02_008_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "bartok_sz080-01_002_20110315-smd",
+      "durationSeconds": 284.82,
+      "workId": "bartok_sz080_01",
+      "sourceAcousticWavSha256": "5f4d3aeab3937ad81f04cf4df73e18d67e43f06863a9f7a5131c545ec32343ec",
+      "scoreableInterior": {
+        "endMs": 284600,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "a0afb9f1df8aa99e0ca1cc3f196400d92601cc2fb375b0dc06bf95169cd24eb1",
+        "byteSize": 18228480,
+        "sampleCount": 4557120,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/bartok_sz080-01_002_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "bartok_sz080-02_002_20110315-smd",
+      "durationSeconds": 261.36,
+      "workId": "bartok_sz080_02",
+      "sourceAcousticWavSha256": "49e9420abf916e2e74a84352627fd6ba828d9257a2807c782d1f2d043e572f55",
+      "scoreableInterior": {
+        "endMs": 261140,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "7feb65cbe8c476080b26c57b1837c3c733ae91a55ac8b651e87bb9565d6ac3c2",
+        "byteSize": 16727040,
+        "sampleCount": 4181760,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/bartok_sz080-02_002_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "bartok_sz080-03_002_20110315-smd",
+      "durationSeconds": 214.2,
+      "workId": "bartok_sz080_03",
+      "sourceAcousticWavSha256": "26a14534568c9a9c9e3f507b158fd0c7afee95dd2d2bee7e3c98830b719b606f",
+      "scoreableInterior": {
+        "endMs": 213980,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "cdcccd9f04d915fa263cf540c130207bf853a18fa5ffb5cec5958ff88fe277df",
+        "byteSize": 13708800,
+        "sampleCount": 3427200,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/bartok_sz080-03_002_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "beethoven_op027no1-01_003_20090916-smd",
+      "durationSeconds": 431,
+      "workId": "beethoven_op027no1_01",
+      "sourceAcousticWavSha256": "e0d173478761777750d1763a37d6b5dfc6c0aba379a28c35393dd42cd518c513",
+      "scoreableInterior": {
+        "endMs": 430780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "dfaad0d2f45f1a75b894e4d775947cb0d908dff1e03710f4c7e2ec9c4ef217e8",
+        "byteSize": 27584000,
+        "sampleCount": 6896000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/beethoven_op027no1-01_003_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "beethoven_op027no1-02_003_20090916-smd",
+      "durationSeconds": 176,
+      "workId": "beethoven_op027no1_02",
+      "sourceAcousticWavSha256": "049d7bdb5e037beae08bf9900f4ac1e072b29b82246371c63d7e7b81a85dcb53",
+      "scoreableInterior": {
+        "endMs": 175780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "f597489c690637a31a3e406920e54e41224c8884d19a686f9ab4348b1061dcf7",
+        "byteSize": 11264000,
+        "sampleCount": 2816000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/beethoven_op027no1-02_003_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "beethoven_op027no1-03_003_20090916-smd",
+      "durationSeconds": 339,
+      "workId": "beethoven_op027no1_03",
+      "sourceAcousticWavSha256": "3067df1ec4c6e6bd48bd18fc79735aad49efbaa1b43a7316bbe6a316626a6ddb",
+      "scoreableInterior": {
+        "endMs": 338780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "831fb4f64c92a6225642ed96b301bfd52595336362e81b727cf1cad3e9f350dd",
+        "byteSize": 21696000,
+        "sampleCount": 5424000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/beethoven_op027no1-03_003_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "beethoven_op031no2-01_002_20090916-smd",
+      "durationSeconds": 530,
+      "workId": "beethoven_op031no2_01",
+      "sourceAcousticWavSha256": "3d257c53c26cfbb243a371e536932d36f54928e1db46b6841350cdfb57734624",
+      "scoreableInterior": {
+        "endMs": 529780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "4096e4ebed5d54cb1e479a791003b960d5d86e34b5baca3bd8b2683c7b2e24c3",
+        "byteSize": 33920000,
+        "sampleCount": 8480000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/beethoven_op031no2-01_002_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "beethoven_op031no2-02_002_20090916-smd",
+      "durationSeconds": 507.06,
+      "workId": "beethoven_op031no2_02",
+      "sourceAcousticWavSha256": "26d4c61d6bf3def9398365d1f968047bd52c2caf0f5cda0c1c6f20903376d241",
+      "scoreableInterior": {
+        "endMs": 506840,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "5b0ca50674cdd18cbd466d489fc077c6591411580fa561cca75553f831de51b3",
+        "byteSize": 32451840,
+        "sampleCount": 8112960,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/beethoven_op031no2-02_002_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "beethoven_op031no2-03_002_20090916-smd",
+      "durationSeconds": 402,
+      "workId": "beethoven_op031no2_03",
+      "sourceAcousticWavSha256": "f292a40d6303e8731189156a29dfa04b3ac5ea1d5c6e8661520cbc2854033633",
+      "scoreableInterior": {
+        "endMs": 401780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "334f5a6ed61d4e14f6795ad13f0f62d1bd5022d4d86605f999c9e93ac3ff27c7",
+        "byteSize": 25728000,
+        "sampleCount": 6432000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/beethoven_op031no2-03_002_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "beethoven_woo080_001_20081107-smd",
+      "durationSeconds": 659.2407256235828,
+      "workId": "beethoven_woo080",
+      "sourceAcousticWavSha256": "e2d4b2d1bd16f6a880f7eb2295edf923249545ea5df76a88f192357484c39bc0",
+      "scoreableInterior": {
+        "endMs": 659020.6875,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "3c642ececab5d7a73108ca78a81b71f5b857db301e00a47c56e180d5b22d8ed8",
+        "byteSize": 42191404,
+        "sampleCount": 10547851,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/beethoven_woo080_001_20081107-smd.f32"
+      }
+    },
+    {
+      "takeId": "brahms_op005-01_002_20110315-smd",
+      "durationSeconds": 489.3,
+      "workId": "brahms_op005_01",
+      "sourceAcousticWavSha256": "8f8749ebe5acd0aecc4eddd6f931a482bcc5a314be51586d9295c0cc29197993",
+      "scoreableInterior": {
+        "endMs": 489080,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "d4bcfac4d1bf9f784cdaa5b4bab6ac3498a4dd7918722b6d3a4f277308f1a988",
+        "byteSize": 31315200,
+        "sampleCount": 7828800,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/brahms_op005-01_002_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "brahms_op010no1_003_20090916-smd",
+      "durationSeconds": 302,
+      "workId": "brahms_op010no1",
+      "sourceAcousticWavSha256": "2512bc5edbb66525889636fa85da0c948344d34e484467d31c101959e9b724a0",
+      "scoreableInterior": {
+        "endMs": 301780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "c9a3ce2f1418a18c4dc766c50c1de2798d101b6d9e9f172d6ae32bdcfcb3d73a",
+        "byteSize": 19328000,
+        "sampleCount": 4832000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/brahms_op010no1_003_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "brahms_op010no2_003_20090916-smd",
+      "durationSeconds": 410,
+      "workId": "brahms_op010no2",
+      "sourceAcousticWavSha256": "7331ad5c0eb95e56ca4b0a4d5080a1959921e30ab38606e2a908042cec4ecee0",
+      "scoreableInterior": {
+        "endMs": 409780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "fa62929cb722f2972a57617238c2b1e0f8aad154599418eef825dd330bf39823",
+        "byteSize": 26240000,
+        "sampleCount": 6560000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/brahms_op010no2_003_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "chopin_op010-03_007_20100611-smd",
+      "durationSeconds": 287,
+      "workId": "chopin_op010_03",
+      "sourceAcousticWavSha256": "090fd5c3d801929048c25893586eaa9da40a2a1fe1d36a98fee24c7b610cbe9a",
+      "scoreableInterior": {
+        "endMs": 286780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "5f70661104fe1307d7a78e20715df8ca800e822eb260bd0d009321075eb8853f",
+        "byteSize": 18368000,
+        "sampleCount": 4592000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op010-03_007_20100611-smd.f32"
+      }
+    },
+    {
+      "takeId": "chopin_op010-04_007_20100611-smd",
+      "durationSeconds": 132,
+      "workId": "chopin_op010_04",
+      "sourceAcousticWavSha256": "d721f66f9a7523153b7da1c71a63b2375ef77e9ece4621c9522f9c3d6520b846",
+      "scoreableInterior": {
+        "endMs": 131780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "4dcbaa53268cefab14f5946d0c882235750ce6452bcf672553649772568322b0",
+        "byteSize": 8448000,
+        "sampleCount": 2112000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op010-04_007_20100611-smd.f32"
+      }
+    },
+    {
+      "takeId": "chopin_op026no1_003_20100611-smd",
+      "durationSeconds": 462,
+      "workId": "chopin_op026no1",
+      "sourceAcousticWavSha256": "ef3f57c97d7edc1ee9a73e89f1d1bdc767c3cec79a3fe2d2e0a64b2aa5650b6c",
+      "scoreableInterior": {
+        "endMs": 461780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "de1c432c523b3c7d2dbe301d4793f1d6ebbf72842ba9ba0961450545e76066f7",
+        "byteSize": 29568000,
+        "sampleCount": 7392000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op026no1_003_20100611-smd.f32"
+      }
+    },
+    {
+      "takeId": "chopin_op026no2_005_20100611-smd",
+      "durationSeconds": 468,
+      "workId": "chopin_op026no2",
+      "sourceAcousticWavSha256": "75ce59c02b1d5ed69747907a109900fca8849842236a3bca24bdca87ed0bf902",
+      "scoreableInterior": {
+        "endMs": 467780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "c227c3e65827bcc48f5a0fa3bedbc485b895e18cf77d47489b68cca2fb02538d",
+        "byteSize": 29952000,
+        "sampleCount": 7488000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op026no2_005_20100611-smd.f32"
+      }
+    },
+    {
+      "takeId": "chopin_op028-01_003_20100611-smd",
+      "durationSeconds": 33,
+      "workId": "chopin_op028_01",
+      "sourceAcousticWavSha256": "9c37d8d2ac9f3a9bc737163fde3e727a78c061d5444a044d213f40f53ed48824",
+      "scoreableInterior": {
+        "endMs": 32780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "63c05bd7adf8c9ee1b4841658400c4ba791fbc145075cff8eeac040a8dd5a2f8",
+        "byteSize": 2112000,
+        "sampleCount": 528000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op028-01_003_20100611-smd.f32"
+      }
+    },
+    {
+      "takeId": "chopin_op028-03_003_20100611-smd",
+      "durationSeconds": 59,
+      "workId": "chopin_op028_03",
+      "sourceAcousticWavSha256": "67b9151286d65871a9d4bd8c23b10d1de58f5ec69c63585b8a9b1270c363b1a7",
+      "scoreableInterior": {
+        "endMs": 58780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "f5678467ca75d023c74b6ed9c14c1d05def3b716540fb15045b8dce195b83c4a",
+        "byteSize": 3776000,
+        "sampleCount": 944000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op028-03_003_20100611-smd.f32"
+      }
+    },
+    {
+      "takeId": "chopin_op028-04_003_20100611-smd",
+      "durationSeconds": 119,
+      "workId": "chopin_op028_04",
+      "sourceAcousticWavSha256": "05ceb401b9311dfe13b4ac814f6ae3dda967bdd55b4386dd6362685a95edf478",
+      "scoreableInterior": {
+        "endMs": 118780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "f5a89395044308da2adea41669b43a0d9dea065b1dc42d4e2e8ca11ef6ff0e84",
+        "byteSize": 7616000,
+        "sampleCount": 1904000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op028-04_003_20100611-smd.f32"
+      }
+    },
+    {
+      "takeId": "chopin_op028-11_003_20100611-smd",
+      "durationSeconds": 38,
+      "workId": "chopin_op028_11",
+      "sourceAcousticWavSha256": "6dd00d18eae09e40212d25c7a55c2c2efc6a853468c8f6d91886afa0ea8125b2",
+      "scoreableInterior": {
+        "endMs": 37780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "8b05ccac06215489984b5981be1921d973f2e3861e0f03e2359640b57dbc2802",
+        "byteSize": 2432000,
+        "sampleCount": 608000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op028-11_003_20100611-smd.f32"
+      }
+    },
+    {
+      "takeId": "chopin_op028-15_006_20100611-smd",
+      "durationSeconds": 319,
+      "workId": "chopin_op028_15",
+      "sourceAcousticWavSha256": "045d8e3d53829ce268615062f77a67312d2cd162b511c2d29d22a7c5f3423cd0",
+      "scoreableInterior": {
+        "endMs": 318780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "3aef5cddff783b311caf47bc1ff0a1344a9f05a8b232a3602955fb324d6e2db6",
+        "byteSize": 20416000,
+        "sampleCount": 5104000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op028-15_006_20100611-smd.f32"
+      }
+    },
+    {
+      "takeId": "chopin_op028-17_005_20100611-smd",
+      "durationSeconds": 177,
+      "workId": "chopin_op028_17",
+      "sourceAcousticWavSha256": "65ab1c88b5de417623e82ac05c9e0d86f61b06adcb8153a7dfcd7228f5122a5c",
+      "scoreableInterior": {
+        "endMs": 176780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "b15bd88577d872625e8c5f1eda23c96c817822f2a90ed57f149aad20b8ed7668",
+        "byteSize": 11328000,
+        "sampleCount": 2832000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op028-17_005_20100611-smd.f32"
+      }
+    },
+    {
+      "takeId": "chopin_op029_004_20100611-smd",
+      "durationSeconds": 243,
+      "workId": "chopin_op029",
+      "sourceAcousticWavSha256": "7909fea507f246d7f6a32268b9b34b744ff2a814a6c9ab6c7ad4b68b2f347982",
+      "scoreableInterior": {
+        "endMs": 242780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "90d5976fd36d74e901f32403bfe93863f7f90f9175f184a1c59bf1a5eebe3250",
+        "byteSize": 15552000,
+        "sampleCount": 3888000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op029_004_20100611-smd.f32"
+      }
+    },
+    {
+      "takeId": "chopin_op048no1_007_20100611-smd",
+      "durationSeconds": 432,
+      "workId": "chopin_op048no1",
+      "sourceAcousticWavSha256": "85ff1b3beeb66d811462747967ef179b453debc75d7c7731ba6b6fc56fadb394",
+      "scoreableInterior": {
+        "endMs": 431780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "926f22839966276c1527ca394e44fc99990b63dee5367cd276e171384e2344ce",
+        "byteSize": 27648000,
+        "sampleCount": 6912000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op048no1_007_20100611-smd.f32"
+      }
+    },
+    {
+      "takeId": "chopin_op066_006_20100611-smd",
+      "durationSeconds": 311,
+      "workId": "chopin_op066",
+      "sourceAcousticWavSha256": "ee8daf3dd636b8902e9c2c0f74d57e0700710bfa20d3cb673486a310406d3b29",
+      "scoreableInterior": {
+        "endMs": 310780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "43530888797d646d0b798e8018063f963e2f16ee193e40b0567310587ae6877a",
+        "byteSize": 19904000,
+        "sampleCount": 4976000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op066_006_20100611-smd.f32"
+      }
+    },
+    {
+      "takeId": "haydn_hob017no4_003_20090916-smd",
+      "durationSeconds": 351,
+      "workId": "haydn_hob017no4",
+      "sourceAcousticWavSha256": "81a1ba926b87dd7af9b8e9c304b95869b2708e20e25fcc1148755270b9376296",
+      "scoreableInterior": {
+        "endMs": 350780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "043e7a9c6b854130b62ece8bf113700442fa44898cd7e91dc8c40067b2aaf87d",
+        "byteSize": 22464000,
+        "sampleCount": 5616000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/haydn_hob017no4_003_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "haydn_hobxvino52-01_008_20110315-smd",
+      "durationSeconds": 485.52,
+      "workId": "haydn_hobxvino52_01",
+      "sourceAcousticWavSha256": "9582374c41bfbb81e282e717767f682f9257eb8eccca48383b722a60f72e21ca",
+      "scoreableInterior": {
+        "endMs": 485300,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "f2c0a315d99896ecaab4241f13d0780b450262a80b6b4f07260e0f53ed05102e",
+        "byteSize": 31073280,
+        "sampleCount": 7768320,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/haydn_hobxvino52-01_008_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "haydn_hobxvino52-02_008_20110315-smd",
+      "durationSeconds": 433.93,
+      "workId": "haydn_hobxvino52_02",
+      "sourceAcousticWavSha256": "23594d5376454c81d8184ec0c05d69b54ed07e5b6bdeebeacf1553efd6ae6ac6",
+      "scoreableInterior": {
+        "endMs": 433710,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "5423fe4cd03d975144a42d518ea6052ed92004a27aeb37855ef71a5f6f5be2e1",
+        "byteSize": 27771520,
+        "sampleCount": 6942880,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/haydn_hobxvino52-02_008_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "haydn_hobxvino52-03_008_20110315-smd",
+      "durationSeconds": 347.37,
+      "workId": "haydn_hobxvino52_03",
+      "sourceAcousticWavSha256": "a075b2244587f480aee7e85c1eb769200e416c798f7fd308a015a4e86bfe084a",
+      "scoreableInterior": {
+        "endMs": 347150,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "565eff7c5e965e965352b883324478eaa3c63097178a36bf46395dcfc3b6fdf2",
+        "byteSize": 22231680,
+        "sampleCount": 5557920,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/haydn_hobxvino52-03_008_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "liszt_annesdepelerinage-lecturedante_002_20090916-smd",
+      "durationSeconds": 1039.19,
+      "workId": "liszt_annesdepelerinage_lecturedante",
+      "sourceAcousticWavSha256": "918d8ae6e49e22c8a4b9b071d33bd6728a1c5914abc9eb1fea897bd4cffe0cd2",
+      "scoreableInterior": {
+        "endMs": 1038970,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "c6b34a0d7b62b2c182acd0972f4cc4d22fa4b8c40d36107435de4bf620a36cf8",
+        "byteSize": 66508160,
+        "sampleCount": 16627040,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/liszt_annesdepelerinage-lecturedante_002_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "liszt_konzertetuedeno2laleggierezza_003_20090916-smd",
+      "durationSeconds": 300,
+      "workId": "liszt_konzertetuedeno2laleggierezza",
+      "sourceAcousticWavSha256": "32259d46d5effb3894ceb18b9f64047374c572932908f5b0d31ed373032863bf",
+      "scoreableInterior": {
+        "endMs": 299780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "863b3dcf78abe0aca61e88fb1dd89b7458692b734b9fa860b879a37805296efc",
+        "byteSize": 19200000,
+        "sampleCount": 4800000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/liszt_konzertetuedeno2laleggierezza_003_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "liszt_variationenbachmotivweinenklagensorgenzagen_001_20090916-smd",
+      "durationSeconds": 966,
+      "workId": "liszt_variationenbachmotivweinenklagensorgenzagen",
+      "sourceAcousticWavSha256": "d305803845a1b83d8ad507a6878a6fc290d152b6e944f4c7d4c88774dc78932f",
+      "scoreableInterior": {
+        "endMs": 965780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "5c47b119889eb25fb429c4762f40ce6ab7260eec7ac2b6cc8ee31bb5fe0bdf15",
+        "byteSize": 61824000,
+        "sampleCount": 15456000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/liszt_variationenbachmotivweinenklagensorgenzagen_001_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "mozart_kv265_006_20110315-smd",
+      "durationSeconds": 479.02,
+      "workId": "mozart_kv265",
+      "sourceAcousticWavSha256": "4124a267f60fd57f10c8fea7a4da6995893b01c0c8713be1f446286544e12c37",
+      "scoreableInterior": {
+        "endMs": 478800,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "72af0735aac3f3ece134f705c25d50aa0feb481870fd2386b5220c874ff1c613",
+        "byteSize": 30657280,
+        "sampleCount": 7664320,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/mozart_kv265_006_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "mozart_kv398_002_20110315-smd",
+      "durationSeconds": 442.47414965986394,
+      "workId": "mozart_kv398",
+      "sourceAcousticWavSha256": "f374a77d01db61d2da9a7bc213e4e0299c8011eac0f01bcbb9c282d493e1e0e0",
+      "scoreableInterior": {
+        "endMs": 442254.125,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "78c26b1c1f6e32d619ac265411770ae0a587eb6d2a6c473292d1c444d94164a4",
+        "byteSize": 28318344,
+        "sampleCount": 7079586,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/mozart_kv398_002_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "rachmaninoff_op036-01_007_20110315-smd",
+      "durationSeconds": 562.35,
+      "workId": "rachmaninoff_op036_01",
+      "sourceAcousticWavSha256": "3c25a7714bc2fb1a0d404499d0fa385dd0dd9ab9792820ed6fc726d8b9ec5a01",
+      "scoreableInterior": {
+        "endMs": 562130,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "a255376c8dce2e6250b10e5ed81653a5e9244379f45128f1cdb2185b7818085d",
+        "byteSize": 35990400,
+        "sampleCount": 8997600,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/rachmaninoff_op036-01_007_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "rachmaninoff_op036-02_007_20110315-smd",
+      "durationSeconds": 431.34,
+      "workId": "rachmaninoff_op036_02",
+      "sourceAcousticWavSha256": "bcf8f0ba78ec35b5600f3a6474ff8dce5546bb02f3af92c944655b6bf6641c2d",
+      "scoreableInterior": {
+        "endMs": 431120,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "7dd63373667855b97738b9819e7d32d107ca687a395165b3046b61712e7c3362",
+        "byteSize": 27605760,
+        "sampleCount": 6901440,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/rachmaninoff_op036-02_007_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "rachmaninoff_op036-03_007_20110315-smd",
+      "durationSeconds": 339.48,
+      "workId": "rachmaninoff_op036_03",
+      "sourceAcousticWavSha256": "fe74da5592865a5bae901117e061f7f84b85ce3a78fc7b556e8564ce3f356bd2",
+      "scoreableInterior": {
+        "endMs": 339260,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "307fd9a3d79419b59f67541b5c07575a06d10e6768253a14d18232a071146f2e",
+        "byteSize": 21726720,
+        "sampleCount": 5431680,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/rachmaninoff_op036-03_007_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "rachmaninov_op039no1_002_20090916-smd",
+      "durationSeconds": 196.7,
+      "workId": "rachmaninov_op039no1",
+      "sourceAcousticWavSha256": "5a725611e394b4ccba74c5b01bce5e4454c42d79c78250554e065d856f6031e1",
+      "scoreableInterior": {
+        "endMs": 196480,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "5f3382c63e4c0a7a72c434b7b1bd28a95ef6f31ee688543d449b9d33ecaaa01d",
+        "byteSize": 12588800,
+        "sampleCount": 3147200,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/rachmaninov_op039no1_002_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "ravel_jeuxdeau_008_20110315-smd",
+      "durationSeconds": 316.8,
+      "workId": "ravel_jeuxdeau",
+      "sourceAcousticWavSha256": "80c389f13d050397b733fd6154c4a27e88a749c38f26087bce13b41642f20182",
+      "scoreableInterior": {
+        "endMs": 316580,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "36658eed3c09b1558b75dac47b5b7e6b651b44c2e03c50a959059624245daaed",
+        "byteSize": 20275200,
+        "sampleCount": 5068800,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/ravel_jeuxdeau_008_20110315-smd.f32"
+      }
+    },
+    {
+      "takeId": "ravel_valsesnoblesetsentimentales_003_20090916-smd",
+      "durationSeconds": 919,
+      "workId": "ravel_valsesnoblesetsentimentales",
+      "sourceAcousticWavSha256": "3fee53ad3b2873300870b10f4e0426522d92a817fc2384c260e25719a60413e1",
+      "scoreableInterior": {
+        "endMs": 918780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "9be124ed0f37df964398b97af3f0a9fc05cdbf7a97558e2be07bc0645f6a19a5",
+        "byteSize": 58816000,
+        "sampleCount": 14704000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/ravel_valsesnoblesetsentimentales_003_20090916-smd.f32"
+      }
+    },
+    {
+      "takeId": "skryabin_op008no8_003_20090916-smd",
+      "durationSeconds": 206,
+      "workId": "skryabin_op008no8",
+      "sourceAcousticWavSha256": "c547a5e255c87b40fcdba6578baa67938a171ddff104825cf7042f177e59ce72",
+      "scoreableInterior": {
+        "endMs": 205780,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000
+      },
+      "canonicalPcm": {
+        "sha256": "7e9dad7caf09dd3783e865d8feaca7fbefe02762b03630f67d97e8800cd64c2f",
+        "byteSize": 13184000,
+        "sampleCount": 3296000,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/skryabin_op008no8_003_20090916-smd.f32"
+      }
+    }
+  ]
+}
