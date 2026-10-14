@@ -882,6 +882,53 @@ describe('Continuous analyzer bake-off harness', () => {
     expect(session.completedEvaluation()).toEqual(ledger.completedEvaluation());
   });
 
+  it('keeps product verdict semantics invariant when only observation confidence changes', () => {
+    const input = scenario();
+    const lowConfidenceLedger = new ContinuousFinalizationLedger({
+      expectedStrikes: input.expectedStrikes,
+      assignmentWindowMs: 250,
+    });
+    const highConfidenceLedger = new ContinuousFinalizationLedger({
+      expectedStrikes: input.expectedStrikes,
+      assignmentWindowMs: 250,
+    });
+    const baseAttacks = [
+      observed('c1', 'C4', 10),
+      observed('e', 'E4', 495),
+      observed('g', 'G4', 510),
+      observed('c2', 'C4', 890),
+      observed('extra', 'F4', 1_400),
+    ];
+    const lowConfidence = baseAttacks.map((attack, index) => ({ ...attack, confidence: 0.11 + index * 0.01 }));
+    const highConfidence = baseAttacks.map((attack, index) => ({ ...attack, confidence: 0.91 - index * 0.01 }));
+
+    lowConfidenceLedger.publishObservations(lowConfidence, 2_500);
+    highConfidenceLedger.publishObservations(highConfidence, 2_500);
+    lowConfidenceLedger.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 2_500, terminalPerformanceMs: 2_500 });
+    highConfidenceLedger.complete({ reason: 'SCOPE_COMPLETED', performanceTimeMs: 2_500, terminalPerformanceMs: 2_500 });
+
+    const project = (ledger: ContinuousFinalizationLedger) => {
+      const completed = ledger.completedEvaluation();
+      expect(completed.status).toBe('COMPLETE');
+      if (completed.status !== 'COMPLETE') return completed;
+      return {
+        strikes: completed.strikes.map((strike) => ({
+          strikeId: strike.strikeId,
+          result: strike.result,
+          matchedObservationId: strike.result === 'MATCHED' ? strike.matchedObservationId : null,
+          timingOffsetMs: strike.result === 'MATCHED' ? strike.timingOffsetMs : null,
+        })),
+        extras: completed.extras.map((extra) => ({
+          observationId: extra.observationId,
+          pitch: extra.pitch,
+          performanceTimeMs: extra.performanceTimeMs,
+        })),
+      };
+    };
+
+    expect(project(lowConfidenceLedger)).toEqual(project(highConfidenceLedger));
+  });
+
   it('correctly scores wrongNoteFalseCorrectRate and wrongNoteDetectionRate on wrong-semitone counterfactuals', () => {
     const wrongNoteScenario: BenchmarkScenario = {
       scenarioId: 'test-wrong-semitone-scenario',
