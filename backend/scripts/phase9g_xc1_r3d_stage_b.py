@@ -127,6 +127,9 @@ def score_run(args):
     full_takes = {take['takeId']: take for take in full_manifest['takes']}
     if set(full_takes) != {take['takeId'] for take in manifest['takes']}:
         raise ValueError('XC1_TRUTH_MANIFEST_COVERAGE_MISMATCH')
+    for take in manifest['takes']:
+        if take['scoreableInterior'] != full_takes[take['takeId']]['scoreableInterior']:
+            raise ValueError('XC1_TRUTH_PREDICTION_SCOREABLE_INTERVAL_MISMATCH')
     seal, artifacts = verify_seal(args.seal, manifest, args.f5_commit, args.f5_freeze_sha256)
     if seal['manifestSha256'] != sha256_file(Path(args.manifest)):
         raise ValueError('XC1_STAGE_B_MANIFEST_DRIFT')

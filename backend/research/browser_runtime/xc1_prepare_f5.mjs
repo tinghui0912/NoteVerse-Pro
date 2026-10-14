@@ -86,14 +86,21 @@ function compactRuntime(report) {
   })) };
 }
 const runtimeSubsetTakeIds = [ordered[0], ordered[Math.floor(ordered.length / 2)], ordered.at(-1)].map(take => take.takeId);
+const scoreableInteriorFor = take => ({ ...take.scoreableInterior, endMs: take.canonicalPcm.sampleCount / 16 - 220 });
+const fullTakeManifest = { ...f3, phase: PHASE, candidateInferenceStarted: false,
+  scoreableInteriorCoordinatePolicy: 'CANONICAL_16K_PCM_SAMPLE_COUNT',
+  takes: f3.takes.map(take => ({ ...take, originalF3ScoreableInterior: take.scoreableInterior,
+    canonicalAudioDurationSeconds: take.canonicalPcm.sampleCount / 16000, scoreableInterior: scoreableInteriorFor(take) })) };
+const truthManifestName = 'phase9g_xc1_r3d_full_take_manifest_f5_2026-10-15.json';
+await atomicJson(path.join(reports, truthManifestName), fullTakeManifest);
 const manifest = { phase: PHASE, fixtureClass: 'SMD_V2_REAL_ACOUSTIC_ONLY', implementationCommit,
   truthFieldsExcluded: true, midiPathsExcluded: true, candidateInferenceStarted: false, candidateIdentities: candidates,
   takes: f3.takes.map(take => ({ takeId: take.takeId, durationSeconds: take.audioDurationSeconds,
-    workId: take.workId, sourceAcousticWavSha256: take.acousticWavSha256, scoreableInterior: take.scoreableInterior,
+    workId: take.workId, sourceAcousticWavSha256: take.acousticWavSha256, scoreableInterior: scoreableInteriorFor(take),
     canonicalPcm: { sha256: take.canonicalPcm.sha256, byteSize: take.canonicalPcm.byteSize,
       sampleCount: take.canonicalPcm.sampleCount, sampleRateHz: 16000, dtype: 'float32-le-raw',
       sourceRelativePath: take.canonicalPcm.relativeStageAPath } })) };
-const manifestName = 'phase9g_xc1_r3d_sanitized_stage_a_manifest_f5_2026-10-14.json';
+const manifestName = 'phase9g_xc1_r3d_sanitized_stage_a_manifest_f5_2026-10-15.json';
 await atomicJson(path.join(reports, manifestName), manifest);
 const freeze = { phase: PHASE, artifact: 'XC1_TRUE_EXECUTABLE_PROSPECTIVE_FREEZE_F5',
   startingRemoteHead: '00ab97996fbc16c73014b011f4ff1f8b0d974cce', implementationCommitI5: implementationCommit,
@@ -107,7 +114,10 @@ const freeze = { phase: PHASE, artifact: 'XC1_TRUE_EXECUTABLE_PROSPECTIVE_FREEZE
   zeroPredictionScan: { runRoot, scannedRoots: ['primary_chrome', 'edge', 'runtime'], predictionCount: existing.length },
   runRoot, stageAManifestPath: `backend/research/reports/${manifestName}`,
   stageAManifestSha256: await fileSha(path.join(reports, manifestName)),
-  truthManifestPath: f3Path, truthManifestSha256: await fileSha(path.join(REPO_ROOT, f3Path)),
+  truthManifestPath: `backend/research/reports/${truthManifestName}`, truthManifestSha256: await fileSha(path.join(reports, truthManifestName)),
+  scoreableInteriorCoordinatePolicy: 'CANONICAL_16K_PCM_SAMPLE_COUNT',
+  scoreableInteriorMetadataCorrections: fullTakeManifest.takes.filter(take => take.scoreableInterior.endMs !== take.originalF3ScoreableInterior.endMs)
+    .map(take => ({ takeId: take.takeId, originalEndMs: take.originalF3ScoreableInterior.endMs, canonicalEndMs: take.scoreableInterior.endMs })),
   archivePath: 'backend/data/work/smd_v2/SMD-piano_v2.zip', archiveSha256: pcm.archiveIdentity.sha256,
   canonicalPcmVerification: { reportSha256: await fileSha(path.join(REPO_ROOT, 'backend/data/work/xc1_r3d_validation/canonical_pcm_verified.json')), passedTakeCount: 50 },
   semanticParity: parity, productionPathDryRun: { receiptSha256: await fileSha(path.join(REPO_ROOT, `${dryRoot}/complete_dry_run_report.json`)), status: dry.status },
@@ -122,5 +132,5 @@ const freeze = { phase: PHASE, artifact: 'XC1_TRUE_EXECUTABLE_PROSPECTIVE_FREEZE
     duplicateDiagnosticMs: 50, chordCompleteness: 'NOT_AVAILABLE_IN_XC1_R3D', additionalMidiAlignmentMs: 0 },
   dockerScienceImageId: dry.dockerImageId, commercialQualificationStatus: 'NOT_PERFORMED' };
 freeze.freezeSha256 = digest(freeze);
-await atomicJson(path.join(reports, 'phase9g_xc1_r3d_true_prospective_freeze_f5_2026-10-14.json'), freeze);
+await atomicJson(path.join(reports, 'phase9g_xc1_r3d_true_prospective_freeze_f5_2026-10-15.json'), freeze);
 console.log(JSON.stringify({ implementationCommit, freezeSha256: freeze.freezeSha256, runtimeSubsetTakeIds, takeCount: manifest.takes.length }));

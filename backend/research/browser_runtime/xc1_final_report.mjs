@@ -58,6 +58,6 @@ const report = { phase: PHASE, startingRemoteHead: freeze.startingRemoteHead,
     noD4: true, productionWinnerSelected: false, practiceWebSocketRestored: false, backendPracticeInferenceRestored: false },
   githubStatusesAndWorkflowRuns: { queriedHead: currentHead,
     combinedStatus: await github(`commits/${currentHead}/status`), workflowRuns: await github(`actions/runs?head_sha=${currentHead}&per_page=100`) } };
-const output = path.join(REPO_ROOT, 'backend/research/reports/phase9g_xc1_r3d_f5_full_scientific_result_2026-10-14.json');
+const output = path.join(REPO_ROOT, 'backend/research/reports/phase9g_xc1_r3d_f5_full_scientific_result_2026-10-15.json');
 await atomicJson(output, report);
 console.log(JSON.stringify({ report: output, scientificDisposition: report.scientificDisposition }));
