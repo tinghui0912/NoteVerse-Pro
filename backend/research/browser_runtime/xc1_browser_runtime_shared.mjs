@@ -71,21 +71,65 @@ import { outputToNotesPoly, noteFramesToTime } from '@spotify/basic-pitch/esm/to
 window.runXc1BasicPitchExecutor = async function(options = {}) {
   await tf.setBackend('webgl');
   await tf.ready();
+  const acousticInput = options.acousticInput;
+  if (!acousticInput) throw new Error('XC1_BASIC_PITCH_ACOUSTIC_INPUT_REQUIRED');
   const model = new BasicPitch('/basic/model/model.json');
   const pcm = await window.loadXc1ExternalPcm();
-  const input = window.resampleLinear(pcm.samples, 16000, 22050);
-  let frames = [];
-  let onsets = [];
+  const durationMs = pcm.sampleCount / acousticInput.sampleRateHz * 1000;
+  const windows = window.planXc1OwnedWindows({
+    durationMs,
+    scoreableStartMs: acousticInput.scoreableInterval.startMs,
+    scoreableEndMs: acousticInput.scoreableInterval.endMs,
+    ownedMs: 600,
+    pastMs: 1000,
+    futureMs: 220,
+    sampleRateHz: 16000,
+    inputSamples: 29120,
+  });
   let callbackCount = 0;
-  const started = performance.now();
-  await model.evaluateModel(input, (f, o) => {
-    frames = frames.concat(f);
-    onsets = onsets.concat(o);
-    callbackCount += 1;
-  }, () => {});
-  const inferenceMs = performance.now() - started;
-  const notes = outputToNotesPoly(frames, onsets, 0.5, 0.3, 5, true, null, null, true, 11);
-  const timedNotes = noteFramesToTime(notes);
+  let inferenceMs = 0;
+  const acousticObservations = [];
+  const perWindowTimings = [];
+  for (const windowSpec of windows) {
+    const sourceWindow = pcm.samples.subarray(windowSpec.startSample, windowSpec.endSample);
+    if (sourceWindow.length !== 29120) throw new Error('XC1_BASIC_PITCH_WINDOW_REQUIRES_REAL_CONTEXT');
+    const input = window.resampleLinear(sourceWindow, 16000, 22050);
+    let frames = [];
+    let onsets = [];
+    const started = performance.now();
+    await model.evaluateModel(input, (f, o) => {
+      frames = frames.concat(f);
+      onsets = onsets.concat(o);
+      callbackCount += 1;
+    }, () => {});
+    const windowInferenceMs = performance.now() - started;
+    inferenceMs += windowInferenceMs;
+    const notes = outputToNotesPoly(frames, onsets, 0.5, 0.3, 5, true, null, null, true, 11);
+    const timedNotes = noteFramesToTime(notes);
+    let published = 0;
+    for (const note of timedNotes) {
+      const pitch = note.pitchMidi ?? note.pitch_midi ?? note.pitch;
+      const absoluteMs = windowSpec.inputWindowStartMs + note.startTimeSeconds * 1000;
+      if (absoluteMs >= windowSpec.ownedStartMs && absoluteMs < windowSpec.ownedEndMs && pitch >= 21 && pitch <= 108) {
+        acousticObservations.push({
+          pitch,
+          performanceTimeMs: absoluteMs,
+          confidence: note.amplitude ?? 1,
+          candidateObservationId: ['basic-pitch-browser-v1', options.takeId ?? 'unknown-take', windowSpec.windowId, pitch, Math.round(absoluteMs * 16), acousticObservations.length].join(':'),
+        });
+        published += 1;
+      }
+    }
+    perWindowTimings.push({
+      windowId: windowSpec.windowId,
+      inputWindowStartMs: windowSpec.inputWindowStartMs,
+      ownedStartMs: windowSpec.ownedStartMs,
+      ownedEndMs: windowSpec.ownedEndMs,
+      processingMs: windowInferenceMs,
+      decodedCount: timedNotes.length,
+      publishedCount: published,
+    });
+  }
   return {
     backend: tf.getBackend(),
     browserReceivedPcm: {
@@ -96,16 +140,14 @@ window.runXc1BasicPitchExecutor = async function(options = {}) {
     decoderImportPath: 'node_modules/@spotify/basic-pitch/esm/toMidi.js',
     outputToNotesPolyCalled: true,
     noteFramesToTimeCalled: true,
+    sessionLoadCount: 1,
+    windowCount: windows.length,
     actualModelInvocationCount: callbackCount,
     actualInferenceSessionRunCount: callbackCount,
     processingMs: inferenceMs,
-    noteCount: timedNotes.length,
-    acousticObservations: timedNotes.map((note, index) => ({
-      pitch: note.pitchMidi ?? note.pitch_midi ?? note.pitch,
-      performanceTimeMs: note.startTimeSeconds * 1000,
-      confidence: note.amplitude ?? 1,
-      candidateObservationId: ['basic-pitch-browser-v1', options.takeId ?? 'unknown-take', options.windowId ?? 'window0', note.pitchMidi ?? note.pitch_midi ?? note.pitch, Math.round(note.startTimeSeconds * 16000), index].join(':'),
-    })),
+    noteCount: acousticObservations.length,
+    perWindowTimings,
+    acousticObservations: acousticObservations.sort((left, right) => left.performanceTimeMs - right.performanceTimeMs || left.pitch - right.pitch),
   };
 };
 `, 'utf8');
@@ -169,6 +211,26 @@ window.resampleLinear = function(input, sourceRate, targetRate) {
   }
   return output;
 };
+window.planXc1OwnedWindows = function({ durationMs, scoreableStartMs, scoreableEndMs, ownedMs, pastMs, futureMs, sampleRateHz, inputSamples }) {
+  const windows = [];
+  for (let ownedStartMs = scoreableStartMs; ownedStartMs < scoreableEndMs; ownedStartMs += ownedMs) {
+    const ownedEndMs = Math.min(ownedStartMs + ownedMs, scoreableEndMs);
+    const inputWindowStartMs = ownedStartMs - pastMs;
+    const inputWindowEndMs = ownedStartMs + ownedMs + futureMs;
+    if (inputWindowStartMs < 0 || inputWindowEndMs > durationMs + 1e-6) continue;
+    const startSample = Math.round(inputWindowStartMs * sampleRateHz / 1000);
+    windows.push({
+      windowId: 'owned_' + Math.round(ownedStartMs),
+      ownedStartMs,
+      ownedEndMs,
+      inputWindowStartMs,
+      inputWindowEndMs,
+      startSample,
+      endSample: startSample + inputSamples,
+    });
+  }
+  return windows;
+};
 </script><script src="/ort/ort.webgpu.min.js"></script><script type="module" src="/basic-bundle.js"></script>`);
         return;
       }
@@ -206,7 +268,7 @@ export async function materializeSyntheticStageARoot({
   root,
   fixtureId = 'synthetic-piano-like',
   sampleRateHz = 16000,
-  durationMs = 2200,
+  durationMs = 4200,
 } = {}) {
   if (!root) throw new Error('XC1_STAGE_A_ROOT_REQUIRED');
   await rm(root, { recursive: true, force: true });

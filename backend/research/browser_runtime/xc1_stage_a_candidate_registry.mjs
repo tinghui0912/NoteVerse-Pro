@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 
 import { executeBasicPitchBrowserExecutor, BASIC_PITCH_DECODER_EXECUTION_IDENTITY } from './xc1_basic_pitch_browser_executor.mjs';
 import { executeOnlineAmtK8BrowserExecutor } from './xc1_online_amt_k8_browser_executor.mjs';
-import { executeRobustBrowserExecutor, ROBUST_DECODER_IDENTITY } from './xc1_robust_browser_executor.mjs';
+import { ROBUST_DECODER_IDENTITY } from './xc1_robust_decoder.mjs';
+import { executeRobustBrowserExecutor } from './xc1_robust_browser_executor.mjs';
 import {
   BASIC_PITCH_WORK,
   REPO_ROOT,
@@ -361,12 +362,18 @@ async function runOfficialBrowserExecutor(request, identity, {
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     const startedAtUnixMs = Date.now();
     const result = await executePage(page, { ...request, acousticInput });
+    const scientificPrediction = request.evidenceMode === 'scientific_prediction';
     const registryModulePath = fileURLToPath(import.meta.url);
     const sharedModulePath = path.join(path.dirname(registryModulePath), 'xc1_browser_runtime_shared.mjs');
     const receipt = {
       schemaVersion: 2,
-      stage: 'XC1_OFFICIAL_STAGE_A_REAL_EXECUTOR_ACCEPTANCE',
-      status: 'OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS',
+      stage: scientificPrediction ? 'XC1_STAGE_A_SCIENTIFIC_PREDICTION' : 'XC1_OFFICIAL_STAGE_A_REAL_EXECUTOR_ACCEPTANCE',
+      status: scientificPrediction ? 'XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE' : 'OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS',
+      ...(scientificPrediction ? {
+        phase: 'PHASE_9G_XC1_R3C_SCIENTIFIC_SEMANTICS_F4_FULL_SEALED_BAKEOFF',
+        f4Commit: request.f4Commit,
+        f4FreezeSha256: request.f4FreezeSha256,
+      } : {}),
       deploymentId: identity.deploymentId,
       candidateId: identity.candidateId,
       takeId: request.takeId,

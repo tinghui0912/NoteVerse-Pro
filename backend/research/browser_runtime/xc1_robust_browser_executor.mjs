@@ -1,14 +1,7 @@
 import { collectWebGpuAdapter } from './xc1_browser_runtime_shared.mjs';
+import { ROBUST_DECODER_IDENTITY } from './xc1_robust_decoder.mjs';
 
 export const XC1_ROBUST_EXECUTOR_SCHEMA_VERSION = 1;
-export const ROBUST_DECODER_IDENTITY = Object.freeze({
-  decoderId: 'noteverse-bytedance-contiguous-region-peak-decoder-v1',
-  onsetThreshold: 0.30,
-  frameThreshold: 0.05,
-  inputSamples: 29120,
-  ownershipFiltering: 'half-open-600ms-region',
-});
-
 export async function executeRobustBrowserExecutor(page, request = {}) {
   const webgpuAdapter = await collectWebGpuAdapter(page);
   return page.evaluate(async ({ decoder, acousticInput }) => {
@@ -23,23 +16,71 @@ export async function executeRobustBrowserExecutor(page, request = {}) {
       graphOptimizationLevel: 'disabled',
     });
     const modelLoadMs = performance.now() - loadStarted;
-    const feeds = {
-      [session.inputNames[0]]: new ort.Tensor('float32', robustWindowFromPcm(pcm.samples), [1, 29120]),
-    };
-    const runStarted = performance.now();
-    const outputs = await session.run(feeds);
-    const processingMs = performance.now() - runStarted;
-    const outputNames = Object.keys(outputs);
-    const reg = outputs.reg_onset_output ?? outputs[outputNames[0]];
-    const frame = outputs.frame_output ?? outputs[outputNames[1]];
-    const observations = decodeRobustOutputs(reg, frame, decoder);
-    function robustWindowFromPcm(samples) {
+    const durationMs = pcm.sampleCount / acousticInput.sampleRateHz * 1000;
+    const windows = planOwnedWindows({
+      durationMs,
+      scoreableStartMs: acousticInput.scoreableInterval.startMs,
+      scoreableEndMs: acousticInput.scoreableInterval.endMs,
+      ownedMs: 600,
+      pastMs: 1000,
+      futureMs: 220,
+      sampleRateHz: acousticInput.sampleRateHz,
+      inputSamples: decoder.inputSamples,
+    });
+    const outputNames = [];
+    const timings = [];
+    const observations = [];
+    for (const window of windows) {
+      const feeds = {
+        [session.inputNames[0]]: new ort.Tensor('float32', robustWindowFromPcm(pcm.samples, window), [1, decoder.inputSamples]),
+      };
+      const runStarted = performance.now();
+      const outputs = await session.run(feeds);
+      const runFinished = performance.now();
+      if (outputNames.length === 0) outputNames.push(...Object.keys(outputs));
+      const reg = outputs.reg_onset_output ?? outputs[Object.keys(outputs)[0]];
+      const frame = outputs.frame_output ?? outputs[Object.keys(outputs)[1]];
+      const decoded = decodeRobustOutputs(reg, frame, decoder, window);
+      const owned = decoded.filter((event) => event.performanceTimeMs >= window.ownedStartMs && event.performanceTimeMs < window.ownedEndMs);
+      observations.push(...owned);
+      timings.push({
+        windowId: window.windowId,
+        inputWindowStartMs: window.inputWindowStartMs,
+        ownedStartMs: window.ownedStartMs,
+        ownedEndMs: window.ownedEndMs,
+        processingMs: runFinished - runStarted,
+        decodedCount: decoded.length,
+        publishedCount: owned.length,
+      });
+    }
+    const processingMs = timings.reduce((sum, timing) => sum + timing.processingMs, 0);
+    function robustWindowFromPcm(samples, window) {
+      if (window.endSample > samples.length) throw new Error('XC1_ROBUST_WINDOW_REQUIRES_REAL_CONTEXT');
       const output = new Float32Array(decoder.inputSamples);
-      const copyCount = Math.min(samples.length, output.length);
-      output.set(samples.subarray(0, copyCount));
+      output.set(samples.subarray(window.startSample, window.endSample));
       return output;
     }
-    function decodeRobustOutputs(reg, frame, decoderSpec) {
+    function planOwnedWindows({ durationMs, scoreableStartMs, scoreableEndMs, ownedMs, pastMs, futureMs, sampleRateHz, inputSamples }) {
+      const windows = [];
+      for (let ownedStartMs = scoreableStartMs; ownedStartMs < scoreableEndMs; ownedStartMs += ownedMs) {
+        const ownedEndMs = Math.min(ownedStartMs + ownedMs, scoreableEndMs);
+        const inputWindowStartMs = ownedStartMs - pastMs;
+        const inputWindowEndMs = ownedStartMs + ownedMs + futureMs;
+        if (inputWindowStartMs < 0 || inputWindowEndMs > durationMs + 1e-6) continue;
+        const startSample = Math.round(inputWindowStartMs * sampleRateHz / 1000);
+        windows.push({
+          windowId: 'owned_' + Math.round(ownedStartMs),
+          ownedStartMs,
+          ownedEndMs,
+          inputWindowStartMs,
+          inputWindowEndMs,
+          startSample,
+          endSample: startSample + inputSamples,
+        });
+      }
+      return windows;
+    }
+    function decodeRobustOutputs(reg, frame, decoderSpec, window) {
       const out = [];
       const regData = reg?.data ?? [];
       const frameData = frame?.data ?? [];
@@ -65,11 +106,13 @@ export async function executeRobustBrowserExecutor(page, request = {}) {
           }
           const frameScore = Number(frameData[peakFrame * pitchCount + pitchIndex] ?? 0);
           if (frameScore >= decoderSpec.frameThreshold) {
+            const sampleOffset = Math.round(peakFrame / decoderSpec.outputFrameRateHz * acousticInput.sampleRateHz);
             out.push({
               pitch: 21 + pitchIndex,
-              performanceTimeMs: peakFrame * (600 / Math.max(1, frameCount)),
+              performanceTimeMs: window.inputWindowStartMs + sampleOffset / acousticInput.sampleRateHz * 1000,
               confidence: Math.min(peakScore, frameScore),
-              candidateObservationId: `robust-browser-v1:${acousticInput.takeId}:window0:${21 + pitchIndex}:${peakFrame}:${out.length}`,
+              candidateObservationId: `robust-browser-v1:${acousticInput.takeId}:${window.windowId}:${21 + pitchIndex}:${sampleOffset}:${out.length}`,
+              peakFrame,
             });
           }
           frameIndex += 1;
@@ -86,7 +129,10 @@ export async function executeRobustBrowserExecutor(page, request = {}) {
       },
       modelLoadMs,
       processingMs,
-      actualInferenceSessionRunCount: 1,
+      windowCount: windows.length,
+      sessionLoadCount: 1,
+      actualInferenceSessionRunCount: windows.length,
+      perWindowTimings: timings,
       inputNames: session.inputNames,
       outputNames,
       decoderInvoked: true,

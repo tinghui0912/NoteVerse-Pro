@@ -81,8 +81,8 @@ async function main() {
   }
 
   const report = {
-    phase: 'PHASE_9G_XC1_R3A_UNIFIED_REAL_EXECUTORS_F4_AND_FULL_SEALED_BAKEOFF',
-    artifact: 'officialPreF4RealExecutorAcceptance',
+    phase: 'PHASE_9G_XC1_R3C_SCIENTIFIC_SEMANTICS_F4_FULL_SEALED_BAKEOFF',
+    artifact: 'officialPreF4ScientificSemanticExecutorAcceptance',
     supersedesClassificationOnly: {
       priorReport: 'backend/research/reports/phase9g_xc1_r3_pre_f4_real_executor_acceptance_2026-10-14.json',
       priorClassification: 'PRE_F4_BROWSER_ENVIRONMENT_AND_MODEL_FEASIBILITY_PASS',
@@ -96,14 +96,14 @@ async function main() {
     acceptanceScript: path.relative(REPO_ROOT, fileURLToPath(import.meta.url)).replaceAll('\\', '/'),
     environment: { os: `${os.platform()} ${os.release()} ${os.arch()}`, node: process.version },
     cells,
-    gateAStatus: Object.values(cells).every((cell) => cell.status === 'OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS'
+    semanticAcceptanceStatus: Object.values(cells).every((cell) => cell.status === 'OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS'
       && cell.browserReceivedPcm?.sha256 === cell.frozenAcousticInput?.pcmSha256)
-      ? 'OFFICIAL_REAL_PCM_EXECUTOR_ACCEPTANCE_PASS'
-      : 'OFFICIAL_REAL_PCM_EXECUTOR_ACCEPTANCE_FAILED',
+      ? 'SCIENTIFIC_SEMANTIC_EXECUTOR_ACCEPTANCE_PASS'
+      : 'SCIENTIFIC_SEMANTIC_EXECUTOR_ACCEPTANCE_FAILED',
   };
-  report.overallStatus = report.gateAStatus;
+  report.overallStatus = report.semanticAcceptanceStatus;
   await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-  if (report.overallStatus !== 'OFFICIAL_REAL_PCM_EXECUTOR_ACCEPTANCE_PASS') process.exitCode = 2;
+  if (report.overallStatus !== 'SCIENTIFIC_SEMANTIC_EXECUTOR_ACCEPTANCE_PASS') process.exitCode = 2;
 }
 
 main().catch((error) => {

@@ -20,7 +20,7 @@ export async function executeBasicPitchBrowserExecutor(page, request = {}) {
     if (typeof window.runXc1BasicPitchExecutor !== 'function') {
       throw new Error('XC1_BASIC_PITCH_BROWSER_EXECUTOR_BUNDLE_MISSING');
     }
-    return window.runXc1BasicPitchExecutor({ takeId: acousticInput.takeId, windowId: 'window0' });
+    return window.runXc1BasicPitchExecutor({ takeId: acousticInput.takeId, acousticInput });
   }, { acousticInput: request.acousticInput });
   if (result.browserReceivedPcm?.sha256 !== request.acousticInput?.pcmSha256) {
     throw new Error('XC1_BROWSER_PCM_IDENTITY_MISMATCH');
