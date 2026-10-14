@@ -1,0 +1,616 @@
+{
+  "phase": "PHASE_9G_XC1_R3C_SCIENTIFIC_SEMANTICS_F4_FULL_SEALED_BAKEOFF",
+  "artifact": "officialPreF4ScientificSemanticExecutorAcceptance",
+  "supersedesClassificationOnly": {
+    "priorReport": "backend/research/reports/phase9g_xc1_r3_pre_f4_real_executor_acceptance_2026-10-14.json",
+    "priorClassification": "PRE_F4_BROWSER_ENVIRONMENT_AND_MODEL_FEASIBILITY_PASS",
+    "currentRequirement": "OFFICIAL_STAGE_A_EXECUTOR_ACCEPTANCE_PASS"
+  },
+  "acceptanceCommandUsesOfficialRegistry": true,
+  "acceptanceUsesExternalPcmManifest": true,
+  "fixtureClass": "NON_SMD_SYNTHETIC_PRE_F4_ACCEPTANCE",
+  "stageARoot": "backend/data/work/xc1_r3c/stage_a_root",
+  "stageAManifestPath": "backend/data/work/xc1_r3c/stage_a_root/manifests/stage_a_manifest.json",
+  "acceptanceScript": "backend/research/browser_runtime/xc1_pre_f4_real_executor_acceptance.mjs",
+  "environment": {
+    "os": "win32 10.0.26200 x64",
+    "node": "v24.19.0"
+  },
+  "cells": {
+    "robust-browser-v1": {
+      "schemaVersion": 2,
+      "stage": "XC1_OFFICIAL_STAGE_A_REAL_EXECUTOR_ACCEPTANCE",
+      "status": "OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS",
+      "deploymentId": "robust-browser-v1",
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "takeId": "pre-f4-non-smd-synthetic-piano-like",
+      "acousticOnly": true,
+      "truthMidiAccessible": false,
+      "noScoreTruthInput": true,
+      "assetShaVerification": "PASS",
+      "startedAtUnixMs": 1791988452755,
+      "browser": {
+        "channel": "chrome",
+        "version": "155.0.8059.39",
+        "headed": true,
+        "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "launchArgsIncludeUnsafeWebGpu": false,
+        "os": "win32 10.0.26200 x64",
+        "node": "v24.19.0",
+        "playwrightRuntime": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\browser_runtime\\dr3r_browser_runtime\\node_modules\\playwright"
+      },
+      "implementationIdentity": {
+        "officialRegistry": {
+          "file": "backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs",
+          "sha256": "5f47a7f3e09d3ae93cbca148bc78dd31e603cdc5b84f533b1191423c351a0011",
+          "exportName": "executeOfficialXc1StageACell"
+        },
+        "realExecutor": {
+          "file": "backend/research/browser_runtime/xc1_robust_browser_executor.mjs",
+          "sha256": "fdaf069eb1c635817462beecb73237519292cd527694c9c38a138ba65a0f52e5",
+          "exportName": "executeRobustBrowserExecutor"
+        },
+        "sharedBrowserRuntime": {
+          "file": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+          "sha256": "391cc40c02bc7dbcf4039795bdc269216b4c5d713a81c8bbd43b7fa89de00c64",
+          "exportName": "startXc1BrowserAssetServer"
+        },
+        "decoder": {
+          "decoderId": "noteverse-bytedance-decodeByteDanceRawOutputs-parity-v1",
+          "onsetThreshold": 0.3,
+          "frameThreshold": 0.05,
+          "outputFrameRateHz": 100,
+          "midiLowestPianoKey": 21,
+          "inputSamples": 29120,
+          "ownershipFiltering": "half-open-600ms-region"
+        }
+      },
+      "assetIdentity": {
+        "onnxSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+        "deploymentIdentitySha256": "196a9a2ceb03569f6e266c4f5973125bb8596146882079105ee94ef7e621deed",
+        "sampleRateHz": 16000,
+        "inputSamples": 29120,
+        "contextMs": {
+          "past": 1000,
+          "owned": 600,
+          "future": 220
+        },
+        "thresholds": {
+          "onset": 0.3,
+          "frame": 0.05
+        }
+      },
+      "frozenAcousticInput": {
+        "takeId": "pre-f4-non-smd-synthetic-piano-like",
+        "pcmSha256": "7143256fa3495d5f41fbf02a8e59dba01da8322041eb73d5c4d8cf96167acaa0",
+        "byteSize": 268800,
+        "sampleCount": 67200,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "scoreableInterval": {
+          "startMs": 1000,
+          "endMs": 3980,
+          "pastContextMs": 1000,
+          "futureContextMs": 220
+        },
+        "sourceAcousticWavSha256": "synthetic-non-smd-generated-pcm"
+      },
+      "executorExport": "executeRobustBrowserExecutor",
+      "backend": "webgpu",
+      "browserReceivedPcm": {
+        "sha256": "7143256fa3495d5f41fbf02a8e59dba01da8322041eb73d5c4d8cf96167acaa0",
+        "byteLength": 268800,
+        "sampleCount": 67200
+      },
+      "modelLoadMs": 800.5999999046326,
+      "processingMs": 6442.100000023842,
+      "windowCount": 4,
+      "sessionLoadCount": 1,
+      "actualInferenceSessionRunCount": 4,
+      "perWindowTimings": [
+        {
+          "windowId": "owned_1000",
+          "inputWindowStartMs": 0,
+          "ownedStartMs": 1000,
+          "ownedEndMs": 1600,
+          "processingMs": 2717.5,
+          "decodedCount": 0,
+          "publishedCount": 0
+        },
+        {
+          "windowId": "owned_1600",
+          "inputWindowStartMs": 600,
+          "ownedStartMs": 1600,
+          "ownedEndMs": 2200,
+          "processingMs": 1529.6000000238419,
+          "decodedCount": 0,
+          "publishedCount": 0
+        },
+        {
+          "windowId": "owned_2200",
+          "inputWindowStartMs": 1200,
+          "ownedStartMs": 2200,
+          "ownedEndMs": 2800,
+          "processingMs": 1149,
+          "decodedCount": 0,
+          "publishedCount": 0
+        },
+        {
+          "windowId": "owned_2800",
+          "inputWindowStartMs": 1800,
+          "ownedStartMs": 2800,
+          "ownedEndMs": 3400,
+          "processingMs": 1046,
+          "decodedCount": 0,
+          "publishedCount": 0
+        }
+      ],
+      "inputNames": [
+        "audio"
+      ],
+      "outputNames": [
+        "reg_onset_output",
+        "frame_output"
+      ],
+      "decoderInvoked": true,
+      "decoderIdentity": {
+        "decoderId": "noteverse-bytedance-decodeByteDanceRawOutputs-parity-v1",
+        "onsetThreshold": 0.3,
+        "frameThreshold": 0.05,
+        "outputFrameRateHz": 100,
+        "midiLowestPianoKey": 21,
+        "inputSamples": 29120,
+        "ownershipFiltering": "half-open-600ms-region"
+      },
+      "acousticObservations": [],
+      "webgpuAdapter": {
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier2",
+          "shader-f16",
+          "timestamp-query",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      }
+    },
+    "online-amt-k8-browser-v1": {
+      "schemaVersion": 2,
+      "stage": "XC1_OFFICIAL_STAGE_A_REAL_EXECUTOR_ACCEPTANCE",
+      "status": "OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS",
+      "deploymentId": "online-amt-k8-browser-v1",
+      "candidateId": "online-amt-calibrated-v1",
+      "takeId": "pre-f4-non-smd-synthetic-piano-like",
+      "acousticOnly": true,
+      "truthMidiAccessible": false,
+      "noScoreTruthInput": true,
+      "assetShaVerification": "PASS",
+      "startedAtUnixMs": 1791988461364,
+      "browser": {
+        "channel": "chrome",
+        "version": "155.0.8059.39",
+        "headed": true,
+        "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "launchArgsIncludeUnsafeWebGpu": false,
+        "os": "win32 10.0.26200 x64",
+        "node": "v24.19.0",
+        "playwrightRuntime": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\browser_runtime\\dr3r_browser_runtime\\node_modules\\playwright"
+      },
+      "implementationIdentity": {
+        "officialRegistry": {
+          "file": "backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs",
+          "sha256": "5f47a7f3e09d3ae93cbca148bc78dd31e603cdc5b84f533b1191423c351a0011",
+          "exportName": "executeOfficialXc1StageACell"
+        },
+        "realExecutor": {
+          "file": "backend/research/browser_runtime/xc1_online_amt_k8_browser_executor.mjs",
+          "sha256": "b101c0514b5d3dbf5197466bb768ed23994f2b27488b4fd2a944e6aa42974bf6",
+          "exportName": "executeOnlineAmtK8BrowserExecutor"
+        },
+        "sharedBrowserRuntime": {
+          "file": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+          "sha256": "391cc40c02bc7dbcf4039795bdc269216b4c5d713a81c8bbd43b7fa89de00c64",
+          "exportName": "startXc1BrowserAssetServer"
+        },
+        "decoder": {
+          "publicationProjection": "online-amt-calibrated-k8-hop-event-projection-v1"
+        }
+      },
+      "assetIdentity": {
+        "k8OnnxSha256": "818c095a3e96f507f45fe5f394169660cb3848fb7e496699a99c1957b51e9f18",
+        "k1FallbackOnnxSha256": "1924789c64595a5b8c1ff2f745089613b2ba6108676952c4bb6f60f28d9cd301",
+        "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+        "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+        "ortWebVersion": "1.30.0",
+        "hopSamples": 512,
+        "groupHops": 8,
+        "timingCorrectionMs": -162.93750000004252,
+        "publishedOnsetBoost": 1,
+        "pseudoIntensity": "NATIVE"
+      },
+      "frozenAcousticInput": {
+        "takeId": "pre-f4-non-smd-synthetic-piano-like",
+        "pcmSha256": "7143256fa3495d5f41fbf02a8e59dba01da8322041eb73d5c4d8cf96167acaa0",
+        "byteSize": 268800,
+        "sampleCount": 67200,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "scoreableInterval": {
+          "startMs": 1000,
+          "endMs": 3980,
+          "pastContextMs": 1000,
+          "futureContextMs": 220
+        },
+        "sourceAcousticWavSha256": "synthetic-non-smd-generated-pcm"
+      },
+      "executorExport": "executeOnlineAmtK8BrowserExecutor",
+      "backend": "webgpu",
+      "browserReceivedPcm": {
+        "sha256": "7143256fa3495d5f41fbf02a8e59dba01da8322041eb73d5c4d8cf96167acaa0",
+        "byteLength": 268800,
+        "sampleCount": 67200
+      },
+      "modelLoadMs": 1123.5,
+      "processingMs": 1236.2999999523163,
+      "sessionLoadCount": 2,
+      "actualInferenceSessionRunCount": 16,
+      "totalHopCount": 131,
+      "groupRows": [
+        {
+          "startHopIndex": 0,
+          "hopCountInMessage": 8,
+          "k": 8,
+          "processingMs": 328,
+          "usedK1Fallback": false
+        },
+        {
+          "startHopIndex": 8,
+          "hopCountInMessage": 8,
+          "k": 8,
+          "processingMs": 64.20000004768372,
+          "usedK1Fallback": false
+        },
+        {
+          "startHopIndex": 16,
+          "hopCountInMessage": 8,
+          "k": 8,
+          "processingMs": 69.60000002384186,
+          "usedK1Fallback": false
+        },
+        {
+          "startHopIndex": 24,
+          "hopCountInMessage": 8,
+          "k": 8,
+          "processingMs": 75.69999992847443,
+          "usedK1Fallback": false
+        },
+        {
+          "startHopIndex": 32,
+          "hopCountInMessage": 8,
+          "k": 8,
+          "processingMs": 76.70000004768372,
+          "usedK1Fallback": false
+        },
+        {
+          "startHopIndex": 40,
+          "hopCountInMessage": 8,
+          "k": 8,
+          "processingMs": 72.39999997615814,
+          "usedK1Fallback": false
+        },
+        {
+          "startHopIndex": 48,
+          "hopCountInMessage": 8,
+          "k": 8,
+          "processingMs": 73.89999997615814,
+          "usedK1Fallback": false
+        },
+        {
+          "startHopIndex": 56,
+          "hopCountInMessage": 8,
+          "k": 8,
+          "processingMs": 77.29999995231628,
+          "usedK1Fallback": false
+        },
+        {
+          "startHopIndex": 64,
+          "hopCountInMessage": 8,
+          "k": 8,
+          "processingMs": 73.60000002384186,
+          "usedK1Fallback": false
+        },
+        {
+          "startHopIndex": 72,
+          "hopCountInMessage": 8,
+          "k": 8,
+          "processingMs": 75.30000007152557,
+          "usedK1Fallback": false
+        },
+        {
+          "startHopIndex": 80,
+          "hopCountInMessage": 8,
+          "k": 8,
+          "processingMs": 72,
+          "usedK1Fallback": false
+        },
+        {
+          "startHopIndex": 88,
+          "hopCountInMessage": 8,
+          "k": 8,
+          "processingMs": 74.59999990463257,
+          "usedK1Fallback": false
+        },
+        {
+          "startHopIndex": 96,
+          "hopCountInMessage": 8,
+          "k": 1,
+          "processingMs": 102.60000002384186,
+          "usedK1Fallback": true
+        },
+        {
+          "startHopIndex": 104,
+          "hopCountInMessage": 8,
+          "k": 1,
+          "processingMs": 0.10000002384185791,
+          "usedK1Fallback": true
+        },
+        {
+          "startHopIndex": 112,
+          "hopCountInMessage": 8,
+          "k": 1,
+          "processingMs": 0.10000002384185791,
+          "usedK1Fallback": true
+        },
+        {
+          "startHopIndex": 120,
+          "hopCountInMessage": 8,
+          "k": 1,
+          "processingMs": 0.10000002384185791,
+          "usedK1Fallback": true
+        },
+        {
+          "startHopIndex": 128,
+          "hopCountInMessage": 3,
+          "k": 1,
+          "processingMs": 0.09999990463256836,
+          "usedK1Fallback": true
+        }
+      ],
+      "inputNames": [
+        "audio_last_2048_sequence",
+        "mel_buffer_in",
+        "cache0_in",
+        "cache1_in",
+        "h_in",
+        "c_in",
+        "prev_output_in"
+      ],
+      "outputNames": [
+        "probabilities_sequence",
+        "chosen_state_sequence",
+        "mel_buffer_out",
+        "cache0_out",
+        "cache1_out",
+        "h_out",
+        "c_out"
+      ],
+      "publicationProjectionInvoked": true,
+      "publicationProjectionIdentity": {
+        "publicationProjectionId": "online-amt-calibrated-k8-hop-event-projection-v1",
+        "hopSamples": 512,
+        "groupHops": 8,
+        "timingCorrectionMs": -162.93750000004252,
+        "publishedOnsetBoost": 1,
+        "pseudoIntensity": "NATIVE"
+      },
+      "chosenStateHopCount": 131,
+      "acousticObservations": [],
+      "webgpuAdapter": {
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier2",
+          "shader-f16",
+          "timestamp-query",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      }
+    },
+    "basic-pitch-browser-v1": {
+      "schemaVersion": 2,
+      "stage": "XC1_OFFICIAL_STAGE_A_REAL_EXECUTOR_ACCEPTANCE",
+      "status": "OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS",
+      "deploymentId": "basic-pitch-browser-v1",
+      "candidateId": "basic-pitch-browser-v1",
+      "takeId": "pre-f4-non-smd-synthetic-piano-like",
+      "acousticOnly": true,
+      "truthMidiAccessible": false,
+      "noScoreTruthInput": true,
+      "assetShaVerification": "PASS",
+      "startedAtUnixMs": 1791988464851,
+      "browser": {
+        "channel": "chrome",
+        "version": "155.0.8059.39",
+        "headed": true,
+        "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "launchArgsIncludeUnsafeWebGpu": false,
+        "os": "win32 10.0.26200 x64",
+        "node": "v24.19.0",
+        "playwrightRuntime": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\browser_runtime\\dr3r_browser_runtime\\node_modules\\playwright"
+      },
+      "implementationIdentity": {
+        "officialRegistry": {
+          "file": "backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs",
+          "sha256": "5f47a7f3e09d3ae93cbca148bc78dd31e603cdc5b84f533b1191423c351a0011",
+          "exportName": "executeOfficialXc1StageACell"
+        },
+        "realExecutor": {
+          "file": "backend/research/browser_runtime/xc1_basic_pitch_browser_executor.mjs",
+          "sha256": "7d917f8bc0ad8e738fd5298f1d26140dc245823b851145c6da53dda6c2197828",
+          "exportName": "executeBasicPitchBrowserExecutor"
+        },
+        "sharedBrowserRuntime": {
+          "file": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+          "sha256": "391cc40c02bc7dbcf4039795bdc269216b4c5d713a81c8bbd43b7fa89de00c64",
+          "exportName": "startXc1BrowserAssetServer"
+        },
+        "decoder": {
+          "decoderImportPath": "node_modules/@spotify/basic-pitch/esm/toMidi.js",
+          "outputToNotesPolyArgs": {
+            "onsetThreshold": 0.5,
+            "frameThreshold": 0.3,
+            "minNoteLenFrames": 5,
+            "inferOnsets": true,
+            "maxFreq": null,
+            "minFreq": null,
+            "melodiaTrick": true,
+            "energyTolerance": 11
+          },
+          "noteFramesToTimeCalled": true,
+          "sourceSha256": "c6492ceae181d24fb254a152d0853f2a60f27e78547db96258026ddcd81ef618"
+        }
+      },
+      "assetIdentity": {
+        "packageLockSha256": "20411bed571869711745c3ad993847a67512bb59156df5e16a372cccb1c9d4e8",
+        "modelJsonSha256": "1ed1aaee3409ec1dc098c8b01f430c0911f6fe9412e7af8086750f9e8f302f68",
+        "weightsSha256": "b142a95737a52e1e412d5f92e73d8bb80dfe8d04941acc0702f11f4524fb377c",
+        "packageVersion": "1.0.1",
+        "tfjsVersion": "3.21.0",
+        "browserBackend": "tensorflowjs-webgl",
+        "officialDecoder": {
+          "importPath": "node_modules/@spotify/basic-pitch/esm/toMidi.js",
+          "outputToNotesPolyExport": true,
+          "noteFramesToTimeExport": true,
+          "sourceSha256": "c6492ceae181d24fb254a152d0853f2a60f27e78547db96258026ddcd81ef618",
+          "executionContext": "browser-esm-bundle"
+        }
+      },
+      "frozenAcousticInput": {
+        "takeId": "pre-f4-non-smd-synthetic-piano-like",
+        "pcmSha256": "7143256fa3495d5f41fbf02a8e59dba01da8322041eb73d5c4d8cf96167acaa0",
+        "byteSize": 268800,
+        "sampleCount": 67200,
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "scoreableInterval": {
+          "startMs": 1000,
+          "endMs": 3980,
+          "pastContextMs": 1000,
+          "futureContextMs": 220
+        },
+        "sourceAcousticWavSha256": "synthetic-non-smd-generated-pcm"
+      },
+      "executorExport": "executeBasicPitchBrowserExecutor",
+      "backend": "webgl",
+      "browserReceivedPcm": {
+        "sha256": "7143256fa3495d5f41fbf02a8e59dba01da8322041eb73d5c4d8cf96167acaa0",
+        "byteLength": 268800,
+        "sampleCount": 67200
+      },
+      "decoderImportPath": "node_modules/@spotify/basic-pitch/esm/toMidi.js",
+      "outputToNotesPolyCalled": true,
+      "noteFramesToTimeCalled": true,
+      "sessionLoadCount": 1,
+      "windowCount": 4,
+      "actualModelInvocationCount": 8,
+      "actualInferenceSessionRunCount": 8,
+      "processingMs": 5159.699999928474,
+      "noteCount": 0,
+      "perWindowTimings": [
+        {
+          "windowId": "owned_1000",
+          "inputWindowStartMs": 0,
+          "ownedStartMs": 1000,
+          "ownedEndMs": 1600,
+          "processingMs": 4990.199999928474,
+          "decodedCount": 2,
+          "publishedCount": 0
+        },
+        {
+          "windowId": "owned_1600",
+          "inputWindowStartMs": 600,
+          "ownedStartMs": 1600,
+          "ownedEndMs": 2200,
+          "processingMs": 61.89999997615814,
+          "decodedCount": 2,
+          "publishedCount": 0
+        },
+        {
+          "windowId": "owned_2200",
+          "inputWindowStartMs": 1200,
+          "ownedStartMs": 2200,
+          "ownedEndMs": 2800,
+          "processingMs": 60.700000047683716,
+          "decodedCount": 2,
+          "publishedCount": 0
+        },
+        {
+          "windowId": "owned_2800",
+          "inputWindowStartMs": 1800,
+          "ownedStartMs": 2800,
+          "ownedEndMs": 3400,
+          "processingMs": 46.89999997615814,
+          "decodedCount": 0,
+          "publishedCount": 0
+        }
+      ],
+      "acousticObservations": [],
+      "decoderExecutionIdentity": {
+        "decoderImportPath": "node_modules/@spotify/basic-pitch/esm/toMidi.js",
+        "outputToNotesPolyArgs": {
+          "onsetThreshold": 0.5,
+          "frameThreshold": 0.3,
+          "minNoteLenFrames": 5,
+          "inferOnsets": true,
+          "maxFreq": null,
+          "minFreq": null,
+          "melodiaTrick": true,
+          "energyTolerance": 11
+        },
+        "noteFramesToTimeCalled": true
+      }
+    }
+  },
+  "semanticAcceptanceStatus": "SCIENTIFIC_SEMANTIC_EXECUTOR_ACCEPTANCE_PASS",
+  "overallStatus": "SCIENTIFIC_SEMANTIC_EXECUTOR_ACCEPTANCE_PASS"
+}

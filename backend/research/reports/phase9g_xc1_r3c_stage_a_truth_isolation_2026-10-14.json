@@ -1,0 +1,8 @@
+{
+  "artifact": "phase9g_xc1_r3c_stage_a_truth_isolation",
+  "midiFieldsPresent": false,
+  "phase": "PHASE_9G_XC1_R3C_SCIENTIFIC_SEMANTICS_F4_FULL_SEALED_BAKEOFF",
+  "sanitizedManifest": "backend/data/work/xc1_r3c/f4/sanitized_stage_a_manifest.json",
+  "status": "PASS",
+  "truthFieldsPresent": false
+}

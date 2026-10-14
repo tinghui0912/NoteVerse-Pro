@@ -1,0 +1,409 @@
+{
+  "acceptanceInput": "backend/data/work/xc1_r3c/phase9g_xc1_r3c_semantic_executor_acceptance_2026-10-14.json",
+  "artifact": "phase9g_xc1_r3c_true_complete_pipeline_dry_run",
+  "frontRunnerDryRunDisposition": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+  "metrics100ms": [
+    {
+      "candidateId": "robust-browser-v1",
+      "chordNoteCompletenessDiagnostic": "NOT_AVAILABLE_WITHOUT_GROUP_METADATA",
+      "duplicateRetriggerFalseDetections": 0,
+      "f1": 0.0,
+      "falsePositiveOnsetsPerMinute": 0.0,
+      "matchCount": 0,
+      "missedOnsetRate": 1.0,
+      "onsetAbsTimingMedianMs": null,
+      "onsetAbsTimingP95Ms": null,
+      "precision": 0.0,
+      "recall": 0.0,
+      "takeId": "pre-f4-non-smd-synthetic-piano-like",
+      "toleranceMs": 100.0
+    },
+    {
+      "candidateId": "online-amt-k8-browser-v1",
+      "chordNoteCompletenessDiagnostic": "NOT_AVAILABLE_WITHOUT_GROUP_METADATA",
+      "duplicateRetriggerFalseDetections": 0,
+      "f1": 0.0,
+      "falsePositiveOnsetsPerMinute": 0.0,
+      "matchCount": 0,
+      "missedOnsetRate": 1.0,
+      "onsetAbsTimingMedianMs": null,
+      "onsetAbsTimingP95Ms": null,
+      "precision": 0.0,
+      "recall": 0.0,
+      "takeId": "pre-f4-non-smd-synthetic-piano-like",
+      "toleranceMs": 100.0
+    },
+    {
+      "candidateId": "basic-pitch-browser-v1",
+      "chordNoteCompletenessDiagnostic": "NOT_AVAILABLE_WITHOUT_GROUP_METADATA",
+      "duplicateRetriggerFalseDetections": 0,
+      "f1": 0.0,
+      "falsePositiveOnsetsPerMinute": 0.0,
+      "matchCount": 0,
+      "missedOnsetRate": 1.0,
+      "onsetAbsTimingMedianMs": null,
+      "onsetAbsTimingP95Ms": null,
+      "precision": 0.0,
+      "recall": 0.0,
+      "takeId": "pre-f4-non-smd-synthetic-piano-like",
+      "toleranceMs": 100.0
+    }
+  ],
+  "metrics25ms": [
+    {
+      "candidateId": "robust-browser-v1",
+      "chordNoteCompletenessDiagnostic": "NOT_AVAILABLE_WITHOUT_GROUP_METADATA",
+      "duplicateRetriggerFalseDetections": 0,
+      "f1": 0.0,
+      "falsePositiveOnsetsPerMinute": 0.0,
+      "matchCount": 0,
+      "missedOnsetRate": 1.0,
+      "onsetAbsTimingMedianMs": null,
+      "onsetAbsTimingP95Ms": null,
+      "precision": 0.0,
+      "recall": 0.0,
+      "takeId": "pre-f4-non-smd-synthetic-piano-like",
+      "toleranceMs": 25.0
+    },
+    {
+      "candidateId": "online-amt-k8-browser-v1",
+      "chordNoteCompletenessDiagnostic": "NOT_AVAILABLE_WITHOUT_GROUP_METADATA",
+      "duplicateRetriggerFalseDetections": 0,
+      "f1": 0.0,
+      "falsePositiveOnsetsPerMinute": 0.0,
+      "matchCount": 0,
+      "missedOnsetRate": 1.0,
+      "onsetAbsTimingMedianMs": null,
+      "onsetAbsTimingP95Ms": null,
+      "precision": 0.0,
+      "recall": 0.0,
+      "takeId": "pre-f4-non-smd-synthetic-piano-like",
+      "toleranceMs": 25.0
+    },
+    {
+      "candidateId": "basic-pitch-browser-v1",
+      "chordNoteCompletenessDiagnostic": "NOT_AVAILABLE_WITHOUT_GROUP_METADATA",
+      "duplicateRetriggerFalseDetections": 0,
+      "f1": 0.0,
+      "falsePositiveOnsetsPerMinute": 0.0,
+      "matchCount": 0,
+      "missedOnsetRate": 1.0,
+      "onsetAbsTimingMedianMs": null,
+      "onsetAbsTimingP95Ms": null,
+      "precision": 0.0,
+      "recall": 0.0,
+      "takeId": "pre-f4-non-smd-synthetic-piano-like",
+      "toleranceMs": 25.0
+    }
+  ],
+  "metrics50ms": [
+    {
+      "candidateId": "robust-browser-v1",
+      "chordNoteCompletenessDiagnostic": "NOT_AVAILABLE_WITHOUT_GROUP_METADATA",
+      "duplicateRetriggerFalseDetections": 0,
+      "f1": 0.0,
+      "falsePositiveOnsetsPerMinute": 0.0,
+      "matchCount": 0,
+      "missedOnsetRate": 1.0,
+      "onsetAbsTimingMedianMs": null,
+      "onsetAbsTimingP95Ms": null,
+      "precision": 0.0,
+      "recall": 0.0,
+      "takeId": "pre-f4-non-smd-synthetic-piano-like",
+      "toleranceMs": 50.0
+    },
+    {
+      "candidateId": "online-amt-k8-browser-v1",
+      "chordNoteCompletenessDiagnostic": "NOT_AVAILABLE_WITHOUT_GROUP_METADATA",
+      "duplicateRetriggerFalseDetections": 0,
+      "f1": 0.0,
+      "falsePositiveOnsetsPerMinute": 0.0,
+      "matchCount": 0,
+      "missedOnsetRate": 1.0,
+      "onsetAbsTimingMedianMs": null,
+      "onsetAbsTimingP95Ms": null,
+      "precision": 0.0,
+      "recall": 0.0,
+      "takeId": "pre-f4-non-smd-synthetic-piano-like",
+      "toleranceMs": 50.0
+    },
+    {
+      "candidateId": "basic-pitch-browser-v1",
+      "chordNoteCompletenessDiagnostic": "NOT_AVAILABLE_WITHOUT_GROUP_METADATA",
+      "duplicateRetriggerFalseDetections": 0,
+      "f1": 0.0,
+      "falsePositiveOnsetsPerMinute": 0.0,
+      "matchCount": 0,
+      "missedOnsetRate": 1.0,
+      "onsetAbsTimingMedianMs": null,
+      "onsetAbsTimingP95Ms": null,
+      "precision": 0.0,
+      "recall": 0.0,
+      "takeId": "pre-f4-non-smd-synthetic-piano-like",
+      "toleranceMs": 50.0
+    }
+  ],
+  "overallStatus": "TRUE_COMPLETE_SEALED_PIPELINE_DRY_RUN_PASS",
+  "pairedBootstrap": {
+    "basic-pitch-browser-v1__online-amt-k8-browser-v1__f1": {
+      "candidateA": "basic-pitch-browser-v1",
+      "candidateB": "online-amt-k8-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "f1",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "basic-pitch-browser-v1__online-amt-k8-browser-v1__falsePositiveOnsetsPerMinute": {
+      "candidateA": "basic-pitch-browser-v1",
+      "candidateB": "online-amt-k8-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "falsePositiveOnsetsPerMinute",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "basic-pitch-browser-v1__online-amt-k8-browser-v1__missedOnsetRate": {
+      "candidateA": "basic-pitch-browser-v1",
+      "candidateB": "online-amt-k8-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "missedOnsetRate",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "basic-pitch-browser-v1__robust-browser-v1__f1": {
+      "candidateA": "basic-pitch-browser-v1",
+      "candidateB": "robust-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "f1",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "basic-pitch-browser-v1__robust-browser-v1__falsePositiveOnsetsPerMinute": {
+      "candidateA": "basic-pitch-browser-v1",
+      "candidateB": "robust-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "falsePositiveOnsetsPerMinute",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "basic-pitch-browser-v1__robust-browser-v1__missedOnsetRate": {
+      "candidateA": "basic-pitch-browser-v1",
+      "candidateB": "robust-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "missedOnsetRate",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "online-amt-k8-browser-v1__basic-pitch-browser-v1__f1": {
+      "candidateA": "online-amt-k8-browser-v1",
+      "candidateB": "basic-pitch-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "f1",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "online-amt-k8-browser-v1__basic-pitch-browser-v1__falsePositiveOnsetsPerMinute": {
+      "candidateA": "online-amt-k8-browser-v1",
+      "candidateB": "basic-pitch-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "falsePositiveOnsetsPerMinute",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "online-amt-k8-browser-v1__basic-pitch-browser-v1__missedOnsetRate": {
+      "candidateA": "online-amt-k8-browser-v1",
+      "candidateB": "basic-pitch-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "missedOnsetRate",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "online-amt-k8-browser-v1__robust-browser-v1__f1": {
+      "candidateA": "online-amt-k8-browser-v1",
+      "candidateB": "robust-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "f1",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "online-amt-k8-browser-v1__robust-browser-v1__falsePositiveOnsetsPerMinute": {
+      "candidateA": "online-amt-k8-browser-v1",
+      "candidateB": "robust-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "falsePositiveOnsetsPerMinute",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "online-amt-k8-browser-v1__robust-browser-v1__missedOnsetRate": {
+      "candidateA": "online-amt-k8-browser-v1",
+      "candidateB": "robust-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "missedOnsetRate",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "robust-browser-v1__basic-pitch-browser-v1__f1": {
+      "candidateA": "robust-browser-v1",
+      "candidateB": "basic-pitch-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "f1",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "robust-browser-v1__basic-pitch-browser-v1__falsePositiveOnsetsPerMinute": {
+      "candidateA": "robust-browser-v1",
+      "candidateB": "basic-pitch-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "falsePositiveOnsetsPerMinute",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "robust-browser-v1__basic-pitch-browser-v1__missedOnsetRate": {
+      "candidateA": "robust-browser-v1",
+      "candidateB": "basic-pitch-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "missedOnsetRate",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "robust-browser-v1__online-amt-k8-browser-v1__f1": {
+      "candidateA": "robust-browser-v1",
+      "candidateB": "online-amt-k8-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "f1",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "robust-browser-v1__online-amt-k8-browser-v1__falsePositiveOnsetsPerMinute": {
+      "candidateA": "robust-browser-v1",
+      "candidateB": "online-amt-k8-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "falsePositiveOnsetsPerMinute",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    },
+    "robust-browser-v1__online-amt-k8-browser-v1__missedOnsetRate": {
+      "candidateA": "robust-browser-v1",
+      "candidateB": "online-amt-k8-browser-v1",
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "draws": 100,
+      "meanDiff": 0.0,
+      "metric": "missedOnsetRate",
+      "outputDigest": "ff8046593293d94a7cd5865efea7e8426cbb0159538f7df30e26c0e68f39e268",
+      "seed": 13371
+    }
+  },
+  "phase": "PHASE_9G_XC1_R3C_SCIENTIFIC_SEMANTICS_F4_FULL_SEALED_BAKEOFF",
+  "sealMutationProof": {
+    "failureSample": [
+      {
+        "actualSha256": "b679f8242287030805eadd7f3a70742b469f4da3fdc52836d66b214e98672554",
+        "cell": {
+          "artifactPath": "backend/data/work/xc1_r3c/true_pipeline_dry_run/predictions/robust-browser-v1.json",
+          "artifactSha256": "3de3af7374864baf2b5eced6bd75b9bccb593547bbbe809f8ab4c6a1530996a2",
+          "candidateId": "robust-browser-v1",
+          "status": "SEALED_DRY_RUN_PREDICTION",
+          "takeId": "pre-f4-non-smd-synthetic-piano-like"
+        },
+        "failure": "ARTIFACT_SHA_MISMATCH"
+      }
+    ],
+    "mutationDetected": true,
+    "restoredStatus": "PASS"
+  },
+  "sealVerification": {
+    "failures": [],
+    "status": "PASS",
+    "verifiedCellCount": 3
+  },
+  "stageASealManifest": "backend/data/work/xc1_r3c/true_pipeline_dry_run/stage_a_seal_manifest.json",
+  "syntheticTruthOnly": true,
+  "truthRevealTimestamp": "2026-10-14T14:34:32.109125+00:00"
+}
