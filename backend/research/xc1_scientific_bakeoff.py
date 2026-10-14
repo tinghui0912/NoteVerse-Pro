@@ -164,11 +164,13 @@ def pair_smd_audio_midi(files: Iterable[dict[str, Any]]) -> dict[str, Any]:
 
 def infer_piece_id(stem: str) -> str:
     tokens = stem.replace("-", "_").split("_")
-    if len(tokens) >= 3 and tokens[-1].isdigit() and tokens[-2].isdigit():
-        return "_".join(tokens[:-2])
-    if len(tokens) >= 2 and tokens[-1].isdigit():
-        return "_".join(tokens[:-1])
-    return stem
+    if tokens and tokens[-1].lower() == "smd":
+        tokens = tokens[:-1]
+    if tokens and tokens[-1].isdigit() and len(tokens[-1]) == 8:
+        tokens = tokens[:-1]
+    if tokens and tokens[-1].isdigit():
+        tokens = tokens[:-1]
+    return "_".join(tokens) if tokens else stem
 
 
 def infer_performer_id(stem: str) -> str | None:
