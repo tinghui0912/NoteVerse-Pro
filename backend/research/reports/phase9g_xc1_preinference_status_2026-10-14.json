@@ -1,0 +1,41 @@
+{
+  "artifact": "xc1PreinferenceStatus",
+  "commercialQualificationStatus": "NOT_PERFORMED",
+  "candidateInferenceStarted": false,
+  "date": "2026-10-14",
+  "datasetResolution": {
+    "authoritativePage": "https://www.audiolabs-erlangen.de/resources/MIR/SMD/midi",
+    "publisherRecommendedMaterial": "original WAV files from Zenodo, not MP3 previews",
+    "recordTitle": "Saarland Music Data: MIDI-Audio Piano Music",
+    "resolvedDoi": "10.5281/zenodo.13753319",
+    "resolvedVia": "Docker science container urllib request to https://zenodo.org/api/records/10847280",
+    "files": [
+      {
+        "key": "SMD-piano_v2.zip",
+        "sizeBytes": 3221582754,
+        "checksum": "md5:984cfc48f1fa2785594769eb1e674697",
+        "downloadApiUrl": "https://zenodo.org/api/records/13753319/files/SMD-piano_v2.zip/content"
+      }
+    ]
+  },
+  "evidenceStatus": "PROSPECTIVE_FREEZE_COMPLETE_DATASET_METADATA_RESOLVED_NO_CANDIDATE_INFERENCE",
+  "finalScientificOutcome": "NOT_REACHED_NO_SMD_PREDICTIONS_RUN",
+  "implementationCommit": "5996197749083f6b6a2ec3845d91163d84e1bac8",
+  "prospectiveFreezeCommit": "6cf639a8",
+  "phase": "PHASE_9G_XC1_FRESH_EXTERNAL_THREE_CANDIDATE_SCIENTIFIC_BAKEOFF",
+  "productionWinnerSelected": false,
+  "scopeProtections": {
+    "backendPracticeInferenceRestored": false,
+    "d4QualificationPerformed": false,
+    "p15p22InferenceIncrease": 0,
+    "phase9gBOutcome": "STATISTICAL_TIE",
+    "phase9gBWinner": null,
+    "practiceWebSocketRestored": false,
+    "productionMicrophoneEnabled": false
+  },
+  "truthBoundary": {
+    "smdMidiTruthReadByAcousticExecutor": false,
+    "sealedPredictionsCreated": false,
+    "truthScoringStarted": false
+  }
+}
