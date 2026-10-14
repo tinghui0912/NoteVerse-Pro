@@ -1,8 +1,23 @@
-import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { executeBasicPitchBrowserExecutor, BASIC_PITCH_DECODER_EXECUTION_IDENTITY } from './xc1_basic_pitch_browser_executor.mjs';
+import { executeOnlineAmtK8BrowserExecutor } from './xc1_online_amt_k8_browser_executor.mjs';
+import { executeRobustBrowserExecutor, ROBUST_DECODER_IDENTITY } from './xc1_robust_browser_executor.mjs';
+import {
+  BASIC_PITCH_WORK,
+  REPO_ROOT,
+  XC1_DEFAULT_ASSET_PATHS,
+  assertNoSmokeStatus,
+  launchXc1Browser,
+  moduleIdentity,
+  sha256File,
+  startXc1BrowserAssetServer,
+  verifySha,
+} from './xc1_browser_runtime_shared.mjs';
 
 export const XC1_STAGE_A_REGISTRY_SCHEMA_VERSION = 1;
 
@@ -120,35 +135,81 @@ function validateOfficialRequest(request) {
 export async function executeRobustBrowserV1(request) {
   const identity = XC1_FROZEN_IDENTITIES['robust-browser-v1'];
   verifyDeploymentBinding(request, identity);
-  await verifySha(request.robustOnnxPath, identity.onnxSha256, 'robust ONNX');
-  return writeBlockedOrSmokeReceipt(request, identity, {
-    executor: 'REAL_ROBUST_BROWSER_EXECUTOR_BOUNDARY',
-    status: 'XC1_STAGE_A_BROWSER_EXECUTION_NOT_INVOKED_BY_SMOKE',
-    implementation: 'reuses frozen Robust WebGPU executor/harness by deployment identity',
+  const robustOnnxPath = request.robustOnnxPath ?? XC1_DEFAULT_ASSET_PATHS.robustOnnxPath;
+  const assetVerification = {
+    onnxSha256: await verifySha(robustOnnxPath, identity.onnxSha256, 'robust ONNX'),
+    deploymentIdentitySha256: identity.deploymentIdentitySha256,
+    sampleRateHz: identity.sampleRateHz,
+    inputSamples: identity.inputSamples,
+    contextMs: {
+      past: identity.pastContextMs,
+      owned: identity.ownedRegionMs,
+      future: identity.futureContextMs,
+    },
+    thresholds: {
+      onset: identity.onsetThreshold,
+      frame: identity.frameThreshold,
+    },
+  };
+  return runOfficialBrowserExecutor(request, identity, {
+    robustOnnxPath,
+    executorExport: 'executeRobustBrowserExecutor',
+    executorModulePath: path.join(path.dirname(fileURLToPath(import.meta.url)), 'xc1_robust_browser_executor.mjs'),
+    decoderIdentity: ROBUST_DECODER_IDENTITY,
+    assetVerification,
+    executePage: executeRobustBrowserExecutor,
   });
 }
 
 export async function executeOnlineAmtK8BrowserV1(request) {
   const identity = XC1_FROZEN_IDENTITIES['online-amt-k8-browser-v1'];
   verifyDeploymentBinding(request, identity);
-  await verifySha(request.onlineAmtK8OnnxPath, identity.k8OnnxSha256, 'Online-AMT K8 ONNX');
-  await verifySha(request.onlineAmtK1OnnxPath, identity.k1FallbackOnnxSha256, 'Online-AMT K1 fallback ONNX');
-  return writeBlockedOrSmokeReceipt(request, identity, {
-    executor: 'REAL_ONLINE_AMT_K8_BROWSER_EXECUTOR_BOUNDARY',
-    status: 'XC1_STAGE_A_BROWSER_EXECUTION_NOT_INVOKED_BY_SMOKE',
-    implementation: 'reuses DR3R1H grouped Worker with K8 plus K1 residual/native-gate fallback',
+  const onlineAmtK8OnnxPath = request.onlineAmtK8OnnxPath ?? XC1_DEFAULT_ASSET_PATHS.onlineAmtK8OnnxPath;
+  const onlineAmtK1OnnxPath = request.onlineAmtK1OnnxPath ?? XC1_DEFAULT_ASSET_PATHS.onlineAmtK1OnnxPath;
+  const assetVerification = {
+    k8OnnxSha256: await verifySha(onlineAmtK8OnnxPath, identity.k8OnnxSha256, 'Online-AMT K8 ONNX'),
+    k1FallbackOnnxSha256: await verifySha(onlineAmtK1OnnxPath, identity.k1FallbackOnnxSha256, 'Online-AMT K1 fallback ONNX'),
+    configurationSha256: identity.configurationSha256,
+    checkpointSha256: identity.checkpointSha256,
+    ortWebVersion: identity.ortWebVersion,
+    hopSamples: identity.hopSamples,
+    groupHops: identity.groupHops,
+    timingCorrectionMs: identity.timingCorrectionMs,
+    publishedOnsetBoost: identity.publishedOnsetBoost,
+    pseudoIntensity: identity.pseudoIntensity,
+  };
+  return runOfficialBrowserExecutor(request, identity, {
+    onlineAmtK8OnnxPath,
+    onlineAmtK1OnnxPath,
+    executorExport: 'executeOnlineAmtK8BrowserExecutor',
+    executorModulePath: path.join(path.dirname(fileURLToPath(import.meta.url)), 'xc1_online_amt_k8_browser_executor.mjs'),
+    decoderIdentity: { publicationProjection: 'online-amt-calibrated-k8-hop-event-projection-v1' },
+    assetVerification,
+    executePage: executeOnlineAmtK8BrowserExecutor,
   });
 }
 
 export async function executeBasicPitchBrowserV1(request) {
   const identity = XC1_FROZEN_IDENTITIES['basic-pitch-browser-v1'];
   verifyDeploymentBinding(request, identity);
-  await verifyBasicPitchAssets(request.basicPitchWorkDir, identity);
-  const decoder = await loadOfficialBasicPitchDecoder(request.basicPitchWorkDir);
-  return writeBlockedOrSmokeReceipt(request, identity, {
-    executor: 'REAL_BASIC_PITCH_BROWSER_EXECUTOR_BOUNDARY',
-    status: 'XC1_STAGE_A_BROWSER_EXECUTION_NOT_INVOKED_BY_SMOKE',
-    officialDecoder: decoder.identity,
+  const basicPitchWorkDir = request.basicPitchWorkDir ?? XC1_DEFAULT_ASSET_PATHS.basicPitchWorkDir;
+  const basicPitchAssets = await verifyBasicPitchAssets(basicPitchWorkDir, identity);
+  const decoder = await loadOfficialBasicPitchDecoder(basicPitchWorkDir);
+  return runOfficialBrowserExecutor(request, identity, {
+    basicPitchWorkDir,
+    executorExport: 'executeBasicPitchBrowserExecutor',
+    executorModulePath: path.join(path.dirname(fileURLToPath(import.meta.url)), 'xc1_basic_pitch_browser_executor.mjs'),
+    decoderIdentity: {
+      ...BASIC_PITCH_DECODER_EXECUTION_IDENTITY,
+      sourceSha256: decoder.identity.sourceSha256,
+    },
+    assetVerification: {
+      ...basicPitchAssets,
+      tfjsVersion: identity.tfjsVersion,
+      browserBackend: identity.browserBackend,
+      officialDecoder: decoder.identity,
+    },
+    executePage: executeBasicPitchBrowserExecutor,
   });
 }
 
@@ -157,7 +218,7 @@ export async function decodeBasicPitchOfficialNotesFromActivations({
   frames,
   onsets,
 }) {
-  const { outputToNotesPoly, noteFramesToTime, identity } = await loadOfficialBasicPitchDecoder(basicPitchWorkDir);
+  const { outputToNotesPoly, noteFramesToTime, identity } = await loadNodeCompatibleBasicPitchDecoder(basicPitchWorkDir);
   const params = XC1_FROZEN_IDENTITIES['basic-pitch-browser-v1'];
   const notes = outputToNotesPoly(
     frames,
@@ -175,24 +236,44 @@ export async function decodeBasicPitchOfficialNotesFromActivations({
   return { identity, notes, timedNotes, noteFramesToTimeCalled: true };
 }
 
-async function loadOfficialBasicPitchDecoder(basicPitchWorkDir) {
-  if (!basicPitchWorkDir) throw new Error('XC1_BASIC_PITCH_WORK_DIR_REQUIRED');
+async function loadNodeCompatibleBasicPitchDecoder(basicPitchWorkDir) {
+  const browserIdentity = await loadOfficialBasicPitchDecoder(basicPitchWorkDir);
   const packageRoot = path.resolve(basicPitchWorkDir, 'node_modules', '@spotify', 'basic-pitch');
   const cjsDecoder = path.join(packageRoot, 'cjs', 'toMidi.js');
-  if (!existsSync(cjsDecoder)) throw new Error(`XC1_BASIC_PITCH_OFFICIAL_DECODER_MISSING:${cjsDecoder}`);
   const require = createRequire(path.join(packageRoot, 'package.json'));
   const mod = require(cjsDecoder);
-  if (typeof mod.outputToNotesPoly !== 'function' || typeof mod.noteFramesToTime !== 'function') {
-    throw new Error('XC1_BASIC_PITCH_OFFICIAL_DECODER_EXPORT_MISSING');
-  }
   return {
     outputToNotesPoly: mod.outputToNotesPoly,
     noteFramesToTime: mod.noteFramesToTime,
     identity: {
-      importPath: 'node_modules/@spotify/basic-pitch/cjs/toMidi.js',
+      ...browserIdentity.identity,
+      nodeCompatibilityImportPath: 'node_modules/@spotify/basic-pitch/cjs/toMidi.js',
+      nodeCompatibilitySourceSha256: await sha256File(cjsDecoder),
+    },
+  };
+}
+
+async function loadOfficialBasicPitchDecoder(basicPitchWorkDir) {
+  if (!basicPitchWorkDir) throw new Error('XC1_BASIC_PITCH_WORK_DIR_REQUIRED');
+  const packageRoot = path.resolve(basicPitchWorkDir, 'node_modules', '@spotify', 'basic-pitch');
+  const esmDecoder = path.join(packageRoot, 'esm', 'toMidi.js');
+  if (!existsSync(esmDecoder)) throw new Error(`XC1_BASIC_PITCH_OFFICIAL_DECODER_MISSING:${esmDecoder}`);
+  const source = await readFile(esmDecoder, 'utf8');
+  if (!source.includes('function outputToNotesPoly') && !source.includes('outputToNotesPoly')) {
+    throw new Error('XC1_BASIC_PITCH_OFFICIAL_DECODER_EXPORT_MISSING');
+  }
+  if (!source.includes('function noteFramesToTime') && !source.includes('noteFramesToTime')) {
+    throw new Error('XC1_BASIC_PITCH_OFFICIAL_DECODER_EXPORT_MISSING');
+  }
+  return {
+    outputToNotesPoly: null,
+    noteFramesToTime: null,
+    identity: {
+      importPath: 'node_modules/@spotify/basic-pitch/esm/toMidi.js',
       outputToNotesPolyExport: true,
       noteFramesToTimeExport: true,
-      sourceSha256: await sha256File(cjsDecoder),
+      sourceSha256: await sha256File(esmDecoder),
+      executionContext: 'browser-esm-bundle',
     },
   };
 }
@@ -200,13 +281,24 @@ async function loadOfficialBasicPitchDecoder(basicPitchWorkDir) {
 async function verifyBasicPitchAssets(workDir, identity) {
   if (!workDir) throw new Error('XC1_BASIC_PITCH_WORK_DIR_REQUIRED');
   const root = path.resolve(workDir);
-  await verifySha(path.join(root, 'package-lock.json'), identity.packageLockSha256, 'Basic Pitch package-lock');
-  await verifySha(path.join(root, 'node_modules', '@spotify', 'basic-pitch', 'model', 'model.json'), identity.modelJsonSha256, 'Basic Pitch model.json');
-  await verifySha(path.join(root, 'node_modules', '@spotify', 'basic-pitch', 'model', 'group1-shard1of1.bin'), identity.weightsSha256, 'Basic Pitch weights');
+  const packageLockSha256 = await verifySha(path.join(root, 'package-lock.json'), identity.packageLockSha256, 'Basic Pitch package-lock');
+  const modelJsonSha256 = await verifySha(path.join(root, 'node_modules', '@spotify', 'basic-pitch', 'model', 'model.json'), identity.modelJsonSha256, 'Basic Pitch model.json');
+  const weightsSha256 = await verifySha(path.join(root, 'node_modules', '@spotify', 'basic-pitch', 'model', 'group1-shard1of1.bin'), identity.weightsSha256, 'Basic Pitch weights');
   const tfjsPackage = JSON.parse(await readFile(path.join(root, 'node_modules', '@tensorflow', 'tfjs', 'package.json'), 'utf8'));
   if (tfjsPackage.version !== identity.tfjsVersion) {
     throw new Error(`XC1_CANDIDATE_ASSET_IDENTITY_DRIFT:tfjs:${tfjsPackage.version}:${identity.tfjsVersion}`);
   }
+  const basicPitchPackage = JSON.parse(await readFile(path.join(root, 'node_modules', '@spotify', 'basic-pitch', 'package.json'), 'utf8'));
+  if (basicPitchPackage.version !== identity.packageVersion) {
+    throw new Error(`XC1_CANDIDATE_ASSET_IDENTITY_DRIFT:basic-pitch-package:${basicPitchPackage.version}:${identity.packageVersion}`);
+  }
+  return {
+    packageLockSha256,
+    modelJsonSha256,
+    weightsSha256,
+    packageVersion: basicPitchPackage.version,
+    tfjsVersion: tfjsPackage.version,
+  };
 }
 
 function verifyDeploymentBinding(request, identity) {
@@ -235,16 +327,64 @@ async function writeBlockedOrSmokeReceipt(request, identity, payload) {
   return receipt;
 }
 
-async function verifySha(filePath, expected, label) {
-  if (!filePath) throw new Error(`XC1_CANDIDATE_ASSET_REQUIRED:${label}`);
-  const actual = await sha256File(filePath);
-  if (actual !== expected) {
-    throw new Error(`XC1_CANDIDATE_ASSET_IDENTITY_DRIFT:${label}:${actual}:${expected}`);
+async function runOfficialBrowserExecutor(request, identity, {
+  robustOnnxPath = XC1_DEFAULT_ASSET_PATHS.robustOnnxPath,
+  onlineAmtK8OnnxPath = XC1_DEFAULT_ASSET_PATHS.onlineAmtK8OnnxPath,
+  onlineAmtK1OnnxPath = XC1_DEFAULT_ASSET_PATHS.onlineAmtK1OnnxPath,
+  basicPitchWorkDir = BASIC_PITCH_WORK,
+  executorModulePath,
+  executorExport,
+  decoderIdentity,
+  assetVerification,
+  executePage,
+}) {
+  const { server, url } = await startXc1BrowserAssetServer({
+    robustOnnxPath,
+    onlineAmtK8OnnxPath,
+    onlineAmtK1OnnxPath,
+    basicPitchWorkDir,
+  });
+  const { browser, identity: browserIdentity } = await launchXc1Browser({
+    channel: request.browserChannel ?? 'chrome',
+    headed: request.headed !== false,
+  });
+  try {
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    const startedAtUnixMs = Date.now();
+    const result = await executePage(page, request);
+    const registryModulePath = fileURLToPath(import.meta.url);
+    const sharedModulePath = path.join(path.dirname(registryModulePath), 'xc1_browser_runtime_shared.mjs');
+    const receipt = {
+      schemaVersion: 2,
+      stage: 'XC1_OFFICIAL_STAGE_A_REAL_EXECUTOR_ACCEPTANCE',
+      status: 'OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS',
+      deploymentId: identity.deploymentId,
+      candidateId: identity.candidateId,
+      takeId: request.takeId,
+      acousticOnly: true,
+      truthMidiAccessible: false,
+      noScoreTruthInput: true,
+      assetShaVerification: 'PASS',
+      startedAtUnixMs,
+      browser: browserIdentity,
+      implementationIdentity: {
+        officialRegistry: await moduleIdentity(registryModulePath, 'executeOfficialXc1StageACell'),
+        realExecutor: await moduleIdentity(executorModulePath, executorExport),
+        sharedBrowserRuntime: await moduleIdentity(sharedModulePath, 'startXc1BrowserAssetServer'),
+        decoder: decoderIdentity,
+      },
+      assetIdentity: assetVerification,
+      executorExport,
+      ...result,
+    };
+    assertNoSmokeStatus(receipt);
+    if (request.outputPath) {
+      await writeFile(request.outputPath, `${JSON.stringify(receipt, null, 2)}\n`, 'utf8');
+    }
+    return receipt;
+  } finally {
+    await browser.close();
+    server.close();
   }
-}
-
-async function sha256File(filePath) {
-  const hash = createHash('sha256');
-  hash.update(await readFile(filePath));
-  return hash.digest('hex');
 }

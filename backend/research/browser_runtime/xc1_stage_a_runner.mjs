@@ -20,6 +20,11 @@ function parseArgs(argv) {
       'decoder',
       'truth-midi',
       'expected-pitches',
+      'canonical-pcm',
+      'robust-onnx',
+      'online-amt-k8-onnx',
+      'online-amt-k1-onnx',
+      'basic-pitch-work-dir',
     ].includes(name)) {
       throw new Error(`XC1_STAGE_A_FORBIDDEN_CLI_OPTION:${key}`);
     }
@@ -50,12 +55,7 @@ async function main() {
     candidateId: args['candidate-id'],
     takeId,
     stageARoot,
-    canonicalPcmPath: args['canonical-pcm'] ? path.resolve(args['canonical-pcm']) : undefined,
     outputPath,
-    robustOnnxPath: args['robust-onnx'] ? path.resolve(args['robust-onnx']) : undefined,
-    onlineAmtK8OnnxPath: args['online-amt-k8-onnx'] ? path.resolve(args['online-amt-k8-onnx']) : undefined,
-    onlineAmtK1OnnxPath: args['online-amt-k1-onnx'] ? path.resolve(args['online-amt-k1-onnx']) : undefined,
-    basicPitchWorkDir: args['basic-pitch-work-dir'] ? path.resolve(args['basic-pitch-work-dir']) : undefined,
     browserChannel: args['browser-channel'] ?? 'chrome',
     headed: args.headed === true,
   };
