@@ -1,0 +1,106 @@
+{
+  "phase": "PHASE_9G_XC1_R3B_REAL_PCM_EXECUTORS_F4_AND_FULL_SEALED_SMD_BAKEOFF",
+  "artifact": "completeMiniPipelineDryRun",
+  "environment": {
+    "os": "win32 10.0.26200 x64",
+    "node": "v24.19.0"
+  },
+  "stageA": {
+    "schemaVersion": 1,
+    "evidenceClass": "NON_SMD_SYNTHETIC_COMPLETE_SEALED_PIPELINE_DRY_RUN_ONLY",
+    "cells": [
+      {
+        "deploymentId": "robust-browser-v1",
+        "takeId": "pre-f4-mini-silence",
+        "artifactPath": "backend/data/work/xc1_r3b_dry_run/mini_pipeline/predictions/robust-browser-v1__pre-f4-mini-silence.json",
+        "artifactSha256": "d15d47b281975bafa7ad6b12986ad33092d9dbbe67fd2a2cb93fcce2ade9b181",
+        "status": "OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS",
+        "observationCount": 0,
+        "browserReceivedPcm": {
+          "sha256": "1a00dc8851b7f1fa376a6398a0967e49cab4730767af530262acdaa028ccc1c3",
+          "byteLength": 121600,
+          "sampleCount": 30400
+        }
+      },
+      {
+        "deploymentId": "online-amt-k8-browser-v1",
+        "takeId": "pre-f4-mini-silence",
+        "artifactPath": "backend/data/work/xc1_r3b_dry_run/mini_pipeline/predictions/online-amt-k8-browser-v1__pre-f4-mini-silence.json",
+        "artifactSha256": "43152dbfe26af4c452c3f39ee9b1cae0ee000e2348c3b4192e7ce8d54996c158",
+        "status": "OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS",
+        "observationCount": 123,
+        "browserReceivedPcm": {
+          "sha256": "1a00dc8851b7f1fa376a6398a0967e49cab4730767af530262acdaa028ccc1c3",
+          "byteLength": 121600,
+          "sampleCount": 30400
+        }
+      },
+      {
+        "deploymentId": "basic-pitch-browser-v1",
+        "takeId": "pre-f4-mini-silence",
+        "artifactPath": "backend/data/work/xc1_r3b_dry_run/mini_pipeline/predictions/basic-pitch-browser-v1__pre-f4-mini-silence.json",
+        "artifactSha256": "188359c6453ab0f29120d05837519e15b355fdc953d59be9ed67302d53aaa6f8",
+        "status": "OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS",
+        "observationCount": 0,
+        "browserReceivedPcm": {
+          "sha256": "1a00dc8851b7f1fa376a6398a0967e49cab4730767af530262acdaa028ccc1c3",
+          "byteLength": 121600,
+          "sampleCount": 30400
+        }
+      },
+      {
+        "deploymentId": "robust-browser-v1",
+        "takeId": "pre-f4-mini-piano-like",
+        "artifactPath": "backend/data/work/xc1_r3b_dry_run/mini_pipeline/predictions/robust-browser-v1__pre-f4-mini-piano-like.json",
+        "artifactSha256": "207e461d705e56d54a06dd0021fd0f1464bcb54ccd20b5568a874605c75dd8e6",
+        "status": "OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS",
+        "observationCount": 0,
+        "browserReceivedPcm": {
+          "sha256": "ef7ec3bfa4a05351b660efffcd5c5df99f887050864a10f757440d524f5aba77",
+          "byteLength": 140800,
+          "sampleCount": 35200
+        }
+      },
+      {
+        "deploymentId": "online-amt-k8-browser-v1",
+        "takeId": "pre-f4-mini-piano-like",
+        "artifactPath": "backend/data/work/xc1_r3b_dry_run/mini_pipeline/predictions/online-amt-k8-browser-v1__pre-f4-mini-piano-like.json",
+        "artifactSha256": "8096e128480d10602b9ffdf4a5cd4f138bdac6053d44870cc238ae4e75cfcbbe",
+        "status": "OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS",
+        "observationCount": 123,
+        "browserReceivedPcm": {
+          "sha256": "ef7ec3bfa4a05351b660efffcd5c5df99f887050864a10f757440d524f5aba77",
+          "byteLength": 140800,
+          "sampleCount": 35200
+        }
+      },
+      {
+        "deploymentId": "basic-pitch-browser-v1",
+        "takeId": "pre-f4-mini-piano-like",
+        "artifactPath": "backend/data/work/xc1_r3b_dry_run/mini_pipeline/predictions/basic-pitch-browser-v1__pre-f4-mini-piano-like.json",
+        "artifactSha256": "0dea666d98d8ebb8ebc5a10b49703c9aab2220a3c7d598c70ea6884c6d09a10f",
+        "status": "OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS",
+        "observationCount": 2,
+        "browserReceivedPcm": {
+          "sha256": "ef7ec3bfa4a05351b660efffcd5c5df99f887050864a10f757440d524f5aba77",
+          "byteLength": 140800,
+          "sampleCount": 35200
+        }
+      }
+    ],
+    "cellCount": 6,
+    "expectedCellCount": 6,
+    "sealSha256": "74ab76f71d2affc3fcff69c6e4d0af7e8b62f29135e22df12d1e89c4220e6049",
+    "complete": true
+  },
+  "syntheticStageB": {
+    "openedMidiTruth": false,
+    "syntheticTruthOnly": true,
+    "truthRevealTimestampUnixMs": 1791971940896,
+    "scorerInvoked": true,
+    "bootstrapInvoked": true,
+    "frontRunnerDecisionInvoked": true,
+    "result": "COMPLETE_SEALED_PIPELINE_DRY_RUN_PASS"
+  },
+  "overallStatus": "COMPLETE_SEALED_PIPELINE_DRY_RUN_PASS"
+}
