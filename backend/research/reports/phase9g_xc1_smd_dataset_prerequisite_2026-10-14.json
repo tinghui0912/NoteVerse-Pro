@@ -1,0 +1,31 @@
+{
+  "artifact": "smdDatasetIdentityAndManifestPrerequisite",
+  "candidateIndependentInclusionPolicy": {
+    "excludeOnlyFor": [
+      "missing synchronized truth",
+      "corrupt media",
+      "unreadable source",
+      "non-piano/non-target subset if identified by publisher metadata"
+    ],
+    "forbiddenExclusionBasis": "candidate output or candidate-specific performance",
+    "include": "all eligible SMD Version-2 WAV/MIDI pairs"
+  },
+  "candidateInferenceStarted": false,
+  "dataset": {
+    "authoritativePage": "https://www.audiolabs-erlangen.de/resources/MIR/SMD/midi",
+    "canonicalName": "SMD MIDI-Audio Piano Music Version 2",
+    "datasetId": "smd-midi-audio-piano-music-v2",
+    "license": "CC BY-NC-SA 3.0",
+    "requiredAudioMaterial": "original WAV files from Zenodo, not MP3 previews",
+    "role": "SCIENTIFIC_RESEARCH_ONLY",
+    "zenodoDoi": "10.5281/zenodo.10847280"
+  },
+  "date": "2026-10-14",
+  "implementationGitHead": "5996197749083f6b6a2ec3845d91163d84e1bac8",
+  "phase": "PHASE_9G_XC1_FRESH_EXTERNAL_THREE_CANDIDATE_SCIENTIFIC_BAKEOFF",
+  "rawDatasetRetentionPolicy": "Raw media may be deleted after hashes, sealed predictions, scoring reports, statistics, and evidence commit are safely preserved.",
+  "smdDatasetPrerequisiteSha256": "241c9fe638aa07f3db7b55ad539e23449b64c399cc8a3609533990df8f4d6d81",
+  "startingRemoteHead": "a2842d41521e71d9add9437dd2d0d8dff2e596e5",
+  "takeManifestFreezeRequiredBeforeInference": true,
+  "takeManifestStatus": "NOT_ACQUIRED_YET"
+}

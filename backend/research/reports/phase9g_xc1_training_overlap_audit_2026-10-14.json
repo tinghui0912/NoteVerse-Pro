@@ -1,0 +1,58 @@
+{
+  "artifact": "trainingOverlapAudit",
+  "candidateInferenceAllowedByOverlapAudit": true,
+  "candidateOverlapStatus": {
+    "basic-pitch-browser-v1": {
+      "basis": "Pinned Basic Pitch public training documentation inspected for this phase lists GuitarSet, iKala, MAESTRO, MedleyDB Pitch, and Slakh tooling; SMD was not documented.",
+      "smdOverlapStatus": "NO_DOCUMENTED_OVERLAP"
+    },
+    "online-amt-k8-browser-v1": {
+      "basis": "Repository prior Online-AMT audit lists published training declarations without SMD; not mathematical proof of disjointness.",
+      "smdOverlapStatus": "NO_DOCUMENTED_OVERLAP"
+    },
+    "robust-browser-v1": {
+      "basis": "Repository prior ByteDance audit lists published training declarations without SMD; not mathematical proof of disjointness.",
+      "smdOverlapStatus": "NO_DOCUMENTED_OVERLAP"
+    }
+  },
+  "caution": "NO_DOCUMENTED_OVERLAP is an evidence status from published declarations inspected before inference, not a proof that data was never seen.",
+  "commercialQualificationStatus": "NOT_PERFORMED",
+  "date": "2026-10-14",
+  "implementationGitHead": "5996197749083f6b6a2ec3845d91163d84e1bac8",
+  "knownOverlapDetected": false,
+  "license": "CC BY-NC-SA 3.0",
+  "phase": "PHASE_9G_XC1_FRESH_EXTERNAL_THREE_CANDIDATE_SCIENTIFIC_BAKEOFF",
+  "primaryCorpus": "SMD MIDI-Audio Piano Music Version 2",
+  "scientificResearchOnly": true,
+  "sources": {
+    "basicPitchTrainCodeMirror": {
+      "declaredDatasetsToUseExamples": [
+        "guitarset",
+        "medleydb_pitch",
+        "slakh"
+      ],
+      "url": "https://d3axxy9bcycpv7.cloudfront.net/spotify/basic-pitch/src/main/basic_pitch/train.py.html"
+    },
+    "basicPitchTrainingReadme": {
+      "declaredTrainingDatasetScripts": [
+        "guitarset",
+        "ikala",
+        "maestro",
+        "medleydb_pitch",
+        "slakh"
+      ],
+      "url": "https://github.com/spotify/basic-pitch/blob/main/basic_pitch/data/README.md"
+    },
+    "smdAudioLabs": {
+      "evidence": "SMD MIDI-Audio Piano Music Version 2; publisher recommends original WAV files from Zenodo; license CC BY-NC-SA 3.0.",
+      "url": "https://www.audiolabs-erlangen.de/resources/MIR/SMD/midi"
+    },
+    "smdZenodoDoi": {
+      "doi": "10.5281/zenodo.10847280",
+      "url": "https://zenodo.org/doi/10.5281/zenodo.10847280"
+    }
+  },
+  "startingRemoteHead": "a2842d41521e71d9add9437dd2d0d8dff2e596e5",
+  "trainingOverlapAuditSha256": "f8b37159684f5f1428ea6a50cf353a7a8ab9322afc374242fa4eccfe80d5941d",
+  "unknownOverlapRemaining": false
+}

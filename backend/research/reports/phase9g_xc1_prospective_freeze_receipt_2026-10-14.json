@@ -1,0 +1,28 @@
+{
+  "artifact": "prospectiveFreezeReceipt",
+  "candidateInferenceStarted": false,
+  "commercialQualificationStatus": "NOT_PERFORMED",
+  "date": "2026-10-14",
+  "freezeReceiptSha256": "106f766ca9e5158efd1f1f40f0d0358a580bc4a311216282602aef2ba75fa04e",
+  "frozenHashes": {
+    "candidateIdentityFreeze": "fcdecef6d5d54fb3485aa0f91908e4a3bf2438793bcce4a42a01f8d1ccdf4bf6",
+    "publicScientificLaneAProtocol": "338eb410962571d00155d39e0c9d7eccad7b1f98e96305bd898469594bef5f2e",
+    "smdDatasetPrerequisite": "241c9fe638aa07f3db7b55ad539e23449b64c399cc8a3609533990df8f4d6d81",
+    "trainingOverlapAudit": "f8b37159684f5f1428ea6a50cf353a7a8ab9322afc374242fa4eccfe80d5941d"
+  },
+  "implementationGitHead": "5996197749083f6b6a2ec3845d91163d84e1bac8",
+  "nextAllowedStep": "Acquire/freeze complete SMD take manifest from this prospective freeze before first candidate inference.",
+  "phase": "PHASE_9G_XC1_FRESH_EXTERNAL_THREE_CANDIDATE_SCIENTIFIC_BAKEOFF",
+  "productionWinnerSelected": false,
+  "scopeProtections": {
+    "backendPracticeInferenceRestored": false,
+    "d4QualificationPerformed": false,
+    "p15p22InferenceIncrease": 0,
+    "phase9gBOutcome": "STATISTICAL_TIE",
+    "phase9gBWinner": null,
+    "practiceWebSocketRestored": false,
+    "productionMicrophoneEnabled": false
+  },
+  "smdTruthLoadedByAcousticExecutor": false,
+  "startingRemoteHead": "a2842d41521e71d9add9437dd2d0d8dff2e596e5"
+}
