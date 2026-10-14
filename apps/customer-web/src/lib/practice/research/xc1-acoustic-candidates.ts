@@ -87,6 +87,8 @@ type Xc1RegistryEntry = {
   deploymentId: string;
   candidateId: string;
   executorId: string;
+  officialExecutorModule: string;
+  officialExecutorExport: string;
   browserBackend: 'webgpu' | 'tensorflowjs-webgl';
   frozenAssetChecks: Readonly<Record<string, string | number | boolean>>;
 };
@@ -96,6 +98,8 @@ export const XC1_CANDIDATE_EXECUTOR_REGISTRY = {
     deploymentId: XC1_ROBUST_BROWSER_V1_IDENTITY.deploymentId,
     candidateId: XC1_ROBUST_BROWSER_V1_IDENTITY.candidateId,
     executorId: 'xc1-robust-browser-webgpu-executor',
+    officialExecutorModule: 'backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs',
+    officialExecutorExport: 'executeRobustBrowserV1',
     browserBackend: 'webgpu',
     frozenAssetChecks: {
       deploymentIdentitySha256: XC1_ROBUST_BROWSER_V1_IDENTITY.deploymentIdentitySha256,
@@ -110,6 +114,8 @@ export const XC1_CANDIDATE_EXECUTOR_REGISTRY = {
     deploymentId: XC1_ONLINE_AMT_K8_BROWSER_V1_IDENTITY.deploymentId,
     candidateId: XC1_ONLINE_AMT_K8_BROWSER_V1_IDENTITY.candidateId,
     executorId: 'xc1-online-amt-k8-webgpu-worker-executor',
+    officialExecutorModule: 'backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs',
+    officialExecutorExport: 'executeOnlineAmtK8BrowserV1',
     browserBackend: 'webgpu',
     frozenAssetChecks: {
       k8OnnxSha256: XC1_ONLINE_AMT_K8_BROWSER_V1_IDENTITY.k8OnnxSha256,
@@ -124,6 +130,8 @@ export const XC1_CANDIDATE_EXECUTOR_REGISTRY = {
     deploymentId: XC1_BASIC_PITCH_BROWSER_V1_IDENTITY.deploymentId,
     candidateId: XC1_BASIC_PITCH_BROWSER_V1_IDENTITY.candidateId,
     executorId: 'xc1-basic-pitch-browser-webgl-executor',
+    officialExecutorModule: 'backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs',
+    officialExecutorExport: 'executeBasicPitchBrowserV1',
     browserBackend: 'tensorflowjs-webgl',
     frozenAssetChecks: {
       packageVersion: XC1_BASIC_PITCH_BROWSER_V1_IDENTITY.packageVersion,

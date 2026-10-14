@@ -14,13 +14,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+import numpy as np
+
 
 SMD_RESOLVER_DOI = "10.5281/zenodo.10847280"
 SMD_RESOLVED_VERSION_DOI = "10.5281/zenodo.13753319"
 SMD_ARCHIVE_NAME = "SMD-piano_v2.zip"
 SMD_ARCHIVE_BYTES = 3_221_582_754
 SMD_ARCHIVE_MD5 = "984cfc48f1fa2785594769eb1e674697"
+SMD_ARCHIVE_SHA256 = "75f6e0f5fc9f5ea10582371c84b15f264538bf2a183721d5dee9e337e221b8ab"
 SMD_ARCHIVE_URL = "https://zenodo.org/api/records/13753319/files/SMD-piano_v2.zip/content"
+CANONICAL_PCM_IDENTITY = "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2"
 
 
 def sha256_file(path: Path) -> str:
@@ -83,6 +87,39 @@ def inventory_archive(archive: Path) -> dict[str, Any]:
     return {"fileCount": len(files), "categories": categories, "files": files}
 
 
+def archive_file_sha256(zf: zipfile.ZipFile, name: str) -> str:
+    digest = hashlib.sha256()
+    with zf.open(name) as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def archive_role(relative_path: str) -> str:
+    lowered = relative_path.lower()
+    if lowered.startswith("wav_44100_stereo/") and lowered.endswith(".wav"):
+        return "PRIMARY_ACOUSTIC_INPUT"
+    if lowered.startswith("midi/") and lowered.endswith((".mid", ".midi")):
+        return "SYNCHRONIZED_TRUTH_MIDI"
+    if lowered.startswith("csv/") or lowered.endswith(".csv"):
+        return "AUXILIARY_METADATA"
+    if lowered.startswith("wav_22050_mono/") and lowered.endswith(".wav"):
+        return "SECONDARY_REAL_AUDIO_NOT_PRIMARY"
+    if lowered.startswith("midi_wav_") and lowered.endswith(".wav"):
+        return "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN"
+    return "AUXILIARY_METADATA"
+
+
+def archive_role_inventory(inventory: dict[str, Any]) -> dict[str, Any]:
+    role_counts: dict[str, int] = {}
+    entries = []
+    for item in inventory["files"]:
+        role = archive_role(item["relativePath"])
+        role_counts[role] = role_counts.get(role, 0) + 1
+        entries.append({**item, "archiveRole": role})
+    return {"fileCount": len(entries), "roleCounts": role_counts, "entries": entries}
+
+
 def is_real_acoustic_wav(path: str) -> bool:
     lowered = path.lower()
     return lowered.endswith(".wav") and "midi_wav" not in lowered and "midi-wav" not in lowered and "midiwav" not in lowered
@@ -126,15 +163,69 @@ def pair_smd_audio_midi(files: Iterable[dict[str, Any]]) -> dict[str, Any]:
 
 
 def infer_piece_id(stem: str) -> str:
-    parts = stem.replace("-", "_").split("_")
-    return "_".join(parts[:-1]) if len(parts) > 1 else stem
+    tokens = stem.replace("-", "_").split("_")
+    if len(tokens) >= 3 and tokens[-1].isdigit() and tokens[-2].isdigit():
+        return "_".join(tokens[:-2])
+    if len(tokens) >= 2 and tokens[-1].isdigit():
+        return "_".join(tokens[:-1])
+    return stem
 
 
 def infer_performer_id(stem: str) -> str | None:
-    for token in stem.replace("-", "_").split("_"):
-        if token.lower().startswith("p") and token[1:].isdigit():
-            return token.lower()
     return None
+
+
+def read_pcm16_wav_mono_float32_np(path: Path) -> tuple[np.ndarray, int, int]:
+    with wave.open(str(path), "rb") as wav:
+        channels = wav.getnchannels()
+        sample_rate = wav.getframerate()
+        width = wav.getsampwidth()
+        frames = wav.getnframes()
+        if width != 2:
+            raise ValueError(f"XC1_UNSUPPORTED_WAV_SAMPLE_WIDTH:{width}")
+        raw = wav.readframes(frames)
+    data = np.frombuffer(raw, dtype="<i2").astype(np.float32) / np.float32(32768.0)
+    if channels == 1:
+        return data.copy(), sample_rate, channels
+    if data.size % channels:
+        raise ValueError("XC1_WAV_CHANNEL_FRAME_MISMATCH")
+    reshaped = data.reshape((-1, channels))
+    mono = reshaped.mean(axis=1, dtype=np.float32).astype(np.float32)
+    return mono, sample_rate, channels
+
+
+def bytedance_linear_resample_full_np(source: np.ndarray, source_rate: int, target_rate: int = 16_000) -> np.ndarray:
+    if source_rate <= 0 or target_rate <= 0:
+        raise ValueError("XC1_INVALID_SAMPLE_RATE")
+    source = np.asarray(source, dtype=np.float32)
+    if source_rate == target_rate:
+        return source.astype(np.float32, copy=True)
+    output_samples = int(math.floor(source.shape[0] * target_rate / source_rate))
+    if output_samples <= 0:
+        return np.zeros((0,), dtype=np.float32)
+    positions = np.linspace(0.0, source.shape[0], output_samples, endpoint=False, dtype=np.float64)
+    left = np.floor(positions).astype(np.int64)
+    right = np.minimum(source.shape[0] - 1, left + 1)
+    frac = positions - left
+    return (source[left] * (1.0 - frac) + source[right] * frac).astype(np.float32)
+
+
+def write_canonical_pcm_from_wav(wav_path: Path, output_path: Path) -> dict[str, Any]:
+    mono, sample_rate, channels = read_pcm16_wav_mono_float32_np(wav_path)
+    pcm16k = bytedance_linear_resample_full_np(mono, sample_rate, 16_000)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    pcm16k.astype("<f4", copy=False).tofile(output_path)
+    return {
+        "relativeStageAPath": output_path.name,
+        "bytes": output_path.stat().st_size,
+        "sampleCount": int(pcm16k.shape[0]),
+        "sha256": sha256_file(output_path),
+        "sampleRateHz": 16000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": CANONICAL_PCM_IDENTITY,
+        "sourceSampleRateHz": sample_rate,
+        "sourceChannelCount": channels,
+    }
 
 
 def decode_pcm16_wav_mono_float32(path: Path) -> tuple[list[float], int, int]:
@@ -155,22 +246,7 @@ def decode_pcm16_wav_mono_float32(path: Path) -> tuple[list[float], int, int]:
 
 
 def linear_resample(source: list[float], source_rate: int, target_rate: int = 16_000) -> list[float]:
-    if source_rate <= 0 or target_rate <= 0:
-        raise ValueError("XC1_INVALID_SAMPLE_RATE")
-    if source_rate == target_rate:
-        return list(source)
-    output_samples = math.floor(len(source) * target_rate / source_rate)
-    if output_samples <= 0:
-        return []
-    scale = source_rate / target_rate
-    out: list[float] = []
-    for index in range(output_samples):
-        pos = index * scale
-        left = int(math.floor(pos))
-        right = min(left + 1, len(source) - 1)
-        frac = pos - left
-        out.append(source[left] * (1 - frac) + source[right] * frac)
-    return out
+    return bytedance_linear_resample_full_np(np.asarray(source, dtype=np.float32), source_rate, target_rate).tolist()
 
 
 def common_scoreable_interval_ms(duration_ms: float) -> dict[str, float]:
@@ -290,6 +366,14 @@ def paired_bootstrap(
 ) -> dict[str, Any]:
     take_ids = sorted({row["takeId"] for row in rows})
     by_take_candidate = {(row["takeId"], row["candidateId"]): row[metric] for row in rows}
+    missing = [
+        {"takeId": take, "candidateId": candidate}
+        for take in take_ids
+        for candidate in [candidate_a, candidate_b]
+        if (take, candidate) not in by_take_candidate
+    ]
+    if missing:
+        raise ValueError(f"XC1_BOOTSTRAP_UNPAIRED_COVERAGE:{json.dumps(missing, sort_keys=True)}")
     diffs = []
     rng = random.Random(seed)
     for _ in range(draws):
@@ -305,7 +389,7 @@ def paired_bootstrap(
         "seed": seed,
         "meanDiff": statistics.mean(diffs) if diffs else 0.0,
         "ci95": [percentile(diffs, 2.5), percentile(diffs, 97.5)],
-        "outputDigest": canonical_json_sha256([round(value, 12) for value in diffs[:100]]),
+        "outputDigest": canonical_json_sha256([round(value, 12) for value in diffs]),
     }
 
 
@@ -357,10 +441,23 @@ def create_stage_a_audio_only_root(root: Path, canonical_pcm_files: Iterable[Pat
 
 
 def assert_stage_a_cannot_access_midi(root: Path, midi_relative_path: str) -> bool:
-    target = root / midi_relative_path
+    target = safe_stage_a_resolve(root, midi_relative_path)
     if target.exists():
         raise AssertionError("XC1_STAGE_A_TRUTH_BOUNDARY_VIOLATION")
     return True
+
+
+def safe_stage_a_resolve(root: Path, request_path: str) -> Path:
+    from urllib.parse import unquote
+
+    decoded = unquote(request_path).replace("\\", "/")
+    if decoded.startswith("/") or ":" in decoded.split("/")[0]:
+        raise ValueError("XC1_STAGE_A_PATH_TRAVERSAL")
+    target = (root / decoded).resolve()
+    root_resolved = root.resolve()
+    if root_resolved != target and root_resolved not in target.parents:
+        raise ValueError("XC1_STAGE_A_PATH_TRAVERSAL")
+    return target
 
 
 def select_edge_subset(takes: list[dict[str, Any]], count: int = 6) -> list[str]:

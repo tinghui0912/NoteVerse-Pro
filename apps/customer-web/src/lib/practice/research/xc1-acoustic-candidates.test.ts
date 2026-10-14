@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
 
 import {
   decodeBasicPitchAllPitchContinuousObservations,
@@ -48,6 +50,12 @@ describe('XC1 acoustic candidate wrappers', () => {
     );
     expect(XC1_BASIC_PITCH_BROWSER_V1_IDENTITY.packageVersion).toBe('1.0.1');
     expect(resolveXc1CandidateExecutor('robust-browser-v1').executorId).toBe('xc1-robust-browser-webgpu-executor');
+    expect(resolveXc1CandidateExecutor('robust-browser-v1').officialExecutorModule).toBe(
+      'backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs',
+    );
+    expect(resolveXc1CandidateExecutor('online-amt-k8-browser-v1').officialExecutorExport).toBe(
+      'executeOnlineAmtK8BrowserV1',
+    );
     expect(Object.keys(XC1_CANDIDATE_EXECUTOR_REGISTRY)).toEqual([
       'robust-browser-v1',
       'online-amt-k8-browser-v1',
@@ -133,5 +141,15 @@ describe('XC1 acoustic candidate wrappers', () => {
 
     expect(observations.map((observation) => observation.pitch)).toEqual([60, 61]);
     expect(observations.every((observation) => observation.candidateObservationId.startsWith('basic-pitch-browser-v1:smd-take:chunk-a:'))).toBe(true);
+  });
+
+  it('official Stage-A runner rejects arbitrary executor injection at the executable boundary', () => {
+    const runner = path.resolve(process.cwd(), '../../backend/research/browser_runtime/xc1_stage_a_runner.mjs');
+    const result = spawnSync(process.execPath, [runner, '--executor', 'malicious-callback'], {
+      encoding: 'utf8',
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(`${result.stderr}\n${result.stdout}`).toContain('XC1_STAGE_A_FORBIDDEN_CLI_OPTION:--executor');
   });
 });

@@ -5,8 +5,11 @@ from pathlib import Path
 import pytest
 
 from research.xc1_scientific_bakeoff import (
+    CANONICAL_PCM_IDENTITY,
     OnsetEvent,
     assert_stage_a_cannot_access_midi,
+    archive_role,
+    bytedance_linear_resample_full_np,
     canonical_json_sha256,
     create_stage_a_audio_only_root,
     decide_front_runner,
@@ -16,6 +19,7 @@ from research.xc1_scientific_bakeoff import (
     paired_bootstrap,
     pair_smd_audio_midi,
     runtime_eligibility,
+    safe_stage_a_resolve,
     score_take,
     select_edge_subset,
 )
@@ -83,6 +87,17 @@ def test_paired_bootstrap_is_take_level_and_deterministic() -> None:
     assert first["outputDigest"] == canonical_json_sha256([round(0.1, 12)] * 100)
 
 
+def test_paired_bootstrap_fails_closed_on_unpaired_candidate_coverage() -> None:
+    rows = [
+        {"takeId": "a", "candidateId": "robust-browser-v1", "f1": 0.8},
+        {"takeId": "a", "candidateId": "basic-pitch-browser-v1", "f1": 0.7},
+        {"takeId": "b", "candidateId": "robust-browser-v1", "f1": 0.6},
+    ]
+
+    with pytest.raises(ValueError, match="XC1_BOOTSTRAP_UNPAIRED_COVERAGE"):
+        paired_bootstrap(rows, "robust-browser-v1", "basic-pitch-browser-v1", "f1", draws=10, seed=13371)
+
+
 def test_runtime_and_front_runner_policy_are_executable() -> None:
     assert runtime_eligibility("online-amt-k8-browser-v1", 204.8, False)["runtimeEligible"] is True
     assert runtime_eligibility("robust-browser-v1", 481, False)["runtimeEligible"] is False
@@ -131,11 +146,18 @@ def test_stage_a_root_excludes_midi_truth(tmp_path: Path) -> None:
     (root / "truth" / "take.mid").write_bytes(b"midi")
     with pytest.raises(AssertionError, match="XC1_STAGE_A_TRUTH_BOUNDARY_VIOLATION"):
         assert_stage_a_cannot_access_midi(root, "truth/take.mid")
+    with pytest.raises(ValueError, match="XC1_STAGE_A_PATH_TRAVERSAL"):
+        safe_stage_a_resolve(root, "../truth/take.mid")
+    with pytest.raises(ValueError, match="XC1_STAGE_A_PATH_TRAVERSAL"):
+        safe_stage_a_resolve(root, "%2e%2e/truth/take.mid")
 
 
 def test_smd_pairing_rejects_midi_rendered_audio() -> None:
     assert is_real_acoustic_wav("wav_44100_stereo/take01.wav") is True
     assert is_real_acoustic_wav("midi_wav_22050_mono/take01.wav") is False
+    assert archive_role("wav_44100_stereo/take01.wav") == "PRIMARY_ACOUSTIC_INPUT"
+    assert archive_role("midi/take01.mid") == "SYNCHRONIZED_TRUTH_MIDI"
+    assert archive_role("midi_wav_22050_mono/take01.wav") == "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN"
     paired = pair_smd_audio_midi([
         {"relativePath": "wav_44100_stereo/take01.wav", "bytes": 10, "fileType": "wav"},
         {"relativePath": "midi_wav_22050_mono/take01.wav", "bytes": 10, "fileType": "wav"},
@@ -148,5 +170,7 @@ def test_smd_pairing_rejects_midi_rendered_audio() -> None:
 
 def test_linear_resample_and_edge_subset_are_deterministic() -> None:
     assert linear_resample([0.0, 1.0, 0.0, -1.0], 4, 2) == [0.0, 0.0]
+    assert CANONICAL_PCM_IDENTITY == "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2"
+    assert bytedance_linear_resample_full_np([0.0, 1.0, 0.0, -1.0], 4, 2).tolist() == [0.0, 0.0]
     takes = [{"takeId": f"take-{index}", "pieceId": f"piece-{index % 3}", "performerId": f"p{index % 2}"} for index in range(12)]
     assert select_edge_subset(takes, count=4) == select_edge_subset(takes, count=4)
