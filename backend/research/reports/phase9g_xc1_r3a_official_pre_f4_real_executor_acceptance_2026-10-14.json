@@ -1,0 +1,1091 @@
+{
+  "phase": "PHASE_9G_XC1_R3A_UNIFIED_REAL_EXECUTORS_F4_AND_FULL_SEALED_BAKEOFF",
+  "artifact": "officialPreF4RealExecutorAcceptance",
+  "implementationHead": "d6be7a5167ba53d7e653785d0b1b3b48a474f3f7",
+  "f4Created": false,
+  "smdCandidateInferenceStarted": false,
+  "supersedesClassificationOnly": {
+    "priorReport": "backend/research/reports/phase9g_xc1_r3_pre_f4_real_executor_acceptance_2026-10-14.json",
+    "priorClassification": "PRE_F4_BROWSER_ENVIRONMENT_AND_MODEL_FEASIBILITY_PASS",
+    "currentRequirement": "OFFICIAL_STAGE_A_EXECUTOR_ACCEPTANCE_PASS"
+  },
+  "acceptanceCommandUsesOfficialRegistry": true,
+  "acceptanceScript": "backend/research/browser_runtime/xc1_pre_f4_real_executor_acceptance.mjs",
+  "environment": {
+    "os": "win32 10.0.26200 x64",
+    "node": "v24.19.0"
+  },
+  "cells": {
+    "robust-browser-v1": {
+      "schemaVersion": 2,
+      "stage": "XC1_OFFICIAL_STAGE_A_REAL_EXECUTOR_ACCEPTANCE",
+      "status": "OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS",
+      "deploymentId": "robust-browser-v1",
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "takeId": "pre-f4-non-smd-synthetic-smoke",
+      "acousticOnly": true,
+      "truthMidiAccessible": false,
+      "noScoreTruthInput": true,
+      "assetShaVerification": "PASS",
+      "startedAtUnixMs": 1791970820688,
+      "browser": {
+        "channel": "chrome",
+        "version": "155.0.8059.39",
+        "headed": true,
+        "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "launchArgsIncludeUnsafeWebGpu": false,
+        "os": "win32 10.0.26200 x64",
+        "node": "v24.19.0",
+        "playwrightRuntime": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\browser_runtime\\dr3r_browser_runtime\\node_modules\\playwright"
+      },
+      "implementationIdentity": {
+        "officialRegistry": {
+          "file": "backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs",
+          "sha256": "a6d8b1b68c6faf494e0b895d412464357d229edcbad10b71816559c9c9915013",
+          "exportName": "executeOfficialXc1StageACell"
+        },
+        "realExecutor": {
+          "file": "backend/research/browser_runtime/xc1_robust_browser_executor.mjs",
+          "sha256": "8ae5de04a0b28ae9b31f3a7d9c6086b5fca8e93d86a5607b40edce629be4cb81",
+          "exportName": "executeRobustBrowserExecutor"
+        },
+        "sharedBrowserRuntime": {
+          "file": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+          "sha256": "6e6f1cc1e401ce0836187cf71e01fb5c92e8175db8a1af5100d7a5361ea34a3b",
+          "exportName": "startXc1BrowserAssetServer"
+        },
+        "decoder": {
+          "decoderId": "noteverse-bytedance-contiguous-region-peak-decoder-v1",
+          "onsetThreshold": 0.3,
+          "frameThreshold": 0.05,
+          "ownershipFiltering": "half-open-600ms-region"
+        }
+      },
+      "assetIdentity": {
+        "onnxSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+        "deploymentIdentitySha256": "196a9a2ceb03569f6e266c4f5973125bb8596146882079105ee94ef7e621deed",
+        "sampleRateHz": 16000,
+        "inputSamples": 29120,
+        "contextMs": {
+          "past": 1000,
+          "owned": 600,
+          "future": 220
+        },
+        "thresholds": {
+          "onset": 0.3,
+          "frame": 0.05
+        }
+      },
+      "executorExport": "executeRobustBrowserExecutor",
+      "backend": "webgpu",
+      "modelLoadMs": 792.4000000357628,
+      "processingMs": 2687.599999964237,
+      "actualInferenceSessionRunCount": 1,
+      "inputNames": [
+        "audio"
+      ],
+      "outputNames": [
+        "reg_onset_output",
+        "frame_output"
+      ],
+      "decoderInvoked": true,
+      "decoderIdentity": {
+        "decoderId": "noteverse-bytedance-contiguous-region-peak-decoder-v1",
+        "onsetThreshold": 0.3,
+        "frameThreshold": 0.05,
+        "ownershipFiltering": "half-open-600ms-region"
+      },
+      "acousticObservations": [],
+      "webgpuAdapter": {
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier2",
+          "shader-f16",
+          "timestamp-query",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      }
+    },
+    "online-amt-k8-browser-v1": {
+      "schemaVersion": 2,
+      "stage": "XC1_OFFICIAL_STAGE_A_REAL_EXECUTOR_ACCEPTANCE",
+      "status": "OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS",
+      "deploymentId": "online-amt-k8-browser-v1",
+      "candidateId": "online-amt-calibrated-v1",
+      "takeId": "pre-f4-non-smd-synthetic-smoke",
+      "acousticOnly": true,
+      "truthMidiAccessible": false,
+      "noScoreTruthInput": true,
+      "assetShaVerification": "PASS",
+      "startedAtUnixMs": 1791970825467,
+      "browser": {
+        "channel": "chrome",
+        "version": "155.0.8059.39",
+        "headed": true,
+        "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "launchArgsIncludeUnsafeWebGpu": false,
+        "os": "win32 10.0.26200 x64",
+        "node": "v24.19.0",
+        "playwrightRuntime": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\browser_runtime\\dr3r_browser_runtime\\node_modules\\playwright"
+      },
+      "implementationIdentity": {
+        "officialRegistry": {
+          "file": "backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs",
+          "sha256": "a6d8b1b68c6faf494e0b895d412464357d229edcbad10b71816559c9c9915013",
+          "exportName": "executeOfficialXc1StageACell"
+        },
+        "realExecutor": {
+          "file": "backend/research/browser_runtime/xc1_online_amt_k8_browser_executor.mjs",
+          "sha256": "bd789b166fd447880ecd3c06da852069f52cf39fda672aa857f291dcde38fbbb",
+          "exportName": "executeOnlineAmtK8BrowserExecutor"
+        },
+        "sharedBrowserRuntime": {
+          "file": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+          "sha256": "6e6f1cc1e401ce0836187cf71e01fb5c92e8175db8a1af5100d7a5361ea34a3b",
+          "exportName": "startXc1BrowserAssetServer"
+        },
+        "decoder": {
+          "publicationProjection": "online-amt-calibrated-k8-hop-event-projection-v1"
+        }
+      },
+      "assetIdentity": {
+        "k8OnnxSha256": "818c095a3e96f507f45fe5f394169660cb3848fb7e496699a99c1957b51e9f18",
+        "k1FallbackOnnxSha256": "1924789c64595a5b8c1ff2f745089613b2ba6108676952c4bb6f60f28d9cd301",
+        "configurationSha256": "0d56e238a353a0aecfbf1d129521e93fc69f7e171711ce9ad57b419548edc375",
+        "checkpointSha256": "54ab4907b517dbfa2dbbee834db18d31d103ee25d690860595181162d235e3a0",
+        "ortWebVersion": "1.30.0",
+        "hopSamples": 512,
+        "groupHops": 8,
+        "timingCorrectionMs": -162.93750000004252,
+        "publishedOnsetBoost": 1,
+        "pseudoIntensity": "NATIVE"
+      },
+      "executorExport": "executeOnlineAmtK8BrowserExecutor",
+      "backend": "webgpu",
+      "modelLoadMs": 778.5,
+      "processingMs": 330.80000001192093,
+      "actualInferenceSessionRunCount": 1,
+      "inputNames": [
+        "audio_last_2048_sequence",
+        "mel_buffer_in",
+        "cache0_in",
+        "cache1_in",
+        "h_in",
+        "c_in",
+        "prev_output_in"
+      ],
+      "outputNames": [
+        "probabilities_sequence",
+        "chosen_state_sequence",
+        "mel_buffer_out",
+        "cache0_out",
+        "cache1_out",
+        "h_out",
+        "c_out"
+      ],
+      "publicationProjectionInvoked": true,
+      "publicationProjectionIdentity": {
+        "publicationProjectionId": "online-amt-calibrated-k8-hop-event-projection-v1",
+        "hopSamples": 512,
+        "groupHops": 8,
+        "timingCorrectionMs": -162.93750000004252,
+        "publishedOnsetBoost": 1,
+        "pseudoIntensity": "NATIVE"
+      },
+      "chosenStateHopCount": 8,
+      "acousticObservations": [
+        {
+          "pitch": 32,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:11"
+        },
+        {
+          "pitch": 34,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:13"
+        },
+        {
+          "pitch": 39,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:18"
+        },
+        {
+          "pitch": 40,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:19"
+        },
+        {
+          "pitch": 41,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:20"
+        },
+        {
+          "pitch": 42,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:21"
+        },
+        {
+          "pitch": 44,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:23"
+        },
+        {
+          "pitch": 51,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:30"
+        },
+        {
+          "pitch": 52,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:31"
+        },
+        {
+          "pitch": 53,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:32"
+        },
+        {
+          "pitch": 57,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:36"
+        },
+        {
+          "pitch": 58,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:37"
+        },
+        {
+          "pitch": 60,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:39"
+        },
+        {
+          "pitch": 64,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:43"
+        },
+        {
+          "pitch": 66,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:45"
+        },
+        {
+          "pitch": 68,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:47"
+        },
+        {
+          "pitch": 69,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:48"
+        },
+        {
+          "pitch": 72,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:51"
+        },
+        {
+          "pitch": 76,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:55"
+        },
+        {
+          "pitch": 78,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:57"
+        },
+        {
+          "pitch": 79,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:58"
+        },
+        {
+          "pitch": 81,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:60"
+        },
+        {
+          "pitch": 82,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:61"
+        },
+        {
+          "pitch": 83,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:62"
+        },
+        {
+          "pitch": 84,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:63"
+        },
+        {
+          "pitch": 89,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:68"
+        },
+        {
+          "pitch": 90,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:69"
+        },
+        {
+          "pitch": 91,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:70"
+        },
+        {
+          "pitch": 93,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:72"
+        },
+        {
+          "pitch": 95,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:74"
+        },
+        {
+          "pitch": 96,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:75"
+        },
+        {
+          "pitch": 97,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:76"
+        },
+        {
+          "pitch": 98,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:77"
+        },
+        {
+          "pitch": 99,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:78"
+        },
+        {
+          "pitch": 100,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:79"
+        },
+        {
+          "pitch": 105,
+          "performanceTimeMs": -162.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:0:84"
+        },
+        {
+          "pitch": 32,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:11"
+        },
+        {
+          "pitch": 33,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:12"
+        },
+        {
+          "pitch": 50,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:29"
+        },
+        {
+          "pitch": 54,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:33"
+        },
+        {
+          "pitch": 57,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:36"
+        },
+        {
+          "pitch": 60,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:39"
+        },
+        {
+          "pitch": 63,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:42"
+        },
+        {
+          "pitch": 66,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:45"
+        },
+        {
+          "pitch": 67,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:46"
+        },
+        {
+          "pitch": 68,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:47"
+        },
+        {
+          "pitch": 69,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:48"
+        },
+        {
+          "pitch": 72,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:51"
+        },
+        {
+          "pitch": 78,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:57"
+        },
+        {
+          "pitch": 79,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:58"
+        },
+        {
+          "pitch": 81,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:60"
+        },
+        {
+          "pitch": 82,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:61"
+        },
+        {
+          "pitch": 84,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:63"
+        },
+        {
+          "pitch": 89,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:68"
+        },
+        {
+          "pitch": 90,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:69"
+        },
+        {
+          "pitch": 91,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:70"
+        },
+        {
+          "pitch": 93,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:72"
+        },
+        {
+          "pitch": 98,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:77"
+        },
+        {
+          "pitch": 102,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:81"
+        },
+        {
+          "pitch": 103,
+          "performanceTimeMs": -130.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:1:82"
+        },
+        {
+          "pitch": 32,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:11"
+        },
+        {
+          "pitch": 50,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:29"
+        },
+        {
+          "pitch": 52,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:31"
+        },
+        {
+          "pitch": 54,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:33"
+        },
+        {
+          "pitch": 57,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:36"
+        },
+        {
+          "pitch": 60,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:39"
+        },
+        {
+          "pitch": 66,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:45"
+        },
+        {
+          "pitch": 68,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:47"
+        },
+        {
+          "pitch": 69,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:48"
+        },
+        {
+          "pitch": 72,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:51"
+        },
+        {
+          "pitch": 78,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:57"
+        },
+        {
+          "pitch": 81,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:60"
+        },
+        {
+          "pitch": 84,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:63"
+        },
+        {
+          "pitch": 89,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:68"
+        },
+        {
+          "pitch": 90,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:69"
+        },
+        {
+          "pitch": 91,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:70"
+        },
+        {
+          "pitch": 93,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:72"
+        },
+        {
+          "pitch": 98,
+          "performanceTimeMs": -98.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:2:77"
+        },
+        {
+          "pitch": 54,
+          "performanceTimeMs": -66.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:3:33"
+        },
+        {
+          "pitch": 57,
+          "performanceTimeMs": -66.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:3:36"
+        },
+        {
+          "pitch": 68,
+          "performanceTimeMs": -66.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:3:47"
+        },
+        {
+          "pitch": 69,
+          "performanceTimeMs": -66.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:3:48"
+        },
+        {
+          "pitch": 72,
+          "performanceTimeMs": -66.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:3:51"
+        },
+        {
+          "pitch": 78,
+          "performanceTimeMs": -66.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:3:57"
+        },
+        {
+          "pitch": 89,
+          "performanceTimeMs": -66.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:3:68"
+        },
+        {
+          "pitch": 90,
+          "performanceTimeMs": -66.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:3:69"
+        },
+        {
+          "pitch": 91,
+          "performanceTimeMs": -66.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:3:70"
+        },
+        {
+          "pitch": 54,
+          "performanceTimeMs": -34.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:4:33"
+        },
+        {
+          "pitch": 57,
+          "performanceTimeMs": -34.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:4:36"
+        },
+        {
+          "pitch": 68,
+          "performanceTimeMs": -34.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:4:47"
+        },
+        {
+          "pitch": 69,
+          "performanceTimeMs": -34.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:4:48"
+        },
+        {
+          "pitch": 72,
+          "performanceTimeMs": -34.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:4:51"
+        },
+        {
+          "pitch": 78,
+          "performanceTimeMs": -34.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:4:57"
+        },
+        {
+          "pitch": 89,
+          "performanceTimeMs": -34.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:4:68"
+        },
+        {
+          "pitch": 90,
+          "performanceTimeMs": -34.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:4:69"
+        },
+        {
+          "pitch": 91,
+          "performanceTimeMs": -34.93750000004252,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:4:70"
+        },
+        {
+          "pitch": 54,
+          "performanceTimeMs": -2.937500000042519,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:5:33"
+        },
+        {
+          "pitch": 57,
+          "performanceTimeMs": -2.937500000042519,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:5:36"
+        },
+        {
+          "pitch": 68,
+          "performanceTimeMs": -2.937500000042519,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:5:47"
+        },
+        {
+          "pitch": 69,
+          "performanceTimeMs": -2.937500000042519,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:5:48"
+        },
+        {
+          "pitch": 72,
+          "performanceTimeMs": -2.937500000042519,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:5:51"
+        },
+        {
+          "pitch": 78,
+          "performanceTimeMs": -2.937500000042519,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:5:57"
+        },
+        {
+          "pitch": 89,
+          "performanceTimeMs": -2.937500000042519,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:5:68"
+        },
+        {
+          "pitch": 90,
+          "performanceTimeMs": -2.937500000042519,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:5:69"
+        },
+        {
+          "pitch": 91,
+          "performanceTimeMs": -2.937500000042519,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:5:70"
+        },
+        {
+          "pitch": 54,
+          "performanceTimeMs": 29.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:6:33"
+        },
+        {
+          "pitch": 57,
+          "performanceTimeMs": 29.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:6:36"
+        },
+        {
+          "pitch": 68,
+          "performanceTimeMs": 29.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:6:47"
+        },
+        {
+          "pitch": 69,
+          "performanceTimeMs": 29.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:6:48"
+        },
+        {
+          "pitch": 72,
+          "performanceTimeMs": 29.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:6:51"
+        },
+        {
+          "pitch": 78,
+          "performanceTimeMs": 29.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:6:57"
+        },
+        {
+          "pitch": 89,
+          "performanceTimeMs": 29.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:6:68"
+        },
+        {
+          "pitch": 90,
+          "performanceTimeMs": 29.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:6:69"
+        },
+        {
+          "pitch": 91,
+          "performanceTimeMs": 29.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:6:70"
+        },
+        {
+          "pitch": 54,
+          "performanceTimeMs": 61.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:7:33"
+        },
+        {
+          "pitch": 57,
+          "performanceTimeMs": 61.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:7:36"
+        },
+        {
+          "pitch": 68,
+          "performanceTimeMs": 61.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:7:47"
+        },
+        {
+          "pitch": 69,
+          "performanceTimeMs": 61.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:7:48"
+        },
+        {
+          "pitch": 72,
+          "performanceTimeMs": 61.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:7:51"
+        },
+        {
+          "pitch": 78,
+          "performanceTimeMs": 61.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:7:57"
+        },
+        {
+          "pitch": 89,
+          "performanceTimeMs": 61.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:7:68"
+        },
+        {
+          "pitch": 90,
+          "performanceTimeMs": 61.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:7:69"
+        },
+        {
+          "pitch": 91,
+          "performanceTimeMs": 61.06249999995748,
+          "confidence": 1,
+          "candidateObservationId": "online-amt-k8-browser-v1:acceptance:7:70"
+        }
+      ],
+      "webgpuAdapter": {
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier2",
+          "shader-f16",
+          "timestamp-query",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      }
+    },
+    "basic-pitch-browser-v1": {
+      "schemaVersion": 2,
+      "stage": "XC1_OFFICIAL_STAGE_A_REAL_EXECUTOR_ACCEPTANCE",
+      "status": "OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS",
+      "deploymentId": "basic-pitch-browser-v1",
+      "candidateId": "basic-pitch-browser-v1",
+      "takeId": "pre-f4-non-smd-synthetic-smoke",
+      "acousticOnly": true,
+      "truthMidiAccessible": false,
+      "noScoreTruthInput": true,
+      "assetShaVerification": "PASS",
+      "startedAtUnixMs": 1791970827639,
+      "browser": {
+        "channel": "chrome",
+        "version": "155.0.8059.39",
+        "headed": true,
+        "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "launchArgsIncludeUnsafeWebGpu": false,
+        "os": "win32 10.0.26200 x64",
+        "node": "v24.19.0",
+        "playwrightRuntime": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\browser_runtime\\dr3r_browser_runtime\\node_modules\\playwright"
+      },
+      "implementationIdentity": {
+        "officialRegistry": {
+          "file": "backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs",
+          "sha256": "a6d8b1b68c6faf494e0b895d412464357d229edcbad10b71816559c9c9915013",
+          "exportName": "executeOfficialXc1StageACell"
+        },
+        "realExecutor": {
+          "file": "backend/research/browser_runtime/xc1_basic_pitch_browser_executor.mjs",
+          "sha256": "adbb3de090a7e1b081ac2a0add96c60a2088715cecc36b1f702285a6185947bc",
+          "exportName": "executeBasicPitchBrowserExecutor"
+        },
+        "sharedBrowserRuntime": {
+          "file": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+          "sha256": "6e6f1cc1e401ce0836187cf71e01fb5c92e8175db8a1af5100d7a5361ea34a3b",
+          "exportName": "startXc1BrowserAssetServer"
+        },
+        "decoder": {
+          "decoderImportPath": "node_modules/@spotify/basic-pitch/esm/toMidi.js",
+          "outputToNotesPolyArgs": {
+            "onsetThreshold": 0.5,
+            "frameThreshold": 0.3,
+            "minNoteLenFrames": 5,
+            "inferOnsets": true,
+            "maxFreq": null,
+            "minFreq": null,
+            "melodiaTrick": true,
+            "energyTolerance": 11
+          },
+          "noteFramesToTimeCalled": true,
+          "sourceSha256": "c6492ceae181d24fb254a152d0853f2a60f27e78547db96258026ddcd81ef618"
+        }
+      },
+      "assetIdentity": {
+        "packageLockSha256": "20411bed571869711745c3ad993847a67512bb59156df5e16a372cccb1c9d4e8",
+        "modelJsonSha256": "1ed1aaee3409ec1dc098c8b01f430c0911f6fe9412e7af8086750f9e8f302f68",
+        "weightsSha256": "b142a95737a52e1e412d5f92e73d8bb80dfe8d04941acc0702f11f4524fb377c",
+        "packageVersion": "1.0.1",
+        "tfjsVersion": "3.21.0",
+        "browserBackend": "tensorflowjs-webgl",
+        "officialDecoder": {
+          "importPath": "node_modules/@spotify/basic-pitch/esm/toMidi.js",
+          "outputToNotesPolyExport": true,
+          "noteFramesToTimeExport": true,
+          "sourceSha256": "c6492ceae181d24fb254a152d0853f2a60f27e78547db96258026ddcd81ef618",
+          "executionContext": "browser-esm-bundle"
+        }
+      },
+      "executorExport": "executeBasicPitchBrowserExecutor",
+      "backend": "webgl",
+      "decoderImportPath": "node_modules/@spotify/basic-pitch/esm/toMidi.js",
+      "outputToNotesPolyCalled": true,
+      "noteFramesToTimeCalled": true,
+      "actualModelInvocationCount": 2,
+      "actualInferenceSessionRunCount": 2,
+      "processingMs": 4809.800000011921,
+      "noteCount": 1,
+      "acousticObservations": [
+        {
+          "pitch": 41,
+          "performanceTimeMs": 11.609977324263038,
+          "confidence": 0.6453795953687415,
+          "candidateObservationId": "basic-pitch-browser-v1:acceptance:0"
+        }
+      ],
+      "decoderExecutionIdentity": {
+        "decoderImportPath": "node_modules/@spotify/basic-pitch/esm/toMidi.js",
+        "outputToNotesPolyArgs": {
+          "onsetThreshold": 0.5,
+          "frameThreshold": 0.3,
+          "minNoteLenFrames": 5,
+          "inferOnsets": true,
+          "maxFreq": null,
+          "minFreq": null,
+          "melodiaTrick": true,
+          "energyTolerance": 11
+        },
+        "noteFramesToTimeCalled": true
+      }
+    }
+  },
+  "overallStatus": "OFFICIAL_STAGE_A_EXECUTOR_ACCEPTANCE_PASS"
+}
