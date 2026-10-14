@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { ROBUST_ORT_PACKAGE_ROOT } from './xc1_runtime_selection.mjs';
 
 export const XC1_BROWSER_RUNTIME_SHARED_SCHEMA_VERSION = 1;
 
@@ -68,12 +69,25 @@ import * as tf from '@tensorflow/tfjs';
 import { BasicPitch } from '@spotify/basic-pitch/esm/inference.js';
 import { outputToNotesPoly, noteFramesToTime } from '@spotify/basic-pitch/esm/toMidi.js';
 
+window.xc1BasicPitchOfficialDecoder = { outputToNotesPoly, noteFramesToTime };
+window.decodeXc1BasicPitchActivations = function(frames, onsets) {
+  const notes = outputToNotesPoly(frames, onsets, 0.5, 0.3, 5, true, null, null, true, 11);
+  return { notes, timedNotes: noteFramesToTime(notes) };
+};
+
 window.runXc1BasicPitchExecutor = async function(options = {}) {
   await tf.setBackend('webgl');
   await tf.ready();
   const acousticInput = options.acousticInput;
   if (!acousticInput) throw new Error('XC1_BASIC_PITCH_ACOUSTIC_INPUT_REQUIRED');
+  const loadStart = performance.now();
   const model = new BasicPitch('/basic/model/model.json');
+  await model.model;
+  const modelLoadMs = performance.now() - loadStart;
+  const gl = tf.backend().gpgpu?.gl ?? tf.backend().getGPGPUContext?.().gl;
+  const extension = gl?.getExtension('WEBGL_debug_renderer_info');
+  const webglAdapter = extension ? { vendor: gl.getParameter(extension.UNMASKED_VENDOR_WEBGL), renderer: gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) } : null;
+  if (tf.getBackend() !== 'webgl' || /swiftshader|software|llvmpipe/i.test(webglAdapter?.renderer ?? '')) throw new Error('XC1_HARDWARE_WEBGL_REQUIRED');
   const pcm = await window.loadXc1ExternalPcm();
   const durationMs = pcm.sampleCount / acousticInput.sampleRateHz * 1000;
   const windows = window.planXc1OwnedWindows({
@@ -90,7 +104,7 @@ window.runXc1BasicPitchExecutor = async function(options = {}) {
   let inferenceMs = 0;
   const acousticObservations = [];
   const perWindowTimings = [];
-  for (const windowSpec of windows) {
+  const schedule = await window.xc1Semantics.executeSchedule(windows.map(spec => ({ ...spec, readyMs: spec.inputWindowEndMs })), async (windowSpec, warmup) => {
     const sourceWindow = pcm.samples.subarray(windowSpec.startSample, windowSpec.endSample);
     if (sourceWindow.length !== 29120) throw new Error('XC1_BASIC_PITCH_WINDOW_REQUIRES_REAL_CONTEXT');
     const input = window.resampleLinear(sourceWindow, 16000, 22050);
@@ -103,11 +117,10 @@ window.runXc1BasicPitchExecutor = async function(options = {}) {
       callbackCount += 1;
     }, () => {});
     const windowInferenceMs = performance.now() - started;
-    inferenceMs += windowInferenceMs;
-    const notes = outputToNotesPoly(frames, onsets, 0.5, 0.3, 5, true, null, null, true, 11);
-    const timedNotes = noteFramesToTime(notes);
+    if (!warmup) inferenceMs += windowInferenceMs;
+    const { timedNotes } = window.decodeXc1BasicPitchActivations(frames, onsets);
     let published = 0;
-    for (const note of timedNotes) {
+    for (const note of warmup ? [] : timedNotes) {
       const pitch = note.pitchMidi ?? note.pitch_midi ?? note.pitch;
       const absoluteMs = windowSpec.inputWindowStartMs + note.startTimeSeconds * 1000;
       if (absoluteMs >= windowSpec.ownedStartMs && absoluteMs < windowSpec.ownedEndMs && pitch >= 21 && pitch <= 108) {
@@ -120,7 +133,7 @@ window.runXc1BasicPitchExecutor = async function(options = {}) {
         published += 1;
       }
     }
-    perWindowTimings.push({
+    if (!warmup) perWindowTimings.push({
       windowId: windowSpec.windowId,
       inputWindowStartMs: windowSpec.inputWindowStartMs,
       ownedStartMs: windowSpec.ownedStartMs,
@@ -129,9 +142,11 @@ window.runXc1BasicPitchExecutor = async function(options = {}) {
       decodedCount: timedNotes.length,
       publishedCount: published,
     });
-  }
+    return { timing: { tensorflowJsInferenceDurationMs: windowInferenceMs }, observations: warmup ? [] : timedNotes };
+  }, { causal: options.runtimeMode === 'causal', warmupCount: 3 });
   return {
     backend: tf.getBackend(),
+    webglAdapter,
     browserReceivedPcm: {
       sha256: pcm.sha256,
       byteLength: pcm.byteLength,
@@ -141,6 +156,13 @@ window.runXc1BasicPitchExecutor = async function(options = {}) {
     outputToNotesPolyCalled: true,
     noteFramesToTimeCalled: true,
     sessionLoadCount: 1,
+    modelLoadAndWarmupMs: schedule.origin - (performance.timeOrigin + loadStart),
+    modelLoadMs,
+    warmup: schedule.warmupRows,
+    actualEvaluateModelInvocationCount: windows.length + schedule.warmupCount,
+    schedulingMode: options.runtimeMode ?? 'accelerated',
+    warmupCount: schedule.warmupCount,
+    runtimeRows: schedule.rows,
     windowCount: windows.length,
     actualModelInvocationCount: callbackCount,
     actualInferenceSessionRunCount: callbackCount,
@@ -172,12 +194,19 @@ export async function startXc1BrowserAssetServer({
   basicPitchWorkDir = BASIC_PITCH_WORK,
   basicBundlePath,
   stageARoot,
+  deploymentId,
 } = {}) {
-  const ortDist = path.join(RUNTIME_NODE_MODULES, 'onnxruntime-web/dist');
+  const ortDist = deploymentId === 'robust-browser-v1'
+    ? path.join(REPO_ROOT, ROBUST_ORT_PACKAGE_ROOT, 'node_modules/onnxruntime-web/dist')
+    : path.join(RUNTIME_NODE_MODULES, 'onnxruntime-web/dist');
   const basicRoot = path.join(basicPitchWorkDir, 'node_modules/@spotify/basic-pitch');
   const bundlePath = basicBundlePath ?? await bundleBasicPitch(basicPitchWorkDir);
   const server = createServer((req, res) => {
     try {
+      const rawPath = decodeURIComponent(req.url.split('?')[0]);
+      if (rawPath.includes('..') || rawPath.includes('\\') || /[A-Za-z]:/.test(rawPath)) {
+        res.writeHead(403); res.end('XC1_STAGE_A_PATH_TRAVERSAL'); return;
+      }
       const url = new URL(req.url, 'http://localhost');
       let filePath;
       if (url.pathname === '/') {
@@ -199,47 +228,39 @@ window.loadXc1ExternalPcm = async function() {
     samples: new Float32Array(buffer),
   };
 };
-window.resampleLinear = function(input, sourceRate, targetRate) {
-  const outputLength = Math.max(1, Math.floor(input.length * targetRate / sourceRate));
-  const output = new Float32Array(outputLength);
-  for (let i = 0; i < output.length; i += 1) {
-    const sourceIndex = i * sourceRate / targetRate;
-    const left = Math.floor(sourceIndex);
-    const right = Math.min(input.length - 1, left + 1);
-    const frac = sourceIndex - left;
-    output[i] = (input[left] ?? 0) * (1 - frac) + (input[right] ?? 0) * frac;
-  }
-  return output;
-};
-window.planXc1OwnedWindows = function({ durationMs, scoreableStartMs, scoreableEndMs, ownedMs, pastMs, futureMs, sampleRateHz, inputSamples }) {
-  const windows = [];
-  for (let ownedStartMs = scoreableStartMs; ownedStartMs < scoreableEndMs; ownedStartMs += ownedMs) {
-    const ownedEndMs = Math.min(ownedStartMs + ownedMs, scoreableEndMs);
-    const inputWindowStartMs = ownedStartMs - pastMs;
-    const inputWindowEndMs = ownedStartMs + ownedMs + futureMs;
-    if (inputWindowStartMs < 0 || inputWindowEndMs > durationMs + 1e-6) continue;
-    const startSample = Math.round(inputWindowStartMs * sampleRateHz / 1000);
-    windows.push({
-      windowId: 'owned_' + Math.round(ownedStartMs),
-      ownedStartMs,
-      ownedEndMs,
-      inputWindowStartMs,
-      inputWindowEndMs,
-      startSample,
-      endSample: startSample + inputSamples,
-    });
-  }
-  return windows;
-};
-</script><script src="/ort/ort.webgpu.min.js"></script><script type="module" src="/basic-bundle.js"></script>`);
+</script><script src="/ort/ort.webgpu.min.js"></script><script type="module">
+import * as semantics from '/xc1_browser_semantics.mjs';
+window.xc1Semantics = semantics;
+window.planXc1OwnedWindows = semantics.planOwnedWindows;
+window.resampleLinear = semantics.resampleLinear;
+</script><script type="module" src="/basic-bundle.js"></script>`);
         return;
       }
       if (url.pathname === '/basic-bundle.js') filePath = bundlePath;
+      else if (url.pathname === '/online-worker.mjs') filePath = path.join(REPO_ROOT, 'backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs');
+      else if (url.pathname === '/online-fixtures/manifest.json') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ graphs: { grouped: {
+          '1': { file: 'k1.onnx' }, '8': { file: 'k8.onnx' },
+        } }, fixtures: { initialState: {
+          audioBuffer: 'initial_audio_buffer.npy', melBuffer: 'initial_mel_buffer.npy', cache0: 'initial_cache0.npy',
+          cache1: 'initial_cache1.npy', h: 'initial_h.npy', c: 'initial_c.npy', prevOutput: 'initial_prev.npy',
+        } } }));
+        return;
+      }
+      else if (url.pathname === '/online-fixtures/k1.onnx') filePath = onlineAmtK1OnnxPath;
+      else if (url.pathname === '/online-fixtures/k8.onnx') filePath = onlineAmtK8OnnxPath;
+      else if (/^\/online-fixtures\/initial_(audio_buffer|mel_buffer|cache0|cache1|h|c|prev)\.npy$/.test(url.pathname)) {
+        filePath = safeResolve(path.join(REPO_ROOT, 'backend/data/work/phase9g_dr3r1h/fixtures'), url.pathname.split('/').at(-1));
+      }
       else if (url.pathname === '/audio/input.pcm') {
         if (!stageARoot) throw new Error('XC1_STAGE_A_ROOT_REQUIRED_FOR_PCM');
         filePath = safeResolve(path.join(stageARoot, 'audio'), 'input.pcm');
       }
       else if (url.pathname.startsWith('/ort/')) filePath = safeResolve(ortDist, url.pathname.slice('/ort/'.length));
+      else if (['/xc1_browser_semantics.mjs', '/xc1_robust_decoder.mjs'].includes(url.pathname)) {
+        filePath = safeResolve(path.dirname(fileURLToPath(import.meta.url)), url.pathname.slice(1));
+      }
       else if (url.pathname === '/robust.onnx') filePath = robustOnnxPath;
       else if (url.pathname === '/online-k8.onnx') filePath = onlineAmtK8OnnxPath;
       else if (url.pathname === '/online-k1.onnx') filePath = onlineAmtK1OnnxPath;
@@ -250,7 +271,9 @@ window.planXc1OwnedWindows = function({ durationMs, scoreableStartMs, scoreableE
         return;
       }
       res.writeHead(200, { 'content-type': contentType(filePath), 'cache-control': 'no-store' });
-      createReadStream(filePath).pipe(res);
+      const stream = createReadStream(filePath);
+      stream.on('error', () => { if (!res.headersSent) res.writeHead(404); res.end('not found'); });
+      stream.pipe(res);
     } catch (error) {
       res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
       res.end(String(error && error.stack ? error.stack : error));
@@ -352,6 +375,7 @@ export async function resolveFrozenAcousticInput({ stageARoot, manifestPath, tak
 export async function launchXc1Browser({ channel = 'chrome', headed = true } = {}) {
   const { chromium } = require(path.join(RUNTIME_NODE_MODULES, 'playwright'));
   const explicitExecutablePath = resolveBrandedBrowserExecutable(channel);
+  if (process.platform === 'win32' && !explicitExecutablePath) throw new Error(`XC1_BRANDED_BROWSER_MISSING:${channel}`);
   const browser = await chromium.launch({
     ...(explicitExecutablePath ? { executablePath: explicitExecutablePath } : { channel }),
     headless: !headed,
@@ -368,6 +392,7 @@ export async function launchXc1Browser({ channel = 'chrome', headed = true } = {
       launchArgsIncludeUnsafeWebGpu: (browserProcess?.spawnargs ?? []).some((arg) => arg.includes('enable-unsafe-webgpu')),
       os: `${os.platform()} ${os.release()} ${os.arch()}`,
       node: process.version,
+      playwrightVersion: require(path.join(RUNTIME_NODE_MODULES, 'playwright/package.json')).version,
       playwrightRuntime: path.join(RUNTIME_NODE_MODULES, 'playwright'),
     },
   };
@@ -392,6 +417,8 @@ export async function collectWebGpuAdapter(page) {
     if (!navigator.gpu) throw new Error('WebGPU unavailable: navigator.gpu missing');
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) throw new Error('WebGPU unavailable: requestAdapter returned null');
+    const description = `${adapter.info?.vendor ?? ''} ${adapter.info?.architecture ?? ''} ${adapter.info?.description ?? ''}`;
+    if (/swiftshader|software|llvmpipe/i.test(description)) throw new Error('XC1_HARDWARE_WEBGPU_REQUIRED');
     return {
       features: Array.from(adapter.features ?? []),
       info: adapter.info ? {

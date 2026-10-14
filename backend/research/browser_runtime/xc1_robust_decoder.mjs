@@ -104,9 +104,14 @@ export function planOwnedWindows({
   const windows = [];
   for (let ownedStartMs = scoreableStartMs; ownedStartMs < end; ownedStartMs += ownedMs) {
     const ownedEndMs = Math.min(ownedStartMs + ownedMs, end);
-    const inputWindowStartMs = ownedStartMs - pastMs;
-    const inputWindowEndMs = ownedStartMs + ownedMs + futureMs;
-    if (inputWindowStartMs < 0 || inputWindowEndMs > durationMs + 1e-6) continue;
+    const shiftedFinalWindow = ownedEndMs - ownedStartMs < ownedMs;
+    const inputWindowEndMs = ownedEndMs + futureMs;
+    const inputWindowStartMs = shiftedFinalWindow
+      ? inputWindowEndMs - inputSamples / sampleRateHz * 1000
+      : ownedStartMs - pastMs;
+    if (inputWindowStartMs < 0 || inputWindowEndMs > durationMs + 1e-6) {
+      throw new Error('XC1_WINDOW_REAL_CONTEXT_UNAVAILABLE');
+    }
     const startSample = Math.round(inputWindowStartMs * sampleRateHz / 1000);
     const endSample = startSample + inputSamples;
     windows.push({
@@ -117,6 +122,7 @@ export function planOwnedWindows({
       inputWindowEndMs,
       startSample,
       endSample,
+      shiftedFinalWindow,
     });
   }
   return windows;

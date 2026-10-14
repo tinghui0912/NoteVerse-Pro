@@ -1,116 +1,76 @@
 #!/usr/bin/env node
-
-import { createHash } from 'node:crypto';
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { REPO_ROOT } from './xc1_browser_runtime_shared.mjs';
+import { pathToFileURL } from 'node:url';
+import { DEPLOYMENTS, PHASE, fileSha, writeArtifact, validateArtifactDigest } from './xc1_artifacts.mjs';
+import { REPO_ROOT, safeResolve } from './xc1_browser_runtime_shared.mjs';
 
-const CANDIDATES = ['robust-browser-v1', 'online-amt-k8-browser-v1', 'basic-pitch-browser-v1'];
-
-function parseArgs(argv) {
-  const args = {};
-  for (let index = 2; index < argv.length; index += 1) {
-    const key = argv[index];
-    if (!key.startsWith('--')) throw new Error(`XC1_SEAL_UNKNOWN_POSITIONAL:${key}`);
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) args[key.slice(2)] = true;
-    else {
-      args[key.slice(2)] = value;
-      index += 1;
-    }
+export function validatePrediction(artifact, { candidate, take, f5Commit, freezeSha256, allowFailure = false }) {
+  validateArtifactDigest(artifact);
+  if (artifact.f5Commit !== f5Commit) throw new Error('XC1_SEAL_F5_COMMIT_MISMATCH');
+  if (artifact.f5FreezeSha256 !== freezeSha256) throw new Error('XC1_SEAL_FREEZE_DIGEST_MISMATCH');
+  if (artifact.deploymentId !== candidate || artifact.takeId !== take.takeId) throw new Error('XC1_SEAL_CELL_IDENTITY_MISMATCH');
+  if (allowFailure && artifact.stage === 'XC1_STAGE_A_SCIENTIFIC_PREDICTION_FAILURE' && artifact.status === 'XC1_STAGE_A_CELL_FAILED') return false;
+  if (artifact.stage !== 'XC1_STAGE_A_SCIENTIFIC_PREDICTION' || artifact.status !== 'XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE') {
+    throw new Error('XC1_SEAL_REJECTS_ACCEPTANCE_OR_FAILED_ARTIFACT');
   }
-  for (const required of ['manifest', 'prediction-root', 'output']) {
-    if (!args[required]) throw new Error(`XC1_SEAL_MISSING_ARG:--${required}`);
-  }
-  return args;
+  const pcm = artifact.frozenAcousticInput;
+  if (pcm?.pcmSha256 !== take.canonicalPcm.sha256 || pcm.byteSize !== take.canonicalPcm.byteSize
+    || pcm.sampleCount !== take.canonicalPcm.sampleCount || pcm.sampleRateHz !== 16000
+    || pcm.dtype !== 'float32-le-raw' || pcm.sourceAcousticWavSha256 !== take.sourceAcousticWavSha256
+    || JSON.stringify(pcm.scoreableInterval) !== JSON.stringify(take.scoreableInterior)) throw new Error('XC1_SEAL_PCM_IDENTITY_MISMATCH');
+  if (!(artifact.actualInferenceSessionRunCount > 0) || !Array.isArray(artifact.acousticObservations)) throw new Error('XC1_SEAL_INFERENCE_REQUIRED');
+  return true;
 }
 
-async function sha256File(filePath) {
-  return createHash('sha256').update(await readFile(filePath)).digest('hex');
-}
-
-function canonicalJson(value) {
-  return JSON.stringify(sortDeep(value));
-}
-
-function sortDeep(value) {
-  if (Array.isArray(value)) return value.map(sortDeep);
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, sortDeep(item)]));
-  }
-  return value;
-}
-
-async function readJson(filePath) {
-  return JSON.parse(await readFile(filePath, 'utf8'));
-}
-
-async function writeJson(filePath, value) {
-  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
-}
-
-async function main() {
-  const args = parseArgs(process.argv);
-  const manifest = await readJson(path.resolve(args.manifest));
-  const predictionRoot = path.resolve(args['prediction-root']);
-  const expected = [];
-  for (const candidate of CANDIDATES) {
-    for (const take of manifest.takes) {
-      expected.push({ candidateId: candidate, takeId: take.takeId });
-    }
-  }
+export async function createSeal({ manifestPath, predictionRoot, output, f5Commit, freezeSha256 }) {
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const cells = [];
-  const failures = [];
-  for (const cell of expected) {
-    const artifactPath = path.join(predictionRoot, cell.candidateId, `${cell.takeId}.json`);
-    let artifact;
-    try {
-      artifact = await readJson(artifactPath);
-    } catch (error) {
-      failures.push({ ...cell, failure: 'MISSING_ARTIFACT', error: String(error) });
-      continue;
+  let successful = true;
+  for (const candidate of DEPLOYMENTS) {
+    const files = (await readdir(path.join(predictionRoot, candidate))).filter(file => file.endsWith('.json')).sort();
+    const expectedFiles = manifest.takes.map(take => `${take.takeId}.json`).sort();
+    if (JSON.stringify(files) !== JSON.stringify(expectedFiles)) throw new Error('XC1_SEAL_MISSING_OR_DUPLICATE_CELL');
+    for (const take of manifest.takes) {
+      const file = path.join(predictionRoot, candidate, `${take.takeId}.json`);
+      const artifact = JSON.parse(await readFile(file, 'utf8'));
+      successful = validatePrediction(artifact, { candidate, take, f5Commit, freezeSha256, allowFailure: true }) && successful;
+      cells.push({ candidateId: candidate, takeId: take.takeId, status: artifact.status,
+        artifactPath: path.relative(REPO_ROOT, file).replaceAll('\\', '/'), artifactSha256: await fileSha(file),
+        artifactCanonicalSha256: artifact.artifactCanonicalSha256 });
     }
-    const allowed = new Set(['XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE', 'XC1_STAGE_A_CELL_FAILED']);
-    if (!allowed.has(artifact.status)) {
-      failures.push({ ...cell, failure: 'DISALLOWED_ARTIFACT_STATUS', status: artifact.status });
-    }
-    if (artifact.stage === 'XC1_OFFICIAL_STAGE_A_REAL_EXECUTOR_ACCEPTANCE') {
-      failures.push({ ...cell, failure: 'ACCEPTANCE_ARTIFACT_CANNOT_BE_SEALED' });
-    }
-    if (artifact.deploymentId !== cell.candidateId || artifact.takeId !== cell.takeId) {
-      failures.push({ ...cell, failure: 'CELL_IDENTITY_MISMATCH' });
-    }
-    cells.push({
-      ...cell,
-      status: artifact.status,
-      artifactPath: path.relative(REPO_ROOT, artifactPath).replaceAll('\\', '/'),
-      artifactSha256: await sha256File(artifactPath),
-    });
   }
-  const duplicates = new Set();
-  const seen = new Set();
-  for (const cell of cells) {
-    const key = `${cell.candidateId}\u0000${cell.takeId}`;
-    if (seen.has(key)) duplicates.add(key);
-    seen.add(key);
-  }
-  for (const duplicate of duplicates) failures.push({ failure: 'DUPLICATE_CELL', key: duplicate });
-  const receipt = {
-    schemaVersion: 1,
-    phase: 'PHASE_9G_XC1_R3C_SCIENTIFIC_SEMANTICS_F4_FULL_SEALED_BAKEOFF',
-    artifact: 'xc1_stage_a_primary_chrome_seal_manifest',
-    expectedCellCount: expected.length,
-    sealedCellCount: cells.length,
-    complete: failures.length === 0 && cells.length === expected.length,
-    cells,
-    failures,
-  };
-  receipt.sealSha256 = createHash('sha256').update(canonicalJson(receipt)).digest('hex');
-  await writeJson(path.resolve(args.output), receipt);
-  if (!receipt.complete) process.exitCode = 2;
+  return writeArtifact(output, { phase: PHASE, artifact: 'xc1_stage_a_primary_chrome_seal_manifest',
+    f5Commit, f5FreezeSha256: freezeSha256, manifestSha256: await fileSha(manifestPath),
+    expectedCellCount: DEPLOYMENTS.length * manifest.takes.length, complete: true, scoreable: successful, cells });
 }
 
-main().catch((error) => {
-  console.error(error && error.stack ? error.stack : error);
-  process.exitCode = 1;
-});
+export async function verifySeal({ sealPath, manifestPath, f5Commit, freezeSha256 }) {
+  const seal = JSON.parse(await readFile(sealPath, 'utf8'));
+  validateArtifactDigest(seal);
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  if (seal.f5Commit !== f5Commit || seal.f5FreezeSha256 !== freezeSha256 || !seal.complete || !seal.scoreable
+    || seal.manifestSha256 !== await fileSha(manifestPath)) throw new Error('XC1_STAGE_B_INVALID_SEAL');
+  const expected = new Map(DEPLOYMENTS.flatMap(candidate => manifest.takes.map(take => [`${candidate}\0${take.takeId}`, { candidate, take }])));
+  for (const row of seal.cells) {
+    const key = `${row.candidateId}\0${row.takeId}`;
+    const cell = expected.get(key);
+    if (!cell) throw new Error('XC1_SEAL_DUPLICATE_OR_UNKNOWN_CELL');
+    expected.delete(key);
+    const file = safeResolve(REPO_ROOT, row.artifactPath);
+    if (await fileSha(file) !== row.artifactSha256) throw new Error('XC1_INVALID_EVALUATION_PREDICTION_CHANGED_AFTER_TRUTH_REVEAL');
+    validatePrediction(JSON.parse(await readFile(file, 'utf8')), { ...cell, f5Commit, freezeSha256 });
+  }
+  if (expected.size) throw new Error('XC1_SEAL_MISSING_CELL');
+  return { seal, filesystemSha256: await fileSha(sealPath) };
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  const args = {};
+  for (let index = 2; index < process.argv.length; index += 2) args[process.argv[index].slice(2)] = process.argv[index + 1];
+  const options = { manifestPath: args.manifest, predictionRoot: args['prediction-root'], output: args.output,
+    sealPath: args.seal, f5Commit: args['f5-commit'], freezeSha256: args['f5-freeze-sha256'] };
+  (args.seal ? verifySeal(options) : createSeal(options)).then(value => console.log(JSON.stringify({ complete: true,
+    digest: value.artifactCanonicalSha256 ?? value.seal.artifactCanonicalSha256 })))
+    .catch(error => { console.error(error.stack ?? error); process.exitCode = 1; });
+}

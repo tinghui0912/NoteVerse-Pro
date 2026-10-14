@@ -14,7 +14,6 @@ from backend.research.xc1_scientific_bakeoff import (
     OnsetEvent,
     decide_front_runner,
     paired_bootstrap,
-    runtime_eligibility,
     score_take,
     sha256_file,
 )
@@ -106,6 +105,7 @@ def aggregate(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
 
 
 def main() -> None:
+    raise SystemExit('XC1_F4_PERMANENTLY_INVALIDATED_USE_R3D_STAGE_B')
     parser = argparse.ArgumentParser()
     parser.add_argument("--seal", required=True)
     parser.add_argument("--f3-manifest", required=True)
@@ -172,14 +172,7 @@ def main() -> None:
             pairwise[f"{right}__{left}__{metric}"] = paired_bootstrap(primary, right, left, metric, draws=5000, seed=13371)
 
     aggregate_primary = aggregate(primary)
-    candidate_metrics = {
-        candidate: {
-            **aggregate_primary.get(candidate, {"completeCoverage": False}),
-            **runtime_eligibility(candidate, processing_p95_ms=1.0, sustained_backlog=False),
-        }
-        for candidate in CANDIDATES
-    }
-    decision = decide_front_runner(candidate_metrics, pairwise)
+    raise RuntimeError('XC1_MEASURED_F5_RUNTIME_REPORT_REQUIRED')
     report = {
         "phase": "PHASE_9G_XC1_R3C_SCIENTIFIC_SEMANTICS_F4_FULL_SEALED_BAKEOFF",
         "artifact": "xc1_r3c_stage_b_scoring_report",

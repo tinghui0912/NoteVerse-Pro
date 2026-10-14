@@ -1,0 +1,4 @@
+FROM noteverse-online-amt-modern:xc1r2
+RUN pip install --no-cache-dir rfc8785==0.1.4 pytest==8.3.3
+WORKDIR /workspace
+ENV PYTHONPATH=/workspace

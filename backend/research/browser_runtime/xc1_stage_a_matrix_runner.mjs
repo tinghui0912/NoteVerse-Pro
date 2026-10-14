@@ -1,150 +1,100 @@
 #!/usr/bin/env node
-
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, stat } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { executeOfficialXc1StageACell } from './xc1_stage_a_candidate_registry.mjs';
 import { REPO_ROOT, safeResolve } from './xc1_browser_runtime_shared.mjs';
+import { DEPLOYMENTS, PHASE, atomicJson, preflightRunRoot, writeArtifact, validateArtifactDigest, digest, fileSha } from './xc1_artifacts.mjs';
 
-const CANDIDATES = ['robust-browser-v1', 'online-amt-k8-browser-v1', 'basic-pitch-browser-v1'];
-
-function parseArgs(argv) {
-  const args = { channel: 'chrome', headed: true };
+export function parseArgs(argv) {
+  const args = {};
+  const allowed = new Set(['manifest', 'output-root', 'f5-commit', 'f5-freeze-sha256', 'freeze', 'channel',
+    'deployment-id', 'take-id', 'headed', 'synthetic-dry-run', 'runtime-mode', 'retain-raw-hops']);
   for (let index = 2; index < argv.length; index += 1) {
-    const key = argv[index];
-    if (!key.startsWith('--')) throw new Error(`XC1_STAGE_A_MATRIX_UNKNOWN_POSITIONAL:${key}`);
+    const key = argv[index].slice(2);
+    if (!argv[index].startsWith('--') || !allowed.has(key)) throw new Error(`XC1_UNKNOWN_ARGUMENT:${argv[index]}`);
     const value = argv[index + 1];
-    if (!value || value.startsWith('--')) args[key.slice(2)] = true;
-    else {
-      args[key.slice(2)] = value;
-      index += 1;
-    }
+    args[key] = !value || value.startsWith('--') ? true : argv[++index];
   }
-  for (const required of ['manifest', 'output-root', 'f4-commit', 'f4-freeze-sha256']) {
-    if (!args[required]) throw new Error(`XC1_STAGE_A_MATRIX_MISSING_ARG:--${required}`);
-  }
+  for (const key of ['manifest', 'output-root', 'f5-commit', 'f5-freeze-sha256']) if (!args[key]) throw new Error(`XC1_MISSING_ARGUMENT:${key}`);
   return args;
 }
 
-async function readJson(filePath) {
-  return JSON.parse(await readFile(filePath, 'utf8'));
-}
-
-async function writeJson(filePath, value) {
-  await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
-}
-
-async function materializeCellStageRoot({ take, cellRoot }) {
-  const audioDir = path.join(cellRoot, 'audio');
-  const manifestsDir = path.join(cellRoot, 'manifests');
-  await mkdir(audioDir, { recursive: true });
-  await mkdir(manifestsDir, { recursive: true });
-  const sourcePcm = safeResolve(REPO_ROOT, take.canonicalPcm.sourceRelativePath);
-  await copyFile(sourcePcm, path.join(audioDir, 'input.pcm'));
-  const cellManifest = {
-    schemaVersion: 1,
-    fixtureClass: 'SMD_STAGE_A_SCORE_BLIND_CELL',
-    takes: [{
-      takeId: take.takeId,
-      sourceAcousticWavSha256: take.sourceAcousticWavSha256,
-      canonicalPcm: {
-        relativeStageAPath: 'audio/input.pcm',
-        sha256: take.canonicalPcm.sha256,
-        byteSize: take.canonicalPcm.byteSize,
-        sampleCount: take.canonicalPcm.sampleCount,
-        sampleRateHz: take.canonicalPcm.sampleRateHz,
-        dtype: take.canonicalPcm.dtype,
-      },
-      scoreableInterior: take.scoreableInterior,
-    }],
-  };
-  const manifestPath = path.join(manifestsDir, 'stage_a_manifest.json');
-  await writeJson(manifestPath, cellManifest);
-  return manifestPath;
-}
-
-async function runCell({ deploymentId, take, outputRoot, channel, headed, f4Commit, f4FreezeSha256 }) {
-  const cellRoot = path.join(outputRoot, 'stage_a_cell_roots', deploymentId, take.takeId);
-  const outputPath = path.join(outputRoot, 'predictions', deploymentId, `${take.takeId}.json`);
-  const manifestPath = await materializeCellStageRoot({ take, cellRoot });
-  try {
-    return await executeOfficialXc1StageACell({
-      deploymentId,
-      takeId: take.takeId,
-      stageARoot: cellRoot,
-      stageAManifestPath: manifestPath,
-      outputPath,
-      browserChannel: channel,
-      headed,
-      evidenceMode: 'scientific_prediction',
-      f4Commit,
-      f4FreezeSha256,
-    });
-  } catch (error) {
-    const receipt = {
-      schemaVersion: 1,
-      stage: 'XC1_STAGE_A_SCIENTIFIC_PREDICTION_FAILURE',
-      status: 'XC1_STAGE_A_CELL_FAILED',
-      deploymentId,
-      takeId: take.takeId,
-      f4Commit,
-      f4FreezeSha256,
-      noScoreTruthInput: true,
-      error: String(error && error.stack ? error.stack : error),
-    };
-    await writeJson(outputPath, receipt);
-    return receipt;
+export async function verifyFreeze(args, manifest) {
+  if (args['synthetic-dry-run']) {
+    if (manifest.fixtureClass !== 'NON_SMD_SYNTHETIC') throw new Error('XC1_DRY_RUN_REQUIRES_NON_SMD_FIXTURE');
+    return;
   }
+  if (!args.freeze) throw new Error('XC1_F5_FREEZE_REQUIRED');
+  const freeze = JSON.parse(await readFile(args.freeze, 'utf8'));
+  const { freezeSha256, ...content } = freeze;
+  if (digest(content) !== freezeSha256 || freezeSha256 !== args['f5-freeze-sha256']) throw new Error('XC1_FREEZE_DIGEST_MISMATCH');
+  if (await fileSha(args.manifest) !== freeze.stageAManifestSha256) throw new Error('XC1_FROZEN_MANIFEST_DRIFT');
+  for (const [file, sha] of Object.entries(freeze.sourceHashBoundary)) {
+    if (await fileSha(safeResolve(REPO_ROOT, file)) !== sha) throw new Error(`XC1_FROZEN_SOURCE_DRIFT:${file}`);
+  }
+  for (const [file, sha] of Object.entries(freeze.assetHashBoundary)) {
+    if (await fileSha(safeResolve(REPO_ROOT, file)) !== sha) throw new Error(`XC1_CANDIDATE_ASSET_IDENTITY_DRIFT:${file}`);
+  }
+  const git = (...command) => execFileSync('git', command, { cwd: REPO_ROOT, encoding: 'utf8' }).trim();
+  if (git('rev-parse', 'HEAD') !== args['f5-commit'] || git('status', '--porcelain')) throw new Error('XC1_REQUIRES_CLEAN_F5_CHECKOUT');
+  const remote = git('ls-remote', 'origin', 'refs/heads/codex/customer-web-delivery-boundary').split(/\s/)[0];
+  if (remote !== args['f5-commit']) throw new Error('XC1_F5_NOT_REMOTE_HEAD');
 }
 
-async function main() {
-  const args = parseArgs(process.argv);
-  const manifest = await readJson(path.resolve(args.manifest));
-  if (manifest.truthFieldsExcluded !== true || manifest.midiPathsExcluded !== true) {
-    throw new Error('XC1_STAGE_A_MATRIX_REQUIRES_SANITIZED_MANIFEST');
-  }
+export async function runMatrix(args) {
+  const manifest = JSON.parse(await readFile(args.manifest, 'utf8'));
+  if (!manifest.truthFieldsExcluded || !manifest.midiPathsExcluded) throw new Error('XC1_SANITIZED_MANIFEST_REQUIRED');
+  await verifyFreeze(args, manifest);
   const outputRoot = path.resolve(args['output-root']);
-  const requestedCandidates = args['deployment-id'] ? [args['deployment-id']] : CANDIDATES;
-  const requestedTakes = args['take-id']
-    ? manifest.takes.filter((take) => take.takeId === args['take-id'])
-    : manifest.takes;
-  const cells = [];
-  for (const deploymentId of requestedCandidates) {
-    if (!CANDIDATES.includes(deploymentId)) throw new Error(`XC1_STAGE_A_MATRIX_UNKNOWN_DEPLOYMENT:${deploymentId}`);
-    for (const take of requestedTakes) {
-      const receipt = await runCell({
-        deploymentId,
-        take,
-        outputRoot,
-        channel: args.channel,
-        headed: args.headed !== false,
-        f4Commit: args['f4-commit'],
-        f4FreezeSha256: args['f4-freeze-sha256'],
-      });
-      cells.push({
-        deploymentId,
-        takeId: take.takeId,
-        status: receipt.status,
-      });
+  await preflightRunRoot(outputRoot);
+  const candidates = args['deployment-id'] ? [args['deployment-id']] : DEPLOYMENTS;
+  const takes = args['take-id'] ? manifest.takes.filter(take => take.takeId === args['take-id']) : manifest.takes;
+  if (!takes.length || candidates.some(candidate => !DEPLOYMENTS.includes(candidate))) throw new Error('XC1_INVALID_MATRIX_SELECTION');
+  const summary = { phase: PHASE, f5Commit: args['f5-commit'], f5FreezeSha256: args['f5-freeze-sha256'],
+    expectedCellCount: candidates.length * takes.length, cells: [] };
+  for (const deploymentId of candidates) for (const take of takes) {
+    const outputPath = path.join(outputRoot, 'predictions', deploymentId, `${take.takeId}.json`);
+    const exists = await stat(outputPath).then(() => true, error => { if (error.code === 'ENOENT') return false; throw error; });
+    if (exists) {
+      const prior = JSON.parse(await readFile(outputPath, 'utf8'));
+      validateArtifactDigest(prior);
+      if (prior.f5Commit !== args['f5-commit'] || prior.f5FreezeSha256 !== args['f5-freeze-sha256']
+        || prior.status !== 'XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE') throw new Error('XC1_RESUME_IDENTITY_MISMATCH');
+      summary.cells.push({ deploymentId, takeId: take.takeId, status: prior.status, resumed: true }); continue;
     }
+    const cellRoot = path.join(outputRoot, 'audio_only_cells', deploymentId, take.takeId);
+    await mkdir(path.join(cellRoot, 'audio'), { recursive: true });
+    await copyFile(safeResolve(REPO_ROOT, take.canonicalPcm.sourceRelativePath), path.join(cellRoot, 'audio/input.pcm'));
+    const cellManifestPath = path.join(cellRoot, 'manifest.json');
+    const cellManifest = { fixtureClass: manifest.fixtureClass, takes: [{ takeId: take.takeId,
+      sourceAcousticWavSha256: take.sourceAcousticWavSha256,
+      canonicalPcm: { ...take.canonicalPcm, sourceRelativePath: undefined, relativeStageAPath: 'audio/input.pcm' },
+      scoreableInterior: take.scoreableInterior }] };
+    await atomicJson(cellManifestPath, cellManifest, { immutable: false });
+    try {
+      const receipt = await executeOfficialXc1StageACell({ deploymentId, takeId: take.takeId, stageARoot: cellRoot,
+        stageAManifestPath: cellManifestPath, outputPath, browserChannel: args.channel ?? 'chrome', headed: true,
+        evidenceMode: 'scientific_prediction', f5Commit: args['f5-commit'], f5FreezeSha256: args['f5-freeze-sha256'],
+        implementationCommit: manifest.implementationCommit, candidateIdentity: manifest.candidateIdentities?.[deploymentId],
+        runtimeMode: args['runtime-mode'] ?? 'accelerated', retainRawHops: Boolean(args['retain-raw-hops']) });
+      summary.cells.push({ deploymentId, takeId: take.takeId, status: receipt.status });
+      console.log(`${summary.cells.length}/${summary.expectedCellCount} ${deploymentId} ${take.takeId} COMPLETE`);
+    } catch (error) {
+      const failure = { phase: PHASE, stage: 'XC1_STAGE_A_SCIENTIFIC_PREDICTION_FAILURE', status: 'XC1_STAGE_A_CELL_FAILED',
+        deploymentId, takeId: take.takeId, f5Commit: args['f5-commit'], f5FreezeSha256: args['f5-freeze-sha256'],
+        frozenAcousticInput: take.canonicalPcm, error: String(error.stack ?? error) };
+      await writeArtifact(outputPath, failure);
+      await writeArtifact(path.join(outputRoot, 'failures', `${deploymentId}__${take.takeId}.json`), failure);
+      summary.cells.push({ deploymentId, takeId: take.takeId, status: failure.status });
+      await atomicJson(path.join(outputRoot, 'summary/matrix.json'), summary, { immutable: false });
+      throw new Error(`XC1_PRIMARY_MATRIX_FAIL_FAST:${error.stack ?? error}`);
+    }
+    await atomicJson(path.join(outputRoot, 'summary/matrix.json'), summary, { immutable: false });
   }
-  const summary = {
-    schemaVersion: 1,
-    phase: 'PHASE_9G_XC1_R3C_SCIENTIFIC_SEMANTICS_F4_FULL_SEALED_BAKEOFF',
-    artifact: 'xc1_stage_a_matrix_runner_summary',
-    manifestPath: path.relative(REPO_ROOT, path.resolve(args.manifest)).replaceAll('\\', '/'),
-    outputRoot: path.relative(REPO_ROOT, outputRoot).replaceAll('\\', '/'),
-    expectedCellCount: requestedCandidates.length * requestedTakes.length,
-    completedCellCount: cells.length,
-    cells,
-  };
-  await writeJson(path.join(outputRoot, 'stage_a_matrix_summary.json'), summary);
-  if (cells.some((cell) => cell.status !== 'XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE')) {
-    process.exitCode = 2;
-  }
+  return summary;
 }
-
-main().catch((error) => {
-  console.error(error && error.stack ? error.stack : error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  runMatrix(parseArgs(process.argv)).catch(error => { console.error(error.stack ?? error); process.exitCode = 1; });
+}

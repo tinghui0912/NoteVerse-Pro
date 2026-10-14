@@ -1,8 +1,10 @@
 import { existsSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, stat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { preflightOutput, writeArtifact, PHASE, digest } from './xc1_artifacts.mjs';
+import { ROBUST_ORT_WEB_VERSION, ROBUST_ORT_PACKAGE_ROOT } from './xc1_runtime_selection.mjs';
 
 import { executeBasicPitchBrowserExecutor, BASIC_PITCH_DECODER_EXECUTION_IDENTITY } from './xc1_basic_pitch_browser_executor.mjs';
 import { executeOnlineAmtK8BrowserExecutor } from './xc1_online_amt_k8_browser_executor.mjs';
@@ -27,7 +29,7 @@ export const XC1_FROZEN_IDENTITIES = Object.freeze({
   'robust-browser-v1': Object.freeze({
     deploymentId: 'robust-browser-v1',
     candidateId: 'bytedance-robust-augmented-calibrated-v1',
-    deploymentIdentitySha256: '196a9a2ceb03569f6e266c4f5973125bb8596146882079105ee94ef7e621deed',
+    historicalD3DeploymentIdentitySha256: '196a9a2ceb03569f6e266c4f5973125bb8596146882079105ee94ef7e621deed',
     onnxSha256: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3',
     sampleRateHz: 16000,
     inputSamples: 29120,
@@ -100,6 +102,10 @@ export function resolveOfficialXc1Executor(deploymentId) {
 
 export async function executeOfficialXc1StageACell(request) {
   validateOfficialRequest(request);
+  await preflightOutput(request.outputPath);
+  const runtimeRoot = request.deploymentId === 'robust-browser-v1' ? ROBUST_ORT_PACKAGE_ROOT : 'backend/research/browser_runtime/dr3r_browser_runtime';
+  const ortPackage = JSON.parse(await readFile(path.join(REPO_ROOT, runtimeRoot, 'node_modules/onnxruntime-web/package.json'), 'utf8'));
+  if (ortPackage.version !== (request.deploymentId === 'robust-browser-v1' ? ROBUST_ORT_WEB_VERSION : '1.30.0')) throw new Error('XC1_CANDIDATE_ASSET_IDENTITY_DRIFT:ort');
   const entry = resolveOfficialXc1Executor(request.deploymentId);
   return entry.execute(request);
 }
@@ -133,15 +139,20 @@ function validateOfficialRequest(request) {
   if (typeof request.stageARoot !== 'string') throw new Error('XC1_STAGE_A_ROOT_REQUIRED');
   if (typeof request.stageAManifestPath !== 'string') throw new Error('XC1_STAGE_A_MANIFEST_REQUIRED');
   if (typeof request.outputPath !== 'string') throw new Error('XC1_STAGE_A_OUTPUT_REQUIRED');
+  const allowed = new Set(['deploymentId', 'candidateId', 'takeId', 'stageARoot', 'stageAManifestPath', 'outputPath',
+    'browserChannel', 'headed', 'evidenceMode', 'f5Commit', 'f5FreezeSha256', 'implementationCommit',
+    'candidateIdentity', 'runtimeMode', 'retainRawHops']);
+  for (const key of Object.keys(request)) if (!allowed.has(key)) throw new Error(`XC1_STAGE_A_FORBIDDEN_REQUEST_FIELD:${key}`);
 }
 
 export async function executeRobustBrowserV1(request) {
   const identity = XC1_FROZEN_IDENTITIES['robust-browser-v1'];
   verifyDeploymentBinding(request, identity);
-  const robustOnnxPath = request.robustOnnxPath ?? XC1_DEFAULT_ASSET_PATHS.robustOnnxPath;
+  const robustOnnxPath = XC1_DEFAULT_ASSET_PATHS.robustOnnxPath;
   const assetVerification = {
     onnxSha256: await verifySha(robustOnnxPath, identity.onnxSha256, 'robust ONNX'),
-    deploymentIdentitySha256: identity.deploymentIdentitySha256,
+    onnxBytes: (await stat(robustOnnxPath)).size,
+    historicalD3DeploymentIdentitySha256: identity.historicalD3DeploymentIdentitySha256,
     sampleRateHz: identity.sampleRateHz,
     inputSamples: identity.inputSamples,
     contextMs: {
@@ -167,13 +178,15 @@ export async function executeRobustBrowserV1(request) {
 export async function executeOnlineAmtK8BrowserV1(request) {
   const identity = XC1_FROZEN_IDENTITIES['online-amt-k8-browser-v1'];
   verifyDeploymentBinding(request, identity);
-  const onlineAmtK8OnnxPath = request.onlineAmtK8OnnxPath ?? XC1_DEFAULT_ASSET_PATHS.onlineAmtK8OnnxPath;
-  const onlineAmtK1OnnxPath = request.onlineAmtK1OnnxPath ?? XC1_DEFAULT_ASSET_PATHS.onlineAmtK1OnnxPath;
+  const onlineAmtK8OnnxPath = XC1_DEFAULT_ASSET_PATHS.onlineAmtK8OnnxPath;
+  const onlineAmtK1OnnxPath = XC1_DEFAULT_ASSET_PATHS.onlineAmtK1OnnxPath;
   const assetVerification = {
     k8OnnxSha256: await verifySha(onlineAmtK8OnnxPath, identity.k8OnnxSha256, 'Online-AMT K8 ONNX'),
     k1FallbackOnnxSha256: await verifySha(onlineAmtK1OnnxPath, identity.k1FallbackOnnxSha256, 'Online-AMT K1 fallback ONNX'),
+    k8OnnxBytes: (await stat(onlineAmtK8OnnxPath)).size,
+    k1FallbackOnnxBytes: (await stat(onlineAmtK1OnnxPath)).size,
     configurationSha256: identity.configurationSha256,
-    checkpointSha256: identity.checkpointSha256,
+    checkpointSha256: await verifySha(path.join(REPO_ROOT, 'backend/data/work/online_amt/model-180000.pt'), identity.checkpointSha256, 'Online-AMT checkpoint'),
     ortWebVersion: identity.ortWebVersion,
     hopSamples: identity.hopSamples,
     groupHops: identity.groupHops,
@@ -186,7 +199,9 @@ export async function executeOnlineAmtK8BrowserV1(request) {
     onlineAmtK1OnnxPath,
     executorExport: 'executeOnlineAmtK8BrowserExecutor',
     executorModulePath: path.join(path.dirname(fileURLToPath(import.meta.url)), 'xc1_online_amt_k8_browser_executor.mjs'),
-    decoderIdentity: { publicationProjection: 'online-amt-calibrated-k8-hop-event-projection-v1' },
+    decoderIdentity: { publicationProjection: 'runOnlineAmtStreamingCandidateFromHopArtifact',
+      authoritativeBridge: await moduleIdentity(path.join(REPO_ROOT, 'apps/customer-web/src/lib/practice/research/online-amt-stateful-streaming.ts'), 'runOnlineAmtStreamingCandidateFromHopArtifact'),
+      worker: await moduleIdentity(path.join(REPO_ROOT, 'backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs'), 'processGroup') },
     assetVerification,
     executePage: executeOnlineAmtK8BrowserExecutor,
   });
@@ -195,7 +210,7 @@ export async function executeOnlineAmtK8BrowserV1(request) {
 export async function executeBasicPitchBrowserV1(request) {
   const identity = XC1_FROZEN_IDENTITIES['basic-pitch-browser-v1'];
   verifyDeploymentBinding(request, identity);
-  const basicPitchWorkDir = request.basicPitchWorkDir ?? XC1_DEFAULT_ASSET_PATHS.basicPitchWorkDir;
+  const basicPitchWorkDir = XC1_DEFAULT_ASSET_PATHS.basicPitchWorkDir;
   const basicPitchAssets = await verifyBasicPitchAssets(basicPitchWorkDir, identity);
   const decoder = await loadOfficialBasicPitchDecoder(basicPitchWorkDir);
   return runOfficialBrowserExecutor(request, identity, {
@@ -261,6 +276,7 @@ async function loadOfficialBasicPitchDecoder(basicPitchWorkDir) {
   const packageRoot = path.resolve(basicPitchWorkDir, 'node_modules', '@spotify', 'basic-pitch');
   const esmDecoder = path.join(packageRoot, 'esm', 'toMidi.js');
   if (!existsSync(esmDecoder)) throw new Error(`XC1_BASIC_PITCH_OFFICIAL_DECODER_MISSING:${esmDecoder}`);
+  await verifySha(esmDecoder, 'c6492ceae181d24fb254a152d0853f2a60f27e78547db96258026ddcd81ef618', 'Basic Pitch ESM decoder');
   const source = await readFile(esmDecoder, 'utf8');
   if (!source.includes('function outputToNotesPoly') && !source.includes('outputToNotesPoly')) {
     throw new Error('XC1_BASIC_PITCH_OFFICIAL_DECODER_EXPORT_MISSING');
@@ -301,6 +317,8 @@ async function verifyBasicPitchAssets(workDir, identity) {
     weightsSha256,
     packageVersion: basicPitchPackage.version,
     tfjsVersion: tfjsPackage.version,
+    modelJsonBytes: (await stat(path.join(root, 'node_modules/@spotify/basic-pitch/model/model.json'))).size,
+    weightsBytes: (await stat(path.join(root, 'node_modules/@spotify/basic-pitch/model/group1-shard1of1.bin'))).size,
   };
 }
 
@@ -341,17 +359,33 @@ async function runOfficialBrowserExecutor(request, identity, {
   assetVerification,
   executePage,
 }) {
+  await preflightOutput(request.outputPath);
+  const deploymentContent = await deploymentContentFor(identity, assetVerification, decoderIdentity, executorModulePath);
+  const xc1DeploymentIdentitySha256 = digest(deploymentContent);
+  if (request.candidateIdentity && request.candidateIdentity !== xc1DeploymentIdentitySha256) throw new Error('XC1_CANDIDATE_ASSET_IDENTITY_DRIFT:deployment');
   const acousticInput = await resolveFrozenAcousticInput({
     stageARoot: request.stageARoot,
     manifestPath: request.stageAManifestPath,
     takeId: request.takeId,
   });
+  const { createJiti } = createRequire(import.meta.url)(path.join(REPO_ROOT, 'backend/research/browser_runtime/dr3r_browser_runtime/node_modules/jiti'));
+  const contract = createJiti(import.meta.url)(path.join(REPO_ROOT, 'apps/customer-web/src/lib/practice/research/acoustic-candidate-contract.ts'));
+  const pcmBytes = await readFile(acousticInput.pcmPath);
+  const acousticRequest = { pcm: new Float32Array(pcmBytes.buffer, pcmBytes.byteOffset, pcmBytes.byteLength / 4),
+    sampleRateHz: 16000, channelCount: 1, sourceId: acousticInput.takeId, captureSessionId: acousticInput.takeId,
+    captureStartSample: 0, captureStartTimeMs: 0, acousticChunkId: acousticInput.takeId,
+    ownershipStartMs: acousticInput.scoreableInterval.startMs, ownershipEndMs: acousticInput.scoreableInterval.endMs,
+    contextStartMs: 0, contextEndMs: acousticInput.sampleCount / 16, modelContextMs: 1000, futureContextMs: 220,
+    runtimeRequestId: `${identity.deploymentId}:${acousticInput.takeId}`, candidateId: identity.candidateId,
+    deploymentId: identity.deploymentId };
+  contract.validateGreenfieldAudioOnlyAcousticRequest(acousticRequest);
   const { server, url } = await startXc1BrowserAssetServer({
     robustOnnxPath,
     onlineAmtK8OnnxPath,
     onlineAmtK1OnnxPath,
     basicPitchWorkDir,
     stageARoot: request.stageARoot,
+    deploymentId: identity.deploymentId,
   });
   const { browser, identity: browserIdentity } = await launchXc1Browser({
     channel: request.browserChannel ?? 'chrome',
@@ -361,18 +395,35 @@ async function runOfficialBrowserExecutor(request, identity, {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     const startedAtUnixMs = Date.now();
-    const result = await executePage(page, { ...request, acousticInput });
+    const result = await contract.executeGreenfieldAcousticCandidate(acousticRequest, validated => executePage(page, {
+      acousticInput, runtimeMode: request.runtimeMode, retainRawHops: request.retainRawHops,
+      deploymentId: validated.deploymentId,
+    }));
+    const coverageEndMs = identity.deploymentId === 'online-amt-k8-browser-v1'
+      ? result.analyzedThroughPerformanceMs
+      : (result.ownershipWindows ?? result.runtimeRows)?.at(-1)?.ownedEndMs;
+    if (!(coverageEndMs >= acousticInput.scoreableInterval.endMs)) throw new Error('XC1_INCOMPLETE_ACOUSTIC_COVERAGE');
+    const observationIds = new Set();
+    for (const event of result.acousticObservations) {
+      if (!Number.isInteger(event.pitch) || event.pitch < 21 || event.pitch > 108
+        || !Number.isFinite(event.performanceTimeMs) || !Number.isFinite(event.confidence)
+        || !event.candidateObservationId || observationIds.has(event.candidateObservationId)) throw new Error('XC1_ACOUSTIC_OBSERVATION_CONTRACT_VIOLATION');
+      observationIds.add(event.candidateObservationId);
+    }
     const scientificPrediction = request.evidenceMode === 'scientific_prediction';
     const registryModulePath = fileURLToPath(import.meta.url);
     const sharedModulePath = path.join(path.dirname(registryModulePath), 'xc1_browser_runtime_shared.mjs');
     const receipt = {
       schemaVersion: 2,
+      phase: PHASE,
       stage: scientificPrediction ? 'XC1_STAGE_A_SCIENTIFIC_PREDICTION' : 'XC1_OFFICIAL_STAGE_A_REAL_EXECUTOR_ACCEPTANCE',
       status: scientificPrediction ? 'XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE' : 'OFFICIAL_STAGE_A_REAL_EXECUTOR_PASS',
       ...(scientificPrediction ? {
-        phase: 'PHASE_9G_XC1_R3C_SCIENTIFIC_SEMANTICS_F4_FULL_SEALED_BAKEOFF',
-        f4Commit: request.f4Commit,
-        f4FreezeSha256: request.f4FreezeSha256,
+        phase: PHASE,
+        f5Commit: request.f5Commit,
+        f5FreezeSha256: request.f5FreezeSha256,
+        implementationCommit: request.implementationCommit,
+        candidateIdentity: request.candidateIdentity,
       } : {}),
       deploymentId: identity.deploymentId,
       candidateId: identity.candidateId,
@@ -390,6 +441,9 @@ async function runOfficialBrowserExecutor(request, identity, {
         decoder: decoderIdentity,
       },
       assetIdentity: assetVerification,
+      xc1DeploymentIdentitySha256,
+      coverage: { scoreableInterval: acousticInput.scoreableInterval, completedThroughMs: coverageEndMs, complete: true },
+      deploymentIdentityContent: deploymentContent,
       frozenAcousticInput: {
         takeId: acousticInput.takeId,
         pcmSha256: acousticInput.pcmSha256,
@@ -405,11 +459,24 @@ async function runOfficialBrowserExecutor(request, identity, {
     };
     assertNoSmokeStatus(receipt);
     if (request.outputPath) {
-      await writeFile(request.outputPath, `${JSON.stringify(receipt, null, 2)}\n`, 'utf8');
+      return await writeArtifact(request.outputPath, receipt);
     }
     return receipt;
   } finally {
     await browser.close();
     server.close();
   }
+}
+
+async function deploymentContentFor(identity, assetVerification, decoderIdentity, executorModulePath) {
+  const runtimeRoot = identity.deploymentId === 'robust-browser-v1' ? ROBUST_ORT_PACKAGE_ROOT : 'backend/research/browser_runtime/dr3r_browser_runtime';
+  const ortPackage = JSON.parse(await readFile(path.join(REPO_ROOT, runtimeRoot, 'node_modules/onnxruntime-web/package.json'), 'utf8'));
+  const moduleRoot = path.dirname(fileURLToPath(import.meta.url));
+  return { ...identity, assetVerification, decoderIdentity,
+    executorSha256: await sha256File(executorModulePath), sharedRuntimeSha256: await sha256File(path.join(moduleRoot, 'xc1_browser_runtime_shared.mjs')),
+    semanticsSha256: await sha256File(path.join(moduleRoot, 'xc1_browser_semantics.mjs')),
+    ownershipPlannerSha256: await sha256File(path.join(moduleRoot, 'xc1_robust_decoder.mjs')),
+    greenfieldBoundarySha256: await sha256File(path.join(REPO_ROOT, 'apps/customer-web/src/lib/practice/research/acoustic-candidate-contract.ts')),
+    commonPreprocessingSourceSha256: await sha256File(path.join(REPO_ROOT, 'backend/research/xc1_scientific_bakeoff.py')),
+    ortWebVersion: ortPackage.version, ortPackageLockSha256: await sha256File(path.join(REPO_ROOT, runtimeRoot, 'package-lock.json')) };
 }

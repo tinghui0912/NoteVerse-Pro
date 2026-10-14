@@ -293,21 +293,42 @@ def match_pitch_onsets(
 
 
 def _match_sorted_events(truth: list[OnsetEvent], pred: list[OnsetEvent], tolerance_ms: float) -> list[tuple[OnsetEvent, OnsetEvent, float]]:
-    n = len(truth)
-    m = len(pred)
-    dp: list[list[tuple[int, float, tuple[str, ...], list[tuple[int, int]]]]] = [
-        [(0, 0.0, tuple(), []) for _ in range(m + 1)]
-        for _ in range(n + 1)
-    ]
-    for i in range(n - 1, -1, -1):
-        for j in range(m - 1, -1, -1):
-            choices = [dp[i + 1][j], dp[i][j + 1]]
-            error = abs(truth[i].time_ms - pred[j].time_ms)
-            if error <= tolerance_ms:
-                count, cost, tie, pairs = dp[i + 1][j + 1]
-                choices.append((count + 1, cost + error, tie + (truth[i].event_id, pred[j].event_id), [(i, j), *pairs]))
-            dp[i][j] = max(choices, key=lambda state: (state[0], -state[1], tuple(reversed(state[2]))))
-    return [(truth[i], pred[j], abs(truth[i].time_ms - pred[j].time_ms)) for i, j in dp[0][0][3]]
+    from bisect import bisect_left, bisect_right
+
+    # Sparse sequence DP. Absolute timing costs admit an order-preserving optimum.
+    # Updates are deferred per truth event to enforce one-to-one ownership.
+    times = [event.time_ms for event in pred]
+    nodes = [(0, 0.0, -1, -1, -1)]
+    tree = [0] * (len(pred) + 1)
+
+    def best(a: int, b: int) -> int:
+        return min((a, b), key=lambda index: (-nodes[index][0], nodes[index][1], index))
+
+    def query(end: int) -> int:
+        result = 0
+        while end:
+            result = best(result, tree[end])
+            end -= end & -end
+        return result
+
+    for i, event in enumerate(truth):
+        updates = []
+        for j in range(bisect_left(times, event.time_ms - tolerance_ms), bisect_right(times, event.time_ms + tolerance_ms)):
+            parent = query(j)
+            count, cost, *_ = nodes[parent]
+            nodes.append((count + 1, cost + abs(event.time_ms - pred[j].time_ms), parent, i, j))
+            updates.append((j + 1, len(nodes) - 1))
+        for position, node in updates:
+            while position < len(tree):
+                tree[position] = best(tree[position], node)
+                position += position & -position
+    result = []
+    node = query(len(pred))
+    while node:
+        _, _, parent, i, j = nodes[node]
+        result.append((truth[i], pred[j], abs(truth[i].time_ms - pred[j].time_ms)))
+        node = parent
+    return list(reversed(result))
 
 
 def score_take(truth: list[OnsetEvent], predictions: list[OnsetEvent], duration_seconds: float, tolerance_ms: float = 50.0) -> dict[str, Any]:
@@ -367,6 +388,11 @@ def paired_bootstrap(
     seed: int = 13371,
 ) -> dict[str, Any]:
     take_ids = sorted({row["takeId"] for row in rows})
+    if not take_ids:
+        raise ValueError('XC1_BOOTSTRAP_UNPAIRED_COVERAGE:empty')
+    relevant = [row for row in rows if row['candidateId'] in {candidate_a, candidate_b}]
+    if len({(row['takeId'], row['candidateId']) for row in relevant}) != len(relevant):
+        raise ValueError('XC1_BOOTSTRAP_DUPLICATE_TAKE_CANDIDATE')
     by_take_candidate = {(row["takeId"], row["candidateId"]): row[metric] for row in rows}
     missing = [
         {"takeId": take, "candidateId": candidate}

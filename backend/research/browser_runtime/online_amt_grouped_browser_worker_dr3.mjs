@@ -316,7 +316,11 @@ self.onmessage = (event) => {
   }
   if (message.type === 'snapshot') {
     try {
-      self.postMessage({ id: message.id, result: { status: 'PASS', stateSnapshot: stateSnapshot() } });
+      self.postMessage({ id: message.id, result: { status: 'PASS', stateSnapshot: stateSnapshot(),
+        ...(message.includeValues ? { stateValues: Object.fromEntries(
+          Object.entries(state).map(([key, value]) => [key, ArrayBuffer.isView(value) ? Array.from(value, Number) : value])
+        ) } : {}),
+      } });
     } catch (error) {
       self.postMessage({ id: message.id, error: String(error && error.stack ? error.stack : error) });
     }

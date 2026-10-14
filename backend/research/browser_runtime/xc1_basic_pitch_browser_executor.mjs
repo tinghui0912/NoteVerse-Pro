@@ -16,12 +16,13 @@ export const BASIC_PITCH_DECODER_EXECUTION_IDENTITY = Object.freeze({
 });
 
 export async function executeBasicPitchBrowserExecutor(page, request = {}) {
-  const result = await page.evaluate(({ acousticInput }) => {
+  await page.waitForFunction(() => window.xc1Semantics && window.runXc1BasicPitchExecutor);
+  const result = await page.evaluate(({ acousticInput, runtimeMode }) => {
     if (typeof window.runXc1BasicPitchExecutor !== 'function') {
       throw new Error('XC1_BASIC_PITCH_BROWSER_EXECUTOR_BUNDLE_MISSING');
     }
-    return window.runXc1BasicPitchExecutor({ takeId: acousticInput.takeId, acousticInput });
-  }, { acousticInput: request.acousticInput });
+    return window.runXc1BasicPitchExecutor({ takeId: acousticInput.takeId, acousticInput, runtimeMode });
+  }, { acousticInput: request.acousticInput, runtimeMode: request.runtimeMode });
   if (result.browserReceivedPcm?.sha256 !== request.acousticInput?.pcmSha256) {
     throw new Error('XC1_BROWSER_PCM_IDENTITY_MISMATCH');
   }

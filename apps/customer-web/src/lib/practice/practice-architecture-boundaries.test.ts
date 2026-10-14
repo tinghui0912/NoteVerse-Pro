@@ -264,9 +264,12 @@ describe('practice architecture boundaries', () => {
       .flatMap((root) => collectProductionSourceFiles(root))
       .flatMap((file) => {
         const content = readFileSync(file, 'utf8');
-        return ['backend/research', 'research/reports']
-          .filter((token) => content.includes(token))
-          .map((token) => `${path.relative(process.cwd(), file)} imports ${token}`);
+        const importedPaths = [...content.matchAll(
+          /\b(?:from\s*|import\s*\(\s*|require\s*\(\s*|import\s*)['"]([^'"]+)['"]/g
+        )].map((match) => match[1]);
+        return importedPaths
+          .filter((modulePath) => ['backend/research', 'research/reports'].some((token) => modulePath.includes(token)))
+          .map((modulePath) => `${path.relative(process.cwd(), file)} imports ${modulePath}`);
       });
 
     expect(productionImportsResearch).toEqual([]);

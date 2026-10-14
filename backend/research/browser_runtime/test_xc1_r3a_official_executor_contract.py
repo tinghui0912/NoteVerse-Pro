@@ -97,16 +97,20 @@ def test_robust_executor_uses_full_take_windows_and_100hz_mapping():
     source = (REPO_ROOT / "backend/research/browser_runtime/xc1_robust_browser_executor.mjs").read_text()
     assert "planOwnedWindows" in source
     assert "sessionLoadCount: 1" in source
-    assert "peakFrame / decoderSpec.outputFrameRateHz" in source
+    assert "semantics.decodeRobustRawOutputs" in source
+    decoder = (REPO_ROOT / "backend/research/browser_runtime/xc1_robust_decoder.mjs").read_text()
+    assert "peakFrame / decoder.outputFrameRateHz" in decoder
     assert "peakFrame * (600 /" not in source
 
 
 def test_online_amt_executor_uses_calibrated_onset_states_not_any_nonzero_state():
     source = (REPO_ROOT / "backend/research/browser_runtime/xc1_online_amt_k8_browser_executor.mjs").read_text()
-    assert "chosenState === 3 || chosenState === 4" in source
+    assert "publishOnlineAmtHops" in source
     assert "chosenRows[hop][pitchIndex] > 0" not in source
-    assert "timingCorrectionMs" in source
-    assert "runSequentialFallback" in source
+    assert "runOnlineAmtStreamingCandidateFromHopArtifact" in source
+    assert "new Worker('/online-worker.mjs')" in source
+    worker = (REPO_ROOT / "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs").read_text()
+    assert "runSequentialFallback" in worker
 
 
 def test_basic_pitch_executor_uses_full_take_windows_and_official_decoder_call():
