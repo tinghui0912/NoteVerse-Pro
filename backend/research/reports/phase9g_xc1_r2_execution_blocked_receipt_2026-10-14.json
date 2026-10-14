@@ -1,0 +1,90 @@
+{
+  "phase": "PHASE_9G_XC1_R2_EXECUTABLE_F3_AND_FULL_SEALED_SMD_BAKEOFF",
+  "artifact": "executionBlockedReceipt",
+  "date": "2026-10-14",
+  "startingRemoteHead": "b1babb2ab99fab93f2ffefc0e7e7b2aa09326fb6",
+  "f2Reclassification": {
+    "commit": "b1babb2ab99fab93f2ffefc0e7e7b2aa09326fb6",
+    "classification": "XC1_DATASET_AND_POLICY_FREEZE_F2_NOT_EXECUTABLE",
+    "reason": "dataset/policy identity was prospectively frozen, but actual browser candidate executors, Stage-A runner/sealing, canonical PCM byte identities, and Stage-B truth runner were not yet frozen",
+    "smdCandidateInferenceBeforeCorrection": false
+  },
+  "implementationCommits": [
+    "f82ea281f4314635299841179a73e88044d99bf2",
+    "8dfa9c1517e335ab9fb24837490e9553810ecaaa"
+  ],
+  "prospectiveFreezeCommitF3": "582cb8be70aad9f38e50df78fd4ca72aebf390aa",
+  "f3Receipts": {
+    "trueExecutableFreezeReceipt": {
+      "path": "backend/research/reports/phase9g_xc1_r2_true_executable_freeze_receipt_f3_2026-10-14.json",
+      "sha256": "e7eab19bd7a3311ee32789533e63c3131f502548b7404d46b946e418e8941ab1"
+    },
+    "smdTakeManifest": {
+      "path": "backend/research/reports/phase9g_xc1_r2_smd_take_manifest_f3_2026-10-14.json",
+      "sha256": "213bd330dc96391587e6421a1cccf90681c73ff9185fdd9728302be653bc3d5d"
+    }
+  },
+  "candidateInferenceStarted": false,
+  "stageAStatus": "NOT_EXECUTED",
+  "stageBStatus": "NOT_EXECUTED",
+  "sealedPredictionManifestStatus": "NOT_CREATED",
+  "scientificFrontRunnerDecision": "NOT_AVAILABLE_NO_CANDIDATE_INFERENCE_EXECUTED",
+  "blocker": {
+    "code": "XC1_STAGE_A_FULL_BROWSER_EXECUTOR_COMPLETION_BLOCKED",
+    "description": "The correction created a frozen official registry boundary, asset-verification hooks, canonical PCM generation, and F3 manifests. It did not complete the full Robust, Online-AMT K8, and Basic Pitch browser prediction executors plus Stage-A seal and Stage-B scoring pipeline required to generate valid SMD predictions. No synthetic or placeholder predictions were created.",
+    "notAValidFinalOutcome": true
+  },
+  "smdArchiveIdentity": {
+    "archive": "SMD-piano_v2.zip",
+    "bytes": 3221582754,
+    "md5": "984cfc48f1fa2785594769eb1e674697",
+    "sha256": "75f6e0f5fc9f5ea10582371c84b15f264538bf2a183721d5dee9e337e221b8ab",
+    "resolverDoi": "10.5281/zenodo.10847280",
+    "resolvedVersionDoi": "10.5281/zenodo.13753319"
+  },
+  "canonicalPcmFreeze": {
+    "takeCount": 50,
+    "canonicalPcmIdentityDeferred": false,
+    "primaryAudioSource": "wav_44100_stereo",
+    "forbiddenAudioSource": "midi_wav_22050_mono"
+  },
+  "validation": {
+    "dockerPython": {
+      "image": "noteverse-online-amt-modern:xc1r2",
+      "imageId": "sha256:2e6d93120a00f3d53163ba7ea40a6056618f5c9abf0d28581eb11d8c771bbe13",
+      "commands": [
+        "python -m py_compile backend/research/xc1_scientific_bakeoff.py backend/scripts/freeze_phase9g_xc1_r2_f3.py",
+        "cd backend && python -m pytest tests/test_phase9g_xc1_r1_scientific_core.py -q"
+      ],
+      "result": "9 passed, 2 warnings"
+    },
+    "hostNode": {
+      "nodeVersion": "v24.19.0",
+      "npmVersion": "11.17.0",
+      "commands": [
+        "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix apps/customer-web ci",
+        "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix apps/customer-web test -- --run src/lib/practice/research/xc1-acoustic-candidates.test.ts",
+        "node -e import('./backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs')..."
+      ],
+      "result": "Vitest 1 file passed, 15 tests passed; Basic Pitch official decoder import smoke passed"
+    },
+    "dockerCustomerWebContainer": {
+      "attempted": true,
+      "result": "BLOCKED_BY_SLOW_BASE_IMAGE_PULL",
+      "notes": "The repo-root customer-web Docker image build was attempted and stopped after slow node:24-bookworm-slim layer download. Host Node was used only for authorized JS/browser-layer dependency and tests."
+    }
+  },
+  "scopeProtections": {
+    "phase9gBOutcome": "STATISTICAL_TIE",
+    "phase9gBWinner": null,
+    "p15p22InferenceIncrease": 0,
+    "productionMicrophoneEnabled": false,
+    "d4QualificationPerformed": false,
+    "productionWinnerSelected": false,
+    "practiceWebSocketRestored": false,
+    "backendPracticeInferenceRestored": false,
+    "serverAcousticInferenceRestored": false,
+    "scoreFollowingRestored": false
+  },
+  "commercialQualificationStatus": "NOT_PERFORMED"
+}
