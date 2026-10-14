@@ -1,0 +1,3739 @@
+{
+  "archiveRoleInventory": {
+    "entries": [
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 25381,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Bach_BWV849-01_001_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 46136,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Bach_BWV849-02_001_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 49566,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Bach_BWV871-01_002_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 23071,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Bach_BWV871-02_002_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 38611,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Bach_BWV875-01_002_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 28146,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Bach_BWV875-02_002_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 24156,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Bach_BWV888-01_008_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 26781,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Bach_BWV888-02_008_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 137979,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Bartok_SZ080-01_002_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 25941,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Bartok_SZ080-02_002_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 156082,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Bartok_SZ080-03_002_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 123241,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Beethoven_Op027No1-01_003_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 29371,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Beethoven_Op027No1-02_003_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 142771,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Beethoven_Op027No1-03_003_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 138431,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Beethoven_Op031No2-01_002_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 58701,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Beethoven_Op031No2-02_002_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 153061,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Beethoven_Op031No2-03_002_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 350567,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Beethoven_WoO080_001_20081107-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 126674,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Brahms_Op005-01_002_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 57581,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Brahms_Op010No1_003_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 84146,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Brahms_Op010No2_003_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 64757,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Chopin_Op010-03_007_20100611-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 77112,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Chopin_Op010-04_007_20100611-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 125516,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Chopin_Op026No1_003_20100611-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 175671,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Chopin_Op026No2_005_20100611-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 11591,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Chopin_Op028-01_003_20100611-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 23211,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Chopin_Op028-03_003_20100611-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 21041,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Chopin_Op028-04_003_20100611-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 10996,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Chopin_Op028-11_003_20100611-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 52506,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Chopin_Op028-15_006_20100611-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 72561,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Chopin_Op028-17_005_20100611-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 81696,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Chopin_Op029_004_20100611-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 100212,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Chopin_Op048No1_007_20100611-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 105498,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Chopin_Op066_006_20100611-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 135211,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Haydn_Hob017No4_003_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 158486,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Haydn_HobXVINo52-01_008_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 48481,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Haydn_HobXVINo52-02_008_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 121351,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Haydn_HobXVINo52-03_008_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 444956,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Liszt_AnnesDePelerinage-LectureDante_002_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 233021,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Liszt_KonzertetuedeNo2LaLeggierezza_003_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 279219,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Liszt_VariationenBachmotivWeinenKlagenSorgenZagen_001_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 146586,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Mozart_KV265_006_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 127721,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Mozart_KV398_002_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 154356,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Rachmaninoff_Op036-01_007_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 76937,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Rachmaninoff_Op036-02_007_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 162486,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Rachmaninoff_Op036-03_007_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 106931,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Rachmaninov_Op039No1_002_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 142044,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Ravel_JeuxDEau_008_20110315-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 235943,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Ravel_ValsesNoblesEtSentimentales_003_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "AUXILIARY_METADATA",
+        "bytes": 42041,
+        "fileType": "csv",
+        "publisherDirectoryCategory": "csv",
+        "relativePath": "csv/Skryabin_Op008No8_003_20090916-SMD.csv"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 18480,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Bach_BWV849-01_001_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 27277,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Bach_BWV849-02_001_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 8748,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Bach_BWV871-01_002_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 4368,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Bach_BWV871-02_002_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 6736,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Bach_BWV875-01_002_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 5218,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Bach_BWV875-02_002_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 7462,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Bach_BWV888-01_008_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 4683,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Bach_BWV888-02_008_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 40277,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Bartok_SZ080-01_002_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 25811,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Bartok_SZ080-02_002_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 41891,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Bartok_SZ080-03_002_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 61875,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Beethoven_Op027No1-01_003_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 20755,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Beethoven_Op027No1-02_003_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 46704,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Beethoven_Op027No1-03_003_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 66793,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Beethoven_Op031No2-01_002_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 64145,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Beethoven_Op031No2-02_002_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 69610,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Beethoven_Op031No2-03_002_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 100234,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Beethoven_WoO080_001_20081107-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 61817,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Brahms_Op005-01_002_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 39255,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Brahms_Op010No1_003_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 43421,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Brahms_Op010No2_003_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 34788,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Chopin_Op010-03_007_20100611-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 26876,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Chopin_Op010-04_007_20100611-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 72353,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Chopin_Op026No1_003_20100611-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 81173,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Chopin_Op026No2_005_20100611-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 6053,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Chopin_Op028-01_003_20100611-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 12467,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Chopin_Op028-03_003_20100611-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 11824,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Chopin_Op028-04_003_20100611-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 6757,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Chopin_Op028-11_003_20100611-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 35750,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Chopin_Op028-15_006_20100611-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 27742,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Chopin_Op028-17_005_20100611-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 49303,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Chopin_Op029_004_20100611-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 42603,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Chopin_Op048No1_007_20100611-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 45207,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Chopin_Op066_006_20100611-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 44550,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Haydn_Hob017No4_003_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 73226,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Haydn_HobXVINo52-01_008_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 46493,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Haydn_HobXVINo52-02_008_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 51143,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Haydn_HobXVINo52-03_008_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 144488,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Liszt_AnnesDePelerinage-LectureDante_002_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 99892,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Liszt_KonzertetuedeNo2LaLeggierezza_003_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 118553,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Liszt_VariationenBachmotivWeinenKlagenSorgenZagen_001_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 68782,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Mozart_KV265_006_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 59218,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Mozart_KV398_002_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 79875,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Rachmaninoff_Op036-01_007_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 39877,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Rachmaninoff_Op036-02_007_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 53712,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Rachmaninoff_Op036-03_007_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 35509,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Rachmaninov_Op039No1_002_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 47037,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Ravel_JeuxDEau_008_20110315-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 118334,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Ravel_ValsesNoblesEtSentimentales_003_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNCHRONIZED_TRUTH_MIDI",
+        "bytes": 29010,
+        "fileType": "mid",
+        "publisherDirectoryCategory": "midi",
+        "relativePath": "midi/Skryabin_Op008No8_003_20090916-SMD.mid"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 6923744,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Bach_BWV849-01_001_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 10535094,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Bach_BWV849-02_001_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 6174044,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Bach_BWV871-01_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 5600744,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Bach_BWV871-02_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 4498244,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Bach_BWV875-01_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 5247944,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Bach_BWV875-02_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 5935464,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Bach_BWV888-01_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 3347234,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Bach_BWV888-02_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 12560606,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Bartok_SZ080-01_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 11526020,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Bartok_SZ080-02_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 9446264,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Bartok_SZ080-03_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 19007144,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Beethoven_Op027No1-01_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 7761644,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Beethoven_Op027No1-02_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 14949944,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Beethoven_Op027No1-03_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 23373044,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Beethoven_Op031No2-01_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 22362028,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Beethoven_Op031No2-02_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 17728244,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Beethoven_Op031No2-03_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 29072560,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Beethoven_WoO080_001_20081107-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 21578174,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Brahms_Op005-01_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 13318244,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Brahms_Op010No1_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 18081044,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Brahms_Op010No2_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 12656744,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Chopin_Op010-03_007_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 5821244,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Chopin_Op010-04_007_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 20374572,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Chopin_Op026No1_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 20638844,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Chopin_Op026No2_005_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 1455344,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Chopin_Op028-01_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 2602668,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Chopin_Op028-03_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 5247944,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Chopin_Op028-04_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 1675844,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Chopin_Op028-11_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 14067944,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Chopin_Op028-15_006_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 7805744,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Chopin_Op028-17_005_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 10716344,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Chopin_Op029_004_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 19051244,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Chopin_Op048No1_007_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 13715144,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Chopin_Op066_006_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 15479144,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Haydn_Hob017No4_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 21411476,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Haydn_HobXVINo52-01_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 19143212,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Haydn_HobXVINo52-02_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 15319062,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Haydn_HobXVINo52-03_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 45828324,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Liszt_AnnesDePelerinage-LectureDante_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 13230044,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Liszt_KonzertetuedeNo2LaLeggierezza_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 42600644,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Liszt_VariationenBachmotivWeinenKlagenSorgenZagen_001_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 21124826,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Mozart_KV265_006_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 19513154,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Mozart_KV398_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 24799678,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Rachmaninoff_Op036-01_007_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 19022138,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Rachmaninoff_Op036-02_007_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 14971112,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Rachmaninoff_Op036-03_007_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 8674514,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Rachmaninov_Op039No1_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 13982252,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Ravel_JeuxDEau_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 40527944,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Ravel_ValsesNoblesEtSentimentales_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN",
+        "bytes": 9084644,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "midi_wav_22050_mono",
+        "relativePath": "midi_wav_22050_mono/Skryabin_Op008No8_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 6923744,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Bach_BWV849-01_001_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 10535094,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Bach_BWV849-02_001_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 6174044,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Bach_BWV871-01_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 5600744,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Bach_BWV871-02_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 4498244,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Bach_BWV875-01_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 5247944,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Bach_BWV875-02_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 5935464,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Bach_BWV888-01_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 3347234,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Bach_BWV888-02_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 12560606,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Bartok_SZ080-01_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 11526020,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Bartok_SZ080-02_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 9446264,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Bartok_SZ080-03_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 19007144,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Beethoven_Op027No1-01_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 7761644,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Beethoven_Op027No1-02_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 14949944,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Beethoven_Op027No1-03_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 23373044,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Beethoven_Op031No2-01_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 22361390,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Beethoven_Op031No2-02_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 17728244,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Beethoven_Op031No2-03_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 29072560,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Beethoven_WoO080_001_20081107-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 21578174,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Brahms_Op005-01_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 13318244,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Brahms_Op010No1_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 18081044,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Brahms_Op010No2_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 12656744,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Chopin_Op010-03_007_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 5821244,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Chopin_Op010-04_007_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 20374244,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Chopin_Op026No1_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 20638844,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Chopin_Op026No2_005_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 1455344,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Chopin_Op028-01_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 2601944,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Chopin_Op028-03_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 5247944,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Chopin_Op028-04_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 1675844,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Chopin_Op028-11_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 14067944,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Chopin_Op028-15_006_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 7805744,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Chopin_Op028-17_005_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 10716344,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Chopin_Op029_004_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 19051244,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Chopin_Op048No1_007_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 13715144,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Chopin_Op066_006_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 15479144,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Haydn_Hob017No4_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 21411476,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Haydn_HobXVINo52-01_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 19136358,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Haydn_HobXVINo52-02_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 15319062,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Haydn_HobXVINo52-03_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 45828324,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Liszt_AnnesDePelerinage-LectureDante_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 13230044,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Liszt_KonzertetuedeNo2LaLeggierezza_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 42600644,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Liszt_VariationenBachmotivWeinenKlagenSorgenZagen_001_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 21124826,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Mozart_KV265_006_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 19513154,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Mozart_KV398_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 24799680,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Rachmaninoff_Op036-01_007_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 19022138,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Rachmaninoff_Op036-02_007_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 14971112,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Rachmaninoff_Op036-03_007_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 8674514,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Rachmaninov_Op039No1_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 13970924,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Ravel_JeuxDEau_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 40527944,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Ravel_ValsesNoblesEtSentimentales_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "SECONDARY_REAL_AUDIO_NOT_PRIMARY",
+        "bytes": 9084644,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_22050_mono",
+        "relativePath": "wav_22050_mono/Skryabin_Op008No8_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 27694844,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Bach_BWV849-01_001_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 42140240,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Bach_BWV849-02_001_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 24696044,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Bach_BWV871-01_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 22402844,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Bach_BWV871-02_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 17992844,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Bach_BWV875-01_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 20991644,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Bach_BWV875-02_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 23741720,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Bach_BWV888-01_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 13388804,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Bach_BWV888-02_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 50242292,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Bartok_SZ080-01_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 46103948,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Bartok_SZ080-02_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 37784924,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Bartok_SZ080-03_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 76028444,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Beethoven_Op027No1-01_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 31046444,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Beethoven_Op027No1-02_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 59799644,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Beethoven_Op027No1-03_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 93492044,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Beethoven_Op031No2-01_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 89445428,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Beethoven_Op031No2-02_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 70912844,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Beethoven_Op031No2-03_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 116290108,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Beethoven_WoO080_001_20081107-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 86312564,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Brahms_Op005-01_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 53272844,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Brahms_Op010No1_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 72324044,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Brahms_Op010No2_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 50628426,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Chopin_Op010-03_007_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 23286426,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Chopin_Op010-04_007_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 81498426,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Chopin_Op026No1_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 82556826,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Chopin_Op026No2_005_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 5822824,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Chopin_Op028-01_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 10409226,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Chopin_Op028-03_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 20993226,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Chopin_Op028-04_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 6704824,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Chopin_Op028-11_003_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 56273226,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Chopin_Op028-15_006_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 31224426,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Chopin_Op028-17_005_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 42866826,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Chopin_Op029_004_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 76206426,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Chopin_Op048No1_007_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 54862026,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Chopin_Op066_006_20100611-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 61916444,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Haydn_Hob017No4_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 85645772,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Haydn_HobXVINo52-01_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 76545296,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Haydn_HobXVINo52-02_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 61276112,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Haydn_HobXVINo52-03_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 183313160,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Liszt_AnnesDePelerinage-LectureDante_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 52920044,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Liszt_KonzertetuedeNo2LaLeggierezza_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 170402444,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Liszt_VariationenBachmotivWeinenKlagenSorgenZagen_001_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 84499172,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Mozart_KV265_006_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 78052484,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Mozart_KV398_002_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 99198584,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Rachmaninoff_Op036-01_007_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 76088420,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Rachmaninoff_Op036-02_007_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 59884316,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Rachmaninoff_Op036-03_007_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 34697924,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Rachmaninov_Op039No1_002_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 55883564,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Ravel_JeuxDEau_008_20110315-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 162111644,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Ravel_ValsesNoblesEtSentimentales_003_20090916-SMD.wav"
+      },
+      {
+        "archiveRole": "PRIMARY_ACOUSTIC_INPUT",
+        "bytes": 36338444,
+        "fileType": "wav",
+        "publisherDirectoryCategory": "wav_44100_stereo",
+        "relativePath": "wav_44100_stereo/Skryabin_Op008No8_003_20090916-SMD.wav"
+      }
+    ],
+    "fileCount": 250,
+    "roleCounts": {
+      "AUXILIARY_METADATA": 50,
+      "PRIMARY_ACOUSTIC_INPUT": 50,
+      "SECONDARY_REAL_AUDIO_NOT_PRIMARY": 50,
+      "SYNCHRONIZED_TRUTH_MIDI": 50,
+      "SYNTHESIZED_MIDI_RENDERED_AUDIO_FORBIDDEN": 50
+    }
+  },
+  "candidateInferenceStarted": false,
+  "datasetId": "smd-midi-audio-piano-music-v2",
+  "edgeParitySubsetTakeIds": [
+    "bach_bwv849-01_001_20090916-smd",
+    "bartok_sz080-01_002_20110315-smd",
+    "beethoven_op031no2-03_002_20090916-smd",
+    "chopin_op026no2_005_20100611-smd",
+    "chopin_op048no1_007_20100611-smd",
+    "liszt_variationenbachmotivweinenklagensorgenzagen_001_20090916-smd"
+  ],
+  "excluded": [
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Bach_BWV849-01_001_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Bach_BWV849-02_001_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Bach_BWV871-01_002_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Bach_BWV871-02_002_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Bach_BWV875-01_002_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Bach_BWV875-02_002_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Bach_BWV888-01_008_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Bach_BWV888-02_008_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Bartok_SZ080-01_002_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Bartok_SZ080-02_002_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Bartok_SZ080-03_002_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Beethoven_Op027No1-01_003_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Beethoven_Op027No1-02_003_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Beethoven_Op027No1-03_003_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Beethoven_Op031No2-01_002_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Beethoven_Op031No2-02_002_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Beethoven_Op031No2-03_002_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Beethoven_WoO080_001_20081107-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Brahms_Op005-01_002_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Brahms_Op010No1_003_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Brahms_Op010No2_003_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Chopin_Op010-03_007_20100611-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Chopin_Op010-04_007_20100611-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Chopin_Op026No1_003_20100611-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Chopin_Op026No2_005_20100611-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Chopin_Op028-01_003_20100611-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Chopin_Op028-03_003_20100611-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Chopin_Op028-04_003_20100611-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Chopin_Op028-11_003_20100611-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Chopin_Op028-15_006_20100611-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Chopin_Op028-17_005_20100611-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Chopin_Op029_004_20100611-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Chopin_Op048No1_007_20100611-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Chopin_Op066_006_20100611-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Haydn_Hob017No4_003_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Haydn_HobXVINo52-01_008_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Haydn_HobXVINo52-02_008_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Haydn_HobXVINo52-03_008_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Liszt_AnnesDePelerinage-LectureDante_002_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Liszt_KonzertetuedeNo2LaLeggierezza_003_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Liszt_VariationenBachmotivWeinenKlagenSorgenZagen_001_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Mozart_KV265_006_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Mozart_KV398_002_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Rachmaninoff_Op036-01_007_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Rachmaninoff_Op036-02_007_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Rachmaninoff_Op036-03_007_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Rachmaninov_Op039No1_002_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Ravel_JeuxDEau_008_20110315-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Ravel_ValsesNoblesEtSentimentales_003_20090916-SMD.wav"
+    },
+    {
+      "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO",
+      "relativePath": "wav_22050_mono/Skryabin_Op008No8_003_20090916-SMD.wav"
+    }
+  ],
+  "forbiddenAudioSource": "midi_wav_22050_mono",
+  "manifestSha256": "8c617073b028a5f91279c824f4ce7195f480af03c3f9cf3f6d07608127a51820",
+  "metadataClusteringStatus": {
+    "bootstrapResamplingUnit": "pieceClusterId_if_repeated_else_performance_take",
+    "performer": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+    "pieceCluster": "FILENAME_WORK_PREFIX_CLUSTER_FROZEN"
+  },
+  "resolvedVersionDoi": "10.5281/zenodo.13753319",
+  "resolverDoi": "10.5281/zenodo.10847280",
+  "schemaVersion": 2,
+  "takeCount": 50,
+  "takes": [
+    {
+      "acousticWavBytes": 27694844,
+      "acousticWavRelativePath": "wav_44100_stereo/Bach_BWV849-01_001_20090916-SMD.wav",
+      "acousticWavSha256": "a539240eb5544ab007475d73f2bf8ffeeea88c6d96f8601f08bdf276f11cf284",
+      "audioDurationSeconds": 157.0,
+      "canonicalPcm": {
+        "byteSize": 10048000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv849-01_001_20090916-smd.f32",
+        "sampleCount": 2512000,
+        "sampleRateHz": 16000,
+        "sha256": "8aee56a4c22b79afa6392c435f6797216fb40eeaacdabe5f71cf0e8a911b1558",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 18480,
+      "midiRelativePath": "midi/Bach_BWV849-01_001_20090916-SMD.mid",
+      "midiSha256": "95bdfd46cfa37637d18db809d8a586608e3b18aa64ec0206b491e2de9d115fab",
+      "nativeFrameCount": 6923700,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "bach_bwv849_01",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 156780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "bach_bwv849-01_001_20090916-smd",
+      "workId": "bach_bwv849_01"
+    },
+    {
+      "acousticWavBytes": 42140240,
+      "acousticWavRelativePath": "wav_44100_stereo/Bach_BWV849-02_001_20090916-SMD.wav",
+      "acousticWavSha256": "3db2dada28209a22b9029f76654666d0f392468c6957f3d946a322e0ea239133",
+      "audioDurationSeconds": 238.89,
+      "canonicalPcm": {
+        "byteSize": 15288960,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv849-02_001_20090916-smd.f32",
+        "sampleCount": 3822240,
+        "sampleRateHz": 16000,
+        "sha256": "2c7ed6240cfe947271952484c1602de641d3aafffa3d6915f1e000e1b77d7c4f",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 27277,
+      "midiRelativePath": "midi/Bach_BWV849-02_001_20090916-SMD.mid",
+      "midiSha256": "d133d32d9aa1205d5b1b48ad129b74e226c7df06fb2d9d7720bd66db4fd3d971",
+      "nativeFrameCount": 10535049,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "bach_bwv849_02",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 238670.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "bach_bwv849-02_001_20090916-smd",
+      "workId": "bach_bwv849_02"
+    },
+    {
+      "acousticWavBytes": 24696044,
+      "acousticWavRelativePath": "wav_44100_stereo/Bach_BWV871-01_002_20090916-SMD.wav",
+      "acousticWavSha256": "708284e0a670990ed368881bd8bdc57c22504bc6b69e90e10cb028e6cd76b5dd",
+      "audioDurationSeconds": 140.0,
+      "canonicalPcm": {
+        "byteSize": 8960000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv871-01_002_20090916-smd.f32",
+        "sampleCount": 2240000,
+        "sampleRateHz": 16000,
+        "sha256": "d1e0f240a0046294a4589d8db45ec349624273a87522fdc668b5caad4f5e1c98",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 8748,
+      "midiRelativePath": "midi/Bach_BWV871-01_002_20090916-SMD.mid",
+      "midiSha256": "72be1500a0c726778dbcd28e50a50490bdba7853dd9319cfa72deb941c476f39",
+      "nativeFrameCount": 6174000,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "bach_bwv871_01",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 139780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "bach_bwv871-01_002_20090916-smd",
+      "workId": "bach_bwv871_01"
+    },
+    {
+      "acousticWavBytes": 22402844,
+      "acousticWavRelativePath": "wav_44100_stereo/Bach_BWV871-02_002_20090916-SMD.wav",
+      "acousticWavSha256": "8a2b3956e2c127d5e5bcf19559087d8bc11f3004f374ce145453f2873ef898d7",
+      "audioDurationSeconds": 127.0,
+      "canonicalPcm": {
+        "byteSize": 8128000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv871-02_002_20090916-smd.f32",
+        "sampleCount": 2032000,
+        "sampleRateHz": 16000,
+        "sha256": "1c8dccccab5868d4f5cdc4c9449d69f21349ca7a61f4824771c793bd1ff128d8",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 4368,
+      "midiRelativePath": "midi/Bach_BWV871-02_002_20090916-SMD.mid",
+      "midiSha256": "6f096cb77f3362bac1b561462401f922b038cc9461b467aad8684ba230c5bafa",
+      "nativeFrameCount": 5600700,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "bach_bwv871_02",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 126780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "bach_bwv871-02_002_20090916-smd",
+      "workId": "bach_bwv871_02"
+    },
+    {
+      "acousticWavBytes": 17992844,
+      "acousticWavRelativePath": "wav_44100_stereo/Bach_BWV875-01_002_20090916-SMD.wav",
+      "acousticWavSha256": "5e9eb90ef90d7f0a2fe8113a14aeeff6bda691f410d979de67d3744debb9ff6a",
+      "audioDurationSeconds": 102.0,
+      "canonicalPcm": {
+        "byteSize": 6528000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv875-01_002_20090916-smd.f32",
+        "sampleCount": 1632000,
+        "sampleRateHz": 16000,
+        "sha256": "f0b9423f8e48cb838c6d7a7099e85aefc51a58dba5a2f1e598554189edce83a3",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 6736,
+      "midiRelativePath": "midi/Bach_BWV875-01_002_20090916-SMD.mid",
+      "midiSha256": "68378d189bae2fdf307222e805c3292f707889c8b289ba817cde3b92af53fa0a",
+      "nativeFrameCount": 4498200,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "bach_bwv875_01",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 101780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "bach_bwv875-01_002_20090916-smd",
+      "workId": "bach_bwv875_01"
+    },
+    {
+      "acousticWavBytes": 20991644,
+      "acousticWavRelativePath": "wav_44100_stereo/Bach_BWV875-02_002_20090916-SMD.wav",
+      "acousticWavSha256": "b1a79b39f6e8b1b04daba9b19f6c4d15a99702a9bbaf309ebb8c2b46a2ae8b0a",
+      "audioDurationSeconds": 119.0,
+      "canonicalPcm": {
+        "byteSize": 7616000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv875-02_002_20090916-smd.f32",
+        "sampleCount": 1904000,
+        "sampleRateHz": 16000,
+        "sha256": "5dd402679c4fd7a52d2c9dd83963b2984afa8352c9c8845d10ef20e76769acad",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 5218,
+      "midiRelativePath": "midi/Bach_BWV875-02_002_20090916-SMD.mid",
+      "midiSha256": "f5ec23bce364fd5c47a87223c4712ccee15ba2607181fc08814413614d2a5e45",
+      "nativeFrameCount": 5247900,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "bach_bwv875_02",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 118780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "bach_bwv875-02_002_20090916-smd",
+      "workId": "bach_bwv875_02"
+    },
+    {
+      "acousticWavBytes": 23741720,
+      "acousticWavRelativePath": "wav_44100_stereo/Bach_BWV888-01_008_20110315-SMD.wav",
+      "acousticWavSha256": "a06dcc04692f4e8f53789f753997fd2df664296af0243d4c6ada6f2656281e92",
+      "audioDurationSeconds": 134.59,
+      "canonicalPcm": {
+        "byteSize": 8613760,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv888-01_008_20110315-smd.f32",
+        "sampleCount": 2153440,
+        "sampleRateHz": 16000,
+        "sha256": "f4684142206518df325bd04048ffa76e3cbd08b982e74861f512d630392cbd40",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 7462,
+      "midiRelativePath": "midi/Bach_BWV888-01_008_20110315-SMD.mid",
+      "midiSha256": "7c8999d762a08048d02bc071b6b3012ab139974707e2ba477d0fadb1ce90fe7e",
+      "nativeFrameCount": 5935419,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "bach_bwv888_01",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 134370.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "bach_bwv888-01_008_20110315-smd",
+      "workId": "bach_bwv888_01"
+    },
+    {
+      "acousticWavBytes": 13388804,
+      "acousticWavRelativePath": "wav_44100_stereo/Bach_BWV888-02_008_20110315-SMD.wav",
+      "acousticWavSha256": "17d6f1eea2d8044d2402a0a1467e1e529f98c0ca06f422317e5651ce9b85c4af",
+      "audioDurationSeconds": 75.9,
+      "canonicalPcm": {
+        "byteSize": 4857600,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/bach_bwv888-02_008_20110315-smd.f32",
+        "sampleCount": 1214400,
+        "sampleRateHz": 16000,
+        "sha256": "098ca79e70572b2abceb73cc05e47f7fa114da57d273b46ebd4abdaf3624ddb5",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 4683,
+      "midiRelativePath": "midi/Bach_BWV888-02_008_20110315-SMD.mid",
+      "midiSha256": "75875b713ae88d4f25f167e078a5fcf2326b24de9d28c1763775e23f82cf4885",
+      "nativeFrameCount": 3347190,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "bach_bwv888_02",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 75680.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "bach_bwv888-02_008_20110315-smd",
+      "workId": "bach_bwv888_02"
+    },
+    {
+      "acousticWavBytes": 50242292,
+      "acousticWavRelativePath": "wav_44100_stereo/Bartok_SZ080-01_002_20110315-SMD.wav",
+      "acousticWavSha256": "5f4d3aeab3937ad81f04cf4df73e18d67e43f06863a9f7a5131c545ec32343ec",
+      "audioDurationSeconds": 284.82,
+      "canonicalPcm": {
+        "byteSize": 18228480,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/bartok_sz080-01_002_20110315-smd.f32",
+        "sampleCount": 4557120,
+        "sampleRateHz": 16000,
+        "sha256": "a0afb9f1df8aa99e0ca1cc3f196400d92601cc2fb375b0dc06bf95169cd24eb1",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 40277,
+      "midiRelativePath": "midi/Bartok_SZ080-01_002_20110315-SMD.mid",
+      "midiSha256": "a6f86e5b7fe52fc2b5469a4408ac0a2cce8e1af37f54a941417dfcbb575bc44e",
+      "nativeFrameCount": 12560562,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "bartok_sz080_01",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 284600.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "bartok_sz080-01_002_20110315-smd",
+      "workId": "bartok_sz080_01"
+    },
+    {
+      "acousticWavBytes": 46103948,
+      "acousticWavRelativePath": "wav_44100_stereo/Bartok_SZ080-02_002_20110315-SMD.wav",
+      "acousticWavSha256": "49e9420abf916e2e74a84352627fd6ba828d9257a2807c782d1f2d043e572f55",
+      "audioDurationSeconds": 261.36,
+      "canonicalPcm": {
+        "byteSize": 16727040,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/bartok_sz080-02_002_20110315-smd.f32",
+        "sampleCount": 4181760,
+        "sampleRateHz": 16000,
+        "sha256": "7feb65cbe8c476080b26c57b1837c3c733ae91a55ac8b651e87bb9565d6ac3c2",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 25811,
+      "midiRelativePath": "midi/Bartok_SZ080-02_002_20110315-SMD.mid",
+      "midiSha256": "643618527538e9507ec737d73d677d18b56e42ecc19d1164668862c6dea3615e",
+      "nativeFrameCount": 11525976,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "bartok_sz080_02",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 261140.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "bartok_sz080-02_002_20110315-smd",
+      "workId": "bartok_sz080_02"
+    },
+    {
+      "acousticWavBytes": 37784924,
+      "acousticWavRelativePath": "wav_44100_stereo/Bartok_SZ080-03_002_20110315-SMD.wav",
+      "acousticWavSha256": "26a14534568c9a9c9e3f507b158fd0c7afee95dd2d2bee7e3c98830b719b606f",
+      "audioDurationSeconds": 214.2,
+      "canonicalPcm": {
+        "byteSize": 13708800,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/bartok_sz080-03_002_20110315-smd.f32",
+        "sampleCount": 3427200,
+        "sampleRateHz": 16000,
+        "sha256": "cdcccd9f04d915fa263cf540c130207bf853a18fa5ffb5cec5958ff88fe277df",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 41891,
+      "midiRelativePath": "midi/Bartok_SZ080-03_002_20110315-SMD.mid",
+      "midiSha256": "0deeb983b449a79ee0e14347bedb3ddf9a2cbf8ef8533032f6aa1f5664abab2f",
+      "nativeFrameCount": 9446220,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "bartok_sz080_03",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 213980.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "bartok_sz080-03_002_20110315-smd",
+      "workId": "bartok_sz080_03"
+    },
+    {
+      "acousticWavBytes": 76028444,
+      "acousticWavRelativePath": "wav_44100_stereo/Beethoven_Op027No1-01_003_20090916-SMD.wav",
+      "acousticWavSha256": "e0d173478761777750d1763a37d6b5dfc6c0aba379a28c35393dd42cd518c513",
+      "audioDurationSeconds": 431.0,
+      "canonicalPcm": {
+        "byteSize": 27584000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/beethoven_op027no1-01_003_20090916-smd.f32",
+        "sampleCount": 6896000,
+        "sampleRateHz": 16000,
+        "sha256": "dfaad0d2f45f1a75b894e4d775947cb0d908dff1e03710f4c7e2ec9c4ef217e8",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 61875,
+      "midiRelativePath": "midi/Beethoven_Op027No1-01_003_20090916-SMD.mid",
+      "midiSha256": "ae31451905e6ecf684bca9d736497a3c7085e64b42be649422e339d3e40cb90e",
+      "nativeFrameCount": 19007100,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "beethoven_op027no1_01",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 430780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "beethoven_op027no1-01_003_20090916-smd",
+      "workId": "beethoven_op027no1_01"
+    },
+    {
+      "acousticWavBytes": 31046444,
+      "acousticWavRelativePath": "wav_44100_stereo/Beethoven_Op027No1-02_003_20090916-SMD.wav",
+      "acousticWavSha256": "049d7bdb5e037beae08bf9900f4ac1e072b29b82246371c63d7e7b81a85dcb53",
+      "audioDurationSeconds": 176.0,
+      "canonicalPcm": {
+        "byteSize": 11264000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/beethoven_op027no1-02_003_20090916-smd.f32",
+        "sampleCount": 2816000,
+        "sampleRateHz": 16000,
+        "sha256": "f597489c690637a31a3e406920e54e41224c8884d19a686f9ab4348b1061dcf7",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 20755,
+      "midiRelativePath": "midi/Beethoven_Op027No1-02_003_20090916-SMD.mid",
+      "midiSha256": "904b356ba5f91d64beb50dfa25208364d2601c65959df28647343a03c35aafed",
+      "nativeFrameCount": 7761600,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "beethoven_op027no1_02",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 175780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "beethoven_op027no1-02_003_20090916-smd",
+      "workId": "beethoven_op027no1_02"
+    },
+    {
+      "acousticWavBytes": 59799644,
+      "acousticWavRelativePath": "wav_44100_stereo/Beethoven_Op027No1-03_003_20090916-SMD.wav",
+      "acousticWavSha256": "3067df1ec4c6e6bd48bd18fc79735aad49efbaa1b43a7316bbe6a316626a6ddb",
+      "audioDurationSeconds": 339.0,
+      "canonicalPcm": {
+        "byteSize": 21696000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/beethoven_op027no1-03_003_20090916-smd.f32",
+        "sampleCount": 5424000,
+        "sampleRateHz": 16000,
+        "sha256": "831fb4f64c92a6225642ed96b301bfd52595336362e81b727cf1cad3e9f350dd",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 46704,
+      "midiRelativePath": "midi/Beethoven_Op027No1-03_003_20090916-SMD.mid",
+      "midiSha256": "cf30b86da3f4a2c86bd3e2979310bbf3743cc2f7a22179f95b33a9896018fbd6",
+      "nativeFrameCount": 14949900,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "beethoven_op027no1_03",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 338780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "beethoven_op027no1-03_003_20090916-smd",
+      "workId": "beethoven_op027no1_03"
+    },
+    {
+      "acousticWavBytes": 93492044,
+      "acousticWavRelativePath": "wav_44100_stereo/Beethoven_Op031No2-01_002_20090916-SMD.wav",
+      "acousticWavSha256": "3d257c53c26cfbb243a371e536932d36f54928e1db46b6841350cdfb57734624",
+      "audioDurationSeconds": 530.0,
+      "canonicalPcm": {
+        "byteSize": 33920000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/beethoven_op031no2-01_002_20090916-smd.f32",
+        "sampleCount": 8480000,
+        "sampleRateHz": 16000,
+        "sha256": "4096e4ebed5d54cb1e479a791003b960d5d86e34b5baca3bd8b2683c7b2e24c3",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 66793,
+      "midiRelativePath": "midi/Beethoven_Op031No2-01_002_20090916-SMD.mid",
+      "midiSha256": "bde168ae9cea1bd539f91be05cf4067cfad9982336e8e00d63e6eec3a3f3c821",
+      "nativeFrameCount": 23373000,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "beethoven_op031no2_01",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 529780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "beethoven_op031no2-01_002_20090916-smd",
+      "workId": "beethoven_op031no2_01"
+    },
+    {
+      "acousticWavBytes": 89445428,
+      "acousticWavRelativePath": "wav_44100_stereo/Beethoven_Op031No2-02_002_20090916-SMD.wav",
+      "acousticWavSha256": "26d4c61d6bf3def9398365d1f968047bd52c2caf0f5cda0c1c6f20903376d241",
+      "audioDurationSeconds": 507.06,
+      "canonicalPcm": {
+        "byteSize": 32451840,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/beethoven_op031no2-02_002_20090916-smd.f32",
+        "sampleCount": 8112960,
+        "sampleRateHz": 16000,
+        "sha256": "5b0ca50674cdd18cbd466d489fc077c6591411580fa561cca75553f831de51b3",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 64145,
+      "midiRelativePath": "midi/Beethoven_Op031No2-02_002_20090916-SMD.mid",
+      "midiSha256": "05bd550891270877b310b776f4d0624b6770b30b1d012dd1b43d525e04512875",
+      "nativeFrameCount": 22361346,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "beethoven_op031no2_02",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 506840.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "beethoven_op031no2-02_002_20090916-smd",
+      "workId": "beethoven_op031no2_02"
+    },
+    {
+      "acousticWavBytes": 70912844,
+      "acousticWavRelativePath": "wav_44100_stereo/Beethoven_Op031No2-03_002_20090916-SMD.wav",
+      "acousticWavSha256": "f292a40d6303e8731189156a29dfa04b3ac5ea1d5c6e8661520cbc2854033633",
+      "audioDurationSeconds": 402.0,
+      "canonicalPcm": {
+        "byteSize": 25728000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/beethoven_op031no2-03_002_20090916-smd.f32",
+        "sampleCount": 6432000,
+        "sampleRateHz": 16000,
+        "sha256": "334f5a6ed61d4e14f6795ad13f0f62d1bd5022d4d86605f999c9e93ac3ff27c7",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 69610,
+      "midiRelativePath": "midi/Beethoven_Op031No2-03_002_20090916-SMD.mid",
+      "midiSha256": "68a3661bade947d4d5c42798bac73650f8b45d9cb4a4afdf48a3a567f9d3e525",
+      "nativeFrameCount": 17728200,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "beethoven_op031no2_03",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 401780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "beethoven_op031no2-03_002_20090916-smd",
+      "workId": "beethoven_op031no2_03"
+    },
+    {
+      "acousticWavBytes": 116290108,
+      "acousticWavRelativePath": "wav_44100_stereo/Beethoven_WoO080_001_20081107-SMD.wav",
+      "acousticWavSha256": "e2d4b2d1bd16f6a880f7eb2295edf923249545ea5df76a88f192357484c39bc0",
+      "audioDurationSeconds": 659.2407256235828,
+      "canonicalPcm": {
+        "byteSize": 42191404,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/beethoven_woo080_001_20081107-smd.f32",
+        "sampleCount": 10547851,
+        "sampleRateHz": 16000,
+        "sha256": "3c642ececab5d7a73108ca78a81b71f5b857db301e00a47c56e180d5b22d8ed8",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 100234,
+      "midiRelativePath": "midi/Beethoven_WoO080_001_20081107-SMD.mid",
+      "midiSha256": "fc56a48649ab27bf19242c234fe5f9daf24dc4d17842c8518fbc2833d0ec81bb",
+      "nativeFrameCount": 29072516,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "beethoven_woo080",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 659020.7256235827,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "beethoven_woo080_001_20081107-smd",
+      "workId": "beethoven_woo080"
+    },
+    {
+      "acousticWavBytes": 86312564,
+      "acousticWavRelativePath": "wav_44100_stereo/Brahms_Op005-01_002_20110315-SMD.wav",
+      "acousticWavSha256": "8f8749ebe5acd0aecc4eddd6f931a482bcc5a314be51586d9295c0cc29197993",
+      "audioDurationSeconds": 489.3,
+      "canonicalPcm": {
+        "byteSize": 31315200,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/brahms_op005-01_002_20110315-smd.f32",
+        "sampleCount": 7828800,
+        "sampleRateHz": 16000,
+        "sha256": "d4bcfac4d1bf9f784cdaa5b4bab6ac3498a4dd7918722b6d3a4f277308f1a988",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 61817,
+      "midiRelativePath": "midi/Brahms_Op005-01_002_20110315-SMD.mid",
+      "midiSha256": "e2dea97936c5aee3e19687dc75ea7d21ee29102060e63d7cc24b2114b8d1a118",
+      "nativeFrameCount": 21578130,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "brahms_op005_01",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 489080.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "brahms_op005-01_002_20110315-smd",
+      "workId": "brahms_op005_01"
+    },
+    {
+      "acousticWavBytes": 53272844,
+      "acousticWavRelativePath": "wav_44100_stereo/Brahms_Op010No1_003_20090916-SMD.wav",
+      "acousticWavSha256": "2512bc5edbb66525889636fa85da0c948344d34e484467d31c101959e9b724a0",
+      "audioDurationSeconds": 302.0,
+      "canonicalPcm": {
+        "byteSize": 19328000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/brahms_op010no1_003_20090916-smd.f32",
+        "sampleCount": 4832000,
+        "sampleRateHz": 16000,
+        "sha256": "c9a3ce2f1418a18c4dc766c50c1de2798d101b6d9e9f172d6ae32bdcfcb3d73a",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 39255,
+      "midiRelativePath": "midi/Brahms_Op010No1_003_20090916-SMD.mid",
+      "midiSha256": "05603b8c7be32aafe0fae0ab977087ab7fb75d402d6dc5dadce343d14dda9e10",
+      "nativeFrameCount": 13318200,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "brahms_op010no1",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 301780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "brahms_op010no1_003_20090916-smd",
+      "workId": "brahms_op010no1"
+    },
+    {
+      "acousticWavBytes": 72324044,
+      "acousticWavRelativePath": "wav_44100_stereo/Brahms_Op010No2_003_20090916-SMD.wav",
+      "acousticWavSha256": "7331ad5c0eb95e56ca4b0a4d5080a1959921e30ab38606e2a908042cec4ecee0",
+      "audioDurationSeconds": 410.0,
+      "canonicalPcm": {
+        "byteSize": 26240000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/brahms_op010no2_003_20090916-smd.f32",
+        "sampleCount": 6560000,
+        "sampleRateHz": 16000,
+        "sha256": "fa62929cb722f2972a57617238c2b1e0f8aad154599418eef825dd330bf39823",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 43421,
+      "midiRelativePath": "midi/Brahms_Op010No2_003_20090916-SMD.mid",
+      "midiSha256": "cfb920b7a3dfca6df43bf11899f0dc6f540736e7d9095dfe95ef9651a652dd4a",
+      "nativeFrameCount": 18081000,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "brahms_op010no2",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 409780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "brahms_op010no2_003_20090916-smd",
+      "workId": "brahms_op010no2"
+    },
+    {
+      "acousticWavBytes": 50628426,
+      "acousticWavRelativePath": "wav_44100_stereo/Chopin_Op010-03_007_20100611-SMD.wav",
+      "acousticWavSha256": "090fd5c3d801929048c25893586eaa9da40a2a1fe1d36a98fee24c7b610cbe9a",
+      "audioDurationSeconds": 287.0,
+      "canonicalPcm": {
+        "byteSize": 18368000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op010-03_007_20100611-smd.f32",
+        "sampleCount": 4592000,
+        "sampleRateHz": 16000,
+        "sha256": "5f70661104fe1307d7a78e20715df8ca800e822eb260bd0d009321075eb8853f",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 34788,
+      "midiRelativePath": "midi/Chopin_Op010-03_007_20100611-SMD.mid",
+      "midiSha256": "6ff22bf7cd7c07b0328cbdc01370e28e7a055452f89247ce09ac28b117872172",
+      "nativeFrameCount": 12656700,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "chopin_op010_03",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 286780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "chopin_op010-03_007_20100611-smd",
+      "workId": "chopin_op010_03"
+    },
+    {
+      "acousticWavBytes": 23286426,
+      "acousticWavRelativePath": "wav_44100_stereo/Chopin_Op010-04_007_20100611-SMD.wav",
+      "acousticWavSha256": "d721f66f9a7523153b7da1c71a63b2375ef77e9ece4621c9522f9c3d6520b846",
+      "audioDurationSeconds": 132.0,
+      "canonicalPcm": {
+        "byteSize": 8448000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op010-04_007_20100611-smd.f32",
+        "sampleCount": 2112000,
+        "sampleRateHz": 16000,
+        "sha256": "4dcbaa53268cefab14f5946d0c882235750ce6452bcf672553649772568322b0",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 26876,
+      "midiRelativePath": "midi/Chopin_Op010-04_007_20100611-SMD.mid",
+      "midiSha256": "cd88c064f05f19d1adbf9e29ef71ad8ecf3b1e067970f1673c8aa69933d59e44",
+      "nativeFrameCount": 5821200,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "chopin_op010_04",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 131780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "chopin_op010-04_007_20100611-smd",
+      "workId": "chopin_op010_04"
+    },
+    {
+      "acousticWavBytes": 81498426,
+      "acousticWavRelativePath": "wav_44100_stereo/Chopin_Op026No1_003_20100611-SMD.wav",
+      "acousticWavSha256": "ef3f57c97d7edc1ee9a73e89f1d1bdc767c3cec79a3fe2d2e0a64b2aa5650b6c",
+      "audioDurationSeconds": 462.0,
+      "canonicalPcm": {
+        "byteSize": 29568000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op026no1_003_20100611-smd.f32",
+        "sampleCount": 7392000,
+        "sampleRateHz": 16000,
+        "sha256": "de1c432c523b3c7d2dbe301d4793f1d6ebbf72842ba9ba0961450545e76066f7",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 72353,
+      "midiRelativePath": "midi/Chopin_Op026No1_003_20100611-SMD.mid",
+      "midiSha256": "70e9951c384d74d4eb965022fb37befc1ffec118cb8309af5a65131774255fdd",
+      "nativeFrameCount": 20374200,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "chopin_op026no1",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 461780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "chopin_op026no1_003_20100611-smd",
+      "workId": "chopin_op026no1"
+    },
+    {
+      "acousticWavBytes": 82556826,
+      "acousticWavRelativePath": "wav_44100_stereo/Chopin_Op026No2_005_20100611-SMD.wav",
+      "acousticWavSha256": "75ce59c02b1d5ed69747907a109900fca8849842236a3bca24bdca87ed0bf902",
+      "audioDurationSeconds": 468.0,
+      "canonicalPcm": {
+        "byteSize": 29952000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op026no2_005_20100611-smd.f32",
+        "sampleCount": 7488000,
+        "sampleRateHz": 16000,
+        "sha256": "c227c3e65827bcc48f5a0fa3bedbc485b895e18cf77d47489b68cca2fb02538d",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 81173,
+      "midiRelativePath": "midi/Chopin_Op026No2_005_20100611-SMD.mid",
+      "midiSha256": "33aae89919204912fcf8cec07493739acfecdf8378830ea5115ddf33c1d050eb",
+      "nativeFrameCount": 20638800,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "chopin_op026no2",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 467780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "chopin_op026no2_005_20100611-smd",
+      "workId": "chopin_op026no2"
+    },
+    {
+      "acousticWavBytes": 5822824,
+      "acousticWavRelativePath": "wav_44100_stereo/Chopin_Op028-01_003_20100611-SMD.wav",
+      "acousticWavSha256": "9c37d8d2ac9f3a9bc737163fde3e727a78c061d5444a044d213f40f53ed48824",
+      "audioDurationSeconds": 33.0,
+      "canonicalPcm": {
+        "byteSize": 2112000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op028-01_003_20100611-smd.f32",
+        "sampleCount": 528000,
+        "sampleRateHz": 16000,
+        "sha256": "63c05bd7adf8c9ee1b4841658400c4ba791fbc145075cff8eeac040a8dd5a2f8",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 6053,
+      "midiRelativePath": "midi/Chopin_Op028-01_003_20100611-SMD.mid",
+      "midiSha256": "060b665facc88c6fd5887d0d68e51935cda1a211770cf7233ca8a47e8497e6c9",
+      "nativeFrameCount": 1455300,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "chopin_op028_01",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 32780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "chopin_op028-01_003_20100611-smd",
+      "workId": "chopin_op028_01"
+    },
+    {
+      "acousticWavBytes": 10409226,
+      "acousticWavRelativePath": "wav_44100_stereo/Chopin_Op028-03_003_20100611-SMD.wav",
+      "acousticWavSha256": "67b9151286d65871a9d4bd8c23b10d1de58f5ec69c63585b8a9b1270c363b1a7",
+      "audioDurationSeconds": 59.0,
+      "canonicalPcm": {
+        "byteSize": 3776000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op028-03_003_20100611-smd.f32",
+        "sampleCount": 944000,
+        "sampleRateHz": 16000,
+        "sha256": "f5678467ca75d023c74b6ed9c14c1d05def3b716540fb15045b8dce195b83c4a",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 12467,
+      "midiRelativePath": "midi/Chopin_Op028-03_003_20100611-SMD.mid",
+      "midiSha256": "27a75de239273054c2ffe0a24a45e5eeb37d030517b5e3dec0b748ee674dbfa1",
+      "nativeFrameCount": 2601900,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "chopin_op028_03",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 58780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "chopin_op028-03_003_20100611-smd",
+      "workId": "chopin_op028_03"
+    },
+    {
+      "acousticWavBytes": 20993226,
+      "acousticWavRelativePath": "wav_44100_stereo/Chopin_Op028-04_003_20100611-SMD.wav",
+      "acousticWavSha256": "05ceb401b9311dfe13b4ac814f6ae3dda967bdd55b4386dd6362685a95edf478",
+      "audioDurationSeconds": 119.0,
+      "canonicalPcm": {
+        "byteSize": 7616000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op028-04_003_20100611-smd.f32",
+        "sampleCount": 1904000,
+        "sampleRateHz": 16000,
+        "sha256": "f5a89395044308da2adea41669b43a0d9dea065b1dc42d4e2e8ca11ef6ff0e84",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 11824,
+      "midiRelativePath": "midi/Chopin_Op028-04_003_20100611-SMD.mid",
+      "midiSha256": "4c1d0b3cd15eb576e1c0506f69725bf61edf8ec5f998bef02c4a8fbd8c88401f",
+      "nativeFrameCount": 5247900,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "chopin_op028_04",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 118780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "chopin_op028-04_003_20100611-smd",
+      "workId": "chopin_op028_04"
+    },
+    {
+      "acousticWavBytes": 6704824,
+      "acousticWavRelativePath": "wav_44100_stereo/Chopin_Op028-11_003_20100611-SMD.wav",
+      "acousticWavSha256": "6dd00d18eae09e40212d25c7a55c2c2efc6a853468c8f6d91886afa0ea8125b2",
+      "audioDurationSeconds": 38.0,
+      "canonicalPcm": {
+        "byteSize": 2432000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op028-11_003_20100611-smd.f32",
+        "sampleCount": 608000,
+        "sampleRateHz": 16000,
+        "sha256": "8b05ccac06215489984b5981be1921d973f2e3861e0f03e2359640b57dbc2802",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 6757,
+      "midiRelativePath": "midi/Chopin_Op028-11_003_20100611-SMD.mid",
+      "midiSha256": "a7f5a344bbb22d3efd672a9271b27b106218aec28a4d3b53086af0ce38dac51f",
+      "nativeFrameCount": 1675800,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "chopin_op028_11",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 37780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "chopin_op028-11_003_20100611-smd",
+      "workId": "chopin_op028_11"
+    },
+    {
+      "acousticWavBytes": 56273226,
+      "acousticWavRelativePath": "wav_44100_stereo/Chopin_Op028-15_006_20100611-SMD.wav",
+      "acousticWavSha256": "045d8e3d53829ce268615062f77a67312d2cd162b511c2d29d22a7c5f3423cd0",
+      "audioDurationSeconds": 319.0,
+      "canonicalPcm": {
+        "byteSize": 20416000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op028-15_006_20100611-smd.f32",
+        "sampleCount": 5104000,
+        "sampleRateHz": 16000,
+        "sha256": "3aef5cddff783b311caf47bc1ff0a1344a9f05a8b232a3602955fb324d6e2db6",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 35750,
+      "midiRelativePath": "midi/Chopin_Op028-15_006_20100611-SMD.mid",
+      "midiSha256": "aab28a34b89b2418906abf03bcb33432070316c69f9f6450bf246b58f18e658c",
+      "nativeFrameCount": 14067900,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "chopin_op028_15",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 318780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "chopin_op028-15_006_20100611-smd",
+      "workId": "chopin_op028_15"
+    },
+    {
+      "acousticWavBytes": 31224426,
+      "acousticWavRelativePath": "wav_44100_stereo/Chopin_Op028-17_005_20100611-SMD.wav",
+      "acousticWavSha256": "65ab1c88b5de417623e82ac05c9e0d86f61b06adcb8153a7dfcd7228f5122a5c",
+      "audioDurationSeconds": 177.0,
+      "canonicalPcm": {
+        "byteSize": 11328000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op028-17_005_20100611-smd.f32",
+        "sampleCount": 2832000,
+        "sampleRateHz": 16000,
+        "sha256": "b15bd88577d872625e8c5f1eda23c96c817822f2a90ed57f149aad20b8ed7668",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 27742,
+      "midiRelativePath": "midi/Chopin_Op028-17_005_20100611-SMD.mid",
+      "midiSha256": "6be4b9ea32ecb07f83454a812d3afc3bc9b2d15683f546c377852487f5a254c7",
+      "nativeFrameCount": 7805700,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "chopin_op028_17",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 176780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "chopin_op028-17_005_20100611-smd",
+      "workId": "chopin_op028_17"
+    },
+    {
+      "acousticWavBytes": 42866826,
+      "acousticWavRelativePath": "wav_44100_stereo/Chopin_Op029_004_20100611-SMD.wav",
+      "acousticWavSha256": "7909fea507f246d7f6a32268b9b34b744ff2a814a6c9ab6c7ad4b68b2f347982",
+      "audioDurationSeconds": 243.0,
+      "canonicalPcm": {
+        "byteSize": 15552000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op029_004_20100611-smd.f32",
+        "sampleCount": 3888000,
+        "sampleRateHz": 16000,
+        "sha256": "90d5976fd36d74e901f32403bfe93863f7f90f9175f184a1c59bf1a5eebe3250",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 49303,
+      "midiRelativePath": "midi/Chopin_Op029_004_20100611-SMD.mid",
+      "midiSha256": "9848c498c2d936c03a362dabf97bfec77be48674e1c311881729f49963b334d2",
+      "nativeFrameCount": 10716300,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "chopin_op029",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 242780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "chopin_op029_004_20100611-smd",
+      "workId": "chopin_op029"
+    },
+    {
+      "acousticWavBytes": 76206426,
+      "acousticWavRelativePath": "wav_44100_stereo/Chopin_Op048No1_007_20100611-SMD.wav",
+      "acousticWavSha256": "85ff1b3beeb66d811462747967ef179b453debc75d7c7731ba6b6fc56fadb394",
+      "audioDurationSeconds": 432.0,
+      "canonicalPcm": {
+        "byteSize": 27648000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op048no1_007_20100611-smd.f32",
+        "sampleCount": 6912000,
+        "sampleRateHz": 16000,
+        "sha256": "926f22839966276c1527ca394e44fc99990b63dee5367cd276e171384e2344ce",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 42603,
+      "midiRelativePath": "midi/Chopin_Op048No1_007_20100611-SMD.mid",
+      "midiSha256": "ec04aa2b6d78f12a1ad68b4714c0457bb45c16785967ed64be2e66277cf5677f",
+      "nativeFrameCount": 19051200,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "chopin_op048no1",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 431780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "chopin_op048no1_007_20100611-smd",
+      "workId": "chopin_op048no1"
+    },
+    {
+      "acousticWavBytes": 54862026,
+      "acousticWavRelativePath": "wav_44100_stereo/Chopin_Op066_006_20100611-SMD.wav",
+      "acousticWavSha256": "ee8daf3dd636b8902e9c2c0f74d57e0700710bfa20d3cb673486a310406d3b29",
+      "audioDurationSeconds": 311.0,
+      "canonicalPcm": {
+        "byteSize": 19904000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op066_006_20100611-smd.f32",
+        "sampleCount": 4976000,
+        "sampleRateHz": 16000,
+        "sha256": "43530888797d646d0b798e8018063f963e2f16ee193e40b0567310587ae6877a",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 45207,
+      "midiRelativePath": "midi/Chopin_Op066_006_20100611-SMD.mid",
+      "midiSha256": "3aded3e1d79385f8bf871f5510b22afe3a5c2c009a0bb72bb4903504ead54677",
+      "nativeFrameCount": 13715100,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "chopin_op066",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 310780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "chopin_op066_006_20100611-smd",
+      "workId": "chopin_op066"
+    },
+    {
+      "acousticWavBytes": 61916444,
+      "acousticWavRelativePath": "wav_44100_stereo/Haydn_Hob017No4_003_20090916-SMD.wav",
+      "acousticWavSha256": "81a1ba926b87dd7af9b8e9c304b95869b2708e20e25fcc1148755270b9376296",
+      "audioDurationSeconds": 351.0,
+      "canonicalPcm": {
+        "byteSize": 22464000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/haydn_hob017no4_003_20090916-smd.f32",
+        "sampleCount": 5616000,
+        "sampleRateHz": 16000,
+        "sha256": "043e7a9c6b854130b62ece8bf113700442fa44898cd7e91dc8c40067b2aaf87d",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 44550,
+      "midiRelativePath": "midi/Haydn_Hob017No4_003_20090916-SMD.mid",
+      "midiSha256": "1ec5a62e349a104ff2517b3b9b5a468c13949c50fbd264906d0e8eb1a97871bd",
+      "nativeFrameCount": 15479100,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "haydn_hob017no4",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 350780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "haydn_hob017no4_003_20090916-smd",
+      "workId": "haydn_hob017no4"
+    },
+    {
+      "acousticWavBytes": 85645772,
+      "acousticWavRelativePath": "wav_44100_stereo/Haydn_HobXVINo52-01_008_20110315-SMD.wav",
+      "acousticWavSha256": "9582374c41bfbb81e282e717767f682f9257eb8eccca48383b722a60f72e21ca",
+      "audioDurationSeconds": 485.52,
+      "canonicalPcm": {
+        "byteSize": 31073280,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/haydn_hobxvino52-01_008_20110315-smd.f32",
+        "sampleCount": 7768320,
+        "sampleRateHz": 16000,
+        "sha256": "f2c0a315d99896ecaab4241f13d0780b450262a80b6b4f07260e0f53ed05102e",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 73226,
+      "midiRelativePath": "midi/Haydn_HobXVINo52-01_008_20110315-SMD.mid",
+      "midiSha256": "7186e466df8d87375b7ee8ddb30b2fb6aff8fb99ef6c4aaa543507d39e8d458f",
+      "nativeFrameCount": 21411432,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "haydn_hobxvino52_01",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 485300.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "haydn_hobxvino52-01_008_20110315-smd",
+      "workId": "haydn_hobxvino52_01"
+    },
+    {
+      "acousticWavBytes": 76545296,
+      "acousticWavRelativePath": "wav_44100_stereo/Haydn_HobXVINo52-02_008_20110315-SMD.wav",
+      "acousticWavSha256": "23594d5376454c81d8184ec0c05d69b54ed07e5b6bdeebeacf1553efd6ae6ac6",
+      "audioDurationSeconds": 433.93,
+      "canonicalPcm": {
+        "byteSize": 27771520,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/haydn_hobxvino52-02_008_20110315-smd.f32",
+        "sampleCount": 6942880,
+        "sampleRateHz": 16000,
+        "sha256": "5423fe4cd03d975144a42d518ea6052ed92004a27aeb37855ef71a5f6f5be2e1",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 46493,
+      "midiRelativePath": "midi/Haydn_HobXVINo52-02_008_20110315-SMD.mid",
+      "midiSha256": "ab0b9c9183bf673b7917791ef731a54d501caae57df1d64ca22cb3b4eb8b5e37",
+      "nativeFrameCount": 19136313,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "haydn_hobxvino52_02",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 433710.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "haydn_hobxvino52-02_008_20110315-smd",
+      "workId": "haydn_hobxvino52_02"
+    },
+    {
+      "acousticWavBytes": 61276112,
+      "acousticWavRelativePath": "wav_44100_stereo/Haydn_HobXVINo52-03_008_20110315-SMD.wav",
+      "acousticWavSha256": "a075b2244587f480aee7e85c1eb769200e416c798f7fd308a015a4e86bfe084a",
+      "audioDurationSeconds": 347.37,
+      "canonicalPcm": {
+        "byteSize": 22231680,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/haydn_hobxvino52-03_008_20110315-smd.f32",
+        "sampleCount": 5557920,
+        "sampleRateHz": 16000,
+        "sha256": "565eff7c5e965e965352b883324478eaa3c63097178a36bf46395dcfc3b6fdf2",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 51143,
+      "midiRelativePath": "midi/Haydn_HobXVINo52-03_008_20110315-SMD.mid",
+      "midiSha256": "641501d1211271bcb62039e5a836eae169e29869019ca7d98a83ceb6117d5e4f",
+      "nativeFrameCount": 15319017,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "haydn_hobxvino52_03",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 347150.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "haydn_hobxvino52-03_008_20110315-smd",
+      "workId": "haydn_hobxvino52_03"
+    },
+    {
+      "acousticWavBytes": 183313160,
+      "acousticWavRelativePath": "wav_44100_stereo/Liszt_AnnesDePelerinage-LectureDante_002_20090916-SMD.wav",
+      "acousticWavSha256": "918d8ae6e49e22c8a4b9b071d33bd6728a1c5914abc9eb1fea897bd4cffe0cd2",
+      "audioDurationSeconds": 1039.19,
+      "canonicalPcm": {
+        "byteSize": 66508160,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/liszt_annesdepelerinage-lecturedante_002_20090916-smd.f32",
+        "sampleCount": 16627040,
+        "sampleRateHz": 16000,
+        "sha256": "c6b34a0d7b62b2c182acd0972f4cc4d22fa4b8c40d36107435de4bf620a36cf8",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 144488,
+      "midiRelativePath": "midi/Liszt_AnnesDePelerinage-LectureDante_002_20090916-SMD.mid",
+      "midiSha256": "e68ee2158e0ae1d63573e1de8876169e08e1469b7b3c6f17b88ece768addda71",
+      "nativeFrameCount": 45828279,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "liszt_annesdepelerinage_lecturedante",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 1038970.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "liszt_annesdepelerinage-lecturedante_002_20090916-smd",
+      "workId": "liszt_annesdepelerinage_lecturedante"
+    },
+    {
+      "acousticWavBytes": 52920044,
+      "acousticWavRelativePath": "wav_44100_stereo/Liszt_KonzertetuedeNo2LaLeggierezza_003_20090916-SMD.wav",
+      "acousticWavSha256": "32259d46d5effb3894ceb18b9f64047374c572932908f5b0d31ed373032863bf",
+      "audioDurationSeconds": 300.0,
+      "canonicalPcm": {
+        "byteSize": 19200000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/liszt_konzertetuedeno2laleggierezza_003_20090916-smd.f32",
+        "sampleCount": 4800000,
+        "sampleRateHz": 16000,
+        "sha256": "863b3dcf78abe0aca61e88fb1dd89b7458692b734b9fa860b879a37805296efc",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 99892,
+      "midiRelativePath": "midi/Liszt_KonzertetuedeNo2LaLeggierezza_003_20090916-SMD.mid",
+      "midiSha256": "edc3f2429cbeab3af5a7a407661c611de4a010a86dcdbdbd3cbcad8a6eca9dae",
+      "nativeFrameCount": 13230000,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "liszt_konzertetuedeno2laleggierezza",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 299780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "liszt_konzertetuedeno2laleggierezza_003_20090916-smd",
+      "workId": "liszt_konzertetuedeno2laleggierezza"
+    },
+    {
+      "acousticWavBytes": 170402444,
+      "acousticWavRelativePath": "wav_44100_stereo/Liszt_VariationenBachmotivWeinenKlagenSorgenZagen_001_20090916-SMD.wav",
+      "acousticWavSha256": "d305803845a1b83d8ad507a6878a6fc290d152b6e944f4c7d4c88774dc78932f",
+      "audioDurationSeconds": 966.0,
+      "canonicalPcm": {
+        "byteSize": 61824000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/liszt_variationenbachmotivweinenklagensorgenzagen_001_20090916-smd.f32",
+        "sampleCount": 15456000,
+        "sampleRateHz": 16000,
+        "sha256": "5c47b119889eb25fb429c4762f40ce6ab7260eec7ac2b6cc8ee31bb5fe0bdf15",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 118553,
+      "midiRelativePath": "midi/Liszt_VariationenBachmotivWeinenKlagenSorgenZagen_001_20090916-SMD.mid",
+      "midiSha256": "bf2d6396470f7741f3801f8dfc9d5544fcd6b4767bc32c658a8cb3b39c4d5ee6",
+      "nativeFrameCount": 42600600,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "liszt_variationenbachmotivweinenklagensorgenzagen",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 965780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "liszt_variationenbachmotivweinenklagensorgenzagen_001_20090916-smd",
+      "workId": "liszt_variationenbachmotivweinenklagensorgenzagen"
+    },
+    {
+      "acousticWavBytes": 84499172,
+      "acousticWavRelativePath": "wav_44100_stereo/Mozart_KV265_006_20110315-SMD.wav",
+      "acousticWavSha256": "4124a267f60fd57f10c8fea7a4da6995893b01c0c8713be1f446286544e12c37",
+      "audioDurationSeconds": 479.02,
+      "canonicalPcm": {
+        "byteSize": 30657280,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/mozart_kv265_006_20110315-smd.f32",
+        "sampleCount": 7664320,
+        "sampleRateHz": 16000,
+        "sha256": "72af0735aac3f3ece134f705c25d50aa0feb481870fd2386b5220c874ff1c613",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 68782,
+      "midiRelativePath": "midi/Mozart_KV265_006_20110315-SMD.mid",
+      "midiSha256": "522ddf75f7897e8adcff8d1a103beba0583bd59337311b4d8ad6a9f6023e0917",
+      "nativeFrameCount": 21124782,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "mozart_kv265",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 478800.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "mozart_kv265_006_20110315-smd",
+      "workId": "mozart_kv265"
+    },
+    {
+      "acousticWavBytes": 78052484,
+      "acousticWavRelativePath": "wav_44100_stereo/Mozart_KV398_002_20110315-SMD.wav",
+      "acousticWavSha256": "f374a77d01db61d2da9a7bc213e4e0299c8011eac0f01bcbb9c282d493e1e0e0",
+      "audioDurationSeconds": 442.47414965986394,
+      "canonicalPcm": {
+        "byteSize": 28318344,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/mozart_kv398_002_20110315-smd.f32",
+        "sampleCount": 7079586,
+        "sampleRateHz": 16000,
+        "sha256": "78c26b1c1f6e32d619ac265411770ae0a587eb6d2a6c473292d1c444d94164a4",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 59218,
+      "midiRelativePath": "midi/Mozart_KV398_002_20110315-SMD.mid",
+      "midiSha256": "32d2f6c200838d49ed9795d3956955b56fc194925e9536dc986dcecad96fc630",
+      "nativeFrameCount": 19513110,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "mozart_kv398",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 442254.14965986396,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "mozart_kv398_002_20110315-smd",
+      "workId": "mozart_kv398"
+    },
+    {
+      "acousticWavBytes": 99198584,
+      "acousticWavRelativePath": "wav_44100_stereo/Rachmaninoff_Op036-01_007_20110315-SMD.wav",
+      "acousticWavSha256": "3c25a7714bc2fb1a0d404499d0fa385dd0dd9ab9792820ed6fc726d8b9ec5a01",
+      "audioDurationSeconds": 562.35,
+      "canonicalPcm": {
+        "byteSize": 35990400,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/rachmaninoff_op036-01_007_20110315-smd.f32",
+        "sampleCount": 8997600,
+        "sampleRateHz": 16000,
+        "sha256": "a255376c8dce2e6250b10e5ed81653a5e9244379f45128f1cdb2185b7818085d",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 79875,
+      "midiRelativePath": "midi/Rachmaninoff_Op036-01_007_20110315-SMD.mid",
+      "midiSha256": "4e80ddaa785df4759ff9e0be191f8a8fbd6c95a6a6eb4ffa3153b1a39f0a950f",
+      "nativeFrameCount": 24799635,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "rachmaninoff_op036_01",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 562130.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "rachmaninoff_op036-01_007_20110315-smd",
+      "workId": "rachmaninoff_op036_01"
+    },
+    {
+      "acousticWavBytes": 76088420,
+      "acousticWavRelativePath": "wav_44100_stereo/Rachmaninoff_Op036-02_007_20110315-SMD.wav",
+      "acousticWavSha256": "bcf8f0ba78ec35b5600f3a6474ff8dce5546bb02f3af92c944655b6bf6641c2d",
+      "audioDurationSeconds": 431.34,
+      "canonicalPcm": {
+        "byteSize": 27605760,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/rachmaninoff_op036-02_007_20110315-smd.f32",
+        "sampleCount": 6901440,
+        "sampleRateHz": 16000,
+        "sha256": "7dd63373667855b97738b9819e7d32d107ca687a395165b3046b61712e7c3362",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 39877,
+      "midiRelativePath": "midi/Rachmaninoff_Op036-02_007_20110315-SMD.mid",
+      "midiSha256": "01bdea68de5ffb0c2a8b798fdf8bbada64aba27cfc6336ce85598c7674bb0d64",
+      "nativeFrameCount": 19022094,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "rachmaninoff_op036_02",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 431120.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "rachmaninoff_op036-02_007_20110315-smd",
+      "workId": "rachmaninoff_op036_02"
+    },
+    {
+      "acousticWavBytes": 59884316,
+      "acousticWavRelativePath": "wav_44100_stereo/Rachmaninoff_Op036-03_007_20110315-SMD.wav",
+      "acousticWavSha256": "fe74da5592865a5bae901117e061f7f84b85ce3a78fc7b556e8564ce3f356bd2",
+      "audioDurationSeconds": 339.48,
+      "canonicalPcm": {
+        "byteSize": 21726720,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/rachmaninoff_op036-03_007_20110315-smd.f32",
+        "sampleCount": 5431680,
+        "sampleRateHz": 16000,
+        "sha256": "307fd9a3d79419b59f67541b5c07575a06d10e6768253a14d18232a071146f2e",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 53712,
+      "midiRelativePath": "midi/Rachmaninoff_Op036-03_007_20110315-SMD.mid",
+      "midiSha256": "bf5894ef4ce33a2d16a8a0820c38ea49b4f779ebce32c50aa65b45df2b542265",
+      "nativeFrameCount": 14971068,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "rachmaninoff_op036_03",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 339260.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "rachmaninoff_op036-03_007_20110315-smd",
+      "workId": "rachmaninoff_op036_03"
+    },
+    {
+      "acousticWavBytes": 34697924,
+      "acousticWavRelativePath": "wav_44100_stereo/Rachmaninov_Op039No1_002_20090916-SMD.wav",
+      "acousticWavSha256": "5a725611e394b4ccba74c5b01bce5e4454c42d79c78250554e065d856f6031e1",
+      "audioDurationSeconds": 196.7,
+      "canonicalPcm": {
+        "byteSize": 12588800,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/rachmaninov_op039no1_002_20090916-smd.f32",
+        "sampleCount": 3147200,
+        "sampleRateHz": 16000,
+        "sha256": "5f3382c63e4c0a7a72c434b7b1bd28a95ef6f31ee688543d449b9d33ecaaa01d",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 35509,
+      "midiRelativePath": "midi/Rachmaninov_Op039No1_002_20090916-SMD.mid",
+      "midiSha256": "48f36e30911b07dccb2b2c663c7382f70ca35f92ff7a932673b81de6df07f5d9",
+      "nativeFrameCount": 8674470,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "rachmaninov_op039no1",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 196480.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "rachmaninov_op039no1_002_20090916-smd",
+      "workId": "rachmaninov_op039no1"
+    },
+    {
+      "acousticWavBytes": 55883564,
+      "acousticWavRelativePath": "wav_44100_stereo/Ravel_JeuxDEau_008_20110315-SMD.wav",
+      "acousticWavSha256": "80c389f13d050397b733fd6154c4a27e88a749c38f26087bce13b41642f20182",
+      "audioDurationSeconds": 316.8,
+      "canonicalPcm": {
+        "byteSize": 20275200,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/ravel_jeuxdeau_008_20110315-smd.f32",
+        "sampleCount": 5068800,
+        "sampleRateHz": 16000,
+        "sha256": "36658eed3c09b1558b75dac47b5b7e6b651b44c2e03c50a959059624245daaed",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 47037,
+      "midiRelativePath": "midi/Ravel_JeuxDEau_008_20110315-SMD.mid",
+      "midiSha256": "1eb5f8228054b3ab0f80f60447858046fb9285b0600dd99305899057ed51a9c7",
+      "nativeFrameCount": 13970880,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "ravel_jeuxdeau",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 316580.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "ravel_jeuxdeau_008_20110315-smd",
+      "workId": "ravel_jeuxdeau"
+    },
+    {
+      "acousticWavBytes": 162111644,
+      "acousticWavRelativePath": "wav_44100_stereo/Ravel_ValsesNoblesEtSentimentales_003_20090916-SMD.wav",
+      "acousticWavSha256": "3fee53ad3b2873300870b10f4e0426522d92a817fc2384c260e25719a60413e1",
+      "audioDurationSeconds": 919.0,
+      "canonicalPcm": {
+        "byteSize": 58816000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/ravel_valsesnoblesetsentimentales_003_20090916-smd.f32",
+        "sampleCount": 14704000,
+        "sampleRateHz": 16000,
+        "sha256": "9be124ed0f37df964398b97af3f0a9fc05cdbf7a97558e2be07bc0645f6a19a5",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 118334,
+      "midiRelativePath": "midi/Ravel_ValsesNoblesEtSentimentales_003_20090916-SMD.mid",
+      "midiSha256": "de54cbb8bfd9648c7d4d238c1c79453d6541d8166c80368ff323e2cc4b3384ce",
+      "nativeFrameCount": 40527900,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "ravel_valsesnoblesetsentimentales",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 918780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "ravel_valsesnoblesetsentimentales_003_20090916-smd",
+      "workId": "ravel_valsesnoblesetsentimentales"
+    },
+    {
+      "acousticWavBytes": 36338444,
+      "acousticWavRelativePath": "wav_44100_stereo/Skryabin_Op008No8_003_20090916-SMD.wav",
+      "acousticWavSha256": "c547a5e255c87b40fcdba6578baa67938a171ddff104825cf7042f177e59ce72",
+      "audioDurationSeconds": 206.0,
+      "canonicalPcm": {
+        "byteSize": 13184000,
+        "dtype": "float32-le-raw",
+        "preprocessingIdentity": "deterministic_wav_pcm16_stereo_mean_bytedance_linear_resample_16k_v2",
+        "relativeStageAPath": "backend/data/work/xc1_r2/canonical_pcm/skryabin_op008no8_003_20090916-smd.f32",
+        "sampleCount": 3296000,
+        "sampleRateHz": 16000,
+        "sha256": "7e9dad7caf09dd3783e865d8feaca7fbefe02762b03630f67d97e8800cd64c2f",
+        "sourceChannelCount": 2,
+        "sourceSampleRateHz": 44100
+      },
+      "channelCount": 2,
+      "midiBytes": 29010,
+      "midiRelativePath": "midi/Skryabin_Op008No8_003_20090916-SMD.mid",
+      "midiSha256": "d5cd42929e9e78501b4b05792a39747bff8963792bf496f294e9aaa1f06f2503",
+      "nativeFrameCount": 9084600,
+      "nativeSampleRateHz": 44100,
+      "performerClusteringStatus": "PERFORMER_CLUSTERING_UNAVAILABLE_FROM_VERIFIED_METADATA",
+      "performerId": null,
+      "pieceClusterId": "skryabin_op008no8",
+      "recordingSourceId": "smd-v2-real-acoustic-wav-44100-stereo",
+      "scoreableInterior": {
+        "endMs": 205780.0,
+        "futureContextMs": 220,
+        "pastContextMs": 1000,
+        "startMs": 1000.0
+      },
+      "takeId": "skryabin_op008no8_003_20090916-smd",
+      "workId": "skryabin_op008no8"
+    }
+  ]
+}

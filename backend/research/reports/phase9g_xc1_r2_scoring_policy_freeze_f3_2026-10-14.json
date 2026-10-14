@@ -1,0 +1,21 @@
+{
+  "artifact": "scoringPolicyFreezeF3",
+  "bootstrap": {
+    "draws": 5000,
+    "seed": 13371,
+    "unit": "performance_take_or_verified_piece_cluster"
+  },
+  "chordCompletenessDiagnostic": "NOT_AVAILABLE_IN_XC1_R2",
+  "duplicateRetriggerDiagnostic": "unmatched same-pitch prediction within 50ms of matched prediction",
+  "falsePositiveDenominator": "scoreable-interior-duration-minutes",
+  "frontRunnerPolicy": "runtime eligible + complete coverage + F1 CI above 0 versus both + no FP/min or missed-rate CI regression",
+  "matching": "pitch-aware one-to-one max-cardinality min-total-error deterministic tie-break",
+  "phase": "PHASE_9G_XC1_R2_EXECUTABLE_F3_AND_FULL_SEALED_SMD_BAKEOFF",
+  "primaryToleranceMs": 50,
+  "scoreableInterior": "[1000ms, audioDuration-220ms)",
+  "scoringPolicySha256": "fbd21f5256c8a63efee735f781a4d5e80a0785de9febdef837deed7cb63a64fa",
+  "sensitivityTolerancesMs": [
+    25,
+    100
+  ]
+}

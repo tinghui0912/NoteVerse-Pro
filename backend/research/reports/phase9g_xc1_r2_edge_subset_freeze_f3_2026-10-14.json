@@ -1,0 +1,14 @@
+{
+  "artifact": "edgeSubsetFreezeF3",
+  "phase": "PHASE_9G_XC1_R2_EXECUTABLE_F3_AND_FULL_SEALED_SMD_BAKEOFF",
+  "selectionAlgorithm": "deterministic sorted performerId/pieceId/takeId stride over corrected manifest before inference",
+  "takeIds": [
+    "bach_bwv849-01_001_20090916-smd",
+    "bartok_sz080-01_002_20110315-smd",
+    "beethoven_op031no2-03_002_20090916-smd",
+    "chopin_op026no2_005_20100611-smd",
+    "chopin_op048no1_007_20100611-smd",
+    "liszt_variationenbachmotivweinenklagensorgenzagen_001_20090916-smd"
+  ],
+  "takeManifestSha256": "8c617073b028a5f91279c824f4ce7195f480af03c3f9cf3f6d07608127a51820"
+}
