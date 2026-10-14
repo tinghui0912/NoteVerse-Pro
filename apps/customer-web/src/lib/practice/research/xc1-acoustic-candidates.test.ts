@@ -5,7 +5,9 @@ import {
   executeBasicPitchBrowserV1Candidate,
   executeOnlineAmtK8BrowserV1Candidate,
   executeRobustBrowserV1Candidate,
+  resolveXc1CandidateExecutor,
   XC1_BASIC_PITCH_BROWSER_V1_IDENTITY,
+  XC1_CANDIDATE_EXECUTOR_REGISTRY,
   XC1_DEPLOYMENT_IDENTITIES,
   XC1_ONLINE_AMT_K8_BROWSER_V1_IDENTITY,
   XC1_ROBUST_BROWSER_V1_IDENTITY,
@@ -45,6 +47,12 @@ describe('XC1 acoustic candidate wrappers', () => {
       '818c095a3e96f507f45fe5f394169660cb3848fb7e496699a99c1957b51e9f18',
     );
     expect(XC1_BASIC_PITCH_BROWSER_V1_IDENTITY.packageVersion).toBe('1.0.1');
+    expect(resolveXc1CandidateExecutor('robust-browser-v1').executorId).toBe('xc1-robust-browser-webgpu-executor');
+    expect(Object.keys(XC1_CANDIDATE_EXECUTOR_REGISTRY)).toEqual([
+      'robust-browser-v1',
+      'online-amt-k8-browser-v1',
+      'basic-pitch-browser-v1',
+    ]);
   });
 
   it.each([
@@ -56,6 +64,7 @@ describe('XC1 acoustic candidate wrappers', () => {
     const result = await execute(validRequest(), (request) => {
       seen.push(Object.keys(request).sort());
       expect(request.deploymentId).toBe(deploymentId);
+      expect(request.candidateId).toBeTypeOf('string');
       return { ok: true, sampleRateHz: request.sampleRateHz };
     });
 
@@ -64,6 +73,22 @@ describe('XC1 acoustic candidate wrappers', () => {
     expect(seen[0]).not.toContain('expectedPitches');
     expect(seen[0]).not.toContain('truthMidi');
     expect(seen[0]).not.toContain('BenchmarkScenario');
+  });
+
+  it.each([
+    ['robust-browser-v1', 'basic-pitch-browser-v1', executeRobustBrowserV1Candidate],
+    ['online-amt-k8-browser-v1', 'robust-browser-v1', executeOnlineAmtK8BrowserV1Candidate],
+    ['basic-pitch-browser-v1', 'online-amt-k8-browser-v1', executeBasicPitchBrowserV1Candidate],
+  ])('rejects %s execution when caller supplies mismatched deployment %s', (_expected, supplied, execute) => {
+    expect(() => execute({ ...validRequest(), deploymentId: supplied }, () => null)).toThrow(/XC1_DEPLOYMENT_ID_MISMATCH/);
+  });
+
+  it.each([
+    ['robust-browser-v1', executeRobustBrowserV1Candidate],
+    ['online-amt-k8-browser-v1', executeOnlineAmtK8BrowserV1Candidate],
+    ['basic-pitch-browser-v1', executeBasicPitchBrowserV1Candidate],
+  ])('rejects %s execution when caller supplies mismatched candidate ID', (_expected, execute) => {
+    expect(() => execute({ ...validRequest(), candidateId: 'wrong-candidate' }, () => null)).toThrow(/XC1_CANDIDATE_ID_MISMATCH/);
   });
 
   it.each([
@@ -85,21 +110,28 @@ describe('XC1 acoustic candidate wrappers', () => {
   it('decodes Basic Pitch as all-pitch acoustic observations without expected-pitch filtering', () => {
     const observations = decodeBasicPitchAllPitchContinuousObservations([
       {
-        timeMs: 1200,
-        onsetByMidiPitch: { 60: 0.8, 61: 0.9, 90: 0.49 },
-        frameByMidiPitch: { 60: 0.5, 61: 0.4, 90: 0.9 },
+        startTimeSeconds: 1.2,
+        pitchMidi: 60,
+        amplitude: 0.8,
       },
       {
-        timeMs: 1700,
-        onsetByMidiPitch: { 64: 0.95 },
-        frameByMidiPitch: { 64: 0.95 },
+        startTimeSeconds: 1.2,
+        pitch: 61,
+        amplitude: 0.9,
+      },
+      {
+        startTimeSeconds: 1.7,
+        pitchMidi: 64,
+        amplitude: 0.95,
       },
     ], {
       ownershipStartMs: 1000,
       ownershipEndMs: 1600,
+      takeId: 'smd-take',
+      chunkId: 'chunk-a',
     });
 
     expect(observations.map((observation) => observation.pitch)).toEqual([60, 61]);
-    expect(observations.every((observation) => observation.candidateObservationId.startsWith('basic-pitch:'))).toBe(true);
+    expect(observations.every((observation) => observation.candidateObservationId.startsWith('basic-pitch-browser-v1:smd-take:chunk-a:'))).toBe(true);
   });
 });
