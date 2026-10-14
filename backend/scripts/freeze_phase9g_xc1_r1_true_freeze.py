@@ -4,11 +4,16 @@ import argparse
 import hashlib
 import json
 import subprocess
+import sys
 import wave
 import zipfile
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from backend.research.xc1_scientific_bakeoff import (
     SMD_ARCHIVE_BYTES,
@@ -26,7 +31,6 @@ from backend.research.xc1_scientific_bakeoff import (
 )
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
 REPORTS = REPO_ROOT / "backend" / "research" / "reports"
 BASIC_PITCH_WORK = REPO_ROOT / "backend" / "data" / "work" / "basic_pitch_browser_feasibility"
 

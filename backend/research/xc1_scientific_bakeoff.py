@@ -89,12 +89,22 @@ def is_real_acoustic_wav(path: str) -> bool:
 
 
 def pair_smd_audio_midi(files: Iterable[dict[str, Any]]) -> dict[str, Any]:
-    wavs = [item for item in files if is_real_acoustic_wav(item["relativePath"])]
+    primary_wavs = [
+        item for item in files
+        if item["relativePath"].lower().startswith("wav_44100_stereo/") and is_real_acoustic_wav(item["relativePath"])
+    ]
+    non_primary_wavs = [
+        item for item in files
+        if is_real_acoustic_wav(item["relativePath"]) and item not in primary_wavs
+    ]
     midis = [item for item in files if Path(item["relativePath"].lower()).suffix in {".mid", ".midi"}]
     midi_by_stem = {Path(item["relativePath"]).stem.lower(): item for item in midis}
     pairs = []
-    excluded = []
-    for wav in wavs:
+    excluded = [
+        {"relativePath": wav["relativePath"], "reason": "NON_PRIMARY_REAL_AUDIO_REPRESENTATION_PRIMARY_USES_WAV_44100_STEREO"}
+        for wav in non_primary_wavs
+    ]
+    for wav in primary_wavs:
         stem = Path(wav["relativePath"]).stem.lower()
         midi = midi_by_stem.get(stem)
         if midi is None:
