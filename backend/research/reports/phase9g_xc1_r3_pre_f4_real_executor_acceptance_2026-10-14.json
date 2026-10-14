@@ -1,0 +1,141 @@
+{
+  "phase": "PHASE_9G_XC1_R3_REAL_EXECUTORS_F4_AND_FULL_SEALED_BAKEOFF",
+  "artifact": "preF4RealExecutorAcceptance",
+  "browser": {
+    "channel": "chrome",
+    "version": "155.0.8059.39",
+    "headed": true
+  },
+  "environment": {
+    "os": "win32 10.0.26200 x64",
+    "node": "v24.19.0"
+  },
+  "cells": {
+    "robust-browser-v1": {
+      "status": "XC1_REAL_BROWSER_INFERENCE_COMPLETE",
+      "assetShaVerification": "PASS",
+      "noScoreTruthInput": true,
+      "startedAtUnixMs": 1791969926983,
+      "backend": "webgpu",
+      "modelLoadMs": 802.8999999761581,
+      "processingMs": 2747.5,
+      "actualInferenceSessionRunCount": 1,
+      "inputNames": [
+        "audio"
+      ],
+      "outputNames": [
+        "reg_onset_output",
+        "frame_output"
+      ],
+      "acousticObservations": [],
+      "webgpuAdapter": {
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "texture-formats-tier2",
+          "shader-f16",
+          "timestamp-query",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      }
+    },
+    "online-amt-k8-browser-v1": {
+      "status": "XC1_REAL_BROWSER_INFERENCE_COMPLETE",
+      "assetShaVerification": "PASS",
+      "noScoreTruthInput": true,
+      "startedAtUnixMs": 1791969930836,
+      "backend": "webgpu",
+      "modelLoadMs": 299.60000002384186,
+      "processingMs": 327,
+      "actualInferenceSessionRunCount": 1,
+      "inputNames": [
+        "audio_last_2048_sequence",
+        "mel_buffer_in",
+        "cache0_in",
+        "cache1_in",
+        "h_in",
+        "c_in",
+        "prev_output_in"
+      ],
+      "outputNames": [
+        "probabilities_sequence",
+        "chosen_state_sequence",
+        "mel_buffer_out",
+        "cache0_out",
+        "cache1_out",
+        "h_out",
+        "c_out"
+      ],
+      "acousticObservations": [],
+      "webgpuAdapter": {
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "bgra8unorm-storage",
+          "texture-formats-tier1",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "shader-f16",
+          "clip-distances",
+          "texture-formats-tier2",
+          "timestamp-query",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      }
+    },
+    "basic-pitch-browser-v1": {
+      "status": "XC1_REAL_BROWSER_INFERENCE_COMPLETE",
+      "assetShaVerification": "PASS",
+      "noScoreTruthInput": true,
+      "startedAtUnixMs": 1791969931466,
+      "backend": "webgl",
+      "actualModelInvocationCount": 2,
+      "actualInferenceSessionRunCount": 2,
+      "processingMs": 5119.099999964237,
+      "acousticObservations": [
+        {
+          "pitch": 41,
+          "performanceTimeMs": 11.609977324263038,
+          "confidence": 0.6453795953687415,
+          "candidateObservationId": "basic-pitch-browser-v1:acceptance:0"
+        }
+      ]
+    }
+  },
+  "overallStatus": "REAL_BROWSER_INFERENCE_PASS"
+}

@@ -156,14 +156,12 @@ export async function decodeBasicPitchOfficialNotesFromActivations({
   basicPitchWorkDir,
   frames,
   onsets,
-  contours,
 }) {
   const { outputToNotesPoly, noteFramesToTime, identity } = await loadOfficialBasicPitchDecoder(basicPitchWorkDir);
   const params = XC1_FROZEN_IDENTITIES['basic-pitch-browser-v1'];
   const notes = outputToNotesPoly(
     frames,
     onsets,
-    contours,
     params.onsetThreshold,
     params.frameThreshold,
     params.minNoteLenFrames,
@@ -173,7 +171,8 @@ export async function decodeBasicPitchOfficialNotesFromActivations({
     params.melodiaTrick,
     params.energyTolerance,
   );
-  return { identity, notes, noteFramesToTimeAvailable: typeof noteFramesToTime === 'function' };
+  const timedNotes = noteFramesToTime(notes);
+  return { identity, notes, timedNotes, noteFramesToTimeCalled: true };
 }
 
 async function loadOfficialBasicPitchDecoder(basicPitchWorkDir) {
