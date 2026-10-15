@@ -1,0 +1,25 @@
+{
+  "artifactPath": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\DEVELOPMENT_LINEAR_600_220_1.30.0\\xc2_00_chopin_op026no1_003_20100611-smd.json",
+  "artifactSha256": "17888ae6f66dcb781ce6137cecd7316bb8c518d0ba7184271d875b2d0d6f3cdd",
+  "p95": 1224.6050415039065,
+  "backlog": {
+    "status": "BACKLOG_PRESENT",
+    "noSustainedBacklog": false,
+    "schedulerJitterAllowanceMs": 8,
+    "cadenceMs": 600,
+    "tailQueueTrendMsPerGroup": 470.6285923549107,
+    "producerDurationMs": 26400,
+    "consumerDurationMs": 49976.60009765625,
+    "realtimeFactor": 0.5282472186666031,
+    "maxOutstandingDepth": 22,
+    "finalQueueDelayMs": 22465.5,
+    "queueDelayMs": {
+      "count": 44,
+      "p50": 12340.199951171875,
+      "p95": 21482.489965820314,
+      "max": 22465.5
+    }
+  },
+  "status": "ORT_WEB_1_30_RUNTIME_INELIGIBLE_FOR_THIS_ROBUST_EXPORT_ON_THIS_MACHINE",
+  "executionCount": 1
+}

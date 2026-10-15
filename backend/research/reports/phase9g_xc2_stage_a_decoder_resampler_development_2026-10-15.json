@@ -1,0 +1,5682 @@
+{
+  "candidates": [
+    {
+      "id": "LINEAR_A_600_220",
+      "decoder": "A",
+      "status": "PRODUCT_VERDICT_EVALUATION_COMPLETE",
+      "counts": {
+        "targets": 303,
+        "agree": 287,
+        "correctTP": 139,
+        "correctFP": 0,
+        "correctFN": 9,
+        "missing": 40,
+        "missingDetected": 40,
+        "missingFalseMatched": 0,
+        "wrong": 40,
+        "wrongDetected": 38,
+        "wrongFalseCorrect": 0,
+        "incomplete": 35,
+        "incompleteDetected": 35,
+        "incompleteFalseComplete": 0,
+        "completeChord": 35,
+        "exactChord": 33,
+        "extrasTP": 35,
+        "extrasPredicted": 220,
+        "extrasTruth": 40,
+        "expectedAttackTP": 49192,
+        "expectedAttackTruth": 50908
+      },
+      "rates": {
+        "overallVerdictAgreement": 0.9471947194719472,
+        "correctPrecision": 1,
+        "correctRecall": 0.9391891891891891,
+        "correctMissingRate": 1,
+        "falseMatchOnGroundTruthMissing": 0,
+        "wrongNoteDetection": 0.95,
+        "wrongNoteFalseCorrect": 0,
+        "incompleteChordDetection": 1,
+        "falseCompleteChordAcceptance": 0,
+        "chordExactCompleteness": 0.9428571428571428,
+        "extraPrecision": 0.1590909090909091,
+        "extraRecall": 0.875,
+        "expectedStrikeRecall": 0.9662921348314607
+      },
+      "familyCoverage": {
+        "CORRECT_SINGLE": 40,
+        "CORRECT_CHORD": 35,
+        "MISSING_SINGLE": 40,
+        "WRONG_SEMITONE": 40,
+        "INCOMPLETE_CHORD": 35,
+        "EXTRA_NOTE": 40,
+        "SAME_PITCH_RETRIGGER": 19,
+        "SUSTAINED_NO_RETRIGGER": 35
+      },
+      "perClip": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "counts": {
+            "targets": 70,
+            "agree": 59,
+            "correctTP": 34,
+            "correctFP": 0,
+            "correctFN": 4,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 6,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 7,
+            "extrasTP": 3,
+            "extrasPredicted": 127,
+            "extrasTruth": 8,
+            "expectedAttackTP": 12512,
+            "expectedAttackTruth": 13066
+          }
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "counts": {
+            "targets": 46,
+            "agree": 46,
+            "correctTP": 19,
+            "correctFP": 0,
+            "correctFN": 0,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 3,
+            "incompleteDetected": 3,
+            "incompleteFalseComplete": 0,
+            "completeChord": 3,
+            "exactChord": 3,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 1640,
+            "expectedAttackTruth": 1640
+          }
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "counts": {
+            "targets": 69,
+            "agree": 68,
+            "correctTP": 36,
+            "correctFP": 0,
+            "correctFN": 1,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 8,
+            "extrasTP": 8,
+            "extrasPredicted": 69,
+            "extrasTruth": 8,
+            "expectedAttackTP": 17613,
+            "expectedAttackTruth": 17857
+          }
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "counts": {
+            "targets": 60,
+            "agree": 57,
+            "correctTP": 25,
+            "correctFP": 0,
+            "correctFN": 3,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 7,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 7582,
+            "expectedAttackTruth": 7930
+          }
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "counts": {
+            "targets": 58,
+            "agree": 57,
+            "correctTP": 25,
+            "correctFP": 0,
+            "correctFN": 1,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 8,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 9845,
+            "expectedAttackTruth": 10415
+          }
+        }
+      ],
+      "fiveVerdictLatency": {
+        "CORRECT": {
+          "ms": {
+            "count": 139,
+            "mean": 1277.1022176399522,
+            "p25": 1018.4734700520839,
+            "p50": 1162.122395833314,
+            "p75": 1363.2226969401236,
+            "p90": 1841.1253743489565,
+            "p95": 2238.609212239564,
+            "p99": 2651.381162109375,
+            "p99_5": 2670.90087890625,
+            "max": 2670.90087890625
+          },
+          "beats": {
+            "60": {
+              "p50": 1.162122395833314,
+              "p95": 2.238609212239564,
+              "p99": 2.651381162109375,
+              "max": 2.67090087890625
+            },
+            "90": {
+              "p50": 1.743183593749971,
+              "p95": 3.357913818359346,
+              "p99": 3.9770717431640628,
+              "max": 4.006351318359375
+            },
+            "120": {
+              "p50": 2.324244791666628,
+              "p95": 4.477218424479128,
+              "p99": 5.30276232421875,
+              "max": 5.3418017578125
+            },
+            "160": {
+              "p50": 3.098993055555504,
+              "p95": 5.96962456597217,
+              "p99": 7.070349765625,
+              "max": 7.12240234375
+            }
+          }
+        },
+        "MISSING": {
+          "ms": {
+            "count": 40,
+            "mean": 7303.374615478516,
+            "p25": 1935.776529947936,
+            "p50": 3010.323811848968,
+            "p75": 4032.499328613252,
+            "p90": 26354.159830729168,
+            "p95": 26492.076497395836,
+            "p99": 26688.201497395832,
+            "p99_5": 26714.201497395832,
+            "max": 26740.201497395832
+          },
+          "beats": {
+            "60": {
+              "p50": 3.010323811848968,
+              "p95": 26.492076497395836,
+              "p99": 26.688201497395834,
+              "max": 26.740201497395834
+            },
+            "90": {
+              "p50": 4.515485717773452,
+              "p95": 39.73811474609375,
+              "p99": 40.03230224609375,
+              "max": 40.11030224609375
+            },
+            "120": {
+              "p50": 6.020647623697936,
+              "p95": 52.98415299479167,
+              "p99": 53.37640299479167,
+              "max": 53.48040299479167
+            },
+            "160": {
+              "p50": 8.027530164930582,
+              "p95": 70.6455373263889,
+              "p99": 71.16853732638889,
+              "max": 71.30720399305555
+            }
+          }
+        },
+        "WRONG": {
+          "ms": {
+            "count": 38,
+            "mean": 7475.5333209121445,
+            "p25": 1923.276529947936,
+            "p50": 2705.716512044266,
+            "p75": 4197.683695475251,
+            "p90": 26377.909830729168,
+            "p95": 26504.159830729168,
+            "p99": 26690.8681640625,
+            "p99_5": 26715.534830729164,
+            "max": 26740.201497395832
+          },
+          "beats": {
+            "60": {
+              "p50": 2.705716512044266,
+              "p95": 26.504159830729165,
+              "p99": 26.6908681640625,
+              "max": 26.740201497395834
+            },
+            "90": {
+              "p50": 4.058574768066399,
+              "p95": 39.75623974609375,
+              "p99": 40.03630224609375,
+              "max": 40.11030224609375
+            },
+            "120": {
+              "p50": 5.411433024088532,
+              "p95": 53.00831966145833,
+              "p99": 53.381736328125,
+              "max": 53.48040299479167
+            },
+            "160": {
+              "p50": 7.215244032118043,
+              "p95": 70.67775954861112,
+              "p99": 71.1756484375,
+              "max": 71.30720399305555
+            }
+          }
+        },
+        "INCOMPLETE_CHORD": {
+          "ms": {
+            "count": 35,
+            "mean": 7730.200437127975,
+            "p25": 1865.317871093765,
+            "p50": 3214.65087890625,
+            "p75": 4691.4772135416715,
+            "p90": 24739.576497395832,
+            "p95": 25809.263997395832,
+            "p99": 26604.909830729164,
+            "p99_5": 26672.5556640625,
+            "max": 26740.201497395832
+          },
+          "beats": {
+            "60": {
+              "p50": 3.21465087890625,
+              "p95": 25.809263997395835,
+              "p99": 26.604909830729163,
+              "max": 26.740201497395834
+            },
+            "90": {
+              "p50": 4.821976318359375,
+              "p95": 38.71389599609375,
+              "p99": 39.90736474609375,
+              "max": 40.11030224609375
+            },
+            "120": {
+              "p50": 6.4293017578125,
+              "p95": 51.61852799479167,
+              "p99": 53.209819661458326,
+              "max": 53.48040299479167
+            },
+            "160": {
+              "p50": 8.57240234375,
+              "p95": 68.82470399305555,
+              "p99": 70.94642621527777,
+              "max": 71.30720399305555
+            }
+          }
+        },
+        "EXTRA": {
+          "ms": {
+            "count": 35,
+            "mean": 1353.146695963543,
+            "p25": 1088.9828694661555,
+            "p50": 1197.724039713542,
+            "p75": 1466.0713297525945,
+            "p90": 2239.8836263020835,
+            "p95": 2488.8419596354165,
+            "p99": 2646.5758463541597,
+            "p99_5": 2682.6966959635333,
+            "max": 2718.817545572907
+          },
+          "beats": {
+            "60": {
+              "p50": 1.1977240397135418,
+              "p95": 2.4888419596354168,
+              "p99": 2.64657584635416,
+              "max": 2.718817545572907
+            },
+            "90": {
+              "p50": 1.796586059570313,
+              "p95": 3.733262939453125,
+              "p99": 3.9698637695312393,
+              "max": 4.07822631835936
+            },
+            "120": {
+              "p50": 2.3954480794270836,
+              "p95": 4.9776839192708335,
+              "p99": 5.29315169270832,
+              "max": 5.437635091145814
+            },
+            "160": {
+              "p50": 3.1939307725694452,
+              "p95": 6.636911892361111,
+              "p99": 7.05753559027776,
+              "max": 7.250180121527752
+            }
+          }
+        }
+      },
+      "allFinalizedVerdictLatencyIncludingBackground": {
+        "CORRECT": {
+          "ms": {
+            "count": 32482,
+            "mean": 1160.163284910861,
+            "p25": 954.5418294270676,
+            "p50": 1142.4609375,
+            "p75": 1297.2355143229179,
+            "p90": 1427.400309244791,
+            "p95": 1663.858642578125,
+            "p99": 2238.609212239564,
+            "p99_5": 2409.431640625,
+            "max": 3214.65087890625
+          },
+          "beats": {
+            "60": {
+              "p50": 1.1424609375,
+              "p95": 1.663858642578125,
+              "p99": 2.238609212239564,
+              "max": 3.21465087890625
+            },
+            "90": {
+              "p50": 1.71369140625,
+              "p95": 2.4957879638671874,
+              "p99": 3.357913818359346,
+              "max": 4.821976318359375
+            },
+            "120": {
+              "p50": 2.284921875,
+              "p95": 3.32771728515625,
+              "p99": 4.477218424479128,
+              "max": 6.4293017578125
+            },
+            "160": {
+              "p50": 3.0465625,
+              "p95": 4.436956380208334,
+              "p99": 5.96962456597217,
+              "max": 8.57240234375
+            }
+          }
+        },
+        "MISSING": {
+          "ms": {
+            "count": 637,
+            "mean": 3514.7066219216017,
+            "p25": 1233.099609375,
+            "p50": 2104.246337890654,
+            "p75": 3192.77587890625,
+            "p90": 9419.3681640625,
+            "p95": 9419.3681640625,
+            "p99": 26151.826497395832,
+            "p99_5": 26439.659830729175,
+            "max": 26740.201497395832
+          },
+          "beats": {
+            "60": {
+              "p50": 2.104246337890654,
+              "p95": 9.4193681640625,
+              "p99": 26.151826497395835,
+              "max": 26.740201497395834
+            },
+            "90": {
+              "p50": 3.156369506835981,
+              "p95": 14.12905224609375,
+              "p99": 39.22773974609375,
+              "max": 40.11030224609375
+            },
+            "120": {
+              "p50": 4.208492675781308,
+              "p95": 18.838736328125,
+              "p99": 52.30365299479167,
+              "max": 53.48040299479167
+            },
+            "160": {
+              "p50": 5.611323567708411,
+              "p95": 25.118315104166665,
+              "p99": 69.73820399305555,
+              "max": 71.30720399305555
+            }
+          }
+        },
+        "WRONG": {
+          "ms": {
+            "count": 41,
+            "mean": 7178.954524342606,
+            "p25": 1942.026529947936,
+            "p50": 2999.907145182311,
+            "p75": 3949.907145182253,
+            "p90": 26342.284830729168,
+            "p95": 26486.034830729168,
+            "p99": 26686.8681640625,
+            "p99_5": 26713.534830729164,
+            "max": 26740.201497395832
+          },
+          "beats": {
+            "60": {
+              "p50": 2.999907145182311,
+              "p95": 26.486034830729167,
+              "p99": 26.6868681640625,
+              "max": 26.740201497395834
+            },
+            "90": {
+              "p50": 4.499860717773466,
+              "p95": 39.72905224609375,
+              "p99": 40.03030224609375,
+              "max": 40.11030224609375
+            },
+            "120": {
+              "p50": 5.999814290364622,
+              "p95": 52.972069661458335,
+              "p99": 53.373736328125,
+              "max": 53.48040299479167
+            },
+            "160": {
+              "p50": 7.99975238715283,
+              "p95": 70.62942621527779,
+              "p99": 71.16498177083334,
+              "max": 71.30720399305555
+            }
+          }
+        },
+        "INCOMPLETE_CHORD": {
+          "ms": {
+            "count": 1151,
+            "mean": 3728.2942888628363,
+            "p25": 1106.733479817718,
+            "p50": 1544.960611979186,
+            "p75": 3881.317545572907,
+            "p90": 8412.076497395832,
+            "p95": 19770.409830729164,
+            "p99": 19770.409830729164,
+            "p99_5": 23640.982747395836,
+            "max": 26740.201497395832
+          },
+          "beats": {
+            "60": {
+              "p50": 1.544960611979186,
+              "p95": 19.770409830729164,
+              "p99": 19.770409830729164,
+              "max": 26.740201497395834
+            },
+            "90": {
+              "p50": 2.317440917968779,
+              "p95": 29.655614746093747,
+              "p99": 29.655614746093747,
+              "max": 40.11030224609375
+            },
+            "120": {
+              "p50": 3.089921223958372,
+              "p95": 39.54081966145833,
+              "p99": 39.54081966145833,
+              "max": 53.48040299479167
+            },
+            "160": {
+              "p50": 4.11989496527783,
+              "p95": 52.721092881944436,
+              "p99": 52.721092881944436,
+              "max": 71.30720399305555
+            }
+          }
+        },
+        "EXTRA": {
+          "ms": {
+            "count": 220,
+            "mean": 1301.3568104137073,
+            "p25": 827.05908203125,
+            "p50": 1284.9267578125,
+            "p75": 1764.2802734375,
+            "p90": 1764.2802734375,
+            "p95": 1764.2802734375,
+            "p99": 2442.2002929687505,
+            "p99_5": 2505.90029296875,
+            "max": 2715.27587890625
+          },
+          "beats": {
+            "60": {
+              "p50": 1.2849267578125,
+              "p95": 1.7642802734375,
+              "p99": 2.4422002929687503,
+              "max": 2.71527587890625
+            },
+            "90": {
+              "p50": 1.92739013671875,
+              "p95": 2.64642041015625,
+              "p99": 3.663300439453126,
+              "max": 4.072913818359375
+            },
+            "120": {
+              "p50": 2.569853515625,
+              "p95": 3.528560546875,
+              "p99": 4.884400585937501,
+              "max": 5.4305517578125
+            },
+            "160": {
+              "p50": 3.4264713541666665,
+              "p95": 4.7047473958333335,
+              "p99": 6.512534114583335,
+              "max": 7.240735677083333
+            }
+          }
+        }
+      },
+      "latencyDefinition": "Targeted correctly-classified verdicts; missing/incorrect classifications counted in correctness, not silently assigned zero latency. All background/incorrect verdict latency is also retained.",
+      "runtime": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "modelLoadMs": 675.900146484375,
+          "firstInferenceMs": 317.39990234375,
+          "processingMs": {
+            "count": 44,
+            "mean": 324.63181374289775,
+            "p25": 310,
+            "p50": 315.949951171875,
+            "p75": 322.07501220703125,
+            "p90": 330.9700439453125,
+            "p95": 344.3198974609375,
+            "p99": 502.28294433593754,
+            "p99_5": 526.3414233398433,
+            "max": 550.39990234375
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.018177379261363636,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0.099853515625,
+            "p95": 0.10009765625,
+            "p99": 0.10009765625,
+            "p99_5": 0.10009765625,
+            "max": 0.10009765625
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26722.300048828125,
+            "realtimeFactor": 0.9879389106387099,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.10009765625
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 328.6113170276989,
+            "p25": 315.5499267578125,
+            "p50": 319.64990234375,
+            "p75": 326.2249755859375,
+            "p90": 334.0799560546875,
+            "p95": 345.9098754882813,
+            "p99": 505.4109301757813,
+            "p99_5": 529.5554406738278,
+            "max": 553.699951171875
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "modelLoadMs": 655.300048828125,
+          "firstInferenceMs": 300.599853515625,
+          "processingMs": {
+            "count": 44,
+            "mean": 304.4818004261364,
+            "p25": 293.0499267578125,
+            "p50": 306,
+            "p75": 317.449951171875,
+            "p90": 323.9600341796875,
+            "p95": 328.5851318359375,
+            "p99": 333.72204833984375,
+            "p99_5": 334.71112182617185,
+            "max": 335.7001953125
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02045232599431818,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0.099853515625,
+            "p95": 0.10009765625,
+            "p99": 0.1571533203125,
+            "p99_5": 0.17867431640624964,
+            "max": 0.2001953125
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0.014264787946428572,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26697,
+            "realtimeFactor": 0.9888751545117429,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0.099853515625,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.2001953125
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 310.5771595348011,
+            "p25": 297.474853515625,
+            "p50": 309.89990234375,
+            "p75": 320.14990234375,
+            "p90": 332.4698486328125,
+            "p95": 339.925,
+            "p99": 343.4228955078125,
+            "p99_5": 344.2613745117187,
+            "max": 345.099853515625
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "modelLoadMs": 716.800048828125,
+          "firstInferenceMs": 303.800048828125,
+          "processingMs": {
+            "count": 44,
+            "mean": 299.984092018821,
+            "p25": 290.1749267578125,
+            "p50": 300,
+            "p75": 306.57501220703125,
+            "p90": 311.4800537109375,
+            "p95": 318.96995849609374,
+            "p99": 336.35813232421873,
+            "p99_5": 340.52916381835934,
+            "max": 344.7001953125
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.0181884765625,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26699.599853515625,
+            "realtimeFactor": 0.9887788635350587,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 307.8431008078835,
+            "p25": 298.64996337890625,
+            "p50": 307.39990234375,
+            "p75": 317.09991455078125,
+            "p90": 321.829931640625,
+            "p95": 324.35987548828126,
+            "p99": 345.69597900390625,
+            "p99_5": 350.59798950195307,
+            "max": 355.5
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "modelLoadMs": 655.199951171875,
+          "firstInferenceMs": 275.89990234375,
+          "processingMs": {
+            "count": 44,
+            "mean": 297.31815962357956,
+            "p25": 289.1749267578125,
+            "p50": 296.1500244140625,
+            "p75": 303.175048828125,
+            "p90": 309.700048828125,
+            "p95": 315.874951171875,
+            "p99": 323.7909790039063,
+            "p99_5": 325.1454895019531,
+            "max": 326.5
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02728271484375,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.099853515625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.10009765625,
+            "p99_5": 0.10009765625,
+            "max": 0.10009765625
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26695.199951171875,
+            "realtimeFactor": 0.9889418340483748,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.10009765625
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 302.06363192471593,
+            "p25": 294.24993896484375,
+            "p50": 300.75,
+            "p75": 308.925048828125,
+            "p90": 315.9300048828125,
+            "p95": 320.21502685546875,
+            "p99": 330.6770068359375,
+            "p99_5": 331.98852783203125,
+            "max": 333.300048828125
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "modelLoadMs": 647.5,
+          "firstInferenceMs": 296.199951171875,
+          "processingMs": {
+            "count": 44,
+            "mean": 301.32954545454544,
+            "p25": 294.10015869140625,
+            "p50": 298.0499267578125,
+            "p75": 312.69989013671875,
+            "p90": 322.35,
+            "p95": 324.04501953125,
+            "p99": 325.35699951171875,
+            "p99_5": 325.3785729980469,
+            "max": 325.400146484375
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.018171830610795456,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0.099853515625,
+            "p95": 0.10006103515625,
+            "p99": 0.10009765625,
+            "p99_5": 0.10009765625,
+            "max": 0.10009765625
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26710.400146484375,
+            "realtimeFactor": 0.9883790529238765,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10006103515625,
+              "max": 0.10009765625
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 309.5864146839489,
+            "p25": 301.10009765625,
+            "p50": 308.0999755859375,
+            "p75": 316.57501220703125,
+            "p90": 332.23996582031253,
+            "p95": 335.5101318359375,
+            "p99": 338.965146484375,
+            "p99_5": 339.93264648437497,
+            "max": 340.900146484375
+          },
+          "historical480MsDiagnostic": true
+        }
+      ],
+      "runtimeSustainable": true,
+      "acousticDiagnostics": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "physicalOnsets": 211,
+          "predictedOnsets": 204,
+          "matched50ms": 202,
+          "f1": 0.9734939759036144,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "physicalOnsets": 36,
+          "predictedOnsets": 36,
+          "matched50ms": 36,
+          "f1": 1,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "physicalOnsets": 293,
+          "predictedOnsets": 290,
+          "matched50ms": 289,
+          "f1": 0.9914236706689536,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "physicalOnsets": 137,
+          "predictedOnsets": 131,
+          "matched50ms": 131,
+          "f1": 0.9776119402985075,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "physicalOnsets": 183,
+          "predictedOnsets": 173,
+          "matched50ms": 173,
+          "f1": 0.9719101123595506,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        }
+      ],
+      "resampler": "LINEAR",
+      "ownedMs": 600,
+      "futureMs": 220,
+      "metricsPath": "backend\\data\\work\\xc2_robust_product_baseline_v1\\metrics\\stage_a\\LINEAR_A_600_220.json",
+      "metricsSha256": "372c013b800f0753e8aef1b414006a19e7ec06146ec5f3f0bbceccc643446bfb"
+    },
+    {
+      "id": "LINEAR_B_600_220",
+      "decoder": "B",
+      "status": "PRODUCT_VERDICT_EVALUATION_COMPLETE",
+      "counts": {
+        "targets": 303,
+        "agree": 284,
+        "correctTP": 139,
+        "correctFP": 0,
+        "correctFN": 9,
+        "missing": 40,
+        "missingDetected": 40,
+        "missingFalseMatched": 0,
+        "wrong": 40,
+        "wrongDetected": 37,
+        "wrongFalseCorrect": 0,
+        "incomplete": 35,
+        "incompleteDetected": 35,
+        "incompleteFalseComplete": 0,
+        "completeChord": 35,
+        "exactChord": 33,
+        "extrasTP": 33,
+        "extrasPredicted": 341,
+        "extrasTruth": 40,
+        "expectedAttackTP": 49194,
+        "expectedAttackTruth": 50908
+      },
+      "rates": {
+        "overallVerdictAgreement": 0.9372937293729373,
+        "correctPrecision": 1,
+        "correctRecall": 0.9391891891891891,
+        "correctMissingRate": 1,
+        "falseMatchOnGroundTruthMissing": 0,
+        "wrongNoteDetection": 0.925,
+        "wrongNoteFalseCorrect": 0,
+        "incompleteChordDetection": 1,
+        "falseCompleteChordAcceptance": 0,
+        "chordExactCompleteness": 0.9428571428571428,
+        "extraPrecision": 0.0967741935483871,
+        "extraRecall": 0.825,
+        "expectedStrikeRecall": 0.9663314213876012
+      },
+      "familyCoverage": {
+        "CORRECT_SINGLE": 40,
+        "CORRECT_CHORD": 35,
+        "MISSING_SINGLE": 40,
+        "WRONG_SEMITONE": 40,
+        "INCOMPLETE_CHORD": 35,
+        "EXTRA_NOTE": 40,
+        "SAME_PITCH_RETRIGGER": 19,
+        "SUSTAINED_NO_RETRIGGER": 35
+      },
+      "perClip": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "counts": {
+            "targets": 70,
+            "agree": 60,
+            "correctTP": 35,
+            "correctFP": 0,
+            "correctFN": 3,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 6,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 7,
+            "extrasTP": 3,
+            "extrasPredicted": 189,
+            "extrasTruth": 8,
+            "expectedAttackTP": 12512,
+            "expectedAttackTruth": 13066
+          }
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "counts": {
+            "targets": 46,
+            "agree": 46,
+            "correctTP": 19,
+            "correctFP": 0,
+            "correctFN": 0,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 3,
+            "incompleteDetected": 3,
+            "incompleteFalseComplete": 0,
+            "completeChord": 3,
+            "exactChord": 3,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 1640,
+            "expectedAttackTruth": 1640
+          }
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "counts": {
+            "targets": 69,
+            "agree": 68,
+            "correctTP": 36,
+            "correctFP": 0,
+            "correctFN": 1,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 8,
+            "extrasTP": 8,
+            "extrasPredicted": 130,
+            "extrasTruth": 8,
+            "expectedAttackTP": 17613,
+            "expectedAttackTruth": 17857
+          }
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "counts": {
+            "targets": 60,
+            "agree": 57,
+            "correctTP": 25,
+            "correctFP": 0,
+            "correctFN": 3,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 7,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 7582,
+            "expectedAttackTruth": 7930
+          }
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "counts": {
+            "targets": 58,
+            "agree": 53,
+            "correctTP": 24,
+            "correctFP": 0,
+            "correctFN": 2,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 7,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 8,
+            "extrasTP": 6,
+            "extrasPredicted": 6,
+            "extrasTruth": 8,
+            "expectedAttackTP": 9847,
+            "expectedAttackTruth": 10415
+          }
+        }
+      ],
+      "fiveVerdictLatency": {
+        "CORRECT": {
+          "ms": {
+            "count": 139,
+            "mean": 1277.5108440591293,
+            "p25": 1018.6225179036464,
+            "p50": 1162.222981770814,
+            "p75": 1363.343180338561,
+            "p90": 1841.2882649739565,
+            "p95": 2238.729085286439,
+            "p99": 2651.5042822265627,
+            "p99_5": 2671.020751953125,
+            "max": 2671.020751953125
+          },
+          "beats": {
+            "60": {
+              "p50": 1.1622229817708138,
+              "p95": 2.238729085286439,
+              "p99": 2.651504282226563,
+              "max": 2.671020751953125
+            },
+            "90": {
+              "p50": 1.743334472656221,
+              "p95": 3.3580936279296583,
+              "p99": 3.977256423339844,
+              "max": 4.006531127929687
+            },
+            "120": {
+              "p50": 2.3244459635416277,
+              "p95": 4.477458170572878,
+              "p99": 5.303008564453126,
+              "max": 5.34204150390625
+            },
+            "160": {
+              "p50": 3.0992612847221706,
+              "p95": 5.969944227430504,
+              "p99": 7.070678085937501,
+              "max": 7.122722005208334
+            }
+          }
+        },
+        "MISSING": {
+          "ms": {
+            "count": 40,
+            "mean": 7303.528564453125,
+            "p25": 1935.920817057311,
+            "p50": 3010.420003255218,
+            "p75": 4032.6014404296584,
+            "p90": 26354.285807291668,
+            "p95": 26492.202473958336,
+            "p99": 26688.327473958332,
+            "p99_5": 26714.327473958332,
+            "max": 26740.327473958332
+          },
+          "beats": {
+            "60": {
+              "p50": 3.010420003255218,
+              "p95": 26.492202473958336,
+              "p99": 26.688327473958335,
+              "max": 26.740327473958335
+            },
+            "90": {
+              "p50": 4.515630004882827,
+              "p95": 39.7383037109375,
+              "p99": 40.0324912109375,
+              "max": 40.1104912109375
+            },
+            "120": {
+              "p50": 6.020840006510436,
+              "p95": 52.98440494791667,
+              "p99": 53.37665494791667,
+              "max": 53.48065494791667
+            },
+            "160": {
+              "p50": 8.027786675347247,
+              "p95": 70.6458732638889,
+              "p99": 71.16887326388888,
+              "max": 71.30753993055555
+            }
+          }
+        },
+        "WRONG": {
+          "ms": {
+            "count": 37,
+            "mean": 7647.5127546980575,
+            "p25": 1942.170817057311,
+            "p50": 2718.937418619782,
+            "p75": 4280.395751953125,
+            "p90": 26389.910807291668,
+            "p95": 26510.327473958332,
+            "p99": 26692.327473958332,
+            "p99_5": 26716.327473958332,
+            "max": 26740.327473958332
+          },
+          "beats": {
+            "60": {
+              "p50": 2.718937418619782,
+              "p95": 26.510327473958334,
+              "p99": 26.692327473958333,
+              "max": 26.740327473958335
+            },
+            "90": {
+              "p50": 4.078406127929673,
+              "p95": 39.7654912109375,
+              "p99": 40.0384912109375,
+              "max": 40.1104912109375
+            },
+            "120": {
+              "p50": 5.437874837239564,
+              "p95": 53.02065494791667,
+              "p99": 53.384654947916665,
+              "max": 53.48065494791667
+            },
+            "160": {
+              "p50": 7.250499782986085,
+              "p95": 70.69420659722222,
+              "p99": 71.17953993055555,
+              "max": 71.30753993055555
+            }
+          }
+        },
+        "INCOMPLETE_CHORD": {
+          "ms": {
+            "count": 35,
+            "mean": 7730.416201636904,
+            "p25": 1865.44995117189,
+            "p50": 3214.770751953125,
+            "p75": 4691.881388346359,
+            "p90": 24739.702473958332,
+            "p95": 25809.389973958332,
+            "p99": 26605.035807291664,
+            "p99_5": 26672.681640625,
+            "max": 26740.327473958332
+          },
+          "beats": {
+            "60": {
+              "p50": 3.214770751953125,
+              "p95": 25.809389973958332,
+              "p99": 26.605035807291664,
+              "max": 26.740327473958335
+            },
+            "90": {
+              "p50": 4.822156127929688,
+              "p95": 38.7140849609375,
+              "p99": 39.9075537109375,
+              "max": 40.1104912109375
+            },
+            "120": {
+              "p50": 6.42954150390625,
+              "p95": 51.618779947916664,
+              "p99": 53.21007161458333,
+              "max": 53.48065494791667
+            },
+            "160": {
+              "p50": 8.572722005208334,
+              "p95": 68.82503993055555,
+              "p99": 70.94676215277777,
+              "max": 71.30753993055555
+            }
+          }
+        },
+        "EXTRA": {
+          "ms": {
+            "count": 33,
+            "mean": 1368.2422392874064,
+            "p25": 1085.1460774739971,
+            "p50": 1229.069010416686,
+            "p75": 1470.019368489564,
+            "p90": 2244.628092447917,
+            "p95": 2491.5030924479165,
+            "p99": 2650.958434244785,
+            "p99_5": 2684.9479264322836,
+            "max": 2718.937418619782
+          },
+          "beats": {
+            "60": {
+              "p50": 1.2290690104166861,
+              "p95": 2.4915030924479167,
+              "p99": 2.650958434244785,
+              "max": 2.718937418619782
+            },
+            "90": {
+              "p50": 1.843603515625029,
+              "p95": 3.737254638671875,
+              "p99": 3.976437651367178,
+              "max": 4.078406127929673
+            },
+            "120": {
+              "p50": 2.4581380208333723,
+              "p95": 4.983006184895833,
+              "p99": 5.30191686848957,
+              "max": 5.437874837239564
+            },
+            "160": {
+              "p50": 3.2775173611111628,
+              "p95": 6.644008246527777,
+              "p99": 7.069222491319427,
+              "max": 7.250499782986085
+            }
+          }
+        }
+      },
+      "allFinalizedVerdictLatencyIncludingBackground": {
+        "CORRECT": {
+          "ms": {
+            "count": 32484,
+            "mean": 1160.3859575679455,
+            "p25": 954.6126302083339,
+            "p50": 1143.521077473959,
+            "p75": 1297.742594401032,
+            "p90": 1427.510416666666,
+            "p95": 1663.96875,
+            "p99": 2238.729085286439,
+            "p99_5": 2409.541259765625,
+            "max": 3214.770751953125
+          },
+          "beats": {
+            "60": {
+              "p50": 1.1435210774739588,
+              "p95": 1.66396875,
+              "p99": 2.238729085286439,
+              "max": 3.214770751953125
+            },
+            "90": {
+              "p50": 1.7152816162109386,
+              "p95": 2.495953125,
+              "p99": 3.3580936279296583,
+              "max": 4.822156127929688
+            },
+            "120": {
+              "p50": 2.2870421549479176,
+              "p95": 3.3279375,
+              "p99": 4.477458170572878,
+              "max": 6.42954150390625
+            },
+            "160": {
+              "p50": 3.0493895399305573,
+              "p95": 4.43725,
+              "p99": 5.969944227430504,
+              "max": 8.572722005208334
+            }
+          }
+        },
+        "MISSING": {
+          "ms": {
+            "count": 635,
+            "mean": 3433.885341694352,
+            "p25": 1157.64794921875,
+            "p50": 2008.6213378906232,
+            "p75": 3192.895751953125,
+            "p90": 9419.494140625,
+            "p95": 9419.494140625,
+            "p99": 26154.95247395833,
+            "p99_5": 26440.97330729167,
+            "max": 26740.327473958332
+          },
+          "beats": {
+            "60": {
+              "p50": 2.0086213378906232,
+              "p95": 9.419494140625,
+              "p99": 26.15495247395833,
+              "max": 26.740327473958335
+            },
+            "90": {
+              "p50": 3.0129320068359347,
+              "p95": 14.1292412109375,
+              "p99": 39.23242871093749,
+              "max": 40.1104912109375
+            },
+            "120": {
+              "p50": 4.0172426757812465,
+              "p95": 18.83898828125,
+              "p99": 52.30990494791666,
+              "max": 53.48065494791667
+            },
+            "160": {
+              "p50": 5.356323567708328,
+              "p95": 25.118651041666666,
+              "p99": 69.74653993055554,
+              "max": 71.30753993055555
+            }
+          }
+        },
+        "WRONG": {
+          "ms": {
+            "count": 41,
+            "mean": 7179.107642197027,
+            "p25": 1942.170817057311,
+            "p50": 3000.003336588561,
+            "p75": 3950.003336588503,
+            "p90": 26342.410807291668,
+            "p95": 26486.160807291668,
+            "p99": 26686.994140625,
+            "p99_5": 26713.660807291664,
+            "max": 26740.327473958332
+          },
+          "beats": {
+            "60": {
+              "p50": 3.000003336588561,
+              "p95": 26.486160807291668,
+              "p99": 26.686994140625,
+              "max": 26.740327473958335
+            },
+            "90": {
+              "p50": 4.5000050048828415,
+              "p95": 39.7292412109375,
+              "p99": 40.0304912109375,
+              "max": 40.1104912109375
+            },
+            "120": {
+              "p50": 6.000006673177122,
+              "p95": 52.972321614583336,
+              "p99": 53.37398828125,
+              "max": 53.48065494791667
+            },
+            "160": {
+              "p50": 8.000008897569495,
+              "p95": 70.62976215277779,
+              "p99": 71.16531770833333,
+              "max": 71.30753993055555
+            }
+          }
+        },
+        "INCOMPLETE_CHORD": {
+          "ms": {
+            "count": 1151,
+            "mean": 3748.6960546083183,
+            "p25": 1107.116536458343,
+            "p50": 1735.2862141927144,
+            "p75": 3881.437418619782,
+            "p90": 8412.202473958332,
+            "p95": 19770.535807291664,
+            "p99": 19770.535807291664,
+            "p99_5": 23641.108723958336,
+            "max": 26740.327473958332
+          },
+          "beats": {
+            "60": {
+              "p50": 1.7352862141927143,
+              "p95": 19.77053580729166,
+              "p99": 19.77053580729166,
+              "max": 26.740327473958335
+            },
+            "90": {
+              "p50": 2.602929321289072,
+              "p95": 29.655803710937494,
+              "p99": 29.655803710937494,
+              "max": 40.1104912109375
+            },
+            "120": {
+              "p50": 3.4705724283854287,
+              "p95": 39.54107161458332,
+              "p99": 39.54107161458332,
+              "max": 53.48065494791667
+            },
+            "160": {
+              "p50": 4.627429904513905,
+              "p95": 52.721428819444434,
+              "p99": 52.721428819444434,
+              "max": 71.30753993055555
+            }
+          }
+        },
+        "EXTRA": {
+          "ms": {
+            "count": 341,
+            "mean": 1185.7936384064285,
+            "p25": 831.2847800850868,
+            "p50": 1140.9813271164894,
+            "p75": 1280.4131371974945,
+            "p90": 1760.1933608055115,
+            "p95": 1760.1933608055115,
+            "p99": 2239.887119505555,
+            "p99_5": 2493.9481392800813,
+            "max": 2711.6110793352127
+          },
+          "beats": {
+            "60": {
+              "p50": 1.1409813271164895,
+              "p95": 1.7601933608055114,
+              "p99": 2.2398871195055547,
+              "max": 2.7116110793352126
+            },
+            "90": {
+              "p50": 1.7114719906747342,
+              "p95": 2.6402900412082673,
+              "p99": 3.3598306792583323,
+              "max": 4.067416619002819
+            },
+            "120": {
+              "p50": 2.281962654232979,
+              "p95": 3.5203867216110227,
+              "p99": 4.4797742390111095,
+              "max": 5.423222158670425
+            },
+            "160": {
+              "p50": 3.0426168723106386,
+              "p95": 4.693848962148031,
+              "p99": 5.973032318681479,
+              "max": 7.230962878227234
+            }
+          }
+        }
+      },
+      "latencyDefinition": "Targeted correctly-classified verdicts; missing/incorrect classifications counted in correctness, not silently assigned zero latency. All background/incorrect verdict latency is also retained.",
+      "runtime": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "modelLoadMs": 675.900146484375,
+          "firstInferenceMs": 317.39990234375,
+          "processingMs": {
+            "count": 44,
+            "mean": 324.63181374289775,
+            "p25": 310,
+            "p50": 315.949951171875,
+            "p75": 322.07501220703125,
+            "p90": 330.9700439453125,
+            "p95": 344.3198974609375,
+            "p99": 502.28294433593754,
+            "p99_5": 526.3414233398433,
+            "max": 550.39990234375
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.018177379261363636,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0.099853515625,
+            "p95": 0.10009765625,
+            "p99": 0.10009765625,
+            "p99_5": 0.10009765625,
+            "max": 0.10009765625
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26722.300048828125,
+            "realtimeFactor": 0.9879389106387099,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.10009765625
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 328.6113170276989,
+            "p25": 315.5499267578125,
+            "p50": 319.64990234375,
+            "p75": 326.2249755859375,
+            "p90": 334.0799560546875,
+            "p95": 345.9098754882813,
+            "p99": 505.4109301757813,
+            "p99_5": 529.5554406738278,
+            "max": 553.699951171875
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "modelLoadMs": 655.300048828125,
+          "firstInferenceMs": 300.599853515625,
+          "processingMs": {
+            "count": 44,
+            "mean": 304.4818004261364,
+            "p25": 293.0499267578125,
+            "p50": 306,
+            "p75": 317.449951171875,
+            "p90": 323.9600341796875,
+            "p95": 328.5851318359375,
+            "p99": 333.72204833984375,
+            "p99_5": 334.71112182617185,
+            "max": 335.7001953125
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02045232599431818,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0.099853515625,
+            "p95": 0.10009765625,
+            "p99": 0.1571533203125,
+            "p99_5": 0.17867431640624964,
+            "max": 0.2001953125
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0.014264787946428572,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26697,
+            "realtimeFactor": 0.9888751545117429,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0.099853515625,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.2001953125
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 310.5771595348011,
+            "p25": 297.474853515625,
+            "p50": 309.89990234375,
+            "p75": 320.14990234375,
+            "p90": 332.4698486328125,
+            "p95": 339.925,
+            "p99": 343.4228955078125,
+            "p99_5": 344.2613745117187,
+            "max": 345.099853515625
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "modelLoadMs": 716.800048828125,
+          "firstInferenceMs": 303.800048828125,
+          "processingMs": {
+            "count": 44,
+            "mean": 299.984092018821,
+            "p25": 290.1749267578125,
+            "p50": 300,
+            "p75": 306.57501220703125,
+            "p90": 311.4800537109375,
+            "p95": 318.96995849609374,
+            "p99": 336.35813232421873,
+            "p99_5": 340.52916381835934,
+            "max": 344.7001953125
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.0181884765625,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26699.599853515625,
+            "realtimeFactor": 0.9887788635350587,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 307.8431008078835,
+            "p25": 298.64996337890625,
+            "p50": 307.39990234375,
+            "p75": 317.09991455078125,
+            "p90": 321.829931640625,
+            "p95": 324.35987548828126,
+            "p99": 345.69597900390625,
+            "p99_5": 350.59798950195307,
+            "max": 355.5
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "modelLoadMs": 655.199951171875,
+          "firstInferenceMs": 275.89990234375,
+          "processingMs": {
+            "count": 44,
+            "mean": 297.31815962357956,
+            "p25": 289.1749267578125,
+            "p50": 296.1500244140625,
+            "p75": 303.175048828125,
+            "p90": 309.700048828125,
+            "p95": 315.874951171875,
+            "p99": 323.7909790039063,
+            "p99_5": 325.1454895019531,
+            "max": 326.5
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02728271484375,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.099853515625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.10009765625,
+            "p99_5": 0.10009765625,
+            "max": 0.10009765625
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26695.199951171875,
+            "realtimeFactor": 0.9889418340483748,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.10009765625
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 302.06363192471593,
+            "p25": 294.24993896484375,
+            "p50": 300.75,
+            "p75": 308.925048828125,
+            "p90": 315.9300048828125,
+            "p95": 320.21502685546875,
+            "p99": 330.6770068359375,
+            "p99_5": 331.98852783203125,
+            "max": 333.300048828125
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "modelLoadMs": 647.5,
+          "firstInferenceMs": 296.199951171875,
+          "processingMs": {
+            "count": 44,
+            "mean": 301.32954545454544,
+            "p25": 294.10015869140625,
+            "p50": 298.0499267578125,
+            "p75": 312.69989013671875,
+            "p90": 322.35,
+            "p95": 324.04501953125,
+            "p99": 325.35699951171875,
+            "p99_5": 325.3785729980469,
+            "max": 325.400146484375
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.018171830610795456,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0.099853515625,
+            "p95": 0.10006103515625,
+            "p99": 0.10009765625,
+            "p99_5": 0.10009765625,
+            "max": 0.10009765625
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26710.400146484375,
+            "realtimeFactor": 0.9883790529238765,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10006103515625,
+              "max": 0.10009765625
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 309.5864146839489,
+            "p25": 301.10009765625,
+            "p50": 308.0999755859375,
+            "p75": 316.57501220703125,
+            "p90": 332.23996582031253,
+            "p95": 335.5101318359375,
+            "p99": 338.965146484375,
+            "p99_5": 339.93264648437497,
+            "max": 340.900146484375
+          },
+          "historical480MsDiagnostic": true
+        }
+      ],
+      "runtimeSustainable": true,
+      "acousticDiagnostics": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "physicalOnsets": 211,
+          "predictedOnsets": 205,
+          "matched50ms": 202,
+          "f1": 0.9711538461538461,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "physicalOnsets": 36,
+          "predictedOnsets": 36,
+          "matched50ms": 36,
+          "f1": 1,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "physicalOnsets": 293,
+          "predictedOnsets": 291,
+          "matched50ms": 289,
+          "f1": 0.9897260273972602,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "physicalOnsets": 137,
+          "predictedOnsets": 131,
+          "matched50ms": 131,
+          "f1": 0.9776119402985075,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "physicalOnsets": 183,
+          "predictedOnsets": 173,
+          "matched50ms": 173,
+          "f1": 0.9719101123595506,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        }
+      ],
+      "resampler": "LINEAR",
+      "ownedMs": 600,
+      "futureMs": 220,
+      "metricsPath": "backend\\data\\work\\xc2_robust_product_baseline_v1\\metrics\\stage_a\\LINEAR_B_600_220.json",
+      "metricsSha256": "b76024b3ec5d453fe2acce77e1d54f27c0e8ee161912225d4c79abc29c60c8bc"
+    },
+    {
+      "id": "LINEAR_C_600_220",
+      "decoder": "C",
+      "status": "PRODUCT_VERDICT_EVALUATION_COMPLETE",
+      "counts": {
+        "targets": 303,
+        "agree": 287,
+        "correctTP": 139,
+        "correctFP": 0,
+        "correctFN": 9,
+        "missing": 40,
+        "missingDetected": 40,
+        "missingFalseMatched": 0,
+        "wrong": 40,
+        "wrongDetected": 38,
+        "wrongFalseCorrect": 0,
+        "incomplete": 35,
+        "incompleteDetected": 35,
+        "incompleteFalseComplete": 0,
+        "completeChord": 35,
+        "exactChord": 33,
+        "extrasTP": 35,
+        "extrasPredicted": 220,
+        "extrasTruth": 40,
+        "expectedAttackTP": 49192,
+        "expectedAttackTruth": 50908
+      },
+      "rates": {
+        "overallVerdictAgreement": 0.9471947194719472,
+        "correctPrecision": 1,
+        "correctRecall": 0.9391891891891891,
+        "correctMissingRate": 1,
+        "falseMatchOnGroundTruthMissing": 0,
+        "wrongNoteDetection": 0.95,
+        "wrongNoteFalseCorrect": 0,
+        "incompleteChordDetection": 1,
+        "falseCompleteChordAcceptance": 0,
+        "chordExactCompleteness": 0.9428571428571428,
+        "extraPrecision": 0.1590909090909091,
+        "extraRecall": 0.875,
+        "expectedStrikeRecall": 0.9662921348314607
+      },
+      "familyCoverage": {
+        "CORRECT_SINGLE": 40,
+        "CORRECT_CHORD": 35,
+        "MISSING_SINGLE": 40,
+        "WRONG_SEMITONE": 40,
+        "INCOMPLETE_CHORD": 35,
+        "EXTRA_NOTE": 40,
+        "SAME_PITCH_RETRIGGER": 19,
+        "SUSTAINED_NO_RETRIGGER": 35
+      },
+      "perClip": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "counts": {
+            "targets": 70,
+            "agree": 59,
+            "correctTP": 34,
+            "correctFP": 0,
+            "correctFN": 4,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 6,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 7,
+            "extrasTP": 3,
+            "extrasPredicted": 127,
+            "extrasTruth": 8,
+            "expectedAttackTP": 12512,
+            "expectedAttackTruth": 13066
+          }
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "counts": {
+            "targets": 46,
+            "agree": 46,
+            "correctTP": 19,
+            "correctFP": 0,
+            "correctFN": 0,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 3,
+            "incompleteDetected": 3,
+            "incompleteFalseComplete": 0,
+            "completeChord": 3,
+            "exactChord": 3,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 1640,
+            "expectedAttackTruth": 1640
+          }
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "counts": {
+            "targets": 69,
+            "agree": 68,
+            "correctTP": 36,
+            "correctFP": 0,
+            "correctFN": 1,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 8,
+            "extrasTP": 8,
+            "extrasPredicted": 69,
+            "extrasTruth": 8,
+            "expectedAttackTP": 17613,
+            "expectedAttackTruth": 17857
+          }
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "counts": {
+            "targets": 60,
+            "agree": 57,
+            "correctTP": 25,
+            "correctFP": 0,
+            "correctFN": 3,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 7,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 7582,
+            "expectedAttackTruth": 7930
+          }
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "counts": {
+            "targets": 58,
+            "agree": 57,
+            "correctTP": 25,
+            "correctFP": 0,
+            "correctFN": 1,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 8,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 9845,
+            "expectedAttackTruth": 10415
+          }
+        }
+      ],
+      "fiveVerdictLatency": {
+        "CORRECT": {
+          "ms": {
+            "count": 139,
+            "mean": 1277.998514079363,
+            "p25": 1019.0669759114589,
+            "p50": 1162.558186848939,
+            "p75": 1363.641276041686,
+            "p90": 1841.7895345052066,
+            "p95": 2239.085530598939,
+            "p99": 2651.9831884765626,
+            "p99_5": 2671.377197265625,
+            "max": 2671.377197265625
+          },
+          "beats": {
+            "60": {
+              "p50": 1.162558186848939,
+              "p95": 2.239085530598939,
+              "p99": 2.651983188476563,
+              "max": 2.671377197265625
+            },
+            "90": {
+              "p50": 1.7438372802734083,
+              "p95": 3.3586282958984084,
+              "p99": 3.9779747827148437,
+              "max": 4.007065795898438
+            },
+            "120": {
+              "p50": 2.325116373697878,
+              "p95": 4.478171061197878,
+              "p99": 5.303966376953126,
+              "max": 5.34275439453125
+            },
+            "160": {
+              "p50": 3.100155164930504,
+              "p95": 5.970894748263837,
+              "p99": 7.071955169270834,
+              "max": 7.123672526041666
+            }
+          }
+        },
+        "MISSING": {
+          "ms": {
+            "count": 40,
+            "mean": 7303.949865722656,
+            "p25": 1936.672037760436,
+            "p50": 3010.801106770843,
+            "p75": 4032.976379394502,
+            "p90": 26354.510904947918,
+            "p95": 26492.427571614586,
+            "p99": 26688.552571614582,
+            "p99_5": 26714.552571614582,
+            "max": 26740.552571614582
+          },
+          "beats": {
+            "60": {
+              "p50": 3.010801106770843,
+              "p95": 26.492427571614588,
+              "p99": 26.688552571614583,
+              "max": 26.740552571614582
+            },
+            "90": {
+              "p50": 4.5162016601562645,
+              "p95": 39.738641357421876,
+              "p99": 40.032828857421876,
+              "max": 40.11082885742187
+            },
+            "120": {
+              "p50": 6.021602213541686,
+              "p95": 52.984855143229176,
+              "p99": 53.377105143229166,
+              "max": 53.481105143229165
+            },
+            "160": {
+              "p50": 8.028802951388915,
+              "p95": 70.64647352430556,
+              "p99": 71.16947352430554,
+              "max": 71.30814019097221
+            }
+          }
+        },
+        "WRONG": {
+          "ms": {
+            "count": 38,
+            "mean": 7476.113778097589,
+            "p25": 1924.172037760436,
+            "p50": 2706.193318684891,
+            "p75": 4198.160257975251,
+            "p90": 26378.260904947918,
+            "p95": 26504.510904947918,
+            "p99": 26691.21923828125,
+            "p99_5": 26715.885904947914,
+            "max": 26740.552571614582
+          },
+          "beats": {
+            "60": {
+              "p50": 2.7061933186848908,
+              "p95": 26.504510904947917,
+              "p99": 26.69121923828125,
+              "max": 26.740552571614582
+            },
+            "90": {
+              "p50": 4.059289978027336,
+              "p95": 39.756766357421874,
+              "p99": 40.036828857421874,
+              "max": 40.11082885742187
+            },
+            "120": {
+              "p50": 5.4123866373697815,
+              "p95": 53.009021809895835,
+              "p99": 53.3824384765625,
+              "max": 53.481105143229165
+            },
+            "160": {
+              "p50": 7.216515516493042,
+              "p95": 70.67869574652778,
+              "p99": 71.17658463541666,
+              "max": 71.30814019097221
+            }
+          }
+        },
+        "INCOMPLETE_CHORD": {
+          "ms": {
+            "count": 35,
+            "mean": 7730.84863048735,
+            "p25": 1866.0037841797025,
+            "p50": 3215.127197265625,
+            "p75": 4692.444132486984,
+            "p90": 24739.927571614582,
+            "p95": 25809.615071614582,
+            "p99": 26605.260904947914,
+            "p99_5": 26672.90673828125,
+            "max": 26740.552571614582
+          },
+          "beats": {
+            "60": {
+              "p50": 3.215127197265625,
+              "p95": 25.809615071614584,
+              "p99": 26.60526090494791,
+              "max": 26.740552571614582
+            },
+            "90": {
+              "p50": 4.8226907958984375,
+              "p95": 38.714422607421874,
+              "p99": 39.907891357421875,
+              "max": 40.11082885742187
+            },
+            "120": {
+              "p50": 6.43025439453125,
+              "p95": 51.61923014322917,
+              "p99": 53.21052180989582,
+              "max": 53.481105143229165
+            },
+            "160": {
+              "p50": 8.573672526041667,
+              "p95": 68.82564019097222,
+              "p99": 70.94736241319444,
+              "max": 71.30814019097221
+            }
+          }
+        },
+        "EXTRA": {
+          "ms": {
+            "count": 35,
+            "mean": 1354.1512997581858,
+            "p25": 1089.6144612630305,
+            "p50": 1198.654459635417,
+            "p75": 1466.9595133463445,
+            "p90": 2240.5999348958335,
+            "p95": 2489.5582682291665,
+            "p99": 2647.133761393222,
+            "p99_5": 2683.213812662752,
+            "max": 2719.293863932282
+          },
+          "beats": {
+            "60": {
+              "p50": 1.198654459635417,
+              "p95": 2.4895582682291666,
+              "p99": 2.647133761393222,
+              "max": 2.719293863932282
+            },
+            "90": {
+              "p50": 1.7979816894531255,
+              "p95": 3.73433740234375,
+              "p99": 3.9707006420898328,
+              "max": 4.078940795898423
+            },
+            "120": {
+              "p50": 2.397308919270834,
+              "p95": 4.979116536458333,
+              "p99": 5.294267522786444,
+              "max": 5.438587727864564
+            },
+            "160": {
+              "p50": 3.196411892361112,
+              "p95": 6.63882204861111,
+              "p99": 7.059023363715259,
+              "max": 7.251450303819419
+            }
+          }
+        }
+      },
+      "allFinalizedVerdictLatencyIncludingBackground": {
+        "CORRECT": {
+          "ms": {
+            "count": 32482,
+            "mean": 1160.839026528033,
+            "p25": 955.1084798177089,
+            "p50": 1143.011962890625,
+            "p75": 1297.7130533854179,
+            "p90": 1428.148600260416,
+            "p95": 1664.60693359375,
+            "p99": 2239.085530598939,
+            "p99_5": 2410.168701171875,
+            "max": 3215.127197265625
+          },
+          "beats": {
+            "60": {
+              "p50": 1.143011962890625,
+              "p95": 1.66460693359375,
+              "p99": 2.239085530598939,
+              "max": 3.215127197265625
+            },
+            "90": {
+              "p50": 1.7145179443359375,
+              "p95": 2.496910400390625,
+              "p99": 3.3586282958984084,
+              "max": 4.8226907958984375
+            },
+            "120": {
+              "p50": 2.28602392578125,
+              "p95": 3.3292138671875,
+              "p99": 4.478171061197878,
+              "max": 6.43025439453125
+            },
+            "160": {
+              "p50": 3.0480319010416665,
+              "p95": 4.438951822916667,
+              "p99": 5.970894748263837,
+              "max": 8.573672526041667
+            }
+          }
+        },
+        "MISSING": {
+          "ms": {
+            "count": 637,
+            "mean": 3515.167839972524,
+            "p25": 1233.453125,
+            "p50": 2104.677246093779,
+            "p75": 3193.252197265625,
+            "p90": 9419.71923828125,
+            "p95": 9419.71923828125,
+            "p99": 26152.177571614582,
+            "p99_5": 26440.010904947925,
+            "max": 26740.552571614582
+          },
+          "beats": {
+            "60": {
+              "p50": 2.1046772460937793,
+              "p95": 9.41971923828125,
+              "p99": 26.152177571614583,
+              "max": 26.740552571614582
+            },
+            "90": {
+              "p50": 3.1570158691406687,
+              "p95": 14.129578857421874,
+              "p99": 39.22826635742187,
+              "max": 40.11082885742187
+            },
+            "120": {
+              "p50": 4.2093544921875585,
+              "p95": 18.8394384765625,
+              "p99": 52.30435514322917,
+              "max": 53.481105143229165
+            },
+            "160": {
+              "p50": 5.612472656250078,
+              "p95": 25.119251302083335,
+              "p99": 69.73914019097222,
+              "max": 71.30814019097221
+            }
+          }
+        },
+        "WRONG": {
+          "ms": {
+            "count": 41,
+            "mean": 7179.527361613948,
+            "p25": 1942.922037760436,
+            "p50": 3000.384440104186,
+            "p75": 3950.384440104128,
+            "p90": 26342.635904947918,
+            "p95": 26486.385904947918,
+            "p99": 26687.21923828125,
+            "p99_5": 26713.885904947914,
+            "max": 26740.552571614582
+          },
+          "beats": {
+            "60": {
+              "p50": 3.000384440104186,
+              "p95": 26.486385904947916,
+              "p99": 26.68721923828125,
+              "max": 26.740552571614582
+            },
+            "90": {
+              "p50": 4.500576660156279,
+              "p95": 39.72957885742188,
+              "p99": 40.030828857421874,
+              "max": 40.11082885742187
+            },
+            "120": {
+              "p50": 6.000768880208372,
+              "p95": 52.97277180989583,
+              "p99": 53.3744384765625,
+              "max": 53.481105143229165
+            },
+            "160": {
+              "p50": 8.001025173611163,
+              "p95": 70.63036241319445,
+              "p99": 71.16591796875,
+              "max": 71.30814019097221
+            }
+          }
+        },
+        "INCOMPLETE_CHORD": {
+          "ms": {
+            "count": 1151,
+            "mean": 3728.812153975035,
+            "p25": 1107.440755208343,
+            "p50": 1545.359781901061,
+            "p75": 3881.793863932282,
+            "p90": 8412.427571614582,
+            "p95": 19770.760904947914,
+            "p99": 19770.760904947914,
+            "p99_5": 23641.333821614586,
+            "max": 26740.552571614582
+          },
+          "beats": {
+            "60": {
+              "p50": 1.5453597819010612,
+              "p95": 19.770760904947913,
+              "p99": 19.770760904947913,
+              "max": 26.740552571614582
+            },
+            "90": {
+              "p50": 2.3180396728515915,
+              "p95": 29.65614135742187,
+              "p99": 29.65614135742187,
+              "max": 40.11082885742187
+            },
+            "120": {
+              "p50": 3.0907195638021223,
+              "p95": 39.541521809895826,
+              "p99": 39.541521809895826,
+              "max": 53.481105143229165
+            },
+            "160": {
+              "p50": 4.12095941840283,
+              "p95": 52.7220290798611,
+              "p99": 52.7220290798611,
+              "max": 71.30814019097221
+            }
+          }
+        },
+        "EXTRA": {
+          "ms": {
+            "count": 220,
+            "mean": 1301.9200916637074,
+            "p25": 827.48681640625,
+            "p50": 1285.4423828125,
+            "p75": 1764.77685546875,
+            "p90": 1764.77685546875,
+            "p95": 1764.77685546875,
+            "p99": 2442.9166015625005,
+            "p99_5": 2506.6166015625,
+            "max": 2715.752197265625
+          },
+          "beats": {
+            "60": {
+              "p50": 1.2854423828125,
+              "p95": 1.76477685546875,
+              "p99": 2.4429166015625006,
+              "max": 2.715752197265625
+            },
+            "90": {
+              "p50": 1.92816357421875,
+              "p95": 2.647165283203125,
+              "p99": 3.664374902343751,
+              "max": 4.073628295898438
+            },
+            "120": {
+              "p50": 2.570884765625,
+              "p95": 3.5295537109375,
+              "p99": 4.885833203125001,
+              "max": 5.43150439453125
+            },
+            "160": {
+              "p50": 3.427846354166667,
+              "p95": 4.706071614583333,
+              "p99": 6.514444270833335,
+              "max": 7.242005859375
+            }
+          }
+        }
+      },
+      "latencyDefinition": "Targeted correctly-classified verdicts; missing/incorrect classifications counted in correctness, not silently assigned zero latency. All background/incorrect verdict latency is also retained.",
+      "runtime": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "modelLoadMs": 675.900146484375,
+          "firstInferenceMs": 317.39990234375,
+          "processingMs": {
+            "count": 44,
+            "mean": 324.63181374289775,
+            "p25": 310,
+            "p50": 315.949951171875,
+            "p75": 322.07501220703125,
+            "p90": 330.9700439453125,
+            "p95": 344.3198974609375,
+            "p99": 502.28294433593754,
+            "p99_5": 526.3414233398433,
+            "max": 550.39990234375
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.018177379261363636,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0.099853515625,
+            "p95": 0.10009765625,
+            "p99": 0.10009765625,
+            "p99_5": 0.10009765625,
+            "max": 0.10009765625
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26722.300048828125,
+            "realtimeFactor": 0.9879389106387099,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.10009765625
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 328.6113170276989,
+            "p25": 315.5499267578125,
+            "p50": 319.64990234375,
+            "p75": 326.2249755859375,
+            "p90": 334.0799560546875,
+            "p95": 345.9098754882813,
+            "p99": 505.4109301757813,
+            "p99_5": 529.5554406738278,
+            "max": 553.699951171875
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "modelLoadMs": 655.300048828125,
+          "firstInferenceMs": 300.599853515625,
+          "processingMs": {
+            "count": 44,
+            "mean": 304.4818004261364,
+            "p25": 293.0499267578125,
+            "p50": 306,
+            "p75": 317.449951171875,
+            "p90": 323.9600341796875,
+            "p95": 328.5851318359375,
+            "p99": 333.72204833984375,
+            "p99_5": 334.71112182617185,
+            "max": 335.7001953125
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02045232599431818,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0.099853515625,
+            "p95": 0.10009765625,
+            "p99": 0.1571533203125,
+            "p99_5": 0.17867431640624964,
+            "max": 0.2001953125
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0.014264787946428572,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26697,
+            "realtimeFactor": 0.9888751545117429,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0.099853515625,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.2001953125
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 310.5771595348011,
+            "p25": 297.474853515625,
+            "p50": 309.89990234375,
+            "p75": 320.14990234375,
+            "p90": 332.4698486328125,
+            "p95": 339.925,
+            "p99": 343.4228955078125,
+            "p99_5": 344.2613745117187,
+            "max": 345.099853515625
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "modelLoadMs": 716.800048828125,
+          "firstInferenceMs": 303.800048828125,
+          "processingMs": {
+            "count": 44,
+            "mean": 299.984092018821,
+            "p25": 290.1749267578125,
+            "p50": 300,
+            "p75": 306.57501220703125,
+            "p90": 311.4800537109375,
+            "p95": 318.96995849609374,
+            "p99": 336.35813232421873,
+            "p99_5": 340.52916381835934,
+            "max": 344.7001953125
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.0181884765625,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26699.599853515625,
+            "realtimeFactor": 0.9887788635350587,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 307.8431008078835,
+            "p25": 298.64996337890625,
+            "p50": 307.39990234375,
+            "p75": 317.09991455078125,
+            "p90": 321.829931640625,
+            "p95": 324.35987548828126,
+            "p99": 345.69597900390625,
+            "p99_5": 350.59798950195307,
+            "max": 355.5
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "modelLoadMs": 655.199951171875,
+          "firstInferenceMs": 275.89990234375,
+          "processingMs": {
+            "count": 44,
+            "mean": 297.31815962357956,
+            "p25": 289.1749267578125,
+            "p50": 296.1500244140625,
+            "p75": 303.175048828125,
+            "p90": 309.700048828125,
+            "p95": 315.874951171875,
+            "p99": 323.7909790039063,
+            "p99_5": 325.1454895019531,
+            "max": 326.5
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02728271484375,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.099853515625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.10009765625,
+            "p99_5": 0.10009765625,
+            "max": 0.10009765625
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26695.199951171875,
+            "realtimeFactor": 0.9889418340483748,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.10009765625
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 302.06363192471593,
+            "p25": 294.24993896484375,
+            "p50": 300.75,
+            "p75": 308.925048828125,
+            "p90": 315.9300048828125,
+            "p95": 320.21502685546875,
+            "p99": 330.6770068359375,
+            "p99_5": 331.98852783203125,
+            "max": 333.300048828125
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "modelLoadMs": 647.5,
+          "firstInferenceMs": 296.199951171875,
+          "processingMs": {
+            "count": 44,
+            "mean": 301.32954545454544,
+            "p25": 294.10015869140625,
+            "p50": 298.0499267578125,
+            "p75": 312.69989013671875,
+            "p90": 322.35,
+            "p95": 324.04501953125,
+            "p99": 325.35699951171875,
+            "p99_5": 325.3785729980469,
+            "max": 325.400146484375
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.018171830610795456,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0.099853515625,
+            "p95": 0.10006103515625,
+            "p99": 0.10009765625,
+            "p99_5": 0.10009765625,
+            "max": 0.10009765625
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26710.400146484375,
+            "realtimeFactor": 0.9883790529238765,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10006103515625,
+              "max": 0.10009765625
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 309.5864146839489,
+            "p25": 301.10009765625,
+            "p50": 308.0999755859375,
+            "p75": 316.57501220703125,
+            "p90": 332.23996582031253,
+            "p95": 335.5101318359375,
+            "p99": 338.965146484375,
+            "p99_5": 339.93264648437497,
+            "max": 340.900146484375
+          },
+          "historical480MsDiagnostic": true
+        }
+      ],
+      "runtimeSustainable": true,
+      "acousticDiagnostics": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "physicalOnsets": 211,
+          "predictedOnsets": 204,
+          "matched50ms": 202,
+          "f1": 0.9734939759036144,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "physicalOnsets": 36,
+          "predictedOnsets": 36,
+          "matched50ms": 36,
+          "f1": 1,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "physicalOnsets": 293,
+          "predictedOnsets": 290,
+          "matched50ms": 289,
+          "f1": 0.9914236706689536,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "physicalOnsets": 137,
+          "predictedOnsets": 131,
+          "matched50ms": 131,
+          "f1": 0.9776119402985075,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "physicalOnsets": 183,
+          "predictedOnsets": 173,
+          "matched50ms": 173,
+          "f1": 0.9719101123595506,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        }
+      ],
+      "resampler": "LINEAR",
+      "ownedMs": 600,
+      "futureMs": 220,
+      "metricsPath": "backend\\data\\work\\xc2_robust_product_baseline_v1\\metrics\\stage_a\\LINEAR_C_600_220.json",
+      "metricsSha256": "ebe66b795e63d8bfb4397944e8874a5be8a111cd51073dc9196d7afeb89d7435"
+    },
+    {
+      "id": "BAND_LIMITED_A_600_220",
+      "decoder": "A",
+      "status": "PRODUCT_VERDICT_EVALUATION_COMPLETE",
+      "counts": {
+        "targets": 303,
+        "agree": 287,
+        "correctTP": 139,
+        "correctFP": 0,
+        "correctFN": 9,
+        "missing": 40,
+        "missingDetected": 40,
+        "missingFalseMatched": 0,
+        "wrong": 40,
+        "wrongDetected": 38,
+        "wrongFalseCorrect": 0,
+        "incomplete": 35,
+        "incompleteDetected": 35,
+        "incompleteFalseComplete": 0,
+        "completeChord": 35,
+        "exactChord": 33,
+        "extrasTP": 35,
+        "extrasPredicted": 342,
+        "extrasTruth": 40,
+        "expectedAttackTP": 49253,
+        "expectedAttackTruth": 50908
+      },
+      "rates": {
+        "overallVerdictAgreement": 0.9471947194719472,
+        "correctPrecision": 1,
+        "correctRecall": 0.9391891891891891,
+        "correctMissingRate": 1,
+        "falseMatchOnGroundTruthMissing": 0,
+        "wrongNoteDetection": 0.95,
+        "wrongNoteFalseCorrect": 0,
+        "incompleteChordDetection": 1,
+        "falseCompleteChordAcceptance": 0,
+        "chordExactCompleteness": 0.9428571428571428,
+        "extraPrecision": 0.1023391812865497,
+        "extraRecall": 0.875,
+        "expectedStrikeRecall": 0.9674903747937456
+      },
+      "familyCoverage": {
+        "CORRECT_SINGLE": 40,
+        "CORRECT_CHORD": 35,
+        "MISSING_SINGLE": 40,
+        "WRONG_SEMITONE": 40,
+        "INCOMPLETE_CHORD": 35,
+        "EXTRA_NOTE": 40,
+        "SAME_PITCH_RETRIGGER": 19,
+        "SUSTAINED_NO_RETRIGGER": 35
+      },
+      "perClip": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "counts": {
+            "targets": 70,
+            "agree": 59,
+            "correctTP": 34,
+            "correctFP": 0,
+            "correctFN": 4,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 6,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 7,
+            "extrasTP": 3,
+            "extrasPredicted": 127,
+            "extrasTruth": 8,
+            "expectedAttackTP": 12574,
+            "expectedAttackTruth": 13066
+          }
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "counts": {
+            "targets": 46,
+            "agree": 46,
+            "correctTP": 19,
+            "correctFP": 0,
+            "correctFN": 0,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 3,
+            "incompleteDetected": 3,
+            "incompleteFalseComplete": 0,
+            "completeChord": 3,
+            "exactChord": 3,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 1640,
+            "expectedAttackTruth": 1640
+          }
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "counts": {
+            "targets": 69,
+            "agree": 68,
+            "correctTP": 36,
+            "correctFP": 0,
+            "correctFN": 1,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 8,
+            "extrasTP": 8,
+            "extrasPredicted": 191,
+            "extrasTruth": 8,
+            "expectedAttackTP": 17613,
+            "expectedAttackTruth": 17857
+          }
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "counts": {
+            "targets": 60,
+            "agree": 57,
+            "correctTP": 25,
+            "correctFP": 0,
+            "correctFN": 3,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 7,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 7524,
+            "expectedAttackTruth": 7930
+          }
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "counts": {
+            "targets": 58,
+            "agree": 57,
+            "correctTP": 25,
+            "correctFP": 0,
+            "correctFN": 1,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 8,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 9902,
+            "expectedAttackTruth": 10415
+          }
+        }
+      ],
+      "fiveVerdictLatency": {
+        "CORRECT": {
+          "ms": {
+            "count": 139,
+            "mean": 1279.467803296427,
+            "p25": 1011.680338541677,
+            "p50": 1174.362060546875,
+            "p75": 1376.8511149088645,
+            "p90": 1822.3493977864564,
+            "p95": 2206.091634114564,
+            "p99": 2620.7151562500003,
+            "p99_5": 2638.38330078125,
+            "max": 2638.38330078125
+          },
+          "beats": {
+            "60": {
+              "p50": 1.174362060546875,
+              "p95": 2.2060916341145638,
+              "p99": 2.62071515625,
+              "max": 2.63838330078125
+            },
+            "90": {
+              "p50": 1.7615430908203125,
+              "p95": 3.309137451171846,
+              "p99": 3.9310727343750003,
+              "max": 3.957574951171875
+            },
+            "120": {
+              "p50": 2.34872412109375,
+              "p95": 4.4121832682291275,
+              "p99": 5.2414303125,
+              "max": 5.2767666015625
+            },
+            "160": {
+              "p50": 3.131632161458333,
+              "p95": 5.882911024305503,
+              "p99": 6.9885737500000005,
+              "max": 7.0356888020833335
+            }
+          }
+        },
+        "MISSING": {
+          "ms": {
+            "count": 40,
+            "mean": 7304.106634521484,
+            "p25": 1961.565348307311,
+            "p50": 3029.648274739593,
+            "p75": 4038.863281249971,
+            "p90": 26334.327555338543,
+            "p95": 26472.24422200521,
+            "p99": 26668.369222005207,
+            "p99_5": 26694.369222005207,
+            "max": 26720.369222005207
+          },
+          "beats": {
+            "60": {
+              "p50": 3.029648274739593,
+              "p95": 26.472244222005212,
+              "p99": 26.668369222005207,
+              "max": 26.720369222005207
+            },
+            "90": {
+              "p50": 4.544472412109389,
+              "p95": 39.70836633300781,
+              "p99": 40.00255383300781,
+              "max": 40.08055383300781
+            },
+            "120": {
+              "p50": 6.059296549479186,
+              "p95": 52.944488444010425,
+              "p99": 53.336738444010415,
+              "max": 53.440738444010414
+            },
+            "160": {
+              "p50": 8.079062065972249,
+              "p95": 70.59265125868056,
+              "p99": 71.11565125868054,
+              "max": 71.25431792534722
+            }
+          }
+        },
+        "WRONG": {
+          "ms": {
+            "count": 38,
+            "mean": 7478.015318753428,
+            "p25": 1949.065348307311,
+            "p50": 2699.1199544270785,
+            "p75": 4178.126627604157,
+            "p90": 26358.077555338543,
+            "p95": 26484.327555338543,
+            "p99": 26671.035888671875,
+            "p99_5": 26695.70255533854,
+            "max": 26720.369222005207
+          },
+          "beats": {
+            "60": {
+              "p50": 2.6991199544270783,
+              "p95": 26.48432755533854,
+              "p99": 26.671035888671874,
+              "max": 26.720369222005207
+            },
+            "90": {
+              "p50": 4.048679931640618,
+              "p95": 39.726491333007814,
+              "p99": 40.006553833007814,
+              "max": 40.08055383300781
+            },
+            "120": {
+              "p50": 5.398239908854157,
+              "p95": 52.96865511067708,
+              "p99": 53.34207177734375,
+              "max": 53.440738444010414
+            },
+            "160": {
+              "p50": 7.197653211805543,
+              "p95": 70.62487348090278,
+              "p99": 71.12276236979167,
+              "max": 71.25431792534722
+            }
+          }
+        },
+        "INCOMPLETE_CHORD": {
+          "ms": {
+            "count": 35,
+            "mean": 7727.139325241815,
+            "p25": 1861.9534912109525,
+            "p50": 3182.13330078125,
+            "p75": 4701.541544596359,
+            "p90": 24719.744222005207,
+            "p95": 25789.431722005207,
+            "p99": 26585.07755533854,
+            "p99_5": 26652.723388671875,
+            "max": 26720.369222005207
+          },
+          "beats": {
+            "60": {
+              "p50": 3.18213330078125,
+              "p95": 25.789431722005208,
+              "p99": 26.585077555338536,
+              "max": 26.720369222005207
+            },
+            "90": {
+              "p50": 4.773199951171875,
+              "p95": 38.684147583007814,
+              "p99": 39.877616333007815,
+              "max": 40.08055383300781
+            },
+            "120": {
+              "p50": 6.3642666015625,
+              "p95": 51.578863444010416,
+              "p99": 53.17015511067707,
+              "max": 53.440738444010414
+            },
+            "160": {
+              "p50": 8.485688802083333,
+              "p95": 68.77181792534722,
+              "p99": 70.89354014756944,
+              "max": 71.25431792534722
+            }
+          }
+        },
+        "EXTRA": {
+          "ms": {
+            "count": 35,
+            "mean": 1367.3077729724716,
+            "p25": 1095.2092285156396,
+            "p50": 1174.362060546875,
+            "p75": 1456.8149820963545,
+            "p90": 2236.8977864583335,
+            "p95": 2485.8561197916665,
+            "p99": 2624.0990592447847,
+            "p99_5": 2655.1995133463456,
+            "max": 2686.299967447907
+          },
+          "beats": {
+            "60": {
+              "p50": 1.174362060546875,
+              "p95": 2.485856119791667,
+              "p99": 2.624099059244785,
+              "max": 2.686299967447907
+            },
+            "90": {
+              "p50": 1.7615430908203125,
+              "p95": 3.7287841796875,
+              "p99": 3.936148588867177,
+              "max": 4.029449951171861
+            },
+            "120": {
+              "p50": 2.34872412109375,
+              "p95": 4.971712239583334,
+              "p99": 5.24819811848957,
+              "max": 5.372599934895814
+            },
+            "160": {
+              "p50": 3.131632161458333,
+              "p95": 6.628949652777777,
+              "p99": 6.997597491319426,
+              "max": 7.163466579861085
+            }
+          }
+        }
+      },
+      "allFinalizedVerdictLatencyIncludingBackground": {
+        "CORRECT": {
+          "ms": {
+            "count": 32543,
+            "mean": 1162.9090459326555,
+            "p25": 961.6533203125,
+            "p50": 1146.820068359375,
+            "p75": 1294.742350260417,
+            "p90": 1403.394449869811,
+            "p95": 1641.62451171875,
+            "p99": 2206.091634114564,
+            "p99_5": 2369.640380859375,
+            "max": 3182.13330078125
+          },
+          "beats": {
+            "60": {
+              "p50": 1.146820068359375,
+              "p95": 1.64162451171875,
+              "p99": 2.2060916341145638,
+              "max": 3.18213330078125
+            },
+            "90": {
+              "p50": 1.7202301025390625,
+              "p95": 2.462436767578125,
+              "p99": 3.309137451171846,
+              "max": 4.773199951171875
+            },
+            "120": {
+              "p50": 2.29364013671875,
+              "p95": 3.2832490234375,
+              "p99": 4.4121832682291275,
+              "max": 6.3642666015625
+            },
+            "160": {
+              "p50": 3.0581868489583335,
+              "p95": 4.377665364583334,
+              "p99": 5.882911024305503,
+              "max": 8.485688802083333
+            }
+          }
+        },
+        "MISSING": {
+          "ms": {
+            "count": 633,
+            "mean": 3844.3281167719815,
+            "p25": 1228.675048828125,
+            "p50": 3160.25830078125,
+            "p75": 4764.48681640625,
+            "p90": 9399.535888671875,
+            "p95": 9399.535888671875,
+            "p99": 26137.9942220052,
+            "p99_5": 26422.202555338547,
+            "max": 26720.369222005207
+          },
+          "beats": {
+            "60": {
+              "p50": 3.16025830078125,
+              "p95": 9.399535888671876,
+              "p99": 26.1379942220052,
+              "max": 26.720369222005207
+            },
+            "90": {
+              "p50": 4.740387451171875,
+              "p95": 14.099303833007813,
+              "p99": 39.2069913330078,
+              "max": 40.08055383300781
+            },
+            "120": {
+              "p50": 6.3205166015625,
+              "p95": 18.79907177734375,
+              "p99": 52.2759884440104,
+              "max": 53.440738444010414
+            },
+            "160": {
+              "p50": 8.42735546875,
+              "p95": 25.065429036458333,
+              "p99": 69.7013179253472,
+              "max": 71.25431792534722
+            }
+          }
+        },
+        "WRONG": {
+          "ms": {
+            "count": 41,
+            "mean": 7178.875577600991,
+            "p25": 1967.815348307311,
+            "p50": 3019.231608072936,
+            "p75": 3969.231608072878,
+            "p90": 26322.452555338543,
+            "p95": 26466.202555338543,
+            "p99": 26667.035888671875,
+            "p99_5": 26693.70255533854,
+            "max": 26720.369222005207
+          },
+          "beats": {
+            "60": {
+              "p50": 3.019231608072936,
+              "p95": 26.46620255533854,
+              "p99": 26.667035888671876,
+              "max": 26.720369222005207
+            },
+            "90": {
+              "p50": 4.528847412109404,
+              "p95": 39.69930383300781,
+              "p99": 40.000553833007814,
+              "max": 40.08055383300781
+            },
+            "120": {
+              "p50": 6.038463216145872,
+              "p95": 52.93240511067708,
+              "p99": 53.33407177734375,
+              "max": 53.440738444010414
+            },
+            "160": {
+              "p50": 8.051284288194497,
+              "p95": 70.57654014756945,
+              "p99": 71.112095703125,
+              "max": 71.25431792534722
+            }
+          }
+        },
+        "INCOMPLETE_CHORD": {
+          "ms": {
+            "count": 1094,
+            "mean": 3859.469367418402,
+            "p25": 1113.1356608072856,
+            "p50": 1919.3978678385283,
+            "p75": 3848.799967447907,
+            "p90": 8392.244222005207,
+            "p95": 19750.57755533854,
+            "p99": 19750.57755533854,
+            "p99_5": 23719.41609700524,
+            "max": 26720.369222005207
+          },
+          "beats": {
+            "60": {
+              "p50": 1.9193978678385284,
+              "p95": 19.750577555338538,
+              "p99": 19.750577555338538,
+              "max": 26.720369222005207
+            },
+            "90": {
+              "p50": 2.8790968017577927,
+              "p95": 29.62586633300781,
+              "p99": 29.62586633300781,
+              "max": 40.08055383300781
+            },
+            "120": {
+              "p50": 3.838795735677057,
+              "p95": 39.501155110677075,
+              "p99": 39.501155110677075,
+              "max": 53.440738444010414
+            },
+            "160": {
+              "p50": 5.118394314236076,
+              "p95": 52.6682068142361,
+              "p99": 52.6682068142361,
+              "max": 71.25431792534722
+            }
+          }
+        },
+        "EXTRA": {
+          "ms": {
+            "count": 342,
+            "mean": 1260.9986900641904,
+            "p25": 1018.50732421875,
+            "p50": 1276.2978515625,
+            "p75": 1427.5224609375,
+            "p90": 1736.075927734375,
+            "p95": 1736.075927734375,
+            "p99": 2236.6144531249993,
+            "p99_5": 2490.7144531250005,
+            "max": 2682.75830078125
+          },
+          "beats": {
+            "60": {
+              "p50": 1.2762978515625,
+              "p95": 1.736075927734375,
+              "p99": 2.236614453124999,
+              "max": 2.68275830078125
+            },
+            "90": {
+              "p50": 1.91444677734375,
+              "p95": 2.6041138916015627,
+              "p99": 3.354921679687499,
+              "max": 4.024137451171875
+            },
+            "120": {
+              "p50": 2.552595703125,
+              "p95": 3.47215185546875,
+              "p99": 4.473228906249998,
+              "max": 5.3655166015625
+            },
+            "160": {
+              "p50": 3.4034609375,
+              "p95": 4.629535807291667,
+              "p99": 5.964305208333331,
+              "max": 7.154022135416667
+            }
+          }
+        }
+      },
+      "latencyDefinition": "Targeted correctly-classified verdicts; missing/incorrect classifications counted in correctness, not silently assigned zero latency. All background/incorrect verdict latency is also retained.",
+      "runtime": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "modelLoadMs": 666.2001953125,
+          "firstInferenceMs": 297.099853515625,
+          "processingMs": {
+            "count": 44,
+            "mean": 288.77722722833806,
+            "p25": 279.97491455078125,
+            "p50": 288.25,
+            "p75": 297.44989013671875,
+            "p90": 304.2799072265625,
+            "p95": 306.59495849609374,
+            "p99": 327.21103515625,
+            "p99_5": 327.7054931640625,
+            "max": 328.199951171875
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.03635475852272727,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.099853515625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.199951171875,
+            "p99_5": 0.199951171875,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26703.56494140625,
+            "realtimeFactor": 0.9886320443703924,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 298.5195589932528,
+            "p25": 287.89007568359375,
+            "p50": 299.0150146484375,
+            "p75": 305.94000244140625,
+            "p90": 315.1950439453125,
+            "p95": 319.860107421875,
+            "p99": 334.6340600585938,
+            "p99_5": 337.14954956054686,
+            "max": 339.6650390625
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "modelLoadMs": 661.89990234375,
+          "firstInferenceMs": 299.300048828125,
+          "processingMs": {
+            "count": 44,
+            "mean": 311.05680708451706,
+            "p25": 303.57501220703125,
+            "p50": 311,
+            "p75": 318.699951171875,
+            "p90": 325.1499755859375,
+            "p95": 327.275,
+            "p99": 329.55298583984376,
+            "p99_5": 330.17651733398435,
+            "max": 330.800048828125
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02728271484375,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.02496337890625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26723.06494140625,
+            "realtimeFactor": 0.9879106329264772,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 320.03316983309657,
+            "p25": 310.389892578125,
+            "p50": 319.364990234375,
+            "p75": 327.7900390625,
+            "p90": 335.8349609375,
+            "p95": 336.8750732421875,
+            "p99": 343.2709765625,
+            "p99_5": 344.5179345703125,
+            "max": 345.764892578125
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "modelLoadMs": 666.300048828125,
+          "firstInferenceMs": 302,
+          "processingMs": {
+            "count": 44,
+            "mean": 301.09545343572444,
+            "p25": 293.92498779296875,
+            "p50": 300.6500244140625,
+            "p75": 307.75006103515625,
+            "p90": 321.570068359375,
+            "p95": 326.4899658203125,
+            "p99": 329.9560278320312,
+            "p99_5": 330.12803833007814,
+            "max": 330.300048828125
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02954656427556818,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.099853515625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26679.264892578125,
+            "realtimeFactor": 0.9895325117201481,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 310.15818093039775,
+            "p25": 301.3399658203125,
+            "p50": 309.364990234375,
+            "p75": 317.9649658203125,
+            "p90": 329.67502441406253,
+            "p95": 339.3750732421875,
+            "p99": 341.41797607421876,
+            "p99_5": 342.04150756835935,
+            "max": 342.6650390625
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "modelLoadMs": 649.39990234375,
+          "firstInferenceMs": 295.60009765625,
+          "processingMs": {
+            "count": 44,
+            "mean": 314.2704523259943,
+            "p25": 306.14996337890625,
+            "p50": 316.3499755859375,
+            "p75": 323.92510986328125,
+            "p90": 329.1599365234375,
+            "p95": 331.1498046875,
+            "p99": 334.0389721679687,
+            "p99_5": 334.61946166992186,
+            "max": 335.199951171875
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02728271484375,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.02496337890625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26720.06494140625,
+            "realtimeFactor": 0.988021550766882,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 319.4421664151278,
+            "p25": 311.96490478515625,
+            "p50": 319.6649169921875,
+            "p75": 329.264892578125,
+            "p90": 332.56494140625,
+            "p95": 335.7599609375,
+            "p99": 342.7028369140625,
+            "p99_5": 343.43381591796873,
+            "max": 344.164794921875
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "modelLoadMs": 660.60009765625,
+          "firstInferenceMs": 312.60009765625,
+          "processingMs": {
+            "count": 44,
+            "mean": 309.3090709339489,
+            "p25": 300.99993896484375,
+            "p50": 309,
+            "p75": 317.12493896484375,
+            "p90": 322.7600341796875,
+            "p95": 332.23996582031253,
+            "p99": 352.22490234375,
+            "p99_5": 357.0624023437499,
+            "max": 361.89990234375
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.011358087713068182,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0,
+            "p95": 0.099853515625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26719.1650390625,
+            "realtimeFactor": 0.9880548273647065,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.099853515625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 316.49222079190343,
+            "p25": 307.614990234375,
+            "p50": 316.06494140625,
+            "p75": 324.264892578125,
+            "p90": 338.1849365234375,
+            "p95": 341.0049560546875,
+            "p99": 354.77092041015624,
+            "p99_5": 358.16793090820306,
+            "max": 361.56494140625
+          },
+          "historical480MsDiagnostic": true
+        }
+      ],
+      "runtimeSustainable": true,
+      "acousticDiagnostics": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "physicalOnsets": 211,
+          "predictedOnsets": 205,
+          "matched50ms": 203,
+          "f1": 0.9759615384615384,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "physicalOnsets": 36,
+          "predictedOnsets": 36,
+          "matched50ms": 36,
+          "f1": 1,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "physicalOnsets": 293,
+          "predictedOnsets": 292,
+          "matched50ms": 289,
+          "f1": 0.9880341880341881,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "physicalOnsets": 137,
+          "predictedOnsets": 130,
+          "matched50ms": 130,
+          "f1": 0.9737827715355806,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "physicalOnsets": 183,
+          "predictedOnsets": 174,
+          "matched50ms": 174,
+          "f1": 0.9747899159663865,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        }
+      ],
+      "resampler": "BAND_LIMITED",
+      "ownedMs": 600,
+      "futureMs": 220,
+      "metricsPath": "backend\\data\\work\\xc2_robust_product_baseline_v1\\metrics\\stage_a\\BAND_LIMITED_A_600_220.json",
+      "metricsSha256": "8dbcb534ff59b16faa0625ee93bd464a246054230891290bed0a18b935aedefa"
+    },
+    {
+      "id": "BAND_LIMITED_B_600_220",
+      "decoder": "B",
+      "status": "PRODUCT_VERDICT_EVALUATION_COMPLETE",
+      "counts": {
+        "targets": 303,
+        "agree": 288,
+        "correctTP": 140,
+        "correctFP": 0,
+        "correctFN": 8,
+        "missing": 40,
+        "missingDetected": 40,
+        "missingFalseMatched": 0,
+        "wrong": 40,
+        "wrongDetected": 38,
+        "wrongFalseCorrect": 0,
+        "incomplete": 35,
+        "incompleteDetected": 35,
+        "incompleteFalseComplete": 0,
+        "completeChord": 35,
+        "exactChord": 33,
+        "extrasTP": 35,
+        "extrasPredicted": 527,
+        "extrasTruth": 40,
+        "expectedAttackTP": 49311,
+        "expectedAttackTruth": 50908
+      },
+      "rates": {
+        "overallVerdictAgreement": 0.9504950495049505,
+        "correctPrecision": 1,
+        "correctRecall": 0.9459459459459459,
+        "correctMissingRate": 1,
+        "falseMatchOnGroundTruthMissing": 0,
+        "wrongNoteDetection": 0.95,
+        "wrongNoteFalseCorrect": 0,
+        "incompleteChordDetection": 1,
+        "falseCompleteChordAcceptance": 0,
+        "chordExactCompleteness": 0.9428571428571428,
+        "extraPrecision": 0.06641366223908918,
+        "extraRecall": 0.875,
+        "expectedStrikeRecall": 0.9686296849218198
+      },
+      "familyCoverage": {
+        "CORRECT_SINGLE": 40,
+        "CORRECT_CHORD": 35,
+        "MISSING_SINGLE": 40,
+        "WRONG_SEMITONE": 40,
+        "INCOMPLETE_CHORD": 35,
+        "EXTRA_NOTE": 40,
+        "SAME_PITCH_RETRIGGER": 19,
+        "SUSTAINED_NO_RETRIGGER": 35
+      },
+      "perClip": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "counts": {
+            "targets": 70,
+            "agree": 60,
+            "correctTP": 35,
+            "correctFP": 0,
+            "correctFN": 3,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 6,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 7,
+            "extrasTP": 3,
+            "extrasPredicted": 251,
+            "extrasTruth": 8,
+            "expectedAttackTP": 12574,
+            "expectedAttackTruth": 13066
+          }
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "counts": {
+            "targets": 46,
+            "agree": 46,
+            "correctTP": 19,
+            "correctFP": 0,
+            "correctFN": 0,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 3,
+            "incompleteDetected": 3,
+            "incompleteFalseComplete": 0,
+            "completeChord": 3,
+            "exactChord": 3,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 1640,
+            "expectedAttackTruth": 1640
+          }
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "counts": {
+            "targets": 69,
+            "agree": 68,
+            "correctTP": 36,
+            "correctFP": 0,
+            "correctFN": 1,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 8,
+            "extrasTP": 8,
+            "extrasPredicted": 252,
+            "extrasTruth": 8,
+            "expectedAttackTP": 17613,
+            "expectedAttackTruth": 17857
+          }
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "counts": {
+            "targets": 60,
+            "agree": 57,
+            "correctTP": 25,
+            "correctFP": 0,
+            "correctFN": 3,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 7,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 7582,
+            "expectedAttackTruth": 7930
+          }
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "counts": {
+            "targets": 58,
+            "agree": 57,
+            "correctTP": 25,
+            "correctFP": 0,
+            "correctFN": 1,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 8,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 9902,
+            "expectedAttackTruth": 10415
+          }
+        }
+      ],
+      "fiveVerdictLatency": {
+        "CORRECT": {
+          "ms": {
+            "count": 140,
+            "mean": 1278.549268159414,
+            "p25": 1013.3534342448065,
+            "p50": 1172.682047526042,
+            "p75": 1376.6105753580787,
+            "p90": 1818.789908854166,
+            "p95": 2206.294270833314,
+            "p99": 2620.419040527343,
+            "p99_5": 2638.5859375,
+            "max": 2638.5859375
+          },
+          "beats": {
+            "60": {
+              "p50": 1.172682047526042,
+              "p95": 2.2062942708333138,
+              "p99": 2.6204190405273433,
+              "max": 2.6385859375
+            },
+            "90": {
+              "p50": 1.7590230712890629,
+              "p95": 3.309441406249971,
+              "p99": 3.930628560791014,
+              "max": 3.95787890625
+            },
+            "120": {
+              "p50": 2.345364095052084,
+              "p95": 4.4125885416666275,
+              "p99": 5.240838081054687,
+              "max": 5.277171875
+            },
+            "160": {
+              "p50": 3.127152126736112,
+              "p95": 5.883451388888838,
+              "p99": 6.9877841080729155,
+              "max": 7.036229166666667
+            }
+          }
+        },
+        "MISSING": {
+          "ms": {
+            "count": 40,
+            "mean": 7304.31644897461,
+            "p25": 1961.746988932311,
+            "p50": 3029.746419270843,
+            "p75": 4038.987548828096,
+            "p90": 26334.540934244793,
+            "p95": 26472.45760091146,
+            "p99": 26668.582600911457,
+            "p99_5": 26694.582600911457,
+            "max": 26720.582600911457
+          },
+          "beats": {
+            "60": {
+              "p50": 3.029746419270843,
+              "p95": 26.47245760091146,
+              "p99": 26.66858260091146,
+              "max": 26.72058260091146
+            },
+            "90": {
+              "p50": 4.544619628906265,
+              "p95": 39.70868640136719,
+              "p99": 40.00287390136719,
+              "max": 40.080873901367184
+            },
+            "120": {
+              "p50": 6.059492838541686,
+              "p95": 52.94491520182292,
+              "p99": 53.33716520182292,
+              "max": 53.44116520182292
+            },
+            "160": {
+              "p50": 8.079323784722249,
+              "p95": 70.59322026909723,
+              "p99": 71.11622026909721,
+              "max": 71.25488693576388
+            }
+          }
+        },
+        "WRONG": {
+          "ms": {
+            "count": 38,
+            "mean": 7478.225510982046,
+            "p25": 1949.246988932311,
+            "p50": 2699.2703450520785,
+            "p75": 4178.303141276032,
+            "p90": 26358.290934244793,
+            "p95": 26484.540934244793,
+            "p99": 26671.249267578125,
+            "p99_5": 26695.91593424479,
+            "max": 26720.582600911457
+          },
+          "beats": {
+            "60": {
+              "p50": 2.6992703450520783,
+              "p95": 26.48454093424479,
+              "p99": 26.671249267578126,
+              "max": 26.72058260091146
+            },
+            "90": {
+              "p50": 4.048905517578118,
+              "p95": 39.726811401367186,
+              "p99": 40.006873901367186,
+              "max": 40.080873901367184
+            },
+            "120": {
+              "p50": 5.398540690104157,
+              "p95": 52.96908186848958,
+              "p99": 53.34249853515625,
+              "max": 53.44116520182292
+            },
+            "160": {
+              "p50": 7.198054253472209,
+              "p95": 70.62544249131945,
+              "p99": 71.12333138020833,
+              "max": 71.25488693576388
+            }
+          }
+        },
+        "INCOMPLETE_CHORD": {
+          "ms": {
+            "count": 35,
+            "mean": 7727.329427083332,
+            "p25": 1862.1456298828275,
+            "p50": 3182.3359375,
+            "p75": 4701.659220377609,
+            "p90": 24719.957600911457,
+            "p95": 25789.645100911457,
+            "p99": 26585.29093424479,
+            "p99_5": 26652.936767578125,
+            "max": 26720.582600911457
+          },
+          "beats": {
+            "60": {
+              "p50": 3.1823359375,
+              "p95": 25.789645100911457,
+              "p99": 26.58529093424479,
+              "max": 26.72058260091146
+            },
+            "90": {
+              "p50": 4.77350390625,
+              "p95": 38.684467651367186,
+              "p99": 39.87793640136719,
+              "max": 40.080873901367184
+            },
+            "120": {
+              "p50": 6.364671875,
+              "p95": 51.579290201822914,
+              "p99": 53.17058186848958,
+              "max": 53.44116520182292
+            },
+            "160": {
+              "p50": 8.486229166666666,
+              "p95": 68.77238693576389,
+              "p99": 70.8941091579861,
+              "max": 71.25488693576388
+            }
+          }
+        },
+        "EXTRA": {
+          "ms": {
+            "count": 35,
+            "mean": 1367.5774786086322,
+            "p25": 1095.364868164077,
+            "p50": 1174.479248046875,
+            "p75": 1457.1526285807295,
+            "p90": 2237.2244466145835,
+            "p95": 2486.1827799479165,
+            "p99": 2624.3438639322844,
+            "p99_5": 2655.423234049471,
+            "max": 2686.502604166657
+          },
+          "beats": {
+            "60": {
+              "p50": 1.174479248046875,
+              "p95": 2.486182779947917,
+              "p99": 2.6243438639322845,
+              "max": 2.686502604166657
+            },
+            "90": {
+              "p50": 1.7617188720703125,
+              "p95": 3.729274169921875,
+              "p99": 3.9365157958984267,
+              "max": 4.029753906249986
+            },
+            "120": {
+              "p50": 2.34895849609375,
+              "p95": 4.972365559895834,
+              "p99": 5.248687727864569,
+              "max": 5.373005208333314
+            },
+            "160": {
+              "p50": 3.1319446614583333,
+              "p95": 6.629820746527777,
+              "p99": 6.998250303819425,
+              "max": 7.164006944444418
+            }
+          }
+        }
+      },
+      "allFinalizedVerdictLatencyIncludingBackground": {
+        "CORRECT": {
+          "ms": {
+            "count": 32601,
+            "mean": 1162.741777139132,
+            "p25": 959.6123860677435,
+            "p50": 1147.0375162760029,
+            "p75": 1294.867838541667,
+            "p90": 1403.582194010436,
+            "p95": 1641.73388671875,
+            "p99": 2206.294270833314,
+            "p99_5": 2369.746337890625,
+            "max": 3182.3359375
+          },
+          "beats": {
+            "60": {
+              "p50": 1.147037516276003,
+              "p95": 1.64173388671875,
+              "p99": 2.2062942708333138,
+              "max": 3.1823359375
+            },
+            "90": {
+              "p50": 1.7205562744140044,
+              "p95": 2.462600830078125,
+              "p99": 3.309441406249971,
+              "max": 4.77350390625
+            },
+            "120": {
+              "p50": 2.294075032552006,
+              "p95": 3.2834677734375,
+              "p99": 4.4125885416666275,
+              "max": 6.364671875
+            },
+            "160": {
+              "p50": 3.058766710069341,
+              "p95": 4.37795703125,
+              "p99": 5.883451388888838,
+              "max": 8.486229166666666
+            }
+          }
+        },
+        "MISSING": {
+          "ms": {
+            "count": 518,
+            "mean": 3931.4624926789193,
+            "p25": 1228.780029296875,
+            "p50": 3160.4609375,
+            "p75": 6889.699747721354,
+            "p90": 9399.749267578125,
+            "p95": 9399.749267578125,
+            "p99": 26205.228434244793,
+            "p99_5": 26451.790934244793,
+            "max": 26720.582600911457
+          },
+          "beats": {
+            "60": {
+              "p50": 3.1604609375,
+              "p95": 9.399749267578125,
+              "p99": 26.20522843424479,
+              "max": 26.72058260091146
+            },
+            "90": {
+              "p50": 4.74069140625,
+              "p95": 14.099623901367188,
+              "p99": 39.30784265136719,
+              "max": 40.080873901367184
+            },
+            "120": {
+              "p50": 6.320921875,
+              "p95": 18.79949853515625,
+              "p99": 52.41045686848958,
+              "max": 53.44116520182292
+            },
+            "160": {
+              "p50": 8.427895833333332,
+              "p95": 25.065998046875,
+              "p99": 69.88060915798611,
+              "max": 71.25488693576388
+            }
+          }
+        },
+        "WRONG": {
+          "ms": {
+            "count": 41,
+            "mean": 7179.085216987423,
+            "p25": 1967.996988932311,
+            "p50": 3019.329752604186,
+            "p75": 3969.329752604128,
+            "p90": 26322.665934244793,
+            "p95": 26466.415934244793,
+            "p99": 26667.249267578125,
+            "p99_5": 26693.91593424479,
+            "max": 26720.582600911457
+          },
+          "beats": {
+            "60": {
+              "p50": 3.019329752604186,
+              "p95": 26.466415934244793,
+              "p99": 26.667249267578125,
+              "max": 26.72058260091146
+            },
+            "90": {
+              "p50": 4.528994628906279,
+              "p95": 39.69962390136719,
+              "p99": 40.000873901367186,
+              "max": 40.080873901367184
+            },
+            "120": {
+              "p50": 6.038659505208372,
+              "p95": 52.932831868489586,
+              "p99": 53.33449853515625,
+              "max": 53.44116520182292
+            },
+            "160": {
+              "p50": 8.051546006944497,
+              "p95": 70.57710915798611,
+              "p99": 71.11266471354166,
+              "max": 71.25488693576388
+            }
+          }
+        },
+        "INCOMPLETE_CHORD": {
+          "ms": {
+            "count": 1151,
+            "mean": 3757.588187934978,
+            "p25": 1115.4520670572983,
+            "p50": 1730.8633626302144,
+            "p75": 3849.002604166657,
+            "p90": 8392.457600911457,
+            "p95": 19750.79093424479,
+            "p99": 19750.79093424479,
+            "p99_5": 23621.36385091146,
+            "max": 26720.582600911457
+          },
+          "beats": {
+            "60": {
+              "p50": 1.7308633626302143,
+              "p95": 19.750790934244787,
+              "p99": 19.750790934244787,
+              "max": 26.72058260091146
+            },
+            "90": {
+              "p50": 2.5962950439453216,
+              "p95": 29.626186401367182,
+              "p99": 29.626186401367182,
+              "max": 40.080873901367184
+            },
+            "120": {
+              "p50": 3.4617267252604287,
+              "p95": 39.50158186848957,
+              "p99": 39.50158186848957,
+              "max": 53.44116520182292
+            },
+            "160": {
+              "p50": 4.615635633680571,
+              "p95": 52.66877582465277,
+              "p99": 52.66877582465277,
+              "max": 71.25488693576388
+            }
+          }
+        },
+        "EXTRA": {
+          "ms": {
+            "count": 527,
+            "mean": 1140.2929201428187,
+            "p25": 817.2406460642815,
+            "p50": 1126.0500001311302,
+            "p75": 1425.9961414337158,
+            "p90": 1732.3111923336983,
+            "p95": 1732.3111923336983,
+            "p99": 1732.3111923336983,
+            "p99_5": 2333.386050324888,
+            "max": 2679.193831562996
+          },
+          "beats": {
+            "60": {
+              "p50": 1.1260500001311302,
+              "p95": 1.7323111923336982,
+              "p99": 1.7323111923336982,
+              "max": 2.679193831562996
+            },
+            "90": {
+              "p50": 1.6890750001966954,
+              "p95": 2.5984667885005472,
+              "p99": 2.5984667885005472,
+              "max": 4.018790747344494
+            },
+            "120": {
+              "p50": 2.2521000002622604,
+              "p95": 3.4646223846673965,
+              "p99": 3.4646223846673965,
+              "max": 5.358387663125992
+            },
+            "160": {
+              "p50": 3.0028000003496804,
+              "p95": 4.619496512889862,
+              "p99": 4.619496512889862,
+              "max": 7.144516884167989
+            }
+          }
+        }
+      },
+      "latencyDefinition": "Targeted correctly-classified verdicts; missing/incorrect classifications counted in correctness, not silently assigned zero latency. All background/incorrect verdict latency is also retained.",
+      "runtime": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "modelLoadMs": 666.2001953125,
+          "firstInferenceMs": 297.099853515625,
+          "processingMs": {
+            "count": 44,
+            "mean": 288.77722722833806,
+            "p25": 279.97491455078125,
+            "p50": 288.25,
+            "p75": 297.44989013671875,
+            "p90": 304.2799072265625,
+            "p95": 306.59495849609374,
+            "p99": 327.21103515625,
+            "p99_5": 327.7054931640625,
+            "max": 328.199951171875
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.03635475852272727,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.099853515625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.199951171875,
+            "p99_5": 0.199951171875,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26703.56494140625,
+            "realtimeFactor": 0.9886320443703924,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 298.5195589932528,
+            "p25": 287.89007568359375,
+            "p50": 299.0150146484375,
+            "p75": 305.94000244140625,
+            "p90": 315.1950439453125,
+            "p95": 319.860107421875,
+            "p99": 334.6340600585938,
+            "p99_5": 337.14954956054686,
+            "max": 339.6650390625
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "modelLoadMs": 661.89990234375,
+          "firstInferenceMs": 299.300048828125,
+          "processingMs": {
+            "count": 44,
+            "mean": 311.05680708451706,
+            "p25": 303.57501220703125,
+            "p50": 311,
+            "p75": 318.699951171875,
+            "p90": 325.1499755859375,
+            "p95": 327.275,
+            "p99": 329.55298583984376,
+            "p99_5": 330.17651733398435,
+            "max": 330.800048828125
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02728271484375,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.02496337890625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26723.06494140625,
+            "realtimeFactor": 0.9879106329264772,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 320.03316983309657,
+            "p25": 310.389892578125,
+            "p50": 319.364990234375,
+            "p75": 327.7900390625,
+            "p90": 335.8349609375,
+            "p95": 336.8750732421875,
+            "p99": 343.2709765625,
+            "p99_5": 344.5179345703125,
+            "max": 345.764892578125
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "modelLoadMs": 666.300048828125,
+          "firstInferenceMs": 302,
+          "processingMs": {
+            "count": 44,
+            "mean": 301.09545343572444,
+            "p25": 293.92498779296875,
+            "p50": 300.6500244140625,
+            "p75": 307.75006103515625,
+            "p90": 321.570068359375,
+            "p95": 326.4899658203125,
+            "p99": 329.9560278320312,
+            "p99_5": 330.12803833007814,
+            "max": 330.300048828125
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02954656427556818,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.099853515625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26679.264892578125,
+            "realtimeFactor": 0.9895325117201481,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 310.15818093039775,
+            "p25": 301.3399658203125,
+            "p50": 309.364990234375,
+            "p75": 317.9649658203125,
+            "p90": 329.67502441406253,
+            "p95": 339.3750732421875,
+            "p99": 341.41797607421876,
+            "p99_5": 342.04150756835935,
+            "max": 342.6650390625
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "modelLoadMs": 649.39990234375,
+          "firstInferenceMs": 295.60009765625,
+          "processingMs": {
+            "count": 44,
+            "mean": 314.2704523259943,
+            "p25": 306.14996337890625,
+            "p50": 316.3499755859375,
+            "p75": 323.92510986328125,
+            "p90": 329.1599365234375,
+            "p95": 331.1498046875,
+            "p99": 334.0389721679687,
+            "p99_5": 334.61946166992186,
+            "max": 335.199951171875
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02728271484375,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.02496337890625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26720.06494140625,
+            "realtimeFactor": 0.988021550766882,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 319.4421664151278,
+            "p25": 311.96490478515625,
+            "p50": 319.6649169921875,
+            "p75": 329.264892578125,
+            "p90": 332.56494140625,
+            "p95": 335.7599609375,
+            "p99": 342.7028369140625,
+            "p99_5": 343.43381591796873,
+            "max": 344.164794921875
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "modelLoadMs": 660.60009765625,
+          "firstInferenceMs": 312.60009765625,
+          "processingMs": {
+            "count": 44,
+            "mean": 309.3090709339489,
+            "p25": 300.99993896484375,
+            "p50": 309,
+            "p75": 317.12493896484375,
+            "p90": 322.7600341796875,
+            "p95": 332.23996582031253,
+            "p99": 352.22490234375,
+            "p99_5": 357.0624023437499,
+            "max": 361.89990234375
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.011358087713068182,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0,
+            "p95": 0.099853515625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26719.1650390625,
+            "realtimeFactor": 0.9880548273647065,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.099853515625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 316.49222079190343,
+            "p25": 307.614990234375,
+            "p50": 316.06494140625,
+            "p75": 324.264892578125,
+            "p90": 338.1849365234375,
+            "p95": 341.0049560546875,
+            "p99": 354.77092041015624,
+            "p99_5": 358.16793090820306,
+            "max": 361.56494140625
+          },
+          "historical480MsDiagnostic": true
+        }
+      ],
+      "runtimeSustainable": true,
+      "acousticDiagnostics": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "physicalOnsets": 211,
+          "predictedOnsets": 207,
+          "matched50ms": 203,
+          "f1": 0.9712918660287081,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "physicalOnsets": 36,
+          "predictedOnsets": 36,
+          "matched50ms": 36,
+          "f1": 1,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "physicalOnsets": 293,
+          "predictedOnsets": 293,
+          "matched50ms": 289,
+          "f1": 0.9863481228668942,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "physicalOnsets": 137,
+          "predictedOnsets": 131,
+          "matched50ms": 131,
+          "f1": 0.9776119402985075,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "physicalOnsets": 183,
+          "predictedOnsets": 174,
+          "matched50ms": 174,
+          "f1": 0.9747899159663865,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        }
+      ],
+      "resampler": "BAND_LIMITED",
+      "ownedMs": 600,
+      "futureMs": 220,
+      "metricsPath": "backend\\data\\work\\xc2_robust_product_baseline_v1\\metrics\\stage_a\\BAND_LIMITED_B_600_220.json",
+      "metricsSha256": "a967853cfa9641a90cd3076842deb461e218cfaa62706e6008034154237b132a"
+    },
+    {
+      "id": "BAND_LIMITED_C_600_220",
+      "decoder": "C",
+      "status": "PRODUCT_VERDICT_EVALUATION_COMPLETE",
+      "counts": {
+        "targets": 303,
+        "agree": 287,
+        "correctTP": 139,
+        "correctFP": 0,
+        "correctFN": 9,
+        "missing": 40,
+        "missingDetected": 40,
+        "missingFalseMatched": 0,
+        "wrong": 40,
+        "wrongDetected": 38,
+        "wrongFalseCorrect": 0,
+        "incomplete": 35,
+        "incompleteDetected": 35,
+        "incompleteFalseComplete": 0,
+        "completeChord": 35,
+        "exactChord": 33,
+        "extrasTP": 35,
+        "extrasPredicted": 342,
+        "extrasTruth": 40,
+        "expectedAttackTP": 49253,
+        "expectedAttackTruth": 50908
+      },
+      "rates": {
+        "overallVerdictAgreement": 0.9471947194719472,
+        "correctPrecision": 1,
+        "correctRecall": 0.9391891891891891,
+        "correctMissingRate": 1,
+        "falseMatchOnGroundTruthMissing": 0,
+        "wrongNoteDetection": 0.95,
+        "wrongNoteFalseCorrect": 0,
+        "incompleteChordDetection": 1,
+        "falseCompleteChordAcceptance": 0,
+        "chordExactCompleteness": 0.9428571428571428,
+        "extraPrecision": 0.1023391812865497,
+        "extraRecall": 0.875,
+        "expectedStrikeRecall": 0.9674903747937456
+      },
+      "familyCoverage": {
+        "CORRECT_SINGLE": 40,
+        "CORRECT_CHORD": 35,
+        "MISSING_SINGLE": 40,
+        "WRONG_SEMITONE": 40,
+        "INCOMPLETE_CHORD": 35,
+        "EXTRA_NOTE": 40,
+        "SAME_PITCH_RETRIGGER": 19,
+        "SUSTAINED_NO_RETRIGGER": 35
+      },
+      "perClip": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "counts": {
+            "targets": 70,
+            "agree": 59,
+            "correctTP": 34,
+            "correctFP": 0,
+            "correctFN": 4,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 6,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 7,
+            "extrasTP": 3,
+            "extrasPredicted": 127,
+            "extrasTruth": 8,
+            "expectedAttackTP": 12574,
+            "expectedAttackTruth": 13066
+          }
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "counts": {
+            "targets": 46,
+            "agree": 46,
+            "correctTP": 19,
+            "correctFP": 0,
+            "correctFN": 0,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 3,
+            "incompleteDetected": 3,
+            "incompleteFalseComplete": 0,
+            "completeChord": 3,
+            "exactChord": 3,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 1640,
+            "expectedAttackTruth": 1640
+          }
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "counts": {
+            "targets": 69,
+            "agree": 68,
+            "correctTP": 36,
+            "correctFP": 0,
+            "correctFN": 1,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 8,
+            "extrasTP": 8,
+            "extrasPredicted": 191,
+            "extrasTruth": 8,
+            "expectedAttackTP": 17613,
+            "expectedAttackTruth": 17857
+          }
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "counts": {
+            "targets": 60,
+            "agree": 57,
+            "correctTP": 25,
+            "correctFP": 0,
+            "correctFN": 3,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 7,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 7524,
+            "expectedAttackTruth": 7930
+          }
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "counts": {
+            "targets": 58,
+            "agree": 57,
+            "correctTP": 25,
+            "correctFP": 0,
+            "correctFN": 1,
+            "missing": 8,
+            "missingDetected": 8,
+            "missingFalseMatched": 0,
+            "wrong": 8,
+            "wrongDetected": 8,
+            "wrongFalseCorrect": 0,
+            "incomplete": 8,
+            "incompleteDetected": 8,
+            "incompleteFalseComplete": 0,
+            "completeChord": 8,
+            "exactChord": 8,
+            "extrasTP": 8,
+            "extrasPredicted": 8,
+            "extrasTruth": 8,
+            "expectedAttackTP": 9902,
+            "expectedAttackTruth": 10415
+          }
+        }
+      ],
+      "fiveVerdictLatency": {
+        "CORRECT": {
+          "ms": {
+            "count": 139,
+            "mean": 1280.3029890540708,
+            "p25": 1012.0967203776145,
+            "p50": 1175.2177734375,
+            "p75": 1377.5566813151145,
+            "p90": 1822.9743977864564,
+            "p95": 2206.980305989564,
+            "p99": 2621.4643896484376,
+            "p99_5": 2639.27197265625,
+            "max": 2639.27197265625
+          },
+          "beats": {
+            "60": {
+              "p50": 1.1752177734375,
+              "p95": 2.206980305989564,
+              "p99": 2.621464389648438,
+              "max": 2.63927197265625
+            },
+            "90": {
+              "p50": 1.76282666015625,
+              "p95": 3.310470458984346,
+              "p99": 3.9321965844726563,
+              "max": 3.958907958984375
+            },
+            "120": {
+              "p50": 2.350435546875,
+              "p95": 4.413960611979128,
+              "p99": 5.242928779296876,
+              "max": 5.2785439453125
+            },
+            "160": {
+              "p50": 3.1339140625,
+              "p95": 5.885280815972171,
+              "p99": 6.990571705729167,
+              "max": 7.03805859375
+            }
+          }
+        },
+        "MISSING": {
+          "ms": {
+            "count": 40,
+            "mean": 7304.775592041015,
+            "p25": 1962.279703776061,
+            "p50": 3030.128255208343,
+            "p75": 4039.4454345702834,
+            "p90": 26334.872721354168,
+            "p95": 26472.789388020836,
+            "p99": 26668.914388020832,
+            "p99_5": 26694.914388020832,
+            "max": 26720.914388020832
+          },
+          "beats": {
+            "60": {
+              "p50": 3.030128255208343,
+              "p95": 26.472789388020836,
+              "p99": 26.668914388020834,
+              "max": 26.720914388020834
+            },
+            "90": {
+              "p50": 4.545192382812514,
+              "p95": 39.70918408203125,
+              "p99": 40.00337158203125,
+              "max": 40.08137158203125
+            },
+            "120": {
+              "p50": 6.060256510416686,
+              "p95": 52.94557877604167,
+              "p99": 53.33782877604167,
+              "max": 53.44182877604167
+            },
+            "160": {
+              "p50": 8.080342013888915,
+              "p95": 70.59410503472223,
+              "p99": 71.11710503472221,
+              "max": 71.25577170138888
+            }
+          }
+        },
+        "WRONG": {
+          "ms": {
+            "count": 38,
+            "mean": 7478.672712359513,
+            "p25": 1949.779703776061,
+            "p50": 2699.8042805989535,
+            "p75": 4178.9131266275945,
+            "p90": 26358.622721354168,
+            "p95": 26484.872721354168,
+            "p99": 26671.5810546875,
+            "p99_5": 26696.247721354164,
+            "max": 26720.914388020832
+          },
+          "beats": {
+            "60": {
+              "p50": 2.6998042805989533,
+              "p95": 26.484872721354165,
+              "p99": 26.6715810546875,
+              "max": 26.720914388020834
+            },
+            "90": {
+              "p50": 4.04970642089843,
+              "p95": 39.72730908203125,
+              "p99": 40.00737158203125,
+              "max": 40.08137158203125
+            },
+            "120": {
+              "p50": 5.3996085611979066,
+              "p95": 52.96974544270833,
+              "p99": 53.343162109375,
+              "max": 53.44182877604167
+            },
+            "160": {
+              "p50": 7.199478081597209,
+              "p95": 70.62632725694445,
+              "p99": 71.12421614583333,
+              "max": 71.25577170138888
+            }
+          }
+        },
+        "INCOMPLETE_CHORD": {
+          "ms": {
+            "count": 35,
+            "mean": 7727.779754929315,
+            "p25": 1862.7550048828275,
+            "p50": 3183.02197265625,
+            "p75": 4702.0265299479215,
+            "p90": 24720.289388020832,
+            "p95": 25789.976888020832,
+            "p99": 26585.622721354164,
+            "p99_5": 26653.2685546875,
+            "max": 26720.914388020832
+          },
+          "beats": {
+            "60": {
+              "p50": 3.18302197265625,
+              "p95": 25.789976888020835,
+              "p99": 26.585622721354163,
+              "max": 26.720914388020834
+            },
+            "90": {
+              "p50": 4.774532958984375,
+              "p95": 38.68496533203125,
+              "p99": 39.87843408203125,
+              "max": 40.08137158203125
+            },
+            "120": {
+              "p50": 6.3660439453125,
+              "p95": 51.57995377604167,
+              "p99": 53.171245442708326,
+              "max": 53.44182877604167
+            },
+            "160": {
+              "p50": 8.48805859375,
+              "p95": 68.77327170138888,
+              "p99": 70.8949939236111,
+              "max": 71.25577170138888
+            }
+          }
+        },
+        "EXTRA": {
+          "ms": {
+            "count": 35,
+            "mean": 1368.3399018787215,
+            "p25": 1095.7873535156396,
+            "p50": 1175.2177734375,
+            "p75": 1457.8196207682295,
+            "p90": 2237.6839192708335,
+            "p95": 2486.6422526041665,
+            "p99": 2624.9528678385345,
+            "p99_5": 2656.070753580721,
+            "max": 2687.188639322907
+          },
+          "beats": {
+            "60": {
+              "p50": 1.1752177734375,
+              "p95": 2.4866422526041667,
+              "p99": 2.6249528678385348,
+              "max": 2.687188639322907
+            },
+            "90": {
+              "p50": 1.76282666015625,
+              "p95": 3.72996337890625,
+              "p99": 3.937429301757802,
+              "max": 4.030782958984361
+            },
+            "120": {
+              "p50": 2.350435546875,
+              "p95": 4.973284505208333,
+              "p99": 5.2499057356770695,
+              "max": 5.374377278645814
+            },
+            "160": {
+              "p50": 3.1339140625,
+              "p95": 6.631046006944444,
+              "p99": 6.9998743142360915,
+              "max": 7.165836371527752
+            }
+          }
+        }
+      },
+      "allFinalizedVerdictLatencyIncludingBackground": {
+        "CORRECT": {
+          "ms": {
+            "count": 32543,
+            "mean": 1163.5723940533148,
+            "p25": 962.3681640625,
+            "p50": 1147.51025390625,
+            "p75": 1295.322184244792,
+            "p90": 1404.273111979186,
+            "p95": 1641.983642578125,
+            "p99": 2206.980305989564,
+            "p99_5": 2370.337646484375,
+            "max": 3183.02197265625
+          },
+          "beats": {
+            "60": {
+              "p50": 1.14751025390625,
+              "p95": 1.641983642578125,
+              "p99": 2.206980305989564,
+              "max": 3.18302197265625
+            },
+            "90": {
+              "p50": 1.721265380859375,
+              "p95": 2.4629754638671875,
+              "p99": 3.310470458984346,
+              "max": 4.774532958984375
+            },
+            "120": {
+              "p50": 2.2950205078125,
+              "p95": 3.28396728515625,
+              "p99": 4.413960611979128,
+              "max": 6.3660439453125
+            },
+            "160": {
+              "p50": 3.06002734375,
+              "p95": 4.378623046875,
+              "p99": 5.885280815972171,
+              "max": 8.48805859375
+            }
+          }
+        },
+        "MISSING": {
+          "ms": {
+            "count": 633,
+            "mean": 3844.873157053256,
+            "p25": 1229.015625,
+            "p50": 3161.14697265625,
+            "p75": 4764.948974609375,
+            "p90": 9400.0810546875,
+            "p95": 9400.0810546875,
+            "p99": 26138.539388020825,
+            "p99_5": 26422.74772135417,
+            "max": 26720.914388020832
+          },
+          "beats": {
+            "60": {
+              "p50": 3.16114697265625,
+              "p95": 9.4000810546875,
+              "p99": 26.138539388020824,
+              "max": 26.720914388020834
+            },
+            "90": {
+              "p50": 4.741720458984375,
+              "p95": 14.10012158203125,
+              "p99": 39.20780908203123,
+              "max": 40.08137158203125
+            },
+            "120": {
+              "p50": 6.3222939453125,
+              "p95": 18.800162109375,
+              "p99": 52.27707877604165,
+              "max": 53.44182877604167
+            },
+            "160": {
+              "p50": 8.429725260416667,
+              "p95": 25.0668828125,
+              "p99": 69.70277170138887,
+              "max": 71.25577170138888
+            }
+          }
+        },
+        "WRONG": {
+          "ms": {
+            "count": 41,
+            "mean": 7179.549894007241,
+            "p25": 1968.529703776061,
+            "p50": 3019.711588541686,
+            "p75": 3969.711588541628,
+            "p90": 26322.997721354168,
+            "p95": 26466.747721354168,
+            "p99": 26667.5810546875,
+            "p99_5": 26694.247721354164,
+            "max": 26720.914388020832
+          },
+          "beats": {
+            "60": {
+              "p50": 3.019711588541686,
+              "p95": 26.466747721354167,
+              "p99": 26.6675810546875,
+              "max": 26.720914388020834
+            },
+            "90": {
+              "p50": 4.529567382812529,
+              "p95": 39.70012158203125,
+              "p99": 40.00137158203125,
+              "max": 40.08137158203125
+            },
+            "120": {
+              "p50": 6.039423177083372,
+              "p95": 52.933495442708335,
+              "p99": 53.335162109375,
+              "max": 53.44182877604167
+            },
+            "160": {
+              "p50": 8.052564236111163,
+              "p95": 70.57799392361112,
+              "p99": 71.11354947916666,
+              "max": 71.25577170138888
+            }
+          }
+        },
+        "INCOMPLETE_CHORD": {
+          "ms": {
+            "count": 1094,
+            "mean": 3860.0540851079295,
+            "p25": 1113.4674479166606,
+            "p50": 1920.0699869791533,
+            "p75": 3849.688639322907,
+            "p90": 8392.789388020832,
+            "p95": 19751.122721354164,
+            "p99": 19751.122721354164,
+            "p99_5": 23719.961263020865,
+            "max": 26720.914388020832
+          },
+          "beats": {
+            "60": {
+              "p50": 1.9200699869791533,
+              "p95": 19.751122721354164,
+              "p99": 19.751122721354164,
+              "max": 26.720914388020834
+            },
+            "90": {
+              "p50": 2.88010498046873,
+              "p95": 29.626684082031247,
+              "p99": 29.626684082031247,
+              "max": 40.08137158203125
+            },
+            "120": {
+              "p50": 3.8401399739583066,
+              "p95": 39.50224544270833,
+              "p99": 39.50224544270833,
+              "max": 53.44182877604167
+            },
+            "160": {
+              "p50": 5.120186631944409,
+              "p95": 52.669660590277765,
+              "p99": 52.669660590277765,
+              "max": 71.25577170138888
+            }
+          }
+        },
+        "EXTRA": {
+          "ms": {
+            "count": 342,
+            "mean": 1261.5810225637335,
+            "p25": 1018.87353515625,
+            "p50": 1276.895751953125,
+            "p75": 1428.091552734375,
+            "p90": 1736.62646484375,
+            "p95": 1736.62646484375,
+            "p99": 2237.4005859374993,
+            "p99_5": 2491.5005859375005,
+            "max": 2683.64697265625
+          },
+          "beats": {
+            "60": {
+              "p50": 1.276895751953125,
+              "p95": 1.73662646484375,
+              "p99": 2.237400585937499,
+              "max": 2.68364697265625
+            },
+            "90": {
+              "p50": 1.9153436279296876,
+              "p95": 2.604939697265625,
+              "p99": 3.356100878906249,
+              "max": 4.025470458984375
+            },
+            "120": {
+              "p50": 2.55379150390625,
+              "p95": 3.4732529296875,
+              "p99": 4.474801171874998,
+              "max": 5.3672939453125
+            },
+            "160": {
+              "p50": 3.4050553385416666,
+              "p95": 4.63100390625,
+              "p99": 5.966401562499998,
+              "max": 7.156391927083333
+            }
+          }
+        }
+      },
+      "latencyDefinition": "Targeted correctly-classified verdicts; missing/incorrect classifications counted in correctness, not silently assigned zero latency. All background/incorrect verdict latency is also retained.",
+      "runtime": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "modelLoadMs": 666.2001953125,
+          "firstInferenceMs": 297.099853515625,
+          "processingMs": {
+            "count": 44,
+            "mean": 288.77722722833806,
+            "p25": 279.97491455078125,
+            "p50": 288.25,
+            "p75": 297.44989013671875,
+            "p90": 304.2799072265625,
+            "p95": 306.59495849609374,
+            "p99": 327.21103515625,
+            "p99_5": 327.7054931640625,
+            "max": 328.199951171875
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.03635475852272727,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.099853515625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.199951171875,
+            "p99_5": 0.199951171875,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26703.56494140625,
+            "realtimeFactor": 0.9886320443703924,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 298.5195589932528,
+            "p25": 287.89007568359375,
+            "p50": 299.0150146484375,
+            "p75": 305.94000244140625,
+            "p90": 315.1950439453125,
+            "p95": 319.860107421875,
+            "p99": 334.6340600585938,
+            "p99_5": 337.14954956054686,
+            "max": 339.6650390625
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "modelLoadMs": 661.89990234375,
+          "firstInferenceMs": 299.300048828125,
+          "processingMs": {
+            "count": 44,
+            "mean": 311.05680708451706,
+            "p25": 303.57501220703125,
+            "p50": 311,
+            "p75": 318.699951171875,
+            "p90": 325.1499755859375,
+            "p95": 327.275,
+            "p99": 329.55298583984376,
+            "p99_5": 330.17651733398435,
+            "max": 330.800048828125
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02728271484375,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.02496337890625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26723.06494140625,
+            "realtimeFactor": 0.9879106329264772,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 320.03316983309657,
+            "p25": 310.389892578125,
+            "p50": 319.364990234375,
+            "p75": 327.7900390625,
+            "p90": 335.8349609375,
+            "p95": 336.8750732421875,
+            "p99": 343.2709765625,
+            "p99_5": 344.5179345703125,
+            "max": 345.764892578125
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "modelLoadMs": 666.300048828125,
+          "firstInferenceMs": 302,
+          "processingMs": {
+            "count": 44,
+            "mean": 301.09545343572444,
+            "p25": 293.92498779296875,
+            "p50": 300.6500244140625,
+            "p75": 307.75006103515625,
+            "p90": 321.570068359375,
+            "p95": 326.4899658203125,
+            "p99": 329.9560278320312,
+            "p99_5": 330.12803833007814,
+            "max": 330.300048828125
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02954656427556818,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.099853515625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26679.264892578125,
+            "realtimeFactor": 0.9895325117201481,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 310.15818093039775,
+            "p25": 301.3399658203125,
+            "p50": 309.364990234375,
+            "p75": 317.9649658203125,
+            "p90": 329.67502441406253,
+            "p95": 339.3750732421875,
+            "p99": 341.41797607421876,
+            "p99_5": 342.04150756835935,
+            "max": 342.6650390625
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "modelLoadMs": 649.39990234375,
+          "firstInferenceMs": 295.60009765625,
+          "processingMs": {
+            "count": 44,
+            "mean": 314.2704523259943,
+            "p25": 306.14996337890625,
+            "p50": 316.3499755859375,
+            "p75": 323.92510986328125,
+            "p90": 329.1599365234375,
+            "p95": 331.1498046875,
+            "p99": 334.0389721679687,
+            "p99_5": 334.61946166992186,
+            "max": 335.199951171875
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.02728271484375,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0.02496337890625,
+            "p90": 0.10009765625,
+            "p95": 0.10009765625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26720.06494140625,
+            "realtimeFactor": 0.988021550766882,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.10009765625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 319.4421664151278,
+            "p25": 311.96490478515625,
+            "p50": 319.6649169921875,
+            "p75": 329.264892578125,
+            "p90": 332.56494140625,
+            "p95": 335.7599609375,
+            "p99": 342.7028369140625,
+            "p99_5": 343.43381591796873,
+            "max": 344.164794921875
+          },
+          "historical480MsDiagnostic": true
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "modelLoadMs": 660.60009765625,
+          "firstInferenceMs": 312.60009765625,
+          "processingMs": {
+            "count": 44,
+            "mean": 309.3090709339489,
+            "p25": 300.99993896484375,
+            "p50": 309,
+            "p75": 317.12493896484375,
+            "p90": 322.7600341796875,
+            "p95": 332.23996582031253,
+            "p99": 352.22490234375,
+            "p99_5": 357.0624023437499,
+            "max": 361.89990234375
+          },
+          "arrivalCadenceMs": 600,
+          "queueDelayMs": {
+            "count": 44,
+            "mean": 0.011358087713068182,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0,
+            "p95": 0.099853515625,
+            "p99": 0.15701416015625003,
+            "p99_5": 0.17848266601562465,
+            "max": 0.199951171875
+          },
+          "backlog": {
+            "status": "NO_SUSTAINED_BACKLOG",
+            "noSustainedBacklog": true,
+            "schedulerJitterAllowanceMs": 8,
+            "cadenceMs": 600,
+            "tailQueueTrendMsPerGroup": 0,
+            "producerDurationMs": 26400,
+            "consumerDurationMs": 26719.1650390625,
+            "realtimeFactor": 0.9880548273647065,
+            "maxOutstandingDepth": 1,
+            "finalQueueDelayMs": 0,
+            "queueDelayMs": {
+              "count": 44,
+              "p50": 0,
+              "p95": 0.099853515625,
+              "max": 0.199951171875
+            }
+          },
+          "inputReadyToPublicationMs": {
+            "count": 44,
+            "mean": 316.49222079190343,
+            "p25": 307.614990234375,
+            "p50": 316.06494140625,
+            "p75": 324.264892578125,
+            "p90": 338.1849365234375,
+            "p95": 341.0049560546875,
+            "p99": 354.77092041015624,
+            "p99_5": 358.16793090820306,
+            "max": 361.56494140625
+          },
+          "historical480MsDiagnostic": true
+        }
+      ],
+      "runtimeSustainable": true,
+      "acousticDiagnostics": [
+        {
+          "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+          "physicalOnsets": 211,
+          "predictedOnsets": 205,
+          "matched50ms": 203,
+          "f1": 0.9759615384615384,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+          "physicalOnsets": 36,
+          "predictedOnsets": 36,
+          "matched50ms": 36,
+          "f1": 1,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_04_chopin_op028-01_003_20100611-smd",
+          "physicalOnsets": 293,
+          "predictedOnsets": 292,
+          "matched50ms": 289,
+          "f1": 0.9880341880341881,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_06_rachmaninoff_op036-01_007_20110315-smd",
+          "physicalOnsets": 137,
+          "predictedOnsets": 130,
+          "matched50ms": 130,
+          "f1": 0.9737827715355806,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        },
+        {
+          "clipId": "xc2_08_brahms_op005-01_002_20110315-smd",
+          "physicalOnsets": 183,
+          "predictedOnsets": 174,
+          "matched50ms": 174,
+          "f1": 0.9747899159663865,
+          "evidenceLayer": "ACOUSTIC_ONSET_TRANSCRIPTION_DIAGNOSTIC_NOT_PRODUCT_CORRECTNESS"
+        }
+      ],
+      "resampler": "BAND_LIMITED",
+      "ownedMs": 600,
+      "futureMs": 220,
+      "metricsPath": "backend\\data\\work\\xc2_robust_product_baseline_v1\\metrics\\stage_a\\BAND_LIMITED_C_600_220.json",
+      "metricsSha256": "a6c6f09d3665248be5157aadec52fe5b73b6564d232d74249226ddc5318cc6b4"
+    }
+  ],
+  "carriedIds": [
+    "LINEAR_A_600_220",
+    "LINEAR_C_600_220",
+    "BAND_LIMITED_A_600_220",
+    "BAND_LIMITED_B_600_220",
+    "BAND_LIMITED_C_600_220"
+  ],
+  "rule": "Componentwise safety/correctness Pareto only; no non-inferiority margin or speed-only selection."
+}
