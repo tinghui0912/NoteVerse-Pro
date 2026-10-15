@@ -1,0 +1,335 @@
+{
+  "studyId": "ROBUST_BROWSER_RUNTIME_SUSTAINABILITY_QUALIFICATION",
+  "startingRemoteHead": "15f3f50af5262ed64a0acfc22bdf4f1191b78229",
+  "f5Commit": "24284a7af86278e0d0c5b527e9db561cd3433da7",
+  "f5FreezeSha256": "79a1df5641a1fac88908036da063eb71de0914180be38aeebecda9961a8e5283",
+  "f5ScientificDisposition": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+  "f5ResultSha256": "3dea54e8d94e7f5042594e9c9dd87cf80d459757b4648ea4c154d44ad7574505",
+  "inferenceDeployment": "robust-browser-v1",
+  "deploymentIdentity": {
+    "deploymentIdentityContent": {
+      "deploymentId": "robust-browser-v1",
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "historicalD3DeploymentIdentitySha256": "196a9a2ceb03569f6e266c4f5973125bb8596146882079105ee94ef7e621deed",
+      "onnxSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "sampleRateHz": 16000,
+      "inputSamples": 29120,
+      "ownedRegionMs": 600,
+      "pastContextMs": 1000,
+      "futureContextMs": 220,
+      "onsetThreshold": 0.3,
+      "frameThreshold": 0.05,
+      "executionProvider": "webgpu",
+      "assetVerification": {
+        "onnxSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+        "onnxBytes": 98689283,
+        "historicalD3DeploymentIdentitySha256": "196a9a2ceb03569f6e266c4f5973125bb8596146882079105ee94ef7e621deed",
+        "sampleRateHz": 16000,
+        "inputSamples": 29120,
+        "contextMs": {
+          "past": 1000,
+          "owned": 600,
+          "future": 220
+        },
+        "thresholds": {
+          "onset": 0.3,
+          "frame": 0.05
+        }
+      },
+      "decoderIdentity": {
+        "decoderId": "noteverse-bytedance-decodeByteDanceRawOutputs-parity-v1",
+        "onsetThreshold": 0.3,
+        "frameThreshold": 0.05,
+        "outputFrameRateHz": 100,
+        "midiLowestPianoKey": 21,
+        "inputSamples": 29120,
+        "ownershipFiltering": "half-open-600ms-region"
+      },
+      "executorSha256": "86f6f457227b108494d8e3d86ddea350db6f910c111bb80d9676e67d47f598fc",
+      "sharedRuntimeSha256": "cf5757e276774a75f2f402c3c120ccc3b1a69bb83bc899ffcfdd6e9bfc6f745e",
+      "semanticsSha256": "bd11b791b8a273d5a0a451cb456abbf061d1504101fbec8e2cd9a3002c0d1e9b",
+      "ownershipPlannerSha256": "33a032a7508c488cf7eb1db9b60b3f6a921756eab798c5d84875d634b5925125",
+      "greenfieldBoundarySha256": "f5d07744b57169b60af764a6ab7c77d5b7915bd4ecbad957e78b048cf68cbe5a",
+      "commonPreprocessingSourceSha256": "04aa1ebe3c6f49d6cbec713d3d368b9a4f416ce335854df921d926a7c9e8afd6",
+      "ortWebVersion": "1.20.1",
+      "ortPackageLockSha256": "7268737984b6c01ca800a3512a69c7656215fc7f19dede78b43f40752bc4f449"
+    },
+    "xc1DeploymentIdentitySha256": "e1e40b43ebbc76436d5bf05b66e0dfc250d54197dc5f333d5501e7924b84620a",
+    "implementationIdentity": {
+      "officialRegistry": {
+        "file": "backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs",
+        "sha256": "f74b1e4ceea0c4eccf4a4ea5c166605a8ce2106f7833aba4d614edf09ecfd758",
+        "exportName": "executeOfficialXc1StageACell"
+      },
+      "realExecutor": {
+        "file": "backend/research/browser_runtime/xc1_robust_browser_executor.mjs",
+        "sha256": "86f6f457227b108494d8e3d86ddea350db6f910c111bb80d9676e67d47f598fc",
+        "exportName": "executeRobustBrowserExecutor"
+      },
+      "sharedBrowserRuntime": {
+        "file": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+        "sha256": "cf5757e276774a75f2f402c3c120ccc3b1a69bb83bc899ffcfdd6e9bfc6f745e",
+        "exportName": "startXc1BrowserAssetServer"
+      },
+      "decoder": {
+        "decoderId": "noteverse-bytedance-decodeByteDanceRawOutputs-parity-v1",
+        "onsetThreshold": 0.3,
+        "frameThreshold": 0.05,
+        "outputFrameRateHz": 100,
+        "midiLowestPianoKey": 21,
+        "inputSamples": 29120,
+        "ownershipFiltering": "half-open-600ms-region"
+      }
+    },
+    "sessionLoadCount": 1,
+    "actualInferenceSessionRunCount": 8
+  },
+  "selectedOrtWebVersion": "1.20.1",
+  "frozenInferenceSourceHashBoundary": {
+    "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-decoder.ts": "07d5cb1d709c99ab85f8b701fd0bdf1744b4135b4d7dbd21deb679029e541311",
+    "apps/customer-web/src/lib/practice/research/acoustic-candidate-contract.ts": "f5d07744b57169b60af764a6ab7c77d5b7915bd4ecbad957e78b048cf68cbe5a",
+    "apps/customer-web/src/lib/practice/research/online-amt-stateful-streaming.ts": "adc8cdfdcf344505ebd2ede38a9eda8b47c1efac9665eafae91140358dcb04d9",
+    "backend/research/browser_runtime/attest_inference_runtime.mjs": "b7065282855460ca2de2df2ddadb6ce6b36158c0887df9d87ea1218fcbf612ca",
+    "backend/research/browser_runtime/audit_continuous_paired_take_manifest.mjs": "b66e9445bfd7eb7c959565226616c4905cdb34c8b3306135cdec103e20e75f81",
+    "backend/research/browser_runtime/basic_pitch_browser_harness.mjs": "19c05dd6437dde06e90b6a2289f6b92a27f250aea91d4ac239bcffbeebca0ee6",
+    "backend/research/browser_runtime/bootstrap_public_proxy_dataset.mjs": "1416d59386b268b467e2728e2d4ea1b00bbdaf69b3f903cfda9e21bc768d89bb",
+    "backend/research/browser_runtime/bytedance_dynamic_batch_browser_benchmark.mjs": "d3e1428d994d242e383bd40da9604870c5889a5102626bf15e3c2df078ff8f27",
+    "backend/research/browser_runtime/bytedance_onnx_browser_harness.mjs": "c79e66c42bc60537eef5b32d2108ea74c54c0342decb0e9e8da6ce5798972b61",
+    "backend/research/browser_runtime/bytedance_phase9e_eligibility.mjs": "b7a4fffc4025ea63565768a6c8a26d127be2ede7c076609a84fb10c345c6f4bf",
+    "backend/research/browser_runtime/execute_phase9gb_blind_evaluation.mjs": "93ccdeda1e042a755347f17c4ccff2de9b3793f8f9af7b29d49e1165e10ef500",
+    "backend/research/browser_runtime/execution_grade_blind_orchestrator.mjs": "2cf696fe1c9d8d44ce1c9f6d00f0d56e2b7f1071719721cb2d5be3b04e03d49f",
+    "backend/research/browser_runtime/online_amt_d2r1_bridge_hop_artifacts.mjs": "0247f9ba595d27cd17760c7e6a584c19ccc03e457b2d00a5a73b1a3914830c7c",
+    "backend/research/browser_runtime/online_amt_grouped_browser_harness_dr3.mjs": "4a86d0adaa5ed0bc496b53572a3fe8df8953fdd8ba14ddb48e067f5f77d5ccff",
+    "backend/research/browser_runtime/online_amt_grouped_browser_worker_dr3.mjs": "1d9d4fed4305186b256c2b7f2aa75ea63bb12a6516fea96c1dfdc48ded5aa756",
+    "backend/research/browser_runtime/online_amt_stateful_browser_harness.mjs": "bd326780bd04e92ef1244bf855dcdd4301551bd1ccf9200f9580bbe6509c72e5",
+    "backend/research/browser_runtime/online_amt_stateful_browser_worker.mjs": "926dff098c121e4d494e54a98aff009e010b9a726e8c40b430e267cd0285ebe3",
+    "backend/research/browser_runtime/rehearse_phase9gb_blind_protocol.mjs": "8ba657d8fcbcd34faa3234e8133cd7d4592f8fe1e991a7f55e6968b1fef66a0c",
+    "backend/research/browser_runtime/run_bytedance_phase9e_a.mjs": "9d07e5a8ee5906bf78542ecce6ae2f4ca4a6a98bf4135f5a17cafeec166511a3",
+    "backend/research/browser_runtime/run_online_amt_phase9e_b.mjs": "5d61477d215fa5b412fedc7915802a478b624228646e89e7ac4eff54b8ce63b1",
+    "backend/research/browser_runtime/run_phase9g_dr3r1h_correction.mjs": "36235534965174708b821411b40351cb2b35f2034ae46c5834b4278285da4b3a",
+    "backend/research/browser_runtime/run_phase9ga25_normalize_incumbents.mjs": "2348ee39f90ee905c8cb747eb171a1f66d576c815523dc576c95215850fb2405",
+    "backend/research/browser_runtime/run_phase9ga2_calibration_sweep.mjs": "ab0da0f343e1bb2c2114a7e629f38548a976279038f546298025383014308a69",
+    "backend/research/browser_runtime/run_phase9ga3_challenger_sweep.mjs": "9247625dc4ddd06faca229447a8543cbc4abccf16f218ff9518e286001307169",
+    "backend/research/browser_runtime/run_phase9gb01_entry_gate.mjs": "0c6ff7f2bc6580a539c1292b2fb231ac8026405d8550c6f20868e8fb0b239da2",
+    "backend/research/browser_runtime/run_phase9gb01_evidence_prep.mjs": "d96d6bc50a2bb0c077b4357e4570866ca57d7e3f6018c2196300c666fd844fb0",
+    "backend/research/browser_runtime/run_phase9gb0_entry_gate.mjs": "24831afc023a0d2e51511a5e0f6d6b069ea97043e7935bb0a0bed0b17f69582d",
+    "backend/research/browser_runtime/run_phase9gb11_protocol_freeze.mjs": "2076e894317a94919d0279f875e2dfcb888ac35ef3d9a2c753051260a21c2851",
+    "backend/research/browser_runtime/run_phase9gb12_protocol_freeze.mjs": "39c9b976d331013f5e4be9768c742de39301aec9ed4d7f04a772505b3427e2b1",
+    "backend/research/browser_runtime/run_phase9gb1_protocol_freeze.mjs": "678d41e1df9b7dde2e9758cf59530a8f6e550617a42fa5e32fa3f3829e0ab291",
+    "backend/research/browser_runtime/run_phase9gb2_protocol_freeze.mjs": "83b7070a2ee9f0b687e985038084155b35859cdd2e536e436b3cb3a087abf813",
+    "backend/research/browser_runtime/run_phase9gd1_dataset_inventory.mjs": "38d7e449a52ea3e05bbfe639249be0959a9fc105c9b689e1e86651dc43a4179b",
+    "backend/research/browser_runtime/run_phase9gd1r_canonical_semantics.mjs": "c4d9b557aab2c82f8d72704a801ef907a32d0fd7ddcf3a775d9d75491b77a8dd",
+    "backend/research/browser_runtime/run_phase9gd1r_finalize_receipts.mjs": "20e27d2e43064f0a7b5920e7c46845085ac60ddeb10b39f08291aa966c23a7e6",
+    "backend/research/browser_runtime/run_public_fixed_bpm_proxy_benchmark.mjs": "a4ac1cf1fa30099fbe10afc0d49c52d4a16c0a6962e30caf1c704651bccbe422",
+    "backend/research/browser_runtime/run_vienna_fixed_bpm_proxy_benchmark.mjs": "76e4604cf2695f4f9ed9881817f6bf8582a6ec4309da7093090a9b5c106c2c5a",
+    "backend/research/browser_runtime/test_xc1_r3a_official_executor_contract.py": "18dddedb4a8b1b580eb3db7a7373168033ff2e27cb880fbd8754f468dee9962b",
+    "backend/research/browser_runtime/test_xc1_r3c_semantic_modules.py": "5c7e4494ed95a7b9641fdbd486aee1fc135dd86b6834c52423e548a78228d756",
+    "backend/research/browser_runtime/test_xc1_r3d.mjs": "0a3b5ce0289ac839590704b678c8997b4bf1521c9f65c1b77870f8dcf6793226",
+    "backend/research/browser_runtime/verify_phase9gb01_entry_gate.mjs": "bb7780c9bf4ba73a6b7e12e87063fc35fb2d0f766da91f2d9b4bdf08762b025b",
+    "backend/research/browser_runtime/verify_phase9gb11_protocol.mjs": "a08893889667ba4e445d7ff2cbd2b061db0ce9e00498da1850e202da39621f36",
+    "backend/research/browser_runtime/verify_phase9gb12_protocol.mjs": "0c3b823752fe06b122af933fd3c28ba36a605c76e5a0547295751bd771369f5b",
+    "backend/research/browser_runtime/verify_phase9gb1_protocol.mjs": "cbb394bc211053e3c4d86a2689192bd659fb5fb7fd2a379bee8c2deb41ba7dac",
+    "backend/research/browser_runtime/verify_phase9gb2_protocol.mjs": "f1d8d3552e42f0e1c70071b6b78d76ea42a51fc5ebc219364754caceb2c995f1",
+    "backend/research/browser_runtime/xc1_artifacts.mjs": "6d194fc014519b8d3e5a08f6ce86f88ec409917ca03c8c7d76aacda9fe519ab3",
+    "backend/research/browser_runtime/xc1_basic_pitch_browser_executor.mjs": "c4470fda03b17724dc6be1b2a3f112432b43ce14c70dd4062fa6a677445d1d69",
+    "backend/research/browser_runtime/xc1_browser_boundary_test.mjs": "769fa2f11a9f877efa19b4e2c30c784ea4910de801dac4ea9c60ca4f840bed8e",
+    "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs": "cf5757e276774a75f2f402c3c120ccc3b1a69bb83bc899ffcfdd6e9bfc6f745e",
+    "backend/research/browser_runtime/xc1_browser_semantics.mjs": "bd11b791b8a273d5a0a451cb456abbf061d1504101fbec8e2cd9a3002c0d1e9b",
+    "backend/research/browser_runtime/xc1_edge_lane.mjs": "8316ef33b1aa03d3cba3592f29262927eb4f2445584614cac716ae743adf9607",
+    "backend/research/browser_runtime/xc1_f5_execute_all.mjs": "adf522e7dc67f732808f78eefcb3fd0c09b4762bb20f3c5ef1038d6d3e6e4cc3",
+    "backend/research/browser_runtime/xc1_final_report.mjs": "99982ab9aaaa7c43ec465a39fd7cbb5dcc0ba8904c3256102975a392c85e0661",
+    "backend/research/browser_runtime/xc1_online_amt_k8_browser_executor.mjs": "4a3e635165508a6a7d1b8cc0bcb4917e8e1232e5f4b062e398c624683b7d595c",
+    "backend/research/browser_runtime/xc1_online_amt_publication_bridge.mjs": "73b92453b9295453803c7422682d491b91075741bc1a4c3d16c805abbd563d15",
+    "backend/research/browser_runtime/xc1_ort120_runtime/package-lock.json": "7268737984b6c01ca800a3512a69c7656215fc7f19dede78b43f40752bc4f449",
+    "backend/research/browser_runtime/xc1_ort120_runtime/package.json": "f7b2b869fa464f395b2f945ea1c552565def48962f36fc68da371d3722793084",
+    "backend/research/browser_runtime/xc1_pre_f4_mini_pipeline_dry_run.mjs": "ad48cb76fe1569d2851b4c9e48b4d8dc127a29541cfa62e3ff68a1549f2c41aa",
+    "backend/research/browser_runtime/xc1_pre_f4_real_executor_acceptance.mjs": "3c707fd60d793dec454628d4baa8854000d7b60fab55ab53724cf50f321d0bb5",
+    "backend/research/browser_runtime/xc1_prepare_f5.mjs": "37d200039c2c30d82fd371f5704b43c98b8724f4788116b0d61b3fb9d9a1eaea",
+    "backend/research/browser_runtime/xc1_r3d_full_dry_run.mjs": "c25e4f0230a95b874e5bbaa31a916c96249d4333505f355543d4d87aaf36cbdf",
+    "backend/research/browser_runtime/xc1_r3d_online_parity.mjs": "7fdcb74061a75dd0457b8936bc230a98c40347c924a317abe1a0224e1336d892",
+    "backend/research/browser_runtime/xc1_r3d_validation.mjs": "f81130525a2af3b72f4154f1ec783af0f5f13e6e6b8d818410ba80aea7358fc3",
+    "backend/research/browser_runtime/xc1_robust_browser_executor.mjs": "86f6f457227b108494d8e3d86ddea350db6f910c111bb80d9676e67d47f598fc",
+    "backend/research/browser_runtime/xc1_robust_decoder.mjs": "33a032a7508c488cf7eb1db9b60b3f6a921756eab798c5d84875d634b5925125",
+    "backend/research/browser_runtime/xc1_runtime_lane.mjs": "0015db0ac42871317a49e269805a1ea02828892a0b5f82b2b2c6860891bbbe30",
+    "backend/research/browser_runtime/xc1_runtime_selection.mjs": "103f1d5065cdc8507446cf985afaf989b1f5ba989aae1a8244837d4e1c2ad5ce",
+    "backend/research/browser_runtime/xc1_stage_a_candidate_registry.mjs": "f74b1e4ceea0c4eccf4a4ea5c166605a8ce2106f7833aba4d614edf09ecfd758",
+    "backend/research/browser_runtime/xc1_stage_a_matrix_runner.mjs": "b4f32b7563b0ebec27af97590dcf2b23cfd1c746834662b17658a874935a8f6b",
+    "backend/research/browser_runtime/xc1_stage_a_runner.mjs": "4e1b984e63b90f28afec1e0bde48c71803e6c3534dac0e34b33fb24881e1a604",
+    "backend/research/browser_runtime/xc1_stage_a_sealer.mjs": "c1ffb6ea5f594c950536415213cd831128e6ab9e92e6a8d16e0e083a263c6895",
+    "backend/research/test_xc1_r3d_science.py": "8cd52305251e346d1d047c4c5ee819afefc20eb241fb1cd530877ff3f8582dc8",
+    "backend/research/xc1_scientific_bakeoff.py": "04aa1ebe3c6f49d6cbec713d3d368b9a4f416ce335854df921d926a7c9e8afd6",
+    "backend/scripts/bytedance_pcm_preprocessing.py": "a60625601a00e9799162239bf1281965d32fd2f911673007f28816ff8376781b",
+    "backend/scripts/phase9g_xc1_r3d_check_online_parity.py": "c0e7f07f19b6e80b60eb37752b440db3156048cb6f6d29da8c33ea77757770a7",
+    "backend/scripts/phase9g_xc1_r3d_native_gate_reference.py": "8a0428133abd29fa588397bf15351c49530a797bcd094556821c7fa72048d338",
+    "backend/scripts/phase9g_xc1_r3d_reference_fixture.py": "e2347501f9aede24abecf4e7e909041063c6915c06e1c09b77dd7e02d8b6be59",
+    "backend/scripts/phase9g_xc1_r3d_stage_b.py": "df59b95ee0398023649867d2acefaa3f9a2a1aa28aff84618769937905f87168",
+    "backend/scripts/phase9g_xc1_r3d_synthetic_truth.py": "ed8bad571d14fbc56fc819f0a582423c7916c2084964c93c1e339e0f774736ab",
+    "backend/scripts/phase9g_xc1_r3d_verify_pcm.py": "34ccddceb5579c2e4f503effd86b61bf598569171e2948af2fe6e4ed4df2028f",
+    "docker/research/Dockerfile.xc1-r3d-science": "77f89b792bb03fd43f9cb1f14384cf25444ffdb67c2a2cd6b10fa4b96947c361"
+  },
+  "analysisSourceHashes": {
+    "backend/research/browser_runtime/robust_runtime_evidence_analysis.mjs": "33764fa99ae1148e9ae776f322b90d9c243e709fc066ace2624e6defdc60cb6b",
+    "backend/research/browser_runtime/test_robust_runtime_evidence_analysis.mjs": "cafbc5b7d3a297ddda18987a6a1fe4251f6ef4eba533234f636bd15f3fc269dd"
+  },
+  "selection": {
+    "populationManifest": "backend/research/reports/phase9g_xc1_r3d_sanitized_stage_a_manifest_f5_stream_2026-10-15.json",
+    "populationManifestSha256": "7175de6d69113cd046fd04641d2f645601e8f760c7edef091621705470bd10cc",
+    "excludedPriorRuntimeTakeIds": [
+      "chopin_op028-01_003_20100611-smd",
+      "ravel_jeuxdeau_008_20110315-smd",
+      "liszt_annesdepelerinage-lecturedante_002_20090916-smd"
+    ],
+    "eligiblePopulationCount": 47,
+    "algorithm": "Sort remaining 47 takes by durationSeconds then takeId; choose Math.round((N-1)*q), q=[0,.25,.5,.75,1]; no MIDI or accuracy input.",
+    "takes": [
+      {
+        "selectionQuantile": 0,
+        "orderedIndex": 0,
+        "takeId": "chopin_op028-11_003_20100611-smd",
+        "durationSeconds": 38,
+        "workId": "chopin_op028_11",
+        "sourceAcousticWavSha256": "6dd00d18eae09e40212d25c7a55c2c2efc6a853468c8f6d91886afa0ea8125b2",
+        "scoreableInterior": {
+          "endMs": 37780,
+          "futureContextMs": 220,
+          "pastContextMs": 1000,
+          "startMs": 1000
+        },
+        "canonicalPcm": {
+          "sha256": "8b05ccac06215489984b5981be1921d973f2e3861e0f03e2359640b57dbc2802",
+          "byteSize": 2432000,
+          "sampleCount": 608000,
+          "sampleRateHz": 16000,
+          "dtype": "float32-le-raw",
+          "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op028-11_003_20100611-smd.f32"
+        }
+      },
+      {
+        "selectionQuantile": 0.25,
+        "orderedIndex": 12,
+        "takeId": "chopin_op028-17_005_20100611-smd",
+        "durationSeconds": 177,
+        "workId": "chopin_op028_17",
+        "sourceAcousticWavSha256": "65ab1c88b5de417623e82ac05c9e0d86f61b06adcb8153a7dfcd7228f5122a5c",
+        "scoreableInterior": {
+          "endMs": 176780,
+          "futureContextMs": 220,
+          "pastContextMs": 1000,
+          "startMs": 1000
+        },
+        "canonicalPcm": {
+          "sha256": "b15bd88577d872625e8c5f1eda23c96c817822f2a90ed57f149aad20b8ed7668",
+          "byteSize": 11328000,
+          "sampleCount": 2832000,
+          "sampleRateHz": 16000,
+          "dtype": "float32-le-raw",
+          "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op028-17_005_20100611-smd.f32"
+        }
+      },
+      {
+        "selectionQuantile": 0.5,
+        "orderedIndex": 23,
+        "takeId": "chopin_op066_006_20100611-smd",
+        "durationSeconds": 311,
+        "workId": "chopin_op066",
+        "sourceAcousticWavSha256": "ee8daf3dd636b8902e9c2c0f74d57e0700710bfa20d3cb673486a310406d3b29",
+        "scoreableInterior": {
+          "endMs": 310780,
+          "futureContextMs": 220,
+          "pastContextMs": 1000,
+          "startMs": 1000
+        },
+        "canonicalPcm": {
+          "sha256": "43530888797d646d0b798e8018063f963e2f16ee193e40b0567310587ae6877a",
+          "byteSize": 19904000,
+          "sampleCount": 4976000,
+          "sampleRateHz": 16000,
+          "dtype": "float32-le-raw",
+          "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/chopin_op066_006_20100611-smd.f32"
+        }
+      },
+      {
+        "selectionQuantile": 0.75,
+        "orderedIndex": 35,
+        "takeId": "mozart_kv398_002_20110315-smd",
+        "durationSeconds": 442.47414965986394,
+        "workId": "mozart_kv398",
+        "sourceAcousticWavSha256": "f374a77d01db61d2da9a7bc213e4e0299c8011eac0f01bcbb9c282d493e1e0e0",
+        "scoreableInterior": {
+          "endMs": 442254.125,
+          "futureContextMs": 220,
+          "pastContextMs": 1000,
+          "startMs": 1000
+        },
+        "canonicalPcm": {
+          "sha256": "78c26b1c1f6e32d619ac265411770ae0a587eb6d2a6c473292d1c444d94164a4",
+          "byteSize": 28318344,
+          "sampleCount": 7079586,
+          "sampleRateHz": 16000,
+          "dtype": "float32-le-raw",
+          "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/mozart_kv398_002_20110315-smd.f32"
+        }
+      },
+      {
+        "selectionQuantile": 1,
+        "orderedIndex": 46,
+        "takeId": "liszt_variationenbachmotivweinenklagensorgenzagen_001_20090916-smd",
+        "durationSeconds": 966,
+        "workId": "liszt_variationenbachmotivweinenklagensorgenzagen",
+        "sourceAcousticWavSha256": "d305803845a1b83d8ad507a6878a6fc290d152b6e944f4c7d4c88774dc78932f",
+        "scoreableInterior": {
+          "endMs": 965780,
+          "futureContextMs": 220,
+          "pastContextMs": 1000,
+          "startMs": 1000
+        },
+        "canonicalPcm": {
+          "sha256": "5c47b119889eb25fb429c4762f40ce6ab7260eec7ac2b6cc8ee31bb5fe0bdf15",
+          "byteSize": 61824000,
+          "sampleCount": 15456000,
+          "sampleRateHz": 16000,
+          "dtype": "float32-le-raw",
+          "sourceRelativePath": "backend/data/work/xc1_r2/canonical_pcm/liszt_variationenbachmotivweinenklagensorgenzagen_001_20090916-smd.f32"
+        }
+      }
+    ]
+  },
+  "execution": {
+    "runRoot": "backend/data/work/robust_runtime_sustainability_2026_10_15",
+    "candidateExecutions": 5,
+    "robustOnly": true,
+    "headed": true,
+    "browser": "chrome",
+    "provider": "default hardware WebGPU",
+    "scheduling": "causal",
+    "warmupCount": 3,
+    "sourceAudio": "Same frozen canonical 16k PCM, no new preprocessing",
+    "reuseFrozenExecutor": true,
+    "noOptimization": true,
+    "noMidi": true,
+    "noAccuracyScoring": true,
+    "noOnlineAmt": true,
+    "noBasicPitch": true,
+    "noEdge": true
+  },
+  "analysisPolicy": {
+    "processingThresholdDiagnosticsMs": [
+      480,
+      540,
+      600,
+      608
+    ],
+    "quantiles": "Linear interpolation at (n-1)*p; processing steady full-owned rows; shifted final row separate.",
+    "queueEpisodes": "Maximal consecutive steady rows with queueDelayMs>0; also >8ms existing jitter and outstandingDepth>1 reported separately.",
+    "timeBins": "60s scheduled input-readiness bins from first steady input-ready timestamp; no concatenation across sessions.",
+    "driftRule": "At least four 60s bins, positive bin-median OLS slope, and last-quartile P25 greater than first-quartile P75; otherwise INCONCLUSIVE.",
+    "cadenceRule": "Existing frozen bounded-backlog diagnostic plus final receive-to-start queue delay within the existing 8ms jitter allowance.",
+    "finiteScope": "Observed finite-session causal cadence only; not a proof of indefinite operation.",
+    "pooled": "Descriptive per-window pooled distributions only; do not join separate sessions into a fictitious queue.",
+    "productLatencySlo": "PRODUCT_LATENCY_SLO_NOT_YET_FROZEN",
+    "productLatencyReadiness": "NOT_YET_QUALIFIED"
+  },
+  "candidateInferenceStarted": false,
+  "createdBeforeFreshRuntime": true,
+  "freezeSha256": "3aa0ae778e4e4b7ce83dcdcc4ce9ef6c73e95dd2961199f44d20bb0b9e4f87b5"
+}

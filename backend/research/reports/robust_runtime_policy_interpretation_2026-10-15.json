@@ -1,0 +1,152 @@
+{
+  "studyId": "ROBUST_BROWSER_RUNTIME_SUSTAINABILITY_QUALIFICATION",
+  "startingRemoteHead": "15f3f50af5262ed64a0acfc22bdf4f1191b78229",
+  "classification": "PROSPECTIVELY_FROZEN_CONSERVATIVE_ENGINEERING_HEADROOM_POLICY",
+  "f5Evidence": {
+    "commit": "15f3f50af5262ed64a0acfc22bdf4f1191b78229",
+    "scientificResultPath": "backend/research/reports/phase9g_xc1_r3d_f5_full_scientific_result_2026-10-15.json",
+    "scientificResultSha256": "3dea54e8d94e7f5042594e9c9dd87cf80d459757b4648ea4c154d44ad7574505",
+    "scientificDisposition": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+    "takeMacroF1": {
+      "basic-pitch-browser-v1": 0.7551883846778931,
+      "online-amt-k8-browser-v1": 0.92581428886358,
+      "robust-browser-v1": 0.9703531318286523
+    },
+    "robustVersusAlternatives": {
+      "robust-browser-v1__basic-pitch-browser-v1__f1": {
+        "candidateA": "robust-browser-v1",
+        "candidateB": "basic-pitch-browser-v1",
+        "ci95": [
+          0.19752663088341554,
+          0.2334511508682735
+        ],
+        "draws": 5000,
+        "meanDiff": 0.21512906149074215,
+        "metric": "f1",
+        "outputDigest": "14721b1a807411f46c7208895219b51925618b4ebd1b1c0fd3db99b1705c1251",
+        "seed": 13371
+      },
+      "robust-browser-v1__basic-pitch-browser-v1__falsePositiveOnsetsPerMinute": {
+        "candidateA": "robust-browser-v1",
+        "candidateB": "basic-pitch-browser-v1",
+        "ci95": [
+          -182.9392837976866,
+          -148.08538037753297
+        ],
+        "draws": 5000,
+        "meanDiff": -165.20172395337042,
+        "metric": "falsePositiveOnsetsPerMinute",
+        "outputDigest": "799a15f92694c92cef6004357af666516dc7e863f2ff3ca8c9bdad383fc51a0d",
+        "seed": 13371
+      },
+      "robust-browser-v1__basic-pitch-browser-v1__missedOnsetRate": {
+        "candidateA": "robust-browser-v1",
+        "candidateB": "basic-pitch-browser-v1",
+        "ci95": [
+          -0.14987114398827084,
+          -0.11116625334275883
+        ],
+        "draws": 5000,
+        "meanDiff": -0.13057543139261166,
+        "metric": "missedOnsetRate",
+        "outputDigest": "84de84c207e99364bb693870c268be67132748000edf0637fa48926caf71a4c8",
+        "seed": 13371
+      },
+      "robust-browser-v1__online-amt-k8-browser-v1__f1": {
+        "candidateA": "robust-browser-v1",
+        "candidateB": "online-amt-k8-browser-v1",
+        "ci95": [
+          0.03762394078222751,
+          0.05166833834460219
+        ],
+        "draws": 5000,
+        "meanDiff": 0.04457133159292214,
+        "metric": "f1",
+        "outputDigest": "a73d29f242a7a049a340788a6f91e7ff0c08697580f3e4116df8fd31974e8f3e",
+        "seed": 13371
+      },
+      "robust-browser-v1__online-amt-k8-browser-v1__falsePositiveOnsetsPerMinute": {
+        "candidateA": "robust-browser-v1",
+        "candidateB": "online-amt-k8-browser-v1",
+        "ci95": [
+          -7.404939725953939,
+          -4.396824372874228
+        ],
+        "draws": 5000,
+        "meanDiff": -5.8561749166739965,
+        "metric": "falsePositiveOnsetsPerMinute",
+        "outputDigest": "f5006ddd63d96c54e1fbd062f2fdc397efbc708e0f618574b474b4dd68de2157",
+        "seed": 13371
+      },
+      "robust-browser-v1__online-amt-k8-browser-v1__missedOnsetRate": {
+        "candidateA": "robust-browser-v1",
+        "candidateB": "online-amt-k8-browser-v1",
+        "ci95": [
+          -0.08175827837949999,
+          -0.05961013907654776
+        ],
+        "draws": 5000,
+        "meanDiff": -0.07036567749367353,
+        "metric": "missedOnsetRate",
+        "outputDigest": "2a5130eda2e2ea89d620905522fa2eefb98d0d0ee282c81ccfd088b1d0ca4ada",
+        "seed": 13371
+      }
+    },
+    "robustLongestTakeProcessingP95Ms": 552.83994140625
+  },
+  "originOfHeadroom": {
+    "robust": {
+      "cadenceMs": 600,
+      "reserveFraction": 0.2,
+      "processingBudgetFraction": 0.8,
+      "headroomThresholdMs": 480
+    },
+    "onlineAmt": {
+      "cadenceMs": 256,
+      "reserveFraction": 0.2,
+      "processingBudgetFraction": 0.8,
+      "headroomThresholdMs": 204.8
+    }
+  },
+  "notA": [
+    "Browser hard deadline",
+    "Neural model requirement",
+    "User-experience latency SLO",
+    "Proven instability boundary"
+  ],
+  "independentConcepts": {
+    "conservativeHeadroom": "P95 <=480ms; preserve F5 without reinterpretation.",
+    "cadence": "Causal queue recovery, bounded/nonaccumulating tail and synchronized producer/consumer; do not reject merely for >480ms.",
+    "publicationLatency": "Report separately from processing and throughput; no acceptance SLO has been established."
+  },
+  "geometry": {
+    "ownershipMs": 600,
+    "futureContextMs": 220,
+    "oldestOwnedWaitBeforeInputReadyMs": 820,
+    "nearOwnedEndWaitBeforeInputReadyMs": 220,
+    "publicationDelay": "Measured input-ready-to-publication plus the event-dependent real context wait.",
+    "status": "PRODUCT_LATENCY_SLO_NOT_YET_FROZEN",
+    "evidenceForNoFrozenSlo": [
+      "No absolute product feedback latency SLO is established."
+    ]
+  },
+  "existingLongTake": {
+    "runtimeReportPath": "backend/research/reports/phase9g_xc1_r3d_f5_continuation_runtime_report_2026-10-15.json",
+    "runtimeReportSha256": "3676948ca3a0a688f66daceee8d675191569f76bd943d2c8312cddb6b944240e",
+    "analysisPath": "backend/research/reports/robust_runtime_existing_long_take_diagnostics_2026-10-15.json",
+    "analysisSha256": "0b64387fc3310f901e7870f6ef56d350900b8bffe5b2fe99b4613bf570062415",
+    "cadence": {
+      "status": "ROBUST_CADENCE_SUSTAINABLE",
+      "rule": "Existing frozen bounded-backlog diagnostic plus final receive-to-start queue delay within the existing 8ms jitter allowance.",
+      "scope": "Observed finite-session causal cadence only; not a proof of indefinite operation."
+    },
+    "headroom": {
+      "thresholdMs": 480,
+      "status": "ROBUST_20_PERCENT_HEADROOM_FAIL"
+    },
+    "drift": "LONG_SESSION_RUNTIME_DRIFT_PRESENT",
+    "hardwareCause": "NOT_ESTABLISHED"
+  },
+  "noNewInferenceBeforeThisAnalysis": true,
+  "noMidiRead": true
+}
