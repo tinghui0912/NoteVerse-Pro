@@ -1,8 +1,12 @@
 import { collectWebGpuAdapter } from './xc1_browser_runtime_shared.mjs';
-import { publishOnlineAmtHops } from './xc1_online_amt_publication_bridge.mjs';
+import { createOnlineAmtPublicationStream } from './xc1_online_amt_publication_bridge.mjs';
 
 export async function executeOnlineAmtK8BrowserExecutor(page, request = {}) {
   const webgpuAdapter = await collectWebGpuAdapter(page);
+  const stream = createOnlineAmtPublicationStream({ takeId: request.acousticInput.takeId,
+    sampleCount: request.acousticInput.sampleCount, scoreableInterval: request.acousticInput.scoreableInterval,
+    retainRawHops: request.retainRawHops });
+  await page.exposeFunction('xc1PublishOnlineGroup', group => stream.publishGroup(group));
   const result = await page.evaluate(async ({ acousticInput, runtimeMode, retainRawHops }) => {
     const pcm = await window.loadXc1ExternalPcm();
     if (pcm.sha256 !== acousticInput.pcmSha256) throw new Error('XC1_BROWSER_PCM_IDENTITY_MISMATCH');
@@ -41,8 +45,21 @@ export async function executeOnlineAmtK8BrowserExecutor(page, request = {}) {
         const promise = rpc({ type: 'group', ...spec, groupIndex: promises.length,
           pcm: groupPcm.buffer, feedStartTimestamp,
           scheduledGroupReadyTimestamp: feedStartTimestamp + (spec.startHopIndex + spec.k) * 32,
-          pagePostTimestamp: now() }, [groupPcm.buffer]).then(row => {
-            outstanding -= 1; return { ...row, pageOutstandingDepth: depth };
+          pagePostTimestamp: now() }, [groupPcm.buffer]).then(async row => {
+            const publication = await window.xc1PublishOnlineGroup(row);
+            outstanding -= 1;
+            const { probabilities: _probabilities, chosenStates: _chosen, ...timing } = row;
+            return { ...timing, pageOutstandingDepth: depth,
+              rawHopOutputFinishTimestamp: row.publicationFinishTimestamp,
+              rawGroupedProcessingDurationMs: row.groupedProcessingDurationMs,
+              publicationFinishTimestamp: publication.acousticPublicationFinishTimestamp,
+              groupedProcessingDurationMs: publication.acousticPublicationFinishTimestamp - row.workerProcessingStartTimestamp,
+              groupPublicationCount: publication.groupPublicationCount, groupObservationCount: publication.groupObservationCount,
+              internalHops: row.internalHops.map(hop => ({ ...hop,
+                groupPublicationTimestamp: publication.acousticPublicationFinishTimestamp,
+                captureToPublicationAgeMs: runtimeMode === 'causal' ? publication.acousticPublicationFinishTimestamp - hop.hopAudioReadyTimestamp : null,
+              })),
+            };
           });
         promises.push(promise);
         return promise;
@@ -54,30 +71,17 @@ export async function executeOnlineAmtK8BrowserExecutor(page, request = {}) {
       } else { for (const spec of plan) await post(spec); }
       const rows = await Promise.all(promises);
       const finalState = await rpc({ type: 'snapshot', includeValues: retainRawHops });
-      const hopRows = rows.flatMap(row => Array.from({ length: row.hopCountInMessage }, (_, offset) => ({
-        hopIndex: row.startHopIndex + offset,
-        probabilities: row.probabilities.slice(offset * 440, (offset + 1) * 440),
-        chosenStates: row.chosenStates.slice(offset * 88, (offset + 1) * 88),
-      })));
       return { backend: 'webgpu', browserReceivedPcm: { sha256: pcm.sha256, byteLength: pcm.byteLength, sampleCount: pcm.sampleCount },
         modelLoadMs: init.sessionLoads.reduce((sum, row) => sum + row.sessionLoadDurationMs, 0),
         sessionLoadCount: init.sessionCount, sessionLoads: init.sessionLoads, warmup: init.warmup,
         actualInferenceSessionRunCount: rows.reduce((sum, row) => sum + row.ortRuns.length, 0),
         totalHopCount: totalHops, residualUnprocessedSamples: pcm.sampleCount % 512,
-        groupRows: rows, rawHopRows: hopRows, finalState: finalState.stateSnapshot,
+        groupRows: rows, finalState: finalState.stateSnapshot,
         ...(retainRawHops ? { finalStateValues: finalState.stateValues } : {}),
         initialState: init.initialStateSnapshot, stateResetParity: 'PASS', schedulingMode: runtimeMode ?? 'accelerated',
         processingMs: rows.reduce((sum, row) => sum + row.groupedProcessingDurationMs, 0) };
     } finally { worker.terminate(); }
   }, { acousticInput: request.acousticInput, runtimeMode: request.runtimeMode, retainRawHops: request.retainRawHops });
-  const publication = publishOnlineAmtHops({ takeId: request.acousticInput.takeId,
-    sampleCount: request.acousticInput.sampleCount, hopRows: result.rawHopRows,
-    scoreableInterval: request.acousticInput.scoreableInterval });
-  // Retain all hop output for semantic acceptance. Scientific take artifacts retain
-  // its digest and publications to keep multi-hour prediction storage practical.
-  const { rawHopRows, ...compact } = result;
-  return { ...compact, ...(request.retainRawHops ? { rawHopRows } : {}),
-    rawHopOutputDigest: (await import('./xc1_artifacts.mjs')).digest(rawHopRows),
-    ...publication, webgpuAdapter, publicationProjectionInvoked: true,
+  return { ...result, ...stream.finish(), webgpuAdapter, publicationProjectionInvoked: true,
     publicationProjectionIdentity: 'runOnlineAmtStreamingCandidateFromHopArtifact' };
 }

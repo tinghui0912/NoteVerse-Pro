@@ -280,7 +280,13 @@ export function createOnlineAmtBridgeReceipt(input: {
   };
 }
 
-function publicationsFromHopOutputs(input: {
+export type OnlineAmtPublicationContinuation = {
+  previousCoverage: number;
+  publicationIndex: number;
+  previousProcessingFinish?: number;
+};
+
+export function publicationsFromHopOutputs(input: {
   scenarioId: string;
   hopSegments: readonly {
     segmentId: string;
@@ -294,12 +300,13 @@ function publicationsFromHopOutputs(input: {
   }[];
   omitAvailabilityAcrossSegments: boolean;
   timingCorrectionMs?: number;
+  continuation?: OnlineAmtPublicationContinuation;
 }): CandidatePublication[] {
   const publications: CandidatePublication[] = [];
-  let previousCoverage = -Infinity;
-  let publicationIndex = 0;
+  let previousCoverage = input.continuation?.previousCoverage ?? -Infinity;
+  let publicationIndex = input.continuation?.publicationIndex ?? 0;
   for (const segment of input.hopSegments) {
-    let previousProcessingFinish: number | undefined;
+    let previousProcessingFinish: number | undefined = input.continuation?.previousProcessingFinish;
     const segmentEndMs = performanceEndMs(segment.performanceStartMs, segment.performanceOwnedSamples);
     for (const hop of segment.hops) {
       const localDecisionTimeMs = samplesToMs(hop.localDecisionSample);
@@ -355,6 +362,11 @@ function publicationsFromHopOutputs(input: {
       });
       previousCoverage = coverage;
       publicationIndex += 1;
+    }
+    if (input.continuation) {
+      input.continuation.previousCoverage = previousCoverage;
+      input.continuation.publicationIndex = publicationIndex;
+      input.continuation.previousProcessingFinish = previousProcessingFinish;
     }
   }
   return publications;

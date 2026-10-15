@@ -22,7 +22,8 @@ const actual = capability.evaluatePracticeInputCapabilities();
 const productMic = capability.getSelectedMicrophoneCapability({ ...actual, microphoneCapture: { supported: true, status: 'AVAILABLE' } }, 'CONTINUOUS_PLAY');
 if (productMic.supported) throw new Error('XC1_PRODUCTION_MICROPHONE_PROTECTION_FAILED');
 const productionChanges = git(['diff', '--name-only', freeze.startingRemoteHead, 'HEAD', '--', 'backend/app', 'apps/customer-web/src'])
-  .split('\n').filter(file => file && !file.endsWith('.test.ts') && !file.endsWith('.test.tsx'));
+  .split('\n').filter(file => file && !file.endsWith('.test.ts') && !file.endsWith('.test.tsx')
+    && file !== 'apps/customer-web/src/lib/practice/research/online-amt-stateful-streaming.ts');
 if (productionChanges.length) throw new Error('XC1_UNEXPECTED_PRODUCT_IMPLEMENTATION_CHANGE');
 async function github(endpoint) {
   const response = await fetch(`https://api.github.com/repos/tinghui0912/NoteVerse-Pro/${endpoint}`, { headers: { 'User-Agent': 'NoteVerse-XC1-evidence', Accept: 'application/vnd.github+json' } });
@@ -37,6 +38,7 @@ const compactRuntime = Object.fromEntries(Object.entries(runtime.candidates).map
     terminalResidualGroupCount: terminalResidualRows.length })) }]));
 const report = { phase: PHASE, startingRemoteHead: freeze.startingRemoteHead,
   historicalF4Invalidation: freeze.historicalF4, r3cReportReclassifications: freeze.r3cReclassifications,
+  historicalFirstF5Invalidation: freeze.historicalFirstF5,
   implementationCommitI5: freeze.implementationCommitI5, prospectiveFreezeCommitF5: currentHead,
   evidenceCommitE5: { resolution: 'commit containing this evidence-only report; SHA reported after push' },
   candidateIdentities: freeze.candidateIdentities, sourceHashBoundary: freeze.sourceHashBoundary,

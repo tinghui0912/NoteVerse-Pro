@@ -18,7 +18,7 @@ const dry = await json(`${dryRoot}/complete_dry_run_report.json`);
 assert.equal(dry.status, 'R3D_PRODUCTION_PATH_COMPLETE_DRY_RUN_PASS');
 const pcm = await json('backend/data/work/xc1_r3d_validation/canonical_pcm_verified.json');
 assert.equal(pcm.passedTakeCount, 50);
-const parity = await json('backend/data/work/xc1_r3d_validation/online_semantic_parity_f5_gate.json');
+const parity = await json('backend/data/work/xc1_r3d_validation/online_semantic_parity_stream.json');
 assert.equal(parity.status, 'PASS');
 const boundary = await json('backend/data/work/xc1_r3d_validation/browser_boundary/receipt.json');
 assert.equal(boundary.decoderParity.equal, true);
@@ -63,7 +63,7 @@ for (const file of ['backend/data/work/phase9gd1_robust_browser_onnx/robust_byte
   'backend/data/work/basic_pitch_browser_feasibility/node_modules/@spotify/basic-pitch/model/group1-shard1of1.bin']) {
   assetHashBoundary[file] = await fileSha(path.join(REPO_ROOT, file));
 }
-const runRoot = 'backend/data/work/xc1_r3d_f5';
+const runRoot = 'backend/data/work/xc1_r3d_f5_stream';
 async function predictionScan(directory) {
   const found = [];
   for (const entry of await readdir(directory, { withFileTypes: true }).catch(error => { if (error.code === 'ENOENT') return []; throw error; })) {
@@ -91,7 +91,7 @@ const fullTakeManifest = { ...f3, phase: PHASE, candidateInferenceStarted: false
   scoreableInteriorCoordinatePolicy: 'CANONICAL_16K_PCM_SAMPLE_COUNT',
   takes: f3.takes.map(take => ({ ...take, originalF3ScoreableInterior: take.scoreableInterior,
     canonicalAudioDurationSeconds: take.canonicalPcm.sampleCount / 16000, scoreableInterior: scoreableInteriorFor(take) })) };
-const truthManifestName = 'phase9g_xc1_r3d_full_take_manifest_f5_2026-10-15.json';
+const truthManifestName = 'phase9g_xc1_r3d_full_take_manifest_f5_stream_2026-10-15.json';
 await atomicJson(path.join(reports, truthManifestName), fullTakeManifest);
 const manifest = { phase: PHASE, fixtureClass: 'SMD_V2_REAL_ACOUSTIC_ONLY', implementationCommit,
   truthFieldsExcluded: true, midiPathsExcluded: true, candidateInferenceStarted: false, candidateIdentities: candidates,
@@ -100,13 +100,18 @@ const manifest = { phase: PHASE, fixtureClass: 'SMD_V2_REAL_ACOUSTIC_ONLY', impl
     canonicalPcm: { sha256: take.canonicalPcm.sha256, byteSize: take.canonicalPcm.byteSize,
       sampleCount: take.canonicalPcm.sampleCount, sampleRateHz: 16000, dtype: 'float32-le-raw',
       sourceRelativePath: take.canonicalPcm.relativeStageAPath } })) };
-const manifestName = 'phase9g_xc1_r3d_sanitized_stage_a_manifest_f5_2026-10-15.json';
+const manifestName = 'phase9g_xc1_r3d_sanitized_stage_a_manifest_f5_stream_2026-10-15.json';
 await atomicJson(path.join(reports, manifestName), manifest);
 const freeze = { phase: PHASE, artifact: 'XC1_TRUE_EXECUTABLE_PROSPECTIVE_FREEZE_F5',
   startingRemoteHead: '00ab97996fbc16c73014b011f4ff1f8b0d974cce', implementationCommitI5: implementationCommit,
   implementationWorkingTreeCleanBeforePreparation: true,
   historicalF4: { commit: 'bea9098b3467876a077ff6bf8251ca446c4426df', status: 'PERMANENTLY_INVALIDATED',
     classification: 'XC1_R3C_EVALUATION_INVALIDATED_IMPLEMENTATION_DEFECT_AFTER_SMD_INFERENCE_START' },
+  historicalFirstF5: { commit: 'a9011c8bfc872d700c53a5d04619593a67ebd6d5', status: 'PERMANENTLY_INVALIDATED',
+    reason: 'Online-AMT bridge originally ran at take end; raw hop availability was mislabeled as acoustic publication availability.',
+    completedPrimaryCells: (await json('backend/data/work/xc1_r3d_f5/primary_chrome/summary/matrix.json')).cells.length,
+    summarySha256: await fileSha(path.join(REPO_ROOT, 'backend/data/work/xc1_r3d_f5/primary_chrome/summary/matrix.json')),
+    truthRevealed: false, predictionReuseAllowed: false },
   r3cReclassifications: {
     semanticAcceptance: 'FULL_TAKE_BROWSER_EXECUTION_ACCEPTANCE_WITH_PARTIAL_SEMANTIC_TESTING',
     truePipelineDryRun: 'REAL_SCIENTIFIC_CORE_SCORER_DRY_RUN_BUT_NOT_PRODUCTION_ORCHESTRATION_PARITY' },
@@ -132,5 +137,5 @@ const freeze = { phase: PHASE, artifact: 'XC1_TRUE_EXECUTABLE_PROSPECTIVE_FREEZE
     duplicateDiagnosticMs: 50, chordCompleteness: 'NOT_AVAILABLE_IN_XC1_R3D', additionalMidiAlignmentMs: 0 },
   dockerScienceImageId: dry.dockerImageId, commercialQualificationStatus: 'NOT_PERFORMED' };
 freeze.freezeSha256 = digest(freeze);
-await atomicJson(path.join(reports, 'phase9g_xc1_r3d_true_prospective_freeze_f5_2026-10-15.json'), freeze);
+await atomicJson(path.join(reports, 'phase9g_xc1_r3d_true_prospective_freeze_f5_stream_2026-10-15.json'), freeze);
 console.log(JSON.stringify({ implementationCommit, freezeSha256: freeze.freezeSha256, runtimeSubsetTakeIds, takeCount: manifest.takes.length }));

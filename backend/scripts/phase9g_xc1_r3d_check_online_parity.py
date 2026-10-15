@@ -10,10 +10,11 @@ def main():
     identity = container_guard()
     results = {}
     final = '--final' in sys.argv
+    stream = '--stream' in sys.argv
     for name, source in [('reference_fixture', 'fixtures'), ('gate_fixture', 'gate_fixture')]:
         root = ROOT / f'backend/data/work/xc1_r3d_validation/{name}'
         reference = ROOT / ('backend/data/work/xc1_r3d_validation/gate_reference' if name == 'gate_fixture' else f'backend/data/work/phase9g_dr3r1h/{source}')
-        browser = json.loads((root / ('browser_final.json' if final else 'browser.json')).read_text())
+        browser = json.loads((root / ('browser_stream.json' if stream else 'browser_final.json' if final else 'browser.json')).read_text())
         chosen = np.array([row['chosenStates'] for row in browser['rawHopRows']])
         probabilities = np.array([row['probabilities'] for row in browser['rawHopRows']]).reshape(-1, 88, 5)
         expected_chosen = np.load(reference / 'reference_chosen_states.npy').reshape(-1, 88)
@@ -46,7 +47,7 @@ def main():
             'probabilityMeanAbsDelta': float(delta.mean()), 'probabilityMaxAbsDelta': float(delta.max()),
             'probabilityAbsoluteTolerance': 0.001, 'finalStateSummaryDeltas': states,
             'finalStateEvidenceLimitation': 'Numeric summaries, not independent elementwise recurrent equivalence.',
-            'authoritativePublicationBridge': json.loads((root / ('bridge_parity_final.json' if final else 'bridge_parity.json')).read_text()),
+            'authoritativePublicationBridge': json.loads((root / ('bridge_parity_stream.json' if stream else 'bridge_parity_final.json' if final else 'bridge_parity.json')).read_text()),
             'finalNativeCounter': browser['finalState']['numUnderThr'] }
         summary_pass = all(row['lengthEqual'] and row['maxAbsDelta'] <= .001
                            and row['sumDelta'] <= .001 * browser['finalState'][state]['length']
@@ -73,7 +74,7 @@ def main():
                             and result['audioBufferMismatchCount'] == 0 and result['nativeCounterEqual'])
         result['status'] = 'PASS' if mismatch == 0 and float(delta.max()) <= .001 and summary_pass and prev_pass else 'FAIL'
         results[name] = result
-    write_immutable(ROOT / ('backend/data/work/xc1_r3d_validation/online_semantic_parity_f5_gate.json' if final else 'backend/data/work/xc1_r3d_validation/online_semantic_parity_final.json'), {
+    write_immutable(ROOT / ('backend/data/work/xc1_r3d_validation/online_semantic_parity_stream.json' if stream else 'backend/data/work/xc1_r3d_validation/online_semantic_parity_f5_gate.json' if final else 'backend/data/work/xc1_r3d_validation/online_semantic_parity_final.json'), {
         'dockerScienceRuntimeIdentity': identity, 'results': results,
         'status': 'PASS' if all(row['status'] == 'PASS' for row in results.values()) else 'FAIL' })
     print(json.dumps({key: (value['status'], value['chosenStateMismatchCount'], value['probabilityMaxAbsDelta']) for key, value in results.items()}))

@@ -12,6 +12,7 @@ import { REPO_ROOT, RUNTIME_NODE_MODULES } from './xc1_browser_runtime_shared.mj
 import { classifyBacklog } from './xc1_browser_semantics.mjs';
 import { resampleLinear } from './xc1_browser_semantics.mjs';
 import { executeRobustBrowserV1, executeOnlineAmtK8BrowserV1, executeBasicPitchBrowserV1 } from './xc1_stage_a_candidate_registry.mjs';
+import { createOnlineAmtPublicationStream, publishOnlineAmtHops } from './xc1_online_amt_publication_bridge.mjs';
 const require = createRequire(import.meta.url);
 const { createJiti } = require(path.join(RUNTIME_NODE_MODULES, 'jiti'));
 const decoder = createJiti(import.meta.url)(path.join(REPO_ROOT, 'apps/customer-web/src/lib/practice/acoustic-inference/bytedance-decoder.ts'));
@@ -130,4 +131,25 @@ test('real sealer detects mutation, missing/duplicate cell and wrong identity', 
     await rm(file);
     await assert.rejects(() => createSeal({ ...options, output: path.join(root, 'bad_seal.json') }), /MISSING_OR_DUPLICATE/);
   } finally { await rm(root, { recursive: true }); }
+});
+test('incremental publications equal the authoritative whole-artifact bridge', () => {
+  const hops = Array.from({ length: 26 }, (_, hopIndex) => {
+    const probabilities = Array.from({ length: 88 }, () => [1, 0, 0, 0, 0]).flat();
+    const chosenStates = new Array(88).fill(0);
+    if (hopIndex % 3 === 0) { chosenStates[39] = 3; probabilities.splice(39 * 5, 5, .1, 0, 0, .8, .1); }
+    return { hopIndex, probabilities, chosenStates };
+  });
+  const options = { takeId: 'non-smd-contract', sampleCount: 26 * 512, scoreableInterval: { startMs: 0, endMs: 26 * 32 } };
+  const stream = createOnlineAmtPublicationStream(options);
+  for (let index = 0; index < hops.length; index += 8) {
+    const group = hops.slice(index, index + 8);
+    const publication = stream.publishGroup({ startHopIndex: index, hopCountInMessage: group.length,
+      probabilities: group.flatMap(hop => hop.probabilities), chosenStates: group.flatMap(hop => hop.chosenStates) });
+    assert.ok(Number.isFinite(publication.acousticPublicationFinishTimestamp));
+  }
+  const actual = stream.finish(), expected = publishOnlineAmtHops({ ...options, hopRows: hops });
+  assert.deepEqual(actual.acousticObservations, expected.acousticObservations);
+  assert.equal(actual.canonicalPublicationDigest, expected.canonicalPublicationDigest);
+  assert.equal(actual.publicationCount, expected.publicationCount);
+  assert.equal(actual.analyzedThroughPerformanceMs, expected.analyzedThroughPerformanceMs);
 });
