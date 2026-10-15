@@ -1,8 +1,18 @@
 import io
 import wave
 import numpy as np
+import pytest
 from scipy.signal import resample_poly
 from backend.scripts.bytedance_pcm_preprocessing import extract_resample_linear
+
+
+def test_host_receipt_paths_resolve_in_docker_without_escape():
+    from backend.research.xc2_prepare import receipt_path, ROOT
+    assert receipt_path('backend\\data\\work\\cell.json') == ROOT / 'backend/data/work/cell.json'
+    assert receipt_path('backend/data/work/cell.json') == ROOT / 'backend/data/work/cell.json'
+    for value in ['../truth.mid', '/outside.json', 'C:\\outside.json', 'backend\\..\\..\\..\\outside']:
+        with pytest.raises(ValueError, match='OUTSIDE_REPOSITORY'):
+            receipt_path(value)
 
 
 def test_frozen_mono_and_resampler_determinism_and_boundaries():

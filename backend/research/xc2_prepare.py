@@ -26,6 +26,16 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def receipt_path(value):
+    relative = Path(value.replace('\\', '/'))
+    if relative.is_absolute() or ':' in str(relative) or '..' in relative.parts:
+        raise ValueError('XC2_RECEIPT_PATH_OUTSIDE_REPOSITORY')
+    resolved = (ROOT / relative).resolve()
+    if not resolved.is_relative_to(ROOT.resolve()):
+        raise ValueError('XC2_RECEIPT_PATH_OUTSIDE_REPOSITORY')
+    return resolved
+
+
 def save(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -171,7 +181,7 @@ def truth(output, split):
     expected_clips = {clip['clipId'] for clip in manifest['clips'] if clip['split'] == split}
     sealed_clips = set()
     for receipt in seal['rawArtifacts']:
-        artifact_path = ROOT / receipt['path']
+        artifact_path = receipt_path(receipt['path'])
         if sha(artifact_path.read_bytes()) != receipt['sha256']:
             raise ValueError('XC2_SEALED_ACOUSTIC_ARTIFACT_CHANGED')
         artifact = json.loads(artifact_path.read_text())
@@ -179,7 +189,7 @@ def truth(output, split):
             raise ValueError('XC2_REAL_MODEL_EXECUTION_REQUIRED')
         for tensor in artifact['rawWindows']:
             for file_key, hash_key in [('onsetPath', 'onsetSha256'), ('framePath', 'frameSha256')]:
-                if sha((ROOT / tensor[file_key]).read_bytes()) != tensor[hash_key]:
+                if sha(receipt_path(tensor[file_key]).read_bytes()) != tensor[hash_key]:
                     raise ValueError('XC2_SEALED_RAW_TENSOR_CHANGED')
         sealed_clips.add(artifact['clipId'])
     if sealed_clips != expected_clips:
