@@ -1,0 +1,28 @@
+{
+  "status": "ACOUSTIC_PREDICTIONS_SEALED",
+  "split": "DEVELOPMENT",
+  "protocolFreezeSha256": "c6c050be7b634dedcdf5136da989c23c857cae8bef79da91378a37c60ff93785",
+  "sealedAt": "2026-10-15T15:11:31.954Z",
+  "rawArtifacts": [
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\DEVELOPMENT_LINEAR_600_220_1.20.1\\xc2_00_chopin_op026no1_003_20100611-smd.json",
+      "sha256": "eeb3c44efbcc0d38c99d023bd7377e6a4631b46ac841feb9cdb61d3503804eaa"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\DEVELOPMENT_LINEAR_600_220_1.20.1\\xc2_02_beethoven_op031no2-01_002_20090916-smd.json",
+      "sha256": "7217b994813e7b8c5ce8e1480536d24752199e04101fdd12a9243a03b8860db9"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\DEVELOPMENT_LINEAR_600_220_1.20.1\\xc2_04_chopin_op028-01_003_20100611-smd.json",
+      "sha256": "267f759af4e47f98ab3fbed98586559bb6d125b6760dfc109fc922e65e7f1815"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\DEVELOPMENT_LINEAR_600_220_1.20.1\\xc2_06_rachmaninoff_op036-01_007_20110315-smd.json",
+      "sha256": "26d35b5670e732a1806d4a3e578b9740ff7fbdda4d404933c202a9b46e115dc5"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\DEVELOPMENT_LINEAR_600_220_1.20.1\\xc2_08_brahms_op005-01_002_20110315-smd.json",
+      "sha256": "b36e7378fd1bbedf13ad13272411b6334f0d1439b5ac109621f2b110ce12ed69"
+    }
+  ]
+}

@@ -1,0 +1,328 @@
+{
+  "status": "ACOUSTIC_PREDICTIONS_SEALED",
+  "split": "EVALUATION",
+  "protocolFreezeSha256": "532ff445ff9b46b19af2f1f579b16cdd93d7f2c3abef545d4cc4b1b539e6daeb",
+  "sealedAt": "2026-10-15T17:18:00.322Z",
+  "rawArtifacts": [
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_220_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "c81cf7a13280a72e49895643146367b694f70949d0158d3ef2452f1995901ff6"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_220_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "5faa5ae918b6816c4be19523dac9a4b5fafd9028c3ea546aa7d5973395685463"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_220_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "a0c4c8a3589b63afcab1e827785e04ce2937c3c4ef543471ad8b90a55c219da2"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_220_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "c7e18bbac781b2e9212e2bd7dec4efda278ce9371ee6574fdb72e0e0656a8347"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_220_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "e287449d2741bd85a3151cd2cf191cb667ea8b4eafb9c362887321f2ac87ac1c"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_120_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "394a1dddd1a3ca9eb3f0d06a1a5db0632ac51f86a83d5bdd6e4ac494fcc2e4a9"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_120_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "78db8956dde860e85857c981e7b09ec9dbe3675b64a219692e87ae9692123ae8"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_120_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "d32ddb0b0d8a49b37d47b6923d2e1f14301c97c74eeffe9827b70fe72e0624d2"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_120_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "76efdee3cd91cfaaa3613d9dc2508a48279d217ab7931aeda5776d454bcd0dd5"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_120_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "ce82780675b6a2d49810bd94919129c4f272a2a25cd561f113463345e7b1b3d1"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_170_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "94105f32570d76df566aba7349bfb9ac4bdb7614ba3bc59085bfca3236fd6dd4"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_170_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "0595e47b79bfd0ac01d148aeab1ffa2bdc8cdc9f02bc3b3f6331eebbc8fb22a7"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_170_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "31866e88f985464993d67cacd22a18918514b0d29a03338d419522a31764ead0"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_170_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "2bd60c64084cb7e50d3f25da16e6ea89de1cecb3f3c79aa1cf94959bb57e1c71"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_170_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "7d63149461ceb2e2e8b848c1dd01d2a402d59d2f93b4144b7b3857731f8678fc"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_220_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "7d175fa83bf0c6cec891c39722af87dc14f3e876909638ce2510d6a6d9d16c2a"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_220_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "e846cf6d53f87f343c458e3cb9fead5f2716bbae5eb1b87390b7b6e3c5905cea"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_220_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "fae81a63da8ccfea712f5a6baf9a78bbad3aff4269e910ee6561db64c1d62b40"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_220_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "1a1b90e9735f499215e75b1c2ae348f575cfdbf28f1e81e4a6640438c1222e64"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_320_220_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "1c264ca0ab28ec4292d2b8b39f81175cf55a4e07b536c2b74339b800f116ed46"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_400_120_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "9d13f37bd3eb61d816c96c01e24662e21f80dbf39d40be820dec47ca893ea9d8"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_400_120_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "13ed1658387e6a65f4d55613f5f51a6c9b2a778b32483dd83515d4d7eeba2564"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_400_120_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "f8a49b7d102de1087d81535950526987bd1aaf67f6d480add2429e4763b07bf7"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_400_120_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "66bb664579a09005cfdde1e3e107536bf5604659c3363dc3904f3c3a3b7253d2"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_400_120_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "2a8947d2f9ab5b4ecc0f0c4feff23764d6d92646af1ee9a4a530fbbe815e6387"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_400_170_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "d472249d57c5963d2346a1c797e0201ab0af70130ee4f2eebb19a706328c581b"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_400_170_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "5d6a4dcd43031be5efa5e6f2e19e678c135dc4c55870bfa7d6c859d4277b74b9"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_400_170_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "51f41e229ca83f6713baa2dbff685dff76922708df5d7212e08bd26c69c0d357"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_400_170_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "b8506eaf1ceea562d42cd1cc82ddf40b07e4643ef0d3730de99b7b48ae75730a"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_400_170_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "bfaf9599a228a8edf361139a998bb23430a2045d29646578d47005ec04765e4b"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_120_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "690897654e02afb2bb339145cb07095960694615f23d2ffc58aa3e55bb8fb462"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_120_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "9538117c4042db9d18640299a5fdb7ee492b30b3f71d94e8f043bfa7ad361b19"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_120_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "b3a4622f3d9bbabced2dc76b9ceccc3e9c70f670c34733a9d1cd6cb6d050329f"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_120_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "7637162d88f6bef5b9c759c87cf653ce02de50c9990baa36035153156983e62f"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_120_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "deea4c280c45e406c690688d6480fd163bb686eff936acb4c2b684db56fa8680"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_170_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "a0b9cc31138c841e186828a47a9e8444858fe1ed05ab0284126005f79e698840"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_170_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "9951839a1128f647f1ff171e436df4da14599497a84146932ba4615504f81986"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_170_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "684e9d0bf8d41255ac78e39b2ae9142a4e84164a8f04194006444bef2907e628"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_170_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "c7671801725a315389eead227bb7ca410493562f1208072d5ee81f4546b43e7a"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_LINEAR_600_170_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "94f0bb8f25e5f30009eb998652e59582d610beaf28fc956a39e52e0abebffa98"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_320_120_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "4c070082c7b2dfae124c30004f24f72c8ea3187c1fcb6b795e232f9ce596ea45"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_320_120_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "e3baa436bc6ad6e60109580ecf38222f92f26851cc72f423f1aa5d26b3357052"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_320_120_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "fc834ea35b2e4b77aebc4c9cb0d40ca36453e936fa65bb419918a7936234a6bf"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_320_120_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "c3237679972701b93eec163ef7e0395b9d2e90bb4d4f8305ab9bf1ab7d908224"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_320_120_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "a58200e01476c600801f60c29bbbfa0cb589180815f38f55b1bf0046094c863b"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_400_220_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "79702266f3df98901403a319275a51961d100508ce4a6f302811614339ab1b12"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_400_220_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "ed5c976c9aecd9002290ef6129eb310fbf16f27ee77f2d1dc28bb997287c3f15"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_400_220_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "9624414d7a27f98e2b1a41e52c312431362228ece40fc3813ca1ec7bee0d9dde"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_400_220_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "b201d6f80a9b295735c1868ea0d4931bc29252f32a5d9b098586b8fb45360b5a"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_400_220_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "c67819815d257ed1946bee502112364ece5039b99d0b5392adff308dd52e882b"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_120_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "6e1eba9b8629532e087540ed6ecbac8c526306823811d1fbec4f49efda2fec62"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_120_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "476ba9a991b64517ee7af9cb57a976e4611cf17584ffe2c17fb55b50c54c5660"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_120_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "54e88e8f06a405e9404f6c18042526307836b5231f3f70a382d11e9e5faf1ce7"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_120_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "daa911897ed44c8ce963cef01d49d3a472e3574ce8a44ea8711e849e5f5515cb"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_120_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "e4ca89409f698efadc3e3ca3c2a4c6d49a2f4b27644aef3956a3a1dd7950a4d4"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_170_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "d5da610146a93176191ec831817b274859b38aa4b5d5cbad1c9166d0f24fc98c"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_170_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "0a576f435403ec5e29c17452ab0eae2829c3563f5f281a5f2efc0767aa4cbe4b"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_170_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "826fc76ea0b282aecc743d2481580da58afad2d441a6559115f0e0967fe47a52"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_170_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "02d4abe53ef59270cc8bed3ff1fbdf36b18b18f1a863ab568c7b5580f6cdc284"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_170_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "63aa265eef405b9a04b78f70c249e29e35c22a1921e6a91408c8b30a8c1e16d6"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_220_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "939d1a812d6a2cabe3c8da721098b61e1e8409f93b141259ad480e85acff7f9d"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_220_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "2fbf5c2a8426712448ed636d2ee7fff886533d06c0b59278e9c1fef7a568ee59"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_220_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "0ad40ac89049c048cec058bfba13c0b1a42c4f3f65d743d7760534c0ab26725e"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_220_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "baf68a634133196f500b07561d7f1dee1003c06fbe1af013648c47f787b737d5"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_500_220_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "358e523785882b2ae352d609c90421b9edcb110c34fbdc118bc67afaa12d5141"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_120_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "b387ee7b5513d37ef534fdec9e451f73813b8d35a7bf710ab63e973f7938be9c"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_120_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "49e25855bde4dd196593c2b78ef68928086613fcdc0ee2b4126fde53498a6058"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_120_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "fbb13facc8461749e69d16134cf9f8bd422e0e230c9678ab67e806ced7d20650"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_120_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "88ccc028c91fac24480e382852ed1cb4866a18bab05ed107bb7f71449e17028b"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_120_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "836b0439e21349f35dbfe7d040c30c7ca47d0630a5cd51c765208c22aa5d8629"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_170_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "2065dd4fe6f53dd1043f89d9065ed15cd29aca8e0d09b09ea145c51d15234693"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_170_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "fdeeb279878d4f2267281a2f40b7f58e6f1da70e2850d8be36b22cf811bebaa9"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_170_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "014073f5b7783c3dc4e7d775fd9d29c0575587be8cecbe109bf62c8a9cb176dc"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_170_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "beae67afc5df31a71f910b00b4fe58438f66263e30e7550140e4d69b8f7ae205"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_170_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "055ae51bdcd530e1999bdc0e3cfd1b21c1fa9ae61fb74164c3f530cd2693d5fb"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_220_1.20.1\\xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "b8aaed35c5768f3c8aae4f8cbd5b945b0f3c149c7e8d7878f1e3e761ff4653e6"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_220_1.20.1\\xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "02418e2b0668b04a56fa93a35c0121d9620a3de11b811a33939feed35d5f845d"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_220_1.20.1\\xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "f10ce38086f28f2bf9c45b08dc3c075183fd3c0376438b1ef256bf33c275881f"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_220_1.20.1\\xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "ed1d0be1726306d92ccec3ec2f41960ec8a64997cb43907fe8e2296e3677ee81"
+    },
+    {
+      "path": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\EVALUATION_BAND_LIMITED_600_220_1.20.1\\xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "14e60460d2659e99e7f9fde95f6db9af04fd157708b23bc9b75df9d3b3f0efa2"
+    }
+  ]
+}
