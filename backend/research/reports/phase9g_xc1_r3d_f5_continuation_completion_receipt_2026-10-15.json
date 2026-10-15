@@ -1,0 +1,260 @@
+{
+  "phase": "PHASE_9G_XC1_R3D_F5_RECOVERY_AND_FULL_SEALED_BAKEOFF",
+  "startingRemoteHead": "e6bcffea80e7351e73aaab788b55d0b0b99f953c",
+  "implementationBoundary": "067efc43e15b8e45960064ff646f5af8ffdb0708",
+  "validF5Commit": "24284a7af86278e0d0c5b527e9db561cd3433da7",
+  "f5FreezeSha256": "79a1df5641a1fac88908036da063eb71de0914180be38aeebecda9961a8e5283",
+  "finalEvidenceCommit": {
+    "resolution": "evidence-only continuation commit containing these reports; exact SHA returned after push"
+  },
+  "executionTrustDomains": {
+    "runtime": "Headed host Chrome; frozen detached F5 modules",
+    "scoring": "Docker Linux Python; frozen detached F5 Stage-B",
+    "hostPythonUsed": false
+  },
+  "runtimeContinuation": {
+    "phase": "PHASE_9G_XC1_R3D_F5_RECOVERY_AND_FULL_SEALED_BAKEOFF",
+    "f5Commit": "24284a7af86278e0d0c5b527e9db561cd3433da7",
+    "f5FreezeSha256": "79a1df5641a1fac88908036da063eb71de0914180be38aeebecda9961a8e5283",
+    "startedAt": "2026-10-15T11:42:23.252Z",
+    "finishedAt": "2026-10-15T12:52:29.850Z",
+    "implementationWorkingTreeCleanBeforeExecution": true,
+    "operationalEntryPoint": "Frozen official registry executeOfficialXc1StageACell plus frozen runtimeReceipt; no primary rerun and no implementation patch",
+    "cells": [
+      {
+        "deploymentId": "robust-browser-v1",
+        "takeId": "chopin_op028-01_003_20100611-smd",
+        "status": "XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE",
+        "artifactFilesystemSha256": "44e02015aec552d1029f849da94d3a116599de679facf56e9e9e087df59fb75f",
+        "runtimeEligible": true
+      },
+      {
+        "deploymentId": "online-amt-k8-browser-v1",
+        "takeId": "chopin_op028-01_003_20100611-smd",
+        "status": "XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE",
+        "artifactFilesystemSha256": "a01b69cf2f72f8891ab107c0c90446b6ca1b3251af9184ea6469283d37cf8aa5",
+        "runtimeEligible": true
+      },
+      {
+        "deploymentId": "basic-pitch-browser-v1",
+        "takeId": "chopin_op028-01_003_20100611-smd",
+        "status": "XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE",
+        "artifactFilesystemSha256": "0db10853252aef867fcb449c00dd3221a8e20b7f247fdf9d3a21ef78c1dbfa31",
+        "runtimeEligible": true
+      },
+      {
+        "deploymentId": "robust-browser-v1",
+        "takeId": "ravel_jeuxdeau_008_20110315-smd",
+        "status": "XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE",
+        "artifactFilesystemSha256": "fa14a36317b97652dee07c9c7fe4d4557e1dcc70f9aea7652ab999ebbaf5c47f",
+        "runtimeEligible": true
+      },
+      {
+        "deploymentId": "online-amt-k8-browser-v1",
+        "takeId": "ravel_jeuxdeau_008_20110315-smd",
+        "status": "XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE",
+        "artifactFilesystemSha256": "a8cedaad40edb2f5672ab4bff80ed465a325228a2c061a75f65bd84a0e3d5f3d",
+        "runtimeEligible": true
+      },
+      {
+        "deploymentId": "basic-pitch-browser-v1",
+        "takeId": "ravel_jeuxdeau_008_20110315-smd",
+        "status": "XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE",
+        "artifactFilesystemSha256": "934ac2c2f99a91cd83dec18e12b90f6fd2d9420edf119e50f007299435032ca9",
+        "runtimeEligible": true
+      },
+      {
+        "deploymentId": "robust-browser-v1",
+        "takeId": "liszt_annesdepelerinage-lecturedante_002_20090916-smd",
+        "status": "XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE",
+        "artifactFilesystemSha256": "8a573844f36d1e436397f679d20e22e19bd7879f7406e35eb4b18a04da80a6ad",
+        "runtimeEligible": false
+      },
+      {
+        "deploymentId": "online-amt-k8-browser-v1",
+        "takeId": "liszt_annesdepelerinage-lecturedante_002_20090916-smd",
+        "status": "XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE",
+        "artifactFilesystemSha256": "e3ed292fda286098684fb3bc9b44d521485e6d209a1a245993cfc1f72c628c45",
+        "runtimeEligible": true
+      },
+      {
+        "deploymentId": "basic-pitch-browser-v1",
+        "takeId": "liszt_annesdepelerinage-lecturedante_002_20090916-smd",
+        "status": "XC1_STAGE_A_SCIENTIFIC_PREDICTION_COMPLETE",
+        "artifactFilesystemSha256": "98328acfcd889a57bfcfde29f45a401c188cb1e7850c7d88a63af51d74ef1023",
+        "runtimeEligible": true
+      }
+    ],
+    "expectedCells": 9,
+    "runtimeReportSha256": "3676948ca3a0a688f66daceee8d675191569f76bd943d2c8312cddb6b944240e"
+  },
+  "primaryPredictionRerunCount": 0,
+  "primarySealUnchanged": true,
+  "primarySuccessfulCells": 150,
+  "uniquePrimaryTakes": 50,
+  "newRuntimeExecutions": 9,
+  "edge": {
+    "status": "EDGE_ENGINEERING_EVIDENCE_BLOCKED_HOST_BRANDED_BROWSER_LAUNCH",
+    "edgeSemanticParityStatus": "NOT_PERFORMED",
+    "newEdgeExecutionCount": 0,
+    "frontRunnerGate": false
+  },
+  "runtimeEligibility": {
+    "basic-pitch-browser-v1": {
+      "completeCoverage": true,
+      "runtimeEligible": true
+    },
+    "online-amt-k8-browser-v1": {
+      "completeCoverage": true,
+      "runtimeEligible": true
+    },
+    "robust-browser-v1": {
+      "completeCoverage": true,
+      "runtimeEligible": false
+    }
+  },
+  "truthReveal": {
+    "f5Commit": "24284a7af86278e0d0c5b527e9db561cd3433da7",
+    "f5FreezeSha256": "79a1df5641a1fac88908036da063eb71de0914180be38aeebecda9961a8e5283",
+    "phase": "PHASE_9G_XC1_R3D_F5_RECOVERY_AND_FULL_SEALED_BAKEOFF",
+    "priorMidiReadsByThisScoringInvocation": 0,
+    "sealCanonicalSha256": "60cc2719178c53580b4257efa1ed6ee3ff1e0087679e9dc8c8a3ee6abef689d4",
+    "sealFilesystemSha256": "ed257799a5502565cdd3d1e441f963cf3a9a9db21a63596d21700218c5ca08b1",
+    "sealVerificationTimestamp": "2026-10-15T12:54:05.471149+00:00",
+    "truthRevealTimestamp": "2026-10-15T12:54:05.475496+00:00"
+  },
+  "scoringCoverage": {
+    "primary50ms": 150,
+    "sensitivity25ms": 150,
+    "sensitivity100ms": 150,
+    "pairedTakes": 50
+  },
+  "bootstrapPolicy": {
+    "primaryUnit": "performance_take",
+    "draws": 5000,
+    "seed": 13371,
+    "allDrawDigests": {
+      "basic-pitch-browser-v1__online-amt-k8-browser-v1__f1": "a972d26001cb3f82070d1b129d3ac12cbef07c85e783507b28571b103e659e3f",
+      "basic-pitch-browser-v1__online-amt-k8-browser-v1__falsePositiveOnsetsPerMinute": "0ace8e373fd9829b8f249d6798ca41d25e2845f72878d39edc23cdc2a903b898",
+      "basic-pitch-browser-v1__online-amt-k8-browser-v1__missedOnsetRate": "97da4fa640ce8635ba14505191f1fcf3bbd29a03efdc077c6a0b30bcfa59fa54",
+      "basic-pitch-browser-v1__robust-browser-v1__f1": "726a7620ae1404725905d08a13518bfdd9df21d1d0f390f1de77d2f103b5f576",
+      "basic-pitch-browser-v1__robust-browser-v1__falsePositiveOnsetsPerMinute": "7c026892a8cb6dca3e4af1bba58cc8775a0142288b1248578dd8f1d6d28bd5d1",
+      "basic-pitch-browser-v1__robust-browser-v1__missedOnsetRate": "ed1a53da0d58e4c7c315c684653ffc79e368698f1f8166e7998dc953bf635976",
+      "online-amt-k8-browser-v1__basic-pitch-browser-v1__f1": "284b205d2193cec8ad9665896fdaf174099d7468ce1eeee4d4d42bfe190fb39c",
+      "online-amt-k8-browser-v1__basic-pitch-browser-v1__falsePositiveOnsetsPerMinute": "1a67c9af26085aa398789432e251f008de85364f9325b1a115574ed38fdeca2d",
+      "online-amt-k8-browser-v1__basic-pitch-browser-v1__missedOnsetRate": "e78c737209b564006ca5f5ebb6d033bff981f0ca44dd30438d1be57b3bf40618",
+      "online-amt-k8-browser-v1__robust-browser-v1__f1": "d8e8e3726be4326fd58bfd3fc45f5769da3c0aaf68c67913740d1424fa210db5",
+      "online-amt-k8-browser-v1__robust-browser-v1__falsePositiveOnsetsPerMinute": "d3a133f19e265e6e35df97a8d4c92267bd3ece508ab507bb06b4e2809e828739",
+      "online-amt-k8-browser-v1__robust-browser-v1__missedOnsetRate": "a32f1046fd7a30b537ad355c2bbc877b72c8147cf52443bc64ce31f0f8536ec7",
+      "robust-browser-v1__basic-pitch-browser-v1__f1": "14721b1a807411f46c7208895219b51925618b4ebd1b1c0fd3db99b1705c1251",
+      "robust-browser-v1__basic-pitch-browser-v1__falsePositiveOnsetsPerMinute": "799a15f92694c92cef6004357af666516dc7e863f2ff3ca8c9bdad383fc51a0d",
+      "robust-browser-v1__basic-pitch-browser-v1__missedOnsetRate": "84de84c207e99364bb693870c268be67132748000edf0637fa48926caf71a4c8",
+      "robust-browser-v1__online-amt-k8-browser-v1__f1": "a73d29f242a7a049a340788a6f91e7ff0c08697580f3e4116df8fd31974e8f3e",
+      "robust-browser-v1__online-amt-k8-browser-v1__falsePositiveOnsetsPerMinute": "f5006ddd63d96c54e1fbd062f2fdc397efbc708e0f618574b474b4dd68de2157",
+      "robust-browser-v1__online-amt-k8-browser-v1__missedOnsetRate": "2a5130eda2e2ea89d620905522fa2eefb98d0d0ee282c81ccfd088b1d0ca4ada"
+    }
+  },
+  "scientificDisposition": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+  "scientificReason": "Robust is F1-superior to both alternatives but failed frozen 480ms headroom on the longest runtime take; Online-AMT and Basic Pitch do not meet F1-superiority against both alternatives. Edge availability is not a scientific gate.",
+  "evidenceCopies": {
+    "runtime_report": {
+      "source": "backend/data/work/xc1_r3d_f5_stream/runtime_report.json",
+      "versioned": "backend/research/reports/phase9g_xc1_r3d_f5_continuation_runtime_report_2026-10-15.json",
+      "sha256": "3676948ca3a0a688f66daceee8d675191569f76bd943d2c8312cddb6b944240e",
+      "bytes": 28626801
+    },
+    "edge_blocked_not_performed": {
+      "source": "backend/data/work/xc1_r3d_f5_stream/edge_parity.json",
+      "versioned": "backend/research/reports/phase9g_xc1_r3d_f5_continuation_edge_blocked_not_performed_2026-10-15.json",
+      "sha256": "8fbfaaa3503dea2c1e9aa998e715f9f09806a4076bf31517a95ee92b66f4e1d8",
+      "bytes": 1834
+    },
+    "truth_reveal": {
+      "source": "backend/data/work/xc1_r3d_f5_stream/truth_reveal.json",
+      "versioned": "backend/research/reports/phase9g_xc1_r3d_f5_continuation_truth_reveal_2026-10-15.json",
+      "sha256": "3037426d77b7c0c115260754016449134a6826b5cce11260542bc7deacb4c619",
+      "bytes": 578
+    },
+    "stage_b_scores": {
+      "source": "backend/data/work/xc1_r3d_f5_stream/stage_b.json",
+      "versioned": "backend/research/reports/phase9g_xc1_r3d_f5_continuation_stage_b_scores_2026-10-15.json",
+      "sha256": "8269b6d9e4b96724212c537d07777c375fe4e9f113a04467f125f1097a1acaed",
+      "bytes": 306982
+    }
+  },
+  "frozenFinalScientificReport": {
+    "path": "backend/research/reports/phase9g_xc1_r3d_f5_full_scientific_result_2026-10-15.json",
+    "sha256": "3dea54e8d94e7f5042594e9c9dd87cf80d459757b4648ea4c154d44ad7574505",
+    "generatorSourceSha256": "99982ab9aaaa7c43ec465a39fd7cbb5dcc0ba8904c3256102975a392c85e0661"
+  },
+  "frozenScienceImageId": "sha256:7feadf65b7763a9ee94880218e3e80f8566ec242ffff7e9ca99d10bb85d76a6f",
+  "commercialQualificationStatus": "NOT_PERFORMED",
+  "scopeProtections": {
+    "phase9GB": {
+      "outcome": "STATISTICAL_TIE",
+      "winner": null,
+      "gitBlobUnchanged": true
+    },
+    "productionMicrophone": false,
+    "productionChanges": [],
+    "inferenceTakeIds": [
+      "bach_bwv849-01_001_20090916-smd",
+      "bach_bwv849-02_001_20090916-smd",
+      "bach_bwv871-01_002_20090916-smd",
+      "bach_bwv871-02_002_20090916-smd",
+      "bach_bwv875-01_002_20090916-smd",
+      "bach_bwv875-02_002_20090916-smd",
+      "bach_bwv888-01_008_20110315-smd",
+      "bach_bwv888-02_008_20110315-smd",
+      "bartok_sz080-01_002_20110315-smd",
+      "bartok_sz080-02_002_20110315-smd",
+      "bartok_sz080-03_002_20110315-smd",
+      "beethoven_op027no1-01_003_20090916-smd",
+      "beethoven_op027no1-02_003_20090916-smd",
+      "beethoven_op027no1-03_003_20090916-smd",
+      "beethoven_op031no2-01_002_20090916-smd",
+      "beethoven_op031no2-02_002_20090916-smd",
+      "beethoven_op031no2-03_002_20090916-smd",
+      "beethoven_woo080_001_20081107-smd",
+      "brahms_op005-01_002_20110315-smd",
+      "brahms_op010no1_003_20090916-smd",
+      "brahms_op010no2_003_20090916-smd",
+      "chopin_op010-03_007_20100611-smd",
+      "chopin_op010-04_007_20100611-smd",
+      "chopin_op026no1_003_20100611-smd",
+      "chopin_op026no2_005_20100611-smd",
+      "chopin_op028-01_003_20100611-smd",
+      "chopin_op028-03_003_20100611-smd",
+      "chopin_op028-04_003_20100611-smd",
+      "chopin_op028-11_003_20100611-smd",
+      "chopin_op028-15_006_20100611-smd",
+      "chopin_op028-17_005_20100611-smd",
+      "chopin_op029_004_20100611-smd",
+      "chopin_op048no1_007_20100611-smd",
+      "chopin_op066_006_20100611-smd",
+      "haydn_hob017no4_003_20090916-smd",
+      "haydn_hobxvino52-01_008_20110315-smd",
+      "haydn_hobxvino52-02_008_20110315-smd",
+      "haydn_hobxvino52-03_008_20110315-smd",
+      "liszt_annesdepelerinage-lecturedante_002_20090916-smd",
+      "liszt_konzertetuedeno2laleggierezza_003_20090916-smd",
+      "liszt_variationenbachmotivweinenklagensorgenzagen_001_20090916-smd",
+      "mozart_kv265_006_20110315-smd",
+      "mozart_kv398_002_20110315-smd",
+      "rachmaninoff_op036-01_007_20110315-smd",
+      "rachmaninoff_op036-02_007_20110315-smd",
+      "rachmaninoff_op036-03_007_20110315-smd",
+      "rachmaninov_op039no1_002_20090916-smd",
+      "ravel_jeuxdeau_008_20110315-smd",
+      "ravel_valsesnoblesetsentimentales_003_20090916-smd",
+      "skryabin_op008no8_003_20090916-smd"
+    ],
+    "p15p22InferenceIncrease": 0,
+    "noD4": true,
+    "productionWinnerSelected": false,
+    "practiceWebSocketRestored": false,
+    "backendPracticeInferenceRestored": false
+  },
+  "noF6": true,
+  "noScientificImplementationChange": true
+}

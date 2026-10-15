@@ -1,0 +1,10 @@
+{
+  "f5Commit": "24284a7af86278e0d0c5b527e9db561cd3433da7",
+  "f5FreezeSha256": "79a1df5641a1fac88908036da063eb71de0914180be38aeebecda9961a8e5283",
+  "phase": "PHASE_9G_XC1_R3D_F5_RECOVERY_AND_FULL_SEALED_BAKEOFF",
+  "priorMidiReadsByThisScoringInvocation": 0,
+  "sealCanonicalSha256": "60cc2719178c53580b4257efa1ed6ee3ff1e0087679e9dc8c8a3ee6abef689d4",
+  "sealFilesystemSha256": "ed257799a5502565cdd3d1e441f963cf3a9a9db21a63596d21700218c5ca08b1",
+  "sealVerificationTimestamp": "2026-10-15T12:54:05.471149+00:00",
+  "truthRevealTimestamp": "2026-10-15T12:54:05.475496+00:00"
+}

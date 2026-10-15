@@ -1,0 +1,42 @@
+{
+  "phase": "PHASE_9G_XC1_R3D_F5_RECOVERY_AND_FULL_SEALED_BAKEOFF",
+  "f5Commit": "24284a7af86278e0d0c5b527e9db561cd3433da7",
+  "f5FreezeSha256": "79a1df5641a1fac88908036da063eb71de0914180be38aeebecda9961a8e5283",
+  "status": "EDGE_ENGINEERING_EVIDENCE_BLOCKED_HOST_BRANDED_BROWSER_LAUNCH",
+  "edgeSemanticParityStatus": "NOT_PERFORMED",
+  "decisionSemanticParity": "NOT_PERFORMED",
+  "subsetTakeIds": [
+    "bach_bwv849-01_001_20090916-smd",
+    "bartok_sz080-01_002_20110315-smd",
+    "beethoven_op031no2-03_002_20090916-smd",
+    "chopin_op026no2_005_20100611-smd",
+    "chopin_op048no1_007_20100611-smd",
+    "liszt_variationenbachmotivweinenklagensorgenzagen_001_20090916-smd"
+  ],
+  "browserExecutable": {
+    "path": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "fileVersion": "155.0.4283.45",
+    "sha256": "4bb4545b4ab80a3cf463a588ce570ca42de38fe6db16e3baeb0798ac75b4648b"
+  },
+  "webgpuPreflight": "NOT_REACHED",
+  "inferenceCount": 0,
+  "modelLoad": "NOT_REACHED",
+  "semanticParityRows": [],
+  "evidenceReferences": [
+    {
+      "commit": "e6bcffea80e7351e73aaab788b55d0b0b99f953c",
+      "path": "backend/research/reports/phase9g_xc1_r3d_f5_stream_edge_launch_failure_2026-10-15.json",
+      "sha256": "8c2ae12d3cf97b407d4fd6773989c91bbbd01647cb32e89b3c701063e1ee0994"
+    },
+    {
+      "path": "backend/data/work/xc1_r3d_f5_stream/edge/predictions/robust-browser-v1/bach_bwv849-01_001_20090916-smd.json",
+      "sha256": "e171496ac4cfeaa216e1424acf66fb4220a1dab9284d5cbdef0b264cac40d4ee"
+    },
+    {
+      "path": "backend/data/work/xc1_r3d_f5_stream/edge_launch_diagnostic/receipt.json",
+      "sha256": "e64213af549098ce6b464a26c72c70090904c93358237aa03a113e9b9a9ba906"
+    }
+  ],
+  "runtimeEligibilityEffect": "NONE_CHROME_CAUSAL_EVIDENCE_ONLY",
+  "scientificFrontRunnerGate": false
+}
