@@ -1,0 +1,33 @@
+{
+  "implementationCommit": "79d737496601a9a28a45a832b3ff42ba3201072c",
+  "nodeBehavioralTests": {
+    "passed": 17,
+    "failed": 0,
+    "includesDirectCurrentAndPinnedUpstreamParity": true
+  },
+  "dockerPythonTests": {
+    "passed": 2,
+    "failed": 0
+  },
+  "dockerCustomerWebVitest": {
+    "passed": 23,
+    "failed": 0
+  },
+  "typecheck": "PASS",
+  "lint": {
+    "errors": 0,
+    "preexistingWarnings": 2
+  },
+  "pythonCompile": "PASS",
+  "realNonSmdSmoke": {
+    "file": "backend/data/work/xc2_smoke/raw_final.json",
+    "sha256": "d0d9d6cc06b29c3cc508a7e6e97271cb9eee51ef5a4507413205fe684015ba80",
+    "modelRunCount": 8,
+    "successfulDecoders": [
+      "A",
+      "B",
+      "C"
+    ]
+  },
+  "smdCandidateInferenceBeforeFreeze": 0
+}
