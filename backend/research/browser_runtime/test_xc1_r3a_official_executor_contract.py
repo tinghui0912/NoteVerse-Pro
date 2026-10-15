@@ -105,7 +105,8 @@ def test_robust_executor_uses_full_take_windows_and_100hz_mapping():
 
 def test_online_amt_executor_uses_calibrated_onset_states_not_any_nonzero_state():
     source = (REPO_ROOT / "backend/research/browser_runtime/xc1_online_amt_k8_browser_executor.mjs").read_text()
-    assert "publishOnlineAmtHops" in source
+    assert "createOnlineAmtPublicationStream" in source
+    assert "xc1PublishOnlineGroup" in source
     assert "chosenRows[hop][pitchIndex] > 0" not in source
     assert "runOnlineAmtStreamingCandidateFromHopArtifact" in source
     assert "new Worker('/online-worker.mjs')" in source
