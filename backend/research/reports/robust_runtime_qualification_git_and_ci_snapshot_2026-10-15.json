@@ -1,0 +1,18 @@
+{
+  "queriedAt": "2026-10-15T13:53:23.508Z",
+  "analysisAndProspectiveFreezeCommit": "70dc4b51225a81755f02908055f5b07d71accca5",
+  "startingRemoteHead": "15f3f50af5262ed64a0acfc22bdf4f1191b78229",
+  "emptyResultsAreNotCiPass": true,
+  "combinedStatus": {
+    "httpStatus": 200,
+    "state": "pending",
+    "statuses": [],
+    "totalCount": 0
+  },
+  "workflowRuns": {
+    "httpStatus": 200,
+    "state": null,
+    "workflowRuns": [],
+    "totalCount": 0
+  }
+}
