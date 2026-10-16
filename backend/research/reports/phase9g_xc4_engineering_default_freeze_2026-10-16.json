@@ -1,0 +1,1420 @@
+{
+  "commitReferenceConvention": "Freeze commit is exact Git commit containing this report, resolved by git log at finalization; no self-referential commit hash.",
+  "counters": {
+    "newAudioContentReads": 0,
+    "newBenchmarkExecutions": 0,
+    "newExternalDatasetDownloads": 0,
+    "newMidiTruthReads": 0,
+    "newNeuralInferenceCount": 0
+  },
+  "defaults": {
+    "BAND_LIMITED_A_600_120": "STRONGEST_UNPROMOTED_GEOMETRY_CHALLENGER",
+    "CURRENT_ENGINEERING_ACOUSTIC_MODEL": "ROBUST",
+    "CURRENT_ENGINEERING_DECODER_DEFAULT": "A",
+    "CURRENT_ENGINEERING_ORT_WEB_VERSION": "1.20.1",
+    "CURRENT_ENGINEERING_RESAMPLER_DEFAULT": "BAND_LIMITED",
+    "CURRENT_ENGINEERING_STREAMING_GEOMETRY_DEFAULT": "OWNED_600_FUTURE_170",
+    "LINEAR": "REGRESSION_CONTROL",
+    "MAPS": "OPTIONAL_FUTURE_EXTERNAL_CONFIRMATION_NOT_CURRENT_ENGINEERING_BLOCKER",
+    "NO_OPTIMAL_PROFILE_CLAIM": true,
+    "PRODUCT_FINALIZATION_POLICY": "STILL_PRODUCT_CRITICAL",
+    "PROFILE_CLASSIFICATION": "CURRENT_FROZEN_REPRESENTATIVE_ROBUST_PROFILE",
+    "R2": "R2_RESEARCH_POLICY_NOT_PRODUCTION_QUALIFIED",
+    "answers": {
+      "externalAcquisitionNecessary": "NO_NOT_CURRENTLY_DECISION_CRITICAL",
+      "globallyBestDecoderResamplerProfileProven": "NO",
+      "robustCapableEnough": "YES_CURRENT_ENGINEERING_EVIDENCE_SUPPORTS_CONTINUED_PRODUCT_DEVELOPMENT"
+    },
+    "decoderB": "RESEARCH_CHALLENGER_NOT_DEFAULT",
+    "decoderC": "NO_DEMONSTRATED_ENGINEERING_ADVANTAGE_ON_EXISTING_EVIDENCE",
+    "profileProvenance": {
+      "correctedGate1Survivors": 25,
+      "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "profilesEvaluated": 80,
+      "selection": "NON_PERFORMANCE_NEUTRAL_HASH"
+    }
+  },
+  "engineeringDefaultIdentity": {
+    "acousticPublication": {
+      "executorSource": {
+        "bytes": 3277,
+        "path": "backend/research/browser_runtime/xc2_r1_browser_acoustic.mjs",
+        "sha256": "eae417d8011e7df1f8b30bf4588cfbaedc695a5f66ea2bf1a2043c4b1a419f83"
+      },
+      "publicationReferenceSource": {
+        "bytes": 12936,
+        "path": "backend/research/browser_runtime/xc2_r1_runtime.mjs",
+        "sha256": "72e45a94a245d34a40afba53fd18b0c685efa16f5981c46766a61d0c1aa26ab1"
+      },
+      "scope": "Acoustic semantics only; reference runtime downstream finalizer is explicitly excluded from default. No production wiring.",
+      "semantics": "One session per execution, sequential windows, all-pitch decoder A, half-open ownership, stable observation ID, immutable performanceTimeMs and confidence; availabilityTimeMs uses actual acoustic publication on performance-origin clock; analyzed-through frontier is preceding float64 of ownedEnd. No score, labels, final verdicts or expected pitch in acoustic execution."
+    },
+    "decoder": {
+      "authoritativeSource": {
+        "bytes": 5006,
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-decoder.ts",
+        "sha256": "07d5cb1d709c99ab85f8b701fd0bdf1744b4135b4d7dbd21deb679029e541311"
+      },
+      "default": "A",
+      "frameThreshold": 0.05,
+      "function": "decodeByteDanceRawOutputs",
+      "onsetThreshold": 0.3,
+      "outputFrameRateHz": 100,
+      "researchParitySource": {
+        "bytes": 5477,
+        "path": "backend/research/browser_runtime/xc1_robust_decoder.mjs",
+        "sha256": "33a032a7508c488cf7eb1db9b60b3f6a921756eab798c5d84875d634b5925125"
+      },
+      "semantics": "Contiguous >=onset threshold region; first maximum peak; reject peak if frame support <threshold; confidence=min(onset,frame); piano MIDI21..108; sort by time,pitch,stable ID.",
+      "timeMapping": "inputWindowStartMs + round(peakFrame/100*16000)/16000*1000"
+    },
+    "identityName": "robust-browser-engineering-default-xc4-v1",
+    "input": {
+      "dtype": "float32",
+      "modelInputMs": 1820,
+      "modelInputSamples": 29120,
+      "sampleRateHz": 16000,
+      "shape": [
+        1,
+        29120
+      ]
+    },
+    "model": {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "checkpointBytes": 103815845,
+      "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+      "onnxBytes": 98689283,
+      "onnxSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "sourceConfigurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce"
+    },
+    "ownership": {
+      "fullWindowPastMs": 1050,
+      "futureContextMs": 170,
+      "input": "inputEnd=ownedEnd+170ms; inputStart=inputEnd-1820ms; exactly29120 real samples; final partial ownership shifts full input without padding.",
+      "ownedMs": 600,
+      "plannerFunction": "planXc2Windows; selected parameters ownedMs=600,futureMs=170; historical common clip guard remains historical, not a new live startup specification.",
+      "plannerSource": {
+        "bytes": 4785,
+        "path": "backend/research/browser_runtime/xc2_decoders.mjs",
+        "sha256": "4a81ac847b62485ff1ed13e865736b418c798515abd886b0fdef7dfdd992efbf"
+      },
+      "rule": "[ownedStartMs,ownedEndMs)"
+    },
+    "resampler": {
+      "algorithm": "Frozen SciPy 1.14.1 firwin(8821,1/441,kaiser beta=5); float32 coefficients multiplied by160; float32 products/accumulation.",
+      "boundary": "Preserve state across chunks. Zero only at stream origin or explicit finish; padded finish cannot qualify real-context owned observations.",
+      "coefficients": {
+        "bytes": 35284,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/audio_only/fir_160_441.f32",
+        "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620"
+      },
+      "conservativeReadyLookaheadMs": 0.6349206349206349,
+      "conservativeReadyLookaheadSamples": 28,
+      "default": "BAND_LIMITED",
+      "down": 441,
+      "lookaheadSourceSamples": 27.5625,
+      "source": {
+        "bytes": 2289,
+        "path": "backend/research/browser_runtime/xc2_r1_streaming_resampler.mjs",
+        "sha256": "5f57a366bd3c264bee427caa33f892c1ea69d5954c5074a9c37f5167d3f07583"
+      },
+      "sourceRateHz": 44100,
+      "tapCount": 8821,
+      "targetRateHz": 16000,
+      "timeMapping": "Output m represents source m*441/160; wait for real source floor((m*441+4410)/160). No fitted shift or gain normalization.",
+      "up": 160
+    },
+    "runtime": {
+      "automaticFallback": false,
+      "browserLibrary": {
+        "bytes": 333594,
+        "path": "backend/research/browser_runtime/xc1_ort120_runtime/node_modules/onnxruntime-web/dist/ort.webgpu.min.js",
+        "sha256": "8443389bf14b34582ea40c590b5007bb652d6ac07dd76829a5bd82d2372e6895"
+      },
+      "graphOptimizationLevel": "disabled",
+      "ortWebVersion": "1.20.1",
+      "packageLock": {
+        "bytes": 6697,
+        "path": "backend/research/browser_runtime/xc1_ort120_runtime/package-lock.json",
+        "sha256": "7268737984b6c01ca800a3512a69c7656215fc7f19dede78b43f40752bc4f449"
+      },
+      "provider": "webgpu"
+    }
+  },
+  "engineeringDefaultIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+  "evidenceAudit": {
+    "evidenceFiles": {
+      "calibration": {
+        "bytes": 69116,
+        "path": "backend/research/reports/phase9g_a32_challenger_qualification_report_2026-10-10.json",
+        "sha256": "f8a261c6630f197aec92f74d2593d8368d648b30f4243b93a45e699bec82c224"
+      },
+      "d3": {
+        "bytes": 3057,
+        "path": "backend/research/reports/phase9g_d3_robust_browser_v1_identity_2026-10-13.json",
+        "sha256": "fdd4cd7f8c6bc22a0e21a9d87804d0a20babd5578971cbb8d5d6416ba912d7ee"
+      },
+      "decoderDevelopment": {
+        "bytes": 183415,
+        "path": "backend/research/reports/phase9g_xc2_stage_a_decoder_resampler_development_2026-10-15.json",
+        "sha256": "7be34699e9c77182abe1447af30aada726e5baefb6b06e45814247fa31ccf315"
+      },
+      "f5": {
+        "bytes": 468802,
+        "path": "backend/research/reports/phase9g_xc1_r3d_f5_full_scientific_result_2026-10-15.json",
+        "sha256": "3dea54e8d94e7f5042594e9c9dd87cf80d459757b4648ea4c154d44ad7574505"
+      },
+      "fir": {
+        "bytes": 17353,
+        "path": "backend/research/reports/phase9g_xc2_r1_audio_and_fir_identity_2026-10-16.json",
+        "sha256": "825b4d9cea5f83e3c98ed37c1c2093e25473c937eb25b802f65fb8d05645cd4e"
+      },
+      "firParity": {
+        "bytes": 17330,
+        "path": "backend/research/reports/phase9g_xc2_r1_browser_streaming_resampler_parity_2026-10-16.json",
+        "sha256": "f10e602e605d0a13cedd8973a8fa4538115ccc90de93e8244181d752db507abc"
+      },
+      "parameterProvenance": {
+        "bytes": 10863,
+        "path": "backend/research/reports/phase9g_xc2_r2_parameter_provenance_2026-10-16.json",
+        "sha256": "4a01a6753250cf460c70792eaeb927626318bd5a0167a61335e9c08607111f91"
+      },
+      "r1": {
+        "bytes": 2584180,
+        "path": "backend/research/reports/phase9g_xc2_r1_bounded_runtime_final_2026-10-16.json",
+        "sha256": "fa03b6429c542d6be9c79efce4501907bc936979c69f6e9cdcbb5d791510103e"
+      },
+      "r1Runtime": {
+        "bytes": 1875107,
+        "path": "backend/research/reports/phase9g_xc2_r1_causal_runtime_receipts_2026-10-16.json",
+        "sha256": "0cf6b7496d41e283c8565b68b38f129b6b223f70d1fe8d1bc6ad6ec993539c09"
+      },
+      "r2": {
+        "bytes": 6417818,
+        "path": "backend/research/reports/phase9g_xc2_r2_direct_conflict_final_2026-10-16.json",
+        "sha256": "5aee4747a1b59381fda5d583481bf42d1c6750812bf69bae72de76f680b30e89"
+      },
+      "r4": {
+        "bytes": 128600,
+        "path": "backend/research/reports/robust_runtime_sustainability_qualification_result_2026-10-15.json",
+        "sha256": "33121163f90830537ae17d871a553206a9a22347f3383f83b1011d51e5fffab4"
+      },
+      "xc2": {
+        "bytes": 15528527,
+        "path": "backend/research/reports/phase9g_xc2_product_verdict_latency_final_2026-10-16.json",
+        "sha256": "7c983975157ce4ac6a1d85708ef04c2115145f71fa7413b3d537512f26c9b42c"
+      },
+      "xc3": {
+        "bytes": 7700,
+        "path": "backend/research/reports/phase9g_xc3_maps_provenance_gate_2026-10-16.json",
+        "sha256": "386c1bcc9ca324f81f01f34efa91f62e30737777e3215ba5d1b997fb49a40844"
+      },
+      "xc3r1": {
+        "bytes": 65247,
+        "path": "backend/research/reports/phase9g_xc3_r1_zenodo_provenance_determination_2026-10-16.json",
+        "sha256": "fb1ca04614dc22a7a54af7b7914ed11ffb10cad4f911c7d20481c6aeaeee01fc"
+      },
+      "xc3r2Closure": {
+        "bytes": 14980,
+        "path": "backend/research/reports/phase9g_xc3_r2_acquisition_closure_2026-10-16.json",
+        "sha256": "c5e6aed8c48b1d508d2b9ee8a46ad14b7fcfb77eb2f4ffa12f701f795e7b1874"
+      },
+      "xc3r2Provenance": {
+        "bytes": 15849,
+        "path": "backend/research/reports/phase9g_xc3_r2_institutional_provenance_2026-10-16.json",
+        "sha256": "5eb5d48ef280d2df7fd2665398a9920cb4c79922b486a1b2abd0fcc232262272"
+      }
+    },
+    "firParityObservedExact": {
+      "allRecordedMaxAbsAndRms": 0,
+      "fixtureCount": 24,
+      "guardedRealClipCount": 3,
+      "newParityExperimentRun": false
+    },
+    "interpretation": "Stored report fields only; no replay, model run, listening, truth read, metrics recomputation or new benchmark.",
+    "storedF5Aggregate50ms": {
+      "basic-pitch-browser-v1": {
+        "duplicateRetriggerFalseDetections": 138,
+        "macroTakeMeans": {
+          "f1": 0.7551883846778931,
+          "falsePositiveOnsetsPerMinute": 172.7333411767807,
+          "missedOnsetRate": 0.1725181525358858,
+          "precision": 0.7052635628231673,
+          "recall": 0.827481847464114
+        },
+        "onsetAbsoluteMedianMs": 6.215986394563515,
+        "onsetAbsoluteP95Ms": 24.054138321903768,
+        "pooledF1": 0.7306555906924057,
+        "pooledFalsePositiveOnsetsPerMinute": 179.17946103244742,
+        "pooledMissedOnsetRate": 0.23175210253627743,
+        "pooledPrecision": 0.6965706331969426,
+        "pooledRecall": 0.7682478974637226,
+        "takeCount": 50
+      },
+      "online-amt-k8-browser-v1": {
+        "duplicateRetriggerFalseDetections": 37,
+        "macroTakeMeans": {
+          "f1": 0.92581428886358,
+          "falsePositiveOnsetsPerMinute": 13.361152133877429,
+          "missedOnsetRate": 0.11226509155889923,
+          "precision": 0.9725395715951164,
+          "recall": 0.8877349084411008
+        },
+        "onsetAbsoluteMedianMs": 8.937499999956344,
+        "onsetAbsoluteP95Ms": 24.020833333284827,
+        "pooledF1": 0.9063150931711985,
+        "pooledFalsePositiveOnsetsPerMinute": 15.198811425194254,
+        "pooledMissedOnsetRate": 0.14779622436758488,
+        "pooledPrecision": 0.9677639933574289,
+        "pooledRecall": 0.8522037756324151,
+        "takeCount": 50
+      },
+      "robust-browser-v1": {
+        "duplicateRetriggerFalseDetections": 68,
+        "macroTakeMeans": {
+          "f1": 0.9703531318286523,
+          "falsePositiveOnsetsPerMinute": 7.51982669160318,
+          "missedOnsetRate": 0.04195327880680708,
+          "precision": 0.9865889852797025,
+          "recall": 0.9580467211931927
+        },
+        "onsetAbsoluteMedianMs": 5.208333333313931,
+        "onsetAbsoluteP95Ms": 15.83333333331393,
+        "pooledF1": 0.9589525927533088,
+        "pooledFalsePositiveOnsetsPerMinute": 8.555974263833129,
+        "pooledMissedOnsetRate": 0.06413810900765582,
+        "pooledPrecision": 0.9832115621241718,
+        "pooledRecall": 0.9358618909923442,
+        "takeCount": 50
+      }
+    },
+    "storedOriginalParetoIds": [
+      "BAND_LIMITED_B_500_120",
+      "BAND_LIMITED_A_500_170",
+      "BAND_LIMITED_A_500_220",
+      "BAND_LIMITED_B_500_220",
+      "BAND_LIMITED_A_600_120",
+      "BAND_LIMITED_B_600_120",
+      "BAND_LIMITED_A_600_170"
+    ],
+    "storedOrt130Control": {
+      "artifactPath": "backend\\data\\work\\xc2_robust_product_baseline_v1\\raw\\DEVELOPMENT_LINEAR_600_220_1.30.0\\xc2_00_chopin_op026no1_003_20100611-smd.json",
+      "artifactSha256": "17888ae6f66dcb781ce6137cecd7316bb8c518d0ba7184271d875b2d0d6f3cdd",
+      "backlog": {
+        "cadenceMs": 600,
+        "consumerDurationMs": 49976.60009765625,
+        "finalQueueDelayMs": 22465.5,
+        "maxOutstandingDepth": 22,
+        "noSustainedBacklog": false,
+        "producerDurationMs": 26400,
+        "queueDelayMs": {
+          "count": 44,
+          "max": 22465.5,
+          "p50": 12340.199951171875,
+          "p95": 21482.489965820314
+        },
+        "realtimeFactor": 0.5282472186666031,
+        "schedulerJitterAllowanceMs": 8,
+        "status": "BACKLOG_PRESENT",
+        "tailQueueTrendMsPerGroup": 470.6285923549107
+      },
+      "executionCount": 1,
+      "p95": 1224.6050415039065,
+      "status": "ORT_WEB_1_30_RUNTIME_INELIGIBLE_FOR_THIS_ROBUST_EXPORT_ON_THIS_MACHINE"
+    },
+    "storedR1RuntimeGroups": [
+      {
+        "boundedQueuePassCount": 9,
+        "configuration": {
+          "futureMs": 220,
+          "id": "LINEAR_A_600_220",
+          "ownedMs": 600,
+          "resampler": "LINEAR"
+        },
+        "globalOrderPositionCounts": [
+          3,
+          3,
+          3
+        ],
+        "pooledDescriptive": {
+          "decoderMs": {
+            "count": 369,
+            "max": 0.7001953125,
+            "mean": 0.08076357130758807,
+            "p25": 0,
+            "p50": 0.099853515625,
+            "p75": 0.10009765625,
+            "p90": 0.199951171875,
+            "p95": 0.2001953125,
+            "p99": 0.39998046875,
+            "p99_5": 0.432138671875005
+          },
+          "finalizerCpuMs": {
+            "count": 369,
+            "max": 0.7001953125,
+            "mean": 0.11516953548441734,
+            "p25": 0,
+            "p50": 0.099853515625,
+            "p75": 0.199951171875,
+            "p90": 0.2001953125,
+            "p95": 0.300048828125,
+            "p99": 0.5320312499999993,
+            "p99_5": 0.6160742187500025
+          },
+          "productProcessingMs": {
+            "count": 369,
+            "max": 686.199951171875,
+            "mean": 334.8384854283113,
+            "p25": 284.099853515625,
+            "p50": 295.39990234375,
+            "p75": 310.800048828125,
+            "p90": 537.67998046875,
+            "p95": 581.4200195312499,
+            "p99": 658.18796875,
+            "p99_5": 672.8800488281254
+          },
+          "pureOrtMs": {
+            "count": 369,
+            "max": 685.800048828125,
+            "mean": 334.5737112815464,
+            "p25": 283.800048828125,
+            "p50": 295.10009765625,
+            "p75": 310.60009765625,
+            "p90": 537.3201171875,
+            "p95": 580.63984375,
+            "p99": 657.7199999999999,
+            "p99_5": 672.2120898437503
+          },
+          "resamplerMs": {
+            "count": 369,
+            "max": 0,
+            "mean": 0,
+            "p25": 0,
+            "p50": 0,
+            "p75": 0,
+            "p90": 0,
+            "p95": 0,
+            "p99": 0,
+            "p99_5": 0
+          }
+        },
+        "sessionCount": 9,
+        "sessionP95ProcessingMs": [
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26694.800048828125,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.199951171875,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.9889566489245509,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0
+            },
+            "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+            "p95": 305.89990234375,
+            "repeat": 0
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 27086,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.199951171875,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.9746732629402644,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0
+            },
+            "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+            "p95": 322.800048828125,
+            "repeat": 0
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26687.599853515625,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.10009765625,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.9892234650139309,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0
+            },
+            "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+            "p95": 317,
+            "repeat": 0
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26921.800048828125,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 2,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 71.60009765625,
+                "p50": 0,
+                "p95": 26.90997314453128
+              },
+              "realtimeFactor": 0.9806179361007906,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0
+            },
+            "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+            "p95": 613.300048828125,
+            "repeat": 1
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26704.60009765625,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.10009765625,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.9885937218103864,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0
+            },
+            "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+            "p95": 305.60009765625,
+            "repeat": 1
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 27037.39990234375,
+              "finalQueueDelayMs": 32.800048828125,
+              "maxOutstandingDepth": 2,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 241.699951171875,
+                "p50": 0,
+                "p95": 219.44495849609376
+              },
+              "realtimeFactor": 0.976425251516567,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": -21.514264787946427
+            },
+            "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+            "p95": 654.199951171875,
+            "repeat": 1
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26692.199951171875,
+              "finalQueueDelayMs": 0.10009765625,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.60009765625,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.989052983579233,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0.014299665178571428
+            },
+            "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+            "p95": 311.300048828125,
+            "repeat": 2
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26695.199951171875,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.400146484375,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.9889418340483748,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": -0.014264787946428572
+            },
+            "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+            "p95": 314.800048828125,
+            "repeat": 2
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26702.800048828125,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.10009765625,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.9886603633973055,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0
+            },
+            "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+            "p95": 321.699951171875,
+            "repeat": 2
+          }
+        ]
+      },
+      {
+        "boundedQueuePassCount": 7,
+        "configuration": {
+          "futureMs": 220,
+          "id": "BAND_LIMITED_A_500_220",
+          "ownedMs": 500,
+          "resampler": "BAND_LIMITED"
+        },
+        "globalOrderPositionCounts": [
+          3,
+          3,
+          3
+        ],
+        "pooledDescriptive": {
+          "decoderMs": {
+            "count": 441,
+            "max": 0.800048828125,
+            "mean": 0.06984304138321995,
+            "p25": 0,
+            "p50": 0.099853515625,
+            "p75": 0.10009765625,
+            "p90": 0.199951171875,
+            "p95": 0.199951171875,
+            "p99": 0.300048828125,
+            "p99_5": 0.3801269531250011
+          },
+          "finalizerCpuMs": {
+            "count": 441,
+            "max": 0.699951171875,
+            "mean": 0.09636966765873016,
+            "p25": 0,
+            "p50": 0.099853515625,
+            "p75": 0.10009765625,
+            "p90": 0.199951171875,
+            "p95": 0.300048828125,
+            "p99": 0.5,
+            "p99_5": 0.5800781250000011
+          },
+          "productProcessingMs": {
+            "count": 441,
+            "max": 1873.39990234375,
+            "mean": 327.4841253233064,
+            "p25": 283.300048828125,
+            "p50": 298.800048828125,
+            "p75": 312,
+            "p90": 501.199951171875,
+            "p95": 567,
+            "p99": 628.1399414062502,
+            "p99_5": 646.3400878906251
+          },
+          "pureOrtMs": {
+            "count": 441,
+            "max": 1871.7998046875,
+            "mean": 323.1687072615505,
+            "p25": 279.5,
+            "p50": 293.199951171875,
+            "p75": 307.199951171875,
+            "p90": 496.7001953125,
+            "p95": 563.699951171875,
+            "p99": 623.1399902343752,
+            "p99_5": 641.6398925781251
+          },
+          "resamplerMs": {
+            "count": 441,
+            "max": 6.800048828125,
+            "mean": 4.103853878791099,
+            "p25": 3,
+            "p50": 4.300048828125,
+            "p75": 5.39990234375,
+            "p90": 6.10009765625,
+            "p95": 6.300048828125,
+            "p99": 6.5,
+            "p99_5": 6.579882812500001
+          }
+        },
+        "sessionCount": 9,
+        "sessionP95ProcessingMs": [
+          {
+            "backlog": {
+              "cadenceMs": 500,
+              "consumerDurationMs": 26312.864990234375,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26000,
+              "queueDelayMs": {
+                "count": 52,
+                "max": 0.300048828125,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.9881098090097566,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0
+            },
+            "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+            "p95": 307.44013671875,
+            "repeat": 0
+          },
+          {
+            "backlog": {
+              "cadenceMs": 500,
+              "consumerDurationMs": 26274.6650390625,
+              "finalQueueDelayMs": 6.300048828125,
+              "maxOutstandingDepth": 4,
+              "noSustainedBacklog": false,
+              "producerDurationMs": 26000,
+              "queueDelayMs": {
+                "count": 52,
+                "max": 1364.5,
+                "p50": 0,
+                "p95": 981.6000366210928
+              },
+              "realtimeFactor": 0.9895463923648824,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "BACKLOG_PRESENT",
+              "tailQueueTrendMsPerGroup": -194.028564453125
+            },
+            "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+            "p95": 330.599853515625,
+            "repeat": 0
+          },
+          {
+            "backlog": {
+              "cadenceMs": 500,
+              "consumerDurationMs": 26279.864990234375,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26000,
+              "queueDelayMs": {
+                "count": 52,
+                "max": 0.2001953125,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.989350592541538,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0
+            },
+            "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+            "p95": 307.94013671875,
+            "repeat": 0
+          },
+          {
+            "backlog": {
+              "cadenceMs": 500,
+              "consumerDurationMs": 26323.764892578125,
+              "finalQueueDelayMs": 0.099853515625,
+              "maxOutstandingDepth": 2,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26000,
+              "queueDelayMs": {
+                "count": 52,
+                "max": 78,
+                "p50": 0,
+                "p95": 0.19007568359374916
+              },
+              "realtimeFactor": 0.9877006615923162,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0.014264787946428572
+            },
+            "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+            "p95": 321.86000976562497,
+            "repeat": 1
+          },
+          {
+            "backlog": {
+              "cadenceMs": 500,
+              "consumerDurationMs": 26307.364990234375,
+              "finalQueueDelayMs": 0.099853515625,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26000,
+              "queueDelayMs": {
+                "count": 52,
+                "max": 0.2998046875,
+                "p50": 0,
+                "p95": 0.099853515625
+              },
+              "realtimeFactor": 0.9883163900927184,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0.014264787946428572
+            },
+            "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+            "p95": 316.19990234374995,
+            "repeat": 1
+          },
+          {
+            "backlog": {
+              "cadenceMs": 500,
+              "consumerDurationMs": 29558.76513671875,
+              "finalQueueDelayMs": 2967.300048828125,
+              "maxOutstandingDepth": 7,
+              "noSustainedBacklog": false,
+              "producerDurationMs": 26000,
+              "queueDelayMs": {
+                "count": 52,
+                "max": 2967.300048828125,
+                "p50": 1980.4000244140625,
+                "p95": 2805.990075683593
+              },
+              "realtimeFactor": 0.879603727684214,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "BACKLOG_PRESENT",
+              "tailQueueTrendMsPerGroup": 71.971435546875
+            },
+            "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+            "p95": 634.9800292968749,
+            "repeat": 1
+          },
+          {
+            "backlog": {
+              "cadenceMs": 500,
+              "consumerDurationMs": 26299.465087890625,
+              "finalQueueDelayMs": 0.099853515625,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26000,
+              "queueDelayMs": {
+                "count": 52,
+                "max": 0.199951171875,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.9886132631637246,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0.014264787946428572
+            },
+            "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+            "p95": 321.6599609375,
+            "repeat": 2
+          },
+          {
+            "backlog": {
+              "cadenceMs": 500,
+              "consumerDurationMs": 26328.864990234375,
+              "finalQueueDelayMs": 0.099853515625,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26000,
+              "queueDelayMs": {
+                "count": 52,
+                "max": 0.39990234375,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.9875093366023809,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0.014264787946428572
+            },
+            "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+            "p95": 323.8400390625,
+            "repeat": 2
+          },
+          {
+            "backlog": {
+              "cadenceMs": 500,
+              "consumerDurationMs": 26317.864990234375,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26000,
+              "queueDelayMs": {
+                "count": 52,
+                "max": 0.60009765625,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.9879220829519293,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": -0.014299665178571428
+            },
+            "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+            "p95": 322.12001953124997,
+            "repeat": 2
+          }
+        ]
+      },
+      {
+        "boundedQueuePassCount": 9,
+        "configuration": {
+          "futureMs": 170,
+          "id": "BAND_LIMITED_A_600_170",
+          "ownedMs": 600,
+          "resampler": "BAND_LIMITED"
+        },
+        "globalOrderPositionCounts": [
+          3,
+          3,
+          3
+        ],
+        "pooledDescriptive": {
+          "decoderMs": {
+            "count": 369,
+            "max": 0.39990234375,
+            "mean": 0.07371326642953929,
+            "p25": 0,
+            "p50": 0.099853515625,
+            "p75": 0.10009765625,
+            "p90": 0.199951171875,
+            "p95": 0.199951171875,
+            "p99": 0.300048828125,
+            "p99_5": 0.3160253906250025
+          },
+          "finalizerCpuMs": {
+            "count": 369,
+            "max": 0.39990234375,
+            "mean": 0.09891863567073171,
+            "p25": 0.099853515625,
+            "p50": 0.10009765625,
+            "p75": 0.10009765625,
+            "p90": 0.199951171875,
+            "p95": 0.2001953125,
+            "p99": 0.300048828125,
+            "p99_5": 0.39990234375
+          },
+          "productProcessingMs": {
+            "count": 369,
+            "max": 704.39990234375,
+            "mean": 326.2628759368648,
+            "p25": 278.400146484375,
+            "p50": 293.2001953125,
+            "p75": 309.400146484375,
+            "p90": 528.819970703125,
+            "p95": 586.8000976562498,
+            "p99": 670.487919921875,
+            "p99_5": 676.0879101562505
+          },
+          "pureOrtMs": {
+            "count": 369,
+            "max": 699.800048828125,
+            "mean": 321.28725757960706,
+            "p25": 275.10009765625,
+            "p50": 288.2998046875,
+            "p75": 303.300048828125,
+            "p90": 523.560107421875,
+            "p95": 580.6599609374998,
+            "p99": 665.50794921875,
+            "p99_5": 671.3200000000004
+          },
+          "resamplerMs": {
+            "count": 369,
+            "max": 8.900146484375,
+            "mean": 4.759893980775745,
+            "p25": 3.10009765625,
+            "p50": 5.099853515625,
+            "p75": 6.2001953125,
+            "p90": 7.120068359374999,
+            "p95": 7.300048828125,
+            "p99": 7.632050781249999,
+            "p99_5": 7.92805664062502
+          }
+        },
+        "sessionCount": 9,
+        "sessionP95ProcessingMs": [
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26713.864990234375,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.199951171875,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.9882508581087345,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0
+            },
+            "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+            "p95": 493.599853515625,
+            "repeat": 0
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26704.56494140625,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.300048828125,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.9885950232825544,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0
+            },
+            "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+            "p95": 326.7001953125,
+            "repeat": 0
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 27148.864990234375,
+              "finalQueueDelayMs": 187.5,
+              "maxOutstandingDepth": 2,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 386.300048828125,
+                "p50": 28.550048828125,
+                "p95": 347.29501953125003
+              },
+              "realtimeFactor": 0.9724163426167632,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": -23.185721261160715
+            },
+            "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+            "p95": 673.39990234375,
+            "repeat": 0
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26709.864990234375,
+              "finalQueueDelayMs": 0.10009765625,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.199951171875,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.9883988559901868,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0.014299665178571428
+            },
+            "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+            "p95": 317.900146484375,
+            "repeat": 1
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26676.06494140625,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.10009765625,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.989651211975506,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0
+            },
+            "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+            "p95": 305,
+            "repeat": 1
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26700.764892578125,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.199951171875,
+                "p50": 0,
+                "p95": 0.10006103515625
+              },
+              "realtimeFactor": 0.988735719977006,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0
+            },
+            "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+            "p95": 317.7001953125,
+            "repeat": 1
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26689.164794921875,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.199951171875,
+                "p50": 0,
+                "p95": 0.10009765625
+              },
+              "realtimeFactor": 0.9891654610721691,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0
+            },
+            "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+            "p95": 298.60009765625,
+            "repeat": 2
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26666.164794921875,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.300048828125,
+                "p50": 0,
+                "p95": 0.099853515625
+              },
+              "realtimeFactor": 0.9900186323391895,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": 0
+            },
+            "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+            "p95": 309.800048828125,
+            "repeat": 2
+          },
+          {
+            "backlog": {
+              "cadenceMs": 600,
+              "consumerDurationMs": 26706.56494140625,
+              "finalQueueDelayMs": 0,
+              "maxOutstandingDepth": 1,
+              "noSustainedBacklog": true,
+              "producerDurationMs": 26400,
+              "queueDelayMs": {
+                "count": 44,
+                "max": 0.39990234375,
+                "p50": 0,
+                "p95": 0.099853515625
+              },
+              "realtimeFactor": 0.9885209894241791,
+              "schedulerJitterAllowanceMs": 8,
+              "status": "NO_SUSTAINED_BACKLOG",
+              "tailQueueTrendMsPerGroup": -0.014299665178571428
+            },
+            "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+            "p95": 312.10009765625,
+            "repeat": 2
+          }
+        ]
+      }
+    ],
+    "storedR4Conclusions": {
+      "F5_SCIENTIFIC_RESULT": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+      "ROBUST_20_PERCENT_HEADROOM": "ROBUST_20_PERCENT_HEADROOM_FAIL",
+      "ROBUST_PRODUCT_LATENCY_READINESS": "NOT_YET_QUALIFIED",
+      "ROBUST_RUNTIME_SUSTAINABILITY": "ROBUST_CADENCE_SUSTAINABLE",
+      "productLatencySlo": "PRODUCT_LATENCY_SLO_NOT_YET_FROZEN"
+    }
+  },
+  "evidenceConvergenceMatrix": [
+    {
+      "additionalEvidenceDecisionRelevance": "CLOSED_FOR_CURRENT_ENGINEERING",
+      "evidenceAgainstOrChallenging": "F5 Robust failed prospectively frozen480ms reserve gate; F5 remains NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER.",
+      "evidenceReferences": [
+        "f5:/aggregateMetricsByTolerance/50",
+        "f5:/pairedBootstrap",
+        "r4:/conclusions"
+      ],
+      "evidenceSupportingDefault": "Stored F5 50ms macro F1: Robust0.9703531318, Online0.9258142889, Basic0.7551883847; paired F1 CIs favor Robust, no FP/min or missed-rate regression. Later finite-session cadence support.",
+      "item": "Acoustic model: Robust / Online-AMT / Basic Pitch",
+      "knownLimitation": "SMD scientific/non-commercial acoustic transcription, not natural product verdict or microphone qualification."
+    },
+    {
+      "additionalEvidenceDecisionRelevance": "REOPEN_ONLY_ON_TRIGGER",
+      "evidenceAgainstOrChallenging": "B BAND development target agreement slightly higher than A; no universal A dominance claimed. C agreement aggregate equality is not event-by-event equivalence.",
+      "evidenceReferences": [
+        "decoderDevelopment:/candidates",
+        "xc2:/stageADecoderResampler"
+      ],
+      "evidenceSupportingDefault": "A authoritative customer-web parity, deterministic region dedupe and conservative frame support. StageA same-geometry development A produced220 LINEAR/342 BAND extras vs B341/527. C matched A aggregate counts without demonstrated engineering gain.",
+      "item": "Decoder A / B / C",
+      "knownLimitation": "Already-seen XC2 counterfactual evidence, no fresh external confirmation; B remains research challenger, C not justified as default complexity."
+    },
+    {
+      "additionalEvidenceDecisionRelevance": "REOPEN_ONLY_ON_TRIGGER",
+      "evidenceAgainstOrChallenging": "StageA BAND A had342 residual extras vs LINEAR A220; not uniformly superior on all finite metrics. LINEAR retained regression control.",
+      "evidenceReferences": [
+        "xc2:/ort120Main/paretoIds",
+        "firParity:/fixtures",
+        "firParity:/clips",
+        "decoderDevelopment:/candidates"
+      ],
+      "evidenceSupportingDefault": "All seven original observational XC2 Pareto candidates BAND_LIMITED. Pinned R1 streaming FIR exactly matched frozen fixtures and guarded real clips; chunk vs single exact, conservative lookahead0.6349206349ms.",
+      "item": "Resampler LINEAR / BAND_LIMITED",
+      "knownLimitation": "Parity limited to pinned44.1k->16k FIR, tested fixtures/clips; not AudioWorklet,48k/device-clock qualification or global optimum."
+    },
+    {
+      "additionalEvidenceDecisionRelevance": "REOPEN_ONLY_ON_TRIGGER",
+      "evidenceAgainstOrChallenging": "600/120 strongest unpromoted challenger: original EVAL target334/342 (97.66%), strike recall97.42%, no observed critical false acceptance and lower several logical latencies.500ms BAND R1 only7/9 bounded.320/400 historical runtime weak.",
+      "evidenceReferences": [
+        "xc2:/fiveVerdictTables",
+        "xc2:/developmentGeometryAndFuture",
+        "r1Runtime:/groups",
+        "r2:/metrics"
+      ],
+      "evidenceSupportingDefault": "600 accumulated strongest cadence evidence; BAND_A_600_170 R1 9/9 bounded sessions and R2 directly exercised.170 reduces future wait50ms vs220 and remains original Pareto.",
+      "item": "Geometry owned320/400/500/600; future120/170/220",
+      "knownLimitation": "Engineering convergence, not performance rank; historical logical latencies affected by transitive finalizer, finite sessions and seen clips. No new120vs170 study."
+    },
+    {
+      "additionalEvidenceDecisionRelevance": "REOPEN_ONLY_ON_TRIGGER",
+      "evidenceAgainstOrChallenging": "F5 long-take P95~552.84ms >480ms; R1 BAND5002207/9. ORT1.30 control P951224.605ms and sustained backlog for this export/machine.",
+      "evidenceReferences": [
+        "f5:/runtimeEvidence",
+        "r4:/conclusions",
+        "r1Runtime:/groups",
+        "xc2:/ort130Control"
+      ],
+      "evidenceSupportingDefault": "R4 finite600ms cadence sustainable despite20% reserve failure. R1 LINEAR600220 and BAND600170 each9/9 bounded; measured production-like acoustic path excludes research raw export. ORT1.20.1 chosen.",
+      "item": "Runtime F5 / R4 / R1 and ORT1.20.1 /1.30.0",
+      "knownLimitation": "Do not transfer long baseline sessions into proof of indefinite BAND stability; no product UX SLO or current hardware retest."
+    },
+    {
+      "additionalEvidenceDecisionRelevance": "STILL_PRODUCT_CRITICAL",
+      "evidenceAgainstOrChallenging": "Original transitive policy very safe but10-27s tails. R1 material safety regression. R2 retains smaller WRONG/EXTRA tradeoffs and incomplete recovery of other cases.",
+      "evidenceReferences": [
+        "r1",
+        "r2:/exactRecoveryBaselineEvaluation",
+        "r2:/conclusion"
+      ],
+      "evidenceSupportingDefault": "Separate acoustic choice from unresolved verdict policy. R2 recovered nine MISSING->WRONG and four INCOMPLETE->WRONG regressions with one-hop bounded horizon.",
+      "item": "Product scoring XC2 / R1 / R2",
+      "knownLimitation": "R2 research only, diagnostic seen EVALUATION, not production qualified. Needs causal-witness targeted repair, natural early/late fixed-BPM corpus and explicit latency SLO."
+    }
+  ],
+  "freezeCanonicalSha256": "0641cc0d568b2d804eb110e9e23cf8e13325ff4d5e282e39f7173d7de5e2f6e4",
+  "historyUnchangedProof": {
+    "allPreExistingTrackedFilesUnchanged": true,
+    "method": "Git diff against exact starting commit permits only new XC4 files; no historical source/report modifications.",
+    "startingTree": "67ed59247426f8f5993c434f9e14baa453644fbe",
+    "trackedChangesSinceStart": [
+      "A\tbackend/research/run_xc4_regressions.ps1",
+      "A\tbackend/research/test_xc4_engineering_default.py",
+      "A\tbackend/research/xc4_engineering_default.py"
+    ]
+  },
+  "identityClassification": "ENGINEERING_DEFAULT_ONLY_NOT_D4_NOT_PRODUCTION_WINNER",
+  "identityDigestDefinition": "SHA256 of ASCII canonical JSON: sorted keys, compact separators, finite numbers; identity object only (not enclosing report).",
+  "implementationCommit": "3762550f78f2a43965bf75cfb2409f1e9a5a73b3",
+  "inactiveIntegrationPlan": {
+    "geometryInterpretation": "600ms is acoustic ownership/inference cadence, NOT semantic verdict commit width. Full600/170 window has1050ms past; a shorter terminal region increases past context. Live startup/tail/device-clock contract is not qualified by historical clip guards.",
+    "integrationGates": [
+      "Do not connect research fixed-size clip buffer as an unbounded live stream.",
+      "Preserve real future FIR/model context; no finish padding counted as real acoustic future.",
+      "Qualify sample-rate/device handling separately; current FIR only44.1k->16k.",
+      "Separate immutable event time, causal availability and analysis frontier.",
+      "No user-visible production verdicts until finalizer is independently qualified."
+    ],
+    "latencyInterpretation": "Acoustic model quality, product finalization, production-like compute, UI/perception are separate evidence layers. No UX threshold or readiness PASS invented.",
+    "pipeline": [
+      "Mic PCM interface (disabled)",
+      "Frozen BAND_LIMITED streaming FIR",
+      "Robust ORT1.20.1 hardware WebGPU",
+      "Decoder A",
+      "Score-blind acoustic publications"
+    ],
+    "productionMicrophone": false,
+    "status": "INACTIVE_PLAN_ONLY_NO_PRODUCTION_SOURCE_CHANGES",
+    "unresolvedProductCritical": [
+      "Finalizer/scorer safety-latency tradeoff; no R2 production promotion.",
+      "Real microphone / AudioWorklet / device-clock integration.",
+      "Product latency SLO.",
+      "UI/perceptual latency.",
+      "Natural early/late behavior against an independent fixed-BPM clock."
+    ]
+  },
+  "phase": "PHASE_9G_XC4_EVIDENCE_CONVERGENCE_AND_ENGINEERING_DEFAULT_FREEZE",
+  "researchPolicy": {
+    "futureTestTriggers": [
+      "Unexpected real-microphone failure.",
+      "New browser/runtime regression.",
+      "Material decoder/resampler failure on actual product recordings.",
+      "Materially changed model/runtime implementation.",
+      "Publication-grade external generalization requirement.",
+      "Explicit commercial/legal qualification requirement."
+    ],
+    "insufficientReasons": [
+      "More confidence would be nice.",
+      "A more impressive sample count."
+    ],
+    "maps": {
+      "actualObservedBlocker": "TLS_EOF_AND_HANDSHAKE_TIMEOUT_DURING_BOUNDED_DISCOVERY",
+      "currentStatus": "OPTIONAL_FUTURE_EXTERNAL_CONFIRMATION_NOT_CURRENT_ENGINEERING_BLOCKER",
+      "networkRetryAuthorizedByThisPhase": false,
+      "priorXC3": "FRESH_COMPONENT_SELECTION_BLOCKED_DATASET_PROVENANCE",
+      "priorXC3R1": "ZENODO_ARCHIVE_PROVENANCE_NOT_SUFFICIENTLY_LINKED",
+      "priorXC3R2Acquisition": "MAPS_BOUNDED_MEMBER_DISCOVERY_BLOCKED_FULL_ARCHIVE_REQUIRED",
+      "priorXC3R2Provenance": "INSTITUTIONALLY_AFFILIATED_ARCHIVAL_REDISTRIBUTION",
+      "rangeCapability": "Precise HTTP206 responses observed; historical label does NOT prove full download technically necessary."
+    },
+    "scorerFollowUp": "Only narrow mechanistic hypotheses tied to existing R2 causal witnesses. No grace-window sweep, heuristic grid, or optimization against all seen EVALUATION targets.",
+    "stoppingRule": "No new dataset/candidate/decoder/resampler/geometry/parameter sweep unless at least one enumerated trigger is documented.",
+    "sufficientReasons": [
+      "Existing evidence is materially contradictory.",
+      "An actual browser/microphone integration failure cannot be explained by existing evidence.",
+      "A specific unresolved safety question could plausibly reverse this engineering decision.",
+      "An explicit production/legal/commercial requirement requires new evidence."
+    ]
+  },
+  "scopeProtections": {
+    "9G-B": "STATISTICAL_TIE",
+    "D4": false,
+    "F5": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+    "NO_OPTIMAL_PROFILE_CLAIM": true,
+    "R1": "BOUNDED_FINALIZATION_HAS_SAFETY_TRADEOFF",
+    "R2": "DIRECT_CONFLICT_RESERVATION_PARTIALLY_RECOVERS_SAFETY",
+    "R4": "ROBUST_CADENCE_SUSTAINABLE",
+    "R4Headroom": "ROBUST_20_PERCENT_HEADROOM_FAIL",
+    "R4Scope": "Finite measured sessions, not proof of indefinite stability.",
+    "XC2": "ROBUST_PRODUCT_BASELINE_MULTIPLE_PARETO_CANDIDATES",
+    "backendPracticeInference": false,
+    "commercialQualificationStatus": "NOT_PERFORMED",
+    "expectedScoreEntersAcousticInference": false,
+    "practiceWebSocket": false,
+    "productLatencySlo": "PRODUCT_LATENCY_SLO_NOT_YET_FROZEN",
+    "productionMicrophone": false,
+    "productionWinner": null,
+    "scientificUse": "SCIENTIFIC_RESEARCH_ONLY",
+    "scoreFollowing": false,
+    "serverAcousticInference": false,
+    "viennaP15P22InferenceIncrease": 0,
+    "winner": null
+  },
+  "sourceHashBoundary": [
+    {
+      "bytes": 5006,
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-decoder.ts",
+      "sha256": "07d5cb1d709c99ab85f8b701fd0bdf1744b4135b4d7dbd21deb679029e541311"
+    },
+    {
+      "bytes": 5477,
+      "path": "backend/research/browser_runtime/xc1_robust_decoder.mjs",
+      "sha256": "33a032a7508c488cf7eb1db9b60b3f6a921756eab798c5d84875d634b5925125"
+    },
+    {
+      "bytes": 4785,
+      "path": "backend/research/browser_runtime/xc2_decoders.mjs",
+      "sha256": "4a81ac847b62485ff1ed13e865736b418c798515abd886b0fdef7dfdd992efbf"
+    },
+    {
+      "bytes": 2289,
+      "path": "backend/research/browser_runtime/xc2_r1_streaming_resampler.mjs",
+      "sha256": "5f57a366bd3c264bee427caa33f892c1ea69d5954c5074a9c37f5167d3f07583"
+    },
+    {
+      "bytes": 3277,
+      "path": "backend/research/browser_runtime/xc2_r1_browser_acoustic.mjs",
+      "sha256": "eae417d8011e7df1f8b30bf4588cfbaedc695a5f66ea2bf1a2043c4b1a419f83"
+    },
+    {
+      "bytes": 12936,
+      "path": "backend/research/browser_runtime/xc2_r1_runtime.mjs",
+      "sha256": "72e45a94a245d34a40afba53fd18b0c685efa16f5981c46766a61d0c1aa26ab1"
+    },
+    {
+      "bytes": 29382,
+      "path": "backend/research/xc4_engineering_default.py",
+      "sha256": "d20397f26f7a966283d9ba34bf024f6858c80befc03d671356b079d59f82afc6"
+    },
+    {
+      "bytes": 3610,
+      "path": "backend/research/test_xc4_engineering_default.py",
+      "sha256": "7b18f1042938a9e9ebae59fce65954418978b0fdbfb6e5d6cdc6931af326cd3d"
+    },
+    {
+      "bytes": 2547,
+      "path": "backend/research/run_xc4_regressions.ps1",
+      "sha256": "aa9dce0e42b8897891197a2ba87b57ad7f3166c3fdcd8528d0e44b19dea088de"
+    },
+    {
+      "bytes": 16426,
+      "path": "backend/research/xc3_maps_provenance.py",
+      "sha256": "c06c3bf90a1a692ae76b9dde04a160352e63c0abec7ca5d4ff0970e8b85ca44c"
+    }
+  ],
+  "startingRemoteHead": "c9c6777cfde677fc6cef72cbbc92bfb2febeca51"
+}
