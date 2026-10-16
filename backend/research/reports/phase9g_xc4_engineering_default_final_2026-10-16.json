@@ -1,0 +1,485 @@
+{
+  "counters": {
+    "newAudioContentReads": 0,
+    "newBenchmarkExecutions": 0,
+    "newExternalDatasetDownloads": 0,
+    "newMidiTruthReads": 0,
+    "newNeuralInferenceCount": 0
+  },
+  "defaults": {
+    "BAND_LIMITED_A_600_120": "STRONGEST_UNPROMOTED_GEOMETRY_CHALLENGER",
+    "CURRENT_ENGINEERING_ACOUSTIC_MODEL": "ROBUST",
+    "CURRENT_ENGINEERING_DECODER_DEFAULT": "A",
+    "CURRENT_ENGINEERING_ORT_WEB_VERSION": "1.20.1",
+    "CURRENT_ENGINEERING_RESAMPLER_DEFAULT": "BAND_LIMITED",
+    "CURRENT_ENGINEERING_STREAMING_GEOMETRY_DEFAULT": "OWNED_600_FUTURE_170",
+    "LINEAR": "REGRESSION_CONTROL",
+    "MAPS": "OPTIONAL_FUTURE_EXTERNAL_CONFIRMATION_NOT_CURRENT_ENGINEERING_BLOCKER",
+    "NO_OPTIMAL_PROFILE_CLAIM": true,
+    "PRODUCT_FINALIZATION_POLICY": "STILL_PRODUCT_CRITICAL",
+    "PROFILE_CLASSIFICATION": "CURRENT_FROZEN_REPRESENTATIVE_ROBUST_PROFILE",
+    "R2": "R2_RESEARCH_POLICY_NOT_PRODUCTION_QUALIFIED",
+    "answers": {
+      "externalAcquisitionNecessary": "NO_NOT_CURRENTLY_DECISION_CRITICAL",
+      "globallyBestDecoderResamplerProfileProven": "NO",
+      "robustCapableEnough": "YES_CURRENT_ENGINEERING_EVIDENCE_SUPPORTS_CONTINUED_PRODUCT_DEVELOPMENT"
+    },
+    "decoderB": "RESEARCH_CHALLENGER_NOT_DEFAULT",
+    "decoderC": "NO_DEMONSTRATED_ENGINEERING_ADVANTAGE_ON_EXISTING_EVIDENCE",
+    "profileProvenance": {
+      "correctedGate1Survivors": 25,
+      "profileId": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+      "profilesEvaluated": 80,
+      "selection": "NON_PERFORMANCE_NEUTRAL_HASH"
+    }
+  },
+  "engineeringDefaultFreezeCommit": "93e7ebbad2eccb7c11bf27b6f96f2ff64c0297ba",
+  "engineeringDefaultIdentity": {
+    "acousticPublication": {
+      "executorSource": {
+        "bytes": 3277,
+        "path": "backend/research/browser_runtime/xc2_r1_browser_acoustic.mjs",
+        "sha256": "eae417d8011e7df1f8b30bf4588cfbaedc695a5f66ea2bf1a2043c4b1a419f83"
+      },
+      "publicationReferenceSource": {
+        "bytes": 12936,
+        "path": "backend/research/browser_runtime/xc2_r1_runtime.mjs",
+        "sha256": "72e45a94a245d34a40afba53fd18b0c685efa16f5981c46766a61d0c1aa26ab1"
+      },
+      "scope": "Acoustic semantics only; reference runtime downstream finalizer is explicitly excluded from default. No production wiring.",
+      "semantics": "One session per execution, sequential windows, all-pitch decoder A, half-open ownership, stable observation ID, immutable performanceTimeMs and confidence; availabilityTimeMs uses actual acoustic publication on performance-origin clock; analyzed-through frontier is preceding float64 of ownedEnd. No score, labels, final verdicts or expected pitch in acoustic execution."
+    },
+    "decoder": {
+      "authoritativeSource": {
+        "bytes": 5006,
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-decoder.ts",
+        "sha256": "07d5cb1d709c99ab85f8b701fd0bdf1744b4135b4d7dbd21deb679029e541311"
+      },
+      "default": "A",
+      "frameThreshold": 0.05,
+      "function": "decodeByteDanceRawOutputs",
+      "onsetThreshold": 0.3,
+      "outputFrameRateHz": 100,
+      "researchParitySource": {
+        "bytes": 5477,
+        "path": "backend/research/browser_runtime/xc1_robust_decoder.mjs",
+        "sha256": "33a032a7508c488cf7eb1db9b60b3f6a921756eab798c5d84875d634b5925125"
+      },
+      "semantics": "Contiguous >=onset threshold region; first maximum peak; reject peak if frame support <threshold; confidence=min(onset,frame); piano MIDI21..108; sort by time,pitch,stable ID.",
+      "timeMapping": "inputWindowStartMs + round(peakFrame/100*16000)/16000*1000"
+    },
+    "identityName": "robust-browser-engineering-default-xc4-v1",
+    "input": {
+      "dtype": "float32",
+      "modelInputMs": 1820,
+      "modelInputSamples": 29120,
+      "sampleRateHz": 16000,
+      "shape": [
+        1,
+        29120
+      ]
+    },
+    "model": {
+      "candidateId": "bytedance-robust-augmented-calibrated-v1",
+      "checkpointBytes": 103815845,
+      "checkpointSha256": "b20f72053abc15b78f689b2a8b04c0a06529c8466e898b915803a1daa2011b9e",
+      "onnxBytes": 98689283,
+      "onnxSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "sourceConfigurationSha256": "10ca01435f68b0672d01e2328762ea0773efb15b318dcd1c21105e05f9ee51ce"
+    },
+    "ownership": {
+      "fullWindowPastMs": 1050,
+      "futureContextMs": 170,
+      "input": "inputEnd=ownedEnd+170ms; inputStart=inputEnd-1820ms; exactly29120 real samples; final partial ownership shifts full input without padding.",
+      "ownedMs": 600,
+      "plannerFunction": "planXc2Windows; selected parameters ownedMs=600,futureMs=170; historical common clip guard remains historical, not a new live startup specification.",
+      "plannerSource": {
+        "bytes": 4785,
+        "path": "backend/research/browser_runtime/xc2_decoders.mjs",
+        "sha256": "4a81ac847b62485ff1ed13e865736b418c798515abd886b0fdef7dfdd992efbf"
+      },
+      "rule": "[ownedStartMs,ownedEndMs)"
+    },
+    "resampler": {
+      "algorithm": "Frozen SciPy 1.14.1 firwin(8821,1/441,kaiser beta=5); float32 coefficients multiplied by160; float32 products/accumulation.",
+      "boundary": "Preserve state across chunks. Zero only at stream origin or explicit finish; padded finish cannot qualify real-context owned observations.",
+      "coefficients": {
+        "bytes": 35284,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/audio_only/fir_160_441.f32",
+        "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620"
+      },
+      "conservativeReadyLookaheadMs": 0.6349206349206349,
+      "conservativeReadyLookaheadSamples": 28,
+      "default": "BAND_LIMITED",
+      "down": 441,
+      "lookaheadSourceSamples": 27.5625,
+      "source": {
+        "bytes": 2289,
+        "path": "backend/research/browser_runtime/xc2_r1_streaming_resampler.mjs",
+        "sha256": "5f57a366bd3c264bee427caa33f892c1ea69d5954c5074a9c37f5167d3f07583"
+      },
+      "sourceRateHz": 44100,
+      "tapCount": 8821,
+      "targetRateHz": 16000,
+      "timeMapping": "Output m represents source m*441/160; wait for real source floor((m*441+4410)/160). No fitted shift or gain normalization.",
+      "up": 160
+    },
+    "runtime": {
+      "automaticFallback": false,
+      "browserLibrary": {
+        "bytes": 333594,
+        "path": "backend/research/browser_runtime/xc1_ort120_runtime/node_modules/onnxruntime-web/dist/ort.webgpu.min.js",
+        "sha256": "8443389bf14b34582ea40c590b5007bb652d6ac07dd76829a5bd82d2372e6895"
+      },
+      "graphOptimizationLevel": "disabled",
+      "ortWebVersion": "1.20.1",
+      "packageLock": {
+        "bytes": 6697,
+        "path": "backend/research/browser_runtime/xc1_ort120_runtime/package-lock.json",
+        "sha256": "7268737984b6c01ca800a3512a69c7656215fc7f19dede78b43f40752bc4f449"
+      },
+      "provider": "webgpu"
+    }
+  },
+  "engineeringDefaultIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+  "engineeringDisposition": "CURRENT_ENGINEERING_DEFAULT_FROZEN_FOR_CONTINUED_PRODUCT_DEVELOPMENT",
+  "evidenceCommit": "Exact containing evidence-only commit; returned after push, not self-referential.",
+  "evidenceConvergenceMatrix": [
+    {
+      "additionalEvidenceDecisionRelevance": "CLOSED_FOR_CURRENT_ENGINEERING",
+      "evidenceAgainstOrChallenging": "F5 Robust failed prospectively frozen480ms reserve gate; F5 remains NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER.",
+      "evidenceReferences": [
+        "f5:/aggregateMetricsByTolerance/50",
+        "f5:/pairedBootstrap",
+        "r4:/conclusions"
+      ],
+      "evidenceSupportingDefault": "Stored F5 50ms macro F1: Robust0.9703531318, Online0.9258142889, Basic0.7551883847; paired F1 CIs favor Robust, no FP/min or missed-rate regression. Later finite-session cadence support.",
+      "item": "Acoustic model: Robust / Online-AMT / Basic Pitch",
+      "knownLimitation": "SMD scientific/non-commercial acoustic transcription, not natural product verdict or microphone qualification."
+    },
+    {
+      "additionalEvidenceDecisionRelevance": "REOPEN_ONLY_ON_TRIGGER",
+      "evidenceAgainstOrChallenging": "B BAND development target agreement slightly higher than A; no universal A dominance claimed. C agreement aggregate equality is not event-by-event equivalence.",
+      "evidenceReferences": [
+        "decoderDevelopment:/candidates",
+        "xc2:/stageADecoderResampler"
+      ],
+      "evidenceSupportingDefault": "A authoritative customer-web parity, deterministic region dedupe and conservative frame support. StageA same-geometry development A produced220 LINEAR/342 BAND extras vs B341/527. C matched A aggregate counts without demonstrated engineering gain.",
+      "item": "Decoder A / B / C",
+      "knownLimitation": "Already-seen XC2 counterfactual evidence, no fresh external confirmation; B remains research challenger, C not justified as default complexity."
+    },
+    {
+      "additionalEvidenceDecisionRelevance": "REOPEN_ONLY_ON_TRIGGER",
+      "evidenceAgainstOrChallenging": "StageA BAND A had342 residual extras vs LINEAR A220; not uniformly superior on all finite metrics. LINEAR retained regression control.",
+      "evidenceReferences": [
+        "xc2:/ort120Main/paretoIds",
+        "firParity:/fixtures",
+        "firParity:/clips",
+        "decoderDevelopment:/candidates"
+      ],
+      "evidenceSupportingDefault": "All seven original observational XC2 Pareto candidates BAND_LIMITED. Pinned R1 streaming FIR exactly matched frozen fixtures and guarded real clips; chunk vs single exact, conservative lookahead0.6349206349ms.",
+      "item": "Resampler LINEAR / BAND_LIMITED",
+      "knownLimitation": "Parity limited to pinned44.1k->16k FIR, tested fixtures/clips; not AudioWorklet,48k/device-clock qualification or global optimum."
+    },
+    {
+      "additionalEvidenceDecisionRelevance": "REOPEN_ONLY_ON_TRIGGER",
+      "evidenceAgainstOrChallenging": "600/120 strongest unpromoted challenger: original EVAL target334/342 (97.66%), strike recall97.42%, no observed critical false acceptance and lower several logical latencies.500ms BAND R1 only7/9 bounded.320/400 historical runtime weak.",
+      "evidenceReferences": [
+        "xc2:/fiveVerdictTables",
+        "xc2:/developmentGeometryAndFuture",
+        "r1Runtime:/groups",
+        "r2:/metrics"
+      ],
+      "evidenceSupportingDefault": "600 accumulated strongest cadence evidence; BAND_A_600_170 R1 9/9 bounded sessions and R2 directly exercised.170 reduces future wait50ms vs220 and remains original Pareto.",
+      "item": "Geometry owned320/400/500/600; future120/170/220",
+      "knownLimitation": "Engineering convergence, not performance rank; historical logical latencies affected by transitive finalizer, finite sessions and seen clips. No new120vs170 study."
+    },
+    {
+      "additionalEvidenceDecisionRelevance": "REOPEN_ONLY_ON_TRIGGER",
+      "evidenceAgainstOrChallenging": "F5 long-take P95~552.84ms >480ms; R1 BAND5002207/9. ORT1.30 control P951224.605ms and sustained backlog for this export/machine.",
+      "evidenceReferences": [
+        "f5:/runtimeEvidence",
+        "r4:/conclusions",
+        "r1Runtime:/groups",
+        "xc2:/ort130Control"
+      ],
+      "evidenceSupportingDefault": "R4 finite600ms cadence sustainable despite20% reserve failure. R1 LINEAR600220 and BAND600170 each9/9 bounded; measured production-like acoustic path excludes research raw export. ORT1.20.1 chosen.",
+      "item": "Runtime F5 / R4 / R1 and ORT1.20.1 /1.30.0",
+      "knownLimitation": "Do not transfer long baseline sessions into proof of indefinite BAND stability; no product UX SLO or current hardware retest."
+    },
+    {
+      "additionalEvidenceDecisionRelevance": "STILL_PRODUCT_CRITICAL",
+      "evidenceAgainstOrChallenging": "Original transitive policy very safe but10-27s tails. R1 material safety regression. R2 retains smaller WRONG/EXTRA tradeoffs and incomplete recovery of other cases.",
+      "evidenceReferences": [
+        "r1",
+        "r2:/exactRecoveryBaselineEvaluation",
+        "r2:/conclusion"
+      ],
+      "evidenceSupportingDefault": "Separate acoustic choice from unresolved verdict policy. R2 recovered nine MISSING->WRONG and four INCOMPLETE->WRONG regressions with one-hop bounded horizon.",
+      "item": "Product scoring XC2 / R1 / R2",
+      "knownLimitation": "R2 research only, diagnostic seen EVALUATION, not production qualified. Needs causal-witness targeted repair, natural early/late fixed-BPM corpus and explicit latency SLO."
+    }
+  ],
+  "freezeCanonicalSha256": "0641cc0d568b2d804eb110e9e23cf8e13325ff4d5e282e39f7173d7de5e2f6e4",
+  "freezeReport": {
+    "bytes": 57275,
+    "path": "backend/research/reports/phase9g_xc4_engineering_default_freeze_2026-10-16.json",
+    "sha256": "31ac7e9d4b14d329416303994631bfa81f133967d6c79abb78b4a4f48e9f9b6b"
+  },
+  "githubEvidence": "Actual post-push API snapshot generated by versioned github command, then committed in append-only administrative receipt. Empty statuses/workflows are not CI PASS.",
+  "historyUnchangedProof": {
+    "allPreExistingTrackedFilesUnchanged": true,
+    "method": "Git diff against exact starting commit permits only new XC4 files; no historical source/report modifications.",
+    "startingTree": "67ed59247426f8f5993c434f9e14baa453644fbe",
+    "trackedChangesSinceStart": [
+      "A\tbackend/research/reports/phase9g_xc4_engineering_default_freeze_2026-10-16.json",
+      "A\tbackend/research/run_xc4_regressions.ps1",
+      "A\tbackend/research/test_xc4_engineering_default.py",
+      "A\tbackend/research/xc4_engineering_default.py"
+    ]
+  },
+  "implementationCommit": "3762550f78f2a43965bf75cfb2409f1e9a5a73b3",
+  "inactiveIntegrationPlan": {
+    "geometryInterpretation": "600ms is acoustic ownership/inference cadence, NOT semantic verdict commit width. Full600/170 window has1050ms past; a shorter terminal region increases past context. Live startup/tail/device-clock contract is not qualified by historical clip guards.",
+    "integrationGates": [
+      "Do not connect research fixed-size clip buffer as an unbounded live stream.",
+      "Preserve real future FIR/model context; no finish padding counted as real acoustic future.",
+      "Qualify sample-rate/device handling separately; current FIR only44.1k->16k.",
+      "Separate immutable event time, causal availability and analysis frontier.",
+      "No user-visible production verdicts until finalizer is independently qualified."
+    ],
+    "latencyInterpretation": "Acoustic model quality, product finalization, production-like compute, UI/perception are separate evidence layers. No UX threshold or readiness PASS invented.",
+    "pipeline": [
+      "Mic PCM interface (disabled)",
+      "Frozen BAND_LIMITED streaming FIR",
+      "Robust ORT1.20.1 hardware WebGPU",
+      "Decoder A",
+      "Score-blind acoustic publications"
+    ],
+    "productionMicrophone": false,
+    "status": "INACTIVE_PLAN_ONLY_NO_PRODUCTION_SOURCE_CHANGES",
+    "unresolvedProductCritical": [
+      "Finalizer/scorer safety-latency tradeoff; no R2 production promotion.",
+      "Real microphone / AudioWorklet / device-clock integration.",
+      "Product latency SLO.",
+      "UI/perceptual latency.",
+      "Natural early/late behavior against an independent fixed-BPM clock."
+    ]
+  },
+  "knownLimitations": [
+    "Evidence convergence, not a new blind selection or external generalization experiment.",
+    "No global optimum; no production readiness or microphone/device/AudioWorklet qualification.",
+    "R2 scorer unresolved; no live user-visible verdict migration.",
+    "Finite-session runtime, historically seen counterfactual clips and unfrozen UX SLO remain limitations."
+  ],
+  "phase": "PHASE_9G_XC4_EVIDENCE_CONVERGENCE_AND_ENGINEERING_DEFAULT_FREEZE",
+  "researchStoppingAndTriggerPolicy": {
+    "futureTestTriggers": [
+      "Unexpected real-microphone failure.",
+      "New browser/runtime regression.",
+      "Material decoder/resampler failure on actual product recordings.",
+      "Materially changed model/runtime implementation.",
+      "Publication-grade external generalization requirement.",
+      "Explicit commercial/legal qualification requirement."
+    ],
+    "insufficientReasons": [
+      "More confidence would be nice.",
+      "A more impressive sample count."
+    ],
+    "maps": {
+      "actualObservedBlocker": "TLS_EOF_AND_HANDSHAKE_TIMEOUT_DURING_BOUNDED_DISCOVERY",
+      "currentStatus": "OPTIONAL_FUTURE_EXTERNAL_CONFIRMATION_NOT_CURRENT_ENGINEERING_BLOCKER",
+      "networkRetryAuthorizedByThisPhase": false,
+      "priorXC3": "FRESH_COMPONENT_SELECTION_BLOCKED_DATASET_PROVENANCE",
+      "priorXC3R1": "ZENODO_ARCHIVE_PROVENANCE_NOT_SUFFICIENTLY_LINKED",
+      "priorXC3R2Acquisition": "MAPS_BOUNDED_MEMBER_DISCOVERY_BLOCKED_FULL_ARCHIVE_REQUIRED",
+      "priorXC3R2Provenance": "INSTITUTIONALLY_AFFILIATED_ARCHIVAL_REDISTRIBUTION",
+      "rangeCapability": "Precise HTTP206 responses observed; historical label does NOT prove full download technically necessary."
+    },
+    "scorerFollowUp": "Only narrow mechanistic hypotheses tied to existing R2 causal witnesses. No grace-window sweep, heuristic grid, or optimization against all seen EVALUATION targets.",
+    "stoppingRule": "No new dataset/candidate/decoder/resampler/geometry/parameter sweep unless at least one enumerated trigger is documented.",
+    "sufficientReasons": [
+      "Existing evidence is materially contradictory.",
+      "An actual browser/microphone integration failure cannot be explained by existing evidence.",
+      "A specific unresolved safety question could plausibly reverse this engineering decision.",
+      "An explicit production/legal/commercial requirement requires new evidence."
+    ]
+  },
+  "scientificResultReinterpretation": false,
+  "scopeProtections": {
+    "9G-B": "STATISTICAL_TIE",
+    "D4": false,
+    "F5": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+    "NO_OPTIMAL_PROFILE_CLAIM": true,
+    "R1": "BOUNDED_FINALIZATION_HAS_SAFETY_TRADEOFF",
+    "R2": "DIRECT_CONFLICT_RESERVATION_PARTIALLY_RECOVERS_SAFETY",
+    "R4": "ROBUST_CADENCE_SUSTAINABLE",
+    "R4Headroom": "ROBUST_20_PERCENT_HEADROOM_FAIL",
+    "R4Scope": "Finite measured sessions, not proof of indefinite stability.",
+    "XC2": "ROBUST_PRODUCT_BASELINE_MULTIPLE_PARETO_CANDIDATES",
+    "backendPracticeInference": false,
+    "commercialQualificationStatus": "NOT_PERFORMED",
+    "expectedScoreEntersAcousticInference": false,
+    "practiceWebSocket": false,
+    "productLatencySlo": "PRODUCT_LATENCY_SLO_NOT_YET_FROZEN",
+    "productionMicrophone": false,
+    "productionWinner": null,
+    "scientificUse": "SCIENTIFIC_RESEARCH_ONLY",
+    "scoreFollowing": false,
+    "serverAcousticInference": false,
+    "viennaP15P22InferenceIncrease": 0,
+    "winner": null
+  },
+  "startingRemoteHead": "c9c6777cfde677fc6cef72cbbc92bfb2febeca51",
+  "tests": {
+    "newNeuralInferenceCount": 0,
+    "phase": "PHASE_9G_XC4_EVIDENCE_CONVERGENCE_AND_ENGINEERING_DEFAULT_FREEZE",
+    "runs": [
+      {
+        "command": [
+          "docker",
+          "run",
+          "--rm",
+          "--network",
+          "none",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro,target=/workspace,readonly",
+          "-w",
+          "/workspace",
+          "noteverse-xc1-r3d-science:local",
+          "python",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "backend/research",
+          "-p",
+          "test_xc4_engineering_default.py",
+          "-v"
+        ],
+        "exitCode": 0,
+        "output": [
+          "test_canonical_digest_key_order_and_mutation (test_xc4_engineering_default.EngineeringIdentityTests.test_canonical_digest_key_order_and_mutation) ... ok",
+          "test_existing_identity_assembled_without_inference (test_xc4_engineering_default.EngineeringIdentityTests.test_existing_identity_assembled_without_inference) ... ok",
+          "test_existing_report_assertions_only_no_replay (test_xc4_engineering_default.EngineeringIdentityTests.test_existing_report_assertions_only_no_replay) ... ok",
+          "test_matrix_is_complete_and_uses_explicit_relevance (test_xc4_engineering_default.EngineeringIdentityTests.test_matrix_is_complete_and_uses_explicit_relevance) ... ok",
+          "test_scope_and_decision_separation (test_xc4_engineering_default.EngineeringIdentityTests.test_scope_and_decision_separation) ... ok",
+          "test_stopping_rule_and_inactive_integration (test_xc4_engineering_default.EngineeringIdentityTests.test_stopping_rule_and_inactive_integration) ... ok",
+          "System.Management.Automation.RemoteException",
+          "----------------------------------------------------------------------",
+          "Ran 6 tests in 1.136s",
+          "System.Management.Automation.RemoteException",
+          "OK"
+        ],
+        "startedAt": "2026-10-16T06:23:11.0982386Z"
+      },
+      {
+        "command": [
+          "docker",
+          "run",
+          "--rm",
+          "--network",
+          "none",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro,target=/workspace,readonly",
+          "-w",
+          "/workspace",
+          "node:24-bookworm",
+          "node",
+          "--test",
+          "backend/research/browser_runtime/test_xc2_r1_bounded.mjs",
+          "backend/research/browser_runtime/test_xc2_r2_direct_conflict.mjs"
+        ],
+        "exitCode": 0,
+        "output": [
+          "\u2714 100-strike same-pitch transitive chain closes locally (10.930407ms)",
+          "\u2714 dense all-pitch group chain and local MISSING/WRONG do not await unrelated groups (0.386672ms)",
+          "\u2714 complete and incomplete chord (4.975914ms)",
+          "\u2714 CORRECT irrevocably closes at local deadline before future component (0.18894ms)",
+          "\u2714 wrong association maximizes cardinality before timing error (0.611813ms)",
+          "\u2714 competing wrong claims globally consume each observation once (0.165264ms)",
+          "\u2714 reject MATCHED+WRONG ownership (0.353437ms)",
+          "\u2714 reject MATCHED+EXTRA ownership (0.076403ms)",
+          "\u2714 reject WRONG+EXTRA ownership (0.098363ms)",
+          "\u2714 EXTRA closes at finite direct horizon, not transitive chain (0.397765ms)",
+          "\u2714 late evidence rejected (0.194211ms)",
+          "\u2714 stable ties independent of input ordering (0.236299ms)",
+          "\u2714 manual completion leaves future NOT_REACHED (0.177822ms)",
+          "\u2714 terminal tail and causal witness timestamps (0.155668ms)",
+          "\u2714 bounded versus whole-component optimal assignment has an explicit tradeoff (0.279342ms)",
+          "\u2714 milliseconds to beats (0.151572ms)",
+          "\u2714 streaming FIR has bounded state and explicit closure (0.853631ms)",
+          "\u2714 official acoustic constructor rejects score fields; model run receives only PCM (2.356668ms)",
+          "\u2714 100 strikes at200ms: anchor waits one hop, not the20-second component (16.827363ms)",
+          "\u2714 R1 MISSING preemption reproduces; R2 reserves for future correct strike (0.874667ms)",
+          "\u2714 incomplete chord with future competitor does not become WRONG (0.265893ms)",
+          "\u2714 observation at exact-250ms is legal (0.113637ms)",
+          "\u2714 observation at exact250ms is legal (0.130376ms)",
+          "\u2714 future strike exactly500ms extends to1750; just beyond500 does not (0.432544ms)",
+          "\u2714 second-hop competitor never recursively extends anchor; future member remains provisional (0.816134ms)",
+          "\u2714 reversible reservation need not become MATCHED and is never double-consumed (0.312864ms)",
+          "\u2714 stable ID ties do not depend on input order (0.280093ms)",
+          "\u2714 late evidence fails closed (0.475883ms)",
+          "\u2714 terminal completion explicitly clamps direct horizon (0.276616ms)",
+          "\u2714 EXTRA waits own direct claimants R2 horizons, not the obsolete R1 520ms bound (0.287334ms)",
+          "\u2714 EXTRA does not wait unrelated later groups through a transitive chain (0.237156ms)",
+          "\u2714 20ms chord spread yields the exact1020ms EXTRA bound (0.155561ms)",
+          "\u2714 WRONG only after every direct correct-match claimant locally closes and releases (0.233641ms)",
+          "\u2714 pending correct claimant never forces a WRONG group past the one-hop group horizon (0.248822ms)",
+          "\u2714 manual completion and exact enabling-publication timestamp (0.189458ms)",
+          "\u2714 official replay path executes synthetic reservations and causal audit before freeze (0.520131ms)",
+          "\u2714 detected and absent EXTRA targets retain positive/negative causal evidence without fake latency (0.275508ms)",
+          "\u2139 tests 37",
+          "\u2139 suites 0",
+          "\u2139 pass 37",
+          "\u2139 fail 0",
+          "\u2139 cancelled 0",
+          "\u2139 skipped 0",
+          "\u2139 todo 0",
+          "\u2139 duration_ms 621.01765"
+        ],
+        "startedAt": "2026-10-16T06:23:12.8654205Z"
+      },
+      {
+        "command": [
+          "docker",
+          "run",
+          "--rm",
+          "--network",
+          "none",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro,target=/workspace,readonly",
+          "-w",
+          "/workspace",
+          "node:24-bookworm",
+          "node",
+          "--test",
+          "--test-name-pattern=CURRENT direct parity|all frozen geometries|decoder variants",
+          "backend/research/browser_runtime/test_xc2_product.mjs"
+        ],
+        "exitCode": 0,
+        "output": [
+          "\u2714 all frozen geometries have full real context, common interval and no ownership gaps (1.529075ms)",
+          "\u2714 decoder variants are deterministic and CURRENT has 100Hz mapping (7.611825ms)",
+          "\u2714 CURRENT direct parity against authoritative product decoder, edges, regions and frame support (48.944653ms)",
+          "\u2139 tests 3",
+          "\u2139 suites 0",
+          "\u2139 pass 3",
+          "\u2139 fail 0",
+          "\u2139 cancelled 0",
+          "\u2139 skipped 0",
+          "\u2139 todo 0",
+          "\u2139 duration_ms 505.208362"
+        ],
+        "startedAt": "2026-10-16T06:23:13.8535593Z"
+      }
+    ],
+    "selectionNote": "Focused existing local suites: R1/R2 synthetic regressions plus product decoder A direct parity, geometry and decoder determinism. Preliminary aggregate invocation encountered nested-Docker ENOENT and read-only work-tree temp-path EROFS in unrelated tests. Those paths are not claimed PASS. No historical test edits, model/browser or benchmark run.",
+    "sourceHashBoundary": [
+      {
+        "path": "backend/research/run_xc4_regressions.ps1",
+        "sha256": "aa9dce0e42b8897891197a2ba87b57ad7f3166c3fdcd8528d0e44b19dea088de"
+      }
+    ]
+  }
+}

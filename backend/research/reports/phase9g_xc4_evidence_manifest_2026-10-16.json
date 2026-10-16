@@ -1,0 +1,16 @@
+{
+  "files": [
+    {
+      "bytes": 26943,
+      "path": "backend/research/reports/phase9g_xc4_engineering_default_final_2026-10-16.json",
+      "sha256": "dc478d511855b68b10a2884055f771d77c187cdc809182e93eb7016737b39fc0"
+    },
+    {
+      "bytes": 57275,
+      "path": "backend/research/reports/phase9g_xc4_engineering_default_freeze_2026-10-16.json",
+      "sha256": "31ac7e9d4b14d329416303994631bfa81f133967d6c79abb78b4a4f48e9f9b6b"
+    }
+  ],
+  "manifestScope": "Post-packaging hashes, excludes this manifest and later append-only GitHub administrative receipt.",
+  "phase": "PHASE_9G_XC4_EVIDENCE_CONVERGENCE_AND_ENGINEERING_DEFAULT_FREEZE"
+}
