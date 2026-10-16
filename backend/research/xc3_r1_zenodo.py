@@ -8,6 +8,8 @@ import json
 from pathlib import Path
 import re
 import struct
+import subprocess
+import sys
 import time
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -215,13 +217,163 @@ def recover():
         'audioContentReads': 0, 'midiContentReads': 0, 'newNeuralInferenceCount': 0})))
 
 
+def determine_provenance(record, upstream_html):
+    owner = record.get('expanded', {}).get('parent', {}).get('access', {}).get('owned_by', {})
+    cross_link = RECORD in upstream_html or '10.5281/zenodo.18160555' in upstream_html
+    return {'classification': 'ORIGINAL_AUTHOR_ARCHIVAL_DISTRIBUTION_PROVENANCE_ESTABLISHED'
+            if cross_link else 'ZENODO_ARCHIVE_PROVENANCE_NOT_SUFFICIENTLY_LINKED',
+            'originalPublisherExplicitCrossLinkObserved': cross_link,
+            'recordOwner': owner,
+            'creatorAttributionAloneEstablishesDepositorIdentity': False,
+            'interpretation': 'An original-publisher cross-link can endorse archival provenance. Creator names and author-signed copied files alone do not authenticate a different depositor. Absence of a verified link is not evidence of illegality, falsification or corruption.'}
+
+
+def git(*args):
+    return subprocess.check_output(['git', '-c', 'safe.directory=/workspace',
+        '-c', 'core.autocrlf=true', '-c', 'core.safecrlf=false', *args], cwd=ROOT).decode().strip()
+
+
+def sanitized(row):
+    return {k: ({h: v for h, v in value.items() if h.lower() not in ('set-cookie', 'cookie')}
+                if k == 'headers' else value)
+            for k, value in row.items() if k not in ('jsonMetadata', 'embeddedJson')}
+
+
+def finalize():
+    start = '1f1e05e75cdfba55be75ed71ebe5bedc86dba696'
+    probe_data = json.loads((WORK / 'probe.json').read_text())
+    recovered = json.loads((WORK / 'recovery.json').read_text())
+    requests = probe_data['requests'] + recovered['requests']
+    for row in requests:
+        if row.get('snapshot'):
+            if sha((ROOT / row['snapshot']['path']).read_bytes()) != row['snapshot']['sha256']:
+                raise RuntimeError('METADATA_SNAPSHOT_DRIFT')
+    embedded = JsonScripts((WORK / 'record_retry.raw').read_text()).items
+    record = next(x['value'] for x in embedded if x.get('attribute') == 'data-record')
+    exported = json.loads((WORK / 'export.raw').read_text())
+    if (record['id'] != '18160555' or exported['id'] != record['id']
+            or exported['metadata'] != record['metadata'] or exported['files'] != record['files']):
+        raise RuntimeError('INDEPENDENT_METADATA_VIEWS_DISAGREE')
+    entries = record['files']['entries']
+    documents = []
+    for name, filename in [('readme.txt', 'readme.raw'), ('license.txt', 'license_retry.raw')]:
+        data = (WORK / filename).read_bytes()
+        expected = entries[name]
+        if len(data) != expected['size'] or 'md5:' + hashlib.md5(data).hexdigest() != expected['checksum']:
+            raise RuntimeError('SMALL_DOCUMENT_CHECKSUM_MISMATCH')
+        encoding = 'utf-8' if name == 'readme.txt' else 'iso-8859-1'
+        documents.append({'name': name, 'bytes': len(data), 'md5': hashlib.md5(data).hexdigest(),
+                          'sha256': sha(data), 'textEncoding': encoding, 'contents': data.decode(encoding)})
+    readme = documents[0]['contents']
+    if not all(x in readme for x in ('Version 0.4', 'Disklavier', 'ENSTDkCl/ENSTDkAm', 'Valentin Emiya')):
+        raise RuntimeError('DISKLAVIER_README_PROVENANCE_NOT_ESTABLISHED')
+    legacy_path = ROOT / 'backend/research/reports/phase9g_xc3_maps_provenance_gate_2026-10-16.json'
+    legacy = json.loads(legacy_path.read_text())
+    upstream_row = legacy['metadataRequests'][0]['attempts'][0]
+    upstream_data = (ROOT / upstream_row['snapshot']).read_bytes()
+    if sha(upstream_data) != upstream_row['sha256']:
+        raise RuntimeError('HISTORICAL_UPSTREAM_SNAPSHOT_CHANGED')
+    new_upstream_row, new_upstream_data = bounded_get(
+        'https://adasp.telecom-paris.fr/resources/2010-07-08-maps-database/', 256 * 1024)
+    if new_upstream_row.get('httpStatus') == 200 and new_upstream_data:
+        new_upstream_row['snapshot'] = write_new(WORK / 'upstream_rechecked.html', new_upstream_data)
+        upstream_data = new_upstream_data
+    requests.append(new_upstream_row)
+    provenance = determine_provenance(record, upstream_data.decode('utf-8'))
+    if provenance['classification'] != 'ZENODO_ARCHIVE_PROVENANCE_NOT_SUFFICIENTLY_LINKED':
+        raise RuntimeError('PROVENANCE_RECOVERED_CONTINUE_TO_RANGE_STAGE_NOT_A_BLOCKER')
+    tests = subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', 'backend/research',
+        '-p', 'test_xc3_r1_zenodo.py', '-v'], capture_output=True, text=True, check=True, cwd=ROOT)
+    changes = git('diff', '--name-status', start).splitlines()
+    if any(not r.startswith('A\t') or 'xc3_r1_' not in r for r in changes):
+        raise RuntimeError('HISTORICAL_SOURCE_OR_EVIDENCE_MODIFIED')
+    files = [{'name': n, 'bytes': r['size'], 'reportedChecksum': r['checksum'], 'links': r['links']}
+             for n, r in sorted(entries.items())]
+    old_blob = subprocess.check_output(['git', '-c', 'safe.directory=/workspace', 'show',
+        start + ':backend/research/reports/phase9g_xc3_maps_provenance_gate_2026-10-16.json'], cwd=ROOT)
+    if sha(old_blob) != sha(legacy_path.read_bytes()):
+        raise RuntimeError('LEGACY_BLOCKER_BYTES_CHANGED')
+    report = {'phase': PHASE, 'startingRemoteHead': start, 'implementationHead': git('rev-parse', 'HEAD'),
+        'implementationCommits': git('log', '--reverse', '--format=%H', start + '..HEAD').splitlines(),
+        'status': provenance['classification'], 'provenanceChainDetermination': provenance,
+        'recordIdentity': {'recordId': record['id'], 'doi': record['pids']['doi']['identifier'],
+            'metadataSource': RECORD + ' embedded data-record and ' + RECORD + '/export/json',
+            'metadataViewsAgree': True, 'created': record['created'], 'updated': record['updated'],
+            'metadata': record['metadata'], 'recordOwnerUserId': record['parent']['access']['owned_by']['user']},
+        'fileInventory': files, 'readmeAndLicense': documents,
+        'subsetIdentity': {'ENSTDkAm': 'DISKLAVIER_SUB_BASE_PER_CHECKSUM_VERIFIED_README',
+            'ENSTDkCl': 'DISKLAVIER_SUB_BASE_PER_CHECKSUM_VERIFIED_README',
+            'synchronizationCaution': 'Readme warns about hardware synchronization offsets and pedal-related issues. No correction fitted or MIDI read.'},
+        'licenseEvidence': {'fileAndDescription': 'CC BY-NC-SA 2.0 France',
+            'structuredZenodoRights': record['metadata']['rights'],
+            'structuredRightsMismatch': 'Record structured field says Generic 2.0; description/publisher link/license file identify France. Retained, not silently harmonized.',
+            'commercialQualificationStatus': 'NOT_PERFORMED', 'legalOpinion': 'NOT_PERFORMED'},
+        'upstreamEvidence': {'legacyBlocker': {'path': legacy_path.relative_to(ROOT).as_posix(),
+            'sha256': sha(legacy_path.read_bytes()), 'gitBlobBytesEqual': True},
+            'upstreamSnapshot': upstream_row, 'freshRecheck': sanitized(new_upstream_row),
+            'LEGACY_PUBLISHER_ROUTE_REQUIRES_REGISTRATION': True,
+            'PUBLIC_ZENODO_ARCHIVAL_ROUTE_DISCOVERED_AFTER_XC3_BLOCKER': True,
+            'legacyBlockerRewritten': False, 'legacyBlockerDeclaredFalse': False},
+        'chain': ['Original publisher identifies MAPS and Valentin Emiya / Telecom ParisTech.',
+            'Checksum-verified readme/license identify MAPS0.4 and original authorship.',
+            'Zenodo creators/copyright/description agree with these attributions.',
+            'But the record is owned by Paraskevas Stamatiadis / paridios96, not a listed creator; no original-publisher cross-link or independent author endorsement established.',
+            'Content attribution and open file checksums do not establish original-author archival deposit provenance. Gate remains closed.'],
+        'minimumEvidenceToReconsider': ['Original publisher/author endorsement linking this DOI or exact files',
+            'Or independently authenticated upstream archive checksums/file-level provenance plus reviewed acceptance of this third-party redistribution route'],
+        'networkRequests': [sanitized(r) for r in requests],
+        'downloadAccounting': {'auditedDockerHttpBodyBytes': sum(r['readBytes'] for r in requests),
+            'recordReadmeLicenseAndHtmlOnly': True, 'webLookupMetadataByteCount': 'NOT_EXPOSED_BY_WEB_TOOL',
+            'zipPayloadBytes': 0, 'audioContentReads': 0, 'midiContentReads': 0,
+            'rangeRequestsToZip': 0, 'unrelatedMapsMediaDownloaded': False},
+        'rangeSupport': 'NOT_TESTED_PROVENANCE_GATE_FAILED_BEFORE_ZIP_ACCESS',
+        'centralDirectoryInventory': 'NOT_ACQUIRED', 'candidateTakeInventory': [],
+        'selectionConfirmationSplit': 'NOT_FROZEN', 'perMemberSha256': [],
+        'actualSessionRunCount': 0, 'decoderPairedResults': 'NOT_PERFORMED',
+        'resamplerPairedResults': 'NOT_PERFORMED', 'geometryPairedResults': 'NOT_PERFORMED',
+        'selectionParetoFrontier': [], 'selectionDecision': 'NOT_PERFORMED',
+        'confirmationResult': 'NOT_PERFORMED', 'DECODER_DEFAULT': 'UNRESOLVED',
+        'RESAMPLER_DEFAULT': 'UNRESOLVED', 'STREAMING_GEOMETRY_DEFAULT': 'UNRESOLVED',
+        'PROFILE_CLASSIFICATION': 'CURRENT_FROZEN_REPRESENTATIVE_ROBUST_PROFILE',
+        'NO_OPTIMAL_PROFILE_CLAIM': True, 'scientificUse': 'SCIENTIFIC_RESEARCH_ONLY',
+        'scopeProtections': legacy['scopeProtections'], 'tests': {'exitCode': 0, 'stdout': tests.stdout, 'stderr': tests.stderr},
+        'auditedMetadataDockerImage': 'sha256:7feadf65b7763a9ee94880218e3e80f8566ec242ffff7e9ca99d10bb85d76a6f',
+        'sourceHashBoundary': [{'path': p, 'sha256': sha((ROOT / p).read_bytes())} for p in
+            ['backend/research/xc3_r1_zenodo.py', 'backend/research/test_xc3_r1_zenodo.py',
+             'backend/research/xc3_maps_provenance.py']],
+        'allHistoricalFilesUnchanged': True, 'trackedChangesFromStart': changes,
+        'evidenceCommit': 'Exact containing evidence-only commit, returned after push; no self-referential SHA.'}
+    from xc3_maps_provenance import github_state
+    try:
+        report['githubPreEvidence'] = github_state(git('rev-parse', 'HEAD'))
+    except Exception as error:
+        report['githubPreEvidence'] = {'status': 'QUERY_FAILED', 'error': str(error)}
+    path = ROOT / 'backend/research/reports/phase9g_xc3_r1_zenodo_provenance_determination_2026-10-16.json'
+    print(json.dumps({'report': json_new(path, report), 'status': report['status'],
+        'archiveBytes': {n: entries[n]['size'] for n in ('ENSTDkAm.zip', 'ENSTDkCl.zip')},
+        'auditedMetadataBytes': report['downloadAccounting']['auditedDockerHttpBodyBytes']}))
+
+
+def post_push():
+    from xc3_maps_provenance import github_state
+    head = git('rev-parse', 'HEAD')
+    receipt = github_state(head)
+    if receipt['requests'][2]['body']['commit']['sha'] != head:
+        raise RuntimeError('REMOTE_HEAD_MISMATCH')
+    json_new(WORK / f'github_post_push_{head}.json', {'phase': PHASE, **receipt})
+    print(json.dumps({'commit': head, 'remoteHeadVerified': True,
+        'combinedState': receipt['requests'][0]['body']['state'],
+        'statuses': receipt['requests'][0]['body']['statuses'],
+        'workflowRuns': receipt['requests'][1]['body']['workflow_runs']}))
+
+
 def main():
     if not Path('/.dockerenv').exists():
         raise RuntimeError('DOCKER_ONLY')
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['probe', 'recover'])
+    parser.add_argument('command', choices=['probe', 'recover', 'finalize', 'post-push'])
     args = parser.parse_args()
-    {'probe': probe, 'recover': recover}[args.command]()
+    {'probe': probe, 'recover': recover, 'finalize': finalize, 'post-push': post_push}[args.command]()
 
 
 if __name__ == '__main__':

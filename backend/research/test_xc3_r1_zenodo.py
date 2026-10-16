@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
-from xc3_r1_zenodo import bounded_get, parse_directory
+from xc3_r1_zenodo import bounded_get, parse_directory, determine_provenance, JsonScripts
 
 
 class Response(io.BytesIO):
@@ -23,6 +23,22 @@ class Response(io.BytesIO):
 
 
 class RangeTests(unittest.TestCase):
+    def test_creator_attribution_not_depositor_authentication(self):
+        record = {'metadata': {'creators': [{'name': 'Original Author'}]},
+                  'expanded': {'parent': {'access': {'owned_by': {
+                      'username': 'different_uploader', 'profile': {'full_name': 'Third Party'}}}}}}
+        result = determine_provenance(record, '<p>Original MAPS publisher</p>')
+        self.assertEqual(result['classification'], 'ZENODO_ARCHIVE_PROVENANCE_NOT_SUFFICIENTLY_LINKED')
+        self.assertFalse(result['creatorAttributionAloneEstablishesDepositorIdentity'])
+
+    def test_original_publisher_explicit_endorsement(self):
+        result = determine_provenance({}, '<a href="https://zenodo.org/records/18160555">MAPS</a>')
+        self.assertEqual(result['classification'], 'ORIGINAL_AUTHOR_ARCHIVAL_DISTRIBUTION_PROVENANCE_ESTABLISHED')
+
+    def test_embedded_record_is_structured_json_not_visible_author_names(self):
+        page = JsonScripts('<div data-record="{&quot;id&quot;:&quot;18160555&quot;}"></div>')
+        self.assertEqual(page.items[0]['value'], {'id': '18160555'})
+
     def test_ignored_range_never_reads_full_body(self):
         response = Response(b'unrelated media payload', 200, {'Content-Length': '2700000000'})
         with patch('xc3_r1_zenodo.urlopen', return_value=response):
