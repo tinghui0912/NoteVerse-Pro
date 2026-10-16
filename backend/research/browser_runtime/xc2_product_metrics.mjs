@@ -63,7 +63,7 @@ function matchExtras(expected, actual) {
       performanceTimeMs: event.performanceTimeMs, confidence: 1, source: 'ACOUSTIC' })) });
 }
 
-export function evaluateProductVariant(raws, truth, decoder, id) {
+export function evaluateProductVariant(raws, truth, decoder, id, diagnosticOptions = {}) {
   const counts = { targets: 0, agree: 0, correctTP: 0, correctFP: 0, correctFN: 0, missing: 0, missingDetected: 0, missingFalseMatched: 0,
     wrong: 0, wrongDetected: 0, wrongFalseCorrect: 0, incomplete: 0, incompleteDetected: 0, incompleteFalseComplete: 0,
     completeChord: 0, exactChord: 0, extrasTP: 0, extrasPredicted: 0, extrasTruth: 0, expectedAttackTP: 0, expectedAttackTruth: 0 };
@@ -76,7 +76,8 @@ export function evaluateProductVariant(raws, truth, decoder, id) {
     const before = { ...counts };
     for (const scenario of clip.scenarios) {
       familyCoverage[scenario.family] = (familyCoverage[scenario.family] ?? 0) + 1;
-      const reference = replay(scenario, oracle), actual = replay(scenario, publications);
+      // Optional research replay changes the tested policy, never the frozen oracle.
+      const reference = replay(scenario, oracle), actual = (diagnosticOptions.replay ?? replay)(scenario, publications);
       const byGroup = new Map(actual.verdicts.filter(row => row.groupId).map(row => [row.groupId, row]));
       const refByGroup = new Map(reference.verdicts.filter(row => row.groupId).map(row => [row.groupId, row]));
       const expectedExtras = reference.verdicts.filter(row => row.verdict === 'EXTRA').map(row => ({ ...row, pitch: pitchName(clip.notes.find(n => n.id === row.evidenceObservationIds[0]).pitch) }));
