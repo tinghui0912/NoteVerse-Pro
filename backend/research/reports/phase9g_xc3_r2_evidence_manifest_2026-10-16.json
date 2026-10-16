@@ -1,0 +1,22 @@
+{
+  "phase": "PHASE_9G_XC3_R2_INSTITUTIONAL_PROVENANCE_AND_BOUNDED_MAPS_ACQUISITION",
+  "files": [
+    {
+      "path": "backend/research/reports/phase9g_xc3_r2_institutional_provenance_2026-10-16.json",
+      "sha256": "5eb5d48ef280d2df7fd2665398a9920cb4c79922b486a1b2abd0fcc232262272",
+      "bytes": 15849
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc3_r2_bounded_zip_metadata_retry_2026-10-16.json",
+      "sha256": "b09430045c6abf8236a935ed049292c537598c232ad818e19be7064af359d20b",
+      "bytes": 9304
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc3_r2_institutional_bounded_acquisition_final_2026-10-16.json",
+      "sha256": "b2d3cae615f51e2c4d22fcab801efcb1e89c09c696f825851c33016d7086a816",
+      "bytes": 43736
+    }
+  ],
+  "finalReportCanonicalSha256": "264e0eab2442684b7dbcb906df1ccf1f7e4154b9692cf5dc5a4183d28a385af9",
+  "note": "Final report written once before filesystem hashing. Manifest excludes itself."
+}

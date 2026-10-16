@@ -1,0 +1,41 @@
+{
+  "phase": "PHASE_9G_XC3_R2_INSTITUTIONAL_PROVENANCE_AND_BOUNDED_MAPS_ACQUISITION",
+  "files": [
+    {
+      "path": "backend/research/reports/phase9g_xc3_r2_acquisition_closure_2026-10-16.json",
+      "sha256": "c5e6aed8c48b1d508d2b9ee8a46ad14b7fcfb77eb2f4ffa12f701f795e7b1874",
+      "bytes": 14980
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc3_r2_bounded_zip_metadata_2026-10-16.json",
+      "sha256": "22bc0e1eb7afd3340f896fc863a9248294827be54894f1f13f44a1cd452866ea",
+      "bytes": 5431
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc3_r2_bounded_zip_metadata_retry_2026-10-16.json",
+      "sha256": "b09430045c6abf8236a935ed049292c537598c232ad818e19be7064af359d20b",
+      "bytes": 9304
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc3_r2_evidence_manifest_2026-10-16.json",
+      "sha256": "1e60428ebec56e85327b6310857ddc893fe75a173bbca01bbb39f76ad588df4b",
+      "bytes": 960
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc3_r2_institutional_bounded_acquisition_final_2026-10-16.json",
+      "sha256": "b2d3cae615f51e2c4d22fcab801efcb1e89c09c696f825851c33016d7086a816",
+      "bytes": 43736
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc3_r2_institutional_provenance_2026-10-16.json",
+      "sha256": "5eb5d48ef280d2df7fd2665398a9920cb4c79922b486a1b2abd0fcc232262272",
+      "bytes": 15849
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc3_r2_transport_retry_receipt_2026-10-16.json",
+      "sha256": "2cbebfad45d756c3047dcd75bb12578a88aee35f0225645d088f9dcf31b44b00",
+      "bytes": 1578
+    }
+  ],
+  "note": "All append-only attempt/final/closure reports hashed after packaging. This manifest excludes itself."
+}

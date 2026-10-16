@@ -1,0 +1,344 @@
+{
+  "phase": "PHASE_9G_XC3_R2_INSTITUTIONAL_PROVENANCE_AND_BOUNDED_MAPS_ACQUISITION",
+  "startingRemoteHead": "4a077afdcc654a79ba5e1fed7ea2a801b0e2bcd3",
+  "status": "MAPS_BOUNDED_MEMBER_DISCOVERY_BLOCKED_FULL_ARCHIVE_REQUIRED",
+  "technicalBlocker": "TLS_EOF_AND_HANDSHAKE_TIMEOUT_DURING_BOUNDED_DISCOVERY",
+  "classificationInterpretation": "Required acquisition-blocker label, not proof that the server requires full downloads: precise206 responses establish partial Range capability. Stop because both complete directories could not be safely obtained under the fixed bounded retry plan.",
+  "provenanceCategory": "INSTITUTIONALLY_AFFILIATED_ARCHIVAL_REDISTRIBUTION",
+  "originalAuthorPersonalEndorsement": "ORIGINAL_AUTHOR_PERSONAL_ENDORSEMENT_NOT_ESTABLISHED",
+  "institutionalEvidence": [
+    {
+      "url": "https://adasp.telecom-paris.fr/members/",
+      "sha256": "e7b12a15b5743e3cbc2aa07d7567d7ac3242f552d1ee9e3f5e8f1411ef0dabd7",
+      "retrievedAt": "2026-10-16T03:57:57.704911+00:00"
+    },
+    {
+      "url": "https://adasp.telecom-paris.fr/resources/",
+      "sha256": "38c5bba932d872af9dc042018c750117ae8d09ce421335d13f45124eaaf91c21",
+      "retrievedAt": "2026-10-16T03:58:02.026665+00:00"
+    },
+    {
+      "url": "https://adasp.telecom-paris.fr/fr/publications/",
+      "sha256": "c54463bc983cca1c050b775e60ae1a0fc23ccfdadc5b69316aa918adf4919280",
+      "retrievedAt": "2026-10-16T03:58:04.772156+00:00"
+    }
+  ],
+  "observedName": "Paraskevas Stamatiadis",
+  "observedRole": "Research Engineers",
+  "observedEmail": [
+    "stamatiadis@telecom-paris.fr"
+  ],
+  "depositor": {
+    "active": null,
+    "blocked_at": null,
+    "confirmed_at": null,
+    "email": "",
+    "id": "1508025",
+    "is_current_user": false,
+    "links": {
+      "avatar": "https://zenodo.org/api/users/1508025/avatar.svg",
+      "records_html": "https://zenodo.org/search?q=parent.access.owned_by.user:1508025",
+      "self": "https://zenodo.org/api/users/1508025"
+    },
+    "profile": {
+      "affiliations": "",
+      "full_name": "Paraskevas Stamatiadis"
+    },
+    "username": "paridios96",
+    "verified_at": null
+  },
+  "archiveIdentities": [
+    {
+      "name": "ENSTDkAm.zip",
+      "bytes": 2661240101,
+      "reportedChecksum": "md5:a1c8c9945a2c605f62484b80cfa20cf4",
+      "links": {
+        "container": "https://zenodo.org/api/records/18160555/files/ENSTDkAm.zip/container",
+        "content": "https://zenodo.org/api/records/18160555/files/ENSTDkAm.zip/content",
+        "self": "https://zenodo.org/api/records/18160555/files/ENSTDkAm.zip"
+      }
+    },
+    {
+      "name": "ENSTDkCl.zip",
+      "bytes": 2608287080,
+      "reportedChecksum": "md5:72bbdf40eb7af69225755e165a0a0a08",
+      "links": {
+        "container": "https://zenodo.org/api/records/18160555/files/ENSTDkCl.zip/container",
+        "content": "https://zenodo.org/api/records/18160555/files/ENSTDkCl.zip/content",
+        "self": "https://zenodo.org/api/records/18160555/files/ENSTDkCl.zip"
+      }
+    }
+  ],
+  "allRangeRequests": [
+    {
+      "archive": "ENSTDkAm.zip",
+      "url": "https://zenodo.org/records/18160555/files/ENSTDkAm.zip?download=1",
+      "rangeRequested": "bytes=0-3",
+      "readBytes": 4,
+      "requestedAt": "2026-10-16T03:58:48.235698+00:00",
+      "httpStatus": 206,
+      "resolvedUrl": "https://zenodo.org/records/18160555/files/ENSTDkAm.zip?download=1",
+      "headers": {
+        "server": "nginx",
+        "date": "Fri, 16 Oct 2026 03:59:17 GMT",
+        "content-type": "application/octet-stream",
+        "content-length": "4",
+        "content-disposition": "attachment; filename=ENSTDkAm.zip",
+        "content-range": "bytes 0-3/2661240101",
+        "accept-ranges": "bytes",
+        "content-security-policy": "default-src 'self' fonts.googleapis.com *.gstatic.com data: 'unsafe-inline' 'unsafe-eval' blob: zenodo-broker.web.cern.ch zenodo-broker-qa.web.cern.ch maxcdn.bootstrapcdn.com cdnjs.cloudflare.com ajax.googleapis.com webanalytics.web.cern.ch",
+        "x-content-type-options": "nosniff",
+        "x-download-options": "noopen",
+        "x-permitted-cross-domain-policies": "none",
+        "x-frame-options": "sameorigin",
+        "x-xss-protection": "1; mode=block",
+        "x-ratelimit-limit": "133",
+        "x-ratelimit-remaining": "132",
+        "x-ratelimit-reset": "1792123218",
+        "retry-after": "60",
+        "strict-transport-security": "max-age=31556926; includeSubDomains",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-source": "files-primary",
+        "connection": "close"
+      },
+      "validatedContentRange": [
+        0,
+        3,
+        2661240101
+      ],
+      "sha256": "8dcc7e601606217f3b754766511182a916b17e9a26a94c9d887104eba92e9bb2",
+      "md5": "10893fd7cff66dca193f658ca9438d15"
+    },
+    {
+      "archive": "ENSTDkAm.zip",
+      "url": "https://zenodo.org/records/18160555/files/ENSTDkAm.zip?download=1",
+      "rangeRequested": "bytes=-22",
+      "readBytes": 0,
+      "requestedAt": "2026-10-16T03:59:15.246402+00:00",
+      "error": "URLError:<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)>",
+      "headers": {}
+    },
+    {
+      "archive": "ENSTDkCl.zip",
+      "url": "https://zenodo.org/records/18160555/files/ENSTDkCl.zip?download=1",
+      "rangeRequested": "bytes=0-3",
+      "readBytes": 0,
+      "requestedAt": "2026-10-16T03:59:33.991855+00:00",
+      "error": "URLError:<urlopen error _ssl.c:989: The handshake operation timed out>",
+      "headers": {}
+    },
+    {
+      "archive": "ENSTDkAm.zip",
+      "url": "https://zenodo.org/records/18160555/files/ENSTDkAm.zip?download=1",
+      "rangeRequested": "bytes=0-3",
+      "readBytes": 4,
+      "requestedAt": "2026-10-16T04:01:26.225353+00:00",
+      "httpStatus": 206,
+      "resolvedUrl": "https://zenodo.org/records/18160555/files/ENSTDkAm.zip?download=1",
+      "headers": {
+        "server": "nginx",
+        "date": "Fri, 16 Oct 2026 04:01:52 GMT",
+        "content-type": "application/octet-stream",
+        "content-length": "4",
+        "content-disposition": "attachment; filename=ENSTDkAm.zip",
+        "content-range": "bytes 0-3/2661240101",
+        "accept-ranges": "bytes",
+        "content-security-policy": "default-src 'self' fonts.googleapis.com *.gstatic.com data: 'unsafe-inline' 'unsafe-eval' blob: zenodo-broker.web.cern.ch zenodo-broker-qa.web.cern.ch maxcdn.bootstrapcdn.com cdnjs.cloudflare.com ajax.googleapis.com webanalytics.web.cern.ch",
+        "x-content-type-options": "nosniff",
+        "x-download-options": "noopen",
+        "x-permitted-cross-domain-policies": "none",
+        "x-frame-options": "sameorigin",
+        "x-xss-protection": "1; mode=block",
+        "x-ratelimit-limit": "133",
+        "x-ratelimit-remaining": "132",
+        "x-ratelimit-reset": "1792123372",
+        "retry-after": "59",
+        "strict-transport-security": "max-age=31556926; includeSubDomains",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-source": "files-primary",
+        "connection": "close"
+      },
+      "validatedContentRange": [
+        0,
+        3,
+        2661240101
+      ],
+      "sha256": "8dcc7e601606217f3b754766511182a916b17e9a26a94c9d887104eba92e9bb2",
+      "md5": "10893fd7cff66dca193f658ca9438d15"
+    },
+    {
+      "archive": "ENSTDkAm.zip",
+      "url": "https://zenodo.org/records/18160555/files/ENSTDkAm.zip?download=1",
+      "rangeRequested": "bytes=-22",
+      "readBytes": 0,
+      "requestedAt": "2026-10-16T04:01:49.424324+00:00",
+      "error": "URLError:<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)>",
+      "headers": {}
+    },
+    {
+      "archive": "ENSTDkCl.zip",
+      "url": "https://zenodo.org/records/18160555/files/ENSTDkCl.zip?download=1",
+      "rangeRequested": "bytes=0-3",
+      "readBytes": 4,
+      "requestedAt": "2026-10-16T04:01:57.942847+00:00",
+      "httpStatus": 206,
+      "resolvedUrl": "https://zenodo.org/records/18160555/files/ENSTDkCl.zip?download=1",
+      "headers": {
+        "server": "nginx",
+        "date": "Fri, 16 Oct 2026 04:02:22 GMT",
+        "content-type": "application/octet-stream",
+        "content-length": "4",
+        "content-disposition": "attachment; filename=ENSTDkCl.zip",
+        "content-range": "bytes 0-3/2608287080",
+        "accept-ranges": "bytes",
+        "content-security-policy": "default-src 'self' fonts.googleapis.com *.gstatic.com data: 'unsafe-inline' 'unsafe-eval' blob: zenodo-broker.web.cern.ch zenodo-broker-qa.web.cern.ch maxcdn.bootstrapcdn.com cdnjs.cloudflare.com ajax.googleapis.com webanalytics.web.cern.ch",
+        "x-content-type-options": "nosniff",
+        "x-download-options": "noopen",
+        "x-permitted-cross-domain-policies": "none",
+        "x-frame-options": "sameorigin",
+        "x-xss-protection": "1; mode=block",
+        "x-ratelimit-limit": "133",
+        "x-ratelimit-remaining": "131",
+        "x-ratelimit-reset": "1792123372",
+        "retry-after": "29",
+        "strict-transport-security": "max-age=31556926; includeSubDomains",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-source": "files-primary",
+        "connection": "close"
+      },
+      "validatedContentRange": [
+        0,
+        3,
+        2608287080
+      ],
+      "sha256": "8dcc7e601606217f3b754766511182a916b17e9a26a94c9d887104eba92e9bb2",
+      "md5": "10893fd7cff66dca193f658ca9438d15"
+    },
+    {
+      "archive": "ENSTDkCl.zip",
+      "url": "https://zenodo.org/records/18160555/files/ENSTDkCl.zip?download=1",
+      "rangeRequested": "bytes=-22",
+      "readBytes": 22,
+      "requestedAt": "2026-10-16T04:02:20.247326+00:00",
+      "httpStatus": 206,
+      "resolvedUrl": "https://zenodo.org/records/18160555/files/ENSTDkCl.zip?download=1",
+      "headers": {
+        "server": "nginx",
+        "date": "Fri, 16 Oct 2026 04:02:52 GMT",
+        "content-type": "application/octet-stream",
+        "content-length": "22",
+        "content-disposition": "attachment; filename=ENSTDkCl.zip",
+        "content-range": "bytes 2608287058-2608287079/2608287080",
+        "accept-ranges": "bytes",
+        "content-security-policy": "default-src 'self' fonts.googleapis.com *.gstatic.com data: 'unsafe-inline' 'unsafe-eval' blob: zenodo-broker.web.cern.ch zenodo-broker-qa.web.cern.ch maxcdn.bootstrapcdn.com cdnjs.cloudflare.com ajax.googleapis.com webanalytics.web.cern.ch",
+        "x-content-type-options": "nosniff",
+        "x-download-options": "noopen",
+        "x-permitted-cross-domain-policies": "none",
+        "x-frame-options": "sameorigin",
+        "x-xss-protection": "1; mode=block",
+        "x-ratelimit-limit": "133",
+        "x-ratelimit-remaining": "131",
+        "x-ratelimit-reset": "1792123403",
+        "retry-after": "30",
+        "strict-transport-security": "max-age=31556926; includeSubDomains",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "x-source": "files-primary",
+        "connection": "close"
+      },
+      "validatedContentRange": [
+        2608287058,
+        2608287079,
+        2608287080
+      ],
+      "sha256": "e3be37cc66dee78002864768ac28c7d50653dc98ddc308a85366a182c5972558",
+      "md5": "3a3e0d8f0255105346c321239f95e1d9"
+    },
+    {
+      "archive": "ENSTDkCl.zip",
+      "url": "https://zenodo.org/records/18160555/files/ENSTDkCl.zip?download=1",
+      "rangeRequested": "bytes=2606592173-2608287057",
+      "readBytes": 0,
+      "requestedAt": "2026-10-16T04:02:50.438026+00:00",
+      "error": "URLError:<urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)>",
+      "headers": {}
+    }
+  ],
+  "rangeRequestCount": 8,
+  "successful206Count": 4,
+  "transportFailureCount": 4,
+  "http200IgnoringRangeCount": 0,
+  "cumulativeExactZipMetadataBodyBytesRead": 34,
+  "finalReportCountScope": "The final report includes the latest retry30bytes; this closure/journal also include initial4bytes, cumulative34bytes.",
+  "centralDirectoryInventoryStatus": "NOT_OBTAINED_NOT_AN_OBSERVED_EMPTY_ARCHIVE",
+  "observedMusWavMidiPairCount": null,
+  "pairCountInterpretation": "Unknown, not zero.",
+  "partialDirectoryRangePlan": [
+    {
+      "archive": "ENSTDkCl.zip",
+      "range": "bytes=2606592173-2608287057",
+      "status": "TRANSPORT_FAILED_NOT_READ"
+    }
+  ],
+  "prospective8And8Split": "NOT_CREATED_NO_TRUSTWORTHY_COMPLETE_PAIR_INVENTORY",
+  "selectiveMemberIdentitiesAndHashes": [],
+  "fullArchiveFallbackPerformed": false,
+  "combinedFullArchiveBytesNotDownloaded": 5269527181,
+  "fullDownloadNecessityEstablished": false,
+  "totalMediaPayloadBytesDownloaded": 0,
+  "audioContentReads": 0,
+  "midiContentReads": 0,
+  "neuralSessionRunCount": 0,
+  "decoderResults": "NOT_PERFORMED",
+  "resamplerResults": "NOT_PERFORMED",
+  "geometryResults": "NOT_PERFORMED",
+  "selectionPareto": [],
+  "confirmationResult": "NOT_PERFORMED",
+  "DECODER_DEFAULT": "UNRESOLVED",
+  "RESAMPLER_DEFAULT": "UNRESOLVED",
+  "STREAMING_GEOMETRY_DEFAULT": "UNRESOLVED",
+  "PROFILE_CLASSIFICATION": "CURRENT_FROZEN_REPRESENTATIVE_ROBUST_PROFILE",
+  "NO_OPTIMAL_PROFILE_CLAIM": true,
+  "scopeProtections": {
+    "F5": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+    "phase9gB": "STATISTICAL_TIE",
+    "winner": null,
+    "XC2": "ROBUST_PRODUCT_BASELINE_MULTIPLE_PARETO_CANDIDATES",
+    "R1": "BOUNDED_FINALIZATION_HAS_SAFETY_TRADEOFF",
+    "R2": "DIRECT_CONFLICT_RESERVATION_PARTIALLY_RECOVERS_SAFETY",
+    "R4Cadence": "ROBUST_CADENCE_SUSTAINABLE",
+    "R4Headroom": "ROBUST_20_PERCENT_HEADROOM_FAIL",
+    "viennaP15P22InferenceIncrease": 0,
+    "productionMicrophone": false,
+    "D4": false,
+    "productionWinner": null,
+    "practiceWebSocket": false,
+    "backendServerPracticeInference": false,
+    "scoreFollowing": false,
+    "expectedScoreEntersInference": false,
+    "historicalScienceModified": false,
+    "commercialQualificationStatus": "NOT_PERFORMED",
+    "productLatencySlo": "PRODUCT_LATENCY_SLO_NOT_YET_FROZEN"
+  },
+  "implementationAndProvenanceCommitSequence": [
+    "2dfbd8922b0026ed1c17ed11be6fbc877f809e1c",
+    "0a0859f6ccabd2b3338537e9a045e1134dd07d08",
+    "163bba99b00c865bff0d4f4499d43888f436a329",
+    "f2e2b20916beea41b90604c16e3e4dea82b42e05"
+  ],
+  "sourceIdentity": {
+    "path": "backend/research/xc3_r2_close_evidence.py",
+    "sha256": "9c2245d738f1fa44f5c975135bcbe7d093415870bdaecda95782b465da76a53a",
+    "bytes": 5673
+  },
+  "finalReport": {
+    "path": "backend/research/reports/phase9g_xc3_r2_institutional_bounded_acquisition_final_2026-10-16.json",
+    "sha256": "b2d3cae615f51e2c4d22fcab801efcb1e89c09c696f825851c33016d7086a816",
+    "bytes": 43736
+  },
+  "retryChain": {
+    "path": "backend/research/reports/phase9g_xc3_r2_transport_retry_receipt_2026-10-16.json",
+    "sha256": "2cbebfad45d756c3047dcd75bb12578a88aee35f0225645d088f9dcf31b44b00",
+    "bytes": 1578
+  },
+  "evidenceCommit": "Exact containing evidence-only commit returned after push; no self-referential SHA."
+}
