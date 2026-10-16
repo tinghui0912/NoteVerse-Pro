@@ -1,0 +1,22 @@
+{
+  "phase": "PRACTICE_CONTINUOUS_V2_CLEAN_BREAK_PRODUCT_CORE_PROMOTION",
+  "recordedAt": "2026-10-16T14:00:13Z",
+  "freezeCommit": "f19480f0829afd4c579d8b913566d31227e13f43",
+  "freezeSha256": "66a407056864d7f7d42284a65ca0c72dc009047e8d7ec7118bb4ab366a1c8c31",
+  "status": "INVALIDATED_QUALIFICATION_EVIDENCE_SERIALIZATION_FAILURE",
+  "command": "node backend/research/qualification/continuous_product_core.mjs parity",
+  "failure": "RangeError: Invalid string length at JSON.stringify(audits), continuous_product_core.mjs:204",
+  "processExitCode": 1,
+  "consoleOnlyPartialComparisons": {
+    "DEVELOPMENT_LINEAR_A_600_220": {"scenarios": 284, "publicationComparisons": 12496, "semanticDifferences": 0},
+    "DEVELOPMENT_BAND_LIMITED_A_600_170": {"scenarios": 284, "publicationComparisons": 12496, "semanticDifferences": 0},
+    "EVALUATION_LINEAR_A_600_220": {"scenarios": 307, "publicationComparisons": 13508, "semanticDifferences": 0},
+    "EVALUATION_BAND_LIMITED_A_600_170": {"scenarios": 307, "publicationComparisons": 13508, "semanticDifferences": 0}
+  },
+  "acceptanceEvidenceReusable": false,
+  "repairScope": "Qualification-only streaming evidence persistence and compact report summaries; explicitly separate EXTRA target-only qualification readout from the historical scenario-wide oracle metric. Product policy/source unchanged; no tuning or selection.",
+  "requiredNextAction": "Commit tooling repair, create and remotely verify new freeze, rerun all four publication cells. Do not reuse these computed snapshots as acceptance evidence.",
+  "newNeuralInferenceCount": 0,
+  "newDatasetCount": 0,
+  "productionMicrophone": false
+}

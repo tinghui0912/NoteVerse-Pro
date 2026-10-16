@@ -2,7 +2,11 @@ import {readFile, writeFile, mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {createRequire} from 'node:module';
-import {gunzipSync, gzipSync} from 'node:zlib';
+import {gunzipSync} from 'node:zlib';
+import {createGzip} from 'node:zlib';
+import {createWriteStream} from 'node:fs';
+import {once} from 'node:events';
+import {pipeline} from 'node:stream/promises';
 import path from 'node:path';
 import {DirectClaimantCommitFinalizer} from '../browser_runtime/xc8_direct_claimant_commit_finalizer.mjs';
 import {minimumCostPairs} from '../browser_runtime/xc2_r1_bounded_finalizer.mjs';
@@ -13,8 +17,8 @@ const branch = 'codex/customer-web-delivery-boundary';
 const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {encoding: 'utf8'}).trim();
 process.chdir(root);
 const reports = 'backend/research/reports';
-const work = 'backend/data/work/continuous_product_core';
-const freezePath = `${reports}/continuous_product_core_freeze_v1_2026-10-16.json`;
+const work = 'backend/data/work/continuous_product_core/v2';
+const freezePath = `${reports}/continuous_product_core_freeze_v2_2026-10-16.json`;
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const fileHash = async file => sha(await readFile(file));
 const load = async file => JSON.parse(await readFile(file, 'utf8'));
@@ -58,6 +62,13 @@ async function freeze() {
     acceptance: 'Zero canonical-reference/product semantic differences; zero double ownership, horizon violations, unresolved terminal reservations or new target regression; clean-break only; full tests/typecheck/build pass.',
     classification: 'POST_XC2_DIAGNOSTIC_ONLY_NOT_FRESH_EVALUATION', newNeuralInferenceCount: 0, newDatasetCount: 0,
     productionMicrophone: false, continuousCapability: 'MODEL_NOT_VALIDATED', stepCapability: 'ATTEMPT_ANALYZER_NOT_VALIDATED'};
+  const prior = await load(`${reports}/continuous_product_core_freeze_v1_2026-10-16.json`);
+  for (const file of prior.sources.filter(file => file.path.startsWith('apps/customer-web/src/'))) {
+    if (await fileHash(file.path) !== file.sha256) throw new Error('PRODUCT_SOURCE_CHANGED_DURING_TOOLING_REPAIR');
+  }
+  record.productImplementationCommit = prior.implementationCommit;
+  record.supersedesInvalidatedFreeze = {commit: 'f19480f0829afd4c579d8b913566d31227e13f43',
+    reason: 'Qualification evidence serialization only; all product/test source hashes unchanged.', productAndTestSourcesIdentical: true};
   record.freezeSha256 = sha(JSON.stringify(record));
   await json(freezePath, record);
   console.log(JSON.stringify({freezePath, freezeSha256: record.freezeSha256, sourceCount: record.sources.length, inputCount: record.inputs.length}));
@@ -109,6 +120,12 @@ function normalizedProduct(snapshot) {
   };
 }
 const differences = (left, right) => Object.keys(left).filter(key => JSON.stringify(left[key]) !== JSON.stringify(right[key]));
+const changedRowCount = (left, right) => {
+  const key = row => typeof row === 'string' ? row : row.id;
+  const a = new Map(left.map(row => [key(row), JSON.stringify(row)]));
+  const b = new Map(right.map(row => [key(row), JSON.stringify(row)]));
+  return [...new Set([...a.keys(), ...b.keys()])].filter(id => a.get(id) !== b.get(id)).length;
+};
 
 async function parity() {
   const {freeze, proof} = await verify();
@@ -118,7 +135,11 @@ async function parity() {
   const {createJiti} = require('jiti');
   const jiti = createJiti(import.meta.url);
   const {ContinuousFinalizer} = await jiti.import(path.resolve('apps/customer-web/src/lib/practice/local-core/continuous-finalizer.ts'));
-  const summaries = [], audits = [];
+  const summaries = [];
+  const auditPath = `${work}/parity_audits.ndjson.gz`;
+  const gzip = createGzip();
+  const auditFinished = pipeline(gzip, createWriteStream(auditPath, {flags: 'wx'}));
+  const writeAudit = async value => { if (!gzip.write(JSON.stringify(value) + '\n')) await once(gzip, 'drain'); };
   for (const cell of freeze.cells) {
     const {split, configuration} = cell;
     const benchmark = await load(`backend/data/work/xc2_robust_product_baseline_v1/${split.toLowerCase()}_benchmark.json`);
@@ -164,7 +185,10 @@ async function parity() {
         if (differences(immutable, old).length) summary.originalReferenceReproductionDifferences.push({scenarioId: scenario.id, keys: differences(immutable, old)});
         const changes = differences(old, ref);
         if (changes.length) summary.canonicalizationChanges.push({scenarioId: scenario.id, changedFields: changes,
-          original: old, canonical: ref});
+          changedRowsByField: Object.fromEntries(changes.map(field => [field, changedRowCount(old[field], ref[field])])),
+          groupVerdictChanges: ref.groups.filter(row => old.groups.find(prior => prior.id === row.id)?.verdict !== row.verdict)
+            .map(row => ({groupId: row.id, original: old.groups.find(prior => prior.id === row.id)?.verdict, canonical: row.verdict})),
+          fullWitness: `${auditPath}#${scenario.id}`});
         summary.safetyCounters.doubleOwnership += normalized.owners.length - new Set(normalized.owners.map(o => o.id)).size;
         summary.safetyCounters.terminalReservations += normalized.reservations.length;
         for (const g of productResult.groups) {
@@ -189,9 +213,9 @@ async function parity() {
           const productVerdict = result?.verdict ?? (productExtraPairs.some(([i]) => extraTargets[i].id === target) ? 'EXTRA' : 'NOT_DETECTED');
           if (canonicalVerdict === row.truth && productVerdict !== row.truth) summary.safetyCounters.newTargetRegressions++;
           summary.targetRows.push({targetId: row.targetId, truth: row.truth, historical: row.candidate, canonicalReference: canonicalVerdict,
-            product: productVerdict, canonicalizationChanged: row.candidate !== canonicalVerdict});
+            product: productVerdict, readoutDiffersFromFrozen: row.candidate !== canonicalVerdict});
         }
-        audits.push({...cell, scenarioId: scenario.id, product: product.completedEvaluation(), reference: ref, original: old});
+        await writeAudit({...cell, scenarioId: scenario.id, product: product.completedEvaluation(), reference: ref, original: old});
         summary.scenarios++;
       }
     }
@@ -201,13 +225,16 @@ async function parity() {
     console.log(JSON.stringify({...cell, scenarios: summary.scenarios, comparisons: summary.publicationComparisons,
       differences: summary.semanticDifferences.length, normalizationChanges: summary.canonicalizationChanges.length, pass: summary.parityPass}));
   }
-    await writeFile(`${work}/parity_audits.json.gz`, gzipSync(Buffer.from(JSON.stringify(audits))), {flag: 'wx'});
+  gzip.end();
+  await auditFinished;
   const result = {phase: PHASE, classification: 'POST_XC2_DIAGNOSTIC_ONLY_NOT_FRESH_EVALUATION', proof, executionStartedAt,
-    completedAt: new Date().toISOString(), canonicalization: freeze.canonicalization, cells: summaries,
-    auditSha256: await fileHash(`${work}/parity_audits.json.gz`), pass: summaries.every(cell => cell.parityPass),
+    completedAt: new Date().toISOString(), canonicalization: freeze.canonicalization,
+    targetReadoutNote: 'Group readout uses fixed target truth from the frozen receipt. EXTRA qualification readout pairs target-only extras at the historical 50ms tolerance, identically for canonical reference and product; this is not the original scenario-wide oracle EXTRA metric. Readout differences from frozen targets are not all attributed to canonicalization. Full original/canonical semantic changes are independently retained in the lossless audit.',
+    cells: summaries,
+    auditPath, auditFormat: 'GZIP_NDJSON_ONE_SCENARIO_PER_LINE', auditSha256: await fileHash(auditPath), pass: summaries.every(cell => cell.parityPass),
     newNeuralInferenceCount: 0, newDatasetCount: 0, newMidiTruthReads: 0};
   await json(`${work}/parity.json`, result);
-  await json(`${reports}/continuous_product_core_parity_2026-10-16.json`, result);
+  await json(`${reports}/continuous_product_core_parity_v2_2026-10-16.json`, result);
   const {ContinuousPracticeSession, ManualClock} = await jiti.import(path.resolve('apps/customer-web/src/lib/practice/local-core/index.ts'));
   const clock = new ManualClock(0);
   const session = new ContinuousPracticeSession({artifact: await load('apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json'),
@@ -252,7 +279,8 @@ async function report() {
   if (historicalReportChanges.length) throw new Error('HISTORICAL_REPORT_CHANGED');
   const pass = parity.pass && checks.runs.every(run => run.exitCode === 0);
   const result = {phase: PHASE, disposition: pass ? 'CONTINUOUS_V2_PRODUCT_CORE_PROMOTED_MICROPHONE_DISABLED' : 'CONTINUOUS_V2_PRODUCT_CORE_PROMOTION_BLOCKED',
-    startingHead: START, implementationCommit: freeze.implementationCommit, freezeCommit: parity.proof.freezeCommit,
+    startingHead: START, implementationCommit: freeze.productImplementationCommit, qualificationToolingCommit: freeze.implementationCommit,
+    invalidatedFreeze: freeze.supersedesInvalidatedFreeze, freezeCommit: parity.proof.freezeCommit,
     freezeSha256: freeze.freezeSha256, remoteFreezeProof: parity.proof, executionStartedAt: parity.executionStartedAt,
     sourceHashes: freeze.sources, inputHashes: freeze.inputs,
     moduleResponsibilities: {observation: 'immutable identities and coverage', assignment: 'single max-cardinality/min-error matcher',
@@ -260,12 +288,13 @@ async function report() {
       midi: 'sequence identities and clock-authorized publications', projection: 'accumulated completion, no reevaluation'},
     oldArchitecture: {transitiveProductLedgerDeleted: true, flatCompletedStrikeMirrorDeleted: true, compatibilityFallback: false,
       historicalSourceArchiveFiles: history.files.length, byteIdenticalArchive: true, historicalReportsChanged: historicalReportChanges},
-    mathematicalHorizon: freeze.mathematicalHorizon, parity: {path: 'continuous_product_core_parity_2026-10-16.json', pass: parity.pass,
+    mathematicalHorizon: freeze.mathematicalHorizon, parity: {path: 'continuous_product_core_parity_v2_2026-10-16.json', pass: parity.pass,
       comparison: 'BILATERALLY_CANONICALIZED_EXPECTED_GROUP_TIME_NOT_CLAIM_OF_ORIGINAL_INPUT_EQUIVALENCE',
       cells: parity.cells.map(cell => ({split: cell.split, configuration: cell.configuration, scenarios: cell.scenarios,
         publicationComparisons: cell.publicationComparisons, pass: cell.parityPass, safetyCounters: cell.safetyCounters,
         changedExpectedStrikeCount: cell.changedExpectedStrikeCount, canonicalizationChangedScenarios: cell.canonicalizationChanges.length,
-        canonicalizationChangedTargets: cell.targetRows.filter(row => row.canonicalizationChanged)}))},
+        targetReadoutDifferencesFromFrozen: cell.targetRows.filter(row => row.readoutDiffersFromFrozen)})),
+      targetReadoutNote: parity.targetReadoutNote},
     verification: checks, completedExample: await load(`${work}/completed_example.json`),
     protections: {continuousCapability: 'MODEL_NOT_VALIDATED', stepCapability: 'ATTEMPT_ANALYZER_NOT_VALIDATED', productionMicrophone: false,
       acousticCoreSha256: '93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443',

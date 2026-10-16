@@ -3,7 +3,7 @@ import {mkdir, writeFile, readFile} from 'node:fs/promises';
 import path from 'node:path';
 const app = path.resolve(import.meta.dirname, '..');
 const root = path.resolve(app, '../..');
-const out = path.join(root, 'backend/data/work/continuous_product_core');
+const out = path.join(root, 'backend/data/work/continuous_product_core/v2');
 await mkdir(out, {recursive: true});
 const runs = [];
 for (const [label, args] of [
