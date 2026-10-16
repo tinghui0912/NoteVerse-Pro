@@ -1,0 +1,383 @@
+{
+  "phase": "PHASE_9G_XC3_R2_INSTITUTIONAL_PROVENANCE_AND_BOUNDED_MAPS_ACQUISITION",
+  "startingRemoteHead": "4a077afdcc654a79ba5e1fed7ea2a801b0e2bcd3",
+  "implementationCommit": "2dfbd8922b0026ed1c17ed11be6fbc877f809e1c",
+  "taxonomy": [
+    "ORIGINAL_AUTHOR_OR_PUBLISHER_ENDORSED_ARCHIVE",
+    "INSTITUTIONALLY_AFFILIATED_ARCHIVAL_REDISTRIBUTION",
+    "UNLINKED_THIRD_PARTY_REDISTRIBUTION"
+  ],
+  "category": "INSTITUTIONALLY_AFFILIATED_ARCHIVAL_REDISTRIBUTION",
+  "conditions": {
+    "depositorIdentityIndependentlyCorroborated": true,
+    "originalInstitutionAffiliation": true,
+    "datasetTitleVersionCreatorsCopyrightAgree": true,
+    "checksumVerifiedReadmeLicense": true,
+    "archiveSubsetIdentitiesConsistent": true,
+    "noContradictoryIdentityEvidenceObserved": true
+  },
+  "institutionalRequests": [
+    {
+      "url": "https://adasp.telecom-paris.fr/members/",
+      "rangeRequested": null,
+      "readBytes": 217493,
+      "requestedAt": "2026-10-16T03:57:57.704911+00:00",
+      "httpStatus": 200,
+      "resolvedUrl": "https://adasp.telecom-paris.fr/members/",
+      "headers": {
+        "Server": "nginx/1.26.3",
+        "Date": "Fri, 16 Oct 2026 03:58:02 GMT",
+        "Content-Type": "text/html",
+        "Content-Length": "217493",
+        "Connection": "close",
+        "Last-Modified": "Mon, 17 Aug 2026 09:50:29 GMT",
+        "ETag": "\"35195-6593b19b87f8c\"",
+        "Accept-Ranges": "bytes",
+        "Vary": "Accept-Encoding",
+        "Strict-Transport-Security": "max-age=31536000"
+      },
+      "sha256": "e7b12a15b5743e3cbc2aa07d7567d7ac3242f552d1ee9e3f5e8f1411ef0dabd7",
+      "md5": "732ce76ae972fee0a5454bb384069525",
+      "attempt": 1,
+      "snapshot": {
+        "path": "backend/data/work/xc3_r2_maps/members_1.html",
+        "sha256": "e7b12a15b5743e3cbc2aa07d7567d7ac3242f552d1ee9e3f5e8f1411ef0dabd7",
+        "bytes": 217493
+      }
+    },
+    {
+      "url": "https://adasp.telecom-paris.fr/resources/",
+      "rangeRequested": null,
+      "readBytes": 133404,
+      "requestedAt": "2026-10-16T03:58:02.026665+00:00",
+      "httpStatus": 200,
+      "resolvedUrl": "https://adasp.telecom-paris.fr/resources/",
+      "headers": {
+        "Server": "nginx/1.26.3",
+        "Date": "Fri, 16 Oct 2026 03:58:06 GMT",
+        "Content-Type": "text/html",
+        "Content-Length": "133404",
+        "Connection": "close",
+        "Last-Modified": "Mon, 17 Aug 2026 09:50:30 GMT",
+        "ETag": "\"2091c-6593b19bf9421\"",
+        "Accept-Ranges": "bytes",
+        "Vary": "Accept-Encoding",
+        "Strict-Transport-Security": "max-age=31536000"
+      },
+      "sha256": "38c5bba932d872af9dc042018c750117ae8d09ce421335d13f45124eaaf91c21",
+      "md5": "6f6d330e02535188f5a166313c52ecb8",
+      "attempt": 1,
+      "snapshot": {
+        "path": "backend/data/work/xc3_r2_maps/resources_1.html",
+        "sha256": "38c5bba932d872af9dc042018c750117ae8d09ce421335d13f45124eaaf91c21",
+        "bytes": 133404
+      }
+    },
+    {
+      "url": "https://adasp.telecom-paris.fr/fr/publications/",
+      "rangeRequested": null,
+      "readBytes": 1426297,
+      "requestedAt": "2026-10-16T03:58:04.772156+00:00",
+      "httpStatus": 200,
+      "resolvedUrl": "https://adasp.telecom-paris.fr/fr/publications/",
+      "headers": {
+        "Server": "nginx/1.26.3",
+        "Date": "Fri, 16 Oct 2026 03:58:09 GMT",
+        "Content-Type": "text/html",
+        "Content-Length": "1426297",
+        "Connection": "close",
+        "Last-Modified": "Mon, 17 Aug 2026 09:50:29 GMT",
+        "ETag": "\"15c379-6593b19b86fec\"",
+        "Accept-Ranges": "bytes",
+        "Vary": "Accept-Encoding",
+        "Strict-Transport-Security": "max-age=31536000"
+      },
+      "sha256": "c54463bc983cca1c050b775e60ae1a0fc23ccfdadc5b69316aa918adf4919280",
+      "md5": "fd06d73873e5d29bf527045d714600b6",
+      "attempt": 1,
+      "snapshot": {
+        "path": "backend/data/work/xc3_r2_maps/publications_1.html",
+        "sha256": "c54463bc983cca1c050b775e60ae1a0fc23ccfdadc5b69316aa918adf4919280",
+        "bytes": 1426297
+      }
+    }
+  ],
+  "memberEvidence": {
+    "name": "Paraskevas Stamatiadis",
+    "roleSection": "Research Engineers",
+    "precedingText": "signal processing, singing voice Postdocs Michel Olvera deep learning, machine listening DCASE Research Engineers Jos\u00e9 Manuel Gil machine learning, MIR, music generation, DAW Paraskevas Stamatiadis",
+    "precedingMailto": [
+      "stamatiadis@telecom-paris.fr"
+    ]
+  },
+  "observedInstitutionalEmails": [
+    "stamatiadis@telecom-paris.fr"
+  ],
+  "contributionEvidence": [
+    {
+      "page": "resources",
+      "url": "https://adasp.telecom-paris.fr/resources/",
+      "nameObserved": true,
+      "context": "d/noise separation in audio signals, by O. Gillet on 2010/02/19 . >> Companion & demo pages DCASE 2024 paper: SALT: Standardized Audio Event Label Taxonomy, by Paraskevas Stamatiadis, Michel Olvera, Slim Essid on 2024/10/20 . >> DCASE 2024 paper: A Sound Description: Exploring Prompt Templates and Class Descriptions to Enhance Zero-shot Aud"
+    },
+    {
+      "page": "publications",
+      "url": "https://adasp.telecom-paris.fr/fr/publications/",
+      "nameObserved": true,
+      "context": "ity and integration in real-world web audio environments. iKnow-audio: Integrating Knowledge Graphs with Audio-Language Models Michel Olvera , Changhong Wang , Paraskevas Stamatiadis , Ga\u00ebl Richard , Slim Essid The 2025 Conference on Empirical Methods in Natural Language Processing, Suzhou, China, November 2025 . Abstract BibTeX PDF @inproc"
+    }
+  ],
+  "depositor": {
+    "active": null,
+    "blocked_at": null,
+    "confirmed_at": null,
+    "email": "",
+    "id": "1508025",
+    "is_current_user": false,
+    "links": {
+      "avatar": "https://zenodo.org/api/users/1508025/avatar.svg",
+      "records_html": "https://zenodo.org/search?q=parent.access.owned_by.user:1508025",
+      "self": "https://zenodo.org/api/users/1508025"
+    },
+    "profile": {
+      "affiliations": "",
+      "full_name": "Paraskevas Stamatiadis"
+    },
+    "username": "paridios96",
+    "verified_at": null
+  },
+  "identityLinkInterpretation": "Exact public Zenodo owner name corroborated by official institutional member/role/email and independently published group contributions; not private account-control authentication.",
+  "originalAuthorPersonalEndorsement": "ORIGINAL_AUTHOR_PERSONAL_ENDORSEMENT_NOT_ESTABLISHED",
+  "explicitOriginalAuthorOrPublisherEndorsementFound": false,
+  "legacyGatePreserved": {
+    "XC3": "FRESH_COMPONENT_SELECTION_BLOCKED_DATASET_PROVENANCE",
+    "XC3-R1": "ZENODO_ARCHIVE_PROVENANCE_NOT_SUFFICIENTLY_LINKED",
+    "historicalReport": {
+      "path": "backend/research/reports/phase9g_xc3_r1_zenodo_provenance_determination_2026-10-16.json",
+      "sha256": "fb1ca04614dc22a7a54af7b7914ed11ffb10cad4f911c7d20481c6aeaeee01fc",
+      "bytes": 65247
+    }
+  },
+  "documentChecks": [
+    {
+      "name": "readme.txt",
+      "sha256": "3738738b0470ba1963d6cc4f445aedd6754288e51c642dd53964407e81dded91",
+      "md5": "74e1fdc9937de7ab149bbc6d139f9b4b",
+      "pass": true
+    },
+    {
+      "name": "license.txt",
+      "sha256": "c8be8e4cd061ae8e6d275a1d61e7be89d13684ef88cda2834018060e7dd49ab4",
+      "md5": "ca887f61e0ed88965cf1e31feafe99e3",
+      "pass": true
+    }
+  ],
+  "zenodoRecord": {
+    "recordId": "18160555",
+    "doi": "10.5281/zenodo.18160555",
+    "metadataSource": "https://zenodo.org/records/18160555 embedded data-record and https://zenodo.org/records/18160555/export/json",
+    "metadataViewsAgree": true,
+    "created": "2026-01-08T16:19:10.413588+00:00",
+    "updated": "2026-01-08T16:19:11.258265+00:00",
+    "metadata": {
+      "copyright": "Valentin Emiya (Telecom ParisTech, 2008)",
+      "creators": [
+        {
+          "affiliations": [
+            {
+              "id": "035xkbk20",
+              "identifiers": [
+                {
+                  "identifier": "035xkbk20",
+                  "scheme": "ror"
+                },
+                {
+                  "identifier": "grid.5399.6",
+                  "scheme": "grid"
+                },
+                {
+                  "identifier": "0000 0001 2176 4817",
+                  "scheme": "isni"
+                }
+              ],
+              "name": "Aix-Marseille Universit\u00e9"
+            }
+          ],
+          "person_or_org": {
+            "family_name": "Emiya",
+            "given_name": "Valentin",
+            "identifiers": [
+              {
+                "identifier": "0000-0001-7102-6943",
+                "scheme": "orcid"
+              }
+            ],
+            "name": "Emiya, Valentin",
+            "type": "personal"
+          }
+        },
+        {
+          "affiliations": [
+            {
+              "id": "00myn0z94",
+              "identifiers": [
+                {
+                  "identifier": "00myn0z94",
+                  "scheme": "ror"
+                },
+                {
+                  "identifier": "grid.420225.3",
+                  "scheme": "grid"
+                },
+                {
+                  "identifier": "0000 0001 2298 7270",
+                  "scheme": "isni"
+                }
+              ],
+              "name": "Institut de Recherche en Informatique et Syst\u00e8mes Al\u00e9atoires"
+            }
+          ],
+          "person_or_org": {
+            "family_name": "Bertin",
+            "given_name": "Nancy",
+            "identifiers": [
+              {
+                "identifier": "0000-0002-7690-4378",
+                "scheme": "orcid"
+              }
+            ],
+            "name": "Bertin, Nancy",
+            "type": "personal"
+          }
+        },
+        {
+          "affiliations": [
+            {
+              "name": "T\u00e9l\u00e9com ParisTech"
+            }
+          ],
+          "person_or_org": {
+            "family_name": "Badeau",
+            "given_name": "Roland",
+            "identifiers": [
+              {
+                "identifier": "0000-0002-9630-6877",
+                "scheme": "orcid"
+              }
+            ],
+            "name": "Badeau, Roland",
+            "type": "personal"
+          }
+        }
+      ],
+      "description": "<p>MAPS, standing for MIDI Aligned Piano Sounds, is a piano sound database dedicated to research on multi-F0 estimation and automatic transcription:</p>\n<ul>\n<li>MAPS is composed of about 31 GB of CD-quality recordings in .wav format.</li>\n<li>High quality audio is obtained by means of Virtual Piano softwares and a Yamaha Disklavier.</li>\n<li>Nine settings of different pianos and recording conditions were used.</li>\n<li>Four categories of sounds are provided:\n<ul>\n<li>isolated notes and monophonic sounds</li>\n<li>random chords</li>\n<li>usual chords</li>\n<li>pieces of music</li>\n</ul>\n</li>\n<li>The ground truth is provided for all sounds, in MIDI and text formats. The audio was generated from the ground truth in order to ensure the accuracy of the annotation.</li>\n<li>MAPS is freely released with a Creative Commons license.</li>\n</ul>\n<p><strong>License: </strong>Creative Commons (<a href=\"http://creativecommons.org/licenses/by-nc-sa/2.0/fr/deed.en_US\">http://creativecommons.org/licenses/by-nc-sa/2.0/fr/deed.en_US</a>)<strong> </strong></p>\n<p><strong>Author: </strong>Valentin Emiya (Telecom ParisTech, 2008)<strong>&nbsp;</strong></p>\n<p><strong>References:</strong></p>\n<ul>\n<li>Multipitch estimation of piano sounds using a new probabilistic spectral smoothness principle, V. Emiya, R. Badeau, B. David, IEEE Transactions on Audio, Speech and Language Processing, 2010.</li>\n<li>Transcription automatique de la musique de piano, V. Emiya, PhD Thesis, Telecom ParisTech, 2008.</li>\n</ul>",
+      "publication_date": "2026-01-06",
+      "publisher": "Zenodo",
+      "references": [
+        {
+          "reference": "Multipitch estimation of piano sounds using a new probabilistic spectral smoothness principle, V. Emiya, R. Badeau, B. David, IEEE Transactions on Audio, Speech and Language Processing, 2010."
+        },
+        {
+          "reference": "Transcription automatique de la musique de piano, V. Emiya, PhD Thesis, Telecom ParisTech, 2008."
+        }
+      ],
+      "resource_type": {
+        "id": "dataset",
+        "title": {
+          "de": "Datensatz",
+          "en": "Dataset"
+        }
+      },
+      "rights": [
+        {
+          "description": {
+            "en": ""
+          },
+          "icon": "cc-by-nc-sa-icon",
+          "id": "cc-by-nc-sa-2.0",
+          "props": {
+            "scheme": "spdx",
+            "url": "https://creativecommons.org/licenses/by-nc-sa/2.0/legalcode"
+          },
+          "title": {
+            "en": "Creative Commons Attribution Non Commercial Share Alike 2.0 Generic"
+          }
+        }
+      ],
+      "title": "MAPS - MIDI Aligned Piano Sounds",
+      "version": "0.4"
+    },
+    "recordOwnerUserId": "1508025"
+  },
+  "archiveIdentity": [
+    {
+      "name": "ENSTDkAm.zip",
+      "bytes": 2661240101,
+      "reportedChecksum": "md5:a1c8c9945a2c605f62484b80cfa20cf4",
+      "links": {
+        "container": "https://zenodo.org/api/records/18160555/files/ENSTDkAm.zip/container",
+        "content": "https://zenodo.org/api/records/18160555/files/ENSTDkAm.zip/content",
+        "self": "https://zenodo.org/api/records/18160555/files/ENSTDkAm.zip"
+      }
+    },
+    {
+      "name": "ENSTDkCl.zip",
+      "bytes": 2608287080,
+      "reportedChecksum": "md5:72bbdf40eb7af69225755e165a0a0a08",
+      "links": {
+        "container": "https://zenodo.org/api/records/18160555/files/ENSTDkCl.zip/container",
+        "content": "https://zenodo.org/api/records/18160555/files/ENSTDkCl.zip/content",
+        "self": "https://zenodo.org/api/records/18160555/files/ENSTDkCl.zip"
+      }
+    }
+  ],
+  "progressiveContentAuthenticity": "CONTENT_PROVENANCE_SUPPORTED_BY_INSTITUTIONAL_AND_INTERNAL_CONSISTENCY",
+  "internalMemberValidation": "PENDING_BOUNDED_DIRECTORY_INSPECTION",
+  "structuredLicenseAnnotationCaution": "Record structured field says Generic 2.0; description/publisher link/license file identify France. Retained, not silently harmonized.",
+  "originalPublisherByteIdentityClaim": false,
+  "scientificUse": "SCIENTIFIC_RESEARCH_ONLY",
+  "commercialQualificationStatus": "NOT_PERFORMED",
+  "legalOpinion": "NOT_PERFORMED",
+  "productionAssetRedistributionQualification": "NOT_PERFORMED",
+  "scopeProtections": {
+    "F5": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+    "phase9gB": "STATISTICAL_TIE",
+    "winner": null,
+    "XC2": "ROBUST_PRODUCT_BASELINE_MULTIPLE_PARETO_CANDIDATES",
+    "R1": "BOUNDED_FINALIZATION_HAS_SAFETY_TRADEOFF",
+    "R2": "DIRECT_CONFLICT_RESERVATION_PARTIALLY_RECOVERS_SAFETY",
+    "R4Cadence": "ROBUST_CADENCE_SUSTAINABLE",
+    "R4Headroom": "ROBUST_20_PERCENT_HEADROOM_FAIL",
+    "viennaP15P22InferenceIncrease": 0,
+    "productionMicrophone": false,
+    "D4": false,
+    "productionWinner": null,
+    "practiceWebSocket": false,
+    "backendServerPracticeInference": false,
+    "scoreFollowing": false,
+    "expectedScoreEntersInference": false,
+    "historicalScienceModified": false,
+    "commercialQualificationStatus": "NOT_PERFORMED",
+    "productLatencySlo": "PRODUCT_LATENCY_SLO_NOT_YET_FROZEN"
+  },
+  "audioContentReads": 0,
+  "midiContentReads": 0,
+  "newNeuralInferenceCount": 0,
+  "sourceHashBoundary": [
+    {
+      "path": "backend/research/xc3_r2_maps_acquisition.py",
+      "sha256": "48ffe68404f88bcc23b4af27c25ca1b509f2e372789c14674d457d68d921f8be",
+      "bytes": 18311
+    },
+    {
+      "path": "backend/research/xc3_r1_zenodo.py",
+      "sha256": "e8a0a3c48b9b12502866edb8f0925bc03312548c267f1c08a92cbab9b56c5c1d",
+      "bytes": 21063
+    },
+    {
+      "path": "backend/research/test_xc3_r2_maps_acquisition.py",
+      "sha256": "ce43028f9e077ccbc323a6fa0f47960108c1f80b7e87e72390d9f749f7b50607",
+      "bytes": 1759
+    }
+  ]
+}
