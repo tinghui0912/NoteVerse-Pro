@@ -1,0 +1,411 @@
+{
+  "phase": "PHASE_9G_XC8_BOUNDED_PRODUCT_FINALIZER_MECHANISTIC_QUALIFICATION",
+  "startingHead": "4f640d6c6ce7ea8ead93f3dc1881be73fd7740ef",
+  "implementationCommit": "485ef15253da31b9676477e50f84a548f64eb20a",
+  "createdAt": "2026-10-16T12:17:52.709Z",
+  "classification": "POST_XC2_DIAGNOSTIC_ONLY_NOT_FRESH_EVALUATION",
+  "policy": {
+    "name": "DIRECT_CLAIMANT_COMMIT_RESERVATION",
+    "wMs": 250,
+    "maximumFrozenGroupSpreadMs": 20,
+    "strikeBoundMs": 750,
+    "groupBoundMs": 1250,
+    "extraBoundMs": 1500,
+    "classification": "FIXED_DIRECT_CLAIMANT_OWN_COMMIT_NOT_RECURSIVE_COHORT_EXPANSION",
+    "correctAssignment": "UNCHANGED_R2_ANCHOR_ONLY_ONE_HOP_MAX_CARDINALITY_MIN_ABSOLUTE_ERROR_STABLE_IDS",
+    "wrong": "WAIT_LITERAL_CORRECT_CLAIMANT_OWN_FIXED_H_COMMIT_THEN_USE_ONLY_UNOWNED_RELEASED_EVIDENCE",
+    "finality": "IMMUTABLE_SINGLE_OWNER_NO_RETROACTIVE_REPAIR",
+    "freshness": "POST_XC2_DIAGNOSTIC_ONLY_NOT_FRESH_EVALUATION"
+  },
+  "sources": [
+    {
+      "path": "apps/customer-web/src/lib/practice/audio-analysis/continuous/performance-reconciler.ts",
+      "sha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/input-capability.ts",
+      "sha256": "6662b633e9410e387f7fa3b47762c38bc38d38bfe41f6010c59f342ccca31da7"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalization-ledger.ts",
+      "sha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/xc2-five-verdict-projector.ts",
+      "sha256": "1e079198d5b6ff4bd7d61dd5c59dd2899ab9bfb9b0ed9121f18fe6d04b34501b"
+    },
+    {
+      "path": "backend/research/browser_runtime/robust_runtime_evidence_analysis.mjs",
+      "sha256": "33764fa99ae1148e9ae776f322b90d9c243e709fc066ace2624e6defdc60cb6b"
+    },
+    {
+      "path": "backend/research/browser_runtime/test_xc8_finalizer.mjs",
+      "sha256": "730a9f6ceda8eaa8f646c9af0a83f736c32e2e8f922c00380e8befbb0a4fc0f2"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_artifacts.mjs",
+      "sha256": "6d194fc014519b8d3e5a08f6ce86f88ec409917ca03c8c7d76aacda9fe519ab3"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+      "sha256": "cf5757e276774a75f2f402c3c120ccc3b1a69bb83bc899ffcfdd6e9bfc6f745e"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_browser_semantics.mjs",
+      "sha256": "bd11b791b8a273d5a0a451cb456abbf061d1504101fbec8e2cd9a3002c0d1e9b"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_robust_decoder.mjs",
+      "sha256": "33a032a7508c488cf7eb1db9b60b3f6a921756eab798c5d84875d634b5925125"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_decoders.mjs",
+      "sha256": "4a81ac847b62485ff1ed13e865736b418c798515abd886b0fdef7dfdd992efbf"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_product_metrics.mjs",
+      "sha256": "4eb2745eefc86c2f80834f71eb2f90e37c03274aba9e882e0fa6ad746577e206"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r1_bounded_finalizer.mjs",
+      "sha256": "534e6319da18092901a9787f9dec448de65be59e293d892ac1ecdc0bf9da6211"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r2_direct_conflict_finalizer.mjs",
+      "sha256": "80e06a7bbb5f6ec573f0abc4bf1516010a7ff009f11644168b8929a0b3b90e60"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc8_causal_audit.mjs",
+      "sha256": "2df289780eb49e54a87d870653c129a059933885e52fdd94f2c5a6c3f4647769"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc8_direct_claimant_commit_finalizer.mjs",
+      "sha256": "cc2cbddf9e4a70a1575c0453521c57dc296d55e79e3bb7e097f78f73a2453351"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc8_final_report.mjs",
+      "sha256": "2cc0cf6c38dee1a1db37affbfff208c45c023d2521555ec208b0b882a993ed6e"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc8_protocol.mjs",
+      "sha256": "6d458b320febe5141715576b4a8a659c484e48eeaab74d11718b98ff31f06a9f"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc8_replay.mjs",
+      "sha256": "296afd15bf06a58a0200ae438fd8355467620dc97d86c2fd5dcbd770db702e6f"
+    },
+    {
+      "path": "backend/research/protocols/xc8_direct_claimant_commit_bound.md",
+      "sha256": "bdb6be52504ab9fc9cdb7e5f48777f54d492d3101e98f637141777652bc18c32"
+    }
+  ],
+  "inputs": [
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalization-ledger.ts",
+      "sha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_A_600_170.json",
+      "sha256": "236b238e10ee18405bf11b353b1d8b9274ba9f3f1f56978bf09d1743499e92aa"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_A_600_170_witnesses.json.gz",
+      "sha256": "f6b8d2d9359fea712994e62ebf481158f11424aeb63b7dc40dec01dfe8259a76"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_LINEAR_A_600_220.json",
+      "sha256": "4fb503edaa2740a25a3214f90395366bc7caf8a692a414e72e15ea98fffcbec8"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_LINEAR_A_600_220_witnesses.json.gz",
+      "sha256": "6f7a12fabab7a977eb4539113aea49965a215311d1254436cd0a8a41372968ff"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_A_600_170.json",
+      "sha256": "2faa7dca830c5b9881f3594348f4bad1615bbee28be34d75b0b1fce14bd73437"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_A_600_170_witnesses.json.gz",
+      "sha256": "c2f1f9875dbb3ec4af2342b443a15ebd5cd19a80e04fc579cf1b0cc4ed3002c8"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_LINEAR_A_600_220.json",
+      "sha256": "9157c8500e3f40336b7725cbef23fb11cd0c44b632a48f1cf6556bee1c63a570"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_LINEAR_A_600_220_witnesses.json.gz",
+      "sha256": "ed2143093e1d033c04670163446efafcd1d09afa23893cda1feb1087c6468152"
+    },
+    {
+      "path": "backend/data/work/xc2_r2_direct_conflict/DEVELOPMENT_BAND_LIMITED_A_600_170_audit.json.gz",
+      "sha256": "7b2c45c05a65547d65d65006899fde1d66caaa661a3106241e842879ee9d358c"
+    },
+    {
+      "path": "backend/data/work/xc2_r2_direct_conflict/DEVELOPMENT_BAND_LIMITED_A_600_170_metrics.json",
+      "sha256": "8da961275595b6ee3e8f9d4dab7547530231933a4782d1b6b49e4d5475090141"
+    },
+    {
+      "path": "backend/data/work/xc2_r2_direct_conflict/DEVELOPMENT_LINEAR_A_600_220_audit.json.gz",
+      "sha256": "417adb366f613e7ea73e8b3a4236e57dbb5b8140ad1b565bf81ee78eb2374acc"
+    },
+    {
+      "path": "backend/data/work/xc2_r2_direct_conflict/DEVELOPMENT_LINEAR_A_600_220_metrics.json",
+      "sha256": "f8569404745b3f74aac20dc95196715cd6ae322e631f4c99d84227616de9b6d8"
+    },
+    {
+      "path": "backend/data/work/xc2_r2_direct_conflict/EVALUATION_BAND_LIMITED_A_600_170_audit.json.gz",
+      "sha256": "26b64df5037b78b7f56dafd422915b4afeaf295cec0f030f4e96361794167e12"
+    },
+    {
+      "path": "backend/data/work/xc2_r2_direct_conflict/EVALUATION_BAND_LIMITED_A_600_170_metrics.json",
+      "sha256": "1d15b80f325ca249d6b48bca4ca7560671f545df5c9322fc3a21a270fedb8000"
+    },
+    {
+      "path": "backend/data/work/xc2_r2_direct_conflict/EVALUATION_LINEAR_A_600_220_audit.json.gz",
+      "sha256": "c6df8c3ba450934140020d47afae8dd19b51c6a9da38cc5bb57d062c0bbea3f1"
+    },
+    {
+      "path": "backend/data/work/xc2_r2_direct_conflict/EVALUATION_LINEAR_A_600_220_metrics.json",
+      "sha256": "6b4fa0dd8fdfd6547135bc61dda9601644d03cb99be5971dc1ee46c215a121e4"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/development_benchmark.json",
+      "sha256": "ff83b4b46dfe0d75fed129eca971a3f455e942ffeb982657979e8efbb2188d34"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/evaluation_benchmark.json",
+      "sha256": "d1bcd14419069ea54ec62152fc442589bdc9e243ad0b4ce9c0b023292c68079f"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/metrics/evaluation/BAND_LIMITED_A_600_170.json",
+      "sha256": "0ef4972b6a29d2d2a86fe0dee74017d74ab2bd9ec5ec07039ac221afc97835dd"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/metrics/evaluation/LINEAR_A_600_220.json",
+      "sha256": "95b9010d6d71039caf864c6d09277ab1d41832103193a05d3506f417db1dc655"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/metrics/geometry/BAND_LIMITED_A_600_170.json",
+      "sha256": "13c031d777ddd503a797b43beb12d8ca91f5c444e1e6e421d5d9f3a01bdd26df"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/metrics/geometry/LINEAR_A_600_220.json",
+      "sha256": "372c013b800f0753e8aef1b414006a19e7ec06146ec5f3f0bbceccc643446bfb"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/DEVELOPMENT_BAND_LIMITED_600_170_1.20.1/xc2_00_chopin_op026no1_003_20100611-smd.json",
+      "sha256": "704c672458fba381382efda8ca48aa0913c1e4d003d835b0347f48ce044769d3"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/DEVELOPMENT_BAND_LIMITED_600_170_1.20.1/xc2_02_beethoven_op031no2-01_002_20090916-smd.json",
+      "sha256": "2e899538bdca72e1ee92a990bc90097c08b65a249e85cd1c81a7283f877d6de6"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/DEVELOPMENT_BAND_LIMITED_600_170_1.20.1/xc2_04_chopin_op028-01_003_20100611-smd.json",
+      "sha256": "3969da1efba9958324bf8b22b305b724362f3f8609248d18fdfa732a6bbbfe83"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/DEVELOPMENT_BAND_LIMITED_600_170_1.20.1/xc2_06_rachmaninoff_op036-01_007_20110315-smd.json",
+      "sha256": "84283bba1affbf511021aa82a5041b257acd98b06578ebec2bd4c0ab3c81dfd8"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/DEVELOPMENT_BAND_LIMITED_600_170_1.20.1/xc2_08_brahms_op005-01_002_20110315-smd.json",
+      "sha256": "27d83ab422b47102f72853d6142300d4049bc61a5622e47eb6eac878bb9e1ea0"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/DEVELOPMENT_LINEAR_600_220_1.20.1/xc2_00_chopin_op026no1_003_20100611-smd.json",
+      "sha256": "eeb3c44efbcc0d38c99d023bd7377e6a4631b46ac841feb9cdb61d3503804eaa"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/DEVELOPMENT_LINEAR_600_220_1.20.1/xc2_02_beethoven_op031no2-01_002_20090916-smd.json",
+      "sha256": "7217b994813e7b8c5ce8e1480536d24752199e04101fdd12a9243a03b8860db9"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/DEVELOPMENT_LINEAR_600_220_1.20.1/xc2_04_chopin_op028-01_003_20100611-smd.json",
+      "sha256": "267f759af4e47f98ab3fbed98586559bb6d125b6760dfc109fc922e65e7f1815"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/DEVELOPMENT_LINEAR_600_220_1.20.1/xc2_06_rachmaninoff_op036-01_007_20110315-smd.json",
+      "sha256": "26d35b5670e732a1806d4a3e578b9740ff7fbdda4d404933c202a9b46e115dc5"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/DEVELOPMENT_LINEAR_600_220_1.20.1/xc2_08_brahms_op005-01_002_20110315-smd.json",
+      "sha256": "b36e7378fd1bbedf13ad13272411b6334f0d1439b5ac109621f2b110ce12ed69"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_170_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "2065dd4fe6f53dd1043f89d9065ed15cd29aca8e0d09b09ea145c51d15234693"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_170_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "fdeeb279878d4f2267281a2f40b7f58e6f1da70e2850d8be36b22cf811bebaa9"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_170_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "014073f5b7783c3dc4e7d775fd9d29c0575587be8cecbe109bf62c8a9cb176dc"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_170_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "beae67afc5df31a71f910b00b4fe58438f66263e30e7550140e4d69b8f7ae205"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_170_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "055ae51bdcd530e1999bdc0e3cfd1b21c1fa9ae61fb74164c3f530cd2693d5fb"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_220_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "sha256": "c81cf7a13280a72e49895643146367b694f70949d0158d3ef2452f1995901ff6"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_220_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "sha256": "5faa5ae918b6816c4be19523dac9a4b5fafd9028c3ea546aa7d5973395685463"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_220_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "sha256": "a0c4c8a3589b63afcab1e827785e04ce2937c3c4ef543471ad8b90a55c219da2"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_220_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "sha256": "c7e18bbac781b2e9212e2bd7dec4efda278ce9371ee6574fdb72e0e0656a8347"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_220_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "sha256": "e287449d2741bd85a3151cd2cf191cb667ea8b4eafb9c362887321f2ac87ac1c"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r1_bounded_finalizer.mjs",
+      "sha256": "534e6319da18092901a9787f9dec448de65be59e293d892ac1ecdc0bf9da6211"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r2_direct_conflict_finalizer.mjs",
+      "sha256": "80e06a7bbb5f6ec573f0abc4bf1516010a7ff009f11644168b8929a0b3b90e60"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_causal_execution_receipts_2026-10-16.json",
+      "sha256": "3e275e4f0b6364b5d843ce5d14f0d60c69a9690be75bbfde83d1ccc0002a7059"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_product_verdict_latency_final_2026-10-16.json",
+      "sha256": "7c983975157ce4ac6a1d85708ef04c2115145f71fa7413b3d537512f26c9b42c"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_bounded_runtime_final_2026-10-16.json",
+      "sha256": "fa03b6429c542d6be9c79efce4501907bc936979c69f6e9cdcbb5d791510103e"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_bounded_witness_manifest_2026-10-16.json",
+      "sha256": "317d956ea5c5542668d72f81aeb6f6aae54ab74b9a3e9a8632313c89b0e361a6"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_evidence_interpretation_2026-10-16.json",
+      "sha256": "e75fb26f9cc58e48053d7bc8fbabfc395ac0f65641d2cb93f6f427bb95b90099"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_natural_residual_and_paired_latency_2026-10-16.json",
+      "sha256": "37a09c75b95a7291d116031e181b6a78935cb36a79757533898a17e36d2dbbcb"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_policy_freeze_2026-10-16.json",
+      "sha256": "6c390b986f5f54a8a4051595688057d6e8064d34a1418511ebff1dfbb241a328"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_assignment_disagreements_2026-10-16.json",
+      "sha256": "d19c2881135cef7dd42ce5b49b364b226e140e89c299d2062554a35c5fa3f71e"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_direct_conflict_final_2026-10-16.json",
+      "sha256": "5aee4747a1b59381fda5d583481bf42d1c6750812bf69bae72de76f680b30e89"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_policy_freeze_2026-10-16.json",
+      "sha256": "7bd290216c2eafcfd2c07f57c0ba9a92322a785820f4e94ff81a37ddf11e2bab"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_regression_interpretation_2026-10-16.json",
+      "sha256": "bd728664b2c86c0aa1c9ebef0b8fa2960df30cd65c3ed1282afd4bac4d7228ba"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc8_causal_inventory_complete_2026-10-16.json",
+      "sha256": "3aa62a361cf4e6ca76b8fa2a986acec22cd5bee1db1b973a430aa96982819060"
+    }
+  ],
+  "configurations": [
+    "LINEAR_A_600_220",
+    "BAND_LIMITED_A_600_170"
+  ],
+  "splits": [
+    "DEVELOPMENT",
+    "EVALUATION"
+  ],
+  "cells": [
+    {
+      "configuration": "LINEAR_A_600_220",
+      "split": "DEVELOPMENT"
+    },
+    {
+      "configuration": "LINEAR_A_600_220",
+      "split": "EVALUATION"
+    },
+    {
+      "configuration": "BAND_LIMITED_A_600_170",
+      "split": "DEVELOPMENT"
+    },
+    {
+      "configuration": "BAND_LIMITED_A_600_170",
+      "split": "EVALUATION"
+    }
+  ],
+  "mathematicalProofPath": "backend/research/protocols/xc8_direct_claimant_commit_bound.md",
+  "horizon": {
+    "strike": "H(t)=max(u+w: literal same-pitch |u-t|<=2w)<=t+3w",
+    "group": "G(g)=max(b+w,own strike H,literal local-observation correct-claimant H)<=max(b+3w,a+5w)<=a+1250ms at delta<=20",
+    "extra": "E(o)<=o+max(delta+4w,6w)<=o+1500ms at delta<=20",
+    "noRecursion": "Never wait for commit/group of a cohort member of a direct claimant. Its own fixed H uses cohort LOCAL windows only.",
+    "terminal": "Explicit clamp, unclamped witness preserved; manual NOT_REACHED retained; no invented future acoustic coverage."
+  },
+  "preFreezeTests": {
+    "command": [
+      "D:\\Program Files\\nodejs\\node.exe",
+      "--test",
+      "backend/research/browser_runtime/test_xc8_finalizer.mjs"
+    ],
+    "exitCode": 0,
+    "stdout": "✔ simple correct (2.3833ms)\n✔ simple missing (0.4233ms)\n✔ simple wrong (0.3965ms)\n✔ incomplete chord (0.3478ms)\n✔ extra with no claims (0.2433ms)\n✔ same pitch repeated strikes keep distinct owners (6.904ms)\n✔ two direct competing strikes commit anchors only at their own H (0.6037ms)\n✔ reserved wrong evidence later consumed by direct correct claimant cannot be stolen (1.2044ms)\n✔ released reservation becomes WRONG after claimant commits a different observation (1.5082ms)\n✔ current group waits only for the direct claimant own fixed commit (0.9392ms)\n✔ competitor-of-competitor cannot recursively extend the group (0.4487ms)\n✔ 100-strike overlap chain cannot enlarge first same-pitch or claimant-group horizon (5.4441ms)\n✔ one observation cannot become WRONG and EXTRA (0.4147ms)\n✔ two groups cannot consume same WRONG evidence (0.4053ms)\n✔ finalized verdict immutable and late evidence rejected (0.5838ms)\n✔ terminal natural completion closes all reservations with explicit clamp (0.7007ms)\n✔ manual stop preserves NOT_REACHED versus locally closed MISSING (0.2773ms)\n✔ duplicate publications are idempotent; mutations and duplicate observation identities rejected (0.4349ms)\n✔ stable deterministic tie (0.2026ms)\n✔ observation array permutation leaves byte-identical complete output (0.542ms)\n✔ inclusive assignment endpoints and exact500ms competitor boundary (0.3229ms)\n✔ a released observation with no direct claimant has finite EXTRA closure (0.4028ms)\n✔ unchanged frozen constants and unsupported group spread fails closed (0.1166ms)\n✔ matched evidence cannot also be WRONG or EXTRA (0.4554ms)\n✔ terminal state rejects new publications and terminal identity changes (0.2392ms)\n✔ complete chord and exact enabling-publication timestamps (0.2419ms)\n✔ provisional reservations are eligibility only, never semantic owners (0.2376ms)\nℹ tests 27\nℹ suites 0\nℹ pass 27\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 100.0075\n",
+    "stderr": ""
+  },
+  "semanticRuntime": {
+    "node": "v24.19.0",
+    "os": "win32",
+    "arch": "x64",
+    "locale": "zh-CN"
+  },
+  "replayPlan": "Read existing A publications only; no model, decoding, browser, audio, MIDI file or new dataset access. Existing benchmark JSON and fixed oracle/scoring semantics only.",
+  "acceptance": {
+    "requires": [
+      "Strict finite nontransitive bound",
+      "Confirmed reservation-release mechanism closes before finality",
+      "No double semantic owner",
+      "No new critical false accept per cell versus R2",
+      "No R2-correct EVALUATION target newly wrong",
+      "All terminal reservations and ownership audits clean"
+    ],
+    "ready": "XC8_BOUNDED_FINALIZER_CANDIDATE_READY_FOR_PRODUCT_INTEGRATION_QUALIFICATION",
+    "otherwise": "XC8_NO_BOUNDED_FINALIZER_POLICY_READY",
+    "noTuningAfterReplay": true,
+    "noNewPolicySearch": true,
+    "knownTargetCaveat": "Background EVALUATION verdicts contain reserved local observations released after group closure. Known target regressions have different causes: competing WRONG allocation or legal MATCHED ownership, not the proposed premature-release mechanism. No claim that this hypothesis repairs all R2 target errors."
+  },
+  "unchangedProductGitTree": "bbb288aee2c0adb0a900700a9c4bbdcb1d1169c9",
+  "newNeuralInferenceCount": 0,
+  "newDatasetCount": 0,
+  "originalAcousticSealVerified": true,
+  "verifiedGroupSpread": {
+    "maximumGroupSpanMs": 19.79166666668607,
+    "scenarioCount": 591,
+    "maximumTheoreticalGroupHorizonMs": 769.7916666666861,
+    "maximumTheoreticalExtraHorizonMs": 1019.7916666666861
+  },
+  "acousticCoreSha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+  "productionMicrophone": false,
+  "freezeSha256": "36969627d8944be75b425d930a6ae193ee3d4816bb8b08cc2ffda8ea4f7366c7"
+}
