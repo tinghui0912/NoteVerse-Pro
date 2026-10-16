@@ -1,0 +1,57 @@
+{
+  "phase": "PHASE_9G_XC2_R2_DIRECT_CONFLICT_RESERVATION",
+  "note": "Append-only package manifest includes the original generated evidence manifest plus subsequent assignment/regression/verification/GitHub data. Neither prior manifest nor final report was overwritten. Self excluded.",
+  "finalReportFilesystemSha256": "5aee4747a1b59381fda5d583481bf42d1c6750812bf69bae72de76f680b30e89",
+  "files": [
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_assignment_disagreements_2026-10-16.json",
+      "sha256": "d19c2881135cef7dd42ce5b49b364b226e140e89c299d2062554a35c5fa3f71e",
+      "bytes": 1973282
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_direct_conflict_final_2026-10-16.json",
+      "sha256": "5aee4747a1b59381fda5d583481bf42d1c6750812bf69bae72de76f680b30e89",
+      "bytes": 6417818
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_direct_conflict_summary_2026-10-16.md",
+      "sha256": "05470b3768c83b29f75fd1234df9d78d7d9b98b25aa7083b1acdf87d28c839fb",
+      "bytes": 2818
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_evidence_manifest_2026-10-16.json",
+      "sha256": "6446a63aa27e5322aeb84bcc666da8ab840991e334137a107739ad14a683c54d",
+      "bytes": 1469
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_final_verification_2026-10-16.json",
+      "sha256": "a5643b5442406f0650e59a63c5ef3a7fdf3c13c39f07b2ca41d84e30c9a36280",
+      "bytes": 30886
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_github_pre_evidence_2026-10-16.json",
+      "sha256": "05a5baa6733a74cb2b388a59f066efd18add29e6b801a0148b3bd999d4086b77",
+      "bytes": 11995
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_parameter_provenance_2026-10-16.json",
+      "sha256": "4a01a6753250cf460c70792eaeb927626318bd5a0167a61335e9c08607111f91",
+      "bytes": 10863
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_policy_freeze_2026-10-16.json",
+      "sha256": "7bd290216c2eafcfd2c07f57c0ba9a92322a785820f4e94ff81a37ddf11e2bab",
+      "bytes": 23124
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_r1_hash_reconciliation_2026-10-16.json",
+      "sha256": "a598b812fa74122bc89692d3c53e0e1049ded95d093e31f9f96edeefc6be97bf",
+      "bytes": 135319
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_regression_interpretation_2026-10-16.json",
+      "sha256": "bd728664b2c86c0aa1c9ebef0b8fa2960df30cd65c3ed1282afd4bac4d7228ba",
+      "bytes": 42829
+    }
+  ]
+}
