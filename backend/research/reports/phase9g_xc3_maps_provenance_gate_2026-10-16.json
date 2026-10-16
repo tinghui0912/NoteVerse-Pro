@@ -1,0 +1,218 @@
+{
+  "phase": "PHASE_9G_XC3_FRESH_COMPONENT_SELECTION",
+  "startingRemoteHead": "8544428c62a5abb5797663f743635f7360f6042e",
+  "implementationCommit": "afebfbdcb7491d72e1b0a1bfe82d0be8aada350c",
+  "generatedAt": "2026-10-16T03:11:27.560811+00:00",
+  "status": "FRESH_COMPONENT_SELECTION_BLOCKED_DATASET_PROVENANCE",
+  "blocker": "PUBLISHER_DOWNLOAD_REQUIRES_REGISTRATION_NO_VERIFIED_SUBSET_INVENTORY",
+  "stopBoundary": "Before media download, listening, MIDI read, candidate inference or selection freeze.",
+  "dockerScienceRuntimeIdentity": {
+    "imageId": "sha256:7feadf65b7763a9ee94880218e3e80f8566ec242ffff7e9ca99d10bb85d76a6f",
+    "python": "3.11.10 (main, Dec  3 2024, 02:25:00) [GCC 12.2.0]",
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.36"
+  },
+  "sourceHashBoundary": [
+    {
+      "path": "backend/research/xc3_maps_provenance.py",
+      "sha256": "c06c3bf90a1a692ae76b9dde04a160352e63c0abec7ca5d4ff0970e8b85ca44c"
+    },
+    {
+      "path": "backend/research/test_xc3_maps_provenance.py",
+      "sha256": "9a98bfa1a4ea01177d5e583f12347a78ed06a79ccd2dd04734e4ecacbe7a3e4b"
+    }
+  ],
+  "metadataRequests": [
+    {
+      "requestedUrl": "https://adasp.telecom-paris.fr/resources/2010-07-08-maps-database/",
+      "attempts": [
+        {
+          "attempt": 1,
+          "httpStatus": 200,
+          "resolvedUrl": "https://adasp.telecom-paris.fr/resources/2010-07-08-maps-database/",
+          "contentType": "text/html",
+          "sha256": "bb4f90d60f95378fc5fb80a8530318958a3e3277571a18caecda27f58ad9ccfe",
+          "bytes": 24511,
+          "snapshot": "backend/data/work/xc3_maps_provenance/publisher_attempt_1.html"
+        }
+      ]
+    },
+    {
+      "requestedUrl": "https://creativecommons.org/licenses/by-nc-sa/2.0/fr/deed.en",
+      "attempts": [
+        {
+          "attempt": 1,
+          "httpStatus": 200,
+          "resolvedUrl": "https://creativecommons.org/licenses/by-nc-sa/2.0/fr/deed.en",
+          "contentType": "text/html",
+          "sha256": "3de58461c9741eb5ee7efd1039147eb702ee7327566c0f4d4556e69746c6f08d",
+          "bytes": 38326,
+          "snapshot": "backend/data/work/xc3_maps_provenance/license_attempt_1.html"
+        }
+      ]
+    },
+    {
+      "requestedUrl": "http://service.tsi.telecom-paristech.fr/cgi-bin/user-service/subscribe.cgi?ident=maps&form=&license=1",
+      "attempts": [
+        {
+          "attempt": 1,
+          "httpStatus": 200,
+          "resolvedUrl": "https://service.tsi.telecom-paristech.fr/cgi-bin/user-service/subscribe.cgi?ident=maps&form=&license=1",
+          "contentType": "text/html; charset=utf-8",
+          "sha256": "092136820ecc1f754f4f97d8ff4e3d89d63eb1d887a9651fb2b947600019cb0c",
+          "bytes": 3496,
+          "snapshot": "backend/data/work/xc3_maps_provenance/publisher_download_0_attempt_1.html"
+        }
+      ]
+    }
+  ],
+  "publisherDownloadRoutes": [
+    {
+      "url": "http://service.tsi.telecom-paristech.fr/cgi-bin/user-service/subscribe.cgi?ident=maps&form=&license=1",
+      "registrationFormObserved": true,
+      "forms": [
+        {
+          "method": "POST",
+          "action": "https://service.tsi.telecom-paristech.fr/cgi-bin/user-service/subscribe.cgi"
+        }
+      ],
+      "fieldNamesOnly": [
+        {
+          "name": "ident",
+          "type": "hidden"
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "fname",
+          "type": "text"
+        },
+        {
+          "name": "email",
+          "type": "text"
+        },
+        {
+          "name": "web",
+          "type": "text"
+        },
+        {
+          "name": "organization",
+          "type": "text"
+        },
+        {
+          "name": "dept",
+          "type": "text"
+        },
+        {
+          "name": "city",
+          "type": "text"
+        },
+        {
+          "name": "country",
+          "type": "text"
+        },
+        {
+          "name": "job",
+          "type": "text"
+        },
+        {
+          "name": "motivation",
+          "type": "textarea"
+        },
+        {
+          "name": "register",
+          "type": "submit"
+        }
+      ],
+      "corpusMediaLinks": []
+    }
+  ],
+  "license": {
+    "publisherLicenseLinks": [
+      "http://creativecommons.org/licenses/by-nc-sa/2.0/fr/deed.en_US"
+    ],
+    "verifiedFromPublisherAndCc": true,
+    "identifier": "CC-BY-NC-SA-2.0-FR",
+    "canonicalUrl": "https://creativecommons.org/licenses/by-nc-sa/2.0/fr/",
+    "commercialQualificationStatus": "NOT_PERFORMED",
+    "interpretation": "Publisher NC-SA license identified, not a grant of commercial rights or a legal opinion. Attribution and applicable share-alike duties remain."
+  },
+  "acquisitionBoundary": {
+    "formSubmitted": false,
+    "personalInformationSubmitted": false,
+    "registrationIdentityNotInvented": true,
+    "thirdPartyMirrorUsed": false,
+    "largeCorpusDownloaded": false,
+    "mediaBytesDownloaded": 0
+  },
+  "subsetProvenance": {
+    "requestedSubset": "Real acoustic Yamaha Disklavier MUS recordings only",
+    "candidateNamesFromLiteratureNotFileVerification": [
+      "ENSTDkAm",
+      "ENSTDkCl"
+    ],
+    "publisherLandingConfirmsMixedVirtualAndDisklavier": true,
+    "exactDistributionVersion": "NOT_ESTABLISHED",
+    "authoritativeFileInventory": "NOT_OBTAINED",
+    "upstreamChecksums": "NOT_OBTAINED",
+    "wavMidiIdentities": "NOT_OBTAINED",
+    "subsetFileLicenseVerification": "NOT_PERFORMED",
+    "takeSelection": [],
+    "selectionSplit": [],
+    "confirmationSplit": [],
+    "prospectiveFreeze": "NOT_CREATED"
+  },
+  "nextRequiredInput": "Publisher-approved access or an auditable publisher-origin acoustic subset with original license, inventory and WAV/MIDI identities. No fabricated registration identity and no unverified mirror substitution.",
+  "currentProfile": {
+    "classification": "CURRENT_FROZEN_REPRESENTATIVE_ROBUST_PROFILE",
+    "profile": "CALIBRATED_CONTEXT_1820-onset-0.30-frame-0.05",
+    "profilesEvaluated": 80,
+    "correctedGate1Survivors": 25,
+    "selectionMethod": "NON_PERFORMANCE_NEUTRAL_HASH",
+    "performanceRankSelected": false,
+    "NO_OPTIMAL_PROFILE_CLAIM": true
+  },
+  "execution": {
+    "actualSessionRunCount": 0,
+    "newNeuralInferenceCount": 0,
+    "midiReads": 0,
+    "listeningPerformed": false,
+    "corpusSubstitution": false
+  },
+  "results": {
+    "decoderPairedResults": "NOT_PERFORMED",
+    "resamplerPairedResults": "NOT_PERFORMED",
+    "geometryPairedResults": "NOT_PERFORMED",
+    "acousticMetrics": "NOT_PERFORMED",
+    "fiveVerdictDiagnostics": "NOT_PERFORMED",
+    "causalRuntime": "NOT_PERFORMED",
+    "paretoSurvivors": [],
+    "selectionDecision": "NOT_PERFORMED",
+    "confirmationResult": "NOT_PERFORMED",
+    "DECODER_DEFAULT": "UNRESOLVED",
+    "RESAMPLER_DEFAULT": "UNRESOLVED",
+    "STREAMING_GEOMETRY_DEFAULT": "UNRESOLVED"
+  },
+  "scopeProtections": {
+    "F5": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+    "phase9gB": "STATISTICAL_TIE",
+    "winner": null,
+    "XC2": "ROBUST_PRODUCT_BASELINE_MULTIPLE_PARETO_CANDIDATES",
+    "R1": "BOUNDED_FINALIZATION_HAS_SAFETY_TRADEOFF",
+    "R2": "DIRECT_CONFLICT_RESERVATION_PARTIALLY_RECOVERS_SAFETY",
+    "R4Cadence": "ROBUST_CADENCE_SUSTAINABLE",
+    "R4Headroom": "ROBUST_20_PERCENT_HEADROOM_FAIL",
+    "viennaP15P22InferenceIncrease": 0,
+    "productionMicrophone": false,
+    "D4": false,
+    "productionWinner": null,
+    "practiceWebSocket": false,
+    "backendServerPracticeInference": false,
+    "scoreFollowing": false,
+    "expectedScoreEntersInference": false,
+    "historicalScienceModified": false,
+    "commercialQualificationStatus": "NOT_PERFORMED",
+    "productLatencySlo": "PRODUCT_LATENCY_SLO_NOT_YET_FROZEN"
+  }
+}
