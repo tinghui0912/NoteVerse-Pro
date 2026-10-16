@@ -15,3 +15,16 @@ class ModelAssetAccessRead(BaseModel):
     mediaType: Literal["application/octet-stream"] = "application/octet-stream"
     downloadUrl: str
     downloadUrlExpiresAt: str
+
+
+class ContinuousRobustAccessRead(BaseModel):
+    """Immutable, separately qualified browser Continuous deployment; not the legacy export."""
+
+    schemaVersion: Literal[1] = 1
+    assetId: Literal["continuous-robust-browser"] = "continuous-robust-browser"
+    assetVersion: Literal["v1"] = "v1"
+    expectedByteSize: Literal[98_689_283] = 98_689_283
+    sha256: Literal["4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"] = "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"
+    mediaType: Literal["application/octet-stream"] = "application/octet-stream"
+    downloadUrl: str
+    downloadUrlExpiresAt: str

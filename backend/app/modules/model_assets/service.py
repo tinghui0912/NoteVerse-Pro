@@ -9,7 +9,7 @@ from typing import Optional
 import alibabacloud_oss_v2 as oss
 
 from app.core.config import settings
-from app.modules.model_assets.schemas import ModelAssetAccessRead
+from app.modules.model_assets.schemas import ContinuousRobustAccessRead, ModelAssetAccessRead
 
 
 class ModelAssetService:
@@ -73,6 +73,20 @@ class ModelAssetService:
         return ModelAssetAccessRead(
             downloadUrl=presign_result.url,
             downloadUrlExpiresAt=expires_at,
+        )
+
+    def get_continuous_robust_access(self) -> ContinuousRobustAccessRead:
+        # Never use the configurable historical object key for this deployment.
+        key = "models/continuous/robust-browser-v1/4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3/model.onnx"
+        result = self.client.presign(
+            oss.models.GetObjectRequest(bucket=self.bucket, key=key),
+            expires=timedelta(seconds=self.ttl_seconds),
+        )
+        if not isinstance(result.expiration, datetime):
+            raise RuntimeError("Unexpected model access expiration")
+        return ContinuousRobustAccessRead(
+            downloadUrl=result.url,
+            downloadUrlExpiresAt=result.expiration.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
         )
 
 

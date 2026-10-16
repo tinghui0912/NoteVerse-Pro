@@ -200,4 +200,28 @@ A future, separately designed user-requested reanalysis of an old recording is o
 
 Phase 9A does not implement microphone analysis, model-specific contracts, chunk inference, score following, OLTW, score-position estimation, or production microphone enablement.
 
-Old rolling/fixed-cadence acoustic scheduling must not be restored as a fallback product path.
+Old acoustic scheduling must not be restored as a fallback product path. The disabled
+Continuous acoustic implementation has one explicit 600ms half-open ownership planner;
+its cadence is not score following or semantic verdict commit width.
+
+## Disabled Continuous Acoustic Boundary
+
+The sole acoustic path is `acoustic-inference/continuous`. It accepts PCM and external
+source/performance segment boundaries, never expected score. It delivers only immutable
+`ContinuousEvidencePublication` through `ContinuousPracticeSession.publishAnalysis`.
+The existing finalizer, completion and Review truth are unchanged.
+
+Pause closes a half-open performance segment. Paused source PCM may provide real
+context but owns no performance time, observation or coverage. Resume resets semantic
+window ownership at the external performance coordinate. Source samples remain
+chronological across segments. At pause T, coverage remains below T; only actual
+Stop/natural terminal, after real tail and inference drain, publishes empty exact-T
+coverage for the completed [0,T) domain. This does not manufacture an event at T.
+
+Acoustic failure invalidates analysis only. It cannot pause/stop/seek the clock or
+change tempo; it cannot stop a recording track owned elsewhere. Model download may
+need network at cold start, but loaded active execution is browser-local. Only the
+qualified 44.1k/48k source adapters are accepted. There is no automatic provider/model
+fallback, unbounded PCM retention, unlimited inference queue or full-event diagnostic
+ring. Continuous microphone remains MODEL_NOT_VALIDATED; STEP remains
+ATTEMPT_ANALYZER_NOT_VALIDATED. This boundary does not enable either product input.
