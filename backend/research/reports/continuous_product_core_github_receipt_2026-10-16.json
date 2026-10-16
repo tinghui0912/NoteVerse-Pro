@@ -1,0 +1,9 @@
+{
+  "phase": "PRACTICE_CONTINUOUS_V2_CLEAN_BREAK_PRODUCT_CORE_PROMOTION",
+  "queriedAt": "2026-10-16T14:10:44.112Z",
+  "remoteHead": "77fd1a0db0896cc2d1efef5bbfc14021f092157c",
+  "combinedState": "pending",
+  "statuses": [],
+  "workflowRuns": [],
+  "interpretation": "NOT CI PASS"
+}
