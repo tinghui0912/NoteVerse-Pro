@@ -6,6 +6,7 @@ import { ROOT, APP, WORK, newJson, verifyRemoteFreeze, hash } from './continuous
 const id = process.argv[2] ?? 'v1', proof = await verifyRemoteFreeze(id);
 const work = path.join(WORK, id, 'verification'); await mkdir(work, { recursive: true });
 const commands = [
+  ['harness-diagnostics', ['--test', 'scripts/continuous-runtime-diagnostics.test.mjs']],
   ['vitest', ['node_modules/vitest/vitest.mjs', 'run', '--reporter=json', '--outputFile=' + path.join(work, 'vitest.json')]],
   ['typecheck', ['node_modules/typescript/bin/tsc', '--noEmit', '--pretty', 'false']],
   ['lint', ['node_modules/eslint/bin/eslint.js', '.', '--format=json']],

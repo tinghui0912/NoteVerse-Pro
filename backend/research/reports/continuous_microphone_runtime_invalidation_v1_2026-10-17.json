@@ -1,0 +1,26 @@
+{
+  "phase": "PRACTICE_CONTINUOUS_MICROPHONE_RUNTIME_CLEAN_PROMOTION_DISABLED",
+  "status": "INVALIDATED_QUALIFICATION_EVIDENCE_NOT_REUSABLE_FOR_ACCEPTANCE",
+  "invalidatedAt": "2026-10-16T17:27:37.871Z",
+  "freeze": {
+    "phase": "PRACTICE_CONTINUOUS_MICROPHONE_RUNTIME_CLEAN_PROMOTION_DISABLED",
+    "freezeId": "v1",
+    "freezeCommit": "2540accd693b8de32bfe6752455a2393181934b5",
+    "freezeSha256": "d81e1c1224db83a5af3f17d52150afb0cee98f4c5a9fcecba9ad6d297ac2b7df",
+    "remoteHead": "2540accd693b8de32bfe6752455a2393181934b5",
+    "remoteVerifiedAt": "2026-10-16T17:26:23.520Z",
+    "sourceFileCount": 730,
+    "assetCount": 61
+  },
+  "executionStartedAt": "2026-10-16T17:26:23.521Z",
+  "reason": "QUALIFICATION_HARNESS_MISCLASSIFIED_PINNED_ORT_SHAPE_CPU_WARNINGS_AS_ERRORS",
+  "runtimeSourceChangeRequired": false,
+  "modelIdentityChange": false,
+  "productCoreChange": false,
+  "actualModelRuns": 2,
+  "completedSourceRates": [
+    44100
+  ],
+  "originalFailureSha256": "429478eed239f433210c130b57e4738b4edaa27c52e6b6e62e76f243d3ad6b11",
+  "nextAction": "Tooling-only repair, new implementation/tooling commit, new prospective remote freeze, full tests/build and both browser rates rerun. No old acceptance evidence reused."
+}

@@ -32,6 +32,8 @@ export async function freeze(id) {
   const dsp = JSON.parse(await readFile(path.join(ROOT, dspPath), 'utf8'));
   assets.push(dspPath, ...dsp.fixtures.flatMap(f => [f.input, f.reference].map(name => `backend/data/work/xc6_capture/${name}`)));
   assets.push('backend/data/work/xc7_bounded/fast_parity_44100_v1.json', 'backend/data/work/xc7_bounded/fast_parity_48000_v1.json');
+  assets.push(...['package.json', 'dist/ort.webgpu.min.mjs', 'dist/ort-wasm-simd-threaded.jsep.mjs', 'dist/ort-wasm-simd-threaded.jsep.wasm']
+    .map(name => `apps/customer-web/node_modules/onnxruntime-web/${name}`));
   await newJson(freezePath(id), { phase: PHASE, freezeId: id, startingHead: START, implementationCommit: git('rev-parse', 'HEAD'),
     createdAt: new Date().toISOString(), files: await Promise.all(paths.map(async relative => ({ ...await fileIdentity(relative),
       gitBlobId: git('rev-parse', `HEAD:${relative}`),

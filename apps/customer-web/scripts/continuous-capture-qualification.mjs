@@ -6,6 +6,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, APP, WORK, MODEL, FIXTURE, newJson, verifyRemoteFreeze, fileIdentity } from './continuous-runtime-protocol.mjs';
 import { resolveBrandedBrowserExecutable, RUNTIME_NODE_MODULES, collectWebGpuAdapter } from '../../../backend/research/browser_runtime/xc1_browser_runtime_shared.mjs';
+import { classifyRuntimeDiagnostic } from './continuous-runtime-diagnostics.mjs';
 
 export async function buildCaptureBundle(id) {
   const work = path.join(WORK, id); await mkdir(work, { recursive: true });
@@ -78,7 +79,8 @@ async function qualify(id) {
         await Promise.allSettled(jobs);
         results.push({ rate, offlineAt, result, gpu });
         if (result.status !== 'PASS') throw new Error('BROWSER_QUALIFICATION_FAILED');
-        if (rows.some(row => ['error', 'pageerror', 'failed-response', 'requestfailed'].includes(row.type))) throw new Error('UNRESOLVED_BROWSER_DIAGNOSTIC');
+        for (const row of rows) row.classification = classifyRuntimeDiagnostic(row, result.model);
+        if (rows.some(row => row.classification === 'BLOCKING_DIAGNOSTIC')) throw new Error('UNRESOLVED_BROWSER_DIAGNOSTIC');
       } finally { await context.close(); }
     }
     await newJson(path.join(work, 'browser_qualification.json'), { proof, executionStartedAt, completedAt: new Date().toISOString(),
