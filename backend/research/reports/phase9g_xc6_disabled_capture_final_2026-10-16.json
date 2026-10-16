@@ -1,0 +1,2686 @@
+{
+  "phase": "PHASE_9G_XC6_DISABLED_REAL_CAPTURE_AND_SOURCE_RATE_QUALIFICATION",
+  "startingRemoteHead": "a6ce07d9dc95f52e72beca113f8299961c1e79a2",
+  "commitSequence": [
+    "697370e76981721509f5eb1f37f8845bdcd4c031",
+    "578be9efaf37b9b28a3ffd5e9d3d4e599c51f2e7",
+    "e169d3ec545af5efc909e789139532c8b3cec66d",
+    "00e3d08f63c79b47068dd93365d261ab8585b3dd",
+    "700fc5203c14e1c6030e49b6e120aa00f883b32d",
+    "9afef96f167ec96d3b618c41e10779da51c2dda6"
+  ],
+  "disposition": "XC6_DISABLED_CAPTURE_BRIDGE_READY_FAKE_MEDIA_REAL_DEVICE_NOT_PERFORMED",
+  "remoteFreezePrecedesBrowserExecution": {
+    "phase": "PHASE_9G_XC6_DISABLED_REAL_CAPTURE_AND_SOURCE_RATE_QUALIFICATION",
+    "stage": "capture_integration",
+    "freezeCommit": "9afef96f167ec96d3b618c41e10779da51c2dda6",
+    "freezeCanonicalSha256": "c6f4da597cafed2d099f925a1c7d6ed75f42960c286ed2207b6b3a4727e351bf",
+    "remoteHead": "9afef96f167ec96d3b618c41e10779da51c2dda6",
+    "remoteVerifiedAt": "2026-10-16T08:30:44.010Z",
+    "sourceHashesVerified": true
+  },
+  "executionStartedAt": "2026-10-16T08:30:44.178Z",
+  "consoleErrorAttribution": {
+    "phase": "PHASE_9G_XC6_DISABLED_REAL_CAPTURE_AND_SOURCE_RATE_QUALIFICATION",
+    "reproduction": {
+      "path": "backend/data/work/xc6_capture/diagnostics/reproduction.json",
+      "bytes": 69111,
+      "sha256": "12b509615ec9a27925bbc06b419daf7d231c9ec335c87512df220d7a98530851"
+    },
+    "remoteFreezeProof": {
+      "phase": "PHASE_9G_XC6_DISABLED_REAL_CAPTURE_AND_SOURCE_RATE_QUALIFICATION",
+      "stage": "diagnostics",
+      "freezeCommit": "578be9efaf37b9b28a3ffd5e9d3d4e599c51f2e7",
+      "freezeCanonicalSha256": "b5728be97f4f9df849abaa12a5b14b620b3616b7e760008319a47e767dc5b37c",
+      "remoteHead": "578be9efaf37b9b28a3ffd5e9d3d4e599c51f2e7",
+      "remoteVerifiedAt": "2026-10-16T08:03:21.915Z",
+      "sourceHashesVerified": true
+    },
+    "browser": {
+      "channel": "chrome",
+      "version": "155.0.8059.39",
+      "headed": true,
+      "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "launchArgsIncludeUnsafeWebGpu": false,
+      "os": "win32 10.0.26200 x64",
+      "node": "v24.19.0",
+      "playwrightVersion": "1.48.2",
+      "playwrightRuntime": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\browser_runtime\\dr3r_browser_runtime\\node_modules\\playwright"
+    },
+    "referenceErrors": [
+      {
+        "classification": "HARNESS_ONLY_DIAGNOSTIC_NON_BLOCKING",
+        "timestamp": "2026-10-16T08:03:29.125Z",
+        "origin": "worker:E378CCF79D1A46DAAA92DA6E5C38C8CD",
+        "details": {
+          "exceptionId": 1,
+          "text": "Uncaught",
+          "lineNumber": 11297,
+          "columnNumber": 14,
+          "scriptId": "3",
+          "url": "http://127.0.0.1:60735/entry.js",
+          "stackTrace": {
+            "callFrames": [
+              {
+                "functionName": "",
+                "scriptId": "3",
+                "url": "http://127.0.0.1:60735/entry.js",
+                "lineNumber": 11297,
+                "columnNumber": 14
+              }
+            ]
+          },
+          "exception": {
+            "type": "object",
+            "subtype": "error",
+            "className": "ReferenceError",
+            "description": "ReferenceError: window is not defined\n    at http://127.0.0.1:60735/entry.js:11298:15",
+            "objectId": "2686477619227088049.1.1",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "ReferenceError: window is not defined\n    at http://127.0.0.1:60735/entry.js:11298:15",
+              "overflow": false,
+              "properties": [
+                {
+                  "name": "stack",
+                  "type": "string",
+                  "value": "ReferenceError: window is not defined\n    at http://127.0.0.1:60735/entry.js:11298:15"
+                },
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "window is not defined"
+                }
+              ]
+            }
+          },
+          "executionContextId": 1
+        },
+        "source": {
+          "origin": "worker:E378CCF79D1A46DAAA92DA6E5C38C8CD",
+          "scriptId": "3",
+          "url": "http://127.0.0.1:60735/entry.js",
+          "functionName": "",
+          "sha256": "a5944bd688aa3407902f892d59787689bdada220a2bd44a0fe666d4590e09d85",
+          "bytes": 2609966,
+          "lineNumber": 11297,
+          "relevantSource": "  }\n}\nObject.assign(window, { runXc5Smoke });\nexport {\n  runXc5Smoke"
+        }
+      },
+      {
+        "classification": "HARNESS_ONLY_DIAGNOSTIC_NON_BLOCKING",
+        "timestamp": "2026-10-16T08:03:29.157Z",
+        "origin": "worker:15A5D663502EB709BDB9C4B43ECC64E4",
+        "details": {
+          "exceptionId": 1,
+          "text": "Uncaught",
+          "lineNumber": 11297,
+          "columnNumber": 14,
+          "scriptId": "3",
+          "url": "http://127.0.0.1:60735/entry.js",
+          "stackTrace": {
+            "callFrames": [
+              {
+                "functionName": "",
+                "scriptId": "3",
+                "url": "http://127.0.0.1:60735/entry.js",
+                "lineNumber": 11297,
+                "columnNumber": 14
+              }
+            ]
+          },
+          "exception": {
+            "type": "object",
+            "subtype": "error",
+            "className": "ReferenceError",
+            "description": "ReferenceError: window is not defined\n    at http://127.0.0.1:60735/entry.js:11298:15",
+            "objectId": "-1709811027642704834.1.1",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "ReferenceError: window is not defined\n    at http://127.0.0.1:60735/entry.js:11298:15",
+              "overflow": false,
+              "properties": [
+                {
+                  "name": "stack",
+                  "type": "string",
+                  "value": "ReferenceError: window is not defined\n    at http://127.0.0.1:60735/entry.js:11298:15"
+                },
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "window is not defined"
+                }
+              ]
+            }
+          },
+          "executionContextId": 1
+        },
+        "source": {
+          "origin": "worker:15A5D663502EB709BDB9C4B43ECC64E4",
+          "scriptId": "3",
+          "url": "http://127.0.0.1:60735/entry.js",
+          "functionName": "",
+          "sha256": "a5944bd688aa3407902f892d59787689bdada220a2bd44a0fe666d4590e09d85",
+          "bytes": 2609966,
+          "lineNumber": 11297,
+          "relevantSource": "  }\n}\nObject.assign(window, { runXc5Smoke });\nexport {\n  runXc5Smoke"
+        }
+      },
+      {
+        "classification": "HARNESS_ONLY_DIAGNOSTIC_NON_BLOCKING",
+        "timestamp": "2026-10-16T08:03:29.199Z",
+        "origin": "worker:E2FCA248F6651E63C07E09D3E860BED4",
+        "details": {
+          "exceptionId": 1,
+          "text": "Uncaught",
+          "lineNumber": 11297,
+          "columnNumber": 14,
+          "scriptId": "3",
+          "url": "http://127.0.0.1:60735/entry.js",
+          "stackTrace": {
+            "callFrames": [
+              {
+                "functionName": "",
+                "scriptId": "3",
+                "url": "http://127.0.0.1:60735/entry.js",
+                "lineNumber": 11297,
+                "columnNumber": 14
+              }
+            ]
+          },
+          "exception": {
+            "type": "object",
+            "subtype": "error",
+            "className": "ReferenceError",
+            "description": "ReferenceError: window is not defined\n    at http://127.0.0.1:60735/entry.js:11298:15",
+            "objectId": "-7379223042232586516.1.1",
+            "preview": {
+              "type": "object",
+              "subtype": "error",
+              "description": "ReferenceError: window is not defined\n    at http://127.0.0.1:60735/entry.js:11298:15",
+              "overflow": false,
+              "properties": [
+                {
+                  "name": "stack",
+                  "type": "string",
+                  "value": "ReferenceError: window is not defined\n    at http://127.0.0.1:60735/entry.js:11298:15"
+                },
+                {
+                  "name": "message",
+                  "type": "string",
+                  "value": "window is not defined"
+                }
+              ]
+            }
+          },
+          "executionContextId": 1
+        },
+        "source": {
+          "origin": "worker:E2FCA248F6651E63C07E09D3E860BED4",
+          "scriptId": "3",
+          "url": "http://127.0.0.1:60735/entry.js",
+          "functionName": "",
+          "sha256": "a5944bd688aa3407902f892d59787689bdada220a2bd44a0fe666d4590e09d85",
+          "bytes": 2609966,
+          "lineNumber": 11297,
+          "relevantSource": "  }\n}\nObject.assign(window, { runXc5Smoke });\nexport {\n  runXc5Smoke"
+        }
+      }
+    ],
+    "sourceInterpretation": "Pinned ORT bundled ESM auxiliary worker creation re-imported the main smoke entry URL; that harness-only top-level window hook throws in a worker. No unguarded window access was found in the customer acoustic worker. New capture harness must use a guarded main-page hook and no main-thread reference inference bootstrap.",
+    "harnessSource": {
+      "path": "apps/customer-web/scripts/xc5-smoke-entry.ts",
+      "bytes": 6848,
+      "sha256": "4723d0efba55f2ca0ab01f03d2e41b52c2e77dfefa4211a3cc5a8637ab82f714"
+    },
+    "http403": {
+      "classification": "HARNESS_ONLY_DIAGNOSTIC_NON_BLOCKING",
+      "source": "network",
+      "level": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "timestamp": 1792137803579.302,
+      "url": "http://127.0.0.1:60735/favicon.ico",
+      "networkRequestId": "32352.4",
+      "corroboratingServerRequest": {
+        "url": "/favicon.ico",
+        "timestamp": "2026-10-16T08:03:23.578Z"
+      },
+      "resolution": "New harness serves favicon204; unknown data routes remain denied."
+    },
+    "ortShapeWarnings": {
+      "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING",
+      "interpretation": "Provider remained webgpu only. ORT explicitly permits shape-related CPU assignments; no automatic WASM-provider switch requested."
+    },
+    "runtimeSourceBugFound": false,
+    "xc5HistoricalReportsModified": false,
+    "reproductionActualSessionRunCount": 4,
+    "noScientificAccuracyScoring": true,
+    "productionMicrophone": false
+  },
+  "microphoneMetadata": {
+    "real": {
+      "proof": {
+        "phase": "PHASE_9G_XC6_DISABLED_REAL_CAPTURE_AND_SOURCE_RATE_QUALIFICATION",
+        "stage": "capture_probe",
+        "freezeCommit": "00e3d08f63c79b47068dd93365d261ab8585b3dd",
+        "freezeCanonicalSha256": "625c8c54827d01c41390085455cace80de6c97f0e191bd26d6cbd110114698e8",
+        "remoteHead": "00e3d08f63c79b47068dd93365d261ab8585b3dd",
+        "remoteVerifiedAt": "2026-10-16T08:10:37.858Z",
+        "sourceHashesVerified": true
+      },
+      "executionStartedAt": "2026-10-16T08:10:37.896Z",
+      "browser": {
+        "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "version": "155.0.8059.39",
+        "headed": true,
+        "args": [],
+        "node": "v24.19.0",
+        "playwright": "1.48.2"
+      },
+      "kind": "REAL_DEVICE_NORMAL_PERMISSION_METADATA",
+      "result": {
+        "status": "REAL_MICROPHONE_DEVICE_PROBE_NOT_PERFORMED",
+        "startedAt": "2026-10-16T08:10:39.042Z",
+        "error": "Error: NORMAL_PERMISSION_NOT_GRANTED_WITHIN_12_SECONDS",
+        "pcmPersisted": false,
+        "stateTransitions": []
+      },
+      "diagnostics": {
+        "rows": [],
+        "scripts": [],
+        "requests": [],
+        "contexts": [
+          {
+            "id": 2,
+            "origin": "http://127.0.0.1:54974",
+            "name": "__playwright_utility_world__",
+            "uniqueId": "-7439849390613779226.-244376231438377918",
+            "auxData": {
+              "isDefault": false,
+              "type": "isolated",
+              "frameId": "172B4E74B5FE9622DA7400AFBA5333C4"
+            }
+          },
+          {
+            "id": 1,
+            "origin": "http://127.0.0.1:54974",
+            "name": "",
+            "uniqueId": "-3143006891008510902.876830461482939995",
+            "auxData": {
+              "isDefault": true,
+              "type": "default",
+              "frameId": "172B4E74B5FE9622DA7400AFBA5333C4"
+            }
+          }
+        ]
+      },
+      "neuralInferenceCount": 0,
+      "pcmPersisted": false
+    },
+    "fake": {
+      "proof": {
+        "phase": "PHASE_9G_XC6_DISABLED_REAL_CAPTURE_AND_SOURCE_RATE_QUALIFICATION",
+        "stage": "capture_probe",
+        "freezeCommit": "00e3d08f63c79b47068dd93365d261ab8585b3dd",
+        "freezeCanonicalSha256": "625c8c54827d01c41390085455cace80de6c97f0e191bd26d6cbd110114698e8",
+        "remoteHead": "00e3d08f63c79b47068dd93365d261ab8585b3dd",
+        "remoteVerifiedAt": "2026-10-16T08:11:34.385Z",
+        "sourceHashesVerified": true
+      },
+      "executionStartedAt": "2026-10-16T08:11:34.413Z",
+      "browser": {
+        "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "version": "155.0.8059.39",
+        "headed": true,
+        "args": [
+          "--use-fake-ui-for-media-stream",
+          "--use-fake-device-for-media-stream",
+          "--use-file-for-fake-audio-capture=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\xc6_capture\\fake-device.wav"
+        ],
+        "node": "v24.19.0",
+        "playwright": "1.48.2"
+      },
+      "kind": "BROWSER_FAITHFUL_FAKE_MEDIA_METADATA",
+      "result": {
+        "status": "CAPTURE_METADATA_PROBE_COMPLETE",
+        "startedAt": "2026-10-16T08:11:35.027Z",
+        "audioContextSampleRateHz": 48000,
+        "audioWorkletSampleRateHz": 48000,
+        "blocks": 245,
+        "chunkSizeDistribution": {
+          "128": 245
+        },
+        "inputChannelCountDistribution": {
+          "2": 245
+        },
+        "firstAudioContextFrame": 0,
+        "sourceEndSampleIndex": 31360,
+        "gapCount": 0,
+        "stateTransitions": [
+          {
+            "state": "running",
+            "contextTime": 0
+          },
+          {
+            "state": "running",
+            "contextTime": 0
+          }
+        ],
+        "pcmPersisted": false
+      },
+      "diagnostics": {
+        "rows": [
+          {
+            "kind": "cdp-target",
+            "timestamp": "2026-10-16T08:11:35.102Z",
+            "sessionId": "222BD19A0F133247A118B650936398D7",
+            "targetInfo": {
+              "targetId": "648D568A92CA0C9983D34F0F00D3925D",
+              "type": "worklet",
+              "title": "http://127.0.0.1:56353/",
+              "url": "http://127.0.0.1:56353/",
+              "attached": true,
+              "parentId": "A9C170A7BAB7A9E3686DF1FCD424AD53",
+              "canAccessOpener": false,
+              "browserContextId": "4BF62902C247601E8BED3D7576BB99E3"
+            },
+            "waitingForDebugger": true
+          }
+        ],
+        "scripts": [],
+        "requests": [],
+        "contexts": [
+          {
+            "id": 2,
+            "origin": "http://127.0.0.1:56353",
+            "name": "__playwright_utility_world__",
+            "uniqueId": "-5099035386250366559.-5702467581135085348",
+            "auxData": {
+              "isDefault": false,
+              "type": "isolated",
+              "frameId": "A9C170A7BAB7A9E3686DF1FCD424AD53"
+            }
+          },
+          {
+            "id": 1,
+            "origin": "http://127.0.0.1:56353",
+            "name": "",
+            "uniqueId": "7189585562447278171.-8728006392460200362",
+            "auxData": {
+              "isDefault": true,
+              "type": "default",
+              "frameId": "A9C170A7BAB7A9E3686DF1FCD424AD53"
+            }
+          },
+          {
+            "id": 1,
+            "origin": "http://127.0.0.1:56353/",
+            "name": "",
+            "uniqueId": "-4256984456417608838.2173483330163477063"
+          }
+        ]
+      },
+      "fixture": {
+        "sha256": "324712f494868ec8b8ec3ba365fef3ef72f75adcfe8f43fb7c94714ad0c1159a"
+      },
+      "neuralInferenceCount": 0,
+      "pcmPersisted": false
+    }
+  },
+  "sourceAdapterIdentities": {
+    "44100": {
+      "identity": {
+        "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+        "coefficientSha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620",
+        "down": 441,
+        "realSourceLookaheadSamples": 28,
+        "runtimeFeed": "Unchanged XC5 CAPTURE branch and frozen XC4 FIR.",
+        "schemaVersion": 1,
+        "sourceRateHz": 44100,
+        "tapCount": 8821,
+        "targetRateHz": 16000,
+        "up": 160
+      },
+      "identitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5"
+    },
+    "48000": {
+      "identity": {
+        "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+        "boundary": "Origin zeros only in first10 outputs, which are excluded from qualified model inputs. No padded finish.",
+        "coefficients": {
+          "bytes": 244,
+          "dtype": "float32-le",
+          "sha256": "0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f"
+        },
+        "down": 3,
+        "firstFullyRealOutputIndex": 10,
+        "firwin": {
+          "cutoff": 0.3333333333333333,
+          "fs": 2,
+          "numtaps": 61,
+          "scale": true,
+          "window": [
+            "kaiser",
+            5
+          ]
+        },
+        "implementation": {
+          "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-source-48000.ts",
+          "sha256": "752091275a67ea119c4b08b0c61b8866e017e1653d0a61fc929ae545cc610a72"
+        },
+        "precision": "float32 input/coefficients/product/each accumulation",
+        "realSourceLookaheadMs": 0.625,
+        "realSourceLookaheadSamples": 30,
+        "runtimeFeed": "Qualified adapter uses the explicit already16k injection boundary; never assumes physical microphone16k. Outer publications retain original48k source coordinates.",
+        "schemaVersion": 1,
+        "scipyVersion": "1.14.1",
+        "sourceRateHz": 48000,
+        "tapCount": 61,
+        "targetRateHz": 16000,
+        "timeMapping": "Target sample m represents original source3*m; wait through source3*m+30. No fitted shift.",
+        "up": 1
+      },
+      "identitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+    }
+  },
+  "dsp48ReferenceIdentity": {
+    "path": "backend/data/work/xc6_capture/dsp48_reference.json",
+    "bytes": 14177,
+    "sha256": "010bc0f082d89c6d9e21502c441cde7a48c64c34875dbe562fcbfc66097d6ce2"
+  },
+  "dsp48Policy": {
+    "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+    "boundary": "Origin zeros only in first10 outputs, which are excluded from qualified model inputs. No padded finish.",
+    "coefficients": {
+      "bytes": 244,
+      "dtype": "float32-le",
+      "sha256": "0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f"
+    },
+    "down": 3,
+    "firstFullyRealOutputIndex": 10,
+    "firwin": {
+      "cutoff": 0.3333333333333333,
+      "fs": 2,
+      "numtaps": 61,
+      "scale": true,
+      "window": [
+        "kaiser",
+        5
+      ]
+    },
+    "implementation": {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-source-48000.ts",
+      "sha256": "752091275a67ea119c4b08b0c61b8866e017e1653d0a61fc929ae545cc610a72"
+    },
+    "precision": "float32 input/coefficients/product/each accumulation",
+    "realSourceLookaheadMs": 0.625,
+    "realSourceLookaheadSamples": 30,
+    "runtimeFeed": "Qualified adapter uses the explicit already16k injection boundary; never assumes physical microphone16k. Outer publications retain original48k source coordinates.",
+    "schemaVersion": 1,
+    "scipyVersion": "1.14.1",
+    "sourceRateHz": 48000,
+    "tapCount": 61,
+    "targetRateHz": 16000,
+    "timeMapping": "Target sample m represents original source3*m; wait through source3*m+30. No fitted shift.",
+    "up": 1
+  },
+  "dsp48BrowserParity": {
+    "status": "XC6_48000_BROWSER_FIR_REFERENCE_PARITY_PASS",
+    "scipyVersion": "1.14.1",
+    "rows": [
+      {
+        "id": "impulse_1",
+        "outputSamples": 0,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "random_1",
+        "outputSamples": 0,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "sine_1",
+        "outputSamples": 0,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "sweep_1",
+        "outputSamples": 0,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "impulse_29",
+        "outputSamples": 0,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "random_29",
+        "outputSamples": 0,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "sine_29",
+        "outputSamples": 0,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "sweep_29",
+        "outputSamples": 0,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "impulse_30",
+        "outputSamples": 0,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "random_30",
+        "outputSamples": 0,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "sine_30",
+        "outputSamples": 0,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "sweep_30",
+        "outputSamples": 0,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "impulse_31",
+        "outputSamples": 1,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "random_31",
+        "outputSamples": 1,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "sine_31",
+        "outputSamples": 1,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "sweep_31",
+        "outputSamples": 1,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "impulse_61",
+        "outputSamples": 11,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "random_61",
+        "outputSamples": 11,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "sine_61",
+        "outputSamples": 11,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "sweep_61",
+        "outputSamples": 11,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "impulse_127",
+        "outputSamples": 33,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "random_127",
+        "outputSamples": 33,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "sine_127",
+        "outputSamples": 33,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "sweep_127",
+        "outputSamples": 33,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "impulse_48001",
+        "outputSamples": 15991,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "random_48001",
+        "outputSamples": 15991,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "sine_48001",
+        "outputSamples": 15991,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      },
+      {
+        "id": "sweep_48001",
+        "outputSamples": 15991,
+        "sampleCountIdentity": true,
+        "maxAbs": 0,
+        "rms": 0,
+        "chunkVsSingleMaxAbs": 0
+      }
+    ],
+    "tolerance": {
+      "chunkVsSingleMaxAbs": 0,
+      "maxAbs": 0.000003,
+      "rationale": "Float32 summation over61 taps; same frozen XC4 family tolerance. No gain or timing fitting. Compare real-future-valid prefix only; SciPy padded-tail outputs explicitly excluded.",
+      "rms": 5e-7,
+      "sampleCountExact": true
+    },
+    "algorithmicLookaheadMs": 0.625,
+    "noPaddedFuture": true
+  },
+  "browserIntegration": {
+    "proof": {
+      "phase": "PHASE_9G_XC6_DISABLED_REAL_CAPTURE_AND_SOURCE_RATE_QUALIFICATION",
+      "stage": "capture_integration",
+      "freezeCommit": "9afef96f167ec96d3b618c41e10779da51c2dda6",
+      "freezeCanonicalSha256": "c6f4da597cafed2d099f925a1c7d6ed75f42960c286ed2207b6b3a4727e351bf",
+      "remoteHead": "9afef96f167ec96d3b618c41e10779da51c2dda6",
+      "remoteVerifiedAt": "2026-10-16T08:30:44.010Z",
+      "sourceHashesVerified": true
+    },
+    "executionStartedAt": "2026-10-16T08:30:44.178Z",
+    "browser": {
+      "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "version": "155.0.8059.39",
+      "headed": true,
+      "args": [
+        "--use-fake-ui-for-media-stream",
+        "--use-fake-device-for-media-stream",
+        "--use-file-for-fake-audio-capture=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\xc6_capture\\fake-device.wav"
+      ],
+      "node": "v24.19.0",
+      "playwright": "1.48.2"
+    },
+    "gpu": {
+      "features": [
+        "depth32float-stencil8",
+        "rg11b10ufloat-renderable",
+        "texture-formats-tier1",
+        "bgra8unorm-storage",
+        "texture-compression-bc",
+        "dual-source-blending",
+        "core-features-and-limits",
+        "float32-filterable",
+        "indirect-first-instance",
+        "float32-blendable",
+        "subgroup-size-control",
+        "depth-clip-control",
+        "texture-compression-bc-sliced-3d",
+        "timestamp-query",
+        "texture-formats-tier2",
+        "shader-f16",
+        "clip-distances",
+        "primitive-index",
+        "texture-component-swizzle",
+        "subgroups"
+      ],
+      "info": {
+        "vendor": "nvidia",
+        "architecture": "lovelace",
+        "device": "",
+        "description": ""
+      }
+    },
+    "result": {
+      "status": "XC6_FAKE_MEDIA_END_TO_END_CAPTURE_SMOKE_PASS",
+      "pipeline": [
+        "getUserMedia",
+        "AudioContext",
+        "AudioWorklet",
+        "source bridge",
+        "qualified48000to16000FIR",
+        "XC5 runtime",
+        "Worker/WebGPU",
+        "acoustic publication"
+      ],
+      "actualCaptureRateHz": 48000,
+      "audioWorkletRateHz": 48000,
+      "dsp": {
+        "status": "XC6_48000_BROWSER_FIR_REFERENCE_PARITY_PASS",
+        "scipyVersion": "1.14.1",
+        "rows": [
+          {
+            "id": "impulse_1",
+            "outputSamples": 0,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "random_1",
+            "outputSamples": 0,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "sine_1",
+            "outputSamples": 0,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "sweep_1",
+            "outputSamples": 0,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "impulse_29",
+            "outputSamples": 0,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "random_29",
+            "outputSamples": 0,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "sine_29",
+            "outputSamples": 0,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "sweep_29",
+            "outputSamples": 0,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "impulse_30",
+            "outputSamples": 0,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "random_30",
+            "outputSamples": 0,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "sine_30",
+            "outputSamples": 0,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "sweep_30",
+            "outputSamples": 0,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "impulse_31",
+            "outputSamples": 1,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "random_31",
+            "outputSamples": 1,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "sine_31",
+            "outputSamples": 1,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "sweep_31",
+            "outputSamples": 1,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "impulse_61",
+            "outputSamples": 11,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "random_61",
+            "outputSamples": 11,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "sine_61",
+            "outputSamples": 11,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "sweep_61",
+            "outputSamples": 11,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "impulse_127",
+            "outputSamples": 33,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "random_127",
+            "outputSamples": 33,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "sine_127",
+            "outputSamples": 33,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "sweep_127",
+            "outputSamples": 33,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "impulse_48001",
+            "outputSamples": 15991,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "random_48001",
+            "outputSamples": 15991,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "sine_48001",
+            "outputSamples": 15991,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          },
+          {
+            "id": "sweep_48001",
+            "outputSamples": 15991,
+            "sampleCountIdentity": true,
+            "maxAbs": 0,
+            "rms": 0,
+            "chunkVsSingleMaxAbs": 0
+          }
+        ],
+        "tolerance": {
+          "chunkVsSingleMaxAbs": 0,
+          "maxAbs": 0.000003,
+          "rationale": "Float32 summation over61 taps; same frozen XC4 family tolerance. No gain or timing fitting. Compare real-future-valid prefix only; SciPy padded-tail outputs explicitly excluded.",
+          "rms": 5e-7,
+          "sampleCountExact": true
+        },
+        "algorithmicLookaheadMs": 0.625,
+        "noPaddedFuture": true
+      },
+      "modelLoad": {
+        "modelFetchAndVerifyMs": 807.9700000286102,
+        "sessionCreateMs": 574.7249999046326,
+        "totalLoadMs": 1382.7149999141693,
+        "modelByteSize": 98689283,
+        "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+        "source": "network",
+        "downloadMs": 580.0449999570847,
+        "cacheReadMs": 43.925000071525574,
+        "verificationMs": 82.74500000476837,
+        "persistentStorageGranted": null,
+        "executionProvider": "webgpu",
+        "ortWebVersion": "1.20.1",
+        "automaticFallback": false,
+        "actualSessionLoadCount": 1,
+        "inputDescriptor": {
+          "name": "audio",
+          "dtype": "float32",
+          "shape": [
+            1,
+            29120
+          ]
+        },
+        "outputDescriptors": {
+          "reg_onset_output": [
+            1,
+            183,
+            88
+          ],
+          "frame_output": [
+            1,
+            183,
+            88
+          ]
+        }
+      },
+      "loadMs": 1405.1299999952316,
+      "result": {
+        "state": "SEALED",
+        "sourceSampleRateHz": 48000,
+        "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17",
+        "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+        "publications": [
+          {
+            "publicationId": "xc6-one-fake-media:0",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 0,
+              "ownedStartMs": 0,
+              "ownedEndMs": 600,
+              "startSample": 2518,
+              "endSample": 31638,
+              "inputWindowStartMs": -1050
+            },
+            "analyzedThroughPerformanceMs": 599.9999999999999,
+            "availabilityTimeMs": 1481.6879999475477,
+            "observations": [],
+            "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+          },
+          {
+            "publicationId": "xc6-one-fake-media:1",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 1,
+              "ownedStartMs": 600,
+              "ownedEndMs": 1200,
+              "startSample": 12118,
+              "endSample": 41238,
+              "inputWindowStartMs": -450
+            },
+            "analyzedThroughPerformanceMs": 1199.9999999999998,
+            "availabilityTimeMs": 1756.2729999856947,
+            "observations": [],
+            "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+          }
+        ],
+        "timings": [
+          {
+            "windowIndex": 0,
+            "queuedAtMs": 719.8780000047682,
+            "inferenceStartMs": 720.2879999713896,
+            "inferenceEndMs": 1481.682999952316,
+            "acousticPublicationTimeMs": 1481.6879999475477,
+            "captureReadySourceEndSampleIndex": 31648,
+            "captureReadyPerformanceTimeMs": 770,
+            "captureReadyToPublicationMs": 711.6879999475477,
+            "oldestOwnedSourceTimeToPublicationMs": 1481.6879999475477,
+            "queueDelayMs": 0.4099999666213989,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 759.4500000476837,
+            "workerDecodeMs": 0.4049999713897705,
+            "workerActualSessionRunCount": 1,
+            "captureReadyOriginalSourceEndSampleIndex": 94972,
+            "captureReadyOriginalSourceTimeMs": 770.5833333333333,
+            "captureReadyOriginalSourceToPublicationMs": 711.1046666142145
+          },
+          {
+            "windowIndex": 1,
+            "queuedAtMs": 1316.7380000190733,
+            "inferenceStartMs": 1481.7530000047682,
+            "inferenceEndMs": 1756.267999990463,
+            "acousticPublicationTimeMs": 1756.2729999856947,
+            "captureReadySourceEndSampleIndex": 41248,
+            "captureReadyPerformanceTimeMs": 1370,
+            "captureReadyToPublicationMs": 386.2729999856947,
+            "oldestOwnedSourceTimeToPublicationMs": 1156.2729999856947,
+            "queueDelayMs": 165.01499998569489,
+            "outstandingDepthAtEnqueue": 2,
+            "workerInferenceMs": 273.47500002384186,
+            "workerDecodeMs": 0.4799998998641968,
+            "workerActualSessionRunCount": 2,
+            "captureReadyOriginalSourceEndSampleIndex": 123772,
+            "captureReadyOriginalSourceTimeMs": 1370.5833333333333,
+            "captureReadyOriginalSourceToPublicationMs": 385.68966665236144
+          }
+        ],
+        "captureMetadata": {
+          "blocks": 968,
+          "chunkSizeDistribution": {
+            "128": 968
+          },
+          "inputChannelCountDistribution": {
+            "2": 968
+          },
+          "nextSourceSampleIndex": 123904,
+          "firstAudioContextFrame": 0,
+          "gapCount": 0,
+          "ignoredAfterRequiredTailBlocks": 1,
+          "stateTransitions": [
+            "running"
+          ]
+        },
+        "originalPerformanceSourceRange": {
+          "start": 57984,
+          "end": 115584
+        },
+        "rawSampleIndicesAuthoritative": true,
+        "coreTimeline": [
+          {
+            "segmentId": "segment-0",
+            "performanceStartMs": 0,
+            "sourceSampleRateHz": 16000,
+            "sourceStartSampleIndex": 19328,
+            "sourcePerformanceEndSampleIndex": 38528,
+            "sourceContextTailEndSampleIndex": 41249
+          }
+        ],
+        "outstandingDepth": 0,
+        "maxOutstandingDepth": 2,
+        "error": null,
+        "ingressClosed": true
+      },
+      "clockAnchor": {
+        "method": "AudioContext.getOutputTimestamp affine source-clock anchor, not message arrival",
+        "firstAudioContextFrame": 0,
+        "sourcePerformanceOrigin": 57984,
+        "contextOriginSeconds": 1.208,
+        "outputTimestamp": {
+          "contextTime": 1.143633,
+          "performanceTime": 3469.3250000476837
+        },
+        "originPerformanceTimestampMs": 3533.692000047684
+      },
+      "stateTransitions": [
+        {
+          "state": "running",
+          "contextTime": 0
+        }
+      ],
+      "earlyStart": "Error: ACOUSTIC_PREROLL_NOT_READY",
+      "actualSessionRunCount": 2,
+      "productCapability": "MODEL_NOT_VALIDATED",
+      "productionMicrophone": false,
+      "decoder": "A",
+      "onsetThreshold": 0.3,
+      "frameThreshold": 0.05,
+      "ownedMs": 600,
+      "futureMs": 170,
+      "directPcmInjectionAfterWorklet": false,
+      "scoreOrMidiInputs": false,
+      "rawMicrophonePcmPersisted": false
+    },
+    "diagnostics": {
+      "rows": [
+        {
+          "kind": "worker-created",
+          "timestamp": "2026-10-16T08:30:44.977Z",
+          "url": "http://127.0.0.1:58314/worker.js"
+        },
+        {
+          "kind": "cdp-target",
+          "timestamp": "2026-10-16T08:30:44.977Z",
+          "sessionId": "A08360E23470EE0E2ACF77EECDA1621C",
+          "targetInfo": {
+            "targetId": "3B0A13AF64A2335B1924C267144CDB99",
+            "type": "worker",
+            "title": "http://127.0.0.1:58314/worker.js",
+            "url": "http://127.0.0.1:58314/worker.js",
+            "attached": true,
+            "parentId": "33BE48161C4FB91733D6BD011CEB3A15",
+            "canAccessOpener": false,
+            "parentFrameId": "33BE48161C4FB91733D6BD011CEB3A15",
+            "browserContextId": "1E353AD3BB4C45528317C0E9E5594B5D"
+          },
+          "waitingForDebugger": true
+        },
+        {
+          "kind": "worker-created",
+          "timestamp": "2026-10-16T08:30:45.825Z",
+          "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs"
+        },
+        {
+          "kind": "worker-created",
+          "timestamp": "2026-10-16T08:30:45.826Z",
+          "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs"
+        },
+        {
+          "kind": "worker-created",
+          "timestamp": "2026-10-16T08:30:45.827Z",
+          "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs"
+        },
+        {
+          "kind": "playwright-console",
+          "type": "error",
+          "timestamp": "2026-10-16T08:30:46.280Z",
+          "text": "\u001b[0;93m2026-10-16 16:30:46.279629 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "pageUrl": "http://127.0.0.1:58314/",
+          "errorArguments": [
+            null
+          ]
+        },
+        {
+          "kind": "cdp",
+          "origin": "page",
+          "method": "Log.entryAdded",
+          "timestamp": "2026-10-16T08:30:46.281Z",
+          "params": {
+            "entry": {
+              "source": "worker",
+              "level": "error",
+              "text": "\u001b[0;93m2026-10-16 16:30:46.279629 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+              "timestamp": 1792139446280.791,
+              "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+              "lineNumber": 99,
+              "stackTrace": {
+                "callFrames": [
+                  {
+                    "functionName": "Hc",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 99,
+                    "columnNumber": 235
+                  },
+                  {
+                    "functionName": "$func11789",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 17014471
+                  },
+                  {
+                    "functionName": "$func1944",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 2266941
+                  },
+                  {
+                    "functionName": "$func838",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 802831
+                  },
+                  {
+                    "functionName": "$func11721",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 16987174
+                  },
+                  {
+                    "functionName": "$func632",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 593201
+                  },
+                  {
+                    "functionName": "$func88",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 54812
+                  },
+                  {
+                    "functionName": "$func14398",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 20680488
+                  },
+                  {
+                    "functionName": "$func123",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 88110
+                  },
+                  {
+                    "functionName": "$func2100",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 2487139
+                  },
+                  {
+                    "functionName": "$func11254",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 16697504
+                  },
+                  {
+                    "functionName": "$La",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 11495879
+                  },
+                  {
+                    "functionName": "Pd.b.<computed>",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 78,
+                    "columnNumber": 118
+                  },
+                  {
+                    "functionName": "B._OrtCreateSession",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 110,
+                    "columnNumber": 288
+                  },
+                  {
+                    "functionName": "",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 11,
+                    "columnNumber": 58
+                  },
+                  {
+                    "functionName": "Pt",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 26124
+                  },
+                  {
+                    "functionName": "su",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 34545
+                  },
+                  {
+                    "functionName": "loadModel",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 36424
+                  },
+                  {
+                    "functionName": "createInferenceSessionHandler",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 38202
+                  },
+                  {
+                    "functionName": "create",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 5,
+                    "columnNumber": 19501
+                  }
+                ]
+              },
+              "workerId": "3B0A13AF64A2335B1924C267144CDB99"
+            }
+          }
+        },
+        {
+          "kind": "cdp",
+          "origin": "worker:A08360E23470EE0E2ACF77EECDA1621C",
+          "method": "Runtime.consoleAPICalled",
+          "timestamp": "2026-10-16T08:30:46.281Z",
+          "params": {
+            "type": "error",
+            "args": [
+              {
+                "type": "string",
+                "value": "\u001b[0;93m2026-10-16 16:30:46.279629 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m"
+              }
+            ],
+            "executionContextId": 1,
+            "timestamp": 1792139446280.755,
+            "stackTrace": {
+              "callFrames": [
+                {
+                  "functionName": "Hc",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 99,
+                  "columnNumber": 235
+                },
+                {
+                  "functionName": "$func11789",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 17014471
+                },
+                {
+                  "functionName": "$func1944",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 2266941
+                },
+                {
+                  "functionName": "$func838",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 802831
+                },
+                {
+                  "functionName": "$func11721",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 16987174
+                },
+                {
+                  "functionName": "$func632",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 593201
+                },
+                {
+                  "functionName": "$func88",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 54812
+                },
+                {
+                  "functionName": "$func14398",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 20680488
+                },
+                {
+                  "functionName": "$func123",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 88110
+                },
+                {
+                  "functionName": "$func2100",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 2487139
+                },
+                {
+                  "functionName": "$func11254",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 16697504
+                },
+                {
+                  "functionName": "$La",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 11495879
+                },
+                {
+                  "functionName": "Pd.b.<computed>",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 78,
+                  "columnNumber": 118
+                },
+                {
+                  "functionName": "B._OrtCreateSession",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 110,
+                  "columnNumber": 288
+                },
+                {
+                  "functionName": "",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 11,
+                  "columnNumber": 58
+                },
+                {
+                  "functionName": "Pt",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 26124
+                },
+                {
+                  "functionName": "su",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 34545
+                },
+                {
+                  "functionName": "loadModel",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 36424
+                },
+                {
+                  "functionName": "createInferenceSessionHandler",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 38202
+                },
+                {
+                  "functionName": "create",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 5,
+                  "columnNumber": 19501
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "playwright-console",
+          "type": "error",
+          "timestamp": "2026-10-16T08:30:46.281Z",
+          "text": "\u001b[0;93m2026-10-16 16:30:46.280984 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "pageUrl": "http://127.0.0.1:58314/",
+          "errorArguments": [
+            null
+          ]
+        },
+        {
+          "kind": "cdp",
+          "origin": "page",
+          "method": "Log.entryAdded",
+          "timestamp": "2026-10-16T08:30:46.282Z",
+          "params": {
+            "entry": {
+              "source": "worker",
+              "level": "error",
+              "text": "\u001b[0;93m2026-10-16 16:30:46.280984 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+              "timestamp": 1792139446281.128,
+              "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+              "lineNumber": 99,
+              "stackTrace": {
+                "callFrames": [
+                  {
+                    "functionName": "Hc",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 99,
+                    "columnNumber": 235
+                  },
+                  {
+                    "functionName": "$func11789",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 17014471
+                  },
+                  {
+                    "functionName": "$func1944",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 2266941
+                  },
+                  {
+                    "functionName": "$func838",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 802831
+                  },
+                  {
+                    "functionName": "$func11721",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 16987174
+                  },
+                  {
+                    "functionName": "$func632",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 593201
+                  },
+                  {
+                    "functionName": "$func88",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 54812
+                  },
+                  {
+                    "functionName": "$func14398",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 20680488
+                  },
+                  {
+                    "functionName": "$func123",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 88110
+                  },
+                  {
+                    "functionName": "$func2100",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 2488392
+                  },
+                  {
+                    "functionName": "$func11254",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 16697504
+                  },
+                  {
+                    "functionName": "$La",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 11495879
+                  },
+                  {
+                    "functionName": "Pd.b.<computed>",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 78,
+                    "columnNumber": 118
+                  },
+                  {
+                    "functionName": "B._OrtCreateSession",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 110,
+                    "columnNumber": 288
+                  },
+                  {
+                    "functionName": "",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 11,
+                    "columnNumber": 58
+                  },
+                  {
+                    "functionName": "Pt",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 26124
+                  },
+                  {
+                    "functionName": "su",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 34545
+                  },
+                  {
+                    "functionName": "loadModel",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 36424
+                  },
+                  {
+                    "functionName": "createInferenceSessionHandler",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 38202
+                  },
+                  {
+                    "functionName": "create",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 5,
+                    "columnNumber": 19501
+                  }
+                ]
+              },
+              "workerId": "3B0A13AF64A2335B1924C267144CDB99"
+            }
+          }
+        },
+        {
+          "kind": "cdp",
+          "origin": "worker:A08360E23470EE0E2ACF77EECDA1621C",
+          "method": "Runtime.consoleAPICalled",
+          "timestamp": "2026-10-16T08:30:46.282Z",
+          "params": {
+            "type": "error",
+            "args": [
+              {
+                "type": "string",
+                "value": "\u001b[0;93m2026-10-16 16:30:46.280984 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+              }
+            ],
+            "executionContextId": 1,
+            "timestamp": 1792139446281.109,
+            "stackTrace": {
+              "callFrames": [
+                {
+                  "functionName": "Hc",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 99,
+                  "columnNumber": 235
+                },
+                {
+                  "functionName": "$func11789",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 17014471
+                },
+                {
+                  "functionName": "$func1944",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 2266941
+                },
+                {
+                  "functionName": "$func838",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 802831
+                },
+                {
+                  "functionName": "$func11721",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 16987174
+                },
+                {
+                  "functionName": "$func632",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 593201
+                },
+                {
+                  "functionName": "$func88",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 54812
+                },
+                {
+                  "functionName": "$func14398",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 20680488
+                },
+                {
+                  "functionName": "$func123",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 88110
+                },
+                {
+                  "functionName": "$func2100",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 2488392
+                },
+                {
+                  "functionName": "$func11254",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 16697504
+                },
+                {
+                  "functionName": "$La",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 11495879
+                },
+                {
+                  "functionName": "Pd.b.<computed>",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 78,
+                  "columnNumber": 118
+                },
+                {
+                  "functionName": "B._OrtCreateSession",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 110,
+                  "columnNumber": 288
+                },
+                {
+                  "functionName": "",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:58314/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 11,
+                  "columnNumber": 58
+                },
+                {
+                  "functionName": "Pt",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 26124
+                },
+                {
+                  "functionName": "su",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 34545
+                },
+                {
+                  "functionName": "loadModel",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 36424
+                },
+                {
+                  "functionName": "createInferenceSessionHandler",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 38202
+                },
+                {
+                  "functionName": "create",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:58314/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 5,
+                  "columnNumber": 19501
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "cdp-target",
+          "timestamp": "2026-10-16T08:30:46.470Z",
+          "sessionId": "B96B9BD9916B3A7FC1C50AB8B9546E00",
+          "targetInfo": {
+            "targetId": "878CE338A164DE6B4499675C312E4559",
+            "type": "worklet",
+            "title": "http://127.0.0.1:58314/",
+            "url": "http://127.0.0.1:58314/",
+            "attached": true,
+            "parentId": "33BE48161C4FB91733D6BD011CEB3A15",
+            "canAccessOpener": false,
+            "browserContextId": "1E353AD3BB4C45528317C0E9E5594B5D"
+          },
+          "waitingForDebugger": true
+        }
+      ],
+      "scripts": [],
+      "requests": [],
+      "contexts": [
+        {
+          "id": 2,
+          "origin": "http://127.0.0.1:58314",
+          "name": "__playwright_utility_world__",
+          "uniqueId": "4006639624989517923.1594323165274030665",
+          "auxData": {
+            "isDefault": false,
+            "type": "isolated",
+            "frameId": "33BE48161C4FB91733D6BD011CEB3A15"
+          }
+        },
+        {
+          "id": 1,
+          "origin": "http://127.0.0.1:58314",
+          "name": "",
+          "uniqueId": "2360719640785114730.8724016228147447200",
+          "auxData": {
+            "isDefault": true,
+            "type": "default",
+            "frameId": "33BE48161C4FB91733D6BD011CEB3A15"
+          }
+        },
+        {
+          "id": 1,
+          "origin": "http://127.0.0.1:58314/worker.js",
+          "name": "",
+          "uniqueId": "-2564490136185533901.-4860105759979153507"
+        },
+        {
+          "id": 1,
+          "origin": "http://127.0.0.1:58314/",
+          "name": "",
+          "uniqueId": "-9188564251615831149.1969395639896752825"
+        }
+      ]
+    },
+    "serverRequests": [
+      {
+        "url": "/",
+        "timestamp": "2026-10-16T08:30:44.706Z"
+      },
+      {
+        "url": "/entry.js",
+        "timestamp": "2026-10-16T08:30:44.727Z"
+      },
+      {
+        "url": "/favicon.ico",
+        "timestamp": "2026-10-16T08:30:44.737Z"
+      },
+      {
+        "url": "/fir48.f32",
+        "timestamp": "2026-10-16T08:30:44.838Z"
+      },
+      {
+        "url": "/dsp-reference.json",
+        "timestamp": "2026-10-16T08:30:44.840Z"
+      },
+      {
+        "url": "/dsp/dsp48/impulse_1.input.f32",
+        "timestamp": "2026-10-16T08:30:44.841Z"
+      },
+      {
+        "url": "/dsp/dsp48/impulse_1.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.843Z"
+      },
+      {
+        "url": "/dsp/dsp48/random_1.input.f32",
+        "timestamp": "2026-10-16T08:30:44.845Z"
+      },
+      {
+        "url": "/dsp/dsp48/random_1.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.847Z"
+      },
+      {
+        "url": "/dsp/dsp48/sine_1.input.f32",
+        "timestamp": "2026-10-16T08:30:44.848Z"
+      },
+      {
+        "url": "/dsp/dsp48/sine_1.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.850Z"
+      },
+      {
+        "url": "/dsp/dsp48/sweep_1.input.f32",
+        "timestamp": "2026-10-16T08:30:44.851Z"
+      },
+      {
+        "url": "/dsp/dsp48/sweep_1.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.853Z"
+      },
+      {
+        "url": "/dsp/dsp48/impulse_29.input.f32",
+        "timestamp": "2026-10-16T08:30:44.855Z"
+      },
+      {
+        "url": "/dsp/dsp48/impulse_29.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.856Z"
+      },
+      {
+        "url": "/dsp/dsp48/random_29.input.f32",
+        "timestamp": "2026-10-16T08:30:44.858Z"
+      },
+      {
+        "url": "/dsp/dsp48/random_29.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.860Z"
+      },
+      {
+        "url": "/dsp/dsp48/sine_29.input.f32",
+        "timestamp": "2026-10-16T08:30:44.862Z"
+      },
+      {
+        "url": "/dsp/dsp48/sine_29.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.863Z"
+      },
+      {
+        "url": "/dsp/dsp48/sweep_29.input.f32",
+        "timestamp": "2026-10-16T08:30:44.865Z"
+      },
+      {
+        "url": "/dsp/dsp48/sweep_29.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.867Z"
+      },
+      {
+        "url": "/dsp/dsp48/impulse_30.input.f32",
+        "timestamp": "2026-10-16T08:30:44.869Z"
+      },
+      {
+        "url": "/dsp/dsp48/impulse_30.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.870Z"
+      },
+      {
+        "url": "/dsp/dsp48/random_30.input.f32",
+        "timestamp": "2026-10-16T08:30:44.871Z"
+      },
+      {
+        "url": "/dsp/dsp48/random_30.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.873Z"
+      },
+      {
+        "url": "/dsp/dsp48/sine_30.input.f32",
+        "timestamp": "2026-10-16T08:30:44.874Z"
+      },
+      {
+        "url": "/dsp/dsp48/sine_30.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.876Z"
+      },
+      {
+        "url": "/dsp/dsp48/sweep_30.input.f32",
+        "timestamp": "2026-10-16T08:30:44.878Z"
+      },
+      {
+        "url": "/dsp/dsp48/sweep_30.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.881Z"
+      },
+      {
+        "url": "/dsp/dsp48/impulse_31.input.f32",
+        "timestamp": "2026-10-16T08:30:44.882Z"
+      },
+      {
+        "url": "/dsp/dsp48/impulse_31.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.884Z"
+      },
+      {
+        "url": "/dsp/dsp48/random_31.input.f32",
+        "timestamp": "2026-10-16T08:30:44.886Z"
+      },
+      {
+        "url": "/dsp/dsp48/random_31.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.887Z"
+      },
+      {
+        "url": "/dsp/dsp48/sine_31.input.f32",
+        "timestamp": "2026-10-16T08:30:44.889Z"
+      },
+      {
+        "url": "/dsp/dsp48/sine_31.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.891Z"
+      },
+      {
+        "url": "/dsp/dsp48/sweep_31.input.f32",
+        "timestamp": "2026-10-16T08:30:44.893Z"
+      },
+      {
+        "url": "/dsp/dsp48/sweep_31.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.894Z"
+      },
+      {
+        "url": "/dsp/dsp48/impulse_61.input.f32",
+        "timestamp": "2026-10-16T08:30:44.896Z"
+      },
+      {
+        "url": "/dsp/dsp48/impulse_61.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.897Z"
+      },
+      {
+        "url": "/dsp/dsp48/random_61.input.f32",
+        "timestamp": "2026-10-16T08:30:44.899Z"
+      },
+      {
+        "url": "/dsp/dsp48/random_61.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.900Z"
+      },
+      {
+        "url": "/dsp/dsp48/sine_61.input.f32",
+        "timestamp": "2026-10-16T08:30:44.902Z"
+      },
+      {
+        "url": "/dsp/dsp48/sine_61.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.903Z"
+      },
+      {
+        "url": "/dsp/dsp48/sweep_61.input.f32",
+        "timestamp": "2026-10-16T08:30:44.904Z"
+      },
+      {
+        "url": "/dsp/dsp48/sweep_61.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.905Z"
+      },
+      {
+        "url": "/dsp/dsp48/impulse_127.input.f32",
+        "timestamp": "2026-10-16T08:30:44.907Z"
+      },
+      {
+        "url": "/dsp/dsp48/impulse_127.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.909Z"
+      },
+      {
+        "url": "/dsp/dsp48/random_127.input.f32",
+        "timestamp": "2026-10-16T08:30:44.911Z"
+      },
+      {
+        "url": "/dsp/dsp48/random_127.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.913Z"
+      },
+      {
+        "url": "/dsp/dsp48/sine_127.input.f32",
+        "timestamp": "2026-10-16T08:30:44.914Z"
+      },
+      {
+        "url": "/dsp/dsp48/sine_127.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.916Z"
+      },
+      {
+        "url": "/dsp/dsp48/sweep_127.input.f32",
+        "timestamp": "2026-10-16T08:30:44.917Z"
+      },
+      {
+        "url": "/dsp/dsp48/sweep_127.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.919Z"
+      },
+      {
+        "url": "/dsp/dsp48/impulse_48001.input.f32",
+        "timestamp": "2026-10-16T08:30:44.920Z"
+      },
+      {
+        "url": "/dsp/dsp48/impulse_48001.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.922Z"
+      },
+      {
+        "url": "/dsp/dsp48/random_48001.input.f32",
+        "timestamp": "2026-10-16T08:30:44.935Z"
+      },
+      {
+        "url": "/dsp/dsp48/random_48001.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.938Z"
+      },
+      {
+        "url": "/dsp/dsp48/sine_48001.input.f32",
+        "timestamp": "2026-10-16T08:30:44.948Z"
+      },
+      {
+        "url": "/dsp/dsp48/sine_48001.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.950Z"
+      },
+      {
+        "url": "/dsp/dsp48/sweep_48001.input.f32",
+        "timestamp": "2026-10-16T08:30:44.961Z"
+      },
+      {
+        "url": "/dsp/dsp48/sweep_48001.reference.f32",
+        "timestamp": "2026-10-16T08:30:44.963Z"
+      },
+      {
+        "url": "/worker.js",
+        "timestamp": "2026-10-16T08:30:44.974Z"
+      },
+      {
+        "url": "/ort/ort.webgpu.min.mjs",
+        "timestamp": "2026-10-16T08:30:44.980Z"
+      },
+      {
+        "url": "/model.onnx",
+        "timestamp": "2026-10-16T08:30:45.000Z"
+      },
+      {
+        "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+        "timestamp": "2026-10-16T08:30:45.805Z"
+      },
+      {
+        "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+        "timestamp": "2026-10-16T08:30:45.811Z"
+      },
+      {
+        "url": "/ort/ort-wasm-simd-threaded.jsep.wasm",
+        "timestamp": "2026-10-16T08:30:45.812Z"
+      },
+      {
+        "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+        "timestamp": "2026-10-16T08:30:45.813Z"
+      },
+      {
+        "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+        "timestamp": "2026-10-16T08:30:45.814Z"
+      },
+      {
+        "url": "/capture.worklet.js",
+        "timestamp": "2026-10-16T08:30:46.472Z"
+      }
+    ]
+  },
+  "focusedChecks": {
+    "runs": [
+      {
+        "output": [
+          "",
+          "\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.9 \u001b[39m\u001b[90m/app\u001b[39m",
+          "",
+          " \u001b[32m✓\u001b[39m src/lib/practice/input-capability.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m",
+          " \u001b[32m✓\u001b[39m src/lib/practice/acoustic-inference/xc4-robust-runtime.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 157\u001b[2mms\u001b[22m\u001b[39m",
+          " \u001b[32m✓\u001b[39m src/lib/practice/acoustic-inference/xc6-capture-bridge.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 564\u001b[2mms\u001b[22m\u001b[39m",
+          "   \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m new48k FIR matches frozen Docker SciPy prefix and arbitrary chunk boundaries \u001b[33m 458\u001b[2mms\u001b[22m\u001b[39m",
+          "",
+          "\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m",
+          "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m38 passed\u001b[39m\u001b[22m\u001b[90m (38)\u001b[39m",
+          "\u001b[2m   Start at \u001b[22m 08:27:32",
+          "\u001b[2m   Duration \u001b[22m 1.55s\u001b[2m (transform 1.82s, setup 395ms, import 1.86s, tests 727ms, environment 419ms)\u001b[22m",
+          ""
+        ],
+        "exitCode": 0,
+        "command": [
+          "docker",
+          "run",
+          "--rm",
+          "--network",
+          "none",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro,target=/workspace,readonly",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro/backend,target=/backend,readonly",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web,target=/app,readonly",
+          "--mount",
+          "type=volume,source=noteverse-xc5-check-deps,target=/app/node_modules",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web/node_modules/onnxruntime-web,target=/app/node_modules/onnxruntime-web,readonly",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web/node_modules/onnxruntime-common,target=/app/node_modules/onnxruntime-common,readonly",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web/node_modules/@hey-api,target=/app/node_modules/@hey-api,readonly",
+          "-e",
+          "XC5_REPO_ROOT=/workspace",
+          "-w",
+          "/app",
+          "--entrypoint",
+          "node",
+          "noteverse-customer-web-dev:dev",
+          "node_modules/vitest/vitest.mjs",
+          "run",
+          "src/lib/practice/acoustic-inference/xc6-capture-bridge.test.ts",
+          "src/lib/practice/acoustic-inference/xc4-robust-runtime.test.ts",
+          "src/lib/practice/input-capability.test.ts"
+        ]
+      },
+      {
+        "output": {},
+        "exitCode": 0,
+        "command": [
+          "docker",
+          "run",
+          "--rm",
+          "--network",
+          "none",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro,target=/workspace,readonly",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro/backend,target=/backend,readonly",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web,target=/app,readonly",
+          "--mount",
+          "type=volume,source=noteverse-xc5-check-deps,target=/app/node_modules",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web/node_modules/onnxruntime-web,target=/app/node_modules/onnxruntime-web,readonly",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web/node_modules/onnxruntime-common,target=/app/node_modules/onnxruntime-common,readonly",
+          "--mount",
+          "type=bind,source=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\apps\\customer-web/node_modules/@hey-api,target=/app/node_modules/@hey-api,readonly",
+          "-e",
+          "XC5_REPO_ROOT=/workspace",
+          "-w",
+          "/app",
+          "--entrypoint",
+          "node",
+          "noteverse-customer-web-dev:dev",
+          "node_modules/typescript/bin/tsc",
+          "--noEmit",
+          "--incremental",
+          "false"
+        ]
+      }
+    ]
+  },
+  "memory": {
+    "rawSourceBytesPerMinute": {
+      "44100": 10584000,
+      "48000": 11520000
+    },
+    "implementedTimelineBytesPerMinute": {
+      "44100": 10584000,
+      "48000": 3840000
+    },
+    "rawSourceEquivalentRetention": [
+      {
+        "minutes": 5,
+        "bytes44100": 52920000,
+        "bytes48000": 57600000
+      },
+      {
+        "minutes": 10,
+        "bytes44100": 105840000,
+        "bytes48000": 115200000
+      },
+      {
+        "minutes": 20,
+        "bytes44100": 211680000,
+        "bytes48000": 230400000
+      }
+    ],
+    "implementedTimelineRetention": [
+      {
+        "minutes": 5,
+        "bytes44100": 52920000,
+        "bytes48000Filtered16k": 19200000
+      },
+      {
+        "minutes": 10,
+        "bytes44100": 105840000,
+        "bytes48000Filtered16k": 38400000
+      },
+      {
+        "minutes": 20,
+        "bytes44100": 211680000,
+        "bytes48000Filtered16k": 76800000
+      }
+    ],
+    "targetRingBytes": 262144,
+    "activeWorkerInputBytes": 116480,
+    "transportCloneBytesPerWindow": 116480,
+    "mainQueuedInputBytesPerWindow": 116480,
+    "queueTotalMaximum": "UNBOUNDED_IF_PRODUCER_OUTRUNS_CONSUMER_NO_SILENT_DROP",
+    "exclusions": "Typed PCM payload only; timeline block slack/object overhead, publications, ONNX/session/GPU/cache allocations are additional.",
+    "classification": "PCM_RETENTION_MUST_BE_BOUNDED_BEFORE_PRODUCT_ENABLEMENT",
+    "privacyPolicyClaim": false
+  },
+  "historicalSourceAndReportsUnchanged": true,
+  "trackedChanges": [
+    "A\tapps/customer-web/public/engineering/xc6/.gitattributes",
+    "A\tapps/customer-web/public/engineering/xc6/fir-1-3.f32",
+    "A\tapps/customer-web/scripts/xc6-attribution.mjs",
+    "A\tapps/customer-web/scripts/xc6-browser-diagnostics.mjs",
+    "A\tapps/customer-web/scripts/xc6-capture-entry.ts",
+    "A\tapps/customer-web/scripts/xc6-capture-integration.mjs",
+    "A\tapps/customer-web/scripts/xc6-capture-probe.mjs",
+    "A\tapps/customer-web/scripts/xc6-dsp-browser.ts",
+    "A\tapps/customer-web/scripts/xc6-evidence.mjs",
+    "A\tapps/customer-web/scripts/xc6-final-report.mjs",
+    "A\tapps/customer-web/scripts/xc6-freeze-plan.mjs",
+    "A\tapps/customer-web/scripts/xc6-metadata-entry.ts",
+    "A\tapps/customer-web/src/lib/practice/acoustic-inference/xc6-capture-bridge.test.ts",
+    "A\tapps/customer-web/src/lib/practice/acoustic-inference/xc6-capture-bridge.ts",
+    "A\tapps/customer-web/src/lib/practice/acoustic-inference/xc6-capture-runtime.md",
+    "A\tapps/customer-web/src/lib/practice/acoustic-inference/xc6-capture.worklet.js",
+    "A\tapps/customer-web/src/lib/practice/acoustic-inference/xc6-source-48000.ts",
+    "A\tapps/customer-web/src/lib/practice/acoustic-inference/xc6-source-identities.json",
+    "A\tbackend/research/reports/phase9g_xc6_capture_integration_source_freeze_2026-10-16.json",
+    "A\tbackend/research/reports/phase9g_xc6_capture_probe_source_freeze_2026-10-16.json",
+    "A\tbackend/research/reports/phase9g_xc6_diagnostics_source_freeze_2026-10-16.json",
+    "A\tbackend/research/reports/phase9g_xc6_xc5_console_attribution_2026-10-16.json",
+    "A\tbackend/research/run_xc6_checks.ps1",
+    "A\tbackend/research/xc6_prepare_48000.py",
+    "A\tbackend/research/xc6_prepare_fixture.py"
+  ],
+  "sourceHashBoundary": [
+    {
+      "path": "apps/customer-web/scripts/xc5-smoke-entry.ts",
+      "bytes": 6848,
+      "sha256": "4723d0efba55f2ca0ab01f03d2e41b52c2e77dfefa4211a3cc5a8637ab82f714"
+    },
+    {
+      "path": "apps/customer-web/scripts/xc6-attribution.mjs",
+      "bytes": 2286,
+      "sha256": "8cdcc394e73b73420266ce03cfba1a15a1f287e05ea3c636e54f553be7836e1c"
+    },
+    {
+      "path": "apps/customer-web/scripts/xc6-browser-diagnostics.mjs",
+      "bytes": 8403,
+      "sha256": "0472fa0fc4e70d5bdf808e348ef83cf07301db6cbed7596fba8858398fd6c5e6"
+    },
+    {
+      "path": "apps/customer-web/scripts/xc6-capture-entry.ts",
+      "bytes": 5893,
+      "sha256": "ea69f664007e977c9cac6880dbb0b9afcf6a7b4fedcf88d1bdba4c1f0d338af5"
+    },
+    {
+      "path": "apps/customer-web/scripts/xc6-capture-integration.mjs",
+      "bytes": 5521,
+      "sha256": "187f2c04ce3046948af12fff44852b931a02660b638ed5c6a92754adedccdd4e"
+    },
+    {
+      "path": "apps/customer-web/scripts/xc6-capture-probe.mjs",
+      "bytes": 4088,
+      "sha256": "20772c1e2aaa637417c419c531a316f8967b8357272631a050c21b501c434cff"
+    },
+    {
+      "path": "apps/customer-web/scripts/xc6-dsp-browser.ts",
+      "bytes": 1843,
+      "sha256": "f81733d0ceecd1f501041416e2e9940cb4ad325305f9e81975d146c85d0dbbef"
+    },
+    {
+      "path": "apps/customer-web/scripts/xc6-evidence.mjs",
+      "bytes": 4462,
+      "sha256": "8a22f023cc1ddf3f57db66c43d9d2f60d6db19b542c20ee369c2bdebedee03ce"
+    },
+    {
+      "path": "apps/customer-web/scripts/xc6-final-report.mjs",
+      "bytes": 6580,
+      "sha256": "e7f1b14ae2f0d09c06c6e51ddd05f4f9b2f81db2aec19801e145aa055049ce54"
+    },
+    {
+      "path": "apps/customer-web/scripts/xc6-freeze-plan.mjs",
+      "bytes": 2340,
+      "sha256": "a3469780c7b405d7dcc768dd20eb6542c5e28b9753db31d83b9b687daf52b459"
+    },
+    {
+      "path": "apps/customer-web/scripts/xc6-metadata-entry.ts",
+      "bytes": 2459,
+      "sha256": "e6b274d4697a081cfad6392f78bff8c0379f760e268849ca8981b762ca3647c2"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-capture.worklet.js",
+      "bytes": 1062,
+      "sha256": "2ad90028eb2497a5ff2a18699a6932bcf37832767b6f94bab79fc7d8601012d4"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-acoustic-runtime.ts",
+      "bytes": 13679,
+      "sha256": "4078e5619b85f24bc21c2ff4fc7830d7ebb370e52509a48dd4d898c5c7405c68"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-identity.json",
+      "bytes": 5010,
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-runtime-contract.ts",
+      "bytes": 3709,
+      "sha256": "601eb1068630d09f5cbb10156e4b18cbb361f5d85f2e7039b70ff0f392ce86a6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-runtime.test.ts",
+      "bytes": 13399,
+      "sha256": "af1bc76b31718ebee52e42de9271746db571950a419bae0570033ba4593860f8"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-streaming-resampler.ts",
+      "bytes": 1825,
+      "sha256": "9118b1581ac7dddff8dc247511de87d0c11e8e12f6c8283a4d500b0e9762e862"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-window-planner.ts",
+      "bytes": 1940,
+      "sha256": "cfaa6aa6be349beaa27a18c21b0f453a87709fab52d6c5621b00572cba941c26"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-worker-adapter.ts",
+      "bytes": 6905,
+      "sha256": "e9c03ef6dfc7602154e9130a05b92e25ef9c1ee1bee34aaeac29063a59e51be7"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-worker-client.ts",
+      "bytes": 2024,
+      "sha256": "630324bca8dbd341dae9f3c3ed2b2dcdca1f1a2469fbcd74da2aa2a0d4895e70"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-worker.entry.ts",
+      "bytes": 1044,
+      "sha256": "41421486eba6eea348cfcbaf04bc5528a0ccb9aaa5d102bba461ef20790c9da3"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-runtime.md",
+      "bytes": 3623,
+      "sha256": "4645a0473dba9b119b7581362129d57f52d73f0b8076fa1818323b6714490ebc"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-capture-bridge.test.ts",
+      "bytes": 9078,
+      "sha256": "94d31173e282e02c67883a699f24bf284e1f447377f2321d6af5289ed6e6539a"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-capture-bridge.ts",
+      "bytes": 10196,
+      "sha256": "1b9f08ec19f22cfdb54f503d0872fcbf6ac61e67d826a5cc3d3584a74c0d97d9"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-capture-runtime.md",
+      "bytes": 3703,
+      "sha256": "09cbf7d86e93adcaa1c4667ee97e0807a83f1cc40bc95c745d0ebd917e2ddecb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-capture.worklet.js",
+      "bytes": 1157,
+      "sha256": "727c0d4dede0a5c743f0cf202ef5dd29261e666931b5da2fb551c1ad09054736"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-source-48000.ts",
+      "bytes": 1605,
+      "sha256": "752091275a67ea119c4b08b0c61b8866e017e1653d0a61fc929ae545cc610a72"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-source-identities.json",
+      "bytes": 2188,
+      "sha256": "d1b394129e2ec3d7a82189b9c47d77713915456341a18b415b3a5c7a5fa8aefa"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+      "bytes": 20954,
+      "sha256": "cf5757e276774a75f2f402c3c120ccc3b1a69bb83bc899ffcfdd6e9bfc6f745e"
+    }
+  ],
+  "xc5CaveatPreserved": "Freeze artifact/source hashes preceded XC5 smoke, but its Git freeze commit followed smoke due stale lock. XC6 uses remote freeze gate; no cosmetic XC5 rerun.",
+  "xc4CoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+  "xc5Disposition": "XC4_BROWSER_ACOUSTIC_RUNTIME_INTEGRATION_READY_DISABLED",
+  "productionMicrophoneCapability": "MODEL_NOT_VALIDATED",
+  "productionMicrophone": false,
+  "productFinalizer": "R2_RESEARCH_POLICY_NOT_PRODUCTION_QUALIFIED",
+  "sourceClock": "AudioWorklet currentFrame authoritative; externally scheduled source boundaries mapped with AudioContext.getOutputTimestamp. No arrival-time event timing or cursor authority.",
+  "preRollAndTail": "1050ms fully real past; first10 FIR boundary outputs excluded. Early start rejected. Exact external stop; real future/lookahead context-only. No padded finish.",
+  "geometryChallenger": "600/120 remains STRONGEST_UNPROMOTED_GEOMETRY_CHALLENGER; historical higher agreement/recall but more residual EXTRA. No new comparison.",
+  "decoderPolicy": {
+    "A": "CURRENT_ENGINEERING_DEFAULT",
+    "B": "RESEARCH_CHALLENGER_NOT_DEFAULT",
+    "C": "TESTED_NO_DEMONSTRATED_ENGINEERING_ADVANTAGE"
+  },
+  "counters": {
+    "newExternalDatasetDownloads": 0,
+    "newScientificBenchmarkRuns": 0,
+    "newDecoderComparisons": 0,
+    "newGeometrySweeps": 0,
+    "newModelComparisons": 0,
+    "newMidiTruthReads": 0,
+    "engineeringModelRuns": 6,
+    "diagnosticReproductionRuns": 4,
+    "captureIntegrationRuns": 2,
+    "realDevicePermissionAttempts": 1
+  },
+  "scopeProtections": {
+    "9G-B": "STATISTICAL_TIE",
+    "D4": false,
+    "F5": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+    "NO_OPTIMAL_PROFILE_CLAIM": true,
+    "R1": "BOUNDED_FINALIZATION_HAS_SAFETY_TRADEOFF",
+    "R2": "DIRECT_CONFLICT_RESERVATION_PARTIALLY_RECOVERS_SAFETY",
+    "R4": "ROBUST_CADENCE_SUSTAINABLE",
+    "R4Headroom": "ROBUST_20_PERCENT_HEADROOM_FAIL",
+    "R4Scope": "Finite measured sessions, not proof of indefinite stability.",
+    "XC2": "ROBUST_PRODUCT_BASELINE_MULTIPLE_PARETO_CANDIDATES",
+    "backendPracticeInference": false,
+    "commercialQualificationStatus": "NOT_PERFORMED",
+    "expectedScoreEntersAcousticInference": false,
+    "practiceWebSocket": false,
+    "productLatencySlo": "PRODUCT_LATENCY_SLO_NOT_YET_FROZEN",
+    "productionMicrophone": false,
+    "productionWinner": null,
+    "scientificUse": "SCIENTIFIC_RESEARCH_ONLY",
+    "scoreFollowing": false,
+    "serverAcousticInference": false,
+    "viennaP15P22InferenceIncrease": 0,
+    "winner": null
+  },
+  "limitations": [
+    "No granted real-device permission;48k was established with browser-faithful fake capture, not claimed as an observed real microphone rate.",
+    "Single short engineering smoke and deterministic DSP parity, not accuracy, indefinite runtime or product/UX qualification.",
+    "48k boundary commands require original source indices divisible by3; natural fixed-BPM timing and device-clock drift still need product qualification.",
+    "PCM/session retention and potentially growing queues must be bounded before product enablement."
+  ],
+  "evidenceCommit": "Containing evidence-only commit returned after push; not self-referential.",
+  "githubEvidence": "Versioned github command queries actual pushed HEAD; empty arrays are not CI PASS."
+}
