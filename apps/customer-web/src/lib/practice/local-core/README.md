@@ -77,11 +77,21 @@ and resolved tempo plan before the performance begins.
 MIDI and acoustic evidence never starts, stops, accelerates, delays, or
 relocates the performance clock. Evidence is downstream evaluation only.
 
-`ContinuousEvaluationSession` owns the expected strikes, observed attacks,
-analysis frontier, and reconciled strike/extra verdicts. `ContinuousPracticeSession`
-composes the clock and evaluator for the application layer. MIDI Continuous uses
-this path today; future microphone Continuous must also publish observed attacks
-into the same evaluator instead of creating a second evaluation architecture.
+`ContinuousEvaluationSession` projects artifact groups into canonical expected strikes.
+`ContinuousEvidenceStore` validates immutable publications and their monotonic coverage.
+`assignContinuousEvidence` owns deterministic max-cardinality/min-error assignment.
+`ContinuousFinalizer` owns bounded direct-claimant reservations and irreversible truth.
+`completedContinuousTruth` projects the same accumulated groups and ownership into
+completion. `ContinuousPracticeSession` composes this evaluator with the independent
+clock. MIDI uses a sequence-identity publication adapter; it has no second evaluator.
+
+The fixed assignment window is +/-250ms. Literal direct cohorts do not recursively
+expand: strike/group/EXTRA analysis-frontier bounds are +750/+1250/+1500ms.
+Transitive connected-component waiting is prohibited. These are not wall-clock UX
+SLOs. Reservation is not ownership; each observation is MATCHED, WRONG, or EXTRA at
+most once. Canonical group strikes share exactly one onsetBeat-derived time.
+Completed results contain groups with nested strikes, WRONG evidence, extras and
+ownership, never a parallel flat-strike projection. Review does not evaluate again.
 
 ## Evidence and Timebase
 

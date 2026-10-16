@@ -1,10 +1,11 @@
+import type { CapturedAttack } from '@/lib/practice/local-core/evidence';
 import { describe, expect, it, vi } from 'vitest';
 
 import canonicalArtifactJson from './__fixtures__/canonical-practice-score-artifact.json';
 import {
   ManualClock,
   ContinuousPracticeSession,
-  DEFAULT_ASSIGNMENT_WINDOW_MS,
+  CONTINUOUS_ASSIGNMENT_WINDOW_MS,
   DEFAULT_MIDI_COVERAGE_GRACE_MS,
   PracticeTimebase,
   StepEvidenceSession,
@@ -88,7 +89,7 @@ function acousticEvent(domainId: string, ms: number, pitch: string): AcousticNot
     confidence: 0.95,
     onsetScore: 0.9,
     frameScore: 0.9,
-    source: 'ACOUSTIC',
+    source: 'ACOUSTIC' as const,
   };
 }
 
@@ -340,7 +341,7 @@ describe('local STEP practice runtime', () => {
       captureTime: sessionTime('pause-generation-step', 100),
       observedAttackPitches: staleTarget?.attackPitches ?? ['C4'],
       confidence: 1,
-      source: 'ACOUSTIC',
+      source: 'ACOUSTIC' as const,
     })).toMatchObject({ kind: 'WAIT', reason: 'stale_activation' });
   });
 
@@ -561,19 +562,19 @@ describe('local CONTINUOUS practice runtime', () => {
     });
 
     expect(session.snapshot().state).toBe('READY');
-    expect(session.evaluationSnapshot.strikes).toHaveLength(
+    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes)).toHaveLength(
       artifact.expectedPracticeGroups.reduce((sum, group) => sum + group.strikeTargets.length, 0)
     );
-    expect(session.evaluationSnapshot.strikes.every((strike) => strike.verdict === 'PENDING')).toBe(true);
+    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes).every((strike) => strike.state === 'PENDING')).toBe(true);
 
     session.start();
     const before = session.snapshot();
     expect(session.observeCapturedAttack(performanceEvidence('continuous-clock-separate', 0, ['C4'], 'MIDI'))).toBe(true);
     expect(session.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
-    expect(session.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'PENDING' });
+    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'PENDING' });
     clock.advance(1_500);
     session.snapshot();
-    expect(session.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MATCHED' });
+    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MATCHED' });
   });
 
   it('advances MIDI analysis from performance clock time', () => {
@@ -591,12 +592,33 @@ describe('local CONTINUOUS practice runtime', () => {
     session.start();
     clock.advance(1_000);
     expect(session.snapshot().state).toBe('RUNNING');
-    expect(session.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MISSING' });
+    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MISSING' });
   });
 
   it('keeps MIDI delivery coverage grace separate from the musical assignment window', () => {
     expect(DEFAULT_MIDI_COVERAGE_GRACE_MS).toBe(250);
-    expect(DEFAULT_ASSIGNMENT_WINDOW_MS).toBe(250);
+    expect(CONTINUOUS_ASSIGNMENT_WINDOW_MS).toBe(250);
+  });
+
+  it('MIDI produces all five product verdicts through the sole accumulated evaluator', () => {
+    const clock = new ManualClock(0);
+    const session = new ContinuousPracticeSession({ artifact, scope: { kind: 'FULL' }, clock,
+      tempoSelection: { mode: 'CUSTOM_FIXED_BPM', bpm: 60 }, inputSource: 'MIDI', countInBeats: 0, localSessionId: 'five-verdicts' });
+    session.start();
+    let now = 0;
+    for (const [time, pitch] of [[0, 'C4'], [2000, 'F#4'], [3000, 'A4'], [3900, 'F#4'], [4500, 'D5']] as const) {
+      clock.advance(time - now); now = time;
+      const before = session.clock.snapshot();
+      session.observeCapturedAttack(performanceEvidence(session.timebase.domainId, time, [pitch]));
+      expect(session.clock.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
+    }
+    clock.advance(2500); session.snapshot();
+    const completed = session.completedEvaluation();
+    if (completed.status !== 'COMPLETE') throw new Error('incomplete MIDI truth');
+    expect(completed.groups.map(group => group.verdict)).toEqual(['CORRECT', 'MISSING', 'WRONG', 'INCOMPLETE_CHORD', 'CORRECT']);
+    expect(completed.extras).toHaveLength(1);
+    expect(completed.observationOwnership.map(owner => owner.disposition).sort()).toEqual(['EXTRA', 'MATCHED', 'MATCHED', 'MATCHED', 'WRONG']);
+    expect(completed.groups).toEqual(session.evaluationSnapshot.groups);
   });
 
   it('does not advance MIDI frontier while paused', () => {
@@ -615,10 +637,10 @@ describe('local CONTINUOUS practice runtime', () => {
     clock.advance(100);
     session.pause();
     clock.advance(5_000);
-    expect(session.evaluationSnapshot.strikes[1]).toMatchObject({ verdict: 'PENDING' });
+    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes)[1]).toMatchObject({ state: 'PENDING' });
   });
 
-  it('keeps extra attacks globally unique', () => {
+  it('assigns an incompatible attack once as WRONG, not also EXTRA', () => {
     const twoGroupArtifact = {
       ...artifact,
       expectedPracticeGroups: artifact.expectedPracticeGroups.slice(0, 2).map((group, index) => ({
@@ -647,7 +669,10 @@ describe('local CONTINUOUS practice runtime', () => {
     expect(session.evaluationSnapshot.extras).toHaveLength(0);
     extraClock.advance(500);
     session.snapshot();
-    expect(session.evaluationSnapshot.extras).toHaveLength(1);
+    extraClock.advance(1500);
+    session.snapshot();
+    expect(session.evaluationSnapshot.extras).toHaveLength(0);
+    expect(session.evaluationSnapshot.observationOwnership.filter(owner => owner.disposition === 'WRONG')).toHaveLength(1);
   });
 
   it('syncs natural clock auto-end into final continuous evaluation without explicit end', () => {
@@ -668,8 +693,8 @@ describe('local CONTINUOUS practice runtime', () => {
     const naturalEvaluation = natural.completedEvaluation();
     expect(naturalEvaluation.status).toBe('COMPLETE');
     if (naturalEvaluation.status === 'COMPLETE') {
-      expect(naturalEvaluation.strikes.some((strike) => strike.result === 'NOT_REACHED')).toBe(false);
-      expect(naturalEvaluation.strikes.some((strike) => strike.result === 'MISSING')).toBe(true);
+      expect(naturalEvaluation.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'NOT_REACHED')).toBe(false);
+      expect(naturalEvaluation.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'MISSING')).toBe(true);
     }
   });
 
@@ -689,7 +714,7 @@ describe('local CONTINUOUS practice runtime', () => {
     const manualEvaluation = manual.completedEvaluation();
     expect(manualEvaluation.status).toBe('COMPLETE');
     if (manualEvaluation.status === 'COMPLETE') {
-      expect(manualEvaluation.strikes.some((strike) => strike.result === 'NOT_REACHED')).toBe(true);
+      expect(manualEvaluation.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'NOT_REACHED')).toBe(true);
     }
   });
 
@@ -710,8 +735,8 @@ describe('local CONTINUOUS practice runtime', () => {
     const evaluation = manual.completedEvaluation();
     expect(evaluation.status).toBe('COMPLETE');
     if (evaluation.status === 'COMPLETE') {
-      expect(evaluation.strikes[0]).toMatchObject({ result: 'MISSING' });
-      expect(evaluation.strikes.some((strike) => strike.result === 'NOT_REACHED')).toBe(true);
+      expect(evaluation.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MISSING' });
+      expect(evaluation.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'NOT_REACHED')).toBe(true);
     }
   });
 
@@ -734,9 +759,9 @@ describe('local CONTINUOUS practice runtime', () => {
     const evaluation = manual.completedEvaluation();
     expect(evaluation.status).toBe('COMPLETE');
     if (evaluation.status === 'COMPLETE') {
-      expect(evaluation.strikes[0]).toMatchObject({
-        result: 'MATCHED',
-        matchedObservationId: `${manual.timebase.domainId}:0:C4`,
+      expect(evaluation.groups.flatMap(group => group.strikes)[0]).toMatchObject({
+        state: 'MATCHED',
+        match: { observation: { observationId: `${manual.timebase.domainId}:midi:0` } },
       });
     }
   });
@@ -795,8 +820,8 @@ describe('local CONTINUOUS practice runtime', () => {
       const evaluation = session.completedEvaluation();
       expect(evaluation.status).toBe('COMPLETE');
       if (evaluation.status === 'COMPLETE') {
-        expect(evaluation.strikes[0]).toMatchObject({ result: 'MATCHED' });
-        expect(evaluation.strikes.some((strike) => strike.result === 'NOT_REACHED')).toBe(true);
+        expect(evaluation.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MATCHED' });
+        expect(evaluation.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'NOT_REACHED')).toBe(true);
       }
       expect(unavailableFetch).not.toHaveBeenCalled();
     } finally {
@@ -838,14 +863,17 @@ describe('local CONTINUOUS practice runtime', () => {
     session.start();
     clock.advance(1000);
     session.end('STOPPED_BY_USER');
-    expect(session.evaluationSnapshot.strikes.some((strike) => strike.verdict === 'PENDING')).toBe(true);
+    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'PENDING')).toBe(true);
 
     session.publishAnalysis({
-      sessionDomainId: session.timebase.domainId,
-      attacks: [],
-      analyzedThroughPerformanceMs: 1000,
-    });
-    expect(session.evaluationSnapshot.strikes.some((strike) => strike.verdict === 'MISSING')).toBe(true);
+          publicationId: 'publication-32484', sessionDomainId: session.timebase.domainId,
+          analyzedThroughPerformanceMs: 1000, availabilityTimeMs: 1000,
+          observations: ([]).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-32484:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        });
+    expect(session.evaluationSnapshot.groups.flatMap(group => group.strikes).some((strike) => strike.state === 'MISSING')).toBe(true);
   });
 
   it('rejects analysis publications before performance evidence time exists', () => {
@@ -859,10 +887,13 @@ describe('local CONTINUOUS practice runtime', () => {
     });
     const readyBefore = ready.evaluationSnapshot;
     expect(() => ready.publishAnalysis({
-      sessionDomainId: ready.timebase.domainId,
-      attacks: [],
-      analyzedThroughPerformanceMs: 0,
-    })).toThrow(/requires captured performance evidence time/);
+          publicationId: 'publication-33169', sessionDomainId: ready.timebase.domainId,
+          analyzedThroughPerformanceMs: 0, availabilityTimeMs: 0,
+          observations: ([]).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-33169:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: ready.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        })).toThrow(/requires captured performance evidence time/);
     expect(ready.evaluationSnapshot).toEqual(readyBefore);
 
     const countIn = new ContinuousPracticeSession({
@@ -877,10 +908,13 @@ describe('local CONTINUOUS practice runtime', () => {
     const countInBefore = countIn.evaluationSnapshot;
     expect(countIn.snapshot().state).toBe('COUNT_IN');
     expect(() => countIn.publishAnalysis({
-      sessionDomainId: countIn.timebase.domainId,
-      attacks: [],
-      analyzedThroughPerformanceMs: 0,
-    })).toThrow(/requires captured performance evidence time/);
+          publicationId: 'publication-33821', sessionDomainId: countIn.timebase.domainId,
+          analyzedThroughPerformanceMs: 0, availabilityTimeMs: 0,
+          observations: ([]).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-33821:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: countIn.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        })).toThrow(/requires captured performance evidence time/);
     expect(countIn.evaluationSnapshot).toEqual(countInBefore);
   });
 
@@ -899,10 +933,13 @@ describe('local CONTINUOUS practice runtime', () => {
     const before = session.evaluationSnapshot;
 
     expect(() => session.publishAnalysis({
-      sessionDomainId: session.timebase.domainId,
-      attacks: [],
-      analyzedThroughPerformanceMs: 2000,
-    })).toThrow(/beyond captured performance time/);
+          publicationId: 'publication-34573', sessionDomainId: session.timebase.domainId,
+          analyzedThroughPerformanceMs: 2000, availabilityTimeMs: 2000,
+          observations: ([]).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-34573:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        })).toThrow(/beyond captured performance time/);
     expect(session.evaluationSnapshot).toEqual(before);
   });
 
@@ -922,10 +959,13 @@ describe('local CONTINUOUS practice runtime', () => {
     pausedClock.advance(5000);
     const pausedBefore = paused.evaluationSnapshot;
     expect(() => paused.publishAnalysis({
-      sessionDomainId: paused.timebase.domainId,
-      attacks: [],
-      analyzedThroughPerformanceMs: 1001,
-    })).toThrow(/beyond captured performance time/);
+          publicationId: 'publication-35374', sessionDomainId: paused.timebase.domainId,
+          analyzedThroughPerformanceMs: 1001, availabilityTimeMs: 1001,
+          observations: ([]).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-35374:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: paused.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        })).toThrow(/beyond captured performance time/);
     expect(paused.evaluationSnapshot).toEqual(pausedBefore);
 
     const stoppedClock = new ManualClock(0);
@@ -942,10 +982,13 @@ describe('local CONTINUOUS practice runtime', () => {
     stopped.end('STOPPED_BY_USER');
     const stoppedBefore = stopped.evaluationSnapshot;
     expect(() => stopped.publishAnalysis({
-      sessionDomainId: stopped.timebase.domainId,
-      attacks: [],
-      analyzedThroughPerformanceMs: 1001,
-    })).toThrow(/beyond captured performance time/);
+          publicationId: 'publication-36075', sessionDomainId: stopped.timebase.domainId,
+          analyzedThroughPerformanceMs: 1001, availabilityTimeMs: 1001,
+          observations: ([]).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-36075:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: stopped.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        })).toThrow(/beyond captured performance time/);
     expect(stopped.evaluationSnapshot).toEqual(stoppedBefore);
   });
 
@@ -968,10 +1011,13 @@ describe('local CONTINUOUS practice runtime', () => {
     expect(range.snapshot().completionReason).toBe('SCOPE_COMPLETED');
 
     expect(() => range.publishAnalysis({
-      sessionDomainId: range.timebase.domainId,
-      attacks: [],
-      analyzedThroughPerformanceMs: range.snapshot().performanceTimeMs,
-    })).not.toThrow();
+          publicationId: 'publication-36999', sessionDomainId: range.timebase.domainId,
+          analyzedThroughPerformanceMs: range.snapshot().performanceTimeMs, availabilityTimeMs: range.snapshot().performanceTimeMs,
+          observations: ([]).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-36999:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: range.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        })).not.toThrow();
   });
 
   it('rejects post-terminal analysis publication that moves the performance frontier backwards', () => {
@@ -989,16 +1035,22 @@ describe('local CONTINUOUS practice runtime', () => {
     session.end('STOPPED_BY_USER');
 
     session.publishAnalysis({
-      sessionDomainId: session.timebase.domainId,
-      attacks: [],
-      analyzedThroughPerformanceMs: 1000,
-    });
+          publicationId: 'publication-37656', sessionDomainId: session.timebase.domainId,
+          analyzedThroughPerformanceMs: 1000, availabilityTimeMs: 1000,
+          observations: ([]).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-37656:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        });
     const afterForward = session.evaluationSnapshot;
     expect(() => session.publishAnalysis({
-      sessionDomainId: session.timebase.domainId,
-      attacks: [],
-      analyzedThroughPerformanceMs: 100,
-    })).toThrow(/monotonic/);
+          publicationId: 'publication-37877', sessionDomainId: session.timebase.domainId,
+          analyzedThroughPerformanceMs: 100, availabilityTimeMs: 100,
+          observations: ([]).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-37877:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        })).toThrow(/PUBLICATION_AFTER_COMPLETION/);
 
     expect(session.evaluationSnapshot).toEqual(afterForward);
   });
@@ -1030,20 +1082,23 @@ describe('local CONTINUOUS practice runtime', () => {
     const before = sessionB.evaluationSnapshot;
 
     expect(() => sessionB.publishAnalysis({
-      sessionDomainId: sessionA.timebase.domainId,
-      attacks: [{
+          publicationId: 'publication-38978', sessionDomainId: sessionA.timebase.domainId,
+          analyzedThroughPerformanceMs: 1000, availabilityTimeMs: 1000,
+          observations: ([{
         captureTime: sessionA.timebase.atSessionMs(100),
         pitch: 'C4',
         confidence: 1,
-        source: 'ACOUSTIC',
-      }],
-      analyzedThroughPerformanceMs: 1000,
-    })).toThrow(/different session domain/);
+        source: 'ACOUSTIC' as const,
+      }]).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-38978:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: sessionB.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        })).toThrow(/different session domain/);
 
     expect(sessionB.evaluationSnapshot).toEqual(before);
   });
 
-  it('rejects attacks from the wrong capture domain before advancing analysis', () => {
+  it('rejects a publication from the wrong performance domain before advancing analysis', () => {
     const clock = new ManualClock(0);
     const session = new ContinuousPracticeSession({
       artifact,
@@ -1059,20 +1114,23 @@ describe('local CONTINUOUS practice runtime', () => {
     const before = session.evaluationSnapshot;
 
     expect(() => session.publishAnalysis({
-      sessionDomainId: session.timebase.domainId,
-      attacks: [{
+          publicationId: 'publication-39883', sessionDomainId: 'wrong-domain',
+          analyzedThroughPerformanceMs: 1000, availabilityTimeMs: 1000,
+          observations: ([{
         captureTime: { domainId: 'wrong-domain', ms: 100 },
         pitch: 'C4',
         confidence: 1,
-        source: 'ACOUSTIC',
-      }],
-      analyzedThroughPerformanceMs: 1000,
-    })).toThrow(/different session domain/);
+        source: 'ACOUSTIC' as const,
+      }]).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-39883:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        })).toThrow(/different session domain/);
 
     expect(session.evaluationSnapshot).toEqual(before);
   });
 
-  it('rejects mixed-domain analysis publications atomically before observing valid attacks', () => {
+  it('rejects a mixed valid/invalid observation batch atomically', () => {
     const clock = new ManualClock(0);
     const session = new ContinuousPracticeSession({
       artifact,
@@ -1088,29 +1146,32 @@ describe('local CONTINUOUS practice runtime', () => {
     const before = session.evaluationSnapshot;
 
     expect(() => session.publishAnalysis({
-      sessionDomainId: session.timebase.domainId,
-      attacks: [
+          publicationId: 'publication-40802', sessionDomainId: session.timebase.domainId,
+          analyzedThroughPerformanceMs: 1000, availabilityTimeMs: 1000,
+          observations: ([
         {
           captureTime: session.timebase.atSessionMs(100),
           pitch: 'C4',
           confidence: 1,
-          source: 'ACOUSTIC',
+          source: 'ACOUSTIC' as const,
         },
         {
           captureTime: session.timebase.atSessionMs(200),
           pitch: 'E4',
           confidence: 1,
-          source: 'ACOUSTIC',
+          source: 'ACOUSTIC' as const,
         },
         {
           captureTime: { domainId: 'wrong-domain', ms: 300 },
           pitch: 'G4',
-          confidence: 1,
-          source: 'ACOUSTIC',
+        confidence: 1,
+        source: 'ACOUSTIC' as const,
         },
-      ],
-      analyzedThroughPerformanceMs: 1000,
-    })).toThrow(/different session domain/);
+      ]).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-40802:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: attack.captureTime.domainId === 'wrong-domain' ? 1001 : 100,
+          })),
+        })).toThrow(/INVALID_PUBLICATION/);
 
     expect(session.evaluationSnapshot).toEqual(before);
   });
@@ -1131,15 +1192,18 @@ describe('local CONTINUOUS practice runtime', () => {
     const before = session.evaluationSnapshot;
 
     expect(() => session.publishAnalysis({
-      sessionDomainId: session.timebase.domainId,
-      attacks: [{
+          publicationId: 'publication-42062', sessionDomainId: session.timebase.domainId,
+          analyzedThroughPerformanceMs: Number.POSITIVE_INFINITY, availabilityTimeMs: Number.POSITIVE_INFINITY,
+          observations: ([{
         captureTime: session.timebase.atSessionMs(100),
         pitch: 'C4',
         confidence: 1,
-        source: 'ACOUSTIC',
-      }],
-      analyzedThroughPerformanceMs: Number.POSITIVE_INFINITY,
-    })).toThrow(/analysis frontier/);
+        source: 'ACOUSTIC' as const,
+      }]).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-42062:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: session.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        })).toThrow(/analysis frontier/);
 
     expect(session.evaluationSnapshot).toEqual(before);
   });
@@ -1220,7 +1284,7 @@ describe('local session foundation', () => {
     expect(runtime.observe(observation(runtime, ['C4'], {
       attackOnsetTime: onset,
       captureTime: onset,
-      source: 'ACOUSTIC',
+      source: 'ACOUSTIC' as const,
     }))).toMatchObject({ kind: 'MATCH' });
 
     const midiTimebase = new PracticeTimebase({ domainId: 'normalized-midi' });
@@ -1245,12 +1309,12 @@ describe('local session foundation', () => {
       inferenceCompletedAtMs: 5_000,
     });
     expect(evaluated).toBe(true);
-    expect(performance.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'PENDING' });
+    expect(performance.evaluationSnapshot.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'PENDING' });
     performanceClock.advance(1_000);
     performance.snapshot();
-    expect(performance.evaluationSnapshot.strikes[0]).toMatchObject({
-      verdict: 'MATCHED',
-      timingOffsetMs: 0,
+    expect(performance.evaluationSnapshot.groups.flatMap(group => group.strikes)[0]).toMatchObject({
+      state: 'MATCHED',
+      match: { timingOffsetMs: 0 },
     });
   });
 

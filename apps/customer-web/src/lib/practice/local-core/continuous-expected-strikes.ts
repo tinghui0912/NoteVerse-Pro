@@ -11,7 +11,7 @@ import {
   type ResolvedPracticeTempoPlan,
   type PracticeTempoSelection,
 } from './practice-tempo';
-import type { ExpectedStrike } from '../audio-analysis/continuous/performance-reconciler';
+import type { ContinuousExpectedStrike } from './continuous-evaluation-types';
 
 type ContinuousExpectedStrikeClock = {
   beatToTimeMs(beat: number): number;
@@ -31,7 +31,7 @@ export type ResolvedContinuousPracticeContract = {
   scopeStartBeat: number;
   scopeTerminalBeat: number;
   naturalTerminalPerformanceTimeMs: number;
-  expectedStrikes: ExpectedStrike[];
+  expectedStrikes: ContinuousExpectedStrike[];
 };
 
 export function resolveContinuousPracticeContract(input: BuildContinuousExpectedStrikesInput): ResolvedContinuousPracticeContract {
@@ -52,7 +52,7 @@ export function resolveContinuousPracticeContract(input: BuildContinuousExpected
   };
 }
 
-export function buildContinuousExpectedStrikes(input: BuildContinuousExpectedStrikesInput): ExpectedStrike[] {
+export function buildContinuousExpectedStrikes(input: BuildContinuousExpectedStrikesInput): ContinuousExpectedStrike[] {
   return resolveContinuousPracticeContract(input).expectedStrikes;
 }
 
@@ -60,7 +60,7 @@ export function buildContinuousExpectedStrikesFromTimeline(
   artifact: PracticeScoreArtifact,
   timeline: ContinuousExpectedStrikeClock,
   scope: ResolvedPracticeScope
-): ExpectedStrike[] {
+): ContinuousExpectedStrike[] {
   assertPracticeScoreArtifact(artifact);
   const scopeStartTimeMs = timeline.beatToTimeMs(scope.startBeat);
   return artifact.expectedPracticeGroups

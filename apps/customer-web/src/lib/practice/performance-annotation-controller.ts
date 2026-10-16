@@ -1,5 +1,5 @@
-import type { CompletedContinuousEvaluation } from './completed-performance';
-import type { ContinuousEvaluationSnapshot } from './local-core/continuous-evaluation-session';
+import type { CompletedContinuousEvaluation } from './local-core/continuous-evaluation-types';
+import type { ContinuousEvaluationSnapshot } from './local-core/continuous-evaluation-types';
 
 function escapeCssId(id: string) {
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
@@ -152,11 +152,14 @@ export function noteAnnotationsFromContinuousEvaluation(
 } {
   const confirmedCorrectNoteIds: string[] = [];
   const confirmedErrorNoteIds: string[] = [];
-  for (const strike of evaluation.strikes) {
-    if (strike.verdict === 'MATCHED') {
-      confirmedCorrectNoteIds.push(...strike.renderNoteIds);
-    } else if (strike.verdict === 'MISSING') {
-      confirmedErrorNoteIds.push(...strike.renderNoteIds);
+  for (const group of evaluation.groups) {
+    if (group.verdict === 'PENDING') continue;
+    for (const strike of group.strikes) {
+      if (strike.state === 'MATCHED') {
+        confirmedCorrectNoteIds.push(...strike.renderNoteIds);
+      } else if (strike.state === 'MISSING') {
+        confirmedErrorNoteIds.push(...strike.renderNoteIds);
+      }
     }
   }
   return { confirmedCorrectNoteIds, confirmedErrorNoteIds };
@@ -176,11 +179,13 @@ export function noteAnnotationsFromCompletedEvaluation(
   }
   const confirmedCorrectNoteIds: string[] = [];
   const confirmedErrorNoteIds: string[] = [];
-  for (const strike of evaluation.strikes) {
-    if (strike.result === 'MATCHED') {
-      confirmedCorrectNoteIds.push(...strike.renderNoteIds);
-    } else if (strike.result === 'MISSING') {
-      confirmedErrorNoteIds.push(...strike.renderNoteIds);
+  for (const group of evaluation.groups) {
+    for (const strike of group.strikes) {
+      if (strike.state === 'MATCHED') {
+        confirmedCorrectNoteIds.push(...strike.renderNoteIds);
+      } else if (strike.state === 'MISSING') {
+        confirmedErrorNoteIds.push(...strike.renderNoteIds);
+      }
     }
   }
   return { confirmedCorrectNoteIds, confirmedErrorNoteIds };

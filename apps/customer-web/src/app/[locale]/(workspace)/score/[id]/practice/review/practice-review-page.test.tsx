@@ -260,9 +260,10 @@ vi.mock('@/lib/practice/share-video-export', () => ({
 import PracticeReviewPage from './page';
 import {
   completedPerformanceStore,
-  type CompletedContinuousEvaluation,
   type CompletedPerformance,
 } from '@/lib/practice/completed-performance';
+import type { CompletedContinuousEvaluation, ContinuousFinalizedGroup } from '@/lib/practice/local-core/continuous-evaluation-types';
+import { completedTruth, finality } from '@/lib/practice/__fixtures__/continuous-truth';
 import { PerformanceAnnotationController } from '@/lib/practice/performance-annotation-controller';
 
 type TestOutcome = {
@@ -285,34 +286,35 @@ type TestOutcome = {
 function completeEvaluation(
   outcomes: TestOutcome[] = []
 ): CompletedContinuousEvaluation {
-  return {
-    status: 'COMPLETE',
-    strikes: outcomes.flatMap((outcome) =>
-      outcome.expectedStrikeOutcomes.map((strike) => {
+  return completedTruth(outcomes.map(outcome => ({
+    groupId: outcome.expectedGroupId, performanceTimeMs: outcome.performanceTimeMs,
+    verdict: (outcome.expectedStrikeOutcomes.every(s => s.result === 'MATCHED') ? 'CORRECT'
+      : outcome.expectedStrikeOutcomes.some(s => s.result === 'NOT_REACHED') ? 'NOT_REACHED'
+      : outcome.expectedStrikeOutcomes.some(s => s.result === 'MATCHED') ? 'INCOMPLETE_CHORD' : 'MISSING') as ContinuousFinalizedGroup['verdict'],
+    finality, wrongObservations: [], evidenceObservationIds: outcome.expectedStrikeOutcomes.filter(s => s.result === 'MATCHED').map(s => `${s.strikeId}:matched`),
+    strikes: outcome.expectedStrikeOutcomes.map((strike) => {
         const base = {
           strikeId: strike.strikeId,
-          expectedGroupId: outcome.expectedGroupId,
+          groupId: outcome.expectedGroupId,
           pitch: strike.pitch,
-          performanceTimeMs: outcome.performanceTimeMs,
+          expectedPerformanceTimeMs: outcome.performanceTimeMs,
           renderNoteIds: strike.renderNoteIds,
         };
         if (strike.result === 'MATCHED') {
           return {
             ...base,
-            result: 'MATCHED' as const,
-            matchedObservationId: `${strike.strikeId}:matched`,
-            confidence: outcome.confidence,
-            source: outcome.source,
-            timingOffsetMs: outcome.timingOffsetMs ?? 0,
+            state: 'MATCHED' as const, finality,
+            match: { observation: { observationId: `${strike.strikeId}:matched`, pitch: strike.pitch,
+              performanceTimeMs: outcome.performanceTimeMs + (outcome.timingOffsetMs ?? 0), confidence: outcome.confidence, source: outcome.source },
+              timingOffsetMs: outcome.timingOffsetMs ?? 0 },
           };
         }
         return {
           ...base,
-          result: strike.result,
+          state: strike.result, finality,
         };
-      })
-    ),
-    extras: outcomes.flatMap((outcome) =>
+      }),
+  })), outcomes.flatMap((outcome) =>
       outcome.unexpectedPitches.map((pitch, index) => ({
         observationId: `${outcome.expectedGroupId}:${index}:${pitch}`,
         pitch,
@@ -320,8 +322,7 @@ function completeEvaluation(
         confidence: outcome.confidence,
         source: outcome.source,
       }))
-    ),
-  };
+    ));
 }
 
 describe('PracticeReviewPage', () => {

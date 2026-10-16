@@ -102,13 +102,12 @@ describe('practice architecture boundaries', () => {
   it('derives completed Continuous evaluation from the finalized session ledger', () => {
     const evaluatorFile = path.resolve(__dirname, 'local-core/continuous-evaluation-session.ts');
     const evaluatorContent = readFileSync(evaluatorFile, 'utf8');
-    const ledgerFile = path.resolve(__dirname, 'local-core/continuous-finalization-ledger.ts');
-    const ledgerContent = readFileSync(ledgerFile, 'utf8');
-    const completedMethod = ledgerContent.match(/completedEvaluation\(\): CompletedContinuousEvaluation[\s\S]*?\n  }\n\n  private finalizeReadyTruth/)?.[0] ?? '';
-
-    expect(evaluatorContent).toContain('this.ledger.completedEvaluation()');
-    expect(completedMethod).toContain('const snapshot = this.snapshot()');
-    expect(completedMethod).not.toContain('reconcilePerformance');
+    const finalizer = readFileSync(path.resolve(__dirname, 'local-core/continuous-finalizer.ts'), 'utf8');
+    const projection = readFileSync(path.resolve(__dirname, 'local-core/continuous-evaluation-projection.ts'), 'utf8');
+    expect(evaluatorContent).toContain('this.finalizer.completedEvaluation()');
+    expect(finalizer).toContain('completedContinuousTruth(this.snapshot())');
+    expect(projection).not.toContain('assignContinuousEvidence');
+    expect(readdirSync(path.resolve(__dirname, 'local-core'))).not.toContain('continuous-finalization-ledger.ts');
   });
 
   it('documents Practice Product Contract v2 as the authoritative microphone boundary', () => {
@@ -136,11 +135,11 @@ describe('practice architecture boundaries', () => {
     expect(content).toContain('Stop or natural completion drains unfinished tail work only.');
     expect(content).toContain('Previously finalized regions are never re-inferred as part of completing the performance or opening Review.');
     expect(content).toContain('The product-domain evaluator owns the finalized ledger and the analysis coverage watermark.');
-    expect(content).toContain('A strike reaching its individual late deadline is not by itself sufficient to freeze');
-    expect(content).toContain('chunked score-aware analyzer');
-    expect(content).toContain('stateful streaming analyzer');
-    expect(content).toContain('The product contract is strategy-neutral');
-    expect(content).toContain('Correctness and product-level evaluation accuracy are the primary selection criteria.');
+    expect(content).toContain('Transitive connected-component waiting is');
+    expect(content).toContain('Reservations do not recursively expand.');
+    expect(content).toContain('Expected score is available only to the downstream deterministic product evaluator.');
+    expect(content).toContain('there is exactly one Continuous evaluator');
+    expect(content).toContain('Availability is never interpreted as attack time.');
     expect(content).toContain('Analysis PCM capture is a source timeline, not a performance clock.');
     expect(content).toContain('one monotonic source-sample identity domain');
     expect(content).toContain('Source sample ranges are half-open');
@@ -148,7 +147,7 @@ describe('practice architecture boundaries', () => {
     expect(content).toContain('Pause and resume create separate acoustic source segments.');
     expect(content).toContain('Context-only samples consume source sample identity but do not extend performance duration');
     expect(content).toContain('input region:');
-    expect(content).toContain('commit region:');
+    expect(content).toContain('acoustic owned region:');
     expect(content).toContain('Production microphone Practice remains disabled');
     expect(content).toContain('must not require a continuous generic physical-onset stream');
     expect(content).not.toContain('a later full-performance or final analysis may become the canonical Review result');
@@ -221,7 +220,8 @@ describe('practice architecture boundaries', () => {
       path.resolve(__dirname, 'local-core/step-evidence-session.ts'),
       path.resolve(__dirname, 'local-core/performance-runtime.ts'),
       path.resolve(__dirname, 'local-core/continuous-evaluation-session.ts'),
-      path.resolve(__dirname, 'audio-analysis/continuous/performance-reconciler.ts'),
+      path.resolve(__dirname, 'local-core/continuous-finalizer.ts'),
+      path.resolve(__dirname, 'local-core/continuous-evaluation-types.ts'),
       path.resolve(__dirname, 'performance-recorder.ts'),
       path.resolve(__dirname, 'completed-performance.ts'),
       path.resolve(__dirname, 'input-capability.ts'),

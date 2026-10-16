@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
+import { ContinuousFinalizer } from './local-core/continuous-finalizer';
 
 import {
   PerformanceAnnotationController,
@@ -135,37 +136,14 @@ describe('PerformanceAnnotationController', () => {
   });
 
   it('derives strike-level note annotations without coloring pending notes', () => {
-    const annotations = noteAnnotationsFromContinuousEvaluation({
-      strikes: [
-        {
-          strikeId: 'c',
-          groupId: 'g-1',
-          pitch: 'C4',
-          expectedPerformanceTimeMs: 1000,
-          renderNoteIds: ['note-c'],
-          verdict: 'MATCHED',
-          matchedObservationId: 'obs-c',
-          timingOffsetMs: 0,
-        },
-        {
-          strikeId: 'e',
-          groupId: 'g-1',
-          pitch: 'E4',
-          expectedPerformanceTimeMs: 1000,
-          renderNoteIds: ['note-e'],
-          verdict: 'MISSING',
-        },
-        {
-          strikeId: 'g',
-          groupId: 'g-1',
-          pitch: 'G4',
-          expectedPerformanceTimeMs: 1000,
-          renderNoteIds: ['note-g'],
-          verdict: 'PENDING',
-        },
-      ],
-      extras: [{ observationId: 'extra', pitch: 'F#4', performanceTimeMs: 1000, confidence: 0.8, source: 'ACOUSTIC' }],
-    });
+    const finalizer = new ContinuousFinalizer('annotation', [
+      { strikeId: 'c', groupId: 'g-1', pitch: 'C4', expectedPerformanceTimeMs: 1000, renderNoteIds: ['note-c'] },
+      { strikeId: 'e', groupId: 'g-1', pitch: 'E4', expectedPerformanceTimeMs: 1000, renderNoteIds: ['note-e'] },
+      { strikeId: 'g', groupId: 'future', pitch: 'G4', expectedPerformanceTimeMs: 5000, renderNoteIds: ['note-g'] },
+    ]);
+    finalizer.publish({ publicationId: 'p', sessionDomainId: 'annotation', analyzedThroughPerformanceMs: 1500, availabilityTimeMs: 1600,
+      observations: [{ observationId: 'obs-c', pitch: 'C4', performanceTimeMs: 1000, confidence: 1, source: 'MIDI' }] });
+    const annotations = noteAnnotationsFromContinuousEvaluation(finalizer.snapshot());
 
     expect(annotations.confirmedCorrectNoteIds).toEqual(['note-c']);
     expect(annotations.confirmedErrorNoteIds).toEqual(['note-e']);

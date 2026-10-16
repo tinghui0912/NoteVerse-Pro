@@ -19,7 +19,7 @@ import { PracticeVerovioAdapter } from '@/lib/practice/verovio-adapter';
 import { cn } from '@/lib/utils';
 import type { ExpectedPracticeGroup, PracticeMode } from '@/lib/practice/local-core/artifact';
 import type { CursorScope } from '@/lib/practice/local-core/cursor-scope';
-import type { ContinuousEvaluationSnapshot } from '@/lib/practice/local-core/continuous-evaluation-session';
+import type { ContinuousEvaluationSnapshot } from '@/lib/practice/local-core/continuous-evaluation-types';
 
 import type { LocalPracticeLifecycle } from '@/lib/practice/local-core/session';
 
@@ -65,11 +65,11 @@ export function PracticeScoreViewer({
   const selectedRangeRenderNoteIdSignature = selectedRangeRenderNoteIds.join('\u001f');
   const performanceAnnotationSignature = useMemo(
     () =>
-      (performanceEvaluation?.strikes ?? [])
-        .map((strike) => [
-          strike.strikeId,
-          strike.verdict,
-          strike.renderNoteIds.join(','),
+      (performanceEvaluation?.groups ?? [])
+        .map((group) => [
+          group.groupId,
+          group.verdict,
+          group.strikes.map(strike => `${strike.strikeId}:${strike.state}:${strike.renderNoteIds.join(',')}`).join(';'),
         ].join(':'))
         .join('\u001f'),
     [performanceEvaluation]

@@ -39,10 +39,10 @@ import { usePracticeScoreArtifact } from '@/hooks/practice/use-practice-score-ar
 import { useSavePerformanceTake } from '@/hooks/queries/use-performance-take-queries';
 import {
   completedPerformanceStore,
-  type CompletedContinuousEvaluation,
   type CompletedPerformance,
   mediaTimeToPerformanceTimeMs,
 } from '@/lib/practice/completed-performance';
+import type { CompletedContinuousEvaluation } from '@/lib/practice/local-core/continuous-evaluation-types';
 import { PerformancePlayheadController } from '@/lib/practice/performance-playhead-controller';
 import {
   PerformanceAnnotationController,
@@ -115,13 +115,13 @@ function buildFeedbackSummary({
 
   const byStrikeId = new Map(
     evaluation.status === 'COMPLETE'
-      ? evaluation.strikes.map((strike) => [strike.strikeId, strike])
+      ? evaluation.groups.flatMap(group => group.strikes.map((strike) => [strike.strikeId, strike] as const))
       : []
   );
   for (const group of expectedGroups) {
     for (const strikeTarget of group.strikeTargets) {
       summary.targetStrikeCount += 1;
-      const result = byStrikeId.get(strikeTarget.strikeId)?.result ?? 'NOT_REACHED';
+      const result = byStrikeId.get(strikeTarget.strikeId)?.state ?? 'NOT_REACHED';
       if (result === 'MATCHED') {
         summary.correctStrikeCount += 1;
       } else if (result === 'MISSING') {
@@ -146,11 +146,11 @@ function applyCompletedEvaluationToSummary(
   if (evaluation.status === 'UNAVAILABLE') {
     return;
   }
-  for (const strike of evaluation.strikes) {
+  for (const strike of evaluation.groups.flatMap(group => group.strikes)) {
     summary.targetStrikeCount += 1;
-    if (strike.result === 'MATCHED') {
+    if (strike.state === 'MATCHED') {
       summary.correctStrikeCount += 1;
-    } else if (strike.result === 'MISSING') {
+    } else if (strike.state === 'MISSING') {
       summary.missingStrikeCount += 1;
     } else {
       summary.notReachedStrikeCount += 1;

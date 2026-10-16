@@ -1,3 +1,4 @@
+import type { CapturedAttack } from '@/lib/practice/local-core/evidence';
 import { describe, expect, it } from 'vitest';
 
 import referenceFixture from './__fixtures__/bytedance-python-reference-contract.json';
@@ -258,7 +259,7 @@ describe('ByteDance preprocessing and decoding', () => {
     expect(result[0]).toMatchObject({
       onsetTime: { domainId: 'audio-domain', ms: 2100, sampleIndex: 11600 },
       inferenceCompletedAtMs: 10123,
-      source: 'ACOUSTIC',
+      source: 'ACOUSTIC' as const,
     });
   });
 
@@ -739,11 +740,14 @@ describe('ByteDance local practice adapters', () => {
     );
     const [observation] = acousticEventsToPerformanceEvidence(event);
     performance.publishAnalysis({
-      sessionDomainId: performance.timebase.domainId,
-      attacks: [observation],
-      analyzedThroughPerformanceMs: 1_500,
-    });
-    expect(performance.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MATCHED' });
+          publicationId: 'publication-29047', sessionDomainId: performance.timebase.domainId,
+          analyzedThroughPerformanceMs: 1_500, availabilityTimeMs: 1_500,
+          observations: ([observation]).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-29047:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: performance.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        });
+    expect(performance.evaluationSnapshot.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MATCHED' });
     expect(performance.snapshot().performanceTimeMs).toBe(before.performanceTimeMs);
   });
 
@@ -777,11 +781,14 @@ describe('ByteDance local practice adapters', () => {
     }
     clock.advance(Math.max(0, 1_500 - clock.nowMs()));
     performance.publishAnalysis({
-      sessionDomainId: performance.timebase.domainId,
-      attacks: observations,
-      analyzedThroughPerformanceMs: 1_500,
-    });
-    expect(performance.evaluationSnapshot.strikes[0]).toMatchObject({ verdict: 'MATCHED' });
+          publicationId: 'publication-30701', sessionDomainId: performance.timebase.domainId,
+          analyzedThroughPerformanceMs: 1_500, availabilityTimeMs: 1_500,
+          observations: (observations).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-30701:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: performance.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        });
+    expect(performance.evaluationSnapshot.groups.flatMap(group => group.strikes)[0]).toMatchObject({ state: 'MATCHED' });
     expect(performance.evaluationSnapshot.extras).toEqual([]);
   });
 
@@ -811,11 +818,14 @@ describe('ByteDance local practice adapters', () => {
     );
     clock.advance(250);
     performance.publishAnalysis({
-      sessionDomainId: performance.timebase.domainId,
-      attacks: acousticEventsToPerformanceEvidence(decoded),
-      analyzedThroughPerformanceMs: 250,
-    });
-    expect(performance.evaluationSnapshot.strikes.every((strike) => strike.verdict === 'MATCHED')).toBe(true);
+          publicationId: 'publication-31930', sessionDomainId: performance.timebase.domainId,
+          analyzedThroughPerformanceMs: 250, availabilityTimeMs: 250,
+          observations: (acousticEventsToPerformanceEvidence(decoded)).map((attack: CapturedAttack, index: number) => ({
+            observationId: 'publication-31930:' + index, pitch: attack.pitch, confidence: attack.confidence, source: attack.source,
+            performanceTimeMs: performance.clock.performanceTimeAtCapture(attack.captureTime.ms) ?? -1,
+          })),
+        });
+    expect(performance.evaluationSnapshot.groups.flatMap(group => group.strikes).every((strike) => strike.state === 'MATCHED')).toBe(true);
     expect(performance.evaluationSnapshot.extras).toEqual([]);
   });
 });

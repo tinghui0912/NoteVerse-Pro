@@ -214,7 +214,7 @@ practice 页专属非 React 逻辑。
 
 当前边界：
 
-- `local-core/`：browser-local Practice execution，包含 `PerformanceClockRuntime`、`ContinuousPracticeSession`、`ContinuousEvaluationSession` 和 `ContinuousFinalizationLedger`
+- `local-core/`：browser-local Practice execution，包含 `PerformanceClockRuntime`、`ContinuousPracticeSession`、`ContinuousEvaluationSession` 和 `ContinuousFinalizer`
 - `verovio-adapter.ts`：唯一直接理解 Verovio toolkit API 的地方
 - `practice-scroll.ts`：滚动阈值和 viewport 跟随策略
 - `verovio-types.ts`：practice 渲染相关类型
@@ -441,7 +441,7 @@ practice 页是 browser-local 练习、高亮和本地 playhead 控制的主要�
 2. Customer Web 创建 browser-local STEP 或 Continuous session
 3. `PerformanceClockRuntime` 使用本地 monotonic clock、fixed BPM、pause/resume 语义推进 Continuous performance time
 4. MIDI 或未来 acoustic evidence 进入 shared evaluator
-5. `ContinuousFinalizationLedger` 产出 immutable finalized feedback
+5. `ContinuousFinalizer` 以 fixed direct-claimant horizon 产出 immutable five-verdict truth；禁止 transitive connected-component wait
 6. score viewer 根据本地 beat/performance time 更新 SVG class、playhead 和 scroll state
 
 score load：

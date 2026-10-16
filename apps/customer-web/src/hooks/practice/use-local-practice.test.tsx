@@ -438,7 +438,7 @@ describe('useLocalPractice', () => {
     });
 
     expect(result.current.lifecycle).toBe('ACTIVE');
-    expect(result.current.performanceEvaluation?.strikes.every((strike) => strike.verdict === 'PENDING')).toBe(true);
+    expect(result.current.performanceEvaluation?.groups.every((group) => group.verdict === 'PENDING')).toBe(true);
   });
 
   it('keeps MIDI continuous recording OFF from requesting microphone media', async () => {

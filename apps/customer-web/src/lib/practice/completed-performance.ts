@@ -2,51 +2,7 @@ import type {
   ResolvedPracticeScope,
   ResolvedPracticeTempoPlan,
 } from './local-core';
-
-type CompletedObservedAttackRecord = {
-  observationId: string;
-  pitch: string;
-  performanceTimeMs: number;
-  confidence: number;
-  source: 'ACOUSTIC' | 'MIDI';
-  expectedGroupId?: string;
-};
-
-type CompletedStrikeRecordBase = {
-  strikeId: string;
-  expectedGroupId: string;
-  pitch: string;
-  performanceTimeMs: number;
-  renderNoteIds: string[];
-};
-
-type CompletedMatchedStrikeRecord = CompletedStrikeRecordBase & {
-  result: 'MATCHED';
-  matchedObservationId: string;
-  confidence: number;
-  source: 'ACOUSTIC' | 'MIDI';
-  timingOffsetMs: number;
-};
-
-type CompletedStrikeRecord =
-  | CompletedMatchedStrikeRecord
-  | (CompletedStrikeRecordBase & { result: 'MISSING' | 'NOT_REACHED' });
-
-type ContinuousEvaluationUnavailableReason =
-  | 'CONTINUOUS_ANALYSIS_UNAVAILABLE'
-  | 'INCOMPLETE_ANALYSIS'
-  | 'CORRUPT_TRANSIENT_DRAFT';
-
-export type CompletedContinuousEvaluation =
-  | {
-      status: 'COMPLETE';
-      strikes: CompletedStrikeRecord[];
-      extras: CompletedObservedAttackRecord[];
-    }
-  | {
-      status: 'UNAVAILABLE';
-      reason: ContinuousEvaluationUnavailableReason;
-    };
+import { immutableContinuousValue, type CompletedContinuousEvaluation } from './local-core/continuous-evaluation-types';
 
 interface PerformanceMediaReadyBase {
   status: 'READY';
@@ -151,22 +107,39 @@ function assertCompletedPerformance(performance: CompletedPerformance): void {
   if (performance.evaluation.status === 'UNAVAILABLE') {
     return;
   }
-  if (!Array.isArray(performance.evaluation.strikes) || !Array.isArray(performance.evaluation.extras)) {
+  const isArray = (value: unknown): boolean => Array.isArray(value);
+  if (!isArray(performance.evaluation.groups) || !isArray(performance.evaluation.extras)) {
     throw new Error('CompletedPerformance evaluation is corrupt.');
   }
-  for (const strike of performance.evaluation.strikes) {
-    if (!Array.isArray(strike.renderNoteIds)) {
-      throw new Error('CompletedPerformance strike renderNoteIds are required.');
-    }
-    if (strike.result === 'MATCHED') {
-      if (
-        !strike.matchedObservationId ||
-        !Number.isFinite(strike.confidence) ||
-        !Number.isFinite(strike.timingOffsetMs)
-      ) {
-        throw new Error('CompletedPerformance matched strike metadata is required.');
+  for (const group of performance.evaluation.groups) {
+    if (!['CORRECT', 'MISSING', 'WRONG', 'INCOMPLETE_CHORD', 'NOT_REACHED'].includes(group.verdict)
+      || !group.finality) throw new Error('CompletedPerformance group must be final.');
+    for (const strike of group.strikes) {
+      if (!Array.isArray(strike.renderNoteIds)) {
+        throw new Error('CompletedPerformance strike renderNoteIds are required.');
+      }
+      if (!['MATCHED', 'MISSING', 'NOT_REACHED'].includes(strike.state)) throw new Error('CompletedPerformance strike must be final.');
+      if (strike.state === 'MATCHED') {
+        if (
+          !strike.match?.observation.observationId ||
+          !Number.isFinite(strike.match.observation.confidence) ||
+          !Number.isFinite(strike.match.timingOffsetMs)
+        ) {
+          throw new Error('CompletedPerformance matched strike metadata is required.');
+        }
       }
     }
+  }
+  const declarations = performance.evaluation.groups.flatMap(group => [
+    ...group.strikes.flatMap(strike => strike.state === 'MATCHED'
+      ? [{ observationId: strike.match.observation.observationId, disposition: 'MATCHED', ownerId: strike.strikeId }] : []),
+    ...group.wrongObservations.map(observation => ({ observationId: observation.observationId, disposition: 'WRONG', ownerId: group.groupId })),
+  ]).concat(performance.evaluation.extras.map(extra => ({ observationId: extra.observation.observationId, disposition: 'EXTRA', ownerId: extra.observation.observationId })));
+  const owners = performance.evaluation.observationOwnership;
+  if (new Set(declarations.map(owner => owner.observationId)).size !== declarations.length
+    || owners.length !== declarations.length || declarations.some(owner => !owners.some(other =>
+      other.observationId === owner.observationId && other.disposition === owner.disposition && other.ownerId === owner.ownerId))) {
+    throw new Error('CompletedPerformance observation ownership is corrupt.');
   }
 }
 
@@ -180,7 +153,9 @@ class CompletedPerformanceStore {
 
   setPerformance(performance: CompletedPerformance): void {
     assertCompletedPerformance(performance);
-    this.performance = performance;
+    this.performance = { ...performance,
+      evaluation: Object.isFrozen(performance.evaluation) ? performance.evaluation
+        : immutableContinuousValue(structuredClone(performance.evaluation)) };
     this.notify();
   }
 

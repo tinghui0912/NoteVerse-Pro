@@ -17,8 +17,9 @@ import {
 } from './session';
 import {
   ContinuousEvaluationSession,
-  type ContinuousEvaluationSnapshot,
 } from './continuous-evaluation-session';
+import type { CompletedContinuousEvaluation, ContinuousEvaluationSnapshot, ContinuousEvidencePublication } from './continuous-evaluation-types';
+import { ContinuousMidiEvidence } from './continuous-midi-evidence';
 import {
   beatsToMs,
   PracticeTempoTimeline,
@@ -27,7 +28,6 @@ import {
   type ResolvedPracticeTempoPlan,
   type ResolvedPracticeTempoSegment,
 } from './practice-tempo';
-import type { CompletedContinuousEvaluation } from '../completed-performance';
 
 export type PerformanceRuntimeState = 'READY' | 'COUNT_IN' | 'RUNNING' | 'PAUSED' | 'ENDED';
 
@@ -65,12 +65,6 @@ export type PerformanceClockRuntimeOptions = {
 };
 
 export type ContinuousPracticeSessionOptions = PerformanceClockRuntimeOptions;
-
-export type ContinuousAnalysisPublication = {
-  sessionDomainId: string;
-  attacks: readonly CapturedAttack[];
-  analyzedThroughPerformanceMs: number;
-};
 
 class ContinuousAnalysisPublicationDomainError extends Error {
   readonly code = 'CONTINUOUS_ANALYSIS_PUBLICATION_DOMAIN_MISMATCH' as const;
@@ -398,16 +392,19 @@ export class ContinuousPracticeSession {
   private readonly evaluator: ContinuousEvaluationSession;
   private readonly inputSource: PracticeInputSource;
   private syncedCompletionReason: LocalPracticeCompletionReason | null = null;
+  private readonly midi: ContinuousMidiEvidence;
 
   constructor(options: ContinuousPracticeSessionOptions) {
     this.clock = new PerformanceClockRuntime(options);
     this.inputSource = options.inputSource ?? 'MICROPHONE';
+    this.midi = new ContinuousMidiEvidence(this.clock.timebase.domainId);
     const tempoPlan = options.tempoPlan
       ?? resolvePracticeTempoPlan(options.artifact, options.tempoSelection ?? { mode: 'SCORE' });
     this.evaluator = new ContinuousEvaluationSession({
       artifact: options.artifact,
       timeline: new PerformanceTimeline(options.artifact, tempoPlan.segments),
       scope: options.scope,
+      sessionDomainId: this.clock.timebase.domainId,
     });
   }
 
@@ -441,6 +438,9 @@ export class ContinuousPracticeSession {
   }
 
   observeCapturedAttack(attack: CapturedAttack): boolean {
+    if (this.inputSource !== 'MIDI' || attack.source !== 'MIDI') {
+      throw new Error('Captured attacks require the MIDI evidence boundary.');
+    }
     this.clock.timebase.assertSameSessionTimeDomain(attack.captureTime, this.clock.timebase.atSessionMs(0));
     const beforeSnapshot = this.clock.snapshot();
     if (beforeSnapshot.state === 'ENDED') {
@@ -450,18 +450,13 @@ export class ContinuousPracticeSession {
     if (performanceTimeMs === null) {
       return false;
     }
-    this.evaluator.observeAttack({
-      observationId: `${attack.captureTime.domainId}:${attack.captureTime.ms}:${attack.pitch}`,
-      pitch: attack.pitch,
-      performanceTimeMs,
-      confidence: attack.confidence,
-      source: attack.source,
-    });
+    this.midi.observe(attack.pitch, performanceTimeMs, attack.confidence);
     this.advanceMidiFrontier(this.clock.snapshot());
     return true;
   }
 
-  publishAnalysis(publication: ContinuousAnalysisPublication): void {
+  publishAnalysis(publication: ContinuousEvidencePublication): void {
+    if (this.inputSource === 'MIDI') throw new Error('MIDI coverage is owned by the local clock adapter.');
     if (publication.sessionDomainId !== this.clock.timebase.domainId) {
       throw new ContinuousAnalysisPublicationDomainError();
     }
@@ -480,29 +475,7 @@ export class ContinuousPracticeSession {
     if (publication.analyzedThroughPerformanceMs > maxAvailablePerformanceMs) {
       throw new Error('Continuous analysis frontier cannot advance beyond captured performance time.');
     }
-    for (const attack of publication.attacks) {
-      if (attack.captureTime.domainId !== this.clock.timebase.domainId) {
-        throw new ContinuousAnalysisPublicationDomainError(
-          'Continuous analysis attack belongs to a different session domain.'
-        );
-      }
-    }
-
-    const observedAttacks = publication.attacks.flatMap((attack) => {
-      const performanceTimeMs = this.clock.performanceTimeAtCapture(attack.captureTime.ms);
-      if (performanceTimeMs === null) {
-        return [];
-      }
-      return [{
-        observationId: `${attack.captureTime.domainId}:${attack.captureTime.ms}:${attack.pitch}`,
-        pitch: attack.pitch,
-        performanceTimeMs,
-        confidence: attack.confidence,
-        source: attack.source,
-      }];
-    });
-
-    this.evaluator.publishObservations(observedAttacks, publication.analyzedThroughPerformanceMs);
+    this.evaluator.publish(publication);
   }
 
   snapshotSession(): LocalPerformanceSessionSnapshot {
@@ -532,15 +505,13 @@ export class ContinuousPracticeSession {
 
   private syncFromClockSnapshot(snapshot: PerformanceClockSnapshot): PerformanceClockSnapshot {
     if (snapshot.state === 'ENDED' && snapshot.completionReason && this.syncedCompletionReason === null) {
+      if (this.inputSource === 'MIDI') this.coverMidi(snapshot.performanceTimeMs, snapshot.performanceTimeMs);
       this.evaluator.complete({
         reason: snapshot.completionReason,
         performanceTimeMs: snapshot.performanceTimeMs,
-        terminalPerformanceMs: this.clock.scopeDurationMs(),
+        availabilityTimeMs: snapshot.performanceTimeMs,
       });
       this.syncedCompletionReason = snapshot.completionReason;
-      if (this.inputSource === 'MIDI') {
-        this.evaluator.advanceAnalysisThrough(snapshot.performanceTimeMs);
-      }
       return snapshot;
     }
     this.advanceMidiFrontier(snapshot);
@@ -550,9 +521,14 @@ export class ContinuousPracticeSession {
   private advanceMidiFrontier(snapshot: PerformanceClockSnapshot): void {
     if (this.inputSource === 'MIDI' && snapshot.state === 'RUNNING') {
       if (snapshot.performanceTimeMs > DEFAULT_MIDI_COVERAGE_GRACE_MS) {
-        this.evaluator.advanceAnalysisThrough(snapshot.performanceTimeMs - DEFAULT_MIDI_COVERAGE_GRACE_MS);
+        this.coverMidi(snapshot.performanceTimeMs - DEFAULT_MIDI_COVERAGE_GRACE_MS, snapshot.performanceTimeMs);
       }
     }
+  }
+
+  private coverMidi(frontier: number, availability: number): void {
+    const publication = this.midi.cover(frontier, availability);
+    if (publication) this.evaluator.publish(publication);
   }
 
   private maxAvailableAnalysisPerformanceTime(snapshot: PerformanceClockSnapshot): number {

@@ -88,52 +88,26 @@ PracticeScoreArtifact
 
 User acoustic or MIDI correctness evidence must never move the playhead, change BPM, seek the score, estimate score position, or change the performance clock. If the user plays early, late, slowly, or misses notes, that becomes timing and correctness evidence. The clock does not follow the player.
 
-Future microphone analysis must publish into one model-agnostic Continuous evaluation/finalization contract. The product contract is strategy-neutral; future model selection will decide the execution strategy empirically.
-
-Two future candidate strategies are:
-
-```text
-chunked score-aware analyzer:
-  continuous microphone PCM
-  -> overlapping model input chunks
-  -> one inference can evaluate multiple expected score groups
-  -> commit/finalization region
-  -> evaluation
-```
-
-```text
-stateful streaming analyzer:
-  continuous microphone PCM
-  -> stateful streaming acoustic inference
-  -> chronological acoustic evidence
-  -> evaluation/finalization frontier
-  -> evaluation
-```
-
-There must not be separate product evaluators for chunked and streaming implementations. Correctness and product-level evaluation accuracy are the primary selection criteria. After correctness is acceptable, secondary criteria include feedback age, throughput, CPU/GPU/memory cost, browser compatibility, and implementation complexity.
-
-Do not assume streaming is better because it is lower latency. Do not assume chunked analysis is better because it uses more context. Accuracy has priority over immediate feedback, and the product does not require sub-200 ms instant feedback.
+Audio-only neural inference and decoding produce immutable physical acoustic observations.
+Expected score is available only to the downstream deterministic product evaluator.
+MIDI and acoustic sources publish into the same model-agnostic evidence contract;
+there is exactly one Continuous evaluator, with no policy selector or fallback.
 
 ## Analyzer Strategy Geometry
 
-The chunked candidate has two separate regions:
+Acoustic windowing and product finalization have separate ownership:
 
 ```text
 input region:
   audio supplied to the acoustic model, including overlapping context
 
-commit region:
-  the non-overlapping performance-time interval whose ExpectedStrike verdicts
-  this chunk is authorized to finalize
+acoustic owned region:
+  a half-open interval authorizing physical acoustic observation publication
+  (not expected-score verdict finalization)
 ```
 
-For the chunked candidate, commit ownership applies to `ExpectedStrike` verdicts. It is not a requirement that a chunk generically transcribe every physical acoustic event in its interval.
-
-The stateful streaming candidate does not impose chunk input/commit geometry. It instead advances an evaluation/finalization frontier from chronological acoustic evidence. It must still publish into the same Continuous evaluation/finalization contract.
-
-A future model may emit generic pitch-by-time evidence, but the product queries and reconciles that evidence using known score pitches and known expected performance times. Expected timing remains approximate; legal early/late assignment windows still apply. One observed acoustic event must not satisfy multiple `ExpectedStrike`s.
-
-The existing one-to-one reconciliation semantics remain valuable.
+The deterministic evaluator consumes immutable observations after inference. Acoustic
+window width is not semantic commit width, and inference never receives score targets.
 
 ## Analysis PCM Timeline
 
@@ -167,7 +141,54 @@ The product-domain evaluator owns the finalized ledger and the analysis coverage
 
 At Stop or natural completion, each evidence source drains only its unfinished tail work. MIDI has no asynchronous acoustic inference pass, so after MIDI input is safely closed for the performance it may close coverage through the completion performance time. Microphone analyzers must instead wait for their own source-specific unfinished analysis work to publish coverage.
 
-Finalization must respect one-to-one assignment conflicts. Same-pitch expected strikes whose legal assignment windows overlap, directly or transitively, can compete for the same observed evidence; those results are finalized only when the relevant safe assignment set is closed by analysis coverage or completion semantics. A strike reaching its individual late deadline is not by itself sufficient to freeze `MATCHED` or `MISSING` when overlapping same-pitch opportunities remain unresolved.
+### Bounded Assignment and Finalization
+
+The assignment window is fixed at inclusive +/-250ms. Same-pitch matching maximizes
+cardinality, then minimizes total absolute timing error, with stable identity ties.
+Observation array order does not select a different semantic owner.
+
+For a strike at time t, its literal same-pitch direct cohort contains strikes u with
+|u-t| <=500ms. Its fixed commit frontier H(t)=max(u+250ms) is at most t+750ms.
+Only the eligible anchor is committed; future cohort members participate as reversible
+reservation competitors, not prematurely finalized owners.
+
+A group shares one canonical time projected from expectedPracticeGroup.onsetBeat.
+It does not use a chord-spread tolerance. Missing-group WRONG evidence waits for each
+literal correct claimant's own fixed strike frontier, never that claimant's group
+completion. Group frontier is at most group time+1250ms. EXTRA waits for its literal
+correct and local WRONG claims only, at most observation time+1500ms.
+
+Reservations do not recursively expand. Transitive connected-component waiting is
+prohibited. These analysis-frontier bounds are not wall-clock latency guarantees or
+a product UX SLO. Publication/compute delay can delay availability independently.
+
+### Immutable Evidence and Product Truth
+
+A publication has publicationId, sessionDomainId, analyzedThroughPerformanceMs,
+availabilityTimeMs and observations. Each observation has an immutable observationId,
+pitch, performanceTimeMs, confidence and MIDI/ACOUSTIC source, with optional typed
+source-sample provenance. Availability is never interpreted as attack time.
+An exact duplicate publication is idempotent; mutated publication IDs, duplicate
+observation IDs, non-monotonic coverage and genuinely late new evidence fail closed.
+
+Strike states are PENDING, MATCHED, MISSING, NOT_REACHED. MATCHED retains the complete
+observation and timing offset. Group verdicts are PENDING, CORRECT, MISSING, WRONG,
+INCOMPLETE_CHORD, NOT_REACHED. CORRECT means all required strikes matched; WRONG
+requires missing strikes and legally assigned incompatible evidence. Without WRONG
+evidence, no matches means MISSING, and a partial multi-strike group means
+INCOMPLETE_CHORD. Manual-stop targets outside complete legal coverage are NOT_REACHED.
+
+Each observation has at most one semantic owner: MATCHED(strike), WRONG(group), or
+EXTRA(observation). Reservation is not ownership. Complete chords are not changed to
+WRONG by unrelated extras. Finalized groups and extras are immutable, including on
+completion and Review. Natural terminal clamps carry explicit finality witnesses;
+manual stop preserves NOT_REACHED. No reservation remains at terminal closure.
+
+CompletedContinuousEvaluation stores finalized groups with nested strike/match
+metadata, WRONG observations, extras, ownership, and completion semantics. It has no
+parallel flat-strike truth. Review projects this accumulated result without matching
+again. Pause wall time is excluded by PerformanceClockRuntime before publication;
+the evaluator neither owns pause segments nor changes the clock.
 
 There is no second whole-performance inference pass for the same Continuous performance evaluation. The canonical evaluation for a performance is the accumulated immutable finalized result produced incrementally during that performance.
 

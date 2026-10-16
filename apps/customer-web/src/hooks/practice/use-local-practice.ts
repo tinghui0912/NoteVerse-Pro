@@ -40,7 +40,7 @@ import type {
   CapturedAttack,
   StepVerifierObservation,
 } from '@/lib/practice/local-core/evidence';
-import type { ContinuousEvaluationSnapshot } from '@/lib/practice/local-core/continuous-evaluation-session';
+import type { ContinuousEvaluationSnapshot } from '@/lib/practice/local-core/continuous-evaluation-types';
 import {
   CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON,
   STEP_ANALYSIS_UNAVAILABLE_REASON,

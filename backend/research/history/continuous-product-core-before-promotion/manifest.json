@@ -1,0 +1,102 @@
+{
+  "revision": "705da526368320469e3090523f14f75fd3f3f8a5",
+  "purpose": "Immutable provenance, not executable product dependencies. Reproduce historical runs from the recorded Git revision.",
+  "files": [
+    {
+      "path": "apps/customer-web/src/lib/practice/research/acoustic-candidate-contract.test.ts",
+      "sha256": "45125506e4d0621a6663b7e6ea35a9b5dcd0ac2e3e94389e33d185fa8c725335"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/acoustic-candidate-contract.ts",
+      "sha256": "f5d07744b57169b60af764a6ab7c77d5b7915bd4ecbad957e78b048cf68cbe5a"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/bytedance-score-aware-chunked.test.ts",
+      "sha256": "6f3b55ccc52ce7ae51dd407e14bfff2bd930c315c7e83b08606fd96c75f9f6f7"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/bytedance-score-aware-chunked.ts",
+      "sha256": "3c6e52ef202b45d1d19bd89db8fb3f5b65938b552270322d1975dbbd5badc359"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.test.ts",
+      "sha256": "95fe0945041f2f508674e6f9b159516bbd6ee11085b43fb9b1836e99b58e5902"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/continuous-analyzer-bakeoff.ts",
+      "sha256": "35f8626287b695bebad3f96d77806295b33ce74e037bdf3e5cd1b72b14fa33a7"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/continuous-paired-take-corpus.test.ts",
+      "sha256": "2434c2f684ac58afd0e69b52f7e5631a09d102264c5601c2d84e0acb005197c3"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/continuous-paired-take-corpus.ts",
+      "sha256": "61e22c4b7733d7973eff241a3391f0770220e287df2118072082bf00faaf42d9"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/online-amt-stateful-streaming.test.ts",
+      "sha256": "487a7c4654ee2a1e2dbd4137afd8165dad01caf29109b37630101973efa5b4b4"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/online-amt-stateful-streaming.ts",
+      "sha256": "3a6e4ba06d89adc6857c6bb7bb29e72acf3b1bf042f5e785b77ab6a02c555931"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/public-challenger-qualification-historical.ts",
+      "sha256": "2435cd5b619d376b0b623d96b0a5706f9fdd2e30b4533511efc42f4f1221884a"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/public-challenger-qualification.test.ts",
+      "sha256": "6a27fc2c5c1184eae64cf99a54cc4974534db33070014a96af67d2e0046aced8"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/public-challenger-qualification.ts",
+      "sha256": "9d0a205ee20b59eed5b1745c45a55cf720592505531141178e2aa81fff39205d"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/public-fixed-bpm-benchmark.test.ts",
+      "sha256": "b91b55ac0b31180b7ecf49accf75424b9988ccae16ff402694985fe214983928"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/public-fixed-bpm-benchmark.ts",
+      "sha256": "3e258e4862cec0febc54c263242959412909a16c653aedbd94235aba29798de6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/public-model-calibration.test.ts",
+      "sha256": "48cad727aab230627cd194a2b2e9eb9b38371ea19bfad3a449f4b44c3f054abd"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/public-model-calibration.ts",
+      "sha256": "5daee16c26ecc9f3490e9509e22ea025cf45620f10cd6dc146c0f27b7ca5d473"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/xc1-acoustic-candidates.test.ts",
+      "sha256": "13ba4fbbd46391ef1b1a495ee4274ab11eaf19e307a1454ab62ea779baf42aad"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/xc1-acoustic-candidates.ts",
+      "sha256": "6fb4419d4dd64338b00184d1d990996ba4909ba762d5ebca63f7e8aa08de01c9"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/xc2-five-verdict-projector.ts",
+      "sha256": "1e079198d5b6ff4bd7d61dd5c59dd2899ab9bfb9b0ed9121f18fe6d04b34501b"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalization-ledger.ts",
+      "sha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-evaluation-session.ts",
+      "sha256": "dc1dab91c4415a03847851b7a68df821699544cf00ddb72cdd1f8c5b4d70e214"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/audio-analysis/continuous/performance-reconciler.ts",
+      "sha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/completed-performance.ts",
+      "sha256": "05dee8f56903da575e269bb95ea118768fddc2324191670cf0e70d2bebdddee3"
+    }
+  ]
+}
