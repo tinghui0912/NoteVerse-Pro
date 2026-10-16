@@ -1,0 +1,89 @@
+{
+  "phase": "PHASE_9G_XC6_DISABLED_REAL_CAPTURE_AND_SOURCE_RATE_QUALIFICATION",
+  "stage": "diagnostics",
+  "startingRemoteHead": "a6ce07d9dc95f52e72beca113f8299961c1e79a2",
+  "implementationCommit": "697370e76981721509f5eb1f37f8845bdcd4c031",
+  "xc4CoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+  "sources": [
+    {
+      "path": "apps/customer-web/scripts/xc5-smoke-entry.ts",
+      "bytes": 6848,
+      "sha256": "4723d0efba55f2ca0ab01f03d2e41b52c2e77dfefa4211a3cc5a8637ab82f714"
+    },
+    {
+      "path": "apps/customer-web/scripts/xc6-browser-diagnostics.mjs",
+      "bytes": 8403,
+      "sha256": "0472fa0fc4e70d5bdf808e348ef83cf07301db6cbed7596fba8858398fd6c5e6"
+    },
+    {
+      "path": "apps/customer-web/scripts/xc6-evidence.mjs",
+      "bytes": 4462,
+      "sha256": "8a22f023cc1ddf3f57db66c43d9d2f60d6db19b542c20ee369c2bdebedee03ce"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-capture.worklet.js",
+      "bytes": 1062,
+      "sha256": "2ad90028eb2497a5ff2a18699a6932bcf37832767b6f94bab79fc7d8601012d4"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-acoustic-runtime.ts",
+      "bytes": 13679,
+      "sha256": "4078e5619b85f24bc21c2ff4fc7830d7ebb370e52509a48dd4d898c5c7405c68"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-identity.json",
+      "bytes": 5010,
+      "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-runtime-contract.ts",
+      "bytes": 3709,
+      "sha256": "601eb1068630d09f5cbb10156e4b18cbb361f5d85f2e7039b70ff0f392ce86a6"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-runtime.test.ts",
+      "bytes": 13399,
+      "sha256": "af1bc76b31718ebee52e42de9271746db571950a419bae0570033ba4593860f8"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-streaming-resampler.ts",
+      "bytes": 1825,
+      "sha256": "9118b1581ac7dddff8dc247511de87d0c11e8e12f6c8283a4d500b0e9762e862"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-window-planner.ts",
+      "bytes": 1940,
+      "sha256": "cfaa6aa6be349beaa27a18c21b0f453a87709fab52d6c5621b00572cba941c26"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-worker-adapter.ts",
+      "bytes": 6905,
+      "sha256": "e9c03ef6dfc7602154e9130a05b92e25ef9c1ee1bee34aaeac29063a59e51be7"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-worker-client.ts",
+      "bytes": 2024,
+      "sha256": "630324bca8dbd341dae9f3c3ed2b2dcdca1f1a2469fbcd74da2aa2a0d4895e70"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-worker.entry.ts",
+      "bytes": 1044,
+      "sha256": "41421486eba6eea348cfcbaf04bc5528a0ccb9aaa5d102bba461ef20790c9da3"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-runtime.md",
+      "bytes": 3623,
+      "sha256": "4645a0473dba9b119b7581362129d57f52d73f0b8076fa1818323b6714490ebc"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+      "bytes": 20954,
+      "sha256": "cf5757e276774a75f2f402c3c120ccc3b1a69bb83bc899ffcfdd6e9bfc6f745e"
+    }
+  ],
+  "createdAt": "2026-10-16T08:03:05.699Z",
+  "productionMicrophone": false,
+  "plan": "Reproduce unchanged XC5 single synthetic smoke with CDP/Playwright full attribution; exactly4 model runs, no score/MIDI.",
+  "xc5CaveatPreserved": "XC5 artifact preceded smoke but its Git freeze commit followed smoke; do not rewrite history.",
+  "freezeCanonicalSha256": "b5728be97f4f9df849abaa12a5b14b620b3616b7e760008319a47e767dc5b37c"
+}
