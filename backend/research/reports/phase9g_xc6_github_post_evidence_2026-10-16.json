@@ -1,0 +1,202 @@
+{
+  "phase": "PHASE_9G_XC6_DISABLED_REAL_CAPTURE_AND_SOURCE_RATE_QUALIFICATION",
+  "queriedCommit": "c89364bf01ab37375f5f8489331de1fabc098e63",
+  "queriedAt": "2026-10-16T08:34:41.747Z",
+  "requests": [
+    {
+      "kind": "combinedStatus",
+      "url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/commits/c89364bf01ab37375f5f8489331de1fabc098e63/status",
+      "body": {
+        "state": "pending",
+        "statuses": [],
+        "sha": "c89364bf01ab37375f5f8489331de1fabc098e63",
+        "total_count": 0,
+        "repository": {
+          "id": 1230911584,
+          "node_id": "R_kgDOSV44YA",
+          "name": "NoteVerse-Pro",
+          "full_name": "tinghui0912/NoteVerse-Pro",
+          "private": false,
+          "owner": {
+            "login": "tinghui0912",
+            "id": 46470310,
+            "node_id": "MDQ6VXNlcjQ2NDcwMzEw",
+            "avatar_url": "https://avatars.githubusercontent.com/u/46470310?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/tinghui0912",
+            "html_url": "https://github.com/tinghui0912",
+            "followers_url": "https://api.github.com/users/tinghui0912/followers",
+            "following_url": "https://api.github.com/users/tinghui0912/following{/other_user}",
+            "gists_url": "https://api.github.com/users/tinghui0912/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/tinghui0912/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/tinghui0912/subscriptions",
+            "organizations_url": "https://api.github.com/users/tinghui0912/orgs",
+            "repos_url": "https://api.github.com/users/tinghui0912/repos",
+            "events_url": "https://api.github.com/users/tinghui0912/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/tinghui0912/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "html_url": "https://github.com/tinghui0912/NoteVerse-Pro",
+          "description": null,
+          "fork": false,
+          "url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro",
+          "forks_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/forks",
+          "keys_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/keys{/key_id}",
+          "collaborators_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/collaborators{/collaborator}",
+          "teams_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/teams",
+          "hooks_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/hooks",
+          "issue_events_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/issues/events{/number}",
+          "events_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/events",
+          "assignees_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/assignees{/user}",
+          "branches_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/branches{/branch}",
+          "tags_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/tags",
+          "blobs_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/git/blobs{/sha}",
+          "git_tags_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/git/tags{/sha}",
+          "git_refs_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/git/refs{/sha}",
+          "trees_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/git/trees{/sha}",
+          "statuses_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/statuses/{sha}",
+          "languages_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/languages",
+          "stargazers_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/stargazers",
+          "contributors_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/contributors",
+          "subscribers_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/subscribers",
+          "subscription_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/subscription",
+          "commits_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/commits{/sha}",
+          "git_commits_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/git/commits{/sha}",
+          "comments_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/comments{/number}",
+          "issue_comment_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/issues/comments{/number}",
+          "contents_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/contents/{+path}",
+          "compare_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/compare/{base}...{head}",
+          "merges_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/merges",
+          "archive_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/{archive_format}{/ref}",
+          "downloads_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/downloads",
+          "issues_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/issues{/number}",
+          "pulls_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/pulls{/number}",
+          "milestones_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/milestones{/number}",
+          "notifications_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/notifications{?since,all,participating}",
+          "labels_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/labels{/name}",
+          "releases_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/releases{/id}",
+          "deployments_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/deployments"
+        },
+        "commit_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/commits/c89364bf01ab37375f5f8489331de1fabc098e63",
+        "url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/commits/c89364bf01ab37375f5f8489331de1fabc098e63/status"
+      }
+    },
+    {
+      "kind": "workflowRuns",
+      "url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/actions/runs?head_sha=c89364bf01ab37375f5f8489331de1fabc098e63&per_page=100",
+      "body": {
+        "total_count": 0,
+        "workflow_runs": []
+      }
+    },
+    {
+      "kind": "branch",
+      "url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/branches/codex%2Fcustomer-web-delivery-boundary",
+      "body": {
+        "name": "codex/customer-web-delivery-boundary",
+        "commit": {
+          "sha": "c89364bf01ab37375f5f8489331de1fabc098e63",
+          "node_id": "C_kwDOSV44YNoAKGM4OTM2NGJmMDFhYjM3Mzc1ZjVmODQ4OTMzMWRlMWZhYmMwOThlNjM",
+          "commit": {
+            "author": {
+              "name": "tinghui0912",
+              "email": "1263127651@qq.com",
+              "date": "2026-10-16T08:34:32Z"
+            },
+            "committer": {
+              "name": "tinghui0912",
+              "email": "1263127651@qq.com",
+              "date": "2026-10-16T08:34:32Z"
+            },
+            "message": "research(xc6): record disabled capture qualification and deterministic 48k parity",
+            "tree": {
+              "sha": "8198a778f3096d6a167c040eed61d6de56860d98",
+              "url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/git/trees/8198a778f3096d6a167c040eed61d6de56860d98"
+            },
+            "url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/git/commits/c89364bf01ab37375f5f8489331de1fabc098e63",
+            "comment_count": 0,
+            "verification": {
+              "verified": false,
+              "reason": "unsigned",
+              "signature": null,
+              "payload": null,
+              "verified_at": null
+            }
+          },
+          "url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/commits/c89364bf01ab37375f5f8489331de1fabc098e63",
+          "html_url": "https://github.com/tinghui0912/NoteVerse-Pro/commit/c89364bf01ab37375f5f8489331de1fabc098e63",
+          "comments_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/commits/c89364bf01ab37375f5f8489331de1fabc098e63/comments",
+          "author": {
+            "login": "tinghui0912",
+            "id": 46470310,
+            "node_id": "MDQ6VXNlcjQ2NDcwMzEw",
+            "avatar_url": "https://avatars.githubusercontent.com/u/46470310?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/tinghui0912",
+            "html_url": "https://github.com/tinghui0912",
+            "followers_url": "https://api.github.com/users/tinghui0912/followers",
+            "following_url": "https://api.github.com/users/tinghui0912/following{/other_user}",
+            "gists_url": "https://api.github.com/users/tinghui0912/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/tinghui0912/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/tinghui0912/subscriptions",
+            "organizations_url": "https://api.github.com/users/tinghui0912/orgs",
+            "repos_url": "https://api.github.com/users/tinghui0912/repos",
+            "events_url": "https://api.github.com/users/tinghui0912/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/tinghui0912/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "committer": {
+            "login": "tinghui0912",
+            "id": 46470310,
+            "node_id": "MDQ6VXNlcjQ2NDcwMzEw",
+            "avatar_url": "https://avatars.githubusercontent.com/u/46470310?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/tinghui0912",
+            "html_url": "https://github.com/tinghui0912",
+            "followers_url": "https://api.github.com/users/tinghui0912/followers",
+            "following_url": "https://api.github.com/users/tinghui0912/following{/other_user}",
+            "gists_url": "https://api.github.com/users/tinghui0912/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/tinghui0912/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/tinghui0912/subscriptions",
+            "organizations_url": "https://api.github.com/users/tinghui0912/orgs",
+            "repos_url": "https://api.github.com/users/tinghui0912/repos",
+            "events_url": "https://api.github.com/users/tinghui0912/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/tinghui0912/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "parents": [
+            {
+              "sha": "9afef96f167ec96d3b618c41e10779da51c2dda6",
+              "url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/commits/9afef96f167ec96d3b618c41e10779da51c2dda6",
+              "html_url": "https://github.com/tinghui0912/NoteVerse-Pro/commit/9afef96f167ec96d3b618c41e10779da51c2dda6"
+            }
+          ]
+        },
+        "_links": {
+          "self": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/branches/codex/customer-web-delivery-boundary",
+          "html": "https://github.com/tinghui0912/NoteVerse-Pro/tree/codex/customer-web-delivery-boundary"
+        },
+        "protected": false,
+        "protection": {
+          "enabled": false,
+          "required_status_checks": {
+            "enforcement_level": "off",
+            "contexts": [],
+            "checks": []
+          }
+        },
+        "protection_url": "https://api.github.com/repos/tinghui0912/NoteVerse-Pro/branches/codex/customer-web-delivery-boundary/protection"
+      }
+    }
+  ],
+  "combinedState": "pending",
+  "statuses": [],
+  "workflowRuns": [],
+  "interpretation": "Empty statuses/workflows are not CI PASS."
+}
