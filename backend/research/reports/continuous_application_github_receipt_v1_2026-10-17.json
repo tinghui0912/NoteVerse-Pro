@@ -1,0 +1,10 @@
+{
+  "phase": "PRACTICE_CONTINUOUS_APPLICATION_ORCHESTRATION_CLEAN_INTEGRATION_DISABLED",
+  "queriedAt": "2026-10-16T18:10:25.839Z",
+  "evidenceCommit": "907bedc4369e7df6ad19c8cc4975f5f8d46940c6",
+  "remoteHead": "907bedc4369e7df6ad19c8cc4975f5f8d46940c6",
+  "combinedState": "pending",
+  "statuses": [],
+  "workflow_runs": [],
+  "ciInterpretation": "NOT CI PASS"
+}
