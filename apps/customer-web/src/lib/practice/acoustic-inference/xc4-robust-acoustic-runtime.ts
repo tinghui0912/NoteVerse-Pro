@@ -3,6 +3,8 @@ import { XC4, assertXc4Identity, onlyFields, requireSourceRate } from './xc4-rob
 import { Xc4StreamingResampler } from './xc4-robust-streaming-resampler';
 import { xc4Window, owns, Xc4TargetRing, type Xc4Window } from './xc4-robust-window-planner';
 import type { Xc4InferencePort } from './xc4-robust-worker-adapter';
+import { AcousticSegmentMetadataLedger, MAX_OUTSTANDING_ACOUSTIC_WINDOWS, MAX_DIAGNOSTIC_WINDOWS,
+  MAX_ACOUSTIC_EVENTS_PER_WINDOW, MODEL_INPUT_BYTES, retainDiagnostic } from './xc7-resource-policy';
 
 export type Xc4State = 'CAPTURING_PREROLL' | 'READY_FOR_PERFORMANCE' | 'RUNNING' | 'TAIL_CAPTURE' | 'SEALED' | 'FAILED' | 'DISPOSED';
 export type Xc4Observation = Readonly<{
@@ -19,6 +21,9 @@ export type Xc4Options = {
   engineeringOnly: true; sessionId: string; sourceSampleRateHz: number;
   mode: 'CAPTURE' | 'ALREADY_16K_TEST_INJECTION'; coefficientBytes?: Uint8Array;
   worker: Xc4InferencePort; performanceClock: { nowMs(): number };
+  resourcePolicy?: 'XC7_BOUNDED';
+  onAcousticPublication?: (publication: Xc4Publication) => void;
+  onFailure?: (error: Error) => void;
 };
 
 /** Disabled internal boundary. No microphone acquisition, score, cursor or verdict dependency. */
@@ -28,7 +33,7 @@ export class Xc4RobustAcousticRuntime {
   private currentState: Xc4State = 'CAPTURING_PREROLL';
   get state(): Xc4State { return this.currentState; }
   private readonly ring = new Xc4TargetRing();
-  private readonly timeline = new PerformancePcmTimeline();
+  private readonly timeline: PerformancePcmTimeline | AcousticSegmentMetadataLedger;
   private sourceBase: number | null = null;
   private nextSource = 0;
   private performanceSourceOrigin = 0;
@@ -43,12 +48,18 @@ export class Xc4RobustAcousticRuntime {
   private lastPublicationClock = -Infinity;
   private readonly publications: Xc4Publication[] = [];
   private readonly timings: Readonly<Record<string, number>>[] = [];
-  private readonly observationIds = new Set<string>();
+  private delivering = false;
+  private readonly counters = { totalWindowsQueued: 0, totalWindowsStarted: 0, totalWindowsPublished: 0,
+    totalObservationsPublished: 0, totalBackpressureFailures: 0, publicationDeliveryAttempts: 0 };
 
-  private constructor(private readonly options: Xc4Options, private readonly filter: Xc4StreamingResampler | null) {}
+  private constructor(private readonly options: Xc4Options, private readonly filter: Xc4StreamingResampler | null) {
+    this.timeline = options.resourcePolicy === 'XC7_BOUNDED' ? new AcousticSegmentMetadataLedger() : new PerformancePcmTimeline();
+  }
 
   static async create(options: Xc4Options): Promise<Xc4RobustAcousticRuntime> {
-    onlyFields(options, ['engineeringOnly', 'sessionId', 'sourceSampleRateHz', 'mode', 'coefficientBytes', 'worker', 'performanceClock']);
+    onlyFields(options, ['engineeringOnly', 'sessionId', 'sourceSampleRateHz', 'mode', 'coefficientBytes', 'worker', 'performanceClock',
+      'resourcePolicy', 'onAcousticPublication', 'onFailure']);
+    if (options.resourcePolicy !== undefined && options.resourcePolicy !== 'XC7_BOUNDED') throw new Error('XC7_RESOURCE_POLICY');
     options = Object.freeze({ ...options, coefficientBytes: options.coefficientBytes ? new Uint8Array(options.coefficientBytes) : undefined,
       performanceClock: Object.freeze({ nowMs: options.performanceClock.nowMs.bind(options.performanceClock) }) });
     if (options.engineeringOnly !== true || !/^[A-Za-z0-9_.-]{1,96}$/.test(options.sessionId)) throw new Error('XC4_INTERNAL_ENGINEERING_ONLY');
@@ -69,7 +80,7 @@ export class Xc4RobustAcousticRuntime {
     if (this.sourceBase === null) { this.sourceBase = block.sourceStartSampleIndex; this.nextSource = this.sourceBase; }
     if (block.sourceStartSampleIndex !== this.nextSource) throw new Error('XC4_NONCHRONOLOGICAL_SOURCE');
     try { this.appendRetainedPcm(block); }
-    catch (error) { this.failure = error; this.currentState = 'FAILED'; throw error; }
+    catch (error) { this.fail(error); throw error; }
   }
 
   private appendRetainedPcm(block: PcmCaptureBlock): void {
@@ -109,7 +120,7 @@ export class Xc4RobustAcousticRuntime {
     this.terminalEndMs = (this.nextSource - this.performanceSourceOrigin) / this.options.sourceSampleRateHz * 1000;
     this.currentState = 'TAIL_CAPTURE';
     try { this.planAvailable(); }
-    catch (error) { this.failure = error; this.currentState = 'FAILED'; throw error; }
+    catch (error) { this.fail(error); throw error; }
   }
 
   async seal(): Promise<void> {
@@ -122,12 +133,15 @@ export class Xc4RobustAcousticRuntime {
 
   async dispose(): Promise<void> {
     if (this.state === 'DISPOSED') return;
+    if (this.delivering) throw new Error('XC7_PUBLICATION_CALLBACK_REENTRANCY');
+    // Failed sessions discard queued results; a noncancellable active run is drained before release.
     await this.chain;
     try { await this.options.worker.dispose(); }
     finally { this.currentState = 'DISPOSED'; }
   }
 
   async resetPreRoll(): Promise<Xc4RobustAcousticRuntime> {
+    this.requireHealthy();
     if (!['CAPTURING_PREROLL', 'READY_FOR_PERFORMANCE'].includes(this.state) || this.outstanding) throw new Error('XC4_RESET_REQUIRES_UNSTARTED_CAPTURE');
     this.currentState = 'DISPOSED';
     return Xc4RobustAcousticRuntime.create(this.options);
@@ -140,10 +154,29 @@ export class Xc4RobustAcousticRuntime {
       maxOutstandingDepth: this.maxOutstanding, queuedOwnedEndMs: this.queuedOwnedEndMs,
       sourceSampleRateHz: this.options.sourceSampleRateHz, sourceBase: this.sourceBase,
       performanceSourceOrigin: this.performanceSourceOrigin, nextSourceSampleIndex: this.nextSource,
-      performanceSegments: this.timeline.snapshot(), error: this.failure ? String(this.failure) : null };
+      performanceSegments: this.timeline.snapshot(), error: this.failure ? String(this.failure) : null,
+      counters: { ...this.counters }, resources: { policy: this.options.resourcePolicy ?? 'HISTORICAL_FULL_RETENTION',
+        timelinePcmBytes: this.timeline instanceof AcousticSegmentMetadataLedger ? 0 : null,
+        targetRingBytes: 65536 * 4, outstandingInputBytes: this.outstanding * MODEL_INPUT_BYTES,
+        maximumOutstandingInputBytes: this.options.resourcePolicy ? MAX_OUTSTANDING_ACOUSTIC_WINDOWS * MODEL_INPUT_BYTES : null,
+        maximumDiagnosticWindows: this.options.resourcePolicy ? MAX_DIAGNOSTIC_WINDOWS : null } };
+  }
+
+  /** Capture-side failures invalidate any active/queued results before they can publish. */
+  failSession(error: Error): void {
+    if (this.delivering) throw new Error('XC7_PUBLICATION_CALLBACK_REENTRANCY');
+    this.fail(error);
+  }
+
+  private fail(error: unknown): void {
+    if (this.failure || this.state === 'DISPOSED') return;
+    this.failure = error instanceof Error ? error : new Error(String(error)); this.currentState = 'FAILED';
+    try { this.options.onFailure?.(this.failure as Error); }
+    catch { /* Preserve the original session error even if cleanup itself fails. */ }
   }
 
   private requireHealthy(): void {
+    if (this.delivering) throw new Error('XC7_PUBLICATION_CALLBACK_REENTRANCY');
     if (this.failure) throw this.failure;
     if (this.state === 'DISPOSED') throw new Error('XC4_RUNTIME_DISPOSED');
   }
@@ -154,16 +187,27 @@ export class Xc4RobustAcousticRuntime {
       const window = xc4Window(this.nextWindowIndex, this.originTarget, this.terminalEndMs);
       if (window.endSample > this.ring.length) return;
       if (window.startSample < (this.filter?.firstFullyRealOutputIndex ?? 0)) throw new Error('XC4_REAL_PREROLL_REQUIRED');
+      // Check before allocating/copying the fifth input, never drop or skip ownership.
+      if (this.options.resourcePolicy && this.outstanding >= MAX_OUTSTANDING_ACOUSTIC_WINDOWS) {
+        this.counters.totalBackpressureFailures++;
+        const error = new Error('ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED'); this.fail(error); throw error;
+      }
       const pcm = this.ring.extract(window.startSample, window.endSample);
       const queuedAt = this.clock(), depth = ++this.outstanding;
       this.maxOutstanding = Math.max(this.maxOutstanding, depth);
+      this.counters.totalWindowsQueued++;
       this.nextWindowIndex++; this.queuedOwnedEndMs = window.ownedEndMs;
       this.chain = this.chain.then(async () => {
         try {
           if (this.failure) return;
           const inferenceStart = this.clock();
+          this.counters.totalWindowsStarted++;
           const result = await this.options.worker.run({ window, pcm });
+          if (this.failure) return;
           const inferenceEnd = this.clock();
+          if (this.options.resourcePolicy && result.events.length > MAX_ACOUSTIC_EVENTS_PER_WINDOW) throw new Error('XC7_WORKER_EVENT_BOUND');
+          // Window indices are unique; only same-window duplicate detection needs storage.
+          const observationIds = new Set<string>();
           if (inferenceStart < queuedAt || inferenceEnd < inferenceStart) throw new Error('XC4_NONMONOTONIC_AVAILABILITY');
           const observations = result.events.filter(e => owns(window, e.onsetTime.ms)).map(e => {
             const targetSample = e.onsetTime.sampleIndex;
@@ -174,8 +218,9 @@ export class Xc4RobustAcousticRuntime {
             const numerator = this.sourceBase! * 16000 + targetSample * this.options.sourceSampleRateHz;
             if (!Number.isSafeInteger(numerator)) throw new Error('XC4_SOURCE_COORDINATE_OVERFLOW');
             const observationId = `${this.options.sessionId}:${window.windowIndex}:${e.midiPitch}:${targetSample}`;
-            if (this.observationIds.has(observationId)) throw new Error('XC4_DUPLICATE_OBSERVATION');
-            this.observationIds.add(observationId);
+            if (observationIds.has(observationId)) throw new Error('XC4_DUPLICATE_OBSERVATION');
+            observationIds.add(observationId);
+            if (this.options.resourcePolicy && (typeof e.pitch !== 'string' || e.pitch.length > 8)) throw new Error('XC7_PITCH_LABEL_BOUND');
             return Object.freeze({ observationId, midiPitch: e.midiPitch, pitch: e.pitch, confidence: e.confidence,
               onsetScore: e.onsetScore, frameScore: e.frameScore, performanceTimeMs: e.onsetTime.ms,
               availabilityTimeMs: inferenceEnd, sourceSamplePosition: numerator / 16000,
@@ -187,22 +232,38 @@ export class Xc4RobustAcousticRuntime {
           this.lastPublicationClock = availability;
           // Acoustic publication follows in-worker decoding, IPC and local projection, never a score verdict.
           const published = observations.map(e => Object.freeze({ ...e, availabilityTimeMs: availability }));
-          this.publications.push(Object.freeze({ publicationId: `${this.options.sessionId}:${window.windowIndex}`,
+          const publication = Object.freeze({ publicationId: `${this.options.sessionId}:${window.windowIndex}`,
             engineeringIdentitySha256: XC4.engineeringIdentitySha256, window,
             analyzedThroughPerformanceMs: previousFloat(window.ownedEndMs), availabilityTimeMs: availability,
-            observations: Object.freeze(published) }));
+            observations: Object.freeze(published) });
+          if (this.options.onAcousticPublication) {
+            this.counters.publicationDeliveryAttempts++;
+            this.delivering = true;
+            try {
+              const returned: unknown = this.options.onAcousticPublication(publication);
+              if (returned && typeof (returned as PromiseLike<unknown>).then === 'function') {
+                Promise.resolve(returned).catch(() => {});
+                throw new Error('XC7_PUBLICATION_CALLBACK_MUST_BE_SYNCHRONOUS');
+              }
+            } catch (error) { throw new Error('ACOUSTIC_PUBLICATION_SINK_FAILED', { cause: error }); }
+            finally { this.delivering = false; }
+          }
+          if (this.failure) return;
+          this.counters.totalWindowsPublished++; this.counters.totalObservationsPublished += published.length;
+          if (this.options.resourcePolicy) retainDiagnostic(this.publications, publication); else this.publications.push(publication);
           const readySourceEnd = this.sourceBase! + (this.filter
             ? Math.floor(((window.endSample - 1) * 441 + 4410) / 160) + 1 : window.endSample);
           const readyTime = (readySourceEnd - this.performanceSourceOrigin) / this.options.sourceSampleRateHz * 1000;
-          this.timings.push(Object.freeze({ windowIndex: window.windowIndex, queuedAtMs: queuedAt,
+          const timing = Object.freeze({ windowIndex: window.windowIndex, queuedAtMs: queuedAt,
             inferenceStartMs: inferenceStart, inferenceEndMs: inferenceEnd, acousticPublicationTimeMs: availability,
             captureReadySourceEndSampleIndex: readySourceEnd, captureReadyPerformanceTimeMs: readyTime,
             captureReadyToPublicationMs: availability - readyTime,
             oldestOwnedSourceTimeToPublicationMs: availability - window.ownedStartMs,
             queueDelayMs: inferenceStart - queuedAt, outstandingDepthAtEnqueue: depth,
             workerInferenceMs: result.inferenceMs, workerDecodeMs: result.decodeMs,
-            workerActualSessionRunCount: result.actualSessionRunCount ?? 0 }));
-        } catch (error) { this.failure = error; this.currentState = 'FAILED'; }
+            workerActualSessionRunCount: result.actualSessionRunCount ?? 0 });
+          if (this.options.resourcePolicy) retainDiagnostic(this.timings, timing); else this.timings.push(timing);
+        } catch (error) { this.fail(error); }
         finally { this.outstanding--; }
       });
     }
