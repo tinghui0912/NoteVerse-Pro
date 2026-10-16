@@ -1,0 +1,4154 @@
+{
+  "phase": "PHASE_9G_XC7_BOUNDED_ACOUSTIC_MEMORY_AND_BACKPRESSURE",
+  "startingRemoteHead": "b1c29f646ff981ea423f8331ed18837e7c8aee45",
+  "commitsBeforeEvidence": [
+    "cd3844f868ce5bae71e81d95364425ab0ddf0bc1",
+    "ddccd33922f7e56b19af081301eac3f33a22e245"
+  ],
+  "disposition": "XC7_BOUNDED_ACOUSTIC_RESOURCES_READY_DISABLED",
+  "freeze": {
+    "phase": "PHASE_9G_XC7_BOUNDED_ACOUSTIC_MEMORY_AND_BACKPRESSURE",
+    "startingRemoteHead": "b1c29f646ff981ea423f8331ed18837e7c8aee45",
+    "implementationCommit": "cd3844f868ce5bae71e81d95364425ab0ddf0bc1",
+    "createdAt": "2026-10-16T09:28:57.268Z",
+    "freezeId": "v1",
+    "xc4CoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+    "sources": [
+      {
+        "path": "apps/customer-web/package-lock.json",
+        "bytes": 486144,
+        "sha256": "c5e4058eff368e4ad5e0d74ad59fd8abf92112fdfc1cbb6eb300cf9510dc4b03"
+      },
+      {
+        "path": "apps/customer-web/package.json",
+        "bytes": 3902,
+        "sha256": "bf02c99aae60f6e4c437233c7b99478bdc9182aa64663da36719edd6e1190153"
+      },
+      {
+        "path": "apps/customer-web/scripts/xc6-attribution.mjs",
+        "bytes": 2286,
+        "sha256": "8cdcc394e73b73420266ce03cfba1a15a1f287e05ea3c636e54f553be7836e1c"
+      },
+      {
+        "path": "apps/customer-web/scripts/xc6-browser-diagnostics.mjs",
+        "bytes": 8403,
+        "sha256": "0472fa0fc4e70d5bdf808e348ef83cf07301db6cbed7596fba8858398fd6c5e6"
+      },
+      {
+        "path": "apps/customer-web/scripts/xc6-capture-entry.ts",
+        "bytes": 5893,
+        "sha256": "ea69f664007e977c9cac6880dbb0b9afcf6a7b4fedcf88d1bdba4c1f0d338af5"
+      },
+      {
+        "path": "apps/customer-web/scripts/xc6-capture-integration.mjs",
+        "bytes": 5521,
+        "sha256": "187f2c04ce3046948af12fff44852b931a02660b638ed5c6a92754adedccdd4e"
+      },
+      {
+        "path": "apps/customer-web/scripts/xc6-capture-probe.mjs",
+        "bytes": 4088,
+        "sha256": "20772c1e2aaa637417c419c531a316f8967b8357272631a050c21b501c434cff"
+      },
+      {
+        "path": "apps/customer-web/scripts/xc6-dsp-browser.ts",
+        "bytes": 1843,
+        "sha256": "f81733d0ceecd1f501041416e2e9940cb4ad325305f9e81975d146c85d0dbbef"
+      },
+      {
+        "path": "apps/customer-web/scripts/xc6-evidence.mjs",
+        "bytes": 4462,
+        "sha256": "8a22f023cc1ddf3f57db66c43d9d2f60d6db19b542c20ee369c2bdebedee03ce"
+      },
+      {
+        "path": "apps/customer-web/scripts/xc6-final-report.mjs",
+        "bytes": 6580,
+        "sha256": "e7f1b14ae2f0d09c06c6e51ddd05f4f9b2f81db2aec19801e145aa055049ce54"
+      },
+      {
+        "path": "apps/customer-web/scripts/xc6-freeze-plan.mjs",
+        "bytes": 2340,
+        "sha256": "a3469780c7b405d7dcc768dd20eb6542c5e28b9753db31d83b9b687daf52b459"
+      },
+      {
+        "path": "apps/customer-web/scripts/xc6-metadata-entry.ts",
+        "bytes": 2459,
+        "sha256": "e6b274d4697a081cfad6392f78bff8c0379f760e268849ca8981b762ca3647c2"
+      },
+      {
+        "path": "apps/customer-web/scripts/xc7-capture-entry.ts",
+        "bytes": 6660,
+        "sha256": "b8617a267e9018016d05f6707050819f84b161156ad93c1bc28050901f19f449"
+      },
+      {
+        "path": "apps/customer-web/scripts/xc7-capture-integration.mjs",
+        "bytes": 5101,
+        "sha256": "a284ef5ac52cfa5990444e022e2298018363d562002638fe00ce43fa11b7880d"
+      },
+      {
+        "path": "apps/customer-web/scripts/xc7-evidence.mjs",
+        "bytes": 5451,
+        "sha256": "96f7528c7721b5ddebca179da264696e1f1e55f3b06993fee6693d91c9515c01"
+      },
+      {
+        "path": "apps/customer-web/scripts/xc7-final-report.mjs",
+        "bytes": 6981,
+        "sha256": "4e6a2437e8e5f4c9d33aa7bad32cfaf919893b49095667d5d71368fd161401f9"
+      },
+      {
+        "path": "apps/customer-web/src/lib/model-assets/bytedance-model-loader.ts",
+        "bytes": 1514,
+        "sha256": "9e214e0f3c0d5614da035db78265fbb92e79d559c761ac735967a7e45996928c"
+      },
+      {
+        "path": "apps/customer-web/src/lib/model-assets/index.ts",
+        "bytes": 104,
+        "sha256": "9218d5dab62db8c11e14938b8969a6d78b2933f3b4f87219150d9e1ab037436f"
+      },
+      {
+        "path": "apps/customer-web/src/lib/model-assets/model-asset-store.test.ts",
+        "bytes": 61776,
+        "sha256": "5731e8d3eecbc07e8a0d408e99992b5ed3296a1ebf2b4c160f7fb7a1b434db73"
+      },
+      {
+        "path": "apps/customer-web/src/lib/model-assets/model-asset-store.ts",
+        "bytes": 17394,
+        "sha256": "9db63b18a59e5eb0908f1c71061e43badf1011d4d783916a9abce91fb1960f8d"
+      },
+      {
+        "path": "apps/customer-web/src/lib/model-assets/types.ts",
+        "bytes": 2098,
+        "sha256": "87aa36d41db9561640b7f396a1ef028baba55a0d484590081ee67e4963ee7131"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/README.md",
+        "bytes": 5030,
+        "sha256": "04811e15f270634d1de5c7eea7fca784218ff75a42b0f2eebb299014f4aba001"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/__fixtures__/bytedance-golden-contract.json",
+        "bytes": 1599,
+        "sha256": "e72c5a9c345634787426bdf846c4f4b7af990e7e9e8c5e18ab503a165261ec70"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/__fixtures__/bytedance-python-reference-contract.json",
+        "bytes": 5730,
+        "sha256": "da9fd0019875f1cd53a0c8076b01d5c3aad91998c41f51e13c90e18015c7f643"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/acoustic-event-stream.ts",
+        "bytes": 1826,
+        "sha256": "75333a68e25094a4f0d090537a8a4eef373af143e69155137ec4278d108245ac"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/acoustic-evidence-adapters.ts",
+        "bytes": 451,
+        "sha256": "b78cc68569a1eae66cea55860e22780df3b221d1ef897854325792a7eba451f7"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-capture.worklet.js",
+        "bytes": 1062,
+        "sha256": "2ad90028eb2497a5ff2a18699a6932bcf37832767b6f94bab79fc7d8601012d4"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-contract.ts",
+        "bytes": 5931,
+        "sha256": "fd7c1fbc99277a840f3e4e721beab2f76adc211f01b194e8575548cf73e306eb"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-decoder.ts",
+        "bytes": 5006,
+        "sha256": "07d5cb1d709c99ab85f8b701fd0bdf1744b4135b4d7dbd21deb679029e541311"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-inference.test.ts",
+        "bytes": 32227,
+        "sha256": "cf459c530dce00dce083acbbaec755f9323654767fc4c8fd2236cefd24ab5bb4"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-onnx-provider.ts",
+        "bytes": 6155,
+        "sha256": "2e413b248b918c1e6f8e44f8af37cbed776a7927c1ae8e1b1cf316199a582c1f"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-preprocess.ts",
+        "bytes": 3734,
+        "sha256": "d0cf832425f4a76394a10bdbedc9e0f1bcd27904205d24bfad4f9537b2bbe86e"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-worker-client.ts",
+        "bytes": 2353,
+        "sha256": "5ffac12637170bcba0fbc5e26d2e1373fac96327cf362863b97ff378ebe5fda5"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-worker-factory.ts",
+        "bytes": 302,
+        "sha256": "519893ec81410146e06256486f51a95d2c35b8c6167778ab4376101232be4d02"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-worker-protocol.ts",
+        "bytes": 5291,
+        "sha256": "2a1b15c168431c1cab8713387849f808b0bed5446f2270df48c922574c4d4271"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/bytedance-worker.entry.ts",
+        "bytes": 563,
+        "sha256": "dba66f9f537dd84516665a690856eee5947b1c114857b699be6088d58d7f1885"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/index.ts",
+        "bytes": 334,
+        "sha256": "ba5e782069f67ba1d9d23fff868a71e0263081b697fdad55e03e040920d3eb66"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-acoustic-runtime.ts",
+        "bytes": 17813,
+        "sha256": "35caf6664794292215964729a31703680cbe0c5cfec193186a36cde20f2c04c4"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-identity.json",
+        "bytes": 5010,
+        "sha256": "ce05905ea023f9bb41a5c2d4e0fd6fb9c3bb7f3222af4a0f1b212257380bf2fb"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-runtime-contract.ts",
+        "bytes": 3709,
+        "sha256": "601eb1068630d09f5cbb10156e4b18cbb361f5d85f2e7039b70ff0f392ce86a6"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-runtime.test.ts",
+        "bytes": 13399,
+        "sha256": "af1bc76b31718ebee52e42de9271746db571950a419bae0570033ba4593860f8"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-streaming-resampler.ts",
+        "bytes": 1825,
+        "sha256": "9118b1581ac7dddff8dc247511de87d0c11e8e12f6c8283a4d500b0e9762e862"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-window-planner.ts",
+        "bytes": 1940,
+        "sha256": "cfaa6aa6be349beaa27a18c21b0f453a87709fab52d6c5621b00572cba941c26"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-worker-adapter.ts",
+        "bytes": 6905,
+        "sha256": "e9c03ef6dfc7602154e9130a05b92e25ef9c1ee1bee34aaeac29063a59e51be7"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-worker-client.ts",
+        "bytes": 2024,
+        "sha256": "630324bca8dbd341dae9f3c3ed2b2dcdca1f1a2469fbcd74da2aa2a0d4895e70"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-worker.entry.ts",
+        "bytes": 1044,
+        "sha256": "41421486eba6eea348cfcbaf04bc5528a0ccb9aaa5d102bba461ef20790c9da3"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc4-runtime.md",
+        "bytes": 3623,
+        "sha256": "4645a0473dba9b119b7581362129d57f52d73f0b8076fa1818323b6714490ebc"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-capture-bridge.test.ts",
+        "bytes": 9078,
+        "sha256": "94d31173e282e02c67883a699f24bf284e1f447377f2321d6af5289ed6e6539a"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-capture-bridge.ts",
+        "bytes": 11992,
+        "sha256": "5d6bc07c23aa182e32865fae13d541f062d6bf37c31f4c8440250497b6c72f82"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-capture-runtime.md",
+        "bytes": 3703,
+        "sha256": "09cbf7d86e93adcaa1c4667ee97e0807a83f1cc40bc95c745d0ebd917e2ddecb"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-capture.worklet.js",
+        "bytes": 1157,
+        "sha256": "727c0d4dede0a5c743f0cf202ef5dd29261e666931b5da2fb551c1ad09054736"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-source-48000.ts",
+        "bytes": 1605,
+        "sha256": "752091275a67ea119c4b08b0c61b8866e017e1653d0a61fc929ae545cc610a72"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-source-identities.json",
+        "bytes": 2188,
+        "sha256": "d1b394129e2ec3d7a82189b9c47d77713915456341a18b415b3a5c7a5fa8aefa"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc7-bounded-resources.md",
+        "bytes": 4815,
+        "sha256": "eab6c6cf753c515bd77b7b58f2097f3a4e85176714ae82de170fef9be6b1a361"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc7-bounded-resources.test.ts",
+        "bytes": 15438,
+        "sha256": "920705f4fcca4aaef36a4ceb99ebd5cce504a3c3f97eda2c8d03b580cae6a1cc"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc7-capture.worklet.js",
+        "bytes": 1816,
+        "sha256": "27eb9a913559b41c19b2eccc1f0b2e92d15981378382dd6d983cbf8b2fe65650"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc7-resource-policy.ts",
+        "bytes": 2385,
+        "sha256": "ee0f8c5fa84bc2ff6fc73d979ca1c0fddeca80e4b962669c3f03559279182d3a"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/audio-analysis/capture/performance-pcm-timeline.ts",
+        "bytes": 13227,
+        "sha256": "1c57c9dc76f23834acc56acb6c1e3387a630db71b0f235b17c6983f82aee3c82"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/input-capability.test.ts",
+        "bytes": 6902,
+        "sha256": "049cb4d578ecfcf2b077c85c6fd76ea7b4018b3b5f5a0740763fd26a9718ad5d"
+      },
+      {
+        "path": "apps/customer-web/src/lib/practice/input-capability.ts",
+        "bytes": 6095,
+        "sha256": "6662b633e9410e387f7fa3b47762c38bc38d38bfe41f6010c59f342ccca31da7"
+      },
+      {
+        "path": "apps/customer-web/vitest.config.ts",
+        "bytes": 651,
+        "sha256": "129145d0b26440b98feaa9479daeb73646c1b280e10ca9d7399d89806dad7b22"
+      },
+      {
+        "path": "apps/customer-web/vitest.setup.ts",
+        "bytes": 236,
+        "sha256": "68d11108b3141e457a98d335774feb81033fcac833e4466e9de6ce164a24d104"
+      },
+      {
+        "path": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+        "bytes": 20954,
+        "sha256": "cf5757e276774a75f2f402c3c120ccc3b1a69bb83bc899ffcfdd6e9bfc6f745e"
+      },
+      {
+        "path": "backend/research/run_xc7_checks.ps1",
+        "bytes": 2602,
+        "sha256": "dc297d696214dc5af36174afbe88743436de1741062ca1275ec34fbe7a04a11f"
+      }
+    ],
+    "assets": [
+      {
+        "path": "backend/data/work/xc6_capture/fake-device.wav",
+        "bytes": 480044,
+        "sha256": "324712f494868ec8b8ec3ba365fef3ef72f75adcfe8f43fb7c94714ad0c1159a"
+      },
+      {
+        "path": "apps/customer-web/public/engineering/xc4/fir-160-441.f32",
+        "bytes": 35284,
+        "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620"
+      },
+      {
+        "path": "apps/customer-web/public/engineering/xc6/fir-1-3.f32",
+        "bytes": 244,
+        "sha256": "0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48_reference.json",
+        "bytes": 14177,
+        "sha256": "010bc0f082d89c6d9e21502c441cde7a48c64c34875dbe562fcbfc66097d6ce2"
+      },
+      {
+        "path": "backend/data/work/phase9gd1_robust_browser_onnx/robust_bytedance_fixed_1820_opset18.onnx",
+        "bytes": 98689283,
+        "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"
+      },
+      {
+        "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort.webgpu.min.mjs",
+        "bytes": 333468,
+        "sha256": "e1a0817ac08d5a6ade7f229754c2aecd444bff0bd22c259ca148a04b9f9e9f65"
+      },
+      {
+        "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs",
+        "bytes": 46839,
+        "sha256": "2fb14505d39926e4c544de8c57fe59a2f2bc74caba6f71890be9afecc5046758"
+      },
+      {
+        "path": "apps/customer-web/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm",
+        "bytes": 21663894,
+        "sha256": "185b0861a6cd6cbdfb057289338090436483cc59e10a7bc83bd167b15531a51b"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/impulse_1.input.f32",
+        "bytes": 4,
+        "sha256": "e00e5eb9444182f352323374ef4e08ebcb784725fdd4fd612d7730540b3e0c8c"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/impulse_1.reference.f32",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/random_1.input.f32",
+        "bytes": 4,
+        "sha256": "2dfaa2f31120aaf770e43fdd6409a1a8a26d777bc63c588585f64263dc60d67b"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/random_1.reference.f32",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sine_1.input.f32",
+        "bytes": 4,
+        "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sine_1.reference.f32",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sweep_1.input.f32",
+        "bytes": 4,
+        "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sweep_1.reference.f32",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/impulse_29.input.f32",
+        "bytes": 116,
+        "sha256": "fdb70d5a5549fd1d1fcdeff1514678fda8215c3895760b989abc3d9713d04030"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/impulse_29.reference.f32",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/random_29.input.f32",
+        "bytes": 116,
+        "sha256": "56b06ae296b6999a18a04e9fd51d14f04a3e1f0d2dec9c0a08b87fcf5e8e3b19"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/random_29.reference.f32",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sine_29.input.f32",
+        "bytes": 116,
+        "sha256": "127be2e7d0bfa4b9b631a2f9eb492ab2d9db80f6fd6ab9988c8ab679d5dd7c69"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sine_29.reference.f32",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sweep_29.input.f32",
+        "bytes": 116,
+        "sha256": "5157d276343c5f92ec6ea5480525aae72c6affe492dd1087dc62be60fd00bc78"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sweep_29.reference.f32",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/impulse_30.input.f32",
+        "bytes": 120,
+        "sha256": "ad372e6fb48337695898629e5397bb4abdbe6a4a30657d49be8e0eace81ed306"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/impulse_30.reference.f32",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/random_30.input.f32",
+        "bytes": 120,
+        "sha256": "c5f6d1903c1715cd6e0488c0d0f4ad4eca11dc0a35ff3d31c7239e83cab74cc2"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/random_30.reference.f32",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sine_30.input.f32",
+        "bytes": 120,
+        "sha256": "9df6629bcf91b91494b5ffd55e68c4eb93e68f6f3cf622ad4e87c7181f84cb51"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sine_30.reference.f32",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sweep_30.input.f32",
+        "bytes": 120,
+        "sha256": "2e1450fddffc2bdd4bfd3ed177f25ce273e9a9c695d925fd0d9406aff35cb566"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sweep_30.reference.f32",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/impulse_31.input.f32",
+        "bytes": 124,
+        "sha256": "2b474cd7f240dbacbb9f56963cd08a4d228e77e1aa3536996704d7d4762bf707"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/impulse_31.reference.f32",
+        "bytes": 4,
+        "sha256": "754cb58009d3bc726bdc627f6f3a87a5536f40cb415f37856b0580a8ad9190d3"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/random_31.input.f32",
+        "bytes": 124,
+        "sha256": "3b20b33173db17fdf44ad8ccf2dd4e2fef5df145d89d20e6e27257ad79d8de3b"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/random_31.reference.f32",
+        "bytes": 4,
+        "sha256": "fd33120a1f7d26e14ddd7ce151e179885938eb56e995a587b88c57f697b7cc1c"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sine_31.input.f32",
+        "bytes": 124,
+        "sha256": "948d70f24df166ffc812441751e065f45692e776a22aab876a53ad50445cf825"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sine_31.reference.f32",
+        "bytes": 4,
+        "sha256": "cb3c8f0406f18ac670244cd63dc0775668ab6ae2c3a096ecc06859f2a31df96b"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sweep_31.input.f32",
+        "bytes": 124,
+        "sha256": "c4dd1bc5fdb942b20fa29e55713d74f170c6bb2d6cf9f4e455348fdf8b2ab055"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sweep_31.reference.f32",
+        "bytes": 4,
+        "sha256": "edf20ddab6db4e46d267e1fcb8203321b9a6658697cdd842e1f52b05aec8a41e"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/impulse_61.input.f32",
+        "bytes": 244,
+        "sha256": "d9d0da684e63d0300d0aa5f79cd530ce86a180ec80bbd3068ce99828c21eb62c"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/impulse_61.reference.f32",
+        "bytes": 44,
+        "sha256": "7af97f8dba51876d0bb70193f70d9a36231ad7e21fc1b496e6e78dd122e055c9"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/random_61.input.f32",
+        "bytes": 244,
+        "sha256": "0bcf5e949a4ad795ac409c855e973eb38388b7e581d4150cf96de9cdb6b810ab"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/random_61.reference.f32",
+        "bytes": 44,
+        "sha256": "74e92e9bcdf640b72b9514d271eb6b74a231742a391f0818b0206fe25c74c426"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sine_61.input.f32",
+        "bytes": 244,
+        "sha256": "04d451ec1fa192d10d813e19dfa004ffd35265e3f7f877e8d798590e23ae5e25"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sine_61.reference.f32",
+        "bytes": 44,
+        "sha256": "c6a7d7f6855dd78203916bc6ebc275d4b5cb2fb1b47cff468497df1489b8fa9b"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sweep_61.input.f32",
+        "bytes": 244,
+        "sha256": "7a45a5a2d24afe91ad13389e25bfe025a3f01053dbed0d65371a4d9f966c9704"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sweep_61.reference.f32",
+        "bytes": 44,
+        "sha256": "bc56b737bb7a65e5aadd0b0f9572e6a5516f22506ccbc18e636419777108be22"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/impulse_127.input.f32",
+        "bytes": 508,
+        "sha256": "997164f541f5bc346b5e87f571acb02cfb972c2ef329a05e42b2290f4706997f"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/impulse_127.reference.f32",
+        "bytes": 132,
+        "sha256": "8b81d7c1d1aeaa79cc1ca5e6b10393e11730b3322452b344b044061d20eaf528"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/random_127.input.f32",
+        "bytes": 508,
+        "sha256": "96f965f2afdd45f796ccb255a9cadfd51e65100941526e9055010477315ad3b4"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/random_127.reference.f32",
+        "bytes": 132,
+        "sha256": "37344debce7df7aac468ef79925f8147ee5ae48ce09e769860047fdbfbd88611"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sine_127.input.f32",
+        "bytes": 508,
+        "sha256": "c6f1b42d95db2801f9fbfc5442eb708705c318420f2f51d1fbfd8a2f7b9019dd"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sine_127.reference.f32",
+        "bytes": 132,
+        "sha256": "ff65072c3ccb66fcfb39f123551749cc205deaf9b5b609deb95d664f6e42c8bb"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sweep_127.input.f32",
+        "bytes": 508,
+        "sha256": "7e8ce61858759f0c1072e0a3cc7172ebe374d71fc9d1b1e61a406e662b6ac472"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sweep_127.reference.f32",
+        "bytes": 132,
+        "sha256": "732906833c7b1ebb5de101d253e27c264f54292edddf9a9927a68d715d080767"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/impulse_48001.input.f32",
+        "bytes": 192004,
+        "sha256": "0e3408c7657f03b942840be6b16a478a2d8e4ff501db45f128e861bebc1de069"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/impulse_48001.reference.f32",
+        "bytes": 63964,
+        "sha256": "6baa1aa09260cbe48b5143e76177c130eef4d4d8a42792007a9ce6e0dcee7746"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/random_48001.input.f32",
+        "bytes": 192004,
+        "sha256": "15c82c5728b221b136c32c65458200b4735b34f27f39774148cfe87f917fd9cb"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/random_48001.reference.f32",
+        "bytes": 63964,
+        "sha256": "51acda9e01055584dd49036a6838e360f0e0f456cf05dd81126ef8570c8eebc7"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sine_48001.input.f32",
+        "bytes": 192004,
+        "sha256": "ab7f0390109f07b8a2e6ea15306282c443b491bccb8b9fa033ce6cf6ae5f903a"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sine_48001.reference.f32",
+        "bytes": 63964,
+        "sha256": "177d5c69767b75ea0b9100674dfb7ff8e2ba994535601a8fed41b016e3ef7517"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sweep_48001.input.f32",
+        "bytes": 192004,
+        "sha256": "6028068030a4afd68e97909189104611f1b5ba4fc1397e7f159871aa240b4787"
+      },
+      {
+        "path": "backend/data/work/xc6_capture/dsp48/sweep_48001.reference.f32",
+        "bytes": 63964,
+        "sha256": "ab71e3e4d9a39d7ef224b6282dfc4ade1b4c976e991ec8fad276da1e52f85ce8"
+      }
+    ],
+    "policy": {
+      "maxOutstandingAcousticWindows": 4,
+      "maxDiagnosticWindows": 32,
+      "maxCaptureUnacknowledgedBlocks": 32,
+      "maxCaptureBlockSamples": 2048,
+      "timeline": "ONE_SEGMENT_METADATA_ONLY_ZERO_PCM",
+      "overflow": "ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED",
+      "noSemanticPublicationAfterFailure": true,
+      "productCapability": "MODEL_NOT_VALIDATED",
+      "productionMicrophone": false
+    },
+    "testPlan": {
+      "vitestFiles": [
+        "xc7-bounded-resources.test.ts",
+        "xc6-capture-bridge.test.ts",
+        "xc4-robust-runtime.test.ts",
+        "input-capability.test.ts"
+      ],
+      "longSimulationSeconds": 1800,
+      "longSimulationOnnxRuns": 0,
+      "dspFixtures": "Reuse existing28 XC6 reference fixtures; no new DSP design.",
+      "typecheck": "customer-web tsc --noEmit --incremental false",
+      "bundle": "XC7 engineering entry and existing worker only, not full production build",
+      "browser": "One headed branded Chrome fake-media capture,2model runs, no real-device request/scoring/MIDI."
+    },
+    "guardRationale": "4 is2x observed finite-session maximum depth2;32 diagnostics is19.2seconds, neither is a UX SLO.",
+    "historicalReportsUnchanged": true,
+    "freezeSha256": "566982a9172614bbd0f98cc2bdcb5d3d0eff660b89a315a939d9ed86b6b51f70"
+  },
+  "remoteFreezeProof": {
+    "phase": "PHASE_9G_XC7_BOUNDED_ACOUSTIC_MEMORY_AND_BACKPRESSURE",
+    "freezeCommit": "ddccd33922f7e56b19af081301eac3f33a22e245",
+    "freezeSha256": "566982a9172614bbd0f98cc2bdcb5d3d0eff660b89a315a939d9ed86b6b51f70",
+    "remoteHead": "ddccd33922f7e56b19af081301eac3f33a22e245",
+    "remoteVerifiedAt": "2026-10-16T09:29:38.715Z",
+    "sourcesVerified": true,
+    "assetsVerified": true
+  },
+  "browserExecutionStartedAt": "2026-10-16T09:29:38.777Z",
+  "checksRemoteProof": {
+    "phase": "PHASE_9G_XC7_BOUNDED_ACOUSTIC_MEMORY_AND_BACKPRESSURE",
+    "freezeCommit": "ddccd33922f7e56b19af081301eac3f33a22e245",
+    "freezeSha256": "566982a9172614bbd0f98cc2bdcb5d3d0eff660b89a315a939d9ed86b6b51f70",
+    "remoteHead": "ddccd33922f7e56b19af081301eac3f33a22e245",
+    "remoteVerifiedAt": "2026-10-16T09:29:07.243Z",
+    "sourcesVerified": true,
+    "assetsVerified": true
+  },
+  "previousXc6Disposition": "XC6_DISABLED_CAPTURE_BRIDGE_READY_FAKE_MEDIA_REAL_DEVICE_NOT_PERFORMED",
+  "xc4CoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+  "sourceAdapterIdentities": {
+    "44100": {
+      "identity": {
+        "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+        "coefficientSha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620",
+        "down": 441,
+        "realSourceLookaheadSamples": 28,
+        "runtimeFeed": "Unchanged XC5 CAPTURE branch and frozen XC4 FIR.",
+        "schemaVersion": 1,
+        "sourceRateHz": 44100,
+        "tapCount": 8821,
+        "targetRateHz": 16000,
+        "up": 160
+      },
+      "identitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5"
+    },
+    "48000": {
+      "identity": {
+        "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+        "boundary": "Origin zeros only in first10 outputs, which are excluded from qualified model inputs. No padded finish.",
+        "coefficients": {
+          "bytes": 244,
+          "dtype": "float32-le",
+          "sha256": "0edd2896f0923a575a7f01fb2460b529409899e9ba187f213a36037f3ef9218f"
+        },
+        "down": 3,
+        "firstFullyRealOutputIndex": 10,
+        "firwin": {
+          "cutoff": 0.3333333333333333,
+          "fs": 2,
+          "numtaps": 61,
+          "scale": true,
+          "window": [
+            "kaiser",
+            5
+          ]
+        },
+        "implementation": {
+          "path": "apps/customer-web/src/lib/practice/acoustic-inference/xc6-source-48000.ts",
+          "sha256": "752091275a67ea119c4b08b0c61b8866e017e1653d0a61fc929ae545cc610a72"
+        },
+        "precision": "float32 input/coefficients/product/each accumulation",
+        "realSourceLookaheadMs": 0.625,
+        "realSourceLookaheadSamples": 30,
+        "runtimeFeed": "Qualified adapter uses the explicit already16k injection boundary; never assumes physical microphone16k. Outer publications retain original48k source coordinates.",
+        "schemaVersion": 1,
+        "scipyVersion": "1.14.1",
+        "sourceRateHz": 48000,
+        "tapCount": 61,
+        "targetRateHz": 16000,
+        "timeMapping": "Target sample m represents original source3*m; wait through source3*m+30. No fitted shift.",
+        "up": 1
+      },
+      "identitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+    }
+  },
+  "boundedTimeline": {
+    "strategy": "ONE_SEGMENT_METADATA_ONLY",
+    "retainedPcmBytes": 0,
+    "genericPerformancePcmTimelineUnmodified": true,
+    "originalSourceCoordinatesPreserved": true,
+    "metadataSegmentCount": 1
+  },
+  "resourceBounds": {
+    "outstandingWindows": 4,
+    "mainOutstandingInputsBytes": 465920,
+    "activeIncludedInMainLimit": true,
+    "workerInputCloneBytes": 116480,
+    "providerAdditionalInputReservationBytes": 116480,
+    "targetRingBytes": 262144,
+    "firSourceRingBytes": 512,
+    "conservativePcmSubtotalExcludingCaptureCoefficientsAndOrtInternal": 961536,
+    "diagnosticWindows": 32,
+    "diagnosticObservationsMaximum": 515328,
+    "diagnosticOneKiBPerObservationPlanningEstimate": 527695872,
+    "diagnosticEstimateIsNotMeasuredJsHeapCeiling": true,
+    "workletPendingBlocks": 32,
+    "maximumBlockSamples": 2048,
+    "workletInTransitPcmMaximumBytes": 262144,
+    "workletInTransitAtObserved128QuantumBytes": 16384,
+    "activeIngressMaximumBytes": 8192,
+    "sessionDurationDependentPcmStorage": false,
+    "coefficientsBytes44100": 70568,
+    "coefficientsBytes48000": 244,
+    "exclusions": "JS object headers, scalar metadata, bounded temporary projections/filter arrays, model/ORT/GPU/OPFS memory and external sink retention. No claim of exact total browser heap cap."
+  },
+  "measuredUnitReceipts": {
+    "long_session": {
+      "durationSeconds": 1800,
+      "neuralInferenceCount": 0,
+      "worker": "non-retaining fake fast port",
+      "streamed": 3000,
+      "firstId": "xc7:0:60:18400",
+      "lastId": "xc7:2999:60:28808800",
+      "snapshot": {
+        "state": "SEALED",
+        "engineeringIdentityName": "robust-browser-engineering-default-xc4-v1",
+        "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+        "publications": [
+          {
+            "publicationId": "xc7:2968",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2968,
+              "ownedStartMs": 1780800,
+              "ownedEndMs": 1781400,
+              "startSample": 28492800,
+              "endSample": 28521920,
+              "inputWindowStartMs": 1779750
+            },
+            "analyzedThroughPerformanceMs": 1781399.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2968:60:28511200",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1780900,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28511200,
+                "sourceSampleNumerator": 456179200000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2969",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2969,
+              "ownedStartMs": 1781400,
+              "ownedEndMs": 1782000,
+              "startSample": 28502400,
+              "endSample": 28531520,
+              "inputWindowStartMs": 1780350
+            },
+            "analyzedThroughPerformanceMs": 1781999.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2969:60:28520800",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1781500,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28520800,
+                "sourceSampleNumerator": 456332800000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2970",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2970,
+              "ownedStartMs": 1782000,
+              "ownedEndMs": 1782600,
+              "startSample": 28512000,
+              "endSample": 28541120,
+              "inputWindowStartMs": 1780950
+            },
+            "analyzedThroughPerformanceMs": 1782599.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2970:60:28530400",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1782100,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28530400,
+                "sourceSampleNumerator": 456486400000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2971",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2971,
+              "ownedStartMs": 1782600,
+              "ownedEndMs": 1783200,
+              "startSample": 28521600,
+              "endSample": 28550720,
+              "inputWindowStartMs": 1781550
+            },
+            "analyzedThroughPerformanceMs": 1783199.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2971:60:28540000",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1782700,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28540000,
+                "sourceSampleNumerator": 456640000000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2972",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2972,
+              "ownedStartMs": 1783200,
+              "ownedEndMs": 1783800,
+              "startSample": 28531200,
+              "endSample": 28560320,
+              "inputWindowStartMs": 1782150
+            },
+            "analyzedThroughPerformanceMs": 1783799.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2972:60:28549600",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1783300,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28549600,
+                "sourceSampleNumerator": 456793600000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2973",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2973,
+              "ownedStartMs": 1783800,
+              "ownedEndMs": 1784400,
+              "startSample": 28540800,
+              "endSample": 28569920,
+              "inputWindowStartMs": 1782750
+            },
+            "analyzedThroughPerformanceMs": 1784399.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2973:60:28559200",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1783900,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28559200,
+                "sourceSampleNumerator": 456947200000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2974",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2974,
+              "ownedStartMs": 1784400,
+              "ownedEndMs": 1785000,
+              "startSample": 28550400,
+              "endSample": 28579520,
+              "inputWindowStartMs": 1783350
+            },
+            "analyzedThroughPerformanceMs": 1784999.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2974:60:28568800",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1784500,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28568800,
+                "sourceSampleNumerator": 457100800000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2975",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2975,
+              "ownedStartMs": 1785000,
+              "ownedEndMs": 1785600,
+              "startSample": 28560000,
+              "endSample": 28589120,
+              "inputWindowStartMs": 1783950
+            },
+            "analyzedThroughPerformanceMs": 1785599.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2975:60:28578400",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1785100,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28578400,
+                "sourceSampleNumerator": 457254400000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2976",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2976,
+              "ownedStartMs": 1785600,
+              "ownedEndMs": 1786200,
+              "startSample": 28569600,
+              "endSample": 28598720,
+              "inputWindowStartMs": 1784550
+            },
+            "analyzedThroughPerformanceMs": 1786199.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2976:60:28588000",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1785700,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28588000,
+                "sourceSampleNumerator": 457408000000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2977",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2977,
+              "ownedStartMs": 1786200,
+              "ownedEndMs": 1786800,
+              "startSample": 28579200,
+              "endSample": 28608320,
+              "inputWindowStartMs": 1785150
+            },
+            "analyzedThroughPerformanceMs": 1786799.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2977:60:28597600",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1786300,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28597600,
+                "sourceSampleNumerator": 457561600000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2978",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2978,
+              "ownedStartMs": 1786800,
+              "ownedEndMs": 1787400,
+              "startSample": 28588800,
+              "endSample": 28617920,
+              "inputWindowStartMs": 1785750
+            },
+            "analyzedThroughPerformanceMs": 1787399.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2978:60:28607200",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1786900,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28607200,
+                "sourceSampleNumerator": 457715200000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2979",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2979,
+              "ownedStartMs": 1787400,
+              "ownedEndMs": 1788000,
+              "startSample": 28598400,
+              "endSample": 28627520,
+              "inputWindowStartMs": 1786350
+            },
+            "analyzedThroughPerformanceMs": 1787999.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2979:60:28616800",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1787500,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28616800,
+                "sourceSampleNumerator": 457868800000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2980",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2980,
+              "ownedStartMs": 1788000,
+              "ownedEndMs": 1788600,
+              "startSample": 28608000,
+              "endSample": 28637120,
+              "inputWindowStartMs": 1786950
+            },
+            "analyzedThroughPerformanceMs": 1788599.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2980:60:28626400",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1788100,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28626400,
+                "sourceSampleNumerator": 458022400000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2981",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2981,
+              "ownedStartMs": 1788600,
+              "ownedEndMs": 1789200,
+              "startSample": 28617600,
+              "endSample": 28646720,
+              "inputWindowStartMs": 1787550
+            },
+            "analyzedThroughPerformanceMs": 1789199.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2981:60:28636000",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1788700,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28636000,
+                "sourceSampleNumerator": 458176000000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2982",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2982,
+              "ownedStartMs": 1789200,
+              "ownedEndMs": 1789800,
+              "startSample": 28627200,
+              "endSample": 28656320,
+              "inputWindowStartMs": 1788150
+            },
+            "analyzedThroughPerformanceMs": 1789799.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2982:60:28645600",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1789300,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28645600,
+                "sourceSampleNumerator": 458329600000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2983",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2983,
+              "ownedStartMs": 1789800,
+              "ownedEndMs": 1790400,
+              "startSample": 28636800,
+              "endSample": 28665920,
+              "inputWindowStartMs": 1788750
+            },
+            "analyzedThroughPerformanceMs": 1790399.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2983:60:28655200",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1789900,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28655200,
+                "sourceSampleNumerator": 458483200000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2984",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2984,
+              "ownedStartMs": 1790400,
+              "ownedEndMs": 1791000,
+              "startSample": 28646400,
+              "endSample": 28675520,
+              "inputWindowStartMs": 1789350
+            },
+            "analyzedThroughPerformanceMs": 1790999.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2984:60:28664800",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1790500,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28664800,
+                "sourceSampleNumerator": 458636800000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2985",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2985,
+              "ownedStartMs": 1791000,
+              "ownedEndMs": 1791600,
+              "startSample": 28656000,
+              "endSample": 28685120,
+              "inputWindowStartMs": 1789950
+            },
+            "analyzedThroughPerformanceMs": 1791599.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2985:60:28674400",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1791100,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28674400,
+                "sourceSampleNumerator": 458790400000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2986",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2986,
+              "ownedStartMs": 1791600,
+              "ownedEndMs": 1792200,
+              "startSample": 28665600,
+              "endSample": 28694720,
+              "inputWindowStartMs": 1790550
+            },
+            "analyzedThroughPerformanceMs": 1792199.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2986:60:28684000",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1791700,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28684000,
+                "sourceSampleNumerator": 458944000000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2987",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2987,
+              "ownedStartMs": 1792200,
+              "ownedEndMs": 1792800,
+              "startSample": 28675200,
+              "endSample": 28704320,
+              "inputWindowStartMs": 1791150
+            },
+            "analyzedThroughPerformanceMs": 1792799.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2987:60:28693600",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1792300,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28693600,
+                "sourceSampleNumerator": 459097600000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2988",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2988,
+              "ownedStartMs": 1792800,
+              "ownedEndMs": 1793400,
+              "startSample": 28684800,
+              "endSample": 28713920,
+              "inputWindowStartMs": 1791750
+            },
+            "analyzedThroughPerformanceMs": 1793399.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2988:60:28703200",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1792900,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28703200,
+                "sourceSampleNumerator": 459251200000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2989",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2989,
+              "ownedStartMs": 1793400,
+              "ownedEndMs": 1794000,
+              "startSample": 28694400,
+              "endSample": 28723520,
+              "inputWindowStartMs": 1792350
+            },
+            "analyzedThroughPerformanceMs": 1793999.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2989:60:28712800",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1793500,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28712800,
+                "sourceSampleNumerator": 459404800000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2990",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2990,
+              "ownedStartMs": 1794000,
+              "ownedEndMs": 1794600,
+              "startSample": 28704000,
+              "endSample": 28733120,
+              "inputWindowStartMs": 1792950
+            },
+            "analyzedThroughPerformanceMs": 1794599.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2990:60:28722400",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1794100,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28722400,
+                "sourceSampleNumerator": 459558400000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2991",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2991,
+              "ownedStartMs": 1794600,
+              "ownedEndMs": 1795200,
+              "startSample": 28713600,
+              "endSample": 28742720,
+              "inputWindowStartMs": 1793550
+            },
+            "analyzedThroughPerformanceMs": 1795199.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2991:60:28732000",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1794700,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28732000,
+                "sourceSampleNumerator": 459712000000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2992",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2992,
+              "ownedStartMs": 1795200,
+              "ownedEndMs": 1795800,
+              "startSample": 28723200,
+              "endSample": 28752320,
+              "inputWindowStartMs": 1794150
+            },
+            "analyzedThroughPerformanceMs": 1795799.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2992:60:28741600",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1795300,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28741600,
+                "sourceSampleNumerator": 459865600000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2993",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2993,
+              "ownedStartMs": 1795800,
+              "ownedEndMs": 1796400,
+              "startSample": 28732800,
+              "endSample": 28761920,
+              "inputWindowStartMs": 1794750
+            },
+            "analyzedThroughPerformanceMs": 1796399.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2993:60:28751200",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1795900,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28751200,
+                "sourceSampleNumerator": 460019200000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2994",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2994,
+              "ownedStartMs": 1796400,
+              "ownedEndMs": 1797000,
+              "startSample": 28742400,
+              "endSample": 28771520,
+              "inputWindowStartMs": 1795350
+            },
+            "analyzedThroughPerformanceMs": 1796999.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2994:60:28760800",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1796500,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28760800,
+                "sourceSampleNumerator": 460172800000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2995",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2995,
+              "ownedStartMs": 1797000,
+              "ownedEndMs": 1797600,
+              "startSample": 28752000,
+              "endSample": 28781120,
+              "inputWindowStartMs": 1795950
+            },
+            "analyzedThroughPerformanceMs": 1797599.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2995:60:28770400",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1797100,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28770400,
+                "sourceSampleNumerator": 460326400000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2996",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2996,
+              "ownedStartMs": 1797600,
+              "ownedEndMs": 1798200,
+              "startSample": 28761600,
+              "endSample": 28790720,
+              "inputWindowStartMs": 1796550
+            },
+            "analyzedThroughPerformanceMs": 1798199.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2996:60:28780000",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1797700,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28780000,
+                "sourceSampleNumerator": 460480000000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2997",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2997,
+              "ownedStartMs": 1798200,
+              "ownedEndMs": 1798800,
+              "startSample": 28771200,
+              "endSample": 28800320,
+              "inputWindowStartMs": 1797150
+            },
+            "analyzedThroughPerformanceMs": 1798799.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2997:60:28789600",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1798300,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28789600,
+                "sourceSampleNumerator": 460633600000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2998",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2998,
+              "ownedStartMs": 1798800,
+              "ownedEndMs": 1799400,
+              "startSample": 28780800,
+              "endSample": 28809920,
+              "inputWindowStartMs": 1797750
+            },
+            "analyzedThroughPerformanceMs": 1799399.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2998:60:28799200",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1798900,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28799200,
+                "sourceSampleNumerator": 460787200000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          },
+          {
+            "publicationId": "xc7:2999",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 2999,
+              "ownedStartMs": 1799400,
+              "ownedEndMs": 1800000,
+              "startSample": 28790400,
+              "endSample": 28819520,
+              "inputWindowStartMs": 1798350
+            },
+            "analyzedThroughPerformanceMs": 1799999.9999999998,
+            "availabilityTimeMs": 10000000,
+            "observations": [
+              {
+                "observationId": "xc7:2999:60:28808800",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 1799500,
+                "availabilityTimeMs": 10000000,
+                "sourceSamplePosition": 28808800,
+                "sourceSampleNumerator": 460940800000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 16000
+              }
+            ]
+          }
+        ],
+        "timings": [
+          {
+            "windowIndex": 2968,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28521920,
+            "captureReadyPerformanceTimeMs": 1781570,
+            "captureReadyToPublicationMs": 8218430,
+            "oldestOwnedSourceTimeToPublicationMs": 8219200,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2969,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28531520,
+            "captureReadyPerformanceTimeMs": 1782170,
+            "captureReadyToPublicationMs": 8217830,
+            "oldestOwnedSourceTimeToPublicationMs": 8218600,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2970,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28541120,
+            "captureReadyPerformanceTimeMs": 1782770,
+            "captureReadyToPublicationMs": 8217230,
+            "oldestOwnedSourceTimeToPublicationMs": 8218000,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2971,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28550720,
+            "captureReadyPerformanceTimeMs": 1783370,
+            "captureReadyToPublicationMs": 8216630,
+            "oldestOwnedSourceTimeToPublicationMs": 8217400,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2972,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28560320,
+            "captureReadyPerformanceTimeMs": 1783970,
+            "captureReadyToPublicationMs": 8216030,
+            "oldestOwnedSourceTimeToPublicationMs": 8216800,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2973,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28569920,
+            "captureReadyPerformanceTimeMs": 1784570,
+            "captureReadyToPublicationMs": 8215430,
+            "oldestOwnedSourceTimeToPublicationMs": 8216200,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2974,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28579520,
+            "captureReadyPerformanceTimeMs": 1785170,
+            "captureReadyToPublicationMs": 8214830,
+            "oldestOwnedSourceTimeToPublicationMs": 8215600,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2975,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28589120,
+            "captureReadyPerformanceTimeMs": 1785770,
+            "captureReadyToPublicationMs": 8214230,
+            "oldestOwnedSourceTimeToPublicationMs": 8215000,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2976,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28598720,
+            "captureReadyPerformanceTimeMs": 1786370,
+            "captureReadyToPublicationMs": 8213630,
+            "oldestOwnedSourceTimeToPublicationMs": 8214400,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2977,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28608320,
+            "captureReadyPerformanceTimeMs": 1786970,
+            "captureReadyToPublicationMs": 8213030,
+            "oldestOwnedSourceTimeToPublicationMs": 8213800,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2978,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28617920,
+            "captureReadyPerformanceTimeMs": 1787570,
+            "captureReadyToPublicationMs": 8212430,
+            "oldestOwnedSourceTimeToPublicationMs": 8213200,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2979,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28627520,
+            "captureReadyPerformanceTimeMs": 1788170,
+            "captureReadyToPublicationMs": 8211830,
+            "oldestOwnedSourceTimeToPublicationMs": 8212600,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2980,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28637120,
+            "captureReadyPerformanceTimeMs": 1788770,
+            "captureReadyToPublicationMs": 8211230,
+            "oldestOwnedSourceTimeToPublicationMs": 8212000,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2981,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28646720,
+            "captureReadyPerformanceTimeMs": 1789370,
+            "captureReadyToPublicationMs": 8210630,
+            "oldestOwnedSourceTimeToPublicationMs": 8211400,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2982,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28656320,
+            "captureReadyPerformanceTimeMs": 1789970,
+            "captureReadyToPublicationMs": 8210030,
+            "oldestOwnedSourceTimeToPublicationMs": 8210800,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2983,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28665920,
+            "captureReadyPerformanceTimeMs": 1790570,
+            "captureReadyToPublicationMs": 8209430,
+            "oldestOwnedSourceTimeToPublicationMs": 8210200,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2984,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28675520,
+            "captureReadyPerformanceTimeMs": 1791170,
+            "captureReadyToPublicationMs": 8208830,
+            "oldestOwnedSourceTimeToPublicationMs": 8209600,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2985,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28685120,
+            "captureReadyPerformanceTimeMs": 1791770,
+            "captureReadyToPublicationMs": 8208230,
+            "oldestOwnedSourceTimeToPublicationMs": 8209000,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2986,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28694720,
+            "captureReadyPerformanceTimeMs": 1792370,
+            "captureReadyToPublicationMs": 8207630,
+            "oldestOwnedSourceTimeToPublicationMs": 8208400,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2987,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28704320,
+            "captureReadyPerformanceTimeMs": 1792970,
+            "captureReadyToPublicationMs": 8207030,
+            "oldestOwnedSourceTimeToPublicationMs": 8207800,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2988,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28713920,
+            "captureReadyPerformanceTimeMs": 1793570,
+            "captureReadyToPublicationMs": 8206430,
+            "oldestOwnedSourceTimeToPublicationMs": 8207200,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2989,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28723520,
+            "captureReadyPerformanceTimeMs": 1794170,
+            "captureReadyToPublicationMs": 8205830,
+            "oldestOwnedSourceTimeToPublicationMs": 8206600,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2990,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28733120,
+            "captureReadyPerformanceTimeMs": 1794770,
+            "captureReadyToPublicationMs": 8205230,
+            "oldestOwnedSourceTimeToPublicationMs": 8206000,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2991,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28742720,
+            "captureReadyPerformanceTimeMs": 1795370,
+            "captureReadyToPublicationMs": 8204630,
+            "oldestOwnedSourceTimeToPublicationMs": 8205400,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2992,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28752320,
+            "captureReadyPerformanceTimeMs": 1795970,
+            "captureReadyToPublicationMs": 8204030,
+            "oldestOwnedSourceTimeToPublicationMs": 8204800,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2993,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28761920,
+            "captureReadyPerformanceTimeMs": 1796570,
+            "captureReadyToPublicationMs": 8203430,
+            "oldestOwnedSourceTimeToPublicationMs": 8204200,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2994,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28771520,
+            "captureReadyPerformanceTimeMs": 1797170,
+            "captureReadyToPublicationMs": 8202830,
+            "oldestOwnedSourceTimeToPublicationMs": 8203600,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2995,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28781120,
+            "captureReadyPerformanceTimeMs": 1797770,
+            "captureReadyToPublicationMs": 8202230,
+            "oldestOwnedSourceTimeToPublicationMs": 8203000,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2996,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28790720,
+            "captureReadyPerformanceTimeMs": 1798370,
+            "captureReadyToPublicationMs": 8201630,
+            "oldestOwnedSourceTimeToPublicationMs": 8202400,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2997,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28800320,
+            "captureReadyPerformanceTimeMs": 1798970,
+            "captureReadyToPublicationMs": 8201030,
+            "oldestOwnedSourceTimeToPublicationMs": 8201800,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2998,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28809920,
+            "captureReadyPerformanceTimeMs": 1799570,
+            "captureReadyToPublicationMs": 8200430,
+            "oldestOwnedSourceTimeToPublicationMs": 8201200,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          },
+          {
+            "windowIndex": 2999,
+            "queuedAtMs": 10000000,
+            "inferenceStartMs": 10000000,
+            "inferenceEndMs": 10000000,
+            "acousticPublicationTimeMs": 10000000,
+            "captureReadySourceEndSampleIndex": 28819520,
+            "captureReadyPerformanceTimeMs": 1800170,
+            "captureReadyToPublicationMs": 8199830,
+            "oldestOwnedSourceTimeToPublicationMs": 8200600,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0
+          }
+        ],
+        "outstandingDepth": 0,
+        "maxOutstandingDepth": 1,
+        "queuedOwnedEndMs": 1800000,
+        "sourceSampleRateHz": 16000,
+        "sourceBase": 0,
+        "performanceSourceOrigin": 16800,
+        "nextSourceSampleIndex": 28819520,
+        "performanceSegments": [
+          {
+            "performanceStartMs": 0,
+            "sourceSampleRateHz": 16000,
+            "sourceStartSampleIndex": 16800,
+            "segmentId": "segment-0",
+            "sourcePerformanceEndSampleIndex": 28816800,
+            "sourceContextTailEndSampleIndex": 28819520
+          }
+        ],
+        "error": null,
+        "counters": {
+          "totalWindowsQueued": 3000,
+          "totalWindowsStarted": 3000,
+          "totalWindowsPublished": 3000,
+          "totalObservationsPublished": 3000,
+          "totalBackpressureFailures": 0,
+          "publicationDeliveryAttempts": 3000
+        },
+        "resources": {
+          "policy": "XC7_BOUNDED",
+          "timelinePcmBytes": 0,
+          "targetRingBytes": 262144,
+          "outstandingInputBytes": 0,
+          "maximumOutstandingInputBytes": 465920,
+          "maximumDiagnosticWindows": 32
+        }
+      }
+    },
+    "backpressure": {
+      "atFailure": {
+        "state": "FAILED",
+        "engineeringIdentityName": "robust-browser-engineering-default-xc4-v1",
+        "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+        "publications": [],
+        "timings": [],
+        "outstandingDepth": 4,
+        "maxOutstandingDepth": 4,
+        "queuedOwnedEndMs": 2400,
+        "sourceSampleRateHz": 16000,
+        "sourceBase": 0,
+        "performanceSourceOrigin": 16800,
+        "nextSourceSampleIndex": 67520,
+        "performanceSegments": [
+          {
+            "performanceStartMs": 0,
+            "sourceSampleRateHz": 16000,
+            "sourceStartSampleIndex": 16800,
+            "segmentId": "segment-0",
+            "sourcePerformanceEndSampleIndex": 67520,
+            "sourceContextTailEndSampleIndex": 67520
+          }
+        ],
+        "error": "Error: ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED",
+        "counters": {
+          "totalWindowsQueued": 4,
+          "totalWindowsStarted": 1,
+          "totalWindowsPublished": 0,
+          "totalObservationsPublished": 0,
+          "totalBackpressureFailures": 1,
+          "publicationDeliveryAttempts": 0
+        },
+        "resources": {
+          "policy": "XC7_BOUNDED",
+          "timelinePcmBytes": 0,
+          "targetRingBytes": 262144,
+          "outstandingInputBytes": 465920,
+          "maximumOutstandingInputBytes": 465920,
+          "maximumDiagnosticWindows": 32
+        }
+      },
+      "afterActiveResolved": {
+        "state": "FAILED",
+        "engineeringIdentityName": "robust-browser-engineering-default-xc4-v1",
+        "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+        "publications": [],
+        "timings": [],
+        "outstandingDepth": 0,
+        "maxOutstandingDepth": 4,
+        "queuedOwnedEndMs": 2400,
+        "sourceSampleRateHz": 16000,
+        "sourceBase": 0,
+        "performanceSourceOrigin": 16800,
+        "nextSourceSampleIndex": 67520,
+        "performanceSegments": [
+          {
+            "performanceStartMs": 0,
+            "sourceSampleRateHz": 16000,
+            "sourceStartSampleIndex": 16800,
+            "segmentId": "segment-0",
+            "sourcePerformanceEndSampleIndex": 67520,
+            "sourceContextTailEndSampleIndex": 67520
+          }
+        ],
+        "error": "Error: ACOUSTIC_BACKPRESSURE_LIMIT_EXCEEDED",
+        "counters": {
+          "totalWindowsQueued": 4,
+          "totalWindowsStarted": 1,
+          "totalWindowsPublished": 0,
+          "totalObservationsPublished": 0,
+          "totalBackpressureFailures": 1,
+          "publicationDeliveryAttempts": 0
+        },
+        "resources": {
+          "policy": "XC7_BOUNDED",
+          "timelinePcmBytes": 0,
+          "targetRingBytes": 262144,
+          "outstandingInputBytes": 0,
+          "maximumOutstandingInputBytes": 465920,
+          "maximumDiagnosticWindows": 32
+        }
+      },
+      "actualRunsStarted": 1,
+      "delivered": 0,
+      "cleanupCalls": 1
+    },
+    "fast_parity_44100": {
+      "snapshot": {
+        "state": "SEALED",
+        "sourceSampleRateHz": 44100,
+        "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5",
+        "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+        "publications": [
+          {
+            "publicationId": "xc7-parity:0",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 0,
+              "ownedStartMs": 0,
+              "ownedEndMs": 600,
+              "startSample": 2400,
+              "endSample": 31520,
+              "inputWindowStartMs": -1050
+            },
+            "analyzedThroughPerformanceMs": 599.9999999999999,
+            "availabilityTimeMs": 4000,
+            "observations": [
+              {
+                "observationId": "xc7-parity:0:60:20800",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 100,
+                "availabilityTimeMs": 4000,
+                "sourceSamplePosition": 57330,
+                "sourceSampleNumerator": 917280000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 44100,
+                "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+                "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5"
+              }
+            ],
+            "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5"
+          },
+          {
+            "publicationId": "xc7-parity:1",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 1,
+              "ownedStartMs": 600,
+              "ownedEndMs": 1200,
+              "startSample": 12000,
+              "endSample": 41120,
+              "inputWindowStartMs": -450
+            },
+            "analyzedThroughPerformanceMs": 1199.9999999999998,
+            "availabilityTimeMs": 4000,
+            "observations": [
+              {
+                "observationId": "xc7-parity:1:60:30400",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 700,
+                "availabilityTimeMs": 4000,
+                "sourceSamplePosition": 83790,
+                "sourceSampleNumerator": 1340640000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 44100,
+                "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+                "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5"
+              }
+            ],
+            "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5"
+          }
+        ],
+        "timings": [
+          {
+            "windowIndex": 0,
+            "queuedAtMs": 4000,
+            "inferenceStartMs": 4000,
+            "inferenceEndMs": 4000,
+            "acousticPublicationTimeMs": 4000,
+            "captureReadySourceEndSampleIndex": 86902,
+            "captureReadyPerformanceTimeMs": 770.5668934240363,
+            "captureReadyToPublicationMs": 3229.433106575964,
+            "oldestOwnedSourceTimeToPublicationMs": 4000,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0,
+            "captureReadyOriginalSourceEndSampleIndex": 86902,
+            "captureReadyOriginalSourceTimeMs": 770.5668934240363,
+            "captureReadyOriginalSourceToPublicationMs": 3229.433106575964
+          },
+          {
+            "windowIndex": 1,
+            "queuedAtMs": 4000,
+            "inferenceStartMs": 4000,
+            "inferenceEndMs": 4000,
+            "acousticPublicationTimeMs": 4000,
+            "captureReadySourceEndSampleIndex": 113362,
+            "captureReadyPerformanceTimeMs": 1370.5668934240362,
+            "captureReadyToPublicationMs": 2629.433106575964,
+            "oldestOwnedSourceTimeToPublicationMs": 3400,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 2,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0,
+            "captureReadyOriginalSourceEndSampleIndex": 113362,
+            "captureReadyOriginalSourceTimeMs": 1370.5668934240362,
+            "captureReadyOriginalSourceToPublicationMs": 2629.433106575964
+          }
+        ],
+        "counters": {
+          "totalWindowsQueued": 2,
+          "totalWindowsStarted": 2,
+          "totalWindowsPublished": 2,
+          "totalObservationsPublished": 2,
+          "totalBackpressureFailures": 0,
+          "publicationDeliveryAttempts": 2
+        },
+        "resources": {
+          "policy": "XC7_BOUNDED",
+          "timelinePcmBytes": 0,
+          "targetRingBytes": 262144,
+          "outstandingInputBytes": 0,
+          "maximumOutstandingInputBytes": 465920,
+          "maximumDiagnosticWindows": 32
+        },
+        "captureMetadata": {
+          "blocks": 897,
+          "chunkSizeDistribution": {
+            "44": 1,
+            "56": 1,
+            "128": 895
+          },
+          "inputChannelCountDistribution": {
+            "2": 897
+          },
+          "nextSourceSampleIndex": 114660,
+          "firstAudioContextFrame": 0,
+          "gapCount": 0,
+          "ignoredAfterRequiredTailBlocks": 0,
+          "stateTransitions": []
+        },
+        "originalPerformanceSourceRange": {
+          "start": 52920,
+          "end": 105840
+        },
+        "rawSampleIndicesAuthoritative": true,
+        "coreTimeline": [
+          {
+            "performanceStartMs": 0,
+            "sourceSampleRateHz": 44100,
+            "sourceStartSampleIndex": 52920,
+            "segmentId": "segment-0",
+            "sourcePerformanceEndSampleIndex": 105840,
+            "sourceContextTailEndSampleIndex": 114660
+          }
+        ],
+        "outstandingDepth": 0,
+        "maxOutstandingDepth": 2,
+        "error": null,
+        "ingressClosed": true
+      },
+      "streamed": [
+        {
+          "publicationId": "xc7-parity:0",
+          "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "window": {
+            "windowIndex": 0,
+            "ownedStartMs": 0,
+            "ownedEndMs": 600,
+            "startSample": 2400,
+            "endSample": 31520,
+            "inputWindowStartMs": -1050
+          },
+          "analyzedThroughPerformanceMs": 599.9999999999999,
+          "availabilityTimeMs": 4000,
+          "observations": [
+            {
+              "observationId": "xc7-parity:0:60:20800",
+              "midiPitch": 60,
+              "pitch": "C4",
+              "confidence": 0.4,
+              "onsetScore": 0.6,
+              "frameScore": 0.4,
+              "performanceTimeMs": 100,
+              "availabilityTimeMs": 4000,
+              "sourceSamplePosition": 57330,
+              "sourceSampleNumerator": 917280000,
+              "sourceSampleDenominator": 16000,
+              "sourceSampleRateHz": 44100,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5"
+            }
+          ],
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5"
+        },
+        {
+          "publicationId": "xc7-parity:1",
+          "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "window": {
+            "windowIndex": 1,
+            "ownedStartMs": 600,
+            "ownedEndMs": 1200,
+            "startSample": 12000,
+            "endSample": 41120,
+            "inputWindowStartMs": -450
+          },
+          "analyzedThroughPerformanceMs": 1199.9999999999998,
+          "availabilityTimeMs": 4000,
+          "observations": [
+            {
+              "observationId": "xc7-parity:1:60:30400",
+              "midiPitch": 60,
+              "pitch": "C4",
+              "confidence": 0.4,
+              "onsetScore": 0.6,
+              "frameScore": 0.4,
+              "performanceTimeMs": 700,
+              "availabilityTimeMs": 4000,
+              "sourceSamplePosition": 83790,
+              "sourceSampleNumerator": 1340640000,
+              "sourceSampleDenominator": 16000,
+              "sourceSampleRateHz": 44100,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5"
+            }
+          ],
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5"
+        }
+      ],
+      "inputs": [
+        {
+          "window": {
+            "windowIndex": 0,
+            "ownedStartMs": 0,
+            "ownedEndMs": 600,
+            "startSample": 2400,
+            "endSample": 31520,
+            "inputWindowStartMs": -1050
+          },
+          "bytes": 116480,
+          "sha256": "b06109f31650bc738675604df44560747538af1ded4fb3a6e74bd496b32c3e10"
+        },
+        {
+          "window": {
+            "windowIndex": 1,
+            "ownedStartMs": 600,
+            "ownedEndMs": 1200,
+            "startSample": 12000,
+            "endSample": 41120,
+            "inputWindowStartMs": -450
+          },
+          "bytes": 116480,
+          "sha256": "ce7f0ed768dc747f0bfae373f63d1c46e91877e524a9b8e67d310202335978b8"
+        }
+      ],
+      "oracle": "Existing frozen FIR single-buffer output and explicit XC6 source/window/ID mapping; every PCM value compared by assertion."
+    },
+    "fast_parity_48000": {
+      "snapshot": {
+        "state": "SEALED",
+        "sourceSampleRateHz": 48000,
+        "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17",
+        "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+        "publications": [
+          {
+            "publicationId": "xc7-parity:0",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 0,
+              "ownedStartMs": 0,
+              "ownedEndMs": 600,
+              "startSample": 2390,
+              "endSample": 31510,
+              "inputWindowStartMs": -1050
+            },
+            "analyzedThroughPerformanceMs": 599.9999999999999,
+            "availabilityTimeMs": 4000,
+            "observations": [
+              {
+                "observationId": "xc7-parity:0:60:20790",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 100,
+                "availabilityTimeMs": 4000,
+                "sourceSamplePosition": 62400,
+                "sourceSampleNumerator": 998400000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 48000,
+                "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+                "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+              }
+            ],
+            "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+          },
+          {
+            "publicationId": "xc7-parity:1",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 1,
+              "ownedStartMs": 600,
+              "ownedEndMs": 1200,
+              "startSample": 11990,
+              "endSample": 41110,
+              "inputWindowStartMs": -450
+            },
+            "analyzedThroughPerformanceMs": 1199.9999999999998,
+            "availabilityTimeMs": 4000,
+            "observations": [
+              {
+                "observationId": "xc7-parity:1:60:30390",
+                "midiPitch": 60,
+                "pitch": "C4",
+                "confidence": 0.4,
+                "onsetScore": 0.6,
+                "frameScore": 0.4,
+                "performanceTimeMs": 700,
+                "availabilityTimeMs": 4000,
+                "sourceSamplePosition": 91200,
+                "sourceSampleNumerator": 1459200000,
+                "sourceSampleDenominator": 16000,
+                "sourceSampleRateHz": 48000,
+                "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+                "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+              }
+            ],
+            "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+          }
+        ],
+        "timings": [
+          {
+            "windowIndex": 0,
+            "queuedAtMs": 4000,
+            "inferenceStartMs": 4000,
+            "inferenceEndMs": 4000,
+            "acousticPublicationTimeMs": 4000,
+            "captureReadySourceEndSampleIndex": 31520,
+            "captureReadyPerformanceTimeMs": 770,
+            "captureReadyToPublicationMs": 3230,
+            "oldestOwnedSourceTimeToPublicationMs": 4000,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0,
+            "captureReadyOriginalSourceEndSampleIndex": 94588,
+            "captureReadyOriginalSourceTimeMs": 770.5833333333333,
+            "captureReadyOriginalSourceToPublicationMs": 3229.416666666667
+          },
+          {
+            "windowIndex": 1,
+            "queuedAtMs": 4000,
+            "inferenceStartMs": 4000,
+            "inferenceEndMs": 4000,
+            "acousticPublicationTimeMs": 4000,
+            "captureReadySourceEndSampleIndex": 41120,
+            "captureReadyPerformanceTimeMs": 1370,
+            "captureReadyToPublicationMs": 2630,
+            "oldestOwnedSourceTimeToPublicationMs": 3400,
+            "queueDelayMs": 0,
+            "outstandingDepthAtEnqueue": 2,
+            "workerInferenceMs": 1,
+            "workerDecodeMs": 0.1,
+            "workerActualSessionRunCount": 0,
+            "captureReadyOriginalSourceEndSampleIndex": 123388,
+            "captureReadyOriginalSourceTimeMs": 1370.5833333333333,
+            "captureReadyOriginalSourceToPublicationMs": 2629.416666666667
+          }
+        ],
+        "counters": {
+          "totalWindowsQueued": 2,
+          "totalWindowsStarted": 2,
+          "totalWindowsPublished": 2,
+          "totalObservationsPublished": 2,
+          "totalBackpressureFailures": 0,
+          "publicationDeliveryAttempts": 2
+        },
+        "resources": {
+          "policy": "XC7_BOUNDED",
+          "timelinePcmBytes": 0,
+          "targetRingBytes": 262144,
+          "outstandingInputBytes": 0,
+          "maximumOutstandingInputBytes": 465920,
+          "maximumDiagnosticWindows": 32
+        },
+        "captureMetadata": {
+          "blocks": 975,
+          "chunkSizeDistribution": {
+            "128": 975
+          },
+          "inputChannelCountDistribution": {
+            "2": 975
+          },
+          "nextSourceSampleIndex": 124800,
+          "firstAudioContextFrame": 0,
+          "gapCount": 0,
+          "ignoredAfterRequiredTailBlocks": 0,
+          "stateTransitions": []
+        },
+        "originalPerformanceSourceRange": {
+          "start": 57600,
+          "end": 115200
+        },
+        "rawSampleIndicesAuthoritative": true,
+        "coreTimeline": [
+          {
+            "performanceStartMs": 0,
+            "sourceSampleRateHz": 16000,
+            "sourceStartSampleIndex": 19200,
+            "segmentId": "segment-0",
+            "sourcePerformanceEndSampleIndex": 38400,
+            "sourceContextTailEndSampleIndex": 41590
+          }
+        ],
+        "outstandingDepth": 0,
+        "maxOutstandingDepth": 2,
+        "error": null,
+        "ingressClosed": true
+      },
+      "streamed": [
+        {
+          "publicationId": "xc7-parity:0",
+          "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "window": {
+            "windowIndex": 0,
+            "ownedStartMs": 0,
+            "ownedEndMs": 600,
+            "startSample": 2390,
+            "endSample": 31510,
+            "inputWindowStartMs": -1050
+          },
+          "analyzedThroughPerformanceMs": 599.9999999999999,
+          "availabilityTimeMs": 4000,
+          "observations": [
+            {
+              "observationId": "xc7-parity:0:60:20790",
+              "midiPitch": 60,
+              "pitch": "C4",
+              "confidence": 0.4,
+              "onsetScore": 0.6,
+              "frameScore": 0.4,
+              "performanceTimeMs": 100,
+              "availabilityTimeMs": 4000,
+              "sourceSamplePosition": 62400,
+              "sourceSampleNumerator": 998400000,
+              "sourceSampleDenominator": 16000,
+              "sourceSampleRateHz": 48000,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+            }
+          ],
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+        },
+        {
+          "publicationId": "xc7-parity:1",
+          "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "window": {
+            "windowIndex": 1,
+            "ownedStartMs": 600,
+            "ownedEndMs": 1200,
+            "startSample": 11990,
+            "endSample": 41110,
+            "inputWindowStartMs": -450
+          },
+          "analyzedThroughPerformanceMs": 1199.9999999999998,
+          "availabilityTimeMs": 4000,
+          "observations": [
+            {
+              "observationId": "xc7-parity:1:60:30390",
+              "midiPitch": 60,
+              "pitch": "C4",
+              "confidence": 0.4,
+              "onsetScore": 0.6,
+              "frameScore": 0.4,
+              "performanceTimeMs": 700,
+              "availabilityTimeMs": 4000,
+              "sourceSamplePosition": 91200,
+              "sourceSampleNumerator": 1459200000,
+              "sourceSampleDenominator": 16000,
+              "sourceSampleRateHz": 48000,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+            }
+          ],
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+        }
+      ],
+      "inputs": [
+        {
+          "window": {
+            "windowIndex": 0,
+            "ownedStartMs": 0,
+            "ownedEndMs": 600,
+            "startSample": 2390,
+            "endSample": 31510,
+            "inputWindowStartMs": -1050
+          },
+          "bytes": 116480,
+          "sha256": "9727d0d13941259e6a532f25552f4481c8ddbd019db23bd4a325f1c96f825e3a"
+        },
+        {
+          "window": {
+            "windowIndex": 1,
+            "ownedStartMs": 600,
+            "ownedEndMs": 1200,
+            "startSample": 11990,
+            "endSample": 41110,
+            "inputWindowStartMs": -450
+          },
+          "bytes": 116480,
+          "sha256": "6af8b697223add4e92027d176e8dcc0f5afa9fd5f917a6d0bd5cd060dd6ebb8c"
+        }
+      ],
+      "oracle": "Existing frozen FIR single-buffer output and explicit XC6 source/window/ID mapping; every PCM value compared by assertion."
+    }
+  },
+  "streamingDelivery": {
+    "browser": 2,
+    "immutable": true,
+    "longFakePort": 3000,
+    "sinkFailureAndReentrancyTests": [
+      {
+        "file": "input-capability.test.ts",
+        "count": 9,
+        "passed": 9
+      },
+      {
+        "file": "xc4-robust-runtime.test.ts",
+        "count": 18,
+        "passed": 18
+      },
+      {
+        "file": "xc6-capture-bridge.test.ts",
+        "count": 11,
+        "passed": 11
+      },
+      {
+        "file": "xc7-bounded-resources.test.ts",
+        "count": 11,
+        "passed": 11
+      }
+    ]
+  },
+  "testing": {
+    "vitest": {
+      "count": 49,
+      "passed": 49,
+      "failed": 0,
+      "byFile": [
+        {
+          "file": "input-capability.test.ts",
+          "count": 9,
+          "passed": 9
+        },
+        {
+          "file": "xc4-robust-runtime.test.ts",
+          "count": 18,
+          "passed": 18
+        },
+        {
+          "file": "xc6-capture-bridge.test.ts",
+          "count": 11,
+          "passed": 11
+        },
+        {
+          "file": "xc7-bounded-resources.test.ts",
+          "count": 11,
+          "passed": 11
+        }
+      ]
+    },
+    "dspReferenceFixtureCount": 28,
+    "dspReference": "Unchanged XC6 fixtures exercised by existing FIR parity unit test; not28extra Vitest tests.",
+    "typecheck": {
+      "command": "tsc --noEmit --incremental false",
+      "exitCode": 0
+    },
+    "bundleCompile": {
+      "kind": "ENGINEERING_ENTRY_AND_WORKER_BUNDLES_NOT_FULL_PRODUCTION_BUILD",
+      "success": true,
+      "rows": [
+        {
+          "path": "backend/data/work/xc7_bounded/v1/entry.js",
+          "bytes": 221153,
+          "sha256": "ee1924add521c05b48deac64fd5a9478bd6f429f54f58c78813752945b35b098"
+        },
+        {
+          "path": "backend/data/work/xc7_bounded/v1/worker.js",
+          "bytes": 159464,
+          "sha256": "d924df29360037c99da71b576a6e0046f6e28d115ed7d2776a96910776661764"
+        }
+      ],
+      "at": "2026-10-16T09:29:38.761Z"
+    },
+    "fullApplicationProductionBuild": "NOT_PERFORMED",
+    "browserSmoke": "ONE_BOUNDED_FAKE_MEDIA_PASS",
+    "longSimulation": "1800seconds source chronology, fake non-retaining inference port,0 ONNX"
+  },
+  "browserSmoke": {
+    "phase": "PHASE_9G_XC7_BOUNDED_ACOUSTIC_MEMORY_AND_BACKPRESSURE",
+    "proof": {
+      "phase": "PHASE_9G_XC7_BOUNDED_ACOUSTIC_MEMORY_AND_BACKPRESSURE",
+      "freezeCommit": "ddccd33922f7e56b19af081301eac3f33a22e245",
+      "freezeSha256": "566982a9172614bbd0f98cc2bdcb5d3d0eff660b89a315a939d9ed86b6b51f70",
+      "remoteHead": "ddccd33922f7e56b19af081301eac3f33a22e245",
+      "remoteVerifiedAt": "2026-10-16T09:29:38.715Z",
+      "sourcesVerified": true,
+      "assetsVerified": true
+    },
+    "executionStartedAt": "2026-10-16T09:29:38.777Z",
+    "browser": {
+      "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "version": "155.0.8059.39",
+      "headed": true,
+      "args": [
+        "--use-fake-ui-for-media-stream",
+        "--use-fake-device-for-media-stream",
+        "--use-file-for-fake-audio-capture=C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\data\\work\\xc6_capture\\fake-device.wav"
+      ],
+      "node": "v24.19.0",
+      "playwright": "1.48.2"
+    },
+    "gpu": {
+      "features": [
+        "depth32float-stencil8",
+        "rg11b10ufloat-renderable",
+        "texture-formats-tier1",
+        "bgra8unorm-storage",
+        "texture-compression-bc",
+        "dual-source-blending",
+        "core-features-and-limits",
+        "float32-filterable",
+        "indirect-first-instance",
+        "float32-blendable",
+        "subgroup-size-control",
+        "depth-clip-control",
+        "texture-compression-bc-sliced-3d",
+        "timestamp-query",
+        "texture-formats-tier2",
+        "shader-f16",
+        "clip-distances",
+        "primitive-index",
+        "texture-component-swizzle",
+        "subgroups"
+      ],
+      "info": {
+        "vendor": "nvidia",
+        "architecture": "lovelace",
+        "device": "",
+        "description": ""
+      }
+    },
+    "result": {
+      "status": "XC7_BOUNDED_FAKE_MEDIA_SMOKE_PASS",
+      "snapshot": {
+        "state": "SEALED",
+        "sourceSampleRateHz": 48000,
+        "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17",
+        "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+        "publications": [
+          {
+            "publicationId": "xc7-fake-media:0",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 0,
+              "ownedStartMs": 0,
+              "ownedEndMs": 600,
+              "startSample": 2518,
+              "endSample": 31638,
+              "inputWindowStartMs": -1050
+            },
+            "analyzedThroughPerformanceMs": 599.9999999999999,
+            "availabilityTimeMs": 1487.8580000143056,
+            "observations": [],
+            "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+          },
+          {
+            "publicationId": "xc7-fake-media:1",
+            "engineeringIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "window": {
+              "windowIndex": 1,
+              "ownedStartMs": 600,
+              "ownedEndMs": 1200,
+              "startSample": 12118,
+              "endSample": 41238,
+              "inputWindowStartMs": -450
+            },
+            "analyzedThroughPerformanceMs": 1199.9999999999998,
+            "availabilityTimeMs": 1785.4280000667577,
+            "observations": [],
+            "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+            "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17"
+          }
+        ],
+        "timings": [
+          {
+            "windowIndex": 0,
+            "queuedAtMs": 717.0780000429158,
+            "inferenceStartMs": 717.2529999952321,
+            "inferenceEndMs": 1487.853000019074,
+            "acousticPublicationTimeMs": 1487.8580000143056,
+            "captureReadySourceEndSampleIndex": 31648,
+            "captureReadyPerformanceTimeMs": 770,
+            "captureReadyToPublicationMs": 717.8580000143056,
+            "oldestOwnedSourceTimeToPublicationMs": 1487.8580000143056,
+            "queueDelayMs": 0.17499995231628418,
+            "outstandingDepthAtEnqueue": 1,
+            "workerInferenceMs": 769.5949999094009,
+            "workerDecodeMs": 0.3799999952316284,
+            "workerActualSessionRunCount": 1,
+            "captureReadyOriginalSourceEndSampleIndex": 94972,
+            "captureReadyOriginalSourceTimeMs": 770.5833333333333,
+            "captureReadyOriginalSourceToPublicationMs": 717.2746666809724
+          },
+          {
+            "windowIndex": 1,
+            "queuedAtMs": 1316.9880000095372,
+            "inferenceStartMs": 1488.023000095368,
+            "inferenceEndMs": 1785.4280000667577,
+            "acousticPublicationTimeMs": 1785.4280000667577,
+            "captureReadySourceEndSampleIndex": 41248,
+            "captureReadyPerformanceTimeMs": 1370,
+            "captureReadyToPublicationMs": 415.4280000667577,
+            "oldestOwnedSourceTimeToPublicationMs": 1185.4280000667577,
+            "queueDelayMs": 171.0350000858307,
+            "outstandingDepthAtEnqueue": 2,
+            "workerInferenceMs": 296.375,
+            "workerDecodeMs": 0.4950000047683716,
+            "workerActualSessionRunCount": 2,
+            "captureReadyOriginalSourceEndSampleIndex": 123772,
+            "captureReadyOriginalSourceTimeMs": 1370.5833333333333,
+            "captureReadyOriginalSourceToPublicationMs": 414.84466673342445
+          }
+        ],
+        "counters": {
+          "totalWindowsQueued": 2,
+          "totalWindowsStarted": 2,
+          "totalWindowsPublished": 2,
+          "totalObservationsPublished": 0,
+          "totalBackpressureFailures": 0,
+          "publicationDeliveryAttempts": 2
+        },
+        "resources": {
+          "policy": "XC7_BOUNDED",
+          "timelinePcmBytes": 0,
+          "targetRingBytes": 262144,
+          "outstandingInputBytes": 0,
+          "maximumOutstandingInputBytes": 465920,
+          "maximumDiagnosticWindows": 32
+        },
+        "captureMetadata": {
+          "blocks": 967,
+          "chunkSizeDistribution": {
+            "128": 967
+          },
+          "inputChannelCountDistribution": {
+            "2": 967
+          },
+          "nextSourceSampleIndex": 123776,
+          "firstAudioContextFrame": 0,
+          "gapCount": 0,
+          "ignoredAfterRequiredTailBlocks": 0,
+          "stateTransitions": [
+            "running"
+          ]
+        },
+        "originalPerformanceSourceRange": {
+          "start": 57984,
+          "end": 115584
+        },
+        "rawSampleIndicesAuthoritative": true,
+        "coreTimeline": [
+          {
+            "performanceStartMs": 0,
+            "sourceSampleRateHz": 16000,
+            "sourceStartSampleIndex": 19328,
+            "segmentId": "segment-0",
+            "sourcePerformanceEndSampleIndex": 38528,
+            "sourceContextTailEndSampleIndex": 41249
+          }
+        ],
+        "outstandingDepth": 0,
+        "maxOutstandingDepth": 2,
+        "error": null,
+        "ingressClosed": true
+      },
+      "modelLoad": {
+        "modelFetchAndVerifyMs": 1137.8400000333786,
+        "sessionCreateMs": 711.6999999284744,
+        "totalLoadMs": 1849.5499999523163,
+        "modelByteSize": 98689283,
+        "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+        "source": "network",
+        "downloadMs": 876.4650000333786,
+        "cacheReadMs": 49.93999993801117,
+        "verificationMs": 99.95500004291534,
+        "persistentStorageGranted": null,
+        "executionProvider": "webgpu",
+        "ortWebVersion": "1.20.1",
+        "automaticFallback": false,
+        "actualSessionLoadCount": 1,
+        "inputDescriptor": {
+          "name": "audio",
+          "dtype": "float32",
+          "shape": [
+            1,
+            29120
+          ]
+        },
+        "outputDescriptors": {
+          "reg_onset_output": [
+            1,
+            183,
+            88
+          ],
+          "frame_output": [
+            1,
+            183,
+            88
+          ]
+        }
+      },
+      "modelLoadMs": 1872.7599999904633,
+      "clockAnchor": {
+        "firstFrame": 0,
+        "startRaw": 57984,
+        "timestamp": {
+          "contextTime": 1.143623,
+          "performanceTime": 4057.194999933243
+        },
+        "originWall": 4121.571999933242,
+        "method": "external AudioContext source-clock affine map"
+      },
+      "streamingPublicationCount": 2,
+      "streamingObservationCount": 0,
+      "immutableCallbacks": true,
+      "actualSessionRunCount": 2,
+      "captureStopped": true,
+      "actualCaptureRateHz": 48000,
+      "productCapability": "MODEL_NOT_VALIDATED",
+      "productionMicrophone": false,
+      "realDeviceProbe": "REAL_DEVICE_NOT_PERFORMED",
+      "noDirectPcmInjectionAfterWorklet": true,
+      "scoreOrMidiInput": false,
+      "rawMicrophonePcmPersisted": false
+    },
+    "diagnostics": {
+      "rows": [
+        {
+          "kind": "worker-created",
+          "timestamp": "2026-10-16T09:29:39.815Z",
+          "url": "http://127.0.0.1:59093/worker.js"
+        },
+        {
+          "kind": "cdp-target",
+          "timestamp": "2026-10-16T09:29:39.815Z",
+          "sessionId": "1DE53BFC7C5D18DB4C096D08366FA8D0",
+          "targetInfo": {
+            "targetId": "188B44424CA9D34B41F02476C86B7F73",
+            "type": "worker",
+            "title": "http://127.0.0.1:59093/worker.js",
+            "url": "http://127.0.0.1:59093/worker.js",
+            "attached": true,
+            "parentId": "0CDE848B0E701C154DDE99C117A43A6A",
+            "canAccessOpener": false,
+            "parentFrameId": "0CDE848B0E701C154DDE99C117A43A6A",
+            "browserContextId": "A54B8E10DC25894C5E8BF4C393AE3B16"
+          },
+          "waitingForDebugger": true
+        },
+        {
+          "kind": "worker-created",
+          "timestamp": "2026-10-16T09:29:40.995Z",
+          "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs"
+        },
+        {
+          "kind": "worker-created",
+          "timestamp": "2026-10-16T09:29:40.998Z",
+          "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs"
+        },
+        {
+          "kind": "worker-created",
+          "timestamp": "2026-10-16T09:29:41.001Z",
+          "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs"
+        },
+        {
+          "kind": "playwright-console",
+          "type": "error",
+          "timestamp": "2026-10-16T09:29:41.577Z",
+          "text": "\u001b[0;93m2026-10-16 17:29:41.574959 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "pageUrl": "http://127.0.0.1:59093/",
+          "errorArguments": [
+            null
+          ]
+        },
+        {
+          "kind": "cdp",
+          "origin": "page",
+          "method": "Log.entryAdded",
+          "timestamp": "2026-10-16T09:29:41.579Z",
+          "params": {
+            "entry": {
+              "source": "worker",
+              "level": "error",
+              "text": "\u001b[0;93m2026-10-16 17:29:41.574959 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+              "timestamp": 1792142981576.417,
+              "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+              "lineNumber": 99,
+              "stackTrace": {
+                "callFrames": [
+                  {
+                    "functionName": "Hc",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 99,
+                    "columnNumber": 235
+                  },
+                  {
+                    "functionName": "$func11789",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 17014471
+                  },
+                  {
+                    "functionName": "$func1944",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 2266941
+                  },
+                  {
+                    "functionName": "$func838",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 802831
+                  },
+                  {
+                    "functionName": "$func11721",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 16987174
+                  },
+                  {
+                    "functionName": "$func632",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 593201
+                  },
+                  {
+                    "functionName": "$func88",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 54812
+                  },
+                  {
+                    "functionName": "$func14398",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 20680488
+                  },
+                  {
+                    "functionName": "$func123",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 88110
+                  },
+                  {
+                    "functionName": "$func2100",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 2487139
+                  },
+                  {
+                    "functionName": "$func11254",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 16697504
+                  },
+                  {
+                    "functionName": "$La",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 11495879
+                  },
+                  {
+                    "functionName": "Pd.b.<computed>",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 78,
+                    "columnNumber": 118
+                  },
+                  {
+                    "functionName": "B._OrtCreateSession",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 110,
+                    "columnNumber": 288
+                  },
+                  {
+                    "functionName": "",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 11,
+                    "columnNumber": 58
+                  },
+                  {
+                    "functionName": "Pt",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 26124
+                  },
+                  {
+                    "functionName": "su",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 34545
+                  },
+                  {
+                    "functionName": "loadModel",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 36424
+                  },
+                  {
+                    "functionName": "createInferenceSessionHandler",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 38202
+                  },
+                  {
+                    "functionName": "create",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 5,
+                    "columnNumber": 19501
+                  }
+                ]
+              },
+              "workerId": "188B44424CA9D34B41F02476C86B7F73"
+            }
+          }
+        },
+        {
+          "kind": "cdp",
+          "origin": "worker:1DE53BFC7C5D18DB4C096D08366FA8D0",
+          "method": "Runtime.consoleAPICalled",
+          "timestamp": "2026-10-16T09:29:41.579Z",
+          "params": {
+            "type": "error",
+            "args": [
+              {
+                "type": "string",
+                "value": "\u001b[0;93m2026-10-16 17:29:41.574959 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m"
+              }
+            ],
+            "executionContextId": 1,
+            "timestamp": 1792142981576.372,
+            "stackTrace": {
+              "callFrames": [
+                {
+                  "functionName": "Hc",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 99,
+                  "columnNumber": 235
+                },
+                {
+                  "functionName": "$func11789",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 17014471
+                },
+                {
+                  "functionName": "$func1944",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 2266941
+                },
+                {
+                  "functionName": "$func838",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 802831
+                },
+                {
+                  "functionName": "$func11721",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 16987174
+                },
+                {
+                  "functionName": "$func632",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 593201
+                },
+                {
+                  "functionName": "$func88",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 54812
+                },
+                {
+                  "functionName": "$func14398",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 20680488
+                },
+                {
+                  "functionName": "$func123",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 88110
+                },
+                {
+                  "functionName": "$func2100",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 2487139
+                },
+                {
+                  "functionName": "$func11254",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 16697504
+                },
+                {
+                  "functionName": "$La",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 11495879
+                },
+                {
+                  "functionName": "Pd.b.<computed>",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 78,
+                  "columnNumber": 118
+                },
+                {
+                  "functionName": "B._OrtCreateSession",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 110,
+                  "columnNumber": 288
+                },
+                {
+                  "functionName": "",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 11,
+                  "columnNumber": 58
+                },
+                {
+                  "functionName": "Pt",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 26124
+                },
+                {
+                  "functionName": "su",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 34545
+                },
+                {
+                  "functionName": "loadModel",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 36424
+                },
+                {
+                  "functionName": "createInferenceSessionHandler",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 38202
+                },
+                {
+                  "functionName": "create",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 5,
+                  "columnNumber": 19501
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "playwright-console",
+          "type": "error",
+          "timestamp": "2026-10-16T09:29:41.579Z",
+          "text": "\u001b[0;93m2026-10-16 17:29:41.576604 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "pageUrl": "http://127.0.0.1:59093/",
+          "errorArguments": [
+            null
+          ]
+        },
+        {
+          "kind": "cdp",
+          "origin": "page",
+          "method": "Log.entryAdded",
+          "timestamp": "2026-10-16T09:29:41.580Z",
+          "params": {
+            "entry": {
+              "source": "worker",
+              "level": "error",
+              "text": "\u001b[0;93m2026-10-16 17:29:41.576604 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+              "timestamp": 1792142981576.996,
+              "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+              "lineNumber": 99,
+              "stackTrace": {
+                "callFrames": [
+                  {
+                    "functionName": "Hc",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 99,
+                    "columnNumber": 235
+                  },
+                  {
+                    "functionName": "$func11789",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 17014471
+                  },
+                  {
+                    "functionName": "$func1944",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 2266941
+                  },
+                  {
+                    "functionName": "$func838",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 802831
+                  },
+                  {
+                    "functionName": "$func11721",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 16987174
+                  },
+                  {
+                    "functionName": "$func632",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 593201
+                  },
+                  {
+                    "functionName": "$func88",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 54812
+                  },
+                  {
+                    "functionName": "$func14398",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 20680488
+                  },
+                  {
+                    "functionName": "$func123",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 88110
+                  },
+                  {
+                    "functionName": "$func2100",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 2488392
+                  },
+                  {
+                    "functionName": "$func11254",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 16697504
+                  },
+                  {
+                    "functionName": "$La",
+                    "scriptId": "6",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                    "lineNumber": 0,
+                    "columnNumber": 11495879
+                  },
+                  {
+                    "functionName": "Pd.b.<computed>",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 78,
+                    "columnNumber": 118
+                  },
+                  {
+                    "functionName": "B._OrtCreateSession",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 110,
+                    "columnNumber": 288
+                  },
+                  {
+                    "functionName": "",
+                    "scriptId": "5",
+                    "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                    "lineNumber": 11,
+                    "columnNumber": 58
+                  },
+                  {
+                    "functionName": "Pt",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 26124
+                  },
+                  {
+                    "functionName": "su",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 34545
+                  },
+                  {
+                    "functionName": "loadModel",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 36424
+                  },
+                  {
+                    "functionName": "createInferenceSessionHandler",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 2593,
+                    "columnNumber": 38202
+                  },
+                  {
+                    "functionName": "create",
+                    "scriptId": "4",
+                    "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                    "lineNumber": 5,
+                    "columnNumber": 19501
+                  }
+                ]
+              },
+              "workerId": "188B44424CA9D34B41F02476C86B7F73"
+            }
+          }
+        },
+        {
+          "kind": "cdp",
+          "origin": "worker:1DE53BFC7C5D18DB4C096D08366FA8D0",
+          "method": "Runtime.consoleAPICalled",
+          "timestamp": "2026-10-16T09:29:41.580Z",
+          "params": {
+            "type": "error",
+            "args": [
+              {
+                "type": "string",
+                "value": "\u001b[0;93m2026-10-16 17:29:41.576604 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+              }
+            ],
+            "executionContextId": 1,
+            "timestamp": 1792142981576.972,
+            "stackTrace": {
+              "callFrames": [
+                {
+                  "functionName": "Hc",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 99,
+                  "columnNumber": 235
+                },
+                {
+                  "functionName": "$func11789",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 17014471
+                },
+                {
+                  "functionName": "$func1944",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 2266941
+                },
+                {
+                  "functionName": "$func838",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 802831
+                },
+                {
+                  "functionName": "$func11721",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 16987174
+                },
+                {
+                  "functionName": "$func632",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 593201
+                },
+                {
+                  "functionName": "$func88",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 54812
+                },
+                {
+                  "functionName": "$func14398",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 20680488
+                },
+                {
+                  "functionName": "$func123",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 88110
+                },
+                {
+                  "functionName": "$func2100",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 2488392
+                },
+                {
+                  "functionName": "$func11254",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 16697504
+                },
+                {
+                  "functionName": "$La",
+                  "scriptId": "6",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.wasm",
+                  "lineNumber": 0,
+                  "columnNumber": 11495879
+                },
+                {
+                  "functionName": "Pd.b.<computed>",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 78,
+                  "columnNumber": 118
+                },
+                {
+                  "functionName": "B._OrtCreateSession",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 110,
+                  "columnNumber": 288
+                },
+                {
+                  "functionName": "",
+                  "scriptId": "5",
+                  "url": "http://127.0.0.1:59093/ort/ort-wasm-simd-threaded.jsep.mjs",
+                  "lineNumber": 11,
+                  "columnNumber": 58
+                },
+                {
+                  "functionName": "Pt",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 26124
+                },
+                {
+                  "functionName": "su",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 34545
+                },
+                {
+                  "functionName": "loadModel",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 36424
+                },
+                {
+                  "functionName": "createInferenceSessionHandler",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 2593,
+                  "columnNumber": 38202
+                },
+                {
+                  "functionName": "create",
+                  "scriptId": "4",
+                  "url": "http://127.0.0.1:59093/ort/ort.webgpu.min.mjs",
+                  "lineNumber": 5,
+                  "columnNumber": 19501
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "cdp-target",
+          "timestamp": "2026-10-16T09:29:41.763Z",
+          "sessionId": "757D141759F22362F1E421E309D4DE85",
+          "targetInfo": {
+            "targetId": "EE7B041DF6511B759F52D399E7577505",
+            "type": "worklet",
+            "title": "http://127.0.0.1:59093/",
+            "url": "http://127.0.0.1:59093/",
+            "attached": true,
+            "parentId": "0CDE848B0E701C154DDE99C117A43A6A",
+            "canAccessOpener": false,
+            "browserContextId": "A54B8E10DC25894C5E8BF4C393AE3B16"
+          },
+          "waitingForDebugger": true
+        }
+      ],
+      "scripts": [],
+      "requests": [],
+      "contexts": [
+        {
+          "id": 2,
+          "origin": "http://127.0.0.1:59093",
+          "name": "__playwright_utility_world__",
+          "uniqueId": "-1316967255794190424.-5623488327944873312",
+          "auxData": {
+            "isDefault": false,
+            "type": "isolated",
+            "frameId": "0CDE848B0E701C154DDE99C117A43A6A"
+          }
+        },
+        {
+          "id": 1,
+          "origin": "http://127.0.0.1:59093",
+          "name": "",
+          "uniqueId": "-3521276839897355390.3531348147860266109",
+          "auxData": {
+            "isDefault": true,
+            "type": "default",
+            "frameId": "0CDE848B0E701C154DDE99C117A43A6A"
+          }
+        },
+        {
+          "id": 1,
+          "origin": "http://127.0.0.1:59093/worker.js",
+          "name": "",
+          "uniqueId": "-6806958700459911713.5036087248794479452"
+        },
+        {
+          "id": 1,
+          "origin": "http://127.0.0.1:59093/",
+          "name": "",
+          "uniqueId": "5117845084176675176.2476721278123857647"
+        }
+      ]
+    },
+    "requests": [
+      {
+        "url": "/",
+        "at": "2026-10-16T09:29:39.384Z"
+      },
+      {
+        "url": "/entry.js",
+        "at": "2026-10-16T09:29:39.411Z"
+      },
+      {
+        "url": "/favicon.ico",
+        "at": "2026-10-16T09:29:39.453Z"
+      },
+      {
+        "url": "/fir48.f32",
+        "at": "2026-10-16T09:29:39.808Z"
+      },
+      {
+        "url": "/worker.js",
+        "at": "2026-10-16T09:29:39.812Z"
+      },
+      {
+        "url": "/ort/ort.webgpu.min.mjs",
+        "at": "2026-10-16T09:29:39.818Z"
+      },
+      {
+        "url": "/model.onnx",
+        "at": "2026-10-16T09:29:39.839Z"
+      },
+      {
+        "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+        "at": "2026-10-16T09:29:40.976Z"
+      },
+      {
+        "url": "/ort/ort-wasm-simd-threaded.jsep.wasm",
+        "at": "2026-10-16T09:29:40.984Z"
+      },
+      {
+        "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+        "at": "2026-10-16T09:29:40.987Z"
+      },
+      {
+        "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+        "at": "2026-10-16T09:29:40.993Z"
+      },
+      {
+        "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+        "at": "2026-10-16T09:29:40.997Z"
+      },
+      {
+        "url": "/capture.worklet.js",
+        "at": "2026-10-16T09:29:41.764Z"
+      }
+    ]
+  },
+  "realDeviceProbe": "REAL_DEVICE_NOT_PERFORMED_NO_NEW_PERMISSION_REQUEST",
+  "productCapability": "MODEL_NOT_VALIDATED",
+  "productionMicrophone": false,
+  "productFinalizer": "STILL_PRODUCT_CRITICAL",
+  "r2": "R2_RESEARCH_POLICY_NOT_PRODUCTION_QUALIFIED",
+  "protections": {
+    "9G-B": "STATISTICAL_TIE",
+    "D4": false,
+    "F5": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+    "NO_OPTIMAL_PROFILE_CLAIM": true,
+    "R1": "BOUNDED_FINALIZATION_HAS_SAFETY_TRADEOFF",
+    "R2": "DIRECT_CONFLICT_RESERVATION_PARTIALLY_RECOVERS_SAFETY",
+    "R4": "ROBUST_CADENCE_SUSTAINABLE",
+    "R4Headroom": "ROBUST_20_PERCENT_HEADROOM_FAIL",
+    "R4Scope": "Finite measured sessions, not proof of indefinite stability.",
+    "XC2": "ROBUST_PRODUCT_BASELINE_MULTIPLE_PARETO_CANDIDATES",
+    "backendPracticeInference": false,
+    "commercialQualificationStatus": "NOT_PERFORMED",
+    "expectedScoreEntersAcousticInference": false,
+    "practiceWebSocket": false,
+    "productLatencySlo": "PRODUCT_LATENCY_SLO_NOT_YET_FROZEN",
+    "productionMicrophone": false,
+    "productionWinner": null,
+    "scientificUse": "SCIENTIFIC_RESEARCH_ONLY",
+    "scoreFollowing": false,
+    "serverAcousticInference": false,
+    "viennaP15P22InferenceIncrease": 0,
+    "winner": null
+  },
+  "historicalReportsUnchanged": true,
+  "trackedChanges": [
+    "A\tapps/customer-web/scripts/xc7-capture-entry.ts",
+    "A\tapps/customer-web/scripts/xc7-capture-integration.mjs",
+    "A\tapps/customer-web/scripts/xc7-evidence.mjs",
+    "A\tapps/customer-web/scripts/xc7-final-report.mjs",
+    "M\tapps/customer-web/src/lib/practice/acoustic-inference/xc4-robust-acoustic-runtime.ts",
+    "M\tapps/customer-web/src/lib/practice/acoustic-inference/xc6-capture-bridge.ts",
+    "A\tapps/customer-web/src/lib/practice/acoustic-inference/xc7-bounded-resources.md",
+    "A\tapps/customer-web/src/lib/practice/acoustic-inference/xc7-bounded-resources.test.ts",
+    "A\tapps/customer-web/src/lib/practice/acoustic-inference/xc7-capture.worklet.js",
+    "A\tapps/customer-web/src/lib/practice/acoustic-inference/xc7-resource-policy.ts",
+    "A\tbackend/research/reports/phase9g_xc7_resource_source_freeze_v1_2026-10-16.json",
+    "A\tbackend/research/run_xc7_checks.ps1"
+  ],
+  "counters": {
+    "newExternalDatasetDownloads": 0,
+    "newScientificBenchmarkRuns": 0,
+    "newDecoderComparisons": 0,
+    "newGeometrySweeps": 0,
+    "newModelComparisons": 0,
+    "newMidiTruthReads": 0,
+    "realDevicePermissionRequests": 0,
+    "browserModelRuns": 2
+  },
+  "limitations": [
+    "Disabled engineering resource qualification only, not accuracy/product/UX or real microphone qualification.",
+    "Active noncancellable computation must finish before worker disposal; outputs are suppressed after failure.",
+    "External consumers must not retain an entire session; their storage is outside runtime ownership.",
+    "Finite diagnostic event count can still have a large worst-case JS footprint; no measured total browser heap ceiling is claimed."
+  ],
+  "evidenceCommit": "Containing evidence-only commit; returned after push. GitHub receipt is appended prospectively after push."
+}
