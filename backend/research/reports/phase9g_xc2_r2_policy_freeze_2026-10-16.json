@@ -1,0 +1,395 @@
+{
+  "phase": "PHASE_9G_XC2_R2_DIRECT_CONFLICT_RESERVATION",
+  "startingRemoteHead": "c0f3b504ede2e9bb9a77c51bf4a69436bcb8e474",
+  "provenanceCommit": "6dfec290cc3445672a85f968382336bb1b85eed4",
+  "implementationCommit": "bb104377d607ad0f2905d5fd4ebe13f65abd9d68",
+  "policy": {
+    "name": "DIRECT_CONFLICT_RESERVATION_BOUNDED_POLICY",
+    "wMs": 250,
+    "classification": "ONE_HOP_DIRECT_CONFLICT_POLICY_NOT_TRANSITIVE_OFFLINE_EQUIVALENCE",
+    "matching": "MAX_CARDINALITY_MIN_TOTAL_ABSOLUTE_TIME_ERROR_SORTED_ID_STABLE_TRAVERSAL",
+    "reservation": "REVERSIBLE_DIRECT_ELIGIBILITY_NOT_SEMANTIC_OWNERSHIP",
+    "wrong": "NEVER_CONSUME_AN_OBSERVATION_WITH_AN_UNCOMMITTED_DIRECT_CORRECT_MATCH_CLAIMANT",
+    "unresolvedReservationAtGroupHorizon": "FINALIZE_WITHOUT_WRONG_EVIDENCE; DO_NOT_WAIT_FOR_A_COMPETITORS_COMPETITORS"
+  },
+  "configurations": [
+    "LINEAR_A_600_220",
+    "BAND_LIMITED_A_600_170"
+  ],
+  "splitOrder": [
+    "DEVELOPMENT",
+    "EVALUATION"
+  ],
+  "semanticRuntimeIdentity": {
+    "node": "v24.19.0",
+    "platform": "win32",
+    "architecture": "x64",
+    "locale": "zh-CN",
+    "execution": "Pure semantic replay over existing sealed JSON. No browser/model/runtime session launched; no Python needed."
+  },
+  "classification": "POST_XC2_DIAGNOSTIC_ONLY_NOT_FRESH_EVALUATION",
+  "optionalTwoHopPolicy": "NOT_PERFORMED",
+  "optional500msConfirmation": "NOT_PERFORMED",
+  "mathematicalHorizon": {
+    "expected": "w250; legal observation o in[t-w,t+w]. Direct same-pitch competitor u requires|u-t|<=2w. H(t)=max(u+w) over literal direct cohort, so H(t)<=t+3w=t+750. Never use H(u) to expand H(t).",
+    "commit": "Anchors whose own H is covered are processed in performance-time/ID order. Optimize only pending members of the anchors literal one-hop cohort and all their available legal observations. Stable sorted IDs for matching ties. Commit the anchor only; future proposals remain provisional.",
+    "wrong": "Local group spans[a,b], Delta=b-a<=20ms in this corpus. Candidate incompatible observation o in[a-w,a+w] has direct correct claimant u<=o+w<=a+2w; its legal window closes u+w<=a+3w. G(g)=max(b+w, own strikes H, all such claimant local closes)<=b+3w=a+750+Delta<=a+770.",
+    "conservativeGroupCoverage": "G includes all locally incompatible observations, even already-consumed ones, making the post-local-coverage horizon fixed and auditable. It does not follow any competitors competitors.",
+    "reservation": "Any residual observation with an uncommitted directly legal expected strike remains RESERVED, never WRONG. At G, a group may finalize MISSING/INCOMPLETE while such evidence stays reserved; this never prolongs G to a claimants own later H. No retroactive repair after commitment.",
+    "extra": "An observation o can match expected t<=o+w; H(t)<=t+3w<=o+4w. A directly legal incompatible group has a<=o+w and b<=a+Delta; G(g)<=b+3w<=o+4w+Delta. E(o)=max(o, directly legal expected H, directly legal WRONG-group G)<=o+1000+Delta<=o+1020. Fixed composition of direct queries, not transitive closure.",
+    "terminal": "Explicit natural scope completion clamps horizons to the declared end; manual incomplete strikes NOT_REACHED. Terminal witnesses retain unclamped horizon and clamp flag."
+  },
+  "verifiedGroupSpan": {
+    "maximumGroupSpanMs": 19.79166666668607,
+    "scenarioCount": 591,
+    "maximumTheoreticalGroupHorizonMs": 769.7916666666861,
+    "maximumTheoreticalExtraHorizonMs": 1019.7916666666861
+  },
+  "unresolvedReservationTradeoff": "This is not offline whole-component equivalence. Protecting pending direct claimants may forgo WRONG evidence at a closed group; future release cannot reopen its verdict. Every disagreement is retained.",
+  "evaluation": {
+    "oracle": "Immutable original XC2 oracle labels and original eligible scenarios; never revalidate/relabel with R2.",
+    "r1": "Reproduce frozen R1 only to compare its exact verdict digest with its immutable archived witness stream; preserve published R1 counts and disposition.",
+    "latency": "Sealed publication availability clocks unchanged; policy replay latency only, no new inference/runtime/UI measurements.",
+    "assignmentSignature": "low-level verdict plus matchedObservationId; all disagreements retain causal strike witnesses.",
+    "fullRecoveryConclusion": "Requires all baseline9MISSING->WRONG and4INCOMPLETE->WRONG cases recovered, every original-correct/R1-incorrect target recovered in all tested cells, no newly regressed target vs R1 or original, no increase in any critical false-accept count, and all ownership/horizon audits pass. Pre-existing acoustic errors need not vanish; no equivalence claim.",
+    "partialRecoveryConclusion": "If any of baseline13wrong-preemption errors recovers but full criteria fail and critical false-accept counts do not increase: PARTIALLY_RECOVERS_SAFETY. Otherwise STILL_HAS_MATERIAL_SAFETY_TRADEOFF. No non-inferiority margin or winner."
+  },
+  "sources": [
+    {
+      "path": "apps/customer-web/src/lib/practice/audio-analysis/continuous/performance-reconciler.ts",
+      "sha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/input-capability.ts",
+      "sha256": "6662b633e9410e387f7fa3b47762c38bc38d38bfe41f6010c59f342ccca31da7"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalization-ledger.ts",
+      "sha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/xc2-five-verdict-projector.ts",
+      "sha256": "1e079198d5b6ff4bd7d61dd5c59dd2899ab9bfb9b0ed9121f18fe6d04b34501b"
+    },
+    {
+      "path": "backend/research/browser_runtime/robust_runtime_evidence_analysis.mjs",
+      "sha256": "33764fa99ae1148e9ae776f322b90d9c243e709fc066ace2624e6defdc60cb6b"
+    },
+    {
+      "path": "backend/research/browser_runtime/test_xc2_r2_direct_conflict.mjs",
+      "sha256": "0cec6fddabf3c04db711cbcb9d95e6ee69a4bef85f6132f14b437b71723bf5a0"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_artifacts.mjs",
+      "sha256": "6d194fc014519b8d3e5a08f6ce86f88ec409917ca03c8c7d76aacda9fe519ab3"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+      "sha256": "cf5757e276774a75f2f402c3c120ccc3b1a69bb83bc899ffcfdd6e9bfc6f745e"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_browser_semantics.mjs",
+      "sha256": "bd11b791b8a273d5a0a451cb456abbf061d1504101fbec8e2cd9a3002c0d1e9b"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_robust_decoder.mjs",
+      "sha256": "33a032a7508c488cf7eb1db9b60b3f6a921756eab798c5d84875d634b5925125"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_decoders.mjs",
+      "sha256": "4a81ac847b62485ff1ed13e865736b418c798515abd886b0fdef7dfdd992efbf"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_product_metrics.mjs",
+      "sha256": "4eb2745eefc86c2f80834f71eb2f90e37c03274aba9e882e0fa6ad746577e206"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r1_bounded_finalizer.mjs",
+      "sha256": "534e6319da18092901a9787f9dec448de65be59e293d892ac1ecdc0bf9da6211"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r1_diagnose.mjs",
+      "sha256": "564874697d658c9fefe7e0b666928976c195fb12cc7be13a977eae5c6a8fcf17"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r1_replay.mjs",
+      "sha256": "796e79d7a17aaecb1f4909dcf3f00c96c0cd2c07da47943db2be9ac8de6b5408"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r2_direct_conflict_finalizer.mjs",
+      "sha256": "80e06a7bbb5f6ec573f0abc4bf1516010a7ff009f11644168b8929a0b3b90e60"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r2_final_report.mjs",
+      "sha256": "3d41dd45b6d15ef58066bdc8298ca9ace06e7d0f7ddc451e995b53b2c29f4407"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r2_freeze.mjs",
+      "sha256": "728c903547893f75ee9eb72c3e2854fef8a335e1dcd9135e704b66facffb5838"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r2_replay.mjs",
+      "sha256": "ea74f00939ae2ab6787825ca820356f337ec4680e7fa11fc676b7c184333c196"
+    }
+  ],
+  "sourceDigest": "0646984c2d3b356670af4176b570b312392215d8c7ea2ad75da170687b64c61c",
+  "historicalReports": [
+    {
+      "path": "backend/research/reports/phase9g_xc2_causal_execution_receipts_2026-10-16.json",
+      "sha256": "3e275e4f0b6364b5d843ce5d14f0d60c69a9690be75bbfde83d1ccc0002a7059"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_clip_source_manifest_2026-10-15.json",
+      "sha256": "eb8e8244e1e828d518eea0aee3beecc243945609caea9447415df21ac2301c22"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_current_baseline_development_2026-10-15.json",
+      "sha256": "27f9912877f08693441d2cda2af5827fbc584a3666c67f28a385751d5f109f1a"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_development_acoustic_seal_2026-10-16.json",
+      "sha256": "420b27697b31b0005e36c510821946dd9b515c1ed2c529f099b26636e77887cc"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_evaluation_acoustic_seal_2026-10-16.json",
+      "sha256": "3945e1c4536544452fd58acfee87753a4a63093a0d991deeac89f61c900319b2"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_evaluation_consumption_runtime_audit_2026-10-16.json",
+      "sha256": "6e8224ac90698c70c4bda283b6266313bc7c2b1728c0e6402af0c80ed6f3994b"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_evaluation_shortlist_freeze_2026-10-15.json",
+      "sha256": "08dc440d001374355b5659cafd599996d7ee171f7a7b8d6eb96f21f96efccae8"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_evidence_interpretation_2026-10-16.json",
+      "sha256": "ce5dbca5db56c6791c04d3ce817e962021f4d9412d173400978125139f78d07d"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_evidence_manifest_2026-10-16.json",
+      "sha256": "917852dfc6c1cd10e7f677b6348f8709f02b7652edd1bd5d2f7d331399dcdd1c"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_geometry_development_2026-10-15.json",
+      "sha256": "c0e19c4b6c4e691d34b51ffd5ad68d99f5399776817f34ddbe0f0b91feba664c"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_ort130_control_2026-10-15.json",
+      "sha256": "e2ae94768376ba7f568d3291fefd3b14eee897fa6cd922a9920035d50efecf2e"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_post_execution_tests_2026-10-16.json",
+      "sha256": "f9e6bcf325db2a6294ee5fb5b9a1d697c1f66daefb11fc897151dbfda7a57f59"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_pre_evaluation_boundary_2026-10-16.json",
+      "sha256": "bf8eb5b80a40676bf4a1bce076a2ea4009652ec4bf5935ec9572f59bfb81c82e"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_pre_freeze_validation_2026-10-15.json",
+      "sha256": "81cb5167d2d91bf5bdb27dbf38192b7385788d727140990134b6c32da9f6fb6a"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_product_verdict_latency_final_2026-10-16.json",
+      "sha256": "7c983975157ce4ac6a1d85708ef04c2115145f71fa7413b3d537512f26c9b42c"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_product_verdict_latency_summary_2026-10-16.md",
+      "sha256": "8bd5766da2a4a0363fbe640c898e7ce178a4fe268791f91b532832f70355fb83"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_protocol_freeze_2026-10-15.json",
+      "sha256": "01fe8aa97e885a3da3fb77069939fdf201406ade1545f1d9ce67cfb876f044ca"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_protocol_path_correction_freeze_2026-10-15.json",
+      "sha256": "1d509fc56c03d313d633be0eca8edcfa13dd5532c4bfcc50eab0df88ecd58112"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_audio_and_fir_identity_2026-10-16.json",
+      "sha256": "825b4d9cea5f83e3c98ed37c1c2093e25473c937eb25b802f65fb8d05645cd4e"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_bounded_runtime_final_2026-10-16.json",
+      "sha256": "fa03b6429c542d6be9c79efce4501907bc936979c69f6e9cdcbb5d791510103e"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_bounded_runtime_summary_2026-10-16.md",
+      "sha256": "a65a5f2793516dd24fd3f6676d27cb88a147cb039ce4b5c0d44f88c1a9dbbd86"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_bounded_witness_manifest_2026-10-16.json",
+      "sha256": "317d956ea5c5542668d72f81aeb6f6aae54ab74b9a3e9a8632313c89b0e361a6"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_browser_streaming_resampler_parity_2026-10-16.json",
+      "sha256": "f10e602e605d0a13cedd8973a8fa4538115ccc90de93e8244181d752db507abc"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_causal_runtime_receipts_2026-10-16.json",
+      "sha256": "0cf6b7496d41e283c8565b68b38f129b6b223f70d1fe8d1bc6ad6ec993539c09"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_evidence_generation_receipt_2026-10-16.json",
+      "sha256": "e78096877186ddb3fde1653fe76ee9531f5dcd75c5a17486c6396f24a393f1ee"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_evidence_interpretation_2026-10-16.json",
+      "sha256": "e75fb26f9cc58e48053d7bc8fbabfc395ac0f65641d2cb93f6f427bb95b90099"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_evidence_manifest_2026-10-16.json",
+      "sha256": "3994ad6516516c7cc5e5ceaae951e66b0c1fe53cad2aad4dca38b708b1f78c1c"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_existing_runtime_queue_decomposition_2026-10-16.json",
+      "sha256": "21a4f402aa4f6e73d62b3bfc588cd3fa85c951dec65afc6868959ea636f698f1"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_github_pre_evidence_2026-10-16.json",
+      "sha256": "837cdffa20f4fc45aab488720d739d4169852fe3ca41280c357ed069f68c3ebe"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_natural_residual_and_paired_latency_2026-10-16.json",
+      "sha256": "37a09c75b95a7291d116031e181b6a78935cb36a79757533898a17e36d2dbbcb"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_policy_freeze_2026-10-16.json",
+      "sha256": "6c390b986f5f54a8a4051595688057d6e8064d34a1418511ebff1dfbb241a328"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_post_run_asset_verification_2026-10-16.json",
+      "sha256": "e0732469da0a350263e311f1b9cb192c2ff2b6e2ee8d70094db52f69ca85a483"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_scope_and_execution_proof_2026-10-16.json",
+      "sha256": "a0ee52a6adb5de1e8e5cb22523a43782aa7db7855f78b8ef57324a4630a9c7cb"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_test_execution_receipts_2026-10-16.json",
+      "sha256": "508a8d73b29e6e9d473f4f2c3dc8e90f1968feb2e30a30c0898d05f4c510bac2"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_real_ownership_verification_2026-10-16.json",
+      "sha256": "68c9b33afdc2d3c32816b7e21dc3c5b090f8761af5e5e76df7bb8a96033a24b4"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_stage_a_decoder_resampler_development_2026-10-15.json",
+      "sha256": "7be34699e9c77182abe1447af30aada726e5baefb6b06e45814247fa31ccf315"
+    }
+  ],
+  "inputs": [
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/development_benchmark.json",
+      "sha256": "ff83b4b46dfe0d75fed129eca971a3f455e942ffeb982657979e8efbb2188d34"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/metrics/geometry/LINEAR_A_600_220.json",
+      "sha256": "372c013b800f0753e8aef1b414006a19e7ec06146ec5f3f0bbceccc643446bfb"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_LINEAR_A_600_220.json",
+      "sha256": "4fb503edaa2740a25a3214f90395366bc7caf8a692a414e72e15ea98fffcbec8"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_LINEAR_A_600_220_witnesses.json.gz",
+      "sha256": "6f7a12fabab7a977eb4539113aea49965a215311d1254436cd0a8a41372968ff"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/metrics/geometry/BAND_LIMITED_A_600_170.json",
+      "sha256": "13c031d777ddd503a797b43beb12d8ca91f5c444e1e6e421d5d9f3a01bdd26df"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_A_600_170.json",
+      "sha256": "236b238e10ee18405bf11b353b1d8b9274ba9f3f1f56978bf09d1743499e92aa"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_A_600_170_witnesses.json.gz",
+      "sha256": "f6b8d2d9359fea712994e62ebf481158f11424aeb63b7dc40dec01dfe8259a76"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/evaluation_benchmark.json",
+      "sha256": "d1bcd14419069ea54ec62152fc442589bdc9e243ad0b4ce9c0b023292c68079f"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/metrics/evaluation/LINEAR_A_600_220.json",
+      "sha256": "95b9010d6d71039caf864c6d09277ab1d41832103193a05d3506f417db1dc655"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_LINEAR_A_600_220.json",
+      "sha256": "9157c8500e3f40336b7725cbef23fb11cd0c44b632a48f1cf6556bee1c63a570"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_LINEAR_A_600_220_witnesses.json.gz",
+      "sha256": "ed2143093e1d033c04670163446efafcd1d09afa23893cda1feb1087c6468152"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/metrics/evaluation/BAND_LIMITED_A_600_170.json",
+      "sha256": "0ef4972b6a29d2d2a86fe0dee74017d74ab2bd9ec5ec07039ac221afc97835dd"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_A_600_170.json",
+      "sha256": "2faa7dca830c5b9881f3594348f4bad1615bbee28be34d75b0b1fce14bd73437"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_A_600_170_witnesses.json.gz",
+      "sha256": "c2f1f9875dbb3ec4af2342b443a15ebd5cd19a80e04fc579cf1b0cc4ed3002c8"
+    },
+    {
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay_summary.json",
+      "sha256": "c5b8f3fbbba4c0be98e907721047e82feece3325484b0b3ff49d343c7ac3d789"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_r1_hash_reconciliation_2026-10-16.json",
+      "sha256": "a598b812fa74122bc89692d3c53e0e1049ded95d093e31f9f96edeefc6be97bf"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r2_parameter_provenance_2026-10-16.json",
+      "sha256": "4a01a6753250cf460c70792eaeb927626318bd5a0167a61335e9c08607111f91"
+    }
+  ],
+  "preFreezeTests": {
+    "command": "node --test test_xc2_r2_direct_conflict.mjs test_xc2_r1_bounded.mjs (repository module paths)",
+    "exitCode": 0,
+    "stdout": "✔ 100-strike same-pitch transitive chain closes locally (6.9367ms)\n✔ dense all-pitch group chain and local MISSING/WRONG do not await unrelated groups (0.3941ms)\n✔ complete and incomplete chord (6.5503ms)\n✔ CORRECT irrevocably closes at local deadline before future component (0.1432ms)\n✔ wrong association maximizes cardinality before timing error (0.5877ms)\n✔ competing wrong claims globally consume each observation once (0.1498ms)\n✔ reject MATCHED+WRONG ownership (0.3085ms)\n✔ reject MATCHED+EXTRA ownership (0.0797ms)\n✔ reject WRONG+EXTRA ownership (0.0735ms)\n✔ EXTRA closes at finite direct horizon, not transitive chain (0.3612ms)\n✔ late evidence rejected (0.1448ms)\n✔ stable ties independent of input ordering (0.2002ms)\n✔ manual completion leaves future NOT_REACHED (0.1458ms)\n✔ terminal tail and causal witness timestamps (0.0833ms)\n✔ bounded versus whole-component optimal assignment has an explicit tradeoff (0.2608ms)\n✔ milliseconds to beats (0.0902ms)\n✔ streaming FIR has bounded state and explicit closure (0.9805ms)\n✔ official acoustic constructor rejects score fields; model run receives only PCM (1.7779ms)\n✔ 100 strikes at200ms: anchor waits one hop, not the20-second component (22.1951ms)\n✔ R1 MISSING preemption reproduces; R2 reserves for future correct strike (0.7471ms)\n✔ incomplete chord with future competitor does not become WRONG (0.2194ms)\n✔ observation at exact-250ms is legal (0.1053ms)\n✔ observation at exact250ms is legal (0.0998ms)\n✔ future strike exactly500ms extends to1750; just beyond500 does not (0.349ms)\n✔ second-hop competitor never recursively extends anchor; future member remains provisional (0.7138ms)\n✔ reversible reservation need not become MATCHED and is never double-consumed (0.2605ms)\n✔ stable ID ties do not depend on input order (0.2456ms)\n✔ late evidence fails closed (0.4241ms)\n✔ terminal completion explicitly clamps direct horizon (0.2266ms)\n✔ EXTRA waits own direct claimants R2 horizons, not the obsolete R1 520ms bound (0.2558ms)\n✔ EXTRA does not wait unrelated later groups through a transitive chain (0.2302ms)\n✔ 20ms chord spread yields the exact1020ms EXTRA bound (0.155ms)\n✔ WRONG only after every direct correct-match claimant locally closes and releases (0.2384ms)\n✔ pending correct claimant never forces a WRONG group past the one-hop group horizon (0.2089ms)\n✔ manual completion and exact enabling-publication timestamp (0.1591ms)\n✔ official replay path executes synthetic reservations and causal audit before freeze (0.4735ms)\n✔ detected and absent EXTRA targets retain positive/negative causal evidence without fake latency (0.2521ms)\nℹ tests 37\nℹ suites 0\nℹ pass 37\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 229.6397\n",
+    "stderr": ""
+  },
+  "parameterProvenance": "backend/research/reports/phase9g_xc2_r2_parameter_provenance_2026-10-16.json",
+  "NO_OPTIMAL_PROFILE_CLAIM": true,
+  "frozenAcousticParameters": {
+    "sampleRateHz": 16000,
+    "modelInputMs": 1820,
+    "modelInputSamples": 29120,
+    "baselineFutureMs": 220,
+    "baselineOwnedMs": 600,
+    "onset": 0.3,
+    "frame": 0.05,
+    "decoder": "A unchanged",
+    "resampler": "existing sealed LINEAR baseline / BAND170 confirmation only",
+    "ort": "1.20.1 unchanged; not executed"
+  },
+  "scopeProtections": {
+    "F5": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+    "R4": "ROBUST_CADENCE_SUSTAINABLE",
+    "R4Headroom": "ROBUST_20_PERCENT_HEADROOM_FAIL",
+    "XC2": "ROBUST_PRODUCT_BASELINE_MULTIPLE_PARETO_CANDIDATES",
+    "R1": "BOUNDED_FINALIZATION_HAS_SAFETY_TRADEOFF",
+    "phase9gB": "STATISTICAL_TIE",
+    "winner": null,
+    "viennaP15P22InferenceIncrease": 0,
+    "productionMicrophone": false,
+    "d4": false,
+    "productionWinner": null,
+    "practiceWebSocket": false,
+    "backendPracticeInference": false,
+    "serverPracticeInference": false,
+    "scoreFollowing": false,
+    "expectedScoreInNeuralInference": false,
+    "commercialQualificationStatus": "NOT_PERFORMED",
+    "productLatencySlo": "PRODUCT_LATENCY_SLO_NOT_YET_FROZEN",
+    "newNeuralInferenceCount": 0,
+    "newRuntimeSessions": 0
+  },
+  "realDataReplayStarted": false
+}
