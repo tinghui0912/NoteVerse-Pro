@@ -1,0 +1,426 @@
+{
+  "phase": "PHASE_9G_XC2_R1_BOUNDED_FINALIZATION_AND_RUNTIME_DECONFOUNDING",
+  "startingRemoteHead": "16bed4591e4ee135578b3a283373517bdd15029b",
+  "implementationCommit": "90eca11365f53fd096316793165a9040e4e227d9",
+  "classification": "POST_XC2_DIAGNOSTIC_POLICY_AND_RUNTIME_ENGINEERING_FREEZE_NOT_NEW_BLIND_EVALUATION",
+  "historicalFiles": [
+    {
+      "path": "backend/research/reports/phase9g_xc2_causal_execution_receipts_2026-10-16.json",
+      "sha256": "3e275e4f0b6364b5d843ce5d14f0d60c69a9690be75bbfde83d1ccc0002a7059"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_clip_source_manifest_2026-10-15.json",
+      "sha256": "eb8e8244e1e828d518eea0aee3beecc243945609caea9447415df21ac2301c22"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_current_baseline_development_2026-10-15.json",
+      "sha256": "27f9912877f08693441d2cda2af5827fbc584a3666c67f28a385751d5f109f1a"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_development_acoustic_seal_2026-10-16.json",
+      "sha256": "420b27697b31b0005e36c510821946dd9b515c1ed2c529f099b26636e77887cc"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_evaluation_acoustic_seal_2026-10-16.json",
+      "sha256": "3945e1c4536544452fd58acfee87753a4a63093a0d991deeac89f61c900319b2"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_evaluation_consumption_runtime_audit_2026-10-16.json",
+      "sha256": "6e8224ac90698c70c4bda283b6266313bc7c2b1728c0e6402af0c80ed6f3994b"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_evaluation_shortlist_freeze_2026-10-15.json",
+      "sha256": "08dc440d001374355b5659cafd599996d7ee171f7a7b8d6eb96f21f96efccae8"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_evidence_interpretation_2026-10-16.json",
+      "sha256": "ce5dbca5db56c6791c04d3ce817e962021f4d9412d173400978125139f78d07d"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_evidence_manifest_2026-10-16.json",
+      "sha256": "917852dfc6c1cd10e7f677b6348f8709f02b7652edd1bd5d2f7d331399dcdd1c"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_geometry_development_2026-10-15.json",
+      "sha256": "c0e19c4b6c4e691d34b51ffd5ad68d99f5399776817f34ddbe0f0b91feba664c"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_ort130_control_2026-10-15.json",
+      "sha256": "e2ae94768376ba7f568d3291fefd3b14eee897fa6cd922a9920035d50efecf2e"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_post_execution_tests_2026-10-16.json",
+      "sha256": "f9e6bcf325db2a6294ee5fb5b9a1d697c1f66daefb11fc897151dbfda7a57f59"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_pre_evaluation_boundary_2026-10-16.json",
+      "sha256": "bf8eb5b80a40676bf4a1bce076a2ea4009652ec4bf5935ec9572f59bfb81c82e"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_pre_freeze_validation_2026-10-15.json",
+      "sha256": "81cb5167d2d91bf5bdb27dbf38192b7385788d727140990134b6c32da9f6fb6a"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_product_verdict_latency_final_2026-10-16.json",
+      "sha256": "7c983975157ce4ac6a1d85708ef04c2115145f71fa7413b3d537512f26c9b42c"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_product_verdict_latency_summary_2026-10-16.md",
+      "sha256": "8bd5766da2a4a0363fbe640c898e7ce178a4fe268791f91b532832f70355fb83"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_protocol_freeze_2026-10-15.json",
+      "sha256": "01fe8aa97e885a3da3fb77069939fdf201406ade1545f1d9ce67cfb876f044ca"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_protocol_path_correction_freeze_2026-10-15.json",
+      "sha256": "1d509fc56c03d313d633be0eca8edcfa13dd5532c4bfcc50eab0df88ecd58112"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_real_ownership_verification_2026-10-16.json",
+      "sha256": "68c9b33afdc2d3c32816b7e21dc3c5b090f8761af5e5e76df7bb8a96033a24b4"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_stage_a_decoder_resampler_development_2026-10-15.json",
+      "sha256": "7be34699e9c77182abe1447af30aada726e5baefb6b06e45814247fa31ccf315"
+    }
+  ],
+  "historicalFilesDigest": "ed73f4d2660f8c2cbbc9526d23d073b5e2ecf77f5cdc9bc7dc4c0bc09a0bbaf1",
+  "historicalInterpretation": {
+    "XC2_ORIGINAL_DISPOSITION": "ROBUST_PRODUCT_BASELINE_MULTIPLE_PARETO_CANDIDATES",
+    "sevenConfigurations": "OBSERVATIONAL_PARETO_UNDER_ORIGINAL_XC2_FINALIZATION_AND_RESEARCH_RUNTIME_HARNESS",
+    "f5": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+    "r4": "ROBUST_CADENCE_SUSTAINABLE",
+    "phase9gB": "STATISTICAL_TIE",
+    "winner": null
+  },
+  "sources": [
+    {
+      "path": "apps/customer-web/src/lib/practice/audio-analysis/continuous/performance-reconciler.ts",
+      "sha256": "bb08242b89832aed95f574a49947bb7d4d59ff5acd34f37ff17920ce0bfea146"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/local-core/continuous-finalization-ledger.ts",
+      "sha256": "bbe61f099f32785321388bab24a64424cfb90d899129edc3b86806c7069acf4e"
+    },
+    {
+      "path": "apps/customer-web/src/lib/practice/research/xc2-five-verdict-projector.ts",
+      "sha256": "1e079198d5b6ff4bd7d61dd5c59dd2899ab9bfb9b0ed9121f18fe6d04b34501b"
+    },
+    {
+      "path": "backend/research/browser_runtime/robust_runtime_evidence_analysis.mjs",
+      "sha256": "33764fa99ae1148e9ae776f322b90d9c243e709fc066ace2624e6defdc60cb6b"
+    },
+    {
+      "path": "backend/research/browser_runtime/test_xc2_r1_bounded.mjs",
+      "sha256": "313c5544985861f4cbc865ab70fb1e275209d984b1689f73f83ff62b9e0d45ca"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_artifacts.mjs",
+      "sha256": "6d194fc014519b8d3e5a08f6ce86f88ec409917ca03c8c7d76aacda9fe519ab3"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_browser_runtime_shared.mjs",
+      "sha256": "cf5757e276774a75f2f402c3c120ccc3b1a69bb83bc899ffcfdd6e9bfc6f745e"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_browser_semantics.mjs",
+      "sha256": "bd11b791b8a273d5a0a451cb456abbf061d1504101fbec8e2cd9a3002c0d1e9b"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_ort120_runtime/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs",
+      "sha256": "2fb14505d39926e4c544de8c57fe59a2f2bc74caba6f71890be9afecc5046758"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_ort120_runtime/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm",
+      "sha256": "185b0861a6cd6cbdfb057289338090436483cc59e10a7bc83bd167b15531a51b"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_ort120_runtime/node_modules/onnxruntime-web/dist/ort.webgpu.min.js",
+      "sha256": "8443389bf14b34582ea40c590b5007bb652d6ac07dd76829a5bd82d2372e6895"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_ort120_runtime/package-lock.json",
+      "sha256": "7268737984b6c01ca800a3512a69c7656215fc7f19dede78b43f40752bc4f449"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc1_robust_decoder.mjs",
+      "sha256": "33a032a7508c488cf7eb1db9b60b3f6a921756eab798c5d84875d634b5925125"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_decoders.mjs",
+      "sha256": "4a81ac847b62485ff1ed13e865736b418c798515abd886b0fdef7dfdd992efbf"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_product_metrics.mjs",
+      "sha256": "4eb2745eefc86c2f80834f71eb2f90e37c03274aba9e882e0fa6ad746577e206"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r1_bounded_finalizer.mjs",
+      "sha256": "534e6319da18092901a9787f9dec448de65be59e293d892ac1ecdc0bf9da6211"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r1_browser_acoustic.mjs",
+      "sha256": "eae417d8011e7df1f8b30bf4588cfbaedc695a5f66ea2bf1a2043c4b1a419f83"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r1_diagnose.mjs",
+      "sha256": "564874697d658c9fefe7e0b666928976c195fb12cc7be13a977eae5c6a8fcf17"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r1_final_report.mjs",
+      "sha256": "b6ad59b971c53d491eb46e3ee67be97de50e3bff29ac5a5087bec14dd317cfce"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r1_freeze.mjs",
+      "sha256": "a8f96c723616dd0be9fcc5719eb5794ee1fda950482c48158229ebdffd2f9dfd"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r1_replay.mjs",
+      "sha256": "796e79d7a17aaecb1f4909dcf3f00c96c0cd2c07da47943db2be9ac8de6b5408"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r1_resampler_parity.mjs",
+      "sha256": "214dc8c281a29f98ba4fc8e2c34dd7b738582ccbc6e06880ac0bb187473e802a"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r1_runtime.mjs",
+      "sha256": "72e45a94a245d34a40afba53fd18b0c685efa16f5981c46766a61d0c1aa26ab1"
+    },
+    {
+      "path": "backend/research/browser_runtime/xc2_r1_streaming_resampler.mjs",
+      "sha256": "5f57a366bd3c264bee427caa33f892c1ea69d5954c5074a9c37f5167d3f07583"
+    },
+    {
+      "path": "backend/research/protocols/xc2_r1_future_natural_capture_protocol.json",
+      "sha256": "33c01e2cba5bc37d076b48d029605f5cae98b53345dae352a8795d9befa92338"
+    },
+    {
+      "path": "backend/research/xc2_r1_prepare.py",
+      "sha256": "b4669cbd560bbe117b67405a5965e146e3f06d3736b40c1ce0ec9840759cab6e"
+    }
+  ],
+  "sourceDigest": "e3481b3d82cf4870c5757b7850ff7918cdb837466e13a34f90e36e0a021f496c",
+  "boundedPolicy": {
+    "assignmentWindowMs": 250,
+    "expectedPriority": "CLOSED_EXPECTED_THEN_CLOSED_WRONG_THEN_FINITE_HORIZON_EXTRA",
+    "openStrikePriority": "OPEN_STRIKES_DO_NOT_RESERVE_OBSERVATIONS_AGAINST_CLOSED_DECISIONS",
+    "matching": "MAX_CARDINALITY_MIN_TOTAL_ABSOLUTE_ERROR_STABLE_ID_TIES",
+    "classification": "BOUNDED_ONLINE_POLICY_NOT_OFFLINE_COMPONENT_EQUIVALENCE"
+  },
+  "mathematicalHorizon": {
+    "wMs": 250,
+    "strike": "For strike t only observations in [t-w,t+w] are legal. Frontier >=t+w covers all such evidence. Commit closed strikes first; do not reserve for open strikes.",
+    "group": "Group g spans [a,b]. Required frontier b+w. At that frontier assign residual incompatible observations in [a-w,a+w] among simultaneously closed groups. Wrong may preempt an open future strike; intentional bounded-policy tradeoff, measured against original whole-component policy.",
+    "extra": "For observation s, directly eligible strike t satisfies t<=s+w, closes <=s+2w. Wrong claimant group min a<=s+w, max b<=a+Delta, closes <=s+2w+Delta. Wait only max deadline of direct claimants, not their transitive neighbors. Delta is the actual frozen group span (physical grouping <=20ms here).",
+    "terminal": "Natural completion may clamp required frontier to declared scope end; manual completion marks not-yet-closed strikes NOT_REACHED.",
+    "witnessAudit": "Group required frontier = local deadline (or explicit terminal clamp); extra required frontier = maximum directly eligible local deadline. No dependency on transitive components."
+  },
+  "diagnosticTruth": "Keep original frozen counterfactual/oracle labels and eligible scenarios. Do not relabel truth with the bounded policy. Replay both splits is diagnostic only.",
+  "extraDiagnostics": "Natural acoustic residual = unmatched 50ms pitch-aware one-to-one against physical onsets, physical clip once. Duplicate = unmatched near an already-matched same-pitch physical onset within50ms. Counterfactual target precision separate; buckets diagnostic not causal proof.",
+  "resamplerTolerance": {
+    "maxAbs": 0.000003,
+    "rms": 5e-7,
+    "chunkVsSingleMaxAbs": 0,
+    "sampleCountExact": true,
+    "rationale": "Float32 FIR summation over at most56 contributing taps; tolerance covers accumulation order, not time shifting or gain fitting. Fixtures bounded to [-1,1]. Frozen before first parity comparison."
+  },
+  "resampler": {
+    "implementation": "xc2_r1_streaming_resampler.mjs",
+    "coefficientIdentity": {
+      "bytes": 35284,
+      "path": "backend/data/work/xc2_r1_bounded_runtime/audio_only/fir_160_441.f32",
+      "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620"
+    },
+    "referenceDocumentation": "https://docs.scipy.org/doc/scipy-1.14.1/reference/generated/scipy.signal.resample_poly.html",
+    "algorithm": "SciPy1.14.1 default Kaiser5 FIR, length8821, rational160/441, zero-phase delay compensation with real lookahead; ring128; streaming chunk invariance.",
+    "inputMixing": "Existing PCM16 -> float32/32768 -> float64 arithmetic stereo mean -> float32; Docker prepares score-blind real guarded source. Browser resampler is mono44.1k->16k, not an AudioWorklet/device-capture qualification."
+  },
+  "configurations": [
+    {
+      "id": "LINEAR_A_600_220",
+      "resampler": "LINEAR",
+      "ownedMs": 600,
+      "futureMs": 220
+    },
+    {
+      "id": "BAND_LIMITED_A_500_220",
+      "resampler": "BAND_LIMITED",
+      "ownedMs": 500,
+      "futureMs": 220
+    },
+    {
+      "id": "BAND_LIMITED_A_600_170",
+      "resampler": "BAND_LIMITED",
+      "ownedMs": 600,
+      "futureMs": 170
+    }
+  ],
+  "runtimeOrder": [
+    {
+      "repeat": 0,
+      "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "config": "LINEAR_A_600_220"
+    },
+    {
+      "repeat": 0,
+      "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "config": "BAND_LIMITED_A_500_220"
+    },
+    {
+      "repeat": 0,
+      "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "config": "BAND_LIMITED_A_600_170"
+    },
+    {
+      "repeat": 0,
+      "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+      "config": "BAND_LIMITED_A_500_220"
+    },
+    {
+      "repeat": 0,
+      "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+      "config": "BAND_LIMITED_A_600_170"
+    },
+    {
+      "repeat": 0,
+      "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+      "config": "LINEAR_A_600_220"
+    },
+    {
+      "repeat": 0,
+      "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "config": "BAND_LIMITED_A_600_170"
+    },
+    {
+      "repeat": 0,
+      "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "config": "LINEAR_A_600_220"
+    },
+    {
+      "repeat": 0,
+      "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "config": "BAND_LIMITED_A_500_220"
+    },
+    {
+      "repeat": 1,
+      "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+      "config": "BAND_LIMITED_A_500_220"
+    },
+    {
+      "repeat": 1,
+      "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+      "config": "BAND_LIMITED_A_600_170"
+    },
+    {
+      "repeat": 1,
+      "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+      "config": "LINEAR_A_600_220"
+    },
+    {
+      "repeat": 1,
+      "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "config": "BAND_LIMITED_A_600_170"
+    },
+    {
+      "repeat": 1,
+      "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "config": "LINEAR_A_600_220"
+    },
+    {
+      "repeat": 1,
+      "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "config": "BAND_LIMITED_A_500_220"
+    },
+    {
+      "repeat": 1,
+      "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "config": "LINEAR_A_600_220"
+    },
+    {
+      "repeat": 1,
+      "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "config": "BAND_LIMITED_A_500_220"
+    },
+    {
+      "repeat": 1,
+      "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "config": "BAND_LIMITED_A_600_170"
+    },
+    {
+      "repeat": 2,
+      "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "config": "BAND_LIMITED_A_600_170"
+    },
+    {
+      "repeat": 2,
+      "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "config": "LINEAR_A_600_220"
+    },
+    {
+      "repeat": 2,
+      "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "config": "BAND_LIMITED_A_500_220"
+    },
+    {
+      "repeat": 2,
+      "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "config": "LINEAR_A_600_220"
+    },
+    {
+      "repeat": 2,
+      "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "config": "BAND_LIMITED_A_500_220"
+    },
+    {
+      "repeat": 2,
+      "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "config": "BAND_LIMITED_A_600_170"
+    },
+    {
+      "repeat": 2,
+      "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+      "config": "BAND_LIMITED_A_500_220"
+    },
+    {
+      "repeat": 2,
+      "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+      "config": "BAND_LIMITED_A_600_170"
+    },
+    {
+      "repeat": 2,
+      "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+      "config": "LINEAR_A_600_220"
+    }
+  ],
+  "repeatsPerConfigPerClip": 3,
+  "runtimeSelection": "First three existing clip IDs sorted lexicographically, independent of acoustic quality; each clip exactly28s. Baseline plus one500ms BAND and one600ms lower-future BAND representative; no sweep.",
+  "runtimePolicy": {
+    "ort": "1.20.1",
+    "provider": "default hardware WebGPU",
+    "warmupRuns": 3,
+    "timedWarmFence": 3,
+    "queueClassifier": "Existing xc1_browser_semantics classifyBacklog, raw full rows; 8ms jitter allowance unchanged.",
+    "criticalPath": "Browser input preparation / streaming resample -> ORT -> decoder A -> compact acoustic publication -> bounded finalizer. Raw tensor export disabled. Hash, Node IPC and file writes after capture.",
+    "headroomDiagnosticOnly": "Warm P95<=0.8*cadence. No product latency SLO, no production eligibility/winner selection.",
+    "generalization": "Three short clips and repeated sessions do not prove indefinite sustainability/thermal stability.",
+    "ORT130": "ORT_WEB_1_30_RUNTIME_INELIGIBLE_FOR_THIS_ROBUST_EXPORT_ON_THIS_MACHINE; original control ~1224.6ms, preserved, not rerun."
+  },
+  "preparationSha256": "4ec636c89c03991f5787b1f4146ed4832ef37a2f3945c0d0c4224dc5e8a218f6",
+  "existingDiagnosisSha256": "020cb4fae8c9b96dbf31da75ed5c1120c539548dc6bc4176254dc4d63a38cc01",
+  "productLatencySlo": "PRODUCT_LATENCY_SLO_NOT_YET_FROZEN",
+  "scopeProtections": {
+    "productionMicrophone": false,
+    "d4": false,
+    "productionWinner": null,
+    "viennaP15P22InferenceIncrease": 0,
+    "practiceWebSocket": false,
+    "backendPracticeInference": false,
+    "serverPracticeInference": false,
+    "scoreFollowing": false,
+    "expectedScoreInNeuralInput": false,
+    "commercialQualificationStatus": "NOT_PERFORMED",
+    "originalXc2FilesUnchanged": true
+  },
+  "inferenceBeforeFreeze": "No new ONNX in this phase; existing sealed predictions only for pre-freeze diagnosis. Bounded replay and browser FIR parity have not started."
+}
