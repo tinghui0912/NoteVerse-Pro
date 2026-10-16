@@ -1,0 +1,61 @@
+{
+  "phase": "PHASE_9G_XC5_XC4_ALIGNED_DISABLED_BROWSER_ACOUSTIC_RUNTIME",
+  "receiptType": "APPEND_ONLY_OPERATOR_EVENT_CLARIFICATION_NOT_A_NEW_SCIENTIFIC_MEASUREMENT",
+  "startingRemoteHead": "51aee066f510d186ebbf6d9eeb8e238f976e8a07",
+  "implementationCommit": "040483524daae61d015dfd074516b641e6f4aa0f",
+  "freezeCommit": "c0c3e0fa9279f5591efc9b09d2f85b3feebf3f40",
+  "freezeCommitTime": "2026-10-16T15:08:02+08:00",
+  "freezeReport": {
+    "path": "backend/research/reports/phase9g_xc5_runtime_source_freeze_2026-10-16.json",
+    "bytes": 17528,
+    "sha256": "c0f93b249a8f46e77e0c54bb7a664cc6b4f1b38c6db974852c420ae79aaaa4e1",
+    "canonicalSha256": "3218cc1849ae564dc137a9a91dc348b8b665c3ab819362267b7ffe7179d1ac15",
+    "observedCreatedUtc": "2026-10-16T07:06:17.3453178Z"
+  },
+  "smokeArtifact": {
+    "path": "backend/data/work/xc5_runtime/browser_smoke.json",
+    "observedCreatedUtc": "2026-10-16T07:06:47.9763359Z",
+    "embeddedInFinalReport": true,
+    "actualSessionRunCount": 4,
+    "runtimeSessionRunCount": 2,
+    "referenceSessionRunCount": 2
+  },
+  "commitOrderDeviation": {
+    "occurred": true,
+    "detail": "Implementation was committed and pushed. Source freeze JSON, unit/typecheck receipts and smoke plan existed before the only smoke, and the smoke verified frozen source hashes. The planned freeze add/commit failed because .git/index.lock existed. The orchestration did not stop on that Git error and still invoked the bounded smoke. The exact unmodified freeze JSON was committed and pushed afterward. Do not claim execution followed a remotely committed freeze.",
+    "sourceChangesAfterFreezeArtifact": false,
+    "freezeBytesChangedAfterSmoke": false,
+    "additionalInferenceToRepairCommitOrdering": false,
+    "timestampLimitation": "Local filesystem timestamps corroborate tool-observed order; they are not an independently trusted remote prospective timestamp.",
+    "scientificClaim": "Engineering parity only, not a new blinded scientific evaluation or a remotely prospectively committed inference run."
+  },
+  "gitLockEvidence": {
+    "originalPath": ".git/index.lock",
+    "bytes": 0,
+    "observedCreatedUtc": "2026-10-16T07:06:13Z",
+    "observedLastWriteUtc": "2026-10-16T07:06:18Z",
+    "gitProcessesPresentAtInspection": false,
+    "dockerContainersPresentAtInspection": false,
+    "preservedByExplicitFileMoveTo": "backend/data/work/xc5_runtime/stale_git_index_lock_20261016_070618",
+    "historyRewritePerformed": false
+  },
+  "consoleDiagnostics": {
+    "rawEntriesPreservedInFinalReport": true,
+    "referenceErrorWindowIsNotDefinedCount": 3,
+    "referenceErrorSource": "NOT_ESTABLISHED_FROM_CAPTURED_TEXT_ONLY_LOGS",
+    "http403ResourceRequest": "Observed; request URL was not captured, so its identity is not asserted.",
+    "ortWarnings": "ORT reports some nodes not assigned to the preferred provider and notes shape-related CPU assignments. Selected executionProviders remained webgpu only; no provider-switch/WASM automatic fallback was requested. This is not a claim that every auxiliary operation executed on GPU.",
+    "interpretation": "The model runs, publications and exact reference parity completed despite these retained log entries. No assertion is made that the ReferenceErrors are harmless or external; source/stack attribution remains an integration diagnostic limitation. This was not an error-free-console acceptance gate."
+  },
+  "finalReport": {
+    "path": "backend/research/reports/phase9g_xc5_disabled_runtime_final_2026-10-16.json",
+    "sha256": "54f195f51a74cb2d95adc0d08fe654ae2eff54543bd465731bcab0d10327de0e"
+  },
+  "productionMicrophone": false,
+  "userVisibleContinuousVerdicts": false,
+  "productFinalizer": "R2_RESEARCH_POLICY_NOT_PRODUCTION_QUALIFIED",
+  "commercialQualificationStatus": "NOT_PERFORMED",
+  "newExternalDatasetDownloads": 0,
+  "newScientificBenchmarkRuns": 0,
+  "newParameterSweeps": 0
+}
