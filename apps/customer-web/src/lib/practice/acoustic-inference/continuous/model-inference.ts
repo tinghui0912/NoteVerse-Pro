@@ -1,11 +1,11 @@
 import * as ort from 'onnxruntime-web/webgpu';
-import { createOpfsByteDanceModelLoader } from '../../../model-assets/bytedance-model-loader';
-import { defaultByteDanceModelManifest, type ByteDanceRawOutputs } from '../bytedance-contract';
-import { ByteDanceOnnxInferenceCore, loadOnnxRuntimeWeb } from '../bytedance-onnx-provider';
+import { createVerifiedModelAssetLoader } from '../../../model-assets/verified-model-asset-loader';
+import { type ByteDanceRawOutputs } from '../bytedance-contract';
 import { decodeByteDanceRawOutputs } from '../bytedance-decoder';
 import { ACOUSTIC_MODEL as M, assertAcousticIdentity, fail, onlyFields, sha256 } from './model-contract';
 import type { AcousticInferenceInput, AcousticInferencePort, AcousticInferenceResult } from './inference-types';
 import { assertModelNames, checkedOutput } from './model-validation';
+import { continuousAcousticModelManifest } from './acoustic-model-manifest';
 
 export function decodeAcousticOutputs(raw: ByteDanceRawOutputs, input: AcousticInferenceInput) {
   return decodeByteDanceRawOutputs(raw, {
@@ -17,75 +17,66 @@ export function decodeAcousticOutputs(raw: ByteDanceRawOutputs, input: AcousticI
 export async function verifyAcousticModel(bytes: Uint8Array): Promise<void> {
   if (bytes.byteLength !== M.modelBytes || await sha256(bytes) !== M.modelSha256) fail('ACOUSTIC_MODEL_IDENTITY_MISMATCH');
 }
+function outputData(tensor: ort.Tensor | undefined): Float32Array {
+  if (!tensor || tensor.type !== 'float32' || !(tensor.data instanceof Float32Array)) fail('ACOUSTIC_OUTPUT_DESCRIPTOR_MISMATCH');
+  return checkedOutput({ dims: tensor.dims, data: tensor.data });
+}
 
 /** One ONNX session. Window context is explicit; no recurrent state crosses segments. */
 export class ContinuousModelInference implements AcousticInferencePort {
   private state: 'EMPTY' | 'READY' | 'FAILED' | 'DISPOSED' = 'EMPTY';
   private busy = false;
-  private core: ByteDanceOnnxInferenceCore | null = null;
+  private session: ort.InferenceSession | null = null;
   private nextJob = 0;
   private loads = 0;
   private runs = 0;
   async load(modelUrl: string): Promise<unknown> {
     if (this.busy || this.state !== 'EMPTY') fail('ACOUSTIC_WORKER_NOT_EMPTY');
     this.busy = true;
-    let core: ByteDanceOnnxInferenceCore | null = null;
+    let session: ort.InferenceSession | null = null;
     try {
       await assertAcousticIdentity();
       if (ort.env.versions.web !== M.ortVersion) fail('ORT_VERSION_MISMATCH');
-      const base = await loadOnnxRuntimeWeb({ executionProvider: 'webgpu' });
-      const owner = this;
-      const runtime = { ...base, async createSession(...args: Parameters<typeof base.createSession>) {
-        const session = await base.createSession(...args);
-        owner.loads++;
-        const descriptors = session as typeof session & { inputNames?: readonly string[]; outputNames?: readonly string[] };
-        try { assertModelNames(descriptors.inputNames, descriptors.outputNames); }
-        catch (error) { await session.release?.(); throw error; }
-        // The exact ONNX hash binds the input shape; validate every actual output too.
-        return { release: () => session.release?.(), async run(feeds: Record<string, unknown>, names: readonly string[]) {
-          owner.runs++;
-          const tensors = await session.run(feeds, names);
-          try {
-            const result: typeof tensors = {};
-            for (const name of names) {
-              const data = checkedOutput(tensors[name]);
-              result[name] = { data, dims: [1, 183, 88] };
-            }
-            return result;
-          } finally {
-            for (const tensor of [...Object.values(tensors), ...Object.values(feeds)]) (tensor as { dispose?: () => void }).dispose?.();
-          }
-        } };
-      } };
-      const loader = createOpfsByteDanceModelLoader();
-      core = new ByteDanceOnnxInferenceCore(runtime, async manifest => {
-        const loaded = await loader(manifest); await verifyAcousticModel(loaded.bytes); return loaded;
-      });
-      const diagnostics = await core.load(defaultByteDanceModelManifest({ modelUrl, expectedByteSize: M.modelBytes, sha256: M.modelSha256 }));
-      this.core = core; this.state = 'READY';
-      return { ...diagnostics, acousticCoreIdentitySha256: M.identitySha256,
+      if (typeof navigator === 'undefined' || !navigator.gpu) fail('ACOUSTIC_WEBGPU_UNAVAILABLE');
+      const manifest = continuousAcousticModelManifest(modelUrl), started = performance.now();
+      const loaded = await createVerifiedModelAssetLoader()(manifest.asset);
+      await verifyAcousticModel(loaded.bytes);
+      const verifiedAt = performance.now();
+      session = await ort.InferenceSession.create(loaded.bytes, { executionProviders: [manifest.provider], graphOptimizationLevel: 'disabled' });
+      this.loads++; assertModelNames(session.inputNames, session.outputNames);
+      this.session = session; this.state = 'READY';
+      return { ...loaded.diagnostics, assetId: manifest.asset.assetId, assetVersion: manifest.asset.assetVersion,
+        modelByteSize: loaded.bytes.length, modelSha256: manifest.asset.sha256, executionProvider: manifest.provider,
+        modelFetchAndVerifyMs: verifiedAt - started, sessionCreateMs: performance.now() - verifiedAt,
+        acousticCoreIdentitySha256: M.identitySha256,
         ortWebVersion: ort.env.versions.web, automaticFallback: false, actualSessionLoadCount: this.loads,
         inputDescriptor: { name: 'audio', dtype: 'float32', shape: [1, 29120] },
         outputDescriptors: { reg_onset_output: [1, 183, 88], frame_output: [1, 183, 88] } };
-    } catch (error) { this.state = 'FAILED'; await core?.dispose(); throw error; }
+    } catch (error) { this.state = 'FAILED'; await session?.release(); throw error; }
     finally { this.busy = false; }
   }
   async run(input: AcousticInferenceInput): Promise<AcousticInferenceResult> {
     onlyFields(input, ['window', 'pcm']);
     onlyFields(input.window, ['jobIndex', 'segmentIndex', 'windowIndex', 'ownedStartMs', 'ownedEndMs', 'startSample', 'endSample', 'inputWindowStartMs']);
     if (this.busy) fail('ACOUSTIC_WORKER_CONCURRENCY_REJECTED');
-    if (this.state !== 'READY' || !this.core) fail('ACOUSTIC_WORKER_NOT_READY');
+    if (this.state !== 'READY' || !this.session) fail('ACOUSTIC_WORKER_NOT_READY');
     const w = input.window;
     if (w.jobIndex !== this.nextJob || w.ownedEndMs <= w.ownedStartMs || w.ownedEndMs - w.ownedStartMs > M.ownedMs
-      || input.pcm.length !== M.inputSamples || input.pcm.some(v => !Number.isFinite(v))
+      || !(input.pcm instanceof Float32Array) || input.pcm.length !== M.inputSamples || input.pcm.some(v => !Number.isFinite(v))
       || w.endSample - w.startSample !== M.inputSamples
       || Math.abs(w.inputWindowStartMs + M.inputMs - w.ownedEndMs - M.futureMs) > 1 / 16) fail('ACOUSTIC_WORKER_WINDOW_MISMATCH');
     this.busy = true;
     try {
       const started = performance.now();
-      const raw = await this.core.infer({ requestId: String(w.jobIndex), pcm: input.pcm,
-        sampleRateHz: 16000, channelCount: 1, captureStartSampleIndex: w.startSample,
-        captureStartTime: { domainId: 'continuous-acoustic-input', ms: w.inputWindowStartMs } });
+      const audio = new ort.Tensor('float32', input.pcm, [1, 29120]);
+      let tensors: ort.InferenceSession.OnnxValueMapType | undefined;
+      let raw: ByteDanceRawOutputs;
+      try {
+        this.runs++;
+        tensors = await this.session.run({ audio }, ['reg_onset_output', 'frame_output']);
+        raw = { reg_onset_output: outputData(tensors.reg_onset_output), reg_onset_shape: [1, 183, 88],
+          frame_output: outputData(tensors.frame_output), frame_shape: [1, 183, 88] };
+      } finally { audio.dispose(); for (const tensor of Object.values(tensors ?? {})) tensor.dispose(); }
       const inferred = performance.now(), events = decodeAcousticOutputs(raw, input), decoded = performance.now();
       this.nextJob++;
       return { events, inferenceMs: inferred - started, decodeMs: decoded - inferred, actualSessionRunCount: this.runs };
@@ -94,6 +85,6 @@ export class ContinuousModelInference implements AcousticInferencePort {
   }
   async dispose(): Promise<void> {
     if (this.busy) fail('ACOUSTIC_WORKER_CONCURRENCY_REJECTED');
-    try { await this.core?.dispose(); } finally { this.core = null; this.state = 'DISPOSED'; }
+    try { await this.session?.release(); } finally { this.session = null; this.state = 'DISPOSED'; }
   }
 }
