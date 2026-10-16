@@ -1,0 +1,2805 @@
+{
+  "rows": [
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_320_120_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 26532.565185546875,
+        "realtimeFactor": 0.9889733546869323,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 12.7998046875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_320_120_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 26522.96484375,
+        "realtimeFactor": 0.9893313268174587,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 10.800048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_320_120_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 26542.864990234375,
+        "realtimeFactor": 0.9885895893172871,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 0,
+          "p95": 0.19519042968750028,
+          "max": 27.699951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_320_120_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 26536.965087890625,
+        "realtimeFactor": 0.9888093801643453,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 14.400146484375
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_320_120_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 324.14285714285717,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 57141.1650390625,
+        "realtimeFactor": 0.4592135981487596,
+        "maxOutstandingDepth": 46,
+        "finalQueueDelayMs": 30207.300048828125,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 16752.75,
+          "p95": 28907.644946289063,
+          "max": 30207.300048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 14127.792909203506,
+        "p25": 5782.674865722656,
+        "p50": 15863.00048828125,
+        "p75": 22203.775268554688,
+        "p90": 25882.07038574219,
+        "p95": 27126.640393066406,
+        "p99": 28128.309460449218,
+        "p99_5": 28246.20490112305,
+        "max": 28364.100341796875
+      },
+      "analyticalFinalQueueMs": 28364.100341796875,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_400_220_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": 393.87144252232144,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 47573.1650390625,
+        "realtimeFactor": 0.554934698549547,
+        "maxOutstandingDepth": 29,
+        "finalQueueDelayMs": 20493,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 9608.35009765625,
+          "p95": 19199.89990234375,
+          "max": 20493
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 8919.540161132812,
+        "p25": 4971.3507080078125,
+        "p50": 8751.05078125,
+        "p75": 12489.426086425781,
+        "p90": 16375.101440429688,
+        "p95": 17494.776245117188,
+        "p99": 18432.716369628903,
+        "p99_5": 18559.108917236328,
+        "max": 18685.50146484375
+      },
+      "analyticalFinalQueueMs": 18685.50146484375,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_400_220_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": 259.99996512276783,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 44770.76513671875,
+        "realtimeFactor": 0.5896705119821156,
+        "maxOutstandingDepth": 28,
+        "finalQueueDelayMs": 17699.099853515625,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 9238.799926757812,
+          "p95": 16860.774963378906,
+          "max": 17699.099853515625
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 8357.667665423769,
+        "p25": 4614.450866699219,
+        "p50": 8464.401123046875,
+        "p75": 12308.876037597656,
+        "p90": 14589.451416015625,
+        "p95": 15378.176330566406,
+        "p99": 15963.971252441404,
+        "p99_5": 16040.736236572266,
+        "max": 16117.501220703125
+      },
+      "analyticalFinalQueueMs": 16117.501220703125,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_400_220_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": 84.62855747767857,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 32440.1650390625,
+        "realtimeFactor": 0.8138059707221188,
+        "maxOutstandingDepth": 13,
+        "finalQueueDelayMs": 5533.300048828125,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 2765.25,
+          "p95": 5265.474853515625,
+          "max": 5533.300048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 2128.729998964252,
+        "p25": 1106.2758178710938,
+        "p50": 2112.4012451171875,
+        "p75": 3233.901611328125,
+        "p90": 3819.251220703125,
+        "p95": 4050.2515258789062,
+        "p99": 4232.386645507812,
+        "p99_5": 4247.694177246093,
+        "max": 4263.001708984375
+      },
+      "analyticalFinalQueueMs": 4263.001708984375,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_400_220_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": 164.31427873883928,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 36132.56494140625,
+        "realtimeFactor": 0.7306428437286726,
+        "maxOutstandingDepth": 15,
+        "finalQueueDelayMs": 9198.300048828125,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 2670,
+          "p95": 9019.925048828125,
+          "max": 9204.699951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 2867.147912227746,
+        "p25": 1153.9743041992188,
+        "p50": 2100.54931640625,
+        "p75": 4281.374267578125,
+        "p90": 7174.04931640625,
+        "p95": 7921.524230957031,
+        "p99": 8069.2944458007805,
+        "p99_5": 8086.09692993164,
+        "max": 8102.8994140625
+      },
+      "analyticalFinalQueueMs": 8102.8994140625,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_400_220_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": 99.82854352678571,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 32997.664794921875,
+        "realtimeFactor": 0.8000566150384917,
+        "maxOutstandingDepth": 14,
+        "finalQueueDelayMs": 6041,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 2983.5999755859375,
+          "p95": 5726.9500732421875,
+          "max": 6041
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 2366.2775545987215,
+        "p25": 1227.9248046875,
+        "p50": 2346.50048828125,
+        "p75": 3539.750244140625,
+        "p90": 4233.050537109375,
+        "p95": 4505.975646972656,
+        "p99": 4721.2658813476555,
+        "p99_5": 4744.633428955078,
+        "max": 4768.0009765625
+      },
+      "analyticalFinalQueueMs": 4768.0009765625,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_120_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": -0.014299665178571428,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26465.76513671875,
+        "realtimeFactor": 0.9824012215663267,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0,
+          "p95": 30.10997314453121,
+          "max": 38.599853515625
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_120_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26503.06494140625,
+        "realtimeFactor": 0.9810186126578778,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0,
+          "p95": 74.12003173828123,
+          "max": 131.900146484375
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 4.644235464242788,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 36.27004394531241,
+        "p99": 83.27707275390628,
+        "p99_5": 87.68858520507808,
+        "max": 92.10009765625
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_120_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": -4.828578404017857,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26492.264892578125,
+        "realtimeFactor": 0.9814185425604727,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0,
+          "p95": 20.159924316406236,
+          "max": 34.699951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 0.013460599459134616,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0.34297607421875137,
+        "p99_5": 0.5214636230468732,
+        "max": 0.699951171875
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_120_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26490.06494140625,
+        "realtimeFactor": 0.9815000475653709,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0,
+          "p95": 16.364941406249994,
+          "max": 31.5
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 0.01538555438701923,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0.3920239257812516,
+        "p99_5": 0.596036376953123,
+        "max": 0.800048828125
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_120_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26478.46484375,
+        "realtimeFactor": 0.9819300383699194,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0,
+          "p95": 23.555102539062474,
+          "max": 39.300048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 0.042311448317307696,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 1.0820996093750037,
+        "p99_5": 1.5410498046874954,
+        "max": 2
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_170_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26491.864990234375,
+        "realtimeFactor": 0.9814333573564681,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0,
+          "p95": 31.144885253906242,
+          "max": 54.7998046875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 0.5269211989182693,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0.1350219726562487,
+        "p99": 13.450925292968769,
+        "p99_5": 15.975462646484349,
+        "max": 18.5
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_170_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": 0.014299665178571428,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26492.465087890625,
+        "realtimeFactor": 0.9814111262860274,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0.10009765625,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0,
+          "p95": 32.069946289062486,
+          "max": 37.39990234375
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 0.19423264723557693,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 5.029047851562504,
+        "p99_5": 5.564572753906244,
+        "max": 6.10009765625
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_170_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": -0.7285853794642857,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26480.26513671875,
+        "realtimeFactor": 0.9818632806643317,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0,
+          "p95": 22.88010253906248,
+          "max": 28.2001953125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 0.00384521484375,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0.0979760742187504,
+        "p99_5": 0.1489636230468745,
+        "max": 0.199951171875
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_170_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26462.364990234375,
+        "realtimeFactor": 0.9825274501955888,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0,
+          "p95": 25.294946289062487,
+          "max": 33.199951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 0.0692279522235577,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 1.769929199218756,
+        "p99_5": 2.534866943359367,
+        "max": 3.2998046875
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_170_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": -0.014299665178571428,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26468.264892578125,
+        "realtimeFactor": 0.9823084401460169,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0,
+          "p95": 43.94002685546871,
+          "max": 80.800048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 0.6134455754206731,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 3.0148681640624715,
+        "p99": 12.579733886718754,
+        "p99_5": 13.08967163085937,
+        "max": 13.599609375
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_220_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": -0.014264787946428572,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26477.364990234375,
+        "realtimeFactor": 0.9819708271419592,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0,
+          "p95": 24.224999999999998,
+          "max": 35
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 0.021155724158653848,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0.5390478515625022,
+        "p99_5": 0.8195727539062472,
+        "max": 1.10009765625
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_220_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": -3.3428780691964284,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26506.364990234375,
+        "realtimeFactor": 0.9808964756042207,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0,
+          "p95": 15.304968261718747,
+          "max": 23.5
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_220_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": 0.028564453125,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26498.06494140625,
+        "realtimeFactor": 0.9812037240263546,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0.199951171875,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0,
+          "p95": 31.31497802734375,
+          "max": 39.7001953125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 0.10384897085336539,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 2.6460717773437605,
+        "p99_5": 4.023109130859361,
+        "max": 5.400146484375
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_220_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": -1.6857212611607142,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26476.065185546875,
+        "realtimeFactor": 0.9820190356002464,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0,
+          "p95": 19.01010742187499,
+          "max": 38.5
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 0.375,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 9.555000000000039,
+        "p99_5": 14.52749999999995,
+        "max": 19.5
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_500_220_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 500,
+        "tailQueueTrendMsPerGroup": 0.014264787946428572,
+        "producerDurationMs": 26000,
+        "consumerDurationMs": 26521.06494140625,
+        "realtimeFactor": 0.9803527896576757,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0.099853515625,
+        "queueDelayMs": {
+          "count": 52,
+          "p50": 0.099853515625,
+          "p95": 28.235009765624998,
+          "max": 36.699951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 52,
+        "mean": 0.5326960637019231,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 4.409960937499975,
+        "p99": 9.1491455078125,
+        "p99_5": 9.17467041015625,
+        "max": 9.2001953125
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_120_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26884.664794921875,
+        "realtimeFactor": 0.9819724441937836,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 0.18497314453125013,
+          "max": 0.300048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_120_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26876.164794921875,
+        "realtimeFactor": 0.9822830080647577,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 112.58997802734383,
+          "max": 191.599853515625
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 9.902266068892045,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 120.44495849609395,
+        "p99": 147.36387451171876,
+        "p99_5": 148.48186401367187,
+        "max": 149.599853515625
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_120_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0.014299665178571428,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26901.1650390625,
+        "realtimeFactor": 0.9813701362623228,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0.10009765625,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 0.199951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_120_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": -0.014299665178571428,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26911.465087890625,
+        "realtimeFactor": 0.9809945283090229,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 0.18497314453125013,
+          "max": 0.300048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_120_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26903.965087890625,
+        "realtimeFactor": 0.981267999484676,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 0.300048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_170_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26870.364990234375,
+        "realtimeFactor": 0.9824950278715856,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 0.199951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_170_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": -43.700020926339285,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26860.56494140625,
+        "realtimeFactor": 0.9828534901476969,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 211.3400146484376,
+          "max": 305.900146484375
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 16.181829279119317,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 157.17005615234388,
+        "p99": 235.49617431640627,
+        "p99_5": 246.84818481445294,
+        "max": 258.2001953125
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_170_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": -0.00003487723214285714,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26858.965087890625,
+        "realtimeFactor": 0.9829120337887647,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0.099853515625,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 0.5
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_170_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26893.764892578125,
+        "realtimeFactor": 0.9816401721904549,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 0.300048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_170_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": -0.014264787946428572,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26870.6650390625,
+        "realtimeFactor": 0.9824840569305492,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 0.18497314453125013,
+          "max": 0.300048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_220_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0.014299665178571428,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26890.264892578125,
+        "realtimeFactor": 0.9817679411290053,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0.10009765625,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 0.2998046875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_220_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26837.06494140625,
+        "realtimeFactor": 0.9837141303506736,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 0.199951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_220_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26886.6650390625,
+        "realtimeFactor": 0.9818993899631864,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 0.2998046875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_220_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0.014299665178571428,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26903.26513671875,
+        "realtimeFactor": 0.9812935294596687,
+        "maxOutstandingDepth": 3,
+        "finalQueueDelayMs": 0.10009765625,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0.099853515625,
+          "p95": 789.1048950195313,
+          "max": 964.5
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 123.06137362393466,
+        "p25": 0,
+        "p50": 0,
+        "p75": 68.85003662109375,
+        "p90": 556.3600341796878,
+        "p95": 706.6000000000001,
+        "p99": 806.4119580078126,
+        "p99_5": 834.7059790039058,
+        "max": 863
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_BAND_LIMITED_600_220_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0.014299665178571428,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26871.1650390625,
+        "realtimeFactor": 0.982465775548713,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0.10009765625,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 0.5
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_120_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 26532.099853515625,
+        "realtimeFactor": 0.9889906997513082,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 0,
+          "p95": 4.63481445312501,
+          "max": 36.39990234375
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 0.07804758955792683,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 1.2159814453124855,
+        "p99_5": 3.807941894531243,
+        "max": 6.39990234375
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_120_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 246.20002092633928,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 49151.2001953125,
+        "realtimeFactor": 0.5338628537193377,
+        "maxOutstandingDepth": 39,
+        "finalQueueDelayMs": 22294,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 11554.35009765625,
+          "p95": 21290.910095214844,
+          "max": 22294
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 10634.199025223896,
+        "p25": 6061.4246826171875,
+        "p50": 10666.49853515625,
+        "p75": 15665.723754882812,
+        "p90": 18747.86862792969,
+        "p95": 19604.17839355469,
+        "p99": 20329.194418945313,
+        "p99_5": 20425.74637939453,
+        "max": 20522.29833984375
+      },
+      "analyticalFinalQueueMs": 20522.29833984375,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_120_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 26545.099853515625,
+        "realtimeFactor": 0.9885063587931759,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 17.39990234375
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_120_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": -1.6428571428571428,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 26536.60009765625,
+        "realtimeFactor": 0.9888229804660452,
+        "maxOutstandingDepth": 6,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 2.3499755859375,
+          "p95": 1112.6149536132814,
+          "max": 1275.800048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 203.43906011814025,
+        "p25": 0,
+        "p50": 0,
+        "p75": 279.55035400390625,
+        "p90": 819.8899902343751,
+        "p95": 1040.4448608398438,
+        "p99": 1199.5729418945311,
+        "p99_5": 1218.4864221191406,
+        "max": 1237.39990234375
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_120_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": -0.014264787946428572,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 26543.7001953125,
+        "realtimeFactor": 0.9885584830646131,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 14.699951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_170_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 52.685721261160715,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 27203.699951171875,
+        "realtimeFactor": 0.9645746735590516,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 368.800048828125,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 368.800048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 5.200001786394817,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 144.75205810546825,
+        "p99_5": 234.1760778808591,
+        "max": 323.60009765625
+      },
+      "analyticalFinalQueueMs": 323.60009765625,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_170_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 243.27144949776786,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 48482,
+        "realtimeFactor": 0.5412317973680953,
+        "maxOutstandingDepth": 38,
+        "finalQueueDelayMs": 21673.900146484375,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 10848.5,
+          "p95": 20692.895141601562,
+          "max": 21673.900146484375
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 10173.649753477515,
+        "p25": 5314,
+        "p50": 9963.599609375,
+        "p75": 15501.574829101562,
+        "p90": 18170.259716796878,
+        "p95": 19052.849560546874,
+        "p99": 19792.60843505859,
+        "p99_5": 19886.203875732423,
+        "max": 19979.79931640625
+      },
+      "analyticalFinalQueueMs": 19979.79931640625,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_170_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 249.971435546875,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 54950.89990234375,
+        "realtimeFactor": 0.47751720256870295,
+        "maxOutstandingDepth": 39,
+        "finalQueueDelayMs": 28120.5,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 11327.349975585938,
+          "p95": 27127.579809570314,
+          "max": 28120.5
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 11566.646844631288,
+        "p25": 5663.225280761719,
+        "p50": 10330.650512695312,
+        "p75": 15512.050720214844,
+        "p90": 24265.5107421875,
+        "p95": 25206.99587402344,
+        "p99": 25903.10401611328,
+        "p99_5": 25981.552496337892,
+        "max": 26060.0009765625
+      },
+      "analyticalFinalQueueMs": 26060.0009765625,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_170_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 26480.2001953125,
+        "realtimeFactor": 0.9909290642238037,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 0,
+          "p95": 8.385009765625007,
+          "max": 24.10009765625
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 0.07439143483231707,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 1.159018554687486,
+        "p99_5": 3.629558105468743,
+        "max": 6.10009765625
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_170_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 26583.699951171875,
+        "realtimeFactor": 0.9870710265386996,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 0,
+          "p95": 17.099853515625,
+          "max": 25.199951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_220_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": -0.014299665178571428,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 26558.39990234375,
+        "realtimeFactor": 0.9880113296164483,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 0,
+          "p95": 2.2550537109375024,
+          "max": 19.60009765625
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_220_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 242.32857840401786,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 47935.400146484375,
+        "realtimeFactor": 0.5474033787099712,
+        "maxOutstandingDepth": 38,
+        "finalQueueDelayMs": 21213.10009765625,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 10895.39990234375,
+          "p95": 20230.340087890625,
+          "max": 21213.10009765625
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 9933.198849561737,
+        "p25": 5471.9007568359375,
+        "p50": 9977.501342773438,
+        "p75": 14292.77685546875,
+        "p90": 17566.08210449219,
+        "p95": 18513.18214111328,
+        "p99": 19199.284157714843,
+        "p99_5": 19299.643177490234,
+        "max": 19400.002197265625
+      },
+      "analyticalFinalQueueMs": 19400.002197265625,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_220_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 0.014299665178571428,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 26525.60009765625,
+        "realtimeFactor": 0.9892330391544475,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0.10009765625,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 0,
+          "p95": 12.869909667968752,
+          "max": 50.10009765625
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 0.5585312261814024,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 9.32176513671865,
+        "p99_5": 27.060784912109327,
+        "max": 44.7998046875
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_220_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 230.65715680803572,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 47516.2998046875,
+        "realtimeFactor": 0.5522315522853783,
+        "maxOutstandingDepth": 39,
+        "finalQueueDelayMs": 20688.400146484375,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 11102.049926757812,
+          "p95": 19751.230090332032,
+          "max": 20688.400146484375
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 10062.750333460366,
+        "p25": 5791.049987792969,
+        "p50": 10209.150634765625,
+        "p75": 14519.750610351562,
+        "p90": 17302.390478515626,
+        "p95": 18123.67548828125,
+        "p99": 18823.465341796873,
+        "p99_5": 18897.782841796874,
+        "max": 18972.100341796875
+      },
+      "analyticalFinalQueueMs": 18972.100341796875,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_320_220_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 320,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26240,
+        "consumerDurationMs": 26526.5,
+        "realtimeFactor": 0.9891994797655175,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 82,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 18.800048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 82,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_400_120_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": -0.014299665178571428,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26684.800048828125,
+        "realtimeFactor": 0.9893272556546425,
+        "maxOutstandingDepth": 3,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 0,
+          "p95": 456.75,
+          "max": 632
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 51.21518406723485,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 233.0501708984375,
+        "p95": 384.20025634765625,
+        "p99": 517.6351928710933,
+        "p99_5": 545.6176452636716,
+        "max": 573.60009765625
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_400_120_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26696.300048828125,
+        "realtimeFactor": 0.9889010818620488,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 0,
+          "p95": 0.10003662109375,
+          "max": 0.10009765625
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_400_120_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": 144.48570033482142,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 27944.699951171875,
+        "realtimeFactor": 0.9447229723750497,
+        "maxOutstandingDepth": 3,
+        "finalQueueDelayMs": 1011.5,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 0,
+          "p95": 381.2249755859375,
+          "max": 1011.5
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 42.50757575757576,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 346.050048828125,
+        "p99": 799.5949340820304,
+        "p99_5": 848.2474182128902,
+        "max": 896.89990234375
+      },
+      "analyticalFinalQueueMs": 896.89990234375,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_400_120_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": 191.22855050223214,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 38506.199951171875,
+        "realtimeFactor": 0.6856038776476711,
+        "maxOutstandingDepth": 22,
+        "finalQueueDelayMs": 11456.599853515625,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 6241.550048828125,
+          "p95": 10757.875122070312,
+          "max": 11456.599853515625
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 5353.142156427557,
+        "p25": 3007.2002563476562,
+        "p50": 5527.2496337890625,
+        "p75": 7676.699523925781,
+        "p90": 8957.649536132812,
+        "p95": 9463.899536132812,
+        "p99": 9956.014428710936,
+        "p99_5": 10021.306896972656,
+        "max": 10086.599365234375
+      },
+      "analyticalFinalQueueMs": 10086.599365234375,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_400_120_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": 171.971435546875,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 42166.800048828125,
+        "realtimeFactor": 0.6260849760814063,
+        "maxOutstandingDepth": 25,
+        "finalQueueDelayMs": 15166.10009765625,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 7007.9498291015625,
+          "p95": 14644.149841308594,
+          "max": 15166.10009765625
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 6794.056019176136,
+        "p25": 3526.8004760742188,
+        "p50": 6307.2000732421875,
+        "p75": 9918.44970703125,
+        "p90": 12753.899291992188,
+        "p95": 13276.1494140625,
+        "p99": 13634.554528808592,
+        "p99_5": 13675.927044677734,
+        "max": 13717.299560546875
+      },
+      "analyticalFinalQueueMs": 13717.299560546875,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_400_170_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": 212.22855050223214,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 39216.300048828125,
+        "realtimeFactor": 0.6731894637466926,
+        "maxOutstandingDepth": 22,
+        "finalQueueDelayMs": 12187.199951171875,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 6120.050048828125,
+          "p95": 11529.974914550781,
+          "max": 12187.199951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 5360.255541252367,
+        "p25": 2801.4756469726562,
+        "p50": 5449.35107421875,
+        "p75": 7942.651306152344,
+        "p90": 9558.301635742188,
+        "p95": 10215.951721191406,
+        "p99": 10658.526708984375,
+        "p99_5": 10727.264208984374,
+        "max": 10796.001708984375
+      },
+      "analyticalFinalQueueMs": 10796.001708984375,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_400_170_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26685.5,
+        "realtimeFactor": 0.989301305952671,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 0.199951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_400_170_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": -0.014299665178571428,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26708.5,
+        "realtimeFactor": 0.988449370050733,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 0.199951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_400_170_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26697.800048828125,
+        "realtimeFactor": 0.9888455210435514,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 0.199951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_400_170_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 400,
+        "tailQueueTrendMsPerGroup": 197.30001395089286,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 29800.699951171875,
+        "realtimeFactor": 0.8858852323353517,
+        "maxOutstandingDepth": 6,
+        "finalQueueDelayMs": 2862.400146484375,
+        "queueDelayMs": {
+          "count": 66,
+          "p50": 0,
+          "p95": 2251.4999389648438,
+          "max": 2862.400146484375
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 66,
+        "mean": 294.72274502840907,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 1396.60009765625,
+        "p95": 2034.3250732421875,
+        "p99": 2443.330126953124,
+        "p99_5": 2505.665063476562,
+        "max": 2568
+      },
+      "analyticalFinalQueueMs": 2568,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_120_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0.014264787946428572,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26968.800048828125,
+        "realtimeFactor": 0.9789089596942285,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0.099853515625,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0.099853515625,
+          "p95": 260.65499267578133,
+          "max": 375
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 27.334123091264203,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 102.03000488281265,
+        "p95": 182.55013427734383,
+        "p99": 285.76029296875004,
+        "p99_5": 291.7802929687499,
+        "max": 297.80029296875
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_120_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 18.357142857142858,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 27313.7998046875,
+        "realtimeFactor": 0.9665443910689175,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 334.699951171875,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 15.6500244140625,
+          "p95": 394.5448974609375,
+          "max": 404.699951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 37.76825506036932,
+        "p25": 0,
+        "p50": 0,
+        "p75": 55.72515869140625,
+        "p90": 123.83032226562517,
+        "p95": 188.85034179687506,
+        "p99": 232.39329345703126,
+        "p99_5": 239.896719970703,
+        "max": 247.400146484375
+      },
+      "analyticalFinalQueueMs": 63.7001953125,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_120_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": -3.3714076450892856,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 27157.89990234375,
+        "realtimeFactor": 0.9720928383612482,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 124.699951171875,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 39.75,
+          "p95": 286.61008300781253,
+          "max": 363.5
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 35.69544566761363,
+        "p25": 0,
+        "p50": 0,
+        "p75": 44.35015869140625,
+        "p90": 116.25979003906254,
+        "p95": 181.98996582031256,
+        "p99": 245.27504882812502,
+        "p99_5": 259.7875488281248,
+        "max": 274.300048828125
+      },
+      "analyticalFinalQueueMs": 72.999755859375,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_120_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": -7.571428571428571,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26973.699951171875,
+        "realtimeFactor": 0.9787311361729983,
+        "maxOutstandingDepth": 3,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 32,
+          "p95": 583.2498413085938,
+          "max": 618.699951171875
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 74.4410067471591,
+        "p25": 0,
+        "p50": 0,
+        "p75": 37.05035400390625,
+        "p90": 324.99018554687535,
+        "p95": 420.9555786132813,
+        "p99": 470.5173071289062,
+        "p99_5": 472.2587756347656,
+        "max": 474.000244140625
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_120_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": -0.7143205915178571,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26965,
+        "realtimeFactor": 0.9790469126645652,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0.199951171875,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 13.8499755859375,
+          "p95": 286.8650756835938,
+          "max": 341
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 20.806834827769887,
+        "p25": 0,
+        "p50": 0,
+        "p75": 4.35009765625,
+        "p90": 79.66013183593765,
+        "p95": 127.42016601562506,
+        "p99": 225.0879931640625,
+        "p99_5": 237.64397216796854,
+        "max": 250.199951171875
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_170_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": -10.457135881696429,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26959.10009765625,
+        "realtimeFactor": 0.9792611735691854,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0.10009765625,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 24.9000244140625,
+          "p95": 176.0550537109375,
+          "max": 191
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 14.536371404474432,
+        "p25": 0,
+        "p50": 0,
+        "p75": 21.02496337890625,
+        "p90": 51.1599609375,
+        "p95": 73.83508300781253,
+        "p99": 99.264951171875,
+        "p99_5": 100.23245117187498,
+        "max": 101.199951171875
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_170_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26977.699951171875,
+        "realtimeFactor": 0.9785860191114335,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0.0499267578125,
+          "p95": 43.92485351562502,
+          "max": 78.400146484375
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 2.2181840376420454,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 10.749890136718763,
+        "p99": 41.998083496093756,
+        "p99_5": 44.449114990234335,
+        "max": 46.900146484375
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_170_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": -0.014299665178571428,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26704.300048828125,
+        "realtimeFactor": 0.9886048296240036,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 0.300048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_170_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0.7999790736607143,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 27031.699951171875,
+        "realtimeFactor": 0.9766311422399282,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 33.89990234375,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 124.72484130859378,
+          "max": 202.800048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 8.449995561079545,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 24.649902343750036,
+        "p95": 56.11491699218752,
+        "p99": 116.21602783203127,
+        "p99_5": 131.00803833007788,
+        "max": 145.800048828125
+      },
+      "analyticalFinalQueueMs": 0.800048828125,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_170_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0.6285574776785714,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26960.2998046875,
+        "realtimeFactor": 0.9792175974026045,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 4.39990234375,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 1.9000244140625,
+          "p95": 398.92500000000007,
+          "max": 467.10009765625
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 46.32268177379262,
+        "p25": 0,
+        "p50": 0,
+        "p75": 14.39996337890625,
+        "p90": 195.10986328125006,
+        "p95": 276.6747192382813,
+        "p99": 368.79573486328127,
+        "p99_5": 380.14774536132796,
+        "max": 391.499755859375
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_220_1.20.1/xc2_01_mozart_kv398_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 0,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26715.699951171875,
+        "realtimeFactor": 0.9881829803542906,
+        "maxOutstandingDepth": 1,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 0.10009765625,
+          "max": 0.2001953125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 0,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0,
+        "p95": 0,
+        "p99": 0,
+        "p99_5": 0,
+        "max": 0
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_220_1.20.1/xc2_03_bach_bwv875-02_002_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": -0.6142926897321429,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 27636,
+        "realtimeFactor": 0.9552757273122015,
+        "maxOutstandingDepth": 3,
+        "finalQueueDelayMs": 667.099853515625,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 560.849853515625,
+          "p95": 738.7599853515625,
+          "max": 799.10009765625
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 112.64779940518466,
+        "p25": 15.3251953125,
+        "p50": 77.4000244140625,
+        "p75": 210.22509765625,
+        "p90": 272.73020019531253,
+        "p95": 292.2100341796875,
+        "p99": 366.28490234375,
+        "p99_5": 372.8424023437499,
+        "max": 379.39990234375
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_220_1.20.1/xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 1.5714285714285714,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 27035.89990234375,
+        "realtimeFactor": 0.976479425332958,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 11,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0,
+          "p95": 45.959973144531254,
+          "max": 64.89990234375
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 2.4159046519886362,
+        "p25": 0,
+        "p50": 0,
+        "p75": 0,
+        "p90": 0.13996582031250057,
+        "p95": 23.910034179687518,
+        "p99": 33.64093017578125,
+        "p99_5": 33.92044067382812,
+        "max": 34.199951171875
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_220_1.20.1/xc2_07_bartok_sz080-03_002_20110315-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "BACKLOG_PRESENT",
+        "noSustainedBacklog": false,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": 52.642857142857146,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 28239.199951171875,
+        "realtimeFactor": 0.9348706778395982,
+        "maxOutstandingDepth": 3,
+        "finalQueueDelayMs": 1195.800048828125,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 351.0499267578125,
+          "p95": 1060.42509765625,
+          "max": 1195.800048828125
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 209.24997225674716,
+        "p25": 0,
+        "p50": 119.849609375,
+        "p75": 357.974853515625,
+        "p90": 629.3402832031251,
+        "p95": 673.8351684570313,
+        "p99": 717.0601953125,
+        "p99_5": 727.3801953124998,
+        "max": 737.7001953125
+      },
+      "analyticalFinalQueueMs": 737.7001953125,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    },
+    {
+      "path": "backend/data/work/xc2_robust_product_baseline_v1/raw/EVALUATION_LINEAR_600_220_1.20.1/xc2_09_chopin_op066_006_20100611-smd.json",
+      "measuredResearchHarnessBacklog": {
+        "status": "NO_SUSTAINED_BACKLOG",
+        "noSustainedBacklog": true,
+        "schedulerJitterAllowanceMs": 8,
+        "cadenceMs": 600,
+        "tailQueueTrendMsPerGroup": -4.385707310267857,
+        "producerDurationMs": 26400,
+        "consumerDurationMs": 26956.800048828125,
+        "realtimeFactor": 0.9793447275707959,
+        "maxOutstandingDepth": 2,
+        "finalQueueDelayMs": 0,
+        "queueDelayMs": {
+          "count": 44,
+          "p50": 0.099853515625,
+          "p95": 329.2900268554688,
+          "max": 479.39990234375
+        }
+      },
+      "analyticalPureOrtAtNominalSourceCadenceQueueMs": {
+        "count": 44,
+        "mean": 32.88408314098012,
+        "p25": 0,
+        "p50": 0,
+        "p75": 2.00006103515625,
+        "p90": 144.86997070312518,
+        "p95": 230.76995849609384,
+        "p99": 329.14490234375,
+        "p99_5": 346.0224023437497,
+        "max": 362.89990234375
+      },
+      "analyticalFinalQueueMs": 0,
+      "classification": "ANALYTICAL_ONLY_NOT_MEASURED_QUALIFICATION"
+    }
+  ],
+  "interpretation": "Nominal-source analytical service queue complements historical actual-receive-based simulation. No runtime verdict is inferred from it."
+}

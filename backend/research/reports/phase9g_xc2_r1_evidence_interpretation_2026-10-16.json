@@ -1,0 +1,421 @@
+{
+  "phase": "PHASE_9G_XC2_R1_BOUNDED_FINALIZATION_AND_RUNTIME_DECONFOUNDING",
+  "boundedConclusion": "BOUNDED_FINALIZATION_HAS_SAFETY_TRADEOFF",
+  "reason": "No increase in the three critical false-accept counts does not imply safe equivalence: baseline MISSING detection falls40/40->31/40, incomplete40/40->36/40, overall332/342->319/342. Preserve these regressions.",
+  "baselineFixedTruthConfusion": {
+    "CORRECT -> CORRECT": 176,
+    "CORRECT -> INCOMPLETE_CHORD": 3,
+    "MISSING -> WRONG": 9,
+    "MISSING -> MISSING": 31,
+    "WRONG -> WRONG": 40,
+    "INCOMPLETE_CHORD -> INCOMPLETE_CHORD": 36,
+    "INCOMPLETE_CHORD -> WRONG": 4,
+    "CORRECT -> WRONG": 1,
+    "CORRECT -> MISSING": 2
+  },
+  "baselineChangedTargetCases": [
+    {
+      "targetId": "xc2_01_mozart_kv398_002_20110315-smd:MISSING_SINGLE:0:xc2_01_mozart_kv398_002_20110315-smd:g0:missing",
+      "truth": "MISSING",
+      "original": "MISSING",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 1708.333333333343,
+        "localDeadlineMs": 1958.333333333343,
+        "requiredAnalysisFrontierMs": 1958.333333333343,
+        "enablingPublicationId": "xc2_01_mozart_kv398_002_20110315-smd:LINEAR_600_220_A:owned_1380",
+        "enablingAnalysisFrontierMs": 1979.9999999999998,
+        "publicationAvailabilityTimeMs": 2521.271240234375,
+        "finalizationTimeMs": 2521.271240234375,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_01_mozart_kv398_002_20110315-smd:LINEAR_600_220_A:owned_1380:68:28800000:1"
+      ]
+    },
+    {
+      "targetId": "xc2_01_mozart_kv398_002_20110315-smd:MISSING_SINGLE:4:xc2_01_mozart_kv398_002_20110315-smd:g4:missing",
+      "truth": "MISSING",
+      "original": "MISSING",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 2294.791666666657,
+        "localDeadlineMs": 2544.791666666657,
+        "requiredAnalysisFrontierMs": 2544.791666666657,
+        "enablingPublicationId": "xc2_01_mozart_kv398_002_20110315-smd:LINEAR_600_220_A:owned_1980",
+        "enablingAnalysisFrontierMs": 2579.9999999999995,
+        "publicationAvailabilityTimeMs": 3117.859619140625,
+        "finalizationTimeMs": 3117.859619140625,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_01_mozart_kv398_002_20110315-smd:LINEAR_600_220_A:owned_1980:67:39360000:2"
+      ]
+    },
+    {
+      "targetId": "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:MISSING_SINGLE:0:xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:g1:missing",
+      "truth": "MISSING",
+      "original": "MISSING",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 1659.375,
+        "localDeadlineMs": 1909.375,
+        "requiredAnalysisFrontierMs": 1909.375,
+        "enablingPublicationId": "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1380",
+        "enablingAnalysisFrontierMs": 1979.9999999999998,
+        "publicationAvailabilityTimeMs": 2775.1953125,
+        "finalizationTimeMs": 2775.1953125,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1380:73:29920000:4"
+      ]
+    },
+    {
+      "targetId": "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:MISSING_SINGLE:1:xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:g2:missing",
+      "truth": "MISSING",
+      "original": "MISSING",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 1680.208333333314,
+        "localDeadlineMs": 1930.208333333314,
+        "requiredAnalysisFrontierMs": 1930.208333333314,
+        "enablingPublicationId": "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1380",
+        "enablingAnalysisFrontierMs": 1979.9999999999998,
+        "publicationAvailabilityTimeMs": 2775.1953125,
+        "finalizationTimeMs": 2775.1953125,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1380:73:29920000:4"
+      ]
+    },
+    {
+      "targetId": "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:MISSING_SINGLE:5:xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:g6:missing",
+      "truth": "MISSING",
+      "original": "MISSING",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 2300,
+        "localDeadlineMs": 2550,
+        "requiredAnalysisFrontierMs": 2550,
+        "enablingPublicationId": "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1980",
+        "enablingAnalysisFrontierMs": 2579.9999999999995,
+        "publicationAvailabilityTimeMs": 3409.40625,
+        "finalizationTimeMs": 3409.40625,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1980:70:40640000:5"
+      ]
+    },
+    {
+      "targetId": "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:INCOMPLETE_CHORD:0:xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:g2",
+      "truth": "INCOMPLETE_CHORD",
+      "original": "INCOMPLETE_CHORD",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 1680.208333333314,
+        "localDeadlineMs": 1941.666666666686,
+        "requiredAnalysisFrontierMs": 1941.666666666686,
+        "enablingPublicationId": "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1380",
+        "enablingAnalysisFrontierMs": 1979.9999999999998,
+        "publicationAvailabilityTimeMs": 2775.1953125,
+        "finalizationTimeMs": 2775.1953125,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1380:57:27040000:2",
+        "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1380:69:27040000:3",
+        "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1380:73:29920000:4"
+      ]
+    },
+    {
+      "targetId": "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:INCOMPLETE_CHORD:2:xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:g6",
+      "truth": "INCOMPLETE_CHORD",
+      "original": "INCOMPLETE_CHORD",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 2300,
+        "localDeadlineMs": 2563.541666666628,
+        "requiredAnalysisFrontierMs": 2563.541666666628,
+        "enablingPublicationId": "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1980",
+        "enablingAnalysisFrontierMs": 2579.9999999999995,
+        "publicationAvailabilityTimeMs": 3409.40625,
+        "finalizationTimeMs": 3409.40625,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1980:42:36800000:2",
+        "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1980:73:37120000:4",
+        "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1980:76:36960000:3",
+        "xc2_05_ravel_valsesnoblesetsentimentales_003_20090916-smd:LINEAR_600_220_A:owned_1980:70:40640000:5"
+      ]
+    },
+    {
+      "targetId": "xc2_07_bartok_sz080-03_002_20110315-smd:CORRECT_SINGLE:0:xc2_07_bartok_sz080-03_002_20110315-smd:g5",
+      "truth": "CORRECT",
+      "original": "MISSING",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 2306.25,
+        "localDeadlineMs": 2556.25,
+        "requiredAnalysisFrontierMs": 2556.25,
+        "enablingPublicationId": "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980",
+        "enablingAnalysisFrontierMs": 2579.9999999999995,
+        "publicationAvailabilityTimeMs": 3307.119140625,
+        "finalizationTimeMs": 3307.119140625,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980:40:38400000:8"
+      ]
+    },
+    {
+      "targetId": "xc2_07_bartok_sz080-03_002_20110315-smd:CORRECT_CHORD:5:xc2_07_bartok_sz080-03_002_20110315-smd:g6",
+      "truth": "CORRECT",
+      "original": "CORRECT",
+      "bounded": "INCOMPLETE_CHORD",
+      "witness": {
+        "targetPerformanceTimeMs": 2390.625,
+        "localDeadlineMs": 2655.2083333333285,
+        "requiredAnalysisFrontierMs": 2655.2083333333285,
+        "enablingPublicationId": "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_2580",
+        "enablingAnalysisFrontierMs": 3179.9999999999995,
+        "publicationAvailabilityTimeMs": 3961.63671875,
+        "finalizationTimeMs": 3961.63671875,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980:52:38400000:9",
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980:77:38560000:11",
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980:65:38560000:10"
+      ]
+    },
+    {
+      "targetId": "xc2_07_bartok_sz080-03_002_20110315-smd:MISSING_SINGLE:0:xc2_07_bartok_sz080-03_002_20110315-smd:g0:missing",
+      "truth": "MISSING",
+      "original": "MISSING",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 1576.0416666666715,
+        "localDeadlineMs": 1826.0416666666715,
+        "requiredAnalysisFrontierMs": 1826.0416666666715,
+        "enablingPublicationId": "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1380",
+        "enablingAnalysisFrontierMs": 1979.9999999999998,
+        "publicationAvailabilityTimeMs": 2787.432861328125,
+        "finalizationTimeMs": 2787.432861328125,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1380:47:28640000:4"
+      ]
+    },
+    {
+      "targetId": "xc2_07_bartok_sz080-03_002_20110315-smd:MISSING_SINGLE:4:xc2_07_bartok_sz080-03_002_20110315-smd:g4:missing",
+      "truth": "MISSING",
+      "original": "MISSING",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 2244.7916666666715,
+        "localDeadlineMs": 2494.7916666666715,
+        "requiredAnalysisFrontierMs": 2494.7916666666715,
+        "enablingPublicationId": "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980",
+        "enablingAnalysisFrontierMs": 2579.9999999999995,
+        "publicationAvailabilityTimeMs": 3307.119140625,
+        "finalizationTimeMs": 3307.119140625,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980:52:38400000:9"
+      ]
+    },
+    {
+      "targetId": "xc2_07_bartok_sz080-03_002_20110315-smd:MISSING_SINGLE:5:xc2_07_bartok_sz080-03_002_20110315-smd:g5:missing",
+      "truth": "MISSING",
+      "original": "MISSING",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 2306.25,
+        "localDeadlineMs": 2556.25,
+        "requiredAnalysisFrontierMs": 2556.25,
+        "enablingPublicationId": "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980",
+        "enablingAnalysisFrontierMs": 2579.9999999999995,
+        "publicationAvailabilityTimeMs": 3307.119140625,
+        "finalizationTimeMs": 3307.119140625,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980:52:38400000:9"
+      ]
+    },
+    {
+      "targetId": "xc2_07_bartok_sz080-03_002_20110315-smd:WRONG_SEMITONE:3:xc2_07_bartok_sz080-03_002_20110315-smd:g5",
+      "truth": "WRONG",
+      "original": "MISSING",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 2306.25,
+        "localDeadlineMs": 2556.25,
+        "requiredAnalysisFrontierMs": 2556.25,
+        "enablingPublicationId": "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980",
+        "enablingAnalysisFrontierMs": 2579.9999999999995,
+        "publicationAvailabilityTimeMs": 3307.119140625,
+        "finalizationTimeMs": 3307.119140625,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980:40:38400000:8"
+      ]
+    },
+    {
+      "targetId": "xc2_07_bartok_sz080-03_002_20110315-smd:INCOMPLETE_CHORD:0:xc2_07_bartok_sz080-03_002_20110315-smd:g0",
+      "truth": "INCOMPLETE_CHORD",
+      "original": "INCOMPLETE_CHORD",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 1576.0416666666715,
+        "localDeadlineMs": 1832.291666666657,
+        "requiredAnalysisFrontierMs": 1832.291666666657,
+        "enablingPublicationId": "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1380",
+        "enablingAnalysisFrontierMs": 1979.9999999999998,
+        "publicationAvailabilityTimeMs": 2787.432861328125,
+        "finalizationTimeMs": 2787.432861328125,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1380:74:25280000:2",
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1380:86:25280000:3",
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1380:48:25280000:0",
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1380:60:25280000:1",
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1380:47:28640000:4"
+      ]
+    },
+    {
+      "targetId": "xc2_07_bartok_sz080-03_002_20110315-smd:INCOMPLETE_CHORD:4:xc2_07_bartok_sz080-03_002_20110315-smd:g4",
+      "truth": "INCOMPLETE_CHORD",
+      "original": "INCOMPLETE_CHORD",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 2244.7916666666715,
+        "localDeadlineMs": 2503.125,
+        "requiredAnalysisFrontierMs": 2503.125,
+        "enablingPublicationId": "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980",
+        "enablingAnalysisFrontierMs": 2579.9999999999995,
+        "publicationAvailabilityTimeMs": 3307.119140625,
+        "finalizationTimeMs": 3307.119140625,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980:53:36160000:5",
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980:67:36160000:6",
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980:79:36160000:7",
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980:41:36160000:4",
+        "xc2_07_bartok_sz080-03_002_20110315-smd:LINEAR_600_220_A:owned_1980:52:38400000:9"
+      ]
+    },
+    {
+      "targetId": "xc2_09_chopin_op066_006_20100611-smd:MISSING_SINGLE:0:xc2_09_chopin_op066_006_20100611-smd:g1:missing",
+      "truth": "MISSING",
+      "original": "MISSING",
+      "bounded": "WRONG",
+      "witness": {
+        "targetPerformanceTimeMs": 1682.291666666657,
+        "localDeadlineMs": 1932.291666666657,
+        "requiredAnalysisFrontierMs": 1932.291666666657,
+        "enablingPublicationId": "xc2_09_chopin_op066_006_20100611-smd:LINEAR_600_220_A:owned_1380",
+        "enablingAnalysisFrontierMs": 1979.9999999999998,
+        "publicationAvailabilityTimeMs": 2756.2822265625,
+        "finalizationTimeMs": 2756.2822265625,
+        "unrelatedFutureScoreWait": false,
+        "irreversibleReason": "LOCAL_LEGAL_WINDOW_COVERED_CLOSED_GROUP_ASSIGNMENT_COMMITTED"
+      },
+      "evidenceObservationIds": [
+        "xc2_09_chopin_op066_006_20100611-smd:LINEAR_600_220_A:owned_1380:77:29280000:3"
+      ]
+    }
+  ],
+  "originalXc2Disposition": "ROBUST_PRODUCT_BASELINE_MULTIPLE_PARETO_CANDIDATES",
+  "originalSevenClassification": "OBSERVATIONAL_PARETO_UNDER_ORIGINAL_XC2_FINALIZATION_AND_RESEARCH_RUNTIME_HARNESS",
+  "originalSevenIds": [
+    "BAND_LIMITED_B_500_120",
+    "BAND_LIMITED_A_500_170",
+    "BAND_LIMITED_A_500_220",
+    "BAND_LIMITED_B_500_220",
+    "BAND_LIMITED_A_600_120",
+    "BAND_LIMITED_B_600_120",
+    "BAND_LIMITED_A_600_170"
+  ],
+  "runtime": [
+    {
+      "configuration": "LINEAR_A_600_220",
+      "boundedQueuePassCount": 9,
+      "sessions": 9,
+      "pooledP95": 581.4200195312499
+    },
+    {
+      "configuration": "BAND_LIMITED_A_500_220",
+      "boundedQueuePassCount": 7,
+      "sessions": 9,
+      "pooledP95": 567
+    },
+    {
+      "configuration": "BAND_LIMITED_A_600_170",
+      "boundedQueuePassCount": 9,
+      "sessions": 9,
+      "pooledP95": 586.8000976562498
+    }
+  ],
+  "bandLimited": "Reference and chunk parity plus browser CPU measured; only frozen mono PCM streaming research path. AudioWorklet/device sample-clock drift and full microphone capture remain unqualified.",
+  "semanticHorizon": {
+    "strikeMs": 250,
+    "groupMs": "250 + within-group span",
+    "extraWorstBoundMs": 520,
+    "observedMaxExtraHorizonMs": 509.375
+  },
+  "baselineNaturalResidualCountEvaluation": 8,
+  "productionCapabilityExecutableGuard": {
+    "CONTINUOUS_PLAY": {
+      "supported": false,
+      "status": "CONTINUOUS_ANALYSIS_UNAVAILABLE",
+      "reason": "CONTINUOUS_ANALYSIS_UNAVAILABLE"
+    },
+    "STEP_BY_STEP": {
+      "supported": false,
+      "status": "STEP_ANALYSIS_UNAVAILABLE",
+      "reason": "STEP_ANALYSIS_UNAVAILABLE"
+    }
+  },
+  "preserved": {
+    "F5": "NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER",
+    "R4": "ROBUST_CADENCE_SUSTAINABLE; ROBUST_20_PERCENT_HEADROOM_FAIL; ROBUST_PRODUCT_LATENCY_READINESS=NOT_YET_QUALIFIED",
+    "phase9gB": "STATISTICAL_TIE",
+    "winner": null,
+    "viennaP15P22InferenceIncrease": 0,
+    "productionMicrophone": false,
+    "d4": false,
+    "productionWinner": null,
+    "practiceWebSocket": false,
+    "backendPracticeInference": false,
+    "serverAcousticInference": false,
+    "scoreFollowing": false
+  },
+  "productLatencySlo": "PRODUCT_LATENCY_SLO_NOT_YET_FROZEN",
+  "commercialQualificationStatus": "NOT_PERFORMED",
+  "recommendation": "Review closed-group WRONG preemption and bounded-policy assignment tradeoffs before any production-ledger migration. Prospectively capture independent-score natural timing cases; no such capture/optimization performed here."
+}

@@ -1,0 +1,67 @@
+{
+  "phase": "PHASE_9G_XC2_R1_BOUNDED_FINALIZATION_AND_RUNTIME_DECONFOUNDING",
+  "files": [
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_audio_and_fir_identity_2026-10-16.json",
+      "sha256": "825b4d9cea5f83e3c98ed37c1c2093e25473c937eb25b802f65fb8d05645cd4e"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_bounded_runtime_final_2026-10-16.json",
+      "sha256": "fa03b6429c542d6be9c79efce4501907bc936979c69f6e9cdcbb5d791510103e"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_bounded_runtime_summary_2026-10-16.md",
+      "sha256": "a65a5f2793516dd24fd3f6676d27cb88a147cb039ce4b5c0d44f88c1a9dbbd86"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_bounded_witness_manifest_2026-10-16.json",
+      "sha256": "317d956ea5c5542668d72f81aeb6f6aae54ab74b9a3e9a8632313c89b0e361a6"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_browser_streaming_resampler_parity_2026-10-16.json",
+      "sha256": "f10e602e605d0a13cedd8973a8fa4538115ccc90de93e8244181d752db507abc"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_causal_runtime_receipts_2026-10-16.json",
+      "sha256": "0cf6b7496d41e283c8565b68b38f129b6b223f70d1fe8d1bc6ad6ec993539c09"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_evidence_generation_receipt_2026-10-16.json",
+      "sha256": "e78096877186ddb3fde1653fe76ee9531f5dcd75c5a17486c6396f24a393f1ee"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_evidence_interpretation_2026-10-16.json",
+      "sha256": "e75fb26f9cc58e48053d7bc8fbabfc395ac0f65641d2cb93f6f427bb95b90099"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_existing_runtime_queue_decomposition_2026-10-16.json",
+      "sha256": "21a4f402aa4f6e73d62b3bfc588cd3fa85c951dec65afc6868959ea636f698f1"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_github_pre_evidence_2026-10-16.json",
+      "sha256": "837cdffa20f4fc45aab488720d739d4169852fe3ca41280c357ed069f68c3ebe"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_natural_residual_and_paired_latency_2026-10-16.json",
+      "sha256": "37a09c75b95a7291d116031e181b6a78935cb36a79757533898a17e36d2dbbcb"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_policy_freeze_2026-10-16.json",
+      "sha256": "6c390b986f5f54a8a4051595688057d6e8064d34a1418511ebff1dfbb241a328"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_post_run_asset_verification_2026-10-16.json",
+      "sha256": "e0732469da0a350263e311f1b9cb192c2ff2b6e2ee8d70094db52f69ca85a483"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_scope_and_execution_proof_2026-10-16.json",
+      "sha256": "a0ee52a6adb5de1e8e5cb22523a43782aa7db7855f78b8ef57324a4630a9c7cb"
+    },
+    {
+      "path": "backend/research/reports/phase9g_xc2_r1_test_execution_receipts_2026-10-16.json",
+      "sha256": "508a8d73b29e6e9d473f4f2c3dc8e90f1968feb2e30a30c0898d05f4c510bac2"
+    }
+  ],
+  "manifestSelfExcluded": true,
+  "interpretation": "Evidence only. Historical XC2 result unchanged. No production winner, D4, or microphone enablement."
+}

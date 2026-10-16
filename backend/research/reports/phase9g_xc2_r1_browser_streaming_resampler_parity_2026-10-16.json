@@ -1,0 +1,669 @@
+{
+  "phase": "PHASE_9G_XC2_R1_BOUNDED_FINALIZATION_AND_RUNTIME_DECONFOUNDING",
+  "freezeDigest": "b7198cd564f91186f37d648d2eb4ae7e001825a142a6e652cb2a687ba08b8854",
+  "browser": {
+    "channel": "chrome",
+    "version": "155.0.8059.39",
+    "headed": true,
+    "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "launchArgsIncludeUnsafeWebGpu": false,
+    "os": "win32 10.0.26200 x64",
+    "node": "v24.19.0",
+    "playwrightVersion": "1.48.2",
+    "playwrightRuntime": "C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\browser_runtime\\dr3r_browser_runtime\\node_modules\\playwright"
+  },
+  "tolerance": {
+    "maxAbs": 0.000003,
+    "rms": 5e-7,
+    "chunkVsSingleMaxAbs": 0,
+    "sampleCountExact": true,
+    "rationale": "Float32 FIR summation over at most56 contributing taps; tolerance covers accumulation order, not time shifting or gain fitting. Fixtures bounded to [-1,1]. Frozen before first parity comparison."
+  },
+  "fixtures": [
+    {
+      "id": "impulse_1",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 1,
+        "referenceSamples": 1,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.3630567193031311,
+        "lastSample": 0.3630567193031311
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 1,
+        "referenceSamples": 1,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.3630567193031311,
+        "lastSample": 0.3630567193031311
+      },
+      "cpuMs": {
+        "single": 0.20000004768371582,
+        "chunked": 0
+      }
+    },
+    {
+      "id": "noise_1",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 1,
+        "referenceSamples": 1,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": -0.20694570243358612,
+        "lastSample": -0.20694570243358612
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 1,
+        "referenceSamples": 1,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": -0.20694570243358612,
+        "lastSample": -0.20694570243358612
+      },
+      "cpuMs": {
+        "single": 0,
+        "chunked": 0.10000002384185791
+      }
+    },
+    {
+      "id": "sine_1",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 1,
+        "referenceSamples": 1,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0,
+        "lastSample": 0
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 1,
+        "referenceSamples": 1,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0,
+        "lastSample": 0
+      },
+      "cpuMs": {
+        "single": 0.10000002384185791,
+        "chunked": 0
+      }
+    },
+    {
+      "id": "impulse_2",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 1,
+        "referenceSamples": 1,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.2885468006134033,
+        "lastSample": 0.2885468006134033
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 1,
+        "referenceSamples": 1,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.2885468006134033,
+        "lastSample": 0.2885468006134033
+      },
+      "cpuMs": {
+        "single": 0.10000002384185791,
+        "chunked": 0
+      }
+    },
+    {
+      "id": "noise_2",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 1,
+        "referenceSamples": 1,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.24727129936218262,
+        "lastSample": 0.24727129936218262
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 1,
+        "referenceSamples": 1,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.24727129936218262,
+        "lastSample": 0.24727129936218262
+      },
+      "cpuMs": {
+        "single": 0.10000002384185791,
+        "chunked": 0
+      }
+    },
+    {
+      "id": "sine_2",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 1,
+        "referenceSamples": 1,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.040849920362234116,
+        "lastSample": 0.040849920362234116
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 1,
+        "referenceSamples": 1,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.040849920362234116,
+        "lastSample": 0.040849920362234116
+      },
+      "cpuMs": {
+        "single": 0,
+        "chunked": 0
+      }
+    },
+    {
+      "id": "impulse_27",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 10,
+        "referenceSamples": 10,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.011282959952950478,
+        "lastSample": 0.013675334863364697
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 10,
+        "referenceSamples": 10,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.011282959952950478,
+        "lastSample": 0.013675334863364697
+      },
+      "cpuMs": {
+        "single": 0,
+        "chunked": 0.09999990463256836
+      }
+    },
+    {
+      "id": "noise_27",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 10,
+        "referenceSamples": 10,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": -0.12667858600616455,
+        "lastSample": 0.23465299606323242
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 10,
+        "referenceSamples": 10,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": -0.12667858600616455,
+        "lastSample": 0.23465299606323242
+      },
+      "cpuMs": {
+        "single": 0.20000004768371582,
+        "chunked": 0
+      }
+    },
+    {
+      "id": "sine_27",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 10,
+        "referenceSamples": 10,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.03576432168483734,
+        "lastSample": -0.3873414099216461
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 10,
+        "referenceSamples": 10,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.03576432168483734,
+        "lastSample": -0.3873414099216461
+      },
+      "cpuMs": {
+        "single": 0,
+        "chunked": 0
+      }
+    },
+    {
+      "id": "impulse_28",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 11,
+        "referenceSamples": 11,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": -0.003041569609194994,
+        "lastSample": 0.0032681478187441826
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 11,
+        "referenceSamples": 11,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": -0.003041569609194994,
+        "lastSample": 0.0032681478187441826
+      },
+      "cpuMs": {
+        "single": 0,
+        "chunked": 0.09999990463256836
+      }
+    },
+    {
+      "id": "noise_28",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 11,
+        "referenceSamples": 11,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": -0.04620392248034477,
+        "lastSample": 0.2307252287864685
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 11,
+        "referenceSamples": 11,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": -0.04620392248034477,
+        "lastSample": 0.2307252287864685
+      },
+      "cpuMs": {
+        "single": 0,
+        "chunked": 0.10000002384185791
+      }
+    },
+    {
+      "id": "sine_28",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 11,
+        "referenceSamples": 11,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.03597448393702507,
+        "lastSample": -0.30319592356681824
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 11,
+        "referenceSamples": 11,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.03597448393702507,
+        "lastSample": -0.30319592356681824
+      },
+      "cpuMs": {
+        "single": 0,
+        "chunked": 0.10000002384185791
+      }
+    },
+    {
+      "id": "impulse_127",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 47,
+        "referenceSamples": 47,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0,
+        "lastSample": 0
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 47,
+        "referenceSamples": 47,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0,
+        "lastSample": 0
+      },
+      "cpuMs": {
+        "single": 0,
+        "chunked": 0
+      }
+    },
+    {
+      "id": "noise_127",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 47,
+        "referenceSamples": 47,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.3759058713912964,
+        "lastSample": 0.025896087288856506
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 47,
+        "referenceSamples": 47,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.3759058713912964,
+        "lastSample": 0.025896087288856506
+      },
+      "cpuMs": {
+        "single": 0,
+        "chunked": 0
+      }
+    },
+    {
+      "id": "sine_127",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 47,
+        "referenceSamples": 47,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.03597448393702507,
+        "lastSample": -0.3208387792110443
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 47,
+        "referenceSamples": 47,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.03597448393702507,
+        "lastSample": -0.3208387792110443
+      },
+      "cpuMs": {
+        "single": 0.10000002384185791,
+        "chunked": 0
+      }
+    },
+    {
+      "id": "impulse_441",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 160,
+        "referenceSamples": 160,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0,
+        "lastSample": 0
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 160,
+        "referenceSamples": 160,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0,
+        "lastSample": 0
+      },
+      "cpuMs": {
+        "single": 0.10000002384185791,
+        "chunked": 0
+      }
+    },
+    {
+      "id": "noise_441",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 160,
+        "referenceSamples": 160,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": -0.0786743015050888,
+        "lastSample": 0.4037937521934509
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 160,
+        "referenceSamples": 160,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": -0.0786743015050888,
+        "lastSample": 0.4037937521934509
+      },
+      "cpuMs": {
+        "single": 0,
+        "chunked": 0.10000002384185791
+      }
+    },
+    {
+      "id": "sine_441",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 160,
+        "referenceSamples": 160,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.03597448393702507,
+        "lastSample": -0.5584893822669983
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 160,
+        "referenceSamples": 160,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.03597448393702507,
+        "lastSample": -0.5584893822669983
+      },
+      "cpuMs": {
+        "single": 0.09999990463256836,
+        "chunked": 0
+      }
+    },
+    {
+      "id": "impulse_1001",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 364,
+        "referenceSamples": 364,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0,
+        "lastSample": 0
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 364,
+        "referenceSamples": 364,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0,
+        "lastSample": 0
+      },
+      "cpuMs": {
+        "single": 0.5,
+        "chunked": 0.10000002384185791
+      }
+    },
+    {
+      "id": "noise_1001",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 364,
+        "referenceSamples": 364,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.10004939883947372,
+        "lastSample": 0.011064566671848297
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 364,
+        "referenceSamples": 364,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.10004939883947372,
+        "lastSample": 0.011064566671848297
+      },
+      "cpuMs": {
+        "single": 0,
+        "chunked": 0.20000004768371582
+      }
+    },
+    {
+      "id": "sine_1001",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 364,
+        "referenceSamples": 364,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.03597448393702507,
+        "lastSample": -0.3054838180541992
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 364,
+        "referenceSamples": 364,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.03597448393702507,
+        "lastSample": -0.3054838180541992
+      },
+      "cpuMs": {
+        "single": 0.10000002384185791,
+        "chunked": 0.10000002384185791
+      }
+    },
+    {
+      "id": "impulse_44100",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 16000,
+        "referenceSamples": 16000,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0,
+        "lastSample": 0
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 16000,
+        "referenceSamples": 16000,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0,
+        "lastSample": 0
+      },
+      "cpuMs": {
+        "single": 3.8000000715255737,
+        "chunked": 3.6999999284744263
+      }
+    },
+    {
+      "id": "noise_44100",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 16000,
+        "referenceSamples": 16000,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": -0.09812036156654358,
+        "lastSample": -0.07103188335895538
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 16000,
+        "referenceSamples": 16000,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": -0.09812036156654358,
+        "lastSample": -0.07103188335895538
+      },
+      "cpuMs": {
+        "single": 3.899999976158142,
+        "chunked": 3.6999999284744263
+      }
+    },
+    {
+      "id": "sine_44100",
+      "vsScipy": {
+        "countIdentity": true,
+        "outputSamples": 16000,
+        "referenceSamples": 16000,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.03597448393702507,
+        "lastSample": -0.3773432970046997
+      },
+      "continuousChunkVsSingle": {
+        "countIdentity": true,
+        "outputSamples": 16000,
+        "referenceSamples": 16000,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.03597448393702507,
+        "lastSample": -0.3773432970046997
+      },
+      "cpuMs": {
+        "single": 3.700000047683716,
+        "chunked": 3.600000023841858
+      }
+    }
+  ],
+  "clips": [
+    {
+      "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "vsExistingXc2BandPcm": {
+        "countIdentity": true,
+        "outputSamples": 448000,
+        "referenceSamples": 448000,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": -0.024631142616271973,
+        "lastSample": -0.01258629746735096
+      },
+      "cpuMs": 103.79999995231628
+    },
+    {
+      "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+      "vsExistingXc2BandPcm": {
+        "countIdentity": true,
+        "outputSamples": 448000,
+        "referenceSamples": 448000,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.005495409481227398,
+        "lastSample": 0.00023697126016486436
+      },
+      "cpuMs": 109
+    },
+    {
+      "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "vsExistingXc2BandPcm": {
+        "countIdentity": true,
+        "outputSamples": 448000,
+        "referenceSamples": 448000,
+        "maxAbs": 0,
+        "rms": 0,
+        "firstSample": 0.020779157057404518,
+        "lastSample": -0.03196192905306816
+      },
+      "cpuMs": 105.29999995231628
+    }
+  ],
+  "pass": true,
+  "classification": "BAND_LIMITED_BROWSER_REFERENCE_PARITY_PASS_RUNTIME_PENDING",
+  "timingCoordinateIdentity": "output sample m represents source m*441/160; zero-phase compensation requires up to 28 real source samples of lookahead, 0.6349206349ms; no shift fitted to audio or predictions.",
+  "limits": "Pinned FIR/rational-rate PCM path only; no AudioWorklet/device capture or UI qualification."
+}

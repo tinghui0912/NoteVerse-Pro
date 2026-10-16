@@ -1,0 +1,450 @@
+{
+  "phase": "PHASE_9G_XC2_R1_BOUNDED_FINALIZATION_AND_RUNTIME_DECONFOUNDING",
+  "freezeDigest": "b7198cd564f91186f37d648d2eb4ae7e001825a142a6e652cb2a687ba08b8854",
+  "generatorSource": "\nimport { readFile, writeFile } from 'node:fs/promises';\nimport { gzipSync } from 'node:zlib';\nimport { load,ROOT,OLD_ROOT,PHASE } from './backend/research/browser_runtime/xc2_r1_diagnose.mjs';\nimport { boundedReplay } from './backend/research/browser_runtime/xc2_r1_replay.mjs';\nimport { atomicJson,fileSha,digest } from './backend/research/browser_runtime/xc1_artifacts.mjs';\nconst freeze=await load('backend/research/reports/phase9g_xc2_r1_policy_freeze_2026-10-16.json');\nfor(const s of freeze.sources)if(await fileSha(s.path)!==s.sha256)throw Error('SOURCE_DRIFT');\nconst configs=(await load('backend/research/reports/phase9g_xc2_product_verdict_latency_final_2026-10-16.json')).ort120Main.candidates;\nconst rows=[];\nfor(const split of ['DEVELOPMENT','EVALUATION']){\n const truth=await load(OLD_ROOT+'/'+split.toLowerCase()+'_benchmark.json');\n for(const c of configs){\n  const verdicts=[];let maxExtraHorizon=0;\n  for(const clip of truth.clips){\n   const raw=await load(OLD_ROOT+'/raw/'+split+'_'+c.resampler+'_'+c.ownedMs+'_'+c.futureMs+'_1.20.1/'+clip.clipId+'.json');\n   for(const scenario of clip.scenarios){\n    const r=boundedReplay(scenario,raw.publications[c.decoder]);\n    for(const v of r.verdicts){verdicts.push({scenarioId:scenario.id,clipId:clip.clipId,...v});if(v.verdict==='EXTRA')maxExtraHorizon=Math.max(maxExtraHorizon,v.witness.requiredAnalysisFrontierMs-v.performanceTimeMs);}\n   }\n  }\n  const p=ROOT+'/replay/'+split+'_'+c.id+'_witnesses.json.gz';\n  await writeFile(p,gzipSync(Buffer.from(JSON.stringify(verdicts))),{flag:'wx'});\n  rows.push({split,id:c.id,path:p,sha256:await fileSha(p),verdictCount:verdicts.length,maxExtraDirectHorizonMs:maxExtraHorizon,allWitnessesVerifiedByFrozenBoundedReplay:true,groupHorizonNonlocalViolations:0});\n  console.log(split,c.id,verdicts.length);\n }\n}\nawait atomicJson(ROOT+'/bounded_witness_manifest.json',{phase:PHASE,freezeDigest:digest(freeze),generatorSource:process._eval,generatorSourceSha256:digest(process._eval),rows,totalVerdicts:rows.reduce((n,r)=>n+r.verdictCount,0),proof:'Frozen boundedReplay checks each verdict against the first publication covering its exact local required frontier, with explicit terminal clamping; all returned witnesses persisted in lossless gzip JSON.'});\n",
+  "generatorSourceSha256": "ab04886be4b8922d1fb1dcc072a70f087075efb2c9748e95afa1559d249dd8c9",
+  "rows": [
+    {
+      "split": "DEVELOPMENT",
+      "id": "LINEAR_A_600_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_LINEAR_A_600_220_witnesses.json.gz",
+      "sha256": "6f7a12fabab7a977eb4539113aea49965a215311d1254436cd0a8a41372968ff",
+      "verdictCount": 34530,
+      "maxExtraDirectHorizonMs": 488.74999999999955,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "LINEAR_A_320_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_LINEAR_A_320_120_witnesses.json.gz",
+      "sha256": "65278081cb94c19a4cf030a116cd48d120d66597314b52277806149c6061e0c3",
+      "verdictCount": 34710,
+      "maxExtraDirectHorizonMs": 491.45833333333576,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "LINEAR_A_320_170",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_LINEAR_A_320_170_witnesses.json.gz",
+      "sha256": "3d208b2fe0eb323e244d1a9c1f3ce29b191c752d2ae37a314eeb39d56a0f299e",
+      "verdictCount": 34586,
+      "maxExtraDirectHorizonMs": 491.45833333333576,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "LINEAR_A_320_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_LINEAR_A_320_220_witnesses.json.gz",
+      "sha256": "1c1e7f554d4ab36e082ab5ba997f42d8c35f3e8ba5d71252265072416efa47b6",
+      "verdictCount": 34586,
+      "maxExtraDirectHorizonMs": 491.45833333333576,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "LINEAR_A_400_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_LINEAR_A_400_120_witnesses.json.gz",
+      "sha256": "cdf41759e39db7016985912ca01fbd77b61512a29cfbcb1b30e3951818f03eb8",
+      "verdictCount": 34591,
+      "maxExtraDirectHorizonMs": 491.45833333333576,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "LINEAR_A_400_170",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_LINEAR_A_400_170_witnesses.json.gz",
+      "sha256": "92c4708d73e4f04edee2a524542494cf9bee7c4ebd4f859421e668ee279bdb3b",
+      "verdictCount": 34653,
+      "maxExtraDirectHorizonMs": 491.45833333333576,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "LINEAR_A_600_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_LINEAR_A_600_120_witnesses.json.gz",
+      "sha256": "ecdb388f230b7f1a97fb27585a45153d633f77808dc2769ce01b76d2bfaf4061",
+      "verdictCount": 34709,
+      "maxExtraDirectHorizonMs": 491.45833333333576,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "LINEAR_A_600_170",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_LINEAR_A_600_170_witnesses.json.gz",
+      "sha256": "4ffcc74299240a43f9bc2da6ed9d5931650a5417f16b632c571a6f07d746c5fe",
+      "verdictCount": 34710,
+      "maxExtraDirectHorizonMs": 491.45833333333576,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "BAND_LIMITED_A_320_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_A_320_120_witnesses.json.gz",
+      "sha256": "6cd5404bc8970dce8063eaedca401daa293561d59491b3ffce0a11f07e53df58",
+      "verdictCount": 34710,
+      "maxExtraDirectHorizonMs": 491.45833333333576,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "BAND_LIMITED_B_320_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_B_320_120_witnesses.json.gz",
+      "sha256": "fd97d5fe8d7324514cbec8c490f34368e375f7162b3e35b091041191bd692a59",
+      "verdictCount": 34766,
+      "maxExtraDirectHorizonMs": 488.3462058504447,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "BAND_LIMITED_A_400_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_A_400_220_witnesses.json.gz",
+      "sha256": "d6476208d449a1750ba42d3363c76fb0ab06325c0c931815275ff4d558aba292",
+      "verdictCount": 34528,
+      "maxExtraDirectHorizonMs": 491.45833333333576,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "BAND_LIMITED_B_400_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_B_400_220_witnesses.json.gz",
+      "sha256": "5d7e4d16f769efc538ef1f7d672826397debfea25a08fbcfbf889c54f2710099",
+      "verdictCount": 34836,
+      "maxExtraDirectHorizonMs": 488.4464012583121,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "BAND_LIMITED_B_500_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_B_500_120_witnesses.json.gz",
+      "sha256": "344d6c018f433170be3f5a0368d2c1c9a2c792bc797454243bfd43f5db6e94b5",
+      "verdictCount": 34771,
+      "maxExtraDirectHorizonMs": 489.1511272390708,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "BAND_LIMITED_A_500_170",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_A_500_170_witnesses.json.gz",
+      "sha256": "67490ad38dc44e62c94c1118c8eaa86b3d527860dbf7064a9d2c282b949ec9e1",
+      "verdictCount": 34828,
+      "maxExtraDirectHorizonMs": 491.45833333333576,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "BAND_LIMITED_B_500_170",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_B_500_170_witnesses.json.gz",
+      "sha256": "59c7b3dfd168117f5bfd9c138ecad74ba4e4b0960cae6b768f3d567342b5a6fd",
+      "verdictCount": 34830,
+      "maxExtraDirectHorizonMs": 489.7398736079558,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "BAND_LIMITED_A_500_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_A_500_220_witnesses.json.gz",
+      "sha256": "d58c0e0618c8b28578cf4b0c0b90583bc98b5d831947352a2e768c7c21399a50",
+      "verdictCount": 34654,
+      "maxExtraDirectHorizonMs": 491.45833333333576,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "BAND_LIMITED_B_500_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_B_500_220_witnesses.json.gz",
+      "sha256": "809c671833e82c49dd2794fa44058bbdb21153b711236244ddf48a5caaa88fbe",
+      "verdictCount": 34777,
+      "maxExtraDirectHorizonMs": 489.7738107045516,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "BAND_LIMITED_A_600_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_A_600_120_witnesses.json.gz",
+      "sha256": "490f499d7ad9fdb9f988c879b8d678a7eb87c79878942090ad08fa7f4d97b21b",
+      "verdictCount": 34709,
+      "maxExtraDirectHorizonMs": 491.45833333333576,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "BAND_LIMITED_B_600_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_B_600_120_witnesses.json.gz",
+      "sha256": "6bd123dbae263dc727389fec3d1bdc95e65be45b1c3801cd2aae0df3886506dd",
+      "verdictCount": 34707,
+      "maxExtraDirectHorizonMs": 489.1511272390708,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "BAND_LIMITED_A_600_170",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_A_600_170_witnesses.json.gz",
+      "sha256": "f6b8d2d9359fea712994e62ebf481158f11424aeb63b7dc40dec01dfe8259a76",
+      "verdictCount": 34709,
+      "maxExtraDirectHorizonMs": 491.45833333333576,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "BAND_LIMITED_A_600_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_A_600_220_witnesses.json.gz",
+      "sha256": "637bdb7c50af3654134e2d15196c321df4ddaef32114a18ff30e316f3a37c917",
+      "verdictCount": 34652,
+      "maxExtraDirectHorizonMs": 491.45833333333576,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "DEVELOPMENT",
+      "id": "BAND_LIMITED_B_600_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/DEVELOPMENT_BAND_LIMITED_B_600_220_witnesses.json.gz",
+      "sha256": "e88c7f4a595943cbff2f469908131a842bf460fef949a28a6f4f78f64d4d39e4",
+      "verdictCount": 34837,
+      "maxExtraDirectHorizonMs": 489.7738107045516,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "LINEAR_A_600_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_LINEAR_A_600_220_witnesses.json.gz",
+      "sha256": "ed2143093e1d033c04670163446efafcd1d09afa23893cda1feb1087c6468152",
+      "verdictCount": 43792,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "LINEAR_A_320_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_LINEAR_A_320_120_witnesses.json.gz",
+      "sha256": "e92d3d5b14fd8bad94e32b4b9346447653e6f43b03dd3a9af299e3addcee075a",
+      "verdictCount": 43788,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "LINEAR_A_320_170",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_LINEAR_A_320_170_witnesses.json.gz",
+      "sha256": "d8dd37cc0b388c7e6a49ad5a6ddf2901018232a630cd791cb8fd831291ce429c",
+      "verdictCount": 43856,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "LINEAR_A_320_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_LINEAR_A_320_220_witnesses.json.gz",
+      "sha256": "e403beb4287da9f032b7ab99332cdfe152c06c40502719c8d685567614081cf9",
+      "verdictCount": 43852,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "LINEAR_A_400_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_LINEAR_A_400_120_witnesses.json.gz",
+      "sha256": "6c081c4a9c7388881051ba23d2f78ca6c60a087469b4da2cc21510e9a6486811",
+      "verdictCount": 43847,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "LINEAR_A_400_170",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_LINEAR_A_400_170_witnesses.json.gz",
+      "sha256": "b928812465d3885364d489ffac04fa58b251fe9ae216505cec115014c0a8cdfa",
+      "verdictCount": 43732,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "LINEAR_A_600_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_LINEAR_A_600_120_witnesses.json.gz",
+      "sha256": "f6cd63a33896508df35e251d22d73994c241208a90e665652f5ea3a1535d97ef",
+      "verdictCount": 43783,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "LINEAR_A_600_170",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_LINEAR_A_600_170_witnesses.json.gz",
+      "sha256": "723477f46ae9ec52e5fcd53001c870d39023d41183a6d9233787bb1ed3cf7d12",
+      "verdictCount": 43732,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "BAND_LIMITED_A_320_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_A_320_120_witnesses.json.gz",
+      "sha256": "3737ce67698ef368e84c60005092d3d1872bb5f6d26f4944feee2728b1f23747",
+      "verdictCount": 43788,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "BAND_LIMITED_B_320_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_B_320_120_witnesses.json.gz",
+      "sha256": "15be8c96973905fc717f3a00d2fc4c731e18fb75f4a1d7e57d57864885cbeab7",
+      "verdictCount": 43792,
+      "maxExtraDirectHorizonMs": 507.238496343256,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "BAND_LIMITED_A_400_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_A_400_220_witnesses.json.gz",
+      "sha256": "67705e13d7be36aa52832218e95869ded1e51f36c160b1df6825773a461d5af2",
+      "verdictCount": 43792,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "BAND_LIMITED_B_400_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_B_400_220_witnesses.json.gz",
+      "sha256": "03241b83627d73b0dea0edba6954663e69cb01cb39427257bd94a881eec646b0",
+      "verdictCount": 44022,
+      "maxExtraDirectHorizonMs": 507.50609467423055,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "BAND_LIMITED_B_500_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_B_500_120_witnesses.json.gz",
+      "sha256": "40794af3fe4f84d174824715dbf432075f3654d75b5ef241ee3d011dae8e58c6",
+      "verdictCount": 44036,
+      "maxExtraDirectHorizonMs": 507.4651030699024,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "BAND_LIMITED_A_500_170",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_A_500_170_witnesses.json.gz",
+      "sha256": "d820df9aadb573cfc15289c0565f8b77243891df78a5ac84aac81612688c6874",
+      "verdictCount": 43668,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "BAND_LIMITED_B_500_170",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_B_500_170_witnesses.json.gz",
+      "sha256": "d9dfee6e6c5fe6769f1bc49e4f44ff4a41e45184f4bcc4803b5c63edd0cefe42",
+      "verdictCount": 44027,
+      "maxExtraDirectHorizonMs": 508.19520662224386,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "BAND_LIMITED_A_500_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_A_500_220_witnesses.json.gz",
+      "sha256": "9b1eade386b47bd642c2f0d13ab2e8192facd0cb77ca878ac1fe21bbb7438527",
+      "verdictCount": 43608,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "BAND_LIMITED_B_500_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_B_500_220_witnesses.json.gz",
+      "sha256": "5319252c721e6ae206a627481bdc278c2dd725cb24dc95917a13eac094c261b7",
+      "verdictCount": 43984,
+      "maxExtraDirectHorizonMs": 507.0784584680805,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "BAND_LIMITED_A_600_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_A_600_120_witnesses.json.gz",
+      "sha256": "9fc5c2024a179c82ebe8d6c9dc94e4f625010544bb55893813d11f2bbe8328b9",
+      "verdictCount": 43843,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "BAND_LIMITED_B_600_120",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_B_600_120_witnesses.json.gz",
+      "sha256": "c03a2e073358ffb827179d6c6fca9de12c459bf9ad0a501b13bcca8e09238672",
+      "verdictCount": 44027,
+      "maxExtraDirectHorizonMs": 507.6959244409809,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "BAND_LIMITED_A_600_170",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_A_600_170_witnesses.json.gz",
+      "sha256": "c2f1f9875dbb3ec4af2342b443a15ebd5cd19a80e04fc579cf1b0cc4ed3002c8",
+      "verdictCount": 43732,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "BAND_LIMITED_A_600_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_A_600_220_witnesses.json.gz",
+      "sha256": "a522fcfe69124a020f449e6f31c07765cd401d6268225548da3a2170ff151648",
+      "verdictCount": 43852,
+      "maxExtraDirectHorizonMs": 509.375,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    },
+    {
+      "split": "EVALUATION",
+      "id": "BAND_LIMITED_B_600_220",
+      "path": "backend/data/work/xc2_r1_bounded_runtime/replay/EVALUATION_BAND_LIMITED_B_600_220_witnesses.json.gz",
+      "sha256": "05780862cc10fb8abd9f85d6a5b394e3c4b497301b0b6a4a485ff36753d1251c",
+      "verdictCount": 44092,
+      "maxExtraDirectHorizonMs": 508.02201877033804,
+      "allWitnessesVerifiedByFrozenBoundedReplay": true,
+      "groupHorizonNonlocalViolations": 0
+    }
+  ],
+  "totalVerdicts": 1728034,
+  "proof": "Frozen boundedReplay checks each verdict against the first publication covering its exact local required frontier, with explicit terminal clamping; all returned witnesses persisted in lossless gzip JSON."
+}

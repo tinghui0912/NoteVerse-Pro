@@ -1,0 +1,456 @@
+{
+  "coefficients": {
+    "bytes": 35284,
+    "path": "backend/data/work/xc2_r1_bounded_runtime/audio_only/fir_160_441.f32",
+    "sha256": "d54df355dba1e60395e165f0a44a3d016e25632af639be767c861e1bfd61e620"
+  },
+  "fixtures": [
+    {
+      "id": "impulse_1",
+      "reference": {
+        "bytes": 4,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_1_out.f32",
+        "sha256": "388c187e1fdbda53988141e1d074f5b77a01f54f2f9e703a4619ede33bae58c8"
+      },
+      "source": {
+        "bytes": 4,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_1_in.f32",
+        "sha256": "e00e5eb9444182f352323374ef4e08ebcb784725fdd4fd612d7730540b3e0c8c"
+      }
+    },
+    {
+      "id": "noise_1",
+      "reference": {
+        "bytes": 4,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_1_out.f32",
+        "sha256": "8c294a5329794f9c21adbfeccf4f48badf85cb4ccd02dfe46be4438358a34656"
+      },
+      "source": {
+        "bytes": 4,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_1_in.f32",
+        "sha256": "2dfaa2f31120aaf770e43fdd6409a1a8a26d777bc63c588585f64263dc60d67b"
+      }
+    },
+    {
+      "id": "sine_1",
+      "reference": {
+        "bytes": 4,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_1_out.f32",
+        "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+      },
+      "source": {
+        "bytes": 4,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_1_in.f32",
+        "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+      }
+    },
+    {
+      "id": "impulse_2",
+      "reference": {
+        "bytes": 4,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_2_out.f32",
+        "sha256": "8e8f1c872bef1454b79f80173b99f3972337c6189859444433db216ecacf6143"
+      },
+      "source": {
+        "bytes": 8,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_2_in.f32",
+        "sha256": "22b6f43bd8d27738d3213f29e96b62d01d9d6c0ab4f9732aaae803186f51eab7"
+      }
+    },
+    {
+      "id": "noise_2",
+      "reference": {
+        "bytes": 4,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_2_out.f32",
+        "sha256": "debbfcd01b0eb65d5b1847a87e6ca737c2ed325c1dd83f7f338b3eca6eb42143"
+      },
+      "source": {
+        "bytes": 8,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_2_in.f32",
+        "sha256": "4480c14aa884db74f28c15fa082c5d9092f242258ad404d7beb1b94f20877dba"
+      }
+    },
+    {
+      "id": "sine_2",
+      "reference": {
+        "bytes": 4,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_2_out.f32",
+        "sha256": "eeeccc0cf91469d1e5d734968bd5b2593532cc741785a33f37d4d6dbfbf246b4"
+      },
+      "source": {
+        "bytes": 8,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_2_in.f32",
+        "sha256": "fd42f1b03e4760396337a59d49fa7da45009a70b6c6d4870369b00611d29c4b9"
+      }
+    },
+    {
+      "id": "impulse_27",
+      "reference": {
+        "bytes": 40,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_27_out.f32",
+        "sha256": "8a459bd4984608a23325c3d25c28060bb27bb83f6867251028627ab3d4edebe4"
+      },
+      "source": {
+        "bytes": 108,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_27_in.f32",
+        "sha256": "1d44a56e08cd0422b6804743c8640221a89ba2037460907d8d31c51722567b4b"
+      }
+    },
+    {
+      "id": "noise_27",
+      "reference": {
+        "bytes": 40,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_27_out.f32",
+        "sha256": "7c250f3b6a36e6f7c1a468d68045a80359878c6d817e4299e81e09062fbf17ec"
+      },
+      "source": {
+        "bytes": 108,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_27_in.f32",
+        "sha256": "57bd9c97b3fd7fa5637fef3459836791045f73c482a47076d478abe20f2682a2"
+      }
+    },
+    {
+      "id": "sine_27",
+      "reference": {
+        "bytes": 40,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_27_out.f32",
+        "sha256": "f9b0f3206d58ede7b71b2da0aad2348a04208665313118c4e088c8b878ed78f9"
+      },
+      "source": {
+        "bytes": 108,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_27_in.f32",
+        "sha256": "b4aa232f2202eda247c7780a04bd5553472887f68ce21d30dd7fca7964abc8bc"
+      }
+    },
+    {
+      "id": "impulse_28",
+      "reference": {
+        "bytes": 44,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_28_out.f32",
+        "sha256": "db697de2c10cb8b14dcd262b47193fa432b96b528bb6c4a2a1ba05ad7bd52a7f"
+      },
+      "source": {
+        "bytes": 112,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_28_in.f32",
+        "sha256": "3c6e01b03fd8dbb194328a2b27e12a59892fd2e5dc369ab73bf72f028e71cf18"
+      }
+    },
+    {
+      "id": "noise_28",
+      "reference": {
+        "bytes": 44,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_28_out.f32",
+        "sha256": "c8291951ed83593cb8fb17055f52250c7b0e6c2ef79699c5221771fe98a184be"
+      },
+      "source": {
+        "bytes": 112,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_28_in.f32",
+        "sha256": "216a01d7c8f989672ecd16c2f743133014a160b50908fe8e8ce64d88a9d6bc91"
+      }
+    },
+    {
+      "id": "sine_28",
+      "reference": {
+        "bytes": 44,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_28_out.f32",
+        "sha256": "15a5123a771299b3c49c6008d986974fd6e89bb2767b08fc4563bae8cd34e494"
+      },
+      "source": {
+        "bytes": 112,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_28_in.f32",
+        "sha256": "161402e6d85089dbaea67e5d288f9aeff8d1baf3994af56fda062224ae9fa082"
+      }
+    },
+    {
+      "id": "impulse_127",
+      "reference": {
+        "bytes": 188,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_127_out.f32",
+        "sha256": "e985d0f4af049d275f9b7fbacb12d44efa1ddb3bffbfcb3064a0ef82da8d45c8"
+      },
+      "source": {
+        "bytes": 508,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_127_in.f32",
+        "sha256": "52a23aa2aceef0bdbbd7d6cd5e114aec4ef94068ffb0b9567ec87b60bde108bd"
+      }
+    },
+    {
+      "id": "noise_127",
+      "reference": {
+        "bytes": 188,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_127_out.f32",
+        "sha256": "68d6942b8a8a6710f4e77aa64a03c479ed939386aa203d0f7fab63fa2cb79ad9"
+      },
+      "source": {
+        "bytes": 508,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_127_in.f32",
+        "sha256": "f937f85c7f567859d560b07a28c00bc3db18949c339b678c395b3908652947c2"
+      }
+    },
+    {
+      "id": "sine_127",
+      "reference": {
+        "bytes": 188,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_127_out.f32",
+        "sha256": "21a9a7d59ff04fad7420785b05537af8a3c47a97a190b7319b085080a151be8e"
+      },
+      "source": {
+        "bytes": 508,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_127_in.f32",
+        "sha256": "5f736f6b71ba91e02be9049b3f40249498fb61c99c5a72d4b33e743b6ac0336e"
+      }
+    },
+    {
+      "id": "impulse_441",
+      "reference": {
+        "bytes": 640,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_441_out.f32",
+        "sha256": "36090e5b3a8f372724207dfaede62def936e07b87d798592fc45ffbb96a2e8f1"
+      },
+      "source": {
+        "bytes": 1764,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_441_in.f32",
+        "sha256": "77f9a8fa738bbd557447ecad285550ca208517b61e57a7e8054b5186fc5edf4d"
+      }
+    },
+    {
+      "id": "noise_441",
+      "reference": {
+        "bytes": 640,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_441_out.f32",
+        "sha256": "9de41e0a9d68be1b014b3e8038b03df8f2030ad376e18aecf51acd1619b038b5"
+      },
+      "source": {
+        "bytes": 1764,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_441_in.f32",
+        "sha256": "ba707d2ae27e6f5e3e75a8b0de0b893363644547bc71bb10639183576e7b0bea"
+      }
+    },
+    {
+      "id": "sine_441",
+      "reference": {
+        "bytes": 640,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_441_out.f32",
+        "sha256": "1e54e43d72d9243306cadc95aa5df1394d33cc53168912ad15e19d4d57472b09"
+      },
+      "source": {
+        "bytes": 1764,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_441_in.f32",
+        "sha256": "ca2f828fa7e70a470c34e3200670fbd620b1e4230073a90c0e471e59b91f9913"
+      }
+    },
+    {
+      "id": "impulse_1001",
+      "reference": {
+        "bytes": 1456,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_1001_out.f32",
+        "sha256": "3af96af6ea875fe3c0c205178a9d9fc9366f7863e75a6f67faa6522e96ecf72b"
+      },
+      "source": {
+        "bytes": 4004,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_1001_in.f32",
+        "sha256": "0cbfd81cce963a2a304d51e06b27bde73ff21d899adaeb7ff8437d6eb39852c2"
+      }
+    },
+    {
+      "id": "noise_1001",
+      "reference": {
+        "bytes": 1456,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_1001_out.f32",
+        "sha256": "5678875563cbdf3a47580f325026601a8ae0eca18193be4a06439d5cb4501d19"
+      },
+      "source": {
+        "bytes": 4004,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_1001_in.f32",
+        "sha256": "f6d2a4d887109133afcc71c027e2e700b3c3c0e40f7a47a0ef3f6790f316e077"
+      }
+    },
+    {
+      "id": "sine_1001",
+      "reference": {
+        "bytes": 1456,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_1001_out.f32",
+        "sha256": "80c8e27c10774109ef540a08579ce0e7814ebffaed53f68c89d6e6f4ee7306ab"
+      },
+      "source": {
+        "bytes": 4004,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_1001_in.f32",
+        "sha256": "50a4e929379fac5f61a82d7d31f62eb3edc3d917f6e46b9c3cd0becbdd52a9ae"
+      }
+    },
+    {
+      "id": "impulse_44100",
+      "reference": {
+        "bytes": 64000,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_44100_out.f32",
+        "sha256": "f43e80e9e75224a0a6b45b89433fe2381257984d22fd3a149e25ccc0f0108048"
+      },
+      "source": {
+        "bytes": 176400,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/impulse_44100_in.f32",
+        "sha256": "fd244792bede7958b7de06b7809755aeaf4fd6b3ff65c85ed6a36db3db73ba88"
+      }
+    },
+    {
+      "id": "noise_44100",
+      "reference": {
+        "bytes": 64000,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_44100_out.f32",
+        "sha256": "08e4718e4b69d027eb89dde405d1e765222fd3000bf2ade2908804899035b5e4"
+      },
+      "source": {
+        "bytes": 176400,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/noise_44100_in.f32",
+        "sha256": "5d39de195e8b952aa63b5baf64e36bbb11a2e88e0cc6e57d072450d9f3a13f52"
+      }
+    },
+    {
+      "id": "sine_44100",
+      "reference": {
+        "bytes": 64000,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_44100_out.f32",
+        "sha256": "2907968c14c90357c32b12691bcaac252ed704fad86b5998afeac2d1d4de2c10"
+      },
+      "source": {
+        "bytes": 176400,
+        "path": "backend/data/work/xc2_r1_bounded_runtime/fixtures/sine_44100_in.f32",
+        "sha256": "664bbc336944ff2de1dd0083e5f7aa18a36f6b80e51b7db39c5b1d921e1ef9bf"
+      }
+    }
+  ],
+  "midiOpened": false,
+  "modelInference": false,
+  "numpy": "1.26.4",
+  "runtimeClips": [
+    {
+      "clip": {
+        "clipId": "xc2_00_chopin_op026no1_003_20100611-smd",
+        "durationMs": 28000,
+        "pcm": {
+          "BAND_LIMITED": {
+            "bytes": 1792000,
+            "dtype": "float32-le",
+            "path": "backend/data/work/xc2_robust_product_baseline_v1/audio_only/xc2_00_chopin_op026no1_003_20100611-smd_BAND_LIMITED.f32",
+            "peakAbs": 0.5057482123374939,
+            "sampleRateHz": 16000,
+            "samples": 448000,
+            "samplesOverUnitMagnitude": 0,
+            "sha256": "a74a02e6f132dbbad4c93cc71a857941ca62c87b715445cbfa082e5c5ff3542c"
+          },
+          "LINEAR": {
+            "bytes": 1792000,
+            "dtype": "float32-le",
+            "path": "backend/data/work/xc2_robust_product_baseline_v1/audio_only/xc2_00_chopin_op026no1_003_20100611-smd_LINEAR.f32",
+            "peakAbs": 0.5038275718688965,
+            "sampleRateHz": 16000,
+            "samples": 448000,
+            "samplesOverUnitMagnitude": 0,
+            "sha256": "aa15b3939fc0c466a4f6008ed5bc53bedaf3609f338b77ab22fc01a501a38d91"
+          }
+        },
+        "sourceStartSeconds": 217,
+        "sourceWavSha256": "ef3f57c97d7edc1ee9a73e89f1d1bdc767c3cec79a3fe2d2e0a64b2aa5650b6c",
+        "split": "DEVELOPMENT",
+        "takeId": "chopin_op026no1_003_20100611-smd",
+        "workId": "chopin_op026no1",
+        "workSelectionGroup": "chopin_op026no1"
+      },
+      "guardedSource": {
+        "bytes": 5292000,
+        "clipOffsetSamples": 44100,
+        "dtype": "float32-le",
+        "path": "backend/data/work/xc2_r1_bounded_runtime/audio_only/xc2_00_chopin_op026no1_003_20100611-smd_guarded_44100.f32",
+        "sampleRateHz": 44100,
+        "samples": 1323000,
+        "sha256": "8c37831ea42e076cd6a3de7ba6a9d4890b90d460c135091185ee2ea4e5c11cf7"
+      }
+    },
+    {
+      "clip": {
+        "clipId": "xc2_01_mozart_kv398_002_20110315-smd",
+        "durationMs": 28000,
+        "pcm": {
+          "BAND_LIMITED": {
+            "bytes": 1792000,
+            "dtype": "float32-le",
+            "path": "backend/data/work/xc2_robust_product_baseline_v1/audio_only/xc2_01_mozart_kv398_002_20110315-smd_BAND_LIMITED.f32",
+            "peakAbs": 0.17960353195667267,
+            "sampleRateHz": 16000,
+            "samples": 448000,
+            "samplesOverUnitMagnitude": 0,
+            "sha256": "57dc70f739525dc5d89fc2c686949423c4de3e3b88440ee868891f1bebac9d30"
+          },
+          "LINEAR": {
+            "bytes": 1792000,
+            "dtype": "float32-le",
+            "path": "backend/data/work/xc2_robust_product_baseline_v1/audio_only/xc2_01_mozart_kv398_002_20110315-smd_LINEAR.f32",
+            "peakAbs": 0.17935428023338318,
+            "sampleRateHz": 16000,
+            "samples": 448000,
+            "samplesOverUnitMagnitude": 0,
+            "sha256": "e41ad6db4962aef9597932b3c271873710adbe41fd959eea1741446b20cfc532"
+          }
+        },
+        "sourceStartSeconds": 207,
+        "sourceWavSha256": "f374a77d01db61d2da9a7bc213e4e0299c8011eac0f01bcbb9c282d493e1e0e0",
+        "split": "EVALUATION",
+        "takeId": "mozart_kv398_002_20110315-smd",
+        "workId": "mozart_kv398",
+        "workSelectionGroup": "mozart_kv398"
+      },
+      "guardedSource": {
+        "bytes": 5292000,
+        "clipOffsetSamples": 44100,
+        "dtype": "float32-le",
+        "path": "backend/data/work/xc2_r1_bounded_runtime/audio_only/xc2_01_mozart_kv398_002_20110315-smd_guarded_44100.f32",
+        "sampleRateHz": 44100,
+        "samples": 1323000,
+        "sha256": "efc0fd429a309281663934e2401e3f6f51f703b7345f9f57c5726d6d434eb091"
+      }
+    },
+    {
+      "clip": {
+        "clipId": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+        "durationMs": 28000,
+        "pcm": {
+          "BAND_LIMITED": {
+            "bytes": 1792000,
+            "dtype": "float32-le",
+            "path": "backend/data/work/xc2_robust_product_baseline_v1/audio_only/xc2_02_beethoven_op031no2-01_002_20090916-smd_BAND_LIMITED.f32",
+            "peakAbs": 0.3343469500541687,
+            "sampleRateHz": 16000,
+            "samples": 448000,
+            "samplesOverUnitMagnitude": 0,
+            "sha256": "fe8d56bcbbd06f89292afc024c5b33edf7787242383bed966fef1a6bcef1c040"
+          },
+          "LINEAR": {
+            "bytes": 1792000,
+            "dtype": "float32-le",
+            "path": "backend/data/work/xc2_robust_product_baseline_v1/audio_only/xc2_02_beethoven_op031no2-01_002_20090916-smd_LINEAR.f32",
+            "peakAbs": 0.3334617614746094,
+            "sampleRateHz": 16000,
+            "samples": 448000,
+            "samplesOverUnitMagnitude": 0,
+            "sha256": "ed20841d89fb3b106df0f1aa0a280d5d90cb336ff8d5b0f53038555b4d1a1b4c"
+          }
+        },
+        "sourceStartSeconds": 251,
+        "sourceWavSha256": "3d257c53c26cfbb243a371e536932d36f54928e1db46b6841350cdfb57734624",
+        "split": "DEVELOPMENT",
+        "takeId": "beethoven_op031no2-01_002_20090916-smd",
+        "workId": "beethoven_op031no2_01",
+        "workSelectionGroup": "beethoven_op031no2"
+      },
+      "guardedSource": {
+        "bytes": 5292000,
+        "clipOffsetSamples": 44100,
+        "dtype": "float32-le",
+        "path": "backend/data/work/xc2_r1_bounded_runtime/audio_only/xc2_02_beethoven_op031no2-01_002_20090916-smd_guarded_44100.f32",
+        "sampleRateHz": 44100,
+        "samples": 1323000,
+        "sha256": "ec6bae3be46e76e4d7e28597bebc338ecd0466d99858ff16f2c6d848ffe0bf7a"
+      }
+    }
+  ],
+  "scipy": "1.14.1"
+}
