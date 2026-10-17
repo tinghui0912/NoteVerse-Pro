@@ -1,0 +1,15 @@
+{
+  "phase": "PRACTICE_CONTINUOUS_PERFORMANCE_TIME_IDENTITY_REPAIR_AND_CLOCK_GATE_V3",
+  "queriedAt": "2026-10-17T01:15:50.464Z",
+  "evidenceCommit": "0cf4bcd42fa77ef765873d05f8ef6e8550ac9567",
+  "actualRemoteHead": "0cf4bcd42fa77ef765873d05f8ef6e8550ac9567",
+  "commitsSinceStart": [
+    "1b1aac3c24646682059e709338ba928310487e07 repair performance segment anchor identity and prepare clock v3 qualification",
+    "09bf1869deadc8db642da5f10bdef181d2f2655b freeze performance time identity repair and complete clock v3 gates",
+    "0cf4bcd42fa77ef765873d05f8ef6e8550ac9567 record exact performance anchors and all clock v3 browser gates passing"
+  ],
+  "combinedState": "pending",
+  "statuses": [],
+  "workflow_runs": [],
+  "interpretation": "NOT CI PASS"
+}
