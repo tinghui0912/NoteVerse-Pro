@@ -3,7 +3,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson} from '../audio-context-clock/protocol.mjs';
 export {ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson};
-export const START='a361f03dd03a13c7bcd36981e1fe9227407f2c89',ID=process.env.WAITING_ATTEMPT_FREEZE_ID??'waiting_attempt_v2_f2';
+export const START='a361f03dd03a13c7bcd36981e1fe9227407f2c89',ID=process.env.WAITING_ATTEMPT_FREEZE_ID??'waiting_attempt_v2_f3';
 export const DATA=path.join(ROOT,'backend/data/work/step_waiting_attempt_v2/v2');
 export const FREEZE=`backend/research/reports/${ID}_freeze_2026-10-18.json`;
 export const BASE='backend/data/work/step_domain/step_domain_v2/musical';

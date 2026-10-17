@@ -2,10 +2,9 @@ import {scenarioArtifact} from '../step_waiting/product-replay';
 import {StepPracticeRuntime} from '../../../apps/customer-web/src/lib/practice/local-core/step-runtime';
 import {ManualClock} from '../../../apps/customer-web/src/lib/practice/local-core/timebase';
 import type {StepAttemptIdentity} from '../../../apps/customer-web/src/lib/practice/local-core/step-attempt';
-import type {DecodedPublication} from '../step_decoded_sufficiency/acoustic-gestures';
-import {WaitingAcousticAssembly,type GenericAttempt} from './waiting-assembly';
+import {WaitingAcousticAssembly,type GenericAttempt,type SourceDecodedPublication} from './waiting-assembly';
 
-type Evidence={id:string;rate:number;publications:DecodedPublication[];assembly:{warmWitness:{availableMs:number}|null}};
+type Evidence={id:string;rate:number;publications:SourceDecodedPublication[];assembly:{warmWitness:{availableMs:number}|null}};
 type Group={time:number;notes:{pitch:number;time:number}[]};
 export type TruthCase={id:string;family:string;physicalPitches:number[];ownedStart:number;ownedEnd:number;
   scoredEnd:number;eventTime:number;warmBoundary:number;truth:Group[];guards:{start:number;end:number;tags:string[]}[]};
@@ -23,8 +22,9 @@ export function targetVariants(physical:readonly number[]){
 }
 export function scoreProduct(evidence:Evidence,truth:TruthCase,target:readonly number[],mode:'normal'|'busy'|'late'='normal',availabilityShift=0){
   const session=`${truth.id}:${evidence.rate}:${mode}:${target.join('-')}:${availabilityShift}`;
-  const regionStart=evidence.publications[0].frontierMs-600;
-  const assembly=new WaitingAcousticAssembly(evidence.rate,`${truth.id}:${evidence.rate}`,regionStart,truth.scoredEnd*1000);
+  const regionStartSample=evidence.publications[0].analyzedThroughSourceSample-evidence.rate*600/1000;
+  const regionStart=regionStartSample/evidence.rate*1000;
+  const assembly=new WaitingAcousticAssembly(evidence.rate,`${truth.id}:${evidence.rate}`,regionStartSample,Math.round(truth.scoredEnd*evidence.rate));
   const clock=new ManualClock(regionStart),runtime=new StepPracticeRuntime({artifact:scenarioArtifact([target,target,target,target]),
     scope:{kind:'FULL'},inputSource:'MICROPHONE',localSessionId:session,clock,metadataClock:{nowEpochMs:()=>0}});
   const outcomes:{attempt:GenericAttempt;attemptId:string;generation:number;verdict:string;verdictMs:number;watermark:number;
