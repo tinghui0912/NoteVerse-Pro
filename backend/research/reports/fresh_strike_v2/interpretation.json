@@ -1,0 +1,85 @@
+{
+  "freezeCommit": "6ef3b08e048b177adc8e3cbf3c269695a1aed4c1",
+  "remoteHead": "6ef3b08e048b177adc8e3cbf3c269695a1aed4c1",
+  "freezeSha256": "b97e9737bb1d4af2481a9b2797b6a85426ff02ad699203809a8da22b8ed262ba",
+  "remoteVerifiedAt": "2026-10-17T13:27:24.590Z",
+  "executionStartedAt": "2026-10-17T13:27:24.902Z",
+  "type": "POST_SEAL_DIAGNOSTIC_INTERPRETATION_NOT_NEW_POLICY_OR_ACCEPTANCE_RUN",
+  "candidatePolicyChanged": false,
+  "frozenScorerChanged": false,
+  "neuralRuns": 0,
+  "rawFrozenScorerDuplicateCountsPerRate": {"decoded": 3, "historical": 0, "rise": 3, "support": 2},
+  "boundaryConfound": {
+    "caseId": "d02-03",
+    "recordingId": "2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.wav",
+    "ownedStartSeconds": 40.2,
+    "excludedPreviousMidiGestureSeconds": 40.19921874999998,
+    "candidateSeconds": 40.2,
+    "nextScoredMidiGestureSeconds": 40.290364583333314,
+    "interpretation": "A legitimate physical strike just before owned start can have its acoustic anchor inside owned coverage. The strict in-range truth list omits that note-on. The frozen scorer labels this unmatched token a duplicate of the next scored gesture; that is not established physical duplication.",
+    "countPerRate": 1,
+    "action": "disclose, do not silently revise the frozen scores or retune the candidate"
+  },
+  "nonEdgeFailureWitnesses": [
+    {
+      "caseId": "d02-01",
+      "recordingId": "2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.wav",
+      "detectors": ["decoded", "rise", "support"],
+      "rates": [44100, 48000],
+      "unmatchedCandidateSeconds": 12.52,
+      "candidateIds44100": ["d02-01:44100:decoded:46720", "d02-01:44100:rise:46720", "d02-01:44100:support:46720"],
+      "adjacentGtGestureSeconds": [12.477864583333332, 12.596354166666666],
+      "matchedCandidateTargetSamples": [46080, 48000],
+      "reason": "Both adjacent physical MIDI gesture groups already have separate matched tokens; the 12.52 token is additional under the frozen 35ms grouping / +/-100ms one-to-one scoring contract. It is not an owned-range clipping edge."
+    },
+    {
+      "caseId": "d02-02",
+      "recordingId": "2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.wav",
+      "detectors": ["decoded", "rise"],
+      "rates": [44100, 48000],
+      "unmatchedCandidateSeconds": 5.5,
+      "candidateIds44100": ["d02-02:44100:decoded:62400", "d02-02:44100:rise:62400"],
+      "adjacentGtGestureSeconds": [5.458333333333334, 5.585937500000001],
+      "matchedCandidateTargetSamples": [61760, 63680],
+      "reason": "Additional in-range token between already matched gestures under the same frozen contract."
+    }
+  ],
+  "conservativeDecision": "Even without relying on the boundary-confounded token, rise has two and support has one non-edge excess-token witness per rate. Neither satisfies zero duplicates. No candidate selected; no qualification corpus inference executed.",
+  "developmentCoverage": {
+    "recordings": 3,
+    "clips": 13,
+    "scoredClipSecondsPerRate": 39,
+    "distinctOwnedSourceSecondsApprox": 31.5,
+    "gestureOpportunitiesPerRate": 265,
+    "negativeGuardSecondsPerRate": 4.539062500002295,
+    "negativeGuardIntervalsPerRate": 6,
+    "softAfterLoudMatchedPerRate": 4,
+    "softAfterLoudTotalPerRate": 10,
+    "rapidRetriggerMatchedPerRate": 35,
+    "rapidRetriggerTotalPerRate": 40,
+    "strongSustainAcousticEnergyCoverage": "NOT_ESTABLISHED",
+    "warning": "Overlapping clips are repeated diagnostic opportunities, not independent trials. Sparse guards and MIDI-only sustain tags cannot establish the full requested physical challenge reliability."
+  },
+  "dspAccounting": {
+    "acceptedSourceAdapterTransactions": 26,
+    "invalidatedV1SourceAdapterTransactions": 26,
+    "historicalBaselineTransactions": 26,
+    "qualificationTransactions": 0,
+    "unitTests": "5 Node contract tests; 4 Docker Python tests; no neural inference"
+  },
+  "ortDiagnostics": {
+    "browserVersion": "155.0.8059.39",
+    "gpuVendor": "nvidia",
+    "gpuArchitecture": "lovelace",
+    "warnings": "ORT explicitly assigns shape-related operations to CPU; reported through console error channel from pinned ORT JSEP module",
+    "automaticProviderFallback": false,
+    "pageErrors": 0
+  },
+  "qualificationStatus": "NOT_EXECUTED",
+  "qualificationManifest": null,
+  "selectedCandidateIdentity": null,
+  "newExternalDatasetDownloads": 0,
+  "productionSourceDiff": "",
+  "capabilities": {"continuous": "MODEL_NOT_VALIDATED", "step": "ATTEMPT_ANALYZER_NOT_VALIDATED", "productionMicrophone": false, "D4": false},
+  "disposition": "STEP_FRESH_STRIKE_EVIDENCE_QUALIFICATION_BLOCKED"
+}

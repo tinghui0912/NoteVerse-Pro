@@ -1,0 +1,5365 @@
+{
+  "cases": [
+    {
+      "id": "d00-00",
+      "recordingId": "2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.wav",
+      "ownedStartSeconds": 2.0,
+      "selectedFor": [
+        "single",
+        "same_note_retrigger"
+      ],
+      "ownedEndSeconds": 5.0,
+      "clipStartSeconds": 0.8,
+      "groups": [
+        {
+          "time": 2.3249999999999993,
+          "notes": [
+            {
+              "time": 2.3249999999999993,
+              "pitch": 72,
+              "velocity": 52,
+              "end": 2.376041666666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.1312499999999994,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.395833333333333,
+          "notes": [
+            {
+              "time": 2.395833333333333,
+              "pitch": 71,
+              "velocity": 58,
+              "end": 2.433333333333333
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 2.454166666666666,
+          "notes": [
+            {
+              "time": 2.454166666666666,
+              "pitch": 70,
+              "velocity": 65,
+              "end": 2.4812499999999997
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 2.5239583333333333,
+          "notes": [
+            {
+              "time": 2.5239583333333333,
+              "pitch": 69,
+              "velocity": 60,
+              "end": 2.5520833333333335
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 2.6041666666666665,
+          "notes": [
+            {
+              "time": 2.6041666666666665,
+              "pitch": 74,
+              "velocity": 77,
+              "end": 2.6791666666666667
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.5499999999999998,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.6770833333333335,
+          "notes": [
+            {
+              "time": 2.6770833333333335,
+              "pitch": 73,
+              "velocity": 81,
+              "end": 2.7427083333333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.5593750000000002,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.7395833333333335,
+          "notes": [
+            {
+              "time": 2.7395833333333335,
+              "pitch": 72,
+              "velocity": 81,
+              "end": 2.8135416666666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4145833333333342,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.8052083333333333,
+          "notes": [
+            {
+              "time": 2.8052083333333333,
+              "pitch": 71,
+              "velocity": 72,
+              "end": 2.8333333333333335
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.40937500000000027,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.888541666666667,
+          "notes": [
+            {
+              "time": 2.888541666666667,
+              "pitch": 79,
+              "velocity": 78,
+              "end": 2.9791666666666665
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 2.9489583333333336,
+          "notes": [
+            {
+              "time": 2.9489583333333336,
+              "pitch": 78,
+              "velocity": 67,
+              "end": 3.015625
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 3.0145833333333334,
+          "notes": [
+            {
+              "time": 3.0145833333333334,
+              "pitch": 77,
+              "velocity": 76,
+              "end": 3.061458333333333
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 3.0843749999999996,
+          "notes": [
+            {
+              "time": 3.0843749999999996,
+              "pitch": 76,
+              "velocity": 70,
+              "end": 3.1135416666666664
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.596875,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.202083333333333,
+          "notes": [
+            {
+              "time": 3.202083333333333,
+              "pitch": 76,
+              "velocity": 69,
+              "end": 3.2374999999999994
+            },
+            {
+              "time": 3.2052083333333328,
+              "pitch": 88,
+              "velocity": 78,
+              "end": 3.2437499999999995
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.1177083333333333,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 3.5114583333333327,
+          "notes": [
+            {
+              "time": 3.5114583333333327,
+              "pitch": 75,
+              "velocity": 54,
+              "end": 3.5458333333333325
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.5343749999999994,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.582291666666666,
+          "notes": [
+            {
+              "time": 3.582291666666666,
+              "pitch": 74,
+              "velocity": 58,
+              "end": 3.624999999999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.9781249999999995,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.6531249999999993,
+          "notes": [
+            {
+              "time": 3.6531249999999993,
+              "pitch": 73,
+              "velocity": 64,
+              "end": 3.685416666666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.9760416666666658,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.710416666666666,
+          "notes": [
+            {
+              "time": 3.710416666666666,
+              "pitch": 72,
+              "velocity": 69,
+              "end": 3.741666666666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.9708333333333323,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.835416666666666,
+          "notes": [
+            {
+              "time": 3.835416666666666,
+              "pitch": 76,
+              "velocity": 73,
+              "end": 3.866666666666666
+            },
+            {
+              "time": 3.8541666666666656,
+              "pitch": 64,
+              "velocity": 49,
+              "end": 3.884374999999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.6333333333333329,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.136458333333333,
+          "notes": [
+            {
+              "time": 4.136458333333333,
+              "pitch": 61,
+              "velocity": 53,
+              "end": 4.187499999999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.4833333333333334,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.214583333333333,
+          "notes": [
+            {
+              "time": 4.214583333333333,
+              "pitch": 60,
+              "velocity": 54,
+              "end": 4.261458333333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.496875,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.294791666666666,
+          "notes": [
+            {
+              "time": 4.294791666666666,
+              "pitch": 59,
+              "velocity": 55,
+              "end": 4.333333333333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.5,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.362499999999999,
+          "notes": [
+            {
+              "time": 4.362499999999999,
+              "pitch": 58,
+              "velocity": 60,
+              "end": 4.403124999999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.494791666666666,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.496874999999999,
+          "notes": [
+            {
+              "time": 4.496874999999999,
+              "pitch": 52,
+              "velocity": 45,
+              "end": 4.540624999999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.5125,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.8197916666666645,
+          "notes": [
+            {
+              "time": 4.8197916666666645,
+              "pitch": 72,
+              "velocity": 48,
+              "end": 4.864583333333331
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.1093749999999987,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.893749999999998,
+          "notes": [
+            {
+              "time": 4.893749999999998,
+              "pitch": 71,
+              "velocity": 55,
+              "end": 4.932291666666664
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.0885416666666647,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.959374999999998,
+          "notes": [
+            {
+              "time": 4.959374999999998,
+              "pitch": 70,
+              "velocity": 57,
+              "end": 4.983333333333331
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.5052083333333317,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        }
+      ],
+      "negativeGuards": []
+    },
+    {
+      "id": "d00-01",
+      "recordingId": "2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.wav",
+      "ownedStartSeconds": 2.9,
+      "selectedFor": [
+        "chord",
+        "rapid_retrigger"
+      ],
+      "ownedEndSeconds": 5.9,
+      "clipStartSeconds": 1.7,
+      "groups": [
+        {
+          "time": 2.9489583333333336,
+          "notes": [
+            {
+              "time": 2.9489583333333336,
+              "pitch": 78,
+              "velocity": 67,
+              "end": 3.015625
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 3.0145833333333334,
+          "notes": [
+            {
+              "time": 3.0145833333333334,
+              "pitch": 77,
+              "velocity": 76,
+              "end": 3.061458333333333
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 3.0843749999999996,
+          "notes": [
+            {
+              "time": 3.0843749999999996,
+              "pitch": 76,
+              "velocity": 70,
+              "end": 3.1135416666666664
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.596875,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.202083333333333,
+          "notes": [
+            {
+              "time": 3.202083333333333,
+              "pitch": 76,
+              "velocity": 69,
+              "end": 3.2374999999999994
+            },
+            {
+              "time": 3.2052083333333328,
+              "pitch": 88,
+              "velocity": 78,
+              "end": 3.2437499999999995
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.1177083333333333,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 3.5114583333333327,
+          "notes": [
+            {
+              "time": 3.5114583333333327,
+              "pitch": 75,
+              "velocity": 54,
+              "end": 3.5458333333333325
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.5343749999999994,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.582291666666666,
+          "notes": [
+            {
+              "time": 3.582291666666666,
+              "pitch": 74,
+              "velocity": 58,
+              "end": 3.624999999999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.9781249999999995,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.6531249999999993,
+          "notes": [
+            {
+              "time": 3.6531249999999993,
+              "pitch": 73,
+              "velocity": 64,
+              "end": 3.685416666666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.9760416666666658,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.710416666666666,
+          "notes": [
+            {
+              "time": 3.710416666666666,
+              "pitch": 72,
+              "velocity": 69,
+              "end": 3.741666666666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.9708333333333323,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.835416666666666,
+          "notes": [
+            {
+              "time": 3.835416666666666,
+              "pitch": 76,
+              "velocity": 73,
+              "end": 3.866666666666666
+            },
+            {
+              "time": 3.8541666666666656,
+              "pitch": 64,
+              "velocity": 49,
+              "end": 3.884374999999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.6333333333333329,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.136458333333333,
+          "notes": [
+            {
+              "time": 4.136458333333333,
+              "pitch": 61,
+              "velocity": 53,
+              "end": 4.187499999999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.4833333333333334,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.214583333333333,
+          "notes": [
+            {
+              "time": 4.214583333333333,
+              "pitch": 60,
+              "velocity": 54,
+              "end": 4.261458333333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.496875,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.294791666666666,
+          "notes": [
+            {
+              "time": 4.294791666666666,
+              "pitch": 59,
+              "velocity": 55,
+              "end": 4.333333333333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.5,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.362499999999999,
+          "notes": [
+            {
+              "time": 4.362499999999999,
+              "pitch": 58,
+              "velocity": 60,
+              "end": 4.403124999999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.494791666666666,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.496874999999999,
+          "notes": [
+            {
+              "time": 4.496874999999999,
+              "pitch": 52,
+              "velocity": 45,
+              "end": 4.540624999999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.5125,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.8197916666666645,
+          "notes": [
+            {
+              "time": 4.8197916666666645,
+              "pitch": 72,
+              "velocity": 48,
+              "end": 4.864583333333331
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.1093749999999987,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.893749999999998,
+          "notes": [
+            {
+              "time": 4.893749999999998,
+              "pitch": 71,
+              "velocity": 55,
+              "end": 4.932291666666664
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.0885416666666647,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.959374999999998,
+          "notes": [
+            {
+              "time": 4.959374999999998,
+              "pitch": 70,
+              "velocity": 57,
+              "end": 4.983333333333331
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.5052083333333317,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.024999999999998,
+          "notes": [
+            {
+              "time": 5.024999999999998,
+              "pitch": 69,
+              "velocity": 53,
+              "end": 5.057291666666664
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.5010416666666644,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.098958333333331,
+          "notes": [
+            {
+              "time": 5.098958333333331,
+              "pitch": 74,
+              "velocity": 65,
+              "end": 5.177083333333331
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.5166666666666653,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.178124999999998,
+          "notes": [
+            {
+              "time": 5.178124999999998,
+              "pitch": 73,
+              "velocity": 72,
+              "end": 5.224999999999998
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.5249999999999986,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.239583333333331,
+          "notes": [
+            {
+              "time": 5.239583333333331,
+              "pitch": 72,
+              "velocity": 72,
+              "end": 5.279166666666665
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4197916666666668,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.306249999999999,
+          "notes": [
+            {
+              "time": 5.306249999999999,
+              "pitch": 71,
+              "velocity": 60,
+              "end": 5.330208333333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.41250000000000053,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.392708333333332,
+          "notes": [
+            {
+              "time": 5.392708333333332,
+              "pitch": 79,
+              "velocity": 66,
+              "end": 5.453124999999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.5041666666666655,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.458333333333332,
+          "notes": [
+            {
+              "time": 5.458333333333332,
+              "pitch": 78,
+              "velocity": 60,
+              "end": 5.503124999999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.5093749999999986,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.534374999999999,
+          "notes": [
+            {
+              "time": 5.534374999999999,
+              "pitch": 77,
+              "velocity": 62,
+              "end": 5.5666666666666655
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.5197916666666655,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.584374999999999,
+          "notes": [
+            {
+              "time": 5.584374999999999,
+              "pitch": 76,
+              "velocity": 62,
+              "end": 5.618749999999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.748958333333333,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.678124999999999,
+          "notes": [
+            {
+              "time": 5.678124999999999,
+              "pitch": 94,
+              "velocity": 69,
+              "end": 5.709374999999999
+            },
+            {
+              "time": 5.6864583333333325,
+              "pitch": 82,
+              "velocity": 52,
+              "end": 5.714583333333332
+            }
+          ],
+          "tags": [
+            "chord"
+          ]
+        },
+        {
+          "time": 5.753124999999998,
+          "notes": [
+            {
+              "time": 5.753124999999998,
+              "pitch": 81,
+              "velocity": 59,
+              "end": 5.814583333333331
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 5.829166666666665,
+          "notes": [
+            {
+              "time": 5.829166666666665,
+              "pitch": 80,
+              "velocity": 59,
+              "end": 5.861458333333331
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 5.8979166666666645,
+          "notes": [
+            {
+              "time": 5.8979166666666645,
+              "pitch": 79,
+              "velocity": 61,
+              "end": 5.921874999999998
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.5052083333333321,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        }
+      ],
+      "negativeGuards": []
+    },
+    {
+      "id": "d00-02",
+      "recordingId": "2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.wav",
+      "ownedStartSeconds": 13.6,
+      "selectedFor": [
+        "soft_after_loud"
+      ],
+      "ownedEndSeconds": 16.6,
+      "clipStartSeconds": 12.4,
+      "groups": [
+        {
+          "time": 13.73645833333336,
+          "notes": [
+            {
+              "time": 13.73645833333336,
+              "pitch": 74,
+              "velocity": 39,
+              "end": 13.79583333333336
+            }
+          ],
+          "minimumRetriggerGapSeconds": 3.031250000000009,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 13.863541666666693,
+          "notes": [
+            {
+              "time": 13.863541666666693,
+              "pitch": 73,
+              "velocity": 33,
+              "end": 13.896875000000026
+            }
+          ],
+          "minimumRetriggerGapSeconds": 5.535416666666698,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "soft_after_loud"
+          ]
+        },
+        {
+          "time": 13.931250000000027,
+          "notes": [
+            {
+              "time": 13.931250000000027,
+              "pitch": 72,
+              "velocity": 49,
+              "end": 13.965625000000028
+            }
+          ],
+          "minimumRetriggerGapSeconds": 6.212500000000033,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 14.032291666666694,
+          "notes": [
+            {
+              "time": 14.032291666666694,
+              "pitch": 74,
+              "velocity": 44,
+              "end": 14.071875000000027
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.2958333333333343,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 14.087500000000027,
+          "notes": [
+            {
+              "time": 14.087500000000027,
+              "pitch": 73,
+              "velocity": 39,
+              "end": 14.137500000000028
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.22395833333333393,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 14.173958333333362,
+          "notes": [
+            {
+              "time": 14.173958333333362,
+              "pitch": 72,
+              "velocity": 52,
+              "end": 14.229166666666694
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.24270833333333464,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 14.290625000000027,
+          "notes": [
+            {
+              "time": 14.290625000000027,
+              "pitch": 71,
+              "velocity": 45,
+              "end": 14.326041666666693
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.734375000000007,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "soft_after_loud"
+          ]
+        },
+        {
+          "time": 14.372916666666693,
+          "notes": [
+            {
+              "time": 14.372916666666693,
+              "pitch": 73,
+              "velocity": 48,
+              "end": 14.421875000000027
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.28541666666666643,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 14.46770833333336,
+          "notes": [
+            {
+              "time": 14.46770833333336,
+              "pitch": 72,
+              "velocity": 45,
+              "end": 14.497916666666692
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.2937499999999975,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 14.525000000000025,
+          "notes": [
+            {
+              "time": 14.525000000000025,
+              "pitch": 71,
+              "velocity": 50,
+              "end": 14.578125000000025
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.23437499999999822,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 14.628125000000026,
+          "notes": [
+            {
+              "time": 14.628125000000026,
+              "pitch": 70,
+              "velocity": 45,
+              "end": 14.660416666666693
+            }
+          ],
+          "minimumRetriggerGapSeconds": 5.557291666666693,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "soft_after_loud"
+          ]
+        },
+        {
+          "time": 14.69583333333336,
+          "notes": [
+            {
+              "time": 14.69583333333336,
+              "pitch": 72,
+              "velocity": 44,
+              "end": 14.79895833333336
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.22812500000000036,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 14.82395833333336,
+          "notes": [
+            {
+              "time": 14.82395833333336,
+              "pitch": 71,
+              "velocity": 51,
+              "end": 14.868750000000027
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.298958333333335,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 14.89270833333336,
+          "notes": [
+            {
+              "time": 14.89270833333336,
+              "pitch": 70,
+              "velocity": 54,
+              "end": 14.935416666666693
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.2645833333333343,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 14.990625000000026,
+          "notes": [
+            {
+              "time": 14.990625000000026,
+              "pitch": 69,
+              "velocity": 44,
+              "end": 15.062500000000027
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.497916666666665,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 15.087500000000027,
+          "notes": [
+            {
+              "time": 15.087500000000027,
+              "pitch": 65,
+              "velocity": 59,
+              "end": 16.5822916666667
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 15.131250000000026,
+          "notes": [
+            {
+              "time": 15.131250000000026,
+              "pitch": 71,
+              "velocity": 36,
+              "end": 15.203125000000027
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.3072916666666661,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 15.251041666666694,
+          "notes": [
+            {
+              "time": 15.251041666666694,
+              "pitch": 70,
+              "velocity": 37,
+              "end": 15.284375000000027
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.3583333333333343,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 15.337500000000027,
+          "notes": [
+            {
+              "time": 15.337500000000027,
+              "pitch": 69,
+              "velocity": 42,
+              "end": 15.372916666666695
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.3468750000000007,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 15.430208333333363,
+          "notes": [
+            {
+              "time": 15.430208333333363,
+              "pitch": 68,
+              "velocity": 31,
+              "end": 15.467708333333364
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 15.49375000000003,
+          "notes": [
+            {
+              "time": 15.49375000000003,
+              "pitch": 72,
+              "velocity": 43,
+              "end": 15.542708333333364
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.797916666666671,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 15.581250000000031,
+          "notes": [
+            {
+              "time": 15.581250000000031,
+              "pitch": 71,
+              "velocity": 50,
+              "end": 15.632291666666697
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4500000000000046,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 15.660416666666697,
+          "notes": [
+            {
+              "time": 15.660416666666697,
+              "pitch": 70,
+              "velocity": 49,
+              "end": 15.70000000000003
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4093750000000025,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 15.736458333333363,
+          "notes": [
+            {
+              "time": 15.736458333333363,
+              "pitch": 69,
+              "velocity": 48,
+              "end": 15.78125000000003
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.3989583333333364,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 15.822916666666698,
+          "notes": [
+            {
+              "time": 15.822916666666698,
+              "pitch": 73,
+              "velocity": 51,
+              "end": 15.870833333333366
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.4500000000000046,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 15.905208333333366,
+          "notes": [
+            {
+              "time": 15.905208333333366,
+              "pitch": 72,
+              "velocity": 53,
+              "end": 15.945833333333367
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4114583333333357,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 15.977083333333367,
+          "notes": [
+            {
+              "time": 15.977083333333367,
+              "pitch": 71,
+              "velocity": 55,
+              "end": 16.018750000000033
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.3958333333333357,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 16.052083333333368,
+          "notes": [
+            {
+              "time": 16.052083333333368,
+              "pitch": 70,
+              "velocity": 54,
+              "end": 16.0947916666667
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.39166666666667105,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 16.132291666666703,
+          "notes": [
+            {
+              "time": 16.132291666666703,
+              "pitch": 74,
+              "velocity": 58,
+              "end": 16.2041666666667
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.1000000000000085,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 16.234375000000036,
+          "notes": [
+            {
+              "time": 16.234375000000036,
+              "pitch": 73,
+              "velocity": 60,
+              "end": 16.2666666666667
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4114583333333375,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 16.298958333333367,
+          "notes": [
+            {
+              "time": 16.298958333333367,
+              "pitch": 72,
+              "velocity": 59,
+              "end": 16.342708333333366
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.3937500000000007,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 16.3979166666667,
+          "notes": [
+            {
+              "time": 16.3979166666667,
+              "pitch": 71,
+              "velocity": 47,
+              "end": 16.4604166666667
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4208333333333325,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 16.531250000000032,
+          "notes": [
+            {
+              "time": 16.531250000000032,
+              "pitch": 67,
+              "velocity": 63,
+              "end": 17.060416666666697
+            },
+            {
+              "time": 16.534375000000033,
+              "pitch": 75,
+              "velocity": 48,
+              "end": 16.607291666666697
+            }
+          ],
+          "minimumRetriggerGapSeconds": 3.0677083333333393,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        }
+      ],
+      "negativeGuards": []
+    },
+    {
+      "id": "d00-03",
+      "recordingId": "2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.wav",
+      "ownedStartSeconds": 126.7,
+      "selectedFor": [
+        "held"
+      ],
+      "ownedEndSeconds": 129.7,
+      "clipStartSeconds": 125.5,
+      "groups": [
+        {
+          "time": 126.8812499999977,
+          "notes": [
+            {
+              "time": 126.8812499999977,
+              "pitch": 76,
+              "velocity": 39,
+              "end": 129.3031249999977
+            },
+            {
+              "time": 126.89895833333104,
+              "pitch": 74,
+              "velocity": 38,
+              "end": 127.24479166666433
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.9218749999999858,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 126.94166666666437,
+          "notes": [
+            {
+              "time": 126.94166666666437,
+              "pitch": 69,
+              "velocity": 22,
+              "end": 129.21041666666434
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.9572916666666487,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 127.89895833333098,
+          "notes": [
+            {
+              "time": 127.89895833333098,
+              "pitch": 73,
+              "velocity": 35,
+              "end": 128.28749999999766
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.3395833333332803,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 128.94687499999768,
+          "notes": [
+            {
+              "time": 128.94687499999768,
+              "pitch": 72,
+              "velocity": 37,
+              "end": 129.44062499999768
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.577083333333306,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        }
+      ],
+      "negativeGuards": [
+        {
+          "start": 127.04166666666437,
+          "end": 127.79895833333099,
+          "tags": [
+            "all_note_on_free",
+            "held",
+            "release_or_pedal_change"
+          ]
+        },
+        {
+          "start": 127.99895833333098,
+          "end": 128.84687499999768,
+          "tags": [
+            "all_note_on_free",
+            "held",
+            "release_or_pedal_change"
+          ]
+        },
+        {
+          "start": 129.04687499999767,
+          "end": 129.7,
+          "tags": [
+            "all_note_on_free",
+            "pedal_sustain",
+            "release_or_pedal_change"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d00-04",
+      "recordingId": "2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.wav",
+      "ownedStartSeconds": 102.6,
+      "selectedFor": [
+        "pedal_sustain",
+        "release_or_pedal_change"
+      ],
+      "ownedEndSeconds": 105.6,
+      "clipStartSeconds": 101.39999999999999,
+      "groups": [
+        {
+          "time": 102.75937499999884,
+          "notes": [
+            {
+              "time": 102.75937499999884,
+              "pitch": 58,
+              "velocity": 47,
+              "end": 102.90833333333215
+            },
+            {
+              "time": 102.78124999999883,
+              "pitch": 51,
+              "velocity": 39,
+              "end": 103.04479166666547
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.657291666666623,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 102.8010416666655,
+          "notes": [
+            {
+              "time": 102.8010416666655,
+              "pitch": 55,
+              "velocity": 39,
+              "end": 102.99166666666548
+            },
+            {
+              "time": 102.80729166666549,
+              "pitch": 46,
+              "velocity": 36,
+              "end": 103.02291666666548
+            }
+          ],
+          "minimumRetriggerGapSeconds": 5.941666666666535,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 103.41979166666547,
+          "notes": [
+            {
+              "time": 103.41979166666547,
+              "pitch": 85,
+              "velocity": 49,
+              "end": 103.5343749999988
+            }
+          ],
+          "minimumRetriggerGapSeconds": 14.869791666666273,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 103.48124999999881,
+          "notes": [
+            {
+              "time": 103.48124999999881,
+              "pitch": 27,
+              "velocity": 39,
+              "end": 103.58541666666547
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 103.57083333333213,
+          "notes": [
+            {
+              "time": 103.57083333333213,
+              "pitch": 84,
+              "velocity": 50,
+              "end": 103.61770833333213
+            }
+          ],
+          "minimumRetriggerGapSeconds": 15.092708333332936,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 103.65416666666546,
+          "notes": [
+            {
+              "time": 103.65416666666546,
+              "pitch": 83,
+              "velocity": 56,
+              "end": 103.70833333333212
+            }
+          ],
+          "minimumRetriggerGapSeconds": 15.251041666666268,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 103.73333333333213,
+          "notes": [
+            {
+              "time": 103.73333333333213,
+              "pitch": 82,
+              "velocity": 62,
+              "end": 103.76874999999879
+            }
+          ],
+          "minimumRetriggerGapSeconds": 13.422916666666382,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 103.82395833333213,
+          "notes": [
+            {
+              "time": 103.82395833333213,
+              "pitch": 73,
+              "velocity": 39,
+              "end": 103.85833333333213
+            }
+          ],
+          "minimumRetriggerGapSeconds": 13.862499999999727,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 103.94166666666545,
+          "notes": [
+            {
+              "time": 103.94166666666545,
+              "pitch": 72,
+              "velocity": 41,
+              "end": 103.98020833333211
+            },
+            {
+              "time": 103.94791666666545,
+              "pitch": 71,
+              "velocity": 45,
+              "end": 104.02083333333212
+            }
+          ],
+          "minimumRetriggerGapSeconds": 14.164583333333027,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 104.05104166666545,
+          "notes": [
+            {
+              "time": 104.05104166666545,
+              "pitch": 70,
+              "velocity": 60,
+              "end": 104.08437499999879
+            }
+          ],
+          "minimumRetriggerGapSeconds": 15.13854166666627,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 104.13229166666545,
+          "notes": [
+            {
+              "time": 104.13229166666545,
+              "pitch": 61,
+              "velocity": 60,
+              "end": 104.17083333333211
+            },
+            {
+              "time": 104.13437499999878,
+              "pitch": 73,
+              "velocity": 52,
+              "end": 104.1770833333321
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.3083333333333229,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 104.19999999999877,
+          "notes": [
+            {
+              "time": 104.19999999999877,
+              "pitch": 60,
+              "velocity": 53,
+              "end": 104.25416666666543
+            }
+          ],
+          "minimumRetriggerGapSeconds": 8.209374999999781,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 104.28437499999876,
+          "notes": [
+            {
+              "time": 104.28437499999876,
+              "pitch": 59,
+              "velocity": 66,
+              "end": 104.33124999999876
+            }
+          ],
+          "minimumRetriggerGapSeconds": 3.2145833333332092,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 104.36041666666543,
+          "notes": [
+            {
+              "time": 104.36041666666543,
+              "pitch": 58,
+              "velocity": 51,
+              "end": 104.39166666666543
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.601041666666589,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 104.4520833333321,
+          "notes": [
+            {
+              "time": 104.4520833333321,
+              "pitch": 61,
+              "velocity": 76,
+              "end": 104.49062499999877
+            },
+            {
+              "time": 104.47812499999877,
+              "pitch": 49,
+              "velocity": 38,
+              "end": 104.5270833333321
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.3197916666666458,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 104.51354166666543,
+          "notes": [
+            {
+              "time": 104.51354166666543,
+              "pitch": 48,
+              "velocity": 59,
+              "end": 104.60833333333208
+            }
+          ],
+          "minimumRetriggerGapSeconds": 47.07395833333189,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 104.58958333333209,
+          "notes": [
+            {
+              "time": 104.58958333333209,
+              "pitch": 47,
+              "velocity": 60,
+              "end": 104.64479166666541
+            }
+          ],
+          "minimumRetriggerGapSeconds": 3.488541666666535,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 104.65312499999875,
+          "notes": [
+            {
+              "time": 104.65312499999875,
+              "pitch": 46,
+              "velocity": 76,
+              "end": 104.68958333333208
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.8458333333332604,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 104.74687499999875,
+          "notes": [
+            {
+              "time": 104.74687499999875,
+              "pitch": 63,
+              "velocity": 75,
+              "end": 104.77604166666542
+            },
+            {
+              "time": 104.74895833333208,
+              "pitch": 61,
+              "velocity": 65,
+              "end": 104.78229166666542
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.29479166666665435,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 104.83229166666541,
+          "notes": [
+            {
+              "time": 104.83229166666541,
+              "pitch": 60,
+              "velocity": 70,
+              "end": 104.88749999999875
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.6322916666666458,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 104.89895833333209,
+          "notes": [
+            {
+              "time": 104.89895833333209,
+              "pitch": 59,
+              "velocity": 73,
+              "end": 104.94791666666542
+            },
+            {
+              "time": 104.91666666666542,
+              "pitch": 73,
+              "velocity": 66,
+              "end": 104.94791666666542
+            },
+            {
+              "time": 104.92083333333208,
+              "pitch": 75,
+              "velocity": 53,
+              "end": 104.94999999999875
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.6145833333333286,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 104.96458333333209,
+          "notes": [
+            {
+              "time": 104.96458333333209,
+              "pitch": 58,
+              "velocity": 72,
+              "end": 104.99374999999876
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.6041666666666572,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 105.06041666666542,
+          "notes": [
+            {
+              "time": 105.06041666666542,
+              "pitch": 75,
+              "velocity": 71,
+              "end": 105.08958333333209
+            },
+            {
+              "time": 105.06354166666542,
+              "pitch": 73,
+              "velocity": 71,
+              "end": 105.08958333333209
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.13958333333333428,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 105.16249999999876,
+          "notes": [
+            {
+              "time": 105.16249999999876,
+              "pitch": 72,
+              "velocity": 70,
+              "end": 105.20833333333209
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.220833333333303,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 105.23020833333209,
+          "notes": [
+            {
+              "time": 105.23020833333209,
+              "pitch": 71,
+              "velocity": 64,
+              "end": 105.30312499999876
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.2822916666666373,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 105.32604166666542,
+          "notes": [
+            {
+              "time": 105.32604166666542,
+              "pitch": 70,
+              "velocity": 66,
+              "end": 105.35520833333209
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.274999999999963,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 105.41770833333209,
+          "notes": [
+            {
+              "time": 105.41770833333209,
+              "pitch": 87,
+              "velocity": 54,
+              "end": 105.45104166666542
+            },
+            {
+              "time": 105.43645833333208,
+              "pitch": 85,
+              "velocity": 57,
+              "end": 105.48749999999875
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.9979166666666117,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 105.51145833333209,
+          "notes": [
+            {
+              "time": 105.51145833333209,
+              "pitch": 84,
+              "velocity": 55,
+              "end": 105.55520833333209
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.9406249999999545,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 105.59895833333209,
+          "notes": [
+            {
+              "time": 105.59895833333209,
+              "pitch": 83,
+              "velocity": 52,
+              "end": 105.64062499999875
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.9447916666666316,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        }
+      ],
+      "negativeGuards": [
+        {
+          "start": 102.90729166666549,
+          "end": 103.31979166666548,
+          "tags": [
+            "all_note_on_free",
+            "pedal_sustain",
+            "release_or_pedal_change"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d01-00",
+      "recordingId": "2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.wav",
+      "ownedStartSeconds": 1.8,
+      "selectedFor": [
+        "single",
+        "chord",
+        "same_note_retrigger"
+      ],
+      "ownedEndSeconds": 4.8,
+      "clipStartSeconds": 0.6000000000000001,
+      "groups": [
+        {
+          "time": 1.9427083333333333,
+          "notes": [
+            {
+              "time": 1.9427083333333333,
+              "pitch": 58,
+              "velocity": 68,
+              "end": 1.9817708333333333
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 2.083333333333333,
+          "notes": [
+            {
+              "time": 2.083333333333333,
+              "pitch": 57,
+              "velocity": 62,
+              "end": 2.1289062499999996
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 2.223958333333333,
+          "notes": [
+            {
+              "time": 2.223958333333333,
+              "pitch": 58,
+              "velocity": 70,
+              "end": 2.274739583333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.2812499999999998,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.3671874999999996,
+          "notes": [
+            {
+              "time": 2.3671874999999996,
+              "pitch": 60,
+              "velocity": 71,
+              "end": 2.416666666666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.583333333333333,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.5156249999999996,
+          "notes": [
+            {
+              "time": 2.5156249999999996,
+              "pitch": 62,
+              "velocity": 70,
+              "end": 2.557291666666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.856770833333333,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.6367187499999996,
+          "notes": [
+            {
+              "time": 2.6367187499999996,
+              "pitch": 72,
+              "velocity": 71,
+              "end": 2.7851562499999996
+            },
+            {
+              "time": 2.651041666666666,
+              "pitch": 64,
+              "velocity": 71,
+              "end": 2.6914062499999996
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.278645833333333,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.7812499999999996,
+          "notes": [
+            {
+              "time": 2.7812499999999996,
+              "pitch": 65,
+              "velocity": 68,
+              "end": 2.807291666666666
+            },
+            {
+              "time": 2.7812499999999996,
+              "pitch": 77,
+              "velocity": 68,
+              "end": 2.8411458333333326
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.567708333333333,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.971354166666666,
+          "notes": [
+            {
+              "time": 2.971354166666666,
+              "pitch": 77,
+              "velocity": 19,
+              "end": 2.9999999999999996
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.19010416666666652,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger",
+            "soft_after_loud"
+          ]
+        },
+        {
+          "time": 3.197916666666666,
+          "notes": [
+            {
+              "time": 3.197916666666666,
+              "pitch": 58,
+              "velocity": 55,
+              "end": 3.240885416666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.973958333333333,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.3671874999999996,
+          "notes": [
+            {
+              "time": 3.3671874999999996,
+              "pitch": 72,
+              "velocity": 31,
+              "end": 3.404947916666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.73046875,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "soft_after_loud"
+          ]
+        },
+        {
+          "time": 3.5742187499999996,
+          "notes": [
+            {
+              "time": 3.5742187499999996,
+              "pitch": 62,
+              "velocity": 72,
+              "end": 3.608072916666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.05859375,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.6132812499999996,
+          "notes": [
+            {
+              "time": 3.6132812499999996,
+              "pitch": 70,
+              "velocity": 60,
+              "end": 3.647135416666666
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 3.7421874999999996,
+          "notes": [
+            {
+              "time": 3.7421874999999996,
+              "pitch": 69,
+              "velocity": 62,
+              "end": 3.782552083333333
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 3.8593749999999996,
+          "notes": [
+            {
+              "time": 3.8593749999999996,
+              "pitch": 70,
+              "velocity": 68,
+              "end": 3.912760416666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.24609375,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 4.002604166666666,
+          "notes": [
+            {
+              "time": 4.002604166666666,
+              "pitch": 60,
+              "velocity": 52,
+              "end": 4.054687499999999
+            },
+            {
+              "time": 4.033854166666666,
+              "pitch": 72,
+              "velocity": 61,
+              "end": 4.097656249999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.6354166666666665,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.282552083333332,
+          "notes": [
+            {
+              "time": 4.282552083333332,
+              "pitch": 60,
+              "velocity": 76,
+              "end": 4.313802083333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.2799479166666661,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.428385416666665,
+          "notes": [
+            {
+              "time": 4.428385416666665,
+              "pitch": 70,
+              "velocity": 74,
+              "end": 4.466145833333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.5690104166666656,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.597656249999999,
+          "notes": [
+            {
+              "time": 4.597656249999999,
+              "pitch": 70,
+              "velocity": 31,
+              "end": 4.598958333333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.16927083333333393,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger",
+            "soft_after_loud"
+          ]
+        },
+        {
+          "time": 4.708333333333332,
+          "notes": [
+            {
+              "time": 4.708333333333332,
+              "pitch": 69,
+              "velocity": 71,
+              "end": 4.739583333333332
+            },
+            {
+              "time": 4.712239583333332,
+              "pitch": 72,
+              "velocity": 77,
+              "end": 4.778645833333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.6744791666666661,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        }
+      ],
+      "negativeGuards": []
+    },
+    {
+      "id": "d01-01",
+      "recordingId": "2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.wav",
+      "ownedStartSeconds": 2.7,
+      "selectedFor": [
+        "soft_after_loud",
+        "rapid_retrigger"
+      ],
+      "ownedEndSeconds": 5.7,
+      "clipStartSeconds": 1.5000000000000002,
+      "groups": [
+        {
+          "time": 2.7812499999999996,
+          "notes": [
+            {
+              "time": 2.7812499999999996,
+              "pitch": 65,
+              "velocity": 68,
+              "end": 2.807291666666666
+            },
+            {
+              "time": 2.7812499999999996,
+              "pitch": 77,
+              "velocity": 68,
+              "end": 2.8411458333333326
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.567708333333333,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.971354166666666,
+          "notes": [
+            {
+              "time": 2.971354166666666,
+              "pitch": 77,
+              "velocity": 19,
+              "end": 2.9999999999999996
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.19010416666666652,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger",
+            "soft_after_loud"
+          ]
+        },
+        {
+          "time": 3.197916666666666,
+          "notes": [
+            {
+              "time": 3.197916666666666,
+              "pitch": 58,
+              "velocity": 55,
+              "end": 3.240885416666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.973958333333333,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.3671874999999996,
+          "notes": [
+            {
+              "time": 3.3671874999999996,
+              "pitch": 72,
+              "velocity": 31,
+              "end": 3.404947916666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.73046875,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "soft_after_loud"
+          ]
+        },
+        {
+          "time": 3.5742187499999996,
+          "notes": [
+            {
+              "time": 3.5742187499999996,
+              "pitch": 62,
+              "velocity": 72,
+              "end": 3.608072916666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.05859375,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.6132812499999996,
+          "notes": [
+            {
+              "time": 3.6132812499999996,
+              "pitch": 70,
+              "velocity": 60,
+              "end": 3.647135416666666
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 3.7421874999999996,
+          "notes": [
+            {
+              "time": 3.7421874999999996,
+              "pitch": 69,
+              "velocity": 62,
+              "end": 3.782552083333333
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 3.8593749999999996,
+          "notes": [
+            {
+              "time": 3.8593749999999996,
+              "pitch": 70,
+              "velocity": 68,
+              "end": 3.912760416666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.24609375,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 4.002604166666666,
+          "notes": [
+            {
+              "time": 4.002604166666666,
+              "pitch": 60,
+              "velocity": 52,
+              "end": 4.054687499999999
+            },
+            {
+              "time": 4.033854166666666,
+              "pitch": 72,
+              "velocity": 61,
+              "end": 4.097656249999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.6354166666666665,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.282552083333332,
+          "notes": [
+            {
+              "time": 4.282552083333332,
+              "pitch": 60,
+              "velocity": 76,
+              "end": 4.313802083333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.2799479166666661,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.428385416666665,
+          "notes": [
+            {
+              "time": 4.428385416666665,
+              "pitch": 70,
+              "velocity": 74,
+              "end": 4.466145833333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.5690104166666656,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.597656249999999,
+          "notes": [
+            {
+              "time": 4.597656249999999,
+              "pitch": 70,
+              "velocity": 31,
+              "end": 4.598958333333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.16927083333333393,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger",
+            "soft_after_loud"
+          ]
+        },
+        {
+          "time": 4.708333333333332,
+          "notes": [
+            {
+              "time": 4.708333333333332,
+              "pitch": 69,
+              "velocity": 71,
+              "end": 4.739583333333332
+            },
+            {
+              "time": 4.712239583333332,
+              "pitch": 72,
+              "velocity": 77,
+              "end": 4.778645833333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.6744791666666661,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.842447916666665,
+          "notes": [
+            {
+              "time": 4.842447916666665,
+              "pitch": 67,
+              "velocity": 71,
+              "end": 4.882812499999998
+            },
+            {
+              "time": 4.850260416666665,
+              "pitch": 82,
+              "velocity": 75,
+              "end": 4.912760416666665
+            }
+          ],
+          "tags": [
+            "chord"
+          ]
+        },
+        {
+          "time": 4.994791666666665,
+          "notes": [
+            {
+              "time": 4.994791666666665,
+              "pitch": 82,
+              "velocity": 67,
+              "end": 5.033854166666665
+            },
+            {
+              "time": 4.997395833333332,
+              "pitch": 67,
+              "velocity": 66,
+              "end": 5.035156249999998
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.14453125,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger",
+            "repeated_chord"
+          ]
+        },
+        {
+          "time": 5.114583333333331,
+          "notes": [
+            {
+              "time": 5.114583333333331,
+              "pitch": 65,
+              "velocity": 73,
+              "end": 5.148437499999998
+            },
+            {
+              "time": 5.128906249999998,
+              "pitch": 81,
+              "velocity": 70,
+              "end": 5.162760416666665
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.3333333333333317,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.265624999999998,
+          "notes": [
+            {
+              "time": 5.265624999999998,
+              "pitch": 79,
+              "velocity": 77,
+              "end": 5.300781249999998
+            },
+            {
+              "time": 5.268229166666665,
+              "pitch": 70,
+              "velocity": 79,
+              "end": 5.315104166666665
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.6679687499999991,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.408854166666665,
+          "notes": [
+            {
+              "time": 5.408854166666665,
+              "pitch": 70,
+              "velocity": 67,
+              "end": 5.458333333333332
+            },
+            {
+              "time": 5.415364583333332,
+              "pitch": 79,
+              "velocity": 57,
+              "end": 5.445312499999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.140625,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger",
+            "repeated_chord"
+          ]
+        },
+        {
+          "time": 5.531249999999999,
+          "notes": [
+            {
+              "time": 5.531249999999999,
+              "pitch": 77,
+              "velocity": 75,
+              "end": 5.584635416666666
+            },
+            {
+              "time": 5.537760416666666,
+              "pitch": 69,
+              "velocity": 69,
+              "end": 5.606770833333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.822916666666667,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.6640625,
+          "notes": [
+            {
+              "time": 5.6640625,
+              "pitch": 67,
+              "velocity": 71,
+              "end": 5.701822916666667
+            },
+            {
+              "time": 5.666666666666667,
+              "pitch": 76,
+              "velocity": 75,
+              "end": 5.71875
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.6666666666666679,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        }
+      ],
+      "negativeGuards": []
+    },
+    {
+      "id": "d01-02",
+      "recordingId": "2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.wav",
+      "ownedStartSeconds": 4.7,
+      "selectedFor": [
+        "repeated_chord"
+      ],
+      "ownedEndSeconds": 7.7,
+      "clipStartSeconds": 3.5,
+      "groups": [
+        {
+          "time": 4.708333333333332,
+          "notes": [
+            {
+              "time": 4.708333333333332,
+              "pitch": 69,
+              "velocity": 71,
+              "end": 4.739583333333332
+            },
+            {
+              "time": 4.712239583333332,
+              "pitch": 72,
+              "velocity": 77,
+              "end": 4.778645833333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.6744791666666661,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.842447916666665,
+          "notes": [
+            {
+              "time": 4.842447916666665,
+              "pitch": 67,
+              "velocity": 71,
+              "end": 4.882812499999998
+            },
+            {
+              "time": 4.850260416666665,
+              "pitch": 82,
+              "velocity": 75,
+              "end": 4.912760416666665
+            }
+          ],
+          "tags": [
+            "chord"
+          ]
+        },
+        {
+          "time": 4.994791666666665,
+          "notes": [
+            {
+              "time": 4.994791666666665,
+              "pitch": 82,
+              "velocity": 67,
+              "end": 5.033854166666665
+            },
+            {
+              "time": 4.997395833333332,
+              "pitch": 67,
+              "velocity": 66,
+              "end": 5.035156249999998
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.14453125,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger",
+            "repeated_chord"
+          ]
+        },
+        {
+          "time": 5.114583333333331,
+          "notes": [
+            {
+              "time": 5.114583333333331,
+              "pitch": 65,
+              "velocity": 73,
+              "end": 5.148437499999998
+            },
+            {
+              "time": 5.128906249999998,
+              "pitch": 81,
+              "velocity": 70,
+              "end": 5.162760416666665
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.3333333333333317,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.265624999999998,
+          "notes": [
+            {
+              "time": 5.265624999999998,
+              "pitch": 79,
+              "velocity": 77,
+              "end": 5.300781249999998
+            },
+            {
+              "time": 5.268229166666665,
+              "pitch": 70,
+              "velocity": 79,
+              "end": 5.315104166666665
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.6679687499999991,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.408854166666665,
+          "notes": [
+            {
+              "time": 5.408854166666665,
+              "pitch": 70,
+              "velocity": 67,
+              "end": 5.458333333333332
+            },
+            {
+              "time": 5.415364583333332,
+              "pitch": 79,
+              "velocity": 57,
+              "end": 5.445312499999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.140625,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger",
+            "repeated_chord"
+          ]
+        },
+        {
+          "time": 5.531249999999999,
+          "notes": [
+            {
+              "time": 5.531249999999999,
+              "pitch": 77,
+              "velocity": 75,
+              "end": 5.584635416666666
+            },
+            {
+              "time": 5.537760416666666,
+              "pitch": 69,
+              "velocity": 69,
+              "end": 5.606770833333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.822916666666667,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.6640625,
+          "notes": [
+            {
+              "time": 5.6640625,
+              "pitch": 67,
+              "velocity": 71,
+              "end": 5.701822916666667
+            },
+            {
+              "time": 5.666666666666667,
+              "pitch": 76,
+              "velocity": 75,
+              "end": 5.71875
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.6666666666666679,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.802083333333333,
+          "notes": [
+            {
+              "time": 5.802083333333333,
+              "pitch": 67,
+              "velocity": 78,
+              "end": 5.845052083333333
+            },
+            {
+              "time": 5.805989583333333,
+              "pitch": 76,
+              "velocity": 62,
+              "end": 5.852864583333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.13541666666666607,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger",
+            "repeated_chord"
+          ]
+        },
+        {
+          "time": 5.9453125,
+          "notes": [
+            {
+              "time": 5.9453125,
+              "pitch": 65,
+              "velocity": 74,
+              "end": 5.984375
+            },
+            {
+              "time": 5.94921875,
+              "pitch": 74,
+              "velocity": 70,
+              "end": 5.984375
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.8307291666666687,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 6.084635416666667,
+          "notes": [
+            {
+              "time": 6.084635416666667,
+              "pitch": 64,
+              "velocity": 72,
+              "end": 6.138020833333333
+            },
+            {
+              "time": 6.0859375,
+              "pitch": 72,
+              "velocity": 68,
+              "end": 6.122395833333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.3723958333333348,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 6.223958333333333,
+          "notes": [
+            {
+              "time": 6.223958333333333,
+              "pitch": 60,
+              "velocity": 74,
+              "end": 6.2578125
+            },
+            {
+              "time": 6.23046875,
+              "pitch": 72,
+              "velocity": 64,
+              "end": 6.270833333333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.13802083333333304,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 6.3515625,
+          "notes": [
+            {
+              "time": 6.3515625,
+              "pitch": 64,
+              "velocity": 81,
+              "end": 6.3984375
+            },
+            {
+              "time": 6.360677083333333,
+              "pitch": 70,
+              "velocity": 78,
+              "end": 6.420572916666667
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.26692708333333304,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 6.38671875,
+          "notes": [
+            {
+              "time": 6.38671875,
+              "pitch": 67,
+              "velocity": 54,
+              "end": 6.4140625
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.584635416666667,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 6.498697916666667,
+          "notes": [
+            {
+              "time": 6.498697916666667,
+              "pitch": 65,
+              "velocity": 88,
+              "end": 6.5546875
+            },
+            {
+              "time": 6.5,
+              "pitch": 69,
+              "velocity": 81,
+              "end": 6.549479166666667
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.553385416666667,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 6.638020833333333,
+          "notes": [
+            {
+              "time": 6.638020833333333,
+              "pitch": 70,
+              "velocity": 79,
+              "end": 6.701822916666666
+            },
+            {
+              "time": 6.647135416666666,
+              "pitch": 67,
+              "velocity": 72,
+              "end": 6.682291666666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.25130208333333304,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 6.765624999999999,
+          "notes": [
+            {
+              "time": 6.765624999999999,
+              "pitch": 57,
+              "velocity": 82,
+              "end": 6.820312499999999
+            },
+            {
+              "time": 6.789062499999999,
+              "pitch": 69,
+              "velocity": 61,
+              "end": 6.816406249999999
+            },
+            {
+              "time": 6.789062499999999,
+              "pitch": 72,
+              "velocity": 56,
+              "end": 6.845052083333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.2656249999999991,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 6.916666666666665,
+          "notes": [
+            {
+              "time": 6.916666666666665,
+              "pitch": 67,
+              "velocity": 55,
+              "end": 6.972656249999999
+            },
+            {
+              "time": 6.923177083333332,
+              "pitch": 58,
+              "velocity": 95,
+              "end": 6.983072916666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.2695312499999991,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 6.960937499999999,
+          "notes": [
+            {
+              "time": 6.960937499999999,
+              "pitch": 69,
+              "velocity": 51,
+              "end": 6.990885416666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.171875,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 7.067708333333333,
+          "notes": [
+            {
+              "time": 7.067708333333333,
+              "pitch": 65,
+              "velocity": 77,
+              "end": 7.104166666666667
+            },
+            {
+              "time": 7.078125,
+              "pitch": 69,
+              "velocity": 75,
+              "end": 7.111979166666667
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.10677083333333393,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 7.201822916666667,
+          "notes": [
+            {
+              "time": 7.201822916666667,
+              "pitch": 67,
+              "velocity": 84,
+              "end": 7.253906250000001
+            },
+            {
+              "time": 7.209635416666667,
+              "pitch": 60,
+              "velocity": 79,
+              "end": 7.242187500000001
+            },
+            {
+              "time": 7.216145833333334,
+              "pitch": 64,
+              "velocity": 69,
+              "end": 7.255208333333334
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.2851562500000018,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 7.371093750000001,
+          "notes": [
+            {
+              "time": 7.371093750000001,
+              "pitch": 53,
+              "velocity": 87,
+              "end": 7.498697916666668
+            },
+            {
+              "time": 7.377604166666668,
+              "pitch": 65,
+              "velocity": 88,
+              "end": 7.618489583333334
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.30338541666666785,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 7.669270833333334,
+          "notes": [
+            {
+              "time": 7.669270833333334,
+              "pitch": 48,
+              "velocity": 82,
+              "end": 7.709635416666667
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        }
+      ],
+      "negativeGuards": []
+    },
+    {
+      "id": "d01-03",
+      "recordingId": "2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.wav",
+      "ownedStartSeconds": 27.5,
+      "selectedFor": [
+        "pedal_sustain",
+        "release_or_pedal_change"
+      ],
+      "ownedEndSeconds": 30.5,
+      "clipStartSeconds": 26.3,
+      "groups": [
+        {
+          "time": 27.692708333333325,
+          "notes": [
+            {
+              "time": 27.692708333333325,
+              "pitch": 48,
+              "velocity": 85,
+              "end": 28.09765624999999
+            },
+            {
+              "time": 27.696614583333325,
+              "pitch": 60,
+              "velocity": 93,
+              "end": 28.096354166666657
+            },
+            {
+              "time": 27.699218749999993,
+              "pitch": 36,
+              "velocity": 80,
+              "end": 28.09374999999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.40625,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 28.51302083333332,
+          "notes": [
+            {
+              "time": 28.51302083333332,
+              "pitch": 69,
+              "velocity": 69,
+              "end": 28.60546874999999
+            },
+            {
+              "time": 28.53124999999999,
+              "pitch": 73,
+              "velocity": 68,
+              "end": 28.635416666666657
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.7513020833333357,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 28.55208333333332,
+          "notes": [
+            {
+              "time": 28.55208333333332,
+              "pitch": 76,
+              "velocity": 59,
+              "end": 28.63671874999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.953125,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 28.596354166666654,
+          "notes": [
+            {
+              "time": 28.596354166666654,
+              "pitch": 79,
+              "velocity": 83,
+              "end": 28.651041666666654
+            },
+            {
+              "time": 28.60546874999999,
+              "pitch": 45,
+              "velocity": 90,
+              "end": 28.64062499999999
+            },
+            {
+              "time": 28.61328124999999,
+              "pitch": 33,
+              "velocity": 78,
+              "end": 28.639322916666657
+            },
+            {
+              "time": 28.61718749999999,
+              "pitch": 40,
+              "velocity": 75,
+              "end": 28.64192708333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 4.389322916666664,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 28.764322916666654,
+          "notes": [
+            {
+              "time": 28.764322916666654,
+              "pitch": 69,
+              "velocity": 78,
+              "end": 28.79427083333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.25130208333333215,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 28.89583333333332,
+          "notes": [
+            {
+              "time": 28.89583333333332,
+              "pitch": 77,
+              "velocity": 78,
+              "end": 28.967447916666657
+            },
+            {
+              "time": 28.92187499999999,
+              "pitch": 74,
+              "velocity": 58,
+              "end": 28.94921874999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 3.154947916666668,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 29.052083333333325,
+          "notes": [
+            {
+              "time": 29.052083333333325,
+              "pitch": 69,
+              "velocity": 77,
+              "end": 29.079427083333325
+            },
+            {
+              "time": 29.063802083333325,
+              "pitch": 76,
+              "velocity": 68,
+              "end": 29.098958333333325
+            },
+            {
+              "time": 29.082031249999993,
+              "pitch": 73,
+              "velocity": 39,
+              "end": 29.119791666666657
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.2877604166666714,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 29.192708333333325,
+          "notes": [
+            {
+              "time": 29.192708333333325,
+              "pitch": 69,
+              "velocity": 77,
+              "end": 29.227864583333325
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.140625,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 29.296874999999993,
+          "notes": [
+            {
+              "time": 29.296874999999993,
+              "pitch": 74,
+              "velocity": 77,
+              "end": 29.34635416666666
+            },
+            {
+              "time": 29.304687499999993,
+              "pitch": 71,
+              "velocity": 57,
+              "end": 29.33072916666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.37500000000000355,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 29.449218749999993,
+          "notes": [
+            {
+              "time": 29.449218749999993,
+              "pitch": 69,
+              "velocity": 83,
+              "end": 30.213541666666654
+            },
+            {
+              "time": 29.453124999999993,
+              "pitch": 73,
+              "velocity": 78,
+              "end": 29.51041666666666
+            },
+            {
+              "time": 29.45572916666666,
+              "pitch": 67,
+              "velocity": 68,
+              "end": 29.49869791666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.25651041666666785,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 29.55989583333333,
+          "notes": [
+            {
+              "time": 29.55989583333333,
+              "pitch": 57,
+              "velocity": 66,
+              "end": 29.60286458333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 2.967447916666675,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 29.710937499999996,
+          "notes": [
+            {
+              "time": 29.710937499999996,
+              "pitch": 65,
+              "velocity": 74,
+              "end": 29.74348958333333
+            },
+            {
+              "time": 29.74479166666666,
+              "pitch": 71,
+              "velocity": 58,
+              "end": 29.77213541666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.40625000000000355,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 29.74739583333333,
+          "notes": [
+            {
+              "time": 29.74739583333333,
+              "pitch": 74,
+              "velocity": 58,
+              "end": 29.78645833333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4505208333333357,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 29.86588541666666,
+          "notes": [
+            {
+              "time": 29.86588541666666,
+              "pitch": 64,
+              "velocity": 72,
+              "end": 29.91536458333333
+            },
+            {
+              "time": 29.88020833333333,
+              "pitch": 76,
+              "velocity": 75,
+              "end": 29.94401041666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.8020833333333357,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 29.91145833333333,
+          "notes": [
+            {
+              "time": 29.91145833333333,
+              "pitch": 73,
+              "velocity": 60,
+              "end": 29.93619791666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4583333333333357,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 30.027343749999993,
+          "notes": [
+            {
+              "time": 30.027343749999993,
+              "pitch": 57,
+              "velocity": 66,
+              "end": 30.067708333333325
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4674479166666643,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 30.162760416666657,
+          "notes": [
+            {
+              "time": 30.162760416666657,
+              "pitch": 62,
+              "velocity": 72,
+              "end": 30.20052083333332
+            },
+            {
+              "time": 30.170572916666657,
+              "pitch": 77,
+              "velocity": 74,
+              "end": 30.222656249999986
+            },
+            {
+              "time": 30.17578124999999,
+              "pitch": 74,
+              "velocity": 70,
+              "end": 30.213541666666654
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4153645833333286,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 30.320312499999986,
+          "notes": [
+            {
+              "time": 30.320312499999986,
+              "pitch": 61,
+              "velocity": 79,
+              "end": 30.393229166666654
+            },
+            {
+              "time": 30.328124999999986,
+              "pitch": 76,
+              "velocity": 73,
+              "end": 30.472656249999986
+            },
+            {
+              "time": 30.332031249999986,
+              "pitch": 79,
+              "velocity": 78,
+              "end": 30.617187499999986
+            },
+            {
+              "time": 30.338541666666654,
+              "pitch": 69,
+              "velocity": 70,
+              "end": 30.644531249999986
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4401041666666572,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 30.477864583333318,
+          "notes": [
+            {
+              "time": 30.477864583333318,
+              "pitch": 57,
+              "velocity": 72,
+              "end": 30.523437499999986
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.45052083333332504,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        }
+      ],
+      "negativeGuards": [
+        {
+          "start": 27.799218749999994,
+          "end": 28.41302083333332,
+          "tags": [
+            "all_note_on_free",
+            "pedal_sustain",
+            "release_or_pedal_change"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d02-00",
+      "recordingId": "2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.wav",
+      "ownedStartSeconds": 2.1,
+      "selectedFor": [
+        "single",
+        "chord",
+        "same_note_retrigger"
+      ],
+      "ownedEndSeconds": 5.1,
+      "clipStartSeconds": 0.9000000000000001,
+      "groups": [
+        {
+          "time": 2.151041666666666,
+          "notes": [
+            {
+              "time": 2.151041666666666,
+              "pitch": 61,
+              "velocity": 43,
+              "end": 2.6679687499999996
+            },
+            {
+              "time": 2.1679687499999996,
+              "pitch": 76,
+              "velocity": 62,
+              "end": 2.395833333333333
+            },
+            {
+              "time": 2.1718749999999996,
+              "pitch": 64,
+              "velocity": 42,
+              "end": 2.677083333333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.5234374999999996,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.4140624999999996,
+          "notes": [
+            {
+              "time": 2.4140624999999996,
+              "pitch": 81,
+              "velocity": 68,
+              "end": 2.447916666666666
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 2.677083333333333,
+          "notes": [
+            {
+              "time": 2.677083333333333,
+              "pitch": 69,
+              "velocity": 72,
+              "end": 2.7148437499999996
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.6328124999999998,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.944010416666666,
+          "notes": [
+            {
+              "time": 2.944010416666666,
+              "pitch": 79,
+              "velocity": 59,
+              "end": 2.985677083333333
+            },
+            {
+              "time": 2.9609374999999996,
+              "pitch": 62,
+              "velocity": 44,
+              "end": 3.1445312499999996
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.596354166666666,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.9999999999999996,
+          "notes": [
+            {
+              "time": 2.9999999999999996,
+              "pitch": 77,
+              "velocity": 67,
+              "end": 3.072916666666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.1054687499999998,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.084635416666666,
+          "notes": [
+            {
+              "time": 3.084635416666666,
+              "pitch": 79,
+              "velocity": 68,
+              "end": 3.1484374999999996
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.140625,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 3.1601562499999996,
+          "notes": [
+            {
+              "time": 3.1601562499999996,
+              "pitch": 77,
+              "velocity": 58,
+              "end": 3.21484375
+            },
+            {
+              "time": 3.173177083333333,
+              "pitch": 65,
+              "velocity": 42,
+              "end": 3.2799479166666665
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.16015625,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 3.2057291666666665,
+          "notes": [
+            {
+              "time": 3.2057291666666665,
+              "pitch": 79,
+              "velocity": 60,
+              "end": 3.2955729166666665
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.12109375000000044,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 3.3190104166666665,
+          "notes": [
+            {
+              "time": 3.3190104166666665,
+              "pitch": 77,
+              "velocity": 44,
+              "end": 3.3502604166666665
+            },
+            {
+              "time": 3.3268229166666665,
+              "pitch": 69,
+              "velocity": 40,
+              "end": 3.6302083333333335
+            },
+            {
+              "time": 3.333333333333333,
+              "pitch": 79,
+              "velocity": 52,
+              "end": 3.41796875
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.11328125,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 3.4544270833333335,
+          "notes": [
+            {
+              "time": 3.4544270833333335,
+              "pitch": 77,
+              "velocity": 53,
+              "end": 3.4856770833333335
+            },
+            {
+              "time": 3.4700520833333335,
+              "pitch": 79,
+              "velocity": 58,
+              "end": 3.5677083333333335
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.12109375000000044,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 3.57421875,
+          "notes": [
+            {
+              "time": 3.57421875,
+              "pitch": 77,
+              "velocity": 67,
+              "end": 3.6497395833333335
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.11979166666666652,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 3.66796875,
+          "notes": [
+            {
+              "time": 3.66796875,
+              "pitch": 76,
+              "velocity": 60,
+              "end": 4.171874999999999
+            },
+            {
+              "time": 3.6940104166666665,
+              "pitch": 60,
+              "velocity": 31,
+              "end": 3.9088541666666665
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.5000000000000004,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.9375,
+          "notes": [
+            {
+              "time": 3.9375,
+              "pitch": 64,
+              "velocity": 53,
+              "end": 4.118489583333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.7656250000000004,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.170572916666666,
+          "notes": [
+            {
+              "time": 4.170572916666666,
+              "pitch": 81,
+              "velocity": 69,
+              "end": 4.212239583333332
+            },
+            {
+              "time": 4.187499999999999,
+              "pitch": 69,
+              "velocity": 49,
+              "end": 4.378906249999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.8437499999999996,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.433593749999999,
+          "notes": [
+            {
+              "time": 4.433593749999999,
+              "pitch": 79,
+              "velocity": 70,
+              "end": 4.488281249999999
+            },
+            {
+              "time": 4.449218749999999,
+              "pitch": 62,
+              "velocity": 47,
+              "end": 4.749999999999999
+            },
+            {
+              "time": 4.455729166666666,
+              "pitch": 58,
+              "velocity": 38,
+              "end": 4.811197916666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.9635416666666656,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.704427083333332,
+          "notes": [
+            {
+              "time": 4.704427083333332,
+              "pitch": 82,
+              "velocity": 68,
+              "end": 4.845052083333333
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 4.817708333333333,
+          "notes": [
+            {
+              "time": 4.817708333333333,
+              "pitch": 81,
+              "velocity": 71,
+              "end": 4.981770833333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.647135416666667,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.930989583333333,
+          "notes": [
+            {
+              "time": 4.930989583333333,
+              "pitch": 79,
+              "velocity": 71,
+              "end": 5.052083333333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4973958333333339,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.03515625,
+          "notes": [
+            {
+              "time": 5.03515625,
+              "pitch": 77,
+              "velocity": 75,
+              "end": 5.16015625
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.4609375,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        }
+      ],
+      "negativeGuards": []
+    },
+    {
+      "id": "d02-01",
+      "recordingId": "2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.wav",
+      "ownedStartSeconds": 10.8,
+      "selectedFor": [
+        "soft_after_loud"
+      ],
+      "ownedEndSeconds": 13.8,
+      "clipStartSeconds": 9.600000000000001,
+      "groups": [
+        {
+          "time": 10.85546875,
+          "notes": [
+            {
+              "time": 10.85546875,
+              "pitch": 64,
+              "velocity": 46,
+              "end": 10.888020833333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.2656250000000018,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 11.078124999999998,
+          "notes": [
+            {
+              "time": 11.078124999999998,
+              "pitch": 60,
+              "velocity": 48,
+              "end": 11.128906249999998
+            },
+            {
+              "time": 11.096354166666664,
+              "pitch": 72,
+              "velocity": 45,
+              "end": 11.134114583333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4531249999999982,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "soft_after_loud"
+          ]
+        },
+        {
+          "time": 11.339843749999998,
+          "notes": [
+            {
+              "time": 11.339843749999998,
+              "pitch": 64,
+              "velocity": 49,
+              "end": 11.572916666666666
+            },
+            {
+              "time": 11.341145833333332,
+              "pitch": 58,
+              "velocity": 41,
+              "end": 11.632812499999998
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4843749999999982,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 11.610677083333332,
+          "notes": [
+            {
+              "time": 11.610677083333332,
+              "pitch": 62,
+              "velocity": 46,
+              "end": 11.643229166666664
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.252604166666666,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 11.85286458333333,
+          "notes": [
+            {
+              "time": 11.85286458333333,
+              "pitch": 58,
+              "velocity": 47,
+              "end": 11.89583333333333
+            },
+            {
+              "time": 11.86067708333333,
+              "pitch": 70,
+              "velocity": 48,
+              "end": 11.89192708333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.5117187499999982,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 12.108072916666664,
+          "notes": [
+            {
+              "time": 12.108072916666664,
+              "pitch": 57,
+              "velocity": 40,
+              "end": 12.356770833333332
+            },
+            {
+              "time": 12.128906249999998,
+              "pitch": 60,
+              "velocity": 49,
+              "end": 12.352864583333332
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.029947916666666,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 12.384114583333332,
+          "notes": [
+            {
+              "time": 12.384114583333332,
+              "pitch": 58,
+              "velocity": 45,
+              "end": 12.483072916666666
+            },
+            {
+              "time": 12.386718749999998,
+              "pitch": 62,
+              "velocity": 51,
+              "end": 12.483072916666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.5312500000000018,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 12.477864583333332,
+          "notes": [
+            {
+              "time": 12.477864583333332,
+              "pitch": 64,
+              "velocity": 59,
+              "end": 12.5390625
+            },
+            {
+              "time": 12.5078125,
+              "pitch": 60,
+              "velocity": 53,
+              "end": 12.5625
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.3489583333333339,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 12.596354166666666,
+          "notes": [
+            {
+              "time": 12.596354166666666,
+              "pitch": 62,
+              "velocity": 43,
+              "end": 12.70703125
+            },
+            {
+              "time": 12.6015625,
+              "pitch": 65,
+              "velocity": 63,
+              "end": 12.682291666666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.20963541666666785,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 12.701822916666666,
+          "notes": [
+            {
+              "time": 12.701822916666666,
+              "pitch": 67,
+              "velocity": 63,
+              "end": 12.821614583333334
+            },
+            {
+              "time": 12.70703125,
+              "pitch": 64,
+              "velocity": 59,
+              "end": 12.803385416666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.22395833333333393,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 12.8203125,
+          "notes": [
+            {
+              "time": 12.8203125,
+              "pitch": 69,
+              "velocity": 69,
+              "end": 12.852864583333334
+            },
+            {
+              "time": 12.829427083333334,
+              "pitch": 65,
+              "velocity": 64,
+              "end": 12.8671875
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.21875,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 13.079427083333334,
+          "notes": [
+            {
+              "time": 13.079427083333334,
+              "pitch": 67,
+              "velocity": 61,
+              "end": 13.12109375
+            },
+            {
+              "time": 13.08203125,
+              "pitch": 64,
+              "velocity": 56,
+              "end": 13.115885416666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.3723958333333339,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 13.319010416666666,
+          "notes": [
+            {
+              "time": 13.319010416666666,
+              "pitch": 62,
+              "velocity": 56,
+              "end": 13.368489583333332
+            },
+            {
+              "time": 13.322916666666666,
+              "pitch": 65,
+              "velocity": 61,
+              "end": 13.371093749999998
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.48958333333333215,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 13.582031249999998,
+          "notes": [
+            {
+              "time": 13.582031249999998,
+              "pitch": 60,
+              "velocity": 49,
+              "end": 13.678385416666664
+            },
+            {
+              "time": 13.584635416666664,
+              "pitch": 64,
+              "velocity": 62,
+              "end": 13.68880208333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4999999999999982,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 13.699218749999996,
+          "notes": [
+            {
+              "time": 13.699218749999996,
+              "pitch": 62,
+              "velocity": 59,
+              "end": 13.81770833333333
+            },
+            {
+              "time": 13.701822916666663,
+              "pitch": 65,
+              "velocity": 65,
+              "end": 13.826822916666664
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.3763020833333304,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        }
+      ],
+      "negativeGuards": []
+    },
+    {
+      "id": "d02-02",
+      "recordingId": "2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.wav",
+      "ownedStartSeconds": 2.8,
+      "selectedFor": [
+        "rapid_retrigger"
+      ],
+      "ownedEndSeconds": 5.8,
+      "clipStartSeconds": 1.5999999999999999,
+      "groups": [
+        {
+          "time": 2.944010416666666,
+          "notes": [
+            {
+              "time": 2.944010416666666,
+              "pitch": 79,
+              "velocity": 59,
+              "end": 2.985677083333333
+            },
+            {
+              "time": 2.9609374999999996,
+              "pitch": 62,
+              "velocity": 44,
+              "end": 3.1445312499999996
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.596354166666666,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 2.9999999999999996,
+          "notes": [
+            {
+              "time": 2.9999999999999996,
+              "pitch": 77,
+              "velocity": 67,
+              "end": 3.072916666666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.1054687499999998,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.084635416666666,
+          "notes": [
+            {
+              "time": 3.084635416666666,
+              "pitch": 79,
+              "velocity": 68,
+              "end": 3.1484374999999996
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.140625,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 3.1601562499999996,
+          "notes": [
+            {
+              "time": 3.1601562499999996,
+              "pitch": 77,
+              "velocity": 58,
+              "end": 3.21484375
+            },
+            {
+              "time": 3.173177083333333,
+              "pitch": 65,
+              "velocity": 42,
+              "end": 3.2799479166666665
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.16015625,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 3.2057291666666665,
+          "notes": [
+            {
+              "time": 3.2057291666666665,
+              "pitch": 79,
+              "velocity": 60,
+              "end": 3.2955729166666665
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.12109375000000044,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 3.3190104166666665,
+          "notes": [
+            {
+              "time": 3.3190104166666665,
+              "pitch": 77,
+              "velocity": 44,
+              "end": 3.3502604166666665
+            },
+            {
+              "time": 3.3268229166666665,
+              "pitch": 69,
+              "velocity": 40,
+              "end": 3.6302083333333335
+            },
+            {
+              "time": 3.333333333333333,
+              "pitch": 79,
+              "velocity": 52,
+              "end": 3.41796875
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.11328125,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 3.4544270833333335,
+          "notes": [
+            {
+              "time": 3.4544270833333335,
+              "pitch": 77,
+              "velocity": 53,
+              "end": 3.4856770833333335
+            },
+            {
+              "time": 3.4700520833333335,
+              "pitch": 79,
+              "velocity": 58,
+              "end": 3.5677083333333335
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.12109375000000044,
+          "tags": [
+            "chord",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 3.57421875,
+          "notes": [
+            {
+              "time": 3.57421875,
+              "pitch": 77,
+              "velocity": 67,
+              "end": 3.6497395833333335
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.11979166666666652,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 3.66796875,
+          "notes": [
+            {
+              "time": 3.66796875,
+              "pitch": 76,
+              "velocity": 60,
+              "end": 4.171874999999999
+            },
+            {
+              "time": 3.6940104166666665,
+              "pitch": 60,
+              "velocity": 31,
+              "end": 3.9088541666666665
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.5000000000000004,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 3.9375,
+          "notes": [
+            {
+              "time": 3.9375,
+              "pitch": 64,
+              "velocity": 53,
+              "end": 4.118489583333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.7656250000000004,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.170572916666666,
+          "notes": [
+            {
+              "time": 4.170572916666666,
+              "pitch": 81,
+              "velocity": 69,
+              "end": 4.212239583333332
+            },
+            {
+              "time": 4.187499999999999,
+              "pitch": 69,
+              "velocity": 49,
+              "end": 4.378906249999999
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.8437499999999996,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.433593749999999,
+          "notes": [
+            {
+              "time": 4.433593749999999,
+              "pitch": 79,
+              "velocity": 70,
+              "end": 4.488281249999999
+            },
+            {
+              "time": 4.449218749999999,
+              "pitch": 62,
+              "velocity": 47,
+              "end": 4.749999999999999
+            },
+            {
+              "time": 4.455729166666666,
+              "pitch": 58,
+              "velocity": 38,
+              "end": 4.811197916666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.9635416666666656,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.704427083333332,
+          "notes": [
+            {
+              "time": 4.704427083333332,
+              "pitch": 82,
+              "velocity": 68,
+              "end": 4.845052083333333
+            }
+          ],
+          "tags": [
+            "single"
+          ]
+        },
+        {
+          "time": 4.817708333333333,
+          "notes": [
+            {
+              "time": 4.817708333333333,
+              "pitch": 81,
+              "velocity": 71,
+              "end": 4.981770833333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.647135416666667,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 4.930989583333333,
+          "notes": [
+            {
+              "time": 4.930989583333333,
+              "pitch": 79,
+              "velocity": 71,
+              "end": 5.052083333333333
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.4973958333333339,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.03515625,
+          "notes": [
+            {
+              "time": 5.03515625,
+              "pitch": 77,
+              "velocity": 75,
+              "end": 5.16015625
+            }
+          ],
+          "minimumRetriggerGapSeconds": 1.4609375,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.171875,
+          "notes": [
+            {
+              "time": 5.171875,
+              "pitch": 76,
+              "velocity": 66,
+              "end": 5.223958333333334
+            },
+            {
+              "time": 5.18359375,
+              "pitch": 62,
+              "velocity": 40,
+              "end": 5.520833333333334
+            },
+            {
+              "time": 5.190104166666667,
+              "pitch": 55,
+              "velocity": 39,
+              "end": 5.511718750000001
+            },
+            {
+              "time": 5.194010416666667,
+              "pitch": 64,
+              "velocity": 44,
+              "end": 5.484375000000001
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.7226562500000009,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.458333333333334,
+          "notes": [
+            {
+              "time": 5.458333333333334,
+              "pitch": 79,
+              "velocity": 63,
+              "end": 5.653645833333334
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.5273437500000009,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.585937500000001,
+          "notes": [
+            {
+              "time": 5.585937500000001,
+              "pitch": 77,
+              "velocity": 68,
+              "end": 5.743489583333334
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.5507812500000009,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 5.696614583333334,
+          "notes": [
+            {
+              "time": 5.696614583333334,
+              "pitch": 76,
+              "velocity": 70,
+              "end": 5.829427083333334
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.5247395833333339,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        }
+      ],
+      "negativeGuards": []
+    },
+    {
+      "id": "d02-03",
+      "recordingId": "2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.wav",
+      "ownedStartSeconds": 40.2,
+      "selectedFor": [
+        "release_or_pedal_change"
+      ],
+      "ownedEndSeconds": 43.2,
+      "clipStartSeconds": 39.0,
+      "groups": [
+        {
+          "time": 40.290364583333314,
+          "notes": [
+            {
+              "time": 40.290364583333314,
+              "pitch": 77,
+              "velocity": 43,
+              "end": 40.33854166666665
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.1783854166666714,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 40.359374999999986,
+          "notes": [
+            {
+              "time": 40.359374999999986,
+              "pitch": 79,
+              "velocity": 53,
+              "end": 40.417968749999986
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.1601562500000071,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 40.449218749999986,
+          "notes": [
+            {
+              "time": 40.449218749999986,
+              "pitch": 77,
+              "velocity": 53,
+              "end": 41.47135416666665
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.1588541666666714,
+          "tags": [
+            "single",
+            "same_note_retrigger",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "time": 41.90364583333332,
+          "notes": [
+            {
+              "time": 41.90364583333332,
+              "pitch": 60,
+              "velocity": 43,
+              "end": 41.93619791666666
+            }
+          ],
+          "minimumRetriggerGapSeconds": 6.528645833333343,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 42.15755208333332,
+          "notes": [
+            {
+              "time": 42.15755208333332,
+              "pitch": 60,
+              "velocity": 14,
+              "end": 42.69921875000001
+            },
+            {
+              "time": 42.16927083333332,
+              "pitch": 57,
+              "velocity": 30,
+              "end": 42.67578125
+            },
+            {
+              "time": 42.18489583333332,
+              "pitch": 65,
+              "velocity": 49,
+              "end": 42.43229166666666
+            },
+            {
+              "time": 42.18619791666666,
+              "pitch": 53,
+              "velocity": 24,
+              "end": 42.74088541666668
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.25390625,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 42.43359374999999,
+          "notes": [
+            {
+              "time": 42.43359374999999,
+              "pitch": 67,
+              "velocity": 50,
+              "end": 42.69791666666667
+            }
+          ],
+          "minimumRetriggerGapSeconds": 6.044270833333343,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 42.696614583333336,
+          "notes": [
+            {
+              "time": 42.696614583333336,
+              "pitch": 69,
+              "velocity": 55,
+              "end": 42.93880208333335
+            }
+          ],
+          "minimumRetriggerGapSeconds": 6.242187500000021,
+          "tags": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "time": 42.963541666666686,
+          "notes": [
+            {
+              "time": 42.963541666666686,
+              "pitch": 52,
+              "velocity": 44,
+              "end": 43.53385416666668
+            },
+            {
+              "time": 42.96614583333335,
+              "pitch": 60,
+              "velocity": 36,
+              "end": 43.57682291666668
+            },
+            {
+              "time": 42.968750000000014,
+              "pitch": 67,
+              "velocity": 54,
+              "end": 43.21744791666668
+            },
+            {
+              "time": 42.97786458333334,
+              "pitch": 55,
+              "velocity": 45,
+              "end": 43.60416666666668
+            }
+          ],
+          "minimumRetriggerGapSeconds": 0.5299479166666927,
+          "tags": [
+            "chord",
+            "same_note_retrigger"
+          ]
+        }
+      ],
+      "negativeGuards": [
+        {
+          "start": 40.54921874999999,
+          "end": 41.80364583333332,
+          "tags": [
+            "all_note_on_free",
+            "release_or_pedal_change"
+          ]
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "dataset": "maestro-v3.0.0",
+      "recordingId": "2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.wav",
+      "audioPath": "backend/data/work/datasets/maestro-v3.0.0/2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.wav",
+      "midiPath": "backend/data/work/datasets/maestro-v3.0.0/2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.midi",
+      "audioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "midiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4",
+      "audioBytes": 23891996,
+      "audio": {
+        "rate": 44100,
+        "channels": 2,
+        "frames": 5972988,
+        "durationSeconds": 135.44190476190477
+      },
+      "midi": {
+        "noteOnCount": 1897,
+        "midiEndSeconds": 134.44895833333112,
+        "controls": {
+          "64": 1812,
+          "67": 307
+        },
+        "sustainCc64Count": 1812,
+        "lastNoteOnSeconds": 134.27812499999774
+      },
+      "historicalTriggerExposure": [
+        "production_step_causal_cases_multi_source",
+        "production_step_development_set"
+      ],
+      "pairing": "official CSV path binding; local byte identity, not proof of full publisher media",
+      "publishedDurationSeconds": 134.376478304,
+      "cases": [
+        {
+          "ownedStartSeconds": 2.0,
+          "selectedFor": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "ownedStartSeconds": 2.9,
+          "selectedFor": [
+            "chord",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "ownedStartSeconds": 13.6,
+          "selectedFor": [
+            "soft_after_loud"
+          ]
+        },
+        {
+          "ownedStartSeconds": 126.7,
+          "selectedFor": [
+            "held"
+          ]
+        },
+        {
+          "ownedStartSeconds": 102.6,
+          "selectedFor": [
+            "pedal_sustain",
+            "release_or_pedal_change"
+          ]
+        }
+      ],
+      "alignmentTransformSeconds": 0,
+      "alignmentBasis": "official MAESTRO paired recording, no model-fitted adjustment"
+    },
+    {
+      "dataset": "maestro-v3.0.0",
+      "recordingId": "2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.wav",
+      "audioPath": "backend/data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.wav",
+      "midiPath": "backend/data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.midi",
+      "audioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "midiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc",
+      "audioBytes": 11845452,
+      "audio": {
+        "rate": 44100,
+        "channels": 2,
+        "frames": 2961352,
+        "durationSeconds": 67.15083900226757
+      },
+      "midi": {
+        "noteOnCount": 882,
+        "midiEndSeconds": 66.21875000000001,
+        "controls": {
+          "64": 395
+        },
+        "sustainCc64Count": 395,
+        "lastNoteOnSeconds": 65.34505208333337
+      },
+      "historicalTriggerExposure": [
+        "production_step_causal_cases_multi_source",
+        "production_step_development_set"
+      ],
+      "pairing": "official CSV path binding; local byte identity, not proof of full publisher media",
+      "publishedDurationSeconds": 65.9481178125,
+      "cases": [
+        {
+          "ownedStartSeconds": 1.8,
+          "selectedFor": [
+            "single",
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "ownedStartSeconds": 2.7,
+          "selectedFor": [
+            "soft_after_loud",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "ownedStartSeconds": 4.7,
+          "selectedFor": [
+            "repeated_chord"
+          ]
+        },
+        {
+          "ownedStartSeconds": 27.5,
+          "selectedFor": [
+            "pedal_sustain",
+            "release_or_pedal_change"
+          ]
+        }
+      ],
+      "alignmentTransformSeconds": 0,
+      "alignmentBasis": "official MAESTRO paired recording, no model-fitted adjustment"
+    },
+    {
+      "dataset": "maestro-v3.0.0",
+      "recordingId": "2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.wav",
+      "audioPath": "backend/data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.wav",
+      "midiPath": "backend/data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.midi",
+      "audioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "midiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50",
+      "audioBytes": 17137212,
+      "audio": {
+        "rate": 44100,
+        "channels": 2,
+        "frames": 4284292,
+        "durationSeconds": 97.14947845804988
+      },
+      "midi": {
+        "noteOnCount": 860,
+        "midiEndSeconds": 96.17057291666674,
+        "controls": {
+          "64": 466,
+          "66": 1,
+          "67": 104
+        },
+        "sustainCc64Count": 466,
+        "lastNoteOnSeconds": 93.34635416666677
+      },
+      "historicalTriggerExposure": [
+        "production_step_causal_cases_multi_source",
+        "production_step_development_set"
+      ],
+      "pairing": "official CSV path binding; local byte identity, not proof of full publisher media",
+      "publishedDurationSeconds": 95.9707907813,
+      "cases": [
+        {
+          "ownedStartSeconds": 2.1,
+          "selectedFor": [
+            "single",
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "ownedStartSeconds": 10.8,
+          "selectedFor": [
+            "soft_after_loud"
+          ]
+        },
+        {
+          "ownedStartSeconds": 2.8,
+          "selectedFor": [
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "ownedStartSeconds": 40.2,
+          "selectedFor": [
+            "release_or_pedal_change"
+          ]
+        }
+      ],
+      "alignmentTransformSeconds": 0,
+      "alignmentBasis": "official MAESTRO paired recording, no model-fitted adjustment"
+    }
+  ],
+  "selectionAlgorithm": "first-family-occurrence-v1; chronological; merge start distance <600ms",
+  "grouping": "fixed first anchor 35ms, not transitive",
+  "scoredSecondsPerSourceRate": 39,
+  "strongSustainAcousticEnergyQualification": "NOT_ESTABLISHED_BY_MIDI_ONLY",
+  "testSourceConversion": "scipy1.14.1 resample_poly default Kaiser5, float32, no gain normalization"
+}
