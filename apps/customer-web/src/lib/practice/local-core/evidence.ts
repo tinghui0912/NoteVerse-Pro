@@ -1,21 +1,4 @@
-import type { CaptureTime, SessionTime } from './timebase';
-
-export type StepVerifierTarget = {
-  stepId: string;
-  activationGeneration: number;
-  activationBoundary: SessionTime;
-  attackPitches: string[];
-  continuationPitches: string[];
-};
-
-export type StepVerifierObservation = CaptureTime & {
-  stepId: string;
-  activationGeneration: number;
-  attackOnsetTime: SessionTime;
-  observedAttackPitches: string[];
-  confidence: number;
-  source: 'ACOUSTIC' | 'MIDI' | 'FAKE';
-};
+import type { CaptureTime } from './timebase';
 
 export type CapturedAttack = CaptureTime & {
   pitch: string;

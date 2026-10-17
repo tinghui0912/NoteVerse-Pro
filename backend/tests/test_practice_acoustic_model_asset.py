@@ -11,7 +11,7 @@ from app.modules.model_assets.router import router
 from app.modules.model_assets.service import get_model_asset_service
 
 
-class ContinuousModelAssetTests(unittest.TestCase):
+class PracticeAcousticModelAssetTests(unittest.TestCase):
     def test_delivery_is_pinned_and_ignores_historical_object_key(self):
         config = oss.config.load_default()
         config.region = "cn-shenzhen"

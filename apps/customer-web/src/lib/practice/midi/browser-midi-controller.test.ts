@@ -41,54 +41,6 @@ describe('browser MIDI controller', () => {
     });
   });
 
-  it('coalesces chord attacks and emits StepVerifierObservation', async () => {
-    vi.useFakeTimers();
-    const timebase = new PracticeTimebase({ domainId: 'midi-session' });
-    const stepObservations: unknown[] = [];
-    const capturedAttacks: unknown[] = [];
-
-    const controller = new BrowserMidiController({
-      timebase,
-      chordCoalesceWindowMs: 30,
-      getCurrentStepTarget: () => ({
-        stepId: 'step-chord',
-        activationGeneration: 1,
-        activationBoundary: { domainId: 'midi-session', ms: 0 },
-        attackPitches: ['C4', 'E4', 'G4'],
-        continuationPitches: [],
-      }),
-      onStepObservation: (obs) => stepObservations.push(obs),
-      onCapturedAttack: (attack) => capturedAttacks.push(attack),
-    });
-
-    // Mark as running by simulating dispatch
-    (controller as unknown as { isRunning: boolean }).isRunning = true;
-
-    // Dispatch C4, then E4, then G4 within 20ms
-    controller.dispatchMidiData(new Uint8Array([0x90, 60, 80]), 100);
-    controller.dispatchMidiData(new Uint8Array([0x90, 64, 85]), 110);
-    // Since target was ['C4', 'E4', 'G4'], delivering the third should flush immediately
-    controller.dispatchMidiData(new Uint8Array([0x90, 67, 90]), 115);
-
-    expect(stepObservations).toHaveLength(1);
-    expect(stepObservations[0]).toMatchObject({
-      stepId: 'step-chord',
-      activationGeneration: 1,
-      attackOnsetTime: { domainId: 'midi-session', ms: 100 },
-      observedAttackPitches: expect.arrayContaining(['C4', 'E4', 'G4']),
-      source: 'MIDI',
-    });
-
-    expect(capturedAttacks).toHaveLength(3);
-    expect(capturedAttacks[0]).toMatchObject({
-      captureTime: { domainId: 'midi-session', ms: 100 },
-      pitch: 'C4',
-      source: 'MIDI',
-    });
-
-    vi.useRealTimers();
-  });
-
   it('throws MidiNoConnectedInputError when 0 connected MIDI devices are detected', async () => {
     const timebase = new PracticeTimebase({ domainId: 'midi-session' });
     const controller = new BrowserMidiController({ timebase });
@@ -155,5 +107,27 @@ describe('browser MIDI controller', () => {
         configurable: true,
       });
     }
+  });
+  it('publishes generic NOTE_ON/OFF and immediate capture facts, without a target or gesture timer', async () => {
+    const note = vi.fn(), attack = vi.fn(), input = { state: 'connected', onmidimessage: null };
+    vi.stubGlobal('navigator', { requestMIDIAccess: async () => ({ inputs: new Map([['a',input]]),onstatechange:null }) });
+    const controller = new BrowserMidiController({ timebase: new PracticeTimebase({domainId:'facts'}),onMidiNote:note,onCapturedAttack:attack });
+    try {
+      await controller.start(); controller.dispatchMidiData(new Uint8Array([0x90,60,80]),100);
+      controller.dispatchMidiData(new Uint8Array([0x80,60,0]),110);
+      expect(note.mock.calls.map(c => c[0].type)).toEqual(['NOTE_ON','NOTE_OFF']);
+      expect(note.mock.calls[0][0].sessionTime).toEqual({domainId:'facts',ms:100});
+      expect(attack).toHaveBeenCalledTimes(1); controller.stop();
+      controller.dispatchMidiData(new Uint8Array([0x90,60,80]),120); expect(attack).toHaveBeenCalledTimes(1);
+    } finally { controller.dispose(); vi.unstubAllGlobals(); }
+  });
+  it('disposal during MIDI permission wait cannot leave a late active driver', async () => {
+    let resolve!: (value: unknown) => void;
+    vi.stubGlobal('navigator', { requestMIDIAccess: () => new Promise(r => { resolve = r; }) });
+    const controller = new BrowserMidiController({timebase:new PracticeTimebase({domainId:'cancel'})});
+    try {
+      const start = controller.start(); controller.dispose(); resolve({inputs:new Map(),onstatechange:null});
+      await expect(start).rejects.toThrow('MIDI_START_CANCELLED'); expect(controller.getState().isRunning).toBe(false);
+    } finally { vi.unstubAllGlobals(); }
   });
 });

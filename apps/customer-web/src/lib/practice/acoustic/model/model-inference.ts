@@ -1,20 +1,14 @@
 import * as ort from 'onnxruntime-web/webgpu';
 import { createVerifiedModelAssetLoader } from '../../../model-assets/verified-model-asset-loader';
-import { type ByteDanceRawOutputs } from '../../acoustic-inference/bytedance-contract';
-import { decodeByteDanceRawOutputs } from '../../acoustic-inference/bytedance-decoder';
+import type { PianoRawOutputs } from './raw-output-contract';
+import { decodeRobustPiano } from './robust-piano-decoder';
 import { ACOUSTIC_MODEL as M, assertAcousticIdentity, fail, onlyFields, sha256 } from './model-contract';
 import type { AcousticInferenceInput, AcousticInferencePort, AcousticInferenceResult } from '../runtime/inference-types';
 import { assertModelNames, assertWindowGeometry, checkedOutput } from './model-validation';
 import { practiceAcousticModelManifest } from './acoustic-model-manifest';
 
-export function decodeAcousticOutputs(raw: ByteDanceRawOutputs, input: AcousticInferenceInput) {
-  return decodeByteDanceRawOutputs(raw, {
-    requestId: String(input.window.jobIndex), pcm: input.pcm, sampleRateHz: 16000, channelCount: 1,
-    captureStartSampleIndex: input.window.startSample,
-    captureStartTime: { domainId: 'acoustic-source-input', ms: input.window.startSample / 16 },
-  }, { onsetThreshold: M.onsetThreshold, frameThreshold: M.frameThreshold }).map(event => Object.freeze({
-    pitch: event.pitch, midiPitch: event.midiPitch, targetSample: event.onsetTime.sampleIndex!,
-    confidence: event.confidence, onsetScore: event.onsetScore, frameScore: event.frameScore }));
+export function decodeAcousticOutputs(raw: PianoRawOutputs, input: AcousticInferenceInput) {
+  return decodeRobustPiano(raw, input.window.startSample, M);
 }
 export async function verifyAcousticModel(bytes: Uint8Array): Promise<void> {
   if (bytes.byteLength !== M.modelBytes || await sha256(bytes) !== M.modelSha256) fail('ACOUSTIC_MODEL_IDENTITY_MISMATCH');
@@ -71,7 +65,7 @@ export class AcousticModelSession implements AcousticInferencePort {
       const started = performance.now();
       const audio = new ort.Tensor('float32', input.pcm, [1, 29120]);
       let tensors: ort.InferenceSession.OnnxValueMapType | undefined;
-      let raw: ByteDanceRawOutputs;
+      let raw: PianoRawOutputs;
       try {
         this.runs++;
         tensors = await this.session.run({ audio }, ['reg_onset_output', 'frame_output']);

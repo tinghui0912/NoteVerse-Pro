@@ -15,7 +15,6 @@ const recorderEvents = vi.hoisted(() => ({
 
 const midiMock = vi.hoisted(() => ({
   connectedInputCount: 1,
-  sawStepTargetDuringStart: false,
   emitCapturedAttackDuringStart: false,
   onStateChange: null as ((state: {
     isSupported: boolean;
@@ -35,7 +34,6 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
           connectedInputCount: number;
           isRunning: boolean;
         }) => void;
-        getCurrentStepTarget?: () => unknown;
         onCapturedAttack?: (attack: {
           captureTime: { domainId: string; ms: number };
           pitch: string;
@@ -51,7 +49,6 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
         this.options = options ?? {};
       }
       private readonly options: {
-        getCurrentStepTarget?: () => unknown;
         onCapturedAttack?: (attack: {
           captureTime: { domainId: string; ms: number };
           pitch: string;
@@ -68,7 +65,6 @@ vi.mock('@/lib/practice/midi/browser-midi-controller', () => {
           midiMock.onStateChange?.(this.getState());
           throw new Error('NO_CONNECTED_INPUT');
         }
-        midiMock.sawStepTargetDuringStart = Boolean(this.options.getCurrentStepTarget?.());
         if (midiMock.emitCapturedAttackDuringStart && this.options.timebase) {
           this.options.onCapturedAttack?.({
             captureTime: this.options.timebase.runtimeToSessionTime(0),
@@ -98,7 +94,6 @@ describe('useLocalPractice', () => {
     vi.clearAllMocks();
     recorderEvents.events = [];
     midiMock.connectedInputCount = 1;
-    midiMock.sawStepTargetDuringStart = false;
     midiMock.emitCapturedAttackDuringStart = false;
     midiMock.onStateChange = null;
     completedPerformanceStore.clearPerformance();
@@ -177,7 +172,7 @@ describe('useLocalPractice', () => {
     );
   });
 
-  it('creates STEP runtime before starting MIDI input', async () => {
+  it('starts STEP with a current group without sending target knowledge to MIDI', async () => {
     const { result } = renderHook(() =>
       useLocalPractice({
         artifact,
@@ -191,7 +186,6 @@ describe('useLocalPractice', () => {
       await result.current.start();
     });
 
-    expect(midiMock.sawStepTargetDuringStart).toBe(true);
     expect(result.current.activeStepGroup?.groupId).toBe(artifact.expectedPracticeGroups[0].groupId);
   });
 

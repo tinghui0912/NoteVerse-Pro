@@ -8,7 +8,6 @@ import {
   CONTINUOUS_ASSIGNMENT_WINDOW_MS,
   DEFAULT_MIDI_COVERAGE_GRACE_MS,
   PracticeTimebase,
-  StepEvidenceSession,
   StepPracticeRuntime,
   countInContractAt,
   entryGroupEndBeat,
@@ -17,44 +16,13 @@ import {
   effectiveScoreTempoAtBeat,
   type PracticeScoreArtifact,
   type SessionTime,
-  type StepVerifierObservation,
 } from './index';
-import type { AcousticNoteEvent } from '../acoustic-inference';
 
 const artifact = canonicalArtifactJson as PracticeScoreArtifact;
 const defaultTempoPlan = resolvePracticeTempoPlan(artifact, { mode: 'SCORE' });
-const testTargetVerificationPolicy = {
-  gestureCoherenceMs: 170,
-  requiredGestureLookbackMs: 170,
-};
 
 function cloneArtifact(overrides: Partial<PracticeScoreArtifact> = {}): PracticeScoreArtifact {
   return structuredClone({ ...artifact, ...overrides });
-}
-
-function observation(
-  runtime: StepPracticeRuntime,
-  pitches?: string[],
-  overrides: Partial<StepVerifierObservation> = {}
-): StepVerifierObservation {
-  const target = runtime.currentTarget();
-  if (!target) {
-    throw new Error('No current target.');
-  }
-  const attackOnsetTime = overrides.attackOnsetTime ?? {
-    ...target.activationBoundary,
-    ms: target.activationBoundary.ms + 1,
-  };
-  return {
-    stepId: target.stepId,
-    activationGeneration: target.activationGeneration,
-    attackOnsetTime,
-    observedAttackPitches: pitches ?? target.attackPitches,
-    confidence: 0.97,
-    captureTime: attackOnsetTime,
-    source: 'FAKE',
-    ...overrides,
-  };
 }
 
 function sessionTime(domainId: string, ms: number, sampleIndex?: number): SessionTime {
@@ -78,18 +46,6 @@ function performanceEvidence(
     confidence: 1,
     source,
     ...overrides,
-  };
-}
-
-function acousticEvent(domainId: string, ms: number, pitch: string): AcousticNoteEvent {
-  return {
-    pitch,
-    midiPitch: 60,
-    onsetTime: sessionTime(domainId, ms),
-    confidence: 0.95,
-    onsetScore: 0.9,
-    frameScore: 0.9,
-    source: 'ACOUSTIC' as const,
   };
 }
 
@@ -129,421 +85,6 @@ describe('canonical PracticeScoreArtifact parity foundation', () => {
       pulses: 4,
       numerator: 4,
       denominator: 4,
-    });
-  });
-});
-describe('local STEP practice runtime', () => {
-  it('matches single notes and advances exactly once', () => {
-    const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
-      clock: new ManualClock() });
-
-    const result = runtime.observe(observation(runtime));
-
-    expect(result.kind).toBe('MATCH');
-    expect(runtime.currentTarget()?.attackPitches).toEqual(['C4']);
-    expect(runtime.currentTarget()?.stepId).toBe(artifact.practiceAttackSteps[1].stepId);
-    expect(runtime.attemptHistory).toHaveLength(1);
-  });
-
-  it('uses accepted evidence time for MATCH attempts and next activation boundaries', () => {
-    const clock = new ManualClock(10_000);
-    const runtime = new StepPracticeRuntime({
-      artifact,
-      scope: { kind: 'FULL' },
-      clock,
-      localSessionId: 'event-time-step',
-    });
-
-    expect(runtime.observe(observation(runtime, ['C4'], {
-      attackOnsetTime: sessionTime('event-time-step', 1_000),
-      captureTime: sessionTime('event-time-step', 1_000),
-    }))).toMatchObject({ kind: 'MATCH' });
-
-    expect(runtime.attemptHistory[0].sessionTime).toEqual(sessionTime('event-time-step', 1_000));
-    expect(runtime.currentTarget()?.activationBoundary).toEqual(sessionTime('event-time-step', 1_000));
-  });
-
-  it('lets the user wait arbitrarily before a correct STEP microphone event', () => {
-    const clock = new ManualClock(0);
-    const runtime = new StepPracticeRuntime({
-      artifact,
-      scope: { kind: 'FULL' },
-      clock,
-      localSessionId: 'long-wait-step',
-    });
-    const evidence = new StepEvidenceSession(runtime, testTargetVerificationPolicy);
-    clock.advance(10_000);
-
-    const result = evidence.publishAcousticEvents({
-      sessionDomainId: 'long-wait-step',
-      events: [acousticEvent('long-wait-step', 10_000, 'C4')],
-      analyzedThroughSessionTimeMs: 10_200,
-    });
-
-    expect(result.decisions).toHaveLength(1);
-    expect(result.decisions[0]).toMatchObject({ kind: 'MATCH' });
-    expect(runtime.currentTarget()?.stepId).toBe(artifact.practiceAttackSteps[1].stepId);
-  });
-
-  it('advances multiple STEP targets from one delayed acoustic publication by event time', () => {
-    const runtime = new StepPracticeRuntime({
-      artifact,
-      scope: { kind: 'FULL' },
-      clock: new ManualClock(50_000),
-      localSessionId: 'delayed-step-events',
-    });
-    const evidence = new StepEvidenceSession(runtime, testTargetVerificationPolicy);
-
-    const result = evidence.publishAcousticEvents({
-      sessionDomainId: 'delayed-step-events',
-      events: [
-        acousticEvent('delayed-step-events', 1_000, 'C4'),
-        acousticEvent('delayed-step-events', 1_300, 'C4'),
-        acousticEvent('delayed-step-events', 1_600, 'G4'),
-      ],
-      analyzedThroughSessionTimeMs: 1_800,
-    });
-
-    expect(result.decisions.map((decision) => decision.kind)).toEqual(['MATCH', 'MATCH', 'MATCH']);
-    expect(runtime.currentTarget()?.attackPitches).toEqual(['A4', 'C5']);
-    expect(runtime.attemptHistory.map((attempt) => attempt.sessionTime.ms)).toEqual([1_000, 1_300, 1_600]);
-  });
-
-  it('recognizes same-note retrigger across consecutive STEP targets before earlier inference would complete', () => {
-    const runtime = new StepPracticeRuntime({
-      artifact,
-      scope: { kind: 'FULL' },
-      clock: new ManualClock(2_100),
-      localSessionId: 'same-note-retrigger-step',
-    });
-    const evidence = new StepEvidenceSession(runtime, testTargetVerificationPolicy);
-
-    const result = evidence.publishAcousticEvents({
-      sessionDomainId: 'same-note-retrigger-step',
-      events: [
-        acousticEvent('same-note-retrigger-step', 1_000, 'C4'),
-        acousticEvent('same-note-retrigger-step', 1_400, 'C4'),
-      ],
-      analyzedThroughSessionTimeMs: 1_600,
-    });
-
-    expect(result.decisions.map((decision) => decision.kind)).toEqual(['MATCH', 'MATCH']);
-    expect(runtime.currentTarget()?.attackPitches).toEqual(['G4']);
-  });
-
-  it('rejects STEP acoustic publications atomically when any event uses the wrong domain', () => {
-    const runtime = new StepPracticeRuntime({
-      artifact,
-      scope: { kind: 'FULL' },
-      clock: new ManualClock(0),
-      localSessionId: 'atomic-step-domain',
-    });
-    const evidence = new StepEvidenceSession(runtime, testTargetVerificationPolicy);
-    const beforeAttempts = runtime.attemptHistory.length;
-    const beforeTarget = runtime.currentTarget();
-
-    expect(() => evidence.publishAcousticEvents({
-      sessionDomainId: 'atomic-step-domain',
-      events: [
-        acousticEvent('atomic-step-domain', 100, 'C4'),
-        acousticEvent('other-step-domain', 120, 'C4'),
-      ],
-      analyzedThroughSessionTimeMs: 200,
-    })).toThrow(/different session domain/);
-
-    expect(runtime.attemptHistory).toHaveLength(beforeAttempts);
-    expect(runtime.currentTarget()).toEqual(beforeTarget);
-    expect(evidence.publishAcousticEvents({
-      sessionDomainId: 'atomic-step-domain',
-      events: [acousticEvent('atomic-step-domain', 100, 'C4')],
-      analyzedThroughSessionTimeMs: 200,
-    }).decisions.map((decision) => decision.kind)).toEqual(['MATCH']);
-  });
-
-  it('rejects STEP acoustic publications atomically when any event is after the analyzed frontier', () => {
-    const runtime = new StepPracticeRuntime({
-      artifact,
-      scope: { kind: 'FULL' },
-      clock: new ManualClock(0),
-      localSessionId: 'atomic-step-frontier',
-    });
-    const evidence = new StepEvidenceSession(runtime, testTargetVerificationPolicy);
-    const beforeAttempts = runtime.attemptHistory.length;
-    const beforeTarget = runtime.currentTarget();
-
-    expect(() => evidence.publishAcousticEvents({
-      sessionDomainId: 'atomic-step-frontier',
-      events: [
-        acousticEvent('atomic-step-frontier', 100, 'C4'),
-        acousticEvent('atomic-step-frontier', 250, 'C4'),
-      ],
-      analyzedThroughSessionTimeMs: 200,
-    })).toThrow(/after the analyzed frontier/);
-
-    expect(runtime.attemptHistory).toHaveLength(beforeAttempts);
-    expect(runtime.currentTarget()).toEqual(beforeTarget);
-    expect(evidence.publishAcousticEvents({
-      sessionDomainId: 'atomic-step-frontier',
-      events: [acousticEvent('atomic-step-frontier', 100, 'C4')],
-      analyzedThroughSessionTimeMs: 200,
-    }).decisions.map((decision) => decision.kind)).toEqual(['MATCH']);
-  });
-
-  it('prunes impossible unmatched STEP evidence by analysis frontier without dropping viable partial chords', () => {
-    const runtime = new StepPracticeRuntime({
-      artifact,
-      clock: new ManualClock(0),
-      localSessionId: 'frontier-step-domain',
-      scope: {
-        kind: 'RANGE',
-        startGroupId: artifact.expectedPracticeGroups[3].groupId,
-        endGroupId: artifact.expectedPracticeGroups[3].groupId,
-      },
-    });
-    const evidence = new StepEvidenceSession(runtime, testTargetVerificationPolicy);
-
-    const early = evidence.publishAcousticEvents({
-      sessionDomainId: 'frontier-step-domain',
-      events: [
-        acousticEvent('frontier-step-domain', 100, 'F#4'),
-        acousticEvent('frontier-step-domain', 250, 'A4'),
-      ],
-      analyzedThroughSessionTimeMs: 300,
-    });
-    expect(early.decisions).toEqual([]);
-    expect(early.pendingEventCount).toBe(1);
-
-    const later = evidence.publishAcousticEvents({
-      sessionDomainId: 'frontier-step-domain',
-      events: [],
-      analyzedThroughSessionTimeMs: 500,
-    });
-    expect(later.pendingEventCount).toBe(0);
-    expect(later.prunedEventCount).toBe(1);
-  });
-
-  it('rejects previous-generation delayed evidence after pause and resume', () => {
-    const runtime = new StepPracticeRuntime({
-      artifact,
-      scope: { kind: 'FULL' },
-      clock: new ManualClock(0),
-      localSessionId: 'pause-generation-step',
-    });
-    const staleTarget = runtime.currentTarget();
-
-    runtime.pause();
-    runtime.resume();
-
-    expect(runtime.observe({
-      stepId: staleTarget?.stepId ?? '',
-      activationGeneration: staleTarget?.activationGeneration ?? 1,
-      attackOnsetTime: sessionTime('pause-generation-step', 100),
-      captureTime: sessionTime('pause-generation-step', 100),
-      observedAttackPitches: staleTarget?.attackPitches ?? ['C4'],
-      confidence: 1,
-      source: 'ACOUSTIC' as const,
-    })).toMatchObject({ kind: 'WAIT', reason: 'stale_activation' });
-  });
-
-  it('keeps repeated-pitch stale attacks from satisfying the next activation', () => {
-    const clock = new ManualClock(0);
-    const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
-      clock });
-    const first = runtime.currentTarget();
-
-    expect(runtime.observe(observation(runtime, ['C4'], {
-      attackOnsetTime: withMs(first?.activationBoundary, 0),
-      captureTime: withMs(first?.activationBoundary, 0),
-    }))).toMatchObject({
-      kind: 'MATCH',
-    });
-    const second = runtime.currentTarget();
-    expect(second?.attackPitches).toEqual(['C4']);
-    expect(second?.activationBoundary.ms).toBe(0);
-
-    expect(runtime.observe({
-      stepId: second?.stepId ?? '',
-      activationGeneration: second?.activationGeneration ?? 1,
-      attackOnsetTime: second?.activationBoundary ?? sessionTime('', 0),
-      captureTime: { ...(second?.activationBoundary ?? sessionTime('', 0)), ms: 50 },
-      observedAttackPitches: first?.attackPitches ?? ['C4'],
-      confidence: 0.99,
-      source: 'FAKE',
-    })).toMatchObject({ kind: 'WAIT', reason: 'stale_attack' });
-
-    clock.advance(10);
-    expect(runtime.observe(observation(runtime, ['C4'], {
-      attackOnsetTime: withMs(second?.activationBoundary, 10),
-      captureTime: withMs(second?.activationBoundary, 10),
-    }))).toMatchObject({
-      kind: 'MATCH',
-    });
-  });
-
-  it('matches chords only when the complete physical attack set is observed', () => {
-    const runtime = new StepPracticeRuntime({
-      artifact,
-      clock: new ManualClock(),
-      scope: {
-        kind: 'RANGE',
-        startGroupId: artifact.expectedPracticeGroups[3].groupId,
-        endGroupId: artifact.expectedPracticeGroups[3].groupId,
-      },
-    });
-
-    expect(runtime.observe(observation(runtime, ['A4']))).toMatchObject({
-      kind: 'WAIT',
-      reason: 'wrong_or_partial_attack_set',
-    });
-    expect(runtime.observe(observation(runtime, ['C5', 'A4']))).toMatchObject({ kind: 'MATCH' });
-    expect(runtime.isCompleted).toBe(true);
-  });
-
-  it('waits on wrong note, no evidence, stale activation, stale step, and continuation-only evidence', () => {
-    const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
-      clock: new ManualClock() });
-    const first = runtime.currentTarget();
-
-    expect(runtime.observe(null)).toMatchObject({ kind: 'WAIT', reason: 'no_observation' });
-    expect(runtime.observe(observation(runtime, ['D4']))).toMatchObject({
-      kind: 'WAIT',
-      reason: 'wrong_or_partial_attack_set',
-    });
-    expect(runtime.observe(observation(runtime, undefined, { activationGeneration: 999 }))).toMatchObject({
-      kind: 'WAIT',
-      reason: 'stale_activation',
-    });
-    runtime.observe(observation(runtime));
-    expect(runtime.observe({
-      stepId: first?.stepId ?? '',
-      activationGeneration: first?.activationGeneration ?? 1,
-      attackOnsetTime: { ...(first?.activationBoundary ?? sessionTime('', 0)), ms: 100 },
-      observedAttackPitches: ['C4'],
-      confidence: 0.99,
-      captureTime: { ...(first?.activationBoundary ?? sessionTime('', 0)), ms: 100 },
-      source: 'FAKE',
-    })).toMatchObject({ kind: 'WAIT', reason: 'stale_step' });
-
-    runtime.observe(observation(runtime));
-    runtime.observe(observation(runtime, ['G4']));
-    expect(runtime.currentTarget()?.continuationPitches).toEqual(['G4']);
-    expect(runtime.observe(observation(runtime, ['G4']))).toMatchObject({
-      kind: 'WAIT',
-      reason: 'wrong_or_partial_attack_set',
-    });
-  });
-
-  it('skip and reset invalidate previous asynchronous evidence', () => {
-    const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
-      clock: new ManualClock() });
-    const skipped = runtime.currentTarget();
-
-    expect(runtime.skip()).toMatchObject({ kind: 'SKIP' });
-    expect(runtime.observe({
-      stepId: skipped?.stepId ?? '',
-      activationGeneration: skipped?.activationGeneration ?? 1,
-      attackOnsetTime: { ...(skipped?.activationBoundary ?? sessionTime('', 0)), ms: 10 },
-      observedAttackPitches: skipped?.attackPitches ?? [],
-      confidence: 1,
-      captureTime: { ...(skipped?.activationBoundary ?? sessionTime('', 0)), ms: 10 },
-      source: 'FAKE',
-    })).toMatchObject({ kind: 'WAIT', reason: 'stale_step' });
-
-    const beforeReset = runtime.currentTarget();
-    runtime.reset();
-    expect(runtime.currentTarget()?.stepId).toBe(artifact.practiceAttackSteps[0].stepId);
-    expect(runtime.observe({
-      stepId: beforeReset?.stepId ?? '',
-      activationGeneration: beforeReset?.activationGeneration ?? 1,
-      attackOnsetTime: { ...(beforeReset?.activationBoundary ?? sessionTime('', 0)), ms: 20 },
-      observedAttackPitches: beforeReset?.attackPitches ?? [],
-      confidence: 1,
-      captureTime: { ...(beforeReset?.activationBoundary ?? sessionTime('', 0)), ms: 20 },
-      source: 'FAKE',
-    })).toMatchObject({ kind: 'WAIT' });
-  });
-
-  it('restores scoped STEP snapshots with input source and validates artifact compatibility', () => {
-    const clock = new ManualClock(42);
-    const scoped = {
-      kind: 'RANGE' as const,
-      startGroupId: artifact.expectedPracticeGroups[2].groupId,
-      endGroupId: artifact.expectedPracticeGroups[3].groupId,
-    };
-    const runtime = new StepPracticeRuntime({
-      artifact,
-      clock,
-      inputSource: 'MIDI',
-      scope: scoped,
-      localSessionId: 'local-step',
-    });
-    runtime.observe(observation(runtime, ['G4']));
-    const snapshot = runtime.snapshot();
-
-    const restored = new StepPracticeRuntime({
-      artifact,
-      scope: scoped,
-      clock,
-      inputSource: 'MIDI',
-      snapshot,
-    });
-    expect(restored.currentTarget()?.stepId).toBe(artifact.practiceAttackSteps[3].stepId);
-    expect(restored.snapshot().practiceScope).toEqual(scoped);
-    expect(restored.snapshot().inputSource).toBe('MIDI');
-
-    expect(() => new StepPracticeRuntime({
-      artifact: cloneArtifact({ revisionId: 'other-revision' }),
-      scope: { kind: 'FULL' },
-      clock,
-      snapshot,
-    })).toThrow(/snapshot does not belong/);
-    expect(() => new StepPracticeRuntime({
-      artifact,
-      scope: { kind: 'FULL' },
-      clock,
-      snapshot: {
-        ...snapshot,
-        version: { schemaVersion: 1, runtimeVersion: 'future-runtime' },
-      },
-    })).toThrow(/Unsupported/);
-  });
-
-  it('re-establishes STEP activation after restore under a new monotonic clock origin', () => {
-    const oldClock = new ManualClock(100_000);
-    const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
-      clock: oldClock });
-    const firstTarget = runtime.currentTarget();
-    runtime.observe(observation(runtime, ['C4'], {
-      attackOnsetTime: { ...(firstTarget?.activationBoundary ?? sessionTime('', 0)), ms: 100_010 },
-      captureTime: { ...(firstTarget?.activationBoundary ?? sessionTime('', 0)), ms: 100_010 },
-    }));
-    const snapshot = runtime.snapshot();
-    expect(snapshot.step.activationGeneration).toBe(2);
-
-    const restored = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
-      clock: new ManualClock(0), snapshot });
-    const restoredTarget = restored.currentTarget();
-    expect(restoredTarget).toMatchObject({
-      stepId: artifact.practiceAttackSteps[1].stepId,
-      activationGeneration: 3,
-      activationBoundary: { domainId: runtime.localSessionId, ms: 0 },
-    });
-
-    expect(restored.observe({
-      stepId: restoredTarget?.stepId ?? '',
-      activationGeneration: snapshot.step.activationGeneration,
-      attackOnsetTime: sessionTime(runtime.localSessionId, 100_020),
-      observedAttackPitches: ['C4'],
-      confidence: 1,
-      captureTime: sessionTime(runtime.localSessionId, 100_020),
-      source: 'FAKE',
-    })).toMatchObject({ kind: 'WAIT', reason: 'stale_activation' });
-
-    expect(restored.observe(observation(restored, ['C4'], {
-      attackOnsetTime: sessionTime(runtime.localSessionId, 200),
-      captureTime: sessionTime(runtime.localSessionId, 200),
-    }))).toMatchObject({
-      kind: 'MATCH',
     });
   });
 });
@@ -1244,27 +785,6 @@ describe('local session foundation', () => {
     )).toThrow(/different practice time domains/);
   });
 
-  it('rejects STEP evidence from the wrong session time domain even with the same numeric timestamp', () => {
-    const runtime = new StepPracticeRuntime({
-      artifact,
-      scope: { kind: 'FULL' },
-      clock: new ManualClock(0),
-      localSessionId: 'step-domain-a',
-    });
-    const target = runtime.currentTarget();
-    expect(target?.activationBoundary.ms).toBe(-1);
-
-    expect(runtime.observe(observation(runtime, ['C4'], {
-      attackOnsetTime: sessionTime('step-domain-b', 100),
-      captureTime: sessionTime('step-domain-b', 100),
-    }))).toMatchObject({ kind: 'WAIT', reason: 'stale_attack' });
-
-    expect(runtime.observe(observation(runtime, ['C4'], {
-      attackOnsetTime: sessionTime('step-domain-a', 100),
-      captureTime: sessionTime('step-domain-a', 100),
-    }))).toMatchObject({ kind: 'MATCH' });
-  });
-
   it('normalizes acoustic sample timing and MIDI timing before local runtime consumption', () => {
     const acousticTimebase = new PracticeTimebase({
       domainId: 'normalized-acoustic',
@@ -1272,20 +792,7 @@ describe('local session foundation', () => {
       anchorSampleIndex: 16_000,
       anchorSessionTimeMs: 500,
     });
-    const runtime = new StepPracticeRuntime({
-      artifact,
-      scope: { kind: 'FULL' },
-      clock: new ManualClock(0),
-      localSessionId: 'normalized-acoustic',
-      timebase: acousticTimebase,
-    });
-    const onset = acousticTimebase.sampleIndexToSessionTime(16_800);
-
-    expect(runtime.observe(observation(runtime, ['C4'], {
-      attackOnsetTime: onset,
-      captureTime: onset,
-      source: 'ACOUSTIC' as const,
-    }))).toMatchObject({ kind: 'MATCH' });
+    expect(acousticTimebase.sampleIndexToSessionTime(16_800).ms).toBe(550);
 
     const midiTimebase = new PracticeTimebase({ domainId: 'normalized-midi' });
     const performanceClock = new ManualClock(0);
@@ -1327,80 +834,9 @@ describe('local session foundation', () => {
       expectedPracticeGroups: [],
       practiceAttackSteps: [],
     });
-    expect(() => new StepPracticeRuntime({ artifact: empty, scope: { kind: 'FULL' },
+    expect(() => new StepPracticeRuntime({ inputSource: 'MIDI', artifact: empty, scope: { kind: 'FULL' },
       clock: new ManualClock() })).toThrow(/at least one expected group/);
     expect(() => new ContinuousPracticeSession({ artifact: empty, tempoPlan: resolvePracticeTempoPlan(empty, { mode: 'SCORE' }), scope: { kind: 'FULL' }, clock: new ManualClock() })).toThrow(/at least one expected group/);
-  });
-
-  it('supports STEP pause, resume, and explicit user end with strict completion semantics', () => {
-    const clock = new ManualClock(100);
-    const runtime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' },
-      clock });
-    const target1 = runtime.currentTarget();
-    expect(target1).not.toBeNull();
-    expect(runtime.state).toBe('ACTIVE');
-    expect(runtime.sessionCompletionReason).toBeNull();
-
-    // Pause
-    runtime.pause();
-    expect(runtime.state).toBe('PAUSED');
-    expect(runtime.currentTarget()).toBeNull();
-    // Evidence during pause returns WAIT: stale_activation
-    expect(runtime.observe({
-      stepId: target1!.stepId,
-      activationGeneration: target1!.activationGeneration,
-      attackOnsetTime: { domainId: runtime.localSessionId, ms: 120 },
-      observedAttackPitches: target1!.attackPitches,
-      confidence: 1,
-      captureTime: { domainId: runtime.localSessionId, ms: 120 },
-      source: 'FAKE',
-    })).toMatchObject({ kind: 'WAIT', reason: 'stale_activation' });
-
-    // Resume
-    clock.advance(50); // now 150
-    runtime.resume();
-    expect(runtime.state).toBe('ACTIVE');
-    const target2 = runtime.currentTarget();
-    expect(target2).not.toBeNull();
-    expect(target2!.activationGeneration).toBeGreaterThan(target1!.activationGeneration);
-    expect(target2!.activationBoundary.ms).toBe(150);
-
-    // Old evidence prior to resume boundary cannot match
-    expect(runtime.observe({
-      stepId: target2!.stepId,
-      activationGeneration: target2!.activationGeneration,
-      attackOnsetTime: { domainId: runtime.localSessionId, ms: 140 },
-      observedAttackPitches: target2!.attackPitches,
-      confidence: 1,
-      captureTime: { domainId: runtime.localSessionId, ms: 140 },
-      source: 'FAKE',
-    })).toMatchObject({ kind: 'WAIT', reason: 'stale_attack' });
-
-    // User end()
-    runtime.end();
-    expect(runtime.state).toBe('ENDED');
-    expect(runtime.sessionCompletionReason).toBe('STOPPED_BY_USER');
-    expect(runtime.isCompleted).toBe(false);
-    expect(runtime.currentTarget()).toBeNull();
-  });
-
-  it('sets SCOPE_COMPLETED on natural STEP completion', () => {
-    const runtime = new StepPracticeRuntime({
-      artifact,
-      clock: new ManualClock(),
-      scope: {
-        kind: 'RANGE',
-        startGroupId: artifact.expectedPracticeGroups[4].groupId,
-        endGroupId: artifact.expectedPracticeGroups[4].groupId,
-      },
-    });
-    expect(runtime.state).toBe('ACTIVE');
-    const decision = runtime.observe(observation(runtime, ['D5']));
-    expect(decision.kind).toBe('MATCH');
-    expect(runtime.isCompleted).toBe(true);
-    expect(runtime.state).toBe('ENDED');
-    expect(runtime.sessionCompletionReason).toBe('SCOPE_COMPLETED');
-    expect(runtime.snapshot().completionReason).toBe('SCOPE_COMPLETED');
   });
 
   it('supports CONTINUOUS user end vs SCOPE_COMPLETED natural completion', () => {
@@ -1545,7 +981,7 @@ describe('local session foundation', () => {
     const art = cloneArtifact();
     const clock = new ManualClock(100);
 
-    const stepRuntime = new StepPracticeRuntime({
+    const stepRuntime = new StepPracticeRuntime({ inputSource: 'MIDI',
       artifact: art,
       clock,
       scope: { kind: 'FULL' },
@@ -1617,7 +1053,7 @@ describe('local session foundation', () => {
 
     // StepPracticeRuntime initialized without explicit scope (full piece):
     const clock = new ManualClock(0);
-    const stepRuntime = new StepPracticeRuntime({
+    const stepRuntime = new StepPracticeRuntime({ inputSource: 'MIDI',
       artifact: leadingRestArtifact,
       scope: { kind: 'FULL' },
       clock,
@@ -1652,7 +1088,7 @@ describe('local session foundation', () => {
     const clock = new ManualClock(0);
 
     // Test A: start OFF -> ACTIVE -> toggle ON -> finish -> snapshot.metronomeEnabled === true
-    const stepA = new StepPracticeRuntime({
+    const stepA = new StepPracticeRuntime({ inputSource: 'MIDI',
       artifact: art,
       clock,
       scope: { kind: 'FULL' },
@@ -1682,7 +1118,7 @@ describe('local session foundation', () => {
     expect(finalPerfA.metronomeEnabled).toBe(true);
 
     // Test B: start ON -> ACTIVE -> toggle OFF -> finish -> snapshot.metronomeEnabled === false
-    const stepB = new StepPracticeRuntime({
+    const stepB = new StepPracticeRuntime({ inputSource: 'MIDI',
       artifact: art,
       clock,
       scope: { kind: 'FULL' },

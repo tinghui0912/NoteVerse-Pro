@@ -1,6 +1,7 @@
 import type { PracticeInputSource, PracticeMode, PracticeScope } from './artifact';
 import type { PracticeTempoSelection, ResolvedPracticeTempoPlan } from './practice-tempo';
-import type { RuntimeVersionIdentity, SessionTime } from './timebase';
+import type { RuntimeVersionIdentity } from './timebase';
+import type { StepAttemptIdentity, StepAttemptRecord, StepAttemptState, StepSkipRecord } from './step-attempt';
 
 export type LocalPracticeLifecycle =
   | 'READY'
@@ -40,7 +41,10 @@ export type LocalStepSessionSnapshot = LocalPracticeSessionBase & {
     currentIndex: number;
     activationGeneration: number;
     completed: boolean;
-    attempts: LocalPracticeAttempt[];
+    attemptState: StepAttemptState;
+    activeAttempt: StepAttemptIdentity | null;
+    attempts: readonly StepAttemptRecord[];
+    skips: readonly StepSkipRecord[];
   };
 };
 
@@ -62,15 +66,6 @@ export type LocalPerformanceSessionSnapshot = LocalPracticeSessionBase & {
 export type LocalPracticeSessionSnapshot =
   | LocalStepSessionSnapshot
   | LocalPerformanceSessionSnapshot;
-
-export type LocalPracticeAttempt = {
-  attemptId: string;
-  stepId: string;
-  result: 'MATCH' | 'WAIT' | 'SKIPPED';
-  observedAttackPitches: string[];
-  confidence: number;
-  sessionTime: SessionTime;
-};
 
 export function createLocalSessionId(prefix = 'local-practice'): string {
   const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;

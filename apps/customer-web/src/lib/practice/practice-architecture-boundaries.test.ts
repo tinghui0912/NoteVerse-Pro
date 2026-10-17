@@ -73,7 +73,7 @@ describe('practice architecture boundaries', () => {
 
   it('keeps acoustic inference independent from STEP score state', () => {
     const acousticRoots = [
-      path.resolve(__dirname, 'acoustic-inference'),
+      path.resolve(__dirname, 'acoustic'),
       path.resolve(__dirname, 'audio-analysis'),
     ];
     const violations = acousticRoots
@@ -159,16 +159,10 @@ describe('practice architecture boundaries', () => {
     expect(oneTruthSection).not.toContain('canonical Review may come from another analysis pass');
   });
 
-  it('keeps low-level ByteDance acoustic notes historical and implementation-owned', () => {
-    const bytedanceReadme = readFileSync(path.resolve(__dirname, 'acoustic-inference/README.md'), 'utf8');
-
-    expect(bytedanceReadme).toContain('Historical Candidate');
-    expect(bytedanceReadme).toMatch(/not the\s+authoritative Practice v2 acoustic architecture/);
-    expect(bytedanceReadme).toMatch(/must not be restored as a\s+fallback product path/);
-    expect(bytedanceReadme).toContain('low-level');
-    expect(bytedanceReadme).toContain('onnxruntime-web = 1.20.1');
-    expect(bytedanceReadme).toContain('bytedance_ort_webgpu_regression.md');
-    expect(bytedanceReadme).toMatch(/does not\s+automatically fall back to WASM/);
+  it('keeps historical acoustic semantics outside the active product tree', () => {
+    expect(readdirSync(__dirname)).not.toContain('acoustic-inference');
+    const decoder = readFileSync(path.resolve(__dirname, 'acoustic/model/robust-piano-decoder.ts'), 'utf8');
+    expect(decoder).not.toContain('BYTEDANCE_INFERENCE_CONTRACT');
   });
 
   it('keeps PerformanceClockRuntime independent from acoustic model implementations', () => {
@@ -218,7 +212,7 @@ describe('practice architecture boundaries', () => {
   it('keeps model-specific candidates out of product domain contracts', () => {
     const productContractFiles = [
       path.resolve(__dirname, 'local-core/step-runtime.ts'),
-      path.resolve(__dirname, 'local-core/step-evidence-session.ts'),
+      path.resolve(__dirname, 'local-core/step-attempt.ts'),
       path.resolve(__dirname, 'local-core/performance-runtime.ts'),
       path.resolve(__dirname, 'local-core/continuous-evaluation-session.ts'),
       path.resolve(__dirname, 'local-core/continuous-finalizer.ts'),

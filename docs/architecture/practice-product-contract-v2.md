@@ -6,7 +6,8 @@
 It creates one `ContinuousPracticeSession` and composes MIDI or microphone input,
 metronome, optional recorder, and one completion transaction. React subscribes to
 snapshots and sends commands; it does not coordinate inference or completion.
-STEP retains its separate correctness-driven, hook-owned lifecycle.
+STEP has its own `StepPracticeController` application owner; React is a thin
+snapshot/command adapter, not an input or attempt lifecycle owner.
 
 Microphone Continuous uses one session-owned AudioContext. Its render timeline is
 the injected `LocalClock`, the capture Worklet chronology, and the metronome domain.
@@ -53,7 +54,11 @@ Status: Authoritative product/domain contract for future Practice architecture. 
 
 Practice has two product modes: `STEP_BY_STEP` and `CONTINUOUS_PLAY`.
 
-They may share low-level infrastructure such as `PracticeScoreArtifact`, score scope, resolved tempo, timebase primitives, MIDI primitives, microphone capture primitives, metronome primitives, and user recording primitives. They do not need to share one neural model, one acoustic event stream, one inference scheduler, or one high-level acoustic controller.
+They share low-level infrastructure such as `PracticeScoreArtifact`, scope, tempo,
+timebase, generic MIDI facts, microphone capture and metronome primitives. There is
+one shared score-blind Robust acoustic foundation; future microphone STEP attempt
+consumption must not create a second model session for the same capture stream.
+Their product controllers, attempt/transport semantics and evaluation remain distinct.
 
 Recording and input source are orthogonal. User-selected audio or video recording is a media artifact for review. Analysis capture is PCM used by an acoustic analyzer. A future session may record media without performing acoustic analysis, or analyze PCM without producing user recording media. MediaRecorder output is not the canonical analysis PCM source.
 
@@ -116,7 +121,34 @@ Only audio that belongs to an accepted attempt has Practice semantics. Audio pla
 
 Future microphone STEP architecture must not require a continuous generic physical-onset stream. Same-note identity across different STEP targets does not need to be solved by a global realtime onset stream because attempt boundaries are the product boundary.
 
-MIDI STEP may remain immediate and may provide better timing fidelity than microphone STEP. The future microphone attempt analyzer is intentionally out of scope for Phase 9A.
+MIDI STEP closes the entire fixed 35ms NOTE_ON gesture before exact-set evaluation.
+There is no target-aware early MATCH. The future microphone attempt analyzer and
+score-blind fresh-strike detector remain unavailable, not implemented product paths.
+
+### Implemented Bounded Attempt Domain
+
+`StepPracticeRuntime` is one target / one bounded attempt / one verdict. The v2
+snapshot/runtime contract contains immutable MATCH, MISMATCH or RETRY attempt
+records; WAIT is not a finalized attempt. Skip actions are separate history.
+Each attempt binds attempt/session/step/activation/source/capture-start identity.
+There is one active attempt and no queue. Generic evidence becomes correctness
+only inside this pure domain's exact physical attack pitch-set comparison.
+
+`StepMidiAttemptInput` owns a first-NOTE_ON-anchored 35ms gesture, not correctness.
+CEG is accepted only after the gesture closes; partial CE or extra CEGA is MISMATCH.
+Partial pitches never cross attempts. Held notes cannot satisfy a repeated target
+without a new NOTE_ON. Busy input is ignored, never reassigned to a later target.
+
+`StepPracticeController` owns runtime, MIDI, timers, metronome, cancellation and
+cleanup. MATCH/Skip advance once and update metronome context; MISMATCH/RETRY stay.
+Pause, Skip, Finish and disposal invalidate active identity and timers. Resume
+creates a fresh activation. Restart constructs a fresh controller/session, without
+snapshot compatibility restore. Late results are rejected, not rebound.
+
+Full user-visible attempt/skip history has a deliberate 100,000-record session
+ceiling, over 138 hours at one gesture per five seconds. Reaching it fails explicitly
+before opening another attempt; no silent history eviction. Microphone remains
+ATTEMPT_ANALYZER_NOT_VALIDATED; MIDI never reaches model/Worker/FIR/capture assets.
 
 ## CONTINUOUS_PLAY v2
 

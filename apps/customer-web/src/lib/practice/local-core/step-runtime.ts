@@ -1,346 +1,149 @@
-import {
-  attackPitchesForStep,
-  assertPracticeScoreArtifact,
-  continuationPitchesForStep,
-  groupForStep,
-  resolvePracticeScope,
-  type PracticeScoreArtifact,
-  type PracticeScope,
-} from './artifact';
-import { pitchSetsEqual, type StepVerifierObservation, type StepVerifierTarget } from './evidence';
-import { PracticeTimebase, type LocalClock, type RuntimeVersionIdentity, type SessionTime } from './timebase';
-import type { DurableClock } from './timebase';
-import {
-  createLocalSessionId,
-  type LocalPracticeAttempt,
-  type LocalPracticeCompletionReason,
-  type LocalStepSessionSnapshot,
-  type PracticeLifecycleState,
-} from './session';
-
-export type StepRuntimeDecision =
-  | { kind: 'WAIT'; reason: StepWaitReason; currentTarget: StepVerifierTarget | null }
-  | { kind: 'MATCH'; reason: 'accepted_current_step'; advancedTo: StepVerifierTarget | null }
-  | { kind: 'SKIP'; reason: 'user_skip'; advancedTo: StepVerifierTarget | null };
-
-type StepWaitReason =
-  | 'no_observation'
-  | 'scope_completed'
-  | 'stale_step'
-  | 'stale_activation'
-  | 'stale_attack'
-  | 'wrong_or_partial_attack_set';
-
+import { attackPitchesForStep, assertPracticeScoreArtifact, continuationPitchesForStep, groupForStep,
+  resolvePracticeScope, type PracticeScoreArtifact, type PracticeScope } from './artifact';
+import { normalizePitchSet, pitchSetsEqual } from './evidence';
+import { PracticeTimebase, type LocalClock, type DurableClock, type SessionTime } from './timebase';
+import { createLocalSessionId, type LocalPracticeCompletionReason, type LocalStepSessionSnapshot,
+  type PracticeLifecycleState } from './session';
 import type { PracticeTempoSelection } from './practice-tempo';
+import { MAX_STEP_HISTORY_RECORDS, STEP_RUNTIME_VERSION, StepDomainError, type StepAttemptEvidence,
+  type StepAttemptIdentity, type StepAttemptRecord, type StepAttemptState, type StepSkipRecord, type StepTarget } from './step-attempt';
 
 export type StepPracticeRuntimeOptions = {
-  artifact: PracticeScoreArtifact;
-  scope: PracticeScope;
-  inputSource?: 'MICROPHONE' | 'MIDI';
-  localSessionId?: string;
-  clock: LocalClock;
-  timebase?: PracticeTimebase;
-  metadataClock?: DurableClock;
-  version?: RuntimeVersionIdentity;
-  snapshot?: LocalStepSessionSnapshot;
-  tempoSelection?: PracticeTempoSelection;
-  metronomeEnabled?: boolean;
+  artifact: PracticeScoreArtifact; scope: PracticeScope; inputSource: 'MICROPHONE' | 'MIDI';
+  localSessionId?: string; clock: LocalClock; timebase?: PracticeTimebase; metadataClock?: DurableClock;
+  tempoSelection?: PracticeTempoSelection; metronomeEnabled?: boolean;
 };
+export type StepAttemptCompletion = Readonly<{ kind: 'REJECTED'; reason: 'STALE_ATTEMPT' }>
+  | Readonly<{ kind: 'FINALIZED'; record: StepAttemptRecord }>;
 
+/** Pure target progression. No input acquisition, timers, or browser resources. */
 export class StepPracticeRuntime {
   readonly artifact: PracticeScoreArtifact;
   readonly localSessionId: string;
-
-  private readonly scope = resolvePracticeScope;
-  private readonly clock: LocalClock;
-  private readonly timebase: PracticeTimebase;
-  private readonly metadataClock: DurableClock;
   private readonly resolvedScope;
-  private currentIndex: number;
-  private activationGeneration: number;
-  private activationBoundary: SessionTime;
-  private attempts: LocalPracticeAttempt[];
-  private completed: boolean;
-  private lifecycleState: PracticeLifecycleState;
-  private completionReason: LocalPracticeCompletionReason | null;
-  private readonly version: RuntimeVersionIdentity;
-  private readonly inputSource: 'MICROPHONE' | 'MIDI';
-  private readonly tempoSelection: PracticeTempoSelection;
-  private metronomeEnabled: boolean;
+  private readonly timebase: PracticeTimebase;
   private readonly createdAtMs: number;
+  private currentIndex: number;
+  private generation = 1;
+  private boundary: Readonly<SessionTime>;
+  private lifecycle: PracticeLifecycleState = 'ACTIVE';
+  private completed = false;
+  private completionReason: LocalPracticeCompletionReason | null = null;
+  private attemptState: StepAttemptState = 'READY';
+  private active: StepAttemptIdentity | null = null;
+  private sequence = 0;
+  private readonly attempts: StepAttemptRecord[] = [];
+  private readonly skips: StepSkipRecord[] = [];
+  private metronomeEnabled: boolean;
 
-  constructor(options: StepPracticeRuntimeOptions) {
-    assertPracticeScoreArtifact(options.artifact);
-    this.artifact = options.artifact;
-    this.clock = options.clock;
-    this.metadataClock = options.metadataClock ?? { nowEpochMs: () => Date.now() };
-    this.version = options.version ?? {
-      schemaVersion: 1,
-      runtimeVersion: 'local-practice-core-v1',
-    };
-    if (options.snapshot) {
-      validateStepSnapshot(options.artifact, options.snapshot, options.scope, options.inputSource);
-    }
-    this.inputSource = options.snapshot?.inputSource ?? options.inputSource ?? 'MICROPHONE';
-    this.tempoSelection = options.snapshot?.tempoSelection ?? options.tempoSelection ?? { mode: 'SCORE' };
-    this.metronomeEnabled = options.snapshot?.metronomeEnabled ?? options.metronomeEnabled ?? false;
-    this.resolvedScope = this.scope(this.artifact, options.scope);
-    this.localSessionId = options.snapshot?.localSessionId ?? options.localSessionId ?? createLocalSessionId();
-    this.timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });
-    this.createdAtMs = options.snapshot?.createdAtMs ?? this.metadataClock.nowEpochMs();
-    this.currentIndex = options.snapshot?.step.currentIndex ?? this.resolvedScope.startIndex;
-    this.activationGeneration = options.snapshot
-      ? options.snapshot.step.activationGeneration + 1
-      : 1;
-    this.activationBoundary = options.snapshot
-      ? this.timebase.runtimeToSessionTime(this.clock.nowMs())
-      : this.timebase.atSessionMs(-1);
-    this.attempts = [...(options.snapshot?.step.attempts ?? [])];
-    this.completed = options.snapshot?.step.completed ?? false;
-    this.lifecycleState = options.snapshot?.lifecycleState ?? (this.completed ? 'ENDED' : 'ACTIVE');
-    this.completionReason = options.snapshot?.completionReason ?? (this.completed ? 'SCOPE_COMPLETED' : null);
-  }
-
-  pause(): void {
-    if (this.lifecycleState === 'ENDED') {
-      return;
-    }
-    this.lifecycleState = 'PAUSED';
-    this.activationGeneration += 1;
-  }
-
-  resume(): void {
-    if (this.lifecycleState === 'ENDED') {
-      return;
-    }
-    this.lifecycleState = 'ACTIVE';
-    this.activationGeneration += 1;
-    this.activationBoundary = this.timebase.runtimeToSessionTime(this.clock.nowMs());
-  }
-
-  end(reason: LocalPracticeCompletionReason = 'STOPPED_BY_USER'): void {
-    this.lifecycleState = 'ENDED';
-    this.completionReason = reason;
-    this.activationGeneration += 1;
-  }
-
-  currentTarget(): StepVerifierTarget | null {
-    const step = this.currentStep();
-    if (!step || this.completed || this.lifecycleState !== 'ACTIVE') {
-      return null;
-    }
-    return {
-      stepId: step.stepId,
-      activationGeneration: this.activationGeneration,
-      activationBoundary: this.activationBoundary,
-      attackPitches: attackPitchesForStep(step),
-      continuationPitches: continuationPitchesForStep(step),
-    };
-  }
-
-  observe(observation?: StepVerifierObservation | null): StepRuntimeDecision {
-    const target = this.currentTarget();
-    if (!target) {
-      if (this.lifecycleState === 'PAUSED') {
-        return { kind: 'WAIT', reason: 'stale_activation', currentTarget: null };
-      }
-      return { kind: 'WAIT', reason: 'scope_completed', currentTarget: null };
-    }
-    if (!observation) {
-      return { kind: 'WAIT', reason: 'no_observation', currentTarget: target };
-    }
-    if (observation.stepId !== target.stepId) {
-      return { kind: 'WAIT', reason: 'stale_step', currentTarget: target };
-    }
-    if (observation.activationGeneration !== target.activationGeneration) {
-      return { kind: 'WAIT', reason: 'stale_activation', currentTarget: target };
-    }
-    if (!pitchSetsEqual(observation.observedAttackPitches, target.attackPitches)) {
-      return { kind: 'WAIT', reason: 'wrong_or_partial_attack_set', currentTarget: target };
-    }
-    try {
-      this.timebase.assertSameSessionTimeDomain(observation.attackOnsetTime, target.activationBoundary);
-    } catch {
-      return { kind: 'WAIT', reason: 'stale_attack', currentTarget: target };
-    }
-    if (observation.attackOnsetTime.ms <= target.activationBoundary.ms) {
-      return { kind: 'WAIT', reason: 'stale_attack', currentTarget: target };
-    }
-
-    this.recordAttempt({
-      stepId: target.stepId,
-      result: 'MATCH',
-      observedAttackPitches: observation.observedAttackPitches,
-      confidence: observation.confidence,
-      sessionTime: observation.attackOnsetTime,
-    });
-    this.advanceOne(observation.attackOnsetTime);
-    return {
-      kind: 'MATCH',
-      reason: 'accepted_current_step',
-      advancedTo: this.currentTarget(),
-    };
-  }
-
-  skip(): StepRuntimeDecision {
-    const target = this.currentTarget();
-    if (!target) {
-      if (this.lifecycleState === 'PAUSED') {
-        return { kind: 'WAIT', reason: 'stale_activation', currentTarget: null };
-      }
-      return { kind: 'WAIT', reason: 'scope_completed', currentTarget: null };
-    }
-    this.recordAttempt({
-      stepId: target.stepId,
-      result: 'SKIPPED',
-      observedAttackPitches: [],
-      confidence: 1,
-      sessionTime: this.timebase.runtimeToSessionTime(this.clock.nowMs()),
-    });
-    this.advanceOne(this.timebase.runtimeToSessionTime(this.clock.nowMs()));
-    return { kind: 'SKIP', reason: 'user_skip', advancedTo: this.currentTarget() };
-  }
-
-  reset(): void {
+  constructor(private readonly options: StepPracticeRuntimeOptions) {
+    assertPracticeScoreArtifact(options.artifact); this.artifact = options.artifact;
+    this.resolvedScope = resolvePracticeScope(this.artifact, options.scope);
     this.currentIndex = this.resolvedScope.startIndex;
-    this.completed = false;
-    this.lifecycleState = 'ACTIVE';
-    this.completionReason = null;
-    this.activationGeneration += 1;
-    this.activationBoundary = this.timebase.runtimeToSessionTime(this.clock.nowMs());
+    this.localSessionId = options.localSessionId ?? createLocalSessionId('step');
+    this.timebase = options.timebase ?? new PracticeTimebase({ domainId: this.localSessionId });
+    if (this.timebase.domainId !== this.localSessionId) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    this.boundary = this.now(); this.createdAtMs = this.epoch();
+    this.metronomeEnabled = options.metronomeEnabled ?? false;
   }
-
+  currentTarget(): StepTarget | null {
+    const step = this.artifact.practiceAttackSteps[this.currentIndex];
+    if (!step || this.completed || this.lifecycle !== 'ACTIVE') return null;
+    return Object.freeze({ stepId: step.stepId, activationGeneration: this.generation, activationBoundary: this.boundary,
+      attackPitches: Object.freeze(attackPitchesForStep(step)), continuationPitches: Object.freeze(continuationPitchesForStep(step)) });
+  }
+  openAttempt(start: SessionTime): StepAttemptIdentity | null {
+    const target = this.currentTarget();
+    if (!target || this.attemptState !== 'READY') return null;
+    this.validateTime(start);
+    if (start.ms < this.boundary.ms) return null;
+    this.assertHistoryRoom();
+    this.active = Object.freeze({ attemptId: `${this.localSessionId}:attempt:${++this.sequence}`,
+      localSessionId: this.localSessionId, stepId: target.stepId, activationGeneration: this.generation,
+      inputSource: this.options.inputSource, attemptStartSessionTime: Object.freeze({ ...start }) });
+    this.attemptState = 'CAPTURING'; return this.active;
+  }
+  analyzeAttempt(identity: StepAttemptIdentity): boolean {
+    if (!this.owns(identity) || this.attemptState !== 'CAPTURING') return false;
+    this.attemptState = 'ANALYZING'; return true;
+  }
+  completeAttempt(identity: StepAttemptIdentity, evidence: StepAttemptEvidence): StepAttemptCompletion {
+    if (!this.owns(identity) || this.attemptState !== 'ANALYZING') return Object.freeze({ kind: 'REJECTED', reason: 'STALE_ATTEMPT' });
+    this.validateTime(evidence.captureEndSessionTime);
+    if (evidence.captureEndSessionTime.ms < identity.attemptStartSessionTime.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    if (evidence.kind === 'EVIDENCE' && (!Number.isFinite(evidence.confidence) || evidence.confidence < 0 || evidence.confidence > 1
+      || evidence.observedAttackPitches.length > 128 || evidence.observedAttackPitches.some(p => !/^[A-G]#?-?\d$/.test(p)))) {
+      throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    }
+    if (evidence.kind === 'RETRY' && evidence.reason !== 'UNCERTAIN' && evidence.reason !== 'TOO_QUIET') throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    const pitches = Object.freeze(evidence.kind === 'EVIDENCE' ? normalizePitchSet(evidence.observedAttackPitches) : []);
+    const verdict = evidence.kind === 'RETRY' ? 'RETRY' : pitchSetsEqual(pitches, this.currentTarget()!.attackPitches) ? 'MATCH' : 'MISMATCH';
+    const record: StepAttemptRecord = Object.freeze({ ...this.active!, verdict, observedAttackPitches: pitches,
+      confidence: evidence.kind === 'EVIDENCE' ? evidence.confidence : null,
+      captureEndSessionTime: Object.freeze({ ...evidence.captureEndSessionTime }), retryReason: evidence.kind === 'RETRY' ? evidence.reason : null });
+    this.attempts.push(record); this.active = null; this.attemptState = 'RESET';
+    this.boundary = record.captureEndSessionTime;
+    if (verdict === 'MATCH') this.advance();
+    return Object.freeze({ kind: 'FINALIZED', record });
+  }
+  rearm(): void {
+    if (this.lifecycle === 'ACTIVE' && this.attemptState === 'RESET') this.attemptState = 'READY';
+  }
+  cancelAttempt(): void { this.active = null; this.attemptState = 'READY'; }
+  pause(): void {
+    if (this.lifecycle !== 'ACTIVE') return;
+    this.cancelAttempt(); this.lifecycle = 'PAUSED'; this.generation++;
+  }
+  resume(): void {
+    if (this.lifecycle !== 'PAUSED') return;
+    this.lifecycle = 'ACTIVE'; this.generation++; this.boundary = this.now(); this.attemptState = 'READY';
+  }
+  skip(): boolean {
+    const target = this.currentTarget(); if (!target) return false;
+    this.assertHistoryRoom(); this.cancelAttempt(); this.boundary = this.now();
+    this.skips.push(Object.freeze({ stepId: target.stepId, activationGeneration: this.generation, sessionTime: this.boundary }));
+    this.advance(); return true;
+  }
+  end(reason: LocalPracticeCompletionReason = 'STOPPED_BY_USER'): void {
+    if (this.lifecycle === 'ENDED') return;
+    this.cancelAttempt(); this.lifecycle = 'ENDED'; this.completionReason = reason; this.generation++;
+  }
   snapshot(): LocalStepSessionSnapshot {
-    const nowMs = this.metadataClock.nowEpochMs();
-    return {
-      localSessionId: this.localSessionId,
-      scoreId: this.artifact.scoreId,
-      revisionId: this.artifact.revisionId,
-      artifactId: this.artifact.artifactId,
-      mode: 'STEP_BY_STEP',
-      inputSource: this.inputSource,
-      practiceScope:
-        this.resolvedScope.kind === 'RANGE'
-          ? {
-              kind: 'RANGE',
-              startGroupId: this.resolvedScope.startGroupId,
-              endGroupId: this.resolvedScope.endGroupId,
-            }
-          : { kind: 'FULL' },
-      tempoSelection: this.tempoSelection,
-      metronomeEnabled: this.metronomeEnabled,
-      lifecycleState: this.lifecycleState,
-      completionReason: this.completionReason,
-      version: this.version,
-      createdAtMs: this.createdAtMs,
-      updatedAtMs: nowMs,
-      step: {
-        currentIndex: this.currentIndex,
-        activationGeneration: this.activationGeneration,
-        completed: this.completed,
-        attempts: [...this.attempts],
-      },
-    };
+    return Object.freeze({ localSessionId: this.localSessionId, scoreId: this.artifact.scoreId, revisionId: this.artifact.revisionId,
+      artifactId: this.artifact.artifactId, mode: 'STEP_BY_STEP', inputSource: this.options.inputSource,
+      practiceScope: Object.freeze({ ...this.options.scope }), tempoSelection: Object.freeze({ ...(this.options.tempoSelection ?? { mode: 'SCORE' }) }),
+      metronomeEnabled: this.metronomeEnabled, lifecycleState: this.lifecycle, completionReason: this.completionReason,
+      version: STEP_RUNTIME_VERSION, createdAtMs: this.createdAtMs, updatedAtMs: this.epoch(),
+      step: Object.freeze({ currentIndex: this.currentIndex, activationGeneration: this.generation, completed: this.completed,
+        attemptState: this.attemptState, activeAttempt: this.active, attempts: Object.freeze([...this.attempts]), skips: Object.freeze([...this.skips]) }) });
   }
-
-  setMetronomeEnabled(enabled: boolean): void {
-    this.metronomeEnabled = enabled;
+  setMetronomeEnabled(enabled: boolean): void { this.metronomeEnabled = enabled; }
+  get currentStepIndex(): number { return this.currentIndex; }
+  get currentOnsetBeat(): number { return this.artifact.practiceAttackSteps[this.currentIndex]?.onsetBeat ?? this.resolvedScope.terminalBeat; }
+  get isCompleted(): boolean { return this.completed; }
+  get state(): PracticeLifecycleState { return this.lifecycle; }
+  private advance(): void {
+    this.currentIndex++; this.generation++;
+    if (this.currentIndex > this.resolvedScope.endIndex) { this.completed = true; this.end('SCOPE_COMPLETED'); }
   }
-
-  get currentStepIndex(): number {
-    return this.currentIndex;
+  private owns(identity: StepAttemptIdentity): boolean {
+    return this.lifecycle === 'ACTIVE' && this.active !== null && identity.attemptId === this.active.attemptId
+      && identity.localSessionId === this.localSessionId && identity.stepId === this.active.stepId
+      && identity.activationGeneration === this.generation && identity.inputSource === this.options.inputSource
+      && identity.attemptStartSessionTime.domainId === this.active.attemptStartSessionTime.domainId
+      && identity.attemptStartSessionTime.ms === this.active.attemptStartSessionTime.ms;
   }
-
-  get currentOnsetBeat(): number {
-    const step = this.currentStep();
-    return step?.onsetBeat ?? this.artifact.practiceAttackSteps[0]?.onsetBeat ?? 0;
-  }
-
-  get isCompleted(): boolean {
-    return this.completed;
-  }
-
-  get state(): PracticeLifecycleState {
-    return this.lifecycleState;
-  }
-
-  get sessionCompletionReason(): LocalPracticeCompletionReason | null {
-    return this.completionReason;
-  }
-
-  get attemptHistory(): LocalPracticeAttempt[] {
-    return [...this.attempts];
-  }
-
-  private currentStep() {
-    if (this.completed || this.currentIndex > this.resolvedScope.endIndex) {
-      return null;
-    }
-    return this.artifact.practiceAttackSteps[this.currentIndex] ?? null;
-  }
-
-  private advanceOne(nextActivationBoundary: SessionTime): void {
-    this.currentIndex += 1;
-    this.activationGeneration += 1;
-    this.activationBoundary = nextActivationBoundary;
-    if (this.currentIndex > this.resolvedScope.endIndex) {
-      this.completed = true;
-      this.lifecycleState = 'ENDED';
-      this.completionReason = 'SCOPE_COMPLETED';
+  private assertHistoryRoom(): void {
+    if (this.attempts.length + this.skips.length >= MAX_STEP_HISTORY_RECORDS) {
+      this.end(); throw new StepDomainError('STEP_HISTORY_LIMIT_EXCEEDED');
     }
   }
-
-  private recordAttempt(input: Omit<LocalPracticeAttempt, 'attemptId'>): void {
-    this.attempts.push({
-      attemptId: `${this.localSessionId}:attempt:${this.attempts.length + 1}`,
-      ...input,
-    });
+  private validateTime(time: SessionTime): void {
+    if (time.domainId !== this.localSessionId || !Number.isFinite(time.ms)) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
   }
+  private now(): Readonly<SessionTime> { return Object.freeze(this.timebase.runtimeToSessionTime(this.options.clock.nowMs())); }
+  private epoch(): number { return this.options.metadataClock?.nowEpochMs() ?? Date.now(); }
 }
-
 export function groupForCurrentStep(runtime: StepPracticeRuntime) {
-  return groupForStep(runtime.artifact, runtime.currentStepIndex);
-}
-
-function validateStepSnapshot(
-  artifact: PracticeScoreArtifact,
-  snapshot: LocalStepSessionSnapshot,
-  scope: PracticeScope,
-  inputSource?: 'MICROPHONE' | 'MIDI'
-): void {
-  if (snapshot.mode !== 'STEP_BY_STEP') {
-    throw new Error('Cannot restore non-STEP snapshot into StepPracticeRuntime.');
-  }
-  validateCommonSnapshot(artifact, snapshot, scope, inputSource);
-  if (!Number.isInteger(snapshot.step.currentIndex) || snapshot.step.currentIndex < 0) {
-    throw new Error('Invalid STEP snapshot current index.');
-  }
-  if (snapshot.step.currentIndex > artifact.practiceAttackSteps.length) {
-    throw new Error('STEP snapshot current index is outside the artifact.');
-  }
-  if (!Number.isInteger(snapshot.step.activationGeneration) || snapshot.step.activationGeneration < 1) {
-    throw new Error('Invalid STEP snapshot activation generation.');
-  }
-}
-
-function validateCommonSnapshot(
-  artifact: PracticeScoreArtifact,
-  snapshot: LocalStepSessionSnapshot,
-  scope: PracticeScope,
-  inputSource?: 'MICROPHONE' | 'MIDI'
-): void {
-  if (snapshot.scoreId !== artifact.scoreId
-    || snapshot.revisionId !== artifact.revisionId
-    || snapshot.artifactId !== artifact.artifactId) {
-    throw new Error('Practice session snapshot does not belong to this score artifact.');
-  }
-  if (snapshot.version.schemaVersion !== 1 || snapshot.version.runtimeVersion !== 'local-practice-core-v1') {
-    throw new Error('Unsupported local practice runtime snapshot version.');
-  }
-  if (inputSource && snapshot.inputSource !== inputSource) {
-    throw new Error('Practice session snapshot input source mismatch.');
-  }
-  if (JSON.stringify(scope) !== JSON.stringify(snapshot.practiceScope)) {
-    throw new Error('Practice session snapshot scope mismatch.');
-  }
+  return runtime.isCompleted ? null : groupForStep(runtime.artifact, runtime.currentStepIndex);
 }

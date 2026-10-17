@@ -1,6 +1,6 @@
 import type { SourcePcmBlock } from '../runtime/source-analysis-runtime';
 import { SourceAnalysisRuntime } from '../runtime/source-analysis-runtime';
-import { fail, onlyFields } from '../model/model-contract';
+import { ACOUSTIC_MODEL, fail, onlyFields } from '../model/model-contract';
 import type { AcousticInferencePort } from '../runtime/inference-types';
 import { deliverPublication, projectContinuousEvidence, type AcousticPublicationSink, type PerformanceSegment } from './publication';
 
@@ -53,7 +53,7 @@ export class ContinuousAcousticProjection {
       const snapshot = this.source.snapshot(), next = snapshot.nextSourceSampleIndex;
       const actualEnd = this.active.performanceStartMs + (next - this.active.sourceStart) / this.options.sourceSampleRateHz * 1000;
       if (!Number.isFinite(performanceEndMs) || Math.abs(actualEnd - performanceEndMs) > 1000 / this.options.sourceSampleRateHz
-        || performanceEndMs < this.active.performanceStartMs + snapshot.activeRegion!.nextWindow * 600) fail('ACOUSTIC_SEGMENT_END_MISMATCH');
+        || performanceEndMs < this.active.performanceStartMs + snapshot.activeRegion!.nextWindow * ACOUSTIC_MODEL.ownedMs) fail('ACOUSTIC_SEGMENT_END_MISMATCH');
       this.active.performanceEndMs = performanceEndMs; this.active.sourceEnd = next;
       const index = this.active.index;
       this.source.endAnalysisRegion(next); this.lastEnd = performanceEndMs; this.active = null;

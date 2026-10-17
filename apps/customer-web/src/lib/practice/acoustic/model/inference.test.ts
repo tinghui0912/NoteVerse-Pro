@@ -4,9 +4,8 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { decodeAcousticOutputs, verifyAcousticModel, AcousticModelSession } from './model-inference';
 import { assertModelNames, checkedOutput } from './model-validation';
 import { AcousticModelWorker } from './worker-client';
-import type { ByteDanceRawOutputs } from '../../acoustic-inference/bytedance-contract';
-import { BYTEDANCE_INFERENCE_CONTRACT } from '../../acoustic-inference/bytedance-contract';
-import { decodeByteDanceRawOutputs } from '../../acoustic-inference/bytedance-decoder';
+import type { PianoRawOutputs } from './raw-output-contract';
+import { ACOUSTIC_MODEL } from './model-contract';
 import type { AcousticInferenceInput } from '../runtime/inference-types';
 
 const input: AcousticInferenceInput = { pcm: new Float32Array(29120), window: { jobIndex: 0, regionIndex: 0, windowIndex: 0,
@@ -18,16 +17,13 @@ it('WebGPU absence rejects session creation without requesting a fallback provid
   await expect(provider.load('https://example.invalid/model.onnx')).rejects.toThrow('ACOUSTIC_WEBGPU_UNAVAILABLE');
   await provider.dispose();
 });
-it('decoder uses explicit .30/.05, not historical .2/.2, on the same adversarial raw outputs', () => {
-  const raw: ByteDanceRawOutputs = { reg_onset_output: new Float32Array(183 * 88), reg_onset_shape: [1, 183, 88],
+it('decoder uses explicit authoritative .30/.05 on adversarial raw outputs', () => {
+  const raw: PianoRawOutputs = { reg_onset_output: new Float32Array(183 * 88), reg_onset_shape: [1, 183, 88],
     frame_output: new Float32Array(183 * 88), frame_shape: [1, 183, 88] };
   raw.reg_onset_output[110 * 88 + 39] = .25; raw.frame_output[110 * 88 + 39] = .8;
   raw.reg_onset_output[120 * 88 + 40] = .6; raw.frame_output[120 * 88 + 40] = .1;
-  const old = decodeByteDanceRawOutputs(raw, { requestId: 'old', pcm: input.pcm, sampleRateHz: 16000, channelCount: 1,
-    captureStartSampleIndex: 3200, captureStartTime: { domainId: 'test', ms: -1050 } });
   expect(decodeAcousticOutputs(raw, input).map(e => e.midiPitch)).toEqual([61]);
-  expect(old.map(e => e.midiPitch)).toEqual([60]);
-  expect(BYTEDANCE_INFERENCE_CONTRACT).toMatchObject({ onsetThreshold: .2, frameThreshold: .2 });
+  expect(ACOUSTIC_MODEL).toMatchObject({ onsetThreshold: .30, frameThreshold: .05 });
 });
 it('wrong model size/hash are rejected without inference', async () => {
   await expect(verifyAcousticModel(new Uint8Array(10))).rejects.toThrow('ACOUSTIC_MODEL_IDENTITY_MISMATCH');

@@ -10,6 +10,7 @@ import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/perform
 import type { LocalPracticeLifecycle, LocalPracticeInputState } from '@/lib/practice/local-core/session';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { continuousErrorMessageKeys, type ContinuousErrorCode } from '@/lib/practice/continuous/continuous-errors';
+import { STEP_ERROR_MESSAGES, type StepApplicationErrorCode } from '@/lib/practice/step/step-errors';
 
 type PracticeStatusMessageKey =
   | typeof continuousErrorMessageKeys[ContinuousErrorCode]
@@ -104,6 +105,9 @@ export function resolvePracticeStatusView({
         pending: false,
         countInPulse: null,
       };
+    }
+    if (sessionMode === 'STEP_BY_STEP' && inputError && Object.hasOwn(STEP_ERROR_MESSAGES, inputError)) {
+      return { customMessage: STEP_ERROR_MESSAGES[inputError as StepApplicationErrorCode], isError: true, pending: false, countInPulse: null };
     }
     return {
       messageKey: inputSource === 'MIDI' ? 'midiStartFailed' : 'micStartFailed',

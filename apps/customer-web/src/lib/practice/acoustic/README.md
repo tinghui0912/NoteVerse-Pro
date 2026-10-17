@@ -32,8 +32,12 @@ OPFS reads verify 98,689,283 bytes and SHA256
 The historical `models/continuous/...` OSS key is centralized storage identity
 only; no duplicate object or model selector exists. FIR files live only under
 `public/model-assets/practice-acoustic/`, with unchanged bytes and identities.
-The authoritative model-family decoder primitive remains shared; the Original
-ByteDance executable provider, loader and access endpoint are removed.
+The authoritative decoder is `model/robust-piano-decoder.ts`, with transaction-only
+`raw-output-contract.ts`. It receives explicit .30/.05 from `model-contract.ts`;
+there are no historical Original/STEP threshold defaults or fixed-anchor windows.
+Original ByteDance executable provider, loader and access endpoint are removed.
+The remaining old low-level tree is byte-archived under
+`backend/research/history/step-original-bytedance-low-level-before-domain-reset/`.
 
 ## Resources and Clock Isolation
 

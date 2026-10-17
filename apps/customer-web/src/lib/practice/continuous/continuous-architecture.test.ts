@@ -46,7 +46,7 @@ it('one controller constructs one product session, never a second evaluator', ()
   expect(reach(input).filter(p => /continuous-finalizer|continuous-expected-strikes|performance-runtime/.test(p))).toEqual([]);
 });
 it('product finalizer has no acoustic model dependency', () => {
-  expect(reach(path.join(source, 'lib/practice/local-core/continuous-finalizer.ts')).filter(p => p.includes('acoustic-inference'))).toEqual([]);
+  expect(reach(path.join(source, 'lib/practice/local-core/continuous-finalizer.ts')).filter(p => /acoustic-inference|[\\/]acoustic[\\/]/.test(p))).toEqual([]);
 });
 it('active Continuous has no old worker, research namespace, or output timestamp mapper', () => {
   const product = reach(controller);
