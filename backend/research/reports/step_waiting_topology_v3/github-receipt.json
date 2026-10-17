@@ -1,0 +1,9 @@
+{
+  "queriedAt": "2026-10-17T22:05:14.499Z",
+  "remoteHead": "a23381cd9e8fa2e2476c4dc0455bdf049b8d627f",
+  "evidenceCommit": "a23381cd9e8fa2e2476c4dc0455bdf049b8d627f",
+  "combinedState": "pending",
+  "statuses": [],
+  "workflow_runs": [],
+  "interpretation": "NOT CI PASS"
+}
