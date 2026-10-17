@@ -1,0 +1,15 @@
+{
+  "phase": "PRACTICE_CONTINUOUS_AUDIO_CONTEXT_TRANSPORT_CLOCK_CONTRACT_V2",
+  "queriedAt": "2026-10-17T00:59:11.569Z",
+  "evidenceCommit": "05ba8b9052802fa3f5cbdf217ef7e103bc31ef39",
+  "actualRemoteHead": "05ba8b9052802fa3f5cbdf217ef7e103bc31ef39",
+  "commitsSinceStart": [
+    "e03d1c74c943983df42f692ecdcbc1de1002456d qualify audio-context render clock with sequential inference gate",
+    "880c785a23b6f2280c2f17440310acae8ac5d198 freeze audio-context clock v2 and current model-neutral requalification",
+    "05ba8b9052802fa3f5cbdf217ef7e103bc31ef39 record current inference requalification and exact resume clock blocker"
+  ],
+  "combinedState": "pending",
+  "statuses": [],
+  "workflow_runs": [],
+  "interpretation": "NOT CI PASS"
+}
