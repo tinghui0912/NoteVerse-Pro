@@ -1,0 +1,9 @@
+{
+  "phase": "PRACTICE_STEP_ONE_TARGET_ONE_ATTEMPT_DOMAIN_AND_CONTROLLER_CLEAN_BREAK",
+  "queriedAt": "2026-10-17T12:22:29.059Z",
+  "remoteHead": "f693f8af09d19120d9514c04a7b3392c027db3ae",
+  "combinedState": "pending",
+  "statuses": [],
+  "workflowRuns": [],
+  "interpretation": "NOT CI PASS"
+}
