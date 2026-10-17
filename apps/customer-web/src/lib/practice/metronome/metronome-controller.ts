@@ -47,6 +47,7 @@ export class MetronomeController {
   private isEnabled: boolean;
   private isRunning = false;
   private audioContext: AudioContext | null = null;
+  private ownsAudioContext = false;
   private timerId: ReturnType<typeof setInterval> | null = null;
   private audioAvailable = true;
   private onScheduledPulse?: (pulse: MetronomePulse, audioTime: number) => void;
@@ -340,14 +341,15 @@ export class MetronomeController {
 
   destroy(): void {
     this.stop();
-    if (this.audioContext && typeof this.audioContext.close === 'function') {
+    if (this.ownsAudioContext && this.audioContext && typeof this.audioContext.close === 'function') {
       try {
         this.audioContext.close().catch(() => {});
       } catch {
         // Safe disposal
       }
-      this.audioContext = null;
     }
+    this.audioContext = null;
+    this.ownsAudioContext = false;
   }
 
   bpmAtBeat(beat: number): number {
@@ -449,6 +451,7 @@ export class MetronomeController {
 
       const audioContext = new AudioContextClass();
       this.audioContext = audioContext;
+      this.ownsAudioContext = true;
       if (audioContext.state === 'suspended') {
         audioContext.resume().catch(() => {});
       }

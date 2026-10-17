@@ -74,6 +74,20 @@ describe('MetronomeController', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('never closes an injected session AudioContext on destroy', () => {
+    const { ctx } = createMockAudioContext();
+    const meter = new MetronomeController({ tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 120, source: 'PRODUCT_DEFAULT' }] }, audioContext: ctx });
+    meter.start(0); meter.destroy(); meter.destroy(); expect(ctx.close).not.toHaveBeenCalled();
+  });
+
+  it('closes an internally created AudioContext exactly once', () => {
+    const { ctx } = createMockAudioContext();
+    vi.stubGlobal('window', { AudioContext: class { constructor() { return ctx; } } });
+    const meter = new MetronomeController({ tempoPlan: { selection: { mode: 'SCORE' }, segments: [{ startBeat: 0, bpm: 120, source: 'PRODUCT_DEFAULT' }] } });
+    meter.prepare(); meter.destroy(); meter.destroy(); expect(ctx.close).toHaveBeenCalledTimes(1);
   });
 
   const tempoPlan120: ResolvedPracticeTempoPlan = {

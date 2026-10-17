@@ -25,6 +25,7 @@ function createStream(tracks = [createTrack('audio')]) {
     getTracks: () => tracks,
     getAudioTracks: () => tracks.filter((track) => track.kind === 'audio'),
     getVideoTracks: () => tracks.filter((track) => track.kind === 'video'),
+    clone: () => createStream(tracks.map(track => createTrack(track.kind))),
   } as unknown as MediaStream;
 }
 
@@ -108,6 +109,19 @@ describe('PerformanceRecorder', () => {
 
     expect(result.media.status).toBe('NOT_RECORDED');
     expect(result.timebase.nominalMediaDurationMs).toBe(0);
+  });
+
+  it('owns a recorder clone, never acquires or stops the session root', async () => {
+    const rootTrack = createTrack(), clonedTrack = createTrack();
+    const root = createStream([rootTrack]), clone = createStream([clonedTrack]);
+    vi.spyOn(root, 'clone').mockReturnValue(clone);
+    const getUserMedia = vi.fn();
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+    const recorder = new PerformanceRecorder('AUDIO');
+    await recorder.prepare({ inputSource: 'MICROPHONE', sessionMicrophoneStream: root });
+    expect(recorder.snapshot().sourceOwnership).toBe('OWNED_CLONE');
+    recorder.stopAndCleanup(); recorder.stopAndCleanup();
+    expect(clonedTrack.stop).toHaveBeenCalledTimes(1); expect(rootTrack.stop).not.toHaveBeenCalled(); expect(getUserMedia).not.toHaveBeenCalled();
   });
 
   it('includes final recorder data before marking audio READY', async () => {
@@ -229,7 +243,7 @@ describe('PerformanceRecorder', () => {
     const borrowedRecorder = new PerformanceRecorder('AUDIO');
     await borrowedRecorder.prepare({
       inputSource: 'MICROPHONE',
-      analysisStream: createStream([borrowedTrack]),
+      sessionMicrophoneStream: createStream([borrowedTrack]),
     });
     borrowedRecorder.stopAndCleanup();
     expect(borrowedTrack.stop).not.toHaveBeenCalled();

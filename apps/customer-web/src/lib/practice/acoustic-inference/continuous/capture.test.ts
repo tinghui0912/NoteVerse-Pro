@@ -20,7 +20,7 @@ function fixture() {
 it('borrowed recording stream is cloned; analysis failure stops only the owned clone and disconnects all nodes', async () => {
   const f = fixture();
   const capture = await ContinuousAcousticCapture.connect({ bridge: f.bridge as unknown as ContinuousCaptureBridge,
-    stream: f.stream as unknown as MediaStream, ownership: 'BORROWED_RECORDING', context: f.context as unknown as AudioContext, workletUrl: '/worklet' });
+    stream: f.stream as unknown as MediaStream, ownership: 'BORROWED_SESSION_STREAM', context: f.context as unknown as AudioContext, workletUrl: '/worklet' });
   f.bridge.abort();
   expect(f.recordingTrack.stop).not.toHaveBeenCalled(); expect(f.analysisTrack.stop).toHaveBeenCalledTimes(1);
   expect(f.source.disconnect).toHaveBeenCalledTimes(1); expect(f.node.port.close).toHaveBeenCalledTimes(1);
@@ -37,7 +37,7 @@ it('AudioContext suspension invalidates analysis instead of resuming silently', 
 it('partial initialization failure releases already-constructed worklet and analysis track', async () => {
   const f = fixture(); f.context.createMediaStreamSource = () => { throw new Error('source initialization failed'); };
   await expect(ContinuousAcousticCapture.connect({ bridge: f.bridge as unknown as ContinuousCaptureBridge,
-    stream: f.stream as unknown as MediaStream, ownership: 'BORROWED_RECORDING', context: f.context as unknown as AudioContext, workletUrl: '/worklet' })).rejects.toThrow('source initialization failed');
+    stream: f.stream as unknown as MediaStream, ownership: 'BORROWED_SESSION_STREAM', context: f.context as unknown as AudioContext, workletUrl: '/worklet' })).rejects.toThrow('source initialization failed');
   expect(f.node.port.close).toHaveBeenCalledTimes(1); expect(f.analysisTrack.stop).toHaveBeenCalledTimes(1);
   expect(f.recordingTrack.stop).not.toHaveBeenCalled();
 });

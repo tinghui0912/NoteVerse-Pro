@@ -16,7 +16,7 @@ type RecorderState =
 
 type PrepareOptions = {
   inputSource: PracticeInputSource;
-  analysisStream?: MediaStream | null;
+  sessionMicrophoneStream?: MediaStream | null;
   cameraStream?: MediaStream | null;
 };
 
@@ -64,6 +64,8 @@ export class PerformanceRecorder {
   private recorder: MediaRecorder | null = null;
   private readonly chunks: Blob[] = [];
   private ownedStream: MediaStream | null = null;
+  private sourceOwnership: 'NONE' | 'OWNED_ACQUISITION' | 'OWNED_CLONE' = 'NONE';
+  private disposed = false;
   private mediaKind: 'AUDIO' | 'VIDEO' = 'AUDIO';
   private unavailableReason: string | null = null;
   private state: RecorderState = 'NOT_STARTED';
@@ -93,15 +95,19 @@ export class PerformanceRecorder {
           this.markUnavailable('AUDIO_STREAM_UNAVAILABLE');
           return;
         }
+        if (this.disposed) { this.releaseStream(); return; }
         this.installRecorder(new MediaRecorder(stream), stream, 'AUDIO');
         return;
       }
 
-      const stream = createContinuousVideoStream(options.cameraStream, options.analysisStream);
+      const borrowed = createContinuousVideoStream(options.cameraStream, options.sessionMicrophoneStream);
+      const stream = borrowed?.clone();
       if (!stream) {
         this.markUnavailable('CAMERA_AUDIO_VIDEO_STREAM_UNAVAILABLE');
         return;
       }
+      this.ownedStream = stream; this.sourceOwnership = 'OWNED_CLONE';
+      if (this.disposed) { this.releaseStream(); return; }
       const recorderOptions = preferredVideoRecorderMimeType()
         ? { mimeType: preferredVideoRecorderMimeType() }
         : undefined;
@@ -254,6 +260,7 @@ export class PerformanceRecorder {
   }
 
   stopAndCleanup(): void {
+    this.disposed = true;
     const recorder = this.recorder;
     this.recorder = null;
     if (recorder && recorder.state !== 'inactive') {
@@ -264,8 +271,16 @@ export class PerformanceRecorder {
       }
     }
 
+    this.releaseStream();
+  }
+
+  snapshot() { return Object.freeze({ state: this.mode === 'OFF' ? 'OFF' as const : this.state,
+    sourceOwnership: this.sourceOwnership, unavailableReason: this.unavailableReason }); }
+
+  private releaseStream(): void {
     const stream = this.ownedStream;
     this.ownedStream = null;
+    this.sourceOwnership = 'NONE';
     if (stream) {
       for (const track of stream.getTracks()) {
         track.stop();
@@ -274,8 +289,10 @@ export class PerformanceRecorder {
   }
 
   private async resolveAudioStream(options: PrepareOptions): Promise<MediaStream | null> {
-    if (options.inputSource === 'MICROPHONE' && options.analysisStream) {
-      return options.analysisStream;
+    if (options.inputSource === 'MICROPHONE') {
+      if (!options.sessionMicrophoneStream) { this.markUnavailable('SESSION_MICROPHONE_STREAM_REQUIRED'); return null; }
+      const clone = options.sessionMicrophoneStream.clone();
+      this.ownedStream = clone; this.sourceOwnership = 'OWNED_CLONE'; return clone;
     }
     const mediaDevices = globalThis.navigator?.mediaDevices;
     if (!mediaDevices?.getUserMedia) {
@@ -290,6 +307,7 @@ export class PerformanceRecorder {
       },
     });
     this.ownedStream = stream;
+    this.sourceOwnership = 'OWNED_ACQUISITION';
     return stream;
   }
 

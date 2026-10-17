@@ -37,7 +37,8 @@ Shared local concepts live here:
 - normalized acoustic and MIDI evidence contracts
 - shared runtime/schema version identity
 
-React may orchestrate these objects and render their snapshots, but it must not
+The Continuous application controller composes these objects; React consumes its
+snapshots and commands. STEP retains its hook-owned lifecycle. Neither may
 own progression rules.
 
 ## STEP_BY_STEP Runtime

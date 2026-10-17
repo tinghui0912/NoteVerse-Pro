@@ -1,5 +1,52 @@
 # Practice Product Contract v2
 
+## Continuous Application Ownership
+
+`ContinuousPracticeController` is the sole Continuous application lifecycle owner.
+It creates one `ContinuousPracticeSession` and composes MIDI or microphone input,
+metronome, optional recorder, and one completion transaction. React subscribes to
+snapshots and sends commands; it does not coordinate inference or completion.
+STEP retains its separate correctness-driven, hook-owned lifecycle.
+
+Microphone Continuous uses one session-owned AudioContext. Its render timeline is
+the injected `LocalClock`, the capture Worklet chronology, and the metronome domain.
+Each live transition latches `currentTime` exactly once. Capture boundary identity
+is `round(contextTime * sampleRate) - workletOriginFrame`. There is no output-time
+mapper, clock fitting, hardware latency correction, or alternate clock strategy.
+Segment transforms preserve exact anchors by adding local deltas first.
+
+The capture bridge owns one bounded scheduler with stable boundary IDs. Future
+count-in BEGIN and natural TERMINAL boundaries are cancelled while still pending
+when Pause/Stop makes them stale. Applied boundaries cannot be cancelled. Paused
+and count-in PCM is context-only, never score evidence. The AudioContext continues
+running while transport is paused. Real-context readiness covers even a shortened
+first owned interval: its earliest possible input starts input-duration minus
+future-context before the segment start. This readiness rule does not change any
+model input, ownership, future-context or decoder parameter and never permits padding.
+
+The controller acquires one root microphone stream. Analysis and recorder own
+independent clones; neither consumer stops the root. An injected metronome context
+is borrowed and is never closed by metronome destruction. Only controller final
+cleanup closes the session context and stops the root stream.
+
+Transport ENDED is not application COMPLETE. The application stays FINALIZING while
+real tail context and outstanding analysis drain, the empty exact-T terminal
+publication closes the unique evaluator, and recording finalizes. Review receives
+that same immutable accumulated truth. A zero-duration stop during count-in emits
+empty zero-domain terminal coverage without inventing a model input.
+
+Analysis failure after Start is orthogonal to transport and recording: it stops
+only analysis resources. Clock, playhead, metronome and recorder continue. Missing
+analysis coverage yields explicit UNAVAILABLE evaluation, not fabricated verdicts.
+Preparation failure never starts transport. Transient PCM, queues, capture credits
+and compact diagnostics remain bounded; lifecycle diagnostics retain 32 metadata
+entries, not observation arrays. Optional user recording is separate from transient
+analysis memory. No physical input/output latency or device compatibility claim
+follows from these engineering bounds.
+
+Continuous microphone remains `MODEL_NOT_VALIDATED`, STEP remains
+`ATTEMPT_ANALYZER_NOT_VALIDATED`, and production microphone remains disabled.
+
 Status: Authoritative product/domain contract for future Practice architecture. Historical research reports remain preserved as evidence for the questions they actually tested, but they do not override this contract.
 
 ## Global Product Boundaries

@@ -91,12 +91,26 @@ export class ContinuousAcousticRuntime {
   requestTerminal(performanceEndMs: number): void {
     this.guard();
     try {
+      if (this.state === 'PREROLL' && performanceEndMs === 0 && this.nextSegment === 0) {
+        this.terminalTime = 0; this.state = 'DRAINING'; return;
+      }
       if (this.state === 'RUNNING') this.endSegment(performanceEndMs);
       if (this.state !== 'PAUSED' || performanceEndMs !== this.lastPerformanceEnd) fail('INVALID_ACOUSTIC_TERMINAL');
       this.terminalTime = performanceEndMs; this.state = 'DRAINING'; this.planAvailable();
     } catch (error) { this.failAnalysis(error); throw error; }
   }
   get tailReady(): boolean { return this.state === 'DRAINING' && this.pendingSegments.length === 0; }
+  /** Read-only readiness; never probe by beginning a semantic segment. */
+  get prerollReady(): boolean {
+    if (!['PREROLL', 'PAUSED'].includes(this.state) || this.sourceBase === null || this.failure) return false;
+    const segment: AcousticSegment = { index: this.nextSegment, sourceStart: this.nextSource,
+      performanceStartMs: this.lastPerformanceEnd, originTarget: (this.nextSource - this.sourceBase) * 16000 / this.adapter.rate,
+      nextWindow: 0, queuedEndMs: this.lastPerformanceEnd };
+    // An immediate Pause/Stop shortens the first ownership region, moving the
+    // fixed-size input farther into real past. Readiness covers that whole range.
+    const earliestInputStart = segment.originTarget - (M.inputMs - M.futureMs) * 16;
+    return earliestInputStart >= Math.max(10, this.ring.firstRetained);
+  }
   attachCaptureCleanup(cleanup: () => void): () => void {
     this.guard();
     if (this.cleanup) fail('ACOUSTIC_CAPTURE_ALREADY_ATTACHED');

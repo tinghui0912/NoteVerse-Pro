@@ -1,9 +1,9 @@
 import { ContinuousCaptureBridge, type CaptureChunk } from './capture-bridge';
 import { fail, onlyFields, sourceRate } from './model-contract';
 
-export type CaptureOwnership = 'OWNED_ANALYSIS' | 'BORROWED_RECORDING';
+export type CaptureOwnership = 'OWNED_ANALYSIS' | 'BORROWED_SESSION_STREAM';
 
-/** Owns only analysis resources. In particular, a recording stream is cloned, never stopped. */
+/** Borrows the session root, owning only an analysis clone and its nodes. */
 export class ContinuousAcousticCapture {
   private stopped = false;
   private detachCleanup: (() => void) | undefined;
@@ -16,8 +16,8 @@ export class ContinuousAcousticCapture {
     context: AudioContext; workletUrl: string;
   }): Promise<ContinuousAcousticCapture> {
     onlyFields(options, ['bridge', 'stream', 'ownership', 'context', 'workletUrl']);
-    if (!['BORROWED_RECORDING', 'OWNED_ANALYSIS'].includes(options.ownership)) fail('INVALID_CAPTURE_OWNERSHIP');
-    const stream = options.ownership === 'BORROWED_RECORDING' ? options.stream.clone() : options.stream;
+    if (!['BORROWED_SESSION_STREAM', 'OWNED_ANALYSIS'].includes(options.ownership)) fail('INVALID_CAPTURE_OWNERSHIP');
+    const stream = options.ownership === 'BORROWED_SESSION_STREAM' ? options.stream.clone() : options.stream;
     let capture: ContinuousAcousticCapture | null = null;
     let node: AudioWorkletNode | null = null, source: MediaStreamAudioSourceNode | null = null, gain: GainNode | null = null;
     try {

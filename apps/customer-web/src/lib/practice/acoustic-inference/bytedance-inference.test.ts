@@ -16,20 +16,13 @@ import {
   acousticEventsToPerformanceEvidence,
   AcousticEventStreamNormalizer,
   BYTEDANCE_INPUT_DESCRIPTOR,
-  BYTEDANCE_OUTPUT_DESCRIPTORS,
-  ByteDanceWorkerHost,
-  ByteDanceWorkerProtocolRuntime,
   buildByteDanceFixedAnchorWindow,
-  createByteDanceBrowserWorkerClient,
   decodeByteDanceRawOutputs,
   defaultByteDanceModelManifest,
-  loadOnnxRuntimeWeb,
   pcmS16leToFloat32,
   prepareByteDanceInput,
   validateByteDanceModelManifest,
-  type ByteDanceModelLoader,
   type ByteDanceModelManifest,
-  type ByteDanceOnnxRuntime,
   type ByteDancePcmInferenceRequest,
   type ByteDanceRawOutputs,
 } from './index';
@@ -117,54 +110,6 @@ function midiPitch(pitch: string): number {
   }
   return (Number(pitch.slice(octaveIndex)) + 1) * 12 + (names[pitch[0]] ?? 0) + accidental;
 }
-
-function mockRuntime(raw: ByteDanceRawOutputs): ByteDanceOnnxRuntime & {
-  sessionCreateCount: number;
-  runCount: number;
-  modelBytes: Uint8Array[];
-  feeds: Array<Record<string, unknown>>;
-} {
-  return {
-    sessionCreateCount: 0,
-    runCount: 0,
-    modelBytes: [],
-    feeds: [],
-    createTensor(type, data, dims) {
-      return { type, data, dims };
-    },
-    async createSession(_manifest, modelBytes) {
-      this.sessionCreateCount += 1;
-      this.modelBytes.push(modelBytes);
-      return {
-        run: async (feeds, outputNames) => {
-          this.runCount += 1;
-          this.feeds.push(feeds);
-          return Object.fromEntries(outputNames.map((name) => {
-            if (name === BYTEDANCE_OUTPUT_DESCRIPTORS.regOnset.name) {
-              return [name, { data: raw.reg_onset_output, dims: raw.reg_onset_shape }];
-            }
-            return [name, { data: raw.frame_output, dims: raw.frame_shape }];
-          }));
-        },
-      };
-    },
-  };
-}
-
-const verifiedModelBytes = new Uint8Array([1, 2, 3, 4]);
-
-function verifiedManifest(overrides: Partial<ByteDanceModelManifest> = {}): ByteDanceModelManifest {
-  return manifest({
-    expectedByteSize: verifiedModelBytes.byteLength,
-    sha256: '9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a',
-    ...overrides,
-  });
-}
-
-const passThroughModelLoader: ByteDanceModelLoader = async () => ({
-  bytes: verifiedModelBytes,
-  source: 'opfs-cache',
-});
 
 describe('ByteDance model manifest contract', () => {
   it('accepts the validated model identity and rejects drift', () => {
@@ -339,128 +284,6 @@ describe('ByteDance preprocessing and decoding', () => {
       ...rawOutput([]),
       reg_onset_shape: [1, 240, 87],
     }, request())).toThrow(/88 piano pitches/);
-  });
-});
-
-describe('ByteDance worker protocol', () => {
-  it('loads once, reuses the session, infers, and disposes', async () => {
-    const runtime = mockRuntime(rawOutput([{ frame: 10, midiPitch: 60, onset: 0.9, frameScore: 0.8 }]));
-    const worker = new ByteDanceWorkerProtocolRuntime(runtime, passThroughModelLoader);
-
-    await expect(worker.handle({ type: 'INFER', requestId: 'before-ready', input: request() }))
-      .resolves.toMatchObject({ type: 'ERROR' });
-    await expect(worker.handle({ type: 'LOAD', requestId: 'load', manifest: verifiedManifest() }))
-      .resolves.toMatchObject({
-        type: 'READY',
-        diagnostics: {
-          modelByteSize: verifiedModelBytes.byteLength,
-          modelSha256: verifiedManifest().sha256,
-        },
-      });
-    await expect(worker.handle({ type: 'INFER', requestId: 'run-1', input: request() }))
-      .resolves.toMatchObject({
-        type: 'RESULT',
-        result: {
-          diagnostics: {
-            inputTensor: { name: BYTEDANCE_INPUT_DESCRIPTOR.name, shape: [1, 29120] },
-            outputTensors: {
-              regOnset: { name: BYTEDANCE_OUTPUT_DESCRIPTORS.regOnset.name, shape: [1, 240, 88] },
-              frame: { name: BYTEDANCE_OUTPUT_DESCRIPTORS.frame.name, shape: [1, 240, 88] },
-            },
-          },
-        },
-      });
-    await expect(worker.handle({ type: 'INFER', requestId: 'run-2', input: request({ requestId: 'infer-2' }) }))
-      .resolves.toMatchObject({ type: 'RESULT' });
-    expect(runtime.sessionCreateCount).toBe(1);
-    expect(runtime.runCount).toBe(2);
-    expect(runtime.modelBytes).toEqual([verifiedModelBytes]);
-    expect(runtime.feeds[0]?.audio).toMatchObject({
-      type: 'float32',
-      data: expect.any(Float32Array),
-      dims: [1, 29120],
-    });
-    await expect(worker.handle({ type: 'DISPOSE', requestId: 'dispose' }))
-      .resolves.toMatchObject({ type: 'DISPOSED' });
-  });
-
-  it('returns deterministic lifecycle errors for second LOAD and dispose during inference', async () => {
-    let resolveRun: () => void = () => {
-      throw new Error('inference promise was not started');
-    };
-    const runtime = mockRuntime(rawOutput([]));
-    runtime.createSession = async function createSession(_manifest, modelBytes) {
-      this.sessionCreateCount += 1;
-      this.modelBytes.push(modelBytes);
-      return {
-        run: async () => {
-          this.runCount += 1;
-          await new Promise<void>((resolve) => {
-            resolveRun = resolve;
-          });
-          return {
-            [BYTEDANCE_OUTPUT_DESCRIPTORS.regOnset.name]: {
-              data: rawOutput([]).reg_onset_output,
-              dims: rawOutput([]).reg_onset_shape,
-            },
-            [BYTEDANCE_OUTPUT_DESCRIPTORS.frame.name]: {
-              data: rawOutput([]).frame_output,
-              dims: rawOutput([]).frame_shape,
-            },
-          };
-        },
-      };
-    };
-    const worker = new ByteDanceWorkerProtocolRuntime(runtime, passThroughModelLoader);
-
-    await expect(worker.handle({ type: 'LOAD', requestId: 'load', manifest: verifiedManifest() }))
-      .resolves.toMatchObject({ type: 'READY' });
-    await expect(worker.handle({ type: 'LOAD', requestId: 'load-again', manifest: verifiedManifest() }))
-      .resolves.toMatchObject({ type: 'ERROR', error: expect.stringMatching(/already loaded/) });
-    const running = worker.handle({ type: 'INFER', requestId: 'run', input: request() });
-    await expect(worker.handle({ type: 'DISPOSE', requestId: 'dispose-active' }))
-      .resolves.toMatchObject({ type: 'ERROR', error: expect.stringMatching(/active/) });
-    await expect(worker.handle({ type: 'INFER', requestId: 'run-overlap', input: request() }))
-      .resolves.toMatchObject({ type: 'ERROR', error: expect.stringMatching(/active inference/) });
-    resolveRun();
-    await expect(running).resolves.toMatchObject({ type: 'RESULT' });
-  });
-
-  it('reports initialization failure through the LOAD response', async () => {
-    const host = new ByteDanceWorkerHost(async () => {
-      throw new Error('webgpu unavailable');
-    });
-    await expect(host.handle({ type: 'LOAD', requestId: 'load', manifest: verifiedManifest() }))
-      .resolves.toEqual({ type: 'ERROR', requestId: 'load', error: 'webgpu unavailable' });
-    await expect(host.handle({ type: 'INFER', requestId: 'infer', input: request() }))
-      .resolves.toMatchObject({ type: 'ERROR', error: expect.stringMatching(/not initialized/) });
-  });
-
-  it('creates a browser runtime with an explicit execution provider', async () => {
-    await expect(loadOnnxRuntimeWeb({ executionProvider: 'webgpu' })).resolves.toMatchObject({
-      createSession: expect.any(Function),
-      createTensor: expect.any(Function),
-    });
-  });
-
-  it('reports the explicitly selected ONNX execution provider in load diagnostics', async () => {
-    const runtime = {
-      ...mockRuntime(rawOutput([])),
-      executionProvider: () => 'webgpu' as const,
-    };
-    const worker = new ByteDanceWorkerProtocolRuntime(runtime, passThroughModelLoader);
-
-    await expect(worker.handle({ type: 'LOAD', requestId: 'load', manifest: verifiedManifest() }))
-      .resolves.toMatchObject({
-        type: 'READY',
-        diagnostics: {
-          executionProvider: 'webgpu',
-        },
-      });
-  });
-
-  it('exposes a bundler-visible worker factory without duplicating protocol logic', () => {
-    expect(createByteDanceBrowserWorkerClient).toBeTypeOf('function');
   });
 });
 

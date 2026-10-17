@@ -60,7 +60,8 @@ describe('practice architecture boundaries', () => {
     expect(content).not.toContain('recordingChunks');
     expect(content).not.toContain('cameraRecordingEnabled');
     expect(content).not.toContain('advanceAnalysisThrough(');
-    expect(content).toContain('PerformanceRecorder');
+    expect(content).toContain('ContinuousPracticeController');
+    expect(content).not.toContain('new PerformanceRecorder');
   });
 
   it('keeps product input capability independent from ByteDance Continuous candidates', () => {

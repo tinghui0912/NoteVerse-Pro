@@ -18,11 +18,14 @@ export class ContinuousCaptureBridge {
   private nextSource = 0;
   private contextOriginFrame: number | null = null;
   private readonly boundaries: AcousticBoundary[] = [];
+  private readonly boundaryIds = new Map<AcousticBoundary, string>();
+  private nextBoundaryId = 0;
+  private readonly boundaryDiagnostics: Readonly<{ id: string; action: 'SCHEDULED' | 'APPLIED' | 'CANCELLED'; type: string; sourceSampleIndex: number; performanceTimeMs: number; nextSourceAtAction: number }>[] = [];
   private failed = false;
   private readonly chunkSizes: Record<string, number> = {};
   private blocks = 0;
   constructor(readonly runtime: ContinuousAcousticRuntime, private readonly rate: number) {}
-  schedule(boundary: AcousticBoundary): void {
+  schedule(boundary: AcousticBoundary): string {
     try {
       onlyFields(boundary, ['type', 'sourceSampleIndex', 'performanceTimeMs']); safeIndex(boundary.sourceSampleIndex);
       if (this.failed || boundary.sourceSampleIndex < this.nextSource
@@ -30,8 +33,19 @@ export class ContinuousCaptureBridge {
         || !['BEGIN', 'PAUSE', 'TERMINAL'].includes(boundary.type)) fail('INVALID_CAPTURE_BOUNDARY');
       if (this.boundaries.length >= R.maxScheduledBoundaries) fail('CAPTURE_BOUNDARY_LIMIT_EXCEEDED');
       if (this.boundaries.length && boundary.sourceSampleIndex < this.boundaries[this.boundaries.length - 1].sourceSampleIndex) fail('NONCHRONOLOGICAL_CAPTURE_BOUNDARY');
-      this.boundaries.push(Object.freeze({ ...boundary }));
+      const owned = Object.freeze({ ...boundary }), id = `boundary:${this.nextBoundaryId++}`;
+      this.boundaries.push(owned); this.boundaryIds.set(owned, id); this.recordBoundary(owned, id, 'SCHEDULED');
       this.applyBoundaries();
+      return id;
+    } catch (error) { this.abort(error); throw error; }
+  }
+  isPending(id: string): boolean { return [...this.boundaryIds.values()].includes(id); }
+  cancel(id: string): void {
+    try {
+      const index = this.boundaries.findIndex(boundary => this.boundaryIds.get(boundary) === id);
+      if (this.failed || index < 0) fail('CAPTURE_BOUNDARY_NOT_PENDING');
+      const [boundary] = this.boundaries.splice(index, 1);
+      this.boundaryIds.delete(boundary); this.recordBoundary(boundary, id, 'CANCELLED');
     } catch (error) { this.abort(error); throw error; }
   }
   receive(chunk: CaptureChunk): void {
@@ -65,15 +79,23 @@ export class ContinuousCaptureBridge {
       else this.chunkSizes.OTHER = (this.chunkSizes.OTHER ?? 0) + 1;
     } catch (error) { this.abort(error); throw error; }
   }
-  abort(error: unknown): void { this.failed = true; this.boundaries.length = 0; this.runtime.failAnalysis(error); }
+  abort(error: unknown): void { this.failed = true; this.boundaries.length = 0; this.boundaryIds.clear(); this.runtime.failAnalysis(error); }
   snapshot() { return Object.freeze({ nextSourceSampleIndex: this.nextSource, nextSequence: this.nextSequence,
-    audioContextOriginFrame: this.contextOriginFrame, blocks: this.blocks, chunkSizes: Object.freeze({ ...this.chunkSizes }), failed: this.failed }); }
+    audioContextOriginFrame: this.contextOriginFrame, blocks: this.blocks, chunkSizes: Object.freeze({ ...this.chunkSizes }), failed: this.failed,
+    pendingBoundaryCount: this.boundaries.length, boundaryDiagnostics: Object.freeze([...this.boundaryDiagnostics]) }); }
+  private recordBoundary(boundary: AcousticBoundary, id: string, action: 'SCHEDULED' | 'APPLIED' | 'CANCELLED'): void {
+    this.boundaryDiagnostics.push(Object.freeze({ id, action, type: boundary.type, sourceSampleIndex: boundary.sourceSampleIndex,
+      performanceTimeMs: boundary.performanceTimeMs, nextSourceAtAction: this.nextSource }));
+    if (this.boundaryDiagnostics.length > 32) this.boundaryDiagnostics.shift();
+  }
   private applyBoundaries(): void {
     while (this.boundaries[0]?.sourceSampleIndex === this.nextSource) {
       const boundary = this.boundaries.shift()!;
+      const id = this.boundaryIds.get(boundary)!; this.boundaryIds.delete(boundary);
       if (boundary.type === 'BEGIN') this.runtime.beginSegment(boundary.performanceTimeMs);
       else if (boundary.type === 'PAUSE') this.runtime.endSegment(boundary.performanceTimeMs);
       else this.runtime.requestTerminal(boundary.performanceTimeMs);
+      this.recordBoundary(boundary, id, 'APPLIED');
     }
   }
 }
