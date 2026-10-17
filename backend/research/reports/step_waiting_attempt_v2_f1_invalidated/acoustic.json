@@ -1,0 +1,138 @@
+{
+  "freezeCommit": "8ea101525d4adc1ba27af14ec197d0e3212eb57f",
+  "remoteHead": "8ea101525d4adc1ba27af14ec197d0e3212eb57f",
+  "freezeSha256": "8586237a631465a662ffc5660caf312844fcc2641fabc952f713bca0402f3a0e",
+  "remoteVerifiedAt": "2026-10-17T21:07:53.508Z",
+  "executionStartedAt": "2026-10-17T21:07:53.829Z",
+  "qualificationExecutionProof": {
+    "freezeCommit": "8ea101525d4adc1ba27af14ec197d0e3212eb57f",
+    "remoteHead": "8ea101525d4adc1ba27af14ec197d0e3212eb57f",
+    "freezeSha256": "8586237a631465a662ffc5660caf312844fcc2641fabc952f713bca0402f3a0e",
+    "remoteVerifiedAt": "2026-10-17T21:07:53.508Z",
+    "executionStartedAt": "2026-10-17T21:07:53.829Z"
+  },
+  "status": "BLOCKED",
+  "browser": {
+    "version": "155.0.8059.39",
+    "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "headed": true
+  },
+  "gpu": {
+    "features": [
+      "depth32float-stencil8",
+      "rg11b10ufloat-renderable",
+      "texture-formats-tier1",
+      "bgra8unorm-storage",
+      "texture-compression-bc",
+      "dual-source-blending",
+      "core-features-and-limits",
+      "float32-filterable",
+      "indirect-first-instance",
+      "float32-blendable",
+      "subgroup-size-control",
+      "depth-clip-control",
+      "texture-compression-bc-sliced-3d",
+      "timestamp-query",
+      "texture-formats-tier2",
+      "shader-f16",
+      "clip-distances",
+      "primitive-index",
+      "texture-component-swizzle",
+      "subgroups"
+    ],
+    "info": {
+      "vendor": "nvidia",
+      "architecture": "lovelace",
+      "device": "",
+      "description": ""
+    }
+  },
+  "result": null,
+  "failure": "page.evaluate: Error: {\"error\":\"AcousticAnalysisError: ACOUSTIC_WORKER_WINDOW_MISMATCH\",\"actualModelRuns\":4,\"leaseReleases\":2}\n    at window.runWaitingAudioOnly (http://127.0.0.1:49388/entry.js:922:11)\n    at async <anonymous>:260:30\n    at C:\\Users\\tinghuilin\\Downloads\\NoteVerse-Pro\\backend\\research\\step_waiting_attempt_v2\\browser.mjs:51:57",
+  "requests": [
+    "/",
+    "/entry.js",
+    "/favicon.ico",
+    "/worker.js",
+    "/ort/ort.webgpu.min.mjs",
+    "/model.onnx",
+    "/ort/ort-wasm-simd-threaded.jsep.mjs",
+    "/ort/ort-wasm-simd-threaded.jsep.mjs",
+    "/ort/ort-wasm-simd-threaded.jsep.mjs",
+    "/ort/ort-wasm-simd-threaded.jsep.wasm",
+    "/ort/ort-wasm-simd-threaded.jsep.mjs",
+    "/pcm/q00/44100",
+    "/fir/44100",
+    "/pcm/q00/48000",
+    "/fir/48000"
+  ],
+  "bundleInputs": [
+    "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+    "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+    "<define:process.env>",
+    "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+    "apps/customer-web/src/lib/practice/acoustic/model/worker-client.ts",
+    "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+    "apps/customer-web/src/lib/practice/acoustic/runtime/resource-policy.ts",
+    "apps/customer-web/src/lib/practice/acoustic/runtime/window-planner.ts",
+    "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
+    "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
+    "backend/research/step_waiting_attempt_v2/waiting-assembly.ts",
+    "backend/research/step_waiting_attempt_v2/audio-entry.ts",
+    "<define:process.env>",
+    "apps/customer-web/src/lib/model-assets/types.ts",
+    "apps/customer-web/src/lib/model-assets/model-asset-store.ts",
+    "apps/customer-web/src/lib/model-assets/verified-model-asset-loader.ts",
+    "apps/customer-web/src/lib/practice/acoustic/model/acoustic-core-identity.json",
+    "apps/customer-web/src/lib/practice/acoustic/source/source-adapter-identities.json",
+    "apps/customer-web/src/lib/practice/acoustic/model/model-contract.ts",
+    "apps/customer-web/src/lib/practice/acoustic/model/raw-output-contract.ts",
+    "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+    "apps/customer-web/src/lib/practice/acoustic/model/model-validation.ts",
+    "apps/customer-web/src/lib/practice/acoustic/model/acoustic-model-manifest.ts",
+    "apps/customer-web/src/lib/practice/acoustic/model/model-inference.ts",
+    "apps/customer-web/src/lib/practice/acoustic/model/acoustic-worker.entry.ts"
+  ],
+  "diagnostics": [
+    {
+      "type": "worker-created",
+      "url": "http://127.0.0.1:49388/worker.js"
+    },
+    {
+      "type": "worker-created",
+      "url": "http://127.0.0.1:49388/ort/ort-wasm-simd-threaded.jsep.mjs"
+    },
+    {
+      "type": "worker-created",
+      "url": "http://127.0.0.1:49388/ort/ort-wasm-simd-threaded.jsep.mjs"
+    },
+    {
+      "type": "worker-created",
+      "url": "http://127.0.0.1:49388/ort/ort-wasm-simd-threaded.jsep.mjs"
+    },
+    {
+      "type": "error",
+      "text": "\u001b[0;93m2026-10-18 05:07:55.937699 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+      "location": {
+        "url": "http://127.0.0.1:49388/ort/ort-wasm-simd-threaded.jsep.mjs",
+        "lineNumber": 99,
+        "columnNumber": 235
+      }
+    },
+    {
+      "type": "error",
+      "text": "\u001b[0;93m2026-10-18 05:07:55.939030 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+      "location": {
+        "url": "http://127.0.0.1:49388/ort/ort-wasm-simd-threaded.jsep.mjs",
+        "lineNumber": 99,
+        "columnNumber": 235
+      }
+    }
+  ],
+  "model": {
+    "path": "backend/data/work/phase9gd1_robust_browser_onnx/robust_bytedance_fixed_1820_opset18.onnx",
+    "bytes": 98689283,
+    "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"
+  },
+  "completedAt": "2026-10-17T21:07:57.413Z"
+}

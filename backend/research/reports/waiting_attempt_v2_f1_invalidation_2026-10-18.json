@@ -1,0 +1,19 @@
+{
+  "status": "INVALIDATED_FOR_ACCEPTANCE",
+  "freezeCommit": "8ea101525d4adc1ba27af14ec197d0e3212eb57f",
+  "freezeSha256": "8586237a631465a662ffc5660caf312844fcc2641fabc952f713bca0402f3a0e",
+  "remoteVerifiedAt": "2026-10-17T21:07:53.508Z",
+  "executionStartedAt": "2026-10-17T21:07:53.829Z",
+  "acousticSealSha256": "f07e674a9345caa00b0b5291c0d4caf467b9db8c52ce5b8c687259a911df5f8c",
+  "failure": "ACOUSTIC_WORKER_WINDOW_MISMATCH",
+  "classification": "QUALIFICATION_HARNESS_FAILURE",
+  "cause": "One real Worker/model session was correctly reused, but a second independent source planner restarted its local jobIndex at zero. The production Worker requires a globally monotonic job index for its lifetime.",
+  "actualNeuralRuns": {"ContinuousEngineering":18,"ContinuousMusicalAndController":76,"invalidHoldout":4},
+  "truthStageB": "NOT_STARTED",
+  "repairScope": "Research-only request job identity allocator, not PCM, acoustic geometry, decoder, output, H, source selection or production source.",
+  "requiredNextStep": "New implementation commit, new prospective freeze, remote verification, full static and Continuous regression rerun, then complete Stage A rerun. No old acceptance evidence inherited.",
+  "previousBlockedResearchResultUnchanged": true,
+  "candidateWidthMs": 50,
+  "corpusReplacements": 0,
+  "candidateRetuning": false
+}

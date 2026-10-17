@@ -1,0 +1,5054 @@
+{
+  "freezeCommit": "8ea101525d4adc1ba27af14ec197d0e3212eb57f",
+  "remoteHead": "8ea101525d4adc1ba27af14ec197d0e3212eb57f",
+  "freezeSha256": "8586237a631465a662ffc5660caf312844fcc2641fabc952f713bca0402f3a0e",
+  "remoteVerifiedAt": "2026-10-17T21:05:50.814Z",
+  "executionStartedAt": "2026-10-17T21:05:51.215Z",
+  "engineeringExecutionProof": {
+    "freezeCommit": "8ea101525d4adc1ba27af14ec197d0e3212eb57f",
+    "remoteHead": "8ea101525d4adc1ba27af14ec197d0e3212eb57f",
+    "freezeSha256": "8586237a631465a662ffc5660caf312844fcc2641fabc952f713bca0402f3a0e",
+    "remoteVerifiedAt": "2026-10-17T21:05:50.814Z",
+    "executionStartedAt": "2026-10-17T21:05:51.148Z"
+  },
+  "completedAt": "2026-10-17T21:06:36.880Z",
+  "browser": {
+    "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "version": "155.0.8059.39",
+    "headed": true,
+    "node": "v24.19.0",
+    "playwright": "1.48.2"
+  },
+  "disposition": "STEP_ACOUSTIC_WAITING_ATTEMPT_CANDIDATE_QUALIFIED_FOR_DISABLED_INTEGRATION",
+  "status": "PASS",
+  "cells": [
+    {
+      "rate": 44100,
+      "scenario": "natural_recording_offline",
+      "state": "PASS",
+      "startedAt": "2026-10-17T21:05:51.593Z",
+      "gpu": {
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "timestamp-query",
+          "texture-formats-tier2",
+          "shader-f16",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      },
+      "offlineAt": "2026-10-17T21:05:55.637Z",
+      "result": {
+        "status": "PASS",
+        "rate": 44100,
+        "scenario": "natural_recording_offline",
+        "trackSettings": {
+          "autoGainControl": false,
+          "channelCount": 2,
+          "deviceId": "default",
+          "echoCancellation": false,
+          "groupId": "23f109d442ff53fa9cb24e709151dfb06a42f589ee768d9df6bfaf57ccba53b1",
+          "latency": 0.01,
+          "noiseSuppression": false,
+          "sampleRate": 44100,
+          "sampleSize": 16,
+          "voiceIsolation": false
+        },
+        "nativeHardwareRateQualification": false,
+        "offlineWitness": {
+          "contextTime": 1.6602267573696146,
+          "snapshot": {
+            "state": "COUNT_IN",
+            "nowMs": 1651.5192743764173,
+            "musicalBeat": 0,
+            "performanceTimeMs": 0,
+            "countInTotalMs": 500,
+            "countInRemainingMs": 500,
+            "countInBeats": 1,
+            "countInPulses": 3,
+            "countInPulse": 1,
+            "scopeCompleted": false,
+            "scopeStartBeat": 0,
+            "scopeTerminalBeat": 2.4,
+            "completionReason": null
+          }
+        },
+        "resumeWitnesses": [],
+        "failureWitness": null,
+        "engineering": {
+          "microphone": {
+            "model": {
+              "source": "network",
+              "downloadMs": 763.7350000143051,
+              "cacheReadMs": 45,
+              "verificationMs": 84.10500001907349,
+              "totalLoadMs": 904.2749999761581,
+              "byteSize": 98689283,
+              "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "persistentStorageGranted": null,
+              "assetId": "practice-acoustic-robust-browser",
+              "assetVersion": "v1",
+              "modelByteSize": 98689283,
+              "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "executionProvider": "webgpu",
+              "modelFetchAndVerifyMs": 989.414999961853,
+              "sessionCreateMs": 480.58000004291534,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "ortWebVersion": "1.20.1",
+              "automaticFallback": false,
+              "actualSessionLoadCount": 1,
+              "inputDescriptor": {
+                "name": "audio",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  29120
+                ]
+              },
+              "outputDescriptors": {
+                "reg_onset_output": [
+                  1,
+                  183,
+                  88
+                ],
+                "frame_output": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "publications": 3,
+            "failure": null,
+            "runtime": {
+              "state": "DISPOSED",
+              "failureCode": null,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5",
+              "sourceRateHz": 44100,
+              "sourceBase": 0,
+              "nextSourceSampleIndex": 155776,
+              "activeRegion": null,
+              "pendingRegions": 0,
+              "outstanding": 0,
+              "counts": {
+                "windowsQueued": 2,
+                "windowsStarted": 2,
+                "windowsPublished": 2,
+                "observationsPublished": 0,
+                "peakOutstanding": 1,
+                "backpressureFailures": 0,
+                "regionsStarted": 1,
+                "regionsDrained": 1,
+                "segmentsStarted": 1,
+                "segmentsDrained": 1,
+                "terminalPublications": 1
+              },
+              "diagnostics": [
+                {
+                  "jobIndex": 0,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 34424.30839002268,
+                  "ownedEndTarget": 44024.30839002268,
+                  "inputStartSample": 17624,
+                  "inputEndSample": 46744,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 596.9550000429153,
+                  "decodeMs": 0.690000057220459,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 1
+                },
+                {
+                  "jobIndex": 1,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 44024.30839002268,
+                  "ownedEndTarget": 53624.30839002268,
+                  "inputStartSample": 27224,
+                  "inputEndSample": 56344,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 119.03999996185303,
+                  "decodeMs": 0.48000001907348633,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 2
+                }
+              ],
+              "resources": {
+                "sessionPcmBytes": 0,
+                "sourceAdapterBytes": 35796,
+                "targetRingBytes": 262144,
+                "outstandingInputBytes": 0,
+                "maximumOutstandingInputBytes": 465920,
+                "retainedPublicationEvents": 0,
+                "diagnosticWindowLimit": 32,
+                "compactDiagnosticsPlanningBytes": 16384
+              },
+              "activeSegment": null,
+              "pendingSegments": 0,
+              "analyzedThroughPerformanceMs": 1200
+            },
+            "capture": {
+              "nextSourceSampleIndex": 155776,
+              "nextSequence": 1217,
+              "audioContextOriginFrame": 0,
+              "blocks": 1217,
+              "chunkSizes": {
+                "128": 1217
+              },
+              "failed": false,
+              "pendingBoundaryCount": 0,
+              "boundaryDiagnostics": [
+                {
+                  "id": "boundary:0",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 94882,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 72832
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 147802,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 72832
+                },
+                {
+                  "id": "boundary:0",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 94882,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 94882
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "APPLIED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 147802,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 147802
+                }
+              ]
+            }
+          },
+          "diagnostics": [
+            {
+              "action": "START",
+              "state": "ACTIVE",
+              "performanceTimeMs": 0
+            },
+            {
+              "action": "COMPLETE",
+              "state": "COMPLETE",
+              "performanceTimeMs": 1200
+            }
+          ],
+          "diagnosticLimit": 32,
+          "diagnosticPlanningBytes": 32768,
+          "rootTrackStates": [],
+          "audioContextState": "closed",
+          "audioContextRate": 44100
+        },
+        "model": {
+          "source": "network",
+          "downloadMs": 763.7350000143051,
+          "cacheReadMs": 45,
+          "verificationMs": 84.10500001907349,
+          "totalLoadMs": 904.2749999761581,
+          "byteSize": 98689283,
+          "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "persistentStorageGranted": null,
+          "assetId": "practice-acoustic-robust-browser",
+          "assetVersion": "v1",
+          "modelByteSize": 98689283,
+          "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "executionProvider": "webgpu",
+          "modelFetchAndVerifyMs": 989.414999961853,
+          "sessionCreateMs": 480.58000004291534,
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "ortWebVersion": "1.20.1",
+          "automaticFallback": false,
+          "actualSessionLoadCount": 1,
+          "inputDescriptor": {
+            "name": "audio",
+            "dtype": "float32",
+            "shape": [
+              1,
+              29120
+            ]
+          },
+          "outputDescriptors": {
+            "reg_onset_output": [
+              1,
+              183,
+              88
+            ],
+            "frame_output": [
+              1,
+              183,
+              88
+            ]
+          }
+        },
+        "transport": {
+          "state": "ENDED",
+          "nowMs": 3352.3809523809523,
+          "musicalBeat": 2.4,
+          "performanceTimeMs": 1200,
+          "countInTotalMs": 500,
+          "countInRemainingMs": 0,
+          "countInBeats": 1,
+          "countInPulses": 3,
+          "countInPulse": 1,
+          "scopeCompleted": true,
+          "scopeStartBeat": 0,
+          "scopeTerminalBeat": 2.4,
+          "completionReason": "SCOPE_COMPLETED"
+        },
+        "completed": {
+          "evaluation": {
+            "status": "COMPLETE",
+            "sessionDomainId": "local-practice:e3ebe4e2-2bf5-40de-bdbb-5c92e38bc334",
+            "groups": [
+              {
+                "groupId": "entry-0.0-05162c611506",
+                "performanceTimeMs": 0,
+                "verdict": "MISSING",
+                "strikes": [
+                  {
+                    "strikeId": "entry-0.0-05162c611506:strike:C4",
+                    "groupId": "entry-0.0-05162c611506",
+                    "pitch": "C4",
+                    "expectedPerformanceTimeMs": 0,
+                    "renderNoteIds": [
+                      "n1"
+                    ],
+                    "state": "MISSING",
+                    "finality": {
+                      "requiredAnalysisFrontierMs": 250,
+                      "unclampedRequiredFrontierMs": 250,
+                      "enablingPublicationId": "local-practice:e3ebe4e2-2bf5-40de-bdbb-5c92e38bc334:capture:window:0",
+                      "enablingAnalysisFrontierMs": 599.9999999999999,
+                      "finalizationTimeMs": 3520.7256235827663,
+                      "terminalClamp": false
+                    }
+                  }
+                ],
+                "wrongObservations": [],
+                "evidenceObservationIds": [],
+                "finality": {
+                  "requiredAnalysisFrontierMs": 250,
+                  "unclampedRequiredFrontierMs": 250,
+                  "enablingPublicationId": "local-practice:e3ebe4e2-2bf5-40de-bdbb-5c92e38bc334:capture:window:0",
+                  "enablingAnalysisFrontierMs": 599.9999999999999,
+                  "finalizationTimeMs": 3520.7256235827663,
+                  "terminalClamp": false
+                }
+              }
+            ],
+            "extras": [],
+            "observationOwnership": [],
+            "completion": {
+              "reason": "SCOPE_COMPLETED",
+              "performanceTimeMs": 1200,
+              "availabilityTimeMs": 1200
+            }
+          },
+          "mediaStatus": "READY",
+          "mediaBytes": 18563,
+          "recordingTimebase": {
+            "activeSegments": [
+              {
+                "perfStartMs": 0,
+                "perfEndMs": 1200,
+                "mediaStartMs": 0,
+                "mediaEndMs": 1200
+              }
+            ],
+            "nominalMediaDurationMs": 1200
+          }
+        },
+        "resources": {
+          "acquisitions": 1,
+          "nativeAcquisitions": 1,
+          "contextsCreated": 1,
+          "contextsClosed": 1,
+          "workersCreated": 1,
+          "clonedStreams": 2,
+          "allRootAndCloneTracksEnded": true
+        },
+        "actualModelRuns": 2,
+        "capabilities": {
+          "microphoneCapture": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "midi": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "acousticAnalysis": {
+            "step": {
+              "status": "ATTEMPT_ANALYZER_NOT_VALIDATED"
+            },
+            "continuous": {
+              "status": "MODEL_NOT_VALIDATED"
+            }
+          }
+        },
+        "productionMicrophone": false,
+        "realDevice": "NOT_PERFORMED"
+      },
+      "completedAt": "2026-10-17T21:05:57.637Z",
+      "chronologyFailures": []
+    },
+    {
+      "rate": 44100,
+      "scenario": "count_in_cancel_multiple_pause_manual_stop",
+      "state": "PASS",
+      "startedAt": "2026-10-17T21:05:57.652Z",
+      "gpu": {
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "timestamp-query",
+          "texture-formats-tier2",
+          "shader-f16",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      },
+      "offlineAt": "2026-10-17T21:06:01.361Z",
+      "result": {
+        "status": "PASS",
+        "rate": 44100,
+        "scenario": "count_in_cancel_multiple_pause_manual_stop",
+        "trackSettings": {
+          "autoGainControl": false,
+          "channelCount": 2,
+          "deviceId": "default",
+          "echoCancellation": false,
+          "groupId": "55fdfb474ddde457d10b26523aa1acbdcf386478a6ac12bf207a9d00fafc771e",
+          "latency": 0.01,
+          "noiseSuppression": false,
+          "sampleRate": 44100,
+          "sampleSize": 16,
+          "voiceIsolation": false
+        },
+        "nativeHardwareRateQualification": false,
+        "offlineWitness": {
+          "contextTime": 1.6602267573696146,
+          "snapshot": {
+            "state": "COUNT_IN",
+            "nowMs": 1651.5192743764173,
+            "musicalBeat": 0,
+            "performanceTimeMs": 0,
+            "countInTotalMs": 500,
+            "countInRemainingMs": 500,
+            "countInBeats": 1,
+            "countInPulses": 3,
+            "countInPulse": 1,
+            "scopeCompleted": false,
+            "scopeStartBeat": 0,
+            "scopeTerminalBeat": 2.4,
+            "completionReason": null
+          }
+        },
+        "resumeWitnesses": [
+          {
+            "pause": 0,
+            "resume": 0,
+            "deltaMs": 0
+          },
+          {
+            "pause": 408.48072562358266,
+            "resume": 408.48072562358266,
+            "deltaMs": 0
+          },
+          {
+            "pause": 759.6825396825398,
+            "resume": 759.6825396825398,
+            "deltaMs": 0
+          }
+        ],
+        "failureWitness": null,
+        "engineering": {
+          "microphone": {
+            "model": {
+              "source": "network",
+              "downloadMs": 931.5350000858307,
+              "cacheReadMs": 51.6599999666214,
+              "verificationMs": 84.51499998569489,
+              "totalLoadMs": 1077.554999947548,
+              "byteSize": 98689283,
+              "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "persistentStorageGranted": null,
+              "assetId": "practice-acoustic-robust-browser",
+              "assetVersion": "v1",
+              "modelByteSize": 98689283,
+              "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "executionProvider": "webgpu",
+              "modelFetchAndVerifyMs": 1160.6899999380112,
+              "sessionCreateMs": 466.81000006198883,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "ortWebVersion": "1.20.1",
+              "automaticFallback": false,
+              "actualSessionLoadCount": 1,
+              "inputDescriptor": {
+                "name": "audio",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  29120
+                ]
+              },
+              "outputDescriptors": {
+                "reg_onset_output": [
+                  1,
+                  183,
+                  88
+                ],
+                "frame_output": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "publications": 4,
+            "failure": null,
+            "runtime": {
+              "state": "DISPOSED",
+              "failureCode": null,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5",
+              "sourceRateHz": 44100,
+              "sourceBase": 0,
+              "nextSourceSampleIndex": 171648,
+              "activeRegion": null,
+              "pendingRegions": 0,
+              "outstanding": 0,
+              "counts": {
+                "windowsQueued": 3,
+                "windowsStarted": 3,
+                "windowsPublished": 3,
+                "observationsPublished": 0,
+                "peakOutstanding": 2,
+                "backpressureFailures": 0,
+                "regionsStarted": 3,
+                "regionsDrained": 3,
+                "segmentsStarted": 3,
+                "segmentsDrained": 3,
+                "terminalPublications": 1
+              },
+              "diagnostics": [
+                {
+                  "jobIndex": 0,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 37628.662131519275,
+                  "ownedEndTarget": 44164.3537414966,
+                  "inputStartSample": 17764,
+                  "inputEndSample": 46884,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 677.210000038147,
+                  "decodeMs": 0.6799999475479126,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 1
+                },
+                {
+                  "jobIndex": 1,
+                  "regionIndex": 1,
+                  "ownedStartTarget": 47554.467120181405,
+                  "ownedEndTarget": 53173.69614512472,
+                  "inputStartSample": 26774,
+                  "inputEndSample": 55894,
+                  "queueDelayMs": 110.2947845804988,
+                  "inferenceMs": 216.72500002384186,
+                  "decodeMs": 0.48500001430511475,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 2,
+                  "actualSessionRunCount": 2
+                },
+                {
+                  "jobIndex": 2,
+                  "regionIndex": 2,
+                  "ownedStartTarget": 55681.45124716553,
+                  "ownedEndTarget": 59535.96371882086,
+                  "inputStartSample": 33136,
+                  "inputEndSample": 62256,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 205.15000009536743,
+                  "decodeMs": 0.24500000476837158,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 3
+                }
+              ],
+              "resources": {
+                "sessionPcmBytes": 0,
+                "sourceAdapterBytes": 35796,
+                "targetRingBytes": 262144,
+                "outstandingInputBytes": 0,
+                "maximumOutstandingInputBytes": 465920,
+                "retainedPublicationEvents": 0,
+                "diagnosticWindowLimit": 32,
+                "compactDiagnosticsPlanningBytes": 16384
+              },
+              "activeSegment": null,
+              "pendingSegments": 0,
+              "analyzedThroughPerformanceMs": 1000.5895691609976
+            },
+            "capture": {
+              "nextSourceSampleIndex": 171648,
+              "nextSequence": 1341,
+              "audioContextOriginFrame": 0,
+              "blocks": 1341,
+              "chunkSizes": {
+                "128": 1341
+              },
+              "failed": false,
+              "pendingBoundaryCount": 0,
+              "boundaryDiagnostics": [
+                {
+                  "id": "boundary:0",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 94882,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 72832
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 147802,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 72832
+                },
+                {
+                  "id": "boundary:0",
+                  "action": "CANCELLED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 94882,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 73216
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "CANCELLED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 147802,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 73216
+                },
+                {
+                  "id": "boundary:2",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 103714,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 82048
+                },
+                {
+                  "id": "boundary:3",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 156634,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 82048
+                },
+                {
+                  "id": "boundary:2",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 103714,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 103714
+                },
+                {
+                  "id": "boundary:3",
+                  "action": "CANCELLED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 156634,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 121728
+                },
+                {
+                  "id": "boundary:4",
+                  "action": "SCHEDULED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 121728,
+                  "performanceTimeMs": 408.48072562358266,
+                  "nextSourceAtAction": 121728
+                },
+                {
+                  "id": "boundary:4",
+                  "action": "APPLIED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 121728,
+                  "performanceTimeMs": 408.48072562358266,
+                  "nextSourceAtAction": 121728
+                },
+                {
+                  "id": "boundary:5",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 131072,
+                  "performanceTimeMs": 408.48072562358266,
+                  "nextSourceAtAction": 131072
+                },
+                {
+                  "id": "boundary:5",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 131072,
+                  "performanceTimeMs": 408.48072562358266,
+                  "nextSourceAtAction": 131072
+                },
+                {
+                  "id": "boundary:6",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 165978,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 131072
+                },
+                {
+                  "id": "boundary:6",
+                  "action": "CANCELLED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 165978,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 146432
+                },
+                {
+                  "id": "boundary:7",
+                  "action": "SCHEDULED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 146560,
+                  "performanceTimeMs": 759.6825396825398,
+                  "nextSourceAtAction": 146432
+                },
+                {
+                  "id": "boundary:7",
+                  "action": "APPLIED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 146560,
+                  "performanceTimeMs": 759.6825396825398,
+                  "nextSourceAtAction": 146560
+                },
+                {
+                  "id": "boundary:8",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 153472,
+                  "performanceTimeMs": 759.6825396825398,
+                  "nextSourceAtAction": 153472
+                },
+                {
+                  "id": "boundary:8",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 153472,
+                  "performanceTimeMs": 759.6825396825398,
+                  "nextSourceAtAction": 153472
+                },
+                {
+                  "id": "boundary:9",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 172890,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 153472
+                },
+                {
+                  "id": "boundary:9",
+                  "action": "CANCELLED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 172890,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 164096
+                },
+                {
+                  "id": "boundary:10",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 164096,
+                  "performanceTimeMs": 1000.5895691609976,
+                  "nextSourceAtAction": 164096
+                },
+                {
+                  "id": "boundary:10",
+                  "action": "APPLIED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 164096,
+                  "performanceTimeMs": 1000.5895691609976,
+                  "nextSourceAtAction": 164096
+                }
+              ]
+            }
+          },
+          "diagnostics": [
+            {
+              "action": "START",
+              "state": "ACTIVE",
+              "performanceTimeMs": 0
+            },
+            {
+              "action": "PAUSE",
+              "state": "ACTIVE",
+              "performanceTimeMs": 0
+            },
+            {
+              "action": "RESUME",
+              "state": "ACTIVE",
+              "performanceTimeMs": 0
+            },
+            {
+              "action": "PAUSE",
+              "state": "ACTIVE",
+              "performanceTimeMs": 408.48072562358266
+            },
+            {
+              "action": "RESUME",
+              "state": "ACTIVE",
+              "performanceTimeMs": 408.48072562358266
+            },
+            {
+              "action": "PAUSE",
+              "state": "ACTIVE",
+              "performanceTimeMs": 759.6825396825398
+            },
+            {
+              "action": "RESUME",
+              "state": "ACTIVE",
+              "performanceTimeMs": 759.6825396825398
+            },
+            {
+              "action": "COMPLETE",
+              "state": "COMPLETE",
+              "performanceTimeMs": 1000.5895691609976
+            }
+          ],
+          "diagnosticLimit": 32,
+          "diagnosticPlanningBytes": 32768,
+          "rootTrackStates": [],
+          "audioContextState": "closed",
+          "audioContextRate": 44100
+        },
+        "model": {
+          "source": "network",
+          "downloadMs": 931.5350000858307,
+          "cacheReadMs": 51.6599999666214,
+          "verificationMs": 84.51499998569489,
+          "totalLoadMs": 1077.554999947548,
+          "byteSize": 98689283,
+          "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "persistentStorageGranted": null,
+          "assetId": "practice-acoustic-robust-browser",
+          "assetVersion": "v1",
+          "modelByteSize": 98689283,
+          "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "executionProvider": "webgpu",
+          "modelFetchAndVerifyMs": 1160.6899999380112,
+          "sessionCreateMs": 466.81000006198883,
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "ortWebVersion": "1.20.1",
+          "automaticFallback": false,
+          "actualSessionLoadCount": 1,
+          "inputDescriptor": {
+            "name": "audio",
+            "dtype": "float32",
+            "shape": [
+              1,
+              29120
+            ]
+          },
+          "outputDescriptors": {
+            "reg_onset_output": [
+              1,
+              183,
+              88
+            ],
+            "frame_output": [
+              1,
+              183,
+              88
+            ]
+          }
+        },
+        "transport": {
+          "state": "ENDED",
+          "nowMs": 3720.9977324263036,
+          "musicalBeat": 2.001179,
+          "performanceTimeMs": 1000.5895691609976,
+          "countInTotalMs": 500,
+          "countInRemainingMs": 0,
+          "countInBeats": 1,
+          "countInPulses": 3,
+          "countInPulse": 1,
+          "scopeCompleted": false,
+          "scopeStartBeat": 0,
+          "scopeTerminalBeat": 2.4,
+          "completionReason": "STOPPED_BY_USER"
+        },
+        "completed": {
+          "evaluation": {
+            "status": "COMPLETE",
+            "sessionDomainId": "local-practice:232f6194-ba48-4b2f-9555-81f416dc8a37",
+            "groups": [
+              {
+                "groupId": "entry-0.0-05162c611506",
+                "performanceTimeMs": 0,
+                "verdict": "MISSING",
+                "strikes": [
+                  {
+                    "strikeId": "entry-0.0-05162c611506:strike:C4",
+                    "groupId": "entry-0.0-05162c611506",
+                    "pitch": "C4",
+                    "expectedPerformanceTimeMs": 0,
+                    "renderNoteIds": [
+                      "n1"
+                    ],
+                    "state": "MISSING",
+                    "finality": {
+                      "requiredAnalysisFrontierMs": 250,
+                      "unclampedRequiredFrontierMs": 250,
+                      "enablingPublicationId": "local-practice:232f6194-ba48-4b2f-9555-81f416dc8a37:capture:window:0",
+                      "enablingAnalysisFrontierMs": 408.4807256235826,
+                      "finalizationTimeMs": 3610.702947845805,
+                      "terminalClamp": false
+                    }
+                  }
+                ],
+                "wrongObservations": [],
+                "evidenceObservationIds": [],
+                "finality": {
+                  "requiredAnalysisFrontierMs": 250,
+                  "unclampedRequiredFrontierMs": 250,
+                  "enablingPublicationId": "local-practice:232f6194-ba48-4b2f-9555-81f416dc8a37:capture:window:0",
+                  "enablingAnalysisFrontierMs": 408.4807256235826,
+                  "finalizationTimeMs": 3610.702947845805,
+                  "terminalClamp": false
+                }
+              }
+            ],
+            "extras": [],
+            "observationOwnership": [],
+            "completion": {
+              "reason": "STOPPED_BY_USER",
+              "performanceTimeMs": 1000.5895691609976,
+              "availabilityTimeMs": 1000.5895691609976
+            }
+          },
+          "mediaStatus": "NOT_RECORDED",
+          "mediaBytes": 0,
+          "recordingTimebase": {
+            "activeSegments": [],
+            "nominalMediaDurationMs": 0
+          }
+        },
+        "resources": {
+          "acquisitions": 1,
+          "nativeAcquisitions": 1,
+          "contextsCreated": 1,
+          "contextsClosed": 1,
+          "workersCreated": 1,
+          "clonedStreams": 1,
+          "allRootAndCloneTracksEnded": true
+        },
+        "actualModelRuns": 3,
+        "capabilities": {
+          "microphoneCapture": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "midi": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "acousticAnalysis": {
+            "step": {
+              "status": "ATTEMPT_ANALYZER_NOT_VALIDATED"
+            },
+            "continuous": {
+              "status": "MODEL_NOT_VALIDATED"
+            }
+          }
+        },
+        "productionMicrophone": false,
+        "realDevice": "NOT_PERFORMED"
+      },
+      "completedAt": "2026-10-17T21:06:03.811Z",
+      "chronologyFailures": []
+    },
+    {
+      "rate": 44100,
+      "scenario": "pause_near_terminal_resume_natural",
+      "state": "PASS",
+      "startedAt": "2026-10-17T21:06:03.824Z",
+      "gpu": {
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "timestamp-query",
+          "texture-formats-tier2",
+          "shader-f16",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      },
+      "offlineAt": "2026-10-17T21:06:07.306Z",
+      "result": {
+        "status": "PASS",
+        "rate": 44100,
+        "scenario": "pause_near_terminal_resume_natural",
+        "trackSettings": {
+          "autoGainControl": false,
+          "channelCount": 2,
+          "deviceId": "default",
+          "echoCancellation": false,
+          "groupId": "c2dca3abf160e28c498649e1ae120447068d769a9a2234aa208fb2b11444e66d",
+          "latency": 0.01,
+          "noiseSuppression": false,
+          "sampleRate": 44100,
+          "sampleSize": 16,
+          "voiceIsolation": false
+        },
+        "nativeHardwareRateQualification": false,
+        "offlineWitness": {
+          "contextTime": 1.6602267573696146,
+          "snapshot": {
+            "state": "RUNNING",
+            "nowMs": 1651.5192743764173,
+            "musicalBeat": 0,
+            "performanceTimeMs": 0,
+            "countInTotalMs": 0,
+            "countInRemainingMs": 0,
+            "countInBeats": 0,
+            "countInPulses": 3,
+            "countInPulse": 1,
+            "scopeCompleted": false,
+            "scopeStartBeat": 0,
+            "scopeTerminalBeat": 2.4,
+            "completionReason": null
+          }
+        },
+        "resumeWitnesses": [
+          {
+            "pause": 1050.7029478458048,
+            "resume": 1050.7029478458048,
+            "deltaMs": 0
+          }
+        ],
+        "failureWitness": null,
+        "engineering": {
+          "microphone": {
+            "model": {
+              "source": "network",
+              "downloadMs": 730.0950000286102,
+              "cacheReadMs": 46.235000014305115,
+              "verificationMs": 84.79999995231628,
+              "totalLoadMs": 869.289999961853,
+              "byteSize": 98689283,
+              "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "persistentStorageGranted": null,
+              "assetId": "practice-acoustic-robust-browser",
+              "assetVersion": "v1",
+              "modelByteSize": 98689283,
+              "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "executionProvider": "webgpu",
+              "modelFetchAndVerifyMs": 959.8149999380112,
+              "sessionCreateMs": 512.460000038147,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "ortWebVersion": "1.20.1",
+              "automaticFallback": false,
+              "actualSessionLoadCount": 1,
+              "inputDescriptor": {
+                "name": "audio",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  29120
+                ]
+              },
+              "outputDescriptors": {
+                "reg_onset_output": [
+                  1,
+                  183,
+                  88
+                ],
+                "frame_output": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "publications": 4,
+            "failure": null,
+            "runtime": {
+              "state": "DISPOSED",
+              "failureCode": null,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5",
+              "sourceRateHz": 44100,
+              "sourceBase": 0,
+              "nextSourceSampleIndex": 144768,
+              "activeRegion": null,
+              "pendingRegions": 0,
+              "outstanding": 0,
+              "counts": {
+                "windowsQueued": 3,
+                "windowsStarted": 3,
+                "windowsPublished": 3,
+                "observationsPublished": 0,
+                "peakOutstanding": 2,
+                "backpressureFailures": 0,
+                "regionsStarted": 2,
+                "regionsDrained": 2,
+                "segmentsStarted": 2,
+                "segmentsDrained": 2,
+                "terminalPublications": 1
+              },
+              "diagnostics": [
+                {
+                  "jobIndex": 0,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 26424.308390022677,
+                  "ownedEndTarget": 36024.30839002268,
+                  "inputStartSample": 9624,
+                  "inputEndSample": 38744,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 681.454999923706,
+                  "decodeMs": 0.6600000858306885,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 1
+                },
+                {
+                  "jobIndex": 1,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 36024.30839002268,
+                  "ownedEndTarget": 43235.55555555556,
+                  "inputStartSample": 16836,
+                  "inputEndSample": 45956,
+                  "queueDelayMs": 229.29705215419426,
+                  "inferenceMs": 215.04999995231628,
+                  "decodeMs": 0.5100001096725464,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 2,
+                  "actualSessionRunCount": 2
+                },
+                {
+                  "jobIndex": 2,
+                  "regionIndex": 1,
+                  "ownedStartTarget": 47368.707482993195,
+                  "ownedEndTarget": 49757.46031746032,
+                  "inputStartSample": 23357,
+                  "inputEndSample": 52477,
+                  "queueDelayMs": 49.34240362811806,
+                  "inferenceMs": 201.00999999046326,
+                  "decodeMs": 0.2799999713897705,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 2,
+                  "actualSessionRunCount": 3
+                }
+              ],
+              "resources": {
+                "sessionPcmBytes": 0,
+                "sourceAdapterBytes": 35796,
+                "targetRingBytes": 262144,
+                "outstandingInputBytes": 0,
+                "maximumOutstandingInputBytes": 465920,
+                "retainedPublicationEvents": 0,
+                "diagnosticWindowLimit": 32,
+                "compactDiagnosticsPlanningBytes": 16384
+              },
+              "activeSegment": null,
+              "pendingSegments": 0,
+              "analyzedThroughPerformanceMs": 1200
+            },
+            "capture": {
+              "nextSourceSampleIndex": 144768,
+              "nextSequence": 1131,
+              "audioContextOriginFrame": 0,
+              "blocks": 1131,
+              "chunkSizes": {
+                "128": 1131
+              },
+              "failed": false,
+              "pendingBoundaryCount": 0,
+              "boundaryDiagnostics": [
+                {
+                  "id": "boundary:0",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 72832,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 72832
+                },
+                {
+                  "id": "boundary:0",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 72832,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 72832
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 125752,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 72832
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "CANCELLED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 125752,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 119168
+                },
+                {
+                  "id": "boundary:2",
+                  "action": "SCHEDULED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 119168,
+                  "performanceTimeMs": 1050.7029478458048,
+                  "nextSourceAtAction": 119168
+                },
+                {
+                  "id": "boundary:2",
+                  "action": "APPLIED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 119168,
+                  "performanceTimeMs": 1050.7029478458048,
+                  "nextSourceAtAction": 119168
+                },
+                {
+                  "id": "boundary:3",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 130560,
+                  "performanceTimeMs": 1050.7029478458048,
+                  "nextSourceAtAction": 130560
+                },
+                {
+                  "id": "boundary:3",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 130560,
+                  "performanceTimeMs": 1050.7029478458048,
+                  "nextSourceAtAction": 130560
+                },
+                {
+                  "id": "boundary:4",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 137144,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 130560
+                },
+                {
+                  "id": "boundary:4",
+                  "action": "APPLIED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 137144,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 137144
+                }
+              ]
+            }
+          },
+          "diagnostics": [
+            {
+              "action": "START",
+              "state": "ACTIVE",
+              "performanceTimeMs": 0
+            },
+            {
+              "action": "PAUSE",
+              "state": "ACTIVE",
+              "performanceTimeMs": 1050.7029478458048
+            },
+            {
+              "action": "RESUME",
+              "state": "ACTIVE",
+              "performanceTimeMs": 1050.7029478458048
+            },
+            {
+              "action": "COMPLETE",
+              "state": "COMPLETE",
+              "performanceTimeMs": 1200
+            }
+          ],
+          "diagnosticLimit": 32,
+          "diagnosticPlanningBytes": 32768,
+          "rootTrackStates": [],
+          "audioContextState": "closed",
+          "audioContextRate": 44100
+        },
+        "model": {
+          "source": "network",
+          "downloadMs": 730.0950000286102,
+          "cacheReadMs": 46.235000014305115,
+          "verificationMs": 84.79999995231628,
+          "totalLoadMs": 869.289999961853,
+          "byteSize": 98689283,
+          "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "persistentStorageGranted": null,
+          "assetId": "practice-acoustic-robust-browser",
+          "assetVersion": "v1",
+          "modelByteSize": 98689283,
+          "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "executionProvider": "webgpu",
+          "modelFetchAndVerifyMs": 959.8149999380112,
+          "sessionCreateMs": 512.460000038147,
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "ortWebVersion": "1.20.1",
+          "automaticFallback": false,
+          "actualSessionLoadCount": 1,
+          "inputDescriptor": {
+            "name": "audio",
+            "dtype": "float32",
+            "shape": [
+              1,
+              29120
+            ]
+          },
+          "outputDescriptors": {
+            "reg_onset_output": [
+              1,
+              183,
+              88
+            ],
+            "frame_output": [
+              1,
+              183,
+              88
+            ]
+          }
+        },
+        "transport": {
+          "state": "ENDED",
+          "nowMs": 3111.473922902494,
+          "musicalBeat": 2.4,
+          "performanceTimeMs": 1200,
+          "countInTotalMs": 0,
+          "countInRemainingMs": 0,
+          "countInBeats": 0,
+          "countInPulses": 3,
+          "countInPulse": 1,
+          "scopeCompleted": true,
+          "scopeStartBeat": 0,
+          "scopeTerminalBeat": 2.4,
+          "completionReason": "SCOPE_COMPLETED"
+        },
+        "completed": {
+          "evaluation": {
+            "status": "COMPLETE",
+            "sessionDomainId": "local-practice:15a5257e-0f76-458a-a8c4-0c57b76c43de",
+            "groups": [
+              {
+                "groupId": "entry-0.0-05162c611506",
+                "performanceTimeMs": 0,
+                "verdict": "MISSING",
+                "strikes": [
+                  {
+                    "strikeId": "entry-0.0-05162c611506:strike:C4",
+                    "groupId": "entry-0.0-05162c611506",
+                    "pitch": "C4",
+                    "expectedPerformanceTimeMs": 0,
+                    "renderNoteIds": [
+                      "n1"
+                    ],
+                    "state": "MISSING",
+                    "finality": {
+                      "requiredAnalysisFrontierMs": 250,
+                      "unclampedRequiredFrontierMs": 250,
+                      "enablingPublicationId": "local-practice:15a5257e-0f76-458a-a8c4-0c57b76c43de:capture:window:0",
+                      "enablingAnalysisFrontierMs": 599.9999999999999,
+                      "finalizationTimeMs": 3111.473922902494,
+                      "terminalClamp": false
+                    }
+                  }
+                ],
+                "wrongObservations": [],
+                "evidenceObservationIds": [],
+                "finality": {
+                  "requiredAnalysisFrontierMs": 250,
+                  "unclampedRequiredFrontierMs": 250,
+                  "enablingPublicationId": "local-practice:15a5257e-0f76-458a-a8c4-0c57b76c43de:capture:window:0",
+                  "enablingAnalysisFrontierMs": 599.9999999999999,
+                  "finalizationTimeMs": 3111.473922902494,
+                  "terminalClamp": false
+                }
+              }
+            ],
+            "extras": [],
+            "observationOwnership": [],
+            "completion": {
+              "reason": "SCOPE_COMPLETED",
+              "performanceTimeMs": 1200,
+              "availabilityTimeMs": 1200
+            }
+          },
+          "mediaStatus": "NOT_RECORDED",
+          "mediaBytes": 0,
+          "recordingTimebase": {
+            "activeSegments": [],
+            "nominalMediaDurationMs": 0
+          }
+        },
+        "resources": {
+          "acquisitions": 1,
+          "nativeAcquisitions": 1,
+          "contextsCreated": 1,
+          "contextsClosed": 1,
+          "workersCreated": 1,
+          "clonedStreams": 1,
+          "allRootAndCloneTracksEnded": true
+        },
+        "actualModelRuns": 3,
+        "capabilities": {
+          "microphoneCapture": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "midi": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "acousticAnalysis": {
+            "step": {
+              "status": "ATTEMPT_ANALYZER_NOT_VALIDATED"
+            },
+            "continuous": {
+              "status": "MODEL_NOT_VALIDATED"
+            }
+          }
+        },
+        "productionMicrophone": false,
+        "realDevice": "NOT_PERFORMED"
+      },
+      "completedAt": "2026-10-17T21:06:09.199Z",
+      "chronologyFailures": []
+    },
+    {
+      "rate": 44100,
+      "scenario": "recording_analysis_failure_running",
+      "state": "PASS",
+      "startedAt": "2026-10-17T21:06:09.211Z",
+      "gpu": {
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "timestamp-query",
+          "texture-formats-tier2",
+          "shader-f16",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      },
+      "offlineAt": "2026-10-17T21:06:12.687Z",
+      "result": {
+        "status": "PASS",
+        "rate": 44100,
+        "scenario": "recording_analysis_failure_running",
+        "trackSettings": {
+          "autoGainControl": false,
+          "channelCount": 2,
+          "deviceId": "default",
+          "echoCancellation": false,
+          "groupId": "c7b85ca761681a071a35ba0f1f3f4c651e9b358aacadc8bede5e6d1f5aa07b9a",
+          "latency": 0.01,
+          "noiseSuppression": false,
+          "sampleRate": 44100,
+          "sampleSize": 16,
+          "voiceIsolation": false
+        },
+        "nativeHardwareRateQualification": false,
+        "offlineWitness": {
+          "contextTime": 1.6602267573696146,
+          "snapshot": {
+            "state": "RUNNING",
+            "nowMs": 1651.5192743764173,
+            "musicalBeat": 0,
+            "performanceTimeMs": 0,
+            "countInTotalMs": 0,
+            "countInRemainingMs": 0,
+            "countInBeats": 0,
+            "countInPulses": 3,
+            "countInPulse": 1,
+            "scopeCompleted": false,
+            "scopeStartBeat": 0,
+            "scopeTerminalBeat": 4.8,
+            "completionReason": null
+          }
+        },
+        "resumeWitnesses": [],
+        "failureWitness": {
+          "before": {
+            "snapshot": {
+              "session": "ACTIVE",
+              "transport": {
+                "state": "RUNNING",
+                "nowMs": 2911.2018140589566,
+                "musicalBeat": 0.801088,
+                "performanceTimeMs": 400.5442176870747,
+                "countInTotalMs": 0,
+                "countInRemainingMs": 0,
+                "countInBeats": 0,
+                "countInPulses": 3,
+                "countInPulse": 1,
+                "scopeCompleted": false,
+                "scopeStartBeat": 0,
+                "scopeTerminalBeat": 4.8,
+                "completionReason": null
+              },
+              "analysis": "FAILED",
+              "analysisError": "ANALYSIS_FAILED",
+              "inputError": null,
+              "recording": {
+                "state": "RECORDING",
+                "sourceOwnership": "OWNED_CLONE",
+                "unavailableReason": null
+              },
+              "evaluation": {
+                "sessionDomainId": "local-practice:c6b57e59-8838-4e4e-b337-40af58af9ee3",
+                "analyzedThroughPerformanceMs": 400.54421768707465,
+                "groups": [
+                  {
+                    "groupId": "entry-0.0-05162c611506",
+                    "performanceTimeMs": 0,
+                    "verdict": "MISSING",
+                    "strikes": [
+                      {
+                        "strikeId": "entry-0.0-05162c611506:strike:C4",
+                        "groupId": "entry-0.0-05162c611506",
+                        "pitch": "C4",
+                        "expectedPerformanceTimeMs": 0,
+                        "renderNoteIds": [
+                          "n1"
+                        ],
+                        "state": "MISSING",
+                        "finality": {
+                          "requiredAnalysisFrontierMs": 250,
+                          "unclampedRequiredFrontierMs": 250,
+                          "enablingPublicationId": "local-practice:c6b57e59-8838-4e4e-b337-40af58af9ee3:capture:window:0",
+                          "enablingAnalysisFrontierMs": 400.54421768707465,
+                          "finalizationTimeMs": 2911.2018140589566,
+                          "terminalClamp": false
+                        }
+                      }
+                    ],
+                    "wrongObservations": [],
+                    "evidenceObservationIds": [],
+                    "finality": {
+                      "requiredAnalysisFrontierMs": 250,
+                      "unclampedRequiredFrontierMs": 250,
+                      "enablingPublicationId": "local-practice:c6b57e59-8838-4e4e-b337-40af58af9ee3:capture:window:0",
+                      "enablingAnalysisFrontierMs": 400.54421768707465,
+                      "finalizationTimeMs": 2911.2018140589566,
+                      "terminalClamp": false
+                    }
+                  }
+                ],
+                "extras": [],
+                "observationOwnership": [],
+                "reservedObservationIds": [],
+                "completion": null
+              },
+              "completed": null,
+              "sessionSnapshot": null
+            },
+            "contextTime": 2.911201814058957,
+            "publications": 1
+          },
+          "after": {
+            "snapshot": {
+              "session": "ACTIVE",
+              "transport": {
+                "state": "RUNNING",
+                "nowMs": 3311.746031746032,
+                "musicalBeat": 1.602177,
+                "performanceTimeMs": 801.0884353741499,
+                "countInTotalMs": 0,
+                "countInRemainingMs": 0,
+                "countInBeats": 0,
+                "countInPulses": 3,
+                "countInPulse": 1,
+                "scopeCompleted": false,
+                "scopeStartBeat": 0,
+                "scopeTerminalBeat": 4.8,
+                "completionReason": null
+              },
+              "analysis": "FAILED",
+              "analysisError": "ANALYSIS_FAILED",
+              "inputError": null,
+              "recording": {
+                "state": "RECORDING",
+                "sourceOwnership": "OWNED_CLONE",
+                "unavailableReason": null
+              },
+              "evaluation": {
+                "sessionDomainId": "local-practice:c6b57e59-8838-4e4e-b337-40af58af9ee3",
+                "analyzedThroughPerformanceMs": 400.54421768707465,
+                "groups": [
+                  {
+                    "groupId": "entry-0.0-05162c611506",
+                    "performanceTimeMs": 0,
+                    "verdict": "MISSING",
+                    "strikes": [
+                      {
+                        "strikeId": "entry-0.0-05162c611506:strike:C4",
+                        "groupId": "entry-0.0-05162c611506",
+                        "pitch": "C4",
+                        "expectedPerformanceTimeMs": 0,
+                        "renderNoteIds": [
+                          "n1"
+                        ],
+                        "state": "MISSING",
+                        "finality": {
+                          "requiredAnalysisFrontierMs": 250,
+                          "unclampedRequiredFrontierMs": 250,
+                          "enablingPublicationId": "local-practice:c6b57e59-8838-4e4e-b337-40af58af9ee3:capture:window:0",
+                          "enablingAnalysisFrontierMs": 400.54421768707465,
+                          "finalizationTimeMs": 2911.2018140589566,
+                          "terminalClamp": false
+                        }
+                      }
+                    ],
+                    "wrongObservations": [],
+                    "evidenceObservationIds": [],
+                    "finality": {
+                      "requiredAnalysisFrontierMs": 250,
+                      "unclampedRequiredFrontierMs": 250,
+                      "enablingPublicationId": "local-practice:c6b57e59-8838-4e4e-b337-40af58af9ee3:capture:window:0",
+                      "enablingAnalysisFrontierMs": 400.54421768707465,
+                      "finalizationTimeMs": 2911.2018140589566,
+                      "terminalClamp": false
+                    }
+                  }
+                ],
+                "extras": [],
+                "observationOwnership": [],
+                "reservedObservationIds": [],
+                "completion": null
+              },
+              "completed": null,
+              "sessionSnapshot": null
+            },
+            "contextTime": 3.311746031746032,
+            "publications": 1
+          },
+          "rootTrackStates": [
+            "live"
+          ]
+        },
+        "engineering": {
+          "microphone": {
+            "model": {
+              "source": "network",
+              "downloadMs": 698.5,
+              "cacheReadMs": 47.18499994277954,
+              "verificationMs": 84.45000004768372,
+              "totalLoadMs": 838.8049999475479,
+              "byteSize": 98689283,
+              "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "persistentStorageGranted": null,
+              "assetId": "practice-acoustic-robust-browser",
+              "assetVersion": "v1",
+              "modelByteSize": 98689283,
+              "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "executionProvider": "webgpu",
+              "modelFetchAndVerifyMs": 925.3799999952316,
+              "sessionCreateMs": 485.36500000953674,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "ortWebVersion": "1.20.1",
+              "automaticFallback": false,
+              "actualSessionLoadCount": 1,
+              "inputDescriptor": {
+                "name": "audio",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  29120
+                ]
+              },
+              "outputDescriptors": {
+                "reg_onset_output": [
+                  1,
+                  183,
+                  88
+                ],
+                "frame_output": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "publications": 1,
+            "failure": "QUALIFICATION_ANALYSIS_FAILURE",
+            "runtime": {
+              "state": "DISPOSED",
+              "failureCode": "QUALIFICATION_ANALYSIS_FAILURE",
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "32e39d991c47f5dbe1f13d2f77cf2a652d6a5da34cb5051ff43c0155b91edca5",
+              "sourceRateHz": 44100,
+              "sourceBase": 0,
+              "nextSourceSampleIndex": 128384,
+              "activeRegion": null,
+              "pendingRegions": 0,
+              "outstanding": 0,
+              "counts": {
+                "windowsQueued": 1,
+                "windowsStarted": 1,
+                "windowsPublished": 1,
+                "observationsPublished": 0,
+                "peakOutstanding": 1,
+                "backpressureFailures": 0,
+                "regionsStarted": 2,
+                "regionsDrained": 1,
+                "segmentsStarted": 2,
+                "segmentsDrained": 1,
+                "terminalPublications": 0
+              },
+              "diagnostics": [
+                {
+                  "jobIndex": 0,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 26424.308390022677,
+                  "ownedEndTarget": 32833.01587301587,
+                  "inputStartSample": 6433,
+                  "inputEndSample": 35553,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 677.4299999475479,
+                  "decodeMs": 0.7749999761581421,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 1
+                }
+              ],
+              "resources": {
+                "sessionPcmBytes": 0,
+                "sourceAdapterBytes": 35796,
+                "targetRingBytes": 262144,
+                "outstandingInputBytes": 0,
+                "maximumOutstandingInputBytes": 465920,
+                "retainedPublicationEvents": 0,
+                "diagnosticWindowLimit": 32,
+                "compactDiagnosticsPlanningBytes": 16384
+              },
+              "activeSegment": null,
+              "pendingSegments": 0,
+              "analyzedThroughPerformanceMs": 400.54421768707465
+            },
+            "capture": {
+              "nextSourceSampleIndex": 128384,
+              "nextSequence": 1003,
+              "audioContextOriginFrame": 0,
+              "blocks": 1003,
+              "chunkSizes": {
+                "128": 1003
+              },
+              "failed": false,
+              "pendingBoundaryCount": 1,
+              "boundaryDiagnostics": [
+                {
+                  "id": "boundary:0",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 72832,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 72832
+                },
+                {
+                  "id": "boundary:0",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 72832,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 72832
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 178672,
+                  "performanceTimeMs": 2400,
+                  "nextSourceAtAction": 72832
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "CANCELLED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 178672,
+                  "performanceTimeMs": 2400,
+                  "nextSourceAtAction": 90496
+                },
+                {
+                  "id": "boundary:2",
+                  "action": "SCHEDULED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 90496,
+                  "performanceTimeMs": 400.5442176870747,
+                  "nextSourceAtAction": 90496
+                },
+                {
+                  "id": "boundary:2",
+                  "action": "APPLIED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 90496,
+                  "performanceTimeMs": 400.5442176870747,
+                  "nextSourceAtAction": 90496
+                },
+                {
+                  "id": "boundary:3",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 128384,
+                  "performanceTimeMs": 400.5442176870747,
+                  "nextSourceAtAction": 128384
+                },
+                {
+                  "id": "boundary:3",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 128384,
+                  "performanceTimeMs": 400.5442176870747,
+                  "nextSourceAtAction": 128384
+                },
+                {
+                  "id": "boundary:4",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 216560,
+                  "performanceTimeMs": 2400,
+                  "nextSourceAtAction": 128384
+                }
+              ]
+            }
+          },
+          "diagnostics": [
+            {
+              "action": "START",
+              "state": "ACTIVE",
+              "performanceTimeMs": 0
+            },
+            {
+              "action": "PAUSE",
+              "state": "ACTIVE",
+              "performanceTimeMs": 400.5442176870747
+            },
+            {
+              "action": "RESUME",
+              "state": "ACTIVE",
+              "performanceTimeMs": 400.5442176870747
+            },
+            {
+              "action": "ANALYSIS_FAILED",
+              "state": "ACTIVE",
+              "performanceTimeMs": 400.5442176870747,
+              "detail": "QUALIFICATION_ANALYSIS_FAILURE"
+            },
+            {
+              "action": "COMPLETE",
+              "state": "COMPLETE",
+              "performanceTimeMs": 801.0884353741499
+            }
+          ],
+          "diagnosticLimit": 32,
+          "diagnosticPlanningBytes": 32768,
+          "rootTrackStates": [],
+          "audioContextState": "closed",
+          "audioContextRate": 44100
+        },
+        "model": {
+          "source": "network",
+          "downloadMs": 698.5,
+          "cacheReadMs": 47.18499994277954,
+          "verificationMs": 84.45000004768372,
+          "totalLoadMs": 838.8049999475479,
+          "byteSize": 98689283,
+          "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "persistentStorageGranted": null,
+          "assetId": "practice-acoustic-robust-browser",
+          "assetVersion": "v1",
+          "modelByteSize": 98689283,
+          "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "executionProvider": "webgpu",
+          "modelFetchAndVerifyMs": 925.3799999952316,
+          "sessionCreateMs": 485.36500000953674,
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "ortWebVersion": "1.20.1",
+          "automaticFallback": false,
+          "actualSessionLoadCount": 1,
+          "inputDescriptor": {
+            "name": "audio",
+            "dtype": "float32",
+            "shape": [
+              1,
+              29120
+            ]
+          },
+          "outputDescriptors": {
+            "reg_onset_output": [
+              1,
+              183,
+              88
+            ],
+            "frame_output": [
+              1,
+              183,
+              88
+            ]
+          }
+        },
+        "transport": {
+          "state": "ENDED",
+          "nowMs": 3311.746031746032,
+          "musicalBeat": 1.602177,
+          "performanceTimeMs": 801.0884353741499,
+          "countInTotalMs": 0,
+          "countInRemainingMs": 0,
+          "countInBeats": 0,
+          "countInPulses": 3,
+          "countInPulse": 1,
+          "scopeCompleted": false,
+          "scopeStartBeat": 0,
+          "scopeTerminalBeat": 4.8,
+          "completionReason": "STOPPED_BY_USER"
+        },
+        "completed": {
+          "evaluation": {
+            "status": "UNAVAILABLE",
+            "reason": "CONTINUOUS_ANALYSIS_UNAVAILABLE"
+          },
+          "mediaStatus": "READY",
+          "mediaBytes": 12751,
+          "recordingTimebase": {
+            "activeSegments": [
+              {
+                "perfStartMs": 0,
+                "perfEndMs": 400.5442176870747,
+                "mediaStartMs": 0,
+                "mediaEndMs": 400.5442176870747
+              },
+              {
+                "perfStartMs": 400.5442176870747,
+                "perfEndMs": 801.0884353741499,
+                "mediaStartMs": 400.5442176870747,
+                "mediaEndMs": 801.0884353741499
+              }
+            ],
+            "nominalMediaDurationMs": 801.0884353741499
+          }
+        },
+        "resources": {
+          "acquisitions": 1,
+          "nativeAcquisitions": 1,
+          "contextsCreated": 1,
+          "contextsClosed": 1,
+          "workersCreated": 1,
+          "clonedStreams": 2,
+          "allRootAndCloneTracksEnded": true
+        },
+        "actualModelRuns": 1,
+        "capabilities": {
+          "microphoneCapture": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "midi": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "acousticAnalysis": {
+            "step": {
+              "status": "ATTEMPT_ANALYZER_NOT_VALIDATED"
+            },
+            "continuous": {
+              "status": "MODEL_NOT_VALIDATED"
+            }
+          }
+        },
+        "productionMicrophone": false,
+        "realDevice": "NOT_PERFORMED"
+      },
+      "completedAt": "2026-10-17T21:06:14.362Z",
+      "chronologyFailures": []
+    },
+    {
+      "rate": 48000,
+      "scenario": "natural_recording_offline",
+      "state": "PASS",
+      "startedAt": "2026-10-17T21:06:14.374Z",
+      "gpu": {
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "timestamp-query",
+          "texture-formats-tier2",
+          "shader-f16",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      },
+      "offlineAt": "2026-10-17T21:06:18.015Z",
+      "result": {
+        "status": "PASS",
+        "rate": 48000,
+        "scenario": "natural_recording_offline",
+        "trackSettings": {
+          "autoGainControl": false,
+          "channelCount": 2,
+          "deviceId": "default",
+          "echoCancellation": false,
+          "groupId": "37a8cb604a0f0b111c7505700bc99639b42da9c1627ea631098538392fcbe08e",
+          "latency": 0.01,
+          "noiseSuppression": false,
+          "sampleRate": 44100,
+          "sampleSize": 16,
+          "voiceIsolation": false
+        },
+        "nativeHardwareRateQualification": false,
+        "offlineWitness": {
+          "contextTime": 1.6613333333333333,
+          "snapshot": {
+            "state": "COUNT_IN",
+            "nowMs": 1650.6666666666667,
+            "musicalBeat": 0,
+            "performanceTimeMs": 0,
+            "countInTotalMs": 500,
+            "countInRemainingMs": 500,
+            "countInBeats": 1,
+            "countInPulses": 3,
+            "countInPulse": 1,
+            "scopeCompleted": false,
+            "scopeStartBeat": 0,
+            "scopeTerminalBeat": 2.4,
+            "completionReason": null
+          }
+        },
+        "resumeWitnesses": [],
+        "failureWitness": null,
+        "engineering": {
+          "microphone": {
+            "model": {
+              "source": "network",
+              "downloadMs": 807.3650000095367,
+              "cacheReadMs": 48.80499994754791,
+              "verificationMs": 82.08000004291534,
+              "totalLoadMs": 950.7350000143051,
+              "byteSize": 98689283,
+              "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "persistentStorageGranted": null,
+              "assetId": "practice-acoustic-robust-browser",
+              "assetVersion": "v1",
+              "modelByteSize": 98689283,
+              "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "executionProvider": "webgpu",
+              "modelFetchAndVerifyMs": 1036.5600000619888,
+              "sessionCreateMs": 465.75,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "ortWebVersion": "1.20.1",
+              "automaticFallback": false,
+              "actualSessionLoadCount": 1,
+              "inputDescriptor": {
+                "name": "audio",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  29120
+                ]
+              },
+              "outputDescriptors": {
+                "reg_onset_output": [
+                  1,
+                  183,
+                  88
+                ],
+                "frame_output": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "publications": 3,
+            "failure": null,
+            "runtime": {
+              "state": "DISPOSED",
+              "failureCode": null,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17",
+              "sourceRateHz": 48000,
+              "sourceBase": 0,
+              "nextSourceSampleIndex": 169472,
+              "activeRegion": null,
+              "pendingRegions": 0,
+              "outstanding": 0,
+              "counts": {
+                "windowsQueued": 2,
+                "windowsStarted": 2,
+                "windowsPublished": 2,
+                "observationsPublished": 0,
+                "peakOutstanding": 2,
+                "backpressureFailures": 0,
+                "regionsStarted": 1,
+                "regionsDrained": 1,
+                "segmentsStarted": 1,
+                "segmentsDrained": 1,
+                "terminalPublications": 1
+              },
+              "diagnostics": [
+                {
+                  "jobIndex": 0,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 34410.666666666664,
+                  "ownedEndTarget": 44010.666666666664,
+                  "inputStartSample": 17611,
+                  "inputEndSample": 46731,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 673.5700000524521,
+                  "decodeMs": 0.7350000143051147,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 1
+                },
+                {
+                  "jobIndex": 1,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 44010.666666666664,
+                  "ownedEndTarget": 53610.666666666664,
+                  "inputStartSample": 27211,
+                  "inputEndSample": 56331,
+                  "queueDelayMs": 69.33333333333303,
+                  "inferenceMs": 210.37000000476837,
+                  "decodeMs": 0.4750000238418579,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 2,
+                  "actualSessionRunCount": 2
+                }
+              ],
+              "resources": {
+                "sessionPcmBytes": 0,
+                "sourceAdapterBytes": 756,
+                "targetRingBytes": 262144,
+                "outstandingInputBytes": 0,
+                "maximumOutstandingInputBytes": 465920,
+                "retainedPublicationEvents": 0,
+                "diagnosticWindowLimit": 32,
+                "compactDiagnosticsPlanningBytes": 16384
+              },
+              "activeSegment": null,
+              "pendingSegments": 0,
+              "analyzedThroughPerformanceMs": 1200
+            },
+            "capture": {
+              "nextSourceSampleIndex": 169472,
+              "nextSequence": 1324,
+              "audioContextOriginFrame": 0,
+              "blocks": 1324,
+              "chunkSizes": {
+                "128": 1324
+              },
+              "failed": false,
+              "pendingBoundaryCount": 0,
+              "boundaryDiagnostics": [
+                {
+                  "id": "boundary:0",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 103232,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 79232
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 160832,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 79232
+                },
+                {
+                  "id": "boundary:0",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 103232,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 103232
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "APPLIED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 160832,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 160832
+                }
+              ]
+            }
+          },
+          "diagnostics": [
+            {
+              "action": "START",
+              "state": "ACTIVE",
+              "performanceTimeMs": 0
+            },
+            {
+              "action": "COMPLETE",
+              "state": "COMPLETE",
+              "performanceTimeMs": 1200
+            }
+          ],
+          "diagnosticLimit": 32,
+          "diagnosticPlanningBytes": 32768,
+          "rootTrackStates": [],
+          "audioContextState": "closed",
+          "audioContextRate": 48000
+        },
+        "model": {
+          "source": "network",
+          "downloadMs": 807.3650000095367,
+          "cacheReadMs": 48.80499994754791,
+          "verificationMs": 82.08000004291534,
+          "totalLoadMs": 950.7350000143051,
+          "byteSize": 98689283,
+          "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "persistentStorageGranted": null,
+          "assetId": "practice-acoustic-robust-browser",
+          "assetVersion": "v1",
+          "modelByteSize": 98689283,
+          "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "executionProvider": "webgpu",
+          "modelFetchAndVerifyMs": 1036.5600000619888,
+          "sessionCreateMs": 465.75,
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "ortWebVersion": "1.20.1",
+          "automaticFallback": false,
+          "actualSessionLoadCount": 1,
+          "inputDescriptor": {
+            "name": "audio",
+            "dtype": "float32",
+            "shape": [
+              1,
+              29120
+            ]
+          },
+          "outputDescriptors": {
+            "reg_onset_output": [
+              1,
+              183,
+              88
+            ],
+            "frame_output": [
+              1,
+              183,
+              88
+            ]
+          }
+        },
+        "transport": {
+          "state": "ENDED",
+          "nowMs": 3352,
+          "musicalBeat": 2.4,
+          "performanceTimeMs": 1200,
+          "countInTotalMs": 500,
+          "countInRemainingMs": 0,
+          "countInBeats": 1,
+          "countInPulses": 3,
+          "countInPulse": 1,
+          "scopeCompleted": true,
+          "scopeStartBeat": 0,
+          "scopeTerminalBeat": 2.4,
+          "completionReason": "SCOPE_COMPLETED"
+        },
+        "completed": {
+          "evaluation": {
+            "status": "COMPLETE",
+            "sessionDomainId": "local-practice:11953153-2e49-44d4-a8c9-b29bf1dbc26f",
+            "groups": [
+              {
+                "groupId": "entry-0.0-05162c611506",
+                "performanceTimeMs": 0,
+                "verdict": "MISSING",
+                "strikes": [
+                  {
+                    "strikeId": "entry-0.0-05162c611506:strike:C4",
+                    "groupId": "entry-0.0-05162c611506",
+                    "pitch": "C4",
+                    "expectedPerformanceTimeMs": 0,
+                    "renderNoteIds": [
+                      "n1"
+                    ],
+                    "state": "MISSING",
+                    "finality": {
+                      "requiredAnalysisFrontierMs": 250,
+                      "unclampedRequiredFrontierMs": 250,
+                      "enablingPublicationId": "local-practice:11953153-2e49-44d4-a8c9-b29bf1dbc26f:capture:window:0",
+                      "enablingAnalysisFrontierMs": 599.9999999999999,
+                      "finalizationTimeMs": 3600,
+                      "terminalClamp": false
+                    }
+                  }
+                ],
+                "wrongObservations": [],
+                "evidenceObservationIds": [],
+                "finality": {
+                  "requiredAnalysisFrontierMs": 250,
+                  "unclampedRequiredFrontierMs": 250,
+                  "enablingPublicationId": "local-practice:11953153-2e49-44d4-a8c9-b29bf1dbc26f:capture:window:0",
+                  "enablingAnalysisFrontierMs": 599.9999999999999,
+                  "finalizationTimeMs": 3600,
+                  "terminalClamp": false
+                }
+              }
+            ],
+            "extras": [],
+            "observationOwnership": [],
+            "completion": {
+              "reason": "SCOPE_COMPLETED",
+              "performanceTimeMs": 1200,
+              "availabilityTimeMs": 1200
+            }
+          },
+          "mediaStatus": "READY",
+          "mediaBytes": 19529,
+          "recordingTimebase": {
+            "activeSegments": [
+              {
+                "perfStartMs": 0,
+                "perfEndMs": 1200,
+                "mediaStartMs": 0,
+                "mediaEndMs": 1200
+              }
+            ],
+            "nominalMediaDurationMs": 1200
+          }
+        },
+        "resources": {
+          "acquisitions": 1,
+          "nativeAcquisitions": 1,
+          "contextsCreated": 1,
+          "contextsClosed": 1,
+          "workersCreated": 1,
+          "clonedStreams": 2,
+          "allRootAndCloneTracksEnded": true
+        },
+        "actualModelRuns": 2,
+        "capabilities": {
+          "microphoneCapture": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "midi": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "acousticAnalysis": {
+            "step": {
+              "status": "ATTEMPT_ANALYZER_NOT_VALIDATED"
+            },
+            "continuous": {
+              "status": "MODEL_NOT_VALIDATED"
+            }
+          }
+        },
+        "productionMicrophone": false,
+        "realDevice": "NOT_PERFORMED"
+      },
+      "completedAt": "2026-10-17T21:06:20.189Z",
+      "chronologyFailures": []
+    },
+    {
+      "rate": 48000,
+      "scenario": "count_in_cancel_multiple_pause_manual_stop",
+      "state": "PASS",
+      "startedAt": "2026-10-17T21:06:20.201Z",
+      "gpu": {
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "timestamp-query",
+          "texture-formats-tier2",
+          "shader-f16",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      },
+      "offlineAt": "2026-10-17T21:06:23.634Z",
+      "result": {
+        "status": "PASS",
+        "rate": 48000,
+        "scenario": "count_in_cancel_multiple_pause_manual_stop",
+        "trackSettings": {
+          "autoGainControl": false,
+          "channelCount": 2,
+          "deviceId": "default",
+          "echoCancellation": false,
+          "groupId": "111186a0794b7e8ed9a13eed1f246cd1f19b7b6a2a7a780c9845a185e8f4b5db",
+          "latency": 0.01,
+          "noiseSuppression": false,
+          "sampleRate": 44100,
+          "sampleSize": 16,
+          "voiceIsolation": false
+        },
+        "nativeHardwareRateQualification": false,
+        "offlineWitness": {
+          "contextTime": 1.6613333333333333,
+          "snapshot": {
+            "state": "COUNT_IN",
+            "nowMs": 1650.6666666666667,
+            "musicalBeat": 0,
+            "performanceTimeMs": 0,
+            "countInTotalMs": 500,
+            "countInRemainingMs": 500,
+            "countInBeats": 1,
+            "countInPulses": 3,
+            "countInPulse": 1,
+            "scopeCompleted": false,
+            "scopeStartBeat": 0,
+            "scopeTerminalBeat": 2.4,
+            "completionReason": null
+          }
+        },
+        "resumeWitnesses": [
+          {
+            "pause": 0,
+            "resume": 0,
+            "deltaMs": 0
+          },
+          {
+            "pause": 401.33333333333303,
+            "resume": 401.33333333333303,
+            "deltaMs": 0
+          },
+          {
+            "pause": 753.333333333333,
+            "resume": 753.333333333333,
+            "deltaMs": 0
+          }
+        ],
+        "failureWitness": null,
+        "engineering": {
+          "microphone": {
+            "model": {
+              "source": "network",
+              "downloadMs": 700.7050000429153,
+              "cacheReadMs": 47.174999952316284,
+              "verificationMs": 83.08500003814697,
+              "totalLoadMs": 839.1200000047684,
+              "byteSize": 98689283,
+              "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "persistentStorageGranted": null,
+              "assetId": "practice-acoustic-robust-browser",
+              "assetVersion": "v1",
+              "modelByteSize": 98689283,
+              "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "executionProvider": "webgpu",
+              "modelFetchAndVerifyMs": 923.7450000047684,
+              "sessionCreateMs": 485.8899999856949,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "ortWebVersion": "1.20.1",
+              "automaticFallback": false,
+              "actualSessionLoadCount": 1,
+              "inputDescriptor": {
+                "name": "audio",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  29120
+                ]
+              },
+              "outputDescriptors": {
+                "reg_onset_output": [
+                  1,
+                  183,
+                  88
+                ],
+                "frame_output": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "publications": 4,
+            "failure": null,
+            "runtime": {
+              "state": "DISPOSED",
+              "failureCode": null,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17",
+              "sourceRateHz": 48000,
+              "sourceBase": 0,
+              "nextSourceSampleIndex": 187264,
+              "activeRegion": null,
+              "pendingRegions": 0,
+              "outstanding": 0,
+              "counts": {
+                "windowsQueued": 3,
+                "windowsStarted": 3,
+                "windowsPublished": 3,
+                "observationsPublished": 0,
+                "peakOutstanding": 2,
+                "backpressureFailures": 0,
+                "regionsStarted": 3,
+                "regionsDrained": 3,
+                "segmentsStarted": 3,
+                "segmentsDrained": 3,
+                "terminalPublications": 1
+              },
+              "diagnostics": [
+                {
+                  "jobIndex": 0,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 37610.666666666664,
+                  "ownedEndTarget": 44032,
+                  "inputStartSample": 17632,
+                  "inputEndSample": 46752,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 657.414999961853,
+                  "decodeMs": 0.7100000381469727,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 1
+                },
+                {
+                  "jobIndex": 1,
+                  "regionIndex": 1,
+                  "ownedStartTarget": 47360,
+                  "ownedEndTarget": 52992,
+                  "inputStartSample": 26592,
+                  "inputEndSample": 55712,
+                  "queueDelayMs": 101.33333333333303,
+                  "inferenceMs": 207.01499998569489,
+                  "decodeMs": 0.4700000286102295,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 2,
+                  "actualSessionRunCount": 2
+                },
+                {
+                  "jobIndex": 2,
+                  "regionIndex": 2,
+                  "ownedStartTarget": 55552,
+                  "ownedEndTarget": 59690.666666666664,
+                  "inputStartSample": 33291,
+                  "inputEndSample": 62411,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 193.52499997615814,
+                  "decodeMs": 0.5249999761581421,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 3
+                }
+              ],
+              "resources": {
+                "sessionPcmBytes": 0,
+                "sourceAdapterBytes": 756,
+                "targetRingBytes": 262144,
+                "outstandingInputBytes": 0,
+                "maximumOutstandingInputBytes": 465920,
+                "retainedPublicationEvents": 0,
+                "diagnosticWindowLimit": 32,
+                "compactDiagnosticsPlanningBytes": 16384
+              },
+              "activeSegment": null,
+              "pendingSegments": 0,
+              "analyzedThroughPerformanceMs": 1011.9999999999995
+            },
+            "capture": {
+              "nextSourceSampleIndex": 187264,
+              "nextSequence": 1463,
+              "audioContextOriginFrame": 0,
+              "blocks": 1463,
+              "chunkSizes": {
+                "128": 1463
+              },
+              "failed": false,
+              "pendingBoundaryCount": 0,
+              "boundaryDiagnostics": [
+                {
+                  "id": "boundary:0",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 103232,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 79232
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 160832,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 79232
+                },
+                {
+                  "id": "boundary:0",
+                  "action": "CANCELLED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 103232,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 79744
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "CANCELLED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 160832,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 79744
+                },
+                {
+                  "id": "boundary:2",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 112832,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 89344
+                },
+                {
+                  "id": "boundary:3",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 170432,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 89344
+                },
+                {
+                  "id": "boundary:2",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 112832,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 112832
+                },
+                {
+                  "id": "boundary:3",
+                  "action": "CANCELLED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 170432,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 132096
+                },
+                {
+                  "id": "boundary:4",
+                  "action": "SCHEDULED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 132096,
+                  "performanceTimeMs": 401.33333333333303,
+                  "nextSourceAtAction": 132096
+                },
+                {
+                  "id": "boundary:4",
+                  "action": "APPLIED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 132096,
+                  "performanceTimeMs": 401.33333333333303,
+                  "nextSourceAtAction": 132096
+                },
+                {
+                  "id": "boundary:5",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 142080,
+                  "performanceTimeMs": 401.33333333333303,
+                  "nextSourceAtAction": 142080
+                },
+                {
+                  "id": "boundary:5",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 142080,
+                  "performanceTimeMs": 401.33333333333303,
+                  "nextSourceAtAction": 142080
+                },
+                {
+                  "id": "boundary:6",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 180416,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 142080
+                },
+                {
+                  "id": "boundary:6",
+                  "action": "CANCELLED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 180416,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 158976
+                },
+                {
+                  "id": "boundary:7",
+                  "action": "SCHEDULED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 158976,
+                  "performanceTimeMs": 753.333333333333,
+                  "nextSourceAtAction": 158976
+                },
+                {
+                  "id": "boundary:7",
+                  "action": "APPLIED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 158976,
+                  "performanceTimeMs": 753.333333333333,
+                  "nextSourceAtAction": 158976
+                },
+                {
+                  "id": "boundary:8",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 166656,
+                  "performanceTimeMs": 753.333333333333,
+                  "nextSourceAtAction": 166656
+                },
+                {
+                  "id": "boundary:8",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 166656,
+                  "performanceTimeMs": 753.333333333333,
+                  "nextSourceAtAction": 166656
+                },
+                {
+                  "id": "boundary:9",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 188096,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 166656
+                },
+                {
+                  "id": "boundary:9",
+                  "action": "CANCELLED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 188096,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 179072
+                },
+                {
+                  "id": "boundary:10",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 179072,
+                  "performanceTimeMs": 1011.9999999999995,
+                  "nextSourceAtAction": 179072
+                },
+                {
+                  "id": "boundary:10",
+                  "action": "APPLIED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 179072,
+                  "performanceTimeMs": 1011.9999999999995,
+                  "nextSourceAtAction": 179072
+                }
+              ]
+            }
+          },
+          "diagnostics": [
+            {
+              "action": "START",
+              "state": "ACTIVE",
+              "performanceTimeMs": 0
+            },
+            {
+              "action": "PAUSE",
+              "state": "ACTIVE",
+              "performanceTimeMs": 0
+            },
+            {
+              "action": "RESUME",
+              "state": "ACTIVE",
+              "performanceTimeMs": 0
+            },
+            {
+              "action": "PAUSE",
+              "state": "ACTIVE",
+              "performanceTimeMs": 401.33333333333303
+            },
+            {
+              "action": "RESUME",
+              "state": "ACTIVE",
+              "performanceTimeMs": 401.33333333333303
+            },
+            {
+              "action": "PAUSE",
+              "state": "ACTIVE",
+              "performanceTimeMs": 753.333333333333
+            },
+            {
+              "action": "RESUME",
+              "state": "ACTIVE",
+              "performanceTimeMs": 753.333333333333
+            },
+            {
+              "action": "COMPLETE",
+              "state": "COMPLETE",
+              "performanceTimeMs": 1011.9999999999995
+            }
+          ],
+          "diagnosticLimit": 32,
+          "diagnosticPlanningBytes": 32768,
+          "rootTrackStates": [],
+          "audioContextState": "closed",
+          "audioContextRate": 48000
+        },
+        "model": {
+          "source": "network",
+          "downloadMs": 700.7050000429153,
+          "cacheReadMs": 47.174999952316284,
+          "verificationMs": 83.08500003814697,
+          "totalLoadMs": 839.1200000047684,
+          "byteSize": 98689283,
+          "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "persistentStorageGranted": null,
+          "assetId": "practice-acoustic-robust-browser",
+          "assetVersion": "v1",
+          "modelByteSize": 98689283,
+          "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "executionProvider": "webgpu",
+          "modelFetchAndVerifyMs": 923.7450000047684,
+          "sessionCreateMs": 485.8899999856949,
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "ortWebVersion": "1.20.1",
+          "automaticFallback": false,
+          "actualSessionLoadCount": 1,
+          "inputDescriptor": {
+            "name": "audio",
+            "dtype": "float32",
+            "shape": [
+              1,
+              29120
+            ]
+          },
+          "outputDescriptors": {
+            "reg_onset_output": [
+              1,
+              183,
+              88
+            ],
+            "frame_output": [
+              1,
+              183,
+              88
+            ]
+          }
+        },
+        "transport": {
+          "state": "ENDED",
+          "nowMs": 3730.6666666666665,
+          "musicalBeat": 2.024,
+          "performanceTimeMs": 1011.9999999999995,
+          "countInTotalMs": 500,
+          "countInRemainingMs": 0,
+          "countInBeats": 1,
+          "countInPulses": 3,
+          "countInPulse": 1,
+          "scopeCompleted": false,
+          "scopeStartBeat": 0,
+          "scopeTerminalBeat": 2.4,
+          "completionReason": "STOPPED_BY_USER"
+        },
+        "completed": {
+          "evaluation": {
+            "status": "COMPLETE",
+            "sessionDomainId": "local-practice:9b224acd-ffe3-433a-b89c-6658e8d28ca8",
+            "groups": [
+              {
+                "groupId": "entry-0.0-05162c611506",
+                "performanceTimeMs": 0,
+                "verdict": "MISSING",
+                "strikes": [
+                  {
+                    "strikeId": "entry-0.0-05162c611506:strike:C4",
+                    "groupId": "entry-0.0-05162c611506",
+                    "pitch": "C4",
+                    "expectedPerformanceTimeMs": 0,
+                    "renderNoteIds": [
+                      "n1"
+                    ],
+                    "state": "MISSING",
+                    "finality": {
+                      "requiredAnalysisFrontierMs": 250,
+                      "unclampedRequiredFrontierMs": 250,
+                      "enablingPublicationId": "local-practice:9b224acd-ffe3-433a-b89c-6658e8d28ca8:capture:window:0",
+                      "enablingAnalysisFrontierMs": 401.333333333333,
+                      "finalizationTimeMs": 3592,
+                      "terminalClamp": false
+                    }
+                  }
+                ],
+                "wrongObservations": [],
+                "evidenceObservationIds": [],
+                "finality": {
+                  "requiredAnalysisFrontierMs": 250,
+                  "unclampedRequiredFrontierMs": 250,
+                  "enablingPublicationId": "local-practice:9b224acd-ffe3-433a-b89c-6658e8d28ca8:capture:window:0",
+                  "enablingAnalysisFrontierMs": 401.333333333333,
+                  "finalizationTimeMs": 3592,
+                  "terminalClamp": false
+                }
+              }
+            ],
+            "extras": [],
+            "observationOwnership": [],
+            "completion": {
+              "reason": "STOPPED_BY_USER",
+              "performanceTimeMs": 1011.9999999999995,
+              "availabilityTimeMs": 1011.9999999999995
+            }
+          },
+          "mediaStatus": "NOT_RECORDED",
+          "mediaBytes": 0,
+          "recordingTimebase": {
+            "activeSegments": [],
+            "nominalMediaDurationMs": 0
+          }
+        },
+        "resources": {
+          "acquisitions": 1,
+          "nativeAcquisitions": 1,
+          "contextsCreated": 1,
+          "contextsClosed": 1,
+          "workersCreated": 1,
+          "clonedStreams": 1,
+          "allRootAndCloneTracksEnded": true
+        },
+        "actualModelRuns": 3,
+        "capabilities": {
+          "microphoneCapture": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "midi": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "acousticAnalysis": {
+            "step": {
+              "status": "ATTEMPT_ANALYZER_NOT_VALIDATED"
+            },
+            "continuous": {
+              "status": "MODEL_NOT_VALIDATED"
+            }
+          }
+        },
+        "productionMicrophone": false,
+        "realDevice": "NOT_PERFORMED"
+      },
+      "completedAt": "2026-10-17T21:06:26.079Z",
+      "chronologyFailures": []
+    },
+    {
+      "rate": 48000,
+      "scenario": "pause_near_terminal_resume_natural",
+      "state": "PASS",
+      "startedAt": "2026-10-17T21:06:26.093Z",
+      "gpu": {
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "timestamp-query",
+          "texture-formats-tier2",
+          "shader-f16",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      },
+      "offlineAt": "2026-10-17T21:06:29.570Z",
+      "result": {
+        "status": "PASS",
+        "rate": 48000,
+        "scenario": "pause_near_terminal_resume_natural",
+        "trackSettings": {
+          "autoGainControl": false,
+          "channelCount": 2,
+          "deviceId": "default",
+          "echoCancellation": false,
+          "groupId": "7cd037241b254cfac88146eb4bce1ea4f10477ba93d5afe3c2e5882f0505c6f0",
+          "latency": 0.01,
+          "noiseSuppression": false,
+          "sampleRate": 44100,
+          "sampleSize": 16,
+          "voiceIsolation": false
+        },
+        "nativeHardwareRateQualification": false,
+        "offlineWitness": {
+          "contextTime": 1.6613333333333333,
+          "snapshot": {
+            "state": "RUNNING",
+            "nowMs": 1650.6666666666667,
+            "musicalBeat": 0,
+            "performanceTimeMs": 0,
+            "countInTotalMs": 0,
+            "countInRemainingMs": 0,
+            "countInBeats": 0,
+            "countInPulses": 3,
+            "countInPulse": 1,
+            "scopeCompleted": false,
+            "scopeStartBeat": 0,
+            "scopeTerminalBeat": 2.4,
+            "completionReason": null
+          }
+        },
+        "resumeWitnesses": [
+          {
+            "pause": 1061.3333333333333,
+            "resume": 1061.3333333333333,
+            "deltaMs": 0
+          }
+        ],
+        "failureWitness": null,
+        "engineering": {
+          "microphone": {
+            "model": {
+              "source": "network",
+              "downloadMs": 750.9499999284744,
+              "cacheReadMs": 48.045000076293945,
+              "verificationMs": 85.0699999332428,
+              "totalLoadMs": 892.1950000524521,
+              "byteSize": 98689283,
+              "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "persistentStorageGranted": null,
+              "assetId": "practice-acoustic-robust-browser",
+              "assetVersion": "v1",
+              "modelByteSize": 98689283,
+              "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "executionProvider": "webgpu",
+              "modelFetchAndVerifyMs": 976.9399999380112,
+              "sessionCreateMs": 463.65500009059906,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "ortWebVersion": "1.20.1",
+              "automaticFallback": false,
+              "actualSessionLoadCount": 1,
+              "inputDescriptor": {
+                "name": "audio",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  29120
+                ]
+              },
+              "outputDescriptors": {
+                "reg_onset_output": [
+                  1,
+                  183,
+                  88
+                ],
+                "frame_output": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "publications": 4,
+            "failure": null,
+            "runtime": {
+              "state": "DISPOSED",
+              "failureCode": null,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17",
+              "sourceRateHz": 48000,
+              "sourceBase": 0,
+              "nextSourceSampleIndex": 157056,
+              "activeRegion": null,
+              "pendingRegions": 0,
+              "outstanding": 0,
+              "counts": {
+                "windowsQueued": 3,
+                "windowsStarted": 3,
+                "windowsPublished": 3,
+                "observationsPublished": 0,
+                "peakOutstanding": 2,
+                "backpressureFailures": 0,
+                "regionsStarted": 2,
+                "regionsDrained": 2,
+                "segmentsStarted": 2,
+                "segmentsDrained": 2,
+                "terminalPublications": 1
+              },
+              "diagnostics": [
+                {
+                  "jobIndex": 0,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 26410.666666666668,
+                  "ownedEndTarget": 36010.66666666667,
+                  "inputStartSample": 9611,
+                  "inputEndSample": 38731,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 665.5300000905991,
+                  "decodeMs": 0.6549999713897705,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 1
+                },
+                {
+                  "jobIndex": 1,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 36010.66666666667,
+                  "ownedEndTarget": 43392,
+                  "inputStartSample": 16992,
+                  "inputEndSample": 46112,
+                  "queueDelayMs": 200,
+                  "inferenceMs": 214.31499993801117,
+                  "decodeMs": 0.48500001430511475,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 2,
+                  "actualSessionRunCount": 2
+                },
+                {
+                  "jobIndex": 2,
+                  "regionIndex": 1,
+                  "ownedStartTarget": 47360,
+                  "ownedEndTarget": 49578.666666666664,
+                  "inputStartSample": 23179,
+                  "inputEndSample": 52299,
+                  "queueDelayMs": 29.333333333333485,
+                  "inferenceMs": 188.7300000190735,
+                  "decodeMs": 0.24500000476837158,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 2,
+                  "actualSessionRunCount": 3
+                }
+              ],
+              "resources": {
+                "sessionPcmBytes": 0,
+                "sourceAdapterBytes": 756,
+                "targetRingBytes": 262144,
+                "outstandingInputBytes": 0,
+                "maximumOutstandingInputBytes": 465920,
+                "retainedPublicationEvents": 0,
+                "diagnosticWindowLimit": 32,
+                "compactDiagnosticsPlanningBytes": 16384
+              },
+              "activeSegment": null,
+              "pendingSegments": 0,
+              "analyzedThroughPerformanceMs": 1200
+            },
+            "capture": {
+              "nextSourceSampleIndex": 157056,
+              "nextSequence": 1227,
+              "audioContextOriginFrame": 0,
+              "blocks": 1227,
+              "chunkSizes": {
+                "128": 1227
+              },
+              "failed": false,
+              "pendingBoundaryCount": 0,
+              "boundaryDiagnostics": [
+                {
+                  "id": "boundary:0",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 79232,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 79232
+                },
+                {
+                  "id": "boundary:0",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 79232,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 79232
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 136832,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 79232
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "CANCELLED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 136832,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 130176
+                },
+                {
+                  "id": "boundary:2",
+                  "action": "SCHEDULED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 130176,
+                  "performanceTimeMs": 1061.3333333333333,
+                  "nextSourceAtAction": 130176
+                },
+                {
+                  "id": "boundary:2",
+                  "action": "APPLIED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 130176,
+                  "performanceTimeMs": 1061.3333333333333,
+                  "nextSourceAtAction": 130176
+                },
+                {
+                  "id": "boundary:3",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 142080,
+                  "performanceTimeMs": 1061.3333333333333,
+                  "nextSourceAtAction": 142080
+                },
+                {
+                  "id": "boundary:3",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 142080,
+                  "performanceTimeMs": 1061.3333333333333,
+                  "nextSourceAtAction": 142080
+                },
+                {
+                  "id": "boundary:4",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 148736,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 142080
+                },
+                {
+                  "id": "boundary:4",
+                  "action": "APPLIED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 148736,
+                  "performanceTimeMs": 1200,
+                  "nextSourceAtAction": 148736
+                }
+              ]
+            }
+          },
+          "diagnostics": [
+            {
+              "action": "START",
+              "state": "ACTIVE",
+              "performanceTimeMs": 0
+            },
+            {
+              "action": "PAUSE",
+              "state": "ACTIVE",
+              "performanceTimeMs": 1061.3333333333333
+            },
+            {
+              "action": "RESUME",
+              "state": "ACTIVE",
+              "performanceTimeMs": 1061.3333333333333
+            },
+            {
+              "action": "COMPLETE",
+              "state": "COMPLETE",
+              "performanceTimeMs": 1200
+            }
+          ],
+          "diagnosticLimit": 32,
+          "diagnosticPlanningBytes": 32768,
+          "rootTrackStates": [],
+          "audioContextState": "closed",
+          "audioContextRate": 48000
+        },
+        "model": {
+          "source": "network",
+          "downloadMs": 750.9499999284744,
+          "cacheReadMs": 48.045000076293945,
+          "verificationMs": 85.0699999332428,
+          "totalLoadMs": 892.1950000524521,
+          "byteSize": 98689283,
+          "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "persistentStorageGranted": null,
+          "assetId": "practice-acoustic-robust-browser",
+          "assetVersion": "v1",
+          "modelByteSize": 98689283,
+          "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "executionProvider": "webgpu",
+          "modelFetchAndVerifyMs": 976.9399999380112,
+          "sessionCreateMs": 463.65500009059906,
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "ortWebVersion": "1.20.1",
+          "automaticFallback": false,
+          "actualSessionLoadCount": 1,
+          "inputDescriptor": {
+            "name": "audio",
+            "dtype": "float32",
+            "shape": [
+              1,
+              29120
+            ]
+          },
+          "outputDescriptors": {
+            "reg_onset_output": [
+              1,
+              183,
+              88
+            ],
+            "frame_output": [
+              1,
+              183,
+              88
+            ]
+          }
+        },
+        "transport": {
+          "state": "ENDED",
+          "nowMs": 3101.3333333333335,
+          "musicalBeat": 2.4,
+          "performanceTimeMs": 1200,
+          "countInTotalMs": 0,
+          "countInRemainingMs": 0,
+          "countInBeats": 0,
+          "countInPulses": 3,
+          "countInPulse": 1,
+          "scopeCompleted": true,
+          "scopeStartBeat": 0,
+          "scopeTerminalBeat": 2.4,
+          "completionReason": "SCOPE_COMPLETED"
+        },
+        "completed": {
+          "evaluation": {
+            "status": "COMPLETE",
+            "sessionDomainId": "local-practice:bd73f1f2-6ed5-48c6-801d-8123708799ea",
+            "groups": [
+              {
+                "groupId": "entry-0.0-05162c611506",
+                "performanceTimeMs": 0,
+                "verdict": "MISSING",
+                "strikes": [
+                  {
+                    "strikeId": "entry-0.0-05162c611506:strike:C4",
+                    "groupId": "entry-0.0-05162c611506",
+                    "pitch": "C4",
+                    "expectedPerformanceTimeMs": 0,
+                    "renderNoteIds": [
+                      "n1"
+                    ],
+                    "state": "MISSING",
+                    "finality": {
+                      "requiredAnalysisFrontierMs": 250,
+                      "unclampedRequiredFrontierMs": 250,
+                      "enablingPublicationId": "local-practice:bd73f1f2-6ed5-48c6-801d-8123708799ea:capture:window:0",
+                      "enablingAnalysisFrontierMs": 599.9999999999999,
+                      "finalizationTimeMs": 3090.6666666666665,
+                      "terminalClamp": false
+                    }
+                  }
+                ],
+                "wrongObservations": [],
+                "evidenceObservationIds": [],
+                "finality": {
+                  "requiredAnalysisFrontierMs": 250,
+                  "unclampedRequiredFrontierMs": 250,
+                  "enablingPublicationId": "local-practice:bd73f1f2-6ed5-48c6-801d-8123708799ea:capture:window:0",
+                  "enablingAnalysisFrontierMs": 599.9999999999999,
+                  "finalizationTimeMs": 3090.6666666666665,
+                  "terminalClamp": false
+                }
+              }
+            ],
+            "extras": [],
+            "observationOwnership": [],
+            "completion": {
+              "reason": "SCOPE_COMPLETED",
+              "performanceTimeMs": 1200,
+              "availabilityTimeMs": 1200
+            }
+          },
+          "mediaStatus": "NOT_RECORDED",
+          "mediaBytes": 0,
+          "recordingTimebase": {
+            "activeSegments": [],
+            "nominalMediaDurationMs": 0
+          }
+        },
+        "resources": {
+          "acquisitions": 1,
+          "nativeAcquisitions": 1,
+          "contextsCreated": 1,
+          "contextsClosed": 1,
+          "workersCreated": 1,
+          "clonedStreams": 1,
+          "allRootAndCloneTracksEnded": true
+        },
+        "actualModelRuns": 3,
+        "capabilities": {
+          "microphoneCapture": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "midi": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "acousticAnalysis": {
+            "step": {
+              "status": "ATTEMPT_ANALYZER_NOT_VALIDATED"
+            },
+            "continuous": {
+              "status": "MODEL_NOT_VALIDATED"
+            }
+          }
+        },
+        "productionMicrophone": false,
+        "realDevice": "NOT_PERFORMED"
+      },
+      "completedAt": "2026-10-17T21:06:31.417Z",
+      "chronologyFailures": []
+    },
+    {
+      "rate": 48000,
+      "scenario": "recording_analysis_failure_running",
+      "state": "PASS",
+      "startedAt": "2026-10-17T21:06:31.428Z",
+      "gpu": {
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "subgroup-size-control",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "timestamp-query",
+          "texture-formats-tier2",
+          "shader-f16",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "info": {
+          "vendor": "nvidia",
+          "architecture": "lovelace",
+          "device": "",
+          "description": ""
+        }
+      },
+      "offlineAt": "2026-10-17T21:06:34.890Z",
+      "result": {
+        "status": "PASS",
+        "rate": 48000,
+        "scenario": "recording_analysis_failure_running",
+        "trackSettings": {
+          "autoGainControl": false,
+          "channelCount": 2,
+          "deviceId": "default",
+          "echoCancellation": false,
+          "groupId": "776a347b3d45ae82807f923c0bb44d15783d713cd48fdd47520bf810c22a974c",
+          "latency": 0.01,
+          "noiseSuppression": false,
+          "sampleRate": 44100,
+          "sampleSize": 16,
+          "voiceIsolation": false
+        },
+        "nativeHardwareRateQualification": false,
+        "offlineWitness": {
+          "contextTime": 1.6613333333333333,
+          "snapshot": {
+            "state": "RUNNING",
+            "nowMs": 1650.6666666666667,
+            "musicalBeat": 0,
+            "performanceTimeMs": 0,
+            "countInTotalMs": 0,
+            "countInRemainingMs": 0,
+            "countInBeats": 0,
+            "countInPulses": 3,
+            "countInPulse": 1,
+            "scopeCompleted": false,
+            "scopeStartBeat": 0,
+            "scopeTerminalBeat": 4.8,
+            "completionReason": null
+          }
+        },
+        "resumeWitnesses": [],
+        "failureWitness": {
+          "before": {
+            "snapshot": {
+              "session": "ACTIVE",
+              "transport": {
+                "state": "RUNNING",
+                "nowMs": 2880,
+                "musicalBeat": 0.8,
+                "performanceTimeMs": 400.0000000000002,
+                "countInTotalMs": 0,
+                "countInRemainingMs": 0,
+                "countInBeats": 0,
+                "countInPulses": 3,
+                "countInPulse": 1,
+                "scopeCompleted": false,
+                "scopeStartBeat": 0,
+                "scopeTerminalBeat": 4.8,
+                "completionReason": null
+              },
+              "analysis": "FAILED",
+              "analysisError": "ANALYSIS_FAILED",
+              "inputError": null,
+              "recording": {
+                "state": "RECORDING",
+                "sourceOwnership": "OWNED_CLONE",
+                "unavailableReason": null
+              },
+              "evaluation": {
+                "sessionDomainId": "local-practice:96bf2ea4-890e-49d2-96fb-183229b639ca",
+                "analyzedThroughPerformanceMs": 400.00000000000017,
+                "groups": [
+                  {
+                    "groupId": "entry-0.0-05162c611506",
+                    "performanceTimeMs": 0,
+                    "verdict": "MISSING",
+                    "strikes": [
+                      {
+                        "strikeId": "entry-0.0-05162c611506:strike:C4",
+                        "groupId": "entry-0.0-05162c611506",
+                        "pitch": "C4",
+                        "expectedPerformanceTimeMs": 0,
+                        "renderNoteIds": [
+                          "n1"
+                        ],
+                        "state": "MISSING",
+                        "finality": {
+                          "requiredAnalysisFrontierMs": 250,
+                          "unclampedRequiredFrontierMs": 250,
+                          "enablingPublicationId": "local-practice:96bf2ea4-890e-49d2-96fb-183229b639ca:capture:window:0",
+                          "enablingAnalysisFrontierMs": 400.00000000000017,
+                          "finalizationTimeMs": 2880,
+                          "terminalClamp": false
+                        }
+                      }
+                    ],
+                    "wrongObservations": [],
+                    "evidenceObservationIds": [],
+                    "finality": {
+                      "requiredAnalysisFrontierMs": 250,
+                      "unclampedRequiredFrontierMs": 250,
+                      "enablingPublicationId": "local-practice:96bf2ea4-890e-49d2-96fb-183229b639ca:capture:window:0",
+                      "enablingAnalysisFrontierMs": 400.00000000000017,
+                      "finalizationTimeMs": 2880,
+                      "terminalClamp": false
+                    }
+                  }
+                ],
+                "extras": [],
+                "observationOwnership": [],
+                "reservedObservationIds": [],
+                "completion": null
+              },
+              "completed": null,
+              "sessionSnapshot": null
+            },
+            "contextTime": 2.88,
+            "publications": 1
+          },
+          "after": {
+            "snapshot": {
+              "session": "ACTIVE",
+              "transport": {
+                "state": "RUNNING",
+                "nowMs": 3280,
+                "musicalBeat": 1.6,
+                "performanceTimeMs": 800.0000000000002,
+                "countInTotalMs": 0,
+                "countInRemainingMs": 0,
+                "countInBeats": 0,
+                "countInPulses": 3,
+                "countInPulse": 1,
+                "scopeCompleted": false,
+                "scopeStartBeat": 0,
+                "scopeTerminalBeat": 4.8,
+                "completionReason": null
+              },
+              "analysis": "FAILED",
+              "analysisError": "ANALYSIS_FAILED",
+              "inputError": null,
+              "recording": {
+                "state": "RECORDING",
+                "sourceOwnership": "OWNED_CLONE",
+                "unavailableReason": null
+              },
+              "evaluation": {
+                "sessionDomainId": "local-practice:96bf2ea4-890e-49d2-96fb-183229b639ca",
+                "analyzedThroughPerformanceMs": 400.00000000000017,
+                "groups": [
+                  {
+                    "groupId": "entry-0.0-05162c611506",
+                    "performanceTimeMs": 0,
+                    "verdict": "MISSING",
+                    "strikes": [
+                      {
+                        "strikeId": "entry-0.0-05162c611506:strike:C4",
+                        "groupId": "entry-0.0-05162c611506",
+                        "pitch": "C4",
+                        "expectedPerformanceTimeMs": 0,
+                        "renderNoteIds": [
+                          "n1"
+                        ],
+                        "state": "MISSING",
+                        "finality": {
+                          "requiredAnalysisFrontierMs": 250,
+                          "unclampedRequiredFrontierMs": 250,
+                          "enablingPublicationId": "local-practice:96bf2ea4-890e-49d2-96fb-183229b639ca:capture:window:0",
+                          "enablingAnalysisFrontierMs": 400.00000000000017,
+                          "finalizationTimeMs": 2880,
+                          "terminalClamp": false
+                        }
+                      }
+                    ],
+                    "wrongObservations": [],
+                    "evidenceObservationIds": [],
+                    "finality": {
+                      "requiredAnalysisFrontierMs": 250,
+                      "unclampedRequiredFrontierMs": 250,
+                      "enablingPublicationId": "local-practice:96bf2ea4-890e-49d2-96fb-183229b639ca:capture:window:0",
+                      "enablingAnalysisFrontierMs": 400.00000000000017,
+                      "finalizationTimeMs": 2880,
+                      "terminalClamp": false
+                    }
+                  }
+                ],
+                "extras": [],
+                "observationOwnership": [],
+                "reservedObservationIds": [],
+                "completion": null
+              },
+              "completed": null,
+              "sessionSnapshot": null
+            },
+            "contextTime": 3.28,
+            "publications": 1
+          },
+          "rootTrackStates": [
+            "live"
+          ]
+        },
+        "engineering": {
+          "microphone": {
+            "model": {
+              "source": "network",
+              "downloadMs": 721.3399999141693,
+              "cacheReadMs": 50.6800000667572,
+              "verificationMs": 84.34500002861023,
+              "totalLoadMs": 863.9450000524521,
+              "byteSize": 98689283,
+              "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "persistentStorageGranted": null,
+              "assetId": "practice-acoustic-robust-browser",
+              "assetVersion": "v1",
+              "modelByteSize": 98689283,
+              "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+              "executionProvider": "webgpu",
+              "modelFetchAndVerifyMs": 948.5250000953674,
+              "sessionCreateMs": 474.18499994277954,
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "ortWebVersion": "1.20.1",
+              "automaticFallback": false,
+              "actualSessionLoadCount": 1,
+              "inputDescriptor": {
+                "name": "audio",
+                "dtype": "float32",
+                "shape": [
+                  1,
+                  29120
+                ]
+              },
+              "outputDescriptors": {
+                "reg_onset_output": [
+                  1,
+                  183,
+                  88
+                ],
+                "frame_output": [
+                  1,
+                  183,
+                  88
+                ]
+              }
+            },
+            "publications": 1,
+            "failure": "QUALIFICATION_ANALYSIS_FAILURE",
+            "runtime": {
+              "state": "DISPOSED",
+              "failureCode": "QUALIFICATION_ANALYSIS_FAILURE",
+              "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+              "sourceAdapterIdentitySha256": "6003b89c69965259baf9b329be6faec19128e6e5743be952c23069fb8673da17",
+              "sourceRateHz": 48000,
+              "sourceBase": 0,
+              "nextSourceSampleIndex": 138240,
+              "activeRegion": null,
+              "pendingRegions": 0,
+              "outstanding": 0,
+              "counts": {
+                "windowsQueued": 1,
+                "windowsStarted": 1,
+                "windowsPublished": 1,
+                "observationsPublished": 0,
+                "peakOutstanding": 1,
+                "backpressureFailures": 0,
+                "regionsStarted": 2,
+                "regionsDrained": 1,
+                "segmentsStarted": 2,
+                "segmentsDrained": 1,
+                "terminalPublications": 0
+              },
+              "diagnostics": [
+                {
+                  "jobIndex": 0,
+                  "regionIndex": 0,
+                  "ownedStartTarget": 26410.666666666668,
+                  "ownedEndTarget": 32810.66666666667,
+                  "inputStartSample": 6411,
+                  "inputEndSample": 35531,
+                  "queueDelayMs": 0,
+                  "inferenceMs": 659.6050000190735,
+                  "decodeMs": 0.6599999666213989,
+                  "publicationMs": 0,
+                  "eventCount": 0,
+                  "outstandingAtEnqueue": 1,
+                  "actualSessionRunCount": 1
+                }
+              ],
+              "resources": {
+                "sessionPcmBytes": 0,
+                "sourceAdapterBytes": 756,
+                "targetRingBytes": 262144,
+                "outstandingInputBytes": 0,
+                "maximumOutstandingInputBytes": 465920,
+                "retainedPublicationEvents": 0,
+                "diagnosticWindowLimit": 32,
+                "compactDiagnosticsPlanningBytes": 16384
+              },
+              "activeSegment": null,
+              "pendingSegments": 0,
+              "analyzedThroughPerformanceMs": 400.00000000000017
+            },
+            "capture": {
+              "nextSourceSampleIndex": 138240,
+              "nextSequence": 1080,
+              "audioContextOriginFrame": 0,
+              "blocks": 1080,
+              "chunkSizes": {
+                "128": 1080
+              },
+              "failed": false,
+              "pendingBoundaryCount": 1,
+              "boundaryDiagnostics": [
+                {
+                  "id": "boundary:0",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 79232,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 79232
+                },
+                {
+                  "id": "boundary:0",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 79232,
+                  "performanceTimeMs": 0,
+                  "nextSourceAtAction": 79232
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 194432,
+                  "performanceTimeMs": 2400,
+                  "nextSourceAtAction": 79232
+                },
+                {
+                  "id": "boundary:1",
+                  "action": "CANCELLED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 194432,
+                  "performanceTimeMs": 2400,
+                  "nextSourceAtAction": 98432
+                },
+                {
+                  "id": "boundary:2",
+                  "action": "SCHEDULED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 98432,
+                  "performanceTimeMs": 400.0000000000002,
+                  "nextSourceAtAction": 98432
+                },
+                {
+                  "id": "boundary:2",
+                  "action": "APPLIED",
+                  "type": "PAUSE",
+                  "sourceSampleIndex": 98432,
+                  "performanceTimeMs": 400.0000000000002,
+                  "nextSourceAtAction": 98432
+                },
+                {
+                  "id": "boundary:3",
+                  "action": "SCHEDULED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 138240,
+                  "performanceTimeMs": 400.0000000000002,
+                  "nextSourceAtAction": 138240
+                },
+                {
+                  "id": "boundary:3",
+                  "action": "APPLIED",
+                  "type": "BEGIN",
+                  "sourceSampleIndex": 138240,
+                  "performanceTimeMs": 400.0000000000002,
+                  "nextSourceAtAction": 138240
+                },
+                {
+                  "id": "boundary:4",
+                  "action": "SCHEDULED",
+                  "type": "TERMINAL",
+                  "sourceSampleIndex": 234240,
+                  "performanceTimeMs": 2400,
+                  "nextSourceAtAction": 138240
+                }
+              ]
+            }
+          },
+          "diagnostics": [
+            {
+              "action": "START",
+              "state": "ACTIVE",
+              "performanceTimeMs": 0
+            },
+            {
+              "action": "PAUSE",
+              "state": "ACTIVE",
+              "performanceTimeMs": 400.0000000000002
+            },
+            {
+              "action": "RESUME",
+              "state": "ACTIVE",
+              "performanceTimeMs": 400.0000000000002
+            },
+            {
+              "action": "ANALYSIS_FAILED",
+              "state": "ACTIVE",
+              "performanceTimeMs": 400.0000000000002,
+              "detail": "QUALIFICATION_ANALYSIS_FAILURE"
+            },
+            {
+              "action": "COMPLETE",
+              "state": "COMPLETE",
+              "performanceTimeMs": 800.0000000000002
+            }
+          ],
+          "diagnosticLimit": 32,
+          "diagnosticPlanningBytes": 32768,
+          "rootTrackStates": [],
+          "audioContextState": "closed",
+          "audioContextRate": 48000
+        },
+        "model": {
+          "source": "network",
+          "downloadMs": 721.3399999141693,
+          "cacheReadMs": 50.6800000667572,
+          "verificationMs": 84.34500002861023,
+          "totalLoadMs": 863.9450000524521,
+          "byteSize": 98689283,
+          "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "persistentStorageGranted": null,
+          "assetId": "practice-acoustic-robust-browser",
+          "assetVersion": "v1",
+          "modelByteSize": 98689283,
+          "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+          "executionProvider": "webgpu",
+          "modelFetchAndVerifyMs": 948.5250000953674,
+          "sessionCreateMs": 474.18499994277954,
+          "acousticCoreIdentitySha256": "93a9914278e3aa3d659ca73aec8ac10dde5bb51d2101a87abfadcbc75ed01443",
+          "ortWebVersion": "1.20.1",
+          "automaticFallback": false,
+          "actualSessionLoadCount": 1,
+          "inputDescriptor": {
+            "name": "audio",
+            "dtype": "float32",
+            "shape": [
+              1,
+              29120
+            ]
+          },
+          "outputDescriptors": {
+            "reg_onset_output": [
+              1,
+              183,
+              88
+            ],
+            "frame_output": [
+              1,
+              183,
+              88
+            ]
+          }
+        },
+        "transport": {
+          "state": "ENDED",
+          "nowMs": 3280,
+          "musicalBeat": 1.6,
+          "performanceTimeMs": 800.0000000000002,
+          "countInTotalMs": 0,
+          "countInRemainingMs": 0,
+          "countInBeats": 0,
+          "countInPulses": 3,
+          "countInPulse": 1,
+          "scopeCompleted": false,
+          "scopeStartBeat": 0,
+          "scopeTerminalBeat": 4.8,
+          "completionReason": "STOPPED_BY_USER"
+        },
+        "completed": {
+          "evaluation": {
+            "status": "UNAVAILABLE",
+            "reason": "CONTINUOUS_ANALYSIS_UNAVAILABLE"
+          },
+          "mediaStatus": "READY",
+          "mediaBytes": 12751,
+          "recordingTimebase": {
+            "activeSegments": [
+              {
+                "perfStartMs": 0,
+                "perfEndMs": 400.0000000000002,
+                "mediaStartMs": 0,
+                "mediaEndMs": 400.0000000000002
+              },
+              {
+                "perfStartMs": 400.0000000000002,
+                "perfEndMs": 800.0000000000002,
+                "mediaStartMs": 400.0000000000002,
+                "mediaEndMs": 800.0000000000002
+              }
+            ],
+            "nominalMediaDurationMs": 800.0000000000002
+          }
+        },
+        "resources": {
+          "acquisitions": 1,
+          "nativeAcquisitions": 1,
+          "contextsCreated": 1,
+          "contextsClosed": 1,
+          "workersCreated": 1,
+          "clonedStreams": 2,
+          "allRootAndCloneTracksEnded": true
+        },
+        "actualModelRuns": 1,
+        "capabilities": {
+          "microphoneCapture": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "midi": {
+            "supported": true,
+            "status": "AVAILABLE"
+          },
+          "acousticAnalysis": {
+            "step": {
+              "status": "ATTEMPT_ANALYZER_NOT_VALIDATED"
+            },
+            "continuous": {
+              "status": "MODEL_NOT_VALIDATED"
+            }
+          }
+        },
+        "productionMicrophone": false,
+        "realDevice": "NOT_PERFORMED"
+      },
+      "completedAt": "2026-10-17T21:06:36.528Z",
+      "chronologyFailures": []
+    }
+  ],
+  "diagnostics": [
+    {
+      "rate": 44100,
+      "scenario": "natural_recording_offline",
+      "rows": [
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/worker.js",
+          "timestamp": "2026-10-17T21:05:51.909Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:05:52.943Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:05:52.944Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:05:52.944Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:05:53.319Z",
+          "text": "\u001b[0;93m2026-10-18 05:05:53.313449 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:05:53.321Z",
+          "text": "\u001b[0;93m2026-10-18 05:05:53.317739 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        }
+      ]
+    },
+    {
+      "rate": 44100,
+      "scenario": "count_in_cancel_multiple_pause_manual_stop",
+      "rows": [
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/worker.js",
+          "timestamp": "2026-10-17T21:05:58.015Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:05:59.212Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:05:59.214Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:05:59.218Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:05:59.587Z",
+          "text": "\u001b[0;93m2026-10-18 05:05:59.585055 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:05:59.588Z",
+          "text": "\u001b[0;93m2026-10-18 05:05:59.586515 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        }
+      ]
+    },
+    {
+      "rate": 44100,
+      "scenario": "pause_near_terminal_resume_natural",
+      "rows": [
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/worker.js",
+          "timestamp": "2026-10-17T21:06:04.122Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:05.126Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:05.127Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:05.128Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:06:05.533Z",
+          "text": "\u001b[0;93m2026-10-18 05:06:05.531329 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:06:05.534Z",
+          "text": "\u001b[0;93m2026-10-18 05:06:05.532664 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        }
+      ]
+    },
+    {
+      "rate": 44100,
+      "scenario": "recording_analysis_failure_running",
+      "rows": [
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/worker.js",
+          "timestamp": "2026-10-17T21:06:09.565Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:10.531Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:10.532Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:10.532Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:06:10.915Z",
+          "text": "\u001b[0;93m2026-10-18 05:06:10.912995 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:06:10.916Z",
+          "text": "\u001b[0;93m2026-10-18 05:06:10.914334 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        }
+      ]
+    },
+    {
+      "rate": 48000,
+      "scenario": "natural_recording_offline",
+      "rows": [
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/worker.js",
+          "timestamp": "2026-10-17T21:06:14.689Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:15.757Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:15.762Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:15.763Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:06:16.131Z",
+          "text": "\u001b[0;93m2026-10-18 05:06:16.129645 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:06:16.132Z",
+          "text": "\u001b[0;93m2026-10-18 05:06:16.131010 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        }
+      ]
+    },
+    {
+      "rate": 48000,
+      "scenario": "count_in_cancel_multiple_pause_manual_stop",
+      "rows": [
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/worker.js",
+          "timestamp": "2026-10-17T21:06:20.500Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:21.456Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:21.456Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:21.458Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:06:21.852Z",
+          "text": "\u001b[0;93m2026-10-18 05:06:21.850145 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:06:21.853Z",
+          "text": "\u001b[0;93m2026-10-18 05:06:21.851479 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        }
+      ]
+    },
+    {
+      "rate": 48000,
+      "scenario": "pause_near_terminal_resume_natural",
+      "rows": [
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/worker.js",
+          "timestamp": "2026-10-17T21:06:26.405Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:27.415Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:27.419Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:27.424Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:06:27.791Z",
+          "text": "\u001b[0;93m2026-10-18 05:06:27.788644 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:06:27.791Z",
+          "text": "\u001b[0;93m2026-10-18 05:06:27.789914 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        }
+      ]
+    },
+    {
+      "rate": 48000,
+      "scenario": "recording_analysis_failure_running",
+      "rows": [
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/worker.js",
+          "timestamp": "2026-10-17T21:06:31.743Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:32.724Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:32.726Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "worker-created",
+          "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+          "timestamp": "2026-10-17T21:06:32.732Z",
+          "classification": "INFORMATIONAL"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:06:33.105Z",
+          "text": "\u001b[0;93m2026-10-18 05:06:33.102964 [W:onnxruntime:, session_state.cc:1168 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        },
+        {
+          "type": "error",
+          "timestamp": "2026-10-17T21:06:33.106Z",
+          "text": "\u001b[0;93m2026-10-18 05:06:33.104310 [W:onnxruntime:, session_state.cc:1170 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+          "location": {
+            "url": "http://127.0.0.1:51007/ort/ort-wasm-simd-threaded.jsep.mjs",
+            "lineNumber": 99,
+            "columnNumber": 235
+          },
+          "origin": "http://127.0.0.1:51007/",
+          "errorArguments": [
+            null
+          ],
+          "classification": "DEPENDENCY_DIAGNOSTIC_NON_BLOCKING"
+        }
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "url": "/",
+      "timestamp": "2026-10-17T21:05:51.768Z"
+    },
+    {
+      "url": "/entry.js",
+      "timestamp": "2026-10-17T21:05:51.790Z"
+    },
+    {
+      "url": "/favicon.ico",
+      "timestamp": "2026-10-17T21:05:51.806Z"
+    },
+    {
+      "url": "/worker.js",
+      "timestamp": "2026-10-17T21:05:51.905Z"
+    },
+    {
+      "url": "/ort/ort.webgpu.min.mjs",
+      "timestamp": "2026-10-17T21:05:51.912Z"
+    },
+    {
+      "url": "/model.onnx",
+      "timestamp": "2026-10-17T21:05:51.931Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:05:52.918Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:05:52.924Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:05:52.926Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.wasm",
+      "timestamp": "2026-10-17T21:05:52.926Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:05:52.927Z"
+    },
+    {
+      "url": "/model-assets/practice-acoustic/fir-160-441.f32",
+      "timestamp": "2026-10-17T21:05:53.467Z"
+    },
+    {
+      "url": "/capture.worklet.js",
+      "timestamp": "2026-10-17T21:05:53.473Z"
+    },
+    {
+      "url": "/",
+      "timestamp": "2026-10-17T21:05:57.810Z"
+    },
+    {
+      "url": "/entry.js",
+      "timestamp": "2026-10-17T21:05:57.874Z"
+    },
+    {
+      "url": "/favicon.ico",
+      "timestamp": "2026-10-17T21:05:57.895Z"
+    },
+    {
+      "url": "/worker.js",
+      "timestamp": "2026-10-17T21:05:58.012Z"
+    },
+    {
+      "url": "/ort/ort.webgpu.min.mjs",
+      "timestamp": "2026-10-17T21:05:58.020Z"
+    },
+    {
+      "url": "/model.onnx",
+      "timestamp": "2026-10-17T21:05:58.043Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:05:59.204Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:05:59.209Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:05:59.211Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.wasm",
+      "timestamp": "2026-10-17T21:05:59.211Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:05:59.212Z"
+    },
+    {
+      "url": "/model-assets/practice-acoustic/fir-160-441.f32",
+      "timestamp": "2026-10-17T21:05:59.698Z"
+    },
+    {
+      "url": "/capture.worklet.js",
+      "timestamp": "2026-10-17T21:05:59.704Z"
+    },
+    {
+      "url": "/",
+      "timestamp": "2026-10-17T21:06:03.973Z"
+    },
+    {
+      "url": "/entry.js",
+      "timestamp": "2026-10-17T21:06:03.992Z"
+    },
+    {
+      "url": "/favicon.ico",
+      "timestamp": "2026-10-17T21:06:04.004Z"
+    },
+    {
+      "url": "/worker.js",
+      "timestamp": "2026-10-17T21:06:04.118Z"
+    },
+    {
+      "url": "/ort/ort.webgpu.min.mjs",
+      "timestamp": "2026-10-17T21:06:04.125Z"
+    },
+    {
+      "url": "/model.onnx",
+      "timestamp": "2026-10-17T21:06:04.143Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:05.100Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:05.105Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:05.106Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.wasm",
+      "timestamp": "2026-10-17T21:06:05.107Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:05.108Z"
+    },
+    {
+      "url": "/model-assets/practice-acoustic/fir-160-441.f32",
+      "timestamp": "2026-10-17T21:06:05.647Z"
+    },
+    {
+      "url": "/capture.worklet.js",
+      "timestamp": "2026-10-17T21:06:05.653Z"
+    },
+    {
+      "url": "/",
+      "timestamp": "2026-10-17T21:06:09.379Z"
+    },
+    {
+      "url": "/entry.js",
+      "timestamp": "2026-10-17T21:06:09.404Z"
+    },
+    {
+      "url": "/favicon.ico",
+      "timestamp": "2026-10-17T21:06:09.424Z"
+    },
+    {
+      "url": "/worker.js",
+      "timestamp": "2026-10-17T21:06:09.562Z"
+    },
+    {
+      "url": "/ort/ort.webgpu.min.mjs",
+      "timestamp": "2026-10-17T21:06:09.567Z"
+    },
+    {
+      "url": "/model.onnx",
+      "timestamp": "2026-10-17T21:06:09.585Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:10.507Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:10.517Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:10.518Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.wasm",
+      "timestamp": "2026-10-17T21:06:10.519Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:10.523Z"
+    },
+    {
+      "url": "/model-assets/practice-acoustic/fir-160-441.f32",
+      "timestamp": "2026-10-17T21:06:11.025Z"
+    },
+    {
+      "url": "/capture.worklet.js",
+      "timestamp": "2026-10-17T21:06:11.031Z"
+    },
+    {
+      "url": "/",
+      "timestamp": "2026-10-17T21:06:14.540Z"
+    },
+    {
+      "url": "/entry.js",
+      "timestamp": "2026-10-17T21:06:14.558Z"
+    },
+    {
+      "url": "/favicon.ico",
+      "timestamp": "2026-10-17T21:06:14.571Z"
+    },
+    {
+      "url": "/worker.js",
+      "timestamp": "2026-10-17T21:06:14.687Z"
+    },
+    {
+      "url": "/ort/ort.webgpu.min.mjs",
+      "timestamp": "2026-10-17T21:06:14.693Z"
+    },
+    {
+      "url": "/model.onnx",
+      "timestamp": "2026-10-17T21:06:14.715Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:15.745Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:15.754Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:15.755Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.wasm",
+      "timestamp": "2026-10-17T21:06:15.756Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:15.757Z"
+    },
+    {
+      "url": "/model-assets/practice-acoustic/fir-1-3.f32",
+      "timestamp": "2026-10-17T21:06:16.242Z"
+    },
+    {
+      "url": "/capture.worklet.js",
+      "timestamp": "2026-10-17T21:06:16.247Z"
+    },
+    {
+      "url": "/",
+      "timestamp": "2026-10-17T21:06:20.351Z"
+    },
+    {
+      "url": "/entry.js",
+      "timestamp": "2026-10-17T21:06:20.369Z"
+    },
+    {
+      "url": "/favicon.ico",
+      "timestamp": "2026-10-17T21:06:20.385Z"
+    },
+    {
+      "url": "/worker.js",
+      "timestamp": "2026-10-17T21:06:20.497Z"
+    },
+    {
+      "url": "/ort/ort.webgpu.min.mjs",
+      "timestamp": "2026-10-17T21:06:20.505Z"
+    },
+    {
+      "url": "/model.onnx",
+      "timestamp": "2026-10-17T21:06:20.523Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:21.444Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:21.453Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:21.454Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.wasm",
+      "timestamp": "2026-10-17T21:06:21.454Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:21.455Z"
+    },
+    {
+      "url": "/model-assets/practice-acoustic/fir-1-3.f32",
+      "timestamp": "2026-10-17T21:06:21.962Z"
+    },
+    {
+      "url": "/capture.worklet.js",
+      "timestamp": "2026-10-17T21:06:21.967Z"
+    },
+    {
+      "url": "/",
+      "timestamp": "2026-10-17T21:06:26.254Z"
+    },
+    {
+      "url": "/entry.js",
+      "timestamp": "2026-10-17T21:06:26.272Z"
+    },
+    {
+      "url": "/favicon.ico",
+      "timestamp": "2026-10-17T21:06:26.286Z"
+    },
+    {
+      "url": "/worker.js",
+      "timestamp": "2026-10-17T21:06:26.402Z"
+    },
+    {
+      "url": "/ort/ort.webgpu.min.mjs",
+      "timestamp": "2026-10-17T21:06:26.409Z"
+    },
+    {
+      "url": "/model.onnx",
+      "timestamp": "2026-10-17T21:06:26.428Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:27.402Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:27.411Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:27.413Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.wasm",
+      "timestamp": "2026-10-17T21:06:27.413Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:27.415Z"
+    },
+    {
+      "url": "/model-assets/practice-acoustic/fir-1-3.f32",
+      "timestamp": "2026-10-17T21:06:27.898Z"
+    },
+    {
+      "url": "/capture.worklet.js",
+      "timestamp": "2026-10-17T21:06:27.903Z"
+    },
+    {
+      "url": "/",
+      "timestamp": "2026-10-17T21:06:31.583Z"
+    },
+    {
+      "url": "/entry.js",
+      "timestamp": "2026-10-17T21:06:31.609Z"
+    },
+    {
+      "url": "/favicon.ico",
+      "timestamp": "2026-10-17T21:06:31.622Z"
+    },
+    {
+      "url": "/worker.js",
+      "timestamp": "2026-10-17T21:06:31.740Z"
+    },
+    {
+      "url": "/ort/ort.webgpu.min.mjs",
+      "timestamp": "2026-10-17T21:06:31.747Z"
+    },
+    {
+      "url": "/model.onnx",
+      "timestamp": "2026-10-17T21:06:31.765Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:32.711Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:32.721Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:32.722Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.wasm",
+      "timestamp": "2026-10-17T21:06:32.722Z"
+    },
+    {
+      "url": "/ort/ort-wasm-simd-threaded.jsep.mjs",
+      "timestamp": "2026-10-17T21:06:32.724Z"
+    },
+    {
+      "url": "/model-assets/practice-acoustic/fir-1-3.f32",
+      "timestamp": "2026-10-17T21:06:33.220Z"
+    },
+    {
+      "url": "/capture.worklet.js",
+      "timestamp": "2026-10-17T21:06:33.226Z"
+    }
+  ],
+  "bundles": [
+    {
+      "path": "backend\\data\\work\\step_waiting_attempt_v2\\waiting_attempt_v2_f1\\controller\\entry.js",
+      "bytes": 795599,
+      "sha256": "fae30e3206da0f589253d4a22cde8864fe4dde53db98c497f07e19b6389f019b"
+    },
+    {
+      "path": "backend\\data\\work\\step_waiting_attempt_v2\\waiting_attempt_v2_f1\\controller\\worker.js",
+      "bytes": 116807,
+      "sha256": "e28bf0d2e885acbf131c7cc9c8c231e1e9c1d99e80f7d453e885307e3012e714"
+    }
+  ],
+  "actualModelRuns": 18,
+  "modelRunCountComplete": true,
+  "model": {
+    "path": "backend/data/work/phase9gd1_robust_browser_onnx/robust_bytedance_fixed_1820_opset18.onnx",
+    "bytes": 98689283,
+    "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"
+  },
+  "fixture": {
+    "path": "backend/data/work/xc6_capture/fake-device.wav",
+    "bytes": 480044,
+    "sha256": "324712f494868ec8b8ec3ba365fef3ef72f75adcfe8f43fb7c94714ad0c1159a"
+  },
+  "productionMicrophone": false,
+  "realDevice": "NOT_PERFORMED"
+}

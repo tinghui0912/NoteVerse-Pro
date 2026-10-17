@@ -39,7 +39,7 @@ const server=createServer((req,res)=>{
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const require=createRequire(import.meta.url),{chromium}=require(path.join(RUNTIME_NODE_MODULES,'playwright'));
-let browser,result=null,failure=null,identity=null,gpu=null;
+let browser,result=null,failure=null,failureWitness=null,identity=null,gpu=null;
 try{
  const executablePath=resolveBrandedBrowserExecutable('chrome');if(!executablePath)throw Error('BRANDED_CHROME_UNAVAILABLE');
  browser=await chromium.launch({executablePath,headless:false});identity={version:await browser.version(),executablePath,headed:true};
@@ -52,12 +52,16 @@ try{
  if(result.results.length!==30||result.workerConstructions!==1||result.modelSessionLoads!==1
   ||result.actualModelRuns!==result.results.reduce((n,r)=>n+r.snapshot.counts.windowsStarted,0)
   ||diagnostics.filter(d=>d.type==='worker-created'&&d.url.endsWith('/worker.js')).length!==1)throw Error('STAGE_A_EXECUTION_COUNT');
-}catch(error){failure=String(error.stack??error);process.exitCode=1;}
+}catch(error){failure=String(error.stack??error);const line=failure.split('\n')[0],index=line.indexOf('{');
+ if(index>=0){try{failureWitness=JSON.parse(line.slice(index));}catch{}}
+ process.exitCode=1;}
 finally{
  await browser?.close();await new Promise(r=>server.close(r));
  const file=path.join(output,'acoustic.json');
  await newJson(file,{...qualificationExecutionProof,qualificationExecutionProof,status:failure?'BLOCKED':'SEALED_AUDIO_ONLY',browser:identity,gpu,
-  result,failure,requests,bundleInputs,diagnostics,model:await fileIdentity(MODEL),completedAt:new Date().toISOString()});
+  result,failure,failureWitness,actualModelRuns:result?.actualModelRuns??failureWitness?.actualModelRuns??null,
+  modelRunCountComplete:result!==null||failureWitness?.actualModelRuns!==undefined,
+  requests,bundleInputs,diagnostics,model:await fileIdentity(MODEL),completedAt:new Date().toISOString()});
  await chmod(file,0o444);
  const acousticSeal={...qualificationExecutionProof,sealedAt:new Date().toISOString(),file:path.relative(ROOT,file),sha256:hash(await readFile(file)),
   bytes:(await stat(file)).size,readOnlyRequested:true,windowsReadOnly:((await stat(file)).mode&0o222)===0,

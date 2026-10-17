@@ -1,0 +1,16 @@
+{
+  "freezeCommit": "8ea101525d4adc1ba27af14ec197d0e3212eb57f",
+  "remoteHead": "8ea101525d4adc1ba27af14ec197d0e3212eb57f",
+  "freezeSha256": "8586237a631465a662ffc5660caf312844fcc2641fabc952f713bca0402f3a0e",
+  "remoteVerifiedAt": "2026-10-17T21:07:53.508Z",
+  "executionStartedAt": "2026-10-17T21:07:53.829Z",
+  "sealedAt": "2026-10-17T21:07:57.415Z",
+  "file": "backend\\data\\work\\step_waiting_attempt_v2\\waiting_attempt_v2_f1\\holdout\\acoustic.json",
+  "sha256": "f07e674a9345caa00b0b5291c0d4caf467b9db8c52ce5b8c687259a911df5f8c",
+  "bytes": 5976,
+  "readOnlyRequested": true,
+  "windowsReadOnly": true,
+  "truthOpened": false,
+  "truthNotServed": true,
+  "status": "BLOCKED_AUDIO_OUTPUT_SEALED"
+}

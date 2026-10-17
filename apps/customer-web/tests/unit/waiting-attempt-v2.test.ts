@@ -6,6 +6,8 @@ import type {DecodedPublication} from '../../../../backend/research/step_decoded
 import {installChronologyDiagnostics,chronologyFailures} from '../../scripts/qualification/chronology-diagnostics';
 import {SourceChronology} from '../../src/lib/practice/acoustic/source/source-chronology';
 import {scoreProduct,targetVariants,type TruthCase} from '../../../../backend/research/step_waiting_attempt_v2/product-scoring';
+import {SharedWorkerJobs} from '../../../../backend/research/step_waiting_attempt_v2/shared-worker-jobs';
+import type {AcousticInferenceInput} from '../../src/lib/practice/acoustic/runtime/inference-types';
 const p=(n:number,end:number,events:readonly [number,string][],delay=0):DecodedPublication=>({publicationId:`s:w${n}`,frontierMs:end,availabilityMs:end+170+delay,
  observations:events.map(([eventMs,pitch],i)=>({observationId:`s:${n}:${i}`,eventMs,pitch,availabilityMs:end+170+delay,confidence:1,
   sourceDomainId:'s',sourceSampleRateHz:48000,sourceEventSample:eventMs*48}))});
@@ -70,4 +72,12 @@ it('Stage B verifies the acoustic seal before opening truth; Stage A has an asse
  const browser=readFileSync(path.join(dir,'browser.mjs'),'utf8');
  expect(browser).not.toContain("path.join(DATA,'truth.json')");expect(browser).toContain('AUDIO_ASSETS_ONLY');
  expect(browser).toContain('await chmod(file,0o444)');
+});
+it('independent source planners borrow one Worker without restarting its global job sequence or changing acoustic geometry',async()=>{
+ const submitted:AcousticInferenceInput[]=[];
+ const sequence=new SharedWorkerJobs({run:async input=>{submitted.push(input);return {events:[],inferenceMs:1,decodeMs:0,actualSessionRunCount:submitted.length};},dispose:async()=>{}});
+ const input:AcousticInferenceInput={window:{jobIndex:0,regionIndex:0,windowIndex:0,ownedStartTarget:19200,ownedEndTarget:28800,startSample:2400,endSample:31520},pcm:new Float32Array(29120)};
+ await sequence.run(input);await sequence.run({...input,window:{...input.window,jobIndex:1,windowIndex:1}});await sequence.run(input);
+ expect(submitted.map(i=>i.window.jobIndex)).toEqual([0,1,2]);expect(submitted[2].pcm).toBe(input.pcm);
+ expect({...submitted[2].window,jobIndex:0}).toEqual(input.window);expect(sequence.submittedJobs).toBe(3);
 });

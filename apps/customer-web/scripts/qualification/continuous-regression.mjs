@@ -84,7 +84,7 @@ try {
   console.error(BLOCKED, failure); process.exitCode = 1;
 } finally {
   await browser?.close(); await new Promise(resolve => server.close(resolve));
-  const disposition = cells.every(c => c.state === 'PASS') ? SUCCESS : BLOCKED;
+  const disposition = cells.every(c => c.state === 'PASS') ? 'CONTINUOUS_ENGINEERING_REGRESSION_PASS' : 'CONTINUOUS_ENGINEERING_REGRESSION_BLOCKED';
   await newJson(path.join(work, 'browser.json'), { ...proof, engineeringExecutionProof:proof, executionStartedAt, completedAt: at(), browser: browserIdentity, disposition,
     status: cells.every(c => c.state === 'PASS') ? 'PASS' : 'PARTIAL_EXECUTION_BLOCKED', cells, diagnostics, failure, requests, bundles,
     ...modelRunAccounting(cells),

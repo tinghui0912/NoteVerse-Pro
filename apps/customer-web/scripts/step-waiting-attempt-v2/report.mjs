@@ -41,7 +41,7 @@ if(process.argv[2]==='receipt'){
   fixedH:50,warmReady:freeze.contract.warmReady,rearm:freeze.contract.rearm,metadataAudit:freeze.metadataAudit,
   stageASeal:evidence['acoustic-seal'],architectureCounters:scores?.architecture??null,empiricalFalseMatchCounters:scores?.empirical??null,
   usability:scores?.usability??'NOT_MEASURED',latency:scores?.latency??'NOT_MEASURED',
-  actualNeuralRuns:{engineering:evidence.engineering?.actualModelRuns??0,musical:evidence.musical?.actualModelRuns??0,holdout:evidence.acoustic?.result?.actualModelRuns??0},
+  actualNeuralRuns:{engineering:evidence.engineering?.actualModelRuns??0,musical:evidence.musical?.actualModelRuns??0,holdout:evidence.acoustic?evidence.acoustic.actualModelRuns:null},
   staticVerification:staticResult,protectedProductionDiff:git('diff',START,'HEAD','--','apps/customer-web/src','apps/customer-web/public','backend/app'),
   capabilities:freeze.capabilities,previousDisposition:'STEP_ACOUSTIC_ATTEMPT_ASSEMBLY_NOT_ESTABLISHED',
   limitations:['Engineering/product qualification only, not globally blind.','No new physical devices, commercial qualification, scientific winner or UX SLO.',

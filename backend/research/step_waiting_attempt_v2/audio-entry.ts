@@ -3,13 +3,14 @@ import {SourceAnalysisRuntime} from '../../../apps/customer-web/src/lib/practice
 import {sha256} from '../../../apps/customer-web/src/lib/practice/acoustic/model/model-contract';
 import type {DecodedPublication} from '../step_decoded_sufficiency/acoustic-gestures';
 import {WaitingAcousticAssembly} from './waiting-assembly';
+import {SharedWorkerJobs} from './shared-worker-jobs';
 
 type AudioJob={id:string;rate:number;sha256:string;bytes:number;sourceOriginSample:number;regionStartSourceSample:number;
   regionEndSourceSample:number;semanticEndSourceSample:number};
 declare global{interface Window{runWaitingAudioOnly(jobs:readonly AudioJob[]):Promise<unknown>}}
 window.runWaitingAudioOnly=async jobs=>{
   const worker=new AcousticModelWorker(new Worker('/worker.js',{type:'module'}));
-  const model=await worker.load('/model.onnx');let actualModelRuns=0,leaseReleases=0;
+  const model=await worker.load('/model.onnx'),sharedJobs=new SharedWorkerJobs(worker);let actualModelRuns=0,leaseReleases=0;
   const results=[];
   try{
     for(const job of jobs){
@@ -21,7 +22,7 @@ window.runWaitingAudioOnly=async jobs=>{
       const publications:DecodedPublication[]=[],attempts=[],receipts=[];
       let next=job.sourceOriginSample,available=next/job.rate*1000;
       const runtime=await SourceAnalysisRuntime.create({sourceDomainId:domainId,sourceSampleRateHz:job.rate,coefficientBytes,
-        worker:{run:async input=>{const started=performance.now();const result=await worker.run(input);
+        worker:{run:async input=>{const started=performance.now();const result=await sharedJobs.run(input);
           actualModelRuns=result.actualSessionRunCount;available+=performance.now()-started;return result;},
           // The single run-level model owner lends its inference port to one source session at a time.
           dispose:async()=>{leaseReleases++;}},
@@ -50,7 +51,7 @@ window.runWaitingAudioOnly=async jobs=>{
         results.push({id:job.id,rate:job.rate,publications,attempts,receipts,snapshot,assembly:assembly.snapshot(),sourceGap:0});
       }finally{await runtime.dispose();}
     }
-    return {status:'SEALED_AUDIO_ONLY',model,actualModelRuns,workerConstructions:1,modelSessionLoads:1,leaseReleases,results,
+    return {status:'SEALED_AUDIO_ONLY',model,actualModelRuns,submittedJobs:sharedJobs.submittedJobs,workerConstructions:1,modelSessionLoads:1,leaseReleases,results,
       scheduling:'One continuous source region per independent source session, never per semantic attempt; one sequential shared production Worker/model for this complete browser run.'};
   }catch(error){throw Error(JSON.stringify({error:String(error),actualModelRuns,leaseReleases}));}
   finally{await worker.dispose();}
