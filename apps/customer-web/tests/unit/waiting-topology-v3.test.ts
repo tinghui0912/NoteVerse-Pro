@@ -47,12 +47,16 @@ it('post-seal scoring invokes the production STEP runtime and rejects subset tar
 });
 it('frozen audio jobs expose numeric control only and Stage A has no truth/product imports',()=>{
  const root=path.resolve(__dirname,'../../../..');
- const jobs=JSON.parse(readFileSync(path.join(root,'backend/data/work/step_waiting_topology_v3/corpus-v3/audio_only/jobs.json'),'utf8')).jobs as AudioJob[];
+ const jobs=JSON.parse(readFileSync(path.join(root,'backend/data/work/step_waiting_topology_v3/corpus-v4/audio_only/jobs.json'),'utf8')).jobs as AudioJob[];
  expect(jobs).toHaveLength(56);
  for(const job of jobs)for(const key of Object.keys(job))expect(key).not.toMatch(/truth|expected|pitch|topology|verdict|stepId/i);
  for(const file of ['assembly.ts','audio-entry.ts'])expect(readFileSync(path.join(root,'backend/research/step_waiting_topology_v3',file),'utf8')).not.toMatch(/StepPracticeRuntime|StepTarget|expectedPitch|truth\.json|\b(?:MATCH|MISMATCH)\b|targetGeneration/);
  const scorer=readFileSync(path.join(root,'backend/research/step_waiting_topology_v3/score.mjs'),'utf8');
  expect(scorer.indexOf('hash(bytes)!==seal.sha256')).toBeLessThan(scorer.indexOf("path.join(DATA,'truth.json')"));
+});
+it('every eligible terminal anchor has full real owned coverage for its entire50ms attempt',()=>{
+ const jobs=JSON.parse(readFileSync(path.resolve(__dirname,'../../../../backend/data/work/step_waiting_topology_v3/corpus-v4/audio_only/jobs.json'),'utf8')).jobs as AudioJob[];
+ for(const j of jobs)expect(j.regionEndSourceSample).toBeGreaterThanOrEqual(j.semanticEndSourceSample+j.rate*GESTURE_WIDTH_MS/1000);
 });
 it('an old pre-watermark physical gesture cannot corroborate a new decoded MATCH even with identical pitches',()=>{
  const gate=new WaitingTopologyGate(48000,'s',0,200000,0,0);gate.captureThrough(58000,.8);gate.arm(58000,1);
