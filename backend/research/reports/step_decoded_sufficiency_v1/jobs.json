@@ -1,0 +1,344 @@
+{
+  "jobs": [
+    {
+      "id": "s00-00",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s00-00-44100.f32",
+      "sha256": "99470a598d0f8cfe84583c77d18d195c2ceb39e651ae56929769abdec2de00e2",
+      "bytes": 882000,
+      "sourceOriginSample": 59976,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s00-00",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s00-00-48000.f32",
+      "sha256": "967f673ff0775cdf9d5309eb89b2455c8c2823abd25c871d97b49e487717f24e",
+      "bytes": 960000,
+      "sourceOriginSample": 65280,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s00-01",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s00-01-44100.f32",
+      "sha256": "fbf788fc4cadb08692b114d19cb9e9041c7c9e4e9451c079fa9a90286566c228",
+      "bytes": 882000,
+      "sourceOriginSample": 48510,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s00-01",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s00-01-48000.f32",
+      "sha256": "956cd86d107118db51ead396775349d81034e12c0e74bea59bb41dbcd4998ba2",
+      "bytes": 960000,
+      "sourceOriginSample": 52800,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s00-02",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s00-02-44100.f32",
+      "sha256": "70079245ad7d0d7f040521ab21ee8426291274dc02d06616d670be076565a5b0",
+      "bytes": 882000,
+      "sourceOriginSample": 95256,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s00-02",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s00-02-48000.f32",
+      "sha256": "a51993e485b7ddbb4c98647eaad41a68ba8accd3e7535e5f9cd63ca9ac367703",
+      "bytes": 960000,
+      "sourceOriginSample": 103680,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s00-03",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s00-03-44100.f32",
+      "sha256": "3fe889520588d5d7b3f24feba08f94537e1b6d0287a11df7de648decb69a4778",
+      "bytes": 882000,
+      "sourceOriginSample": 507591,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s00-03",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s00-03-48000.f32",
+      "sha256": "423270376f7255a8c431d20b95d8513ad03818bbd0f179c64753c09802190787",
+      "bytes": 960000,
+      "sourceOriginSample": 552480,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s00-04",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s00-04-44100.f32",
+      "sha256": "aed643db01a2a6dd827a8e179d10cf0880e192ced920a8ed744bdaa4f008604a",
+      "bytes": 882000,
+      "sourceOriginSample": 227997,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s00-04",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s00-04-48000.f32",
+      "sha256": "948fe8d485f9f0b6f7eb316b5d05fc44432c8d32172c15343f717451911a22fd",
+      "bytes": 960000,
+      "sourceOriginSample": 248160,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s00-05",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s00-05-44100.f32",
+      "sha256": "1d3c6f0aec90e04a9a2fa9e4402918b5c71a786b09fcaa7f8cb6daecfab52e1b",
+      "bytes": 882000,
+      "sourceOriginSample": 127449,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s00-05",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s00-05-48000.f32",
+      "sha256": "ffd6b3d0c69c9db24c650196efd36534496df1b0cbf12f607608cbfa2581bafc",
+      "bytes": 960000,
+      "sourceOriginSample": 138720,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s00-06",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s00-06-44100.f32",
+      "sha256": "027fccb368f157598a44bab589e99281747081148d6683cec58c85c5f660f555",
+      "bytes": 882000,
+      "sourceOriginSample": 6614559,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s00-06",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s00-06-48000.f32",
+      "sha256": "8c44c65afbc4d8938d881589b8078a5cfaef7114a72016444e2d6c042ce898da",
+      "bytes": 960000,
+      "sourceOriginSample": 7199520,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s01-00",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s01-00-44100.f32",
+      "sha256": "40116c3ca585a104db62d6d260df6fff036bc2dbad1530a939813016c2586b7e",
+      "bytes": 882000,
+      "sourceOriginSample": 47628,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s01-00",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s01-00-48000.f32",
+      "sha256": "339d31f1f3a04ceae542e7d037b8f0f3f51444ff7539ec27e8aaf6bd80cd2af0",
+      "bytes": 960000,
+      "sourceOriginSample": 51840,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s01-01",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s01-01-44100.f32",
+      "sha256": "3a8726c454045826308364d1b3341809181c3d8a10204fa67932c423f0c459c3",
+      "bytes": 882000,
+      "sourceOriginSample": 7938,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s01-01",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s01-01-48000.f32",
+      "sha256": "9a01ec922c3b961557cec7cd7de8980fcd110abbf3cf7b3bc87adbbfce48a768",
+      "bytes": 960000,
+      "sourceOriginSample": 8640,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s01-02",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s01-02-44100.f32",
+      "sha256": "896eec8db0a934c9dc9888135076298ba0bebd02a8ffbfef40e545dad8ceee52",
+      "bytes": 882000,
+      "sourceOriginSample": 1205694,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s01-02",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s01-02-48000.f32",
+      "sha256": "423790d948c5b13a3dbb9ffe7f3890818ad966a9c8491b757f32d4af12518a22",
+      "bytes": 960000,
+      "sourceOriginSample": 1312320,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s01-03",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s01-03-44100.f32",
+      "sha256": "78de1c1a2445745b25b098baac37feedcf6717c66b592c27357ca9a0d4940f47",
+      "bytes": 882000,
+      "sourceOriginSample": 1708875,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s01-03",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s01-03-48000.f32",
+      "sha256": "b0a227330b98b568697e0949d8a9265fe6fdbfc01b1f829ab66d1860c66b2671",
+      "bytes": 960000,
+      "sourceOriginSample": 1860000,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s02-00",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s02-00-44100.f32",
+      "sha256": "b303f0a0581cb4e626c286ed794c5bc1acf1d6fdb26f353f7dadc26b1b80e880",
+      "bytes": 882000,
+      "sourceOriginSample": 26901,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s02-00",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s02-00-48000.f32",
+      "sha256": "8d72c7c5f0391f87531c0adf5f0f78dcfa21afcd137f1ef5ad2f958c67c8b787",
+      "bytes": 960000,
+      "sourceOriginSample": 29280,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s02-01",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s02-01-44100.f32",
+      "sha256": "2c3bb2542e0b45013396b904b5afffda569c2286fb15bce08814030846318e64",
+      "bytes": 882000,
+      "sourceOriginSample": 60417,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s02-01",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s02-01-48000.f32",
+      "sha256": "2217d644481e58794daaf67f35b120f4fcc69bc9762d7c16f83b6c95488bc375",
+      "bytes": 960000,
+      "sourceOriginSample": 65760,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s02-02",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s02-02-44100.f32",
+      "sha256": "a96635872907ced9978b3ee02845e0cc7776d81691480f295bd3eb3319c6f240",
+      "bytes": 882000,
+      "sourceOriginSample": 4586841,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s02-02",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s02-02-48000.f32",
+      "sha256": "69b8afdeac7a9a29926c642ed3b0f0a7c00745c012ff9af134cdddf4fe43cc8b",
+      "bytes": 960000,
+      "sourceOriginSample": 4992480,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s02-03",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s02-03-44100.f32",
+      "sha256": "a6b2f1bb70146816d1dcb4e66910e56cf70474b356a6a14c915acc1dcbbc297b",
+      "bytes": 882000,
+      "sourceOriginSample": 610785,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s02-03",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s02-03-48000.f32",
+      "sha256": "78afeff6f53774a5a5ff21045b7429ec41d54a27d50c0e215a448a99df42419d",
+      "bytes": 960000,
+      "sourceOriginSample": 664800,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s02-04",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s02-04-44100.f32",
+      "sha256": "4b0023548d72afd9f573e58bccbc19af5a5859d956a56aa4f0052b162041c162",
+      "bytes": 882000,
+      "sourceOriginSample": 302085,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s02-04",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s02-04-48000.f32",
+      "sha256": "91d65dcce0778ae410fd72ce7735948f4c5cc6e5a8d448f10701538d17321c5a",
+      "bytes": 960000,
+      "sourceOriginSample": 328800,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s02-05",
+      "rate": 44100,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s02-05-44100.f32",
+      "sha256": "0e226459c2c7e35f5cccc768dc894337299741a21e8191a7fa8f935e7dc46868",
+      "bytes": 882000,
+      "sourceOriginSample": 123480,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    },
+    {
+      "id": "s02-05",
+      "rate": 48000,
+      "path": "backend/data/work/step_decoded_sufficiency/v1-final/audio_only/s02-05-48000.f32",
+      "sha256": "1c675c010c3833f0623e79353eb89e1272b05c3688115f351809d6e1d36d8222",
+      "bytes": 960000,
+      "sourceOriginSample": 134400,
+      "ownedStartTarget": 19200,
+      "ownedSamples": 57600
+    }
+  ]
+}

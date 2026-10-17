@@ -1,0 +1,11 @@
+{
+  "freezeCommit": "5d9cb00c7f7ef49e6760cbcd7c603dfd297d8b65",
+  "remoteHead": "5d9cb00c7f7ef49e6760cbcd7c603dfd297d8b65",
+  "freezeSha256": "e596e2edc103e9ab0db11a24fec4af5d2a4c3e986f36301250bcc4d5174bd432",
+  "remoteVerifiedAt": "2026-10-17T19:20:19.852Z",
+  "executionStartedAt": "2026-10-17T19:20:20.194Z",
+  "path": "backend/data/work/step_decoded_sufficiency/v1-final/acoustic.json",
+  "sha256": "2b63d13fd580fd390c6deabdceddca7208cef06b57807af35ac5fa0fabfe04dc",
+  "sealedAt": "2026-10-17T19:20:55.635Z",
+  "truthAvailableToStageA": false
+}
