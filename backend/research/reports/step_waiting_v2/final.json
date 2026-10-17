@@ -1,0 +1,1291 @@
+{
+  "phase": "PRACTICE_STEP_WAITING_LIFECYCLE_INPUT_ELIGIBILITY_CLEAN_BREAK",
+  "disposition": "PRACTICE_STEP_WAITING_LIFECYCLE_INPUT_ELIGIBILITY_READY_MICROPHONE_DISABLED",
+  "startingHead": "acb73c8c6ada20a0e0d47bcf279661982c11d674",
+  "implementationCommit": "19230c7dad34614a880bc2ef39f2aee1a0e9913c",
+  "freezeCommit": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+  "freezeSha256": "73093b2ad367b8bcf9e8491d47459420296d9a48cc3fabec9e4280b728478a00",
+  "freezeProof": {
+    "freezeCommit": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+    "remoteHead": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+    "freezeSha256": "73093b2ad367b8bcf9e8491d47459420296d9a48cc3fabec9e4280b728478a00",
+    "remoteVerifiedAt": "2026-10-17T19:59:32.239Z",
+    "executionStartedAt": "2026-10-17T19:59:32.553Z"
+  },
+  "executionProofs": [
+    {
+      "artifact": "verification",
+      "freezeCommit": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+      "remoteHead": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+      "freezeSha256": "73093b2ad367b8bcf9e8491d47459420296d9a48cc3fabec9e4280b728478a00",
+      "remoteVerifiedAt": "2026-10-17T19:55:55.240Z",
+      "executionStartedAt": "2026-10-17T19:55:55.620Z"
+    },
+    {
+      "artifact": "step",
+      "freezeCommit": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+      "remoteHead": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+      "freezeSha256": "73093b2ad367b8bcf9e8491d47459420296d9a48cc3fabec9e4280b728478a00",
+      "remoteVerifiedAt": "2026-10-17T19:57:14.227Z",
+      "executionStartedAt": "2026-10-17T19:57:14.563Z"
+    },
+    {
+      "artifact": "replay",
+      "freezeCommit": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+      "remoteHead": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+      "freezeSha256": "73093b2ad367b8bcf9e8491d47459420296d9a48cc3fabec9e4280b728478a00",
+      "remoteVerifiedAt": "2026-10-17T19:57:24.438Z",
+      "executionStartedAt": "2026-10-17T19:57:24.748Z"
+    },
+    {
+      "artifact": "engineering",
+      "freezeCommit": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+      "remoteHead": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+      "freezeSha256": "73093b2ad367b8bcf9e8491d47459420296d9a48cc3fabec9e4280b728478a00",
+      "remoteVerifiedAt": "2026-10-17T19:57:32.583Z",
+      "executionStartedAt": "2026-10-17T19:57:32.960Z"
+    },
+    {
+      "artifact": "musical",
+      "freezeCommit": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+      "remoteHead": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+      "freezeSha256": "73093b2ad367b8bcf9e8491d47459420296d9a48cc3fabec9e4280b728478a00",
+      "remoteVerifiedAt": "2026-10-17T19:58:39.043Z",
+      "executionStartedAt": "2026-10-17T19:58:39.633Z"
+    },
+    {
+      "artifact": "scores",
+      "freezeCommit": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+      "remoteHead": "06326fbb8aefae2cae474d7301eb73f4b964cc15",
+      "freezeSha256": "73093b2ad367b8bcf9e8491d47459420296d9a48cc3fabec9e4280b728478a00",
+      "remoteVerifiedAt": "2026-10-17T19:59:27.018Z",
+      "executionStartedAt": "2026-10-17T19:59:27.323Z"
+    }
+  ],
+  "commitChain": [
+    "1457e6699269ede3c56c49fb079680bde1d594b5 refactor(practice): make STEP waiting-only with explicit input eligibility",
+    "5566c0a7260b2013a532a92291dd9d4323d231d8 freeze(practice): STEP waiting lifecycle and input eligibility v1 protocol",
+    "19230c7dad34614a880bc2ef39f2aee1a0e9913c fix(practice): preserve STEP terminal cleanup and invalidate waiting freeze v1",
+    "06326fbb8aefae2cae474d7301eb73f4b964cc15 freeze(practice): STEP waiting lifecycle v2 acceptance protocol"
+  ],
+  "changedPaths": [
+    "A\tapps/customer-web/scripts/step-waiting/controller-browser.mjs",
+    "A\tapps/customer-web/scripts/step-waiting/deterministic.mjs",
+    "A\tapps/customer-web/scripts/step-waiting/musical-browser.mjs",
+    "A\tapps/customer-web/scripts/step-waiting/protocol.mjs",
+    "A\tapps/customer-web/scripts/step-waiting/replay.mjs",
+    "A\tapps/customer-web/scripts/step-waiting/report.mjs",
+    "A\tapps/customer-web/scripts/step-waiting/score.mjs",
+    "A\tapps/customer-web/scripts/step-waiting/verify.mjs",
+    "A\tapps/customer-web/scripts/step-waiting/witnesses.ts",
+    "M\tapps/customer-web/src/app/[locale]/(workspace)/score/[id]/practice/page.tsx",
+    "M\tapps/customer-web/src/components/practice/practice-controls.test.tsx",
+    "M\tapps/customer-web/src/components/practice/practice-controls.tsx",
+    "M\tapps/customer-web/src/components/practice/practice-score-viewer.tsx",
+    "M\tapps/customer-web/src/components/practice/practice-status.test.ts",
+    "M\tapps/customer-web/src/components/practice/practice-status.tsx",
+    "M\tapps/customer-web/src/hooks/practice/use-local-practice.test.tsx",
+    "M\tapps/customer-web/src/hooks/practice/use-local-practice.ts",
+    "M\tapps/customer-web/src/hooks/practice/use-step-local-practice.ts",
+    "M\tapps/customer-web/src/lib/practice/continuous/continuous-presentation.ts",
+    "M\tapps/customer-web/src/lib/practice/local-core/README.md",
+    "M\tapps/customer-web/src/lib/practice/local-core/session.ts",
+    "M\tapps/customer-web/src/lib/practice/local-core/step-attempt.test.ts",
+    "M\tapps/customer-web/src/lib/practice/local-core/step-attempt.ts",
+    "M\tapps/customer-web/src/lib/practice/local-core/step-rearm-watermark.test.ts",
+    "M\tapps/customer-web/src/lib/practice/local-core/step-runtime.ts",
+    "M\tapps/customer-web/src/lib/practice/midi/browser-midi-controller.test.ts",
+    "M\tapps/customer-web/src/lib/practice/step/README.md",
+    "M\tapps/customer-web/src/lib/practice/step/exclusive-boundary.test.ts",
+    "M\tapps/customer-web/src/lib/practice/step/step-architecture.test.ts",
+    "M\tapps/customer-web/src/lib/practice/step/step-platform.ts",
+    "M\tapps/customer-web/src/lib/practice/step/step-practice-controller.test.ts",
+    "M\tapps/customer-web/src/lib/practice/step/step-practice-controller.ts",
+    "A\tapps/customer-web/src/lib/practice/step/waiting-contract.test.ts",
+    "M\tapps/customer-web/tests/unit/step-decoded-replay-contract.test.ts",
+    "A\tbackend/research/history/step-boundary-before-waiting-lifecycle/manifest.json",
+    "R100\tapps/customer-web/scripts/step-boundary/witnesses.ts\tbackend/research/history/step-boundary-before-waiting-lifecycle/witnesses.ts",
+    "A\tbackend/research/reports/step_waiting_v1_freeze_2026-10-18.json",
+    "A\tbackend/research/reports/step_waiting_v1_invalidated/invalidation.json",
+    "A\tbackend/research/reports/step_waiting_v1_invalidated/verification.json",
+    "A\tbackend/research/reports/step_waiting_v1_invalidated/vitest.json",
+    "A\tbackend/research/reports/step_waiting_v2_freeze_2026-10-18.json",
+    "A\tbackend/research/step_waiting/product-replay.ts",
+    "M\tdocs/architecture/practice-product-contract-v2.md"
+  ],
+  "archive": {
+    "originalPath": "apps/customer-web/scripts/step-boundary/witnesses.ts",
+    "sourceCommit": "acb73c8c6ada20a0e0d47bcf279661982c11d674",
+    "gitBlob": "ebca2dfc65584cf25fd3c2cd3384cf96c48b327c",
+    "bytes": 5525,
+    "sha256": "c8d8151c7fe6818d3acd3a6342629dd75a63c15ffaa009709cee49fc860e4d0e",
+    "historicalOnly": true
+  },
+  "continuousCompileOnlyChange": "continuous-presentation imports renamed ContinuousPracticeLifecycle; no executable behavior changed",
+  "protectedSourceDiff": "",
+  "stepLifecycle": [
+    "READY",
+    "ACTIVE",
+    "ENDED"
+  ],
+  "stepSchema": 3,
+  "runtimeIdentity": "step-waiting-attempt-v3",
+  "inputEligibleAfter": "Strict authoritative event-time > watermark; readiness/reconnect/Skip retire old input; future asynchronous acoustic re-arm samples physical capture/session coverage, NOT analysis frontier",
+  "midi": "Native event.timeStamp; fixed [firstNOTEON,firstNOTEON+35ms), immediate rearm at capture end; MIDIAccess remains alive through outage",
+  "continuous": "One NOTE_ON => one observation; existing pause/resume and 250ms coverage grace unchanged",
+  "inputEligibilitySafety": "ESTABLISHED_FOR_FROZEN_CASES",
+  "acousticGestureAssemblySafety": "NOT_ESTABLISHED",
+  "historicalAcousticDisposition": "STEP_DECODED_ACOUSTIC_ATTEMPT_SAFETY_NOT_ESTABLISHED",
+  "busyPeriodCarryoverAdvance": 0,
+  "latePublicationCarryoverAdvance": 0,
+  "retiredHistoricalBusyWitnesses": 8,
+  "preservedBachGroupingWitnesses": 4,
+  "continuousParity": [
+    {
+      "id": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "rate": 44100,
+      "status": "PASS"
+    },
+    {
+      "id": "xc2_00_chopin_op026no1_003_20100611-smd",
+      "rate": 48000,
+      "status": "PASS"
+    },
+    {
+      "id": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "rate": 44100,
+      "status": "PASS"
+    },
+    {
+      "id": "xc2_02_beethoven_op031no2-01_002_20090916-smd",
+      "rate": 48000,
+      "status": "PASS"
+    },
+    {
+      "id": "xc2_04_chopin_op028-01_003_20100611-smd",
+      "rate": 44100,
+      "status": "PASS"
+    },
+    {
+      "id": "xc2_04_chopin_op028-01_003_20100611-smd",
+      "rate": 48000,
+      "status": "PASS"
+    },
+    {
+      "id": "silence",
+      "rate": 44100,
+      "status": "PASS"
+    },
+    {
+      "id": "silence",
+      "rate": 48000,
+      "status": "PASS"
+    }
+  ],
+  "engineeringCells": [
+    {
+      "rate": 44100,
+      "scenario": "natural_recording_offline",
+      "state": "PASS"
+    },
+    {
+      "rate": 44100,
+      "scenario": "count_in_cancel_multiple_pause_manual_stop",
+      "state": "PASS"
+    },
+    {
+      "rate": 44100,
+      "scenario": "pause_near_terminal_resume_natural",
+      "state": "PASS"
+    },
+    {
+      "rate": 44100,
+      "scenario": "recording_analysis_failure_running",
+      "state": "PASS"
+    },
+    {
+      "rate": 48000,
+      "scenario": "natural_recording_offline",
+      "state": "PASS"
+    },
+    {
+      "rate": 48000,
+      "scenario": "count_in_cancel_multiple_pause_manual_stop",
+      "state": "PASS"
+    },
+    {
+      "rate": 48000,
+      "scenario": "pause_near_terminal_resume_natural",
+      "state": "PASS"
+    },
+    {
+      "rate": 48000,
+      "scenario": "recording_analysis_failure_running",
+      "state": "PASS"
+    }
+  ],
+  "modelRuns": {
+    "stepReplay": 0,
+    "continuousEngineering": 18,
+    "continuousMusicalIncludingController": 76,
+    "total": 94
+  },
+  "verification": [
+    {
+      "name": "execution-accounting-tests",
+      "exitCode": 0,
+      "output": "✔ failed-cell JSON witness is retained instead of discarding completed real executions (1.0201ms)\n✔ unobserved in-flight execution is explicitly incomplete, never guessed (0.1387ms)\nℹ tests 2\nℹ suites 0\nℹ pass 2\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 67.9555\n"
+    },
+    {
+      "name": "vitest",
+      "exitCode": 0,
+      "counts": {
+        "totalTests": 1101,
+        "passedTests": 1101,
+        "failedTests": 0,
+        "testFiles": 148,
+        "runnerSuiteCount": 305,
+        "success": true
+      }
+    },
+    {
+      "name": "typecheck",
+      "exitCode": 0
+    },
+    {
+      "name": "lint",
+      "exitCode": 0,
+      "messages": [
+        {
+          "path": "scripts/step-boundary/prepare-tooling.mjs",
+          "rule": "prefer-const",
+          "message": "'text' is never reassigned. Use 'const' instead.",
+          "severity": 1,
+          "line": 3,
+          "column": 6
+        }
+      ]
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    },
+    {
+      "name": "Docker backend asset unittest",
+      "exitCode": 0,
+      "output": "test_authenticated_delivery_over_http_without_practice_or_database (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_authenticated_delivery_over_http_without_practice_or_database) ... ok\ntest_delivery_is_pinned_and_ignores_historical_object_key (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_delivery_is_pinned_and_ignores_historical_object_key) ... ok\ntest_only_shared_endpoint_is_registered (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_only_shared_endpoint_is_registered) ... ok\ntest_schema_rejects_the_old_export (tests.test_practice_acoustic_model_asset.PracticeAcousticModelAssetTests.test_schema_rejects_the_old_export) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 0.031s\n\nOK\n"
+    },
+    {
+      "name": "Docker backend model asset route tests",
+      "exitCode": 0,
+      "output": "...                                                                      [100%]\n=============================== warnings summary ===============================\n../../usr/local/lib/python3.12/site-packages/_pytest/config/__init__.py:1441\n  /usr/local/lib/python3.12/site-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode\n  \n    self._warn_or_fail_if_strict(f\"Unknown config option: {key}\\n\")\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n3 passed, 1 warning in 2.16s\n"
+    }
+  ],
+  "focusedTests": {
+    "files": 16,
+    "total": 164,
+    "passed": 164,
+    "failed": 0,
+    "assertions": [
+      {
+        "file": "tests\\unit\\step-decoded-replay-contract.test.ts",
+        "name": "one publication contributes at most one attempt; no same-publication replay",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "tests\\unit\\step-decoded-replay-contract.test.ts",
+        "name": "busy publication is discarded and late source evidence cannot open a later attempt",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "tests\\unit\\step-decoded-replay-contract.test.ts",
+        "name": "score-blind coherence spans publication boundaries without extending transitively",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "tests\\unit\\step-decoded-replay-contract.test.ts",
+        "name": "availability may change lock/verdict but cannot redefine the event identity",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "tests\\unit\\step-decoded-replay-contract.test.ts",
+        "name": "an old receipt may complete analysis without becoming the origin of a new attempt",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "tests\\unit\\step-decoded-replay-contract.test.ts",
+        "name": "the domain does not pretend an acoustic echo after its watermark proves a new physical strike",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "tests\\unit\\step-decoded-replay-contract.test.ts",
+        "name": "Stage A and gesture acquisition cannot read truth or a STEP target; Stage B verifies the seal first",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\components\\practice\\practice-controls.test.tsx",
+        "name": "ContinuousPracticeControls STEP active waiting renders Finish but never Pause or Resume",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\components\\practice\\practice-controls.test.tsx",
+        "name": "ContinuousPracticeControls keeps the section button label stable while active",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\components\\practice\\practice-controls.test.tsx",
+        "name": "ContinuousPracticeControls renders settings inside the bottom controls",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\components\\practice\\practice-controls.test.tsx",
+        "name": "ContinuousPracticeControls calls onPause when active and onResume when paused",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\components\\practice\\practice-controls.test.tsx",
+        "name": "ContinuousPracticeControls renders interactive metronome toggle inside tempo popover that switches state",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\components\\practice\\practice-controls.test.tsx",
+        "name": "ContinuousPracticeControls renders real tempo control button in bottom bar",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\components\\practice\\practice-controls.test.tsx",
+        "name": "ContinuousPracticeControls enforces selectedInputSupported for start gating independently of audioWorkletSupported",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\components\\practice\\practice-controls.test.tsx",
+        "name": "ContinuousPracticeControls enforces selectedInputCapability for start gating",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step-playhead-controller.test.ts",
+        "name": "StepPlayheadController keeps one background cursor on the current target until the target changes",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice initializes in READY lifecycle and IDLE inputState",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice starts STEP practice and transitions to ACTIVE lifecycle and RUNNING inputState",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice starts STEP with a current group without sending target knowledge to MIDI",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice fails STEP microphone closed until bounded-attempt analysis is available",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice handles MIDI input start failure by keeping READY lifecycle and setting ERROR inputState",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice STEP exposes waiting commands, never transport commands",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice handles MIDI disconnect by remaining ACTIVE and ERROR while preserving progress",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice finishes on user request and transitions to ENDED",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice skips steps and updates current group",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice restarts a fresh session after completion",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice starts CONTINUOUS practice with custom tempo and exposes resolvedTempoPlan",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice creates Continuous runtime before MIDI start without accepting pre-performance NOTE_ON evidence",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice keeps MIDI continuous recording OFF from requesting microphone media",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice pauses continuous MIDI when every input disconnects and waits for explicit resume",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice does not double-pause continuous MIDI when already paused before disconnect",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice keeps continuous MIDI paused after reconnect until explicit resume",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice serializes duplicate CONTINUOUS finish requests through one completion transaction",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\hooks\\practice\\use-local-practice.test.tsx",
+        "name": "useLocalPractice does not start legacy rolling microphone analysis for CONTINUOUS practice",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict target 0, gesture [\"C4\"] yields MATCH",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict target 0, gesture [\"C#4\"] yields MISMATCH",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict target 0, gesture [\"C5\"] yields MISMATCH",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict target 3, gesture [\"A4\"] yields MISMATCH",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict target 3, gesture [\"A4\",\"C5\",\"D5\"] yields MISMATCH",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict target 3, gesture [\"C5\",\"A4\"] yields MATCH",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict target 3, gesture [\"G4\"] yields MISMATCH",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict partial pitches never accumulate; mismatch then a fresh correct attempt",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict repeated notes need new identity and RESET is explicit backpressure",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict RETRY UNCERTAIN records without advancing",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict RETRY TOO_QUIET records without advancing",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict setInputUnavailable invalidates active capture and late analysis",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict skip invalidates active capture and late analysis",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict end invalidates active capture and late analysis",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict input return preserves target generation; old attempt and session cannot complete",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict finish never fabricates a verdict and is idempotent",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict scope completion, separate skip history, v3 snapshot, immutable output",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict rejects stale source time, foreign domain, invalid confidence and forged identity",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict history ceiling fails before opening another attempt, retaining every record",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-attempt.test.ts",
+        "name": "one target / one bounded attempt / one verdict deterministic many-cycle input outage: one result, no stale attempt or partial carry",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-rearm-watermark.test.ts",
+        "name": "explicit STEP accepted-input watermark MATCH cannot carry busy/late evidence across re-arm",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-rearm-watermark.test.ts",
+        "name": "explicit STEP accepted-input watermark MISMATCH cannot carry busy/late evidence across re-arm",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-rearm-watermark.test.ts",
+        "name": "explicit STEP accepted-input watermark RETRY cannot carry busy/late evidence across re-arm",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-rearm-watermark.test.ts",
+        "name": "explicit STEP accepted-input watermark rejects foreign/nonfinite/backward watermark without leaving RESET",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-rearm-watermark.test.ts",
+        "name": "explicit STEP accepted-input watermark requires RESET and ACTIVE, never reads implicit now to re-arm",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\local-core\\step-rearm-watermark.test.ts",
+        "name": "explicit STEP accepted-input watermark reconnect and skip cannot revive input already retired by an explicit watermark",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\audio-context-performance-clock.test.ts",
+        "name": "reads currentTime exactly once and preserves that instant throughout a transition",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\audio-context-performance-clock.test.ts",
+        "name": "rejects nested and asynchronous transitions and releases after failure",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-architecture.test.ts",
+        "name": "the React Continuous hook constructs only its application owner",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-architecture.test.ts",
+        "name": "one controller constructs one product session, never a second evaluator",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-architecture.test.ts",
+        "name": "product finalizer has no acoustic model dependency",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-architecture.test.ts",
+        "name": "active Continuous has no old worker, research namespace, or output timestamp mapper",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-architecture.test.ts",
+        "name": "both microphone product capabilities stay unavailable",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner source ended during RUNNING fatally closes input and never stores completed truth",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner source mute during RUNNING fatally closes input and never stores completed truth",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner source ended during PAUSED fatally closes input and never stores completed truth",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner source mute during PAUSED fatally closes input and never stores completed truth",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner source ended during FINALIZING fatally closes input and never stores completed truth",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner source mute during FINALIZING fatally closes input and never stores completed truth",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner context suspended while RUNNING is fatal, unlike Worker failure",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner context suspended while PAUSED is fatal, unlike Worker failure",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner context interrupted while RUNNING is fatal, unlike Worker failure",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner context interrupted while PAUSED is fatal, unlike Worker failure",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner context closed while RUNNING is fatal, unlike Worker failure",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner context closed while PAUSED is fatal, unlike Worker failure",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner settles worker-dispose failure without COMPLETE, unhandled rejection or double cleanup",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner settles context-close failure without COMPLETE, unhandled rejection or double cleanup",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner settles recorder-stop failure without COMPLETE, unhandled rejection or double cleanup",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner settles recorder-stop-reject failure without COMPLETE, unhandled rejection or double cleanup",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner settles recorder-finalize failure without COMPLETE, unhandled rejection or double cleanup",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner settles recorder-cleanup failure without COMPLETE, unhandled rejection or double cleanup",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner fresh controller after fatal source loss uses fresh owned resources",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner MIDI natural completion owns one evaluation without acoustic dependencies",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner MIDI pause/resume and manual Stop preserve identity and accumulated result",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner bounds controller diagnostics across 100 transport cycles",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner microphone count-in and natural terminal at 44100",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner microphone count-in and natural terminal at 48000",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner cancels count-in BEGIN on pause, then replaces it on resume",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner preserves a logically reached BEGIN whose source message has not arrived at Pause",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner cancels stale natural terminal near its boundary and resumes to a new one",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner multiple pauses keep exact identity; manual stop drains only tail",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner Stop during count-in produces zero-domain terminal, no fabricated input",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner analysis failure RUNNING does not stop clock/root/recording",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner analysis failure PAUSED does not stop clock/root/recording",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner recording ON normal completion shares one acquisition and exact pause mapping",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner does not expose COMPLETE or completed truth while Worker cleanup is still pending",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner pre-start model failure never begins transport or acquires microphone",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner observes a Worker crash during permission preparation before transport/context start",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner unsupported source rate fails before start and releases owned preparation resources",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner disposal during unresolved microphone permission stops the late owned root",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner dispose during RUNNING cleans each resource once",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner dispose during FINALIZING cleans each resource once",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner rejects cancellation of an applied boundary and keeps scheduler storage bounded",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-practice-controller.test.ts",
+        "name": "Continuous application owner retires 100 cancelled boundary IDs without keeping a tombstone list",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-presentation.test.ts",
+        "name": "Continuous presentation and safe product errors accounts for every session and analysis state without transport authority",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\continuous\\continuous-presentation.test.ts",
+        "name": "Continuous presentation and safe product errors maps public categories to localized UI messages without raw diagnostics",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\midi\\browser-midi-controller.test.ts",
+        "name": "browser MIDI controller converts MIDI note numbers to scientific pitch notation",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\midi\\browser-midi-controller.test.ts",
+        "name": "browser MIDI controller parses note_on and note_off messages correctly",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\midi\\browser-midi-controller.test.ts",
+        "name": "browser MIDI controller throws MidiNoConnectedInputError when 0 connected MIDI devices are detected",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\midi\\browser-midi-controller.test.ts",
+        "name": "browser MIDI controller starts successfully when at least 1 connected MIDI device is detected",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\midi\\browser-midi-controller.test.ts",
+        "name": "browser MIDI controller publishes generic NOTE_ON/OFF and immediate capture facts, without a target or gesture timer",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\midi\\browser-midi-controller.test.ts",
+        "name": "browser MIDI controller disposal during MIDI permission wait cannot leave a late active driver",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\midi\\browser-midi-controller.test.ts",
+        "name": "browser MIDI controller native event time survives delayed callbacks and velocity zero remains NOTE_OFF",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\midi\\browser-midi-controller.test.ts",
+        "name": "browser MIDI controller MIDIAccess stays subscribed across disconnect/reconnect without restarting the owner",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\exclusive-boundary.test.ts",
+        "name": "exclusive STEP activation boundary MATCH is callback-order independent and accepts only strictly later input",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\exclusive-boundary.test.ts",
+        "name": "exclusive STEP activation boundary MISMATCH is callback-order independent and accepts only strictly later input",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\exclusive-boundary.test.ts",
+        "name": "exclusive STEP activation boundary RETRY is callback-order independent and accepts only strictly later input",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\exclusive-boundary.test.ts",
+        "name": "exclusive STEP activation boundary reconnect/skip boundaries reject equality; old identity and timer cannot act",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\exclusive-boundary.test.ts",
+        "name": "exclusive STEP activation boundary partial attempts cannot accumulate across attempt/target ownership",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\input-time-contract.test.ts",
+        "name": "re-arm has one required SessionTime argument and no implicit clock read",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\input-time-contract.test.ts",
+        "name": "native handler forwards event time into the sole dispatch path",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\input-time-contract.test.ts",
+        "name": "Continuous MIDI keeps adjacent NOTE_ON facts independent, not a STEP gesture",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-architecture.test.ts",
+        "name": "React STEP constructs only its application owner; no lifecycle or gesture timers",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-architecture.test.ts",
+        "name": "generic MIDI has neither target knowledge nor acoustic dependencies",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-architecture.test.ts",
+        "name": "STEP MIDI reachability is entirely independent of acoustic/Continuous execution",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-architecture.test.ts",
+        "name": "pure domain cannot reach browser infrastructure, React, MIDI or assets",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-architecture.test.ts",
+        "name": "rolling STEP evidence, compatibility APIs and historical acoustic tree are absent",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-architecture.test.ts",
+        "name": "one executable model, worker and PCM worklet; one StepPracticeRuntime",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-architecture.test.ts",
+        "name": "only the domain owns the exclusive activation predicate; MIDI gesture remains half-open",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-architecture.test.ts",
+        "name": "Robust decoder has no historical defaults, padding, or Original model contract",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-architecture.test.ts",
+        "name": "STEP has one waiting lifecycle, no transport commands or obsolete activation API",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture exact end note is ignored before or after close (C4), strictly later note starts fresh",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture exact end note is ignored before or after close (D4), strictly later note starts fresh",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture target 0 closes full gesture [\"C4\"] before MATCH",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture target 0 closes full gesture [\"C#4\"] before MISMATCH",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture target 0 closes full gesture [\"C5\"] before MISMATCH",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture target 3 closes full gesture [\"A4\",\"C5\"] before MATCH",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture target 3 closes full gesture [\"A4\"] before MISMATCH",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture target 3 closes full gesture [\"A4\",\"C5\",\"D5\"] before MISMATCH",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture near-simultaneous extra pitch cannot follow an early correct chord acceptance",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture fixed first-note window is not extended by later notes or delayed timers",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture multiple wrong attempts then correct each close separately; metronome target changes only after MATCH",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture partial then later full chord does not reuse the previous gesture",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture held note cannot advance next repeated target, fresh NOTE_ON can",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture skip cancels capturing, including stale timer callback",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture finish cancels capturing, including stale timer callback",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture disconnect cancels capturing, including stale timer callback",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture dispose cancels capturing, including stale timer callback",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture reconnect waits on the same target, rejects stale/equal input and cancelled callback",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture ANALYZING/RESET input is ignored, never queued for the next target",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture readiness retires input buffered during asynchronous preparation",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture disconnect while waiting keeps target/session and automatically returns to waiting",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture finish and disposal release resources exactly once, before completion notification",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture dispose during preparation cancels late start and emits no successful session",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture fresh owner uses a fresh session and no old timer can advance it",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\step-practice-controller.test.ts",
+        "name": "STEP application owner / bounded MIDI gesture microphone start rejected without constructing MIDI/metronome or acoustic resources",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\waiting-contract.test.ts",
+        "name": "snapshot typing cannot represent paused STEP; Continuous retains it",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\waiting-contract.test.ts",
+        "name": "MATCH retires physical input beyond the completed analysis frontier",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\waiting-contract.test.ts",
+        "name": "MISMATCH retires physical input beyond the completed analysis frontier",
+        "status": "passed",
+        "failures": []
+      },
+      {
+        "file": "src\\lib\\practice\\step\\waiting-contract.test.ts",
+        "name": "RETRY retires physical input beyond the completed analysis frontier",
+        "status": "passed",
+        "failures": []
+      }
+    ]
+  },
+  "capabilities": {
+    "Continuous": "MODEL_NOT_VALIDATED",
+    "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "compatibilityLayer": false,
+  "fallbackPath": false,
+  "secondStepLifecycle": false,
+  "limitations": [
+    "Acoustic gesture assembly remains unsafe; this phase is not acoustic safety qualification.",
+    "Capture clock in STEP replay is a counterfactual continuously advancing source-sample timeline, not new device evidence.",
+    "No hardware, accuracy, UX latency or commercial enablement claim. No new STEP neural runs or datasets."
+  ],
+  "completedAt": "2026-10-17T19:59:32.830Z"
+}
