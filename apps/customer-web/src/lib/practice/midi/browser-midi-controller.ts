@@ -235,7 +235,7 @@ export class BrowserMidiController {
         connectedInputs.push(input);
         input.onmidimessage = (event: MIDIMessageEvent) => {
           if (event.data) {
-            this.dispatchMidiData(event.data);
+            this.dispatchMidiData(event.data, event.timeStamp);
           }
         };
       } else {

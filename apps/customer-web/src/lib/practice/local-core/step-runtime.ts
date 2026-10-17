@@ -88,8 +88,14 @@ export class StepPracticeRuntime {
     if (verdict === 'MATCH') this.advance();
     return Object.freeze({ kind: 'FINALIZED', record });
   }
-  rearm(): void {
-    if (this.lifecycle === 'ACTIVE' && this.attemptState === 'RESET') this.attemptState = 'READY';
+  rearm(acceptAfterSessionTime: SessionTime): void {
+    if (this.lifecycle !== 'ACTIVE' || this.attemptState !== 'RESET') throw new StepDomainError('STEP_ATTEMPT_STATE_INVALID');
+    this.validateTime(acceptAfterSessionTime);
+    if (acceptAfterSessionTime.ms < this.boundary.ms) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    // The caller owns input coverage. Busy-period source evidence cannot be
+    // rebound merely because its publication arrives after this transition.
+    this.boundary = Object.freeze({ ...acceptAfterSessionTime });
+    this.attemptState = 'READY';
   }
   cancelAttempt(): void { this.active = null; this.attemptState = 'READY'; }
   pause(): void {
@@ -98,12 +104,17 @@ export class StepPracticeRuntime {
   }
   resume(): void {
     if (this.lifecycle !== 'PAUSED') return;
-    this.lifecycle = 'ACTIVE'; this.generation++; this.boundary = this.now(); this.attemptState = 'READY';
+    const resumedAt = this.now();
+    // A transport command cannot make explicitly retired input eligible again.
+    if (resumedAt.ms > this.boundary.ms) this.boundary = resumedAt;
+    this.lifecycle = 'ACTIVE'; this.generation++; this.attemptState = 'READY';
   }
   skip(): boolean {
     const target = this.currentTarget(); if (!target) return false;
-    this.assertHistoryRoom(); this.cancelAttempt(); this.boundary = this.now();
-    this.skips.push(Object.freeze({ stepId: target.stepId, activationGeneration: this.generation, sessionTime: this.boundary }));
+    this.assertHistoryRoom(); this.cancelAttempt();
+    const skippedAt = this.now();
+    if (skippedAt.ms > this.boundary.ms) this.boundary = skippedAt;
+    this.skips.push(Object.freeze({ stepId: target.stepId, activationGeneration: this.generation, sessionTime: skippedAt }));
     this.advance(); return true;
   }
   end(reason: LocalPracticeCompletionReason = 'STOPPED_BY_USER'): void {
@@ -141,7 +152,7 @@ export class StepPracticeRuntime {
     }
   }
   private validateTime(time: SessionTime): void {
-    if (time.domainId !== this.localSessionId || !Number.isFinite(time.ms)) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
+    if (!time || time.domainId !== this.localSessionId || !Number.isFinite(time.ms)) throw new StepDomainError('STEP_ATTEMPT_EVIDENCE_INVALID');
   }
   private now(): Readonly<SessionTime> { return Object.freeze(this.timebase.runtimeToSessionTime(this.options.clock.nowMs())); }
   private epoch(): number { return this.options.metadataClock?.nowEpochMs() ?? Date.now(); }

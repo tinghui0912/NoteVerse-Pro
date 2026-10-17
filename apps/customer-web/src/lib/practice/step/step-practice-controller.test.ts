@@ -5,7 +5,7 @@ import { ManualClock } from '../local-core/timebase';
 import type { BrowserMidiControllerOptions } from '../midi/browser-midi-controller';
 import { StepPracticeController } from './step-practice-controller';
 import type { StepPlatform } from './step-platform';
-import { STEP_MIDI_GESTURE_MS } from './step-midi-attempt-input';
+import { STEP_MIDI_CHORD_COHERENCE_MS } from './step-midi-attempt-input';
 
 const artifact = fixture as PracticeScoreArtifact;
 function setup(index = 0, inputSource: 'MIDI' | 'MICROPHONE' = 'MIDI', delayed = false) {
@@ -60,7 +60,7 @@ describe('STEP application owner / bounded MIDI gesture', () => {
     pitches.forEach(p => s.note(p));
     expect(s.controller.snapshot().sessionSnapshot?.step.attempts).toHaveLength(0);
     expect(s.controller.snapshot().sessionSnapshot?.step.attemptState).toBe('CAPTURING');
-    expect(s.timers).toHaveLength(1); expect(s.timers[0].delay).toBe(STEP_MIDI_GESTURE_MS);
+    expect(s.timers).toHaveLength(1); expect(s.timers[0].delay).toBe(STEP_MIDI_CHORD_COHERENCE_MS);
     s.close(); const snapshot = s.controller.snapshot().sessionSnapshot!;
     expect(snapshot.step.attempts[0].verdict).toBe(verdict);
     expect(snapshot.step.currentIndex).toBe(index + (verdict === 'MATCH' ? 1 : 0));

@@ -6,6 +6,9 @@ import { ManualClock } from './timebase';
 import { MAX_STEP_HISTORY_RECORDS, type StepAttemptEvidence, type StepAttemptIdentity } from './step-attempt';
 
 const artifact = fixture as PracticeScoreArtifact;
+function rearmAtCaptureEnd(runtime: StepPracticeRuntime) {
+  runtime.rearm(runtime.snapshot().step.attempts.at(-1)!.captureEndSessionTime);
+}
 function setup(index = 0, id = 'step-test') {
   const clock = new ManualClock(100);
   const groupId = artifact.expectedPracticeGroups[index].groupId;
@@ -37,9 +40,9 @@ describe('one target / one bounded attempt / one verdict', () => {
   });
   it('partial pitches never accumulate; mismatch then a fresh correct attempt', () => {
     const { runtime, begin, finish } = setup(3);
-    finish(begin(), ['A4']); runtime.rearm(); finish(begin(), ['C5']);
+    finish(begin(), ['A4']); rearmAtCaptureEnd(runtime); finish(begin(), ['C5']);
     expect(runtime.currentStepIndex).toBe(3);
-    runtime.rearm(); finish(begin(), ['A4', 'C5']);
+    rearmAtCaptureEnd(runtime); finish(begin(), ['A4', 'C5']);
     expect(runtime.currentStepIndex).toBe(4);
     expect(runtime.snapshot().step.attempts.map(r => r.verdict)).toEqual(['MISMATCH', 'MISMATCH', 'MATCH']);
   });
@@ -47,7 +50,7 @@ describe('one target / one bounded attempt / one verdict', () => {
     const { runtime, begin, finish, time } = setup(), first = begin();
     expect(runtime.openAttempt(time(205))).toBeNull();
     finish(first, ['C4']); expect(runtime.snapshot().step.attemptState).toBe('RESET');
-    expect(runtime.openAttempt(time(240))).toBeNull(); runtime.rearm();
+    expect(runtime.openAttempt(time(240))).toBeNull(); rearmAtCaptureEnd(runtime);
     const second = begin(); expect(second.attemptId).not.toBe(first.attemptId);
     finish(second, ['C4']); expect(runtime.currentStepIndex).toBe(2);
   });
@@ -56,7 +59,7 @@ describe('one target / one bounded attempt / one verdict', () => {
     expect(runtime.completeAttempt(identity, { kind: 'RETRY', reason, captureEndSessionTime: time(235) }))
       .toMatchObject({ kind: 'FINALIZED', record: { verdict: 'RETRY', retryReason: reason, confidence: null } });
     expect(runtime.currentStepIndex).toBe(0); expect(runtime.snapshot().step.attemptState).toBe('RESET');
-    runtime.rearm(); expect(runtime.snapshot().step.attemptState).toBe('READY');
+    rearmAtCaptureEnd(runtime); expect(runtime.snapshot().step.attemptState).toBe('READY');
   });
   it.each(['pause', 'skip', 'end'] as const)('%s invalidates active capture and late analysis', command => {
     const { runtime, begin, finish } = setup(), old = begin(); runtime[command]();
@@ -93,7 +96,10 @@ describe('one target / one bounded attempt / one verdict', () => {
   });
   it('history ceiling fails before opening another attempt, retaining every record', () => {
     const s = setup();
-    for (let i = 0; i < MAX_STEP_HISTORY_RECORDS; i++) { s.finish(s.begin(), ['D4']); s.runtime.rearm(); }
+    for (let i = 0; i < MAX_STEP_HISTORY_RECORDS; i++) {
+      const result = s.finish(s.begin(), ['D4']);
+      if (result.kind === 'FINALIZED') s.runtime.rearm(result.record.captureEndSessionTime);
+    }
     expect(() => s.begin()).toThrow('STEP_HISTORY_LIMIT_EXCEEDED');
     const result = s.runtime.snapshot();
     expect(result.lifecycleState).toBe('ENDED'); expect(result.step.activeAttempt).toBeNull();
@@ -106,7 +112,7 @@ describe('one target / one bounded attempt / one verdict', () => {
       for (let cycle = 0; cycle < 10; cycle++) {
         const stale = s.begin(); s.runtime.pause(); s.runtime.resume();
         expect(s.finish(stale, ['A4','C5']).kind).toBe('REJECTED');
-        s.finish(s.begin(), cycle % 2 ? ['A4'] : ['C5']); s.runtime.rearm();
+        s.finish(s.begin(), cycle % 2 ? ['A4'] : ['C5']); rearmAtCaptureEnd(s.runtime);
         expect(s.runtime.currentStepIndex).toBe(3);
       }
       const id = s.begin(); s.finish(id, ['C5','A4']);

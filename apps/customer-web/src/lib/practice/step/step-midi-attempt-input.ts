@@ -2,7 +2,7 @@ import type { SessionTime } from '../local-core/timebase';
 import type { StepAttemptEvidence, StepAttemptIdentity } from '../local-core/step-attempt';
 import type { MidiNoteFact } from '../midi/browser-midi-controller';
 
-export const STEP_MIDI_GESTURE_MS = 35;
+export const STEP_MIDI_CHORD_COHERENCE_MS = 35;
 export interface StepGestureTimer {
   schedule(callback: () => void, delayMs: number): unknown;
   cancel(handle: unknown): void;
@@ -32,14 +32,14 @@ export class StepMidiAttemptInput {
       const identity = this.sink.open(note.sessionTime);
       if (!identity) { this.ignore(); return; }
       const epoch = ++this.epoch;
-      this.active = { identity, pitches: new Set([note.pitch]), end: { ...note.sessionTime, ms: note.sessionTime.ms + STEP_MIDI_GESTURE_MS } };
+      this.active = { identity, pitches: new Set([note.pitch]), end: { ...note.sessionTime, ms: note.sessionTime.ms + STEP_MIDI_CHORD_COHERENCE_MS } };
       this.handle = this.timer.schedule(() => {
         if (epoch !== this.epoch || !this.active) return;
         const gesture = this.active; this.active = null; this.handle = null;
         try { this.sink.complete(gesture.identity, Object.freeze({ kind: 'EVIDENCE', confidence: 1,
           observedAttackPitches: Object.freeze([...gesture.pitches].sort()), captureEndSessionTime: Object.freeze(gesture.end) })); }
         catch (error) { this.sink.failure(error); }
-      }, STEP_MIDI_GESTURE_MS);
+      }, STEP_MIDI_CHORD_COHERENCE_MS);
     } catch (error) { this.cancel(); this.sink.failure(error); }
   }
   cancel(): void {

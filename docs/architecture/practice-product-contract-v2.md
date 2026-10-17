@@ -132,13 +132,28 @@ snapshot/runtime contract contains immutable MATCH, MISMATCH or RETRY attempt
 records; WAIT is not a finalized attempt. Skip actions are separate history.
 Each attempt binds attempt/session/step/activation/source/capture-start identity.
 Activation boundaries are exclusive: attempt start must be strictly later than
-the prior finalized capture end or the current initial/resume/skip boundary.
+the accepted-input watermark or the current initial/resume/skip boundary.
+`rearm(acceptAfterSessionTime)` is explicit, ACTIVE/RESET-only, finite,
+same-session, and cannot move that boundary backwards. The domain never obtains
+an implicit current time during re-arm. Equality remains ineligible permanently.
+Resume and Skip cannot lower an already retired input watermark; Skip history
+still records the actual command time, not a substituted future event time.
+For MIDI, the caller immediately re-arms at the finalized gesture capture end.
+For future microphone consumption, the caller must instead use the latest
+source/session analysis frontier covered while the prior attempt was busy,
+including CAPTURING, ANALYZING and RESET. Busy-period audio is never queued for a
+later target merely because its Worker publication arrives late. A publication
+may contribute to at most one semantic attempt; the rest is discarded.
 The MIDI gesture owns [start,end); an event at exact end is ignored independently
 of callback ordering, never queued or shifted into the next attempt.
 There is one active attempt and no queue. Generic evidence becomes correctness
 only inside this pure domain's exact physical attack pitch-set comparison.
 
 `StepMidiAttemptInput` owns a first-NOTE_ON-anchored 35ms gesture, not correctness.
+`STEP_MIDI_CHORD_COHERENCE_MS` defines [start,start+35ms), not a physical acoustic
+strike detector. Native Web MIDI event.timeStamp passes through the single
+PracticeTimebase.runtimeToSessionTime mapping; callback scheduling is not attack
+time. Velocity-zero NOTE_ON remains NOTE_OFF.
 CEG is accepted only after the gesture closes; partial CE or extra CEGA is MISMATCH.
 Partial pitches never cross attempts. Held notes cannot satisfy a repeated target
 without a new NOTE_ON. Busy input is ignored, never reassigned to a later target.
@@ -173,8 +188,12 @@ User acoustic or MIDI correctness evidence must never move the playhead, change 
 
 Audio-only neural inference and decoding produce immutable physical acoustic observations.
 Expected score is available only to the downstream deterministic product evaluator.
-MIDI and acoustic sources publish into the same model-agnostic evidence contract;
-there is exactly one Continuous evaluator, with no policy selector or fallback.
+MIDI and acoustic sources publish into the same model-agnostic evidence contract.
+Continuous MIDI keeps every NOTE_ON as a separate CapturedAttack and observation,
+without STEP chord grouping. DEFAULT_MIDI_COVERAGE_GRACE_MS=250 is publication
+frontier grace, not a chord-coherence window. Native event time is mapped by the
+clock into performance time independently of callback execution time.
+There is exactly one Continuous evaluator, with no policy selector or fallback.
 
 ## Analyzer Strategy Geometry
 

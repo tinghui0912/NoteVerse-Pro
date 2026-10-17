@@ -19,6 +19,12 @@ the initial/resume/skip boundary or the prior finalized capture end. An event at
 the exact gesture end is ignored regardless of whether it precedes or follows
 the close callback; there is no timestamp adjustment, deferral or queued retry.
 CAPTURING -> ANALYZING -> RESET -> READY permits at most one active attempt.
+Re-arm requires an explicit same-session monotonic accepted-input watermark.
+MIDI uses the finalized fixed gesture end, preserving immediate re-arm UX.
+Future microphone input must use the latest analyzed frontier, not just gesture
+end; no evidence from CAPTURING/ANALYZING/RESET may later open another attempt.
+The fixed MIDI policy is STEP_MIDI_CHORD_COHERENCE_MS=35. Native MIDI event
+timestamps, not callback arrival time, define capture/session time.
 MISMATCH and RETRY preserve the target, recording complete immutable history.
 MATCH advances once. Skip is a separate user action. Pause/Skip/Finish/Dispose
 cancel timers and identities; Resume uses a new activation generation. Restart

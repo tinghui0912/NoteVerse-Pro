@@ -130,4 +130,21 @@ describe('browser MIDI controller', () => {
       await expect(start).rejects.toThrow('MIDI_START_CANCELLED'); expect(controller.getState().isRunning).toBe(false);
     } finally { vi.unstubAllGlobals(); }
   });
+  it('native event time survives delayed callbacks and velocity zero remains NOTE_OFF', async () => {
+    const note = vi.fn(), attack = vi.fn();
+    const input: { state: string; onmidimessage: ((event: Pick<MIDIMessageEvent, 'data' | 'timeStamp'>) => void) | null }
+      = { state: 'connected', onmidimessage: null };
+    vi.stubGlobal('navigator', { requestMIDIAccess: async () => ({ inputs: new Map([['a', input]]), onstatechange: null }) });
+    const now = vi.spyOn(performance, 'now').mockReturnValue(140);
+    const controller = new BrowserMidiController({ timebase: new PracticeTimebase({ domainId: 'native' }),
+      onMidiNote: note, onCapturedAttack: attack });
+    try {
+      await controller.start();
+      input.onmidimessage!({ data: new Uint8Array([0x90, 60, 80]), timeStamp: 100 });
+      input.onmidimessage!({ data: new Uint8Array([0x90, 64, 80]), timeStamp: 112 });
+      input.onmidimessage!({ data: new Uint8Array([0x90, 60, 0]), timeStamp: 120 });
+      expect(attack.mock.calls.map(c => c[0].captureTime.ms)).toEqual([100, 112]);
+      expect(note.mock.calls.map(c => [c[0].type, c[0].sessionTime.ms])).toEqual([['NOTE_ON', 100], ['NOTE_ON', 112], ['NOTE_OFF', 120]]);
+    } finally { controller.dispose(); now.mockRestore(); vi.unstubAllGlobals(); }
+  });
 });

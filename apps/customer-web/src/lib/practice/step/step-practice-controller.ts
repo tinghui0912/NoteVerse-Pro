@@ -69,7 +69,7 @@ export class StepPracticeController {
           if (result.kind === 'REJECTED') return;
           this.emit();
           if (runtime.isCompleted) this.complete();
-          else { runtime.rearm(); if (result.record.verdict === 'MATCH') this.updateTarget(); this.emit(); }
+          else { runtime.rearm(result.record.captureEndSessionTime); if (result.record.verdict === 'MATCH') this.updateTarget(); this.emit(); }
         },
         failure: error => this.failAttempt(error),
       }, this.platform.timer);

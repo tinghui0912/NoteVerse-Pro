@@ -17,7 +17,7 @@ function harness(verdict: Verdict = 'MATCH', chord = false) {
       assert.equal(runtime.analyzeAttempt(identity),true);
       const result = runtime.completeAttempt(identity, verdict === 'RETRY' && closed++ === 0
         ? {kind:'RETRY',reason:'UNCERTAIN',captureEndSessionTime:evidence.captureEndSessionTime} : evidence);
-      assert.equal(result.kind,'FINALIZED'); runtime.rearm();
+      assert.equal(result.kind,'FINALIZED'); runtime.rearm(evidence.captureEndSessionTime);
     }, failure: error => { throw error; },
   }, {schedule: (callback,delay) => { assert.equal(delay,35); callbacks.push(callback); return callback; },cancel: () => {}});
   const time = (ms: number) => ({domainId:session,ms});

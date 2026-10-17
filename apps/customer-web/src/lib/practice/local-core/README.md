@@ -21,7 +21,11 @@ One active attempt maximum. Pause/Skip/Finish invalidate it. Resume uses a fresh
 generation. Restart is a fresh session, not restoration of old snapshots. Late
 results cannot cross session, target, generation or attempt identity.
 The activation boundary is exclusive (`attemptStart > activationBoundary`). All
-verdicts set the next boundary to the finalized capture end. Equality is rejected
+verdicts set the initial reset boundary to the finalized capture end. Explicit
+`rearm(acceptAfterSessionTime)` advances it monotonically from ACTIVE/RESET only;
+the caller supplies finite same-session input coverage, never implicit now.
+MIDI uses capture end. Future microphone callers must cover the entire busy
+analysis frontier; no busy audio is replayed after reset. Equality is rejected
 by the domain, including after Resume and Skip; MIDI gesture ownership is [start,end).
 
 The clean-break v2 STEP schema is `step-bounded-attempt-v2`; no older STEP snapshot
