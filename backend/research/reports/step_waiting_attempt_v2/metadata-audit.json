@@ -1,0 +1,1066 @@
+{
+  "selectionRule": {
+    "phase": "PRACTICE_STEP_ACOUSTIC_WAITING_ATTEMPT_QUALIFICATION_V2_DISABLED",
+    "startingHead": "a361f03dd03a13c7bcd36981e1fe9227407f2c89",
+    "STEP_ACOUSTIC_GESTURE_WIDTH_MS": 50,
+    "selectionBasis": "Exposed engineering tie at H50/H70; shortest chosen explicitly by user. Previous failed result unchanged. No new width search or fallback.",
+    "warmReady": "Exactly once per source session, after publication of first completely analyzed 600ms owned interval. Startup observations are discarded. Initial inputEligibleAfter is that exact source owned-end boundary, computed only from chronology; not from decoded events or truth.",
+    "rearm": "After each generic sealed attempt/instant downstream verdict, sample independently advancing physical capture/source clock. Retire all event times <= capturedThrough. Never use analysis frontier or publication arrival as event time.",
+    "geometry": "First eligible source event T, fixed [T,T+50ms), no extension or target access, seal only after analyzed frontier covers end, no attempt queue.",
+    "selectionVersion": "smd-isolated-waiting-v2-first-eligible",
+    "sourceOrder": "lexical recordingId then earliest MIDI occurrence; exclude every source ID/audio SHA/MIDI SHA in previous STEP decoded development and fresh-strike development manifests",
+    "positiveIsolation": "Ordinary intended groups: previous any-pitch note-on group >=350ms earlier, next any-pitch group >=1200ms later. No other note-ons after warm source boundary and before intended group. Real preroll >=1200ms; full 2400ms owned region; target 950ms into region (warm boundary 350ms before target); genuine 200ms tail. No output-dependent selection.",
+    "rapidIsolation": "Rapid retrigger uses previous same-pitch physical group at 200..250ms and no intervening group; next group >=1200ms later. Warm source boundary is midpoint between context group last note-on and intended group first note-on. Previous context is startup-ineligible. Record if actual evidence availability makes intended physical opportunity precede semantic READY; such a trial cannot be advertised as a valid waiting-user acceptance.",
+    "negativeIsolation": "Any-pitch note-on-free held/pedal guard >=1800ms, selected from MIDI independently. Warm source boundary = guard.start+200ms; scored negative duration =1200ms; genuine prior context/tail. Held case uses a single-pitch preceding group, pedal case a multi-pitch preceding group, to exercise both sustain categories.",
+    "families": [
+      "correct_single",
+      "correct_chord",
+      "close_spread_chord",
+      "wrong_semitone",
+      "wrong_octave",
+      "missing_chord_tone",
+      "extra_chord_tone",
+      "same_note_retrigger",
+      "repeated_chord",
+      "soft_after_loud",
+      "rapid_retrigger",
+      "held_note_negative",
+      "pedal_sustain_negative",
+      "busy_period_input",
+      "late_publication"
+    ],
+    "metadataTags": "Reuse frozen first-anchor <=35ms MIDI truth grouping only. close-spread: >=2 distinct pitches and 0<note-on spread<=35ms. Repeated/soft/rapid tags from MIDI history; no audio/model output inspected. Busy/late select earliest primary opportunity with previous note-on group >=350ms earlier, exactly one next group at 600..900ms, then >=1200ms before another group. Stage B tests a predeclared 1000ms post-seal analysis hold while physical capture continues; late replay preserves original event identities/times. This delay is a state-machine challenge, not assembly width or measured UX latency.",
+    "counterfactualsAfterSealOnly": "Physical set P yields P, remove highest pitch, add lowest absent piano pitch, replace highest with nearest absent semitone, replace highest with nearest absent octave; same-target sentinels permit detecting any unsupported later advance. No expected target enters Stage A.",
+    "truthMatch": "One-to-one exact physical pitch-set match within inclusive 100ms; maximize cardinality then minimize absolute timing error. All seven architecture invariants and six empirical false-MATCH categories reported separately. Do not infer empirical zero from architecture assertions.",
+    "clockScope": "Deterministic continuously advancing source-sample playback simulation plus measured real Worker transaction durations, not device latency. Availability schedules transactions, never defines physical anchor. Timing-invalid waiting trials are disclosed as harness/corpus limitations, not silently replaced.",
+    "holdout": "Existing local SMD paired recordings, engineering only, not globally blind due earlier AMT/Continuous exposure. No new external data. Missing family blocks; no replacement after output.",
+    "model": {
+      "assetId": "practice-acoustic-robust-browser",
+      "version": "v1",
+      "bytes": 98689283,
+      "sha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+      "ort": "1.20.1",
+      "provider": "webgpu",
+      "automaticFallback": false,
+      "onset": 0.3,
+      "frame": 0.05,
+      "ownedMs": 600,
+      "futureMs": 170,
+      "pastMs": 1050
+    },
+    "architectureCounters": [
+      "doubleAdvanceFromOneTruthGesture",
+      "busyPeriodCarryoverAdvance",
+      "latePublicationCarryoverAdvance",
+      "crossAttemptObservationReuse",
+      "staleEqualWatermarkAdvance",
+      "secondAttemptWhileBusy",
+      "publicationCompletionTimeChangesAttemptIdentity"
+    ],
+    "empiricalCounters": [
+      "heldPedalFalseMatch",
+      "samePitchSustainFalseMatch",
+      "sameChordSustainFalseMatch",
+      "wrongPitchFalseMatch",
+      "extraPhysicalPitchFalseMatch",
+      "missingExpectedPitchFalseMatch"
+    ],
+    "capabilities": {
+      "Continuous": "MODEL_NOT_VALIDATED",
+      "STEP": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+      "productionMicrophone": false,
+      "D4": false
+    }
+  },
+  "excludedSources": [
+    {
+      "dataset": "smd-v2",
+      "recordingId": "Bach_BWV849-01_001_20090916-SMD",
+      "archive": "backend/data/work/smd_v2/SMD-piano_v2.zip",
+      "audioMember": "wav_44100_stereo/Bach_BWV849-01_001_20090916-SMD.wav",
+      "midiMember": "midi/Bach_BWV849-01_001_20090916-SMD.mid",
+      "audioSha256": "a539240eb5544ab007475d73f2bf8ffeeea88c6d96f8601f08bdf276f11cf284",
+      "midiSha256": "95bdfd46cfa37637d18db809d8a586608e3b18aa64ec0206b491e2de9d115fab",
+      "audioBytes": 27694844,
+      "audio": {
+        "rate": 44100,
+        "channels": 2,
+        "frames": 6923700,
+        "durationSeconds": 157.0
+      },
+      "midi": {
+        "noteOnCount": 724,
+        "midiEndSeconds": 156.5458333333304,
+        "controls": {
+          "67": 10,
+          "64": 4026
+        },
+        "sustainCc64Count": 4026,
+        "lastNoteOnSeconds": 152.72916666666356
+      },
+      "historicalTriggerExposure": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "historicalAmtExposure": "F5/XC2/Continuous: already exposed, not globally blind",
+      "pairing": "SMD v2 publisher synchronized performance pair; exact member stem and prior hash receipt"
+    },
+    {
+      "dataset": "smd-v2",
+      "recordingId": "Bartok_SZ080-01_002_20110315-SMD",
+      "archive": "backend/data/work/smd_v2/SMD-piano_v2.zip",
+      "audioMember": "wav_44100_stereo/Bartok_SZ080-01_002_20110315-SMD.wav",
+      "midiMember": "midi/Bartok_SZ080-01_002_20110315-SMD.mid",
+      "audioSha256": "5f4d3aeab3937ad81f04cf4df73e18d67e43f06863a9f7a5131c545ec32343ec",
+      "midiSha256": "a6f86e5b7fe52fc2b5469a4408ac0a2cce8e1af37f54a941417dfcbb575bc44e",
+      "audioBytes": 50242292,
+      "audio": {
+        "rate": 44100,
+        "channels": 2,
+        "frames": 12560562,
+        "durationSeconds": 284.82
+      },
+      "midi": {
+        "noteOnCount": 3941,
+        "midiEndSeconds": 282.932291666671,
+        "controls": {
+          "64": 4121
+        },
+        "sustainCc64Count": 4121,
+        "lastNoteOnSeconds": 282.42500000000445
+      },
+      "historicalTriggerExposure": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "historicalAmtExposure": "F5/XC2/Continuous: already exposed, not globally blind",
+      "pairing": "SMD v2 publisher synchronized performance pair; exact member stem and prior hash receipt"
+    },
+    {
+      "dataset": "smd-v2",
+      "recordingId": "Beethoven_Op027No1-01_003_20090916-SMD",
+      "archive": "backend/data/work/smd_v2/SMD-piano_v2.zip",
+      "audioMember": "wav_44100_stereo/Beethoven_Op027No1-01_003_20090916-SMD.wav",
+      "midiMember": "midi/Beethoven_Op027No1-01_003_20090916-SMD.mid",
+      "audioSha256": "e0d173478761777750d1763a37d6b5dfc6c0aba379a28c35393dd42cd518c513",
+      "midiSha256": "ae31451905e6ecf684bca9d736497a3c7085e64b42be649422e339d3e40cb90e",
+      "audioBytes": 76028444,
+      "audio": {
+        "rate": 44100,
+        "channels": 2,
+        "frames": 19007100,
+        "durationSeconds": 431.0
+      },
+      "midi": {
+        "noteOnCount": 3520,
+        "midiEndSeconds": 430.95208333332863,
+        "controls": {
+          "64": 11401
+        },
+        "sustainCc64Count": 11401,
+        "lastNoteOnSeconds": 423.31458333332955
+      },
+      "historicalTriggerExposure": "NOT_ESTABLISHED_BY_THIS_AUDIT",
+      "historicalAmtExposure": "F5/XC2/Continuous: already exposed, not globally blind",
+      "pairing": "SMD v2 publisher synchronized performance pair; exact member stem and prior hash receipt"
+    },
+    {
+      "dataset": "maestro-v3.0.0",
+      "recordingId": "2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.wav",
+      "audioPath": "backend/data/work/datasets/maestro-v3.0.0/2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.wav",
+      "midiPath": "backend/data/work/datasets/maestro-v3.0.0/2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.midi",
+      "audioSha256": "74ace316305858038956eeefa30070d78d68643d89162c33261cef9a53ea4f6d",
+      "midiSha256": "9058777699e65403c6ddf5f16a755226c548cbd4c0dfa4b1d4c120ae726d7ad4",
+      "audioBytes": 23891996,
+      "audio": {
+        "rate": 44100,
+        "channels": 2,
+        "frames": 5972988,
+        "durationSeconds": 135.44190476190477
+      },
+      "midi": {
+        "noteOnCount": 1897,
+        "midiEndSeconds": 134.44895833333112,
+        "controls": {
+          "64": 1812,
+          "67": 307
+        },
+        "sustainCc64Count": 1812,
+        "lastNoteOnSeconds": 134.27812499999774
+      },
+      "historicalTriggerExposure": [
+        "production_step_causal_cases_multi_source",
+        "production_step_development_set"
+      ],
+      "pairing": "official CSV path binding; local byte identity, not proof of full publisher media",
+      "publishedDurationSeconds": 134.376478304,
+      "cases": [
+        {
+          "ownedStartSeconds": 2.0,
+          "selectedFor": [
+            "single",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "ownedStartSeconds": 2.9,
+          "selectedFor": [
+            "chord",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "ownedStartSeconds": 13.6,
+          "selectedFor": [
+            "soft_after_loud"
+          ]
+        },
+        {
+          "ownedStartSeconds": 126.7,
+          "selectedFor": [
+            "held"
+          ]
+        },
+        {
+          "ownedStartSeconds": 102.6,
+          "selectedFor": [
+            "pedal_sustain",
+            "release_or_pedal_change"
+          ]
+        }
+      ],
+      "alignmentTransformSeconds": 0,
+      "alignmentBasis": "official MAESTRO paired recording, no model-fitted adjustment"
+    },
+    {
+      "dataset": "maestro-v3.0.0",
+      "recordingId": "2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.wav",
+      "audioPath": "backend/data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.wav",
+      "midiPath": "backend/data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.midi",
+      "audioSha256": "8037f5a09bf1b1108893d664d25e82b9900aff805f3dfee3b075afaaf35474b0",
+      "midiSha256": "fbff7b81e8eb9159e52f0a9f46f3fef1cbe14cb0737dca137d3b52498a2b58cc",
+      "audioBytes": 11845452,
+      "audio": {
+        "rate": 44100,
+        "channels": 2,
+        "frames": 2961352,
+        "durationSeconds": 67.15083900226757
+      },
+      "midi": {
+        "noteOnCount": 882,
+        "midiEndSeconds": 66.21875000000001,
+        "controls": {
+          "64": 395
+        },
+        "sustainCc64Count": 395,
+        "lastNoteOnSeconds": 65.34505208333337
+      },
+      "historicalTriggerExposure": [
+        "production_step_causal_cases_multi_source",
+        "production_step_development_set"
+      ],
+      "pairing": "official CSV path binding; local byte identity, not proof of full publisher media",
+      "publishedDurationSeconds": 65.9481178125,
+      "cases": [
+        {
+          "ownedStartSeconds": 1.8,
+          "selectedFor": [
+            "single",
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "ownedStartSeconds": 2.7,
+          "selectedFor": [
+            "soft_after_loud",
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "ownedStartSeconds": 4.7,
+          "selectedFor": [
+            "repeated_chord"
+          ]
+        },
+        {
+          "ownedStartSeconds": 27.5,
+          "selectedFor": [
+            "pedal_sustain",
+            "release_or_pedal_change"
+          ]
+        }
+      ],
+      "alignmentTransformSeconds": 0,
+      "alignmentBasis": "official MAESTRO paired recording, no model-fitted adjustment"
+    },
+    {
+      "dataset": "maestro-v3.0.0",
+      "recordingId": "2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.wav",
+      "audioPath": "backend/data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.wav",
+      "midiPath": "backend/data/work/datasets/maestro-v3.0.0/2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.midi",
+      "audioSha256": "a79f165c889b4695e4ce5f4f0218c1e6f6dcf8e28017b808bdf3d187a716043d",
+      "midiSha256": "1fbc86c8f9f5f1b3c19e8c3da45337a7670b9251fe186d954e06fbeb3f8bec50",
+      "audioBytes": 17137212,
+      "audio": {
+        "rate": 44100,
+        "channels": 2,
+        "frames": 4284292,
+        "durationSeconds": 97.14947845804988
+      },
+      "midi": {
+        "noteOnCount": 860,
+        "midiEndSeconds": 96.17057291666674,
+        "controls": {
+          "64": 466,
+          "66": 1,
+          "67": 104
+        },
+        "sustainCc64Count": 466,
+        "lastNoteOnSeconds": 93.34635416666677
+      },
+      "historicalTriggerExposure": [
+        "production_step_causal_cases_multi_source",
+        "production_step_development_set"
+      ],
+      "pairing": "official CSV path binding; local byte identity, not proof of full publisher media",
+      "publishedDurationSeconds": 95.9707907813,
+      "cases": [
+        {
+          "ownedStartSeconds": 2.1,
+          "selectedFor": [
+            "single",
+            "chord",
+            "same_note_retrigger"
+          ]
+        },
+        {
+          "ownedStartSeconds": 10.8,
+          "selectedFor": [
+            "soft_after_loud"
+          ]
+        },
+        {
+          "ownedStartSeconds": 2.8,
+          "selectedFor": [
+            "rapid_retrigger"
+          ]
+        },
+        {
+          "ownedStartSeconds": 40.2,
+          "selectedFor": [
+            "release_or_pedal_change"
+          ]
+        }
+      ],
+      "alignmentTransformSeconds": 0,
+      "alignmentBasis": "official MAESTRO paired recording, no model-fitted adjustment"
+    }
+  ],
+  "eligibleMetadataInventory": [
+    {
+      "recordingId": "Bach_BWV849-02_001_20090916-SMD",
+      "audioSha256": "3db2dada28209a22b9029f76654666d0f392468c6957f3d946a322e0ea239133",
+      "midiSha256": "d133d32d9aa1205d5b1b48ad129b74e226c7df06fb2d9d7720bd66db4fd3d971",
+      "availableFamilies": [
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "soft_after_loud",
+        "held_note_negative"
+      ]
+    },
+    {
+      "recordingId": "Bach_BWV871-01_002_20090916-SMD",
+      "audioSha256": "708284e0a670990ed368881bd8bdc57c22504bc6b69e90e10cb028e6cd76b5dd",
+      "midiSha256": "72be1500a0c726778dbcd28e50a50490bdba7853dd9319cfa72deb941c476f39",
+      "availableFamilies": []
+    },
+    {
+      "recordingId": "Bach_BWV871-02_002_20090916-SMD",
+      "audioSha256": "8a2b3956e2c127d5e5bcf19559087d8bc11f3004f374ce145453f2873ef898d7",
+      "midiSha256": "6f096cb77f3362bac1b561462401f922b038cc9461b467aad8684ba230c5bafa",
+      "availableFamilies": []
+    },
+    {
+      "recordingId": "Bach_BWV875-01_002_20090916-SMD",
+      "audioSha256": "5e9eb90ef90d7f0a2fe8113a14aeeff6bda691f410d979de67d3744debb9ff6a",
+      "midiSha256": "68378d189bae2fdf307222e805c3292f707889c8b289ba817cde3b92af53fa0a",
+      "availableFamilies": [
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger"
+      ]
+    },
+    {
+      "recordingId": "Bach_BWV875-02_002_20090916-SMD",
+      "audioSha256": "b1a79b39f6e8b1b04daba9b19f6c4d15a99702a9bbaf309ebb8c2b46a2ae8b0a",
+      "midiSha256": "f5ec23bce364fd5c47a87223c4712ccee15ba2607181fc08814413614d2a5e45",
+      "availableFamilies": [
+        "busy_period_input",
+        "late_publication",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "same_note_retrigger",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord"
+      ]
+    },
+    {
+      "recordingId": "Bach_BWV888-01_008_20110315-SMD",
+      "audioSha256": "a06dcc04692f4e8f53789f753997fd2df664296af0243d4c6ada6f2656281e92",
+      "midiSha256": "7c8999d762a08048d02bc071b6b3012ab139974707e2ba477d0fadb1ce90fe7e",
+      "availableFamilies": [
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "same_note_retrigger"
+      ]
+    },
+    {
+      "recordingId": "Bach_BWV888-02_008_20110315-SMD",
+      "audioSha256": "17d6f1eea2d8044d2402a0a1467e1e529f98c0ca06f422317e5651ce9b85c4af",
+      "midiSha256": "75875b713ae88d4f25f167e078a5fcf2326b24de9d28c1763775e23f82cf4885",
+      "availableFamilies": []
+    },
+    {
+      "recordingId": "Bartok_SZ080-02_002_20110315-SMD",
+      "audioSha256": "49e9420abf916e2e74a84352627fd6ba828d9257a2807c782d1f2d043e572f55",
+      "midiSha256": "643618527538e9507ec737d73d677d18b56e42ecc19d1164668862c6dea3615e",
+      "availableFamilies": [
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "repeated_chord",
+        "busy_period_input",
+        "late_publication",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "soft_after_loud",
+        "pedal_sustain_negative"
+      ]
+    },
+    {
+      "recordingId": "Bartok_SZ080-03_002_20110315-SMD",
+      "audioSha256": "26a14534568c9a9c9e3f507b158fd0c7afee95dd2d2bee7e3c98830b719b606f",
+      "midiSha256": "0deeb983b449a79ee0e14347bedb3ddf9a2cbf8ef8533032f6aa1f5664abab2f",
+      "availableFamilies": []
+    },
+    {
+      "recordingId": "Beethoven_Op027No1-02_003_20090916-SMD",
+      "audioSha256": "049d7bdb5e037beae08bf9900f4ac1e072b29b82246371c63d7e7b81a85dcb53",
+      "midiSha256": "904b356ba5f91d64beb50dfa25208364d2601c65959df28647343a03c35aafed",
+      "availableFamilies": [
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "repeated_chord",
+        "soft_after_loud",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "busy_period_input",
+        "late_publication",
+        "held_note_negative"
+      ]
+    },
+    {
+      "recordingId": "Beethoven_Op027No1-03_003_20090916-SMD",
+      "audioSha256": "3067df1ec4c6e6bd48bd18fc79735aad49efbaa1b43a7316bbe6a316626a6ddb",
+      "midiSha256": "cf30b86da3f4a2c86bd3e2979310bbf3743cc2f7a22179f95b33a9896018fbd6",
+      "availableFamilies": [
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "busy_period_input",
+        "late_publication",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave"
+      ]
+    },
+    {
+      "recordingId": "Beethoven_Op031No2-01_002_20090916-SMD",
+      "audioSha256": "3d257c53c26cfbb243a371e536932d36f54928e1db46b6841350cdfb57734624",
+      "midiSha256": "bde168ae9cea1bd539f91be05cf4067cfad9982336e8e00d63e6eec3a3f3c821",
+      "availableFamilies": [
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "soft_after_loud",
+        "busy_period_input",
+        "late_publication",
+        "repeated_chord",
+        "held_note_negative",
+        "pedal_sustain_negative"
+      ]
+    },
+    {
+      "recordingId": "Beethoven_Op031No2-02_002_20090916-SMD",
+      "audioSha256": "26d4c61d6bf3def9398365d1f968047bd52c2caf0f5cda0c1c6f20903376d241",
+      "midiSha256": "05bd550891270877b310b776f4d0624b6770b30b1d012dd1b43d525e04512875",
+      "availableFamilies": [
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "busy_period_input",
+        "late_publication",
+        "repeated_chord",
+        "soft_after_loud"
+      ]
+    },
+    {
+      "recordingId": "Beethoven_Op031No2-03_002_20090916-SMD",
+      "audioSha256": "f292a40d6303e8731189156a29dfa04b3ac5ea1d5c6e8661520cbc2854033633",
+      "midiSha256": "68a3661bade947d4d5c42798bac73650f8b45d9cb4a4afdf48a3a567f9d3e525",
+      "availableFamilies": []
+    },
+    {
+      "recordingId": "Beethoven_WoO080_001_20081107-SMD",
+      "audioSha256": "e2d4b2d1bd16f6a880f7eb2295edf923249545ea5df76a88f192357484c39bc0",
+      "midiSha256": "fc56a48649ab27bf19242c234fe5f9daf24dc4d17842c8518fbc2833d0ec81bb",
+      "availableFamilies": [
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "soft_after_loud"
+      ]
+    },
+    {
+      "recordingId": "Brahms_Op005-01_002_20110315-SMD",
+      "audioSha256": "8f8749ebe5acd0aecc4eddd6f931a482bcc5a314be51586d9295c0cc29197993",
+      "midiSha256": "e2dea97936c5aee3e19687dc75ea7d21ee29102060e63d7cc24b2114b8d1a118",
+      "availableFamilies": [
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "soft_after_loud",
+        "repeated_chord",
+        "pedal_sustain_negative"
+      ]
+    },
+    {
+      "recordingId": "Brahms_Op010No1_003_20090916-SMD",
+      "audioSha256": "2512bc5edbb66525889636fa85da0c948344d34e484467d31c101959e9b724a0",
+      "midiSha256": "05603b8c7be32aafe0fae0ab977087ab7fb75d402d6dc5dadce343d14dda9e10",
+      "availableFamilies": [
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "busy_period_input",
+        "late_publication",
+        "repeated_chord",
+        "soft_after_loud",
+        "held_note_negative",
+        "pedal_sustain_negative"
+      ]
+    },
+    {
+      "recordingId": "Brahms_Op010No2_003_20090916-SMD",
+      "audioSha256": "7331ad5c0eb95e56ca4b0a4d5080a1959921e30ab38606e2a908042cec4ecee0",
+      "midiSha256": "cfb920b7a3dfca6df43bf11899f0dc6f540736e7d9095dfe95ef9651a652dd4a",
+      "availableFamilies": [
+        "busy_period_input",
+        "late_publication",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "same_note_retrigger",
+        "soft_after_loud",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "held_note_negative",
+        "pedal_sustain_negative"
+      ]
+    },
+    {
+      "recordingId": "Chopin_Op010-03_007_20100611-SMD",
+      "audioSha256": "090fd5c3d801929048c25893586eaa9da40a2a1fe1d36a98fee24c7b610cbe9a",
+      "midiSha256": "6ff22bf7cd7c07b0328cbdc01370e28e7a055452f89247ce09ac28b117872172",
+      "availableFamilies": [
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "same_note_retrigger",
+        "busy_period_input",
+        "late_publication",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord"
+      ]
+    },
+    {
+      "recordingId": "Chopin_Op010-04_007_20100611-SMD",
+      "audioSha256": "d721f66f9a7523153b7da1c71a63b2375ef77e9ece4621c9522f9c3d6520b846",
+      "midiSha256": "cd88c064f05f19d1adbf9e29ef71ad8ecf3b1e067970f1673c8aa69933d59e44",
+      "availableFamilies": []
+    },
+    {
+      "recordingId": "Chopin_Op026No1_003_20100611-SMD",
+      "audioSha256": "ef3f57c97d7edc1ee9a73e89f1d1bdc767c3cec79a3fe2d2e0a64b2aa5650b6c",
+      "midiSha256": "70e9951c384d74d4eb965022fb37befc1ffec118cb8309af5a65131774255fdd",
+      "availableFamilies": [
+        "busy_period_input",
+        "late_publication",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "soft_after_loud"
+      ]
+    },
+    {
+      "recordingId": "Chopin_Op026No2_005_20100611-SMD",
+      "audioSha256": "75ce59c02b1d5ed69747907a109900fca8849842236a3bca24bdca87ed0bf902",
+      "midiSha256": "33aae89919204912fcf8cec07493739acfecdf8378830ea5115ddf33c1d050eb",
+      "availableFamilies": [
+        "busy_period_input",
+        "late_publication",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "repeated_chord",
+        "soft_after_loud",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "pedal_sustain_negative"
+      ]
+    },
+    {
+      "recordingId": "Chopin_Op028-01_003_20100611-SMD",
+      "audioSha256": "9c37d8d2ac9f3a9bc737163fde3e727a78c061d5444a044d213f40f53ed48824",
+      "midiSha256": "060b665facc88c6fd5887d0d68e51935cda1a211770cf7233ca8a47e8497e6c9",
+      "availableFamilies": []
+    },
+    {
+      "recordingId": "Chopin_Op028-03_003_20100611-SMD",
+      "audioSha256": "67b9151286d65871a9d4bd8c23b10d1de58f5ec69c63585b8a9b1270c363b1a7",
+      "midiSha256": "27a75de239273054c2ffe0a24a45e5eeb37d030517b5e3dec0b748ee674dbfa1",
+      "availableFamilies": []
+    },
+    {
+      "recordingId": "Chopin_Op028-04_003_20100611-SMD",
+      "audioSha256": "05ceb401b9311dfe13b4ac814f6ae3dda967bdd55b4386dd6362685a95edf478",
+      "midiSha256": "4c1d0b3cd15eb576e1c0506f69725bf61edf8ec5f998bef02c4a8fbd8c88401f",
+      "availableFamilies": [
+        "busy_period_input",
+        "late_publication",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "soft_after_loud",
+        "pedal_sustain_negative"
+      ]
+    },
+    {
+      "recordingId": "Chopin_Op028-11_003_20100611-SMD",
+      "audioSha256": "6dd00d18eae09e40212d25c7a55c2c2efc6a853468c8f6d91886afa0ea8125b2",
+      "midiSha256": "a7f5a344bbb22d3efd672a9271b27b106218aec28a4d3b53086af0ce38dac51f",
+      "availableFamilies": []
+    },
+    {
+      "recordingId": "Chopin_Op028-15_006_20100611-SMD",
+      "audioSha256": "045d8e3d53829ce268615062f77a67312d2cd162b511c2d29d22a7c5f3423cd0",
+      "midiSha256": "aab28a34b89b2418906abf03bcb33432070316c69f9f6450bf246b58f18e658c",
+      "availableFamilies": [
+        "busy_period_input",
+        "late_publication",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "same_note_retrigger",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "held_note_negative"
+      ]
+    },
+    {
+      "recordingId": "Chopin_Op028-17_005_20100611-SMD",
+      "audioSha256": "65ab1c88b5de417623e82ac05c9e0d86f61b06adcb8153a7dfcd7228f5122a5c",
+      "midiSha256": "6be4b9ea32ecb07f83454a812d3afc3bc9b2d15683f546c377852487f5a254c7",
+      "availableFamilies": []
+    },
+    {
+      "recordingId": "Chopin_Op029_004_20100611-SMD",
+      "audioSha256": "7909fea507f246d7f6a32268b9b34b744ff2a814a6c9ab6c7ad4b68b2f347982",
+      "midiSha256": "9848c498c2d936c03a362dabf97bfec77be48674e1c311881729f49963b334d2",
+      "availableFamilies": [
+        "busy_period_input",
+        "late_publication",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "pedal_sustain_negative"
+      ]
+    },
+    {
+      "recordingId": "Chopin_Op048No1_007_20100611-SMD",
+      "audioSha256": "85ff1b3beeb66d811462747967ef179b453debc75d7c7731ba6b6fc56fadb394",
+      "midiSha256": "ec04aa2b6d78f12a1ad68b4714c0457bb45c16785967ed64be2e66277cf5677f",
+      "availableFamilies": [
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "soft_after_loud",
+        "busy_period_input",
+        "late_publication",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "pedal_sustain_negative",
+        "held_note_negative"
+      ]
+    },
+    {
+      "recordingId": "Chopin_Op066_006_20100611-SMD",
+      "audioSha256": "ee8daf3dd636b8902e9c2c0f74d57e0700710bfa20d3cb673486a310406d3b29",
+      "midiSha256": "3aded3e1d79385f8bf871f5510b22afe3a5c2c009a0bb72bb4903504ead54677",
+      "availableFamilies": [
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "same_note_retrigger",
+        "held_note_negative"
+      ]
+    },
+    {
+      "recordingId": "Haydn_Hob017No4_003_20090916-SMD",
+      "audioSha256": "81a1ba926b87dd7af9b8e9c304b95869b2708e20e25fcc1148755270b9376296",
+      "midiSha256": "1ec5a62e349a104ff2517b3b9b5a468c13949c50fbd264906d0e8eb1a97871bd",
+      "availableFamilies": [
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "soft_after_loud"
+      ]
+    },
+    {
+      "recordingId": "Haydn_HobXVINo52-01_008_20110315-SMD",
+      "audioSha256": "9582374c41bfbb81e282e717767f682f9257eb8eccca48383b722a60f72e21ca",
+      "midiSha256": "7186e466df8d87375b7ee8ddb30b2fb6aff8fb99ef6c4aaa543507d39e8d458f",
+      "availableFamilies": [
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "soft_after_loud",
+        "busy_period_input",
+        "late_publication",
+        "pedal_sustain_negative"
+      ]
+    },
+    {
+      "recordingId": "Haydn_HobXVINo52-02_008_20110315-SMD",
+      "audioSha256": "23594d5376454c81d8184ec0c05d69b54ed07e5b6bdeebeacf1553efd6ae6ac6",
+      "midiSha256": "ab0b9c9183bf673b7917791ef731a54d501caae57df1d64ca22cb3b4eb8b5e37",
+      "availableFamilies": [
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "same_note_retrigger",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "rapid_retrigger",
+        "soft_after_loud",
+        "busy_period_input",
+        "late_publication",
+        "pedal_sustain_negative",
+        "held_note_negative"
+      ]
+    },
+    {
+      "recordingId": "Haydn_HobXVINo52-03_008_20110315-SMD",
+      "audioSha256": "a075b2244587f480aee7e85c1eb769200e416c798f7fd308a015a4e86bfe084a",
+      "midiSha256": "641501d1211271bcb62039e5a836eae169e29869019ca7d98a83ceb6117d5e4f",
+      "availableFamilies": [
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "soft_after_loud"
+      ]
+    },
+    {
+      "recordingId": "Liszt_AnnesDePelerinage-LectureDante_002_20090916-SMD",
+      "audioSha256": "918d8ae6e49e22c8a4b9b071d33bd6728a1c5914abc9eb1fea897bd4cffe0cd2",
+      "midiSha256": "e68ee2158e0ae1d63573e1de8876169e08e1469b7b3c6f17b88ece768addda71",
+      "availableFamilies": [
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "busy_period_input",
+        "late_publication",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "soft_after_loud",
+        "repeated_chord",
+        "rapid_retrigger",
+        "pedal_sustain_negative",
+        "held_note_negative"
+      ]
+    },
+    {
+      "recordingId": "Liszt_KonzertetuedeNo2LaLeggierezza_003_20090916-SMD",
+      "audioSha256": "32259d46d5effb3894ceb18b9f64047374c572932908f5b0d31ed373032863bf",
+      "midiSha256": "edc3f2429cbeab3af5a7a407661c611de4a010a86dcdbdbd3cbcad8a6eca9dae",
+      "availableFamilies": [
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "same_note_retrigger",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "soft_after_loud",
+        "repeated_chord",
+        "held_note_negative",
+        "pedal_sustain_negative"
+      ]
+    },
+    {
+      "recordingId": "Liszt_VariationenBachmotivWeinenKlagenSorgenZagen_001_20090916-SMD",
+      "audioSha256": "d305803845a1b83d8ad507a6878a6fc290d152b6e944f4c7d4c88774dc78932f",
+      "midiSha256": "bf2d6396470f7741f3801f8dfc9d5544fcd6b4767bc32c658a8cb3b39c4d5ee6",
+      "availableFamilies": [
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "busy_period_input",
+        "late_publication",
+        "same_note_retrigger",
+        "soft_after_loud",
+        "repeated_chord",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "held_note_negative",
+        "pedal_sustain_negative"
+      ]
+    },
+    {
+      "recordingId": "Mozart_KV265_006_20110315-SMD",
+      "audioSha256": "4124a267f60fd57f10c8fea7a4da6995893b01c0c8713be1f446286544e12c37",
+      "midiSha256": "522ddf75f7897e8adcff8d1a103beba0583bd59337311b4d8ad6a9f6023e0917",
+      "availableFamilies": [
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "same_note_retrigger",
+        "soft_after_loud",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "busy_period_input",
+        "late_publication"
+      ]
+    },
+    {
+      "recordingId": "Mozart_KV398_002_20110315-SMD",
+      "audioSha256": "f374a77d01db61d2da9a7bc213e4e0299c8011eac0f01bcbb9c282d493e1e0e0",
+      "midiSha256": "32d2f6c200838d49ed9795d3956955b56fc194925e9536dc986dcecad96fc630",
+      "availableFamilies": [
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "soft_after_loud",
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "busy_period_input",
+        "late_publication",
+        "repeated_chord",
+        "held_note_negative"
+      ]
+    },
+    {
+      "recordingId": "Rachmaninoff_Op036-01_007_20110315-SMD",
+      "audioSha256": "3c25a7714bc2fb1a0d404499d0fa385dd0dd9ab9792820ed6fc726d8b9ec5a01",
+      "midiSha256": "4e80ddaa785df4759ff9e0be191f8a8fbd6c95a6a6eb4ffa3153b1a39f0a950f",
+      "availableFamilies": [
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "same_note_retrigger",
+        "soft_after_loud",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "pedal_sustain_negative",
+        "held_note_negative"
+      ]
+    },
+    {
+      "recordingId": "Rachmaninoff_Op036-02_007_20110315-SMD",
+      "audioSha256": "bcf8f0ba78ec35b5600f3a6474ff8dce5546bb02f3af92c944655b6bf6641c2d",
+      "midiSha256": "01bdea68de5ffb0c2a8b798fdf8bbada64aba27cfc6336ce85598c7674bb0d64",
+      "availableFamilies": [
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "same_note_retrigger",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "soft_after_loud",
+        "busy_period_input",
+        "late_publication",
+        "held_note_negative",
+        "pedal_sustain_negative"
+      ]
+    },
+    {
+      "recordingId": "Rachmaninoff_Op036-03_007_20110315-SMD",
+      "audioSha256": "fe74da5592865a5bae901117e061f7f84b85ce3a78fc7b556e8564ce3f356bd2",
+      "midiSha256": "bf5894ef4ce33a2d16a8a0820c38ea49b4f779ebce32c50aa65b45df2b542265",
+      "availableFamilies": [
+        "busy_period_input",
+        "late_publication",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger"
+      ]
+    },
+    {
+      "recordingId": "Rachmaninov_Op039No1_002_20090916-SMD",
+      "audioSha256": "5a725611e394b4ccba74c5b01bce5e4454c42d79c78250554e065d856f6031e1",
+      "midiSha256": "48f36e30911b07dccb2b2c663c7382f70ca35f92ff7a932673b81de6df07f5d9",
+      "availableFamilies": [
+        "rapid_retrigger"
+      ]
+    },
+    {
+      "recordingId": "Ravel_JeuxDEau_008_20110315-SMD",
+      "audioSha256": "80c389f13d050397b733fd6154c4a27e88a749c38f26087bce13b41642f20182",
+      "midiSha256": "1eb5f8228054b3ab0f80f60447858046fb9285b0600dd99305899057ed51a9c7",
+      "availableFamilies": [
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "same_note_retrigger",
+        "soft_after_loud",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "pedal_sustain_negative"
+      ]
+    },
+    {
+      "recordingId": "Ravel_ValsesNoblesEtSentimentales_003_20090916-SMD",
+      "audioSha256": "3fee53ad3b2873300870b10f4e0426522d92a817fc2384c260e25719a60413e1",
+      "midiSha256": "de54cbb8bfd9648c7d4d238c1c79453d6541d8166c80368ff323e2cc4b3384ce",
+      "availableFamilies": [
+        "correct_single",
+        "wrong_semitone",
+        "wrong_octave",
+        "same_note_retrigger",
+        "soft_after_loud",
+        "busy_period_input",
+        "late_publication",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "held_note_negative",
+        "pedal_sustain_negative"
+      ]
+    },
+    {
+      "recordingId": "Skryabin_Op008No8_003_20090916-SMD",
+      "audioSha256": "c547a5e255c87b40fcdba6578baa67938a171ddff104825cf7042f177e59ce72",
+      "midiSha256": "d5cd42929e9e78501b4b05792a39747bff8963792bf496f294e9aaa1f06f2503",
+      "availableFamilies": [
+        "busy_period_input",
+        "late_publication",
+        "correct_chord",
+        "missing_chord_tone",
+        "extra_chord_tone",
+        "close_spread_chord",
+        "same_note_retrigger",
+        "held_note_negative"
+      ]
+    }
+  ],
+  "missingFamilies": [],
+  "selectedSourceIds": [
+    "Bach_BWV849-02_001_20090916-SMD",
+    "Bach_BWV875-02_002_20090916-SMD",
+    "Bartok_SZ080-02_002_20110315-SMD",
+    "Haydn_HobXVINo52-02_008_20110315-SMD"
+  ],
+  "sourceDisjoint": true,
+  "acousticOutputOpened": false,
+  "newDatasetDownloads": 0
+}
