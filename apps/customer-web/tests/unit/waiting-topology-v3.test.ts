@@ -54,3 +54,12 @@ it('frozen audio jobs expose numeric control only and Stage A has no truth/produ
  const scorer=readFileSync(path.join(root,'backend/research/step_waiting_topology_v3/score.mjs'),'utf8');
  expect(scorer.indexOf('hash(bytes)!==seal.sha256')).toBeLessThan(scorer.indexOf("path.join(DATA,'truth.json')"));
 });
+it('an old pre-watermark physical gesture cannot corroborate a new decoded MATCH even with identical pitches',()=>{
+ const gate=new WaitingTopologyGate(48000,'s',0,200000,0,0);gate.captureThrough(58000,.8);gate.arm(58000,1);
+ gate.captureThrough(80000,2);gate.accept(receipt(70000,80000,[[60000,'C4']]));
+ const cell:AcousticCell={id:'s',rate:48000,actions:gate.actions,sourceOriginSample:0,captureTrace:[[58000,.8,'UNAVAILABLE'],[80000,2,'READY']],ready:{sourceSample:58000,wallMs:1},warm:{wallMs:.5,sourceFrontier:50000},receipts:gate.receipts};
+ const physical:PhysicalCase={id:'s',topology:'held_note',intendedTime:null,physicalPitches:[60],truth:[{time:1.2,notes:[{pitch:60,time:1.2}]}],scoredEnd:3,arm:58000/48000,selected:{},source:{recordingId:'unit'}};
+ const result=replayProduct(cell,physical,[60]);expect(result.outcomes[0].verdict).toBe('MATCH');
+ expect(result.outcomes[0].physicalGestureEligible).toBe(false);expect(result.outcomes[0].fullPhysicalSupport).toBe(false);expect(result.unsupported).toBe(1);
+ expect(result.outcomes[0].physicalEventCapture!.state).toBe('UNAVAILABLE');expect(result.outcomes[0].decodedEventCapture!.state).toBe('READY');
+});

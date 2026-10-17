@@ -1,0 +1,20 @@
+{
+  "status": "INVALIDATED_BEFORE_NEURAL_EXECUTION",
+  "freezeCommit": "c59bd3563ea69b62e96523417378caf4db5015ef",
+  "remoteHead": "c59bd3563ea69b62e96523417378caf4db5015ef",
+  "freezeSha256": "3718050c79587825a4342032534d9f938908c04b280f2c534aa0ccc9c03d7fa6",
+  "remoteVerifiedAt": "2026-10-17T21:50:25.418Z",
+  "executionStartedAt": "2026-10-17T21:50:25.979Z",
+  "cause": "Independent scorer audit found that nearest equal-pitch physical truth could be pre-watermark context or busy input. Such truth cannot corroborate a new eligible READY attempt.",
+  "repair": "Require the corroborating physical gesture to be strictly later than the attempt eligibility watermark and before scored scope end. Preserve separate decoded-source and physical-MIDI capture-state witnesses. Add an explicit unsupported-MATCH regression test.",
+  "classification": "QUALIFICATION_SCORER_COMPLETENESS_BUG",
+  "candidateWidthMs": 50,
+  "corpusReplacements": 0,
+  "modelDecoderFirChanges": false,
+  "productionSourceChanges": false,
+  "actualNeuralModelRuns": 0,
+  "StageA": "NOT_STARTED",
+  "StageB": "NOT_STARTED",
+  "static": {"testFiles":151,"passed":1129,"failed":0,"TypeScript":"PASS","lintErrors":0,"lintWarnings":1,"webpackBuild":"PASS","NodeTests":5,"PythonTests":4,"assetTests":4,"routeTests":3},
+  "requiredNextStep": "New source commit, new freeze, exact remote verification and full rerun. No old static/browser PASS is inherited."
+}

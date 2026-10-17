@@ -24,7 +24,8 @@ export function replayProduct(cell:AcousticCell,physical:PhysicalCase,target:rea
  const ms=(sample:number)=>sample/cell.rate*1000;
  let identity:StepAttemptIdentity|null=null,sealed:Attempt|null=null;
  const outcomes:{attempt:Attempt;attemptId:string;generation:number;verdict:string;verdictWallMs:number;verdictPhysicalSample:number;
-  truthGroup:number|null;fullPhysicalSupport:boolean;target:readonly string[];physicalEventCapture:ReturnType<typeof captureWitness>}[]=[];
+  truthGroup:number|null;fullPhysicalSupport:boolean;physicalGestureEligible:boolean;target:readonly string[];
+  physicalEventCapture:ReturnType<typeof captureWitness>;decodedEventCapture:ReturnType<typeof captureWitness>}[]=[];
  let stale=0,secondBusy=0;
  for(const action of cell.actions){
   clock.set(ms(action.sourceSample));
@@ -41,27 +42,31 @@ export function replayProduct(cell:AcousticCell,physical:PhysicalCase,target:rea
    if(!sealed||!identity)throw Error('NO_ACTIVE_PRODUCT_IDENTITY');
    const nearest=physical.truth.map((g,index)=>({g,index,error:Math.abs(g.time*1000-ms(sealed!.anchor))}))
     .filter(g=>g.error<=100).sort((a,b)=>a.error-b.error||a.index-b.index)[0];
-   const targetNames=target.map(name).sort(),fullPhysicalSupport=!!nearest&&equal(nearest.g.notes.map(n=>name(n.pitch)),targetNames);
+   const physicalGestureEligible=!!nearest&&nearest.g.time*cell.rate>sealed.eligibleAfter&&nearest.g.time<physical.scoredEnd;
+   // Old context/busy truth with the same pitches cannot corroborate a new READY attempt.
+   const targetNames=target.map(name).sort(),fullPhysicalSupport=physicalGestureEligible&&equal(nearest!.g.notes.map(n=>name(n.pitch)),targetNames);
    const verdict=runtime.completeAttempt(identity,{kind:'EVIDENCE',confidence:sealed.confidence,observedAttackPitches:sealed.pitches,
     captureEndSessionTime:{domainId:session,ms:ms(sealed.end)}});
    if(verdict.kind!=='FINALIZED')throw Error('PRODUCT_DOMAIN_REJECTED_VERDICT');
    outcomes.push({attempt:sealed,attemptId:identity.attemptId,generation:identity.targetGeneration,verdict:verdict.record.verdict,
     verdictWallMs:action.wallMs+wallShift,verdictPhysicalSample:action.sourceSample,truthGroup:nearest?.index??null,fullPhysicalSupport,
-    target:targetNames,physicalEventCapture:captureWitness(cell,sealed.anchor)});
+    physicalGestureEligible,target:targetNames,physicalEventCapture:nearest?captureWitness(cell,nearest.g.time*cell.rate):null,
+    decodedEventCapture:captureWitness(cell,sealed.anchor)});
    identity=null;sealed=null;
   }
   if(action.type==='READY')runtime.rearm({domainId:session,ms:ms(action.sourceSample)});
  }
  runtime.end();
- const used=new Set<string>(),matchedTruth=new Set<number>();let reuse=0,double=0,busy=0,unsupported=0;
+ const used=new Set<string>(),matchedTruth=new Set<number>();let reuse=0,double=0,busy=0,queued=0,unsupported=0;
  for(const o of outcomes){
   for(const obs of o.attempt.observations){if(used.has(obs.observationId))reuse++;used.add(obs.observationId);}
   if(o.verdict==='MATCH'){
    if(!o.fullPhysicalSupport)unsupported++;
    if(o.truthGroup!==null){if(matchedTruth.has(o.truthGroup))double++;matchedTruth.add(o.truthGroup);}
-   if(o.physicalEventCapture&&['ANALYZING','RESET'].includes(o.physicalEventCapture.state))busy++;
+   if(o.decodedEventCapture&&['UNAVAILABLE','CAPTURING','ANALYZING','RESET'].includes(o.decodedEventCapture.state))busy++;
   }
   if(o.attempt.anchor<=o.attempt.eligibleAfter)stale++;
+  if(o.decodedEventCapture&&['UNAVAILABLE','CAPTURING','ANALYZING','RESET'].includes(o.decodedEventCapture.state))queued++;
  }
  const intended=physical.intendedTime===null?null:physical.intendedTime*cell.rate;
  const physicalCapture=intended===null?null:captureWitness(cell,intended);
@@ -75,5 +80,5 @@ export function replayProduct(cell:AcousticCell,physical:PhysicalCase,target:rea
    latePublicationCarryoverAdvance:cell.receipts.filter(r=>r.late&&r.opened).length,crossAttemptObservationReuse:reuse,
    staleEqualWatermarkAdvance:stale,secondAttemptWhileBusy:secondBusy,
    preReadyInputOpenedAttempt:cell.receipts.filter(r=>r.state==='UNAVAILABLE'&&r.opened).length,
-   resetInputOpenedAttempt:cell.receipts.filter(r=>r.state==='RESET'&&r.opened).length,busyInputQueuedForLater:busy}};
+   resetInputOpenedAttempt:cell.receipts.filter(r=>r.state==='RESET'&&r.opened).length,busyInputQueuedForLater:queued}};
 }

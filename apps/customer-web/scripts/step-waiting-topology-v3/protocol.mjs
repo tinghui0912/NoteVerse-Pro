@@ -3,7 +3,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson} from '../audio-context-clock/protocol.mjs';
 export {ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson};
-export const START='966ea6b1a74907544ab9419b52a69700b067a993',ID='waiting_topology_v3_f1';
+export const START='966ea6b1a74907544ab9419b52a69700b067a993',ID='waiting_topology_v3_f2';
 export const DATA=path.join(ROOT,'backend/data/work/step_waiting_topology_v3/corpus-v3');
 export const INVENTORY='backend/data/work/step_waiting_topology_v3/metadata-v4/inventory.json';
 export const FREEZE=`backend/research/reports/${ID}_freeze_2026-10-18.json`;

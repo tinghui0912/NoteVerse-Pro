@@ -23,3 +23,5 @@ All ten architecture counters, seven false-MATCH counters, negative-guard attemp
 ## Execution
 
 Commit tooling and fixed selection, freeze all sources/inputs, push and verify exact remote, full static/backend tests, canonical Continuous engineering8/musical8/controller/parity, Stage A real Chrome/Worker/WebGPU, read-only acoustic seal, Stage B truth/product scoring, evidence and GitHub receipt. No old PASS is inherited. Any frozen tooling change invalidates the run. STOP on a failed gate; no tuning or production integration.
+
+The first v3 freeze was invalidated before any neural execution: a scorer audit added the requirement that corroborating physical truth itself must be strictly post-watermark, not merely a nearby identical pitch set from old context. Decoded source time and physical MIDI time have separate state witnesses. f2 retains the identical selected corpus, H and acoustic implementation, and reruns all verification. This is not a change based on new acoustic output; none existed under f1.

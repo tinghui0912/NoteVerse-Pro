@@ -30,7 +30,7 @@ for(const cell of acoustic.result.results){
    const physical=o.truthGroup===null?null:c.truth[o.truthGroup];
    const nearby=cell.publications.flatMap(p=>p.observations).filter(n=>Math.abs(n.sourceEventSample/cell.rate*1000-o.attempt.anchor/cell.rate*1000)<=100);
    const missingRaw=physical?.notes.filter(n=>!nearby.some(a=>a.midiPitch===n.pitch)).map(n=>n.pitch)??[];
-   const attribution=physical===null?'NO_CORROBORATING_PHYSICAL_GESTURE':missingRaw.length?'FIXED_DECODED_EVIDENCE_LIMITATION':'BOUNDED_ASSEMBLY_OR_ALIGNMENT_LIMITATION';
+   const attribution=physical===null?'NO_CORROBORATING_PHYSICAL_GESTURE':!o.physicalGestureEligible?'PHYSICAL_GESTURE_NOT_ELIGIBLE_FOR_THIS_READY_ATTEMPT':missingRaw.length?'FIXED_DECODED_EVIDENCE_LIMITATION':'BOUNDED_ASSEMBLY_OR_ALIGNMENT_LIMITATION';
    dangerousWitnesses.push({id:c.id,rate:cell.rate,topology:c.topology,variant:variant.name,category,attribution,missingRawPhysicalPitches:missingRaw,nearbyRaw:nearby,outcome:o});
   }
   rows.push({variant:variant.name,target:variant.pitches,...result});
