@@ -29,10 +29,6 @@ function sessionTime(domainId: string, ms: number, sampleIndex?: number): Sessio
   return sampleIndex === undefined ? { domainId, ms } : { domainId, ms, sampleIndex };
 }
 
-function withMs(time: SessionTime | undefined, ms: number): SessionTime {
-  return { ...(time ?? sessionTime('', 0)), ms };
-}
-
 function performanceEvidence(
   domainId: string,
   ms: number,

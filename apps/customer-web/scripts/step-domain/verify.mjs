@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ROOT, APP, paths, newJson, verify, hash } from './protocol.mjs';
-const id = 'step_domain_v1', proof = await verify(id), work = paths(id).work;
+const id = 'step_domain_v2', proof = await verify(id), work = paths(id).work;
 await mkdir(work, { recursive: true });
 const results = [];
 for (const [name, args] of [

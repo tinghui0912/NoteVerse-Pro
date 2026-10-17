@@ -12,13 +12,19 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
   const unsubscribe = useRef<(() => void) | null>(null);
   const completion = useRef(options.onCompletion);
   useEffect(() => { completion.current = options.onCompletion; }, [options.onCompletion]);
-  const [snapshot, setSnapshot] = useState<ReturnType<StepPracticeController['snapshot']> | null>(null);
-  const [preparationError, setPreparationError] = useState<string | null>(null);
   const key = JSON.stringify([options.mode, options.inputSource, options.scope, options.tempoSelection]);
+  type Snapshot = ReturnType<StepPracticeController['snapshot']> | null;
+  type Binding<T> = { key: string; artifact: UseLocalPracticeOptions['artifact']; value: T };
+  const [savedSnapshot, saveSnapshot] = useState<Binding<Snapshot> | null>(null);
+  const [savedError, saveError] = useState<Binding<string | null> | null>(null);
+  const snapshot = savedSnapshot?.key === key && savedSnapshot.artifact === options.artifact ? savedSnapshot.value : null;
+  const preparationError = savedError?.key === key && savedError.artifact === options.artifact ? savedError.value : null;
+  const setSnapshot = useCallback((value: Snapshot) => saveSnapshot({ key, artifact: options.artifact, value }), [key, options.artifact]);
+  const setPreparationError = useCallback((value: string | null) => saveError({ key, artifact: options.artifact, value }), [key, options.artifact]);
   const dispose = useCallback(() => {
     unsubscribe.current?.(); unsubscribe.current = null; owner.current?.dispose(); owner.current = null;
   }, []);
-  useEffect(() => { setSnapshot(null); setPreparationError(null); return dispose; }, [key, options.artifact, dispose]);
+  useEffect(() => dispose, [key, options.artifact, dispose]);
   useEffect(() => { owner.current?.setMetronomeEnabled(options.metronomeEnabled ?? false); }, [options.metronomeEnabled]);
   useEffect(() => {
     if (options.mode !== 'STEP_BY_STEP') return;
@@ -26,7 +32,7 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
     let frame: number;
     const draw = () => { if (owner.current) setSnapshot(owner.current.snapshot()); frame = requestAnimationFrame(draw); };
     frame = requestAnimationFrame(draw); return () => cancelAnimationFrame(frame);
-  }, [options.mode]);
+  }, [options.mode, setSnapshot]);
   const start = useCallback(async () => {
     if (owner.current && owner.current.snapshot().state !== 'READY') return;
     if (!options.artifact || !options.scope || !tempoPlan) { setPreparationError('STEP_SCORE_UNAVAILABLE'); return; }
@@ -37,12 +43,12 @@ export function useStepLocalPractice(options: UseLocalPracticeOptions, tempoPlan
       owner.current = controller; unsubscribe.current = controller.subscribe(() => setSnapshot(controller.snapshot()));
     }
     setPreparationError(null); await owner.current.start();
-  }, [options, tempoPlan]);
+  }, [options, tempoPlan, setPreparationError, setSnapshot]);
   const pause = useCallback(async () => { owner.current?.pause(); }, []);
   const resume = useCallback(async () => { await owner.current?.resume(); }, []);
   const finish = useCallback(async () => { owner.current?.finish(); }, []);
   const skip = useCallback(() => { owner.current?.skip(); }, []);
-  const restart = useCallback(async () => { dispose(); completedPerformanceStore.clearPerformance(); setSnapshot(null); setPreparationError(null); await start(); }, [dispose, start]);
+  const restart = useCallback(async () => { dispose(); completedPerformanceStore.clearPerformance(); setSnapshot(null); setPreparationError(null); await start(); }, [dispose, start, setSnapshot, setPreparationError]);
   const setMetronomeEnabled = useCallback((enabled: boolean) => owner.current?.setMetronomeEnabled(enabled), []);
   const state = snapshot?.state ?? 'READY';
   const lifecycle: LocalPracticeLifecycle = state === 'ACTIVE' || state === 'PAUSED' ? state : state === 'ENDED' || state === 'DISPOSED' ? 'ENDED' : 'READY';

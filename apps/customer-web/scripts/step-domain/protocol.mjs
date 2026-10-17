@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson } from '../audio-context-clock/protocol.mjs';
 export { ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson };
-export const ID='step_domain_v1', START='9c97dfb021cb98930e71391a6e203d9ef176bd75';
+export const ID='step_domain_v2', START='9c97dfb021cb98930e71391a6e203d9ef176bd75';
 export const PHASE='PRACTICE_STEP_ONE_TARGET_ONE_ATTEMPT_DOMAIN_AND_CONTROLLER_CLEAN_BREAK';
 export const SUCCESS='PRACTICE_STEP_ONE_TARGET_ONE_ATTEMPT_DOMAIN_CONTROLLER_READY_MICROPHONE_DISABLED';
 export const BLOCKED='PRACTICE_STEP_ONE_TARGET_ONE_ATTEMPT_DOMAIN_CONTROLLER_BLOCKED';
@@ -30,6 +30,8 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
       'docs/architecture/practice-product-contract-v2.md','backend/research/browser_runtime/xc1_browser_runtime_shared.mjs').split('\n').filter(Boolean);
     const corpus=JSON.parse(await readFile(path.join(ROOT,'backend/research/reports/product_completion_corpus_v1_2026-10-17.json'),'utf8'));
     files.push(MODEL,FIXTURE,...corpus.clips.flatMap(c=>Object.values(c.pcm).map(p=>p.path)),
+      'backend/research/reports/step_domain_invalidation_v1_2026-10-17.json',
+      'backend/research/reports/step_domain_invalid_static_v1_2026-10-17.json',
       'backend/research/reports/product_completion_corpus_v1_2026-10-17.json',
       'backend/data/work/product_completion_replay/v1/audio_only/manifest.json',
       'backend/data/work/product_completion_replay/v4/truth.json',

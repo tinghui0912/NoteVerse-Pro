@@ -49,6 +49,7 @@ if(process.argv[2]==='evidence'){
  await newJson(path.join(ROOT,`${reports}/step_domain_final_${ID}_2026-10-17.json`),{
   phase:PHASE,disposition:pass?SUCCESS:BLOCKED,startingHead:START,implementationAndToolingCommit:plan.implementationCommit,proof,
   execution:{static:verification.results[0]?.startedAt,step:step.startedAt,engineering:engineering.executionStartedAt,musical:musical.startedAt},
+  invalidatedCycles:[await read('backend/research/reports/step_domain_invalidation_v1_2026-10-17.json')],
   artifacts,pathsChanged:changed,archiveManifest:'backend/research/history/step-original-bytedance-low-level-before-domain-reset/manifest.json',archivedFiles:archive.files,
   modules:{domain:['local-core/step-attempt.ts','local-core/step-runtime.ts'],application:'step/step-practice-controller.ts',gesture:'step/step-midi-attempt-input.ts',
    genericMidi:'midi/browser-midi-controller.ts',platform:'step/step-platform.ts',presentation:'hooks/practice/use-step-local-practice.ts',
