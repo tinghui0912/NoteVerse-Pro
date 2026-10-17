@@ -16,12 +16,12 @@ if(process.argv[2]==='evidence'){
   if(git('diff','--name-only',START,'HEAD').split('\n').some(p=>priorReports.has(p)))throw new Error('HISTORICAL_REPORT_CHANGED');
   const artifacts=[];
   for(const [name,value] of Object.entries({verification,engineering,musical,scores,truth})){
-    const file=path.join(reports,`product_completion_${name}_v1_2026-10-17.json`);await newJson(file,value);artifacts.push(await fileIdentity(path.relative(ROOT,file)));
+    const file=path.join(reports,`product_completion_${name}_v2_2026-10-17.json`);await newJson(file,value);artifacts.push(await fileIdentity(path.relative(ROOT,file)));
   }
   const confusion={};let violations=0;
   for(const cell of scores.cells)for(const s of cell.scenarios){confusion[s.truth]??={};confusion[s.truth][s.predicted]=(confusion[s.truth][s.predicted]??0)+1;violations+=s.doubleOwnership;}
   const pass=verification.status==='PASS'&&engineering.status==='PASS'&&musical.status==='PASS'&&musical.countComplete&&violations===0;
-  await newJson(path.join(reports,'product_completion_final_v1_2026-10-17.json'),{
+  await newJson(path.join(reports,'product_completion_final_v2_2026-10-17.json'),{
     phase:PHASE,disposition:pass?SUCCESS:BLOCKED,startingHead:START,implementationCommit:plan.implementationCommit,toolingCommit:plan.toolingCommit,proof,
     musicalExecutionStart:musical.startedAt,engineeringExecutionStart:engineering.executionStartedAt,artifacts,
     corpus:{manifest:CORPUS,pairedCount:truth.clips.length,uniqueTruthQualifiedDurationSeconds:18,sourceRateExposureSeconds:36,
@@ -41,6 +41,8 @@ if(process.argv[2]==='evidence'){
       actualModelRuns:engineering.actualModelRuns,musicalController:musical.controllerResult},
     counters:{realNeuralModelRuns:engineering.actualModelRuns+musical.actualModelRuns,musicalModelRuns:musical.actualModelRuns,engineeringModelRuns:engineering.actualModelRuns,
       modelRunCountComplete:musical.countComplete&&engineering.modelRunCountComplete,newDatasetDownloads:0,realPhysicalMicrophones:0},
+    invalidatedTrial:await read(path.join(reports,'product_completion_invalidation_v1_2026-10-17.json')),
+    phaseTotalModelCount:'Accepted v2 count plus 18 known invalidated v1 engineering runs plus at least one invalidated musical run; exact phase total unavailable because v1 failed-cell counter was not serialized.',
     capabilities:{continuous:'MODEL_NOT_VALIDATED',step:'ATTEMPT_ANALYZER_NOT_VALIDATED',productionMicrophone:false,D4:false},
     hardware:{realDeviceQualification:'DEFERRED',hardwareEnablementGate:'NOT_EXECUTED'},
     protections:{changedProtectedFiles:[],historicalReportsChanged:[],F5:'NO_CLEAR_SCIENTIFIC_ACOUSTIC_WINNER',phase9GB:'STATISTICAL_TIE',winner:null,
@@ -59,7 +61,7 @@ if(process.argv[2]==='evidence'){
   const api=async endpoint=>{const r=await fetch('https://api.github.com/repos/tinghui0912/NoteVerse-Pro/'+endpoint,{headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error('GITHUB:'+r.status);return r.json();};
   const combined=await api(`commits/${head}/status`),statuses=await api(`commits/${head}/statuses`),runs=await api(`actions/runs?head_sha=${head}`);
   const remote=git('ls-remote','origin','refs/heads/codex/customer-web-delivery-boundary').split(/\s/)[0];if(remote!==head)throw new Error('REMOTE_MOVED');
-  await newJson(path.join(reports,'product_completion_github_receipt_v1_2026-10-17.json'),{phase:PHASE,queriedAt:new Date().toISOString(),evidenceCommit:head,actualRemoteHead:remote,
+  await newJson(path.join(reports,'product_completion_github_receipt_v2_2026-10-17.json'),{phase:PHASE,queriedAt:new Date().toISOString(),evidenceCommit:head,actualRemoteHead:remote,
     commits:git('log','--reverse','--format=%H %s',`${START}..HEAD`).split('\n'),combinedState:combined.state,statuses,workflow_runs:runs.workflow_runs,
     interpretation:statuses.length===0&&runs.workflow_runs.length===0?'NOT CI PASS':'ACTUAL_GITHUB_EVIDENCE_ONLY'});
   console.log(JSON.stringify({head,state:combined.state,statuses:statuses.length,workflow_runs:runs.workflow_runs.length}));

@@ -76,10 +76,11 @@ def prepare():
       'midiContentReadsBeforeAcousticSeal':0, 'newDatasetDownloads':0, 'realPhysicalMicrophones':0})
     save(WORK / 'audio_only/manifest.json', {'clips': [{k:v for k,v in c.items() if k not in ['midi']} for c in rows]})
 
-def truth():
+def truth(run_id):
     import pretty_midi
+    work = ROOT / 'backend/data/work/product_completion_replay' / run_id
     manifest = json.loads(REPORT.read_text())
-    seal = json.loads((WORK / 'acoustic_seal.json').read_text())
+    seal = json.loads((work / 'acoustic_seal.json').read_text())
     for item in seal['files']:
         if SHA((ROOT / item['path']).read_bytes()) != item['sha256']: raise ValueError('ACOUSTIC_SEAL_DRIFT')
     rows = []
@@ -110,9 +111,9 @@ def truth():
                   'warningRule':'abs(bestLag)>250 AND bestScore>2*zeroScore; flags truth scoring exclusion, never applies a time shift','warning':gross_warning},
                 'nearestFluxOffsetsMs':[p*10-1800-n['timeMs'] for p,n in zip(peaks,notes)],
                 'limitation':'Not proof of per-note physical onset precision in dense/pedalled passages; pairing relies on publisher synchronization, no correction applied'}})
-    save(WORK/'truth.json',{'acousticSealSha256':SHA((WORK/'acoustic_seal.json').read_bytes()),'additionalAlignmentMs':0,'clips':rows})
+    save(work/'truth.json',{'acousticSealSha256':SHA((work/'acoustic_seal.json').read_bytes()),'additionalAlignmentMs':0,'clips':rows})
 
 if __name__ == '__main__':
     import sys
     if platform.system() != 'Linux' or not Path('/.dockerenv').exists(): raise RuntimeError('DOCKER_ONLY')
-    prepare() if sys.argv[1]=='prepare' else truth()
+    prepare() if sys.argv[1]=='prepare' else truth(sys.argv[2])

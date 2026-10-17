@@ -4,12 +4,12 @@ import {readFile,writeFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {pathToFileURL} from 'node:url';
 import path from 'node:path';
-import {ROOT,APP,MODEL,WORK,verify,newJson,hash,fileIdentity} from './protocol.mjs';
+import {ROOT,APP,MODEL,WORK,ID,verify,newJson,hash,fileIdentity} from './protocol.mjs';
 import {RUNTIME_NODE_MODULES,resolveBrandedBrowserExecutable} from '../../../../backend/research/browser_runtime/xc1_browser_runtime_shared.mjs';
 const proof=await verify();
-const engineering=JSON.parse(await readFile(path.join(ROOT,'backend/data/work/continuous_controller/product_replay_v1/browser.json'),'utf8'));
+const engineering=JSON.parse(await readFile(path.join(ROOT,`backend/data/work/continuous_controller/${ID}/browser.json`),'utf8'));
 if(engineering.status!=='PASS')throw new Error('ENGINEERING_REGRESSION_NOT_PASS');
-const audio=JSON.parse(await readFile(path.join(WORK,'audio_only/manifest.json'),'utf8'));
+const audio=JSON.parse(await readFile(path.join(ROOT,'backend/data/work/product_completion_replay/v1/audio_only/manifest.json'),'utf8'));
 const esbuild=await import(pathToFileURL(path.join(ROOT,'backend/data/work/basic_pitch_browser_feasibility/node_modules/esbuild/lib/main.js')).href);
 for(const [entry,out] of [['scripts/continuous-product-replay/entry.ts','entry.js'],['scripts/continuous-product-replay/controller-entry.ts','controller.js'],['src/lib/practice/acoustic-inference/continuous/acoustic-worker.entry.ts','worker.js']]){
   await esbuild.build({entryPoints:[path.join(APP,entry)],outfile:path.join(WORK,out),bundle:true,format:'esm',platform:'browser',target:'es2022',
@@ -31,7 +31,7 @@ const server=createServer((req,res)=>{
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const require=createRequire(import.meta.url),{chromium}=require(path.join(RUNTIME_NODE_MODULES,'playwright'));
-let browser,controllerResult=null;const results=[],diagnostics=[];const startedAt=new Date().toISOString();let failure=null;
+let browser,controllerResult=null,failedWitness=null;const results=[],diagnostics=[];const startedAt=new Date().toISOString();let failure=null;
 try{
   browser=await chromium.launch({executablePath:resolveBrandedBrowserExecutable('chrome'),headless:false});
   for(const c of cells){const context=await browser.newContext(),page=await context.newPage();
@@ -46,9 +46,9 @@ try{
   try{await page.goto(`http://127.0.0.1:${server.address().port}/controller`);await page.waitForFunction(()=>typeof window.runMusicalControllerReplay==='function');
     controllerResult=await page.evaluate(urls=>window.runMusicalControllerReplay(urls),Object.fromEntries(cells.filter(c=>c.id===audio.clips[0].id).map(c=>[c.rate,c.url])));console.log('PASS musical production controller',controllerResult.actualModelRuns);
   }finally{await context.close();}
-}catch(e){failure=String(e.stack??e);process.exitCode=1;}finally{
+}catch(e){failure=String(e.stack??e);const first=failure.split('\n')[0],index=first.indexOf('{');if(index>=0){try{failedWitness=JSON.parse(first.slice(index));}catch{}}process.exitCode=1;}finally{
   const browserVersion=browser?await browser.version():null;await browser?.close();await new Promise(r=>server.close(r));
   await newJson(path.join(WORK,'musical.json'),{proof,startedAt,completedAt:new Date().toISOString(),browserVersion,results,diagnostics,requests,failure,
-    controllerResult,status:failure?'BLOCKED':'PASS',actualModelRuns:results.reduce((n,r)=>n+r.actualModelRuns,0)+(controllerResult?.actualModelRuns??0),countComplete:failure===null});
+    controllerResult,failedWitness,status:failure?'BLOCKED':'PASS',actualModelRuns:results.reduce((n,r)=>n+r.actualModelRuns,0)+(controllerResult?.actualModelRuns??0)+(failedWitness?.actualModelRuns??0),countComplete:failure===null});
   if(!failure)await newJson(path.join(WORK,'acoustic_seal.json'),{status:'ACOUSTIC_PREDICTIONS_SEALED',sealedAt:new Date().toISOString(),files:[await fileIdentity(path.relative(ROOT,path.join(WORK,'musical.json')))],sha256:hash(await readFile(path.join(WORK,'musical.json')))});
 }

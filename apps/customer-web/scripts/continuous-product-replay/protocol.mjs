@@ -4,10 +4,10 @@ import {fileURLToPath} from 'node:url';
 import {ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson,freeze as engineeringFreeze} from '../continuous-controller/protocol.mjs';
 export {ROOT,APP,MODEL,FIXTURE,git,hash,fileIdentity,newJson};
 export const START='b402dda20dbc9304e5488ceefc32dc995bd76674';
-export const ID='product_replay_v1';
-export const WORK=path.join(ROOT,'backend/data/work/product_completion_replay/v1');
+export const ID='product_replay_v2';
+export const WORK=path.join(ROOT,'backend/data/work/product_completion_replay/v2');
 export const CORPUS='backend/research/reports/product_completion_corpus_v1_2026-10-17.json';
-export const FREEZE='backend/research/reports/product_completion_freeze_v1_2026-10-17.json';
+export const FREEZE='backend/research/reports/product_completion_freeze_v2_2026-10-17.json';
 export const PHASE='PRACTICE_CONTINUOUS_MICROPHONE_PRODUCT_COMPLETION_REPLAY_QUALIFICATION';
 export const SUCCESS='CONTINUOUS_MICROPHONE_PRODUCT_FUNCTIONALITY_COMPLETE_HARDWARE_GATE_DEFERRED';
 export const BLOCKED='CONTINUOUS_MICROPHONE_PRODUCT_COMPLETION_BLOCKED';
@@ -25,13 +25,16 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
     const corpus=JSON.parse(await readFile(path.join(ROOT,CORPUS),'utf8'));
     const files=git('ls-files','apps/customer-web','docs/architecture/practice-product-contract-v2.md','backend/research/qualification/product_replay_prepare.py','backend/app/modules/model_assets','backend/tests/test_continuous_model_asset.py',CORPUS).split('\n').filter(Boolean);
     files.push(MODEL,FIXTURE,`backend/research/reports/continuous_controller_freeze_${ID}_2026-10-17.json`,
+      'backend/research/reports/product_completion_invalidation_v1_2026-10-17.json',
+      'backend/research/reports/product_completion_musical_invalid_v1_2026-10-17.json',
       ...corpus.clips.flatMap(c=>Object.values(c.pcm).map(p=>p.path)),
       ...['package.json','dist/ort.webgpu.min.mjs','dist/ort-wasm-simd-threaded.jsep.mjs','dist/ort-wasm-simd-threaded.jsep.wasm'].map(p=>'apps/customer-web/node_modules/onnxruntime-web/'+p));
-    await newJson(path.join(ROOT,FREEZE),{phase:PHASE,startingHead:START,implementationCommit:git('rev-parse','HEAD'),toolingCommit:git('rev-parse','HEAD'),createdAt:new Date().toISOString(),
+    await newJson(path.join(ROOT,FREEZE),{phase:PHASE,startingHead:START,implementationCommit:git('log','-1','--format=%H','--','apps/customer-web/src/lib/practice/continuous/continuous-practice-controller.ts'),toolingCommit:git('rev-parse','HEAD'),createdAt:new Date().toISOString(),
       files:await Promise.all(files.map(fileIdentity)),corpus:CORPUS,engineeringRegressionId:ID,
       model:{bytes:98689283,sha256:'4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3',ort:'1.20.1',provider:'webgpu',fallback:false},
       rates:[44100,48000],matchingWindowMs:250,primary:'3 fixed paired 6s clips per rate plus 1.8s synthetic silence per rate; one production Worker/model execution stream, no decode comparison',
       truthSeal:'Audio-only manifest served to browser; no MIDI/truth files served. Docker MIDI read and test-side product scenarios only after all outputs sealed.',
+      replayClock:'max(source performance cursor, 0) + elapsed processing time; monotonic logical offline availability, NOT measured causal latency. Physical event times stay source-derived. Production clock and runtime unchanged.',
       productScenarios:'Frozen construction algorithm in product-scenarios.ts, no prediction-dependent choices; separate hand-authored perfect-evidence semantic tests.',
       faultPolicy:'Track ended/mute or session context not running => fatal session, block ingestion, invalidate recording/evaluation, no completed store, detach before normal cleanup. Healthy-context Worker failure remains analysis-only.',
       verification:['full Vitest','TypeScript noEmit','ESLint complete JSON','Next full webpack build','Docker asset unittest','Node truth-matching tests','8-cell existing real controller fake-media regression','paired audio real Worker/WebGPU replay'],
