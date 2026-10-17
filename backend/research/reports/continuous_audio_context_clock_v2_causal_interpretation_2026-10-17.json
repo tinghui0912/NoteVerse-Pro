@@ -1,0 +1,113 @@
+{
+  "phase": "PRACTICE_CONTINUOUS_AUDIO_CONTEXT_TRANSPORT_CLOCK_CONTRACT_V2",
+  "disposition": "CONTINUOUS_AUDIO_CONTEXT_CLOCK_CONTRACT_V2_BLOCKED",
+  "evidenceKind": "APPEND_ONLY_POST_EXECUTION_CAUSAL_INTERPRETATION_NO_SOURCE_CHANGE_OR_RERUN",
+  "startingHead": "556689315368f876e5655afa755ad262ff803d40",
+  "implementationCommit": "e03d1c74c943983df42f692ecdcbc1de1002456d",
+  "freezeCommit": "880c785a23b6f2280c2f17440310acae8ac5d198",
+  "freezeSha256": "735464ef134b308a862f85897af6bff4a33db2d703250a109f7c7e5ec0b61b86",
+  "remoteVerifiedAt": "2026-10-17T00:56:29.738Z",
+  "browserExecutionStartedAt": "2026-10-17T00:56:29.837Z",
+  "failedAt": "2026-10-17T00:56:51.758Z",
+  "gate1": {
+    "disposition": "CONTINUOUS_MODEL_NEUTRAL_RUNTIME_REQUALIFIED",
+    "sourceRatesPassed": [44100, 48000],
+    "actualModelRuns": 4,
+    "runsPerRate": 2,
+    "realWorkersPerRate": 1,
+    "modelBytes": 98689283,
+    "modelSha256": "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3",
+    "ort": "1.20.1",
+    "provider": "webgpu",
+    "automaticFallback": false,
+    "offlineCompletionBothRates": true,
+    "terminalExactTBothRatesMs": 1200,
+    "finalOutstandingBothRates": 0,
+    "peakOutstandingBothRates": 1,
+    "sourceGapsBothRates": 0,
+    "sourceOverlapsBothRates": 0,
+    "observationsPublishedBothRates": 0,
+    "limitation": "Deterministic fake-audio execution produced empty acoustic observations. This qualifies actual model execution, coverage, asset/provider integrity and runtime integration, not nonempty natural piano accuracy. Frozen DSP/window parity remains deterministic unit/reference evidence, not newly measured scientific accuracy.",
+    "consoleAttribution": "Two exact pinned ORT dependency warnings per rate; no unresolved error/HTTP failure. CPU assignment of shape operations is not provider fallback."
+  },
+  "gate2ExecutionState": {
+    "44100_A": "PASS",
+    "44100_B": "BLOCKED_ON_SECOND_RESUME_BEFORE_10_SECOND_SCENARIO_COMPLETION",
+    "44100_C": "NOT_RUN_STOPPED_AFTER_FAILURE",
+    "44100_D": "NOT_RUN_STOPPED_AFTER_FAILURE",
+    "48000_A_B_C_D": "NOT_RUN_STOPPED_AFTER_FAILURE",
+    "actualNeuralRuns": 0,
+    "completeGate2PassReceiptExists": false
+  },
+  "generatedSummaryClarification": {
+    "file": "continuous_audio_context_clock_v2_final_2026-10-17.json",
+    "field": "gate2.status",
+    "generatedValue": "NOT_RUN",
+    "reason": "Frozen report tooling projects absence of a complete gate2.json PASS artifact as NOT_RUN; it does not project partial Gate 2 results from failure.json.",
+    "correctExecutionInterpretation": "Gate 2 DID run: A passed, B failed, later scenarios were not run. The raw failure receipt contains A and the complete failing B witness in its exception payload. This append-only receipt clarifies the summary limitation without editing the frozen generator or its generated report.",
+    "overallGeneratedDispositionIsCorrect": true
+  },
+  "actualFailure": {
+    "code": "RESUME_PERFORMANCE_GAP",
+    "rate": 44100,
+    "scenario": "B",
+    "transition": "SECOND_RESUME_BEGIN",
+    "pausePerformanceTimeMs": 3610.7029478458053,
+    "resumePerformanceTimeMs": 3610.7029478458044,
+    "deltaMs": -9.094947017729282e-13,
+    "latchedContextTimeSeconds": 5.622131519274377,
+    "latchedContextTimeMs": 5622.131519274377,
+    "contextFrame": 247936,
+    "sourceSample": 247936,
+    "nextSourceAtRegistration": 247552,
+    "leadSamples": 384,
+    "fractionalFrameError": 2.9103830456733704e-11,
+    "boundaryRegisteredButNotAppliedBeforeAbort": true,
+    "notAnAlreadyConsumedBoundary": true,
+    "notAGreaterThanOneSampleDurationFailure": true,
+    "notAnObservedCrossClockDriftOrHardwareLatencyFailure": true
+  },
+  "sourceLevelCause": {
+    "path": "apps/customer-web/src/lib/practice/local-core/performance-runtime.ts",
+    "function": "PerformanceClockRuntime.activeElapsedAt",
+    "frozenSourceSha256": "3c463ae4181157574f800028802fe99b2a2b575c702561d8ae61010811e985e1",
+    "expression": "Math.max(0, activeElapsedStartMs + nowMs - clockStartMs)",
+    "atResumeNowEqualsClockStart": true,
+    "ieee754Reproduction": "3610.7029478458053 + 5622.131519274377 - 5622.131519274377 = 3610.7029478458044",
+    "interpretation": "Left-associated floating-point addition/subtraction does not preserve exact accumulated performance identity even when a transaction returns one identical currentTime. The injected LocalClock latch worked; exact pause/resume product identity did not.",
+    "downstreamContract": "ContinuousAcousticRuntime.beginSegment requires performanceStartMs === lastPerformanceEnd. Forwarding the observed unequal resume value would violate that unchanged contract.",
+    "downstreamFailureActuallyExecuted": false,
+    "whyNotExecuted": "The prospective harness equality assertion stopped before the scheduled resumed boundary could be applied. No later runtime failure is claimed as observed evidence.",
+    "sourceNotModified": true,
+    "noToleranceOrNormalizationIntroduced": true
+  },
+  "observedSegmentBounds": {
+    "44100_A_maximumDurationMismatchSamples": 1.0913936421275139e-11,
+    "44100_B_closedSegmentsDurationMismatchSamples": [0, -1.4551915228366852e-11],
+    "44100_B_registrationLeadSamples": [0, 0, 0, 256, 384],
+    "allObservedClosedSegmentsWithinOneSourceSample": true,
+    "notAnAcceptanceClaimForUnexecutedScenarios": true
+  },
+  "verification": {
+    "vitestTestsPassed": 988,
+    "vitestTestFiles": 131,
+    "newLatchUnitTests": 6,
+    "typecheck": "PASS",
+    "eslintMessages": [],
+    "fullNextWebpackProductionBuild": "PASS",
+    "dockerModelAssetUnittestsPassed": 2
+  },
+  "stopDecision": "Do not weaken equality, invent a tolerance, normalize transport output in the harness, change PerformanceClock, or introduce another mapper under this executed freeze. Preserve the failure for independent audit. No controller/hook integration.",
+  "capabilities": {
+    "continuous": "MODEL_NOT_VALIDATED",
+    "step": "ATTEMPT_ANALYZER_NOT_VALIDATED",
+    "productionMicrophone": false,
+    "D4": false
+  },
+  "limitations": [
+    "Only 44.1k scenario A completed; repeated transitions did not complete.",
+    "Future-boundary, analysis-failure isolation and 48k clock scenarios are unqualified in this run.",
+    "No real microphone/device, physical input/output latency, natural performance accuracy, UX SLO or commercial qualification.",
+    "The same-AudioContext hypothesis is not disproven as a physical clock model; the combined existing product transport/capture contract failed exact resume identity."
+  ]
+}
