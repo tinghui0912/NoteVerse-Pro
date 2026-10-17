@@ -1,0 +1,37 @@
+{
+  "phase": "PRACTICE_STEP_ACOUSTIC_ATTEMPT_ASSEMBLY_ENGINEERING_QUALIFICATION_DISABLED",
+  "startingHead": "1d738d8b8053899d5e52c29fb417736b1bc47b28",
+  "baselineMs": 35,
+  "candidateHsMs": [50, 70, 90, 120],
+  "maximumNonBaselineCandidates": 4,
+  "geometry": "fixed first eligible source/event anchor [T,T+H); never extended; seal only when analyzed frontier covers T+H",
+  "rationale": "50ms includes the exposed 40ms decoded Bach chord spread without putting its second note at an exclusive endpoint. 70/90/120ms are a small bounded increasing assembly family, not decoder thresholds. No candidate beyond these four is authorized.",
+  "selectionLexicographic": [
+    "Non-baseline only: all declared dangerous advancement counters must equal zero at BOTH source rates on ALL development scenarios. Boundary-confounded witnesses remain counted and separately attributed; no output-dependent exclusion.",
+    "Maximize total one-to-one physically corroborated intended-attempt acceptances across both rates.",
+    "Choose the shorter H on ties."
+  ],
+  "ifNoneEligible": "STOP: STEP_ACOUSTIC_ATTEMPT_ASSEMBLY_NOT_ESTABLISHED. No holdout execution, replacement candidate, detector or tuning.",
+  "developmentEvidence": "backend/research/reports/step_decoded_sufficiency_v1/{acoustic.json,acoustic-seal.json,truth.json}; already exposed; both rates; 17 selected overlapping clips per rate, 3 SMD recordings",
+  "developmentSources": ["Bach_BWV849-01_001_20090916-SMD", "Bartok_SZ080-01_002_20110315-SMD", "Beethoven_Op027No1-01_003_20090916-SMD"],
+  "mandatoryBachProbe": "In addition to unmodified complete development cells, replay every sealed s00-05 observation in fixed source interval [4250,4400)ms, retaining ALL pitches/IDs, readiness at 4250ms, target E4. E4@4260 plus G#4@4300 must not produce MATCH. This already-exposed causal probe contributes no extra usability denominator.",
+  "requiredDevelopmentFamilies": ["single", "chord", "same_note_retrigger", "soft_after_loud", "rapid_retrigger", "repeated_chord", "held", "pedal_sustain", "extra_note_in_gesture", "partial_chord", "busy_period_input", "late_busy_publication"],
+  "safetyCounters": ["unsupportedMatch", "subsetPhysicalChordMatch", "doubleAdvanceFromOneTruthGesture", "busyPeriodCarryoverAdvance", "latePublicationCarryoverAdvance", "crossAttemptObservationReuse", "heldPedalAdvance", "samePitchSustainAdvance", "sameChordSustainAdvance", "staleEqualWatermarkAdvance"],
+  "truthMatching": "Existing first-anchor 35ms MIDI ground-truth grouping (not acoustic policy); one-to-one exact full physical pitch set within inclusive 100ms, maximize cardinality then minimize absolute anchor error. Also separately detect strict subset MATCH against nearest physical gesture within 100ms; never use target pitch to shift truth.",
+  "busyScenario": "For busy_period_input and late_busy_publication only: deterministic 500ms post-seal analysis hold, a test-side busy interval not candidate geometry. All physical capture continues. No second attempt queue. Other scenarios finalize immediately when H is covered.",
+  "captureTimeline": "Independent continuously advancing integer source-sample clock in replay, sampled when READY reopens. Publication availability schedules delivery only; it is not the semantic event timestamp or analysis-frontier watermark. Report captured-through source sample and session time separately.",
+  "holdoutSelectionRule": {
+    "when": "Only after exactly one H is selected and frozen; MIDI metadata first; no candidate output access.",
+    "sources": "Already-local SMD-piano_v2 paired recordings, lexical recordingId order, excluding ALL development recording IDs and audio/MIDI hashes. Not globally blind: previously used in AMT/Continuous work; engineering qualification only.",
+    "occurrences": "For each required family select its first MIDI-eligible occurrence across lexical eligible source IDs; no replacement. Duplicate source ranges may be merged using metadata only.",
+    "families": ["single", "chord", "close_spread_chord", "same_note_retrigger", "repeated_chord", "soft_after_loud", "rapid_retrigger", "held", "pedal_sustain", "extra_note_chord", "missing_note_chord", "busy_period_input", "late_publication"],
+    "caseRules": "Existing MIDI tags for repeat/soft/rapid/guards. close_spread_chord = >=2 distinct note-ons with first-to-last spread in (0,35]ms. Extra/missing chord scenarios use the first real multi-note chord and a predeclared removed/added target pitch; no synthetic audio. Busy/late uses first consecutive truth groups <=600ms apart. Missing any family BLOCKS.",
+    "context": "3.6s owned region centered with selected gesture 1.2s inside it, plus >=1.2s genuine source pre-roll and >=200ms genuine tail; require source bounds available and target >=600ms away from either owned edge. No padding or output-dependent shifting.",
+    "rates": [44100, 48000],
+    "truthIsolation": "Stage A exposes only PCM/model/FIR/ORT/source chronology, one sequential production Worker/session. Complete acoustic output SHA256 seal before Stage B opens MIDI/targets."
+  },
+  "usability": "Report intended acceptance and latency separately. Safety-only zero obtained with zero corroborated singles or zero corroborated chords is SAFE_BUT_PRODUCT_USABILITY_NOT_ESTABLISHED, not promotion. No UX SLO claim.",
+  "productChangesAllowed": false,
+  "newDatasetDownloads": 0,
+  "capabilities": {"Continuous":"MODEL_NOT_VALIDATED","STEP":"ATTEMPT_ANALYZER_NOT_VALIDATED","productionMicrophone":false,"D4":false}
+}
