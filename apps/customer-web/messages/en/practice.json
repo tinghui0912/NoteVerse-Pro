@@ -1,4 +1,13 @@
 {
+  "micPermissionDenied": "Microphone permission was denied. Allow access before starting a new session.",
+  "micSourceLost": "Microphone input was lost. This session cannot be saved as a completed performance. Start a new session.",
+  "micContextInterrupted": "The audio clock was interrupted. This session cannot be saved as a completed performance. Start a new session.",
+  "micModelUnavailable": "The verified analysis model could not be loaded. Start a new session to retry.",
+  "micWebGpuUnavailable": "WebGPU analysis is unavailable in this browser.",
+  "micSourceRateUnavailable": "This audio source rate is not supported.",
+  "micAnalysisFailed": "Audio analysis stopped. Transport and recording may continue, but evaluation is unavailable.",
+  "micRecorderUnavailable": "Recording could not finish. This session was not saved as a completed performance.",
+  "micCleanupFailed": "Session resources could not be released normally. Start a new session.",
   "start": "Start",
   "preparingPractice": "Preparing practice...",
   "performanceCountIn": "Count-in {pulse}",

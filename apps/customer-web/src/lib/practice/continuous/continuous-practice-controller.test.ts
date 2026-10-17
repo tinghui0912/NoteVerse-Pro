@@ -8,10 +8,14 @@ import type { ContinuousPlatform, ContinuousModelWorker } from './continuous-inp
 import type { ContinuousCaptureBridge } from '../acoustic-inference/continuous/capture-bridge';
 import type { BrowserMidiControllerOptions } from '../midi/browser-midi-controller';
 import { PerformanceRecorder } from '../performance-recorder';
+import { completedPerformanceStore } from '../completed-performance';
 
 function track() {
+  const events = new EventTarget();
   let state = 'live'; return { kind: 'audio', get readyState() { return state; },
-    stop: vi.fn(() => { state = 'ended'; }), addEventListener: vi.fn() };
+    stop: vi.fn(() => { state = 'ended'; events.dispatchEvent(new Event('ended')); }),
+    addEventListener: events.addEventListener.bind(events), removeEventListener: events.removeEventListener.bind(events),
+    dispatchEvent: events.dispatchEvent.bind(events) };
 }
 type TestStream = { media: MediaStream; audio: ReturnType<typeof track>; copies: TestStream[] };
 function stream(): TestStream {
@@ -33,8 +37,11 @@ function environment(rate = 48000) {
   let frame = 0, sequence = 0, bridge: ContinuousCaptureBridge | undefined, captureStopped = false;
   let fail: ((error: Error) => void) | undefined;
   let runs = 0, midiOptions: BrowserMidiControllerOptions | undefined;
+  const events = new EventTarget();
   const context = { currentTime: 0, sampleRate: rate, state: 'running',
-    resume: vi.fn(async () => {}), close: vi.fn(async () => { context.state = 'closed'; }) };
+    addEventListener: events.addEventListener.bind(events), removeEventListener: events.removeEventListener.bind(events),
+    dispatchEvent: events.dispatchEvent.bind(events),
+    resume: vi.fn(async () => {}), close: vi.fn(async () => { context.state = 'closed'; events.dispatchEvent(new Event('statechange')); }) };
   const worker: ContinuousModelWorker = { load: vi.fn(async () => ({})),
     run: vi.fn(async () => ({ events: [], inferenceMs: 0, decodeMs: 0, actualSessionRunCount: ++runs })),
     dispose: vi.fn(async () => {}), onFailure: listener => { fail = listener; return () => { fail = undefined; }; } };
@@ -83,6 +90,64 @@ function environment(rate = 48000) {
 beforeEach(() => { vi.useFakeTimers(); vi.stubGlobal('MediaRecorder', Recorder); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe('Continuous application owner', () => {
+  for (const status of ['RUNNING', 'PAUSED', 'FINALIZING'] as const) for (const event of ['ended', 'mute']) {
+    it(`source ${event} during ${status} fatally closes input and never stores completed truth`, async () => {
+      const store = vi.spyOn(completedPerformanceStore, 'setPerformance');
+      const f = environment(), controller = f.create('MICROPHONE', 0, 'AUDIO');
+      await controller.start(); await f.feed(100);
+      if (status === 'PAUSED') controller.pause();
+      const completion = status === 'FINALIZING' ? controller.finish() : Promise.resolve();
+      f.root.audio.dispatchEvent(new Event(event));
+      const count = f.bridge().runtime.snapshot().counts.windowsPublished;
+      await f.feed(300); await completion;
+      expect(controller.snapshot().session).toBe('FAILED');
+      expect(controller.snapshot().inputError).toBe('MICROPHONE_SOURCE_LOST');
+      expect(controller.snapshot().completed).toBeNull(); expect(controller.snapshot().evaluation).toBeNull();
+      expect(controller.snapshot().recording).toBeNull(); expect(store).not.toHaveBeenCalled();
+      expect(f.bridge().runtime.snapshot().counts.windowsPublished).toBe(count);
+      expect(f.worker.dispose).toHaveBeenCalledTimes(1); expect(f.context.close).toHaveBeenCalledTimes(1);
+      expect(f.root.audio.stop).toHaveBeenCalledTimes(1); await controller.dispose(); store.mockRestore();
+    });
+  }
+  for (const state of ['suspended', 'interrupted', 'closed']) for (const paused of [false, true]) {
+    it(`context ${state} while ${paused ? 'PAUSED' : 'RUNNING'} is fatal, unlike Worker failure`, async () => {
+      const store = vi.spyOn(completedPerformanceStore, 'setPerformance');
+      const f = environment(), controller = f.create(); await controller.start(); if (paused) controller.pause();
+      f.context.state = state; f.context.dispatchEvent(new Event('statechange')); await f.feed(10);
+      expect(controller.snapshot().session).toBe('FAILED'); expect(controller.snapshot().inputError).toBe('AUDIO_CONTEXT_INTERRUPTED');
+      expect(controller.snapshot().completed).toBeNull(); expect(store).not.toHaveBeenCalled();
+      expect(f.worker.dispose).toHaveBeenCalledTimes(1); await controller.dispose(); store.mockRestore();
+    });
+  }
+  for (const fault of ['worker-dispose', 'context-close', 'recorder-stop', 'recorder-stop-reject', 'recorder-finalize', 'recorder-cleanup']) {
+    it(`settles ${fault} failure without COMPLETE, unhandled rejection or double cleanup`, async () => {
+      const store = vi.spyOn(completedPerformanceStore, 'setPerformance');
+      const f = environment(); const recorder = new PerformanceRecorder('AUDIO');
+      f.platform.createRecorder = () => recorder;
+      const controller = f.create('MICROPHONE', 0, 'AUDIO'); await controller.start(); await f.feed(100);
+      if (fault === 'worker-dispose') f.worker.dispose = vi.fn(async () => { throw new Error('dispose rejected'); });
+      if (fault === 'context-close') f.context.close = vi.fn(async () => { throw new Error('close rejected'); });
+      if (fault === 'recorder-stop') recorder.freeze = () => { throw new Error('RECORDER_STOP_FAILED'); };
+      if (fault === 'recorder-stop-reject') recorder.freeze = async () => { throw new Error('RECORDER_STOP_FAILED'); };
+      if (fault === 'recorder-finalize') recorder.finalize = async () => { throw new Error('RECORDER_FINALIZE_FAILED'); };
+      if (fault === 'recorder-cleanup') {
+        const release = recorder.stopAndCleanup.bind(recorder);
+        recorder.stopAndCleanup = () => { release(); throw new Error('RECORDER_CLEANUP_FAILED'); };
+      }
+      const completion = controller.finish(); await f.feed(400); await completion;
+      expect(controller.snapshot().session).toBe('FAILED'); expect(controller.snapshot().completed).toBeNull();
+      expect(store).not.toHaveBeenCalled(); expect(f.root.audio.stop).toHaveBeenCalledTimes(1);
+      expect(f.worker.dispose).toHaveBeenCalledTimes(1); expect(f.context.close).toHaveBeenCalledTimes(1);
+      await controller.dispose(); expect(f.worker.dispose).toHaveBeenCalledTimes(1); store.mockRestore();
+    });
+  }
+  it('fresh controller after fatal source loss uses fresh owned resources', async () => {
+    const first = environment(), failed = first.create(); await failed.start();
+    first.root.audio.dispatchEvent(new Event('mute')); await first.feed(5); await failed.dispose();
+    const next = environment(), fresh = next.create(); await fresh.start(); await next.feed(1600);
+    expect(fresh.snapshot().session).toBe('COMPLETE'); expect(next.worker).not.toBe(first.worker);
+    expect(next.context).not.toBe(first.context); await fresh.dispose();
+  });
   it('MIDI natural completion owns one evaluation without acoustic dependencies', async () => {
     const f = environment(), controller = f.create('MIDI'); await controller.start();
     f.clock.set(1201); controller.refresh(); await controller.finish();

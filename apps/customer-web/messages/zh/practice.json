@@ -1,4 +1,13 @@
 {
+  "micPermissionDenied": "麦克风权限被拒绝。请允许访问后开始新会话。",
+  "micSourceLost": "麦克风输入已丢失。本次会话不能保存为完成的演奏，请开始新会话。",
+  "micContextInterrupted": "音频时钟已中断。本次会话不能保存为完成的演奏，请开始新会话。",
+  "micModelUnavailable": "无法加载已校验的分析模型。请开始新会话重试。",
+  "micWebGpuUnavailable": "当前浏览器无法使用 WebGPU 分析。",
+  "micSourceRateUnavailable": "当前音频源采样率尚不受支持。",
+  "micAnalysisFailed": "音频分析已停止。播放时钟和录制可以继续，但评估不可用。",
+  "micRecorderUnavailable": "录制未能完成。本次会话未保存为完成的演奏。",
+  "micCleanupFailed": "会话资源未能正常释放。请开始新会话。",
   "start": "开始",
   "preparingPractice": "正在准备练习...",
   "performanceCountIn": "预备拍 {pulse}",

@@ -10,6 +10,8 @@ import { ContinuousMidiInput } from './continuous-midi-input';
 import { ContinuousMicrophoneInput } from './continuous-microphone-input';
 import { browserContinuousPlatform } from './continuous-platform';
 import type { ContinuousMetronomePort, ContinuousPlatform, ContinuousRecorderPort } from './continuous-input';
+import { continuousErrorCode, type ContinuousErrorCode } from './continuous-errors';
+import { watchContinuousInfrastructure } from './continuous-infrastructure';
 
 const DIAGNOSTIC_LIMIT = 32;
 
@@ -51,11 +53,14 @@ export class ContinuousPracticeController {
   private completion: Promise<void> | null = null;
   private preparing: Promise<void> | null = null;
   private cleanupPromise: Promise<void> | null = null;
+  private cleanupFailure: string | null = null;
+  private fatalFailure: ContinuousErrorCode | null = null;
+  private detachInfrastructure: (() => void) | null = null;
   private disposed = false;
   private recordingBegan = false;
   private enabled: boolean;
   private readonly listeners = new Set<() => void>();
-  private readonly diagnostics: Readonly<{ action: string; state: string; performanceTimeMs: number }>[] = [];
+  private readonly diagnostics: Readonly<{ action: string; state: string; performanceTimeMs: number; detail?: string }>[] = [];
   private readonly tempoPlan;
   constructor(private readonly options: ContinuousControllerOptions, private readonly platform: ContinuousPlatform = browserContinuousPlatform) {
     this.tempoPlan = resolvePracticeTempoPlan(options.artifact, options.tempoSelection ?? { mode: 'SCORE' });
@@ -69,13 +74,13 @@ export class ContinuousPracticeController {
       : this.state === 'COMPLETE' ? 'COMPLETE' : this.state === 'FINALIZING' ? 'DRAINING'
       : this.transport?.state === 'PAUSED' ? 'PAUSED' : this.transport?.state === 'RUNNING' ? 'RUNNING' : 'PREROLL';
     return Object.freeze({ session: this.state, transport: this.transport ? Object.freeze({ ...this.transport }) : null,
-      analysis, analysisError: this.analysisError, inputError: this.inputError, recording: this.recorder?.snapshot() ?? null,
-      evaluation: this.session?.evaluationSnapshot ?? null, completed: this.state === 'COMPLETE' ? this.completed : null,
+      analysis, analysisError: this.analysisError, inputError: this.inputError, recording: this.fatalFailure ? null : this.recorder?.snapshot() ?? null,
+      evaluation: this.fatalFailure ? null : this.session?.evaluationSnapshot ?? null, completed: this.state === 'COMPLETE' ? this.completed : null,
       sessionSnapshot: this.state === 'COMPLETE' ? this.finalSession : null });
   }
   engineeringSnapshot() { return Object.freeze({ microphone: this.microphone?.snapshot() ?? null,
     diagnostics: Object.freeze([...this.diagnostics]), diagnosticLimit: DIAGNOSTIC_LIMIT,
-    diagnosticPlanningBytes: DIAGNOSTIC_LIMIT * 512, rootTrackStates: this.rootStream?.getTracks().map(t => t.readyState) ?? [],
+    diagnosticPlanningBytes: DIAGNOSTIC_LIMIT * 1024, rootTrackStates: this.rootStream?.getTracks().map(t => t.readyState) ?? [],
     audioContextState: this.context?.state ?? 'CLOSED', audioContextRate: this.context?.sampleRate ?? null }); }
   start(): Promise<void> {
     if (this.preparing) return this.preparing;
@@ -92,6 +97,8 @@ export class ContinuousPracticeController {
         if (this.disposed) { stream.getTracks().forEach(track => track.stop()); this.checkAlive(); }
         this.rootStream = stream; this.checkAlive();
         this.context = this.platform.createAudioContext(); await this.context.resume(); this.checkAlive();
+        this.detachInfrastructure = watchContinuousInfrastructure(this.rootStream, this.context, code => { void this.failSession(code); });
+        this.checkAlive();
         this.renderClock = new AudioContextPerformanceClock(this.context);
       }
       this.session = new ContinuousPracticeSession({ artifact: this.options.artifact, scope: this.options.scope,
@@ -100,7 +107,7 @@ export class ContinuousPracticeController {
       const session = this.session;
       if (this.microphone) {
         await this.microphone.connect({ context: this.context!, stream: this.rootStream!, sessionDomainId: session.timebase.domainId,
-          clock: this.renderClock!, publish: publication => { session.publishAnalysis(publication); this.notify(); } }, this.abort.signal);
+          clock: this.renderClock!, publish: publication => { this.checkAlive(); session.publishAnalysis(publication); this.notify(); } }, this.abort.signal);
       } else {
         this.midi = new ContinuousMidiInput(this.platform, { timebase: session.timebase,
           observe: attack => { session.observeCapturedAttack(attack); this.notify(); },
@@ -128,10 +135,12 @@ export class ContinuousPracticeController {
       });
       this.state = 'ACTIVE'; this.record('START'); this.timer = setInterval(() => this.refresh(), 10); this.notify();
     } catch (error) {
-      if (!this.disposed) { this.inputError = error instanceof Error ? error.message : String(error);
+      if (!this.disposed && !this.fatalFailure) { this.inputError = this.options.inputSource === 'MICROPHONE'
+        ? continuousErrorCode(error, 'MODEL_LOAD_FAILED') : (error as Error).message;
+        this.record('PREPARATION_FAILED', String(error));
         if (this.options.inputSource === 'MICROPHONE') this.analysisError ??= this.inputError.slice(0, 256);
         this.state = 'FAILED_BEFORE_START'; }
-      await this.cleanup(); this.notify();
+      await this.cleanup(); if (this.cleanupFailure && !this.disposed) this.state = 'FAILED'; this.notify();
     }
   }
   pause(): void {
@@ -161,7 +170,7 @@ export class ContinuousPracticeController {
     if (this.completion) return this.completion;
     if (this.state !== 'ACTIVE') return Promise.resolve();
     let mediaStop: Promise<unknown> = Promise.resolve();
-    this.transition(C => {
+    try { this.transition(C => {
       const snapshot = this.session!.snapshot();
       if (snapshot.state !== 'ENDED') this.cancelFuture(snapshot.state === 'COUNT_IN'
         || snapshot.state === 'PAUSED' && snapshot.countInRemainingMs > 0);
@@ -169,7 +178,7 @@ export class ContinuousPracticeController {
       // A naturally completed scheduled terminal may already have been applied.
       if (this.transport.completionReason !== 'SCOPE_COMPLETED') this.boundary('TERMINAL', C, this.transport.performanceTimeMs);
       mediaStop = this.recorder?.freeze(this.transport.performanceTimeMs) ?? Promise.resolve();
-    });
+    }); } catch (error) { return this.failSession(continuousErrorCode(error, 'RECORDER_UNAVAILABLE'), error); }
     return this.complete(mediaStop);
   }
   /** Sampling is presentation-only; lifecycle decisions stay here, not in React. */
@@ -177,7 +186,10 @@ export class ContinuousPracticeController {
     if (this.state !== 'ACTIVE' || !this.session) return;
     this.transport = this.session.snapshot();
     if (this.transport.state === 'RUNNING' && !this.recordingBegan) this.startRecording();
-    if (this.transport.state === 'ENDED') { void this.complete(this.recorder?.freeze(this.transport.performanceTimeMs) ?? Promise.resolve()); return; }
+    if (this.transport.state === 'ENDED') {
+      try { void this.complete(this.recorder?.freeze(this.transport.performanceTimeMs) ?? Promise.resolve()); }
+      catch (error) { void this.failSession('RECORDER_UNAVAILABLE', error); } return;
+    }
     this.notify();
   }
   setMetronomeEnabled(enabled: boolean): void {
@@ -208,14 +220,19 @@ export class ContinuousPracticeController {
   private complete(mediaStop: Promise<unknown>): Promise<void> {
     if (this.completion) return this.completion;
     this.state = 'FINALIZING'; if (this.timer) clearInterval(this.timer); this.timer = null; this.metronome?.stop(); this.notify();
+    // Observe stop rejection immediately, even while acoustic tail work is pending.
+    const stopped = mediaStop.then(result => {
+      if (result === 'FAILED' || result === 'TIMEOUT') return this.failSession('RECORDER_UNAVAILABLE');
+    }, error => this.failSession('RECORDER_UNAVAILABLE', error));
     this.completion = (async () => {
       try {
         if (this.microphone && !this.analysisError) {
           try { await this.microphone.finish(this.abort.signal); }
           catch (error) { if (this.disposed) return; this.analysisFailed((error as Error).message); }
         }
-        await mediaStop; this.checkAlive();
+        await stopped; this.checkAlive();
         const media = await this.recorder!.finalize(); this.checkAlive();
+        if (media.media.status === 'UNAVAILABLE') throw new Error('RECORDER_UNAVAILABLE');
         const session = this.session!; this.finalSession = session.snapshotSession();
         const evaluation = this.analysisError ? Object.freeze({ status: 'UNAVAILABLE' as const, reason: 'CONTINUOUS_ANALYSIS_UNAVAILABLE' as const })
           : session.completedEvaluation();
@@ -228,35 +245,53 @@ export class ContinuousPracticeController {
         this.state = 'COMPLETE'; completedPerformanceStore.setPerformance(this.completed); this.record('COMPLETE');
         this.notify(); this.options.onCompletion?.(this.finalSession);
       } catch (error) {
-        if (!this.disposed) { this.inputError = (error as Error).message.slice(0, 256); this.state = 'FAILED'; await this.cleanup(); this.notify(); }
+        if (!this.disposed) await this.failSession(continuousErrorCode(error, this.cleanupFailure ? 'RESOURCE_CLEANUP_FAILED' : 'RECORDER_UNAVAILABLE'), error);
       } finally { if (this.disposed) await this.cleanup(); }
     })();
     return this.completion;
   }
-  private analysisFailed(reason: string): void { this.analysisError ??= reason.slice(0, 256); this.record('ANALYSIS_FAILED'); this.notify(); }
+  private analysisFailed(reason: string): void {
+    if (this.fatalFailure || this.disposed) return;
+    this.analysisError ??= continuousErrorCode(reason, 'ANALYSIS_FAILED'); this.record('ANALYSIS_FAILED', reason); this.notify();
+  }
+  private async failSession(code: ContinuousErrorCode, cause: unknown = code): Promise<void> {
+    if (this.disposed || this.fatalFailure || this.state === 'COMPLETE') return;
+    this.fatalFailure = code; this.inputError = code; this.analysisError = code;
+    this.completed = null; this.finalSession = null; this.state = 'FAILED';
+    this.abort.abort(); this.microphone?.fail(code); this.record('SESSION_FAILED', String(cause)); this.notify();
+    await this.cleanup(); this.notify();
+  }
   private checkAlive(): void {
     if (this.disposed || this.abort.signal.aborted) throw new Error('CONTINUOUS_DISPOSED');
+    if (this.fatalFailure || this.cleanupFailure) throw new Error(this.fatalFailure ?? this.cleanupFailure!);
     if (this.state === 'PREPARING' && this.analysisError) throw new Error(this.analysisError);
   }
   private cleanup(): Promise<void> {
     if (this.cleanupPromise) return this.cleanupPromise;
     if (this.timer) clearInterval(this.timer); this.timer = null;
-    for (const release of [() => this.metronome?.destroy(), () => this.midi?.dispose(), () => this.recorder?.stopAndCleanup()]) {
-      try { release(); } catch (error) { this.inputError ??= `RESOURCE_CLEANUP_FAILED:${(error as Error).message}`.slice(0, 256); }
-    }
+    this.detachInfrastructure?.(); this.detachInfrastructure = null;
     this.cleanupPromise = (async () => {
+      const failed = (error: unknown) => {
+        this.cleanupFailure ??= 'RESOURCE_CLEANUP_FAILED'; this.inputError ??= 'RESOURCE_CLEANUP_FAILED';
+        this.record('CLEANUP_FAILED', String(error));
+      };
+      for (const release of [() => this.metronome?.destroy(), () => this.midi?.dispose(), () => this.recorder?.stopAndCleanup()]) {
+        try { release(); } catch (error) { failed(error); }
+      }
       try { await this.microphone?.dispose(); }
-      catch (error) { this.inputError ??= `RESOURCE_CLEANUP_FAILED:${(error as Error).message}`.slice(0, 256); }
+      catch (error) { failed(error); }
       finally {
-        this.rootStream?.getTracks().forEach(track => track.stop()); this.rootStream = null;
-        if (this.context && this.context.state !== 'closed') await this.context.close();
+        const root = this.rootStream; this.rootStream = null;
+        for (const track of root?.getTracks() ?? []) { try { track.stop(); } catch (error) { failed(error); } }
+        try { if (this.context && this.context.state !== 'closed') await this.context.close(); } catch (error) { failed(error); }
       }
     })(); return this.cleanupPromise;
   }
   async dispose(): Promise<void> {
     if (this.disposed) return this.cleanup(); this.disposed = true; this.abort.abort(); this.state = 'DISPOSED';
-    await this.cleanup(); await this.completion; this.listeners.clear();
+    await this.cleanup(); await this.completion; if (this.cleanupFailure) this.state = 'FAILED'; this.listeners.clear();
   }
-  private record(action: string): void { this.diagnostics.push(Object.freeze({ action, state: this.state, performanceTimeMs: this.transport?.performanceTimeMs ?? 0 })); if (this.diagnostics.length > DIAGNOSTIC_LIMIT) this.diagnostics.shift(); }
+  private record(action: string, detail?: string): void { this.diagnostics.push(Object.freeze({ action, state: this.state, performanceTimeMs: this.transport?.performanceTimeMs ?? 0,
+    ...(detail ? { detail: detail.slice(0, 256) } : {}) })); if (this.diagnostics.length > DIAGNOSTIC_LIMIT) this.diagnostics.shift(); }
   private notify(): void { for (const listener of this.listeners) listener(); }
 }

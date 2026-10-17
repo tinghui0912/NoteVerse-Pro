@@ -9,6 +9,7 @@ import { completedPerformanceStore } from '@/lib/practice/completed-performance'
 import { CONTINUOUS_ANALYSIS_UNAVAILABLE_REASON } from '@/lib/practice/input-capability-reasons';
 import { ContinuousPracticeController, type ContinuousControllerSnapshot } from '@/lib/practice/continuous/continuous-practice-controller';
 import { useStepLocalPractice } from './use-step-local-practice';
+import { continuousControllerView } from '@/lib/practice/continuous/continuous-presentation';
 
 export type { LocalPracticeLifecycle, LocalPracticeInputState };
 export type UseLocalPracticeOptions = {
@@ -40,7 +41,7 @@ export function useLocalPractice(options: UseLocalPracticeOptions) {
   }, [options.mode]);
   const start = useCallback(async () => {
     if (controller.current) {
-      if (controller.current.snapshot().session !== 'FAILED_BEFORE_START') return;
+      if (!['FAILED_BEFORE_START', 'FAILED', 'DISPOSED'].includes(controller.current.snapshot().session)) return;
       await dispose();
     }
     try {
@@ -63,10 +64,9 @@ export function useLocalPractice(options: UseLocalPracticeOptions) {
   const skip = useCallback(() => {}, []);
   if (options.mode === 'STEP_BY_STEP') return step;
   const transport = snapshot?.transport;
-  const lifecycle: LocalPracticeLifecycle = !transport ? 'READY' : transport.state === 'ENDED' ? 'ENDED' : transport.state === 'PAUSED' ? 'PAUSED' : 'ACTIVE';
-  const inputError = error ?? snapshot?.inputError ?? snapshot?.analysisError ?? null;
-  const inputState: LocalPracticeInputState = inputError ? 'ERROR' : snapshot?.session === 'PREPARING' ? 'STARTING'
-    : lifecycle === 'ACTIVE' ? 'RUNNING' : 'IDLE';
+  const view = continuousControllerView(snapshot), lifecycle = view.lifecycle;
+  const inputError = error ?? view.inputError;
+  const inputState: LocalPracticeInputState = inputError ? 'ERROR' : view.inputState;
   return { lifecycle, inputState, inputError, error: inputError, activeStepGroup: null,
     performanceClock: transport ?? null, performanceEvaluation: snapshot?.evaluation ?? null,
     elapsedSeconds: Math.floor(((transport?.performanceTimeMs ?? 0) + (transport?.countInTotalMs ?? 0) - (transport?.countInRemainingMs ?? 0)) / 1000),

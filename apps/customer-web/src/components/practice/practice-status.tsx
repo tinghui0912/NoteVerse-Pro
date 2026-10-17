@@ -9,8 +9,10 @@ import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-cor
 import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/performance-runtime';
 import type { LocalPracticeLifecycle, LocalPracticeInputState } from '@/lib/practice/local-core/session';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
+import { continuousErrorMessageKeys, type ContinuousErrorCode } from '@/lib/practice/continuous/continuous-errors';
 
 type PracticeStatusMessageKey =
+  | typeof continuousErrorMessageKeys[ContinuousErrorCode]
   | 'preparingPractice'
   | 'performanceCountIn'
   | 'performanceStarting'
@@ -75,6 +77,10 @@ export function resolvePracticeStatusView({
   performanceClock?: PerformanceClockSnapshot | null;
 }): PracticeStatusView {
   if (inputState === 'ERROR') {
+    if (inputError && Object.hasOwn(continuousErrorMessageKeys, inputError)) {
+      return { messageKey: continuousErrorMessageKeys[inputError as ContinuousErrorCode],
+        isError: true, pending: false, countInPulse: null };
+    }
     if (inputError === 'NO_CONNECTED_INPUT') {
       return {
         messageKey: 'midiNoConnectedInput',

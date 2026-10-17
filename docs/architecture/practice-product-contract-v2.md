@@ -265,10 +265,31 @@ chronological across segments. At pause T, coverage remains below T; only actual
 Stop/natural terminal, after real tail and inference drain, publishes empty exact-T
 coverage for the completed [0,T) domain. This does not manufacture an event at T.
 
-Acoustic failure invalidates analysis only. It cannot pause/stop/seek the clock or
+Worker/model analysis failure with healthy session infrastructure invalidates analysis only. It cannot pause/stop/seek the clock or
 change tempo; it cannot stop a recording track owned elsewhere. Model download may
 need network at cold start, but loaded active execution is browser-local. Only the
 qualified 44.1k/48k source adapters are accepted. There is no automatic provider/model
 fallback, unbounded PCM retention, unlimited inference queue or full-event diagnostic
 ring. Continuous microphone remains MODEL_NOT_VALIDATED; STEP remains
 ATTEMPT_ANALYZER_NOT_VALIDATED. This boundary does not enable either product input.
+
+## Continuous Infrastructure Interruption
+
+The controller monitors its root microphone tracks (`ended` / `mute`) and shared
+AudioContext. Unexpected loss of the physical source or a context transition away
+from running invalidates the whole session, unlike a Worker-only analysis failure.
+It blocks further evidence, withholds evaluation and recording as completed truth,
+and releases owned resources. It never reconstructs a clock or reacquires a device.
+A new attempt requires a fresh controller, stream, context and Worker.
+
+Infrastructure listeners are detached before intentional track stop/context close.
+Cleanup rejection is terminal failure, not successful completion. Every owned
+resource release is attempted once; inability to release a browser resource is
+reported, not hidden behind COMPLETE. Product messages use stable localized error
+categories; bounded engineering diagnostics retain the causal detail separately.
+
+Paired audio/MIDI replay is test infrastructure only. It may replace the physical
+capture provider and score sealed acoustic outputs downstream. It is not a product
+input mode, hardware qualification, natural fixed-BPM human trial, or release gate.
+Truth MIDI never enters the neural path. Capability remains unavailable until an
+independent physical-device/product enablement gate is accepted.
