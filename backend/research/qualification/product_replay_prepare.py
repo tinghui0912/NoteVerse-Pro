@@ -16,6 +16,14 @@ WORK = ROOT / 'backend/data/work/product_completion_replay/v1'
 REPORT = ROOT / 'backend/research/reports/product_completion_corpus_v1_2026-10-17.json'
 SHA = lambda b: hashlib.sha256(b).hexdigest()
 
+def receipt_file(value):
+    relative = Path(value.replace('\\', '/'))
+    if relative.is_absolute() or ':' in str(relative) or '..' in relative.parts:
+        raise ValueError('UNSAFE_RECEIPT_PATH')
+    resolved = (ROOT / relative).resolve()
+    if not resolved.is_relative_to(ROOT.resolve()): raise ValueError('UNSAFE_RECEIPT_PATH')
+    return resolved
+
 def save(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open('x', encoding='utf8') as f:
@@ -82,7 +90,7 @@ def truth(run_id):
     manifest = json.loads(REPORT.read_text())
     seal = json.loads((work / 'acoustic_seal.json').read_text())
     for item in seal['files']:
-        if SHA((ROOT / item['path']).read_bytes()) != item['sha256']: raise ValueError('ACOUSTIC_SEAL_DRIFT')
+        if SHA(receipt_file(item['path']).read_bytes()) != item['sha256']: raise ValueError('ACOUSTIC_SEAL_DRIFT')
     rows = []
     with zipfile.ZipFile(ROOT / manifest['sourceArchive']) as archive:
         for c in manifest['clips']:
