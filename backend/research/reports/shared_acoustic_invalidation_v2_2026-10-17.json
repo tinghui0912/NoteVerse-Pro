@@ -1,0 +1,16 @@
+{
+  "phase": "PRACTICE_SHARED_ACOUSTIC_FOUNDATION_CLEAN_BREAK_REFACTOR",
+  "invalidatedFreezeCommit": "e32161f6f3488f7596f6c9c59ea5d71920d2a6a1",
+  "freezeSha256": "19a8f00d01e7ef7de75d0a79bcbc3f82b35e4e30279db10185c72a198da7e2f2",
+  "reason": "Hermetic route-test FastAPI app omitted the production exception handlers. Missing-token AuthenticationException escaped TestClient instead of being serialized as HTTP401. Production endpoint/authentication implementation was not faulty or changed.",
+  "verificationReceipt": "backend/data/work/shared_acoustic/shared_acoustic_v2/controller/verification.json",
+  "vitest": {"files": 139, "passed": 1052, "failed": 0},
+  "typecheck": "PASS_NOT_REUSED",
+  "lint": "PASS_ZERO_MESSAGES_NOT_REUSED",
+  "productionBuild": "PASS_NOT_REUSED",
+  "dockerAssetUnittest": {"passed": 4, "failed": 0},
+  "dockerRouteTests": {"passed": 2, "failed": 1},
+  "browserExecution": "NOT_STARTED",
+  "actualModelRuns": 0,
+  "fixScope": "Register the same production exception handler in the hermetic test app; no product acoustic/core/source/model/DSP change. New freeze and complete rerun required."
+}

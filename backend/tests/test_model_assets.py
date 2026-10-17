@@ -13,8 +13,10 @@ from app.api.deps import get_current_user
 from app.db.models.user import User
 from app.modules.model_assets.router import get_model_asset_service, router
 from app.modules.model_assets.service import ModelAssetService
+from app.core.exception_handlers import register_exception_handlers
 
 app = FastAPI()
+register_exception_handlers(app)
 app.include_router(router, prefix="/api/v1/model-assets")
 
 
