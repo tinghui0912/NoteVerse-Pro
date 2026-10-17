@@ -1,0 +1,15 @@
+# Waiting acoustic attempt qualification
+
+Research only. Fixed 50ms first-anchor, half-open assembly is an engineering choice from exposed development evidence. The earlier blocked result and H search are unchanged. There is no candidate selector or fallback.
+
+`select_corpus.py` reads MIDI metadata before any selected acoustic output. It excludes prior STEP development IDs and audio/MIDI hashes. The final v2 metadata selection contains 15 cases at both supported rates, from four local SMD recordings. The earlier v1 metadata draft was superseded before acoustic execution to require a genuine second busy-period physical gesture. No output-dependent replacement occurred. SMD is not globally blind due earlier AMT/Continuous work.
+
+Stage A (`browser.mjs`, `audio-entry.ts`, `waiting-assembly.ts`) serves only audio assets, constructs one production Worker/model session, and executes one uninterrupted source region per independent recording case. It discards the entire startup owned interval. It never imports STEP targets or truth. Full acoustic output is hashed and made read-only before Stage B opens truth. The browser bundle import inventory and HTTP allowlist are retained.
+
+The physical replay clock is a deterministic, continuously advancing integer source-sample clock; real inference transaction duration advances simulated capture independently of analyzed coverage. This is not hardware timing or UX latency evidence. A physically intended opportunity that occurs before actual warm READY is reported as an invalid waiting-user trial, never replaced or advertised as accepted waiting behavior.
+
+Stage B calls the production `StepPracticeRuntime`. Only sealed, generic pitch evidence reaches target comparison. Counterfactual targets and repeated target sentinels test dangerous advances. Busy scenarios add a fixed 1000ms product-analysis hold; late receipts keep their original source identity and event time. Neither changes H or model execution. Report software invariants, empirical acoustic safety, and corpus/harness limitations separately.
+
+The canonical Continuous browser executor is `apps/customer-web/scripts/qualification/continuous-regression.mjs`. Phase configuration supplies freeze proof and output paths only. Twelve prior copied executors were removed and archived byte-for-byte with original Git blob and working-byte SHA256 receipts. The chronology diagnostic wrapper records compact rejected-chunk metadata and rethrows the unchanged production validation error; it cannot accept a rejected chunk.
+
+Execution order: commit tooling, generate/commit/push prospective freeze, independently verify remote freeze, full static verification, Continuous engineering and musical/product regression, holdout Stage A, immutable seal, Stage B, evidence, GitHub receipt. Any Continuous prerequisite failure blocks holdout execution. No production source or capability change is allowed.
